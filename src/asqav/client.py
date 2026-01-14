@@ -541,7 +541,7 @@ class Agent:
         Returns:
             SessionResponse with session details.
         """
-        data = _post("/sessions", {"agent_id": self.agent_id})
+        data = _post("/sessions/", {"agent_id": self.agent_id})
 
         self._session_id = data["session_id"]
 
