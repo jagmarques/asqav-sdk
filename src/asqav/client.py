@@ -25,9 +25,9 @@ import os
 import sys
 import time
 import uuid
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from collections.abc import Callable, Generator
 from typing import Any, TypeVar
 from urllib.parse import urljoin
 
@@ -111,9 +111,8 @@ class SessionResponse:
     session_id: str
     agent_id: str
     status: str
-    started_at: float
-    ended_at: float | None = None
-    action_count: int = 0
+    started_at: str  # ISO datetime string
+    ended_at: str | None = None
 
 
 @dataclass
@@ -542,7 +541,7 @@ class Agent:
         Returns:
             SessionResponse with session details.
         """
-        data = _post(f"/agents/{self.agent_id}/sessions", {})
+        data = _post("/sessions", {"agent_id": self.agent_id})
 
         self._session_id = data["session_id"]
 
@@ -557,7 +556,7 @@ class Agent:
         """End the current session.
 
         Args:
-            status: Final status (completed, error).
+            status: Final status (completed, error, timeout).
 
         Returns:
             SessionResponse with final details.
@@ -565,8 +564,8 @@ class Agent:
         if not self._session_id:
             raise AsqavError("No active session")
 
-        data = _post(
-            f"/agents/{self.agent_id}/sessions/{self._session_id}/end",
+        data = _patch(
+            f"/sessions/{self._session_id}",
             {"status": status},
         )
 
@@ -578,8 +577,7 @@ class Agent:
             agent_id=data["agent_id"],
             status=data["status"],
             started_at=data["started_at"],
-            ended_at=data["ended_at"],
-            action_count=data["action_count"],
+            ended_at=data.get("ended_at"),
         )
 
     def revoke(self, reason: str = "manual") -> None:
@@ -707,6 +705,19 @@ def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return result
     else:
         return _urllib_request("POST", path, data)
+
+
+def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Make a PATCH request to the API."""
+    _ensure_initialized()
+
+    if _HTTPX_AVAILABLE and _client:
+        response = _client.patch(path, json=data)
+        _handle_response(response)
+        result: dict[str, Any] = response.json()
+        return result
+    else:
+        return _urllib_request("PATCH", path, data)
 
 
 def _ensure_initialized() -> None:
