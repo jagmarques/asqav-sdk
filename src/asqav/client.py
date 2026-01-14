@@ -155,6 +155,19 @@ class SDTokenResponse:
 
 
 @dataclass
+class DelegationResponse:
+    """Response from agent delegation."""
+
+    delegation_id: str
+    parent_id: str
+    child_id: str
+    child_name: str
+    scope: list[str]
+    expires_at: float
+    created_at: float
+
+
+@dataclass
 class Span:
     """A single traced operation.
 
@@ -580,6 +593,41 @@ class Agent:
         _post(
             f"/agents/{self.agent_id}/revoke",
             {"reason": reason},
+        )
+
+    def delegate(
+        self,
+        name: str,
+        scope: list[str] | None = None,
+        ttl: int = 86400,
+    ) -> "Agent":
+        """Create a delegated child agent with limited scope.
+
+        Args:
+            name: Name for the child agent.
+            scope: List of capabilities to delegate.
+            ttl: Time-to-live in seconds (default 24h, max 7 days).
+
+        Returns:
+            Agent: The delegated child agent.
+        """
+        data = _post(
+            f"/agents/{self.agent_id}/delegate",
+            {
+                "name": name,
+                "scope": scope or [],
+                "ttl": ttl,
+            },
+        )
+
+        return Agent(
+            agent_id=data["child_id"],
+            name=data["child_name"],
+            public_key="",  # Child key managed server-side
+            key_id="",
+            algorithm=self.algorithm,
+            capabilities=data["scope"],
+            created_at=data["created_at"],
         )
 
     @property
