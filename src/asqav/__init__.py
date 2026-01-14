@@ -1,0 +1,82 @@
+"""
+asqav - Thin SDK that connects to asqav.com.
+
+All ML-DSA signing happens server-side.
+
+Quick Start:
+    import asqav
+
+    asqav.init(api_key="sk_...")
+    agent = asqav.Agent.create("my-agent")
+    sig = agent.sign("api:call", {"model": "gpt-4"})
+
+With Tracing:
+    import asqav
+
+    asqav.init()
+
+    with asqav.span("api:openai", {"model": "gpt-4"}) as s:
+        response = client.chat.completions.create(...)
+        s.set_attribute("tokens", response.usage.total_tokens)
+
+With Decorators:
+    @asqav.secure
+    def my_agent_function():
+        return "Cryptographically signed"
+
+Get your API key at asqav.com
+"""
+
+from .client import (
+    Agent,
+    AgentResponse,
+    APIError,
+    AsqavError,
+    AuthenticationError,
+    configure_otel,
+    export_spans,
+    flush_spans,
+    get_agent,
+    get_current_span,
+    init,
+    RateLimitError,
+    SDTokenResponse,
+    secure,
+    secure_async,
+    SessionResponse,
+    SignatureResponse,
+    span,
+    Span,
+    TokenResponse,
+)
+
+__version__ = "0.1.0"
+__all__ = [
+    # Initialization
+    "init",
+    # Agent
+    "Agent",
+    "AgentResponse",
+    "get_agent",
+    # Responses
+    "TokenResponse",
+    "SDTokenResponse",
+    "SignatureResponse",
+    "SessionResponse",
+    # Tracing
+    "Span",
+    "span",
+    "get_current_span",
+    # OTEL Export
+    "configure_otel",
+    "export_spans",
+    "flush_spans",
+    # Decorators
+    "secure",
+    "secure_async",
+    # Exceptions
+    "AsqavError",
+    "AuthenticationError",
+    "RateLimitError",
+    "APIError",
+]
