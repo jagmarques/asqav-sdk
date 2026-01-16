@@ -33,6 +33,26 @@ from urllib.parse import urljoin
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+
+def _parse_timestamp(value: Any) -> float:
+    """Parse a timestamp from API response (ISO string or float)."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        from datetime import datetime
+
+        # Parse ISO format datetime string
+        try:
+            # Handle both with and without timezone
+            if value.endswith("Z"):
+                value = value[:-1] + "+00:00"
+            dt = datetime.fromisoformat(value)
+            return dt.timestamp()
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
 try:
     import httpx
 
@@ -405,7 +425,7 @@ class Agent:
             key_id=data["key_id"],
             algorithm=data["algorithm"],
             capabilities=data["capabilities"],
-            created_at=data["created_at"],
+            created_at=_parse_timestamp(data["created_at"]),
         )
 
     @classmethod
@@ -427,7 +447,7 @@ class Agent:
             key_id=data["key_id"],
             algorithm=data["algorithm"],
             capabilities=data["capabilities"],
-            created_at=data["created_at"],
+            created_at=_parse_timestamp(data["created_at"]),
         )
 
     def issue_token(
@@ -456,7 +476,7 @@ class Agent:
 
         return TokenResponse(
             token=data["token"],
-            expires_at=data["expires_at"],
+            expires_at=_parse_timestamp(data["expires_at"]),
             algorithm=data["algorithm"],
         )
 
@@ -501,7 +521,7 @@ class Agent:
             token=data["token"],
             jwt=data["jwt"],
             disclosures=data["disclosures"],
-            expires_at=data["expires_at"],
+            expires_at=_parse_timestamp(data["expires_at"]),
         )
 
     def sign(
@@ -625,7 +645,7 @@ class Agent:
             key_id="",
             algorithm=self.algorithm,
             capabilities=data["scope"],
-            created_at=data["created_at"],
+            created_at=_parse_timestamp(data["created_at"]),
         )
 
     @property
