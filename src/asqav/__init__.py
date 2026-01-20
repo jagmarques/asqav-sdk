@@ -33,13 +33,18 @@ from .client import (
     APIError,
     AsqavError,
     AuthenticationError,
+    CertificateResponse,
+    DelegationResponse,
     RateLimitError,
     SDTokenResponse,
     SessionResponse,
     SignatureResponse,
     Span,
     TokenResponse,
+    VerificationResponse,
     configure_otel,
+    export_audit_csv,
+    export_audit_json,
     export_spans,
     flush_spans,
     get_agent,
@@ -48,6 +53,7 @@ from .client import (
     secure,
     secure_async,
     span,
+    verify_signature,
 )
 
 __version__ = "0.1.0"
@@ -63,6 +69,14 @@ __all__ = [
     "SDTokenResponse",
     "SignatureResponse",
     "SessionResponse",
+    "DelegationResponse",
+    "CertificateResponse",
+    "VerificationResponse",
+    # Verification
+    "verify_signature",
+    # Export
+    "export_audit_json",
+    "export_audit_csv",
     # Tracing
     "Span",
     "span",

@@ -63,7 +63,7 @@ except ImportError:
 
 # API configuration
 _api_key: str | None = None
-_api_base: str = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/v1")
+_api_base: str = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
 _client: Any = None
 
 
@@ -120,8 +120,10 @@ class SignatureResponse:
     """Response from signing operation."""
 
     signature: str
+    signature_id: str
     action_id: str
     timestamp: float
+    verification_url: str
 
 
 @dataclass
@@ -184,6 +186,36 @@ class DelegationResponse:
     scope: list[str]
     expires_at: float
     created_at: float
+
+
+@dataclass
+class CertificateResponse:
+    """Agent identity certificate."""
+
+    agent_id: str
+    agent_name: str
+    algorithm: str
+    public_key_pem: str
+    key_id: str
+    created_at: float
+    is_revoked: bool
+
+
+@dataclass
+class VerificationResponse:
+    """Public verification response."""
+
+    signature_id: str
+    agent_id: str
+    agent_name: str
+    action_id: str
+    action_type: str
+    payload: dict[str, Any] | None
+    signature: str
+    algorithm: str
+    signed_at: float
+    verified: bool
+    verification_url: str
 
 
 @dataclass
@@ -310,11 +342,13 @@ def span_to_otel(s: Span) -> dict[str, Any]:
         "startTimeUnixNano": int(s.start_time * 1_000_000_000),
         "endTimeUnixNano": int((s.end_time or s.start_time) * 1_000_000_000),
         "attributes": [
-            {"key": k, "value": {"stringValue": str(v)}}
-            for k, v in s.attributes.items()
-        ] + ([
-            {"key": "asqav.signature", "value": {"stringValue": s.signature}}
-        ] if s.signature else []),
+            {"key": k, "value": {"stringValue": str(v)}} for k, v in s.attributes.items()
+        ]
+        + (
+            [{"key": "asqav.signature", "value": {"stringValue": s.signature}}]
+            if s.signature
+            else []
+        ),
         "status": {"code": 1 if s.status == "ok" else 2},
     }
 
@@ -340,17 +374,21 @@ def flush_spans() -> None:
 
     spans = export_spans()
     payload = {
-        "resourceSpans": [{
-            "resource": {
-                "attributes": [
-                    {"key": "service.name", "value": {"stringValue": "asqav"}},
-                ]
-            },
-            "scopeSpans": [{
-                "scope": {"name": "asqav", "version": "0.1.0"},
-                "spans": spans,
-            }]
-        }]
+        "resourceSpans": [
+            {
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "asqav"}},
+                    ]
+                },
+                "scopeSpans": [
+                    {
+                        "scope": {"name": "asqav", "version": "0.1.0"},
+                        "spans": spans,
+                    }
+                ],
+            }
+        ]
     }
 
     try:
@@ -551,8 +589,10 @@ class Agent:
 
         return SignatureResponse(
             signature=data["signature"],
+            signature_id=data["signature_id"],
             action_id=data["action_id"],
             timestamp=data["timestamp"],
+            verification_url=data["verification_url"],
         )
 
     def start_session(self) -> SessionResponse:
@@ -641,7 +681,7 @@ class Agent:
         return Agent(
             agent_id=data["child_id"],
             name=data["child_name"],
-            public_key="",  # Child key managed server-side
+            public_key="",  # Use Agent.get() to fetch full details
             key_id="",
             algorithm=self.algorithm,
             capabilities=data["scope"],
@@ -653,6 +693,27 @@ class Agent:
         """Check if this agent is revoked."""
         data = _get(f"/agents/{self.agent_id}/status")
         return bool(data.get("revoked", False))
+
+    def get_certificate(self) -> CertificateResponse:
+        """Get the agent's identity certificate.
+
+        The certificate contains the ML-DSA public key in PEM format
+        for independent verification.
+
+        Returns:
+            CertificateResponse with certificate details.
+        """
+        data = _get(f"/agents/{self.agent_id}/certificate")
+
+        return CertificateResponse(
+            agent_id=data["agent_id"],
+            agent_name=data["agent_name"],
+            algorithm=data["algorithm"],
+            public_key_pem=data["public_key_pem"],
+            key_id=data["key_id"],
+            created_at=_parse_timestamp(data["created_at"]),
+            is_revoked=data["is_revoked"],
+        )
 
 
 def init(
@@ -684,8 +745,7 @@ def init(
 
     if not _api_key:
         raise AuthenticationError(
-            "API key required. Set ASQAV_API_KEY or pass api_key to init(). "
-            "Get yours at asqav.com"
+            "API key required. Set ASQAV_API_KEY or pass api_key to init(). Get yours at asqav.com"
         )
 
     if base_url:
@@ -743,9 +803,7 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
 def _ensure_initialized() -> None:
     """Ensure the SDK is initialized."""
     if not _api_key:
-        raise AuthenticationError(
-            "Call asqav.init() first. Get your API key at asqav.com"
-        )
+        raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
 
 
 def _handle_response(response: Any) -> None:
@@ -962,3 +1020,135 @@ def secure_async(func: F) -> F:
             raise
 
     return wrapper  # type: ignore
+
+
+def verify_signature(signature_id: str) -> VerificationResponse:
+    """Publicly verify a signature by ID.
+
+    This endpoint requires no authentication. Anyone with the signature_id
+    can verify that the signature is valid and was created by the agent.
+
+    Args:
+        signature_id: The signature ID to verify.
+
+    Returns:
+        VerificationResponse with verification details.
+
+    Example:
+        result = asqav.verify_signature("sig_abc123")
+        if result.verified:
+            print(f"Signature valid for agent {result.agent_name}")
+    """
+    # Public endpoint - use urllib directly without auth
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = f"{_api_base}/verify/{signature_id}"
+
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            data: dict[str, Any] = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise APIError("Signature not found", 404) from e
+        raise APIError(str(e), e.code) from e
+
+    return VerificationResponse(
+        signature_id=data["signature_id"],
+        agent_id=data["agent_id"],
+        agent_name=data["agent_name"],
+        action_id=data["action_id"],
+        action_type=data["action_type"],
+        payload=data.get("payload"),
+        signature=data["signature"],
+        algorithm=data["algorithm"],
+        signed_at=_parse_timestamp(data["signed_at"]),
+        verified=data["verified"],
+        verification_url=data["verification_url"],
+    )
+
+
+def export_audit_json(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    agent_id: str | None = None,
+) -> dict[str, Any]:
+    """Export signed actions as JSON for audit purposes (Pro+ tier).
+
+    Args:
+        start_date: Filter by start date (ISO format).
+        end_date: Filter by end date (ISO format).
+        agent_id: Filter by agent ID.
+
+    Returns:
+        Dict with export data including signatures and verification URLs.
+    """
+    params = []
+    if start_date:
+        params.append(f"start_date={start_date}")
+    if end_date:
+        params.append(f"end_date={end_date}")
+    if agent_id:
+        params.append(f"agent_id={agent_id}")
+
+    path = "/export/json"
+    if params:
+        path += "?" + "&".join(params)
+
+    return _get(path)
+
+
+def export_audit_csv(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    agent_id: str | None = None,
+) -> str:
+    """Export signed actions as CSV for audit purposes (Pro+ tier).
+
+    Args:
+        start_date: Filter by start date (ISO format).
+        end_date: Filter by end date (ISO format).
+        agent_id: Filter by agent ID.
+
+    Returns:
+        CSV string with signed actions.
+    """
+    _ensure_initialized()
+
+    params = []
+    if start_date:
+        params.append(f"start_date={start_date}")
+    if end_date:
+        params.append(f"end_date={end_date}")
+    if agent_id:
+        params.append(f"agent_id={agent_id}")
+
+    path = "/export/csv"
+    if params:
+        path += "?" + "&".join(params)
+
+    if _HTTPX_AVAILABLE and _client:
+        response = _client.get(path)
+        _handle_response(response)
+        return response.text
+    else:
+        import urllib.error
+        import urllib.request
+
+        url = urljoin(_api_base, path)
+        headers = {
+            "Authorization": f"Bearer {_api_key}",
+        }
+        request = urllib.request.Request(url, headers=headers, method="GET")
+
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return response.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                raise AuthenticationError("Invalid API key") from e
+            elif e.code == 429:
+                raise RateLimitError("Rate limit exceeded") from e
+            else:
+                raise APIError(str(e), e.code) from e
