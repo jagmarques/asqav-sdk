@@ -39,6 +39,7 @@ from .client import (
     SDTokenResponse,
     SessionResponse,
     SignatureResponse,
+    SignedActionResponse,
     Span,
     TokenResponse,
     VerificationResponse,
@@ -49,6 +50,7 @@ from .client import (
     flush_spans,
     get_agent,
     get_current_span,
+    get_session_signatures,
     init,
     secure,
     secure_async,
@@ -68,12 +70,15 @@ __all__ = [
     "TokenResponse",
     "SDTokenResponse",
     "SignatureResponse",
+    "SignedActionResponse",
     "SessionResponse",
     "DelegationResponse",
     "CertificateResponse",
     "VerificationResponse",
     # Verification
     "verify_signature",
+    # Sessions
+    "get_session_signatures",
     # Export
     "export_audit_json",
     "export_audit_csv",
