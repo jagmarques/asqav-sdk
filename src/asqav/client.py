@@ -219,6 +219,21 @@ class VerificationResponse:
 
 
 @dataclass
+class SignedActionResponse:
+    """Signed action from a session."""
+
+    signature_id: str
+    agent_id: str
+    action_id: str
+    action_type: str
+    payload: dict[str, Any] | None
+    algorithm: str
+    signed_at: float
+    signature_preview: str
+    verification_url: str
+
+
+@dataclass
 class Span:
     """A single traced operation.
 
@@ -640,6 +655,17 @@ class Agent:
             ended_at=data.get("ended_at"),
         )
 
+    def get_session_signatures(self) -> list[SignedActionResponse]:
+        """Get signed actions for the current session.
+
+        Returns:
+            List of SignedActionResponse with signature details.
+        """
+        if not self._session_id:
+            raise AsqavError("No active session")
+
+        return get_session_signatures(self._session_id)
+
     def revoke(self, reason: str = "manual") -> None:
         """Revoke this agent's credentials.
 
@@ -1020,6 +1046,33 @@ def secure_async(func: F) -> F:
             raise
 
     return wrapper  # type: ignore
+
+
+def get_session_signatures(session_id: str) -> list[SignedActionResponse]:
+    """Get signed actions for a session.
+
+    Args:
+        session_id: The session ID.
+
+    Returns:
+        List of SignedActionResponse with signature details.
+    """
+    data = _get(f"/sessions/{session_id}/signatures")
+
+    return [
+        SignedActionResponse(
+            signature_id=sig["signature_id"],
+            agent_id=sig["agent_id"],
+            action_id=sig["action_id"],
+            action_type=sig["action_type"],
+            payload=sig.get("payload"),
+            algorithm=sig["algorithm"],
+            signed_at=_parse_timestamp(sig["signed_at"]),
+            signature_preview=sig["signature_preview"],
+            verification_url=sig["verification_url"],
+        )
+        for sig in data
+    ]
 
 
 def verify_signature(signature_id: str) -> VerificationResponse:
