@@ -398,7 +398,7 @@ def flush_spans() -> None:
                 },
                 "scopeSpans": [
                     {
-                        "scope": {"name": "asqav", "version": "0.1.0"},
+                        "scope": {"name": "asqav", "version": "0.2.0"},
                         "spans": spans,
                     }
                 ],
