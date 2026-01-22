@@ -58,7 +58,9 @@ agent = asqav.Agent.get("agt_xxx")
 agent.sign("action", {"key": "value"})
 agent.issue_token(scope=["read"], ttl=3600)
 agent.issue_sd_token(claims={...}, disclosable=[...])  # Business tier
-agent.revoke(reason="manual")
+agent.suspend(reason="investigation", note="...")  # Temporary disable
+agent.unsuspend()  # Re-enable suspended agent
+agent.revoke(reason="manual")  # Permanent revoke
 ```
 
 ### Tracing
