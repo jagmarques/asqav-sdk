@@ -58,7 +58,7 @@ from .client import (
     verify_signature,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     # Initialization
     "init",
