@@ -667,9 +667,10 @@ class Agent:
         return get_session_signatures(self._session_id)
 
     def revoke(self, reason: str = "manual") -> None:
-        """Revoke this agent's credentials.
+        """Revoke this agent's credentials permanently.
 
         Revocation propagates globally across the asqav network.
+        Use suspend() for temporary disable that can be reversed.
 
         Args:
             reason: Reason for revocation.
@@ -678,6 +679,40 @@ class Agent:
             f"/agents/{self.agent_id}/revoke",
             {"reason": reason},
         )
+
+    def suspend(
+        self,
+        reason: str = "manual",
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        """Temporarily suspend this agent.
+
+        Suspended agents cannot sign, issue tokens, or delegate.
+        Use unsuspend() to restore access. For permanent revocation,
+        use revoke() instead.
+
+        Args:
+            reason: Reason for suspension (investigation, maintenance,
+                    policy_violation, manual, anomaly_detected).
+            note: Optional note about the suspension.
+
+        Returns:
+            Dict with suspension details.
+        """
+        payload: dict[str, Any] = {"reason": reason}
+        if note:
+            payload["note"] = note
+        return _post(f"/agents/{self.agent_id}/suspend", payload)
+
+    def unsuspend(self) -> dict[str, Any]:
+        """Remove suspension from this agent.
+
+        Restores the agent to active status.
+
+        Returns:
+            Dict with updated agent status.
+        """
+        return _post(f"/agents/{self.agent_id}/unsuspend", {})
 
     def delegate(
         self,
@@ -719,6 +754,12 @@ class Agent:
         """Check if this agent is revoked."""
         data = _get(f"/agents/{self.agent_id}/status")
         return bool(data.get("revoked", False))
+
+    @property
+    def is_suspended(self) -> bool:
+        """Check if this agent is suspended."""
+        data = _get(f"/agents/{self.agent_id}/status")
+        return bool(data.get("suspended", False))
 
     def get_certificate(self) -> CertificateResponse:
         """Get the agent's identity certificate.
