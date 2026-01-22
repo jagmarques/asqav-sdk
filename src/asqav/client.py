@@ -781,7 +781,7 @@ def init(
     if _HTTPX_AVAILABLE:
         _client = httpx.Client(
             base_url=_api_base,
-            headers={"Authorization": f"Bearer {_api_key}"},
+            headers={"X-API-Key": _api_key},
             timeout=30.0,
         )
 
@@ -858,7 +858,7 @@ def _urllib_request(
 
     url = urljoin(_api_base, path)
     headers = {
-        "Authorization": f"Bearer {_api_key}",
+        "X-API-Key": _api_key,
         "Content-Type": "application/json",
     }
 
@@ -1092,20 +1092,29 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         if result.verified:
             print(f"Signature valid for agent {result.agent_name}")
     """
-    # Public endpoint - use urllib directly without auth
-    import json
-    import urllib.error
-    import urllib.request
-
     url = f"{_api_base}/verify/{signature_id}"
 
-    try:
-        with urllib.request.urlopen(url, timeout=30) as response:
-            data: dict[str, Any] = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            raise APIError("Signature not found", 404) from e
-        raise APIError(str(e), e.code) from e
+    # Use httpx if available (better SSL handling)
+    if _HTTPX_AVAILABLE:
+        response = httpx.get(url, timeout=30.0)
+        if response.status_code == 404:
+            raise APIError("Signature not found", 404)
+        if response.status_code >= 400:
+            raise APIError(response.text, response.status_code)
+        data: dict[str, Any] = response.json()
+    else:
+        # Fallback to urllib
+        import json
+        import urllib.error
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise APIError("Signature not found", 404) from e
+            raise APIError(str(e), e.code) from e
 
     return VerificationResponse(
         signature_id=data["signature_id"],
