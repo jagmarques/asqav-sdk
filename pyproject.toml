@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asqav"
-version = "0.2.1"
+version = "0.2.2"
 description = "Quantum-safe identity and cryptographic audit trails for AI agents."
 readme = "README.md"
 license = "MIT"
