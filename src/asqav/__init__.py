@@ -1,7 +1,7 @@
 """
-asqav - Thin SDK that connects to asqav.com.
+asqav - Quantum-safe control for AI agents.
 
-All ML-DSA signing happens server-side.
+Thin SDK that connects to asqav.com. All ML-DSA cryptography happens server-side.
 
 Quick Start:
     import asqav

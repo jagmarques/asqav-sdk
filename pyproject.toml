@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "asqav"
 version = "0.2.4"
-description = "Quantum-safe identity and cryptographic audit trails for AI agents."
+description = "Quantum-safe control for AI agents"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -15,7 +15,7 @@ authors = [
 keywords = [
     "ai",
     "agents",
-    "observability",
+    "control",
     "cryptography",
     "ml-dsa",
     "post-quantum",

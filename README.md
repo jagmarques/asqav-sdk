@@ -4,7 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Thin API client** for [asqav.com](https://asqav.com). All cryptographic operations (ML-DSA signing, key generation) happen server-side. No native dependencies required.
+**Thin API client** for [asqav.com](https://asqav.com). All ML-DSA cryptography happens server-side. No native dependencies required.
 
 ## Installation
 
