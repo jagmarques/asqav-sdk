@@ -2,7 +2,7 @@
 asqav API Client - Thin SDK that connects to asqav.com.
 
 This module provides the API client for connecting to asqav Cloud.
-All cryptographic operations happen server-side; this SDK handles
+All ML-DSA cryptography happens server-side; this SDK handles
 API communication and response parsing.
 
 Example:
@@ -425,7 +425,7 @@ def flush_spans() -> None:
 class Agent:
     """Agent representation from asqav Cloud.
 
-    All cryptographic operations are performed server-side.
+    All ML-DSA cryptography happens server-side.
     This is a thin client that wraps API calls.
     """
 
@@ -611,7 +611,7 @@ class Agent:
         )
 
     def start_session(self) -> SessionResponse:
-        """Start a new monitoring session.
+        """Start a new session.
 
         Returns:
             SessionResponse with session details.
@@ -957,10 +957,10 @@ def _auto_generate_name() -> str:
 
 
 def secure(func: F) -> F:
-    """Decorator to secure a function with asqav session logging.
+    """Decorator to secure function calls with cryptographic signing.
 
-    Wraps the function in an asqav session, logging the call as an action.
-    All logging is done server-side with ML-DSA signatures.
+    Wraps the function in an asqav session, signing the call as an action.
+    All ML-DSA cryptography happens server-side.
 
     Args:
         func: The function to secure.
@@ -975,7 +975,7 @@ def secure(func: F) -> F:
 
         @asqav.secure
         def process_data(data: dict) -> dict:
-            # This call is logged with cryptographic proof
+            # This call is signed with cryptographic proof
             return {"processed": True}
     """
 
@@ -1042,7 +1042,7 @@ def secure_async(func: F) -> F:
 
         @asqav.secure_async
         async def fetch_data(url: str) -> dict:
-            # This call is logged with cryptographic proof
+            # This call is signed with cryptographic proof
             return {"data": "..."}
     """
 
@@ -1177,7 +1177,7 @@ def export_audit_json(
     end_date: str | None = None,
     agent_id: str | None = None,
 ) -> dict[str, Any]:
-    """Export signed actions as JSON for audit purposes (Pro+ tier).
+    """Export signed actions as JSON for audit trail export (Pro+ tier).
 
     Args:
         start_date: Filter by start date (ISO format).
@@ -1207,7 +1207,7 @@ def export_audit_csv(
     end_date: str | None = None,
     agent_id: str | None = None,
 ) -> str:
-    """Export signed actions as CSV for audit purposes (Pro+ tier).
+    """Export signed actions as CSV for audit trail export (Pro+ tier).
 
     Args:
         start_date: Filter by start date (ISO format).
