@@ -234,6 +234,47 @@ class SignedActionResponse:
 
 
 @dataclass
+class ThresholdSignatureDetail:
+    """Details of a single entity signature within a threshold session."""
+
+    entity_id: str
+    entity_name: str
+    entity_class: str
+    signed_at: str
+
+
+@dataclass
+class ThresholdSessionResponse:
+    """Response from threshold signing session operations."""
+
+    session_id: str
+    config_id: str
+    agent_id: str
+    action_type: str
+    action_params: dict[str, Any] | None
+    threshold_required: int
+    signatures_collected: int
+    status: str
+    signatures: list[ThresholdSignatureDetail]
+    policy_attestation_hash: str | None
+    created_at: str
+    expires_at: str
+    resolved_at: str | None = None
+
+
+@dataclass
+class ThresholdApproveResponse:
+    """Response from threshold approval operation."""
+
+    session_id: str
+    entity_id: str
+    signatures_collected: int
+    threshold_required: int
+    status: str
+    threshold_met: bool
+
+
+@dataclass
 class Span:
     """A single traced operation.
 
@@ -1169,6 +1210,138 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         signed_at=_parse_timestamp(data["signed_at"]),
         verified=data["verified"],
         verification_url=data["verification_url"],
+    )
+
+
+def request_action(
+    agent_id: str,
+    action_type: str,
+    params: dict[str, Any] | None = None,
+) -> ThresholdSessionResponse:
+    """Request a threshold-authorized action for an agent.
+
+    Creates a signing session that requires multiple entity approvals
+    before the action is authorized (multi-key authorization).
+
+    Args:
+        agent_id: The agent requesting the action.
+        action_type: Type of action (e.g., "deploy:production").
+        params: Optional parameters for the action.
+
+    Returns:
+        ThresholdSessionResponse with session details and approval status.
+
+    Raises:
+        AuthenticationError: If API key is missing or invalid.
+        APIError: If the request fails (e.g., no threshold config for agent).
+
+    Example:
+        session = asqav.request_action(
+            agent_id="agent_abc",
+            action_type="deploy:production",
+            params={"target": "us-east-1"},
+        )
+        print(f"Session {session.session_id}: needs {session.threshold_required} approvals")
+    """
+    body: dict[str, Any] = {
+        "agent_id": agent_id,
+        "action_type": action_type,
+    }
+    if params is not None:
+        body["params"] = params
+
+    data = _post("/threshold/sessions", body)
+    return _parse_threshold_session(data)
+
+
+def approve_action(
+    session_id: str,
+    entity_id: str,
+) -> ThresholdApproveResponse:
+    """Approve a pending threshold action session.
+
+    Adds an entity signature to the session. When enough entities
+    have approved (meeting the threshold), the action is authorized.
+
+    Args:
+        session_id: The threshold session to approve.
+        entity_id: The signing entity providing approval.
+
+    Returns:
+        ThresholdApproveResponse with approval status and threshold progress.
+
+    Raises:
+        AuthenticationError: If API key is missing or invalid.
+        APIError: If the request fails (e.g., session expired, entity already signed).
+
+    Example:
+        result = asqav.approve_action(
+            session_id="thr_abc123",
+            entity_id="ent_xyz789",
+        )
+        if result.threshold_met:
+            print("Action authorized!")
+    """
+    data = _post(
+        f"/threshold/sessions/{session_id}/approve",
+        {"entity_id": entity_id},
+    )
+    return ThresholdApproveResponse(
+        session_id=data["session_id"],
+        entity_id=data["entity_id"],
+        signatures_collected=data["signatures_collected"],
+        threshold_required=data["threshold_required"],
+        status=data["status"],
+        threshold_met=data["threshold_met"],
+    )
+
+
+def get_action_status(session_id: str) -> ThresholdSessionResponse:
+    """Get the current status of a threshold action session.
+
+    Args:
+        session_id: The threshold session to check.
+
+    Returns:
+        ThresholdSessionResponse with full session details.
+
+    Raises:
+        AuthenticationError: If API key is missing or invalid.
+        APIError: If the request fails (e.g., session not found).
+
+    Example:
+        status = asqav.get_action_status("thr_abc123")
+        print(f"{status.signatures_collected}/{status.threshold_required} approvals")
+    """
+    data = _get(f"/threshold/sessions/{session_id}")
+    return _parse_threshold_session(data)
+
+
+def _parse_threshold_session(data: dict[str, Any]) -> ThresholdSessionResponse:
+    """Parse API response into ThresholdSessionResponse."""
+    signatures = [
+        ThresholdSignatureDetail(
+            entity_id=s["entity_id"],
+            entity_name=s["entity_name"],
+            entity_class=s["entity_class"],
+            signed_at=s["signed_at"],
+        )
+        for s in data.get("signatures", [])
+    ]
+    return ThresholdSessionResponse(
+        session_id=data["session_id"],
+        config_id=data["config_id"],
+        agent_id=data["agent_id"],
+        action_type=data["action_type"],
+        action_params=data.get("action_params"),
+        threshold_required=data["threshold_required"],
+        signatures_collected=data["signatures_collected"],
+        status=data["status"],
+        signatures=signatures,
+        policy_attestation_hash=data.get("policy_attestation_hash"),
+        created_at=data["created_at"],
+        expires_at=data["expires_at"],
+        resolved_at=data.get("resolved_at"),
     )
 
 
