@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asqav"
-version = "0.2.5"
+version = "0.2.6"
 description = "Quantum-safe control for AI agents"
 readme = "README.md"
 license = "MIT"
