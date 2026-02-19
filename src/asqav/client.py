@@ -275,6 +275,101 @@ class ThresholdApproveResponse:
 
 
 @dataclass
+class ThresholdConfigResponse:
+    """Response from threshold config operations."""
+
+    id: str
+    agent_id: str
+    threshold: int
+    total_shares: int
+    is_active: bool
+    created_at: str
+    updated_at: str | None = None
+
+
+@dataclass
+class SigningEntityResponse:
+    """Response from signing entity operations."""
+
+    id: str
+    config_id: str
+    entity_class: str
+    label: str
+    is_active: bool
+    created_at: str
+
+
+@dataclass
+class ThresholdKeypairResponse:
+    """Response from threshold keypair operations."""
+
+    id: str
+    config_id: str
+    public_key_hex: str
+    threshold: int
+    total_shares: int
+    created_at: str
+    status: str = "active"
+
+
+@dataclass
+class ThresholdSignResponse:
+    """Response from threshold signing operation."""
+
+    signature_hex: str
+    message_hex: str
+    keypair_id: str
+    verified: bool
+    audit_record_id: str | None = None
+
+
+@dataclass
+class RiskRuleResponse:
+    """Response from risk rule operations."""
+
+    id: str
+    name: str
+    action_pattern: str
+    risk_level: str
+    threshold_override: int | None
+    priority: int
+    entity_weights: dict[str, float] | None = None
+    time_schedule: dict[str, Any] | None = None
+    created_at: str = ""
+
+
+@dataclass
+class ThresholdDelegationResponse:
+    """Response from threshold delegation operations."""
+
+    id: str
+    config_id: str
+    delegator_entity_id: str
+    delegate_entity_id: str
+    expires_at: str
+    is_active: bool
+    created_at: str
+
+
+@dataclass
+class KeyRefreshResponse:
+    """Response from key share refresh operation."""
+
+    keypair_id: str
+    refreshed_at: str
+    delegations_invalidated: int
+
+
+@dataclass
+class ShareRecoveryResponse:
+    """Response from key share recovery operation."""
+
+    keypair_id: str
+    recovered_entity_id: str
+    recovered_at: str
+
+
+@dataclass
 class Span:
     """A single traced operation.
 
@@ -439,7 +534,7 @@ def flush_spans() -> None:
                 },
                 "scopeSpans": [
                     {
-                        "scope": {"name": "asqav", "version": "0.2.5"},
+                        "scope": {"name": "asqav", "version": "0.2.6"},
                         "spans": spans,
                     }
                 ],
@@ -908,6 +1003,32 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("PATCH", path, data)
 
 
+def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Make a PUT request to the API."""
+    _ensure_initialized()
+
+    if _HTTPX_AVAILABLE and _client:
+        response = _client.put(path, json=data)
+        _handle_response(response)
+        result: dict[str, Any] = response.json()
+        return result
+    else:
+        return _urllib_request("PUT", path, data)
+
+
+def _delete(path: str) -> dict[str, Any]:
+    """Make a DELETE request to the API."""
+    _ensure_initialized()
+
+    if _HTTPX_AVAILABLE and _client:
+        response = _client.delete(path)
+        _handle_response(response)
+        result: dict[str, Any] = response.json()
+        return result
+    else:
+        return _urllib_request("DELETE", path)
+
+
 def _ensure_initialized() -> None:
     """Ensure the SDK is initialized."""
     if not _api_key:
@@ -1343,6 +1464,518 @@ def _parse_threshold_session(data: dict[str, Any]) -> ThresholdSessionResponse:
         expires_at=data["expires_at"],
         resolved_at=data.get("resolved_at"),
     )
+
+
+# --- Threshold Configuration ---
+
+def create_threshold_config(
+    agent_id: str,
+    threshold: int,
+    total_shares: int,
+) -> ThresholdConfigResponse:
+    """Create a threshold config for an agent.
+
+    Args:
+        agent_id: The agent to configure threshold signing for.
+        threshold: Minimum signatures required (t in t-of-n).
+        total_shares: Total key shares to generate (n in t-of-n).
+
+    Returns:
+        ThresholdConfigResponse with config details.
+
+    Example:
+        config = asqav.create_threshold_config("agt_xxx", threshold=2, total_shares=3)
+    """
+    data = _post("/threshold/configs", {
+        "agent_id": agent_id,
+        "threshold": threshold,
+        "total_shares": total_shares,
+    })
+    return _parse_threshold_config(data)
+
+
+def get_threshold_config(agent_id: str) -> ThresholdConfigResponse:
+    """Get the active threshold config for an agent.
+
+    Args:
+        agent_id: The agent ID.
+
+    Returns:
+        ThresholdConfigResponse with config details.
+    """
+    data = _get(f"/threshold/configs/{agent_id}")
+    return _parse_threshold_config(data)
+
+
+def update_threshold_config(
+    config_id: str,
+    threshold: int | None = None,
+    is_active: bool | None = None,
+) -> ThresholdConfigResponse:
+    """Update a threshold config.
+
+    Args:
+        config_id: The config to update.
+        threshold: New threshold value.
+        is_active: Activate or deactivate the config.
+
+    Returns:
+        ThresholdConfigResponse with updated config.
+    """
+    body: dict[str, Any] = {}
+    if threshold is not None:
+        body["threshold"] = threshold
+    if is_active is not None:
+        body["is_active"] = is_active
+    data = _put(f"/threshold/configs/{config_id}", body)
+    return _parse_threshold_config(data)
+
+
+def _parse_threshold_config(data: dict[str, Any]) -> ThresholdConfigResponse:
+    """Parse API response into ThresholdConfigResponse."""
+    return ThresholdConfigResponse(
+        id=data["id"],
+        agent_id=data["agent_id"],
+        threshold=data["threshold"],
+        total_shares=data["total_shares"],
+        is_active=data["is_active"],
+        created_at=data["created_at"],
+        updated_at=data.get("updated_at"),
+    )
+
+
+# --- Signing Entities ---
+
+def add_entity(
+    config_id: str,
+    entity_class: str,
+    label: str,
+) -> SigningEntityResponse:
+    """Add a signing entity to a threshold config.
+
+    Entity classes: A (Agent), B (Human Operator), C (Policy Engine),
+    D (Compliance Verifier), E (Organizational Authority).
+
+    Args:
+        config_id: The threshold config to add the entity to.
+        entity_class: Entity class (A, B, C, D, or E).
+        label: Human-readable label for the entity.
+
+    Returns:
+        SigningEntityResponse with entity details.
+
+    Example:
+        entity = asqav.add_entity("cfg_xxx", entity_class="B", label="operator-1")
+    """
+    data = _post(f"/threshold/configs/{config_id}/entities", {
+        "entity_class": entity_class,
+        "label": label,
+    })
+    return SigningEntityResponse(
+        id=data["id"],
+        config_id=data["config_id"],
+        entity_class=data["entity_class"],
+        label=data["label"],
+        is_active=data["is_active"],
+        created_at=data["created_at"],
+    )
+
+
+def list_entities(config_id: str) -> list[SigningEntityResponse]:
+    """List signing entities for a threshold config.
+
+    Args:
+        config_id: The threshold config.
+
+    Returns:
+        List of SigningEntityResponse.
+    """
+    data = _get(f"/threshold/configs/{config_id}/entities")
+    return [
+        SigningEntityResponse(
+            id=e["id"],
+            config_id=e["config_id"],
+            entity_class=e["entity_class"],
+            label=e["label"],
+            is_active=e["is_active"],
+            created_at=e["created_at"],
+        )
+        for e in data
+    ]
+
+
+def remove_entity(entity_id: str) -> dict[str, Any]:
+    """Remove a signing entity (soft delete).
+
+    Args:
+        entity_id: The entity to remove.
+
+    Returns:
+        Confirmation dict.
+    """
+    return _delete(f"/threshold/entities/{entity_id}")
+
+
+# --- Threshold Keypairs ---
+
+def generate_keypair(config_id: str) -> ThresholdKeypairResponse:
+    """Generate a threshold ML-DSA keypair with Shamir secret sharing.
+
+    Creates a keypair where the private key is split into shares
+    distributed to the signing entities in the config.
+
+    Args:
+        config_id: The threshold config to generate a keypair for.
+
+    Returns:
+        ThresholdKeypairResponse with public key and metadata.
+
+    Example:
+        keypair = asqav.generate_keypair("cfg_xxx")
+        print(f"Public key: {keypair.public_key_hex[:32]}...")
+    """
+    data = _post("/threshold/keypairs", {"config_id": config_id})
+    return _parse_threshold_keypair(data)
+
+
+def get_keypair(keypair_id: str) -> ThresholdKeypairResponse:
+    """Get threshold keypair details (no raw shares).
+
+    Args:
+        keypair_id: The keypair ID.
+
+    Returns:
+        ThresholdKeypairResponse with keypair details.
+    """
+    data = _get(f"/threshold/keypairs/{keypair_id}")
+    return _parse_threshold_keypair(data)
+
+
+def threshold_sign(
+    keypair_id: str,
+    message_hex: str,
+) -> ThresholdSignResponse:
+    """Perform threshold ML-DSA signing.
+
+    Requires that the threshold of entity approvals has been met.
+    Output is a standard FIPS 204 ML-DSA-65 signature.
+
+    Args:
+        keypair_id: The threshold keypair to sign with.
+        message_hex: The message to sign (hex-encoded).
+
+    Returns:
+        ThresholdSignResponse with signature and verification status.
+
+    Example:
+        result = asqav.threshold_sign("kp_xxx", message_hex="deadbeef")
+        assert result.verified  # Standard ML-DSA verifier works
+    """
+    data = _post(f"/threshold/keypairs/{keypair_id}/sign", {
+        "message_hex": message_hex,
+    })
+    return ThresholdSignResponse(
+        signature_hex=data["signature_hex"],
+        message_hex=data["message_hex"],
+        keypair_id=data["keypair_id"],
+        verified=data["verified"],
+        audit_record_id=data.get("audit_record_id"),
+    )
+
+
+def refresh_keypair(keypair_id: str) -> KeyRefreshResponse:
+    """Refresh key shares without changing the public key.
+
+    Generates new Shamir shares while preserving the same public key.
+    Invalidates all active delegations.
+
+    Args:
+        keypair_id: The keypair to refresh.
+
+    Returns:
+        KeyRefreshResponse with refresh details.
+    """
+    data = _post(f"/threshold/keypairs/{keypair_id}/refresh", {})
+    return KeyRefreshResponse(
+        keypair_id=data["keypair_id"],
+        refreshed_at=data["refreshed_at"],
+        delegations_invalidated=data["delegations_invalidated"],
+    )
+
+
+def recover_share(
+    keypair_id: str,
+    entity_id: str,
+    contributing_entity_ids: list[str],
+) -> ShareRecoveryResponse:
+    """Recover a lost key share for an entity.
+
+    Requires exactly t contributing entities to reconstruct the share.
+
+    Args:
+        keypair_id: The keypair containing the lost share.
+        entity_id: The entity whose share is being recovered.
+        contributing_entity_ids: Entity IDs providing their shares for recovery.
+
+    Returns:
+        ShareRecoveryResponse with recovery details.
+    """
+    data = _post(f"/threshold/keypairs/{keypair_id}/recover", {
+        "entity_id": entity_id,
+        "contributing_entity_ids": contributing_entity_ids,
+    })
+    return ShareRecoveryResponse(
+        keypair_id=data["keypair_id"],
+        recovered_entity_id=data["recovered_entity_id"],
+        recovered_at=data["recovered_at"],
+    )
+
+
+def _parse_threshold_keypair(data: dict[str, Any]) -> ThresholdKeypairResponse:
+    """Parse API response into ThresholdKeypairResponse."""
+    return ThresholdKeypairResponse(
+        id=data["id"],
+        config_id=data["config_id"],
+        public_key_hex=data["public_key_hex"],
+        threshold=data["threshold"],
+        total_shares=data["total_shares"],
+        created_at=data["created_at"],
+        status=data.get("status", "active"),
+    )
+
+
+# --- Risk Rules ---
+
+def create_risk_rule(
+    name: str,
+    action_pattern: str,
+    risk_level: str,
+    threshold_override: int | None = None,
+    priority: int = 0,
+    entity_weights: dict[str, float] | None = None,
+    time_schedule: dict[str, Any] | None = None,
+) -> RiskRuleResponse:
+    """Create a risk classification rule.
+
+    Risk rules dynamically adjust thresholds based on action patterns.
+
+    Args:
+        name: Rule name.
+        action_pattern: Glob pattern to match action types.
+        risk_level: Risk level (low, medium, high, critical).
+        threshold_override: Override the default threshold for matching actions.
+        priority: Rule priority (higher = evaluated first).
+        entity_weights: Per-class weight multipliers (e.g., {"D": 2.0}).
+        time_schedule: Time-dependent threshold adjustment.
+
+    Returns:
+        RiskRuleResponse with rule details.
+
+    Example:
+        rule = asqav.create_risk_rule(
+            name="High-risk finance",
+            action_pattern="finance.*",
+            risk_level="critical",
+            threshold_override=3,
+            priority=100,
+        )
+    """
+    body: dict[str, Any] = {
+        "name": name,
+        "action_pattern": action_pattern,
+        "risk_level": risk_level,
+        "priority": priority,
+    }
+    if threshold_override is not None:
+        body["threshold_override"] = threshold_override
+    if entity_weights is not None:
+        body["entity_weights"] = entity_weights
+    if time_schedule is not None:
+        body["time_schedule"] = time_schedule
+    data = _post("/risk-rules", body)
+    return _parse_risk_rule(data)
+
+
+def list_risk_rules() -> list[RiskRuleResponse]:
+    """List all risk rules for the organization.
+
+    Returns:
+        List of RiskRuleResponse.
+    """
+    data = _get("/risk-rules")
+    return [_parse_risk_rule(r) for r in data]
+
+
+def get_risk_rule(rule_id: str) -> RiskRuleResponse:
+    """Get a risk rule by ID.
+
+    Args:
+        rule_id: The rule ID.
+
+    Returns:
+        RiskRuleResponse with rule details.
+    """
+    data = _get(f"/risk-rules/{rule_id}")
+    return _parse_risk_rule(data)
+
+
+def update_risk_rule(
+    rule_id: str,
+    **kwargs: Any,
+) -> RiskRuleResponse:
+    """Update a risk rule.
+
+    Args:
+        rule_id: The rule to update.
+        **kwargs: Fields to update (name, action_pattern, risk_level,
+                  threshold_override, priority, entity_weights, time_schedule).
+
+    Returns:
+        RiskRuleResponse with updated rule.
+    """
+    data = _put(f"/risk-rules/{rule_id}", kwargs)
+    return _parse_risk_rule(data)
+
+
+def delete_risk_rule(rule_id: str) -> dict[str, Any]:
+    """Delete a risk rule.
+
+    Args:
+        rule_id: The rule to delete.
+
+    Returns:
+        Confirmation dict.
+    """
+    return _delete(f"/risk-rules/{rule_id}")
+
+
+def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
+    """Parse API response into RiskRuleResponse."""
+    return RiskRuleResponse(
+        id=data["id"],
+        name=data["name"],
+        action_pattern=data["action_pattern"],
+        risk_level=data["risk_level"],
+        threshold_override=data.get("threshold_override"),
+        priority=data["priority"],
+        entity_weights=data.get("entity_weights"),
+        time_schedule=data.get("time_schedule"),
+        created_at=data.get("created_at", ""),
+    )
+
+
+# --- Threshold Delegations ---
+
+def create_delegation(
+    config_id: str,
+    delegator_entity_id: str,
+    delegate_entity_id: str,
+    expires_in: int = 86400,
+) -> ThresholdDelegationResponse:
+    """Create a temporary delegation between Class B entities.
+
+    Allows one entity to delegate their signing authority to another
+    with cryptographic expiry.
+
+    Args:
+        config_id: The threshold config.
+        delegator_entity_id: Entity delegating their authority.
+        delegate_entity_id: Entity receiving delegated authority.
+        expires_in: Delegation duration in seconds (default 24h).
+
+    Returns:
+        ThresholdDelegationResponse with delegation details.
+
+    Example:
+        delegation = asqav.create_delegation(
+            config_id="cfg_xxx",
+            delegator_entity_id="ent_alice",
+            delegate_entity_id="ent_bob",
+            expires_in=3600,  # 1 hour
+        )
+    """
+    data = _post("/threshold/delegations", {
+        "config_id": config_id,
+        "delegator_entity_id": delegator_entity_id,
+        "delegate_entity_id": delegate_entity_id,
+        "expires_in": expires_in,
+    })
+    return _parse_delegation(data)
+
+
+def list_delegations() -> list[ThresholdDelegationResponse]:
+    """List all active delegations.
+
+    Returns:
+        List of ThresholdDelegationResponse.
+    """
+    data = _get("/threshold/delegations")
+    return [_parse_delegation(d) for d in data]
+
+
+def get_delegation(delegation_id: str) -> ThresholdDelegationResponse:
+    """Get a delegation by ID.
+
+    Args:
+        delegation_id: The delegation ID.
+
+    Returns:
+        ThresholdDelegationResponse.
+    """
+    data = _get(f"/threshold/delegations/{delegation_id}")
+    return _parse_delegation(data)
+
+
+def revoke_delegation(delegation_id: str) -> dict[str, Any]:
+    """Revoke an active delegation.
+
+    Args:
+        delegation_id: The delegation to revoke.
+
+    Returns:
+        Confirmation dict.
+    """
+    return _delete(f"/threshold/delegations/{delegation_id}")
+
+
+def _parse_delegation(data: dict[str, Any]) -> ThresholdDelegationResponse:
+    """Parse API response into ThresholdDelegationResponse."""
+    return ThresholdDelegationResponse(
+        id=data["id"],
+        config_id=data["config_id"],
+        delegator_entity_id=data["delegator_entity_id"],
+        delegate_entity_id=data["delegate_entity_id"],
+        expires_at=data["expires_at"],
+        is_active=data["is_active"],
+        created_at=data["created_at"],
+    )
+
+
+# --- List Threshold Sessions ---
+
+def list_sessions(
+    status: str | None = None,
+    agent_id: str | None = None,
+    limit: int = 100,
+) -> list[ThresholdSessionResponse]:
+    """List threshold signing sessions.
+
+    Args:
+        status: Filter by status (pending, approved, denied, expired).
+        agent_id: Filter by agent ID.
+        limit: Max results (default 100).
+
+    Returns:
+        List of ThresholdSessionResponse.
+    """
+    params = [f"limit={limit}"]
+    if status:
+        params.append(f"status={status}")
+    if agent_id:
+        params.append(f"agent_id={agent_id}")
+    path = "/threshold/sessions?" + "&".join(params)
+    data = _get(path)
+    return [_parse_threshold_session(s) for s in data]
 
 
 def export_audit_json(
