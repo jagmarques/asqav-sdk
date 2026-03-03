@@ -38,11 +38,11 @@ token = agent.issue_token(scope=["read", "write"])
 | Response parsing | Cryptographic signing |
 | Error handling | Token issuance |
 | OTEL export | Signature verification |
-| Threshold config management | Threshold ML-DSA (Shamir over Rq) |
+| Signing group management | Threshold ML-DSA (Shamir over Rq) |
 | Risk rule management | Risk classification engine |
 | Delegation management | Key lifecycle (refresh, recovery) |
 
-The SDK is intentionally minimal (~900 lines). All quantum-safe cryptography runs on asqav's servers.
+All quantum-safe cryptography runs on asqav's servers.
 
 ## API Reference
 
