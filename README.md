@@ -38,7 +38,7 @@ token = agent.issue_token(scope=["read", "write"])
 | Response parsing | Cryptographic signing |
 | Error handling | Token issuance |
 | OTEL export | Signature verification |
-| Signing group management | Threshold ML-DSA (Shamir over Rq) |
+| Signing group management | Multi-party ML-DSA (Shamir over Rq) |
 | Risk rule management | Risk classification engine |
 | Delegation management | Key lifecycle (refresh, recovery) |
 
@@ -74,7 +74,7 @@ with asqav.span("api:openai", {"model": "gpt-4"}) as s:
     s.set_attribute("tokens", response.usage.total_tokens)
 ```
 
-### Threshold ML-DSA Signing (Business+)
+### Multi-Party Signing (Business+)
 
 Distributed signing where no single entity can authorize alone.
 
@@ -83,15 +83,15 @@ import asqav
 
 asqav.init(api_key="sk_...")
 
-# 1. Create threshold config (2-of-3)
-config = asqav.create_threshold_config("agt_xxx", threshold=2, total_shares=3)
+# 1. Create signing group (2-of-3)
+config = asqav.create_signing_group("agt_xxx", min_approvals=2, total_shares=3)
 
 # 2. Add signing entities
 asqav.add_entity(config.id, entity_class="A", label="agent-signer")
 asqav.add_entity(config.id, entity_class="B", label="human-operator")
 asqav.add_entity(config.id, entity_class="C", label="policy-engine")
 
-# 3. Generate threshold keypair
+# 3. Generate keypair
 keypair = asqav.generate_keypair(config.id)
 
 # 4. Request action approval
@@ -100,8 +100,8 @@ session = asqav.request_action("agt_xxx", "finance.transfer", {"amount": 50000})
 # 5. Collect approvals
 asqav.approve_action(session.session_id, "ent_xxx")
 
-# 6. Threshold sign (standard ML-DSA-65 output)
-result = asqav.threshold_sign(keypair.id, message_hex="deadbeef...")
+# 6. Multi-party sign (standard ML-DSA-65 output)
+result = asqav.group_sign(keypair.id, message_hex="deadbeef...")
 ```
 
 **Entity Classes:**
@@ -117,12 +117,12 @@ result = asqav.threshold_sign(keypair.id, message_hex="deadbeef...")
 ### Risk Rules
 
 ```python
-# Dynamic threshold based on action risk
+# Dynamic approval requirements based on action risk
 rule = asqav.create_risk_rule(
     name="High-risk finance",
     action_pattern="finance.*",
     risk_level="critical",
-    threshold_override=3,
+    approval_override=3,
     entity_weights={"D": 2.0},  # Compliance counts double
 )
 ```
@@ -140,13 +140,13 @@ asqav.recover_share(keypair.id, entity_id="ent_lost", contributing_entity_ids=["
 asqav.create_delegation(config.id, delegator_entity_id="ent_alice", delegate_entity_id="ent_bob", expires_in=3600)
 ```
 
-### Threshold
+### Multi-Party Signing Reference
 
 ```python
-# Config
-config = asqav.create_threshold_config(agent_id, threshold, total_shares)
-config = asqav.get_threshold_config(agent_id)
-config = asqav.update_threshold_config(config_id, threshold=3)
+# Signing Groups
+config = asqav.create_signing_group(agent_id, min_approvals, total_shares)
+config = asqav.get_signing_group(agent_id)
+config = asqav.update_signing_group(config_id, min_approvals=3)
 
 # Entities
 entity = asqav.add_entity(config_id, entity_class="B", label="operator")
@@ -156,7 +156,7 @@ asqav.remove_entity(entity_id)
 # Keypairs
 keypair = asqav.generate_keypair(config_id)
 keypair = asqav.get_keypair(keypair_id)
-result = asqav.threshold_sign(keypair_id, message_hex="...")
+result = asqav.group_sign(keypair_id, message_hex="...")
 asqav.refresh_keypair(keypair_id)
 asqav.recover_share(keypair_id, entity_id, contributing_entity_ids)
 
@@ -169,7 +169,7 @@ sessions = asqav.list_sessions(status="pending")
 # Risk Rules
 rule = asqav.create_risk_rule(name, action_pattern, risk_level, ...)
 rules = asqav.list_risk_rules()
-asqav.update_risk_rule(rule_id, threshold_override=3)
+asqav.update_risk_rule(rule_id, approval_override=3)
 asqav.delete_risk_rule(rule_id)
 
 # Delegations
