@@ -176,19 +176,6 @@ class SDTokenResponse:
 
 
 @dataclass
-class DelegationResponse:
-    """Response from agent delegation."""
-
-    delegation_id: str
-    parent_id: str
-    child_id: str
-    child_name: str
-    scope: list[str]
-    expires_at: float
-    created_at: float
-
-
-@dataclass
 class CertificateResponse:
     """Agent identity certificate."""
 
@@ -234,8 +221,8 @@ class SignedActionResponse:
 
 
 @dataclass
-class ThresholdSignatureDetail:
-    """Details of a single entity signature within a threshold session."""
+class SignatureDetail:
+    """Details of a single entity signature within a signing session."""
 
     entity_id: str
     entity_name: str
@@ -244,18 +231,18 @@ class ThresholdSignatureDetail:
 
 
 @dataclass
-class ThresholdSessionResponse:
-    """Response from threshold signing session operations."""
+class SigningSessionResponse:
+    """Response from signing session operations."""
 
     session_id: str
     config_id: str
     agent_id: str
     action_type: str
     action_params: dict[str, Any] | None
-    threshold_required: int
+    approvals_required: int
     signatures_collected: int
     status: str
-    signatures: list[ThresholdSignatureDetail]
+    signatures: list[SignatureDetail]
     policy_attestation_hash: str | None
     created_at: str
     expires_at: str
@@ -263,24 +250,24 @@ class ThresholdSessionResponse:
 
 
 @dataclass
-class ThresholdApproveResponse:
-    """Response from threshold approval operation."""
+class ApprovalResponse:
+    """Response from signing approval operation."""
 
     session_id: str
     entity_id: str
     signatures_collected: int
-    threshold_required: int
+    approvals_required: int
     status: str
-    threshold_met: bool
+    approved: bool
 
 
 @dataclass
-class ThresholdConfigResponse:
-    """Response from threshold config operations."""
+class SigningGroupResponse:
+    """Response from signing group operations."""
 
     id: str
     agent_id: str
-    threshold: int
+    min_approvals: int
     total_shares: int
     is_active: bool
     created_at: str
@@ -300,21 +287,21 @@ class SigningEntityResponse:
 
 
 @dataclass
-class ThresholdKeypairResponse:
-    """Response from threshold keypair operations."""
+class GroupKeypairResponse:
+    """Response from group keypair operations."""
 
     id: str
     config_id: str
     public_key_hex: str
-    threshold: int
+    min_approvals: int
     total_shares: int
     created_at: str
     status: str = "active"
 
 
 @dataclass
-class ThresholdSignResponse:
-    """Response from threshold signing operation."""
+class GroupSignResponse:
+    """Response from group signing operation."""
 
     signature_hex: str
     message_hex: str
@@ -331,7 +318,7 @@ class RiskRuleResponse:
     name: str
     action_pattern: str
     risk_level: str
-    threshold_override: int | None
+    approval_override: int | None
     priority: int
     entity_weights: dict[str, float] | None = None
     time_schedule: dict[str, Any] | None = None
@@ -339,8 +326,8 @@ class RiskRuleResponse:
 
 
 @dataclass
-class ThresholdDelegationResponse:
-    """Response from threshold delegation operations."""
+class DelegationResponse:
+    """Response from delegation operations."""
 
     id: str
     config_id: str
@@ -1338,11 +1325,11 @@ def request_action(
     agent_id: str,
     action_type: str,
     params: dict[str, Any] | None = None,
-) -> ThresholdSessionResponse:
-    """Request a threshold-authorized action for an agent.
+) -> SigningSessionResponse:
+    """Request a multi-party authorized action for an agent.
 
     Creates a signing session that requires multiple entity approvals
-    before the action is authorized (multi-key authorization).
+    before the action is authorized (multi-party signing).
 
     Args:
         agent_id: The agent requesting the action.
@@ -1350,11 +1337,11 @@ def request_action(
         params: Optional parameters for the action.
 
     Returns:
-        ThresholdSessionResponse with session details and approval status.
+        SigningSessionResponse with session details and approval status.
 
     Raises:
         AuthenticationError: If API key is missing or invalid.
-        APIError: If the request fails (e.g., no threshold config for agent).
+        APIError: If the request fails (e.g., no signing group for agent).
 
     Example:
         session = asqav.request_action(
@@ -1362,7 +1349,7 @@ def request_action(
             action_type="deploy:production",
             params={"target": "us-east-1"},
         )
-        print(f"Session {session.session_id}: needs {session.threshold_required} approvals")
+        print(f"Session {session.session_id}: needs {session.approvals_required} approvals")
     """
     body: dict[str, Any] = {
         "agent_id": agent_id,
@@ -1371,25 +1358,25 @@ def request_action(
     if params is not None:
         body["params"] = params
 
-    data = _post("/threshold/sessions", body)
-    return _parse_threshold_session(data)
+    data = _post("/signing-groups/sessions", body)
+    return _parse_signing_session(data)
 
 
 def approve_action(
     session_id: str,
     entity_id: str,
-) -> ThresholdApproveResponse:
-    """Approve a pending threshold action session.
+) -> ApprovalResponse:
+    """Approve a pending signing action session.
 
     Adds an entity signature to the session. When enough entities
-    have approved (meeting the threshold), the action is authorized.
+    have approved (meeting the required count), the action is authorized.
 
     Args:
-        session_id: The threshold session to approve.
+        session_id: The signing session to approve.
         entity_id: The signing entity providing approval.
 
     Returns:
-        ThresholdApproveResponse with approval status and threshold progress.
+        ApprovalResponse with signing approval status and progress.
 
     Raises:
         AuthenticationError: If API key is missing or invalid.
@@ -1400,31 +1387,31 @@ def approve_action(
             session_id="thr_abc123",
             entity_id="ent_xyz789",
         )
-        if result.threshold_met:
+        if result.approved:
             print("Action authorized!")
     """
     data = _post(
-        f"/threshold/sessions/{session_id}/approve",
+        f"/signing-groups/sessions/{session_id}/approve",
         {"entity_id": entity_id},
     )
-    return ThresholdApproveResponse(
+    return ApprovalResponse(
         session_id=data["session_id"],
         entity_id=data["entity_id"],
         signatures_collected=data["signatures_collected"],
-        threshold_required=data["threshold_required"],
+        approvals_required=data["approvals_required"],
         status=data["status"],
-        threshold_met=data["threshold_met"],
+        approved=data["approved"],
     )
 
 
-def get_action_status(session_id: str) -> ThresholdSessionResponse:
-    """Get the current status of a threshold action session.
+def get_action_status(session_id: str) -> SigningSessionResponse:
+    """Get the current status of a signing action session.
 
     Args:
-        session_id: The threshold session to check.
+        session_id: The signing session to check.
 
     Returns:
-        ThresholdSessionResponse with full session details.
+        SigningSessionResponse with full session details.
 
     Raises:
         AuthenticationError: If API key is missing or invalid.
@@ -1432,16 +1419,16 @@ def get_action_status(session_id: str) -> ThresholdSessionResponse:
 
     Example:
         status = asqav.get_action_status("thr_abc123")
-        print(f"{status.signatures_collected}/{status.threshold_required} approvals")
+        print(f"{status.signatures_collected}/{status.approvals_required} approvals")
     """
-    data = _get(f"/threshold/sessions/{session_id}")
-    return _parse_threshold_session(data)
+    data = _get(f"/signing-groups/sessions/{session_id}")
+    return _parse_signing_session(data)
 
 
-def _parse_threshold_session(data: dict[str, Any]) -> ThresholdSessionResponse:
-    """Parse API response into ThresholdSessionResponse."""
+def _parse_signing_session(data: dict[str, Any]) -> SigningSessionResponse:
+    """Parse API response into a SigningSessionResponse."""
     signatures = [
-        ThresholdSignatureDetail(
+        SignatureDetail(
             entity_id=s["entity_id"],
             entity_name=s["entity_name"],
             entity_class=s["entity_class"],
@@ -1449,13 +1436,13 @@ def _parse_threshold_session(data: dict[str, Any]) -> ThresholdSessionResponse:
         )
         for s in data.get("signatures", [])
     ]
-    return ThresholdSessionResponse(
+    return SigningSessionResponse(
         session_id=data["session_id"],
         config_id=data["config_id"],
         agent_id=data["agent_id"],
         action_type=data["action_type"],
         action_params=data.get("action_params"),
-        threshold_required=data["threshold_required"],
+        approvals_required=data["approvals_required"],
         signatures_collected=data["signatures_collected"],
         status=data["status"],
         signatures=signatures,
@@ -1466,77 +1453,77 @@ def _parse_threshold_session(data: dict[str, Any]) -> ThresholdSessionResponse:
     )
 
 
-# --- Threshold Configuration ---
+# --- Signing Groups ---
 
-def create_threshold_config(
+def create_signing_group(
     agent_id: str,
-    threshold: int,
+    min_approvals: int,
     total_shares: int,
-) -> ThresholdConfigResponse:
-    """Create a threshold config for an agent.
+) -> SigningGroupResponse:
+    """Create a signing group for an agent.
 
     Args:
-        agent_id: The agent to configure threshold signing for.
-        threshold: Minimum signatures required (t in t-of-n).
+        agent_id: The agent to create a signing group for.
+        min_approvals: Minimum approvals required (t in t-of-n).
         total_shares: Total key shares to generate (n in t-of-n).
 
     Returns:
-        ThresholdConfigResponse with config details.
+        SigningGroupResponse with config details.
 
     Example:
-        config = asqav.create_threshold_config("agt_xxx", threshold=2, total_shares=3)
+        config = asqav.create_signing_group("agt_xxx", min_approvals=2, total_shares=3)
     """
-    data = _post("/threshold/configs", {
+    data = _post("/signing-groups/configs", {
         "agent_id": agent_id,
-        "threshold": threshold,
+        "min_approvals": min_approvals,
         "total_shares": total_shares,
     })
-    return _parse_threshold_config(data)
+    return _parse_signing_group(data)
 
 
-def get_threshold_config(agent_id: str) -> ThresholdConfigResponse:
-    """Get the active threshold config for an agent.
+def get_signing_group(agent_id: str) -> SigningGroupResponse:
+    """Get the active signing group for an agent.
 
     Args:
         agent_id: The agent ID.
 
     Returns:
-        ThresholdConfigResponse with config details.
+        SigningGroupResponse with config details.
     """
-    data = _get(f"/threshold/configs/{agent_id}")
-    return _parse_threshold_config(data)
+    data = _get(f"/signing-groups/configs/{agent_id}")
+    return _parse_signing_group(data)
 
 
-def update_threshold_config(
+def update_signing_group(
     config_id: str,
-    threshold: int | None = None,
+    min_approvals: int | None = None,
     is_active: bool | None = None,
-) -> ThresholdConfigResponse:
-    """Update a threshold config.
+) -> SigningGroupResponse:
+    """Update a signing group.
 
     Args:
         config_id: The config to update.
-        threshold: New threshold value.
+        min_approvals: New minimum approvals value.
         is_active: Activate or deactivate the config.
 
     Returns:
-        ThresholdConfigResponse with updated config.
+        SigningGroupResponse with updated config.
     """
     body: dict[str, Any] = {}
-    if threshold is not None:
-        body["threshold"] = threshold
+    if min_approvals is not None:
+        body["min_approvals"] = min_approvals
     if is_active is not None:
         body["is_active"] = is_active
-    data = _put(f"/threshold/configs/{config_id}", body)
-    return _parse_threshold_config(data)
+    data = _put(f"/signing-groups/configs/{config_id}", body)
+    return _parse_signing_group(data)
 
 
-def _parse_threshold_config(data: dict[str, Any]) -> ThresholdConfigResponse:
-    """Parse API response into ThresholdConfigResponse."""
-    return ThresholdConfigResponse(
+def _parse_signing_group(data: dict[str, Any]) -> SigningGroupResponse:
+    """Parse API response into a SigningGroupResponse."""
+    return SigningGroupResponse(
         id=data["id"],
         agent_id=data["agent_id"],
-        threshold=data["threshold"],
+        min_approvals=data["min_approvals"],
         total_shares=data["total_shares"],
         is_active=data["is_active"],
         created_at=data["created_at"],
@@ -1551,13 +1538,13 @@ def add_entity(
     entity_class: str,
     label: str,
 ) -> SigningEntityResponse:
-    """Add a signing entity to a threshold config.
+    """Add a signing entity to a signing group.
 
     Entity classes: A (Agent), B (Human Operator), C (Policy Engine),
     D (Compliance Verifier), E (Organizational Authority).
 
     Args:
-        config_id: The threshold config to add the entity to.
+        config_id: The signing group to add the entity to.
         entity_class: Entity class (A, B, C, D, or E).
         label: Human-readable label for the entity.
 
@@ -1567,7 +1554,7 @@ def add_entity(
     Example:
         entity = asqav.add_entity("cfg_xxx", entity_class="B", label="operator-1")
     """
-    data = _post(f"/threshold/configs/{config_id}/entities", {
+    data = _post(f"/signing-groups/configs/{config_id}/entities", {
         "entity_class": entity_class,
         "label": label,
     })
@@ -1582,15 +1569,15 @@ def add_entity(
 
 
 def list_entities(config_id: str) -> list[SigningEntityResponse]:
-    """List signing entities for a threshold config.
+    """List signing entities for a signing group.
 
     Args:
-        config_id: The threshold config.
+        config_id: The signing group.
 
     Returns:
         List of SigningEntityResponse.
     """
-    data = _get(f"/threshold/configs/{config_id}/entities")
+    data = _get(f"/signing-groups/configs/{config_id}/entities")
     return [
         SigningEntityResponse(
             id=e["id"],
@@ -1613,68 +1600,68 @@ def remove_entity(entity_id: str) -> dict[str, Any]:
     Returns:
         Confirmation dict.
     """
-    return _delete(f"/threshold/entities/{entity_id}")
+    return _delete(f"/signing-groups/entities/{entity_id}")
 
 
-# --- Threshold Keypairs ---
+# --- Group Keypairs ---
 
-def generate_keypair(config_id: str) -> ThresholdKeypairResponse:
-    """Generate a threshold ML-DSA keypair with Shamir secret sharing.
+def generate_keypair(config_id: str) -> GroupKeypairResponse:
+    """Generate a multi-party ML-DSA keypair with Shamir secret sharing.
 
     Creates a keypair where the private key is split into shares
     distributed to the signing entities in the config.
 
     Args:
-        config_id: The threshold config to generate a keypair for.
+        config_id: The signing group to generate a keypair for.
 
     Returns:
-        ThresholdKeypairResponse with public key and metadata.
+        GroupKeypairResponse with public key and metadata.
 
     Example:
         keypair = asqav.generate_keypair("cfg_xxx")
         print(f"Public key: {keypair.public_key_hex[:32]}...")
     """
-    data = _post("/threshold/keypairs", {"config_id": config_id})
-    return _parse_threshold_keypair(data)
+    data = _post("/signing-groups/keypairs", {"config_id": config_id})
+    return _parse_group_keypair(data)
 
 
-def get_keypair(keypair_id: str) -> ThresholdKeypairResponse:
-    """Get threshold keypair details (no raw shares).
+def get_keypair(keypair_id: str) -> GroupKeypairResponse:
+    """Get group keypair details (no raw shares).
 
     Args:
         keypair_id: The keypair ID.
 
     Returns:
-        ThresholdKeypairResponse with keypair details.
+        GroupKeypairResponse with keypair details.
     """
-    data = _get(f"/threshold/keypairs/{keypair_id}")
-    return _parse_threshold_keypair(data)
+    data = _get(f"/signing-groups/keypairs/{keypair_id}")
+    return _parse_group_keypair(data)
 
 
-def threshold_sign(
+def group_sign(
     keypair_id: str,
     message_hex: str,
-) -> ThresholdSignResponse:
-    """Perform threshold ML-DSA signing.
+) -> GroupSignResponse:
+    """Perform multi-party ML-DSA signing.
 
-    Requires that the threshold of entity approvals has been met.
+    Requires that the minimum number of entity approvals has been met.
     Output is a standard FIPS 204 ML-DSA-65 signature.
 
     Args:
-        keypair_id: The threshold keypair to sign with.
+        keypair_id: The group keypair to sign with.
         message_hex: The message to sign (hex-encoded).
 
     Returns:
-        ThresholdSignResponse with signature and verification status.
+        GroupSignResponse with signature and verification status.
 
     Example:
-        result = asqav.threshold_sign("kp_xxx", message_hex="deadbeef")
+        result = asqav.group_sign("kp_xxx", message_hex="deadbeef")
         assert result.verified  # Standard ML-DSA verifier works
     """
-    data = _post(f"/threshold/keypairs/{keypair_id}/sign", {
+    data = _post(f"/signing-groups/keypairs/{keypair_id}/sign", {
         "message_hex": message_hex,
     })
-    return ThresholdSignResponse(
+    return GroupSignResponse(
         signature_hex=data["signature_hex"],
         message_hex=data["message_hex"],
         keypair_id=data["keypair_id"],
@@ -1695,7 +1682,7 @@ def refresh_keypair(keypair_id: str) -> KeyRefreshResponse:
     Returns:
         KeyRefreshResponse with refresh details.
     """
-    data = _post(f"/threshold/keypairs/{keypair_id}/refresh", {})
+    data = _post(f"/signing-groups/keypairs/{keypair_id}/refresh", {})
     return KeyRefreshResponse(
         keypair_id=data["keypair_id"],
         refreshed_at=data["refreshed_at"],
@@ -1720,7 +1707,7 @@ def recover_share(
     Returns:
         ShareRecoveryResponse with recovery details.
     """
-    data = _post(f"/threshold/keypairs/{keypair_id}/recover", {
+    data = _post(f"/signing-groups/keypairs/{keypair_id}/recover", {
         "entity_id": entity_id,
         "contributing_entity_ids": contributing_entity_ids,
     })
@@ -1731,13 +1718,13 @@ def recover_share(
     )
 
 
-def _parse_threshold_keypair(data: dict[str, Any]) -> ThresholdKeypairResponse:
-    """Parse API response into ThresholdKeypairResponse."""
-    return ThresholdKeypairResponse(
+def _parse_group_keypair(data: dict[str, Any]) -> GroupKeypairResponse:
+    """Parse API response into a GroupKeypairResponse."""
+    return GroupKeypairResponse(
         id=data["id"],
         config_id=data["config_id"],
         public_key_hex=data["public_key_hex"],
-        threshold=data["threshold"],
+        min_approvals=data["min_approvals"],
         total_shares=data["total_shares"],
         created_at=data["created_at"],
         status=data.get("status", "active"),
@@ -1750,23 +1737,23 @@ def create_risk_rule(
     name: str,
     action_pattern: str,
     risk_level: str,
-    threshold_override: int | None = None,
+    approval_override: int | None = None,
     priority: int = 0,
     entity_weights: dict[str, float] | None = None,
     time_schedule: dict[str, Any] | None = None,
 ) -> RiskRuleResponse:
     """Create a risk classification rule.
 
-    Risk rules dynamically adjust thresholds based on action patterns.
+    Risk rules dynamically adjust approval requirements based on action patterns.
 
     Args:
         name: Rule name.
         action_pattern: Glob pattern to match action types.
         risk_level: Risk level (low, medium, high, critical).
-        threshold_override: Override the default threshold for matching actions.
+        approval_override: Override the default approval count for matching actions.
         priority: Rule priority (higher = evaluated first).
         entity_weights: Per-class weight multipliers (e.g., {"D": 2.0}).
-        time_schedule: Time-dependent threshold adjustment.
+        time_schedule: Time-dependent approval adjustment.
 
     Returns:
         RiskRuleResponse with rule details.
@@ -1776,7 +1763,7 @@ def create_risk_rule(
             name="High-risk finance",
             action_pattern="finance.*",
             risk_level="critical",
-            threshold_override=3,
+            approval_override=3,
             priority=100,
         )
     """
@@ -1786,8 +1773,8 @@ def create_risk_rule(
         "risk_level": risk_level,
         "priority": priority,
     }
-    if threshold_override is not None:
-        body["threshold_override"] = threshold_override
+    if approval_override is not None:
+        body["approval_override"] = approval_override
     if entity_weights is not None:
         body["entity_weights"] = entity_weights
     if time_schedule is not None:
@@ -1828,7 +1815,7 @@ def update_risk_rule(
     Args:
         rule_id: The rule to update.
         **kwargs: Fields to update (name, action_pattern, risk_level,
-                  threshold_override, priority, entity_weights, time_schedule).
+                  approval_override, priority, entity_weights, time_schedule).
 
     Returns:
         RiskRuleResponse with updated rule.
@@ -1856,7 +1843,7 @@ def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
         name=data["name"],
         action_pattern=data["action_pattern"],
         risk_level=data["risk_level"],
-        threshold_override=data.get("threshold_override"),
+        approval_override=data.get("approval_override"),
         priority=data["priority"],
         entity_weights=data.get("entity_weights"),
         time_schedule=data.get("time_schedule"),
@@ -1864,27 +1851,27 @@ def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
     )
 
 
-# --- Threshold Delegations ---
+# --- Delegations ---
 
 def create_delegation(
     config_id: str,
     delegator_entity_id: str,
     delegate_entity_id: str,
     expires_in: int = 86400,
-) -> ThresholdDelegationResponse:
+) -> DelegationResponse:
     """Create a temporary delegation between Class B entities.
 
     Allows one entity to delegate their signing authority to another
     with cryptographic expiry.
 
     Args:
-        config_id: The threshold config.
+        config_id: The signing group.
         delegator_entity_id: Entity delegating their authority.
         delegate_entity_id: Entity receiving delegated authority.
         expires_in: Delegation duration in seconds (default 24h).
 
     Returns:
-        ThresholdDelegationResponse with delegation details.
+        DelegationResponse with delegation details.
 
     Example:
         delegation = asqav.create_delegation(
@@ -1894,7 +1881,7 @@ def create_delegation(
             expires_in=3600,  # 1 hour
         )
     """
-    data = _post("/threshold/delegations", {
+    data = _post("/signing-groups/delegations", {
         "config_id": config_id,
         "delegator_entity_id": delegator_entity_id,
         "delegate_entity_id": delegate_entity_id,
@@ -1903,26 +1890,26 @@ def create_delegation(
     return _parse_delegation(data)
 
 
-def list_delegations() -> list[ThresholdDelegationResponse]:
+def list_delegations() -> list[DelegationResponse]:
     """List all active delegations.
 
     Returns:
-        List of ThresholdDelegationResponse.
+        List of DelegationResponse.
     """
-    data = _get("/threshold/delegations")
+    data = _get("/signing-groups/delegations")
     return [_parse_delegation(d) for d in data]
 
 
-def get_delegation(delegation_id: str) -> ThresholdDelegationResponse:
+def get_delegation(delegation_id: str) -> DelegationResponse:
     """Get a delegation by ID.
 
     Args:
         delegation_id: The delegation ID.
 
     Returns:
-        ThresholdDelegationResponse.
+        DelegationResponse.
     """
-    data = _get(f"/threshold/delegations/{delegation_id}")
+    data = _get(f"/signing-groups/delegations/{delegation_id}")
     return _parse_delegation(data)
 
 
@@ -1935,12 +1922,12 @@ def revoke_delegation(delegation_id: str) -> dict[str, Any]:
     Returns:
         Confirmation dict.
     """
-    return _delete(f"/threshold/delegations/{delegation_id}")
+    return _delete(f"/signing-groups/delegations/{delegation_id}")
 
 
-def _parse_delegation(data: dict[str, Any]) -> ThresholdDelegationResponse:
-    """Parse API response into ThresholdDelegationResponse."""
-    return ThresholdDelegationResponse(
+def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
+    """Parse API response into a DelegationResponse."""
+    return DelegationResponse(
         id=data["id"],
         config_id=data["config_id"],
         delegator_entity_id=data["delegator_entity_id"],
@@ -1951,14 +1938,14 @@ def _parse_delegation(data: dict[str, Any]) -> ThresholdDelegationResponse:
     )
 
 
-# --- List Threshold Sessions ---
+# --- List Signing Sessions ---
 
 def list_sessions(
     status: str | None = None,
     agent_id: str | None = None,
     limit: int = 100,
-) -> list[ThresholdSessionResponse]:
-    """List threshold signing sessions.
+) -> list[SigningSessionResponse]:
+    """List signing sessions.
 
     Args:
         status: Filter by status (pending, approved, denied, expired).
@@ -1966,16 +1953,16 @@ def list_sessions(
         limit: Max results (default 100).
 
     Returns:
-        List of ThresholdSessionResponse.
+        List of SigningSessionResponse.
     """
     params = [f"limit={limit}"]
     if status:
         params.append(f"status={status}")
     if agent_id:
         params.append(f"agent_id={agent_id}")
-    path = "/threshold/sessions?" + "&".join(params)
+    path = "/signing-groups/sessions?" + "&".join(params)
     data = _get(path)
-    return [_parse_threshold_session(s) for s in data]
+    return [_parse_signing_session(s) for s in data]
 
 
 def export_audit_json(

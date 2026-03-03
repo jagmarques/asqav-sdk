@@ -1,4 +1,4 @@
-"""Tests for asqav SDK client -- threshold (multi-key authorization) methods."""
+"""Tests for asqav SDK client -- multi-party signing methods."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asqav
 from asqav.client import (
-    ThresholdApproveResponse,
-    ThresholdSessionResponse,
-    ThresholdSignatureDetail,
-    _parse_threshold_session,
+    ApprovalResponse,
+    SignatureDetail,
+    SigningSessionResponse,
+    _parse_signing_session,
 )
 
 # ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ MOCK_SESSION_RESPONSE: dict = {
     "agent_id": "agent_001",
     "action_type": "deploy:production",
     "action_params": None,
-    "threshold_required": 2,
+    "approvals_required": 2,
     "signatures_collected": 0,
     "status": "pending",
     "signatures": [],
@@ -68,18 +68,18 @@ MOCK_APPROVE_RESPONSE: dict = {
     "session_id": "thr_abc123",
     "entity_id": "ent_001",
     "signatures_collected": 1,
-    "threshold_required": 2,
+    "approvals_required": 2,
     "status": "pending",
-    "threshold_met": False,
+    "approved": False,
 }
 
-MOCK_APPROVE_THRESHOLD_MET: dict = {
+MOCK_APPROVE_APPROVED: dict = {
     "session_id": "thr_abc123",
     "entity_id": "ent_002",
     "signatures_collected": 2,
-    "threshold_required": 2,
+    "approvals_required": 2,
     "status": "approved",
-    "threshold_met": True,
+    "approved": True,
 }
 
 
@@ -90,7 +90,7 @@ MOCK_APPROVE_THRESHOLD_MET: dict = {
 
 @patch("asqav.client._post")
 def test_request_action(mock_post: object) -> None:
-    """request_action calls POST /threshold/sessions with correct body."""
+    """request_action calls POST /signing-groups/sessions with correct body."""
     mock_post.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
     result = asqav.request_action(
@@ -99,14 +99,14 @@ def test_request_action(mock_post: object) -> None:
     )
 
     mock_post.assert_called_once_with(  # type: ignore[attr-defined]
-        "/threshold/sessions",
+        "/signing-groups/sessions",
         {"agent_id": "agent_001", "action_type": "deploy:production"},
     )
-    assert isinstance(result, ThresholdSessionResponse)
+    assert isinstance(result, SigningSessionResponse)
     assert result.session_id == "thr_abc123"
     assert result.agent_id == "agent_001"
     assert result.action_type == "deploy:production"
-    assert result.threshold_required == 2
+    assert result.approvals_required == 2
     assert result.signatures_collected == 0
     assert result.status == "pending"
     assert result.signatures == []
@@ -126,7 +126,7 @@ def test_request_action_with_params(mock_post: object) -> None:
     )
 
     mock_post.assert_called_once_with(  # type: ignore[attr-defined]
-        "/threshold/sessions",
+        "/signing-groups/sessions",
         {
             "agent_id": "agent_001",
             "action_type": "deploy:production",
@@ -154,7 +154,7 @@ def test_request_action_without_params_omits_key(mock_post: object) -> None:
 
 @patch("asqav.client._post")
 def test_approve_action(mock_post: object) -> None:
-    """approve_action calls POST /threshold/sessions/{id}/approve."""
+    """approve_action calls POST /signing-groups/sessions/{id}/approve."""
     mock_post.return_value = MOCK_APPROVE_RESPONSE  # type: ignore[attr-defined]
 
     result = asqav.approve_action(
@@ -163,29 +163,29 @@ def test_approve_action(mock_post: object) -> None:
     )
 
     mock_post.assert_called_once_with(  # type: ignore[attr-defined]
-        "/threshold/sessions/thr_abc123/approve",
+        "/signing-groups/sessions/thr_abc123/approve",
         {"entity_id": "ent_001"},
     )
-    assert isinstance(result, ThresholdApproveResponse)
+    assert isinstance(result, ApprovalResponse)
     assert result.session_id == "thr_abc123"
     assert result.entity_id == "ent_001"
     assert result.signatures_collected == 1
-    assert result.threshold_required == 2
+    assert result.approvals_required == 2
     assert result.status == "pending"
-    assert result.threshold_met is False
+    assert result.approved is False
 
 
 @patch("asqav.client._post")
-def test_approve_action_threshold_met(mock_post: object) -> None:
-    """approve_action returns threshold_met=True when threshold is reached."""
-    mock_post.return_value = MOCK_APPROVE_THRESHOLD_MET  # type: ignore[attr-defined]
+def test_approve_action_approved(mock_post: object) -> None:
+    """approve_action returns approved=True when approvals are met."""
+    mock_post.return_value = MOCK_APPROVE_APPROVED  # type: ignore[attr-defined]
 
     result = asqav.approve_action(
         session_id="thr_abc123",
         entity_id="ent_002",
     )
 
-    assert result.threshold_met is True
+    assert result.approved is True
     assert result.status == "approved"
     assert result.signatures_collected == 2
 
@@ -197,15 +197,15 @@ def test_approve_action_threshold_met(mock_post: object) -> None:
 
 @patch("asqav.client._get")
 def test_get_action_status(mock_get: object) -> None:
-    """get_action_status calls GET /threshold/sessions/{id}."""
+    """get_action_status calls GET /signing-groups/sessions/{id}."""
     mock_get.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
     result = asqav.get_action_status("thr_abc123")
 
     mock_get.assert_called_once_with(  # type: ignore[attr-defined]
-        "/threshold/sessions/thr_abc123",
+        "/signing-groups/sessions/thr_abc123",
     )
-    assert isinstance(result, ThresholdSessionResponse)
+    assert isinstance(result, SigningSessionResponse)
     assert result.session_id == "thr_abc123"
     assert result.status == "pending"
 
@@ -224,7 +224,7 @@ def test_get_action_status_approved(mock_get: object) -> None:
     assert len(result.signatures) == 2
 
     sig0 = result.signatures[0]
-    assert isinstance(sig0, ThresholdSignatureDetail)
+    assert isinstance(sig0, SignatureDetail)
     assert sig0.entity_id == "ent_001"
     assert sig0.entity_name == "Agent Key"
     assert sig0.entity_class == "A"
@@ -262,21 +262,21 @@ def test_sign_method_returns_signature_response_annotation() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _parse_threshold_session helper
+# _parse_signing_session helper
 # ---------------------------------------------------------------------------
 
 
-def test_parse_threshold_session_minimal() -> None:
-    """_parse_threshold_session handles response with empty signatures."""
-    result = _parse_threshold_session(MOCK_SESSION_RESPONSE)
+def test_parse_signing_session_minimal() -> None:
+    """_parse_signing_session handles response with empty signatures."""
+    result = _parse_signing_session(MOCK_SESSION_RESPONSE)
     assert result.session_id == "thr_abc123"
     assert result.signatures == []
     assert result.resolved_at is None
 
 
-def test_parse_threshold_session_with_signatures() -> None:
-    """_parse_threshold_session correctly parses signature details."""
-    result = _parse_threshold_session(MOCK_SESSION_APPROVED)
+def test_parse_signing_session_with_signatures() -> None:
+    """_parse_signing_session correctly parses signature details."""
+    result = _parse_signing_session(MOCK_SESSION_APPROVED)
     assert len(result.signatures) == 2
     assert result.signatures[0].entity_name == "Agent Key"
     assert result.signatures[1].entity_class == "B"
