@@ -1,0 +1,10 @@
+name: AI Agent Governance
+on: [pull_request]
+jobs:
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jagmarques/asqav-compliance@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
