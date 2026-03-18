@@ -1,5 +1,8 @@
 name: AI Agent Governance
 on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
 jobs:
   compliance:
     runs-on: ubuntu-latest
