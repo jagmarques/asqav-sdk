@@ -1,72 +1,61 @@
 # asqav
 
-[![PyPI](https://img.shields.io/pypi/v/asqav)](https://pypi.org/project/asqav/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/pypi/v/asqav)](https://pypi.org/project/asqav/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10 | 3.11 | 3.12](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue.svg)](https://www.python.org/downloads/)
 
-**Thin API client** for [asqav.com](https://asqav.com). All ML-DSA cryptography happens server-side. No native dependencies required.
+**AI agent governance simplified. Audit trails, policy enforcement, and compliance in 5 lines.**
 
-## Installation
+Thin Python SDK for [asqav.com](https://asqav.com) - all ML-DSA cryptography runs server-side. Zero native dependencies.
+
+## Install
 
 ```bash
 pip install asqav
 ```
 
-## Usage
+## Quick start
 
 ```python
 import asqav
 
-# Initialize with your API key (get one at asqav.com)
 asqav.init(api_key="sk_...")
-
-# Create an agent
 agent = asqav.Agent.create("my-agent")
-
-# Sign an action
 sig = agent.sign("api:call", {"model": "gpt-4"})
-
-# Issue a token
-token = agent.issue_token(scope=["read", "write"])
 ```
 
-## What this SDK does
+That's it. Your agent now has a quantum-safe identity, a signed audit trail, and a verifiable action record.
 
-| This SDK | asqav Cloud (server-side) |
-|----------|---------------------------|
-| API calls | ML-DSA key generation |
-| Response parsing | Cryptographic signing |
-| Error handling | Token issuance |
-| OTEL export | Signature verification |
-| Signing group management | Multi-party ML-DSA (Shamir over Rq) |
-| Risk rule management | Risk classification engine |
-| Delegation management | Key lifecycle (refresh, recovery) |
+## Features
 
-All quantum-safe cryptography runs on asqav's servers.
+- **Agent identity** - create, suspend, revoke, and rotate agent keys
+- **Signed actions** - every agent action gets a ML-DSA-65 signature
+- **Audit export** - export trails as JSON or CSV for compliance reporting
+- **Tokens** - issue scoped JWTs and selective-disclosure tokens (SD-JWT)
+- **Tracing** - built-in spans with OpenTelemetry export
+- **Multi-party signing** - m-of-n approval using Shamir over Rq (no single point of authority)
+- **Risk rules** - dynamic approval thresholds based on action patterns
+- **Delegations** - temporary authority transfer between entities
+- **Decorators** - `@asqav.secure` wraps any function with cryptographic signing
 
-## API Reference
+## Framework integrations
 
-### Initialization
+Works with any Python AI framework. Drop `asqav` into your existing stack:
+
+| Framework | How |
+|-----------|-----|
+| **LangChain** | Wrap tool calls with `agent.sign()` or `@asqav.secure` |
+| **CrewAI** | Sign crew task outputs for audit compliance |
+| **MCP** | Sign MCP tool invocations before execution |
 
 ```python
-asqav.init(api_key="sk_...")  # or set ASQAV_API_KEY env var
+# Example: signing a LangChain tool call
+@asqav.secure
+def call_tool(query: str):
+    return my_langchain_tool.run(query)
 ```
 
-### Agent
-
-```python
-agent = asqav.Agent.create("name", algorithm="ml-dsa-65")
-agent = asqav.Agent.get("agt_xxx")
-
-agent.sign("action", {"key": "value"})
-agent.issue_token(scope=["read"], ttl=3600)
-agent.issue_sd_token(claims={...}, disclosable=[...])  # Business tier
-agent.suspend(reason="investigation", note="...")  # Temporary disable
-agent.unsuspend()  # Re-enable suspended agent
-agent.revoke(reason="manual")  # Permanent revoke
-```
-
-### Tracing
+## Tracing
 
 ```python
 with asqav.span("api:openai", {"model": "gpt-4"}) as s:
@@ -74,118 +63,30 @@ with asqav.span("api:openai", {"model": "gpt-4"}) as s:
     s.set_attribute("tokens", response.usage.total_tokens)
 ```
 
-### Multi-Party Signing (Business+)
+## Multi-party signing
 
-Distributed signing where no single entity can authorize alone.
+Distributed approval where no single entity can authorize alone.
 
 ```python
-import asqav
-
-asqav.init(api_key="sk_...")
-
-# 1. Create signing group (2-of-3)
 config = asqav.create_signing_group("agt_xxx", min_approvals=2, total_shares=3)
-
-# 2. Add signing entities
-asqav.add_entity(config.id, entity_class="A", label="agent-signer")
 asqav.add_entity(config.id, entity_class="B", label="human-operator")
-asqav.add_entity(config.id, entity_class="C", label="policy-engine")
-
-# 3. Generate keypair
-keypair = asqav.generate_keypair(config.id)
-
-# 4. Request action approval
 session = asqav.request_action("agt_xxx", "finance.transfer", {"amount": 50000})
-
-# 5. Collect approvals
 asqav.approve_action(session.session_id, "ent_xxx")
-
-# 6. Multi-party sign (standard ML-DSA-65 output)
 result = asqav.group_sign(keypair.id, message_hex="deadbeef...")
 ```
 
-**Entity Classes:**
+## Free tier
 
-| Class | Role | Description |
-|-------|------|-------------|
-| A | Agent Signer | AI agent requesting authorization |
-| B | Human Operator | Human-in-the-loop approval |
-| C | Policy Engine | Automated policy enforcement |
-| D | Compliance Verifier | Regulatory compliance validation |
-| E | Organizational Authority | Executive-level approval |
+Get started at no cost. The free tier includes agent creation, signed actions, audit export, and tracing. Multi-party signing and SD-JWT tokens are available on the Business plan. See [asqav.com](https://asqav.com) for pricing.
 
-### Risk Rules
+## Links
 
-```python
-# Dynamic approval requirements based on action risk
-rule = asqav.create_risk_rule(
-    name="High-risk finance",
-    action_pattern="finance.*",
-    risk_level="critical",
-    approval_override=3,
-    entity_weights={"D": 2.0},  # Compliance counts double
-)
-```
-
-### Key Lifecycle
-
-```python
-# Rotate shares (same public key)
-asqav.refresh_keypair(keypair.id)
-
-# Recover lost share
-asqav.recover_share(keypair.id, entity_id="ent_lost", contributing_entity_ids=["ent_1", "ent_2"])
-
-# Temporary delegation
-asqav.create_delegation(config.id, delegator_entity_id="ent_alice", delegate_entity_id="ent_bob", expires_in=3600)
-```
-
-### Multi-Party Signing Reference
-
-```python
-# Signing Groups
-config = asqav.create_signing_group(agent_id, min_approvals, total_shares)
-config = asqav.get_signing_group(agent_id)
-config = asqav.update_signing_group(config_id, min_approvals=3)
-
-# Entities
-entity = asqav.add_entity(config_id, entity_class="B", label="operator")
-entities = asqav.list_entities(config_id)
-asqav.remove_entity(entity_id)
-
-# Keypairs
-keypair = asqav.generate_keypair(config_id)
-keypair = asqav.get_keypair(keypair_id)
-result = asqav.group_sign(keypair_id, message_hex="...")
-asqav.refresh_keypair(keypair_id)
-asqav.recover_share(keypair_id, entity_id, contributing_entity_ids)
-
-# Sessions
-session = asqav.request_action(agent_id, action_type, params)
-result = asqav.approve_action(session_id, entity_id)
-status = asqav.get_action_status(session_id)
-sessions = asqav.list_sessions(status="pending")
-
-# Risk Rules
-rule = asqav.create_risk_rule(name, action_pattern, risk_level, ...)
-rules = asqav.list_risk_rules()
-asqav.update_risk_rule(rule_id, approval_override=3)
-asqav.delete_risk_rule(rule_id)
-
-# Delegations
-delegation = asqav.create_delegation(config_id, delegator_id, delegate_id)
-delegations = asqav.list_delegations()
-asqav.revoke_delegation(delegation_id)
-```
-
-## Requirements
-
-- Python 3.10+
-
-## Get your API key
-
-Sign up at [asqav.com](https://asqav.com)
+- [Documentation](https://asqav.com/docs)
+- [AI Readiness Assessment](https://asqav.com/readiness)
+- [Compliance](https://asqav.com/compliance)
+- [PyPI](https://pypi.org/project/asqav/)
+- [GitHub](https://github.com/jagmarques/asqav-sdk)
 
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) for details.
