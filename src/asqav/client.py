@@ -33,6 +33,23 @@ from urllib.parse import urljoin
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+# Retry configuration for API calls
+_MAX_RETRIES = 5
+_RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
+
+
+def _with_retry(func: Callable[[], Any]) -> Any:
+    """Execute function with exponential backoff retry on rate limit/network errors."""
+    last_error: Exception | None = None
+    for attempt, delay in enumerate(_RETRY_DELAYS):
+        try:
+            return func()
+        except (RateLimitError, ConnectionError, TimeoutError) as e:
+            last_error = e
+            if attempt < len(_RETRY_DELAYS) - 1:
+                time.sleep(delay)
+    raise last_error
+
 
 def _parse_timestamp(value: Any) -> float:
     """Parse a timestamp from API response (ISO string or float)."""
@@ -1054,12 +1071,14 @@ def _urllib_request(
 
     body = json.dumps(data).encode("utf-8") if data else None
 
-    request = urllib.request.Request(url, data=body, headers=headers, method=method)
-
-    try:
+    def _do_request() -> dict[str, Any]:
+        request = urllib.request.Request(url, data=body, headers=headers, method=method)
         with urllib.request.urlopen(request, timeout=30) as response:
             result: dict[str, Any] = json.loads(response.read().decode("utf-8"))
             return result
+
+    try:
+        return _with_retry(_do_request)
     except urllib.error.HTTPError as e:
         if e.code == 401:
             raise AuthenticationError("Invalid API key") from e
