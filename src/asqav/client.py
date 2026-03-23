@@ -923,6 +923,23 @@ class Agent:
         )
 
 
+def health_check() -> dict[str, Any]:
+    """Check API connectivity and return server status.
+    
+    Returns:
+        Dict with server status info.
+    
+    Raises:
+        AuthenticationError: If API key is invalid.
+        APIError: If the API is unreachable.
+    
+    Example:
+        status = asqav.health_check()
+        print(f"API version: {status['version']}")
+    """
+    return _get("/health")
+
+
 def init(
     api_key: str | None = None,
     base_url: str | None = None,
