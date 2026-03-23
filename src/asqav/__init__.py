@@ -74,6 +74,7 @@ from .client import (
     get_session_signatures,
     get_signing_group,
     group_sign,
+    health_check,
     init,
     list_delegations,
     list_entities,
@@ -96,6 +97,7 @@ __version__ = "0.2.6"
 __all__ = [
     # Initialization
     "init",
+    "health_check",
     # Agent
     "Agent",
     "AgentResponse",
