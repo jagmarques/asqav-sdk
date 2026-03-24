@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://asqav.com">
-    <img src="https://asqav.com/logo-text-dark.png" alt="asqav" width="200">
+    <img src="https://asqav.com/logo-text-white.png" alt="asqav" width="200">
   </a>
 </p>
 <p align="center">
