@@ -2,13 +2,13 @@
   <a href="https://asqav.com">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://asqav.com/logo-text-dark.png">
-      <img src="https://asqav.com/logo-text.svg" alt="asqav" width="200">
+      <img src="https://asqav.com/logo-text.png" alt="asqav" width="200">
     </picture>
   </a>
 </p>
-
-# asqav
-
+<p align="center">
+  Governance for AI agents. Audit trails, policy enforcement, and compliance.
+</p>
 <p align="center">
   <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/v/asqav?style=flat-square&logo=pypi&logoColor=white" alt="PyPI version"></a>
   <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/dm/asqav?style=flat-square&logo=pypi&logoColor=white" alt="Downloads"></a>
@@ -16,8 +16,6 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/pypi/pyversions/asqav?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
   <a href="https://github.com/jagmarques/asqav-sdk"><img src="https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social" alt="GitHub stars"></a>
 </p>
-
-**Governance for AI agents. Audit trails, policy enforcement, and compliance.**
 
 ```bash
 pip install asqav
