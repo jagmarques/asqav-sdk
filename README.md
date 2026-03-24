@@ -1,3 +1,10 @@
+<p align="center">
+  <img src="https://asqav.com/logo-text.svg" alt="asqav" width="200">
+</p>
+<p align="center">
+  <em>Governance for AI agents. Audit trails, policy enforcement, and compliance in 5 lines of Python.</em>
+</p>
+
 # asqav
 
 <p align="center">
