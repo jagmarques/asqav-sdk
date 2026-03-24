@@ -1,9 +1,6 @@
 <p align="center">
   <a href="https://asqav.com">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://asqav.com/logo-text-dark.png">
-      <img src="https://asqav.com/logo-text.png" alt="asqav" width="200">
-    </picture>
+    <img src="https://asqav.com/logo-readme.png" alt="asqav" width="200">
   </a>
 </p>
 <p align="center">
