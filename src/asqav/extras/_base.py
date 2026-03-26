@@ -11,12 +11,9 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from typing import TYPE_CHECKING
 
-from ..client import AsqavError, SignatureResponse
-
-if TYPE_CHECKING:
-    from ..client import Agent
+from .. import client as _client
+from ..client import Agent, AsqavError, SignatureResponse
 
 logger = logging.getLogger("asqav")
 
@@ -61,10 +58,7 @@ class AsqavAdapter:
         agent_name: str | None = None,
         agent_id: str | None = None,
     ) -> None:
-        from ..client import Agent
-        from ..client import _api_key as current_api_key
-
-        if current_api_key is None and api_key is None:
+        if _client._api_key is None and api_key is None:
             raise AsqavError("Call asqav.init() first")
 
         if agent_id is not None:
