@@ -24,8 +24,8 @@ Example - session context manager:
 
 from __future__ import annotations
 
-import asyncio
 import functools
+import inspect
 from contextlib import asynccontextmanager, contextmanager
 from collections.abc import AsyncGenerator, Generator
 from typing import Any, TypeVar
@@ -154,7 +154,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
     def decorator(fn: Any) -> Any:
         call_type = action_type or "function:call"
 
-        if asyncio.iscoroutinefunction(fn):
+        if inspect.iscoroutinefunction(fn):
 
             @functools.wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
