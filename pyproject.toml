@@ -55,6 +55,9 @@ all = [
 ]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0", "ruff>=0.5.0", "mypy>=1.10.0"]
 
+[project.scripts]
+asqav = "asqav.cli:app"
+
 [project.urls]
 Homepage = "https://asqav.com"
 Documentation = "https://asqav.com/docs"
