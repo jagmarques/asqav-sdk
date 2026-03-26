@@ -109,7 +109,7 @@ def agents_list() -> None:
         print(f"Error: {exc}")
         raise typer.Exit(code=1)
 
-    agents = data.get("agents", [])
+    agents = data if isinstance(data, list) else data.get("agents", [])
     if not agents:
         print("No agents found.")
         return
