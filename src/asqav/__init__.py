@@ -93,6 +93,8 @@ from .client import (
     verify_signature,
 )
 
+from .decorators import async_session, session, sign
+
 __version__ = "0.2.6"
 __all__ = [
     # Initialization
@@ -170,6 +172,9 @@ __all__ = [
     # Decorators
     "secure",
     "secure_async",
+    "sign",
+    "session",
+    "async_session",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
