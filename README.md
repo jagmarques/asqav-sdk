@@ -13,8 +13,18 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/pypi/pyversions/asqav?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
   <a href="https://github.com/jagmarques/asqav-sdk"><img src="https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social" alt="GitHub stars"></a>
 </p>
+<p align="center">
+  <a href="https://asqav.com">Website</a> |
+  <a href="https://asqav.com/docs">Docs</a> |
+  <a href="https://asqav.com/docs/sdk">SDK Guide</a> |
+  <a href="https://asqav.com/compliance">Compliance</a>
+</p>
 
-# SDK
+# asqav SDK
+
+Thin Python SDK for [asqav.com](https://asqav.com). All ML-DSA cryptography runs server-side. Zero native dependencies.
+
+## Install
 
 ```bash
 pip install asqav
@@ -32,7 +42,7 @@ Your agent now has a quantum-safe identity, a signed audit trail, and a verifiab
 
 ## Why
 
-| Without governance | With Asqav |
+| Without governance | With asqav |
 |---|---|
 | No record of what agents did | Every action signed with ML-DSA (FIPS 204) |
 | Any agent can do anything | Policies block dangerous actions in real-time |
@@ -40,44 +50,93 @@ Your agent now has a quantum-safe identity, a signed audit trail, and a verifiab
 | Manual compliance reports | Automated EU AI Act and DORA reports |
 | Breaks when quantum computers arrive | Quantum-safe from day one |
 
-## Features
+## Decorators and context managers
 
-- **Signed actions** - every agent action gets a ML-DSA-65 quantum-safe signature
-- **Policy enforcement** - block or alert on action patterns before execution
-- **Multi-party signing** - m-of-n approval with no single point of authority
-- **Agent identity** - create, suspend, revoke, and rotate agent keys
-- **Audit export** - JSON/CSV trails for compliance reporting
-- **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
-- **Tracing** - built-in spans with OpenTelemetry export
-- **Risk rules** - dynamic approval thresholds based on action patterns
-- **Decorators** - `@asqav.secure` wraps any function with cryptographic signing
+```python
+@asqav.sign
+def call_model(prompt: str):
+    return openai.chat.completions.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
+
+with asqav.session() as s:
+    s.sign("step:fetch", {"source": "api"})
+    s.sign("step:process", {"records": 150})
+```
+
+## Async support
+
+```python
+agent = await asqav.AsyncAgent.create("my-agent")
+sig = await agent.sign("api:call", {"model": "gpt-4"})
+```
+
+All API calls retry automatically with exponential backoff on transient failures.
+
+## CLI
+
+```bash
+pip install asqav[cli]
+
+asqav verify sig_abc123
+asqav agents list
+asqav agents create my-agent
+asqav sync
+```
+
+## Local mode
+
+Sign actions offline when the API is unreachable. Queue syncs when connectivity returns.
+
+```python
+from asqav import local_sign
+
+local_sign("agt_xxx", "task:complete", {"result": "done"})
+# Later: asqav sync
+```
 
 ## Works with your stack
 
-| Framework | Integration |
-|-----------|------------|
-| **LangChain** | `@asqav.secure` decorator or `agent.sign()` |
-| **CrewAI** | Sign crew task outputs for audit compliance |
-| **MCP** | [asqav-mcp](https://github.com/jagmarques/asqav-mcp) server for Claude Desktop/Code |
-| **Any Python** | `agent.sign(action_type, payload)` |
+Native integrations for 5 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
 
-### Signing LangChain Tool Calls
-You can easily wrap any LangChain tool or custom Python function to automatically sign its execution:
-```python
-from langchain_core.tools import tool
-import asqav
-
-@tool
-@asqav.secure
-def fetch_user_data(user_id: str) -> str:
-    """Fetches protected user data from the database."""
-    return db.query(user_id)
+```bash
+pip install asqav[langchain]
+pip install asqav[crewai]
+pip install asqav[litellm]
+pip install asqav[haystack]
+pip install asqav[openai-agents]
+pip install asqav[all]
 ```
+
+### LangChain
+
+```python
+from asqav.extras.langchain import AsqavCallbackHandler
+
+handler = AsqavCallbackHandler(api_key="sk_...")
+chain.invoke(input, config={"callbacks": [handler]})
+```
+
+### CrewAI
+
+```python
+from asqav.extras.crewai import AsqavCrewHook
+
+hook = AsqavCrewHook(api_key="sk_...")
+task = Task(description="Research competitors", callbacks=[hook.task_callback])
+```
+
+### LiteLLM / Haystack / OpenAI Agents SDK
+
+```python
+from asqav.extras.litellm import AsqavGuardrail
+from asqav.extras.haystack import AsqavComponent
+from asqav.extras.openai_agents import AsqavGuardrail
+```
+
+See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
 
 ## Policy enforcement
 
 ```python
-# Block dangerous actions before they execute
 asqav.create_policy(
     name="no-deletions",
     action_pattern="data:delete:*",
@@ -92,33 +151,23 @@ Distributed approval where no single entity can authorize alone:
 
 ```python
 config = asqav.create_signing_group("agt_xxx", min_approvals=2, total_shares=3)
-asqav.add_entity(config.id, entity_class="B", label="human-operator")
 session = asqav.request_action("agt_xxx", "finance.transfer", {"amount": 50000})
+asqav.approve_action(session.session_id, "ent_xxx")
 ```
 
-## Verifying Signatures
-When receiving a signed action from an agent, you can easily verify its cryptographic integrity:
-```python
-# Verify if the payload was truly generated by the specified agent
-is_valid = asqav.verify(
-    signature="sig_7x89q...", 
-    agent_id="agt_xxx", 
-    action_type="api:call",
-    payload={"model": "gpt-4"}
-)
-if not is_valid:
-    raise SecurityError("Invalid agent signature!")
-```
+## Features
 
-## Exporting Audit Trails
-Generate compliance reports and secure audit trails instantly:
-```python
-# Export the last 30 days of signed actions for compliance (e.g., EU AI Act)
-audit_log = asqav.export_audit_trail(agent_id="agt_xxx", format="json", days=30)
-
-with open("compliance_report.json", "w") as f:
-    f.write(audit_log)
-```
+- **Signed actions** - every agent action gets a ML-DSA-65 signature with RFC 3161 timestamp
+- **Decorators** - `@asqav.sign` wraps any function with cryptographic signing
+- **Async** - full async support with `AsyncAgent` and automatic retry
+- **CLI** - verify signatures, manage agents, sync offline queue from the terminal
+- **Local mode** - sign actions offline, sync later
+- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK
+- **Policy enforcement** - block or alert on action patterns before execution
+- **Multi-party signing** - m-of-n approval using threshold ML-DSA
+- **Agent identity** - create, suspend, revoke, and rotate agent keys
+- **Audit export** - JSON/CSV trails for compliance reporting
+- **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
 
 ## Ecosystem
 
@@ -130,14 +179,19 @@ with open("compliance_report.json", "w") as f:
 
 ## Free tier
 
-Get started at no cost. Free tier includes agent creation, signed actions, audit export, and tracing. Multi-party signing and SD-JWT tokens available on the Business plan. See [asqav.com](https://asqav.com) for pricing.
+Get started at no cost. Free tier includes agent creation, signed actions, audit export, and framework integrations. Content scanning and monitoring on Pro ($29/mo). Compliance reports and remediation on Business ($99/mo). See [asqav.com](https://asqav.com) for pricing.
 
 ## Links
 
+- [Website](https://asqav.com)
 - [Documentation](https://asqav.com/docs)
+- [SDK Guide](https://asqav.com/docs/sdk)
+- [Integration Docs](https://asqav.com/docs/integrations)
 - [Blog](https://dev.to/jagmarques)
-- [Compliance](https://asqav.com/compliance/eu-ai-act.html)
+- [Compliance](https://asqav.com/compliance)
 - [Dashboard](https://asqav.com/dashboard)
+- [PyPI](https://pypi.org/project/asqav/)
+- [GitHub](https://github.com/jagmarques/asqav-sdk)
 
 ## License
 
@@ -145,4 +199,4 @@ MIT - see [LICENSE](LICENSE) for details.
 
 ---
 
-If Asqav helps you, consider giving it a star. It helps others find the project.
+If asqav helps you, consider giving it a star. It helps others find the project.
