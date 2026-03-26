@@ -95,6 +95,7 @@ from .client import (
 
 from .async_client import AsyncAgent
 from .decorators import async_session, session, sign
+from .local import LocalQueue, local_sign
 from .retry import with_async_retry, with_retry
 
 __version__ = "0.2.6"
@@ -179,6 +180,9 @@ __all__ = [
     "async_session",
     # Async
     "AsyncAgent",
+    # Local Queue
+    "LocalQueue",
+    "local_sign",
     # Retry
     "with_retry",
     "with_async_retry",
