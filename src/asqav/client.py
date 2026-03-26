@@ -31,6 +31,8 @@ from dataclasses import dataclass, field
 from typing import Any, TypeVar
 from urllib.parse import urljoin
 
+from .retry import with_retry
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 # Retry configuration for API calls
@@ -984,6 +986,7 @@ def init(
         )
 
 
+@with_retry()
 def _get(path: str) -> dict[str, Any]:
     """Make a GET request to the API."""
     _ensure_initialized()
@@ -998,6 +1001,7 @@ def _get(path: str) -> dict[str, Any]:
         return _urllib_request("GET", path)
 
 
+@with_retry()
 def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
     """Make a POST request to the API."""
     _ensure_initialized()
@@ -1011,6 +1015,7 @@ def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("POST", path, data)
 
 
+@with_retry()
 def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
     """Make a PATCH request to the API."""
     _ensure_initialized()
@@ -1024,6 +1029,7 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("PATCH", path, data)
 
 
+@with_retry()
 def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
     """Make a PUT request to the API."""
     _ensure_initialized()
@@ -1037,6 +1043,7 @@ def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("PUT", path, data)
 
 
+@with_retry()
 def _delete(path: str) -> dict[str, Any]:
     """Make a DELETE request to the API."""
     _ensure_initialized()
