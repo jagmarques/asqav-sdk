@@ -93,7 +93,9 @@ from .client import (
     verify_signature,
 )
 
+from .async_client import AsyncAgent
 from .decorators import async_session, session, sign
+from .retry import with_async_retry, with_retry
 
 __version__ = "0.2.6"
 __all__ = [
@@ -175,6 +177,11 @@ __all__ = [
     "sign",
     "session",
     "async_session",
+    # Async
+    "AsyncAgent",
+    # Retry
+    "with_retry",
+    "with_async_retry",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
