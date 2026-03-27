@@ -183,15 +183,10 @@ Get started at no cost. Free tier includes agent creation, signed actions, audit
 
 ## Links
 
-- [Website](https://asqav.com)
-- [Documentation](https://asqav.com/docs)
-- [SDK Guide](https://asqav.com/docs/sdk)
 - [Integration Docs](https://asqav.com/docs/integrations)
 - [Blog](https://dev.to/jagmarques)
-- [Compliance](https://asqav.com/compliance)
 - [Dashboard](https://asqav.com/dashboard)
 - [PyPI](https://pypi.org/project/asqav/)
-- [GitHub](https://github.com/jagmarques/asqav-sdk)
 
 ## License
 
