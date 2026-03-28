@@ -38,7 +38,7 @@ agent = asqav.Agent.create("my-agent")
 sig = agent.sign("api:call", {"model": "gpt-4"})
 ```
 
-Your agent now has a quantum-safe identity, a signed audit trail, and a verifiable action record.
+Your agent now has a cryptographic identity, a signed audit trail, and a verifiable action record.
 
 ## Why
 
