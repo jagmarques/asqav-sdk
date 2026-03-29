@@ -179,7 +179,7 @@ asqav.approve_action(session.session_id, "ent_xxx")
 
 ## Free tier
 
-Get started at no cost. Free tier includes agent creation, signed actions, audit export, and framework integrations. Content scanning and monitoring on Pro ($29/mo). Compliance reports and remediation on Business ($99/mo). See [asqav.com](https://asqav.com) for pricing.
+Get started at no cost. Free tier includes agent creation, signed actions, audit export, and framework integrations. Threat detection and monitoring on Pro ($39/mo). Compliance reports and incident management on Business ($149/mo). See [asqav.com](https://asqav.com) for pricing.
 
 ## Links
 
