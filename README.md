@@ -41,6 +41,19 @@ sig = agent.sign("api:call", {"model": "gpt-4"})
 
 Your agent now has a cryptographic identity, a signed audit trail, and a verifiable action record.
 
+Each signed action returns:
+```json
+{
+  "signature_id": "sig_a1b2c3",
+  "agent_id": "agt_x7y8z9",
+  "action": "api:call",
+  "algorithm": "ML-DSA-65",
+  "timestamp": "2026-04-06T18:30:00Z",
+  "chain_hash": "b94d27b9934d3e08...",
+  "verify_url": "https://asqav.com/verify/sig_a1b2c3"
+}
+```
+
 ## Why
 
 | Without governance | With asqav |
