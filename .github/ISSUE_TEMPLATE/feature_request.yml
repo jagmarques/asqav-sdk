@@ -1,0 +1,58 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature. We appreciate community input.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area does this feature relate to?
+      options:
+        - Core SDK
+        - Audit trails
+        - Policy enforcement
+        - Threat detection
+        - Quantum-safe signatures
+        - LangChain integration
+        - CrewAI integration
+        - MCP server
+        - OpenAI Agents integration
+        - CI/CD / GitHub Action
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem does this solve? What's the use case?
+      placeholder: I need to...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should this work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternatives you've tried?
+  - type: dropdown
+    id: willing
+    attributes:
+      label: Would you contribute this?
+      description: Would you be willing to submit a PR for this feature?
+      options:
+        - "Yes"
+        - "No"
+        - Maybe - need guidance
