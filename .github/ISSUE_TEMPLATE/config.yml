@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://asqav.com
+    about: Check the documentation before opening an issue
+  - name: PyPI Package
+    url: https://pypi.org/project/asqav/
+    about: Install the latest version from PyPI
+  - name: MCP Server
+    url: https://github.com/jagmarques/asqav-mcp
+    about: For MCP-specific issues, use the asqav-mcp repo
