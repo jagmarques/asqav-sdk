@@ -1,0 +1,42 @@
+name: Integration Request
+description: Request support for a new AI framework or platform
+title: "[Integration]: "
+labels: ["integration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us prioritize which AI frameworks to support next.
+  - type: input
+    id: framework
+    attributes:
+      label: Framework or platform
+      description: Which AI framework or platform should asqav integrate with?
+      placeholder: "e.g. AutoGen, DSPy, Haystack"
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Framework link
+      description: Link to the framework docs or repo
+      placeholder: "https://github.com/..."
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What would you use this integration for?
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice to have
+        - Important - workaround exists
+        - Critical - blocking adoption
+    validations:
+      required: true
