@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asqav"
-version = "0.2.7"
-description = "Quantum-safe control for AI agents"
+version = "0.2.8"
+description = "AI agent governance - audit trails, policy enforcement, compliance"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -15,12 +15,14 @@ authors = [
 keywords = [
     "ai",
     "agents",
-    "control",
-    "cryptography",
-    "ml-dsa",
-    "post-quantum",
-    "identity",
-    "audit",
+    "governance",
+    "audit-trail",
+    "compliance",
+    "eu-ai-act",
+    "policy-enforcement",
+    "langchain",
+    "crewai",
+    "mcp",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
