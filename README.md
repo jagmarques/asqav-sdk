@@ -152,13 +152,13 @@ See [integration docs](https://asqav.com/docs/integrations) for full setup guide
 
 asqav provides three tiers of enforcement for AI agent governance:
 
-**Strong** - the [asqav-mcp](https://github.com/jagmarques/asqav-mcp) server acts as a non-bypassable tool proxy. Agents call tools through the MCP server, which checks policy and signs the decision before allowing execution. The agent never has direct tool access.
+**Strong** - the [asqav-mcp](https://github.com/jagmarques/asqav-mcp) server acts as a non-bypassable tool proxy. Agents call tools through the MCP server, which checks policy and signs the decision before allowing execution. With a `tool_endpoint` configured, the server forwards the call and signs request + response together as a bilateral receipt.
 
-**Bounded** - pre-execution gates that check policy and sign the decision before the agent acts. The signed audit trail proves the check happened, creating accountability.
+**Bounded** - pre-execution gates (`gate_action`) check policy and sign the decision before the agent acts. After completing the action, the agent calls `complete_action` to close the bilateral receipt, linking the approval to the outcome.
 
 **Detectable** - every action gets a quantum-safe signature (ML-DSA-65) hash-chained to the previous one. If logs are tampered with or entries omitted, the chain breaks and verification fails.
 
-Most teams use all three tiers for different tools. High-risk mutations go through the strong path, routine operations use bounded, and everything gets the detectable layer.
+Most teams use all three tiers for different tools. High-risk mutations go through the strong path, routine operations use bounded, and everything gets the detectable layer. Bilateral receipts ensure auditors can verify both what was authorized and what actually happened.
 
 ### Policies
 
