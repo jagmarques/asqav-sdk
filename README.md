@@ -148,7 +148,19 @@ from asqav.extras.openai_agents import AsqavGuardrail
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
 
-## Policy enforcement
+## Enforcement
+
+asqav provides three tiers of enforcement for AI agent governance:
+
+**Strong** - the [asqav-mcp](https://github.com/jagmarques/asqav-mcp) server acts as a non-bypassable tool proxy. Agents call tools through the MCP server, which checks policy and signs the decision before allowing execution. The agent never has direct tool access.
+
+**Bounded** - pre-execution gates that check policy and sign the decision before the agent acts. The signed audit trail proves the check happened, creating accountability.
+
+**Detectable** - every action gets a quantum-safe signature (ML-DSA-65) hash-chained to the previous one. If logs are tampered with or entries omitted, the chain breaks and verification fails.
+
+Most teams use all three tiers for different tools. High-risk mutations go through the strong path, routine operations use bounded, and everything gets the detectable layer.
+
+### Policies
 
 ```python
 asqav.create_policy(
@@ -158,6 +170,16 @@ asqav.create_policy(
     severity="critical"
 )
 ```
+
+### MCP enforcement
+
+```bash
+pip install asqav-mcp
+export ASQAV_PROXY_TOOLS='{"sql:execute": {"risk_level": "high", "require_approval": true}}'
+asqav-mcp
+```
+
+The MCP server exposes `gate_action` (bounded) and `enforced_tool_call` (strong) tools to any MCP client - Claude Desktop, Claude Code, Cursor, or custom agents.
 
 ## Multi-party signing
 
@@ -177,6 +199,7 @@ asqav.approve_action(session.session_id, "ent_xxx")
 - **CLI** - verify signatures, manage agents, sync offline queue from the terminal
 - **Local mode** - sign actions offline, sync later
 - **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK
+- **Three-tier enforcement** - strong (tool proxy), bounded (pre-execution gates), detectable (signed audit trail)
 - **Policy enforcement** - block or alert on action patterns before execution
 - **Multi-party signing** - m-of-n approval using threshold ML-DSA
 - **Agent identity** - create, suspend, revoke, and rotate agent keys
