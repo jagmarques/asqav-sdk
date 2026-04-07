@@ -16,7 +16,7 @@
 </p>
 <p align="center">
   <a href="https://asqav.com">Website</a> |
-  <a href="https://asqav.com/docs">Docs</a> |
+  <a href="https://asqav.com/docs">Docs</a> | <a href="README-ZH.md">中文文档</a> |
   <a href="https://asqav.com/docs/sdk">SDK Guide</a> |
   <a href="https://asqav.com/compliance">Compliance</a>
 </p>
