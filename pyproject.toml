@@ -23,6 +23,11 @@ keywords = [
     "langchain",
     "crewai",
     "mcp",
+    "quantum-safe",
+    "ml-dsa",
+    "ai-security",
+    "openai-agents",
+    "haystack",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -33,6 +38,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Security :: Cryptography",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
