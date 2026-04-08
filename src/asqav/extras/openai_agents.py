@@ -2,12 +2,22 @@
 
 Install: pip install asqav[openai-agents]
 
+Provides two integration points:
+
+- ``AsqavGuardrail`` - signs input/output events on agent runs.
+- ``AsqavTracingProcessor`` - signs trace and span lifecycle events
+  as governance records via the OpenAI Agents tracing pipeline.
+
 Usage::
 
-    from asqav.extras.openai_agents import AsqavGuardrail
-    from agents import Agent
+    from asqav.extras.openai_agents import AsqavGuardrail, AsqavTracingProcessor
+    from agents import Agent, add_trace_processor
 
+    # Guardrail (audit-only, never blocks)
     agent = Agent(name="my-agent", guardrails=[AsqavGuardrail(agent_name="my-openai-agent")])
+
+    # Tracing processor (signs every trace/span lifecycle event)
+    add_trace_processor(AsqavTracingProcessor(agent_name="my-openai-agent"))
 """
 
 from __future__ import annotations
@@ -17,7 +27,7 @@ import logging
 from typing import Any
 
 try:
-    import agents  # noqa: F401
+    from agents.tracing import Span, Trace, TracingProcessor
 except ImportError:
     raise ImportError(
         "OpenAI Agents integration requires openai-agents. "
@@ -117,3 +127,91 @@ class AsqavGuardrail(AsqavAdapter):
         except Exception as exc:
             logger.warning("asqav output guardrail signing failed (fail-open): %s", exc)
         return GuardrailResult(passed=True, output=None)
+
+
+class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
+    """Tracing processor that signs trace and span lifecycle events.
+
+    Registers with the OpenAI Agents tracing pipeline via
+    ``add_trace_processor``. Each trace start/end and span start/end
+    is signed as a governance event through asqav.
+
+    All signing is fail-open - tracing failures are logged but never
+    raise, so the agent pipeline is never interrupted.
+
+    Args:
+        api_key: Optional API key override (uses ``asqav.init()`` default).
+        agent_name: Name for a new asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+    """
+
+    def on_trace_start(self, trace: Trace) -> None:
+        """Sign a trace:start governance event."""
+        try:
+            self._sign_action(
+                "trace:start",
+                {
+                    "trace_id": trace.trace_id,
+                    "trace_name": trace.name,
+                },
+            )
+        except Exception as exc:
+            logger.warning("asqav trace:start signing failed (fail-open): %s", exc)
+
+    def on_trace_end(self, trace: Trace) -> None:
+        """Sign a trace:end governance event."""
+        try:
+            self._sign_action(
+                "trace:end",
+                {
+                    "trace_id": trace.trace_id,
+                    "trace_name": trace.name,
+                },
+            )
+        except Exception as exc:
+            logger.warning("asqav trace:end signing failed (fail-open): %s", exc)
+
+    def on_span_start(self, span: Span[Any]) -> None:
+        """Sign a span:start governance event."""
+        try:
+            span_data = span.span_data
+            self._sign_action(
+                "span:start",
+                {
+                    "trace_id": span.trace_id,
+                    "span_id": span.span_id,
+                    "span_type": type(span_data).__name__,
+                },
+            )
+        except Exception as exc:
+            logger.warning("asqav span:start signing failed (fail-open): %s", exc)
+
+    def on_span_end(self, span: Span[Any]) -> None:
+        """Sign a span:end governance event."""
+        try:
+            span_data = span.span_data
+            exported = span.export() if hasattr(span, "export") else None
+            context: dict[str, Any] = {
+                "trace_id": span.trace_id,
+                "span_id": span.span_id,
+                "span_type": type(span_data).__name__,
+            }
+            if exported:
+                # Include a preview of the span output for the audit record
+                output = exported.get("span_data", {}).get("output")
+                if output is not None:
+                    output_repr = repr(output)
+                    if len(output_repr) > 200:
+                        output_repr = output_repr[:200]
+                    context["output_preview"] = output_repr
+            self._sign_action("span:end", context)
+        except Exception as exc:
+            logger.warning("asqav span:end signing failed (fail-open): %s", exc)
+
+    def shutdown(self) -> None:
+        """End the asqav session on processor shutdown."""
+        self._end_session(status="completed")
+
+    def force_flush(self) -> None:
+        """No-op - asqav signs events synchronously."""
+        pass
