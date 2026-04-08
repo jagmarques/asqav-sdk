@@ -90,6 +90,7 @@ from .client import (
     span,
     update_risk_rule,
     update_signing_group,
+    verify_output,
     verify_signature,
 )
 
@@ -159,6 +160,7 @@ __all__ = [
     "list_sessions",
     # Verification
     "verify_signature",
+    "verify_output",
     # Sessions
     "get_session_signatures",
     # Export
