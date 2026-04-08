@@ -21,6 +21,8 @@ Example:
 from __future__ import annotations
 
 import functools
+import hashlib
+import json as _json
 import os
 import sys
 import time
@@ -51,6 +53,17 @@ def _with_retry(func: Callable[[], Any]) -> Any:
             if attempt < len(_RETRY_DELAYS) - 1:
                 time.sleep(delay)
     raise last_error
+
+
+def _hash_value(value: Any) -> str:
+    """Hash an arbitrary value with SHA-256 for output verification."""
+    if isinstance(value, str):
+        raw = value.encode("utf-8")
+    elif isinstance(value, bytes):
+        raw = value
+    else:
+        raw = _json.dumps(value, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _parse_timestamp(value: Any) -> float:
@@ -752,6 +765,46 @@ class Agent:
             verification_url=data["verification_url"],
         )
 
+    def sign_output(
+        self,
+        action_type: str,
+        input_hash: str,
+        output: Any,
+        context: dict[str, Any] | None = None,
+    ) -> SignatureResponse:
+        """Sign a tool output with a hash of the original input for binding.
+
+        Creates a signed record that binds the output to a specific input,
+        proving the output hasn't been modified after generation.
+
+        Args:
+            action_type: Type of action (e.g., "tool:search", "api:call").
+            input_hash: SHA-256 hash of the original input for binding.
+            output: The output to hash and sign.
+            context: Additional context to include in the signed payload.
+
+        Returns:
+            SignatureResponse with the signature.
+        """
+        try:
+            output_hash = _hash_value(output)
+        except Exception:
+            import warnings
+            warnings.warn("asqav: failed to hash output, signing without output_hash")
+            output_hash = ""
+
+        sign_context: dict[str, Any] = {
+            "output_hash": output_hash,
+            "input_hash": input_hash,
+        }
+        if context:
+            sign_context.update(context)
+
+        return self.sign(
+            action_type=action_type,
+            context=sign_context,
+        )
+
     def start_session(self) -> SessionResponse:
         """Start a new session.
 
@@ -1362,6 +1415,54 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         verified=data["verified"],
         verification_url=data["verification_url"],
     )
+
+
+def verify_output(signature_id: str, expected_output: Any) -> dict[str, Any]:
+    """Verify a signed output matches the expected content.
+
+    Checks that the signature is valid and that the output hash stored
+    in the signed payload matches a fresh hash of expected_output.
+
+    Args:
+        signature_id: The signature ID from sign_output().
+        expected_output: The output to verify against the signed hash.
+
+    Returns:
+        Dict with verified, signature_valid, and output_matches bools.
+
+    Example:
+        result = asqav.verify_output("sig_abc123", {"answer": 42})
+        if result["verified"]:
+            print("Output is authentic and unmodified")
+    """
+    try:
+        verification = verify_signature(signature_id)
+        signature_valid = verification.verified
+    except Exception:
+        return {
+            "verified": False,
+            "signature_valid": False,
+            "output_matches": False,
+        }
+
+    # Compare output hash from the signed payload to a fresh hash.
+    output_matches = False
+    try:
+        stored_hash = ""
+        if verification.payload and isinstance(verification.payload, dict):
+            context = verification.payload.get("context", verification.payload)
+            stored_hash = context.get("output_hash", "")
+        if stored_hash:
+            expected_hash = _hash_value(expected_output)
+            output_matches = stored_hash == expected_hash
+    except Exception:
+        output_matches = False
+
+    return {
+        "verified": signature_valid and output_matches,
+        "signature_valid": signature_valid,
+        "output_matches": output_matches,
+    }
 
 
 def request_action(
