@@ -65,6 +65,7 @@ from .client import (
     export_audit_json,
     export_spans,
     flush_spans,
+    generate_attestation,
     generate_keypair,
     get_action_status,
     get_agent,
@@ -92,6 +93,7 @@ from .client import (
     update_risk_rule,
     update_signing_group,
     verify_output,
+    verify_attestation,
     verify_signature,
 )
 
@@ -163,6 +165,9 @@ __all__ = [
     # Verification
     "verify_signature",
     "verify_output",
+    # Trust Signal Export
+    "generate_attestation",
+    "verify_attestation",
     # Sessions
     "get_session_signatures",
     # Export
