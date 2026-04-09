@@ -389,6 +389,20 @@ class ShareRecoveryResponse:
 
 
 @dataclass
+class PreflightResult:
+    """Result of a pre-flight check combining agent status and policy checks.
+
+    If cleared is True the agent is allowed to proceed with the action.
+    When cleared is False, reasons lists the blocking factors.
+    """
+
+    cleared: bool
+    agent_active: bool
+    policy_allowed: bool
+    reasons: list[str]
+
+
+@dataclass
 class Span:
     """A single traced operation.
 
@@ -955,6 +969,63 @@ class Agent:
         """Check if this agent is suspended."""
         data = _get(f"/agents/{self.agent_id}/status")
         return bool(data.get("suspended", False))
+
+    def preflight(self, action_type: str) -> PreflightResult:
+        """Pre-flight check combining revocation, suspension, and policy status.
+
+        Returns a single result indicating whether the agent is cleared to
+        perform the given action type. Combines:
+        - Agent status (not revoked, not suspended)
+        - Policy check (action allowed by org policies)
+
+        Use before executing sensitive actions to catch issues early.
+
+        Fail-open: if any individual check errors out, the agent is not
+        blocked. A warning is added to reasons instead.
+
+        Args:
+            action_type: The action to check (e.g., "data:read", "api:call").
+
+        Returns:
+            PreflightResult with combined check outcome.
+        """
+        agent_active = True
+        policy_allowed = True
+        reasons: list[str] = []
+
+        # Check agent status (revoked / suspended).
+        try:
+            status_data = _get(f"/agents/{self.agent_id}/status")
+            if status_data.get("revoked", False):
+                agent_active = False
+                reasons.append("agent is revoked")
+            if status_data.get("suspended", False):
+                agent_active = False
+                reasons.append("agent is suspended")
+        except Exception as exc:
+            reasons.append(f"status check failed ({exc}) - skipped")
+
+        # Check organization policies.
+        try:
+            policies = _get("/policies")
+            for p in policies if isinstance(policies, list) else []:
+                if not p.get("is_active"):
+                    continue
+                pattern = p.get("action_pattern", "")
+                if pattern == "*" or action_type.startswith(pattern.rstrip("*")):
+                    if p.get("action") in ("block", "block_and_alert"):
+                        policy_allowed = False
+                        reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
+        except Exception as exc:
+            reasons.append(f"policy check failed ({exc}) - skipped")
+
+        cleared = agent_active and policy_allowed
+        return PreflightResult(
+            cleared=cleared,
+            agent_active=agent_active,
+            policy_allowed=policy_allowed,
+            reasons=reasons,
+        )
 
     def get_certificate(self) -> CertificateResponse:
         """Get the agent's identity certificate.
