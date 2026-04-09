@@ -25,6 +25,7 @@ from .client import (
     AsqavError,
     AuthenticationError,
     CertificateResponse,
+    PreflightResult,
     RateLimitError,
     SDTokenResponse,
     SessionResponse,
@@ -305,6 +306,61 @@ class AsyncAgent:
             status=data["status"],
             started_at=data["started_at"],
             ended_at=data.get("ended_at"),
+        )
+
+    async def preflight(self, action_type: str) -> PreflightResult:
+        """Pre-flight check combining revocation, suspension, and policy status (async).
+
+        Returns a single result indicating whether the agent is cleared to
+        perform the given action type. Combines:
+        - Agent status (not revoked, not suspended)
+        - Policy check (action allowed by org policies)
+
+        Fail-open: if any individual check errors out, the agent is not
+        blocked. A warning is added to reasons instead.
+
+        Args:
+            action_type: The action to check (e.g., "data:read", "api:call").
+
+        Returns:
+            PreflightResult with combined check outcome.
+        """
+        agent_active = True
+        policy_allowed = True
+        reasons: list[str] = []
+
+        # Check agent status (revoked / suspended).
+        try:
+            status_data = await _async_get(f"/agents/{self.agent_id}/status")
+            if status_data.get("revoked", False):
+                agent_active = False
+                reasons.append("agent is revoked")
+            if status_data.get("suspended", False):
+                agent_active = False
+                reasons.append("agent is suspended")
+        except Exception as exc:
+            reasons.append(f"status check failed ({exc}) - skipped")
+
+        # Check organization policies.
+        try:
+            policies = await _async_get("/policies")
+            for p in policies if isinstance(policies, list) else []:
+                if not p.get("is_active"):
+                    continue
+                pattern = p.get("action_pattern", "")
+                if pattern == "*" or action_type.startswith(pattern.rstrip("*")):
+                    if p.get("action") in ("block", "block_and_alert"):
+                        policy_allowed = False
+                        reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
+        except Exception as exc:
+            reasons.append(f"policy check failed ({exc}) - skipped")
+
+        cleared = agent_active and policy_allowed
+        return PreflightResult(
+            cleared=cleared,
+            agent_active=agent_active,
+            policy_allowed=policy_allowed,
+            reasons=reasons,
         )
 
     async def verify(self, signature_id: str) -> VerificationResponse:

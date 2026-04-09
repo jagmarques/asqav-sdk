@@ -39,6 +39,7 @@ from .client import (
     GroupKeypairResponse,
     GroupSignResponse,
     KeyRefreshResponse,
+    PreflightResult,
     RateLimitError,
     RiskRuleResponse,
     SDTokenResponse,
@@ -108,6 +109,7 @@ __all__ = [
     "Agent",
     "AgentResponse",
     "get_agent",
+    "PreflightResult",
     # Responses
     "TokenResponse",
     "SDTokenResponse",
