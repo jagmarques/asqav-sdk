@@ -264,6 +264,10 @@ assert result["valid"] and result["all_valid"]
 - **Audit export** - JSON/CSV trails for compliance reporting
 - **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
 
+## In the press
+
+- [Help Net Security: Asqav - Open-source SDK for AI agent governance](https://www.helpnetsecurity.com/2026/04/09/asqav-ai-agent-audit-trail/)
+
 ## Ecosystem
 
 | Package | What it does |
