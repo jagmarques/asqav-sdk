@@ -34,6 +34,8 @@ from .client import (
     ApprovalResponse,
     AsqavError,
     AuthenticationError,
+    BudgetCheckResult,
+    BudgetTracker,
     CertificateResponse,
     DelegationResponse,
     GroupKeypairResponse,
@@ -195,6 +197,9 @@ __all__ = [
     # Retry
     "with_retry",
     "with_async_retry",
+    # Budget Tracking
+    "BudgetTracker",
+    "BudgetCheckResult",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
