@@ -104,7 +104,7 @@ from .decorators import async_session, session, sign
 from .local import LocalQueue, local_sign
 from .retry import with_async_retry, with_retry
 
-__version__ = "0.2.8"
+__version__ = "0.2.9"
 __all__ = [
     # Initialization
     "init",

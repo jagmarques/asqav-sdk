@@ -191,6 +191,60 @@ session = asqav.request_action("agt_xxx", "finance.transfer", {"amount": 50000})
 asqav.approve_action(session.session_id, "ent_xxx")
 ```
 
+## Pre-flight checks
+
+Combine revocation, suspension, and policy checks in a single call before running sensitive actions:
+
+```python
+result = agent.preflight("data:delete")
+if not result.cleared:
+    raise RuntimeError(f"blocked: {result.reasons}")
+```
+
+## Output verification
+
+Bind a tool output to its input and verify later that nothing was tampered with:
+
+```python
+import hashlib, json
+
+prompt = {"query": "top customers"}
+input_hash = hashlib.sha256(json.dumps(prompt, sort_keys=True).encode()).hexdigest()
+
+output = run_tool(prompt)
+sig = agent.sign_output("tool:search", input_hash, output)
+
+# Later, from any verifier
+result = asqav.verify_output(sig.signature_id, output)
+assert result["verified"]
+```
+
+## Budget tracking
+
+Client-side spend tracker that persists every cost as a signed record. Fails closed when the limit would be exceeded:
+
+```python
+budget = asqav.BudgetTracker(agent, limit=10.0, currency="USD")
+
+decision = budget.check(estimated_cost=0.25)
+if not decision.allowed:
+    raise RuntimeError(decision.reason)
+
+budget.record("api:openai", actual_cost=0.23, context={"model": "gpt-4"})
+```
+
+## Attestations
+
+Generate a portable, signed attestation document proving an agent's governance status. Share it with auditors or partners for independent verification:
+
+```python
+attestation = asqav.generate_attestation("agt_abc123", session_id="sess_xyz")
+
+# Anyone with the document can verify it
+result = asqav.verify_attestation(attestation)
+assert result["valid"] and result["all_valid"]
+```
+
 ## Features
 
 - **Signed actions** - every agent action gets a ML-DSA-65 signature with RFC 3161 timestamp
@@ -202,6 +256,10 @@ asqav.approve_action(session.session_id, "ent_xxx")
 - **Three-tier enforcement** - strong (tool proxy), bounded (pre-execution gates), detectable (signed audit trail)
 - **Policy enforcement** - block or alert on action patterns before execution
 - **Multi-party signing** - m-of-n approval using threshold ML-DSA
+- **Pre-flight checks** - combined revocation, suspension, and policy gate in one call
+- **Output verification** - bind tool outputs to inputs and verify later with `sign_output` / `verify_output`
+- **Budget tracking** - client-side spend limits with signed, replayable records
+- **Attestations** - portable signed documents proving an agent's governance status
 - **Agent identity** - create, suspend, revoke, and rotate agent keys
 - **Audit export** - JSON/CSV trails for compliance reporting
 - **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
