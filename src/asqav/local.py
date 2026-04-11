@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
-
 _DEFAULT_QUEUE_DIR = os.path.join(os.path.expanduser("~"), ".asqav", "queue")
 
 

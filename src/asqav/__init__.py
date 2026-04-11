@@ -27,6 +27,7 @@ With Decorators:
 Get your API key at asqav.com
 """
 
+from .async_client import AsyncAgent
 from .client import (
     Agent,
     AgentResponse,
@@ -94,12 +95,10 @@ from .client import (
     span,
     update_risk_rule,
     update_signing_group,
-    verify_output,
     verify_attestation,
+    verify_output,
     verify_signature,
 )
-
-from .async_client import AsyncAgent
 from .decorators import async_session, session, sign
 from .local import LocalQueue, local_sign
 from .retry import with_async_retry, with_retry
