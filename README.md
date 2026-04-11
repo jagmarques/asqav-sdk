@@ -280,6 +280,10 @@ assert result["valid"] and result["all_valid"]
 
 Get started at no cost. Free tier includes agent creation, signed actions, three-tier enforcement, policies, audit export, and framework integrations. Threat detection and monitoring on Pro ($39/mo). Compliance reports, multi-party signing, and incident management on Business ($149/mo). See [asqav.com](https://asqav.com) for pricing.
 
+## Discovery
+
+Machine-readable service descriptor at [`https://asqav.com/.well-known/governance.json`](https://asqav.com/.well-known/governance.json) for external tools that want to auto-discover asqav's endpoints, algorithms, capabilities, and integrations.
+
 ## Links
 
 - [Integration Docs](https://asqav.com/docs/integrations)
