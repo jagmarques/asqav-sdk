@@ -7,5 +7,6 @@ Install specific extras:
     pip install asqav[haystack]
     pip install asqav[openai-agents]
     pip install asqav[llamaindex]
+    pip install asqav[smolagents]
     pip install asqav[all]
 """

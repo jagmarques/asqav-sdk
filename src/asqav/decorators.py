@@ -26,11 +26,11 @@ from __future__ import annotations
 
 import functools
 import inspect
-from contextlib import asynccontextmanager, contextmanager
 from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager, contextmanager
 from typing import Any, TypeVar
 
-from .client import Agent, AsqavError, SignatureResponse, SessionResponse, get_agent, _post
+from .client import Agent, SessionResponse, SignatureResponse, get_agent
 
 F = TypeVar("F")
 
