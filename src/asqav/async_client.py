@@ -15,22 +15,17 @@ Example:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from typing import Any
 
 from .client import (
-    AgentResponse,
     APIError,
     AsqavError,
     AuthenticationError,
-    CertificateResponse,
     PreflightResult,
     RateLimitError,
-    SDTokenResponse,
     SessionResponse,
     SignatureResponse,
-    TokenResponse,
     VerificationResponse,
     _api_base,
     _api_key,
@@ -57,7 +52,6 @@ def _ensure_httpx() -> None:
 
 def _ensure_initialized() -> None:
     """Ensure the SDK is initialized."""
-    from .client import _api_key
 
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
@@ -69,7 +63,6 @@ def _get_config() -> tuple[str, str]:
     Returns:
         Tuple of (api_base, api_key).
     """
-    from .client import _api_base, _api_key
 
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
