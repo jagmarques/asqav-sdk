@@ -109,7 +109,7 @@ local_sign("agt_xxx", "task:complete", {"result": "done"})
 
 ## Works with your stack
 
-Native integrations for 5 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
+Native integrations for 7 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
 
 ```bash
 pip install asqav[langchain]
@@ -117,6 +117,8 @@ pip install asqav[crewai]
 pip install asqav[litellm]
 pip install asqav[haystack]
 pip install asqav[openai-agents]
+pip install asqav[smolagents]
+pip install asqav[dspy]
 pip install asqav[all]
 ```
 
@@ -138,12 +140,14 @@ hook = AsqavCrewHook(api_key="sk_...")
 task = Task(description="Research competitors", callbacks=[hook.task_callback])
 ```
 
-### LiteLLM / Haystack / OpenAI Agents SDK
+### LiteLLM / Haystack / OpenAI Agents SDK / smolagents / DSPy
 
 ```python
 from asqav.extras.litellm import AsqavGuardrail
 from asqav.extras.haystack import AsqavComponent
 from asqav.extras.openai_agents import AsqavGuardrail
+from asqav.extras.smolagents import AsqavToolWrapper
+from asqav.extras.dspy import AsqavModule
 ```
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
@@ -252,7 +256,7 @@ assert result["valid"] and result["all_valid"]
 - **Async** - full async support with `AsyncAgent` and automatic retry
 - **CLI** - verify signatures, manage agents, sync offline queue from the terminal
 - **Local mode** - sign actions offline, sync later
-- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK
+- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, smolagents, DSPy
 - **Three-tier enforcement** - strong (tool proxy), bounded (pre-execution gates), detectable (signed audit trail)
 - **Policy enforcement** - block or alert on action patterns before execution
 - **Multi-party signing** - m-of-n approval using threshold ML-DSA
