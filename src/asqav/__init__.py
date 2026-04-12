@@ -100,6 +100,7 @@ from .client import (
     verify_signature,
 )
 from .decorators import async_session, session, sign
+from .compliance import ComplianceBundle, export_bundle
 from .local import LocalQueue, local_sign
 from .retry import with_async_retry, with_retry
 
@@ -199,6 +200,9 @@ __all__ = [
     # Budget Tracking
     "BudgetTracker",
     "BudgetCheckResult",
+    # Compliance
+    "ComplianceBundle",
+    "export_bundle",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
