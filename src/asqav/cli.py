@@ -233,6 +233,133 @@ def queue_count() -> None:
     print(f"{n} pending items.")
 
 
+# ---------------------------------------------------------------------------
+# quickstart command
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def quickstart() -> None:
+    """Get started with asqav in 60 seconds."""
+    import os
+
+    api_key = os.environ.get("ASQAV_API_KEY")
+    if api_key:
+        typer.echo(
+            typer.style("API key detected.", fg=typer.colors.GREEN, bold=True)
+        )
+    else:
+        typer.echo(
+            typer.style(
+                "ASQAV_API_KEY not set. Get one at https://cloud.asqav.com",
+                fg=typer.colors.YELLOW,
+                bold=True,
+            )
+        )
+
+    typer.echo("\n--- MCP config (.mcp.json) ---\n")
+    typer.echo(
+        '{\n'
+        '  "mcpServers": {\n'
+        '    "asqav": {\n'
+        '      "command": "uvx",\n'
+        '      "args": ["asqav-mcp"],\n'
+        '      "env": {\n'
+        '        "ASQAV_API_KEY": "<your-key>"\n'
+        '      }\n'
+        '    }\n'
+        '  }\n'
+        '}'
+    )
+
+    typer.echo("\n--- Default policy example ---\n")
+    typer.echo(
+        "from asqav import Policy\n"
+        "\n"
+        'policy = Policy(\n'
+        '    name="default",\n'
+        '    rules=[\n'
+        '        {"action": "api:call", "effect": "allow"},\n'
+        '        {"action": "write:data", "effect": "deny"},\n'
+        '    ],\n'
+        ')'
+    )
+
+    typer.echo("\n--- Next steps ---\n")
+    typer.echo("1. Create an agent:  asqav agents create my-agent")
+    typer.echo("2. Sign actions:     agent.sign('api:call', metadata={...})")
+    typer.echo("3. Verify anywhere:  asqav verify <signature_id>")
+    typer.echo("4. Run diagnostics:  asqav doctor")
+
+
+# ---------------------------------------------------------------------------
+# doctor command
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def doctor() -> None:
+    """Validate your governance setup."""
+    import os
+
+    all_ok = True
+
+    # Check 1: API key
+    api_key = os.environ.get("ASQAV_API_KEY")
+    if api_key:
+        typer.echo(
+            typer.style("PASS", fg=typer.colors.GREEN, bold=True) + "  API key set"
+        )
+    else:
+        typer.echo(
+            typer.style("FAIL", fg=typer.colors.RED, bold=True)
+            + "  ASQAV_API_KEY not set"
+        )
+        all_ok = False
+
+    # Check 2: API reachable
+    if api_key:
+        import asqav
+
+        asqav.init(api_key=api_key)
+        try:
+            from asqav.client import health_check
+
+            health_check()
+            typer.echo(
+                typer.style("PASS", fg=typer.colors.GREEN, bold=True)
+                + "  API reachable"
+            )
+        except Exception as exc:
+            typer.echo(
+                typer.style("FAIL", fg=typer.colors.RED, bold=True)
+                + f"  API unreachable: {exc}"
+            )
+            all_ok = False
+    else:
+        typer.echo(
+            typer.style("SKIP", fg=typer.colors.YELLOW, bold=True)
+            + "  API reachable (no key)"
+        )
+
+    # Check 3: SDK version
+    typer.echo(
+        typer.style("INFO", fg=typer.colors.BLUE, bold=True)
+        + f"  SDK version: {__version__}"
+    )
+
+    if all_ok:
+        typer.echo(
+            "\n" + typer.style("All checks passed.", fg=typer.colors.GREEN)
+        )
+    else:
+        typer.echo(
+            "\n"
+            + typer.style("Some checks failed. See above.", fg=typer.colors.RED)
+        )
+        raise typer.Exit(code=1)
+
+
 @queue_app.command("clear")
 def queue_clear(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation."),
