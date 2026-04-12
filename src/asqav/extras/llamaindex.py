@@ -5,25 +5,25 @@ Install: pip install asqav[llamaindex]
 Usage::
 
     import asqav
-    from asqav.extras.llamaindex import AsqavCallbackHandler
     from llama_index.core.callbacks import CallbackManager
+    from asqav.extras.llamaindex import AsqavLlamaIndexHandler
 
-    asqav.init("sk_live_...")
-    handler = AsqavCallbackHandler(agent_name="my-rag-app")
+    asqav.init(api_key="...")
+    handler = AsqavLlamaIndexHandler(agent_name="my-agent")
     callback_manager = CallbackManager([handler])
 
-    # Attach to Settings for global usage
-    from llama_index.core import Settings
-    Settings.callback_manager = callback_manager
+    # Pass callback_manager to your LlamaIndex components.
+    # All LLM, query, retrieval, tool, and agent events are automatically signed.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional
 
 try:
     from llama_index.core.callbacks.base_handler import BaseCallbackHandler
-    from llama_index.core.callbacks.schema import CBEventType, EventPayload
+    from llama_index.core.callbacks.schema import CBEventType
 except ImportError:
     raise ImportError(
         "LlamaIndex integration requires llama-index-core. "
@@ -32,18 +32,49 @@ except ImportError:
 
 from ._base import AsqavAdapter
 
+logger = logging.getLogger("asqav")
 
-class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[misc]
-    """LlamaIndex callback handler that signs query, retrieval, and LLM events.
+# Event types we sign governance events for.
+_SIGNED_EVENT_TYPES = frozenset(
+    {
+        CBEventType.LLM,
+        CBEventType.QUERY,
+        CBEventType.RETRIEVE,
+        CBEventType.SYNTHESIZE,
+        CBEventType.FUNCTION_CALL,
+        CBEventType.AGENT_STEP,
+        CBEventType.EMBEDDING,
+        CBEventType.RERANKING,
+        CBEventType.SUB_QUESTION,
+    }
+)
 
-    Every LLM call, retrieval, query, and synthesis event is signed via asqav
-    for governance and audit. Signing failures are logged but never raise -
-    governance must not break the user's AI pipeline.
+_MAX_LEN = 200
+
+
+def _safe_payload_keys(payload: Optional[Dict[str, Any]]) -> list[str]:
+    """Extract sorted payload keys, or empty list if payload is not a dict."""
+    if isinstance(payload, dict):
+        return sorted(payload.keys())
+    return []
+
+
+class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore[misc]
+    """LlamaIndex callback handler that signs governance events via asqav.
+
+    Implements ``llama_index.core.callbacks.base_handler.BaseCallbackHandler``
+    and records signed governance events for LLM calls, queries, retrieval,
+    function/tool calls, agent steps, embeddings, reranking, and sub-questions.
+
+    Signing is fail-open: asqav failures are logged but never raised, so
+    LlamaIndex pipelines keep running even when asqav is unreachable.
 
     Args:
-        api_key: Optional API key override (uses asqav.init() default).
-        agent_name: Name for a new agent (calls Agent.create).
-        agent_id: ID of an existing agent (calls Agent.get).
+        api_key: Optional API key override (uses ``asqav.init()`` default).
+        agent_name: Name for a new asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        event_starts_to_ignore: LlamaIndex event types to skip on start.
+        event_ends_to_ignore: LlamaIndex event types to skip on end.
     """
 
     def __init__(
@@ -52,16 +83,21 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
         api_key: str | None = None,
         agent_name: str | None = None,
         agent_id: str | None = None,
-        **kwargs: Any,
+        event_starts_to_ignore: list[CBEventType] | None = None,
+        event_ends_to_ignore: list[CBEventType] | None = None,
     ) -> None:
         AsqavAdapter.__init__(
             self, api_key=api_key, agent_name=agent_name, agent_id=agent_id
         )
         BaseCallbackHandler.__init__(
             self,
-            event_starts_to_ignore=[],
-            event_ends_to_ignore=[],
+            event_starts_to_ignore=event_starts_to_ignore or [],
+            event_ends_to_ignore=event_ends_to_ignore or [],
         )
+
+    # ------------------------------------------------------------------
+    # BaseCallbackHandler interface
+    # ------------------------------------------------------------------
 
     def on_event_start(
         self,
@@ -71,39 +107,16 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
         parent_id: str = "",
         **kwargs: Any,
     ) -> str:
-        """Sign event start with event type and relevant payload details."""
-        context: Dict[str, Any] = {"event_type": event_type.value}
-        payload = payload or {}
-
-        if event_type == CBEventType.LLM:
-            model = payload.get(EventPayload.MODEL_NAME)
-            if model:
-                context["model"] = str(model)
-            messages = payload.get(EventPayload.MESSAGES)
-            if messages:
-                context["message_count"] = len(messages)
-
-        elif event_type == CBEventType.QUERY:
-            query_str = payload.get(EventPayload.QUERY_STR)
-            if query_str:
-                context["query_length"] = len(str(query_str))
-
-        elif event_type == CBEventType.RETRIEVE:
-            query_str = payload.get(EventPayload.QUERY_STR)
-            if query_str:
-                context["query_length"] = len(str(query_str))
-
-        elif event_type == CBEventType.EMBEDDING:
-            chunks = payload.get(EventPayload.CHUNKS)
-            if chunks:
-                context["chunk_count"] = len(chunks)
-
-        elif event_type == CBEventType.AGENT_STEP:
-            tool = payload.get(EventPayload.TOOL)
-            if tool:
-                context["tool"] = str(tool)[:200]
-
-        self._sign_action(f"{event_type.value}:start", context)
+        """Sign a llamaindex.<event_type>.start governance event."""
+        if event_type not in self.event_starts_to_ignore and event_type in _SIGNED_EVENT_TYPES:
+            context: dict[str, Any] = {
+                "event_id": event_id,
+                "event_type": event_type.value,
+                "payload_keys": _safe_payload_keys(payload),
+            }
+            if parent_id:
+                context["parent_id"] = parent_id
+            self._sign_action(f"llamaindex.{event_type.value}.start", context)
         return event_id
 
     def on_event_end(
@@ -113,43 +126,25 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
         event_id: str = "",
         **kwargs: Any,
     ) -> None:
-        """Sign event end with event type and result details."""
-        context: Dict[str, Any] = {"event_type": event_type.value}
-        payload = payload or {}
-
-        if event_type == CBEventType.LLM:
-            response = payload.get(EventPayload.RESPONSE)
-            completion = payload.get(EventPayload.COMPLETION)
-            if response:
-                context["response_length"] = len(str(response))
-            elif completion:
-                context["response_length"] = len(str(completion))
-
-        elif event_type == CBEventType.RETRIEVE:
-            nodes = payload.get(EventPayload.NODES)
-            if nodes:
-                context["nodes_retrieved"] = len(nodes)
-
-        elif event_type == CBEventType.SYNTHESIZE:
-            response = payload.get(EventPayload.RESPONSE)
-            if response:
-                context["response_length"] = len(str(response))
-
-        elif event_type == CBEventType.EMBEDDING:
-            embeddings = payload.get(EventPayload.EMBEDDINGS)
-            if embeddings:
-                context["embedding_count"] = len(embeddings)
-
-        self._sign_action(f"{event_type.value}:end", context)
+        """Sign a llamaindex.<event_type>.end governance event."""
+        if event_type not in self.event_ends_to_ignore and event_type in _SIGNED_EVENT_TYPES:
+            context: dict[str, Any] = {
+                "event_id": event_id,
+                "event_type": event_type.value,
+                "payload_keys": _safe_payload_keys(payload),
+            }
+            self._sign_action(f"llamaindex.{event_type.value}.end", context)
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
-        """Start a trace session for grouped signing."""
-        self._start_session()
+        """Start a trace - begins an asqav session for grouped signing."""
+        if trace_id:
+            self._start_session()
 
     def end_trace(
         self,
         trace_id: Optional[str] = None,
         trace_map: Optional[Dict[str, List[str]]] = None,
     ) -> None:
-        """End the trace session."""
-        self._end_session()
+        """End a trace - closes the asqav session."""
+        if self._session_id is not None:
+            self._end_session("completed")
