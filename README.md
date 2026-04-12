@@ -146,8 +146,8 @@ task = Task(description="Research competitors", callbacks=[hook.task_callback])
 from asqav.extras.litellm import AsqavGuardrail
 from asqav.extras.haystack import AsqavComponent
 from asqav.extras.openai_agents import AsqavGuardrail
-from asqav.extras.smolagents import AsqavToolWrapper
-from asqav.extras.dspy import AsqavModule
+from asqav.extras.smolagents import AsqavSmolagentsHook
+from asqav.extras.dspy import AsqavDSPyCallback
 ```
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
