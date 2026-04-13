@@ -105,7 +105,7 @@ from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .retry import with_async_retry, with_retry
 
-__version__ = "0.2.9"
+__version__ = "0.2.11"
 __all__ = [
     # Initialization
     "init",
