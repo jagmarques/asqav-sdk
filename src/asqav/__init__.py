@@ -102,6 +102,7 @@ from .client import (
 from .decorators import async_session, session, sign
 from .compliance import ComplianceBundle, export_bundle
 from .local import LocalQueue, local_sign
+from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .retry import with_async_retry, with_retry
 
 __version__ = "0.2.9"
@@ -203,6 +204,10 @@ __all__ = [
     # Compliance
     "ComplianceBundle",
     "export_bundle",
+    # Patterns
+    "PATTERNS",
+    "resolve_pattern",
+    "list_patterns",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
