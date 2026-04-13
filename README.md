@@ -111,7 +111,7 @@ local_sign("agt_xxx", "task:complete", {"result": "done"})
 
 ## Works with your stack
 
-Native integrations for 8 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
+Native integrations for 9 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
 
 ```bash
 pip install asqav[langchain]
@@ -122,6 +122,7 @@ pip install asqav[openai-agents]
 pip install asqav[llamaindex]
 pip install asqav[smolagents]
 pip install asqav[dspy]
+pip install asqav-pydantic          # PydanticAI (external package)
 pip install asqav[all]
 ```
 
@@ -162,6 +163,16 @@ from asqav.extras.haystack import AsqavComponent
 from asqav.extras.openai_agents import AsqavGuardrail
 from asqav.extras.smolagents import AsqavSmolagentsHook
 from asqav.extras.dspy import AsqavDSPyCallback
+```
+
+### PydanticAI
+
+```bash
+pip install asqav-pydantic
+```
+
+```python
+from asqav_pydantic import AsqavPydanticPlugin
 ```
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
@@ -296,7 +307,7 @@ assert result["valid"] and result["all_valid"]
 - **CLI** - verify signatures, manage agents, quickstart setup, doctor health check
 - **Local mode** - sign actions offline, sync later
 - **Observe mode** - test governance without API calls using `observe=True`
-- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy
+- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI
 - **Semantic action patterns** - descriptive labels instead of glob patterns
 - **Reproducibility metadata** - attach system prompt hashes to signatures
 - **Compliance bundles** - export regulation-specific bundles with `export_bundle`
