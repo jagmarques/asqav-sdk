@@ -559,6 +559,8 @@ def flush_spans() -> None:
     if not _otel_endpoint or not _completed_spans:
         return
 
+    from . import __version__
+
     spans = export_spans()
     payload = {
         "resourceSpans": [
@@ -570,7 +572,7 @@ def flush_spans() -> None:
                 },
                 "scopeSpans": [
                     {
-                        "scope": {"name": "asqav", "version": "0.2.6"},
+                        "scope": {"name": "asqav", "version": __version__},
                         "spans": spans,
                     }
                 ],
