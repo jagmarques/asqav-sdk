@@ -150,9 +150,9 @@ task = Task(description="Research competitors", callbacks=[hook.task_callback])
 ### LlamaIndex
 
 ```python
-from asqav.extras.llamaindex import AsqavSpanHandler
+from asqav.extras.llamaindex import AsqavLlamaIndexHandler
 
-handler = AsqavSpanHandler(api_key="sk_...")
+handler = AsqavLlamaIndexHandler(api_key="sk_...")
 ```
 
 ### LiteLLM / Haystack / OpenAI Agents SDK / smolagents / DSPy
@@ -172,7 +172,7 @@ pip install asqav-pydantic
 ```
 
 ```python
-from asqav_pydantic import AsqavPydanticPlugin
+from asqav_pydantic import AsqavHooks
 ```
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.

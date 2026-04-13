@@ -12,7 +12,7 @@ body:
     attributes:
       label: asqav version
       description: Run `pip show asqav` and paste the version
-      placeholder: "0.2.8"
+      placeholder: "0.2.11"
     validations:
       required: true
   - type: input
@@ -32,6 +32,13 @@ body:
         - Standalone SDK
         - LangChain
         - CrewAI
+        - LiteLLM
+        - Haystack
+        - LlamaIndex
+        - smolagents
+        - DSPy
+        - PydanticAI
+        - Dify
         - MCP
         - OpenAI Agents
         - GitHub Action
