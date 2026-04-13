@@ -57,7 +57,10 @@ class AsqavAdapter:
         api_key: str | None = None,
         agent_name: str | None = None,
         agent_id: str | None = None,
+        observe: bool = False,
     ) -> None:
+        self._observe = observe
+
         if _client._api_key is None and api_key is None:
             raise AsqavError("Call asqav.init() first")
 
@@ -79,7 +82,15 @@ class AsqavAdapter:
 
         Governance failures are logged but never raise - the user's AI
         pipeline must not break because of asqav availability issues.
+
+        When observe mode is enabled, logs the action that would be signed
+        without making any API calls and returns None.
         """
+        if self._observe:
+            logger.info(
+                "OBSERVE: would sign %s with context %s", action_type, context
+            )
+            return None
         try:
             sig = self._agent.sign(action_type, context)
             self._signatures.append(sig)

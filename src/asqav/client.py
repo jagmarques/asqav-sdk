@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any, TypeVar
 from urllib.parse import urljoin
 
+from .patterns import resolve_pattern
 from .retry import with_retry
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -394,12 +395,14 @@ class PreflightResult:
 
     If cleared is True the agent is allowed to proceed with the action.
     When cleared is False, reasons lists the blocking factors.
+    The explanation field provides a human-readable summary of the result.
     """
 
     cleared: bool
     agent_active: bool
     policy_allowed: bool
     reasons: list[str]
+    explanation: str = ""
 
 
 @dataclass
@@ -750,6 +753,9 @@ class Agent:
         self,
         action_type: str,
         context: dict[str, Any] | None = None,
+        system_prompt_hash: str | None = None,
+        model_params: dict | None = None,
+        tool_inputs_hash: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -757,11 +763,30 @@ class Agent:
 
         Args:
             action_type: Type of action (e.g., "read:data", "api:call").
+                Accepts semantic pattern names like "sql-read" which
+                auto-expand to their glob equivalents.
             context: Additional context for the action.
+            system_prompt_hash: Optional hash of the system prompt for
+                reproducibility tracking.
+            model_params: Optional dict of model parameters (temperature,
+                top_p, etc.) for reproducibility tracking.
+            tool_inputs_hash: Optional hash of tool inputs for
+                reproducibility tracking.
 
         Returns:
             SignatureResponse with the signature.
         """
+        action_type = resolve_pattern(action_type)
+
+        if system_prompt_hash or model_params or tool_inputs_hash:
+            context = dict(context) if context else {}
+            if system_prompt_hash:
+                context["_system_prompt_hash"] = system_prompt_hash
+            if model_params:
+                context["_model_params"] = model_params
+            if tool_inputs_hash:
+                context["_tool_inputs_hash"] = tool_inputs_hash
+
         data = _post(
             f"/agents/{self.agent_id}/sign",
             {
@@ -985,10 +1010,13 @@ class Agent:
 
         Args:
             action_type: The action to check (e.g., "data:read", "api:call").
+                Accepts semantic pattern names like "sql-read" which
+                auto-expand to their glob equivalents.
 
         Returns:
             PreflightResult with combined check outcome.
         """
+        action_type = resolve_pattern(action_type)
         agent_active = True
         policy_allowed = True
         reasons: list[str] = []
@@ -1020,11 +1048,30 @@ class Agent:
             reasons.append(f"policy check failed ({exc}) - skipped")
 
         cleared = agent_active and policy_allowed
+
+        # Build human-readable explanation from check results.
+        if cleared:
+            explanation = "Allowed: agent is active and action is permitted by policy"
+        elif not agent_active and "agent is revoked" in reasons:
+            explanation = "Blocked: agent has been revoked"
+        elif not agent_active and "agent is suspended" in reasons:
+            suspend_reason = ""
+            for r in reasons:
+                if r.startswith("agent is suspended"):
+                    suspend_reason = r
+                    break
+            explanation = f"Blocked: agent is suspended ({suspend_reason})"
+        elif not policy_allowed:
+            explanation = "Blocked: action not permitted by current policy rules"
+        else:
+            explanation = "Blocked: " + "; ".join(reasons) if reasons else "Blocked"
+
         return PreflightResult(
             cleared=cleared,
             agent_active=agent_active,
             policy_allowed=policy_allowed,
             reasons=reasons,
+            explanation=explanation,
         )
 
     def get_certificate(self) -> CertificateResponse:
