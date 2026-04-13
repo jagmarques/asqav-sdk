@@ -48,6 +48,10 @@ pip install asqav[crewai]
 pip install asqav[litellm]
 pip install asqav[haystack]
 pip install asqav[openai-agents]
+pip install asqav[llamaindex]
+pip install asqav[smolagents]
+pip install asqav[dspy]
+pip install asqav-pydantic          # PydanticAI
 ```
 
 ### LangChain
