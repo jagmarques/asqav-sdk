@@ -144,3 +144,65 @@ def test_agents_create(mock_init: MagicMock, mock_create: MagicMock) -> None:
     assert "ml-dsa-65" in result.output
     assert "key_abc" in result.output
     mock_create.assert_called_once_with("my-agent")
+
+
+# ---------------------------------------------------------------------------
+# quickstart command
+# ---------------------------------------------------------------------------
+
+
+def test_quickstart_with_api_key() -> None:
+    """quickstart shows success when API key is set."""
+    result = runner.invoke(app, ["quickstart"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 0
+    assert "API key detected" in result.output
+    assert "mcpServers" in result.output
+    assert "asqav-mcp" in result.output
+    assert "Policy" in result.output
+    assert "Next steps" in result.output
+
+
+def test_quickstart_without_api_key() -> None:
+    """quickstart warns when API key is missing."""
+    result = runner.invoke(app, ["quickstart"], env={"ASQAV_API_KEY": ""})
+    assert result.exit_code == 0
+    assert "ASQAV_API_KEY not set" in result.output
+    assert "mcpServers" in result.output
+
+
+# ---------------------------------------------------------------------------
+# doctor command
+# ---------------------------------------------------------------------------
+
+
+def test_doctor_no_api_key() -> None:
+    """doctor reports failure when API key is missing."""
+    result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": ""})
+    assert result.exit_code == 1
+    assert "FAIL" in result.output
+    assert "ASQAV_API_KEY not set" in result.output
+    assert "SKIP" in result.output
+
+
+@patch("asqav.client.health_check")
+@patch("asqav.init")
+def test_doctor_all_pass(mock_init: MagicMock, mock_health: MagicMock) -> None:
+    """doctor passes all checks when API key is set and API is reachable."""
+    mock_health.return_value = {"status": "ok"}
+    result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 0
+    assert "PASS" in result.output
+    assert "API key set" in result.output
+    assert "API reachable" in result.output
+    assert "All checks passed" in result.output
+
+
+@patch("asqav.client.health_check")
+@patch("asqav.init")
+def test_doctor_api_unreachable(mock_init: MagicMock, mock_health: MagicMock) -> None:
+    """doctor reports failure when API is unreachable."""
+    mock_health.side_effect = Exception("Connection refused")
+    result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 1
+    assert "API unreachable" in result.output
+    assert "Connection refused" in result.output
