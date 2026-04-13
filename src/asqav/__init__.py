@@ -101,6 +101,7 @@ from .client import (
 )
 from .decorators import async_session, session, sign
 from .compliance import ComplianceBundle, export_bundle
+from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .retry import with_async_retry, with_retry
@@ -204,6 +205,11 @@ __all__ = [
     # Compliance
     "ComplianceBundle",
     "export_bundle",
+    # Replay
+    "replay",
+    "replay_from_bundle",
+    "ReplayTimeline",
+    "ReplayStep",
     # Patterns
     "PATTERNS",
     "resolve_pattern",
