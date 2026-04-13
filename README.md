@@ -90,6 +90,8 @@ All API calls retry automatically with exponential backoff on transient failures
 ```bash
 pip install asqav[cli]
 
+asqav quickstart              # one-command project setup
+asqav doctor                  # health check for your configuration
 asqav verify sig_abc123
 asqav agents list
 asqav agents create my-agent
@@ -109,7 +111,7 @@ local_sign("agt_xxx", "task:complete", {"result": "done"})
 
 ## Works with your stack
 
-Native integrations for 7 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
+Native integrations for 8 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
 
 ```bash
 pip install asqav[langchain]
@@ -117,6 +119,7 @@ pip install asqav[crewai]
 pip install asqav[litellm]
 pip install asqav[haystack]
 pip install asqav[openai-agents]
+pip install asqav[llamaindex]
 pip install asqav[smolagents]
 pip install asqav[dspy]
 pip install asqav[all]
@@ -129,6 +132,9 @@ from asqav.extras.langchain import AsqavCallbackHandler
 
 handler = AsqavCallbackHandler(api_key="sk_...")
 chain.invoke(input, config={"callbacks": [handler]})
+
+# Observe mode - test governance without API calls
+handler = AsqavCallbackHandler(api_key="sk_...", observe=True)
 ```
 
 ### CrewAI
@@ -138,6 +144,14 @@ from asqav.extras.crewai import AsqavCrewHook
 
 hook = AsqavCrewHook(api_key="sk_...")
 task = Task(description="Research competitors", callbacks=[hook.task_callback])
+```
+
+### LlamaIndex
+
+```python
+from asqav.extras.llamaindex import AsqavSpanHandler
+
+handler = AsqavSpanHandler(api_key="sk_...")
 ```
 
 ### LiteLLM / Haystack / OpenAI Agents SDK / smolagents / DSPy
@@ -195,14 +209,39 @@ session = asqav.request_action("agt_xxx", "finance.transfer", {"amount": 50000})
 asqav.approve_action(session.session_id, "ent_xxx")
 ```
 
+## Semantic action patterns
+
+Use descriptive labels instead of glob patterns for clearer policies:
+
+```python
+sig = agent.sign("sql-destructive", {"query": "DROP TABLE users"})
+```
+
 ## Pre-flight checks
 
-Combine revocation, suspension, and policy checks in a single call before running sensitive actions:
+Combine revocation, suspension, and policy checks in a single call before running sensitive actions. Returns human-readable explanations of what each policy would do:
 
 ```python
 result = agent.preflight("data:delete")
 if not result.cleared:
     raise RuntimeError(f"blocked: {result.reasons}")
+# result.explanations contains plain-English descriptions of each check
+```
+
+## Reproducibility metadata
+
+Attach system prompt hashes and other reproducibility context to signatures:
+
+```python
+sig = agent.sign("llm:call", ctx, system_prompt_hash="sha256:a1b2c3...")
+```
+
+## Compliance bundle export
+
+Export signed action trails as regulation-specific compliance bundles:
+
+```python
+bundle = asqav.export_bundle(signatures, "eu_ai_act_art12")
 ```
 
 ## Output verification
@@ -254,9 +293,13 @@ assert result["valid"] and result["all_valid"]
 - **Signed actions** - every agent action gets a ML-DSA-65 signature with RFC 3161 timestamp
 - **Decorators** - `@asqav.sign` wraps any function with cryptographic signing
 - **Async** - full async support with `AsyncAgent` and automatic retry
-- **CLI** - verify signatures, manage agents, sync offline queue from the terminal
+- **CLI** - verify signatures, manage agents, quickstart setup, doctor health check
 - **Local mode** - sign actions offline, sync later
-- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, smolagents, DSPy
+- **Observe mode** - test governance without API calls using `observe=True`
+- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy
+- **Semantic action patterns** - descriptive labels instead of glob patterns
+- **Reproducibility metadata** - attach system prompt hashes to signatures
+- **Compliance bundles** - export regulation-specific bundles with `export_bundle`
 - **Three-tier enforcement** - strong (tool proxy), bounded (pre-execution gates), detectable (signed audit trail)
 - **Policy enforcement** - block or alert on action patterns before execution
 - **Multi-party signing** - m-of-n approval using threshold ML-DSA
