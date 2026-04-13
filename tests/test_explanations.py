@@ -48,9 +48,11 @@ def test_explanation_defaults_to_empty():
 
 MOCK_AGENT_DATA = {
     "agent_id": "agent_test123",
-    "agent_name": "test-agent",
-    "public_key_id": "key_test123",
-    "status": "active",
+    "name": "test-agent",
+    "public_key": "pk_test123",
+    "key_id": "key_test123",
+    "algorithm": "ml-dsa-65",
+    "capabilities": [],
     "created_at": 1700000000.0,
 }
 
