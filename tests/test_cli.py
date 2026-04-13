@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from typer.testing import CliRunner
 
+from asqav import __version__
 from asqav.cli import app
 
 runner = CliRunner()
@@ -25,7 +26,7 @@ def test_version() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "asqav" in result.output
-    assert "0.2.6" in result.output
+    assert __version__ in result.output
 
 
 # ---------------------------------------------------------------------------
