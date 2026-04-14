@@ -74,7 +74,7 @@ class ReplayTimeline:
     def summary(self) -> str:
         """Human-readable multi-line summary of the timeline."""
         lines = [
-            f"Audit Trail Replay",
+            "Audit Trail Replay",
             f"  Agent: {self.agent_id}",
             f"  Session: {self.session_id}",
             f"  Actions: {self.total_actions}",
