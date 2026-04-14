@@ -1097,6 +1097,33 @@ class Agent:
             is_revoked=data["is_revoked"],
         )
 
+    def create_scope_token(
+        self,
+        actions: list[str],
+        ttl: int = 3600,
+        metadata: dict[str, Any] | None = None,
+    ) -> "ScopeToken":
+        """Issue a portable scope token for cross-org verification.
+
+        Wraps issue_sd_token() with resolved action patterns and returns
+        a ScopeToken that can be attached to outbound HTTP requests.
+
+        Args:
+            actions: Action patterns (semantic names or raw globs).
+            ttl: Token time-to-live in seconds.
+            metadata: Optional extra claims to embed.
+
+        Returns:
+            ScopeToken ready for to_header() or present().
+
+        Example:
+            token = agent.create_scope_token(["sql-read", "http-external"])
+            requests.get(url, headers=token.to_header())
+        """
+        from .scope import create_scope_token as _create
+
+        return _create(self, actions, ttl=ttl, metadata=metadata)
+
 
 def health_check() -> dict[str, Any]:
     """Check API connectivity and return server status.
