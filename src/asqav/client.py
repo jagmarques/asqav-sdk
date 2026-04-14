@@ -30,8 +30,11 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urljoin
+
+if TYPE_CHECKING:
+    from .scope import ScopeToken
 
 from .patterns import resolve_pattern
 from .retry import with_retry
