@@ -12,7 +12,7 @@ body:
     attributes:
       label: asqav version
       description: Run `pip show asqav` and paste the version
-      placeholder: "0.2.11"
+      placeholder: "0.2.13"
     validations:
       required: true
   - type: input
