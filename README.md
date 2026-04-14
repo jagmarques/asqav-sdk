@@ -255,6 +255,34 @@ Export signed action trails as regulation-specific compliance bundles:
 bundle = asqav.export_bundle(signatures, "eu_ai_act_art12")
 ```
 
+## Scope tokens
+
+Portable, short-lived tokens that let a receiving service verify what an agent is allowed to do without calling your org:
+
+```python
+token = agent.create_scope_token(
+    actions=["data:read:customer"],
+    ttl=3600
+)
+# Attach to outgoing API calls
+requests.get(url, headers=token.to_header())
+# Receiving service verifies without calling your org
+verified = asqav.verify_scope_token(token_string)
+```
+
+## Replay
+
+Reconstruct what an agent did in a session, with chain integrity verification:
+
+```python
+timeline = asqav.replay(agent_id="agt_abc", session_id="sess_xyz")
+print(timeline.summary())
+assert timeline.chain_integrity  # verify no tampering
+
+# Or replay from offline bundle
+timeline = asqav.replay_from_bundle(bundle)
+```
+
 ## Output verification
 
 Bind a tool output to its input and verify later that nothing was tampered with:
@@ -321,6 +349,8 @@ assert result["valid"] and result["all_valid"]
 - **Agent identity** - create, suspend, revoke, and rotate agent keys
 - **Audit export** - JSON/CSV trails for compliance reporting
 - **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
+- **Scope tokens** - portable, short-lived tokens for cross-org action verification
+- **Replay** - reconstruct agent sessions with chain integrity checks
 
 ## In the press
 
