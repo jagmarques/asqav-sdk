@@ -64,12 +64,14 @@ from .client import (
     create_risk_rule,
     create_signing_group,
     delete_risk_rule,
+    emergency_halt,
     export_audit_csv,
     export_audit_json,
     export_spans,
     flush_spans,
     generate_attestation,
     generate_keypair,
+    generate_trace_id,
     get_action_status,
     get_agent,
     get_current_span,
@@ -178,6 +180,10 @@ __all__ = [
     # Export
     "export_audit_json",
     "export_audit_csv",
+    # Trace Correlation
+    "generate_trace_id",
+    # Emergency Halt
+    "emergency_halt",
     # Tracing
     "Span",
     "span",
