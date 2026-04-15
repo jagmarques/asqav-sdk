@@ -761,6 +761,8 @@ class Agent:
         system_prompt_hash: str | None = None,
         model_params: dict | None = None,
         tool_inputs_hash: str | None = None,
+        trace_id: str | None = None,
+        parent_id: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -777,13 +779,17 @@ class Agent:
                 top_p, etc.) for reproducibility tracking.
             tool_inputs_hash: Optional hash of tool inputs for
                 reproducibility tracking.
+            trace_id: Optional trace ID for correlating actions across
+                a multi-step workflow. Use generate_trace_id() to create one.
+            parent_id: Optional parent action ID for linking child actions
+                to their parent in a workflow.
 
         Returns:
             SignatureResponse with the signature.
         """
         action_type = resolve_pattern(action_type)
 
-        if system_prompt_hash or model_params or tool_inputs_hash:
+        if system_prompt_hash or model_params or tool_inputs_hash or trace_id or parent_id:
             context = dict(context) if context else {}
             if system_prompt_hash:
                 context["_system_prompt_hash"] = system_prompt_hash
@@ -791,6 +797,10 @@ class Agent:
                 context["_model_params"] = model_params
             if tool_inputs_hash:
                 context["_tool_inputs_hash"] = tool_inputs_hash
+            if trace_id:
+                context["_trace_id"] = trace_id
+            if parent_id:
+                context["_parent_id"] = parent_id
 
         data = _post(
             f"/agents/{self.agent_id}/sign",
@@ -1143,6 +1153,16 @@ def health_check() -> dict[str, Any]:
         print(f"API version: {status['version']}")
     """
     return _get("/health")
+
+
+def generate_trace_id() -> str:
+    """Generate a unique trace ID for correlating actions across a workflow."""
+    return uuid.uuid4().hex
+
+
+def emergency_halt(reason: str = "emergency") -> list[dict]:
+    """Revoke all agents immediately. Use in emergencies only."""
+    return _post("/agents/emergency-halt", {"reason": reason})
 
 
 def init(
