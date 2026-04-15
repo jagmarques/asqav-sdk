@@ -13,6 +13,7 @@ to reveal.
 from __future__ import annotations
 
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -36,6 +37,7 @@ class ScopeToken:
     expires_at: float
     actions: list[str]
     agent_id: str
+    nonce: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # -- helpers --------------------------------------------------------------
@@ -90,6 +92,7 @@ class ScopeToken:
             "expires_at": self.expires_at,
             "actions": self.actions,
             "agent_id": self.agent_id,
+            "nonce": self.nonce,
             "metadata": self.metadata,
         }
 
@@ -103,6 +106,7 @@ class ScopeToken:
             expires_at=data["expires_at"],
             actions=data["actions"],
             agent_id=data["agent_id"],
+            nonce=data.get("nonce", ""),
             metadata=data.get("metadata", {}),
         )
 
@@ -132,11 +136,13 @@ def create_scope_token(
         A ScopeToken ready to attach to outbound requests.
     """
     resolved = [resolve_pattern(a) for a in actions]
+    nonce = uuid.uuid4().hex
 
     claims: dict[str, Any] = {
         "scope_actions": resolved,
         "agent_id": agent.agent_id,
         "agent_name": agent.name,
+        "nonce": nonce,
     }
     if metadata:
         claims["metadata"] = metadata
@@ -158,6 +164,7 @@ def create_scope_token(
         expires_at=sd_resp.expires_at,
         actions=resolved,
         agent_id=agent.agent_id,
+        nonce=nonce,
         metadata=metadata or {},
     )
 
@@ -185,3 +192,8 @@ def verify_scope_token(signature_id: str) -> dict[str, Any]:
         "algorithm": resp.algorithm,
         "signed_at": resp.signed_at,
     }
+
+
+def is_replay(nonce: str, seen_nonces: set[str]) -> bool:
+    """Check if a nonce was already used. Returns True if replay detected."""
+    return nonce in seen_nonces
