@@ -270,6 +270,18 @@ requests.get(url, headers=token.to_header())
 verified = asqav.verify_scope_token(token_string)
 ```
 
+## Replay protection
+
+Each scope token includes a unique nonce. Receivers should track used nonces and reject duplicates to prevent replay attacks.
+
+```python
+token = agent.create_scope_token(actions=["data:read"], ttl=3600)
+seen = set()
+if token.nonce in seen:
+    reject()
+seen.add(token.nonce)
+```
+
 ## Replay
 
 Reconstruct what an agent did in a session, with chain integrity verification:
