@@ -148,6 +148,12 @@ hook = AsqavCrewHook(api_key="sk_...")
 task = Task(description="Research competitors", callbacks=[hook.task_callback])
 ```
 
+```python
+from asqav.extras.crewai import AsqavGuardrailProvider
+provider = AsqavGuardrailProvider(agent_name="crew-guard")
+# Implements the CrewAI GuardrailProvider interface
+```
+
 ### LlamaIndex
 
 ```python
@@ -177,6 +183,39 @@ from asqav_pydantic import AsqavHooks
 ```
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
+
+## Three-phase signing
+
+Break high-stakes actions into intent, decision, and execution phases. Each phase produces a signed receipt, and execution only proceeds if policy allows it.
+
+```python
+# Three-phase signing: intent, decision, execution
+chain = agent.sign_with_phases("data:delete", {"table": "users"})
+print(chain.approved)    # True if policy allowed it
+print(chain.intent)      # signed intent receipt
+print(chain.decision)    # policy evaluation result
+print(chain.execution)   # signed execution receipt (only if approved)
+```
+
+## Trace correlation
+
+Link actions across multi-step workflows with a shared trace ID. Useful for debugging distributed agent pipelines and correlating audit trails across services.
+
+```python
+# Link actions across multi-step workflows
+trace_id = asqav.generate_trace_id()
+agent.sign("step:1", ctx, trace_id=trace_id)
+agent.sign("step:2", ctx, trace_id=trace_id, parent_id="sig_prev")
+```
+
+## Emergency halt
+
+Kill switch that revokes all agents in your organization immediately. Use during security incidents to stop all agent activity until the situation is resolved.
+
+```python
+# Kill switch: revoke all agents immediately
+asqav.emergency_halt(reason="security incident")
+```
 
 ## Enforcement
 
@@ -364,6 +403,10 @@ assert result["valid"] and result["all_valid"]
 - **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
 - **Scope tokens** - portable, short-lived tokens for cross-org action verification
 - **Replay** - reconstruct agent sessions with chain integrity checks
+- **Three-phase signing** - intent, decision, and execution phases with signed receipts
+- **Trace correlation** - link actions across multi-step workflows with shared trace IDs
+- **Emergency halt** - kill switch to revoke all agents immediately during incidents
+- **CrewAI GuardrailProvider** - native CrewAI guardrail interface integration
 
 ## In the press
 
