@@ -13,6 +13,7 @@
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/pypi/pyversions/asqav?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
   <a href="https://github.com/jagmarques/asqav-sdk"><img src="https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social" alt="GitHub stars"></a>
+  <a href="https://codespaces.new/jagmarques/asqav-sdk?quickstart=1"><img src="https://img.shields.io/badge/Try_it-Open_in_Codespaces-black?style=flat-square&logo=github" alt="Open in Codespaces"></a>
 </p>
 <p align="center">
   <a href="https://asqav.com">Website</a> |
