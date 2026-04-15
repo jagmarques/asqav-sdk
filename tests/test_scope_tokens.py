@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import Agent, SDTokenResponse
-from asqav.scope import ScopeToken, create_scope_token, verify_scope_token
+from asqav.scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -330,3 +330,37 @@ class TestModuleExports:
         assert "ScopeToken" in asqav.__all__
         assert "create_scope_token" in asqav.__all__
         assert "verify_scope_token" in asqav.__all__
+        assert "is_replay" in asqav.__all__
+
+
+# ---------------------------------------------------------------------------
+# Nonce replay protection tests
+# ---------------------------------------------------------------------------
+
+
+class TestNonceReplayProtection:
+    @patch("asqav.scope.resolve_pattern", side_effect=lambda p: p)
+    def test_nonce_is_present(self, _mock_resolve):
+        agent = _make_agent()
+        sd_resp = _sd_token_response()
+        with patch.object(agent, "issue_sd_token", return_value=sd_resp):
+            token = create_scope_token(agent, actions=["data:read:*"])
+        assert isinstance(token.nonce, str)
+        assert len(token.nonce) > 0
+
+    @patch("asqav.scope.resolve_pattern", side_effect=lambda p: p)
+    def test_nonce_is_unique(self, _mock_resolve):
+        agent = _make_agent()
+        sd_resp = _sd_token_response()
+        with patch.object(agent, "issue_sd_token", return_value=sd_resp):
+            token1 = create_scope_token(agent, actions=["data:read:*"])
+            token2 = create_scope_token(agent, actions=["data:read:*"])
+        assert token1.nonce != token2.nonce
+
+    def test_is_replay_detects_reuse(self):
+        seen = {"abc123", "def456"}
+        assert is_replay("abc123", seen) is True
+
+    def test_is_replay_allows_new(self):
+        seen = {"abc123", "def456"}
+        assert is_replay("xyz789", seen) is False
