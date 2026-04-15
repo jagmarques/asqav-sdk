@@ -105,7 +105,7 @@ from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
-from .scope import ScopeToken, create_scope_token, verify_scope_token
+from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
 __version__ = "0.2.13"
 __all__ = [
@@ -219,6 +219,7 @@ __all__ = [
     "ScopeToken",
     "create_scope_token",
     "verify_scope_token",
+    "is_replay",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
