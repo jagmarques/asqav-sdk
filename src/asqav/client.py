@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urljoin
 
 if TYPE_CHECKING:
+    from .phases import PhaseChain
     from .scope import ScopeToken
 
 from .patterns import resolve_pattern
@@ -1136,6 +1137,20 @@ class Agent:
         from .scope import create_scope_token as _create
 
         return _create(self, actions, ttl=ttl, metadata=metadata)
+
+    def sign_with_phases(
+        self,
+        action_type: str,
+        context: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+    ) -> "PhaseChain":
+        """Execute the full three-phase signing flow (intent, decision, execution).
+
+        See :func:`asqav.phases.sign_with_phases` for details.
+        """
+        from .phases import sign_with_phases
+
+        return sign_with_phases(self, action_type, context, trace_id)
 
 
 def health_check() -> dict[str, Any]:
