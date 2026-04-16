@@ -64,12 +64,14 @@ from .client import (
     create_risk_rule,
     create_signing_group,
     delete_risk_rule,
+    emergency_halt,
     export_audit_csv,
     export_audit_json,
     export_spans,
     flush_spans,
     generate_attestation,
     generate_keypair,
+    generate_trace_id,
     get_action_status,
     get_agent,
     get_current_span,
@@ -99,11 +101,16 @@ from .client import (
     verify_output,
     verify_signature,
 )
+from .compliance import ComplianceBundle, export_bundle
 from .decorators import async_session, session, sign
 from .local import LocalQueue, local_sign
+from .patterns import PATTERNS, list_patterns, resolve_pattern
+from .phases import PhaseChain, sign_with_phases
+from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
+from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.2.9"
+__version__ = "0.2.14"
 __all__ = [
     # Initialization
     "init",
@@ -174,6 +181,10 @@ __all__ = [
     # Export
     "export_audit_json",
     "export_audit_csv",
+    # Trace Correlation
+    "generate_trace_id",
+    # Emergency Halt
+    "emergency_halt",
     # Tracing
     "Span",
     "span",
@@ -199,6 +210,26 @@ __all__ = [
     # Budget Tracking
     "BudgetTracker",
     "BudgetCheckResult",
+    # Compliance
+    "ComplianceBundle",
+    "export_bundle",
+    # Replay
+    "replay",
+    "replay_from_bundle",
+    "ReplayTimeline",
+    "ReplayStep",
+    # Patterns
+    "PATTERNS",
+    "resolve_pattern",
+    "list_patterns",
+    # Scope Tokens
+    "ScopeToken",
+    "create_scope_token",
+    "verify_scope_token",
+    "is_replay",
+    # Three-Phase Signing
+    "PhaseChain",
+    "sign_with_phases",
     # Exceptions
     "AsqavError",
     "AuthenticationError",

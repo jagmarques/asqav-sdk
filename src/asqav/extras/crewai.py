@@ -145,3 +145,64 @@ class AsqavCrewHook(AsqavAdapter):
         if raw is not None:
             ctx["output_length"] = len(raw)
         self._sign_action("task:complete", ctx)
+
+
+class AsqavGuardrailProvider(AsqavAdapter):
+    """CrewAI GuardrailProvider that evaluates actions through asqav.
+
+    Uses preflight + signing for pre-tool-call governance.
+    Implements the GuardrailProvider interface from crewAI PR #5422.
+
+    Args:
+        api_key: Optional API key override (uses ``asqav.init()`` default).
+        agent_name: Name for a new agent (calls ``Agent.create``).
+        agent_id: ID of an existing agent (calls ``Agent.get``).
+    """
+
+    def evaluate(self, request: Any) -> dict[str, Any]:
+        """Evaluate a tool call request.
+
+        Returns dict with: verdict (allow/deny/hold), reason, metadata.
+
+        Args:
+            request: The tool call request object. Expected to have
+                ``tool_name`` and optionally ``tool_input`` attributes.
+        """
+        tool_name = getattr(request, "tool_name", "unknown")
+
+        # Preflight check
+        result = self._agent.preflight(f"tool:{tool_name}")
+
+        if not result.cleared:
+            return {
+                "verdict": "deny",
+                "reason": result.explanation,
+                "metadata": {
+                    "preflight": {
+                        "cleared": result.cleared,
+                        "reasons": list(result.reasons),
+                        "explanation": result.explanation,
+                    }
+                },
+            }
+
+        # Sign the action
+        tool_input = getattr(request, "tool_input", None)
+        input_keys = (
+            sorted(tool_input.keys())
+            if isinstance(tool_input, dict)
+            else []
+        )
+        sig = self._sign_action(
+            "tool:call",
+            {
+                "tool": tool_name,
+                "input_keys": input_keys,
+            },
+        )
+
+        return {
+            "verdict": "allow",
+            "reason": result.explanation,
+            "metadata": {"signature_id": sig.signature_id if sig else None},
+        }

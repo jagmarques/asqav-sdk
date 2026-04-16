@@ -30,9 +30,14 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urljoin
 
+if TYPE_CHECKING:
+    from .phases import PhaseChain
+    from .scope import ScopeToken
+
+from .patterns import resolve_pattern
 from .retry import with_retry
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -394,12 +399,14 @@ class PreflightResult:
 
     If cleared is True the agent is allowed to proceed with the action.
     When cleared is False, reasons lists the blocking factors.
+    The explanation field provides a human-readable summary of the result.
     """
 
     cleared: bool
     agent_active: bool
     policy_allowed: bool
     reasons: list[str]
+    explanation: str = ""
 
 
 @dataclass
@@ -556,6 +563,8 @@ def flush_spans() -> None:
     if not _otel_endpoint or not _completed_spans:
         return
 
+    from . import __version__
+
     spans = export_spans()
     payload = {
         "resourceSpans": [
@@ -567,7 +576,7 @@ def flush_spans() -> None:
                 },
                 "scopeSpans": [
                     {
-                        "scope": {"name": "asqav", "version": "0.2.6"},
+                        "scope": {"name": "asqav", "version": __version__},
                         "spans": spans,
                     }
                 ],
@@ -750,6 +759,11 @@ class Agent:
         self,
         action_type: str,
         context: dict[str, Any] | None = None,
+        system_prompt_hash: str | None = None,
+        model_params: dict | None = None,
+        tool_inputs_hash: str | None = None,
+        trace_id: str | None = None,
+        parent_id: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -757,11 +771,38 @@ class Agent:
 
         Args:
             action_type: Type of action (e.g., "read:data", "api:call").
+                Accepts semantic pattern names like "sql-read" which
+                auto-expand to their glob equivalents.
             context: Additional context for the action.
+            system_prompt_hash: Optional hash of the system prompt for
+                reproducibility tracking.
+            model_params: Optional dict of model parameters (temperature,
+                top_p, etc.) for reproducibility tracking.
+            tool_inputs_hash: Optional hash of tool inputs for
+                reproducibility tracking.
+            trace_id: Optional trace ID for correlating actions across
+                a multi-step workflow. Use generate_trace_id() to create one.
+            parent_id: Optional parent action ID for linking child actions
+                to their parent in a workflow.
 
         Returns:
             SignatureResponse with the signature.
         """
+        action_type = resolve_pattern(action_type)
+
+        if system_prompt_hash or model_params or tool_inputs_hash or trace_id or parent_id:
+            context = dict(context) if context else {}
+            if system_prompt_hash:
+                context["_system_prompt_hash"] = system_prompt_hash
+            if model_params:
+                context["_model_params"] = model_params
+            if tool_inputs_hash:
+                context["_tool_inputs_hash"] = tool_inputs_hash
+            if trace_id:
+                context["_trace_id"] = trace_id
+            if parent_id:
+                context["_parent_id"] = parent_id
+
         data = _post(
             f"/agents/{self.agent_id}/sign",
             {
@@ -985,10 +1026,13 @@ class Agent:
 
         Args:
             action_type: The action to check (e.g., "data:read", "api:call").
+                Accepts semantic pattern names like "sql-read" which
+                auto-expand to their glob equivalents.
 
         Returns:
             PreflightResult with combined check outcome.
         """
+        action_type = resolve_pattern(action_type)
         agent_active = True
         policy_allowed = True
         reasons: list[str] = []
@@ -1020,11 +1064,30 @@ class Agent:
             reasons.append(f"policy check failed ({exc}) - skipped")
 
         cleared = agent_active and policy_allowed
+
+        # Build human-readable explanation from check results.
+        if cleared:
+            explanation = "Allowed: agent is active and action is permitted by policy"
+        elif not agent_active and "agent is revoked" in reasons:
+            explanation = "Blocked: agent has been revoked"
+        elif not agent_active and "agent is suspended" in reasons:
+            suspend_reason = ""
+            for r in reasons:
+                if r.startswith("agent is suspended"):
+                    suspend_reason = r
+                    break
+            explanation = f"Blocked: agent is suspended ({suspend_reason})"
+        elif not policy_allowed:
+            explanation = "Blocked: action not permitted by current policy rules"
+        else:
+            explanation = "Blocked: " + "; ".join(reasons) if reasons else "Blocked"
+
         return PreflightResult(
             cleared=cleared,
             agent_active=agent_active,
             policy_allowed=policy_allowed,
             reasons=reasons,
+            explanation=explanation,
         )
 
     def get_certificate(self) -> CertificateResponse:
@@ -1048,6 +1111,47 @@ class Agent:
             is_revoked=data["is_revoked"],
         )
 
+    def create_scope_token(
+        self,
+        actions: list[str],
+        ttl: int = 3600,
+        metadata: dict[str, Any] | None = None,
+    ) -> "ScopeToken":
+        """Issue a portable scope token for cross-org verification.
+
+        Wraps issue_sd_token() with resolved action patterns and returns
+        a ScopeToken that can be attached to outbound HTTP requests.
+
+        Args:
+            actions: Action patterns (semantic names or raw globs).
+            ttl: Token time-to-live in seconds.
+            metadata: Optional extra claims to embed.
+
+        Returns:
+            ScopeToken ready for to_header() or present().
+
+        Example:
+            token = agent.create_scope_token(["sql-read", "http-external"])
+            requests.get(url, headers=token.to_header())
+        """
+        from .scope import create_scope_token as _create
+
+        return _create(self, actions, ttl=ttl, metadata=metadata)
+
+    def sign_with_phases(
+        self,
+        action_type: str,
+        context: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+    ) -> "PhaseChain":
+        """Execute the full three-phase signing flow (intent, decision, execution).
+
+        See :func:`asqav.phases.sign_with_phases` for details.
+        """
+        from .phases import sign_with_phases
+
+        return sign_with_phases(self, action_type, context, trace_id)
+
 
 def health_check() -> dict[str, Any]:
     """Check API connectivity and return server status.
@@ -1064,6 +1168,16 @@ def health_check() -> dict[str, Any]:
         print(f"API version: {status['version']}")
     """
     return _get("/health")
+
+
+def generate_trace_id() -> str:
+    """Generate a unique trace ID for correlating actions across a workflow."""
+    return uuid.uuid4().hex
+
+
+def emergency_halt(reason: str = "emergency") -> list[dict]:
+    """Revoke all agents immediately. Use in emergencies only."""
+    return _post("/agents/emergency-halt", {"reason": reason})
 
 
 def init(
