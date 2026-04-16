@@ -59,6 +59,7 @@ openai-agents = ["openai-agents>=0.1.0"]
 llamaindex = ["llama-index-core>=0.10.0"]
 smolagents = ["smolagents>=1.0.0"]
 dspy = ["dspy>=2.5.0"]
+letta = ["letta-client>=1.10.0"]
 all = [
     "httpx>=0.24.0",
     "typer>=0.12.0",
@@ -70,6 +71,7 @@ all = [
     "llama-index-core>=0.10.0",
     "smolagents>=1.0.0",
     "dspy>=2.5.0",
+    "letta-client>=1.10.0",
 ]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0", "ruff>=0.5.0", "mypy>=1.10.0"]
 

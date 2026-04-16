@@ -11,8 +11,8 @@ Usage::
     client = hook.wrap_client(Letta(api_key="..."))
 
     # All memory reads and writes are now signed.
-    block = client.agents.blocks.retrieve(agent_id="agent-123", block_label="human")
-    client.agents.blocks.update(agent_id="agent-123", block_label="human", value="New content")
+    block = client.agents.blocks.retrieve("human", agent_id="agent-123")
+    client.agents.blocks.update("human", agent_id="agent-123", value="New content")
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from ._base import AsqavAdapter
 logger = logging.getLogger("asqav")
 
 _MAX_LEN = 200
+_UNSET = object()
 
 
 class AsqavLettaHook(AsqavAdapter):
@@ -59,8 +60,14 @@ class AsqavLettaHook(AsqavAdapter):
         write records signed governance events. The original client object
         is returned so it can be used normally.
 
+        Matches letta-client 1.10+ signatures:
+        ``retrieve(block_label, *, agent_id)`` and
+        ``update(block_label, *, agent_id, value=..., **kwargs)``.
+        Partial updates that omit ``value`` are forwarded unchanged and
+        do not emit a ``memory:write`` event.
+
         Args:
-            client: A ``letta_client.Letta`` (or ``AsyncLetta``) instance.
+            client: A ``letta_client.Letta`` instance.
 
         Returns:
             The same client instance with signing wired into the blocks API.
@@ -70,7 +77,7 @@ class AsqavLettaHook(AsqavAdapter):
         original_retrieve = blocks.retrieve
         original_update = blocks.update
 
-        def _signed_retrieve(agent_id: str, block_label: str, **kwargs: Any) -> Any:
+        def _signed_retrieve(block_label: str, *, agent_id: str, **kwargs: Any) -> Any:
             try:
                 hook._sign_action(
                     "memory:read",
@@ -83,9 +90,7 @@ class AsqavLettaHook(AsqavAdapter):
                 logger.warning("asqav memory:read signing failed (fail-open): %s", exc)
 
             try:
-                result = original_retrieve(
-                    agent_id=agent_id, block_label=block_label, **kwargs
-                )
+                result = original_retrieve(block_label, agent_id=agent_id, **kwargs)
             except Exception as exc:
                 try:
                     hook._sign_action(
@@ -120,54 +125,65 @@ class AsqavLettaHook(AsqavAdapter):
             return result
 
         def _signed_update(
-            agent_id: str, block_label: str, value: str, **kwargs: Any
+            block_label: str,
+            *,
+            agent_id: str,
+            value: Any = _UNSET,
+            **kwargs: Any,
         ) -> Any:
-            try:
-                hook._sign_action(
-                    "memory:write",
-                    {
-                        "agent_id": str(agent_id)[:_MAX_LEN],
-                        "block_label": block_label,
-                        "value_length": len(str(value)),
-                        "value_preview": str(value)[:_MAX_LEN],
-                    },
-                )
-            except Exception as exc:
-                logger.warning("asqav memory:write signing failed (fail-open): %s", exc)
-
-            try:
-                result = original_update(
-                    agent_id=agent_id, block_label=block_label, value=value, **kwargs
-                )
-            except Exception as exc:
+            if value is not _UNSET:
                 try:
                     hook._sign_action(
-                        "memory:write.error",
+                        "memory:write",
                         {
                             "agent_id": str(agent_id)[:_MAX_LEN],
                             "block_label": block_label,
-                            "error_type": type(exc).__name__,
-                            "error": str(exc)[:_MAX_LEN],
+                            "value_length": len(str(value)),
+                            "value_preview": str(value)[:_MAX_LEN],
                         },
                     )
-                except Exception as sign_exc:
+                except Exception as exc:
                     logger.warning(
-                        "asqav memory:write.error signing failed (fail-open): %s", sign_exc
+                        "asqav memory:write signing failed (fail-open): %s", exc
                     )
-                raise
+
+            call_kwargs = {} if value is _UNSET else {"value": value}
+            call_kwargs.update(kwargs)
 
             try:
-                hook._sign_action(
-                    "memory:write.end",
-                    {
-                        "agent_id": str(agent_id)[:_MAX_LEN],
-                        "block_label": block_label,
-                    },
-                )
+                result = original_update(block_label, agent_id=agent_id, **call_kwargs)
             except Exception as exc:
-                logger.warning(
-                    "asqav memory:write.end signing failed (fail-open): %s", exc
-                )
+                if value is not _UNSET:
+                    try:
+                        hook._sign_action(
+                            "memory:write.error",
+                            {
+                                "agent_id": str(agent_id)[:_MAX_LEN],
+                                "block_label": block_label,
+                                "error_type": type(exc).__name__,
+                                "error": str(exc)[:_MAX_LEN],
+                            },
+                        )
+                    except Exception as sign_exc:
+                        logger.warning(
+                            "asqav memory:write.error signing failed (fail-open): %s",
+                            sign_exc,
+                        )
+                raise
+
+            if value is not _UNSET:
+                try:
+                    hook._sign_action(
+                        "memory:write.end",
+                        {
+                            "agent_id": str(agent_id)[:_MAX_LEN],
+                            "block_label": block_label,
+                        },
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "asqav memory:write.end signing failed (fail-open): %s", exc
+                    )
 
             return result
 

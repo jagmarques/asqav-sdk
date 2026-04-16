@@ -10,7 +10,7 @@ import os
 import sys
 import types
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -36,16 +36,20 @@ def _make_client(
     retrieve_result: Any = None,
     update_result: Any = None,
 ) -> MagicMock:
-    """Create a minimal mock letta Letta client."""
+    """Create a minimal mock letta Letta client with strict keyword-only blocks API."""
     client = MagicMock()
     block_obj = MagicMock()
     block_obj.value = "stored memory content"
-    client.agents.blocks.retrieve = MagicMock(
-        return_value=retrieve_result if retrieve_result is not None else block_obj
-    )
-    client.agents.blocks.update = MagicMock(
-        return_value=update_result if update_result is not None else MagicMock()
-    )
+
+    # Use a real function so TypeError fires on wrong call signatures.
+    def _retrieve(block_label: str, *, agent_id: str, **kwargs: Any) -> Any:
+        return retrieve_result if retrieve_result is not None else block_obj
+
+    def _update(block_label: str, *, agent_id: str, **kwargs: Any) -> Any:
+        return update_result if update_result is not None else MagicMock()
+
+    client.agents.blocks.retrieve = MagicMock(side_effect=_retrieve)
+    client.agents.blocks.update = MagicMock(side_effect=_update)
     return client
 
 
@@ -68,6 +72,54 @@ def hook() -> AsqavLettaHook:
 
 
 # ---------------------------------------------------------------------------
+# Canonical API: positional block_label, keyword-only agent_id
+# ---------------------------------------------------------------------------
+
+
+def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
+    """retrieve('human', agent_id='agent-123') matches the real letta-client signature."""
+    client = _make_client()
+    hook.wrap_client(client)
+    # This is the canonical call form — must not raise TypeError.
+    client.agents.blocks.retrieve("human", agent_id="agent-123")
+
+    ctx = hook._sign_action.call_args_list[0][0][1]
+    assert ctx["block_label"] == "human"
+    assert ctx["agent_id"] == "agent-123"
+
+
+def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
+    """update('persona', agent_id='a', value='v') matches the real letta-client signature."""
+    client = _make_client()
+    hook.wrap_client(client)
+    client.agents.blocks.update("persona", agent_id="agent-456", value="hi")
+
+    ctx = hook._sign_action.call_args_list[0][0][1]
+    assert ctx["block_label"] == "persona"
+    assert ctx["agent_id"] == "agent-456"
+
+
+def test_update_without_value_does_not_sign_memory_write(hook: AsqavLettaHook) -> None:
+    """Partial update omitting value (e.g. updating limit) produces no memory:write events."""
+    client = _make_client()
+    hook.wrap_client(client)
+    client.agents.blocks.update("human", agent_id="a", limit=2000)
+
+    assert hook._sign_action.call_count == 0
+
+
+def test_update_without_value_still_calls_original(hook: AsqavLettaHook) -> None:
+    """Partial update is forwarded to the original update without value kwarg."""
+    client = _make_client()
+    original_update = client.agents.blocks.update  # capture before wrap replaces it
+    hook.wrap_client(client)
+    client.agents.blocks.update("human", agent_id="a", limit=2000)
+
+    _, kwargs = original_update.call_args
+    assert "value" not in kwargs
+
+
+# ---------------------------------------------------------------------------
 # wrap_client: memory:read
 # ---------------------------------------------------------------------------
 
@@ -76,7 +128,7 @@ def test_wrap_client_signs_memory_read(hook: AsqavLettaHook) -> None:
     """wrap_client signs memory:read with agent_id and block_label."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.retrieve(agent_id="agent-123", block_label="human")
+    client.agents.blocks.retrieve("human", agent_id="agent-123")
 
     first_call = hook._sign_action.call_args_list[0]
     assert first_call[0][0] == "memory:read"
@@ -91,7 +143,7 @@ def test_wrap_client_signs_memory_read_end(hook: AsqavLettaHook) -> None:
     block.value = "hello world"
     client = _make_client(retrieve_result=block)
     hook.wrap_client(client)
-    client.agents.blocks.retrieve(agent_id="agent-123", block_label="human")
+    client.agents.blocks.retrieve("human", agent_id="agent-123")
 
     last_call = hook._sign_action.call_args_list[-1]
     assert last_call[0][0] == "memory:read.end"
@@ -103,7 +155,7 @@ def test_wrap_client_signs_two_events_on_successful_read(hook: AsqavLettaHook) -
     """A successful retrieve produces exactly memory:read + memory:read.end."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.retrieve(agent_id="a", block_label="persona")
+    client.agents.blocks.retrieve("persona", agent_id="a")
 
     assert hook._sign_action.call_count == 2
     assert hook._sign_action.call_args_list[0][0][0] == "memory:read"
@@ -115,7 +167,7 @@ def test_wrap_client_retrieve_returns_original_result(hook: AsqavLettaHook) -> N
     sentinel = object()
     client = _make_client(retrieve_result=sentinel)
     hook.wrap_client(client)
-    result = client.agents.blocks.retrieve(agent_id="a", block_label="b")
+    result = client.agents.blocks.retrieve("b", agent_id="a")
     assert result is sentinel
 
 
@@ -128,9 +180,7 @@ def test_wrap_client_signs_memory_write(hook: AsqavLettaHook) -> None:
     """wrap_client signs memory:write with agent_id, block_label, value_length, value_preview."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.update(
-        agent_id="agent-456", block_label="persona", value="I am a helpful assistant."
-    )
+    client.agents.blocks.update("persona", agent_id="agent-456", value="I am a helpful assistant.")
 
     first_call = hook._sign_action.call_args_list[0]
     assert first_call[0][0] == "memory:write"
@@ -145,7 +195,7 @@ def test_wrap_client_signs_memory_write_end(hook: AsqavLettaHook) -> None:
     """wrap_client signs memory:write.end after a successful update."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.update(agent_id="a", block_label="human", value="new")
+    client.agents.blocks.update("human", agent_id="a", value="new")
 
     last_call = hook._sign_action.call_args_list[-1]
     assert last_call[0][0] == "memory:write.end"
@@ -158,7 +208,7 @@ def test_wrap_client_signs_two_events_on_successful_write(hook: AsqavLettaHook) 
     """A successful update produces exactly memory:write + memory:write.end."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+    client.agents.blocks.update("b", agent_id="a", value="v")
 
     assert hook._sign_action.call_count == 2
     assert hook._sign_action.call_args_list[0][0][0] == "memory:write"
@@ -170,7 +220,7 @@ def test_wrap_client_update_returns_original_result(hook: AsqavLettaHook) -> Non
     sentinel = object()
     client = _make_client(update_result=sentinel)
     hook.wrap_client(client)
-    result = client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+    result = client.agents.blocks.update("b", agent_id="a", value="v")
     assert result is sentinel
 
 
@@ -186,7 +236,7 @@ def test_wrap_client_signs_read_error_on_exception(hook: AsqavLettaHook) -> None
     hook.wrap_client(client)
 
     with pytest.raises(RuntimeError):
-        client.agents.blocks.retrieve(agent_id="a", block_label="b")
+        client.agents.blocks.retrieve("b", agent_id="a")
 
     error_call = hook._sign_action.call_args_list[-1]
     assert error_call[0][0] == "memory:read.error"
@@ -202,7 +252,7 @@ def test_wrap_client_reraises_retrieve_exception(hook: AsqavLettaHook) -> None:
     hook.wrap_client(client)
 
     with pytest.raises(ValueError, match="bad agent id"):
-        client.agents.blocks.retrieve(agent_id="a", block_label="b")
+        client.agents.blocks.retrieve("b", agent_id="a")
 
 
 def test_wrap_client_signs_write_error_on_exception(hook: AsqavLettaHook) -> None:
@@ -212,7 +262,7 @@ def test_wrap_client_signs_write_error_on_exception(hook: AsqavLettaHook) -> Non
     hook.wrap_client(client)
 
     with pytest.raises(RuntimeError):
-        client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+        client.agents.blocks.update("b", agent_id="a", value="v")
 
     error_call = hook._sign_action.call_args_list[-1]
     assert error_call[0][0] == "memory:write.error"
@@ -228,7 +278,7 @@ def test_wrap_client_reraises_update_exception(hook: AsqavLettaHook) -> None:
     hook.wrap_client(client)
 
     with pytest.raises(PermissionError, match="read only"):
-        client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+        client.agents.blocks.update("b", agent_id="a", value="v")
 
 
 def test_wrap_client_signs_read_start_and_error_on_failure(hook: AsqavLettaHook) -> None:
@@ -238,7 +288,7 @@ def test_wrap_client_signs_read_start_and_error_on_failure(hook: AsqavLettaHook)
     hook.wrap_client(client)
 
     with pytest.raises(RuntimeError):
-        client.agents.blocks.retrieve(agent_id="a", block_label="b")
+        client.agents.blocks.retrieve("b", agent_id="a")
 
     assert hook._sign_action.call_count == 2
     assert hook._sign_action.call_args_list[0][0][0] == "memory:read"
@@ -252,7 +302,7 @@ def test_wrap_client_signs_write_start_and_error_on_failure(hook: AsqavLettaHook
     hook.wrap_client(client)
 
     with pytest.raises(RuntimeError):
-        client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+        client.agents.blocks.update("b", agent_id="a", value="v")
 
     assert hook._sign_action.call_count == 2
     assert hook._sign_action.call_args_list[0][0][0] == "memory:write"
@@ -268,7 +318,7 @@ def test_agent_id_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
     """agent_id longer than 200 chars is truncated in the audit record."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.retrieve(agent_id="a" * 500, block_label="human")
+    client.agents.blocks.retrieve("human", agent_id="a" * 500)
 
     ctx = hook._sign_action.call_args_list[0][0][1]
     assert len(ctx["agent_id"]) == 200
@@ -278,7 +328,7 @@ def test_value_preview_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
     """value_preview longer than 200 chars is truncated in the audit record."""
     client = _make_client()
     hook.wrap_client(client)
-    client.agents.blocks.update(agent_id="a", block_label="b", value="x" * 500)
+    client.agents.blocks.update("b", agent_id="a", value="x" * 500)
 
     ctx = hook._sign_action.call_args_list[0][0][1]
     assert len(ctx["value_preview"]) == 200
@@ -292,7 +342,7 @@ def test_error_message_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
     hook.wrap_client(client)
 
     with pytest.raises(RuntimeError):
-        client.agents.blocks.retrieve(agent_id="a", block_label="b")
+        client.agents.blocks.retrieve("b", agent_id="a")
 
     ctx = hook._sign_action.call_args_list[-1][0][1]
     assert len(ctx["error"]) == 200
@@ -310,7 +360,7 @@ def test_fail_open_memory_read_does_not_block_retrieve(hook: AsqavLettaHook) -> 
     hook._sign_action.side_effect = Exception("service unavailable")
     hook.wrap_client(client)
 
-    result = client.agents.blocks.retrieve(agent_id="a", block_label="b")
+    result = client.agents.blocks.retrieve("b", agent_id="a")
     assert result is sentinel
 
 
@@ -321,7 +371,7 @@ def test_fail_open_memory_write_does_not_block_update(hook: AsqavLettaHook) -> N
     hook._sign_action.side_effect = Exception("service unavailable")
     hook.wrap_client(client)
 
-    result = client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+    result = client.agents.blocks.update("b", agent_id="a", value="v")
     assert result is sentinel
 
 
@@ -342,7 +392,7 @@ def test_fail_open_memory_write_end_does_not_suppress_result(
     hook._sign_action.side_effect = sign_side_effect
     hook.wrap_client(client)
 
-    result = client.agents.blocks.update(agent_id="a", block_label="b", value="v")
+    result = client.agents.blocks.update("b", agent_id="a", value="v")
     assert result is sentinel
 
 
@@ -356,7 +406,7 @@ def test_fail_open_read_error_signing_does_not_swallow_exception(
     hook.wrap_client(client)
 
     with pytest.raises(ValueError, match="retrieve failed"):
-        client.agents.blocks.retrieve(agent_id="a", block_label="b")
+        client.agents.blocks.retrieve("b", agent_id="a")
 
 
 # ---------------------------------------------------------------------------
@@ -372,8 +422,8 @@ def test_multiple_clients_tracked_independently(hook: AsqavLettaHook) -> None:
     hook.wrap_client(client_a)
     hook.wrap_client(client_b)
 
-    client_a.agents.blocks.retrieve(agent_id="agent-a", block_label="human")
-    client_b.agents.blocks.update(agent_id="agent-b", block_label="persona", value="hi")
+    client_a.agents.blocks.retrieve("human", agent_id="agent-a")
+    client_b.agents.blocks.update("persona", agent_id="agent-b", value="hi")
 
     calls = hook._sign_action.call_args_list
     assert calls[0][0][1]["agent_id"] == "agent-a"
