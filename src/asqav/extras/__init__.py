@@ -9,5 +9,6 @@ Install specific extras:
     pip install asqav[llamaindex]
     pip install asqav[smolagents]
     pip install asqav[dspy]
+    pip install asqav[letta]
     pip install asqav[all]
 """
