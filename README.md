@@ -444,7 +444,7 @@ assert result["valid"] and result["all_valid"]
 
 ## Free tier
 
-Get started at no cost. Free tier includes agent creation, signed actions, three-tier enforcement, policies, audit export, and framework integrations. Threat detection and monitoring on Pro ($39/mo). Compliance reports, multi-party signing, and incident management on Business ($149/mo). See [asqav.com](https://asqav.com) for pricing.
+Get started at no cost. Free tier includes 50K signatures/month, agent lifecycle, three-tier enforcement, policies, audit export, OpenTimestamps anchoring, MCP server, and framework integrations. Content scanning, Replay API, managed KMS, and OpenTelemetry on Pro ($19/mo annual). Compliance reports, quarantine mode, multi-party signing, and incident management on Business ($79/mo annual). See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 
 ## Discovery
 

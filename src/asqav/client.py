@@ -176,7 +176,7 @@ class SessionResponse:
 
 @dataclass
 class SDTokenResponse:
-    """Response from SD-JWT token issuance (Business tier).
+    """Response from SD-JWT token issuance (Enterprise tier).
 
     SD-JWT tokens allow selective disclosure of claims to external services.
     Use present() to create a proof with only specific claims revealed.
@@ -717,7 +717,7 @@ class Agent:
         disclosable: list[str] | None = None,
         ttl: int = 3600,
     ) -> SDTokenResponse:
-        """Issue a PQC-SD-JWT token with selective disclosure (Business tier).
+        """Issue a PQC-SD-JWT token with selective disclosure (Enterprise tier).
 
         SD-JWT tokens allow agents to selectively reveal claims when
         presenting the token to external services, maintaining privacy.
