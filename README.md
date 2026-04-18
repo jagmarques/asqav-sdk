@@ -110,6 +110,28 @@ local_sign("agt_xxx", "task:complete", {"result": "done"})
 # Later: asqav sync
 ```
 
+## Batched signing
+
+Sign up to 100 actions in one HTTP roundtrip. Each action passes through the full single-sign pipeline (policy, scan, anchoring), so one bad action does not abort the batch. Returns a list parallel to the input - successful items are SignatureResponse, failed items are None.
+
+```python
+import asqav
+
+asqav.init(api_key="sk_live_...")
+agent = asqav.Agent.get("agt_xxx")
+
+results = agent.sign_batch([
+    {"action_type": "tool:call", "context": {"name": "search"}},
+    {"action_type": "memory:write", "context": {"size": 128}},
+    {"action_type": "llm:response", "context": {"model": "gpt-4o"}},
+])
+
+for r in results:
+    if r is None:
+        continue
+    print(r.signature_id, r.verification_url)
+```
+
 ## Works with your stack
 
 Native integrations for 9 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
