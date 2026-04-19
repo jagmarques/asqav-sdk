@@ -30,3 +30,6 @@ htmlcov/
 
 # Type checking
 .mypy_cache/
+Upsonic/
+.gstack/
+dist/
