@@ -181,3 +181,111 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "exception": _exception_name(exception),
             },
         )
+
+    # ------------------------------------------------------------------
+    # Evaluate handlers
+    # ------------------------------------------------------------------
+
+    def on_evaluate_start(
+        self,
+        call_id: str,
+        instance: Any,
+        inputs: dict[str, Any],
+    ) -> None:
+        """Sign a dspy.evaluate.start event."""
+        self._sign_action(
+            "dspy.evaluate.start",
+            {
+                "call_id": call_id,
+                "evaluator": _safe_class_name(instance),
+                "input_keys": sorted(inputs.keys()) if isinstance(inputs, dict) else [],
+            },
+        )
+
+    def on_evaluate_end(
+        self,
+        call_id: str,
+        outputs: Any | None,
+        exception: Exception | None = None,
+    ) -> None:
+        """Sign a dspy.evaluate.end event."""
+        self._sign_action(
+            "dspy.evaluate.end",
+            {
+                "call_id": call_id,
+                "ok": exception is None,
+                "exception": _exception_name(exception),
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # Adapter format handlers
+    # ------------------------------------------------------------------
+
+    def on_adapter_format_start(
+        self,
+        call_id: str,
+        instance: Any,
+        inputs: dict[str, Any],
+    ) -> None:
+        """Sign a dspy.adapter.format.start event."""
+        self._sign_action(
+            "dspy.adapter.format.start",
+            {
+                "call_id": call_id,
+                "adapter": _safe_class_name(instance),
+                "input_keys": sorted(inputs.keys()) if isinstance(inputs, dict) else [],
+            },
+        )
+
+    def on_adapter_format_end(
+        self,
+        call_id: str,
+        outputs: dict[str, Any] | None,
+        exception: Exception | None = None,
+    ) -> None:
+        """Sign a dspy.adapter.format.end event."""
+        self._sign_action(
+            "dspy.adapter.format.end",
+            {
+                "call_id": call_id,
+                "ok": exception is None,
+                "exception": _exception_name(exception),
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # Adapter parse handlers
+    # ------------------------------------------------------------------
+
+    def on_adapter_parse_start(
+        self,
+        call_id: str,
+        instance: Any,
+        inputs: dict[str, Any],
+    ) -> None:
+        """Sign a dspy.adapter.parse.start event."""
+        self._sign_action(
+            "dspy.adapter.parse.start",
+            {
+                "call_id": call_id,
+                "adapter": _safe_class_name(instance),
+                "input_keys": sorted(inputs.keys()) if isinstance(inputs, dict) else [],
+            },
+        )
+
+    def on_adapter_parse_end(
+        self,
+        call_id: str,
+        outputs: dict[str, Any] | None,
+        exception: Exception | None = None,
+    ) -> None:
+        """Sign a dspy.adapter.parse.end event."""
+        self._sign_action(
+            "dspy.adapter.parse.end",
+            {
+                "call_id": call_id,
+                "ok": exception is None,
+                "exception": _exception_name(exception),
+            },
+        )

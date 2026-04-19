@@ -176,7 +176,7 @@ class SessionResponse:
 
 @dataclass
 class SDTokenResponse:
-    """Response from SD-JWT token issuance (Business tier).
+    """Response from SD-JWT token issuance (Enterprise tier).
 
     SD-JWT tokens allow selective disclosure of claims to external services.
     Use present() to create a proof with only specific claims revealed.
@@ -717,7 +717,7 @@ class Agent:
         disclosable: list[str] | None = None,
         ttl: int = 3600,
     ) -> SDTokenResponse:
-        """Issue a PQC-SD-JWT token with selective disclosure (Business tier).
+        """Issue a PQC-SD-JWT token with selective disclosure (Enterprise tier).
 
         SD-JWT tokens allow agents to selectively reveal claims when
         presenting the token to external services, maintaining privacy.
@@ -819,6 +819,65 @@ class Agent:
             timestamp=data["timestamp"],
             verification_url=data["verification_url"],
         )
+
+    def sign_batch(
+        self,
+        actions: list[dict[str, Any]],
+    ) -> list[SignatureResponse | None]:
+        """Sign multiple actions in one HTTP roundtrip.
+
+        Each item in ``actions`` is a dict with ``action_type`` (required) and
+        optional ``context``. The server signs each action through the full
+        single-sign pipeline. One bad action does not abort the batch.
+
+        Returns a list parallel to ``actions``. Each element is either a
+        SignatureResponse on success or None on failure. To inspect failures,
+        compare positions to the original input.
+
+        Args:
+            actions: List of {"action_type": str, "context": dict | None}.
+                    Max 100 per call.
+
+        Returns:
+            List of SignatureResponse or None, same length as ``actions``.
+        """
+        if not actions:
+            raise ValueError("actions must contain at least one item")
+        if len(actions) > 100:
+            raise ValueError("actions must contain at most 100 items per call")
+
+        body_actions: list[dict[str, Any]] = []
+        for a in actions:
+            if "action_type" not in a:
+                raise ValueError("each action must include 'action_type'")
+            body_actions.append(
+                {
+                    "action_type": resolve_pattern(a["action_type"]),
+                    "context": a.get("context") or {},
+                    "session_id": self._session_id,
+                }
+            )
+
+        data = _post(
+            f"/agents/{self.agent_id}/sign-batch",
+            {"actions": body_actions},
+        )
+
+        results: list[SignatureResponse | None] = []
+        for sig in data.get("signatures", []):
+            if sig is None:
+                results.append(None)
+            else:
+                results.append(
+                    SignatureResponse(
+                        signature=sig["signature"],
+                        signature_id=sig["signature_id"],
+                        action_id=sig["action_id"],
+                        timestamp=sig["timestamp"],
+                        verification_url=sig["verification_url"],
+                    )
+                )
+        return results
 
     def sign_output(
         self,
