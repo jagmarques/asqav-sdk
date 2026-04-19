@@ -161,6 +161,11 @@ class SignatureResponse:
     action_id: str
     timestamp: float
     verification_url: str
+    algorithm: str | None = None
+    chain_hash: str | None = None
+    rfc3161_tsa: str | None = None
+    rfc3161_serial: str | None = None
+    scan_result: dict[str, Any] | None = None
 
 
 @dataclass
@@ -818,6 +823,11 @@ class Agent:
             action_id=data["action_id"],
             timestamp=data["timestamp"],
             verification_url=data["verification_url"],
+            algorithm=data.get("algorithm"),
+            chain_hash=data.get("chain_hash") or data.get("record_hash"),
+            rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
+            rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
+            scan_result=data.get("scan_result"),
         )
 
     def sign_batch(
@@ -875,6 +885,11 @@ class Agent:
                         action_id=sig["action_id"],
                         timestamp=sig["timestamp"],
                         verification_url=sig["verification_url"],
+                        algorithm=sig.get("algorithm"),
+                        chain_hash=sig.get("chain_hash") or sig.get("record_hash"),
+                        rfc3161_tsa=(sig.get("rfc3161_timestamp") or {}).get("tsa"),
+                        rfc3161_serial=(sig.get("rfc3161_timestamp") or {}).get("serial_number"),
+                        scan_result=sig.get("scan_result"),
                     )
                 )
         return results
@@ -1014,14 +1029,23 @@ class Agent:
         return _post(f"/agents/{self.agent_id}/suspend", payload)
 
     def unsuspend(self) -> dict[str, Any]:
-        """Remove suspension from this agent.
-
-        Restores the agent to active status.
-
-        Returns:
-            Dict with updated agent status.
-        """
+        """Remove suspension from this agent."""
         return _post(f"/agents/{self.agent_id}/unsuspend", {})
+
+    def decommission(self, reason: str = "manual") -> dict[str, Any]:
+        """Permanently retire this agent (keys archived, no further activity)."""
+        return _post(
+            f"/agents/{self.agent_id}/decommission",
+            {"reason": reason},
+        )
+
+    def quarantine(self) -> dict[str, Any]:
+        """Block signing and token issuance, keep read + verify. Business+."""
+        return _post(f"/agents/{self.agent_id}/quarantine", {})
+
+    def unquarantine(self) -> dict[str, Any]:
+        """Restore normal signing and token issuance after quarantine."""
+        return _post(f"/agents/{self.agent_id}/unquarantine", {})
 
     def delegate(
         self,
