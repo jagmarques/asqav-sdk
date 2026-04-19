@@ -1,0 +1,47 @@
+name: Governance Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install asqav
+        run: pip install -e ".[cli]"
+
+      - name: Validate setup
+        if: env.ASQAV_API_KEY != ''
+        env:
+          ASQAV_API_KEY: ${{ secrets.ASQAV_API_KEY }}
+        run: asqav doctor
+
+      - name: Show governance config
+        run: asqav quickstart
+
+      - name: Export compliance bundle
+        run: |
+          python -c "
+          from asqav import export_bundle
+          bundle = export_bundle(signatures=[], framework='eu_ai_act_art12')
+          bundle.to_file('compliance-bundle.json')
+          print(f'Bundle exported: {bundle.receipt_count} receipts, framework={bundle.framework}')
+          print(f'Merkle root: {bundle.merkle_root}')
+          "
+
+      - name: Upload compliance bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-bundle
+          path: compliance-bundle.json
+          if-no-files-found: ignore
