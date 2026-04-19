@@ -239,6 +239,22 @@ def queue_count() -> None:
 
 
 @app.command()
+def demo(
+    port: int = typer.Option(3030, help="Port for the local dashboard."),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not auto-open a browser."),
+) -> None:
+    """Run the local governance demo dashboard.
+
+    Opens http://localhost:3030 with 4 pre-loaded scenarios (rm -rf,
+    fintech wire transfer, k8s scale-to-zero, clinical lab order). No
+    signup, no Docker, no API key required.
+    """
+    from asqav.demo import serve
+
+    serve(port=port, open_browser=not no_browser)
+
+
+@app.command()
 def quickstart() -> None:
     """Get started with asqav in 60 seconds."""
     import os
