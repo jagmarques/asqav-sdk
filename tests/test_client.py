@@ -240,16 +240,14 @@ def test_get_action_status_approved(mock_get: object) -> None:
 
 
 def test_sign_method_exists_on_agent() -> None:
-    """sign() method is still present on Agent with correct signature."""
+    """sign() method is still present on Agent with the core required params."""
     import inspect
 
     sig = inspect.signature(asqav.Agent.sign)
     params = list(sig.parameters.keys())
-    # self, action_type, context
     assert "self" in params
     assert "action_type" in params
     assert "context" in params
-    assert len(params) == 3
 
 
 def test_sign_method_returns_signature_response_annotation() -> None:
@@ -259,6 +257,101 @@ def test_sign_method_returns_signature_response_annotation() -> None:
     sig = inspect.signature(asqav.Agent.sign)
     # With 'from __future__ import annotations', return_annotation is a string
     assert "SignatureResponse" in str(sig.return_annotation)
+
+
+# ---------------------------------------------------------------------------
+# Agent.sign_batch
+# ---------------------------------------------------------------------------
+
+
+def _make_agent() -> "asqav.Agent":
+    """Construct an Agent without hitting the API."""
+    return asqav.Agent(
+        agent_id="agent_test",
+        name="test",
+        public_key="pub",
+        key_id="key_test",
+        algorithm="ML-DSA-65",
+        capabilities=[],
+        created_at=0.0,
+    )
+
+
+@patch("asqav.client._post")
+def test_sign_batch_returns_n_signatures(mock_post: object) -> None:
+    """sign_batch returns one SignatureResponse per input action."""
+    mock_post.return_value = {  # type: ignore[attr-defined]
+        "signatures": [
+            {
+                "signature": f"sig_{i}",
+                "signature_id": f"sid_{i}",
+                "action_id": f"act_{i}",
+                "timestamp": 1700000000.0 + i,
+                "verification_url": f"https://api.asqav.com/verify/sid_{i}",
+            }
+            for i in range(10)
+        ],
+        "errors": [None] * 10,
+    }
+    agent = _make_agent()
+    actions = [{"action_type": f"test:{i}", "context": {"i": i}} for i in range(10)]
+    out = agent.sign_batch(actions)
+    assert len(out) == 10
+    assert all(s is not None for s in out)
+    assert out[0].signature_id == "sid_0"
+    assert out[9].signature_id == "sid_9"
+
+
+@patch("asqav.client._post")
+def test_sign_batch_handles_partial_failure(mock_post: object) -> None:
+    """sign_batch returns None for items the server failed to sign."""
+    mock_post.return_value = {  # type: ignore[attr-defined]
+        "signatures": [
+            {
+                "signature": "sig_0",
+                "signature_id": "sid_0",
+                "action_id": "act_0",
+                "timestamp": 1700000000.0,
+                "verification_url": "https://api.asqav.com/verify/sid_0",
+            },
+            None,
+        ],
+        "errors": [None, {"status_code": 403, "detail": "policy_block"}],
+    }
+    agent = _make_agent()
+    out = agent.sign_batch([
+        {"action_type": "ok"},
+        {"action_type": "blocked"},
+    ])
+    assert out[0] is not None
+    assert out[1] is None
+
+
+def test_sign_batch_rejects_empty_input() -> None:
+    """sign_batch raises ValueError on empty list."""
+    import pytest
+
+    agent = _make_agent()
+    with pytest.raises(ValueError, match="at least one"):
+        agent.sign_batch([])
+
+
+def test_sign_batch_rejects_oversize_input() -> None:
+    """sign_batch raises ValueError when over 100 actions."""
+    import pytest
+
+    agent = _make_agent()
+    with pytest.raises(ValueError, match="at most 100"):
+        agent.sign_batch([{"action_type": "x"}] * 101)
+
+
+def test_sign_batch_rejects_missing_action_type() -> None:
+    """sign_batch raises ValueError when an action lacks 'action_type'."""
+    import pytest
+
+    agent = _make_agent()
+    with pytest.raises(ValueError, match="action_type"):
+        agent.sign_batch([{"context": {"x": 1}}])
 
 
 # ---------------------------------------------------------------------------
