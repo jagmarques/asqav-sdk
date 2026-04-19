@@ -247,6 +247,94 @@ def test_input_keys_are_sorted(cb: AsqavDSPyCallback) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Evaluate handlers
+# ---------------------------------------------------------------------------
+
+
+def test_on_evaluate_start_signs_action(cb: AsqavDSPyCallback) -> None:
+    """on_evaluate_start signs dspy.evaluate.start with evaluator name."""
+
+    class MyEval:
+        pass
+
+    cb.on_evaluate_start("call-e1", MyEval(), {"devset": [], "metric": "f1"})
+    cb._sign_action.assert_called_once_with(
+        "dspy.evaluate.start",
+        {"call_id": "call-e1", "evaluator": "MyEval", "input_keys": ["devset", "metric"]},
+    )
+
+
+def test_on_evaluate_end_signs_ok(cb: AsqavDSPyCallback) -> None:
+    """on_evaluate_end signs dspy.evaluate.end with ok=True on success."""
+    cb.on_evaluate_end("call-e1", {"score": 0.87}, None)
+    cb._sign_action.assert_called_once_with(
+        "dspy.evaluate.end",
+        {"call_id": "call-e1", "ok": True, "exception": None},
+    )
+
+
+def test_on_evaluate_end_signs_exception(cb: AsqavDSPyCallback) -> None:
+    """on_evaluate_end signs dspy.evaluate.end with ok=False on error."""
+    cb.on_evaluate_end("call-e2", None, RuntimeError("dataset missing"))
+    ctx = cb._sign_action.call_args[0][1]
+    assert ctx["ok"] is False
+    assert ctx["exception"] == "RuntimeError"
+
+
+# ---------------------------------------------------------------------------
+# Adapter format handlers
+# ---------------------------------------------------------------------------
+
+
+def test_on_adapter_format_start_signs_action(cb: AsqavDSPyCallback) -> None:
+    """on_adapter_format_start signs dspy.adapter.format.start with adapter name."""
+
+    class ChatAdapter:
+        pass
+
+    cb.on_adapter_format_start("call-f1", ChatAdapter(), {"signature": "s", "demos": []})
+    cb._sign_action.assert_called_once_with(
+        "dspy.adapter.format.start",
+        {"call_id": "call-f1", "adapter": "ChatAdapter", "input_keys": ["demos", "signature"]},
+    )
+
+
+def test_on_adapter_format_end_signs_ok(cb: AsqavDSPyCallback) -> None:
+    """on_adapter_format_end signs dspy.adapter.format.end with ok=True."""
+    cb.on_adapter_format_end("call-f1", {"messages": []}, None)
+    cb._sign_action.assert_called_once_with(
+        "dspy.adapter.format.end",
+        {"call_id": "call-f1", "ok": True, "exception": None},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Adapter parse handlers
+# ---------------------------------------------------------------------------
+
+
+def test_on_adapter_parse_start_signs_action(cb: AsqavDSPyCallback) -> None:
+    """on_adapter_parse_start signs dspy.adapter.parse.start with adapter name."""
+
+    class JSONAdapter:
+        pass
+
+    cb.on_adapter_parse_start("call-p1", JSONAdapter(), {"completion": "..."})
+    cb._sign_action.assert_called_once_with(
+        "dspy.adapter.parse.start",
+        {"call_id": "call-p1", "adapter": "JSONAdapter", "input_keys": ["completion"]},
+    )
+
+
+def test_on_adapter_parse_end_signs_exception(cb: AsqavDSPyCallback) -> None:
+    """on_adapter_parse_end signs dspy.adapter.parse.end with ok=False on error."""
+    cb.on_adapter_parse_end("call-p1", None, ValueError("bad json"))
+    ctx = cb._sign_action.call_args[0][1]
+    assert ctx["ok"] is False
+    assert ctx["exception"] == "ValueError"
+
+
+# ---------------------------------------------------------------------------
 # Fail-open: signing must never block DSPy execution
 # ---------------------------------------------------------------------------
 
@@ -271,8 +359,14 @@ def test_fail_open_on_asqav_error(cb: AsqavDSPyCallback) -> None:
     live_cb.on_lm_end("c", None, None)
     live_cb.on_tool_start("c", object(), {})
     live_cb.on_tool_end("c", None, None)
+    live_cb.on_evaluate_start("c", object(), {})
+    live_cb.on_evaluate_end("c", None, None)
+    live_cb.on_adapter_format_start("c", object(), {})
+    live_cb.on_adapter_format_end("c", None, None)
+    live_cb.on_adapter_parse_start("c", object(), {})
+    live_cb.on_adapter_parse_end("c", None, None)
 
-    assert mock_agent.sign.call_count == 6
+    assert mock_agent.sign.call_count == 12
     assert len(live_cb._signatures) == 0
 
 

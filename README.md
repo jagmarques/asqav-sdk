@@ -110,6 +110,28 @@ local_sign("agt_xxx", "task:complete", {"result": "done"})
 # Later: asqav sync
 ```
 
+## Batched signing
+
+Sign up to 100 actions in one HTTP roundtrip. Each action passes through the full single-sign pipeline (policy, scan, anchoring), so one bad action does not abort the batch. Returns a list parallel to the input - successful items are SignatureResponse, failed items are None.
+
+```python
+import asqav
+
+asqav.init(api_key="sk_live_...")
+agent = asqav.Agent.get("agt_xxx")
+
+results = agent.sign_batch([
+    {"action_type": "tool:call", "context": {"name": "search"}},
+    {"action_type": "memory:write", "context": {"size": 128}},
+    {"action_type": "llm:response", "context": {"model": "gpt-4o"}},
+])
+
+for r in results:
+    if r is None:
+        continue
+    print(r.signature_id, r.verification_url)
+```
+
 ## Works with your stack
 
 Native integrations for 9 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
@@ -422,7 +444,7 @@ assert result["valid"] and result["all_valid"]
 
 ## Free tier
 
-Get started at no cost. Free tier includes agent creation, signed actions, three-tier enforcement, policies, audit export, and framework integrations. Threat detection and monitoring on Pro ($39/mo). Compliance reports, multi-party signing, and incident management on Business ($149/mo). See [asqav.com](https://asqav.com) for pricing.
+Get started at no cost. Free tier includes 50K signatures/month, agent lifecycle, three-tier enforcement, policies, audit export, OpenTimestamps anchoring, MCP server, and framework integrations. Content scanning, Replay API, managed KMS, and OpenTelemetry on Pro ($19/mo annual). Compliance reports, quarantine mode, multi-party signing, and incident management on Business ($79/mo annual). See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 
 ## Discovery
 
