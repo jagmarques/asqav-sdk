@@ -91,6 +91,7 @@ All API calls retry automatically with exponential backoff on transient failures
 ```bash
 pip install asqav[cli]
 
+asqav demo                    # local dashboard on http://localhost:3030, 4 scenarios
 asqav quickstart              # one-command project setup
 asqav doctor                  # health check for your configuration
 asqav verify sig_abc123
@@ -98,6 +99,12 @@ asqav agents list
 asqav agents create my-agent
 asqav sync
 ```
+
+### `asqav demo`
+
+Opens a local governance dashboard at `http://localhost:3030` with 4 pre-loaded scenarios: `rm -rf`, a fintech wire transfer, a kubernetes scale-to-zero on production, and a clinical CT-with-contrast order. No signup, no Docker, no API key. Each decision produces an HMAC-signed receipt that the dashboard re-verifies in the browser.
+
+Use it to preview the approval card UX and signed-receipt flow before wiring asqav into your own agent.
 
 ## Local mode
 
