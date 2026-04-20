@@ -29,6 +29,7 @@ from .client import (
     VerificationResponse,
     _api_base,
     _api_key,
+    _parse_bitcoin_anchor,
     _parse_timestamp,
 )
 from .retry import with_async_retry
@@ -262,6 +263,7 @@ class AsyncAgent:
             policy_digest=data.get("policy_digest"),
             policy_decision=data.get("policy_decision", "permit"),
             authorization_ref=data.get("authorization_ref"),
+            bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
         )
 
     async def start_session(self) -> SessionResponse:
