@@ -166,6 +166,9 @@ class SignatureResponse:
     rfc3161_tsa: str | None = None
     rfc3161_serial: str | None = None
     scan_result: dict[str, Any] | None = None
+    policy_digest: str | None = None
+    policy_decision: str = "permit"
+    authorization_ref: str | None = None
 
 
 @dataclass
@@ -828,6 +831,9 @@ class Agent:
             rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
             rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
             scan_result=data.get("scan_result"),
+            policy_digest=data.get("policy_digest"),
+            policy_decision=data.get("policy_decision", "permit"),
+            authorization_ref=data.get("authorization_ref"),
         )
 
     def sign_batch(
@@ -890,6 +896,9 @@ class Agent:
                         rfc3161_tsa=(sig.get("rfc3161_timestamp") or {}).get("tsa"),
                         rfc3161_serial=(sig.get("rfc3161_timestamp") or {}).get("serial_number"),
                         scan_result=sig.get("scan_result"),
+                        policy_digest=sig.get("policy_digest"),
+                        policy_decision=sig.get("policy_decision", "permit"),
+                        authorization_ref=sig.get("authorization_ref"),
                     )
                 )
         return results
