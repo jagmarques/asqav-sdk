@@ -382,6 +382,20 @@ result = asqav.verify_output(sig.signature_id, output)
 assert result["verified"]
 ```
 
+## Governance fields on signatures
+
+Every `SignatureResponse` carries the governance context that produced it, so a third party can reconstruct the exact JCS bytes that were signed and re-verify offline:
+
+```python
+sig = agent.sign("tool:call", {"name": "search"})
+
+sig.policy_digest       # sha256 of the policy attestation snapshot
+sig.policy_decision     # "permit" or "deny"
+sig.authorization_ref   # approval_id when a HITL approval authorized the action, else None
+```
+
+`policy_decision` defaults to `"permit"`. When an action is denied, the API raises and you get a signed deny envelope through the standard error path.
+
 ## Budget tracking
 
 Client-side spend tracker that persists every cost as a signed record. Fails closed when the limit would be exceeded:
@@ -451,7 +465,7 @@ assert result["valid"] and result["all_valid"]
 
 ## Free tier
 
-Get started at no cost. Free includes 50K signatures/month, 20 agents, 10 policies, 3 team members, OpenTimestamps, MCP server, audit export, and framework integrations. Content scanning, OpenTelemetry, managed KMS, and Replay API on Pro ($19/mo annual). Quarantine, incident management, multi-party signing, compliance reports, and RFC 3161 timestamps on Business ($79/mo annual). See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
+Get started at no cost. Free includes 50K signatures/month, 20 agents, 10 policies, 3 team members, OpenTimestamps, MCP server, audit export, and framework integrations. Content scanning, OpenTelemetry, and Replay API on Pro ($19/mo annual). Quarantine, incident management, multi-party signing, compliance reports, and RFC 3161 timestamps on Business ($79/mo annual). Managed KMS, SSO, IP allowlist, and bring-your-own KMS on Enterprise. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 
 ## Discovery
 
