@@ -152,9 +152,41 @@ class TokenResponse:
     algorithm: str
 
 
+def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
+    """Turn the JSON bitcoin_anchor block from the API into a typed value."""
+    if not raw:
+        return None
+    return BitcoinAnchor(
+        status=raw.get("status") or "none",
+        bitcoin_tx=raw.get("bitcoin_tx"),
+        bitcoin_block=raw.get("bitcoin_block"),
+    )
+
+
+@dataclass
+class BitcoinAnchor:
+    """Bitcoin anchor state for a signed action.
+
+    Branch on ``status`` before treating the signature as Bitcoin-anchored:
+    - ``none``: no OpenTimestamps proof was attached (free tier path).
+    - ``pending``: OTS stamp submitted, not yet included in a Bitcoin block.
+    - ``confirmed``: OTS calendar upgraded the proof to a specific block.
+    - ``failed``: OTS upgrade failed permanently; treat as unanchored.
+    """
+
+    status: str
+    bitcoin_tx: str | None = None
+    bitcoin_block: int | None = None
+
+
 @dataclass
 class SignatureResponse:
-    """Response from signing operation."""
+    """Response from signing operation.
+
+    The ML-DSA ``signature`` is always present. ``bitcoin_anchor`` carries
+    the anchoring state separately so callers can distinguish a
+    cryptographically signed action from one that is also Bitcoin-anchored.
+    """
 
     signature: str
     signature_id: str
@@ -166,6 +198,10 @@ class SignatureResponse:
     rfc3161_tsa: str | None = None
     rfc3161_serial: str | None = None
     scan_result: dict[str, Any] | None = None
+    policy_digest: str | None = None
+    policy_decision: str = "permit"
+    authorization_ref: str | None = None
+    bitcoin_anchor: BitcoinAnchor | None = None
 
 
 @dataclass
@@ -828,6 +864,10 @@ class Agent:
             rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
             rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
             scan_result=data.get("scan_result"),
+            policy_digest=data.get("policy_digest"),
+            policy_decision=data.get("policy_decision", "permit"),
+            authorization_ref=data.get("authorization_ref"),
+            bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
         )
 
     def sign_batch(
@@ -890,6 +930,10 @@ class Agent:
                         rfc3161_tsa=(sig.get("rfc3161_timestamp") or {}).get("tsa"),
                         rfc3161_serial=(sig.get("rfc3161_timestamp") or {}).get("serial_number"),
                         scan_result=sig.get("scan_result"),
+                        policy_digest=sig.get("policy_digest"),
+                        policy_decision=sig.get("policy_decision", "permit"),
+                        authorization_ref=sig.get("authorization_ref"),
+                        bitcoin_anchor=_parse_bitcoin_anchor(sig.get("bitcoin_anchor")),
                     )
                 )
         return results
