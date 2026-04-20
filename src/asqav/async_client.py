@@ -29,6 +29,7 @@ from .client import (
     VerificationResponse,
     _api_base,
     _api_key,
+    _parse_bitcoin_anchor,
     _parse_timestamp,
 )
 from .retry import with_async_retry
@@ -254,6 +255,15 @@ class AsyncAgent:
             action_id=data["action_id"],
             timestamp=data["timestamp"],
             verification_url=data["verification_url"],
+            algorithm=data.get("algorithm"),
+            chain_hash=data.get("chain_hash") or data.get("record_hash"),
+            rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
+            rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
+            scan_result=data.get("scan_result"),
+            policy_digest=data.get("policy_digest"),
+            policy_decision=data.get("policy_decision", "permit"),
+            authorization_ref=data.get("authorization_ref"),
+            bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
         )
 
     async def start_session(self) -> SessionResponse:
