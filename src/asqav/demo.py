@@ -9,6 +9,8 @@ a verifiable receipt.
 Usage: `asqav demo`
 """
 
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import argparse
@@ -19,14 +21,11 @@ import http.server
 import json
 import secrets
 import socketserver
-import sys
 import threading
 import time
 import webbrowser
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # Pre-loaded scenarios
