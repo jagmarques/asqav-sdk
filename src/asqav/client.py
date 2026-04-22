@@ -805,6 +805,7 @@ class Agent:
         tool_inputs_hash: str | None = None,
         trace_id: str | None = None,
         parent_id: str | None = None,
+        counterparty: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -825,13 +826,30 @@ class Agent:
                 a multi-step workflow. Use generate_trace_id() to create one.
             parent_id: Optional parent action ID for linking child actions
                 to their parent in a workflow.
+            counterparty: Optional identity of the endpoint the agent is
+                calling. Included in the signed record so an auditor can
+                verify the agent reached a specific endpoint, not an
+                imposter. Recommended shape::
+
+                    {"kind": "tls_spki_sha256", "value": "<hex>"}
+                    {"kind": "pubkey_fingerprint", "value": "<hex>"}
+                    {"kind": "url_sni", "value": "api.example.com"}
+
+                Any dict is accepted; unknown kinds are recorded verbatim.
 
         Returns:
             SignatureResponse with the signature.
         """
         action_type = resolve_pattern(action_type)
 
-        if system_prompt_hash or model_params or tool_inputs_hash or trace_id or parent_id:
+        if (
+            system_prompt_hash
+            or model_params
+            or tool_inputs_hash
+            or trace_id
+            or parent_id
+            or counterparty
+        ):
             context = dict(context) if context else {}
             if system_prompt_hash:
                 context["_system_prompt_hash"] = system_prompt_hash
@@ -843,6 +861,8 @@ class Agent:
                 context["_trace_id"] = trace_id
             if parent_id:
                 context["_parent_id"] = parent_id
+            if counterparty:
+                context["_counterparty"] = counterparty
 
         data = _post(
             f"/agents/{self.agent_id}/sign",

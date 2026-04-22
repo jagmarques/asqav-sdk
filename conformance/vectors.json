@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "canonicalization": "RFC 8785 JCS",
+  "hash_algorithm": "SHA-256",
+  "vectors": [
+    {
+      "name": "minimal_read",
+      "description": "Simplest read action, no context.",
+      "input": {
+        "action_type": "read:data",
+        "context": {}
+      },
+      "canonical": "{\"action_type\":\"read:data\",\"context\":{}}",
+      "sha256": "991033e23a3e0939c258e10f2f8f88183d9bcdb08de62ef02446e11e0819c671"
+    },
+    {
+      "name": "tool_call_with_counterparty",
+      "description": "Action with counterparty TLS fingerprint bound into the record.",
+      "input": {
+        "action_type": "api:call",
+        "context": {
+          "_counterparty": {
+            "kind": "tls_spki_sha256",
+            "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "tool": "database.query",
+          "args_hash": "sha256:9f2e0b1c4a"
+        }
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"_counterparty\":{\"kind\":\"tls_spki_sha256\",\"value\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"},\"args_hash\":\"sha256:9f2e0b1c4a\",\"tool\":\"database.query\"}}",
+      "sha256": "a6c39c3b6e09761a141148c0862edbeaeb59642b4e0a1e4a85d6fba63f634ff4"
+    },
+    {
+      "name": "traced_child_action",
+      "description": "Child action with trace_id + parent_id linking to a workflow.",
+      "input": {
+        "action_type": "api:call",
+        "context": {
+          "_trace_id": "tr_01HVZABC",
+          "_parent_id": "act_01HVZPARENT",
+          "_system_prompt_hash": "sha256:aaa"
+        }
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"_parent_id\":\"act_01HVZPARENT\",\"_system_prompt_hash\":\"sha256:aaa\",\"_trace_id\":\"tr_01HVZABC\"}}",
+      "sha256": "9294075a29c366f9dfc54b8b7f8fa0054c290fef20e8931e93e94b2bee921d22"
+    }
+  ]
+}

@@ -259,6 +259,34 @@ def test_sign_method_returns_signature_response_annotation() -> None:
     assert "SignatureResponse" in str(sig.return_annotation)
 
 
+def test_sign_accepts_counterparty_kwarg() -> None:
+    """sign() exposes a counterparty kwarg for endpoint-identity binding."""
+    import inspect
+
+    sig = inspect.signature(asqav.Agent.sign)
+    assert "counterparty" in sig.parameters
+    assert sig.parameters["counterparty"].default is None
+
+
+@patch("asqav.client._post")
+def test_sign_passes_counterparty_into_context(mock_post: object) -> None:
+    """counterparty kwarg lands in context under _counterparty."""
+    mock_post.return_value = {  # type: ignore[attr-defined]
+        "signature": "sig_bytes",
+        "signature_id": "sig_01",
+        "action_id": "act_01",
+        "timestamp": "2026-04-22T10:00:00Z",
+        "verification_url": "https://api.asqav.com/api/v1/verify/sig_01",
+    }
+    agent = _make_agent()
+    cp = {"kind": "tls_spki_sha256", "value": "abc123"}
+    agent.sign(action_type="api:call", counterparty=cp)
+
+    call_kwargs = mock_post.call_args  # type: ignore[attr-defined]
+    sent_body = call_kwargs[0][1]
+    assert sent_body["context"]["_counterparty"] == cp
+
+
 # ---------------------------------------------------------------------------
 # Agent.sign_batch
 # ---------------------------------------------------------------------------
