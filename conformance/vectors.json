@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "canonicalization": "RFC 8785 JCS",
   "hash_algorithm": "SHA-256",
   "vectors": [
@@ -11,7 +11,9 @@
         "context": {}
       },
       "canonical": "{\"action_type\":\"read:data\",\"context\":{}}",
-      "sha256": "991033e23a3e0939c258e10f2f8f88183d9bcdb08de62ef02446e11e0819c671"
+      "sha256": "991033e23a3e0939c258e10f2f8f88183d9bcdb08de62ef02446e11e0819c671",
+      "expected_verify": true,
+      "reason": "Happy path: canonical form and SHA-256 are reproducible."
     },
     {
       "name": "tool_call_with_counterparty",
@@ -28,7 +30,9 @@
         }
       },
       "canonical": "{\"action_type\":\"api:call\",\"context\":{\"_counterparty\":{\"kind\":\"tls_spki_sha256\",\"value\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"},\"args_hash\":\"sha256:9f2e0b1c4a\",\"tool\":\"database.query\"}}",
-      "sha256": "a6c39c3b6e09761a141148c0862edbeaeb59642b4e0a1e4a85d6fba63f634ff4"
+      "sha256": "a6c39c3b6e09761a141148c0862edbeaeb59642b4e0a1e4a85d6fba63f634ff4",
+      "expected_verify": true,
+      "reason": "Happy path: canonical form and SHA-256 are reproducible."
     },
     {
       "name": "traced_child_action",
@@ -42,7 +46,98 @@
         }
       },
       "canonical": "{\"action_type\":\"api:call\",\"context\":{\"_parent_id\":\"act_01HVZPARENT\",\"_system_prompt_hash\":\"sha256:aaa\",\"_trace_id\":\"tr_01HVZABC\"}}",
-      "sha256": "9294075a29c366f9dfc54b8b7f8fa0054c290fef20e8931e93e94b2bee921d22"
+      "sha256": "9294075a29c366f9dfc54b8b7f8fa0054c290fef20e8931e93e94b2bee921d22",
+      "expected_verify": true,
+      "reason": "Happy path: canonical form and SHA-256 are reproducible."
+    },
+    {
+      "name": "tampered_signature",
+      "description": "Signed bytes are unchanged but the ML-DSA signature was flipped by one bit. Verification MUST fail.",
+      "input": {
+        "agent_id": "agt_demo",
+        "algorithm": "ML-DSA-65",
+        "agent_public_key": "AAAA_base64_public_key_bytes_here",
+        "card_signed_at": "2026-04-22T20:00:00+00:00",
+        "card_version": "a2a.v1",
+        "name": "demo-agent",
+        "schemaVersion": "1.0"
+      },
+      "canonical": "{\"agent_id\":\"agt_demo\",\"agent_public_key\":\"AAAA_base64_public_key_bytes_here\",\"algorithm\":\"ML-DSA-65\",\"card_signed_at\":\"2026-04-22T20:00:00+00:00\",\"card_version\":\"a2a.v1\",\"name\":\"demo-agent\",\"schemaVersion\":\"1.0\"}",
+      "sha256": "3deafb65ffe2785bfe35fe9d687a3076aa475c50ef8be4b2763424ced3e19bba",
+      "signature_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "expected_verify": false,
+      "reason": "ML-DSA-65 verify returns false when signature bytes do not match."
+    },
+    {
+      "name": "swapped_public_key",
+      "description": "Signed bytes and signature are unchanged but public key was substituted. Verification MUST fail.",
+      "input": {
+        "agent_id": "agt_demo",
+        "algorithm": "ML-DSA-65",
+        "agent_public_key": "AAAA_base64_public_key_bytes_here",
+        "card_signed_at": "2026-04-22T20:00:00+00:00",
+        "card_version": "a2a.v1",
+        "name": "demo-agent",
+        "schemaVersion": "1.0"
+      },
+      "canonical": "{\"agent_id\":\"agt_demo\",\"agent_public_key\":\"AAAA_base64_public_key_bytes_here\",\"algorithm\":\"ML-DSA-65\",\"card_signed_at\":\"2026-04-22T20:00:00+00:00\",\"card_version\":\"a2a.v1\",\"name\":\"demo-agent\",\"schemaVersion\":\"1.0\"}",
+      "sha256": "3deafb65ffe2785bfe35fe9d687a3076aa475c50ef8be4b2763424ced3e19bba",
+      "substitution": "agent_public_key was replaced with an attacker-controlled key",
+      "expected_verify": false,
+      "reason": "Verifier compares signature against the embedded public key; substitution breaks verification."
+    },
+    {
+      "name": "stale_card",
+      "description": "Valid signature but card_signed_at is older than the verifier's freshness window.",
+      "input": {
+        "agent_id": "agt_demo",
+        "algorithm": "ML-DSA-65",
+        "agent_public_key": "AAAA_base64_public_key_bytes_here",
+        "card_signed_at": "2020-01-01T00:00:00+00:00",
+        "card_version": "a2a.v1",
+        "name": "demo-agent",
+        "schemaVersion": "1.0"
+      },
+      "canonical": "{\"agent_id\":\"agt_demo\",\"agent_public_key\":\"AAAA_base64_public_key_bytes_here\",\"algorithm\":\"ML-DSA-65\",\"card_signed_at\":\"2020-01-01T00:00:00+00:00\",\"card_version\":\"a2a.v1\",\"name\":\"demo-agent\",\"schemaVersion\":\"1.0\"}",
+      "sha256": "0dcced0b29db5e9c29f5b71b4693c01443371042dd523e97fb917dad3b4040e9",
+      "expected_verify": false,
+      "reason": "Freshness check: verifier rejects cards older than its configured window (recommend 5 min for interactive, 24h for cached)."
+    },
+    {
+      "name": "nonce_mismatch",
+      "description": "Peer sent nonce N1 with request; card echoes different nonce N2. Suggests replay or endpoint substitution.",
+      "input": {
+        "agent_id": "agt_demo",
+        "algorithm": "ML-DSA-65",
+        "agent_public_key": "AAAA_base64_public_key_bytes_here",
+        "card_signed_at": "2026-04-22T20:00:00+00:00",
+        "card_version": "a2a.v1",
+        "name": "demo-agent",
+        "schemaVersion": "1.0",
+        "client_nonce": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "canonical": "{\"agent_id\":\"agt_demo\",\"agent_public_key\":\"AAAA_base64_public_key_bytes_here\",\"algorithm\":\"ML-DSA-65\",\"card_signed_at\":\"2026-04-22T20:00:00+00:00\",\"card_version\":\"a2a.v1\",\"client_nonce\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"name\":\"demo-agent\",\"schemaVersion\":\"1.0\"}",
+      "sha256": "0d3916bae22c889c9bf77c2edecf91849366a8b3b8fb64a1d291e9a319904c9a",
+      "peer_sent_nonce": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+      "expected_verify": false,
+      "reason": "Nonce echoed inside the signed card does not match what the peer sent. Card was not produced for this peer's request."
+    },
+    {
+      "name": "card_version_downgrade",
+      "description": "Card claims card_version a2a.v0 but the signature was produced over a2a.v1 canonical bytes. Tampered after signing.",
+      "input": {
+        "agent_id": "agt_demo",
+        "algorithm": "ML-DSA-65",
+        "agent_public_key": "AAAA_base64_public_key_bytes_here",
+        "card_signed_at": "2026-04-22T20:00:00+00:00",
+        "card_version": "a2a.v0",
+        "name": "demo-agent",
+        "schemaVersion": "1.0"
+      },
+      "canonical": "{\"agent_id\":\"agt_demo\",\"agent_public_key\":\"AAAA_base64_public_key_bytes_here\",\"algorithm\":\"ML-DSA-65\",\"card_signed_at\":\"2026-04-22T20:00:00+00:00\",\"card_version\":\"a2a.v0\",\"name\":\"demo-agent\",\"schemaVersion\":\"1.0\"}",
+      "sha256": "9d62c8f11b8d3922e838edfecd866eae20e4865b38cdd58092e8b592aa789c30",
+      "expected_verify": false,
+      "reason": "Because card_version is inside the signed payload, any attempt to rewrite it post-signing changes the canonical bytes and breaks the signature."
     }
   ]
 }
