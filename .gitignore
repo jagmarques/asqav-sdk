@@ -33,3 +33,9 @@ htmlcov/
 Upsonic/
 .gstack/
 dist/
+
+# local tooling state (never commit)
+.company/
+.claude/
+.planning/
+.cursor/
