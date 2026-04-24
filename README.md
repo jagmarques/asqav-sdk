@@ -213,6 +213,29 @@ from asqav_pydantic import AsqavHooks
 
 See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
 
+## Reasoning trace signing
+
+Sign the full prompt, reasoning trace, and output for every agent decision. Only SHA-256 hashes of the three payloads are sent by default, so raw text never leaves your process.
+
+```python
+import asqav
+from asqav import sign_reasoning
+
+asqav.init(api_key="sk_...")
+agent = asqav.Agent.create("research-crawler")
+
+receipt = sign_reasoning(
+    agent,
+    prompt="summarise the quarterly risk report",
+    trace="step 1 ... step 2 ... step 3",
+    output="summary text ...",
+)
+
+print(receipt.signature_id, receipt.prompt_hash, receipt.trace_hash, receipt.output_hash)
+```
+
+Pass `store_raw=True` with `retention_days=N` to additionally persist the full prompt, trace, and output on Asqav for the given retention window.
+
 ## Three-phase signing
 
 Break high-stakes actions into intent, decision, and execution phases. Each phase produces a signed receipt, and execution only proceeds if policy allows it.
