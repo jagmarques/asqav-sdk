@@ -106,11 +106,12 @@ from .decorators import async_session, session, sign
 from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .phases import PhaseChain, sign_with_phases
+from .reasoning import ReasoningReceipt, sign_reasoning
 from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.2.20"
+__version__ = "0.2.21"
 __all__ = [
     # Initialization
     "init",
@@ -230,6 +231,9 @@ __all__ = [
     # Three-Phase Signing
     "PhaseChain",
     "sign_with_phases",
+    # Reasoning Trace
+    "ReasoningReceipt",
+    "sign_reasoning",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
