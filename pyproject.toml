@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "Asqav", email = "hello@asqav.com" }
+    { name = "Asqav", email = "support@asqav.com" }
 ]
 keywords = [
     "ai",
