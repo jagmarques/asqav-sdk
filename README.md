@@ -63,7 +63,7 @@ Each signed action returns:
 | Any agent can do anything | Policies block dangerous actions in real-time |
 | One person approves everything | Multi-party authorization for critical actions |
 | Manual compliance reports | Automated EU AI Act and DORA reports |
-| Breaks when quantum computers arrive | Quantum-safe from day one |
+| Reasoning lost after the run | Prompt, trace, and output signed and replayable |
 
 ## Decorators and context managers
 
