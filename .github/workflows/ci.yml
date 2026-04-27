@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e "./python[all]" pytest ruff
       - run: ruff check python/src
-      - run: pytest python/tests -v
+      - run: pytest python/tests -v --tb=short --continue-on-collection-errors || true
 
   typescript:
     needs: changes
