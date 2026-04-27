@@ -1,0 +1,23 @@
+{
+  "name": "asqav",
+  "version": "0.1.0",
+  "description": "AI agent governance - audit trails, policy enforcement, ML-DSA cryptographic signatures",
+  "keywords": ["ai", "agents", "governance", "audit-trail", "compliance", "ml-dsa", "policy-enforcement"],
+  "license": "MIT",
+  "author": "Asqav <support@asqav.com>",
+  "homepage": "https://asqav.com",
+  "repository": { "type": "git", "url": "https://github.com/jagmarques/asqav-sdk.git", "directory": "typescript" },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.mjs", "require": "./dist/index.js" } },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": { "node": ">=18" },
+  "devDependencies": { "@types/node": "^22.0.0", "tsup": "^8.3.0", "typescript": "^5.5.0", "vitest": "^2.1.0" }
+}

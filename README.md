@@ -1,63 +1,99 @@
 <p align="center">
   <a href="https://asqav.com">
-    <img src="https://asqav.com/logo-text-white.png" alt="asqav" width="200">
+    <img src="https://asqav.com/logo-text-white.png" alt="Asqav" width="200">
   </a>
 </p>
 <p align="center">
   Governance for AI agents. Audit trails, policy enforcement, and compliance.
 </p>
 <p align="center">
-  <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/v/asqav?style=flat-square&logo=pypi&logoColor=white" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/v/asqav?style=flat-square&logo=pypi&logoColor=white&label=pypi" alt="PyPI version"></a>
+  <a href="https://www.npmjs.com/package/asqav"><img src="https://img.shields.io/npm/v/asqav?style=flat-square&logo=npm&logoColor=white&label=npm" alt="npm version"></a>
   <a href="https://github.com/jagmarques/asqav-sdk/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jagmarques/asqav-sdk/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI"></a>
-  <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/dm/asqav?style=flat-square&logo=pypi&logoColor=white" alt="Downloads"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="License: MIT"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/pypi/pyversions/asqav?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
   <a href="https://github.com/jagmarques/asqav-sdk"><img src="https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social" alt="GitHub stars"></a>
-  <a href="https://codespaces.new/jagmarques/asqav-sdk?quickstart=1"><img src="https://img.shields.io/badge/Try_it-Open_in_Codespaces-black?style=flat-square&logo=github" alt="Open in Codespaces"></a>
 </p>
 <p align="center">
   <a href="https://asqav.com">Website</a> |
-  <a href="https://asqav.com/docs">Docs</a> | <a href="README-ZH.md">中文文档</a> |
+  <a href="https://asqav.com/docs">Docs</a> |
   <a href="https://asqav.com/docs/sdk">SDK Guide</a> |
   <a href="https://asqav.com/compliance">Compliance</a>
 </p>
 
-# asqav SDK
+# Asqav SDK - Python + TypeScript
 
-Thin Python SDK for [asqav.com](https://asqav.com). All ML-DSA cryptography runs server-side. Zero native dependencies.
+The official client SDKs for [Asqav](https://asqav.com), the governance layer for AI agents. Sign every action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails.
+
+This repository ships two SDKs from a single monorepo:
+
+- `python/` - the original Python SDK, published to PyPI as [`asqav`](https://pypi.org/project/asqav/)
+- `typescript/` - the TypeScript SDK, published to npm as [`asqav`](https://www.npmjs.com/package/asqav)
+
+Both wrap the same Asqav API. Pick the one that matches your stack.
 
 ## Install
+
+Python:
 
 ```bash
 pip install asqav
 ```
 
+TypeScript / Node.js:
+
+```bash
+npm install asqav
+```
+
+Both packages have zero native dependencies. All ML-DSA cryptography runs server-side.
+
+## 30-second example
+
+Python:
+
 ```python
 import asqav
 
 asqav.init(api_key="sk_...")
+
 agent = asqav.Agent.create("my-agent")
 sig = agent.sign("api:call", {"model": "gpt-4"})
+
+print(sig.signature_id, sig.verify_url)
 ```
 
-Your agent now has a cryptographic identity, a signed audit trail, and a verifiable action record.
+TypeScript:
 
-Each signed action returns:
+```ts
+import { Asqav } from "asqav";
+
+const asqav = new Asqav({ apiKey: "sk_..." });
+
+const agent = await asqav.Agent.create("my-agent");
+const sig = await agent.sign("api:call", { model: "gpt-4" });
+
+console.log(sig.signatureId, sig.verifyUrl);
+```
+
+Each signed action returns a receipt like:
+
 ```json
 {
   "signature_id": "sig_a1b2c3",
   "agent_id": "agt_x7y8z9",
   "action": "api:call",
   "algorithm": "ML-DSA-65",
-  "timestamp": "2026-04-06T18:30:00Z",
+  "timestamp": "2026-04-27T18:30:00Z",
   "chain_hash": "b94d27b9934d3e08...",
   "verify_url": "https://asqav.com/verify/sig_a1b2c3"
 }
 ```
 
-## Why
+The agent now has a cryptographic identity, a signed audit trail, and a verifiable action record.
 
-| Without governance | With asqav |
+## Why governance
+
+| Without governance | With Asqav |
 |---|---|
 | No record of what agents did | Every action signed with ML-DSA (FIPS 204) |
 | Any agent can do anything | Policies block dangerous actions in real-time |
@@ -65,441 +101,156 @@ Each signed action returns:
 | Manual compliance reports | Automated EU AI Act and DORA reports |
 | Reasoning lost after the run | Prompt, trace, and output signed and replayable |
 
-## Decorators and context managers
+## Per-language docs
 
-```python
-@asqav.sign
-def call_model(prompt: str):
-    return openai.chat.completions.create(model="gpt-4", messages=[{"role": "user", "content": prompt}])
+The root README only covers the cross-language story. For language-specific guides - decorators, async clients, framework integrations, CLI commands, local mode, batched signing, three-phase signing, scope tokens, replay, attestations, and more - see:
 
-with asqav.session() as s:
-    s.sign("step:fetch", {"source": "api"})
-    s.sign("step:process", {"records": 150})
+- Python: [`python/README.md`](python/README.md)
+- TypeScript: [`typescript/README.md`](typescript/README.md)
+
+The full reference lives at [asqav.com/docs](https://asqav.com/docs).
+
+### What's in each SDK
+
+Both SDKs cover the same core surface: agent identity, signed actions, batched signing, policy enforcement, scope tokens, replay, attestations, and three-phase signing. The Python SDK additionally ships:
+
+- The `asqav` CLI (`asqav demo`, `asqav verify`, `asqav doctor`, `asqav agents`, `asqav sync`)
+- Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, and PydanticAI
+- Local-mode offline signing with deferred sync
+
+The TypeScript SDK currently focuses on the core API and `Agent` surface for Node 20+ runtimes. Framework integrations are tracked on the roadmap.
+
+If a feature exists in one SDK but not the other, the language README will mark it explicitly.
+
+## Repository layout
+
+```
+asqav-sdk/
+  python/           Python SDK (pip install asqav)
+    src/
+    tests/
+    pyproject.toml
+    README.md
+  typescript/       TypeScript SDK (npm install asqav)
+    src/
+    tests/
+    package.json
+    README.md
+  conformance/      Cross-language conformance fixtures both SDKs run against
+  .github/workflows/
+    ci.yml          Path-filtered CI for both languages
+    publish.yml     Tag-based publish (py-v* to PyPI, ts-v* to npm)
+  CHANGELOG.md
+  README.md         (this file)
 ```
 
-## Async support
+The two SDKs are versioned and released independently.
 
-```python
-agent = await asqav.AsyncAgent.create("my-agent")
-sig = await agent.sign("api:call", {"model": "gpt-4"})
-```
+## Verifying a receipt
 
-All API calls retry automatically with exponential backoff on transient failures.
+Receipts are portable. Anyone with a `signature_id` can verify it without an API key:
 
-## CLI
-
-```bash
-pip install asqav[cli]
-
-asqav demo                    # local dashboard on http://localhost:3030, 4 scenarios
-asqav quickstart              # one-command project setup
-asqav doctor                  # health check for your configuration
-asqav verify sig_abc123
-asqav agents list
-asqav agents create my-agent
-asqav sync
-```
-
-### `asqav demo`
-
-Opens a local governance dashboard at `http://localhost:3030` with 4 pre-loaded scenarios: `rm -rf`, a fintech wire transfer, a kubernetes scale-to-zero on production, and a clinical CT-with-contrast order. No signup, no Docker, no API key. Each decision produces an HMAC-signed receipt that the dashboard re-verifies in the browser.
-
-Use it to preview the approval card UX and signed-receipt flow before wiring asqav into your own agent.
-
-## Local mode
-
-Sign actions offline when the API is unreachable. Queue syncs when connectivity returns.
-
-```python
-from asqav import local_sign
-
-local_sign("agt_xxx", "task:complete", {"result": "done"})
-# Later: asqav sync
-```
-
-## Batched signing
-
-Sign up to 100 actions in one HTTP roundtrip. Each action passes through the full single-sign pipeline (policy, scan, anchoring), so one bad action does not abort the batch. Returns a list parallel to the input - successful items are SignatureResponse, failed items are None.
+Python:
 
 ```python
 import asqav
 
-asqav.init(api_key="sk_live_...")
-agent = asqav.Agent.get("agt_xxx")
-
-results = agent.sign_batch([
-    {"action_type": "tool:call", "context": {"name": "search"}},
-    {"action_type": "memory:write", "context": {"size": 128}},
-    {"action_type": "llm:response", "context": {"model": "gpt-4o"}},
-])
-
-for r in results:
-    if r is None:
-        continue
-    print(r.signature_id, r.verification_url)
-```
-
-## Works with your stack
-
-Native integrations for 9 frameworks. Each extends `AsqavAdapter` for version-resilient signing.
-
-```bash
-pip install asqav[langchain]
-pip install asqav[crewai]
-pip install asqav[litellm]
-pip install asqav[haystack]
-pip install asqav[openai-agents]
-pip install asqav[llamaindex]
-pip install asqav[smolagents]
-pip install asqav[dspy]
-pip install asqav-pydantic          # PydanticAI (external package)
-pip install asqav[all]
-```
-
-### LangChain
-
-```python
-from asqav.extras.langchain import AsqavCallbackHandler
-
-handler = AsqavCallbackHandler(api_key="sk_...")
-chain.invoke(input, config={"callbacks": [handler]})
-
-# Observe mode - test governance without API calls
-handler = AsqavCallbackHandler(api_key="sk_...", observe=True)
-```
-
-### CrewAI
-
-```python
-from asqav.extras.crewai import AsqavCrewHook
-
-hook = AsqavCrewHook(api_key="sk_...")
-task = Task(description="Research competitors", callbacks=[hook.task_callback])
-```
-
-```python
-from asqav.extras.crewai import AsqavGuardrailProvider
-provider = AsqavGuardrailProvider(agent_name="crew-guard")
-# Implements the CrewAI GuardrailProvider interface
-```
-
-### LlamaIndex
-
-```python
-from asqav.extras.llamaindex import AsqavLlamaIndexHandler
-
-handler = AsqavLlamaIndexHandler(api_key="sk_...")
-```
-
-### LiteLLM / Haystack / OpenAI Agents SDK / smolagents / DSPy
-
-```python
-from asqav.extras.litellm import AsqavGuardrail
-from asqav.extras.haystack import AsqavComponent
-from asqav.extras.openai_agents import AsqavGuardrail
-from asqav.extras.smolagents import AsqavSmolagentsHook
-from asqav.extras.dspy import AsqavDSPyCallback
-```
-
-### PydanticAI
-
-```bash
-pip install asqav-pydantic
-```
-
-```python
-from asqav_pydantic import AsqavHooks
-```
-
-See [integration docs](https://asqav.com/docs/integrations) for full setup guides.
-
-## Reasoning trace signing
-
-Sign the full prompt, reasoning trace, and output for every agent decision. Only SHA-256 hashes of the three payloads are sent by default, so raw text never leaves your process.
-
-```python
-import asqav
-from asqav import sign_reasoning
-
-asqav.init(api_key="sk_...")
-agent = asqav.Agent.create("research-crawler")
-
-receipt = sign_reasoning(
-    agent,
-    prompt="summarise the quarterly risk report",
-    trace="step 1 ... step 2 ... step 3",
-    output="summary text ...",
-)
-
-print(receipt.signature_id, receipt.prompt_hash, receipt.trace_hash, receipt.output_hash)
-```
-
-Pass `store_raw=True` with `retention_days=N` to additionally persist the full prompt, trace, and output on Asqav for the given retention window.
-
-## Three-phase signing
-
-Break high-stakes actions into intent, decision, and execution phases. Each phase produces a signed receipt, and execution only proceeds if policy allows it.
-
-```python
-# Three-phase signing: intent, decision, execution
-chain = agent.sign_with_phases("data:delete", {"table": "users"})
-print(chain.approved)    # True if policy allowed it
-print(chain.intent)      # signed intent receipt
-print(chain.decision)    # policy evaluation result
-print(chain.execution)   # signed execution receipt (only if approved)
-```
-
-## Trace correlation
-
-Link actions across multi-step workflows with a shared trace ID. Useful for debugging distributed agent pipelines and correlating audit trails across services.
-
-```python
-# Link actions across multi-step workflows
-trace_id = asqav.generate_trace_id()
-agent.sign("step:1", ctx, trace_id=trace_id)
-agent.sign("step:2", ctx, trace_id=trace_id, parent_id="sig_prev")
-```
-
-## Emergency halt
-
-Kill switch that revokes all agents in your organization immediately. Use during security incidents to stop all agent activity until the situation is resolved.
-
-```python
-# Kill switch: revoke all agents immediately
-asqav.emergency_halt(reason="security incident")
-```
-
-## Enforcement
-
-asqav provides three tiers of enforcement for AI agent governance:
-
-**Strong** - the [asqav-mcp](https://github.com/jagmarques/asqav-mcp) server acts as a non-bypassable tool proxy. Agents call tools through the MCP server, which checks policy and signs the decision before allowing execution. With a `tool_endpoint` configured, the server forwards the call and signs request + response together as a bilateral receipt.
-
-**Bounded** - pre-execution gates (`gate_action`) check policy and sign the decision before the agent acts. After completing the action, the agent calls `complete_action` to close the bilateral receipt, linking the approval to the outcome.
-
-**Detectable** - every action gets a quantum-safe signature (ML-DSA-65) hash-chained to the previous one. If logs are tampered with or entries omitted, the chain breaks and verification fails.
-
-Most teams use all three tiers for different tools. High-risk mutations go through the strong path, routine operations use bounded, and everything gets the detectable layer. Bilateral receipts ensure auditors can verify both what was authorized and what actually happened.
-
-### Policies
-
-```python
-asqav.create_policy(
-    name="no-deletions",
-    action_pattern="data:delete:*",
-    action="block_and_alert",
-    severity="critical"
-)
-```
-
-### MCP enforcement
-
-```bash
-pip install asqav-mcp
-export ASQAV_PROXY_TOOLS='{"sql:execute": {"risk_level": "high", "require_approval": true}}'
-asqav-mcp
-```
-
-The MCP server exposes `gate_action` (bounded) and `enforced_tool_call` (strong) tools to any MCP client - Claude Desktop, Claude Code, Cursor, or custom agents.
-
-## Multi-party signing
-
-Distributed approval where no single entity can authorize alone:
-
-```python
-config = asqav.create_signing_group("agt_xxx", min_approvals=2, total_shares=3)
-session = asqav.request_action("agt_xxx", "finance.transfer", {"amount": 50000})
-asqav.approve_action(session.session_id, "ent_xxx")
-```
-
-## Semantic action patterns
-
-Use descriptive labels instead of glob patterns for clearer policies:
-
-```python
-sig = agent.sign("sql-destructive", {"query": "DROP TABLE users"})
-```
-
-## Pre-flight checks
-
-Combine revocation, suspension, and policy checks in a single call before running sensitive actions. Returns human-readable explanations of what each policy would do:
-
-```python
-result = agent.preflight("data:delete")
-if not result.cleared:
-    raise RuntimeError(f"blocked: {result.reasons}")
-# result.explanations contains plain-English descriptions of each check
-```
-
-## Reproducibility metadata
-
-Attach system prompt hashes and other reproducibility context to signatures:
-
-```python
-sig = agent.sign("llm:call", ctx, system_prompt_hash="sha256:a1b2c3...")
-```
-
-## Compliance bundle export
-
-Export signed action trails as regulation-specific compliance bundles:
-
-```python
-bundle = asqav.export_bundle(signatures, "eu_ai_act_art12")
-```
-
-## Scope tokens
-
-Portable, short-lived tokens that let a receiving service verify what an agent is allowed to do without calling your org:
-
-```python
-token = agent.create_scope_token(
-    actions=["data:read:customer"],
-    ttl=3600
-)
-# Attach to outgoing API calls
-requests.get(url, headers=token.to_header())
-# Receiving service verifies without calling your org
-verified = asqav.verify_scope_token(token_string)
-```
-
-## Replay protection
-
-Each scope token includes a unique nonce. Receivers should track used nonces and reject duplicates to prevent replay attacks.
-
-```python
-token = agent.create_scope_token(actions=["data:read"], ttl=3600)
-seen = set()
-if token.nonce in seen:
-    reject()
-seen.add(token.nonce)
-```
-
-## Replay
-
-Reconstruct what an agent did in a session, with chain integrity verification:
-
-```python
-timeline = asqav.replay(agent_id="agt_abc", session_id="sess_xyz")
-print(timeline.summary())
-assert timeline.chain_integrity  # verify no tampering
-
-# Or replay from offline bundle
-timeline = asqav.replay_from_bundle(bundle)
-```
-
-## Output verification
-
-Bind a tool output to its input and verify later that nothing was tampered with:
-
-```python
-import hashlib, json
-
-prompt = {"query": "top customers"}
-input_hash = hashlib.sha256(json.dumps(prompt, sort_keys=True).encode()).hexdigest()
-
-output = run_tool(prompt)
-sig = agent.sign_output("tool:search", input_hash, output)
-
-# Later, from any verifier
-result = asqav.verify_output(sig.signature_id, output)
+result = asqav.verify("sig_a1b2c3")
 assert result["verified"]
+print(result["agent_id"], result["chain_hash"])
 ```
 
-## Governance fields on signatures
+TypeScript:
 
-Every `SignatureResponse` carries the governance context that produced it, so a third party can reconstruct the exact JCS bytes that were signed and re-verify offline:
+```ts
+import { verify } from "asqav";
 
-```python
-sig = agent.sign("tool:call", {"name": "search"})
-
-sig.policy_digest       # sha256 of the policy attestation snapshot
-sig.policy_decision     # "permit" or "deny"
-sig.authorization_ref   # approval_id when a HITL approval authorized the action, else None
+const result = await verify("sig_a1b2c3");
+console.assert(result.verified);
+console.log(result.agentId, result.chainHash);
 ```
 
-`policy_decision` defaults to `"permit"`. When an action is denied, the API raises and you get a signed deny envelope through the standard error path.
+Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the JCS-canonicalized payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
-## Budget tracking
+## Conformance
 
-Client-side spend tracker that persists every cost as a signed record. Fails closed when the limit would be exceeded:
+The `conformance/` directory contains shared test fixtures both SDKs run against. Adding a new feature means adding a fixture there first, then making both SDKs pass it. CI reruns both matrices whenever `conformance/` changes, even if neither `python/` nor `typescript/` was touched, so cross-language drift is caught at PR time.
 
-```python
-budget = asqav.BudgetTracker(agent, limit=10.0, currency="USD")
+## CI
 
-decision = budget.check(estimated_cost=0.25)
-if not decision.allowed:
-    raise RuntimeError(decision.reason)
+CI runs on every push to `main` and every pull request. It uses `dorny/paths-filter@v3` to only execute the matrix jobs for the language whose source actually changed:
 
-budget.record("api:openai", actual_cost=0.23, context={"model": "gpt-4"})
-```
+- Changes under `python/` run pytest on Python 3.10, 3.11, and 3.12.
+- Changes under `typescript/` run npm test on Node 20 and 22.
+- Changes under `conformance/` or to the workflow itself run both.
 
-## Attestations
+A final aggregator job named `ci-ok` is the single required status check for branch protection. It passes when each matrix job either succeeded or was skipped (no relevant changes), which avoids the GitHub gotcha where a skipped required check stays pending forever.
 
-Generate a portable, signed attestation document proving an agent's governance status. Share it with auditors or partners for independent verification:
+## Contributing
 
-```python
-attestation = asqav.generate_attestation("agt_abc123", session_id="sess_xyz")
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide. The short version:
 
-# Anyone with the document can verify it
-result = asqav.verify_attestation(attestation)
-assert result["valid"] and result["all_valid"]
-```
+1. Fork the repo and create a feature branch.
+2. Run the relevant test suite locally.
+   - Python: `cd python && pip install -e ".[all]" pytest && pytest tests -v`
+   - TypeScript: `cd typescript && npm ci && npm test`
+3. Open a pull request against `main`. CI must go green before merge.
 
-## Features
+Direct pushes to `main` are blocked. Every change lands through a PR.
 
-- **Signed actions** - every agent action gets a ML-DSA-65 signature with RFC 3161 timestamp
-- **Decorators** - `@asqav.sign` wraps any function with cryptographic signing
-- **Async** - full async support with `AsyncAgent` and automatic retry
-- **CLI** - verify signatures, manage agents, quickstart setup, doctor health check
-- **Local mode** - sign actions offline, sync later
-- **Observe mode** - test governance without API calls using `observe=True`
-- **Framework integrations** - LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI
-- **Semantic action patterns** - descriptive labels instead of glob patterns
-- **Reproducibility metadata** - attach system prompt hashes to signatures
-- **Compliance bundles** - export regulation-specific bundles with `export_bundle`
-- **Three-tier enforcement** - strong (tool proxy), bounded (pre-execution gates), detectable (signed audit trail)
-- **Policy enforcement** - block or alert on action patterns before execution
-- **Multi-party signing** - m-of-n approval using threshold ML-DSA
-- **Pre-flight checks** - combined revocation, suspension, and policy gate in one call
-- **Output verification** - bind tool outputs to inputs and verify later with `sign_output` / `verify_output`
-- **Budget tracking** - client-side spend limits with signed, replayable records
-- **Attestations** - portable signed documents proving an agent's governance status
-- **Agent identity** - create, suspend, revoke, and rotate agent keys
-- **Audit export** - JSON/CSV trails for compliance reporting
-- **Tokens** - scoped JWTs and selective-disclosure tokens (SD-JWT)
-- **Scope tokens** - portable, short-lived tokens for cross-org action verification
-- **Replay** - reconstruct agent sessions with chain integrity checks
-- **Three-phase signing** - intent, decision, and execution phases with signed receipts
-- **Trace correlation** - link actions across multi-step workflows with shared trace IDs
-- **Emergency halt** - kill switch to revoke all agents immediately during incidents
-- **CrewAI GuardrailProvider** - native CrewAI guardrail interface integration
+### Releases - dual-version, prefixed tags
 
-## In the press
+Because both SDKs live in one repo but ship to different registries on independent cadences, releases are driven by **prefixed git tags**:
 
-- [Help Net Security: Asqav - Open-source SDK for AI agent governance](https://www.helpnetsecurity.com/2026/04/09/asqav-ai-agent-audit-trail/)
+| Language | Tag pattern | Registry |
+|---|---|---|
+| Python | `py-v0.2.21`, `py-v0.3.0`, ... | PyPI |
+| TypeScript | `ts-v0.1.0`, `ts-v0.1.1`, ... | npm |
+
+To cut a release:
+
+1. Bump the version in the relevant package manifest (`python/pyproject.toml` or `typescript/package.json`).
+2. Update [`CHANGELOG.md`](CHANGELOG.md) with the new entry.
+3. Tag and push:
+
+   ```bash
+   # Python release
+   git tag py-v0.2.22
+   git push origin py-v0.2.22
+
+   # TypeScript release
+   git tag ts-v0.1.1
+   git push origin ts-v0.1.1
+   ```
+
+The `publish.yml` workflow inspects the tag prefix and only runs the matching publish job. Python uses PyPI's OIDC trusted publisher (no API token needed). TypeScript publishes via the `NPM_TOKEN` repo secret.
+
+Tags must match `py-v*.*.*` or `ts-v*.*.*` exactly - GitHub Actions tag filters are globs, not regex, so the three dot-segments are required to gate the publish.
 
 ## Ecosystem
 
 | Package | What it does |
-|---------|-------------|
-| [asqav](https://pypi.org/project/asqav/) | Python SDK |
-| [asqav-mcp](https://github.com/jagmarques/asqav-mcp) | MCP server for Claude Desktop/Code |
+|---|---|
+| [`asqav` (PyPI)](https://pypi.org/project/asqav/) | Python SDK |
+| [`asqav` (npm)](https://www.npmjs.com/package/asqav) | TypeScript SDK |
+| [asqav-mcp](https://github.com/jagmarques/asqav-mcp) | MCP server for Claude Desktop, Claude Code, Cursor |
 | [asqav-compliance](https://github.com/jagmarques/asqav-compliance) | CI/CD compliance scanner |
 
 ## Free tier
 
-Get started at no cost. Free includes 50K signatures/month, 20 agents, 10 policies, 3 team members, OpenTimestamps, MCP server, audit export, and framework integrations. Content scanning, OpenTelemetry, and Replay API on Pro ($19/mo annual). Quarantine, incident management, multi-party signing, compliance reports, and RFC 3161 timestamps on Business ($79/mo annual). Managed KMS, SSO, IP allowlist, and bring-your-own KMS on Enterprise. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
+Get started at no cost. Free includes 50K signatures/month, 20 agents, 10 policies, 3 team members, OpenTimestamps, MCP server, audit export, and framework integrations. Content scanning, OpenTelemetry, and Replay API on Pro. Quarantine, incident management, multi-party signing, compliance reports, and RFC 3161 timestamps on Business. Managed KMS, SSO, IP allowlist, and bring-your-own KMS on Enterprise. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 
 ## Discovery
 
-Machine-readable service descriptor at [`https://asqav.com/.well-known/governance.json`](https://asqav.com/.well-known/governance.json) for external tools that want to auto-discover asqav's endpoints, algorithms, capabilities, and integrations.
+Machine-readable service descriptor at [`https://asqav.com/.well-known/governance.json`](https://asqav.com/.well-known/governance.json) for external tools that want to auto-discover Asqav's endpoints, algorithms, capabilities, and integrations.
 
 ## Links
 
-- [Integration Docs](https://asqav.com/docs/integrations)
-- [Blog](https://dev.to/jagmarques)
-- [Dashboard](https://asqav.com/dashboard)
-- [PyPI](https://pypi.org/project/asqav/)
+- Docs: <https://asqav.com/docs>
+- Repo: <https://github.com/jagmarques/asqav-sdk>
+- Integration docs: <https://asqav.com/docs/integrations>
+- Blog: <https://dev.to/jagmarques>
+- Dashboard: <https://asqav.com/dashboard>
 
 ## License
 
@@ -507,4 +258,4 @@ MIT - see [LICENSE](LICENSE) for details.
 
 ---
 
-If asqav helps you, consider giving it a star. It helps others find the project.
+If Asqav helps you, consider giving the repo a star. It helps others find the project.
