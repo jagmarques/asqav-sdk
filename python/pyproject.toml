@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "asqav"
 version = "0.2.21"
 description = "AI agent governance - audit trails, policy enforcement, compliance"
-readme = "README.md"
+readme = { text = "AI agent governance SDK. See https://github.com/jagmarques/asqav-sdk for full documentation.", content-type = "text/markdown" }
 license = "MIT"
 requires-python = ">=3.10"
 authors = [

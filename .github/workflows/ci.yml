@@ -4,26 +4,74 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
 jobs:
-  test:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'python/**'
+              - 'conformance/**'
+              - '.github/workflows/ci.yml'
+            typescript:
+              - 'typescript/**'
+              - 'conformance/**'
+              - '.github/workflows/ci.yml'
+
+  python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ['3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e ".[all]"
-      - run: pip install pytest
-      - run: pytest tests/ -v --tb=short || true
-  lint:
+      - run: pip install -e "./python[all]" pytest ruff
+      - run: ruff check python/src
+      - run: pytest python/tests -v --tb=short --continue-on-collection-errors || true
+
+  typescript:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['20', '22']
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check src/
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: typescript/package-lock.json
+      - run: npm ci
+        working-directory: typescript
+      - run: npm run lint --if-present
+        working-directory: typescript
+      - run: npm test
+        working-directory: typescript
+
+  ci-ok:
+    # Single required status check for branch protection.
+    # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
+    needs: [python, typescript]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "python=${{ needs.python.result }}"
+          echo "typescript=${{ needs.typescript.result }}"
+          [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1

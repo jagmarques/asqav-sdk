@@ -11,7 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 
-VECTORS_PATH = Path(__file__).parent.parent / "conformance" / "vectors.json"
+VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.json"
 
 
 def _jcs(obj: object) -> str:
