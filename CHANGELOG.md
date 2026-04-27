@@ -4,6 +4,11 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## Unreleased
+
+- repo restructure: split Python and TypeScript SDKs into `python/` and `typescript/` subdirectories. Python users unaffected (`pip install asqav` continues working). TypeScript SDK introduced - `npm install asqav`.
+- workflows: path-filtered CI, dual-language publish on `py-v*` / `ts-v*` tags.
+
 ## [0.2.21] - 2026-04-25
 
 ### Added
