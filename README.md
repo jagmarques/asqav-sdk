@@ -8,7 +8,7 @@
 </p>
 <p align="center">
   <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/v/asqav?style=flat-square&logo=pypi&logoColor=white&label=pypi" alt="PyPI version"></a>
-  <a href="https://www.npmjs.com/package/asqav"><img src="https://img.shields.io/npm/v/asqav?style=flat-square&logo=npm&logoColor=white&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@asqav/sdk"><img src="https://img.shields.io/npm/v/%40asqav%2Fsdk?style=flat-square&logo=npm&logoColor=white&label=npm" alt="npm version"></a>
   <a href="https://github.com/jagmarques/asqav-sdk/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jagmarques/asqav-sdk/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="License: MIT"></a>
   <a href="https://github.com/jagmarques/asqav-sdk"><img src="https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social" alt="GitHub stars"></a>
@@ -27,7 +27,7 @@ The official client SDKs for [Asqav](https://asqav.com), the governance layer fo
 This repository ships two SDKs from a single monorepo:
 
 - `python/` - the original Python SDK, published to PyPI as [`asqav`](https://pypi.org/project/asqav/)
-- `typescript/` - the TypeScript SDK, published to npm as [`asqav`](https://www.npmjs.com/package/asqav)
+- `typescript/` - the TypeScript SDK, published to npm as [`@asqav/sdk`](https://www.npmjs.com/package/@asqav/sdk)
 
 Both wrap the same Asqav API. Pick the one that matches your stack.
 
@@ -232,7 +232,7 @@ Tags must match `py-v*.*.*` or `ts-v*.*.*` exactly - GitHub Actions tag filters 
 | Package | What it does |
 |---|---|
 | [`asqav` (PyPI)](https://pypi.org/project/asqav/) | Python SDK |
-| [`asqav` (npm)](https://www.npmjs.com/package/asqav) | TypeScript SDK |
+| [`@asqav/sdk` (npm)](https://www.npmjs.com/package/@asqav/sdk) | TypeScript SDK |
 | [asqav-mcp](https://github.com/jagmarques/asqav-mcp) | MCP server for Claude Desktop, Claude Code, Cursor |
 | [asqav-compliance](https://github.com/jagmarques/asqav-compliance) | CI/CD compliance scanner |
 
