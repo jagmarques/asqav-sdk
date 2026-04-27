@@ -42,7 +42,7 @@ pip install asqav
 TypeScript / Node.js:
 
 ```bash
-npm install asqav
+npm install @asqav/sdk
 ```
 
 Both packages have zero native dependencies. All ML-DSA cryptography runs server-side.
@@ -65,7 +65,7 @@ print(sig.signature_id, sig.verify_url)
 TypeScript:
 
 ```ts
-import { Asqav } from "asqav";
+import { Asqav } from "@asqav/sdk";
 
 const asqav = new Asqav({ apiKey: "sk_..." });
 
@@ -131,7 +131,7 @@ asqav-sdk/
     tests/
     pyproject.toml
     README.md
-  typescript/       TypeScript SDK (npm install asqav)
+  typescript/       TypeScript SDK (npm install @asqav/sdk)
     src/
     tests/
     package.json
@@ -163,7 +163,7 @@ print(result["agent_id"], result["chain_hash"])
 TypeScript:
 
 ```ts
-import { verify } from "asqav";
+import { verify } from "@asqav/sdk";
 
 const result = await verify("sig_a1b2c3");
 console.assert(result.verified);
