@@ -5,13 +5,13 @@ TypeScript SDK for [asqav.com](https://asqav.com). All ML-DSA cryptography runs 
 ## Install
 
 ```bash
-npm install asqav
+npm install @asqav/sdk
 ```
 
 ## Quick start
 
 ```ts
-import { init, Agent } from "asqav";
+import { init, Agent } from "@asqav/sdk";
 
 init({ apiKey: process.env.ASQAV_API_KEY });
 
@@ -43,7 +43,7 @@ import {
   AuthenticationError,
   RateLimitError,
   APIError,
-} from "asqav";
+} from "@asqav/sdk";
 ```
 
 ### `init({ apiKey, baseUrl })`
