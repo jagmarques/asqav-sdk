@@ -11,6 +11,11 @@
  *   const sig = await agent.sign({ actionType: "api:call", context: { model: "gpt-4" } });
  */
 
+import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
+
+export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
+export type { AfterHook, BeforeHook } from "./hooks.js";
+
 const DEFAULT_BASE_URL = "https://api.asqav.com/api/v1";
 
 interface Config {
@@ -282,6 +287,9 @@ export class Agent {
   }
 
   async sign(options: SignOptions): Promise<SignatureResponse> {
+    const initialContext = options.context ?? {};
+    const finalContext = _dispatchBefore(options.actionType, initialContext);
+
     const data = await request<{
       signature: string;
       signature_id: string;
@@ -293,11 +301,11 @@ export class Agent {
       record_hash?: string;
     }>("POST", `/agents/${this.agentId}/sign`, {
       action_type: options.actionType,
-      context: options.context ?? {},
+      context: finalContext,
       session_id: this.sessionId,
     });
 
-    return {
+    const response: SignatureResponse = {
       signature: data.signature,
       signatureId: data.signature_id,
       actionId: data.action_id,
@@ -306,6 +314,9 @@ export class Agent {
       algorithm: data.algorithm,
       chainHash: data.chain_hash ?? data.record_hash,
     };
+
+    _dispatchAfter(options.actionType, response);
+    return response;
   }
 
   async startSession(): Promise<SessionResponse> {

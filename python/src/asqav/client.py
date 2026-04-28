@@ -23,6 +23,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json as _json
+import logging
 import os
 import sys
 import time
@@ -41,6 +42,8 @@ from .patterns import resolve_pattern
 from .retry import with_retry
 
 F = TypeVar("F", bound=Callable[..., Any])
+
+logger = logging.getLogger("asqav")
 
 # Retry configuration for API calls
 _MAX_RETRIES = 5
@@ -864,6 +867,15 @@ class Agent:
             if counterparty:
                 context["_counterparty"] = counterparty
 
+        # Dispatch before-hooks (fail-open).
+        try:
+            from . import hooks as _hooks_mod
+            context = _hooks_mod._dispatch_before(
+                action_type, dict(context) if context else {}
+            )
+        except Exception:
+            logger.warning("asqav before-hook dispatch failed (fail-open)", exc_info=True)
+
         data = _post(
             f"/agents/{self.agent_id}/sign",
             {
@@ -873,7 +885,7 @@ class Agent:
             },
         )
 
-        return SignatureResponse(
+        response = SignatureResponse(
             signature=data["signature"],
             signature_id=data["signature_id"],
             action_id=data["action_id"],
@@ -889,6 +901,15 @@ class Agent:
             authorization_ref=data.get("authorization_ref"),
             bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
         )
+
+        # Dispatch after-hooks (fail-open).
+        try:
+            from . import hooks as _hooks_mod
+            _hooks_mod._dispatch_after(action_type, response)
+        except Exception:
+            logger.warning("asqav after-hook dispatch failed (fail-open)", exc_info=True)
+
+        return response
 
     def sign_batch(
         self,
