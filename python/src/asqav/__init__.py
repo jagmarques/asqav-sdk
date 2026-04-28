@@ -103,6 +103,7 @@ from .client import (
 )
 from .compliance import ComplianceBundle, export_bundle
 from .decorators import async_session, session, sign
+from .hooks import clear_hooks, register_after, register_before
 from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .phases import PhaseChain, sign_with_phases
@@ -111,7 +112,7 @@ from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.2.21"
+__version__ = "0.3.0"
 __all__ = [
     # Initialization
     "init",
@@ -234,6 +235,10 @@ __all__ = [
     # Reasoning Trace
     "ReasoningReceipt",
     "sign_reasoning",
+    # Hooks
+    "register_before",
+    "register_after",
+    "clear_hooks",
     # Exceptions
     "AsqavError",
     "AuthenticationError",
