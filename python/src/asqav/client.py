@@ -105,6 +105,15 @@ except ImportError:
 _api_key: str | None = None
 _api_base: str = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
 _client: Any = None
+# Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
+_mode: str = "full-payload"
+_org_salt: bytes | None = None
+# Metadata keys allowed to ride alongside a hash-only request. The server
+# enforces its own whitelist; this mirrors the conservative default so we
+# don't accidentally leak fields the customer didn't intend to share.
+_HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
+    {"agent_id", "session_id", "action_type", "model_name", "tool_name"}
+)
 
 
 class AsqavError(Exception):
@@ -643,6 +652,56 @@ def flush_spans() -> None:
         pass  # Don't fail on export errors
 
 
+def _build_sign_body(
+    *,
+    action_type: str,
+    context: dict[str, Any] | None,
+    session_id: str | None,
+    agent_id: str,
+) -> dict[str, Any]:
+    """Build the JSON body for a ``POST /agents/{id}/sign`` request.
+
+    Branches on the SDK-level ``_mode``: full-payload sends ``context``
+    as before; hash-only sends a ``hash`` field plus a whitelisted
+    ``metadata`` bag.
+    """
+    if _mode == "hash-only":
+        from .canonicalize import hash_action
+
+        digest = hash_action(action_type, context or {}, salt=_org_salt)
+        metadata: dict[str, Any] = {
+            "agent_id": agent_id,
+            "action_type": action_type,
+        }
+        if session_id is not None:
+            metadata["session_id"] = session_id
+        # Pull optional model_name / tool_name from context if the caller
+        # opted in by adding underscored sentinel keys. Other context keys
+        # are NEVER copied; that's the whole point of hash-only.
+        for src_key, dst_key in (("_model_name", "model_name"), ("_tool_name", "tool_name")):
+            if context and src_key in context:
+                value = context[src_key]
+                if isinstance(value, str):
+                    metadata[dst_key] = value
+        # Defensive: only ship whitelisted keys even if a future caller
+        # mutates `metadata` above.
+        metadata = {k: v for k, v in metadata.items() if k in _HASH_ONLY_METADATA_WHITELIST}
+        return {
+            "action_type": action_type,
+            "hash": digest,
+            "hash_algo": "sha256",
+            "metadata": metadata,
+            "session_id": session_id,
+        }
+
+    # full-payload (default for self-hosted)
+    return {
+        "action_type": action_type,
+        "context": context or {},
+        "session_id": session_id,
+    }
+
+
 @dataclass
 class Agent:
     """Agent representation from asqav Cloud.
@@ -876,14 +935,13 @@ class Agent:
         except Exception:
             logger.warning("asqav before-hook dispatch failed (fail-open)", exc_info=True)
 
-        data = _post(
-            f"/agents/{self.agent_id}/sign",
-            {
-                "action_type": action_type,
-                "context": context or {},
-                "session_id": self._session_id,
-            },
+        body = _build_sign_body(
+            action_type=action_type,
+            context=context,
+            session_id=self._session_id,
+            agent_id=self.agent_id,
         )
+        data = _post(f"/agents/{self.agent_id}/sign", body)
 
         response = SignatureResponse(
             signature=data["signature"],
@@ -1351,12 +1409,23 @@ def emergency_halt(reason: str = "emergency") -> list[dict]:
 def init(
     api_key: str | None = None,
     base_url: str | None = None,
+    *,
+    mode: str = "auto",
+    org_salt: bytes | None = None,
 ) -> None:
     """Initialize the asqav SDK.
 
     Args:
         api_key: Your asqav API key. Can also be set via ASQAV_API_KEY env var.
         base_url: Override API base URL (for testing).
+        mode: Wire format for ``Agent.sign``. One of ``"auto"`` (default),
+            ``"hash-only"``, or ``"full-payload"``. ``auto`` resolves to
+            ``hash-only`` for the asqav cloud (``*.asqav.com``) and
+            ``full-payload`` for self-hosted deployments. The
+            ``ASQAV_MODE`` env var is consulted when ``mode="auto"``.
+        org_salt: Optional 32-byte per-organization salt. When set, the
+            SDK uses HMAC-SHA-256 instead of plain SHA-256 for hash-only
+            requests. Fetch yours from the asqav dashboard.
 
     Raises:
         AuthenticationError: If no API key is provided.
@@ -1370,8 +1439,11 @@ def init(
         # Using environment variable
         os.environ["ASQAV_API_KEY"] = "sk_..."
         asqav.init()
+
+        # Force hash-only against a custom URL
+        asqav.init(api_key="sk_...", mode="hash-only", org_salt=bytes.fromhex("..."))
     """
-    global _api_key, _api_base, _client
+    global _api_key, _api_base, _client, _mode, _org_salt
 
     _api_key = api_key or os.environ.get("ASQAV_API_KEY")
 
@@ -1382,6 +1454,15 @@ def init(
 
     if base_url:
         _api_base = base_url
+
+    from ._mode import _resolve_mode
+
+    _mode = _resolve_mode(
+        api_base_url=_api_base,
+        env=os.environ.get("ASQAV_MODE"),
+        explicit=mode,
+    )
+    _org_salt = org_salt
 
     # Initialize HTTP client
     if _HTTPX_AVAILABLE:
