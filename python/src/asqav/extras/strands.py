@@ -7,6 +7,11 @@ Auto-signs every model call from a Strands ``Agent`` via the typed hooks API
 an ``strands:model_call`` governance signature with input/output hashes, model
 name, and latency. Signing is fail-open so governance never breaks the agent.
 
+This adapter is implemented as a thin wrapper over the asqav SDK's generic
+hooks system (:mod:`asqav.hooks`). Input/output hashing is registered as an
+internal ``before`` hook so the same pattern is available to any user
+integration.
+
 Usage::
 
     import asqav
@@ -44,9 +49,13 @@ except ImportError:
         "Install with: pip install asqav[strands]"
     )
 
+from .. import hooks as _asqav_hooks
 from ._base import AsqavAdapter
 
 logger = logging.getLogger("asqav")
+
+_STRANDS_ACTION = "strands:model_call"
+_HOOK_REGISTERED = False
 
 
 def _hash_repr(value: Any) -> str:
@@ -85,6 +94,29 @@ def _extract_messages(event: Any) -> Any:
     return getattr(agent, "messages", None)
 
 
+def _strands_before_hook(action_type: str, context: dict) -> dict:
+    """Internal asqav before-hook that normalises strands:model_call context.
+
+    Ensures ``input_hash`` and ``output_hash`` keys exist with a stable
+    fallback even when the caller did not provide them. This demonstrates the
+    hooks pattern enriching context generically.
+    """
+    if action_type != _STRANDS_ACTION:
+        return context
+    context.setdefault("input_hash", "none")
+    context.setdefault("output_hash", "none")
+    return context
+
+
+def _ensure_hook_registered() -> None:
+    """Register the strands before-hook exactly once per process."""
+    global _HOOK_REGISTERED
+    if _HOOK_REGISTERED:
+        return
+    _asqav_hooks.register_before("strands:*", _strands_before_hook)
+    _HOOK_REGISTERED = True
+
+
 class AsqavStrandsHooks(AsqavAdapter, HookProvider):
     """Strands ``HookProvider`` that signs every model call with asqav.
 
@@ -121,6 +153,7 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
         self._call_start: float | None = None
         self._input_hash: str | None = None
         self._model_name: str = "unknown"
+        _ensure_hook_registered()
 
     def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
         """Register Before/AfterModelCall callbacks with the Strands registry."""
@@ -172,7 +205,7 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
             if self._algorithm is not None:
                 context["algorithm"] = self._algorithm
 
-            self._sign_action("strands:model_call", context)
+            self._sign_action(_STRANDS_ACTION, context)
         except Exception as exc:
             logger.warning(
                 "asqav strands after-model-call signing failed (fail-open): %s", exc
