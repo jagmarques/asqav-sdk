@@ -4,6 +4,16 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.1 / TypeScript 0.2.1] - 2026-04-28
+
+### Added
+- `mode` client config: `auto` (default), `hash-only`, `full-payload`. SDK auto-detects cloud endpoints (`*.asqav.com`) and uses hash-only by default for GDPR data minimization. Self-hosted deployments keep full-payload.
+- Public `canonicalize()` and `hash_action()` helpers (Python) and `canonicalize()` / `hashAction()` (TypeScript). Implements RFC 8785 JCS + SHA-256 (or HMAC-SHA-256 with optional org salt).
+- Cross-language conformance: both SDKs verified against the same `conformance/vectors.json`.
+
+### Changed
+- When `api_base_url` points at `*.asqav.com`, the SDK hashes context locally before sending. Set `mode="full-payload"` (or `ASQAV_MODE=full-payload`) to keep the previous behavior.
+
 ## Unreleased
 
 - repo restructure: split Python and TypeScript SDKs into `python/` and `typescript/` subdirectories. Python users unaffected (`pip install asqav` continues working). TypeScript SDK introduced - `npm install @asqav/sdk`.

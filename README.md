@@ -91,6 +91,27 @@ Each signed action returns a receipt like:
 
 The agent now has a cryptographic identity, a signed audit trail, and a verifiable action record.
 
+## Data handling modes
+
+The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
+
+- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK canonicalizes your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
+- **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
+
+Override anytime:
+
+```python
+# Python
+asqav.init(api_key="...", base_url="https://api.asqav.com", mode="hash-only")
+```
+
+```ts
+// TypeScript
+await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
+```
+
+The canonicalization is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/canonicalization.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
+
 ## Why governance
 
 | Without governance | With Asqav |
