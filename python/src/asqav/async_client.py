@@ -240,14 +240,15 @@ class AsyncAgent:
         Returns:
             SignatureResponse with the signature.
         """
-        data = await _async_post(
-            f"/agents/{self.agent_id}/sign",
-            {
-                "action_type": action_type,
-                "context": context or {},
-                "session_id": self._session_id,
-            },
+        from .client import _build_sign_body
+
+        body = _build_sign_body(
+            action_type=action_type,
+            context=context,
+            session_id=self._session_id,
+            agent_id=self.agent_id,
         )
+        data = await _async_post(f"/agents/{self.agent_id}/sign", body)
 
         return SignatureResponse(
             signature=data["signature"],
