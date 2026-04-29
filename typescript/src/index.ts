@@ -11,21 +11,38 @@
  *   const sig = await agent.sign({ actionType: "api:call", context: { model: "gpt-4" } });
  */
 
+import { canonicalize, hashAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
+import { type Mode, resolveMode } from "./mode.js";
 
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
+export { canonicalize, hashAction } from "./canonicalize.js";
+export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 
 const DEFAULT_BASE_URL = "https://api.asqav.com/api/v1";
+/** Metadata keys allowed alongside a hash-only request. Mirrors the
+ * Python whitelist; the server enforces its own. */
+const HASH_ONLY_METADATA_WHITELIST = new Set<string>([
+  "agent_id",
+  "session_id",
+  "action_type",
+  "model_name",
+  "tool_name",
+]);
 
 interface Config {
   apiKey: string | null;
   baseUrl: string;
+  mode: Mode;
+  orgSalt: Uint8Array | null;
 }
 
 const config: Config = {
   apiKey: null,
   baseUrl: DEFAULT_BASE_URL,
+  mode: "full-payload",
+  orgSalt: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -69,6 +86,18 @@ export class APIError extends AsqavError {
 export interface InitOptions {
   apiKey?: string;
   baseUrl?: string;
+  /**
+   * Wire mode for ``Agent.sign``. Defaults to ``"auto"``: hash-only for
+   * ``*.asqav.com`` cloud URLs, full-payload otherwise. Set to
+   * ``"hash-only"`` or ``"full-payload"`` to override. Also reads the
+   * ``ASQAV_MODE`` env var when ``"auto"``.
+   */
+  mode?: "auto" | "hash-only" | "full-payload";
+  /**
+   * Optional 32-byte per-organization salt. When set, hash-only mode
+   * uses HMAC-SHA-256 instead of plain SHA-256.
+   */
+  orgSalt?: Uint8Array;
 }
 
 export interface AgentCreateOptions {
@@ -139,6 +168,12 @@ export function init(options: InitOptions = {}): void {
   }
   config.apiKey = apiKey;
   config.baseUrl = options.baseUrl ?? config.baseUrl ?? DEFAULT_BASE_URL;
+  config.mode = resolveMode(
+    config.baseUrl,
+    process.env.ASQAV_MODE ?? null,
+    options.mode ?? "auto",
+  );
+  config.orgSalt = options.orgSalt ?? null;
 }
 
 function ensureInitialized(): void {
@@ -234,6 +269,53 @@ export async function request<T = unknown>(
 }
 
 // ---------------------------------------------------------------------------
+// Sign body builder (mode-aware)
+// ---------------------------------------------------------------------------
+
+interface BuildSignBodyArgs {
+  actionType: string;
+  context: Record<string, unknown>;
+  sessionId: string | null;
+  agentId: string;
+}
+
+async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
+  if (config.mode === "hash-only") {
+    const digest = await hashAction(
+      args.actionType,
+      args.context,
+      config.orgSalt ?? undefined,
+    );
+    const metadata: Record<string, unknown> = {
+      agent_id: args.agentId,
+      action_type: args.actionType,
+    };
+    if (args.sessionId !== null) metadata.session_id = args.sessionId;
+    // Optional opt-in: caller adds ``_model_name`` / ``_tool_name`` to
+    // the context. Other context keys are NEVER copied.
+    const ctx = args.context as Record<string, unknown>;
+    if (typeof ctx._model_name === "string") metadata.model_name = ctx._model_name;
+    if (typeof ctx._tool_name === "string") metadata.tool_name = ctx._tool_name;
+    // Defensive: drop anything that snuck in outside the whitelist.
+    for (const k of Object.keys(metadata)) {
+      if (!HASH_ONLY_METADATA_WHITELIST.has(k)) delete metadata[k];
+    }
+    return {
+      action_type: args.actionType,
+      hash: digest,
+      hash_algo: "sha256",
+      metadata,
+      session_id: args.sessionId,
+    };
+  }
+  return {
+    action_type: args.actionType,
+    context: args.context,
+    session_id: args.sessionId,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Agent
 // ---------------------------------------------------------------------------
 
@@ -290,6 +372,13 @@ export class Agent {
     const initialContext = options.context ?? {};
     const finalContext = _dispatchBefore(options.actionType, initialContext);
 
+    const body = await buildSignBody({
+      actionType: options.actionType,
+      context: finalContext,
+      sessionId: this.sessionId,
+      agentId: this.agentId,
+    });
+
     const data = await request<{
       signature: string;
       signature_id: string;
@@ -299,11 +388,7 @@ export class Agent {
       algorithm?: string;
       chain_hash?: string;
       record_hash?: string;
-    }>("POST", `/agents/${this.agentId}/sign`, {
-      action_type: options.actionType,
-      context: finalContext,
-      session_id: this.sessionId,
-    });
+    }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
       signature: data.signature,
@@ -446,4 +531,17 @@ export async function exportAuditJson(
 export function _resetForTests(): void {
   config.apiKey = null;
   config.baseUrl = DEFAULT_BASE_URL;
+  config.mode = "full-payload";
+  config.orgSalt = null;
+}
+
+/** @internal - inspect or override mode in tests. */
+export function _setModeForTests(mode: Mode, orgSalt?: Uint8Array | null): void {
+  config.mode = mode;
+  config.orgSalt = orgSalt ?? null;
+}
+
+/** @internal - read current mode in tests. */
+export function _getModeForTests(): Mode {
+  return config.mode;
 }
