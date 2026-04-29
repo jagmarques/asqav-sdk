@@ -26,6 +26,21 @@ console.log(sig.verificationUrl);
 
 Each signed action is recorded server-side with an ML-DSA (FIPS 204) signature, a chain hash, and a public verification URL.
 
+## Data handling modes
+
+The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
+
+- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK canonicalizes your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
+- **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
+
+Override anytime:
+
+```ts
+await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
+```
+
+The canonicalization is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/canonicalization.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
+
 ## Why
 
 Without governance, an AI agent can do anything and leave no trace. With asqav, every action is signed, every policy is enforced in real time, and every audit query returns a verifiable record.
