@@ -28,6 +28,7 @@ Get your API key at asqav.com
 """
 
 from .async_client import AsyncAgent
+from .canonicalize import canonicalize, hash_action
 from .client import (
     Agent,
     AgentResponse,
@@ -112,11 +113,14 @@ from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = [
     # Initialization
     "init",
     "health_check",
+    # Canonicalization
+    "canonicalize",
+    "hash_action",
     # Agent
     "Agent",
     "AgentResponse",
