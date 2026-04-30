@@ -207,3 +207,75 @@ def test_doctor_api_unreachable(mock_init: MagicMock, mock_health: MagicMock) ->
     assert result.exit_code == 1
     assert "API unreachable" in result.output
     assert "Connection refused" in result.output
+
+
+# ---------------------------------------------------------------------------
+# replay command
+# ---------------------------------------------------------------------------
+
+
+def _fake_timeline(*, chain_integrity: bool = True) -> MagicMock:
+    """Build a ReplayTimeline-like double for CLI tests."""
+    tl = MagicMock()
+    tl.agent_id = "agt_test"
+    tl.session_id = "sess_test"
+    tl.chain_integrity = chain_integrity
+    tl.summary.return_value = "  Steps:\n    [0] api:call (chain: ok)"
+    tl.to_json.return_value = '{"agent_id":"agt_test","session_id":"sess_test"}'
+    return tl
+
+
+def test_replay_requires_agent_and_session() -> None:
+    """replay without agent_id+session_id and without --bundle exits 1."""
+    result = runner.invoke(app, ["replay"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 1
+    assert "agent_id and session_id are required" in result.output
+
+
+@patch("asqav.replay")
+@patch("asqav.init")
+def test_replay_online_passes_chain(mock_init: MagicMock, mock_replay: MagicMock) -> None:
+    """replay <agent> <session> calls asqav.replay and prints the summary."""
+    mock_replay.return_value = _fake_timeline(chain_integrity=True)
+    result = runner.invoke(
+        app,
+        ["replay", "agt_test", "sess_test"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "Steps:" in result.output
+    mock_replay.assert_called_once_with("agt_test", "sess_test")
+
+
+@patch("asqav.replay")
+@patch("asqav.init")
+def test_replay_chain_broken_exits_1(mock_init: MagicMock, mock_replay: MagicMock) -> None:
+    """replay exits non-zero when the chain failed verification."""
+    mock_replay.return_value = _fake_timeline(chain_integrity=False)
+    result = runner.invoke(
+        app,
+        ["replay", "agt_test", "sess_test"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+
+
+@patch("asqav.replay")
+@patch("asqav.init")
+def test_replay_json_flag(mock_init: MagicMock, mock_replay: MagicMock) -> None:
+    """--json prints to_json output."""
+    mock_replay.return_value = _fake_timeline()
+    result = runner.invoke(
+        app,
+        ["replay", "agt_test", "sess_test", "--json"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "agt_test" in result.output
+
+
+def test_replay_bundle_missing_file() -> None:
+    """--bundle pointing to a nonexistent file exits 1."""
+    result = runner.invoke(app, ["replay", "--bundle", "/nonexistent/path.json"])
+    assert result.exit_code == 1
+    assert "Error reading bundle" in result.output

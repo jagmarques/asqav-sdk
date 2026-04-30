@@ -1,15 +1,21 @@
 """
 asqav CLI - Command-line interface for asqav Cloud.
 
+Every CLI command is a thin wrapper over a public Python API. The CLI is for
+humans and shell scripts; the Python API is for programmatic automation. They
+have parity by construction so anything you can do at the terminal you can also
+do from code.
+
 Requires the 'cli' extra: pip install asqav[cli]
 
 Commands:
-    asqav verify <signature_id>   - Verify a signature (public, no auth)
-    asqav agents list             - List your agents
-    asqav agents create <name>    - Create a new agent
-    asqav sync                    - Sync local queue to API
-    asqav queue list/count/clear  - Manage local queue
-    asqav --version               - Show version
+    asqav verify <signature_id>            - Verify a signature (public, no auth)
+    asqav agents list                      - List your agents
+    asqav agents create <name>             - Create a new agent
+    asqav replay <agent_id> <session_id>   - Replay a session's audit trail
+    asqav sync                             - Sync local queue to API
+    asqav queue list/count/clear           - Manage local queue
+    asqav --version                        - Show version
 """
 
 from __future__ import annotations
@@ -85,6 +91,102 @@ def verify(signature_id: str = typer.Argument(help="Signature ID to verify.")) -
     print(f"Agent: {result.agent_name} ({result.agent_id})")
     print(f"Action: {result.action_type}")
     print(f"Algorithm: {result.algorithm}")
+
+
+@app.command()
+def replay(
+    agent_id: str = typer.Argument(
+        default="",
+        help="Agent ID. Omit when using --bundle.",
+    ),
+    session_id: str = typer.Argument(
+        default="",
+        help="Session ID to replay. Omit when using --bundle.",
+    ),
+    bundle: str = typer.Option(
+        "",
+        "--bundle",
+        "-b",
+        help="Replay from a compliance bundle JSON file (offline).",
+    ),
+    json_out: bool = typer.Option(
+        False,
+        "--json",
+        help="Print the timeline as JSON instead of a human-readable summary.",
+    ),
+    output: str = typer.Option(
+        "",
+        "--output",
+        "-o",
+        help="Write the timeline to FILE (JSON). Implies --json.",
+    ),
+) -> None:
+    """Replay an agent's audit trail. Wraps asqav.replay() / asqav.replay_from_bundle().
+
+    Online:
+        asqav replay agt_x7y8z9 sess_abc123
+    Offline (from a bundle):
+        asqav replay --bundle compliance-bundle.json
+    """
+    import json as json_mod
+
+    if bundle:
+        from asqav import ComplianceBundle, replay_from_bundle
+
+        try:
+            with open(bundle) as f:
+                data = json_mod.load(f)
+        except OSError as exc:
+            print(f"Error reading bundle: {exc}")
+            raise typer.Exit(code=1)
+
+        try:
+            cb = ComplianceBundle(
+                framework=data.get("framework", "unknown"),
+                framework_metadata=data.get("framework_metadata", {}),
+                generated_at=data.get("generated_at", ""),
+                merkle_root=data.get("merkle_root", ""),
+                receipt_count=data.get("receipt_count", 0),
+                receipts=data.get("receipts", []),
+                verification=data.get("verification", {}),
+            )
+            timeline = replay_from_bundle(cb)
+        except Exception as exc:
+            print(f"Error replaying bundle: {exc}")
+            raise typer.Exit(code=1)
+    else:
+        if not agent_id or not session_id:
+            print(
+                "Error: agent_id and session_id are required for online replay. "
+                "Use --bundle to replay from a compliance bundle file."
+            )
+            raise typer.Exit(code=1)
+
+        _init_sdk()
+
+        from asqav import APIError
+        from asqav import replay as replay_api
+
+        try:
+            timeline = replay_api(agent_id, session_id)
+        except APIError as exc:
+            print(f"Error: {exc}")
+            raise typer.Exit(code=1)
+
+    if output:
+        timeline.to_file(output)
+        print(f"Wrote timeline to {output}")
+        return
+
+    if json_out:
+        print(timeline.to_json())
+        return
+
+    # Human-readable: summary then color-coded steps.
+    print(timeline.summary())
+
+    if not timeline.chain_integrity:
+        raise typer.Exit(code=1)
 
 
 @agents_app.command("list")
