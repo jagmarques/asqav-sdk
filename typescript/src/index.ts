@@ -119,6 +119,16 @@ export interface SignOptions {
   /** Optional parent action ID for linking child actions to their parent
    * in a workflow. Powers the agent graph view. */
   parentId?: string;
+  /** Optional list of agent_ids in the same org expected to countersign
+   * this record. Each peer fetches the record and calls
+   * ``agent.countersign(signatureId)``. */
+  coSigners?: string[];
+}
+
+export interface CoSignature {
+  agentId: string;
+  signature: string;
+  signedAt: string;
 }
 
 export interface SignatureResponse {
@@ -129,6 +139,12 @@ export interface SignatureResponse {
   verificationUrl: string;
   algorithm?: string;
   chainHash?: string;
+  /** Agents the original signer expects to countersign this record. */
+  requiredCoSigners?: string[];
+  /** Signatures appended by countersigning peers, in arrival order. */
+  coSignatures?: CoSignature[];
+  /** URL pattern (relative) for peers to POST their countersignature to. */
+  countersignUrl?: string;
 }
 
 export interface SessionResponse {
@@ -404,6 +420,9 @@ export class Agent {
       sessionId: this.sessionId,
       agentId: this.agentId,
     });
+    if (options.coSigners && options.coSigners.length > 0) {
+      body.co_signers = [...options.coSigners];
+    }
 
     const data = await request<{
       signature: string;
@@ -414,6 +433,9 @@ export class Agent {
       algorithm?: string;
       chain_hash?: string;
       record_hash?: string;
+      required_co_signers?: string[];
+      co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
+      countersign_url?: string;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -424,10 +446,50 @@ export class Agent {
       verificationUrl: data.verification_url,
       algorithm: data.algorithm,
       chainHash: data.chain_hash ?? data.record_hash,
+      requiredCoSigners: data.required_co_signers,
+      coSignatures: data.co_signatures?.map((s) => ({
+        agentId: s.agent_id,
+        signature: s.signature,
+        signedAt: s.signed_at,
+      })),
+      countersignUrl: data.countersign_url,
     };
 
     _dispatchAfter(options.actionType, response);
     return response;
+  }
+
+  async countersign(signatureId: string): Promise<SignatureResponse> {
+    const data = await request<{
+      signature: string;
+      signature_id: string;
+      action_id: string;
+      timestamp: string;
+      verification_url: string;
+      algorithm?: string;
+      chain_hash?: string;
+      record_hash?: string;
+      required_co_signers?: string[];
+      co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
+      countersign_url?: string;
+    }>("POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
+
+    return {
+      signature: data.signature,
+      signatureId: data.signature_id,
+      actionId: data.action_id,
+      timestamp: data.timestamp,
+      verificationUrl: data.verification_url,
+      algorithm: data.algorithm,
+      chainHash: data.chain_hash ?? data.record_hash,
+      requiredCoSigners: data.required_co_signers,
+      coSignatures: data.co_signatures?.map((s) => ({
+        agentId: s.agent_id,
+        signature: s.signature,
+        signedAt: s.signed_at,
+      })),
+      countersignUrl: data.countersign_url,
+    };
   }
 
   async startSession(): Promise<SessionResponse> {
