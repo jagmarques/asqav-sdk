@@ -1,22 +1,22 @@
-"""Canonical JSON + content hashing for the asqav SDK.
+"""Fingerprint helpers for the asqav SDK.
 
-This module exposes the byte-for-byte canonicalization used by the asqav
-backend to produce the bytes that get signed (and, in hash-only mode, the
-bytes that the SDK hashes locally before sending to the cloud).
+This module produces the bytes the asqav backend signs (and, in
+hash-only mode, the bytes the SDK hashes locally before sending to the
+cloud).
 
 Two helpers are provided:
 
-* :func:`canonicalize` returns canonical JSON bytes for any
+* :func:`canonicalize` returns standard JSON bytes for any
   JSON-serializable Python value, following the conventions in
   ``conformance/vectors.json`` (RFC 8785 JCS subset: keys sorted, no
   whitespace, raw UTF-8, no trailing newline).
 * :func:`hash_action` returns a self-describing hash string of the form
-  ``"sha256:<64hex>"`` over a canonical ``{action_type, context}`` dict.
-  An optional ``salt`` switches it to HMAC-SHA-256 for organizations that
+  ``"sha256:<64hex>"`` built from a ``{action_type, context}`` dict. An
+  optional ``salt`` switches it to HMAC-SHA-256 for organizations that
   use a per-org keyed hash.
 
 Customers without an asqav SDK can reproduce these helpers in a few lines
-of stdlib Python (see ``docs/canonicalization.md``).
+of stdlib Python (see ``docs/fingerprint-spec.md``).
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ __all__ = ["canonicalize", "hash_action"]
 
 
 def canonicalize(obj: Any) -> bytes:
-    """Return canonical JSON bytes for ``obj``.
+    """Return standard JSON bytes for ``obj``.
 
     Implementation: ``json.dumps`` with ``sort_keys=True``,
     ``separators=(",", ":")`` and ``ensure_ascii=False``. This is a
@@ -52,7 +52,7 @@ def canonicalize(obj: Any) -> bytes:
         obj: Any JSON-serializable value.
 
     Returns:
-        UTF-8 encoded canonical JSON bytes.
+        UTF-8 encoded JSON bytes in standard form.
     """
     return json.dumps(
         obj,
@@ -68,10 +68,10 @@ def hash_action(
     context: dict[str, Any] | None = None,
     salt: bytes | None = None,
 ) -> str:
-    """Return ``"sha256:<hex>"`` for the canonical bytes of an action.
+    """Return ``"sha256:<hex>"`` for the fingerprint bytes of an action.
 
     The hashed object is ``{"action_type": action_type, "context": context}``
-    canonicalized via :func:`canonicalize`. This matches the conformance
+    formatted via :func:`canonicalize`. This matches the conformance
     vectors and the backend's hash-only ingestion shape.
 
     With ``salt`` set, returns HMAC-SHA-256 instead of plain SHA-256.
