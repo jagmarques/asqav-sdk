@@ -207,6 +207,10 @@ CI runs on every push to `main` and every pull request. It uses `dorny/paths-fil
 
 A final aggregator job named `ci-ok` is the single required status check for branch protection. It passes when each matrix job either succeeded or was skipped (no relevant changes), which avoids the GitHub gotcha where a skipped required check stays pending forever.
 
+### Run governance checks in your own CI
+
+`asqav doctor` validates configuration and connectivity in any environment with `ASQAV_API_KEY` set, returning non-zero on failure so it gates PRs cleanly. Pair it with `asqav.compliance.export_bundle` to package signed receipts from your test runs into a self-contained, Merkle-rooted artifact for auditors. See [`docs/github-actions.md`](docs/github-actions.md) for a copy-paste workflow.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide. The short version:
