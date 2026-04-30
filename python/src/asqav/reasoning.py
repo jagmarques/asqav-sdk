@@ -21,7 +21,7 @@ from typing import Any
 def _sha256(data: Any) -> str:
     """Return hex SHA-256 of ``data``.
 
-    Dicts and lists are canonicalized via ``json.dumps(..., sort_keys=True)``
+    Dicts and lists are serialized via ``json.dumps(..., sort_keys=True)``
     so equivalent structures produce equal hashes. Bytes pass through.
     Everything else is ``str()``-coerced.
     """
@@ -89,7 +89,7 @@ def sign_reasoning(
     Args:
         agent: An ``Agent`` (or compatible) with a ``.sign(...)`` method.
         prompt: The user-visible or system prompt. Any JSON-serializable
-            value is accepted; strings and dicts are canonicalized before
+            value is accepted; strings and dicts are formatted before
             hashing.
         trace: The reasoning trace (chain-of-thought messages, tool calls,
             intermediate steps). Any JSON-serializable value.

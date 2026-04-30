@@ -118,7 +118,7 @@ __all__ = [
     # Initialization
     "init",
     "health_check",
-    # Canonicalization
+    # Fingerprint helpers
     "canonicalize",
     "hash_action",
     # Agent
