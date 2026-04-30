@@ -1,4 +1,4 @@
-"""Verify the SDK canonicalizer agrees with conformance/vectors.json byte-for-byte.
+"""Verify the SDK fingerprint helpers agree with conformance/vectors.json byte-for-byte.
 
 If this file fails, either:
 

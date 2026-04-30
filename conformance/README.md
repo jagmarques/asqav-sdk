@@ -1,18 +1,18 @@
 # Asqav Conformance Vectors
 
-Reference inputs for any third-party implementation that wants to verify an Asqav signed record. Use these vectors to confirm that your canonicalization and hashing match ours, bit-for-bit.
+Reference inputs for any third-party implementation that wants to verify an Asqav signed record. Use these vectors to confirm that your fingerprint format and hashing match ours, bit-for-bit.
 
 ## What these vectors cover
 
-1. The exact JSON canonicalization rule we use before signing.
+1. The exact JSON fingerprint format we use before signing.
 2. The SHA-256 digest of the canonical bytes.
 3. The shape of the `_counterparty` field.
 
 These vectors intentionally do NOT pin ML-DSA-65 signature bytes. FIPS 204 supports both deterministic and randomized signing; our server uses the randomized variant so signatures vary across calls for the same input. Verification is still deterministic, which is the property auditors care about.
 
-## Canonicalization rule
+## Fingerprint format
 
-Asqav uses RFC 8785 JSON Canonicalization Scheme (JCS):
+Asqav uses RFC 8785 (the JSON format spec, also known as JCS):
 
 - UTF-8 encoded.
 - Object keys sorted lexicographically by Unicode code point.
@@ -20,7 +20,7 @@ Asqav uses RFC 8785 JSON Canonicalization Scheme (JCS):
 - Numbers serialized per ECMAScript `ToString(ToNumber(x))`.
 - Strings escaped per JSON RFC 8259.
 
-Before signing, the server canonicalizes `{"action_type": ..., "context": ...}` (plus server-side metadata) and hashes with SHA-256. The hash is what ML-DSA-65 signs.
+Before signing, the server formats `{"action_type": ..., "context": ...}` (plus server-side metadata) into the standard form and hashes with SHA-256. The hash is what ML-DSA-65 signs.
 
 ## Verifying an Asqav signature
 
