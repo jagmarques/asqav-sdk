@@ -107,6 +107,15 @@ export interface AgentCreateOptions {
   capabilities?: string[];
 }
 
+export interface UserIntent {
+  signature: string;
+  public_key: string;
+  algorithm: 'ed25519' | 'ecdsa-p256' | 'webauthn' | string;
+  key_id?: string;
+  signed_message: string;
+  signed_at: string;
+}
+
 export interface SignOptions {
   actionType: string;
   context?: Record<string, unknown>;
@@ -123,6 +132,9 @@ export interface SignOptions {
    * this record. Each peer fetches the record and calls
    * ``agent.countersign(signatureId)``. */
   coSigners?: string[];
+  /** Optional user-intent envelope. The end user signs a digest of the
+   * action and the SDK passes it through to the backend verbatim. */
+  userIntent?: UserIntent;
 }
 
 export interface CoSignature {
@@ -145,6 +157,8 @@ export interface SignatureResponse {
   coSignatures?: CoSignature[];
   /** URL pattern (relative) for peers to POST their countersignature to. */
   countersignUrl?: string;
+  /** True when the server validated a user_intent envelope on this record. */
+  userIntentVerified?: boolean;
 }
 
 export interface SessionResponse {
@@ -303,6 +317,7 @@ interface BuildSignBodyArgs {
   context: Record<string, unknown>;
   sessionId: string | null;
   agentId: string;
+  userIntent?: UserIntent;
 }
 
 async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
@@ -330,19 +345,23 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
     for (const k of Object.keys(metadata)) {
       if (!HASH_ONLY_METADATA_WHITELIST.has(k)) delete metadata[k];
     }
-    return {
+    const hashBody: Record<string, unknown> = {
       action_type: args.actionType,
       hash: digest,
       hash_algo: "sha256",
       metadata,
       session_id: args.sessionId,
     };
+    if (args.userIntent !== undefined) hashBody.user_intent = args.userIntent;
+    return hashBody;
   }
-  return {
+  const fullBody: Record<string, unknown> = {
     action_type: args.actionType,
     context: args.context,
     session_id: args.sessionId,
   };
+  if (args.userIntent !== undefined) fullBody.user_intent = args.userIntent;
+  return fullBody;
 }
 
 // ---------------------------------------------------------------------------
@@ -419,6 +438,7 @@ export class Agent {
       context: finalContext,
       sessionId: this.sessionId,
       agentId: this.agentId,
+      userIntent: options.userIntent,
     });
     if (options.coSigners && options.coSigners.length > 0) {
       body.co_signers = [...options.coSigners];
@@ -436,6 +456,7 @@ export class Agent {
       required_co_signers?: string[];
       co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
       countersign_url?: string;
+      user_intent_verified?: boolean;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -453,6 +474,7 @@ export class Agent {
         signedAt: s.signed_at,
       })),
       countersignUrl: data.countersign_url,
+      userIntentVerified: data.user_intent_verified,
     };
 
     _dispatchAfter(options.actionType, response);
@@ -472,6 +494,7 @@ export class Agent {
       required_co_signers?: string[];
       co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
       countersign_url?: string;
+      user_intent_verified?: boolean;
     }>("POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
 
     return {
@@ -489,6 +512,7 @@ export class Agent {
         signedAt: s.signed_at,
       })),
       countersignUrl: data.countersign_url,
+      userIntentVerified: data.user_intent_verified,
     };
   }
 

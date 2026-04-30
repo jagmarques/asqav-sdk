@@ -220,6 +220,8 @@ class SignatureResponse:
     required_co_signers: list[str] | None = None
     co_signatures: list[dict[str, Any]] | None = None
     countersign_url: str | None = None
+    # True when the server validated a user_intent envelope on this record.
+    user_intent_verified: bool | None = None
 
 
 @dataclass
@@ -664,6 +666,7 @@ def _build_sign_body(
     context: dict[str, Any] | None,
     session_id: str | None,
     agent_id: str,
+    user_intent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for a ``POST /agents/{id}/sign`` request.
 
@@ -698,20 +701,26 @@ def _build_sign_body(
         # Defensive: only ship whitelisted keys even if a future caller
         # mutates `metadata` above.
         metadata = {k: v for k, v in metadata.items() if k in _HASH_ONLY_METADATA_WHITELIST}
-        return {
+        body: dict[str, Any] = {
             "action_type": action_type,
             "hash": digest,
             "hash_algo": "sha256",
             "metadata": metadata,
             "session_id": session_id,
         }
+        if user_intent is not None:
+            body["user_intent"] = user_intent
+        return body
 
     # full-payload (default for self-hosted)
-    return {
+    body = {
         "action_type": action_type,
         "context": context or {},
         "session_id": session_id,
     }
+    if user_intent is not None:
+        body["user_intent"] = user_intent
+    return body
 
 
 @dataclass
@@ -884,6 +893,7 @@ class Agent:
         model_name: str | None = None,
         *,
         co_signers: list[str] | None = None,
+        user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -968,6 +978,7 @@ class Agent:
             context=context,
             session_id=self._session_id,
             agent_id=self.agent_id,
+            user_intent=user_intent,
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
@@ -991,6 +1002,7 @@ class Agent:
             required_co_signers=data.get("required_co_signers"),
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
         # Dispatch after-hooks (fail-open).
@@ -1041,6 +1053,7 @@ class Agent:
             required_co_signers=data.get("required_co_signers"),
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
     def sign_batch(
