@@ -30,7 +30,7 @@ Each signed action is recorded server-side with an ML-DSA (FIPS 204) signature, 
 
 The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
 
-- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK canonicalizes your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
+- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
 - **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
 
 Override anytime:
@@ -39,7 +39,7 @@ Override anytime:
 await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
 ```
 
-The canonicalization is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/canonicalization.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
+The fingerprint format is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
 ## Why
 

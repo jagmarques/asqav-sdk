@@ -95,7 +95,7 @@ The agent now has a cryptographic identity, a signed audit trail, and a verifiab
 
 The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
 
-- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK canonicalizes your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
+- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
 - **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
 
 Override anytime:
@@ -110,7 +110,7 @@ asqav.init(api_key="...", base_url="https://api.asqav.com", mode="hash-only")
 await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
 ```
 
-The canonicalization is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/canonicalization.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
+The fingerprint format is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
 ## Why governance
 
@@ -191,7 +191,7 @@ console.assert(result.verified);
 console.log(result.agentId, result.chainHash);
 ```
 
-Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the JCS-canonicalized payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the JCS-formatted payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
 ## Conformance
 

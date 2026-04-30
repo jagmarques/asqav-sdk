@@ -1,7 +1,7 @@
 /**
- * Cross-language conformance: the TypeScript canonicalizer must agree
- * with conformance/vectors.json byte-for-byte (which is generated and
- * also validated by the Python tests).
+ * Cross-language conformance: the TypeScript fingerprint helpers must
+ * agree with conformance/vectors.json byte-for-byte (which is generated
+ * and also validated by the Python tests).
  */
 
 import { createHash } from "node:crypto";
