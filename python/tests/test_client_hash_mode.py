@@ -132,6 +132,82 @@ def test_hash_only_includes_optional_model_name_when_opted_in() -> None:
     assert body["metadata"]["tool_name"] == "search"
 
 
+def test_hash_only_surfaces_parent_id_from_context_sentinel() -> None:
+    """``_parent_id`` in context auto-surfaces to metadata bag."""
+    client_mod._mode = "hash-only"
+    client_mod._org_salt = None
+    agent = _make_agent()
+
+    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+        agent.sign("api:call", {"prompt": "hi", "_parent_id": "act_parent_42"})
+
+    _, body = mock_post.call_args[0]
+    assert body["metadata"]["parent_id"] == "act_parent_42"
+
+
+def test_hash_only_explicit_tool_name_kwarg_appears_in_metadata() -> None:
+    """Passing tool_name=... to sign() surfaces it in the wire metadata bag."""
+    client_mod._mode = "hash-only"
+    client_mod._org_salt = None
+    agent = _make_agent()
+
+    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+        agent.sign("api:call", {"prompt": "hi"}, tool_name="web_search")
+
+    _, body = mock_post.call_args[0]
+    assert body["metadata"]["tool_name"] == "web_search"
+
+
+def test_hash_only_explicit_model_name_kwarg_appears_in_metadata() -> None:
+    """Passing model_name=... to sign() surfaces it in the wire metadata bag."""
+    client_mod._mode = "hash-only"
+    client_mod._org_salt = None
+    agent = _make_agent()
+
+    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+        agent.sign("api:call", {"prompt": "hi"}, model_name="claude-opus-4-7")
+
+    _, body = mock_post.call_args[0]
+    assert body["metadata"]["model_name"] == "claude-opus-4-7"
+
+
+def test_hash_only_explicit_parent_id_kwarg_appears_in_metadata() -> None:
+    """Passing parent_id=... to sign() surfaces it in the wire metadata bag."""
+    client_mod._mode = "hash-only"
+    client_mod._org_salt = None
+    agent = _make_agent()
+
+    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+        agent.sign("api:call", {"prompt": "hi"}, parent_id="act_parent_99")
+
+    _, body = mock_post.call_args[0]
+    assert body["metadata"]["parent_id"] == "act_parent_99"
+
+
+def test_full_payload_keeps_telemetry_in_context_only_not_duplicated() -> None:
+    """In full-payload mode the three fields ride inside context (as
+    ``_tool_name`` / ``_model_name`` / ``_parent_id``) and the body must
+    not also carry a top-level metadata bag duplicating them."""
+    client_mod._mode = "full-payload"
+    client_mod._org_salt = None
+    agent = _make_agent()
+
+    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+        agent.sign(
+            "api:call",
+            {"prompt": "hi"},
+            tool_name="web_search",
+            model_name="gpt-4",
+            parent_id="act_parent_1",
+        )
+
+    _, body = mock_post.call_args[0]
+    assert "metadata" not in body
+    assert body["context"]["_tool_name"] == "web_search"
+    assert body["context"]["_model_name"] == "gpt-4"
+    assert body["context"]["_parent_id"] == "act_parent_1"
+
+
 def test_hash_only_uses_hmac_when_org_salt_set() -> None:
     """A non-None org_salt swaps SHA-256 for HMAC-SHA-256 with the same shape."""
     agent = _make_agent()
