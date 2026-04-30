@@ -214,6 +214,12 @@ class SignatureResponse:
     policy_decision: str = "permit"
     authorization_ref: str | None = None
     bitcoin_anchor: BitcoinAnchor | None = None
+    # Multi-party countersigning (optional). When the caller passed
+    # `co_signers=[...]` to `agent.sign()`, the server records the list and
+    # surfaces it back so peers know they need to countersign.
+    required_co_signers: list[str] | None = None
+    co_signatures: list[dict[str, Any]] | None = None
+    countersign_url: str | None = None
 
 
 @dataclass
@@ -876,6 +882,8 @@ class Agent:
         counterparty: dict[str, Any] | None = None,
         tool_name: str | None = None,
         model_name: str | None = None,
+        *,
+        co_signers: list[str] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -961,6 +969,8 @@ class Agent:
             session_id=self._session_id,
             agent_id=self.agent_id,
         )
+        if co_signers:
+            body["co_signers"] = list(co_signers)
         data = _post(f"/agents/{self.agent_id}/sign", body)
 
         response = SignatureResponse(
@@ -978,6 +988,9 @@ class Agent:
             policy_decision=data.get("policy_decision", "permit"),
             authorization_ref=data.get("authorization_ref"),
             bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
+            required_co_signers=data.get("required_co_signers"),
+            co_signatures=data.get("co_signatures"),
+            countersign_url=data.get("countersign_url"),
         )
 
         # Dispatch after-hooks (fail-open).
@@ -988,6 +1001,47 @@ class Agent:
             logger.warning("asqav after-hook dispatch failed (fail-open)", exc_info=True)
 
         return response
+
+    def countersign(self, signature_id: str) -> SignatureResponse:
+        """Countersign an existing signature record.
+
+        The server looks up ``signature_id``, verifies that this agent is
+        in the original ``required_co_signers`` list and shares the same
+        organization, then signs the SAME canonical bytes the original
+        signer signed. No new prompts or tool args travel over the wire;
+        only signatures are added.
+
+        Args:
+            signature_id: The ``sig_...`` id returned by the original
+                ``sign(co_signers=[...])`` call.
+
+        Returns:
+            SignatureResponse describing the updated record, including
+            the full ``co_signatures`` list after this agent's signature
+            was appended.
+        """
+        data = _post(
+            f"/agents/{self.agent_id}/countersign/{signature_id}",
+            {},
+        )
+        return SignatureResponse(
+            signature=data["signature"],
+            signature_id=data["signature_id"],
+            action_id=data["action_id"],
+            timestamp=data["timestamp"],
+            verification_url=data["verification_url"],
+            algorithm=data.get("algorithm"),
+            chain_hash=data.get("chain_hash") or data.get("record_hash"),
+            rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
+            rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
+            policy_digest=data.get("policy_digest"),
+            policy_decision=data.get("policy_decision", "permit"),
+            authorization_ref=data.get("authorization_ref"),
+            bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
+            required_co_signers=data.get("required_co_signers"),
+            co_signatures=data.get("co_signatures"),
+            countersign_url=data.get("countersign_url"),
+        )
 
     def sign_batch(
         self,
