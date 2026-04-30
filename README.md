@@ -191,7 +191,7 @@ console.assert(result.verified);
 console.log(result.agentId, result.chainHash);
 ```
 
-Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the JCS-formatted payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 (the JSON format spec) payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
 ## Conformance
 
