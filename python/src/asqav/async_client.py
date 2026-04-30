@@ -230,17 +230,32 @@ class AsyncAgent:
         self,
         action_type: str,
         context: dict[str, Any] | None = None,
+        tool_name: str | None = None,
+        model_name: str | None = None,
+        parent_id: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically (async).
 
         Args:
             action_type: Type of action (e.g., "read:data", "api:call").
             context: Additional context for the action.
+            tool_name: Optional tool name when this action is a tool call.
+            model_name: Optional model name when this action is an LLM call.
+            parent_id: Optional parent action ID for the agent graph view.
 
         Returns:
             SignatureResponse with the signature.
         """
         from .client import _build_sign_body
+
+        if tool_name or model_name or parent_id:
+            context = dict(context) if context else {}
+            if tool_name:
+                context["_tool_name"] = tool_name
+            if model_name:
+                context["_model_name"] = model_name
+            if parent_id:
+                context["_parent_id"] = parent_id
 
         body = _build_sign_body(
             action_type=action_type,

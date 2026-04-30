@@ -141,6 +141,110 @@ describe("Agent.sign body shape across modes", () => {
     expect(body.metadata.tool_name).toBe("search");
   });
 
+  it("hash-only surfaces _parent_id from context sentinel", async () => {
+    _setModeForTests("hash-only");
+    const agent = await makeAgent();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+
+    await agent.sign({
+      actionType: "api:call",
+      context: { prompt: "hi", _parent_id: "act_parent_42" },
+    });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.metadata.parent_id).toBe("act_parent_42");
+  });
+
+  it("hash-only surfaces explicit toolName kwarg in metadata", async () => {
+    _setModeForTests("hash-only");
+    const agent = await makeAgent();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+
+    await agent.sign({
+      actionType: "api:call",
+      context: { prompt: "hi" },
+      toolName: "web_search",
+    });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.metadata.tool_name).toBe("web_search");
+  });
+
+  it("hash-only surfaces explicit modelName kwarg in metadata", async () => {
+    _setModeForTests("hash-only");
+    const agent = await makeAgent();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+
+    await agent.sign({
+      actionType: "api:call",
+      context: { prompt: "hi" },
+      modelName: "claude-opus-4-7",
+    });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.metadata.model_name).toBe("claude-opus-4-7");
+  });
+
+  it("hash-only surfaces explicit parentId kwarg in metadata", async () => {
+    _setModeForTests("hash-only");
+    const agent = await makeAgent();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+
+    await agent.sign({
+      actionType: "api:call",
+      context: { prompt: "hi" },
+      parentId: "act_parent_99",
+    });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.metadata.parent_id).toBe("act_parent_99");
+  });
+
+  it("full-payload keeps telemetry in context only, no duplicate metadata bag", async () => {
+    _setModeForTests("full-payload");
+    const agent = await makeAgent();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+
+    await agent.sign({
+      actionType: "api:call",
+      context: { prompt: "hi" },
+      toolName: "web_search",
+      modelName: "gpt-4",
+      parentId: "act_parent_1",
+    });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.metadata).toBeUndefined();
+    expect(body.context._tool_name).toBe("web_search");
+    expect(body.context._model_name).toBe("gpt-4");
+    expect(body.context._parent_id).toBe("act_parent_1");
+  });
+
   it("hash-only with org salt produces a different hash than without", async () => {
     const agent = await makeAgent();
 

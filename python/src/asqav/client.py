@@ -112,7 +112,7 @@ _org_salt: bytes | None = None
 # enforces its own whitelist; this mirrors the conservative default so we
 # don't accidentally leak fields the customer didn't intend to share.
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
-    {"agent_id", "session_id", "action_type", "model_name", "tool_name"}
+    {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
 )
 
 
@@ -675,10 +675,16 @@ def _build_sign_body(
         }
         if session_id is not None:
             metadata["session_id"] = session_id
-        # Pull optional model_name / tool_name from context if the caller
-        # opted in by adding underscored sentinel keys. Other context keys
-        # are NEVER copied; that's the whole point of hash-only.
-        for src_key, dst_key in (("_model_name", "model_name"), ("_tool_name", "tool_name")):
+        # Pull optional model_name / tool_name / parent_id from context if
+        # the caller opted in by adding underscored sentinel keys. Other
+        # context keys are NEVER copied; that's the whole point of
+        # hash-only. These three identifiers power the agent graph view
+        # in the dashboard (no prompt or tool-arg content travels).
+        for src_key, dst_key in (
+            ("_model_name", "model_name"),
+            ("_tool_name", "tool_name"),
+            ("_parent_id", "parent_id"),
+        ):
             if context and src_key in context:
                 value = context[src_key]
                 if isinstance(value, str):
@@ -868,6 +874,8 @@ class Agent:
         trace_id: str | None = None,
         parent_id: str | None = None,
         counterparty: dict[str, Any] | None = None,
+        tool_name: str | None = None,
+        model_name: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -887,7 +895,7 @@ class Agent:
             trace_id: Optional trace ID for correlating actions across
                 a multi-step workflow. Use generate_trace_id() to create one.
             parent_id: Optional parent action ID for linking child actions
-                to their parent in a workflow.
+                to their parent in a workflow. Powers the agent graph view.
             counterparty: Optional identity of the endpoint the agent is
                 calling. Included in the signed record so an auditor can
                 verify the agent reached a specific endpoint, not an
@@ -898,6 +906,12 @@ class Agent:
                     {"kind": "url_sni", "value": "api.example.com"}
 
                 Any dict is accepted; unknown kinds are recorded verbatim.
+            tool_name: Optional name of the tool being invoked when this
+                action is a tool call. Surfaced in the dashboard graph.
+                Only the name string travels; tool arguments do not.
+            model_name: Optional name of the model being called when this
+                action is an LLM call (e.g. "gpt-4", "claude-opus-4-7").
+                Only the name string travels; the prompt does not.
 
         Returns:
             SignatureResponse with the signature.
@@ -911,6 +925,8 @@ class Agent:
             or trace_id
             or parent_id
             or counterparty
+            or tool_name
+            or model_name
         ):
             context = dict(context) if context else {}
             if system_prompt_hash:
@@ -925,6 +941,10 @@ class Agent:
                 context["_parent_id"] = parent_id
             if counterparty:
                 context["_counterparty"] = counterparty
+            if tool_name:
+                context["_tool_name"] = tool_name
+            if model_name:
+                context["_model_name"] = model_name
 
         # Dispatch before-hooks (fail-open).
         try:
