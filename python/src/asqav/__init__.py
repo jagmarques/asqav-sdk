@@ -1,5 +1,5 @@
 """
-asqav - Quantum-safe control for AI agents.
+asqav - AI agent governance: audit trails, policy enforcement, compliance.
 
 Thin SDK that connects to asqav.com. All ML-DSA cryptography happens server-side.
 

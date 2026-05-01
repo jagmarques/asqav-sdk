@@ -41,21 +41,32 @@ def _make_signed_action(**overrides) -> SignedActionResponse:
 
 
 def _make_timeline(n: int = 3) -> ReplayTimeline:
-    """Build a timeline with n steps at 10-second intervals."""
+    """Build a timeline with n steps; computes prev_chain_hash like _build_timeline."""
+    import hashlib
     steps = []
+    prev_hash = ""
     for i in range(n):
+        sig_id = f"sid_{i:03d}"
+        action = f"api:call_{i}"
+        ts = 1700000000.0 + i * 10
         steps.append(
             ReplayStep(
                 index=i,
-                action_type=f"api:call_{i}",
+                action_type=action,
                 context={"model": "gpt-4"},
-                timestamp=1700000000.0 + i * 10,
-                signature_id=f"sid_{i:03d}",
-                verification_url=f"https://asqav.com/verify/sid_{i:03d}",
+                timestamp=ts,
+                signature_id=sig_id,
+                verification_url=f"https://asqav.com/verify/{sig_id}",
                 chain_valid=True,
                 explanation=f"Called call_{i} API (model: gpt-4)",
+                prev_chain_hash=prev_hash if i > 0 else None,
             )
         )
+        entry = json.dumps(
+            {"signature_id": sig_id, "action_type": action, "timestamp": ts, "prev_hash": prev_hash},
+            sort_keys=True, separators=(",", ":"),
+        )
+        prev_hash = hashlib.sha256(entry.encode()).hexdigest()
     return ReplayTimeline(
         agent_id="agent_001",
         session_id="sess_001",
@@ -143,6 +154,36 @@ class TestChainVerification:
         result = timeline.verify_chain()
         assert result is True
         assert timeline.chain_integrity is True
+
+    def test_verify_chain_detects_tampered_prev_hash(self):
+        """Tamper with a step's prev_chain_hash; verify_chain must catch it."""
+        timeline = _make_timeline(4)
+        # Sanity: clean timeline passes.
+        assert timeline.verify_chain() is True
+        # Forge: rewrite step 2's recorded predecessor hash.
+        timeline.steps[2].prev_chain_hash = "0" * 64
+        assert timeline.verify_chain() is False
+        assert timeline.steps[2].chain_valid is False
+        assert timeline.chain_integrity is False
+
+    def test_verify_chain_detects_reordered_steps(self):
+        """Swap two steps; the predecessor hash on the moved step no longer matches."""
+        timeline = _make_timeline(4)
+        assert timeline.verify_chain() is True
+        timeline.steps[1], timeline.steps[2] = timeline.steps[2], timeline.steps[1]
+        # Re-index so the structural sanity check still holds.
+        for i, s in enumerate(timeline.steps):
+            s.index = i
+        assert timeline.verify_chain() is False
+        assert timeline.chain_integrity is False
+
+    def test_verify_chain_flags_missing_prev_hash(self):
+        """A step with no prev_chain_hash on a non-first index = unverifiable."""
+        timeline = _make_timeline(3)
+        assert timeline.verify_chain() is True
+        timeline.steps[1].prev_chain_hash = None
+        assert timeline.verify_chain() is False
+        assert timeline.steps[1].chain_valid is False
 
     def test_empty_chain_is_valid(self):
         results = _verify_hash_chain([])
