@@ -7,8 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Python 0.3.3 / TypeScript 0.2.3] - 2026-04-28
 
 ### Added
-- `user_intent` parameter on `Agent.sign()` (Python) and `agent.sign({userIntent: ...})` (TypeScript). Optional envelope containing a user-produced signature plus public key, algorithm, signed bytes, and signed-at timestamp. The SDK passes it through to the backend verbatim. The backend verifies and stores it alongside the agent signature so receipts prove "this user authorized this specific action right now". Supported algorithms: `ed25519`, `ecdsa-p256`, `webauthn` (store-only for now). See docs/user-intent.md for the recommended pattern.
-- `user_intent_verified` field on `SignatureResponse` reflecting backend verification result.
+- Multi-party countersigning. `agent.sign(co_signers=[...])` records a list of peer agent_ids the original signer expects to countersign. Each peer calls `agent.countersign(signature_id)` and the server signs the SAME canonical bytes with that peer's ML-DSA key, then appends to the record's `co_signatures`. Mirror API in TypeScript: `agent.sign({coSigners: [...]})` and `agent.countersign(signatureId)`. No prompts or tool args travel during countersign; only signatures are added. Requires backend with co-signature support.
 
 ## [Python 0.3.2 / TypeScript 0.2.2] - 2026-04-30
 

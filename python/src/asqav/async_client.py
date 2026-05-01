@@ -233,7 +233,8 @@ class AsyncAgent:
         tool_name: str | None = None,
         model_name: str | None = None,
         parent_id: str | None = None,
-        user_intent: dict[str, Any] | None = None,
+        *,
+        co_signers: list[str] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically (async).
 
@@ -243,6 +244,9 @@ class AsyncAgent:
             tool_name: Optional tool name when this action is a tool call.
             model_name: Optional model name when this action is an LLM call.
             parent_id: Optional parent action ID for the agent graph view.
+            co_signers: Optional list of agent_ids in the same org expected
+                to countersign this record. The other agents fetch the
+                record by id and call ``agent.countersign(signature_id)``.
 
         Returns:
             SignatureResponse with the signature.
@@ -265,6 +269,8 @@ class AsyncAgent:
             agent_id=self.agent_id,
             user_intent=user_intent,
         )
+        if co_signers:
+            body["co_signers"] = list(co_signers)
         data = await _async_post(f"/agents/{self.agent_id}/sign", body)
 
         return SignatureResponse(
@@ -282,7 +288,43 @@ class AsyncAgent:
             policy_decision=data.get("policy_decision", "permit"),
             authorization_ref=data.get("authorization_ref"),
             bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
-            user_intent_verified=data.get("user_intent_verified"),
+            required_co_signers=data.get("required_co_signers"),
+            co_signatures=data.get("co_signatures"),
+            countersign_url=data.get("countersign_url"),
+        )
+
+    async def countersign(self, signature_id: str) -> SignatureResponse:
+        """Countersign an existing signature record (async).
+
+        Args:
+            signature_id: The ``sig_...`` id returned by the original
+                ``sign(co_signers=[...])`` call.
+
+        Returns:
+            SignatureResponse with the updated record (including this
+            agent's signature appended to ``co_signatures``).
+        """
+        data = await _async_post(
+            f"/agents/{self.agent_id}/countersign/{signature_id}",
+            {},
+        )
+        return SignatureResponse(
+            signature=data["signature"],
+            signature_id=data["signature_id"],
+            action_id=data["action_id"],
+            timestamp=data["timestamp"],
+            verification_url=data["verification_url"],
+            algorithm=data.get("algorithm"),
+            chain_hash=data.get("chain_hash") or data.get("record_hash"),
+            rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
+            rfc3161_serial=(data.get("rfc3161_timestamp") or {}).get("serial_number"),
+            policy_digest=data.get("policy_digest"),
+            policy_decision=data.get("policy_decision", "permit"),
+            authorization_ref=data.get("authorization_ref"),
+            bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
+            required_co_signers=data.get("required_co_signers"),
+            co_signatures=data.get("co_signatures"),
+            countersign_url=data.get("countersign_url"),
         )
 
     async def start_session(self) -> SessionResponse:

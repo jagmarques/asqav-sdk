@@ -119,29 +119,16 @@ export interface SignOptions {
   /** Optional parent action ID for linking child actions to their parent
    * in a workflow. Powers the agent graph view. */
   parentId?: string;
-  /** Optional user-intent envelope. The caller produces a signature over a
-   * digest of the action (e.g. via WebAuthn passkey, hardware key, or
-   * Ed25519). The SDK passes the bytes through verbatim. The backend
-   * verifies and stores them alongside the agent signature so the receipt
-   * proves "this user authorized this specific action". See
-   * docs/user-intent.md for the recommended pattern. */
-  userIntent?: UserIntent;
+  /** Optional list of agent_ids in the same org expected to countersign
+   * this record. Each peer fetches the record and calls
+   * ``agent.countersign(signatureId)``. */
+  coSigners?: string[];
 }
 
-export interface UserIntent {
-  /** base64 signature bytes */
+export interface CoSignature {
+  agentId: string;
   signature: string;
-  /** base64 public key bytes */
-  public_key: string;
-  /** "ed25519" | "ecdsa-p256" | "webauthn" */
-  algorithm: string;
-  /** optional credential id, useful for WebAuthn passkeys */
-  key_id?: string;
-  /** base64 of the bytes the user actually signed (typically a digest of
-   * action_type + context + nonce). The backend does not interpret this. */
-  signed_message: string;
-  /** ISO8601 timestamp of when the user signed */
-  signed_at: string;
+  signedAt: string;
 }
 
 export interface SignatureResponse {
@@ -152,7 +139,12 @@ export interface SignatureResponse {
   verificationUrl: string;
   algorithm?: string;
   chainHash?: string;
-  userIntentVerified?: boolean;
+  /** Agents the original signer expects to countersign this record. */
+  requiredCoSigners?: string[];
+  /** Signatures appended by countersigning peers, in arrival order. */
+  coSignatures?: CoSignature[];
+  /** URL pattern (relative) for peers to POST their countersignature to. */
+  countersignUrl?: string;
 }
 
 export interface SessionResponse {
@@ -434,6 +426,9 @@ export class Agent {
       agentId: this.agentId,
       userIntent: options.userIntent,
     });
+    if (options.coSigners && options.coSigners.length > 0) {
+      body.co_signers = [...options.coSigners];
+    }
 
     const data = await request<{
       signature: string;
@@ -444,7 +439,9 @@ export class Agent {
       algorithm?: string;
       chain_hash?: string;
       record_hash?: string;
-      user_intent_verified?: boolean;
+      required_co_signers?: string[];
+      co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
+      countersign_url?: string;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -455,11 +452,50 @@ export class Agent {
       verificationUrl: data.verification_url,
       algorithm: data.algorithm,
       chainHash: data.chain_hash ?? data.record_hash,
-      userIntentVerified: data.user_intent_verified,
+      requiredCoSigners: data.required_co_signers,
+      coSignatures: data.co_signatures?.map((s) => ({
+        agentId: s.agent_id,
+        signature: s.signature,
+        signedAt: s.signed_at,
+      })),
+      countersignUrl: data.countersign_url,
     };
 
     _dispatchAfter(options.actionType, response);
     return response;
+  }
+
+  async countersign(signatureId: string): Promise<SignatureResponse> {
+    const data = await request<{
+      signature: string;
+      signature_id: string;
+      action_id: string;
+      timestamp: string;
+      verification_url: string;
+      algorithm?: string;
+      chain_hash?: string;
+      record_hash?: string;
+      required_co_signers?: string[];
+      co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
+      countersign_url?: string;
+    }>("POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
+
+    return {
+      signature: data.signature,
+      signatureId: data.signature_id,
+      actionId: data.action_id,
+      timestamp: data.timestamp,
+      verificationUrl: data.verification_url,
+      algorithm: data.algorithm,
+      chainHash: data.chain_hash ?? data.record_hash,
+      requiredCoSigners: data.required_co_signers,
+      coSignatures: data.co_signatures?.map((s) => ({
+        agentId: s.agent_id,
+        signature: s.signature,
+        signedAt: s.signed_at,
+      })),
+      countersignUrl: data.countersign_url,
+    };
   }
 
   async startSession(): Promise<SessionResponse> {
