@@ -4,6 +4,16 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.6] - 2026-05-02
+
+### Added
+- Python CLI gap-fill. New commands wrap previously REST-only endpoints:
+  - `asqav agents revoke <agent_id> [--reason X]` (Pro)
+  - `asqav sessions list [--limit N] [--status X] [--agent ID]`
+  - `asqav sessions end <session_id> [--status completed]`
+  - `asqav policies list / create / delete` (Pro)
+  - `asqav webhooks list / create / delete` (Pro)
+
 ## [Python 0.3.5] - 2026-05-02
 
 ### Added

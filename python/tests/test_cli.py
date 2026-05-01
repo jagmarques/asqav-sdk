@@ -539,3 +539,123 @@ def test_unreachable_account_endpoint_does_not_block(
         env={"ASQAV_API_KEY": "sk_test"},
     )
     assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# CLI gap-fill (agents revoke, sessions, policies, webhooks)
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_agents_revoke_calls_agent_revoke(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    mock_agent = MagicMock()
+    mock_get.return_value = mock_agent
+    result = runner.invoke(
+        app,
+        ["agents", "revoke", "agt_z", "--reason", "leak"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    mock_agent.revoke.assert_called_once_with(reason="leak")
+    assert "Revoked agt_z" in result.output
+
+
+@patch("asqav.list_sessions")
+@patch("asqav.init")
+def test_sessions_list_prints_rows(
+    mock_init: MagicMock, mock_list: MagicMock
+) -> None:
+    mock_list.return_value = [
+        MagicMock(session_id="sess_1", agent_id="agt_a", status="active", started_at="2026-05-02T00:00:00Z"),
+    ]
+    result = runner.invoke(
+        app,
+        ["sessions", "list", "--limit", "5"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "sess_1" in result.output
+    assert "active" in result.output
+
+
+@patch("asqav.client._patch")
+@patch("asqav.init")
+def test_sessions_end_calls_patch(
+    mock_init: MagicMock, mock_patch: MagicMock
+) -> None:
+    mock_patch.return_value = {}
+    result = runner.invoke(
+        app,
+        ["sessions", "end", "sess_x", "--status", "completed"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "sess_x" in result.output
+    mock_patch.assert_called_once_with("/sessions/sess_x", {"status": "completed"})
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_policies_list_prints_active_flag(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    def side_effect(path: str):
+        if path == "/account":
+            return {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+        if path == "/policies":
+            return [{"id": "pol_1", "name": "no-data", "action_pattern": "data:*", "action": "block", "is_active": True}]
+        return None
+
+    mock_get.side_effect = side_effect
+    result = runner.invoke(app, ["policies", "list"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 0
+    assert "pol_1" in result.output
+    assert "active" in result.output
+
+
+@patch("asqav.client._post")
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_policies_create_posts_payload(
+    mock_init: MagicMock, mock_get: MagicMock, mock_post: MagicMock
+) -> None:
+    mock_get.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    mock_post.return_value = {"id": "pol_new"}
+    result = runner.invoke(
+        app,
+        ["policies", "create", "--name", "test-rule", "--pattern", "data:*", "--action", "block"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    mock_post.assert_called_once_with(
+        "/policies",
+        {"name": "test-rule", "action_pattern": "data:*", "action": "block", "is_active": True},
+    )
+
+
+@patch("asqav.client._delete")
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_webhooks_delete_calls_delete(
+    mock_init: MagicMock, mock_get: MagicMock, mock_delete: MagicMock
+) -> None:
+    mock_get.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    mock_delete.return_value = {}
+    result = runner.invoke(
+        app, ["webhooks", "delete", "wh_x"], env={"ASQAV_API_KEY": "sk_test"}
+    )
+    assert result.exit_code == 0
+    mock_delete.assert_called_once_with("/webhooks/wh_x")
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_policies_blocked_on_free_tier(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    mock_get.return_value = {"tier": "free", "organization_id": "o", "organization_name": "n"}
+    result = runner.invoke(app, ["policies", "list"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 2
