@@ -19,6 +19,7 @@ export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
 export { canonicalize, hashAction } from "./canonicalize.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
+export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
 const DEFAULT_BASE_URL = "https://api.asqav.com/api/v1";
 /** Metadata keys allowed alongside a hash-only request. Mirrors the
@@ -193,6 +194,14 @@ export interface ExportAuditOptions {
   startDate?: string;
   endDate?: string;
   agentId?: string;
+}
+
+export interface PreflightResult {
+  cleared: boolean;
+  agentActive: boolean;
+  policyAllowed: boolean;
+  reasons: string[];
+  explanation: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -557,6 +566,75 @@ export class Agent {
     await request("POST", `/agents/${this.agentId}/revoke`, {
       reason: options.reason ?? "manual",
     });
+  }
+
+  /**
+   * Pre-flight check combining revocation/suspension status and policy.
+   * Fail-open: if a sub-check errors, it is recorded in `reasons` but
+   * does not block. Mirrors the Python `Agent.preflight`.
+   */
+  async preflight(actionType: string): Promise<PreflightResult> {
+    let agentActive = true;
+    let policyAllowed = true;
+    const reasons: string[] = [];
+
+    try {
+      const status = await request<{ revoked?: boolean; suspended?: boolean; suspended_reason?: string }>(
+        "GET",
+        `/agents/${this.agentId}/status`,
+      );
+      if (status.revoked) {
+        agentActive = false;
+        reasons.push("agent is revoked");
+      }
+      if (status.suspended) {
+        agentActive = false;
+        const suffix = status.suspended_reason ? ` (${status.suspended_reason})` : "";
+        reasons.push(`agent is suspended${suffix}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      reasons.push(`status check failed (${msg}) - skipped`);
+    }
+
+    try {
+      const policies = await request<Array<{
+        is_active?: boolean;
+        action_pattern?: string;
+        action?: string;
+        name?: string;
+      }>>("GET", "/policies");
+      const list = Array.isArray(policies) ? policies : [];
+      for (const p of list) {
+        if (!p.is_active) continue;
+        const pattern = p.action_pattern ?? "";
+        const matches = pattern === "*" || actionType.startsWith(pattern.replace(/\*+$/, ""));
+        if (matches && (p.action === "block" || p.action === "block_and_alert")) {
+          policyAllowed = false;
+          reasons.push(`blocked by policy: ${p.name ?? "unknown"}`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      reasons.push(`policy check failed (${msg}) - skipped`);
+    }
+
+    const cleared = agentActive && policyAllowed;
+    let explanation: string;
+    if (cleared) {
+      explanation = "Allowed: agent is active and action is permitted by policy";
+    } else if (!agentActive && reasons.includes("agent is revoked")) {
+      explanation = "Blocked: agent has been revoked";
+    } else if (!agentActive && reasons.some((r) => r.startsWith("agent is suspended"))) {
+      const suspendReason = reasons.find((r) => r.startsWith("agent is suspended")) ?? "";
+      explanation = `Blocked: ${suspendReason}`;
+    } else if (!policyAllowed) {
+      explanation = "Blocked: action not permitted by current policy rules";
+    } else {
+      explanation = reasons.length ? `Blocked: ${reasons.join("; ")}` : "Blocked";
+    }
+
+    return { cleared, agentActive, policyAllowed, reasons, explanation };
   }
 }
 
