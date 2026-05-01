@@ -535,7 +535,7 @@ def preflight(
     import json as json_mod
 
     _init_sdk()
-    from asqav import APIError, Agent
+    from asqav import Agent, APIError
 
     try:
         agent = Agent.get(agent_id)
@@ -575,7 +575,9 @@ def preflight(
 def budget_check(
     agent_id: str = typer.Option(..., "--agent-id", help="Agent ID."),
     limit: float = typer.Option(..., "--limit", help="Budget ceiling."),
-    estimated_cost: float = typer.Option(..., "--estimated-cost", help="Cost of the pending action."),
+    estimated_cost: float = typer.Option(
+        ..., "--estimated-cost", help="Cost of the pending action."
+    ),
     current_spend: float = typer.Option(0.0, "--current-spend", help="Cumulative spend so far."),
     currency: str = typer.Option("USD", "--currency", help="Currency code."),
     json_out: bool = typer.Option(False, "--json", help="Print result as JSON."),
@@ -623,7 +625,9 @@ def budget_record(
     action_type: str = typer.Option(..., "--action", help="Action being recorded."),
     actual_cost: float = typer.Option(..., "--actual-cost", help="Realized cost."),
     limit: float = typer.Option(..., "--limit", help="Budget ceiling for the signed payload."),
-    current_spend: float = typer.Option(0.0, "--current-spend", help="Cumulative spend before this record."),
+    current_spend: float = typer.Option(
+        0.0, "--current-spend", help="Cumulative spend before this record."
+    ),
     currency: str = typer.Option("USD", "--currency", help="Currency code."),
 ) -> None:
     """Sign a spend record on the server (tamper-evident).
@@ -632,7 +636,7 @@ def budget_record(
     cumulative spend after the record, and the configured limit.
     """
     _init_sdk()
-    from asqav import APIError, Agent, BudgetTracker
+    from asqav import Agent, APIError, BudgetTracker
 
     try:
         agent = Agent.get(agent_id)
@@ -707,7 +711,9 @@ def compliance_frameworks() -> None:
 @compliance_app.command("export")
 def compliance_export(
     session: str = typer.Option(..., "--session", help="Session ID to bundle signatures from."),
-    framework: str = typer.Option("eu_ai_act_art12", "--framework", help="Compliance framework key."),
+    framework: str = typer.Option(
+        "eu_ai_act_art12", "--framework", help="Compliance framework key."
+    ),
     output: str = typer.Option(..., "--output", "-o", help="File to write the bundle JSON to."),
 ) -> None:
     """Pull a session's signatures and export a Merkle-rooted compliance bundle.
