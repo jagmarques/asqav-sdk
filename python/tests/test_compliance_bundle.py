@@ -13,12 +13,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from asqav.client import SignatureResponse, SignedActionResponse
 from asqav.compliance import (
     FRAMEWORKS,
-    ComplianceBundle,
     _compute_merkle_root,
     _receipt_hash,
     export_bundle,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
