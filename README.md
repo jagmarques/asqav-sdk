@@ -133,14 +133,19 @@ The full reference lives at [asqav.com/docs](https://asqav.com/docs).
 
 ### What's in each SDK
 
-Both SDKs cover the same core surface: agent identity, signed actions, batched signing, policy enforcement, scope tokens, replay, attestations, and three-phase signing. The Python SDK additionally ships:
+Both SDKs cover the same core surface: agent identity, signed actions, batched signing, policy enforcement, scope tokens, replay, attestations, three-phase signing, and the `user_intent` envelope on `agent.sign(...)` (Ed25519 / ECDSA P-256 / WebAuthn).
 
-- The `asqav` CLI (`asqav demo`, `asqav verify`, `asqav doctor`, `asqav agents`, `asqav sync`)
-- Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, and PydanticAI
-- Local-mode offline signing with deferred sync
+The Python SDK additionally ships:
+
+- The `asqav` CLI: `quickstart`, `demo`, `verify`, `doctor`, `agents`, `sync`, plus `replay`, `preflight`, `approve`, `budget` (`check`/`record`), and `compliance` (`frameworks`/`export`). See [asqav.com/docs/cli](https://asqav.com/docs/cli).
+- A pytest plugin (`pytest --asqav`) that signs every test result and emits a Merkle-rooted compliance bundle on session finish. See [asqav.com/docs/pytest-plugin](https://asqav.com/docs/pytest-plugin).
+- Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI, Letta, Strands, and Instructor (via the Hooks API).
+- Cookbooks for Streamlit dashboards and Dify workflows under `python/examples/`.
+- Local-mode offline signing with deferred sync.
 
 The TypeScript SDK currently focuses on the core API and `Agent` surface for Node 20+ runtimes. It additionally ships:
 
+- The `user_intent` envelope on `agent.sign(...)`.
 - A Vercel AI SDK adapter at `@asqav/sdk/extras/vercel-ai` that plugs into `experimental_telemetry: { tracer }` and signs every span the AI SDK opens.
 
 Other framework integrations are tracked on the roadmap.
