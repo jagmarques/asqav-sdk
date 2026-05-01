@@ -27,6 +27,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./extras/vercel-ai": {
+      "types": "./dist/extras/vercel-ai.d.ts",
+      "import": "./dist/extras/vercel-ai.mjs",
+      "require": "./dist/extras/vercel-ai.js"
     }
   },
   "files": [
@@ -35,7 +40,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build": "tsup src/index.ts src/extras/vercel-ai.ts --format cjs,esm --dts --clean",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"

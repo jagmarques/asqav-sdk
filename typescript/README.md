@@ -97,6 +97,31 @@ Lists sessions, optionally filtered.
 
 Exports the audit trail as JSON for the given filters. Pro tier and above.
 
+## Integrations
+
+### Vercel AI SDK
+
+Wire Asqav signing into the [`experimental_telemetry`](https://ai-sdk.dev/docs/ai-sdk-core/telemetry) hook. Every span the AI SDK opens (text generation, tool calls, embeddings) becomes a signed Asqav action.
+
+```ts
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { Agent, init } from "@asqav/sdk";
+import { createAsqavExporter } from "@asqav/sdk/extras/vercel-ai";
+
+init({ apiKey: process.env.ASQAV_API_KEY! });
+const agent = await Agent.create({ name: "writer" });
+const tracer = createAsqavExporter({ agent });
+
+const result = await generateText({
+  model: openai("gpt-4o"),
+  prompt: "Write a haiku about audit trails.",
+  experimental_telemetry: { isEnabled: true, tracer },
+});
+```
+
+Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation; failures log a warning instead of throwing.
+
 ## Errors
 
 All thrown errors extend `AsqavError`. `AuthenticationError`, `RateLimitError`, and `APIError` (with `statusCode`) are exported for fine-grained handling.
