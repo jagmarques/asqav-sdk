@@ -9,6 +9,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ### Added
 - TypeScript `BudgetTracker` mirrors the Python primitive. `new BudgetTracker({ agent, limit, currency })` exposes `check(estimatedCost)` (fail-closed arithmetic) and `record(actionType, actualCost, context?)` which signs a `budget:*` action via the underlying agent. Re-exported from the package root.
 - TypeScript `Agent.preflight(actionType)` mirrors the Python sibling. Combines the `/agents/{id}/status` revoke/suspend check and the `/policies` block-rule check into a single fail-open `PreflightResult` with a human-readable explanation.
+- New `asqav` CLI (npm `bin` entry). Mirrors the Python surface: `verify`, `agents list/create/revoke`, `sessions list/end`, `replay`, `preflight`, `budget check/record`, `approve`, `compliance frameworks/export`. Pro/Business commands are tier-gated client-side via `GET /account` with the same fail-open semantics as the Python CLI.
 
 ## [Python 0.3.4 / TypeScript 0.2.4] - 2026-05-01
 
