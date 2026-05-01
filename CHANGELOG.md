@@ -4,6 +4,12 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.3 / TypeScript 0.2.3] - 2026-04-28
+
+### Added
+- `user_intent` parameter on `Agent.sign()` (Python) and `agent.sign({userIntent: ...})` (TypeScript). Optional envelope containing a user-produced signature plus public key, algorithm, signed bytes, and signed-at timestamp. The SDK passes it through to the backend verbatim. The backend verifies and stores it alongside the agent signature so receipts prove "this user authorized this specific action right now". Supported algorithms: `ed25519`, `ecdsa-p256`, `webauthn` (store-only for now). See docs/user-intent.md for the recommended pattern.
+- `user_intent_verified` field on `SignatureResponse` reflecting backend verification result.
+
 ## [Python 0.3.2 / TypeScript 0.2.2] - 2026-04-30
 
 ### Added

@@ -233,6 +233,7 @@ class AsyncAgent:
         tool_name: str | None = None,
         model_name: str | None = None,
         parent_id: str | None = None,
+        user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically (async).
 
@@ -262,6 +263,7 @@ class AsyncAgent:
             context=context,
             session_id=self._session_id,
             agent_id=self.agent_id,
+            user_intent=user_intent,
         )
         data = await _async_post(f"/agents/{self.agent_id}/sign", body)
 
@@ -280,6 +282,7 @@ class AsyncAgent:
             policy_decision=data.get("policy_decision", "permit"),
             authorization_ref=data.get("authorization_ref"),
             bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
     async def start_session(self) -> SessionResponse:

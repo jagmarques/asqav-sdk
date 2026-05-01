@@ -214,6 +214,7 @@ class SignatureResponse:
     policy_decision: str = "permit"
     authorization_ref: str | None = None
     bitcoin_anchor: BitcoinAnchor | None = None
+    user_intent_verified: bool | None = None
 
 
 @dataclass
@@ -658,6 +659,7 @@ def _build_sign_body(
     context: dict[str, Any] | None,
     session_id: str | None,
     agent_id: str,
+    user_intent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for a ``POST /agents/{id}/sign`` request.
 
@@ -692,20 +694,26 @@ def _build_sign_body(
         # Defensive: only ship whitelisted keys even if a future caller
         # mutates `metadata` above.
         metadata = {k: v for k, v in metadata.items() if k in _HASH_ONLY_METADATA_WHITELIST}
-        return {
+        body: dict[str, Any] = {
             "action_type": action_type,
             "hash": digest,
             "hash_algo": "sha256",
             "metadata": metadata,
             "session_id": session_id,
         }
+        if user_intent is not None:
+            body["user_intent"] = user_intent
+        return body
 
     # full-payload (default for self-hosted)
-    return {
+    body = {
         "action_type": action_type,
         "context": context or {},
         "session_id": session_id,
     }
+    if user_intent is not None:
+        body["user_intent"] = user_intent
+    return body
 
 
 @dataclass
@@ -876,6 +884,7 @@ class Agent:
         counterparty: dict[str, Any] | None = None,
         tool_name: str | None = None,
         model_name: str | None = None,
+        user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -960,6 +969,7 @@ class Agent:
             context=context,
             session_id=self._session_id,
             agent_id=self.agent_id,
+            user_intent=user_intent,
         )
         data = _post(f"/agents/{self.agent_id}/sign", body)
 
@@ -978,6 +988,7 @@ class Agent:
             policy_decision=data.get("policy_decision", "permit"),
             authorization_ref=data.get("authorization_ref"),
             bitcoin_anchor=_parse_bitcoin_anchor(data.get("bitcoin_anchor")),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
         # Dispatch after-hooks (fail-open).

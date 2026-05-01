@@ -119,6 +119,29 @@ export interface SignOptions {
   /** Optional parent action ID for linking child actions to their parent
    * in a workflow. Powers the agent graph view. */
   parentId?: string;
+  /** Optional user-intent envelope. The caller produces a signature over a
+   * digest of the action (e.g. via WebAuthn passkey, hardware key, or
+   * Ed25519). The SDK passes the bytes through verbatim. The backend
+   * verifies and stores them alongside the agent signature so the receipt
+   * proves "this user authorized this specific action". See
+   * docs/user-intent.md for the recommended pattern. */
+  userIntent?: UserIntent;
+}
+
+export interface UserIntent {
+  /** base64 signature bytes */
+  signature: string;
+  /** base64 public key bytes */
+  public_key: string;
+  /** "ed25519" | "ecdsa-p256" | "webauthn" */
+  algorithm: string;
+  /** optional credential id, useful for WebAuthn passkeys */
+  key_id?: string;
+  /** base64 of the bytes the user actually signed (typically a digest of
+   * action_type + context + nonce). The backend does not interpret this. */
+  signed_message: string;
+  /** ISO8601 timestamp of when the user signed */
+  signed_at: string;
 }
 
 export interface SignatureResponse {
@@ -129,6 +152,7 @@ export interface SignatureResponse {
   verificationUrl: string;
   algorithm?: string;
   chainHash?: string;
+  userIntentVerified?: boolean;
 }
 
 export interface SessionResponse {
@@ -287,6 +311,7 @@ interface BuildSignBodyArgs {
   context: Record<string, unknown>;
   sessionId: string | null;
   agentId: string;
+  userIntent?: UserIntent;
 }
 
 async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
@@ -314,19 +339,23 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
     for (const k of Object.keys(metadata)) {
       if (!HASH_ONLY_METADATA_WHITELIST.has(k)) delete metadata[k];
     }
-    return {
+    const hashBody: Record<string, unknown> = {
       action_type: args.actionType,
       hash: digest,
       hash_algo: "sha256",
       metadata,
       session_id: args.sessionId,
     };
+    if (args.userIntent !== undefined) hashBody.user_intent = args.userIntent;
+    return hashBody;
   }
-  return {
+  const fullBody: Record<string, unknown> = {
     action_type: args.actionType,
     context: args.context,
     session_id: args.sessionId,
   };
+  if (args.userIntent !== undefined) fullBody.user_intent = args.userIntent;
+  return fullBody;
 }
 
 // ---------------------------------------------------------------------------
@@ -403,6 +432,7 @@ export class Agent {
       context: finalContext,
       sessionId: this.sessionId,
       agentId: this.agentId,
+      userIntent: options.userIntent,
     });
 
     const data = await request<{
@@ -414,6 +444,7 @@ export class Agent {
       algorithm?: string;
       chain_hash?: string;
       record_hash?: string;
+      user_intent_verified?: boolean;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -424,6 +455,7 @@ export class Agent {
       verificationUrl: data.verification_url,
       algorithm: data.algorithm,
       chainHash: data.chain_hash ?? data.record_hash,
+      userIntentVerified: data.user_intent_verified,
     };
 
     _dispatchAfter(options.actionType, response);
