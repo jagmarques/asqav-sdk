@@ -279,3 +279,181 @@ def test_replay_bundle_missing_file() -> None:
     result = runner.invoke(app, ["replay", "--bundle", "/nonexistent/path.json"])
     assert result.exit_code == 1
     assert "Error reading bundle" in result.output
+
+
+# ---------------------------------------------------------------------------
+# preflight command
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_preflight_cleared(mock_init: MagicMock, mock_get: MagicMock) -> None:
+    """preflight prints CLEARED and exits 0 when the action is allowed."""
+    mock_agent = MagicMock()
+    mock_agent.preflight.return_value = MagicMock(
+        cleared=True, agent_active=True, policy_allowed=True,
+        reasons=[], explanation="ok",
+    )
+    mock_get.return_value = mock_agent
+    result = runner.invoke(
+        app, ["preflight", "agt_x", "data:read"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "CLEARED" in result.output
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_preflight_blocked(mock_init: MagicMock, mock_get: MagicMock) -> None:
+    """preflight exits 1 and prints reasons when blocked."""
+    mock_agent = MagicMock()
+    mock_agent.preflight.return_value = MagicMock(
+        cleared=False, agent_active=False, policy_allowed=True,
+        reasons=["agent is suspended"], explanation="blocked",
+    )
+    mock_get.return_value = mock_agent
+    result = runner.invoke(
+        app, ["preflight", "agt_x", "write:data"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "BLOCKED" in result.output
+    assert "agent is suspended" in result.output
+
+
+# ---------------------------------------------------------------------------
+# budget commands
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_budget_check_allowed(mock_init: MagicMock, mock_get: MagicMock) -> None:
+    """budget check exits 0 when within limit."""
+    mock_get.return_value = MagicMock()
+    result = runner.invoke(
+        app,
+        ["budget", "check", "--agent-id", "agt_x", "--limit", "10",
+         "--estimated-cost", "1.5", "--current-spend", "2.0"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "ALLOWED" in result.output
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_budget_check_exhausted(mock_init: MagicMock, mock_get: MagicMock) -> None:
+    """budget check exits 1 when estimated_cost would exceed limit."""
+    mock_get.return_value = MagicMock()
+    result = runner.invoke(
+        app,
+        ["budget", "check", "--agent-id", "agt_x", "--limit", "10",
+         "--estimated-cost", "20", "--current-spend", "0"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "DENIED" in result.output
+    assert "budget_exhausted" in result.output
+
+
+@patch("asqav.BudgetTracker.record")
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_budget_record(
+    mock_init: MagicMock, mock_get: MagicMock, mock_record: MagicMock,
+) -> None:
+    """budget record signs a spend record and prints the signature_id."""
+    mock_get.return_value = MagicMock()
+    mock_record.return_value = MagicMock(
+        signature_id="sig_b1", action_id="act_b1",
+        verification_url="https://asqav.com/verify/sig_b1",
+    )
+    result = runner.invoke(
+        app,
+        ["budget", "record", "--agent-id", "agt_x", "--action", "api:openai",
+         "--actual-cost", "0.05", "--limit", "10"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "sig_b1" in result.output
+    mock_record.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# approve command
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.approve_action")
+@patch("asqav.init")
+def test_approve_approved(mock_init: MagicMock, mock_approve: MagicMock) -> None:
+    """approve prints APPROVED when the session is fully approved."""
+    mock_approve.return_value = MagicMock(
+        session_id="thr_a", entity_id="ent_a",
+        signatures_collected=2, approvals_required=2,
+        status="approved", approved=True,
+    )
+    result = runner.invoke(
+        app, ["approve", "thr_a", "ent_a"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "APPROVED" in result.output
+
+
+# ---------------------------------------------------------------------------
+# compliance commands
+# ---------------------------------------------------------------------------
+
+
+def test_compliance_frameworks_lists_known() -> None:
+    """compliance frameworks lists known framework keys."""
+    result = runner.invoke(app, ["compliance", "frameworks"])
+    assert result.exit_code == 0
+    # FRAMEWORKS dict from compliance.py contains at least these.
+    assert "eu_ai_act_art12" in result.output
+    assert "soc2" in result.output
+
+
+@patch("asqav.compliance.export_bundle")
+@patch("asqav.client.get_session_signatures")
+@patch("asqav.init")
+def test_compliance_export_writes_bundle(
+    mock_init: MagicMock, mock_get_sigs: MagicMock, mock_export: MagicMock,
+    tmp_path,
+) -> None:
+    """compliance export pulls signatures and writes a bundle file."""
+    mock_get_sigs.return_value = [{"signature_id": "s1"}]
+    mock_bundle = MagicMock(receipt_count=1, merkle_root="abc123")
+    mock_export.return_value = mock_bundle
+    out = tmp_path / "bundle.json"
+
+    result = runner.invoke(
+        app,
+        ["compliance", "export", "--session", "sess_a", "--output", str(out)],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "1 receipts" in result.output
+    assert "abc123" in result.output
+    mock_bundle.to_file.assert_called_once_with(str(out))
+
+
+@patch("asqav.client.get_session_signatures")
+@patch("asqav.init")
+def test_compliance_export_unknown_framework(
+    mock_init: MagicMock, mock_get_sigs: MagicMock,
+) -> None:
+    """compliance export exits 1 when the framework key is not known."""
+    mock_get_sigs.return_value = []
+    result = runner.invoke(
+        app,
+        ["compliance", "export", "--session", "sess_a",
+         "--framework", "nonexistent", "--output", "/tmp/x.json"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "nonexistent" in result.output
