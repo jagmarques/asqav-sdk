@@ -26,7 +26,6 @@ sys.modules.pop("asqav.extras.smolagents", None)
 
 from asqav.extras.smolagents import AsqavSmolagentsHook  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

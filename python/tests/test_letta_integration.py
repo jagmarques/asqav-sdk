@@ -10,7 +10,7 @@ import os
 import sys
 import types
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -25,7 +25,6 @@ sys.modules["letta_client"] = _fake_letta_client
 sys.modules.pop("asqav.extras.letta", None)
 
 from asqav.extras.letta import AsqavLettaHook  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # Helpers

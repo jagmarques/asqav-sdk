@@ -25,17 +25,13 @@ import os
 import streamlit as st
 
 import asqav
-from asqav.client import _get, get_session_signatures
+from asqav.client import Agent, get_session_signatures, list_agents
 from asqav.compliance import FRAMEWORKS, export_bundle
 from asqav.replay import replay
 
 
 def _ensure_init() -> None:
-    """Initialize asqav with the API key from the environment.
-
-    Streamlit re-runs the script top-to-bottom on every interaction, so guard
-    re-init with a session_state flag to avoid re-creating clients each time.
-    """
+    """Init asqav once per session (Streamlit re-runs the script on each interaction)."""
     if st.session_state.get("_asqav_initialized"):
         return
     api_key = os.environ.get("ASQAV_API_KEY")
@@ -49,18 +45,17 @@ def _ensure_init() -> None:
     st.session_state["_asqav_initialized"] = True
 
 
-def _list_agents() -> list[dict]:
-    """Best-effort agent list. Falls back to an empty list on API errors."""
+def _safe_list_agents() -> list[Agent]:
+    """Public list_agents() wrapped in a soft-fail for the dashboard."""
     try:
-        data = _get("/agents")
+        return list_agents()
     except Exception as exc:
         st.warning(f"Could not list agents: {exc}")
         return []
-    return data if isinstance(data, list) else data.get("agents", [])
 
 
-def _agent_label(agent: dict) -> str:
-    return f"{agent.get('name', '?')} ({agent.get('agent_id', '?')})"
+def _agent_label(agent: Agent) -> str:
+    return f"{agent.name} ({agent.agent_id})"
 
 
 def main() -> None:
@@ -74,7 +69,7 @@ def main() -> None:
 
     _ensure_init()
 
-    agents = _list_agents()
+    agents = _safe_list_agents()
     if not agents:
         st.info("No agents yet. Create one with `asqav agents create my-agent`.")
         st.stop()
@@ -121,7 +116,7 @@ def main() -> None:
     st.dataframe(rows, use_container_width=True)
 
     st.subheader("Replay timeline")
-    timeline = replay(agent["agent_id"], session_id)
+    timeline = replay(agent.agent_id, session_id)
     chain_ok = timeline.verify_chain()
 
     cols = st.columns(3)

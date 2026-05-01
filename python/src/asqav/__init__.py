@@ -84,6 +84,7 @@ from .client import (
     group_sign,
     health_check,
     init,
+    list_agents,
     list_delegations,
     list_entities,
     list_risk_rules,
@@ -146,6 +147,8 @@ __all__ = [
     "create_signing_group",
     "get_signing_group",
     "update_signing_group",
+    # Agents
+    "list_agents",
     # Signing Entities
     "SigningEntityResponse",
     "add_entity",

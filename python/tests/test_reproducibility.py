@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import asqav
 from asqav.client import Agent
 
 # ---------------------------------------------------------------------------

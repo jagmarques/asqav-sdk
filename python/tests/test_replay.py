@@ -19,7 +19,6 @@ from asqav.replay import (
     replay_from_bundle,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -63,7 +62,7 @@ def _make_timeline(n: int = 3) -> ReplayTimeline:
             )
         )
         entry = json.dumps(
-            {"signature_id": sig_id, "action_type": action, "timestamp": ts, "prev_hash": prev_hash},
+            {"signature_id": sig_id, "action_type": action, "timestamp": ts, "prev_hash": prev_hash},  # noqa: E501
             sort_keys=True, separators=(",", ":"),
         )
         prev_hash = hashlib.sha256(entry.encode()).hexdigest()

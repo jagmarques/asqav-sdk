@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import importlib
 import sys
 from pathlib import Path
 
 import pytest
-
 
 # -- Packaging tests (no framework deps needed) --
 
@@ -44,12 +42,12 @@ def test_all_extra_includes_everything():
     all_deps = opt_deps["all"]
 
     # Each framework extra's deps should appear in 'all'
-    framework_extras = ["httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents"]
+    framework_extras = ["httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents"]  # noqa: E501
     for extra in framework_extras:
         for dep in opt_deps[extra]:
             # Strip version specifiers for matching
             dep_name = dep.split(">=")[0].split("<=")[0].split("==")[0].strip()
-            all_dep_names = [d.split(">=")[0].split("<=")[0].split("==")[0].strip() for d in all_deps]
+            all_dep_names = [d.split(">=")[0].split("<=")[0].split("==")[0].strip() for d in all_deps]  # noqa: E501
             assert dep_name in all_dep_names, (
                 f"Dep '{dep_name}' from extra '{extra}' not found in 'all'"
             )
@@ -74,42 +72,48 @@ def test_extras_package_importable():
 # -- Stub import tests (framework not installed) --
 
 
+def _purge(*module_names: str) -> None:
+    """Drop modules from sys.modules so a fresh import re-runs the guards.
+
+    Earlier integration tests inject framework mocks (sys.modules["crewai"] = ...).
+    Without this purge the stub re-import sees the mock and skips the
+    ImportError path, so the stub-import test silently passes when the user
+    actually has the framework missing. Fail closed by clearing both.
+    """
+    for name in module_names:
+        sys.modules.pop(name, None)
+
+
 def test_langchain_stub_import_error():
     """Importing langchain stub raises ImportError when langchain-core is not installed."""
-    # Ensure the module is not cached from a previous import
-    sys.modules.pop("asqav.extras.langchain", None)
-
+    _purge("asqav.extras.langchain", "langchain_core", "langchain_core.callbacks")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.langchain  # noqa: F401
 
 
 def test_crewai_stub_import_error():
     """Importing crewai stub raises ImportError when crewai is not installed."""
-    sys.modules.pop("asqav.extras.crewai", None)
-
+    _purge("asqav.extras.crewai", "crewai")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.crewai  # noqa: F401
 
 
 def test_litellm_stub_import_error():
     """Importing litellm stub raises ImportError when litellm is not installed."""
-    sys.modules.pop("asqav.extras.litellm", None)
-
+    _purge("asqav.extras.litellm", "litellm")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.litellm  # noqa: F401
 
 
 def test_haystack_stub_import_error():
     """Importing haystack stub raises ImportError when haystack-ai is not installed."""
-    sys.modules.pop("asqav.extras.haystack", None)
-
+    _purge("asqav.extras.haystack", "haystack", "haystack.dataclasses")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.haystack  # noqa: F401
 
 
 def test_openai_agents_stub_import_error():
     """Importing openai_agents stub raises ImportError when openai-agents is not installed."""
-    sys.modules.pop("asqav.extras.openai_agents", None)
-
+    _purge("asqav.extras.openai_agents", "agents", "agents.tracing")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.openai_agents  # noqa: F401

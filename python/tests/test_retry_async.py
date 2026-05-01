@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,8 +12,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import APIError, AuthenticationError, RateLimitError
-from asqav.retry import _calculate_delay, _is_retryable, with_async_retry, with_retry
-
+from asqav.retry import with_async_retry, with_retry
 
 # ---------------------------------------------------------------------------
 # Retry: rate limit error is retried
@@ -275,7 +273,7 @@ async def test_async_verify() -> None:
     )
 
     # Mock _get_config to return valid config
-    with sync_patch("asqav.async_client._get_config", return_value=("https://api.asqav.com/api/v1", "sk_test")):
+    with sync_patch("asqav.async_client._get_config", return_value=("https://api.asqav.com/api/v1", "sk_test")):  # noqa: E501
         # Mock httpx.AsyncClient
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
