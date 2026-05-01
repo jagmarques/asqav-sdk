@@ -180,6 +180,7 @@ def replay(
             raise typer.Exit(code=1)
 
         _init_sdk()
+        _require_tier("pro")
 
         from asqav import APIError
         from asqav import replay as replay_api
@@ -281,6 +282,54 @@ def _init_sdk() -> None:
         print("Error: ASQAV_API_KEY environment variable required.")
         raise typer.Exit(code=1)
     asqav.init(api_key=api_key)
+
+
+_TIER_RANK = {"free": 0, "pro": 1, "business": 2, "enterprise": 3}
+
+
+def _fetch_account_tier() -> str | None:
+    """Best-effort lookup of the calling org's subscription tier.
+
+    Returns the lowercase tier string, or None when the server does not
+    expose the endpoint (older deployments) or the call fails. Callers
+    treat None as "skip the gate" - the server still enforces.
+    """
+    try:
+        from asqav.client import _get
+    except Exception:
+        return None
+    try:
+        data = _get("/account")
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    tier = data.get("tier")
+    if not isinstance(tier, str) or not tier:
+        return None
+    return tier.lower()
+
+
+def _require_tier(min_tier: str) -> None:
+    """Block the command when the calling org is below ``min_tier``.
+
+    Skips the gate when the /account endpoint is unreachable so older
+    self-hosted deployments stay functional. The server is still the
+    source of truth - this only gives a clean client-side message.
+    """
+    tier = _fetch_account_tier()
+    if tier is None:
+        return
+    have = _TIER_RANK.get(tier, 0)
+    need = _TIER_RANK.get(min_tier.lower(), 0)
+    if have >= need:
+        return
+    print(
+        f"Error: this command requires the {min_tier.title()} tier "
+        f"(current: {tier}). Upgrade at https://asqav.com/pricing.",
+        file=sys.stderr,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command()
@@ -538,6 +587,7 @@ def preflight(
     import json as json_mod
 
     _init_sdk()
+    _require_tier("pro")
     from asqav import Agent, APIError
 
     try:
@@ -593,6 +643,7 @@ def budget_check(
     import json as json_mod
 
     _init_sdk()
+    _require_tier("pro")
     from asqav import Agent, BudgetTracker
 
     agent = Agent.get(agent_id)
@@ -639,6 +690,7 @@ def budget_record(
     cumulative spend after the record, and the configured limit.
     """
     _init_sdk()
+    _require_tier("pro")
     from asqav import Agent, APIError, BudgetTracker
 
     try:
@@ -670,6 +722,7 @@ def approve(
     import json as json_mod
 
     _init_sdk()
+    _require_tier("pro")
     from asqav import APIError, approve_action
 
     try:
@@ -725,6 +778,7 @@ def compliance_export(
     Run 'asqav compliance frameworks' to see valid framework keys.
     """
     _init_sdk()
+    _require_tier("business")
     from asqav import APIError
     from asqav.client import get_session_signatures
     from asqav.compliance import export_bundle

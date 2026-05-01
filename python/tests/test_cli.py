@@ -457,3 +457,85 @@ def test_compliance_export_unknown_framework(
     )
     assert result.exit_code == 1
     assert "nonexistent" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Tier gating
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_pro_command_blocked_on_free_tier(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """A free-tier API key is blocked at the client when invoking a Pro command."""
+    mock_get.return_value = {"tier": "free", "organization_id": "o", "organization_name": "n"}
+    result = runner.invoke(
+        app,
+        ["preflight", "agt_x", "data:read"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 2
+    assert "Pro" in result.output or "Pro" in result.stderr_bytes.decode() if hasattr(result, "stderr_bytes") else True
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_pro_command_runs_on_pro_tier(
+    mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
+) -> None:
+    """A pro-tier API key passes the gate."""
+    mock_get_acc.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    mock_agent = MagicMock()
+    mock_agent.preflight.return_value = MagicMock(
+        cleared=True, agent_active=True, policy_allowed=True,
+        reasons=[], explanation="ok",
+    )
+    mock_agent_get.return_value = mock_agent
+    result = runner.invoke(
+        app,
+        ["preflight", "agt_x", "data:read"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_business_command_blocked_on_pro_tier(
+    mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
+) -> None:
+    """A pro-tier key is blocked from a business-only command."""
+    mock_get_acc.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    result = runner.invoke(
+        app,
+        ["compliance", "export",
+         "--session", "sess_a", "--output", "/tmp/x.json"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 2
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_unreachable_account_endpoint_does_not_block(
+    mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
+) -> None:
+    """Older self-hosted deployments without /account stay functional."""
+    mock_get_acc.side_effect = Exception("404 Not Found")
+    mock_agent = MagicMock()
+    mock_agent.preflight.return_value = MagicMock(
+        cleared=True, agent_active=True, policy_allowed=True,
+        reasons=[], explanation="ok",
+    )
+    mock_agent_get.return_value = mock_agent
+    result = runner.invoke(
+        app,
+        ["preflight", "agt_x", "data:read"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
