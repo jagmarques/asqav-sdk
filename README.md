@@ -139,7 +139,11 @@ Both SDKs cover the same core surface: agent identity, signed actions, batched s
 - Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, and PydanticAI
 - Local-mode offline signing with deferred sync
 
-The TypeScript SDK currently focuses on the core API and `Agent` surface for Node 20+ runtimes. Framework integrations are tracked on the roadmap.
+The TypeScript SDK currently focuses on the core API and `Agent` surface for Node 20+ runtimes. It additionally ships:
+
+- A Vercel AI SDK adapter at `@asqav/sdk/extras/vercel-ai` that plugs into `experimental_telemetry: { tracer }` and signs every span the AI SDK opens.
+
+Other framework integrations are tracked on the roadmap.
 
 If a feature exists in one SDK but not the other, the language README will mark it explicitly.
 
