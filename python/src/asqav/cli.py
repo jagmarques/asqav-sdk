@@ -1,20 +1,23 @@
 """
-asqav CLI - Command-line interface for asqav Cloud.
+asqav CLI - AI agent governance from the terminal.
 
-Every CLI command is a thin wrapper over a public Python API. The CLI is for
-humans and shell scripts; the Python API is for programmatic automation. They
-have parity by construction so anything you can do at the terminal you can also
-do from code.
+Every command wraps a public Python API; both surfaces accept the same
+arguments and return the same data, so anything callable here is also
+callable programmatically.
 
-Requires the 'cli' extra: pip install asqav[cli]
+Requires: pip install asqav[cli]
 
 Commands:
-    asqav verify <signature_id>            - Verify a signature (public, no auth)
-    asqav agents list                      - List your agents
-    asqav agents create <name>             - Create a new agent
+    asqav verify <signature_id>            - Verify a signature (public)
+    asqav agents list / create <name>      - Manage agents
     asqav replay <agent_id> <session_id>   - Replay a session's audit trail
+    asqav preflight <agent_id> <action>    - Pre-flight (revocation + policy)
+    asqav budget check / record            - Budget gate / signed spend record
+    asqav approve <session_id> <entity_id> - Sign off a multi-party session
+    asqav compliance frameworks / export   - List frameworks / export bundle
     asqav sync                             - Sync local queue to API
-    asqav queue list/count/clear           - Manage local queue
+    asqav queue list / count / clear       - Manage local queue
+    asqav demo / quickstart / doctor       - Onboarding + diagnostics
     asqav --version                        - Show version
 """
 
@@ -32,7 +35,7 @@ from asqav import __version__
 
 app = typer.Typer(
     name="asqav",
-    help="Quantum-safe control for AI agents.",
+    help="AI agent governance - audit trails, policy enforcement, compliance.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -83,7 +86,7 @@ def main(
         is_eager=True,
     ),
 ) -> None:
-    """Quantum-safe control for AI agents."""
+    """AI agent governance - audit trails, policy enforcement, compliance."""
 
 
 @app.command()

@@ -4,6 +4,29 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.4 / TypeScript 0.2.4] - 2026-05-01
+
+### Added
+- User-intent envelope on `agent.sign(... user_intent={...})`. The end-user signs a digest of the action; the backend verifies the signature (ed25519, ecdsa-p256; webauthn advisory) and persists it on the same record. `SignatureResponse.user_intent_verified` surfaces the verdict. TypeScript mirror: `agent.sign({userIntent: {...}})` returns `userIntentVerified`. See `docs/user-intent.md`.
+- Python CLI now has full API parity:
+  - `asqav replay <agent_id> <session_id>` / `asqav replay --bundle <path>` (wraps `asqav.replay` / `asqav.replay_from_bundle`)
+  - `asqav preflight <agent_id> <action_type>` (wraps `Agent.preflight`)
+  - `asqav budget check` / `asqav budget record` (wraps `BudgetTracker`)
+  - `asqav approve <session_id> <entity_id>` (wraps `approve_action`)
+  - `asqav compliance frameworks` / `asqav compliance export --session ... --output ...` (wraps `export_bundle`)
+- Pytest plugin: `pytest --asqav --asqav-agent=ci-runner` signs each test result and writes a Merkle-rooted compliance bundle. Configurable via `--asqav-output`, `--asqav-framework`. Registered as `project.entry-points.pytest11`. Programmatic: `asqav.pytest_plugin.make_bundle_from_report(...)`.
+- Instructor integration: `from asqav.extras.instructor import AsqavInstructorHook; AsqavInstructorHook(agent_name=...).attach(client)` signs the five instructor hook events. Install with `pip install asqav[instructor]`.
+
+### Examples
+- `examples/budget_tracking.py`, `examples/scope_enforcement.py`, `examples/quarterly_audit.py`, `examples/human_approval.py`, `examples/streamlit_dashboard.py`, `examples/dify_workflow.md`. Each shows both the Python API and the matching CLI commands.
+
+### Fixed
+- `ReplayTimeline.verify_chain()` now actually verifies the chain. Each step records its predecessor's chain hash; `verify_chain()` recomputes and compares, flagging tampered or reordered entries instead of always returning `True`. Older bundles missing `prev_chain_hash` are flagged unverifiable rather than passing silently.
+
+### Docs
+- `docs/github-actions.md`: copy-paste workflow with `asqav doctor` as a CI gate plus a pytest fixture that captures signed actions into JSONL and exports a compliance bundle as a workflow artifact.
+- CLI tagline updated to "AI agent governance - audit trails, policy enforcement, compliance" (matches the March 2026 repositioning).
+
 ## [Python 0.3.3 / TypeScript 0.2.3] - 2026-04-28
 
 ### Added
