@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.patterns import PATTERNS, list_patterns, resolve_pattern
 
-
 # ---------------------------------------------------------------------------
 # resolve_pattern tests
 # ---------------------------------------------------------------------------

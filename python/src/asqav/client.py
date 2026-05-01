@@ -1707,6 +1707,31 @@ def get_agent() -> Agent:
     return _global_agent
 
 
+def list_agents() -> list[Agent]:
+    """Return every agent visible to the current API key.
+
+    Public surface for the same data ``asqav agents list`` shows. Use this
+    in dashboards, scripts, and notebooks instead of reaching into
+    ``asqav.client._get('/agents')``.
+    """
+    data = _get("/agents")
+    raw = data if isinstance(data, list) else data.get("agents", [])
+    out: list[Agent] = []
+    for a in raw:
+        out.append(
+            Agent(
+                agent_id=a["agent_id"],
+                name=a["name"],
+                public_key=a.get("public_key", ""),
+                key_id=a.get("key_id", ""),
+                algorithm=a.get("algorithm", ""),
+                capabilities=a.get("capabilities", []),
+                created_at=_parse_timestamp(a.get("created_at", 0)),
+            )
+        )
+    return out
+
+
 def _auto_generate_name() -> str:
     """Generate an agent name from environment."""
     env_name = os.environ.get("ASQAV_AGENT_NAME")
