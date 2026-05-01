@@ -24,6 +24,7 @@ export ASQAV_API_KEY=sk_...
 | [`scope_enforcement.py`](scope_enforcement.py) | Preflight catches out-of-scope actions, violation gets its own signed audit entry | #62 |
 | [`quarterly_audit.py`](quarterly_audit.py) | Export bundle, replay timeline offline, verify SHA-256 chain, summarize | #63 |
 | [`human_approval.py`](human_approval.py) | Request signing session for a high-risk action, wait for human approval, then sign | #64 |
+| [`dify_workflow.md`](dify_workflow.md) | Dify plugin: sign actions in a workflow, bundle the run for an auditor | #50 |
 
 ## CLI parity
 
