@@ -6,8 +6,6 @@ import hashlib
 import json
 from unittest.mock import MagicMock
 
-import pytest
-
 from asqav.client import SignatureResponse
 from asqav.reasoning import ReasoningReceipt, _sha256, sign_reasoning
 

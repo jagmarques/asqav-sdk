@@ -6,7 +6,6 @@ import pytest
 
 from asqav._mode import _is_asqav_cloud_host, _resolve_mode
 
-
 # ---------------------------------------------------------------------------
 # Cloud host detection
 # ---------------------------------------------------------------------------
