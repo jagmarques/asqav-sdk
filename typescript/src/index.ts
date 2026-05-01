@@ -107,6 +107,15 @@ export interface AgentCreateOptions {
   capabilities?: string[];
 }
 
+export interface UserIntent {
+  signature: string;
+  public_key: string;
+  algorithm: 'ed25519' | 'ecdsa-p256' | 'webauthn' | string;
+  key_id?: string;
+  signed_message: string;
+  signed_at: string;
+}
+
 export interface SignOptions {
   actionType: string;
   context?: Record<string, unknown>;
@@ -123,6 +132,9 @@ export interface SignOptions {
    * this record. Each peer fetches the record and calls
    * ``agent.countersign(signatureId)``. */
   coSigners?: string[];
+  /** Optional user-intent envelope. The end user signs a digest of the
+   * action and the SDK passes it through to the backend verbatim. */
+  userIntent?: UserIntent;
 }
 
 export interface CoSignature {
