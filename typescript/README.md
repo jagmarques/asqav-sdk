@@ -8,6 +8,29 @@ TypeScript SDK for [asqav.com](https://asqav.com). All ML-DSA cryptography runs 
 npm install @asqav/sdk
 ```
 
+## CLI
+
+The package ships an `asqav` binary mirroring the Python CLI surface. Set `ASQAV_API_KEY` and run:
+
+```bash
+asqav --version
+asqav verify <signature_id>
+asqav agents list
+asqav agents create my-agent
+asqav agents revoke <agent_id>
+asqav sessions list [--limit N] [--status X] [--agent ID]
+asqav sessions end <session_id>
+asqav replay <agent_id> <session_id> [--json]              # Pro
+asqav preflight <agent_id> <action_type> [--json]          # Pro
+asqav budget check --agent-id ID --limit 10 --estimated-cost 0.25     # Pro
+asqav budget record --agent-id ID --action api:openai --actual-cost 0.23 --limit 10  # Pro
+asqav approve <session_id> <entity_id>                     # Pro
+asqav compliance frameworks
+asqav compliance export --session ID --output bundle.json  # Business
+```
+
+Pro/Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; older self-hosted deployments without `/account` skip the gate.
+
 ## Quick start
 
 ```ts
