@@ -18,7 +18,6 @@ sys.modules.pop("asqav.extras.crewai", None)
 from asqav.client import PreflightResult, SignatureResponse  # noqa: E402
 from asqav.extras.crewai import AsqavGuardrailProvider  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

@@ -7,8 +7,6 @@ import sys
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import Agent, SDTokenResponse
@@ -198,7 +196,7 @@ class TestCreateScopeToken:
         assert token.actions == ["data:read:*"]
         mock_sd.assert_called_once()
         call_kwargs = mock_sd.call_args
-        assert "scope_actions" in call_kwargs[1]["claims"] or "scope_actions" in call_kwargs.kwargs.get("claims", {})
+        assert "scope_actions" in call_kwargs[1]["claims"] or "scope_actions" in call_kwargs.kwargs.get("claims", {})  # noqa: E501
 
     def test_semantic_pattern_resolved(self):
         agent = _make_agent()
