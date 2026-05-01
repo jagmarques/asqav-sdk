@@ -85,6 +85,32 @@ Bracket related signings into a session for replay and compliance grouping.
 
 Revokes the agent's credentials globally. Irreversible.
 
+### `agent.preflight(actionType)`
+
+Pre-flight check combining revocation/suspension status and policy. Returns `{ cleared, agentActive, policyAllowed, reasons, explanation }`. Fail-open: a sub-check that errors records a warning in `reasons` but does not block.
+
+```ts
+const decision = await agent.preflight("data:read");
+if (!decision.cleared) {
+  throw new Error(decision.explanation);
+}
+```
+
+### `BudgetTracker`
+
+Client-side spend budget. Each recorded spend is signed via the agent so the budget trail is itself tamper-evident. `check()` is a fail-closed arithmetic check; the SDK does not block actions on its own.
+
+```ts
+import { BudgetTracker } from "@asqav/sdk";
+
+const budget = new BudgetTracker({ agent, limit: 10, currency: "USD" });
+
+const decision = budget.check(0.25);
+if (!decision.allowed) throw new Error(decision.reason);
+
+await budget.record("api:openai", 0.23, { model: "gpt-4" });
+```
+
 ### `verifySignature(signatureId)`
 
 Public verification endpoint. No auth required.
