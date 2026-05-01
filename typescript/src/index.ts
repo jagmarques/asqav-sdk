@@ -145,6 +145,8 @@ export interface SignatureResponse {
   coSignatures?: CoSignature[];
   /** URL pattern (relative) for peers to POST their countersignature to. */
   countersignUrl?: string;
+  /** True when the server validated a user_intent envelope on this record. */
+  userIntentVerified?: boolean;
 }
 
 export interface SessionResponse {
@@ -442,6 +444,7 @@ export class Agent {
       required_co_signers?: string[];
       co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
       countersign_url?: string;
+      user_intent_verified?: boolean;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -459,6 +462,7 @@ export class Agent {
         signedAt: s.signed_at,
       })),
       countersignUrl: data.countersign_url,
+      userIntentVerified: data.user_intent_verified,
     };
 
     _dispatchAfter(options.actionType, response);
@@ -478,6 +482,7 @@ export class Agent {
       required_co_signers?: string[];
       co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
       countersign_url?: string;
+      user_intent_verified?: boolean;
     }>("POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
 
     return {
@@ -495,6 +500,7 @@ export class Agent {
         signedAt: s.signed_at,
       })),
       countersignUrl: data.countersign_url,
+      userIntentVerified: data.user_intent_verified,
     };
   }
 

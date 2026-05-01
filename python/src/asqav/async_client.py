@@ -235,6 +235,7 @@ class AsyncAgent:
         parent_id: str | None = None,
         *,
         co_signers: list[str] | None = None,
+        user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically (async).
 
@@ -291,6 +292,7 @@ class AsyncAgent:
             required_co_signers=data.get("required_co_signers"),
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
     async def countersign(self, signature_id: str) -> SignatureResponse:
@@ -325,6 +327,7 @@ class AsyncAgent:
             required_co_signers=data.get("required_co_signers"),
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
     async def start_session(self) -> SessionResponse:

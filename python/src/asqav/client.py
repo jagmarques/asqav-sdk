@@ -220,6 +220,8 @@ class SignatureResponse:
     required_co_signers: list[str] | None = None
     co_signatures: list[dict[str, Any]] | None = None
     countersign_url: str | None = None
+    # True when the server validated a user_intent envelope on this record.
+    user_intent_verified: bool | None = None
 
 
 @dataclass
@@ -891,6 +893,7 @@ class Agent:
         model_name: str | None = None,
         *,
         co_signers: list[str] | None = None,
+        user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -999,6 +1002,7 @@ class Agent:
             required_co_signers=data.get("required_co_signers"),
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
         # Dispatch after-hooks (fail-open).
@@ -1049,6 +1053,7 @@ class Agent:
             required_co_signers=data.get("required_co_signers"),
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
+            user_intent_verified=data.get("user_intent_verified"),
         )
 
     def sign_batch(
