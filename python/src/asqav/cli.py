@@ -51,6 +51,20 @@ queue_app = typer.Typer(
 )
 app.add_typer(queue_app, name="queue")
 
+budget_app = typer.Typer(
+    name="budget",
+    help="Check or record agent spend (wraps asqav.BudgetTracker).",
+    no_args_is_help=True,
+)
+app.add_typer(budget_app, name="budget")
+
+compliance_app = typer.Typer(
+    name="compliance",
+    help="Compliance bundle export (wraps asqav.compliance.export_bundle).",
+    no_args_is_help=True,
+)
+app.add_typer(compliance_app, name="compliance")
+
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -500,3 +514,224 @@ def queue_clear(
 
     deleted = queue.clear()
     print(f"Cleared {deleted} items.")
+
+
+# ---------------------------------------------------------------------------
+# preflight command (wraps Agent.preflight)
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def preflight(
+    agent_id: str = typer.Argument(help="Agent ID to check."),
+    action_type: str = typer.Argument(help="Action to evaluate (e.g. data:read)."),
+    json_out: bool = typer.Option(False, "--json", help="Print result as JSON."),
+) -> None:
+    """Run a pre-flight check (revocation + suspension + policy) for an action.
+
+    Wraps Agent.get(agent_id).preflight(action_type). Exits non-zero when the
+    action is blocked, so it works as a gate in shell pipelines.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav import APIError, Agent
+
+    try:
+        agent = Agent.get(agent_id)
+        result = agent.preflight(action_type)
+    except APIError as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1)
+
+    if json_out:
+        print(json_mod.dumps({
+            "cleared": result.cleared,
+            "agent_active": result.agent_active,
+            "policy_allowed": result.policy_allowed,
+            "reasons": result.reasons,
+            "explanation": result.explanation,
+        }, indent=2))
+    else:
+        verdict = (
+            typer.style("CLEARED", fg=typer.colors.GREEN, bold=True)
+            if result.cleared
+            else typer.style("BLOCKED", fg=typer.colors.RED, bold=True)
+        )
+        typer.echo(f"{verdict}  {result.explanation or action_type}")
+        for reason in result.reasons:
+            typer.echo(f"  - {reason}")
+
+    if not result.cleared:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# budget commands (wraps BudgetTracker)
+# ---------------------------------------------------------------------------
+
+
+@budget_app.command("check")
+def budget_check(
+    agent_id: str = typer.Option(..., "--agent-id", help="Agent ID."),
+    limit: float = typer.Option(..., "--limit", help="Budget ceiling."),
+    estimated_cost: float = typer.Option(..., "--estimated-cost", help="Cost of the pending action."),
+    current_spend: float = typer.Option(0.0, "--current-spend", help="Cumulative spend so far."),
+    currency: str = typer.Option("USD", "--currency", help="Currency code."),
+    json_out: bool = typer.Option(False, "--json", help="Print result as JSON."),
+) -> None:
+    """Pure-math check: would estimated_cost push current_spend past limit?
+
+    Stateless. The CLI runs the same arithmetic as BudgetTracker.check() with
+    the spend you supply. For server-side enforcement use 'asqav budget record'.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav import Agent, BudgetTracker
+
+    agent = Agent.get(agent_id)
+    tracker = BudgetTracker(agent, limit=limit, currency=currency)
+    tracker._spend = float(current_spend)
+    result = tracker.check(estimated_cost)
+
+    if json_out:
+        print(json_mod.dumps({
+            "allowed": result.allowed,
+            "current_spend": result.current_spend,
+            "limit": result.limit,
+            "remaining": result.remaining,
+            "reason": result.reason,
+        }, indent=2))
+    else:
+        verdict = (
+            typer.style("ALLOWED", fg=typer.colors.GREEN, bold=True)
+            if result.allowed
+            else typer.style("DENIED", fg=typer.colors.RED, bold=True)
+        )
+        typer.echo(f"{verdict}  remaining={result.remaining:.4f} {currency}")
+        if result.reason:
+            typer.echo(f"  reason: {result.reason}")
+
+    if not result.allowed:
+        raise typer.Exit(code=1)
+
+
+@budget_app.command("record")
+def budget_record(
+    agent_id: str = typer.Option(..., "--agent-id", help="Agent ID."),
+    action_type: str = typer.Option(..., "--action", help="Action being recorded."),
+    actual_cost: float = typer.Option(..., "--actual-cost", help="Realized cost."),
+    limit: float = typer.Option(..., "--limit", help="Budget ceiling for the signed payload."),
+    current_spend: float = typer.Option(0.0, "--current-spend", help="Cumulative spend before this record."),
+    currency: str = typer.Option("USD", "--currency", help="Currency code."),
+) -> None:
+    """Sign a spend record on the server (tamper-evident).
+
+    Wraps BudgetTracker.record(). The signed payload includes cost, currency,
+    cumulative spend after the record, and the configured limit.
+    """
+    _init_sdk()
+    from asqav import APIError, Agent, BudgetTracker
+
+    try:
+        agent = Agent.get(agent_id)
+        tracker = BudgetTracker(agent, limit=limit, currency=currency)
+        tracker._spend = float(current_spend)
+        sig = tracker.record(action_type, actual_cost=actual_cost)
+    except APIError as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"signature_id: {sig.signature_id}")
+    typer.echo(f"action_id:    {sig.action_id}")
+    typer.echo(f"verify_url:   {sig.verification_url}")
+
+
+# ---------------------------------------------------------------------------
+# approve command (wraps approve_action)
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def approve(
+    session_id: str = typer.Argument(help="Signing session to approve."),
+    entity_id: str = typer.Argument(help="Entity providing approval."),
+    json_out: bool = typer.Option(False, "--json", help="Print result as JSON."),
+) -> None:
+    """Approve a pending signing-action session. Wraps asqav.approve_action()."""
+    import json as json_mod
+
+    _init_sdk()
+    from asqav import APIError, approve_action
+
+    try:
+        result = approve_action(session_id=session_id, entity_id=entity_id)
+    except APIError as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1)
+
+    if json_out:
+        print(json_mod.dumps({
+            "session_id": result.session_id,
+            "entity_id": result.entity_id,
+            "signatures_collected": result.signatures_collected,
+            "approvals_required": result.approvals_required,
+            "status": result.status,
+            "approved": result.approved,
+        }, indent=2))
+    else:
+        progress = f"{result.signatures_collected}/{result.approvals_required}"
+        verdict = (
+            typer.style("APPROVED", fg=typer.colors.GREEN, bold=True)
+            if result.approved
+            else typer.style("PENDING", fg=typer.colors.YELLOW, bold=True)
+        )
+        typer.echo(f"{verdict}  {progress} signatures, status={result.status}")
+
+
+# ---------------------------------------------------------------------------
+# compliance commands (wraps export_bundle)
+# ---------------------------------------------------------------------------
+
+
+@compliance_app.command("frameworks")
+def compliance_frameworks() -> None:
+    """List the compliance frameworks the bundle exporter recognizes."""
+    from asqav.compliance import FRAMEWORKS
+
+    for key, meta in sorted(FRAMEWORKS.items()):
+        typer.echo(f"{key}\t{meta.get('name', key)}")
+
+
+@compliance_app.command("export")
+def compliance_export(
+    session: str = typer.Option(..., "--session", help="Session ID to bundle signatures from."),
+    framework: str = typer.Option("eu_ai_act_art12", "--framework", help="Compliance framework key."),
+    output: str = typer.Option(..., "--output", "-o", help="File to write the bundle JSON to."),
+) -> None:
+    """Pull a session's signatures and export a Merkle-rooted compliance bundle.
+
+    Wraps asqav.client.get_session_signatures() + asqav.compliance.export_bundle().
+    Run 'asqav compliance frameworks' to see valid framework keys.
+    """
+    _init_sdk()
+    from asqav import APIError
+    from asqav.client import get_session_signatures
+    from asqav.compliance import export_bundle
+
+    try:
+        sigs = get_session_signatures(session)
+    except APIError as exc:
+        print(f"Error fetching signatures: {exc}")
+        raise typer.Exit(code=1)
+
+    try:
+        bundle = export_bundle(sigs, framework=framework)
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1)
+
+    bundle.to_file(output)
+    typer.echo(f"wrote {bundle.receipt_count} receipts to {output}")
+    typer.echo(f"merkle_root: {bundle.merkle_root}")
