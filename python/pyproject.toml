@@ -62,6 +62,7 @@ smolagents = ["smolagents>=1.0.0"]
 dspy = ["dspy>=2.5.0"]
 letta = ["letta-client>=1.10.0"]
 strands = ["strands-agents>=0.1.0"]
+instructor = ["instructor>=1.5.0"]
 all = [
     "httpx>=0.24.0",
     "typer>=0.12.0",
@@ -75,6 +76,7 @@ all = [
     "dspy>=2.5.0",
     "letta-client>=1.10.0",
     "strands-agents>=0.1.0",
+    "instructor>=1.5.0",
 ]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0", "ruff>=0.5.0", "mypy>=1.10.0"]
 
