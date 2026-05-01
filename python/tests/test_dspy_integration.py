@@ -62,7 +62,6 @@ BaseCallback = _install_dspy_mocks()
 
 from asqav.extras.dspy import AsqavDSPyCallback  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

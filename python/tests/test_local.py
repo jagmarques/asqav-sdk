@@ -10,10 +10,8 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import pytest
 
 from asqav.local import LocalQueue, local_sign
-
 
 # ---------------------------------------------------------------------------
 # LocalQueue unit tests
@@ -162,9 +160,9 @@ def test_local_sign_convenience(tmp_path: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-from typer.testing import CliRunner
+from typer.testing import CliRunner  # noqa: E402
 
-from asqav.cli import app
+from asqav.cli import app  # noqa: E402
 
 runner = CliRunner()
 

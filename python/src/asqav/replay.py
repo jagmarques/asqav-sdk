@@ -24,6 +24,8 @@ class ReplayStep:
     verification_url: str
     chain_valid: bool
     explanation: str
+    # Predecessor's chain hash; verify_chain recomputes and compares.
+    prev_chain_hash: str | None = None
 
 
 @dataclass
@@ -53,6 +55,7 @@ class ReplayTimeline:
                     "verification_url": s.verification_url,
                     "chain_valid": s.chain_valid,
                     "explanation": s.explanation,
+                    "prev_chain_hash": s.prev_chain_hash,
                 }
                 for s in self.steps
             ],
@@ -101,11 +104,9 @@ class ReplayTimeline:
         return "\n".join(lines)
 
     def verify_chain(self) -> bool:
-        """Re-verify the SHA-256 hash chain across all steps.
-
-        Returns True if every step chains correctly to the previous one.
-        Updates chain_integrity on the timeline and chain_valid on each step.
-        """
+        """Recompute each step's predecessor hash, compare to stored
+        ``prev_chain_hash``. Mismatch = tampering. Steps lacking a stored
+        hash are marked invalid rather than passing silently."""
         if not self.steps:
             self.chain_integrity = True
             return True
@@ -114,6 +115,18 @@ class ReplayTimeline:
         all_valid = True
 
         for step in self.steps:
+            if step.index == 0:
+                step.chain_valid = True
+            else:
+                stored = getattr(step, "prev_chain_hash", None)
+                if stored is None:
+                    step.chain_valid = False
+                    all_valid = False
+                else:
+                    step.chain_valid = stored == prev_hash
+                    if not step.chain_valid:
+                        all_valid = False
+
             entry = json.dumps(
                 {
                     "signature_id": step.signature_id,
@@ -124,17 +137,7 @@ class ReplayTimeline:
                 sort_keys=True,
                 separators=(",", ":"),
             )
-            current_hash = hashlib.sha256(entry.encode()).hexdigest()
-
-            # First step is always valid (no predecessor to check)
-            if step.index == 0:
-                step.chain_valid = True
-            else:
-                # The step was originally built with the correct prev_hash;
-                # re-verify by recomputing
-                step.chain_valid = True
-
-            prev_hash = current_hash
+            prev_hash = hashlib.sha256(entry.encode()).hexdigest()
 
         self.chain_integrity = all_valid
         return all_valid
@@ -268,9 +271,27 @@ def _build_timeline(
     sig_dicts = [_normalize_signature(s) for s in sorted_sigs]
     chain_results = _verify_hash_chain(sig_dicts)
 
+    # Rolling chain hash; each step records its predecessor's value.
+    chain_hashes: list[str] = []
+    prev_hash = ""
+    for sig in sorted_sigs:
+        entry = json.dumps(
+            {
+                "signature_id": sig.signature_id,
+                "action_type": sig.action_type,
+                "timestamp": sig.signed_at,
+                "prev_hash": prev_hash,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        prev_hash = hashlib.sha256(entry.encode()).hexdigest()
+        chain_hashes.append(prev_hash)
+
     steps: list[ReplayStep] = []
     for i, sig in enumerate(sorted_sigs):
         explanation = _build_explanation(sig.action_type, sig.payload)
+        prev_chain_hash = chain_hashes[i - 1] if i > 0 else None
         steps.append(
             ReplayStep(
                 index=i,
@@ -281,6 +302,7 @@ def _build_timeline(
                 verification_url=sig.verification_url,
                 chain_valid=chain_results[i] if i < len(chain_results) else False,
                 explanation=explanation,
+                prev_chain_hash=prev_chain_hash,
             )
         )
 
