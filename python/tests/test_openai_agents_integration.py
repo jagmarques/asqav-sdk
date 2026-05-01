@@ -10,15 +10,18 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# ---------------------------------------------------------------------------
-# Mock the `agents` package before importing the guardrail module.
-# The real openai-agents package is not installed in test env.
-# ---------------------------------------------------------------------------
-
+# Mock `agents` + `agents.tracing` before importing the guardrail.
 _mock_agents = ModuleType("agents")
+_mock_agents_tracing = ModuleType("agents.tracing")
+_mock_agents_tracing.Span = MagicMock  # type: ignore[attr-defined]
+_mock_agents_tracing.Trace = MagicMock  # type: ignore[attr-defined]
+_mock_agents_tracing.TracingProcessor = MagicMock  # type: ignore[attr-defined]
+_mock_agents.Agent = MagicMock  # type: ignore[attr-defined]
+_mock_agents.add_trace_processor = MagicMock()  # type: ignore[attr-defined]
+_mock_agents.tracing = _mock_agents_tracing  # type: ignore[attr-defined]
 sys.modules["agents"] = _mock_agents
+sys.modules["agents.tracing"] = _mock_agents_tracing
 
-# Force reimport so the module picks up the mock
 sys.modules.pop("asqav.extras.openai_agents", None)
 
 from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa: E402, I001

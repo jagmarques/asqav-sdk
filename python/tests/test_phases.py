@@ -5,11 +5,8 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from asqav.client import PreflightResult, SignatureResponse
 from asqav.phases import PhaseChain, sign_with_phases
-
 
 # ---------------------------------------------------------------------------
 # Helpers
