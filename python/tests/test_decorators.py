@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asqav
 from asqav import client as asqav_client
-from asqav.decorators import Session, async_session, session, sign
+from asqav.decorators import session, sign
 
 # ---------------------------------------------------------------------------
 # Fixtures
