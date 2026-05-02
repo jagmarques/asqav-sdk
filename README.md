@@ -112,6 +112,40 @@ await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" 
 
 The fingerprint format is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
+## Roadmap
+
+What ships next on Asqav. "Today" means available on `main`. "Coming" means on the roadmap, not yet shipped.
+
+### Today
+
+**1. Hash-only mode for cloud**
+- WHAT: Hash-only mode on cloud. The SDK hashes `{action_type, context}` locally with RFC 8785 + SHA-256 and sends only the hash plus a small whitelisted metadata bag.
+- WHY NOW: Default for any client pointed at api.asqav.com. Raw prompts and tool arguments never leave your process. Spec is open in `docs/fingerprint-spec.md` and cross-language vectors ship in `conformance/vectors.json`.
+
+**2. Self-hosted signer (split-trust)**
+- WHAT: Self-hosted signer container. Run the Asqav signing path inside your VPC; ML-DSA-65 private keys, raw prompts, and reasoning traces never cross the container boundary.
+- WHY NOW: Compose file and env contract documented in the Asqav backend repo at `docker-compose.signer.yml` and `docs/self-hosted-signer.md`. Optional digest-only relay back to `api.asqav.com` is gated by a fixed allowlist enforced in code.
+
+**3. Bring-your-own KMS (AWS KMS / GCP KMS)** - Enterprise tier
+- WHAT: Bring-your-own KMS. Provision your agents' ML-DSA-65 keys in your own AWS KMS or GCP KMS so signing material lives in your HSM, not ours.
+- WHY NOW: AWS KMS uses the `ML_DSA_65` key spec on FIPS 140-3 Level 3 HSMs; GCP KMS uses `PQ_SIGN_ML_DSA_65` (currently in software preview, HSM coming). Toggle with `KMS_PROVIDER=aws|gcp`.
+
+**4. Customer-owned storage**
+- WHAT: Customer-owned storage on self-hosted. Postgres, Redis, raw payloads, and ML-DSA private keys all sit in your container. Optional upstream relay only ever sees `{hash, signature, timestamp, algorithm, agent_id, signature_id}`.
+- WHY NOW: The allowlist is enforced in code at `src/asqav_cloud/core/signer_relay.py` (Asqav backend repo) and asserted by `tests/test_self_hosted_signer.py`. Auditors can read the forbidden-keys frozenset and confirm what cannot leak.
+
+### Coming
+
+**5. SCITT / COSE receipt export**
+- WHAT: A SCITT-compatible receipt format alongside the current JCS receipt. The same ML-DSA-65 key signs both; the COSE_Sign1 variant signs the CBOR Sig_structure so SCITT transparency services can ingest it.
+- WHY NOW: Receipt format and canonical record are already deterministic. The remaining work is a CBOR encoder and a SCITT registration policy. Tracking the IETF SCITT-Architecture and COSE Receipts drafts.
+
+**6. Air-gapped / on-prem mode**
+- WHAT: Self-hosted signer with offline license validation, zero outbound HTTP, and a packaged update channel.
+- WHY NOW: The signer container already runs without AWS, GCP, or Bitcoin dependencies. Remaining gap is offline license validation and a fully-vendored timestamping path. Targeted at regulated EU institutions with no-egress requirements.
+
+Full roadmap page: <https://asqav.com/roadmap>.
+
 ## Why governance
 
 | Without governance | With Asqav |
