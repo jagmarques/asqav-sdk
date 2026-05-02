@@ -181,14 +181,14 @@ Node 18 or newer. Uses the built-in `fetch`. No transitive runtime dependencies.
 
 ## Roadmap
 
-Six-line view of what is shipped and what is next on Asqav:
+Six-line view of what is shipped on Asqav:
 
 - Hash-only mode for cloud - Today (default for `*.asqav.com`).
 - Self-hosted signer (split-trust) - Today (compose file in the Asqav backend repo).
 - Bring-your-own KMS (AWS KMS / GCP KMS) - Today, Enterprise tier.
 - Customer-owned storage - Today (self-hosted; relay payload allowlist enforced in code).
+- SCITT / COSE_Sign1 receipt export - Today (public `GET /api/v1/signatures/{id}/cose` returns `application/cose`).
 - Air-gapped / on-prem mode - Today (offline license + zero-egress; see the backend repo `docs/airgapped-mode.md`).
-- SCITT / COSE receipt export - Coming.
 
 See the docs at <https://asqav.com/docs> for the current feature set.
 
