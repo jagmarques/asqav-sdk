@@ -134,17 +134,17 @@ What ships next on Asqav. "Today" means available on `main`. "Coming" means on t
 - WHAT: Customer-owned storage on self-hosted. Postgres, Redis, raw payloads, and ML-DSA private keys all sit in your container. Optional upstream relay only ever sees `{hash, signature, timestamp, algorithm, agent_id, signature_id}`.
 - WHY NOW: The allowlist is enforced in code at `src/asqav_cloud/core/signer_relay.py` (Asqav backend repo) and asserted by `tests/test_self_hosted_signer.py`. Auditors can read the forbidden-keys frozenset and confirm what cannot leak.
 
+**5. Air-gapped / on-prem mode**
+- WHAT: Self-hosted signer with offline license validation and zero outbound HTTP.
+- WHY NOW: Egress gate, license issuer, and operator guide live in the Asqav backend repo (`src/asqav_cloud/core/airgap.py`, `tools/issue_license.py`, `docs/airgapped-mode.md`). Targeted at regulated EU institutions with no-egress requirements.
+
 ### Coming
 
-**5. SCITT / COSE receipt export**
+**6. SCITT / COSE receipt export**
 - WHAT: A SCITT-compatible receipt format alongside the current JCS receipt. The same ML-DSA-65 key signs both; the COSE_Sign1 variant signs the CBOR Sig_structure so SCITT transparency services can ingest it.
 - WHY NOW: Receipt format and canonical record are already deterministic. The remaining work is a CBOR encoder and a SCITT registration policy. Tracking the IETF SCITT-Architecture and COSE Receipts drafts.
 
-**6. Air-gapped / on-prem mode**
-- WHAT: Self-hosted signer with offline license validation, zero outbound HTTP, and a packaged update channel.
-- WHY NOW: The signer container already runs without AWS, GCP, or Bitcoin dependencies. Remaining gap is offline license validation and a fully-vendored timestamping path. Targeted at regulated EU institutions with no-egress requirements.
-
-Full roadmap page: <https://asqav.com/roadmap>.
+See the docs at <https://asqav.com/docs> for the current feature set.
 
 ## Why governance
 
