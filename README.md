@@ -114,7 +114,7 @@ The fingerprint format is RFC 8785-style sorted JSON with no whitespace, hashed 
 
 ## Roadmap
 
-What ships next on Asqav. "Today" means available on `main`. "Coming" means on the roadmap, not yet shipped.
+What ships on Asqav today. Each item is available on `main`.
 
 ### Today
 
@@ -134,15 +134,13 @@ What ships next on Asqav. "Today" means available on `main`. "Coming" means on t
 - WHAT: Customer-owned storage on self-hosted. Postgres, Redis, raw payloads, and ML-DSA private keys all sit in your container. Optional upstream relay only ever sees `{hash, signature, timestamp, algorithm, agent_id, signature_id}`.
 - WHY NOW: The allowlist is enforced in code at `src/asqav_cloud/core/signer_relay.py` (Asqav backend repo) and asserted by `tests/test_self_hosted_signer.py`. Auditors can read the forbidden-keys frozenset and confirm what cannot leak.
 
-**5. Air-gapped / on-prem mode**
+**5. SCITT / COSE_Sign1 receipt export**
+- WHAT: SCITT-compatible receipt export. Public `GET /api/v1/signatures/{id}/cose` returns `application/cose` (CBOR tag 18). The same ML-DSA-65 key signs both the JCS form and the COSE_Sign1 form, so SCITT transparency services can ingest receipts directly.
+- WHY NOW: Receipt format and canonical record are deterministic. The CBOR encoder and registration policy are live; both forms share the same key material so existing JCS verifiers keep working unchanged.
+
+**6. Air-gapped / on-prem mode**
 - WHAT: Self-hosted signer with offline license validation and zero outbound HTTP.
 - WHY NOW: Egress gate, license issuer, and operator guide live in the Asqav backend repo (`src/asqav_cloud/core/airgap.py`, `tools/issue_license.py`, `docs/airgapped-mode.md`). Targeted at regulated EU institutions with no-egress requirements.
-
-### Coming
-
-**6. SCITT / COSE receipt export**
-- WHAT: A SCITT-compatible receipt format alongside the current JCS receipt. The same ML-DSA-65 key signs both; the COSE_Sign1 variant signs the CBOR Sig_structure so SCITT transparency services can ingest it.
-- WHY NOW: Receipt format and canonical record are already deterministic. The remaining work is a CBOR encoder and a SCITT registration policy. Tracking the IETF SCITT-Architecture and COSE Receipts drafts.
 
 See the docs at <https://asqav.com/docs> for the current feature set.
 
