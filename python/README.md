@@ -48,10 +48,10 @@ Six-line view of what is shipped and what is next on Asqav:
 - Self-hosted signer (split-trust) - Today.
 - Bring-your-own KMS (AWS KMS / GCP KMS) - Today, Enterprise tier.
 - Customer-owned storage - Today (self-hosted; relay payload allowlist enforced in code).
+- Air-gapped / on-prem mode - Today (offline license + zero-egress, see `docs/airgapped-mode.md` in the backend repo).
 - SCITT / COSE receipt export - Coming.
-- Air-gapped / on-prem mode - Coming.
 
-Full detail with file citations is in the [root README](https://github.com/jagmarques/asqav-sdk#roadmap) and at <https://asqav.com/roadmap>.
+See the docs at <https://asqav.com/docs> for the current feature set.
 
 ## Documentation
 
