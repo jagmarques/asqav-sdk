@@ -128,7 +128,7 @@ What ships next on Asqav. "Today" means available on `main`. "Coming" means on t
 
 **3. Bring-your-own KMS (AWS KMS / GCP KMS)** - Enterprise tier
 - WHAT: Bring-your-own KMS. Provision your agents' ML-DSA-65 keys in your own AWS KMS or GCP KMS so signing material lives in your HSM, not ours.
-- WHY NOW: AWS KMS uses the `ML_DSA_65` key spec on FIPS 140-3 Level 3 HSMs; GCP KMS uses `PQ_SIGN_ML_DSA_65` (PQC preview). Toggle with `KMS_PROVIDER=aws|gcp`.
+- WHY NOW: AWS KMS uses the `ML_DSA_65` key spec on FIPS 140-3 Level 3 HSMs; GCP KMS uses `PQ_SIGN_ML_DSA_65` (currently in software preview, HSM coming). Toggle with `KMS_PROVIDER=aws|gcp`.
 
 **4. Customer-owned storage**
 - WHAT: Customer-owned storage on self-hosted. Postgres, Redis, raw payloads, and ML-DSA private keys all sit in your container. Optional upstream relay only ever sees `{hash, signature, timestamp, algorithm, agent_id, signature_id}`.
@@ -137,7 +137,7 @@ What ships next on Asqav. "Today" means available on `main`. "Coming" means on t
 ### Coming
 
 **5. SCITT / COSE receipt export**
-- WHAT: Same ML-DSA-65 signature you get today, wrapped in a COSE_Sign1 structure so it can be ingested by IETF SCITT transparency services.
+- WHAT: A SCITT-compatible receipt format alongside the current JCS receipt. The same ML-DSA-65 key signs both; the COSE_Sign1 variant signs the CBOR Sig_structure so SCITT transparency services can ingest it.
 - WHY NOW: Receipt format and canonical record are already deterministic. The remaining work is a CBOR encoder and a SCITT registration policy. Tracking the IETF SCITT-Architecture and COSE Receipts drafts.
 
 **6. Air-gapped / on-prem mode**
