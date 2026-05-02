@@ -179,6 +179,19 @@ All thrown errors extend `AsqavError`. `AuthenticationError`, `RateLimitError`, 
 
 Node 18 or newer. Uses the built-in `fetch`. No transitive runtime dependencies.
 
+## Roadmap
+
+Six-line view of what is shipped and what is next on Asqav:
+
+- Hash-only mode for cloud - Today (default for `*.asqav.com`).
+- Self-hosted signer (split-trust) - Today (compose file in the Asqav backend repo).
+- Bring-your-own KMS (AWS KMS / GCP KMS) - Today, Enterprise tier.
+- Customer-owned storage - Today (self-hosted; relay payload allowlist enforced in code).
+- SCITT / COSE receipt export - Coming.
+- Air-gapped / on-prem mode - Coming.
+
+Full detail with file citations lives in the [root README roadmap section](../README.md#roadmap) and at <https://asqav.com/roadmap>.
+
 ## License
 
 MIT. Get an API key at [asqav.com](https://asqav.com).
