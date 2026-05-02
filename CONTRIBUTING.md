@@ -87,11 +87,11 @@ To start contributing code, you will need a Python development environment (Pyth
 * Limit the first line to 72 characters or less.
 * Reference issues and pull requests liberally after the first line.
 * Use [conventional commit](https://www.conventionalcommits.org/) prefixes where applicable:
-  * `feat:` — new feature
-  * `fix:` — bug fix
-  * `docs:` — documentation only
-  * `test:` — adding or updating tests
-  * `refactor:` — code change that is neither a fix nor a feature
+  * `feat:`  -  new feature
+  * `fix:`  -  bug fix
+  * `docs:`  -  documentation only
+  * `test:`  -  adding or updating tests
+  * `refactor:`  -  code change that is neither a fix nor a feature
 
 ### Python Styleguide
 
