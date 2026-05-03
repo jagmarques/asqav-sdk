@@ -57,6 +57,7 @@ from .client import (
     SigningSessionResponse,
     Span,
     TokenResponse,
+    VerificationDetail,
     VerificationResponse,
     add_entity,
     approve_action,
@@ -101,6 +102,8 @@ from .client import (
     update_signing_group,
     verify_attestation,
     verify_output,
+    list_rejected_attempts,
+    post_applied_attestation,
     verify_signature,
 )
 from .compliance import ComplianceBundle, export_bundle
@@ -182,6 +185,10 @@ __all__ = [
     # Verification
     "verify_signature",
     "verify_output",
+    "VerificationDetail",
+    # May 2026 release helpers
+    "post_applied_attestation",
+    "list_rejected_attempts",
     # Trust Signal Export
     "generate_attestation",
     "verify_attestation",
