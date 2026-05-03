@@ -88,8 +88,10 @@ from .client import (
     list_agents,
     list_delegations,
     list_entities,
+    list_rejected_attempts,
     list_risk_rules,
     list_sessions,
+    post_applied_attestation,
     recover_share,
     refresh_keypair,
     remove_entity,
@@ -102,8 +104,6 @@ from .client import (
     update_signing_group,
     verify_attestation,
     verify_output,
-    list_rejected_attempts,
-    post_applied_attestation,
     verify_signature,
 )
 from .compliance import ComplianceBundle, export_bundle
