@@ -287,6 +287,23 @@ class CertificateResponse:
 
 
 @dataclass
+class VerificationDetail:
+    """Granular per-axis verification outcome (May 2026 release).
+
+    Optional on the response; older servers do not return it.
+    `validation_label` is one of: valid, invalid_signature,
+    signature_expired, signer_key_changed, algorithm_mismatch,
+    agent_inactive, agent_unknown.
+    """
+
+    signer_key_match: bool
+    signature_valid: bool
+    algorithm_match: bool
+    agent_active: bool
+    validation_label: str
+
+
+@dataclass
 class VerificationResponse:
     """Public verification response."""
 
@@ -301,6 +318,7 @@ class VerificationResponse:
     signed_at: float
     verified: bool
     verification_url: str
+    verification_detail: VerificationDetail | None = None
 
 
 @dataclass
@@ -894,6 +912,9 @@ class Agent:
         *,
         co_signers: list[str] | None = None,
         user_intent: dict[str, Any] | None = None,
+        nonce: str | None = None,
+        valid_seconds: int | None = None,
+        expected_executor_pubkey_b64: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -982,6 +1003,14 @@ class Agent:
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
+        # Replay protection (A7).
+        if nonce is not None:
+            body["nonce"] = nonce
+        if valid_seconds is not None:
+            body["valid_seconds"] = valid_seconds
+        # Counterparty pinning (A5). Pass through verbatim; server decodes b64.
+        if expected_executor_pubkey_b64 is not None:
+            body["expected_executor_pubkey_b64"] = expected_executor_pubkey_b64
         data = _post(f"/agents/{self.agent_id}/sign", body)
 
         response = SignatureResponse(
@@ -1948,6 +1977,18 @@ def verify_signature(signature_id: str) -> VerificationResponse:
                 raise APIError("Signature not found", 404) from e
             raise APIError(str(e), e.code) from e
 
+    detail_raw = data.get("verification_detail")
+    detail = (
+        VerificationDetail(
+            signer_key_match=detail_raw["signer_key_match"],
+            signature_valid=detail_raw["signature_valid"],
+            algorithm_match=detail_raw["algorithm_match"],
+            agent_active=detail_raw["agent_active"],
+            validation_label=detail_raw["validation_label"],
+        )
+        if isinstance(detail_raw, dict)
+        else None
+    )
     return VerificationResponse(
         signature_id=data["signature_id"],
         agent_id=data["agent_id"],
@@ -1960,7 +2001,73 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         signed_at=_parse_timestamp(data["signed_at"]),
         verified=data["verified"],
         verification_url=data["verification_url"],
+        verification_detail=detail,
     )
+
+
+def post_applied_attestation(
+    signature_id: str,
+    *,
+    applied_at: str,
+    outcome: str,
+    executor_pubkey_b64: str,
+    executor_algorithm: str,
+    signature_b64: str,
+    error_code: str | None = None,
+) -> dict[str, Any]:
+    """Post the executor side of an action (A4+A5).
+
+    The downstream service that actually carried out the action signs
+    `{signature_id, applied_at, outcome, error_code}` with its identity
+    key and posts back. If the original signer pinned an executor public
+    key (`expected_executor_pubkey_b64` on sign), the server rejects an
+    attestation signed by any other key.
+
+    Args:
+        signature_id: The sig_... id from the original sign().
+        applied_at: ISO timestamp when the action ran.
+        outcome: success | fail | partial.
+        executor_pubkey_b64: Base64 of the executor public key.
+        executor_algorithm: e.g. "ML-DSA-65".
+        signature_b64: Base64 of the executor signature over the
+            canonical `{signature_id, applied_at, outcome, error_code}`
+            JSON (sorted keys, separators (",",":")).
+        error_code: Optional error code string.
+
+    Returns:
+        Dict with `signature_id` and `applied_attestation` keys.
+    """
+    body = {
+        "applied_at": applied_at,
+        "outcome": outcome,
+        "executor_pubkey_b64": executor_pubkey_b64,
+        "executor_algorithm": executor_algorithm,
+        "signature_b64": signature_b64,
+    }
+    if error_code is not None:
+        body["error_code"] = error_code
+    return _post(f"/signatures/{signature_id}/applied-attestation", body)
+
+
+def list_rejected_attempts(
+    *,
+    failure_reason: str | None = None,
+    agent_id: str | None = None,
+    hours: int = 24,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """List rejected sign / verify / replay attempts for the org (A2).
+
+    Pro+ feature. Org-scoped via the API key. Returns the most recent
+    rejections first.
+    """
+    params = [f"hours={hours}", f"limit={limit}", f"offset={offset}"]
+    if failure_reason:
+        params.append(f"failure_reason={failure_reason}")
+    if agent_id:
+        params.append(f"agent_id={agent_id}")
+    return _get("/observability/rejected-attempts?" + "&".join(params))
 
 
 def verify_output(signature_id: str, expected_output: Any) -> dict[str, Any]:
