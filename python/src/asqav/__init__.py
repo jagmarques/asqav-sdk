@@ -57,6 +57,7 @@ from .client import (
     SigningSessionResponse,
     Span,
     TokenResponse,
+    VerificationDetail,
     VerificationResponse,
     add_entity,
     approve_action,
@@ -87,8 +88,10 @@ from .client import (
     list_agents,
     list_delegations,
     list_entities,
+    list_rejected_attempts,
     list_risk_rules,
     list_sessions,
+    post_applied_attestation,
     recover_share,
     refresh_keypair,
     remove_entity,
@@ -182,6 +185,10 @@ __all__ = [
     # Verification
     "verify_signature",
     "verify_output",
+    "VerificationDetail",
+    # May 2026 release helpers
+    "post_applied_attestation",
+    "list_rejected_attempts",
     # Trust Signal Export
     "generate_attestation",
     "verify_attestation",
