@@ -136,6 +136,16 @@ export interface SignOptions {
   /** Optional user-intent envelope. The end user signs a digest of the
    * action and the SDK passes it through to the backend verbatim. */
   userIntent?: UserIntent;
+  /** Optional opaque nonce for replay protection. Unique per agent. */
+  nonce?: string;
+  /** Optional validity window in seconds. Sets `valid_until = signed_at + validSeconds`
+   * on the server; verifying the record after expiry returns
+   * `verified=false` with `validation_label="signature_expired"`. */
+  validSeconds?: number;
+  /** A5: counterparty pinning. Base64 of the executor public key the
+   * original signer expects on the post-apply attestation. The cloud
+   * rejects attestations from any other key with 403 `executor_key_mismatch`. */
+  expectedExecutorPubkeyB64?: string;
 }
 
 export interface CoSignature {
@@ -170,6 +180,25 @@ export interface SessionResponse {
   endedAt?: string;
 }
 
+/** Granular sub-checks the cloud returns alongside `verified`. The
+ * `validationLabel` string is the dominant failure reason when
+ * `verified=false`, e.g. `signature_expired` or `signer_key_changed`. */
+export interface VerificationDetail {
+  signerKeyMatch: boolean;
+  signatureValid: boolean;
+  algorithmMatch: boolean;
+  agentActive: boolean;
+  validationLabel:
+    | "valid"
+    | "invalid_signature"
+    | "signature_expired"
+    | "signer_key_changed"
+    | "algorithm_mismatch"
+    | "agent_inactive"
+    | "agent_unknown"
+    | string;
+}
+
 export interface VerificationResponse {
   signatureId: string;
   agentId: string;
@@ -182,6 +211,61 @@ export interface VerificationResponse {
   signedAt: string;
   verified: boolean;
   verificationUrl?: string;
+  verificationDetail?: VerificationDetail;
+}
+
+export interface AppliedAttestationOptions {
+  signatureId: string;
+  appliedAt: string;
+  outcome: "success" | "fail" | "partial";
+  errorCode?: string | null;
+  executorPubkeyB64: string;
+  executorAlgorithm: string;
+  signatureB64: string;
+}
+
+export interface AppliedAttestationResponse {
+  signatureId: string;
+  appliedAttestation: {
+    appliedAt: string;
+    outcome: string;
+    errorCode: string | null;
+    executorPubkeyB64: string;
+    executorAlgorithm: string;
+    signatureB64: string;
+  };
+}
+
+export interface ListRejectedAttemptsOptions {
+  failureReason?: string;
+  agentId?: string;
+  hours?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface RejectedAttempt {
+  id: number;
+  createdAt: string;
+  organizationId: string | null;
+  agentId: string | null;
+  endpoint: string;
+  actionType: string | null;
+  failureReason: string;
+  statusCode: number;
+  suppliedSignerKey: string | null;
+  suppliedSignaturePrefix: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  requestId: string | null;
+  detail: string | null;
+}
+
+export interface RejectedAttemptList {
+  items: RejectedAttempt[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface ListSessionsOptions {
@@ -452,6 +536,15 @@ export class Agent {
     if (options.coSigners && options.coSigners.length > 0) {
       body.co_signers = [...options.coSigners];
     }
+    if (options.nonce !== undefined) {
+      body.nonce = options.nonce;
+    }
+    if (options.validSeconds !== undefined) {
+      body.valid_seconds = options.validSeconds;
+    }
+    if (options.expectedExecutorPubkeyB64 !== undefined) {
+      body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
+    }
 
     const data = await request<{
       signature: string;
@@ -655,6 +748,13 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signed_at: string;
     verified: boolean;
     verification_url?: string;
+    verification_detail?: {
+      signer_key_match: boolean;
+      signature_valid: boolean;
+      algorithm_match: boolean;
+      agent_active: boolean;
+      validation_label: string;
+    };
   }>("GET", `/verify/${signatureId}`);
 
   return {
@@ -669,6 +769,120 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signedAt: data.signed_at,
     verified: data.verified,
     verificationUrl: data.verification_url,
+    verificationDetail: data.verification_detail
+      ? {
+          signerKeyMatch: data.verification_detail.signer_key_match,
+          signatureValid: data.verification_detail.signature_valid,
+          algorithmMatch: data.verification_detail.algorithm_match,
+          agentActive: data.verification_detail.agent_active,
+          validationLabel: data.verification_detail.validation_label,
+        }
+      : undefined,
+  };
+}
+
+/** Post the executor side of an action (A4 + A5).
+ *
+ * The executor signs the canonical bytes
+ * `{applied_at, error_code, outcome, signature_id}` (sorted-keys JSON,
+ * no whitespace) with its identity key and posts the base64 of pubkey +
+ * signature back. If the original signer pinned an expected executor
+ * public key on `agent.sign({ expectedExecutorPubkeyB64 })`, any
+ * attestation from a different key is rejected with 403.
+ */
+export async function postAppliedAttestation(
+  options: AppliedAttestationOptions,
+): Promise<AppliedAttestationResponse> {
+  const data = await request<{
+    signature_id: string;
+    applied_attestation: {
+      applied_at: string;
+      outcome: string;
+      error_code: string | null;
+      executor_pubkey_b64: string;
+      executor_algorithm: string;
+      signature_b64: string;
+    };
+  }>("POST", `/signatures/${options.signatureId}/applied-attestation`, {
+    applied_at: options.appliedAt,
+    outcome: options.outcome,
+    error_code: options.errorCode ?? null,
+    executor_pubkey_b64: options.executorPubkeyB64,
+    executor_algorithm: options.executorAlgorithm,
+    signature_b64: options.signatureB64,
+  });
+  return {
+    signatureId: data.signature_id,
+    appliedAttestation: {
+      appliedAt: data.applied_attestation.applied_at,
+      outcome: data.applied_attestation.outcome,
+      errorCode: data.applied_attestation.error_code,
+      executorPubkeyB64: data.applied_attestation.executor_pubkey_b64,
+      executorAlgorithm: data.applied_attestation.executor_algorithm,
+      signatureB64: data.applied_attestation.signature_b64,
+    },
+  };
+}
+
+/** A2: list rejected sign / verify / replay attempts for the caller's
+ * org. Pro+ tier. Public verify rejections (org NULL) are filtered out
+ * by design - admins query those separately via maintenance. */
+export async function listRejectedAttempts(
+  options: ListRejectedAttemptsOptions = {},
+): Promise<RejectedAttemptList> {
+  const params = new URLSearchParams();
+  if (options.failureReason) params.set("failure_reason", options.failureReason);
+  if (options.agentId) params.set("agent_id", options.agentId);
+  if (options.hours !== undefined) params.set("hours", String(options.hours));
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  const query = params.toString();
+  const path = query
+    ? `/observability/rejected-attempts?${query}`
+    : "/observability/rejected-attempts";
+
+  const data = await request<{
+    items: Array<{
+      id: number;
+      created_at: string;
+      organization_id: string | null;
+      agent_id: string | null;
+      endpoint: string;
+      action_type: string | null;
+      failure_reason: string;
+      status_code: number;
+      supplied_signer_key: string | null;
+      supplied_signature_prefix: string | null;
+      ip: string | null;
+      user_agent: string | null;
+      request_id: string | null;
+      detail: string | null;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+  }>("GET", path);
+
+  return {
+    total: data.total,
+    limit: data.limit,
+    offset: data.offset,
+    items: data.items.map((r) => ({
+      id: r.id,
+      createdAt: r.created_at,
+      organizationId: r.organization_id,
+      agentId: r.agent_id,
+      endpoint: r.endpoint,
+      actionType: r.action_type,
+      failureReason: r.failure_reason,
+      statusCode: r.status_code,
+      suppliedSignerKey: r.supplied_signer_key,
+      suppliedSignaturePrefix: r.supplied_signature_prefix,
+      ip: r.ip,
+      userAgent: r.user_agent,
+      requestId: r.request_id,
+      detail: r.detail,
+    })),
   };
 }
 
