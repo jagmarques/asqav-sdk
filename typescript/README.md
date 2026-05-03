@@ -192,6 +192,10 @@ Six-line view of what is shipped on Asqav:
 
 See the docs at <https://asqav.com/docs> for the current feature set.
 
+## Standards
+
+Asqav's compliance receipts are profiled in IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/), profiling the upstream [`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/) for EU AI Act Articles 12 and 26, and DORA Article 17 bindings.
+
 ## License
 
 MIT. Get an API key at [asqav.com](https://asqav.com).
