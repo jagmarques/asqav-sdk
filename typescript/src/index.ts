@@ -30,6 +30,49 @@ export const RECEIPT_TYPE_NAMESPACE = [
 ] as const;
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
 
+/** DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification.
+ *
+ * The Joint Committee of the European Supervisory Authorities published
+ * the final RTS on classification of major ICT-related incidents on
+ * 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
+ * vocabulary of `incident_class` to exactly six values. Earlier DORA
+ * preliminary drafts (and the SDK's previous releases) circulated a
+ * 12-value list; the cloud accepts those legacy tokens and normalises
+ * them to the canonical six server-side, so this SDK forwards the
+ * caller's value verbatim and only rejects tokens that are neither
+ * canonical nor a known legacy alias.
+ */
+export const DORA_INCIDENT_CLASS_NAMESPACE = [
+  "cybersecurity_related",
+  "process_failure",
+  "system_failure",
+  "external_event",
+  "payment_related",
+  "other",
+] as const;
+export type DoraIncidentClass = (typeof DORA_INCIDENT_CLASS_NAMESPACE)[number];
+
+/** Legacy 12-value vocabulary from pre-final DORA drafts. Mirrored from
+ * the cloud's alias dict (cloud PR #194) so the SDK can accept either
+ * form without a network roundtrip. The cloud performs the authoritative
+ * normalisation; this map is purely for client-side acceptance checks.
+ */
+export const LEGACY_DORA_ALIASES: Readonly<Record<string, DoraIncidentClass>> =
+  Object.freeze({
+    malicious_actions: "cybersecurity_related",
+    cyberattack: "cybersecurity_related",
+    unauthorised_access: "cybersecurity_related",
+    process_failure_internal: "process_failure",
+    human_error: "process_failure",
+    system_failure_internal: "system_failure",
+    software_malfunction: "system_failure",
+    hardware_failure: "system_failure",
+    third_party_failure: "external_event",
+    natural_disaster: "external_event",
+    payment_fraud: "payment_related",
+    unknown: "other",
+  });
+
 /** Sandbox state vocabulary per the High-Risk gate. */
 export type SandboxState = "enabled" | "disabled" | "unavailable";
 
@@ -287,7 +330,10 @@ export interface SignOptions {
   /** Risk classification controlled vocabulary. */
   riskClass?: RiskClass;
 
-  /** DORA ITS incident class; empty string when not applicable. */
+  /** DORA RTS JC 2024-33 Annex II field 3.23 incident class; one of the
+   * six canonical values in `DORA_INCIDENT_CLASS_NAMESPACE`, or a known
+   * legacy alias from `LEGACY_DORA_ALIASES`. Empty string when not
+   * applicable. */
   incidentClass?: string;
 
   /** Names a legal entity. Resolved server-side from
@@ -779,6 +825,19 @@ export class Agent {
       && !options.reason) {
       throw new AsqavError(
         "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
+      );
+    }
+    // DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
+    // canonical values, plus the legacy 12-value alias set the cloud
+    // still accepts). Reject anything else before the HTTP roundtrip.
+    if (options.incidentClass !== undefined
+      && options.incidentClass !== ""
+      && !(DORA_INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(options.incidentClass)
+      && !(options.incidentClass in LEGACY_DORA_ALIASES)) {
+      throw new AsqavError(
+        `invalid_incident_class: must be one of ${DORA_INCIDENT_CLASS_NAMESPACE.join(", ")} `
+          + "(per DORA RTS JC 2024-33 Annex II field 3.23) "
+          + `or a known legacy alias ${Object.keys(LEGACY_DORA_ALIASES).sort().join(", ")}`,
       );
     }
 
