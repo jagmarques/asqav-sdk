@@ -209,7 +209,7 @@ Field reference (camelCase on the SDK, snake_case on the JSON wire):
 - `iterationId` -> `iteration_id`. Required for multi-step receipts.
 - `sandboxState` -> `sandbox_state`. One of `enabled`, `disabled`, `unavailable`. Required for High-Risk.
 - `riskClass` -> `risk_class`. One of `low`, `medium`, `high`, `unknown`.
-- `incidentClass` -> `incident_class`. DORA ITS code; empty when not applicable.
+- `incidentClass` -> `incident_class`. Canonical 6-value Annex II field 3.23 list from JC 2024-33 (17 July 2024); legacy aliases remapped via `LEGACY_DORA_ALIASES`. Empty when not applicable.
 - `policyDecision` -> `policy_decision`. One of `permit`, `deny`, `rate_limit`.
 - `reason` -> `reason`. Required when `policyDecision` is `deny` or `rate_limit`.
 
