@@ -39,6 +39,31 @@ export type RiskClass = "low" | "medium" | "high" | "unknown";
 /** Policy decision vocabulary; deny / rate_limit require `reason`. */
 export type PolicyDecision = "permit" | "deny" | "rate_limit";
 
+/** IETF -01 Section 4.2.1 / Devil's Advocate N3: spec-shape `decision`
+ * vocabulary on the wire is {"allow", "deny", "rate_limit"}. The legacy
+ * `policyDecision` field uses {"permit", "deny", "rate_limit"}. The SDK
+ * surfaces both so callers can read whichever they prefer.
+ */
+export type Decision = "allow" | "deny" | "rate_limit";
+
+/** Map a legacy `policyDecision` token to the spec-shape `decision`. */
+export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
+  permit: "allow",
+  allow: "allow",
+  deny: "deny",
+  rate_limit: "rate_limit",
+});
+
+/** Translate `policyDecision` to the spec-shape `decision`. Falls back
+ * to `"deny"` so a misconfigured caller never publishes an
+ * out-of-vocabulary token to a draft-strict verifier.
+ */
+export function mapPolicyDecisionToDecision(
+  policyDecision: string | null | undefined,
+): Decision {
+  return DECISION_MAP[(policyDecision ?? "").toLowerCase()] ?? "deny";
+}
+
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
 export { canonicalize, hashAction } from "./canonicalize.js";
@@ -288,6 +313,16 @@ export interface SignatureResponse {
   receiptType?: string;
   /** Resolved legal entity for this receipt. */
   issuerId?: string;
+  /** Legacy `policy_decision` value echoed from the request (one of
+   * `"permit" | "deny" | "rate_limit"`). Kept for backward compat with
+   * tooling built against the pre-spec implementation. */
+  policyDecision?: PolicyDecision;
+  /** IETF -01 N3 / Section 4.2.1: spec-shape `decision` token mirrors
+   * `policyDecision` with the spec vocabulary
+   * `"allow" | "deny" | "rate_limit"`. Either echoed from the cloud
+   * (newer servers) or mapped client-side from `policyDecision`
+   * (older servers). Undefined for non-compliance receipts. */
+  decision?: Decision;
 }
 
 export interface SessionResponse {
@@ -751,7 +786,15 @@ export class Agent {
     if (options.payloadDigest !== undefined) body.payload_digest = options.payloadDigest;
     if (options.receiptType !== undefined) body.receipt_type = options.receiptType;
     if (options.reason !== undefined) body.reason = options.reason;
-    if (options.policyDecision !== undefined) body.policy_decision = options.policyDecision;
+    if (options.policyDecision !== undefined) {
+      body.policy_decision = options.policyDecision;
+      // IETF -01 N3: when compliance_mode is on, also send the spec-shape
+      // `decision` token so a draft-strict cloud picks it up directly.
+      // Older clouds ignore the extra field harmlessly.
+      if (complianceMode) {
+        body.decision = mapPolicyDecisionToDecision(options.policyDecision);
+      }
+    }
 
     const data = await request<{
       signature: string;
@@ -773,6 +816,8 @@ export class Agent {
       policy_digest?: string;
       receipt_type?: string;
       issuer_id?: string;
+      policy_decision?: string;
+      decision?: string;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -799,6 +844,16 @@ export class Agent {
       policyDigest: data.policy_digest,
       receiptType: data.receipt_type,
       issuerId: data.issuer_id,
+      policyDecision: data.policy_decision as PolicyDecision | undefined,
+      // IETF -01 N3: surface the spec-shape token. Cloud emits `decision`
+      // alongside `policy_decision` under compliance_mode; older clouds
+      // get a client-side mapping so callers always read a normalised
+      // value.
+      decision: (data.decision as Decision | undefined) ?? (
+        data.compliance_mode
+          ? mapPolicyDecisionToDecision(data.policy_decision)
+          : undefined
+      ),
     };
 
     _dispatchAfter(options.actionType, response);
