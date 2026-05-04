@@ -27,6 +27,7 @@ With Decorators:
 Get your API key at asqav.com
 """
 
+from ._jcs import canonical_json
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
 from .client import (
@@ -125,6 +126,7 @@ __all__ = [
     "health_check",
     # Fingerprint helpers
     "canonicalize",
+    "canonical_json",
     "hash_action",
     # Agent
     "Agent",
