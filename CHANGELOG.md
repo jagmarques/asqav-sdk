@@ -4,10 +4,20 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
-## [Unreleased] - 2026-05-04 (docs)
+## [Unreleased: Python 0.3.11 / TypeScript 0.2.9] - 2026-05-04
+
+### Fixed
+- DORA `incident_class` vocabulary now matches the canonical six-value list from JC 2024-33 Annex II field 3.23 (the EBA / ESMA / EIOPA Joint Committee Final Report on the draft RTS and ITS on incident reporting under Regulation (EU) 2022/2554, published 17 July 2024). Previous releases forwarded an opaque string with no client-side schema, so callers passing pre-final draft tokens hit a server 422 with no actionable error.
+
+### Added
+- `DORA_INCIDENT_CLASS_NAMESPACE` (Python `frozenset`, TypeScript `as const` tuple plus `DoraIncidentClass` union) exposing the six canonical values: `cybersecurity_related`, `process_failure`, `system_failure`, `external_event`, `payment_related`, `other`.
+- `LEGACY_DORA_ALIASES` mapping the 12-value pre-final draft vocabulary the cloud accepts for backward compat (mirrors cloud PR #194). Aliases forward verbatim; the cloud performs the authoritative normalisation.
+- `sign` / `agent.sign` raise `ValueError` (Python) or `AsqavError` (TypeScript) before any HTTP call when `incident_class` is neither canonical nor a known legacy alias, matching how `RECEIPT_TYPE_NAMESPACE` is policed.
 
 ### Changed
-- DORA citation sweep aligning READMEs and docs to the corrected `-02` spec text. The vocabulary source is the canonical 6-value Annex II field 3.23 list from JC 2024-33 (17 July 2024), the EBA / ESMA / EIOPA Joint Committee Final Report on the draft RTS and ITS on incident reporting under Regulation (EU) 2022/2554. Legacy receipts continue to validate via `LEGACY_DORA_ALIASES`. CLI flag tables and TypeScript field reference updated to point at the canonical list rather than a generic "DORA ITS vocabulary" paraphrase.
+- CLI `--incident-class` help text and `python/docs/CLI.md` flag table replaced the "DORA ITS vocabulary" gloss with the canonical six values and the JC 2024-33 citation.
+- TypeScript field reference in `typescript/README.md` likewise points at the canonical list rather than a generic "DORA ITS code".
+- Docs sweep aligning READMEs to the corrected -02 spec text. Legacy receipts continue to validate via `LEGACY_DORA_ALIASES`.
 
 ## [Python 0.3.10 / TypeScript 0.2.8] - 2026-05-04
 
