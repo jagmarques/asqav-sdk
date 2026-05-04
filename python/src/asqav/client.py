@@ -203,6 +203,26 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
+# §5.1.2 / V6 verifier MUST reject receipts whose `signed_at` sits more
+# than SKEW_BOUND_SECONDS away from the verifier's wall clock. Mirrored
+# from the cloud's `routes/verify.py:SKEW_BOUND_SECONDS`.
+SKEW_BOUND_SECONDS: int = 300
+
+# REQUIRED fields on a Compliance Receipt envelope per §5 of
+# draft-marques-asqav-compliance-receipts-00. Used by the local
+# `verify_compliance_receipt` helper.
+_COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "receipt_type",
+    "issuer_id",
+    "agent_id",
+    "action_ref",
+    "payload_digest",
+    "policy_digest",
+    "previousReceiptHash",
+    "policy_decision",
+    "issued_at",
+)
+
 
 @dataclass
 class SignatureResponse:
@@ -2125,6 +2145,140 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         verified=data["verified"],
         verification_url=data["verification_url"],
         verification_detail=detail,
+    )
+
+
+@dataclass
+class ComplianceReceiptVerification:
+    """Outcome of the SDK-side Compliance Receipt sanity check.
+
+    The cloud is the authoritative verifier; this helper is a
+    convenience for callers who want to reject obviously bad receipts
+    before involving the network. Each boolean reflects one MUST clause
+    on draft-marques-asqav-compliance-receipts-00 §5.
+
+    `errors` carries a per-clause failure code so a CLI / dashboard can
+    show the user which clause failed. Codes mirror the cloud's
+    `validation_label` vocabulary in `routes/verify.py`.
+    """
+
+    valid: bool
+    fields_present: bool
+    receipt_type_in_namespace: bool
+    skew_within_bound: bool
+    chain_link_rederives: bool
+    errors: list[str]
+
+
+def verify_compliance_receipt(
+    envelope: dict[str, Any],
+    *,
+    predecessor_envelope: dict[str, Any] | None = None,
+    now: float | None = None,
+) -> ComplianceReceiptVerification:
+    """Local-side sanity-check on a Compliance Receipt envelope.
+
+    Validates the four MUSTs the SDK can check without round-tripping
+    to the cloud:
+
+    1. All REQUIRED fields are present (§5).
+    2. ``receipt_type`` is in the `protectmcp:*` namespace (F1).
+    3. ``signed_at`` (or ``issued_at``) is within
+       ``SKEW_BOUND_SECONDS`` of ``now`` (V6 / §5.1.2).
+    4. ``previousReceiptHash`` rederives over the predecessor envelope
+       under JCS, when one is supplied (§5.7). When the receipt is the
+       first on its chain (`previousReceiptHash == "0" * 64`) the
+       rederivation step is skipped.
+
+    The cloud is authoritative for cryptographic signature checks,
+    policy_digest resolution against the Audit Pack, and anchor
+    verification. This helper is a convenience.
+
+    Args:
+        envelope: The signed receipt envelope, as a dict.
+        predecessor_envelope: Optional predecessor envelope. When
+            provided, the chain-link is rederived and compared to
+            ``envelope["previousReceiptHash"]``.
+        now: Optional override for the verifier wall clock (UNIX
+            seconds). Defaults to ``time.time()``.
+
+    Returns:
+        A :class:`ComplianceReceiptVerification` capturing each MUST.
+    """
+    from datetime import datetime, timezone
+
+    from ._jcs import canonical_json
+    from .replay import FIRST_RECEIPT_SEED
+
+    errors: list[str] = []
+
+    # 1. REQUIRED fields present.
+    missing = [
+        f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in envelope
+    ]
+    fields_present = not missing
+    if missing:
+        errors.append(f"missing_fields:{','.join(missing)}")
+
+    # 2. receipt_type namespace.
+    rt = envelope.get("receipt_type") or envelope.get("type")
+    receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
+    if not receipt_type_in_namespace:
+        errors.append("invalid_receipt_type")
+
+    # 3. 300-second skew bound (V6).
+    issued_at = envelope.get("issued_at") or envelope.get("signed_at")
+    skew_within_bound = False
+    if issued_at is None:
+        errors.append("missing_issued_at")
+    else:
+        try:
+            if isinstance(issued_at, (int, float)):
+                ts = float(issued_at)
+            else:
+                # ISO 8601; tolerate trailing "Z".
+                s = str(issued_at).replace("Z", "+00:00")
+                ts = datetime.fromisoformat(s).timestamp()
+            wall = now if now is not None else time.time()
+            skew = abs(ts - wall)
+            skew_within_bound = skew <= SKEW_BOUND_SECONDS
+            if not skew_within_bound:
+                errors.append("signed_at_skew")
+        except (ValueError, TypeError):
+            errors.append("invalid_issued_at")
+
+    # 4. Chain link rederives. Only checked when caller supplies the
+    # predecessor envelope; first-record seeds skip this.
+    chain_link_rederives = True
+    expected_prev = envelope.get("previousReceiptHash")
+    if expected_prev == FIRST_RECEIPT_SEED:
+        # First record on the chain; nothing to rederive.
+        pass
+    elif predecessor_envelope is not None:
+        actual_prev = hashlib.sha256(
+            canonical_json(predecessor_envelope)
+        ).hexdigest()
+        if actual_prev != expected_prev:
+            chain_link_rederives = False
+            errors.append("chain_link_mismatch")
+    # else: caller did not pass a predecessor; cannot rederive. We
+    # leave `chain_link_rederives=True` since "did not check" is not the
+    # same as "failed to check". Callers needing strictness pass the
+    # predecessor.
+
+    valid = (
+        fields_present
+        and receipt_type_in_namespace
+        and skew_within_bound
+        and chain_link_rederives
+    )
+    return ComplianceReceiptVerification(
+        valid=valid,
+        fields_present=fields_present,
+        receipt_type_in_namespace=receipt_type_in_namespace,
+        skew_within_bound=skew_within_bound,
+        chain_link_rederives=chain_link_rederives,
+        errors=errors,
     )
 
 

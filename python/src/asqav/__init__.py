@@ -32,6 +32,7 @@ from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
 from .client import (
     RECEIPT_TYPE_NAMESPACE,
+    SKEW_BOUND_SECONDS,
     Agent,
     AgentResponse,
     APIError,
@@ -41,6 +42,7 @@ from .client import (
     BudgetCheckResult,
     BudgetTracker,
     CertificateResponse,
+    ComplianceReceiptVerification,
     DelegationResponse,
     GroupKeypairResponse,
     GroupSignResponse,
@@ -105,6 +107,7 @@ from .client import (
     update_risk_rule,
     update_signing_group,
     verify_attestation,
+    verify_compliance_receipt,
     verify_output,
     verify_signature,
 )
@@ -263,4 +266,7 @@ __all__ = [
     "APIError",
     # IETF Compliance Receipts profile
     "RECEIPT_TYPE_NAMESPACE",
+    "SKEW_BOUND_SECONDS",
+    "ComplianceReceiptVerification",
+    "verify_compliance_receipt",
 ]
