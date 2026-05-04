@@ -49,7 +49,7 @@ Flags:
 | `--sandbox-state` | `sandbox_state` | `enabled|disabled|unavailable`. |
 | `--iteration-id` | `iteration_id` | Distinct from session_id. |
 | `--risk-class` | `risk_class` | `low|medium|high|unknown`. |
-| `--incident-class` | `incident_class` | DORA ITS vocabulary. |
+| `--incident-class` | `incident_class` | Canonical 6-value Annex II field 3.23 list (JC 2024-33, 17 July 2024); legacy aliases remapped via `LEGACY_DORA_ALIASES`. |
 | `--issuer-id` | `issuer_id` | Overrides server resolution. |
 | `--receipt-type` | `receipt_type` | `protectmcp:decision|protectmcp:restraint|protectmcp:lifecycle`. Default `protectmcp:decision`. |
 | `--reason` | `reason` | Required when `--policy-decision` is `deny|rate_limit`. |
