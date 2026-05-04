@@ -405,16 +405,23 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             # cloud emits on a real Compliance Receipt envelope. Same for
             # `receipt_type` (decision namespace per F1) and `reason` /
             # `policy_decision` per F9.
+            # IETF -01 N3: spec-shape `decision` token alongside the
+            # legacy `policy_decision` so the demo receipt mirrors what
+            # the cloud now emits under compliance_mode.
+            policy_decision_value = (
+                "permit" if decision == "approved" else "deny"
+            )
             receipt = _sign(self.state, {
                 "scenario_id": sid,
                 "action_type": scenario["action_type"],
-                "decision": decision,
+                "decision": (
+                    "allow" if decision == "approved" else "deny"
+                ),
                 "reason": reason,
                 "risk_class": scenario.get("risk_classification", "unknown"),
                 "receipt_type": "protectmcp:decision",
-                "policy_decision": (
-                    "permit" if decision == "approved" else "deny"
-                ),
+                "policy_decision": policy_decision_value,
+                "scenario_decision": decision,  # demo UI keeps "approved"/"rejected"
                 "timestamp": int(time.time()),
             })
             self.state.approvals[sid] = {"decision": decision, "reason": reason, "receipt": receipt}
