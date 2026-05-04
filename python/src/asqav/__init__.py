@@ -27,9 +27,12 @@ With Decorators:
 Get your API key at asqav.com
 """
 
+from ._jcs import canonical_json
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
 from .client import (
+    RECEIPT_TYPE_NAMESPACE,
+    SKEW_BOUND_SECONDS,
     Agent,
     AgentResponse,
     APIError,
@@ -39,6 +42,7 @@ from .client import (
     BudgetCheckResult,
     BudgetTracker,
     CertificateResponse,
+    ComplianceReceiptVerification,
     DelegationResponse,
     GroupKeypairResponse,
     GroupSignResponse,
@@ -103,12 +107,21 @@ from .client import (
     update_risk_rule,
     update_signing_group,
     verify_attestation,
+    verify_compliance_receipt,
     verify_output,
     verify_signature,
 )
 from .compliance import ComplianceBundle, export_bundle
 from .decorators import async_session, session, sign
 from .hooks import clear_hooks, register_after, register_before
+from .keys import (
+    ALGORITHM_ED25519,
+    ALGORITHM_ES256,
+    ALGORITHM_ML_DSA_65,
+    SUPPORTED_ALGORITHMS,
+    LocalKeypair,
+    generate_local_keypair,
+)
 from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .phases import PhaseChain, sign_with_phases
@@ -117,13 +130,14 @@ from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.3.8"
+__version__ = "0.3.9"
 __all__ = [
     # Initialization
     "init",
     "health_check",
     # Fingerprint helpers
     "canonicalize",
+    "canonical_json",
     "hash_action",
     # Agent
     "Agent",
@@ -258,4 +272,16 @@ __all__ = [
     "AuthenticationError",
     "RateLimitError",
     "APIError",
+    # IETF Compliance Receipts profile
+    "RECEIPT_TYPE_NAMESPACE",
+    "SKEW_BOUND_SECONDS",
+    "ComplianceReceiptVerification",
+    "verify_compliance_receipt",
+    # Algorithm agility
+    "ALGORITHM_ML_DSA_65",
+    "ALGORITHM_ED25519",
+    "ALGORITHM_ES256",
+    "SUPPORTED_ALGORITHMS",
+    "LocalKeypair",
+    "generate_local_keypair",
 ]

@@ -40,19 +40,29 @@ def _make_signed_action(**overrides) -> SignedActionResponse:
 
 
 def _make_timeline(n: int = 3) -> ReplayTimeline:
-    """Build a timeline with n steps; computes prev_chain_hash like _build_timeline."""
+    """Build a timeline with n steps under the IETF v2 chain shape.
+
+    Tracks the same envelope shape `_build_timeline` produces so
+    `verify_chain()` (default-mode v2) succeeds on a freshly built
+    timeline. Legacy-shape coverage lives in test_replay_ietf_chain.py.
+    """
     import hashlib
+
+    from asqav._jcs import canonical_json
+    from asqav.replay import FIRST_RECEIPT_SEED
+
     steps = []
-    prev_hash = ""
+    prev_hash = FIRST_RECEIPT_SEED
     for i in range(n):
         sig_id = f"sid_{i:03d}"
         action = f"api:call_{i}"
         ts = 1700000000.0 + i * 10
+        context = {"model": "gpt-4"}
         steps.append(
             ReplayStep(
                 index=i,
                 action_type=action,
-                context={"model": "gpt-4"},
+                context=context,
                 timestamp=ts,
                 signature_id=sig_id,
                 verification_url=f"https://asqav.com/verify/{sig_id}",
@@ -61,11 +71,14 @@ def _make_timeline(n: int = 3) -> ReplayTimeline:
                 prev_chain_hash=prev_hash if i > 0 else None,
             )
         )
-        entry = json.dumps(
-            {"signature_id": sig_id, "action_type": action, "timestamp": ts, "prev_hash": prev_hash},  # noqa: E501
-            sort_keys=True, separators=(",", ":"),
-        )
-        prev_hash = hashlib.sha256(entry.encode()).hexdigest()
+        envelope = {
+            "signature_id": sig_id,
+            "action_type": action,
+            "context": context,
+            "timestamp": ts,
+            "previousReceiptHash": prev_hash,
+        }
+        prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
     return ReplayTimeline(
         agent_id="agent_001",
         session_id="sess_001",
