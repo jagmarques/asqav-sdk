@@ -87,13 +87,21 @@ class AsqavGuardrail(AsqavAdapter):
         original_exception: Exception,
         user_api_key_dict: dict,
     ) -> None:
-        """Sign after a failed LLM call."""
+        """Sign after a failed LLM call.
+
+        Surfaces error events under `risk_class="medium"` so the IETF
+        Compliance Receipts profile sees a controlled-vocabulary risk
+        signal even when callers do not configure compliance_mode. The
+        cloud only emits risk_class on the signed envelope under
+        compliance_mode; outside it the value is dropped.
+        """
         self._sign_action(
             "llm:error",
             {
                 "error_type": type(original_exception).__name__,
                 "error_message": str(original_exception),
             },
+            risk_class="medium",
         )
 
     async def async_moderation_hook(

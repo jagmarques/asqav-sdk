@@ -81,6 +81,163 @@ def test_verify_not_found(mock_verify: MagicMock) -> None:
 
 
 # ---------------------------------------------------------------------------
+# sign command (IETF Compliance Receipts profile)
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_sign_compliance_mode_calls_sdk(
+    mock_init: MagicMock, mock_get: MagicMock, tmp_path
+) -> None:
+    """sign --compliance-mode threads every IETF flag into Agent.sign()."""
+    fake_agent = MagicMock()
+    fake_agent.agent_id = "agent_x"
+    fake_agent.algorithm = "ml-dsa-65"
+    fake_agent.sign.return_value = MagicMock(
+        signature_id="sig_abc",
+        action_id="act_1",
+        algorithm="ml-dsa-65",
+        timestamp=1717.0,
+        verification_url="https://verify.example/sig_abc",
+        policy_digest="sha256:cafe",
+        policy_decision="permit",
+        compliance_mode=True,
+        receipt_type="protectmcp:decision",
+        action_ref="sha256:beef",
+        issuer_id="legal:Acme",
+        previous_receipt_hash="0" * 64,
+        bitcoin_anchor=None,
+        rfc3161_tsa=None,
+        rfc3161_serial=None,
+    )
+    mock_get.return_value = fake_agent
+
+    action_path = tmp_path / "action.json"
+    action_path.write_text('{"amount_eur": 850000}')
+
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_x",
+            "--action-type", "payment.wire_transfer",
+            "--action-json", str(action_path),
+            "--compliance-mode",
+            "--receipt-type", "protectmcp:decision",
+            "--risk-class", "high",
+            "--issuer-id", "legal:Acme",
+            "--iteration-id", "task-2026-Q2",
+            "--sandbox-state", "enabled",
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "sig_abc" in result.output
+    assert "compliance_mode: True" in result.output
+    assert "receipt_type:  protectmcp:decision" in result.output
+    fake_agent.sign.assert_called_once()
+    call_kwargs = fake_agent.sign.call_args.kwargs
+    assert call_kwargs["compliance_mode"] is True
+    assert call_kwargs["receipt_type"] == "protectmcp:decision"
+    assert call_kwargs["risk_class"] == "high"
+    assert call_kwargs["issuer_id"] == "legal:Acme"
+    assert call_kwargs["iteration_id"] == "task-2026-Q2"
+    assert call_kwargs["sandbox_state"] == "enabled"
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_sign_deny_without_reason_rejects(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """sign --policy-decision deny without --reason exits non-zero."""
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_x",
+            "--action-type", "x.y",
+            "--policy-decision", "deny",
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "--reason is required" in result.output
+
+
+@patch("asqav.verify_signature")
+def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
+    """verify --output text surfaces IETF profile sub-axes when present."""
+    from asqav import VerificationDetail
+
+    mock_verify.return_value = MagicMock(
+        verified=True,
+        agent_name="ietf-agent",
+        agent_id="agent_ietf",
+        action_type="payment.wire_transfer",
+        algorithm="ml-dsa-65",
+        verification_detail=VerificationDetail(
+            signer_key_match=True,
+            signature_valid=True,
+            algorithm_match=True,
+            agent_active=True,
+            validation_label="valid",
+            signed_at_skew_seconds=1.234,
+            chain_valid=True,
+            anchor_status_ots="pending",
+            anchor_status_rfc3161="valid",
+            missing_fields=None,
+        ),
+    )
+    result = runner.invoke(app, ["verify", "sig_ietf"])
+    assert result.exit_code == 0
+    assert "Chain valid: True" in result.output
+    assert "Anchor (OTS): pending" in result.output
+    assert "Anchor (RFC 3161): valid" in result.output
+    assert "skew: 1.234" in result.output
+
+
+@patch("asqav.verify_signature")
+def test_verify_json_emits_full_detail(mock_verify: MagicMock) -> None:
+    """verify --output json returns the full VerificationResponse."""
+    import json
+
+    from asqav import VerificationDetail
+
+    mock_verify.return_value = MagicMock(
+        signature_id="sig_xyz",
+        agent_id="agent_x",
+        agent_name="agent-x",
+        action_id="act_1",
+        action_type="api:call",
+        algorithm="ml-dsa-65",
+        signed_at=1717171717.0,
+        verified=True,
+        verification_url="https://verify.example/sig_xyz",
+        verification_detail=VerificationDetail(
+            signer_key_match=True,
+            signature_valid=True,
+            algorithm_match=True,
+            agent_active=True,
+            validation_label="valid",
+            signed_at_skew_seconds=0.5,
+            chain_valid=True,
+            anchor_status_ots="valid",
+            anchor_status_rfc3161="valid",
+            missing_fields=[],
+        ),
+    )
+    result = runner.invoke(app, ["verify", "sig_xyz", "--output", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["signature_id"] == "sig_xyz"
+    assert payload["verification_detail"]["chain_valid"] is True
+    assert payload["verification_detail"]["anchor_status_ots"] == "valid"
+    assert payload["verification_detail"]["signed_at_skew_seconds"] == 0.5
+
+
+# ---------------------------------------------------------------------------
 # agents list command
 # ---------------------------------------------------------------------------
 
@@ -659,3 +816,272 @@ def test_policies_blocked_on_free_tier(
     mock_get.return_value = {"tier": "free", "organization_id": "o", "organization_name": "n"}
     result = runner.invoke(app, ["policies", "list"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 2
+
+
+# ---------------------------------------------------------------------------
+# audit-pack export / policy
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.client._post")
+@patch("asqav.init")
+def test_audit_pack_export_writes_bundle(
+    mock_init: MagicMock, mock_post: MagicMock, tmp_path
+) -> None:
+    """audit-pack export writes the cloud-signed bundle to disk."""
+    mock_post.return_value = {
+        "bundle_digest": "sha256:abc",
+        "bundle_signature": "BASE64SIG==",
+        "bundle_signature_algorithm": "ml-dsa-65",
+        "bundle_public_key": "BASE64PUB==",
+        "algorithm_registry_version": "2026-05-04.v1",
+        "receipt_count": 3,
+        "start": "2026-04-01T00:00:00Z",
+        "end": "2026-05-01T00:00:00Z",
+        "receipts": [{"signature_id": "sig_1"}],
+    }
+    out = tmp_path / "bundle.json"
+    result = runner.invoke(
+        app,
+        [
+            "audit-pack", "export",
+            "--start", "2026-04-01T00:00:00Z",
+            "--end", "2026-05-01T00:00:00Z",
+            "--output-file", str(out),
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert out.exists()
+    assert "wrote 3 receipts" in result.output
+    body = mock_post.call_args.args[1]
+    assert body["start"] == "2026-04-01T00:00:00Z"
+    assert body["only_compliance"] is True
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_audit_pack_policy_resolves_digest(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """audit-pack policy returns the artefact JSON. 64-hex prefixes sha256:."""
+    mock_get.return_value = {
+        "digest": "sha256:" + "a" * 64,
+        "organization_id": "org_x",
+        "agent_id": "agent_x",
+        "action_type": "payment.wire_transfer",
+        "artefact": {"rule": "deny_over_500k"},
+        "created_at": "2026-04-01T00:00:00Z",
+    }
+    result = runner.invoke(
+        app,
+        ["audit-pack", "policy", "a" * 64, "--output", "json"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "deny_over_500k" in result.output
+    called_path = mock_get.call_args.args[0]
+    assert called_path == f"/audit-pack/policy/sha256:{'a' * 64}"
+
+
+# ---------------------------------------------------------------------------
+# payloads erase
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.client._delete")
+@patch("asqav.init")
+def test_payloads_erase_calls_delete(
+    mock_init: MagicMock, mock_delete: MagicMock
+) -> None:
+    """payloads erase --yes calls DELETE /signatures/payloads/{id}."""
+    mock_delete.return_value = {}
+    result = runner.invoke(
+        app,
+        ["payloads", "erase", "sig_abc", "--yes"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "Payload erased" in result.output
+    mock_delete.assert_called_once_with("/signatures/payloads/sig_abc")
+
+
+# ---------------------------------------------------------------------------
+# org set-compliance-strict
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.client._patch")
+@patch("asqav.init")
+def test_org_set_compliance_strict_enable(
+    mock_init: MagicMock, mock_patch: MagicMock
+) -> None:
+    mock_patch.return_value = {"id": "org_x", "compliance_mode_strict": True}
+    result = runner.invoke(
+        app,
+        ["org", "set-compliance-strict", "org_x", "--enable"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    assert "compliance_mode_strict enabled" in result.output
+    body = mock_patch.call_args.args[1]
+    assert body == {"compliance_mode_strict": True}
+
+
+def test_org_set_compliance_strict_requires_one_flag() -> None:
+    result = runner.invoke(
+        app,
+        ["org", "set-compliance-strict", "org_x"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# keys generate
+# ---------------------------------------------------------------------------
+
+
+def test_keys_generate_ed25519(tmp_path) -> None:
+    """keys generate --algorithm ed25519 emits a PKCS#8 PEM private key."""
+    pytest_skipif_no_crypto = False
+    try:
+        from cryptography.hazmat.primitives.asymmetric import ed25519  # noqa: F401
+    except ImportError:
+        pytest_skipif_no_crypto = True
+    if pytest_skipif_no_crypto:
+        return
+    out = tmp_path / "ed25519.pem"
+    result = runner.invoke(
+        app,
+        ["keys", "generate", "--algorithm", "ed25519", "--out", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "BEGIN PUBLIC KEY" in result.output
+    assert out.exists()
+    assert b"BEGIN PRIVATE KEY" in out.read_bytes()
+
+
+def test_keys_generate_ml_dsa_errors() -> None:
+    """keys generate --algorithm ml-dsa-65 prints a server-side hint."""
+    result = runner.invoke(app, ["keys", "generate", "--algorithm", "ml-dsa-65"])
+    assert result.exit_code == 1
+    assert "server-side" in result.output.lower() or "agent.create" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# replay-verify
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.client._get")
+@patch("asqav.replay")
+@patch("asqav.init")
+def test_replay_verify_chain_valid(
+    mock_init: MagicMock, mock_replay: MagicMock, mock_account: MagicMock
+) -> None:
+    """replay-verify wraps replay() and prints the IETF outcome."""
+    mock_account.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    timeline = MagicMock()
+    timeline.compliance_chain_valid = True
+    step = MagicMock()
+    step.index = 0
+    step.signature_id = "sig_1"
+    step.chain_valid = True
+    step.legacy_chain = False
+    timeline.steps = [step]
+
+    def verify_chain_stub() -> bool:
+        return True
+
+    timeline.verify_chain = verify_chain_stub
+    mock_replay.return_value = timeline
+
+    result = runner.invoke(
+        app,
+        ["replay-verify", "agent_x", "sess_x"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "compliance_chain_valid: True" in result.output
+
+
+@patch("asqav.client._get")
+@patch("asqav.replay")
+@patch("asqav.init")
+def test_replay_verify_strict_rejects_legacy(
+    mock_init: MagicMock, mock_replay: MagicMock, mock_account: MagicMock
+) -> None:
+    """replay-verify --strict fails when any step is legacy."""
+    mock_account.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    timeline = MagicMock()
+    timeline.compliance_chain_valid = True
+    step = MagicMock()
+    step.index = 0
+    step.signature_id = "sig_1"
+    step.chain_valid = True
+    step.legacy_chain = True
+    timeline.steps = [step]
+    timeline.verify_chain = lambda: True
+    mock_replay.return_value = timeline
+
+    result = runner.invoke(
+        app,
+        ["replay-verify", "agent_x", "sess_x", "--strict"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "strict mode FAILED" in result.output
+
+
+# ---------------------------------------------------------------------------
+# migrate run
+# ---------------------------------------------------------------------------
+
+
+def test_migrate_run_requires_maintenance_key(monkeypatch) -> None:
+    """migrate run refuses without ASQAV_MAINTENANCE_KEY."""
+    monkeypatch.delenv("ASQAV_MAINTENANCE_KEY", raising=False)
+    result = runner.invoke(
+        app,
+        ["migrate", "run", "v3-20"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "ASQAV_MAINTENANCE_KEY" in result.output
+
+
+def test_migrate_run_rejects_unknown(monkeypatch) -> None:
+    """migrate run rejects unsupported migration names."""
+    monkeypatch.setenv("ASQAV_MAINTENANCE_KEY", "mk")
+    result = runner.invoke(
+        app,
+        ["migrate", "run", "v9-99"],
+        env={"ASQAV_API_KEY": "sk_test", "ASQAV_MAINTENANCE_KEY": "mk"},
+    )
+    assert result.exit_code == 1
+    assert "unsupported migration" in result.output
+
+
+@patch("urllib.request.urlopen")
+@patch("asqav.init")
+def test_migrate_run_v3_22_calls_endpoint(
+    mock_init: MagicMock, mock_urlopen: MagicMock, monkeypatch
+) -> None:
+    """migrate run v3-22 POSTs to the correct path with X-Maintenance-Key."""
+    response = MagicMock()
+    response.read.return_value = b'{"status": "ok", "applied": 1, "migration": "v3-22"}'
+    response.__enter__ = lambda self: response
+    response.__exit__ = lambda *a: None
+    mock_urlopen.return_value = response
+
+    result = runner.invoke(
+        app,
+        ["migrate", "run", "v3-22"],
+        env={"ASQAV_API_KEY": "sk_test", "ASQAV_MAINTENANCE_KEY": "mk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    req = mock_urlopen.call_args.args[0]
+    assert "/maintenance/run-migration-v3-22" in req.full_url
+    assert req.headers.get("X-maintenance-key") == "mk_test"
+    assert "v3-22" in result.output
