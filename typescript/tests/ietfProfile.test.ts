@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   Agent,
   AsqavError,
+  DORA_INCIDENT_CLASS_NAMESPACE,
+  LEGACY_DORA_ALIASES,
   RECEIPT_TYPE_NAMESPACE,
   _resetForTests,
   init,
@@ -71,7 +73,7 @@ describe("agent.sign IETF profile fields", () => {
       sandboxState: "enabled",
       iterationId: "iter-7",
       riskClass: "high",
-      incidentClass: "ICT-INC-001",
+      incidentClass: "cybersecurity_related",
       issuerId: "Acme Legal Entity Ltd",
       payloadDigest: "sha256:" + "b".repeat(64),
       actionRef: "sha256:" + "c".repeat(64),
@@ -87,7 +89,7 @@ describe("agent.sign IETF profile fields", () => {
     expect(body.sandbox_state).toBe("enabled");
     expect(body.iteration_id).toBe("iter-7");
     expect(body.risk_class).toBe("high");
-    expect(body.incident_class).toBe("ICT-INC-001");
+    expect(body.incident_class).toBe("cybersecurity_related");
     expect(body.issuer_id).toBe("Acme Legal Entity Ltd");
     expect(body.payload_digest).toBe("sha256:" + "b".repeat(64));
     expect(body.receipt_type).toBe("protectmcp:decision");
@@ -187,5 +189,86 @@ describe("agent.sign IETF profile fields", () => {
         agent.sign({ actionType: "api:call", context: {}, receiptType: t }),
       ).resolves.toBeDefined();
     }
+  });
+
+  it("DORA_INCIDENT_CLASS_NAMESPACE is the canonical six values from JC 2024-33 Annex II", () => {
+    expect([...DORA_INCIDENT_CLASS_NAMESPACE].sort()).toEqual(
+      [
+        "cybersecurity_related",
+        "external_event",
+        "other",
+        "payment_related",
+        "process_failure",
+        "system_failure",
+      ],
+    );
+  });
+
+  it("every legacy DORA alias maps into the canonical six", () => {
+    const canonical = new Set<string>(DORA_INCIDENT_CLASS_NAMESPACE);
+    expect(Object.keys(LEGACY_DORA_ALIASES).length).toBeGreaterThan(0);
+    for (const [legacy, target] of Object.entries(LEGACY_DORA_ALIASES)) {
+      expect(canonical.has(target)).toBe(true);
+      expect(legacy.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("forwards every canonical incident_class without raising", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      jsonResponse({
+        signature: "s",
+        signature_id: "sig_1",
+        action_id: "act_1",
+        timestamp: "t",
+        verification_url: "u",
+      }),
+    );
+    const agent = fakeAgent();
+    for (const v of DORA_INCIDENT_CLASS_NAMESPACE) {
+      await expect(
+        agent.sign({
+          actionType: "api:call",
+          context: {},
+          complianceMode: true,
+          incidentClass: v,
+        }),
+      ).resolves.toBeDefined();
+    }
+  });
+
+  it("forwards a legacy DORA alias verbatim (cloud normalises authoritatively)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        signature: "s",
+        signature_id: "sig_1",
+        action_id: "act_1",
+        timestamp: "t",
+        verification_url: "u",
+      }),
+    );
+    const agent = fakeAgent();
+    await agent.sign({
+      actionType: "api:call",
+      context: {},
+      complianceMode: true,
+      incidentClass: "cyberattack",
+    });
+    const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(calledInit.body as string) as Record<string, unknown>;
+    expect(body.incident_class).toBe("cyberattack");
+  });
+
+  it("rejects an out-of-vocabulary incident_class before any HTTP call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const agent = fakeAgent();
+    await expect(
+      agent.sign({
+        actionType: "api:call",
+        context: {},
+        complianceMode: true,
+        incidentClass: "ICT-INC-001",
+      }),
+    ).rejects.toThrow(/invalid_incident_class/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
