@@ -14,22 +14,30 @@ The package ships an `asqav` binary mirroring the Python CLI surface. Set `ASQAV
 
 ```bash
 asqav --version
-asqav verify <signature_id>
-asqav agents list
-asqav agents create my-agent
-asqav agents revoke <agent_id>
-asqav sessions list [--limit N] [--status X] [--agent ID]
-asqav sessions end <session_id>
+asqav verify <signature_id> [--output text|json]           # IETF axes when present
+asqav sign --agent-id ID --action-type T --action-json action.json \
+           --compliance-mode --receipt-type protectmcp:decision \
+           --risk-class high --issuer-id legal:Acme
+asqav agents list / create / revoke
+asqav sessions list / end <session_id>
 asqav replay <agent_id> <session_id> [--json]              # Pro
+asqav replay-verify <agent_id> <session_id> [--strict]     # Pro: IETF chain
 asqav preflight <agent_id> <action_type> [--json]          # Pro
 asqav budget check --agent-id ID --limit 10 --estimated-cost 0.25     # Pro
 asqav budget record --agent-id ID --action api:openai --actual-cost 0.23 --limit 10  # Pro
 asqav approve <session_id> <entity_id>                     # Pro
-asqav compliance frameworks
-asqav compliance export --session ID --output bundle.json  # Business
+asqav compliance frameworks / export                       # Business
+asqav audit-pack export --start ISO --end ISO --output-file bundle.json
+asqav audit-pack policy <sha256:hex>
+asqav payloads erase <signature_id> --yes                  # P4 right-to-erasure
+asqav org set-compliance-strict <org_id> --enable|--disable
+asqav keys generate --algorithm ed25519|es256 [--out priv.bin]
+asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key required
 ```
 
 Pro/Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; older self-hosted deployments without `/account` skip the gate.
+
+The IETF Compliance Receipts profile commands (`sign --compliance-mode`, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per `draft-marques-asqav-compliance-receipts-00`; the CLI accepts the kebab-case equivalents.
 
 ## Quick start
 
