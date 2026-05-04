@@ -12,6 +12,11 @@
  */
 
 import { createHash } from "node:crypto";
+import {
+  SUPPORTED_ALGORITHMS,
+  isSupportedAlgorithm,
+  type SupportedAlgorithm,
+} from "./algorithms.js";
 import { canonicalize, hashAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
 import { canonicalJson } from "./jcs.js";
@@ -47,6 +52,18 @@ export {
   type ChainVerificationResult,
   type VerifyChainOptions,
 } from "./replay.js";
+export {
+  SUPPORTED_ALGORITHMS,
+  LOCAL_SIGNING_ALGORITHMS,
+  isSupportedAlgorithm,
+  isLocalSigningAlgorithm,
+  generateKeypair,
+  signMessage,
+  verifyMessage,
+  type SupportedAlgorithm,
+  type LocalSigningAlgorithm,
+  type LocalKeypair,
+} from "./algorithms.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
@@ -133,7 +150,11 @@ export interface InitOptions {
 
 export interface AgentCreateOptions {
   name: string;
-  algorithm?: string;
+  /** One of `ml-dsa-65` (default), `ml-dsa-44`, `ml-dsa-87`, `ed25519`,
+   * or `es256`. Validated client-side; the cloud is the source of
+   * truth on which algorithms are honored on the receipt-signing
+   * path. */
+  algorithm?: SupportedAlgorithm | string;
   capabilities?: string[];
 }
 
@@ -594,9 +615,18 @@ export class Agent {
   }
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
+    const algorithm = options.algorithm ?? "ml-dsa-65";
+    // Algorithm agility (AG3, AG4): the cloud accepts ml-dsa-{44,65,87},
+    // ed25519, and es256. Validate client-side so callers get a clean
+    // error before a round-trip.
+    if (!isSupportedAlgorithm(algorithm)) {
+      throw new AsqavError(
+        `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
+      );
+    }
     const data = await request<AgentData>("POST", "/agents/create", {
       name: options.name,
-      algorithm: options.algorithm ?? "ml-dsa-65",
+      algorithm,
       capabilities: options.capabilities ?? [],
     });
     return new Agent(data);
