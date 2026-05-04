@@ -18,6 +18,7 @@ import { type Mode, resolveMode } from "./mode.js";
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
 export { canonicalize, hashAction } from "./canonicalize.js";
+export { canonicalJson } from "./jcs.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
