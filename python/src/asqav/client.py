@@ -208,6 +208,28 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
 # from the cloud's `routes/verify.py:SKEW_BOUND_SECONDS`.
 SKEW_BOUND_SECONDS: int = 300
 
+# IETF -01 Section 4.2.1 / Devil's Advocate N3: spec-shape `decision`
+# vocabulary on the wire is {"allow", "deny", "rate_limit"}. Legacy
+# `policy_decision` uses {"permit", "deny", "rate_limit"}. Map client-
+# side so callers can read `.decision` without having to know the
+# legacy translation. Unknown tokens fall back to "deny" so a strict
+# verifier never sees an out-of-vocabulary value.
+DECISION_MAP: dict[str, str] = {
+    "permit": "allow",
+    "allow": "allow",
+    "deny": "deny",
+    "rate_limit": "rate_limit",
+}
+
+
+def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
+    """Translate internal `policy_decision` to spec-shape `decision`.
+
+    Used when emitting compliance receipts. Falls back to "deny" so a
+    misconfigured caller never publishes an out-of-vocabulary token.
+    """
+    return DECISION_MAP.get((policy_decision or "").lower(), "deny")
+
 # REQUIRED fields on a Compliance Receipt envelope per §5 of
 # draft-marques-asqav-compliance-receipts-00. Used by the local
 # `verify_compliance_receipt` helper.
@@ -269,6 +291,45 @@ class SignatureResponse:
     incident_class: str | None = None
     reason: str | None = None
     previous_receipt_hash: str | None = None
+    # IETF -01 N3 / Section 4.2.1: spec-shape `decision` token mirrors
+    # `policy_decision` with the spec vocabulary {"allow", "deny",
+    # "rate_limit"}. Mapped client-side from `policy_decision` ("permit"
+    # -> "allow") so callers reading `.decision` get the spec value
+    # without having to know the legacy mapping. None on non-compliance
+    # receipts so legacy code paths stay byte-stable.
+    decision: str | None = None
+    # IETF -01 N6: spec-shape signature envelope object {alg, kid, sig}
+    # surfaced as `signatureObject` on the wire. Cloud emits it directly
+    # under compliance_mode; older clouds populate the flat fields and
+    # the SDK projects via `signature_object()` below.
+    signatureObject: dict[str, str] | None = None
+    # IETF -01 N7: spec-shape anchors array. Cloud emits it directly;
+    # older clouds populate the flat fields and the SDK projects via
+    # `anchors_array()` below.
+    anchors: list[dict[str, Any]] | None = None
+
+    def signature_object(self) -> dict[str, str] | None:
+        """Return the spec-shape signature envelope `{alg, kid, sig}`.
+
+        IETF -01 N6 / Section 4. Returns the cloud-supplied
+        `signatureObject` when available, else projects from the flat
+        fields. None for non-compliance receipts.
+        """
+        from .ietf_projection import signature_object_from_response
+
+        return signature_object_from_response(self)
+
+    def anchors_array(self) -> list[dict[str, Any]] | None:
+        """Return the spec-shape `anchors[]` array.
+
+        IETF -01 N7 / Section 4.4. Returns the cloud-supplied list when
+        available, else projects from the flat columns. None for
+        non-compliance receipts; [] when compliance_mode is on but no
+        anchor columns are populated.
+        """
+        from .ietf_projection import anchors_from_response
+
+        return anchors_from_response(self)
 
 
 @dataclass
@@ -1193,6 +1254,22 @@ class Agent:
                 data.get("previousReceiptHash")
                 or data.get("previous_receipt_hash")
             ),
+            # IETF -01 N3: surface the spec-shape `decision` token. The
+            # cloud emits both `decision` (spec) and `policy_decision`
+            # (legacy) under compliance_mode; pick the cloud's value if
+            # present, otherwise translate locally so older clouds work.
+            decision=(
+                data.get("decision")
+                or (
+                    _map_policy_decision_to_decision(
+                        data.get("policy_decision")
+                    )
+                    if data.get("compliance_mode")
+                    else None
+                )
+            ),
+            signatureObject=data.get("signatureObject"),
+            anchors=data.get("anchors"),
         )
 
         # Dispatch after-hooks (fail-open).
@@ -1244,6 +1321,16 @@ class Agent:
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
             user_intent_verified=data.get("user_intent_verified"),
+            decision=(
+                data.get("decision")
+                or (
+                    _map_policy_decision_to_decision(
+                        data.get("policy_decision")
+                    )
+                    if data.get("compliance_mode")
+                    else None
+                )
+            ),
         )
 
     def sign_batch(
@@ -1310,6 +1397,16 @@ class Agent:
                         policy_decision=sig.get("policy_decision", "permit"),
                         authorization_ref=sig.get("authorization_ref"),
                         bitcoin_anchor=_parse_bitcoin_anchor(sig.get("bitcoin_anchor")),
+                        decision=(
+                            sig.get("decision")
+                            or (
+                                _map_policy_decision_to_decision(
+                                    sig.get("policy_decision")
+                                )
+                                if sig.get("compliance_mode")
+                                else None
+                            )
+                        ),
                     )
                 )
         return results
