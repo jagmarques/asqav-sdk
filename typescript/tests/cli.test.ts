@@ -150,4 +150,66 @@ describe("asqav CLI (TypeScript)", () => {
     expect(output()).toMatch(/Unknown command/);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
+
+  it("verify --output text surfaces IETF VerificationDetail axes", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_1",
+        agent_id: "agt_1",
+        agent_name: "agt-1",
+        action_id: "act_1",
+        action_type: "x.y",
+        signature: "sig",
+        algorithm: "ml-dsa-65",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: true,
+        verification_url: "https://verify.example/sig_1",
+        verification_detail: {
+          signer_key_match: true,
+          signature_valid: true,
+          algorithm_match: true,
+          agent_active: true,
+          validation_label: "valid",
+          chain_valid: true,
+          anchor_status_ots: "pending",
+          anchor_status_rfc3161: "valid",
+          signed_at_skew_seconds: 0.5,
+        },
+      }),
+    );
+    await runCli(["verify", "sig_1"]);
+    const out = output();
+    expect(out).toContain("Chain valid: true");
+    expect(out).toContain("Anchor (OTS): pending");
+    expect(out).toContain("Anchor (RFC 3161): valid");
+    expect(out).toContain("signed_at skew: 0.5");
+  });
+
+  it("verify --output json emits the full detail", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_2",
+        agent_id: "agt_2",
+        algorithm: "ed25519",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: true,
+        verification_detail: {
+          signer_key_match: true,
+          signature_valid: true,
+          algorithm_match: true,
+          agent_active: true,
+          validation_label: "valid",
+          chain_valid: true,
+          anchor_status_ots: "valid",
+          anchor_status_rfc3161: "valid",
+          signed_at_skew_seconds: 0,
+        },
+      }),
+    );
+    await runCli(["verify", "sig_2", "--output", "json"]);
+    const parsed = JSON.parse(output());
+    expect(parsed.signatureId).toBe("sig_2");
+    expect(parsed.verificationDetail.chainValid).toBe(true);
+    expect(parsed.verificationDetail.anchorStatusOts).toBe("valid");
+  });
 });

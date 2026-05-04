@@ -300,7 +300,13 @@ export interface SessionResponse {
 
 /** Granular sub-checks the cloud returns alongside `verified`. The
  * `validationLabel` string is the dominant failure reason when
- * `verified=false`, e.g. `signature_expired` or `signer_key_changed`. */
+ * `verified=false`, e.g. `signature_expired` or `signer_key_changed`.
+ *
+ * The IETF Compliance Receipts profile sub-axes (`chainValid`,
+ * `anchorStatusOts`, `anchorStatusRfc3161`, `signedAtSkewSeconds`,
+ * `missingFields`) are populated only when the cloud emits them on a
+ * compliance-mode receipt; older receipts and older deployments leave
+ * them undefined for back-compat. */
 export interface VerificationDetail {
   signerKeyMatch: boolean;
   signatureValid: boolean;
@@ -314,7 +320,31 @@ export interface VerificationDetail {
     | "algorithm_mismatch"
     | "agent_inactive"
     | "agent_unknown"
+    | "chain_break"
+    | "anchor_invalid"
+    | "missing_required_field"
+    | "signed_at_skew"
     | string;
+  /** Absolute skew between the receipt's `signed_at` and the verifier's
+   * wall clock, in seconds. Receipts beyond `SKEW_BOUND_SECONDS`
+   * (300s) are rejected per V6 / §5.1.2. */
+  signedAtSkewSeconds?: number;
+  /** True when the cloud could rederive the chain hash from the stored
+   * `signed_envelope` and the predecessor matches. None on legacy
+   * (pre-IETF) records. */
+  chainValid?: boolean;
+  /** Tri-state OTS status. `pending` means the proof is still inside
+   * the upgrade window; `invalid` means corruption or stale; `valid`
+   * mirrors the Bitcoin block-confirmed case. */
+  anchorStatusOts?: "valid" | "pending" | "invalid";
+  /** RFC 3161 anchor outcome. Deterministic at issuance; never
+   * `pending`. */
+  anchorStatusRfc3161?: "valid" | "pending" | "invalid";
+  /** REQUIRED-fields presence check. When the record is
+   * `compliance_mode=true` and any spec-mandated field has been NULLed
+   * post-issuance, surfaces the missing column names. Empty list /
+   * undefined means every required field is present. */
+  missingFields?: string[];
 }
 
 export interface VerificationResponse {
@@ -946,6 +976,11 @@ export async function verifySignature(signatureId: string): Promise<Verification
       algorithm_match: boolean;
       agent_active: boolean;
       validation_label: string;
+      signed_at_skew_seconds?: number;
+      chain_valid?: boolean;
+      anchor_status_ots?: "valid" | "pending" | "invalid";
+      anchor_status_rfc3161?: "valid" | "pending" | "invalid";
+      missing_fields?: string[];
     };
   }>("GET", `/verify/${signatureId}`);
 
@@ -968,6 +1003,11 @@ export async function verifySignature(signatureId: string): Promise<Verification
           algorithmMatch: data.verification_detail.algorithm_match,
           agentActive: data.verification_detail.agent_active,
           validationLabel: data.verification_detail.validation_label,
+          signedAtSkewSeconds: data.verification_detail.signed_at_skew_seconds,
+          chainValid: data.verification_detail.chain_valid,
+          anchorStatusOts: data.verification_detail.anchor_status_ots,
+          anchorStatusRfc3161: data.verification_detail.anchor_status_rfc3161,
+          missingFields: data.verification_detail.missing_fields,
         }
       : undefined,
   };

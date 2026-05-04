@@ -108,13 +108,41 @@ function positional(args: string[]): string[] {
 
 async function cmdVerify(args: string[]): Promise<void> {
   const [sigId] = positional(args);
-  if (!sigId) die("Usage: asqav verify <signature_id>");
+  if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
+  const output = parseFlag(args, "output") ?? "text";
+  // Verify is public (no auth required) but the underlying request
+  // helper short-circuits on missing config; init with whatever key is
+  // available so the public endpoint still works.
+  init({ apiKey: process.env.ASQAV_API_KEY ?? "anon" });
   try {
     const r = await verifySignature(sigId);
+    if (output === "json") {
+      process.stdout.write(`${JSON.stringify(r, null, 2)}\n`);
+      return;
+    }
     process.stdout.write(`Signature: ${r.verified ? "valid" : "invalid"}\n`);
     if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
     if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
     process.stdout.write(`Algorithm: ${r.algorithm}\n`);
+    const d = r.verificationDetail;
+    if (d) {
+      process.stdout.write(`Validation: ${d.validationLabel}\n`);
+      if (d.chainValid !== undefined) {
+        process.stdout.write(`Chain valid: ${d.chainValid}\n`);
+      }
+      if (d.anchorStatusOts !== undefined) {
+        process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts}\n`);
+      }
+      if (d.anchorStatusRfc3161 !== undefined) {
+        process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161}\n`);
+      }
+      if (d.signedAtSkewSeconds !== undefined) {
+        process.stdout.write(`signed_at skew: ${d.signedAtSkewSeconds}s\n`);
+      }
+      if (d.missingFields && d.missingFields.length > 0) {
+        process.stdout.write(`Missing fields: ${d.missingFields.join(", ")}\n`);
+      }
+    }
   } catch (err) {
     if (err instanceof APIError && err.statusCode === 404) {
       die(`Signature not found: ${sigId}`);
