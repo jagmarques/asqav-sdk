@@ -232,3 +232,59 @@ def test_end_session_skips_when_no_agent_session(mock_agent_cls):
 
     adapter._end_session()
     mock_agent.end_session.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# IETF Compliance Receipts profile pass-through
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.extras._base.Agent")
+def test_sign_action_forwards_compliance_kwargs(mock_agent_cls):
+    """_sign_action forwards IETF profile kwargs verbatim to Agent.sign.
+
+    Subclasses (LangChain callback, CrewAI hook, LiteLLM guardrail, etc)
+    rely on this to populate `risk_class`, `iteration_id`,
+    `compliance_mode` etc on the signed envelope without duplicating
+    the kwarg list per integration.
+    """
+    mock_agent = MagicMock()
+    mock_sig = SignatureResponse(**MOCK_SIGN_RESPONSE)
+    mock_agent.sign.return_value = mock_sig
+    mock_agent_cls.create.return_value = mock_agent
+
+    with patch("asqav.client._api_key", "sk_test"):
+        adapter = _TestAdapter(agent_name="test")
+
+    sig = adapter._sign_action(
+        "api:call",
+        {"k": "v"},
+        compliance_mode=True,
+        receipt_type="protectmcp:decision",
+        risk_class="high",
+        iteration_id="iter_42",
+    )
+    assert sig is mock_sig
+    mock_agent.sign.assert_called_once_with(
+        "api:call",
+        {"k": "v"},
+        compliance_mode=True,
+        receipt_type="protectmcp:decision",
+        risk_class="high",
+        iteration_id="iter_42",
+    )
+
+
+@patch("asqav.extras._base.Agent")
+def test_sign_action_no_compliance_kwargs_unchanged(mock_agent_cls):
+    """_sign_action without compliance kwargs calls Agent.sign as before."""
+    mock_agent = MagicMock()
+    mock_sig = SignatureResponse(**MOCK_SIGN_RESPONSE)
+    mock_agent.sign.return_value = mock_sig
+    mock_agent_cls.create.return_value = mock_agent
+
+    with patch("asqav.client._api_key", "sk_test"):
+        adapter = _TestAdapter(agent_name="test")
+
+    adapter._sign_action("api:call", {"k": "v"})
+    mock_agent.sign.assert_called_once_with("api:call", {"k": "v"})

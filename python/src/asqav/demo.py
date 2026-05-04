@@ -399,11 +399,22 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             if scenario is None:
                 self._json(404, {"error": "unknown scenario"})
                 return
+            # IETF Compliance Receipts profile (§5): populate `risk_class`
+            # from the scenario's existing `risk_classification` field so the
+            # demo receipt carries the same controlled-vocabulary value the
+            # cloud emits on a real Compliance Receipt envelope. Same for
+            # `receipt_type` (decision namespace per F1) and `reason` /
+            # `policy_decision` per F9.
             receipt = _sign(self.state, {
                 "scenario_id": sid,
                 "action_type": scenario["action_type"],
                 "decision": decision,
                 "reason": reason,
+                "risk_class": scenario.get("risk_classification", "unknown"),
+                "receipt_type": "protectmcp:decision",
+                "policy_decision": (
+                    "permit" if decision == "approved" else "deny"
+                ),
                 "timestamp": int(time.time()),
             })
             self.state.approvals[sid] = {"decision": decision, "reason": reason, "receipt": receipt}
