@@ -268,3 +268,118 @@ def test_empty_timeline_verifies_under_both_modes() -> None:
     timeline = ReplayTimeline(agent_id="agent_001", session_id="sess_1")
     assert timeline.verify_chain() is True
     assert timeline.verify_chain(legacy_chain=True) is True
+    assert timeline.compliance_chain_valid is True
+
+
+# ---------------------------------------------------------------------------
+# H-NEW-1: signed_envelope path verifies byte-for-byte against the cloud
+# ---------------------------------------------------------------------------
+
+
+def _compliance_envelope(
+    *,
+    idx: int,
+    prev_hash: str,
+    policy_decision: str = "allow",
+) -> dict:
+    """Build the cloud-shape envelope the SDK records under compliance_mode."""
+    return {
+        "action_id": f"act_{idx:03d}",
+        "agent_id": "agent_001",
+        "action_type": "api:call",
+        "context": {"step": idx},
+        "timestamp": "2026-05-04T00:00:00",
+        "policy_digest": "sha256:abc",
+        "policy_decision": policy_decision,
+        "authorization_ref": None,
+        "type": "compliance",
+        "issued_at": "2026-05-04T00:00:00",
+        "issuer_id": "Asqav Test Org",
+        "action_ref": "sha256:def",
+        "payload_digest": "sha256:def",
+        "previousReceiptHash": prev_hash,
+        "receipt_type": "compliance",
+    }
+
+
+def test_envelope_path_matches_cloud_v2_hash_byte_for_byte() -> None:
+    """When ReplayStep.signed_envelope is set, the chain hash equals
+    compute_signature_record_hash_v2 byte-for-byte (sha256(JCS(env)))."""
+    env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
+    env1_prev = hashlib.sha256(canonical_json(env0)).hexdigest()
+    env1 = _compliance_envelope(idx=1, prev_hash=env1_prev)
+
+    sigs = [_make_signed_action(idx=i) for i in range(2)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[env0, env1]
+    )
+    assert timeline.steps[0].signed_envelope == env0
+    assert timeline.steps[1].signed_envelope == env1
+    assert timeline.steps[1].prev_chain_hash == env1_prev
+    assert timeline.verify_chain() is True
+    assert timeline.compliance_chain_valid is True
+    assert all(s.legacy_chain is False for s in timeline.steps)
+
+
+def test_envelope_path_detects_field_tamper_outside_synthetic_shape() -> None:
+    """Tampering `policy_decision` (a field NOT in the synthetic envelope)
+    is caught only when signed_envelope is attached. Without it the
+    legacy synthetic shape would silently pass."""
+    env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
+    env1_prev = hashlib.sha256(canonical_json(env0)).hexdigest()
+    env1 = _compliance_envelope(idx=1, prev_hash=env1_prev)
+
+    sigs = [_make_signed_action(idx=i) for i in range(2)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[env0, env1]
+    )
+
+    # Tamper: flip policy_decision on step 0's envelope.
+    timeline.steps[0].signed_envelope = {**env0, "policy_decision": "deny"}
+
+    # verify_chain re-derives prev_hash from the (tampered) envelope and
+    # the stored prev_chain_hash on step 1 no longer matches.
+    assert timeline.verify_chain() is False
+    assert timeline.steps[1].chain_valid is False
+    assert timeline.compliance_chain_valid is False
+
+
+def test_legacy_synthetic_shape_misses_policy_decision_tamper() -> None:
+    """Documents the weakness the H-NEW-1 fix closes: without
+    signed_envelope, a `policy_decision` flip is invisible because the
+    synthetic envelope does not include it."""
+    sigs = [_make_signed_action(idx=i) for i in range(2)]
+    timeline = _build_timeline("agent_001", "sess_1", sigs)
+    # No envelopes attached; chain verifies under synthetic shape.
+    assert timeline.verify_chain() is True
+    # But compliance_chain_valid is False because envelopes were absent.
+    assert timeline.compliance_chain_valid is False
+    assert all(s.legacy_chain is True for s in timeline.steps)
+
+
+def test_mixed_envelope_steps_set_per_step_legacy_chain_flag() -> None:
+    """A timeline with envelopes on some steps and not others marks the
+    bare steps as legacy_chain=True and drops compliance_chain_valid."""
+    env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
+
+    sigs = [_make_signed_action(idx=i) for i in range(2)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[env0, None]
+    )
+    timeline.verify_chain()
+    assert timeline.steps[0].legacy_chain is False
+    assert timeline.steps[1].legacy_chain is True
+    assert timeline.compliance_chain_valid is False
+
+
+def test_to_dict_includes_signed_envelope_and_compliance_flag() -> None:
+    """Round-trip metadata so audit-pack consumers see envelope + flag."""
+    env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
+    sigs = [_make_signed_action(idx=0)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[env0]
+    )
+    d = timeline.to_dict()
+    assert d["compliance_chain_valid"] is True
+    assert d["steps"][0]["signed_envelope"] == env0
+    assert d["steps"][0]["legacy_chain"] is False
