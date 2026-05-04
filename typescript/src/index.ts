@@ -39,6 +39,31 @@ export type RiskClass = "low" | "medium" | "high" | "unknown";
 /** Policy decision vocabulary; deny / rate_limit require `reason`. */
 export type PolicyDecision = "permit" | "deny" | "rate_limit";
 
+/** IETF -01 Section 4.2.1 / Devil's Advocate N3: spec-shape `decision`
+ * vocabulary on the wire is {"allow", "deny", "rate_limit"}. The legacy
+ * `policyDecision` field uses {"permit", "deny", "rate_limit"}. The SDK
+ * surfaces both so callers can read whichever they prefer.
+ */
+export type Decision = "allow" | "deny" | "rate_limit";
+
+/** Map a legacy `policyDecision` token to the spec-shape `decision`. */
+export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
+  permit: "allow",
+  allow: "allow",
+  deny: "deny",
+  rate_limit: "rate_limit",
+});
+
+/** Translate `policyDecision` to the spec-shape `decision`. Falls back
+ * to `"deny"` so a misconfigured caller never publishes an
+ * out-of-vocabulary token to a draft-strict verifier.
+ */
+export function mapPolicyDecisionToDecision(
+  policyDecision: string | null | undefined,
+): Decision {
+  return DECISION_MAP[(policyDecision ?? "").toLowerCase()] ?? "deny";
+}
+
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
 export { canonicalize, hashAction } from "./canonicalize.js";
@@ -66,6 +91,41 @@ export {
 } from "./algorithms.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
+
+// IETF -01 wire-shape projection helpers (Section 4 + Section 4.4).
+export {
+  signatureObjectFromResponse,
+  anchorsFromResponse,
+  encodeAnchorValue,
+  type SignatureEnvelope,
+  type AnchorEntry,
+  type ProjectableResponse,
+} from "./ietfProjection.js";
+
+import {
+  signatureObjectFromResponse as _signatureObjectFromResponse,
+  anchorsFromResponse as _anchorsFromResponse,
+  type SignatureEnvelope,
+  type AnchorEntry,
+} from "./ietfProjection.js";
+
+/** IETF -01 N6 ergonomic wrapper. Returns the spec-shape envelope
+ * `{alg, kid, sig}` for a SignatureResponse, projecting from flat
+ * fields when the cloud has not emitted `signatureObject` directly. */
+export function signatureObject(
+  response: SignatureResponse | null | undefined,
+): SignatureEnvelope | undefined {
+  return _signatureObjectFromResponse(response as never);
+}
+
+/** IETF -01 N7 ergonomic wrapper. Returns the spec-shape `anchors[]`
+ * for a SignatureResponse, projecting from flat fields when the cloud
+ * has not emitted `anchors` directly. */
+export function anchors(
+  response: SignatureResponse | null | undefined,
+): AnchorEntry[] | undefined {
+  return _anchorsFromResponse(response as never);
+}
 
 const DEFAULT_BASE_URL = "https://api.asqav.com/api/v1";
 /** Metadata keys allowed alongside a hash-only request. Mirrors the
@@ -288,6 +348,26 @@ export interface SignatureResponse {
   receiptType?: string;
   /** Resolved legal entity for this receipt. */
   issuerId?: string;
+  /** Legacy `policy_decision` value echoed from the request (one of
+   * `"permit" | "deny" | "rate_limit"`). Kept for backward compat with
+   * tooling built against the pre-spec implementation. */
+  policyDecision?: PolicyDecision;
+  /** IETF -01 N3 / Section 4.2.1: spec-shape `decision` token mirrors
+   * `policyDecision` with the spec vocabulary
+   * `"allow" | "deny" | "rate_limit"`. Either echoed from the cloud
+   * (newer servers) or mapped client-side from `policyDecision`
+   * (older servers). Undefined for non-compliance receipts. */
+  decision?: Decision;
+  /** IETF -01 N6 / Section 4: spec-shape signature envelope object
+   * `{alg, kid, sig}`. Surfaced as `signatureObject` because the
+   * top-level `signature` field is already occupied by the legacy
+   * base64 flat string. Use `signatureObject()` to project from flat
+   * fields when the cloud has not emitted it directly. */
+  signatureObject?: SignatureEnvelope;
+  /** IETF -01 N7 / Section 4.4: spec-shape anchors array. Use
+   * `anchors()` to project from flat fields when the cloud has not
+   * emitted it directly. */
+  anchors?: AnchorEntry[];
 }
 
 export interface SessionResponse {
@@ -751,7 +831,15 @@ export class Agent {
     if (options.payloadDigest !== undefined) body.payload_digest = options.payloadDigest;
     if (options.receiptType !== undefined) body.receipt_type = options.receiptType;
     if (options.reason !== undefined) body.reason = options.reason;
-    if (options.policyDecision !== undefined) body.policy_decision = options.policyDecision;
+    if (options.policyDecision !== undefined) {
+      body.policy_decision = options.policyDecision;
+      // IETF -01 N3: when compliance_mode is on, also send the spec-shape
+      // `decision` token so a draft-strict cloud picks it up directly.
+      // Older clouds ignore the extra field harmlessly.
+      if (complianceMode) {
+        body.decision = mapPolicyDecisionToDecision(options.policyDecision);
+      }
+    }
 
     const data = await request<{
       signature: string;
@@ -773,6 +861,10 @@ export class Agent {
       policy_digest?: string;
       receipt_type?: string;
       issuer_id?: string;
+      policy_decision?: string;
+      decision?: string;
+      signatureObject?: SignatureEnvelope;
+      anchors?: AnchorEntry[];
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -799,6 +891,18 @@ export class Agent {
       policyDigest: data.policy_digest,
       receiptType: data.receipt_type,
       issuerId: data.issuer_id,
+      policyDecision: data.policy_decision as PolicyDecision | undefined,
+      // IETF -01 N3: surface the spec-shape token. Cloud emits `decision`
+      // alongside `policy_decision` under compliance_mode; older clouds
+      // get a client-side mapping so callers always read a normalised
+      // value.
+      decision: (data.decision as Decision | undefined) ?? (
+        data.compliance_mode
+          ? mapPolicyDecisionToDecision(data.policy_decision)
+          : undefined
+      ),
+      signatureObject: data.signatureObject,
+      anchors: data.anchors,
     };
 
     _dispatchAfter(options.actionType, response);
