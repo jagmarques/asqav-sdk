@@ -298,6 +298,22 @@ class SignatureResponse:
     # without having to know the legacy mapping. None on non-compliance
     # receipts so legacy code paths stay byte-stable.
     decision: str | None = None
+    # IETF -01 N6: spec-shape signature envelope object {alg, kid, sig}
+    # surfaced as `signatureObject` on the wire. Cloud emits it directly
+    # under compliance_mode; older clouds populate the flat fields and
+    # the SDK projects via `signature_object()` below.
+    signatureObject: dict[str, str] | None = None
+
+    def signature_object(self) -> dict[str, str] | None:
+        """Return the spec-shape signature envelope `{alg, kid, sig}`.
+
+        IETF -01 N6 / Section 4. Returns the cloud-supplied
+        `signatureObject` when available, else projects from the flat
+        fields. None for non-compliance receipts.
+        """
+        from .ietf_projection import signature_object_from_response
+
+        return signature_object_from_response(self)
 
 
 @dataclass
@@ -1236,6 +1252,7 @@ class Agent:
                     else None
                 )
             ),
+            signatureObject=data.get("signatureObject"),
         )
 
         # Dispatch after-hooks (fail-open).
