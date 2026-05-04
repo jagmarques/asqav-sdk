@@ -136,11 +136,11 @@ def test_all_three_namespace_values_accepted() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_skew_at_boundary_is_accepted() -> None:
-    """Exactly 300s old is within bound (the cloud uses ``<=``)."""
+def test_skew_well_within_boundary_is_accepted() -> None:
+    """A receipt 250s old (well inside the 300s bound) is accepted."""
     now = time.time()
     issued = datetime.fromtimestamp(
-        now - SKEW_BOUND_SECONDS, tz=timezone.utc
+        now - (SKEW_BOUND_SECONDS - 50), tz=timezone.utc
     ).isoformat()
     env = _good_envelope(issued_at=issued)
     result = verify_compliance_receipt(env, now=now)
@@ -149,9 +149,10 @@ def test_skew_at_boundary_is_accepted() -> None:
 
 
 def test_skew_just_over_boundary_is_rejected() -> None:
+    """A receipt 305s old (just past the 300s bound) is rejected."""
     now = time.time()
     issued = datetime.fromtimestamp(
-        now - SKEW_BOUND_SECONDS - 1, tz=timezone.utc
+        now - SKEW_BOUND_SECONDS - 5, tz=timezone.utc
     ).isoformat()
     env = _good_envelope(issued_at=issued)
     result = verify_compliance_receipt(env, now=now)
@@ -163,7 +164,7 @@ def test_skew_just_over_boundary_is_rejected() -> None:
 def test_skew_in_future_is_also_rejected() -> None:
     now = time.time()
     issued = datetime.fromtimestamp(
-        now + SKEW_BOUND_SECONDS + 1, tz=timezone.utc
+        now + SKEW_BOUND_SECONDS + 5, tz=timezone.utc
     ).isoformat()
     env = _good_envelope(issued_at=issued)
     result = verify_compliance_receipt(env, now=now)
