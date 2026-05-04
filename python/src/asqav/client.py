@@ -191,6 +191,39 @@ class BitcoinAnchor:
     bitcoin_block: int | None = None
 
 
+# IETF Compliance Receipts profile (draft-marques-asqav-compliance-receipts-00 §5).
+# Receipt type namespace mirrored from the cloud's SignRequest validator
+# (`src/asqav_cloud/api/routes/agents.py`). Kept here so the SDK can reject
+# bad inputs before a network roundtrip.
+RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
+    {
+        "protectmcp:decision",
+        "protectmcp:restraint",
+        "protectmcp:lifecycle",
+    }
+)
+
+# §5.1.2 / V6 verifier MUST reject receipts whose `signed_at` sits more
+# than SKEW_BOUND_SECONDS away from the verifier's wall clock. Mirrored
+# from the cloud's `routes/verify.py:SKEW_BOUND_SECONDS`.
+SKEW_BOUND_SECONDS: int = 300
+
+# REQUIRED fields on a Compliance Receipt envelope per §5 of
+# draft-marques-asqav-compliance-receipts-00. Used by the local
+# `verify_compliance_receipt` helper.
+_COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "receipt_type",
+    "issuer_id",
+    "agent_id",
+    "action_ref",
+    "payload_digest",
+    "policy_digest",
+    "previousReceiptHash",
+    "policy_decision",
+    "issued_at",
+)
+
+
 @dataclass
 class SignatureResponse:
     """Response from signing operation.
@@ -222,6 +255,20 @@ class SignatureResponse:
     countersign_url: str | None = None
     # True when the server validated a user_intent envelope on this record.
     user_intent_verified: bool | None = None
+    # IETF Compliance Receipts profile fields. Populated by the cloud only
+    # when `compliance_mode=True` was passed on the sign call. None on
+    # legacy receipts so callers can branch cleanly.
+    compliance_mode: bool = False
+    receipt_type: str | None = None
+    action_ref: str | None = None
+    payload_digest: str | None = None
+    issuer_id: str | None = None
+    iteration_id: str | None = None
+    sandbox_state: str | None = None
+    risk_class: str | None = None
+    incident_class: str | None = None
+    reason: str | None = None
+    previous_receipt_hash: str | None = None
 
 
 @dataclass
@@ -293,7 +340,14 @@ class VerificationDetail:
     Optional on the response; older servers do not return it.
     `validation_label` is one of: valid, invalid_signature,
     signature_expired, signer_key_changed, algorithm_mismatch,
-    agent_inactive, agent_unknown.
+    agent_inactive, agent_unknown, chain_break, anchor_invalid,
+    missing_required_field, signed_at_skew.
+
+    The IETF Compliance Receipts profile fields (`signed_at_skew_seconds`,
+    `chain_valid`, `anchor_status_ots`, `anchor_status_rfc3161`,
+    `missing_fields`) are populated only when the cloud returns them on
+    a compliance-mode receipt; older receipts and older deployments
+    leave them None for back-compat.
     """
 
     signer_key_match: bool
@@ -301,6 +355,12 @@ class VerificationDetail:
     algorithm_match: bool
     agent_active: bool
     validation_label: str
+    # IETF profile sub-axes (cloud may omit on legacy receipts).
+    signed_at_skew_seconds: float | None = None
+    chain_valid: bool | None = None
+    anchor_status_ots: str | None = None
+    anchor_status_rfc3161: str | None = None
+    missing_fields: list[str] | None = None
 
 
 @dataclass
@@ -678,6 +738,22 @@ def flush_spans() -> None:
         pass  # Don't fail on export errors
 
 
+def _compute_action_ref(
+    action_type: str, context: dict[str, Any] | None
+) -> str:
+    """Client-side ``sha256:<hex>`` of the canonical Action object.
+
+    The Action shape mirrors `core/canonical.py:hash_action` on the cloud
+    so the SDK and cloud agree byte-for-byte under JCS encoding.
+    """
+    from .canonicalize import canonicalize
+
+    canonical = canonicalize(
+        {"action_type": action_type, "context": context or {}}
+    )
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
 def _build_sign_body(
     *,
     action_type: str,
@@ -685,12 +761,16 @@ def _build_sign_body(
     session_id: str | None,
     agent_id: str,
     user_intent: dict[str, Any] | None = None,
+    compliance_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for a ``POST /agents/{id}/sign`` request.
 
     Branches on the SDK-level ``_mode``: full-payload sends ``context``
     as before; hash-only sends a ``hash`` field plus a whitelisted
-    ``metadata`` bag.
+    ``metadata`` bag. ``compliance_fields`` carries the IETF Compliance
+    Receipts profile kwargs (``compliance_mode``, ``action_ref`` etc).
+    They are added at the top level of the request body so the cloud's
+    Pydantic ``SignRequest`` model can validate them.
     """
     if _mode == "hash-only":
         from .canonicalize import hash_action
@@ -728,6 +808,10 @@ def _build_sign_body(
         }
         if user_intent is not None:
             body["user_intent"] = user_intent
+        if compliance_fields:
+            for key, value in compliance_fields.items():
+                if value is not None:
+                    body[key] = value
         return body
 
     # full-payload (default for self-hosted)
@@ -738,6 +822,10 @@ def _build_sign_body(
     }
     if user_intent is not None:
         body["user_intent"] = user_intent
+    if compliance_fields:
+        for key, value in compliance_fields.items():
+            if value is not None:
+                body[key] = value
     return body
 
 
@@ -767,12 +855,17 @@ class Agent:
     ) -> Agent:
         """Create a new agent via asqav Cloud.
 
-        The server generates the ML-DSA keypair. The private key
-        never leaves the server.
+        The server generates the keypair. The private key never leaves
+        the server.
 
         Args:
             name: Human-readable name for the agent.
-            algorithm: ML-DSA level (ml-dsa-44, ml-dsa-65, ml-dsa-87).
+            algorithm: Receipt-signing algorithm. One of `ml-dsa-65`
+                (FIPS 204; default, post-quantum), `ed25519` (mandatory
+                upstream per IETF profile §10.8 AG3), or `es256`
+                (ECDSA-P256 per RFC 7518; AG4). The cloud also accepts
+                `ml-dsa-44` and `ml-dsa-87` for level tuning; pass
+                those strings through as-is.
             capabilities: List of capabilities/permissions.
 
         Returns:
@@ -915,6 +1008,17 @@ class Agent:
         nonce: str | None = None,
         valid_seconds: int | None = None,
         expected_executor_pubkey_b64: str | None = None,
+        compliance_mode: bool = False,
+        receipt_type: str | None = None,
+        action_ref: str | None = None,
+        payload_digest: str | None = None,
+        issuer_id: str | None = None,
+        iteration_id: str | None = None,
+        sandbox_state: str | None = None,
+        risk_class: str | None = None,
+        incident_class: str | None = None,
+        reason: str | None = None,
+        policy_decision: str = "permit",
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -994,12 +1098,52 @@ class Agent:
         except Exception:
             logger.warning("asqav before-hook dispatch failed (fail-open)", exc_info=True)
 
+        # IETF Compliance Receipts profile (F1, F5, F9): validate caller
+        # input client-side so we surface bad arguments as ValueError before
+        # a network roundtrip. The cloud re-validates authoritatively.
+        if receipt_type is not None and receipt_type not in RECEIPT_TYPE_NAMESPACE:
+            raise ValueError(
+                "invalid_receipt_type: must be one of "
+                f"{sorted(RECEIPT_TYPE_NAMESPACE)}"
+            )
+        if policy_decision in {"deny", "rate_limit"} and not reason:
+            raise ValueError(
+                "missing_reason: policy_decision=deny|rate_limit "
+                "requires a `reason` code."
+            )
+        # F5: SDK helpfully computes action_ref under compliance_mode when
+        # the caller did not pre-compute one. Same canonical form the cloud
+        # expects (sha256 over JCS bytes of {action_type, context}).
+        if compliance_mode and action_ref is None:
+            action_ref = _compute_action_ref(action_type, context)
+
+        compliance_fields: dict[str, Any] = {}
+        if compliance_mode:
+            compliance_fields["compliance_mode"] = True
+            compliance_fields["receipt_type"] = (
+                receipt_type or "protectmcp:decision"
+            )
+            compliance_fields["policy_decision"] = policy_decision
+            compliance_fields["action_ref"] = action_ref
+            for k, v in (
+                ("payload_digest", payload_digest),
+                ("issuer_id", issuer_id),
+                ("iteration_id", iteration_id),
+                ("sandbox_state", sandbox_state),
+                ("risk_class", risk_class),
+                ("incident_class", incident_class),
+                ("reason", reason),
+            ):
+                if v is not None:
+                    compliance_fields[k] = v
+
         body = _build_sign_body(
             action_type=action_type,
             context=context,
             session_id=self._session_id,
             agent_id=self.agent_id,
             user_intent=user_intent,
+            compliance_fields=compliance_fields or None,
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
@@ -1032,6 +1176,23 @@ class Agent:
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
             user_intent_verified=data.get("user_intent_verified"),
+            # IETF profile fields. Cloud emits both `previousReceiptHash`
+            # (camelCase per spec) and `previous_receipt_hash` (snake_case
+            # alias). Accept either so the SDK works against both shapes.
+            compliance_mode=bool(data.get("compliance_mode", False)),
+            receipt_type=data.get("receipt_type"),
+            action_ref=data.get("action_ref"),
+            payload_digest=data.get("payload_digest"),
+            issuer_id=data.get("issuer_id"),
+            iteration_id=data.get("iteration_id"),
+            sandbox_state=data.get("sandbox_state"),
+            risk_class=data.get("risk_class"),
+            incident_class=data.get("incident_class"),
+            reason=data.get("reason"),
+            previous_receipt_hash=(
+                data.get("previousReceiptHash")
+                or data.get("previous_receipt_hash")
+            ),
         )
 
         # Dispatch after-hooks (fail-open).
@@ -1985,6 +2146,11 @@ def verify_signature(signature_id: str) -> VerificationResponse:
             algorithm_match=detail_raw["algorithm_match"],
             agent_active=detail_raw["agent_active"],
             validation_label=detail_raw["validation_label"],
+            signed_at_skew_seconds=detail_raw.get("signed_at_skew_seconds"),
+            chain_valid=detail_raw.get("chain_valid"),
+            anchor_status_ots=detail_raw.get("anchor_status_ots"),
+            anchor_status_rfc3161=detail_raw.get("anchor_status_rfc3161"),
+            missing_fields=detail_raw.get("missing_fields"),
         )
         if isinstance(detail_raw, dict)
         else None
@@ -2002,6 +2168,140 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         verified=data["verified"],
         verification_url=data["verification_url"],
         verification_detail=detail,
+    )
+
+
+@dataclass
+class ComplianceReceiptVerification:
+    """Outcome of the SDK-side Compliance Receipt sanity check.
+
+    The cloud is the authoritative verifier; this helper is a
+    convenience for callers who want to reject obviously bad receipts
+    before involving the network. Each boolean reflects one MUST clause
+    on draft-marques-asqav-compliance-receipts-00 §5.
+
+    `errors` carries a per-clause failure code so a CLI / dashboard can
+    show the user which clause failed. Codes mirror the cloud's
+    `validation_label` vocabulary in `routes/verify.py`.
+    """
+
+    valid: bool
+    fields_present: bool
+    receipt_type_in_namespace: bool
+    skew_within_bound: bool
+    chain_link_rederives: bool
+    errors: list[str]
+
+
+def verify_compliance_receipt(
+    envelope: dict[str, Any],
+    *,
+    predecessor_envelope: dict[str, Any] | None = None,
+    now: float | None = None,
+) -> ComplianceReceiptVerification:
+    """Local-side sanity-check on a Compliance Receipt envelope.
+
+    Validates the four MUSTs the SDK can check without round-tripping
+    to the cloud:
+
+    1. All REQUIRED fields are present (§5).
+    2. ``receipt_type`` is in the `protectmcp:*` namespace (F1).
+    3. ``signed_at`` (or ``issued_at``) is within
+       ``SKEW_BOUND_SECONDS`` of ``now`` (V6 / §5.1.2).
+    4. ``previousReceiptHash`` rederives over the predecessor envelope
+       under JCS, when one is supplied (§5.7). When the receipt is the
+       first on its chain (`previousReceiptHash == "0" * 64`) the
+       rederivation step is skipped.
+
+    The cloud is authoritative for cryptographic signature checks,
+    policy_digest resolution against the Audit Pack, and anchor
+    verification. This helper is a convenience.
+
+    Args:
+        envelope: The signed receipt envelope, as a dict.
+        predecessor_envelope: Optional predecessor envelope. When
+            provided, the chain-link is rederived and compared to
+            ``envelope["previousReceiptHash"]``.
+        now: Optional override for the verifier wall clock (UNIX
+            seconds). Defaults to ``time.time()``.
+
+    Returns:
+        A :class:`ComplianceReceiptVerification` capturing each MUST.
+    """
+    from datetime import datetime
+
+    from ._jcs import canonical_json
+    from .replay import FIRST_RECEIPT_SEED
+
+    errors: list[str] = []
+
+    # 1. REQUIRED fields present.
+    missing = [
+        f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in envelope
+    ]
+    fields_present = not missing
+    if missing:
+        errors.append(f"missing_fields:{','.join(missing)}")
+
+    # 2. receipt_type namespace.
+    rt = envelope.get("receipt_type") or envelope.get("type")
+    receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
+    if not receipt_type_in_namespace:
+        errors.append("invalid_receipt_type")
+
+    # 3. 300-second skew bound (V6).
+    issued_at = envelope.get("issued_at") or envelope.get("signed_at")
+    skew_within_bound = False
+    if issued_at is None:
+        errors.append("missing_issued_at")
+    else:
+        try:
+            if isinstance(issued_at, (int, float)):
+                ts = float(issued_at)
+            else:
+                # ISO 8601; tolerate trailing "Z".
+                s = str(issued_at).replace("Z", "+00:00")
+                ts = datetime.fromisoformat(s).timestamp()
+            wall = now if now is not None else time.time()
+            skew = abs(ts - wall)
+            skew_within_bound = skew <= SKEW_BOUND_SECONDS
+            if not skew_within_bound:
+                errors.append("signed_at_skew")
+        except (ValueError, TypeError):
+            errors.append("invalid_issued_at")
+
+    # 4. Chain link rederives. Only checked when caller supplies the
+    # predecessor envelope; first-record seeds skip this.
+    chain_link_rederives = True
+    expected_prev = envelope.get("previousReceiptHash")
+    if expected_prev == FIRST_RECEIPT_SEED:
+        # First record on the chain; nothing to rederive.
+        pass
+    elif predecessor_envelope is not None:
+        actual_prev = hashlib.sha256(
+            canonical_json(predecessor_envelope)
+        ).hexdigest()
+        if actual_prev != expected_prev:
+            chain_link_rederives = False
+            errors.append("chain_link_mismatch")
+    # else: caller did not pass a predecessor; cannot rederive. We
+    # leave `chain_link_rederives=True` since "did not check" is not the
+    # same as "failed to check". Callers needing strictness pass the
+    # predecessor.
+
+    valid = (
+        fields_present
+        and receipt_type_in_namespace
+        and skew_within_bound
+        and chain_link_rederives
+    )
+    return ComplianceReceiptVerification(
+        valid=valid,
+        fields_present=fields_present,
+        receipt_type_in_namespace=receipt_type_in_namespace,
+        skew_within_bound=skew_within_bound,
+        chain_link_rederives=chain_link_rederives,
+        errors=errors,
     )
 
 
