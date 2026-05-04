@@ -1237,6 +1237,441 @@ def approve(
 # ---------------------------------------------------------------------------
 
 
+audit_pack_app = typer.Typer(
+    name="audit-pack",
+    help="Audit Pack export and policy_digest resolution (IETF profile).",
+    no_args_is_help=True,
+)
+app.add_typer(audit_pack_app, name="audit-pack")
+
+
+@audit_pack_app.command("export")
+def audit_pack_export(
+    start: str = typer.Option(..., "--start", help="Window start, ISO 8601 (UTC)."),
+    end: str = typer.Option(..., "--end", help="Window end, ISO 8601 (UTC). Half-open."),
+    organization_id: str = typer.Option(
+        "",
+        "--organization-id",
+        help="Defaults to the caller's org. Cross-org export requires admin scopes.",
+    ),
+    only_compliance: bool = typer.Option(
+        True,
+        "--only-compliance/--no-only-compliance",
+        help="When true (default), only IETF Compliance Receipts are exported.",
+    ),
+    output_file: str = typer.Option(
+        ..., "--output-file", help="Path to write the signed bundle JSON."
+    ),
+) -> None:
+    """Export a signed Audit Pack bundle for receipts in [start, end).
+
+    Calls POST `/audit-pack/export`. The bundle is signed with the org's
+    most-recent active agent key over the JCS-canonical bundle bytes, so
+    a verifier can rederive the digest and check the signature offline.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav.client import _post
+
+    body: dict = {
+        "start": start,
+        "end": end,
+        "only_compliance": only_compliance,
+    }
+    if organization_id:
+        body["organization_id"] = organization_id
+
+    try:
+        bundle = _post("/audit-pack/export", body)
+    except Exception as exc:
+        print(f"Error exporting audit pack: {exc}")
+        raise typer.Exit(code=1)
+
+    try:
+        with open(output_file, "w") as f:
+            json_mod.dump(bundle, f, indent=2, default=str)
+    except OSError as exc:
+        print(f"Error writing bundle: {exc}")
+        raise typer.Exit(code=1)
+
+    count = bundle.get("receipt_count", "?")
+    digest = bundle.get("bundle_digest", "?")
+    print(f"wrote {count} receipts to {output_file}")
+    print(f"bundle_digest: {digest}")
+    print(f"algorithm:     {bundle.get('bundle_signature_algorithm', '?')}")
+
+
+@audit_pack_app.command("policy")
+def audit_pack_policy(
+    digest: str = typer.Argument(
+        help="`sha256:<hex>` digest, or 64-hex (the prefix is added)."
+    ),
+    output: str = typer.Option(
+        "json", "--output", "-o", help="Output format: json or text."
+    ),
+) -> None:
+    """Resolve a `policy_digest` to the retained policy artefact JSON.
+
+    Calls GET `/audit-pack/policy/{digest}`. The receipt's `policy_digest`
+    is `sha256:<hex>` over the canonical artefact JSON; this command
+    fetches the artefact so a verifier can rederive the digest offline.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav.client import _get
+
+    if not digest.startswith("sha256:"):
+        if len(digest) == 64 and all(c in "0123456789abcdefABCDEF" for c in digest):
+            digest = "sha256:" + digest.lower()
+        else:
+            print(
+                "Error: digest must be `sha256:<64-hex>` or a bare 64-hex string."
+            )
+            raise typer.Exit(code=1)
+
+    try:
+        data = _get(f"/audit-pack/policy/{digest}")
+    except Exception as exc:
+        print(f"Error fetching artefact: {exc}")
+        raise typer.Exit(code=1)
+
+    if output == "text":
+        print(f"digest:          {data.get('digest', '?')}")
+        print(f"organization_id: {data.get('organization_id', '?')}")
+        print(f"agent_id:        {data.get('agent_id', '?')}")
+        print(f"action_type:     {data.get('action_type', '?')}")
+        print(f"created_at:      {data.get('created_at', '?')}")
+        print(f"--- artefact ---")
+        print(json_mod.dumps(data.get("artefact", {}), indent=2))
+    else:
+        print(json_mod.dumps(data, indent=2, default=str))
+
+
+# ---------------------------------------------------------------------------
+# payloads erase command (P4: GDPR right-to-erasure)
+# ---------------------------------------------------------------------------
+
+
+payloads_app = typer.Typer(
+    name="payloads",
+    help="Erase persisted payloads (P4: GDPR / UK-GDPR right-to-erasure).",
+    no_args_is_help=True,
+)
+app.add_typer(payloads_app, name="payloads")
+
+
+@payloads_app.command("erase")
+def payloads_erase(
+    signature_id: str = typer.Argument(help="Signature whose payload bytes are erased."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
+) -> None:
+    """Erase the persisted JSON payload for a signature record.
+
+    Calls DELETE `/signatures/payloads/{signature_id}`. The cryptographic
+    `message` bytes and chain hash stay untouched so the receipt remains
+    verifiable; the human-readable JSON payload is replaced with a
+    tombstone marker. Idempotent: replaying on an already-erased record
+    returns 204.
+    """
+    if not yes:
+        ok = typer.confirm(
+            f"Erase payload for {signature_id}? Verification stays intact, "
+            f"but the JSON payload becomes a tombstone."
+        )
+        if not ok:
+            print("Cancelled.")
+            raise typer.Exit()
+
+    _init_sdk()
+    from asqav.client import _delete
+
+    try:
+        _delete(f"/signatures/payloads/{signature_id}")
+    except Exception as exc:
+        print(f"Error erasing payload: {exc}")
+        raise typer.Exit(code=1)
+
+    print(f"Payload erased for {signature_id}.")
+    print("Tombstone written; signature remains cryptographically verifiable.")
+
+
+# ---------------------------------------------------------------------------
+# org settings (compliance_mode_strict)
+# ---------------------------------------------------------------------------
+
+
+org_app = typer.Typer(
+    name="org",
+    help="Organization-level settings (IETF M-NEW-1 strict mode).",
+    no_args_is_help=True,
+)
+app.add_typer(org_app, name="org")
+
+
+@org_app.command("set-compliance-strict")
+def org_set_compliance_strict(
+    org_id: str = typer.Argument(help="Organization ID to update."),
+    enable: bool = typer.Option(False, "--enable", help="Turn strict mode on."),
+    disable: bool = typer.Option(False, "--disable", help="Turn strict mode off."),
+) -> None:
+    """Toggle per-org `compliance_mode_strict` (M-NEW-1).
+
+    When True, the cloud rejects any sign request that is not flagged
+    `compliance_mode=true` with HTTP 412 so non-instrumented call paths
+    cannot slip past the receipts trail. Calls PATCH
+    `/orgs/{org_id}` with `{"compliance_mode_strict": <bool>}`.
+    """
+    if enable == disable:
+        print("Error: pass exactly one of --enable or --disable.")
+        raise typer.Exit(code=1)
+
+    _init_sdk()
+    from asqav.client import _patch
+
+    body = {"compliance_mode_strict": bool(enable)}
+    try:
+        out = _patch(f"/orgs/{org_id}", body)
+    except Exception as exc:
+        print(f"Error updating organization: {exc}")
+        raise typer.Exit(code=1)
+
+    state = "enabled" if enable else "disabled"
+    print(f"compliance_mode_strict {state} for org {org_id}.")
+    if isinstance(out, dict) and "compliance_mode_strict" in out:
+        print(f"server confirms: compliance_mode_strict={out['compliance_mode_strict']}")
+
+
+# ---------------------------------------------------------------------------
+# keys generate (local keypair)
+# ---------------------------------------------------------------------------
+
+
+keys_app = typer.Typer(
+    name="keys",
+    help="Local keypair management (algorithm agility).",
+    no_args_is_help=True,
+)
+app.add_typer(keys_app, name="keys")
+
+
+@keys_app.command("generate")
+def keys_generate(
+    algorithm: str = typer.Option(
+        "ed25519",
+        "--algorithm",
+        help="ml-dsa-65|ed25519|es256. ml-dsa-65 keygen is server-side only.",
+    ),
+    out: str = typer.Option(
+        "",
+        "--out",
+        help="Path to write the private key bytes. Public key always prints to stdout.",
+    ),
+) -> None:
+    """Generate a local keypair (offline / air-gapped flows).
+
+    Ed25519 and ES256 emit PKCS#8 PEM. ML-DSA-65 raises a clear error
+    pointing the caller at `asqav agents create` (server-side keygen).
+    """
+    from asqav import generate_local_keypair
+
+    try:
+        kp = generate_local_keypair(algorithm)
+    except NotImplementedError as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1)
+    except (ValueError, ImportError) as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1)
+
+    if out:
+        try:
+            with open(out, "wb") as f:
+                f.write(kp.private_key_pem)
+        except OSError as exc:
+            print(f"Error writing key file: {exc}")
+            raise typer.Exit(code=1)
+        try:
+            os_module = __import__("os")
+            os_module.chmod(out, 0o600)
+        except Exception:
+            pass
+        print(f"Private key written to {out} (mode 0600).")
+
+    print("--- public key ---")
+    sys.stdout.write(kp.public_key_pem.decode("utf-8", errors="replace"))
+
+
+# ---------------------------------------------------------------------------
+# replay verify (IETF chain verification)
+# ---------------------------------------------------------------------------
+
+
+# Mounted as a top-level command (not a subapp) so the existing
+# `asqav replay` (session replay) keeps its current shape.
+@app.command("replay-verify")
+def replay_verify_cmd(
+    agent_id: str = typer.Argument(help="Agent that owns the chain."),
+    session_id: str = typer.Argument(help="Session whose chain to re-derive."),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Reject legacy synthetic-shape steps. The IETF profile rederives the chain over `sha256(canonical_json(signed_envelope))`; legacy steps cannot prove byte-level integrity.",
+    ),
+    output: str = typer.Option("text", "--output", "-o", help="Output format: text or json."),
+) -> None:
+    """Re-derive a session's IETF chain (`sha256(canonical_json(signed_envelope))`).
+
+    Wraps :func:`asqav.replay`. With ``--strict`` the command fails
+    when any step lacks the cloud-emitted ``signed_envelope`` and falls
+    back to the synthetic shape (because that synthetic shape cannot
+    prove byte-level integrity per the IETF profile).
+    """
+    import json as json_mod
+
+    _init_sdk()
+    _require_tier("pro")
+    from asqav import APIError
+    from asqav import replay as replay_api
+
+    try:
+        timeline = replay_api(agent_id, session_id)
+    except APIError as exc:
+        print(f"Error fetching timeline: {exc}")
+        raise typer.Exit(code=1)
+
+    timeline.verify_chain()
+    chain_valid = bool(timeline.compliance_chain_valid)
+    legacy_steps = [s for s in timeline.steps if getattr(s, "legacy_chain", False)]
+    has_legacy = bool(legacy_steps)
+    strict_pass = chain_valid and not (strict and has_legacy)
+
+    if output == "json":
+        print(json_mod.dumps({
+            "compliance_chain_valid": chain_valid,
+            "strict": strict,
+            "strict_pass": strict_pass,
+            "step_count": len(timeline.steps),
+            "legacy_step_count": len(legacy_steps),
+            "steps": [
+                {
+                    "index": s.index,
+                    "signature_id": getattr(s, "signature_id", None),
+                    "chain_valid": getattr(s, "chain_valid", None),
+                    "legacy_chain": getattr(s, "legacy_chain", None),
+                }
+                for s in timeline.steps
+            ],
+        }, indent=2, default=str))
+        if not strict_pass:
+            raise typer.Exit(code=1)
+        return
+
+    print(f"compliance_chain_valid: {chain_valid}")
+    print(f"strict: {strict}")
+    print(f"steps: {len(timeline.steps)} (legacy: {len(legacy_steps)})")
+    for s in timeline.steps:
+        ok = getattr(s, "chain_valid", False)
+        legacy = "legacy" if getattr(s, "legacy_chain", False) else "envelope"
+        marker = "ok  " if ok else "FAIL"
+        print(f"  [{marker}] step {s.index} ({legacy}) sig={getattr(s, 'signature_id', '?')}")
+    if strict and has_legacy:
+        print("strict mode FAILED: at least one step uses the legacy synthetic shape.")
+    if not strict_pass:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# migrate run (operator commands)
+# ---------------------------------------------------------------------------
+
+
+migrate_app = typer.Typer(
+    name="migrate",
+    help="Operator-only DB migration runner (X-Maintenance-Key required).",
+    no_args_is_help=True,
+)
+app.add_typer(migrate_app, name="migrate")
+
+
+_SUPPORTED_MIGRATIONS = {"v3-20", "v3-21", "v3-22"}
+
+
+@migrate_app.command("run")
+def migrate_run(
+    migration: str = typer.Argument(help="One of v3-20, v3-21, v3-22."),
+) -> None:
+    """Trigger a maintenance migration.
+
+    Reads the maintenance key from the `ASQAV_MAINTENANCE_KEY` env var and
+    POSTs `/maintenance/run-migration-{migration}`. Refuses to run when
+    the env var is missing.
+    """
+    import json as json_mod
+    import os
+
+    if migration not in _SUPPORTED_MIGRATIONS:
+        print(
+            f"Error: unsupported migration {migration!r}. "
+            f"Supported: {sorted(_SUPPORTED_MIGRATIONS)}."
+        )
+        raise typer.Exit(code=1)
+
+    maintenance_key = os.environ.get("ASQAV_MAINTENANCE_KEY")
+    if not maintenance_key:
+        print("Error: ASQAV_MAINTENANCE_KEY env var is required for migration commands.")
+        raise typer.Exit(code=1)
+
+    # Build a one-off HTTP request that adds the X-Maintenance-Key header.
+    # The shared `_post` helper does not let us inject headers, so we use
+    # the same urllib path as a plain operator script would.
+    import asqav
+    from asqav import init as _init
+
+    api_key = os.environ.get("ASQAV_API_KEY")
+    if not api_key:
+        print("Error: ASQAV_API_KEY env var is required.")
+        raise typer.Exit(code=1)
+    _init(api_key=api_key)
+
+    base = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
+    url = f"{base}/maintenance/run-migration-{migration}"
+
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(
+        url,
+        method="POST",
+        headers={
+            "X-API-Key": api_key,
+            "X-Maintenance-Key": maintenance_key,
+            "Content-Type": "application/json",
+        },
+        data=b"{}",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode("utf-8")
+        except Exception:
+            detail = str(exc)
+        print(f"HTTP {exc.code} from /maintenance/run-migration-{migration}: {detail}")
+        raise typer.Exit(code=1)
+    except urllib.error.URLError as exc:
+        print(f"Network error: {exc}")
+        raise typer.Exit(code=1)
+
+    try:
+        parsed = json_mod.loads(body)
+        print(json_mod.dumps(parsed, indent=2))
+    except json_mod.JSONDecodeError:
+        print(body)
+
+
 @compliance_app.command("frameworks")
 def compliance_frameworks() -> None:
     """List the compliance frameworks the bundle exporter recognizes."""
