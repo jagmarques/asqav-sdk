@@ -842,12 +842,17 @@ class Agent:
     ) -> Agent:
         """Create a new agent via asqav Cloud.
 
-        The server generates the ML-DSA keypair. The private key
-        never leaves the server.
+        The server generates the keypair. The private key never leaves
+        the server.
 
         Args:
             name: Human-readable name for the agent.
-            algorithm: ML-DSA level (ml-dsa-44, ml-dsa-65, ml-dsa-87).
+            algorithm: Receipt-signing algorithm. One of `ml-dsa-65`
+                (FIPS 204; default, post-quantum), `ed25519` (mandatory
+                upstream per IETF profile §10.8 AG3), or `es256`
+                (ECDSA-P256 per RFC 7518; AG4). The cloud also accepts
+                `ml-dsa-44` and `ml-dsa-87` for level tuning; pass
+                those strings through as-is.
             capabilities: List of capabilities/permissions.
 
         Returns:

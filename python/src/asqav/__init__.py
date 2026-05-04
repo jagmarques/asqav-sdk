@@ -30,6 +30,14 @@ Get your API key at asqav.com
 from ._jcs import canonical_json
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
+from .keys import (
+    ALGORITHM_ED25519,
+    ALGORITHM_ES256,
+    ALGORITHM_ML_DSA_65,
+    SUPPORTED_ALGORITHMS,
+    LocalKeypair,
+    generate_local_keypair,
+)
 from .client import (
     RECEIPT_TYPE_NAMESPACE,
     SKEW_BOUND_SECONDS,
@@ -269,4 +277,11 @@ __all__ = [
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",
+    # Algorithm agility
+    "ALGORITHM_ML_DSA_65",
+    "ALGORITHM_ED25519",
+    "ALGORITHM_ES256",
+    "SUPPORTED_ALGORITHMS",
+    "LocalKeypair",
+    "generate_local_keypair",
 ]
