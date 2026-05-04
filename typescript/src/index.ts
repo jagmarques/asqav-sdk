@@ -38,6 +38,15 @@ export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
 export { canonicalize, hashAction } from "./canonicalize.js";
 export { canonicalJson } from "./jcs.js";
+export {
+  verifyChain,
+  deriveChainHash,
+  FIRST_RECEIPT_SEED,
+  type ChainRecord,
+  type ChainStepResult,
+  type ChainVerificationResult,
+  type VerifyChainOptions,
+} from "./replay.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
