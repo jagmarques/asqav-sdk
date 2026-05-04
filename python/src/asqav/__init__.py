@@ -30,6 +30,7 @@ Get your API key at asqav.com
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
 from .client import (
+    RECEIPT_TYPE_NAMESPACE,
     Agent,
     AgentResponse,
     APIError,
@@ -258,4 +259,6 @@ __all__ = [
     "AuthenticationError",
     "RateLimitError",
     "APIError",
+    # IETF Compliance Receipts profile
+    "RECEIPT_TYPE_NAMESPACE",
 ]
