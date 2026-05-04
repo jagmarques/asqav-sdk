@@ -23,10 +23,13 @@ import {
   Agent,
   APIError,
   BudgetTracker,
+  generateKeypair,
   init,
   listSessions,
   request,
+  verifyChain,
   verifySignature,
+  type LocalSigningAlgorithm,
 } from "./index.js";
 
 const CLI_VERSION = "0.2.5";
@@ -385,6 +388,360 @@ async function cmdComplianceExport(args: string[]): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// IETF Compliance Receipts profile commands
+// ---------------------------------------------------------------------------
+
+async function readJsonInput(value: string): Promise<unknown> {
+  if (value === "-") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) {
+      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer));
+    }
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  }
+  const fs = await import("node:fs/promises");
+  const text = await fs.readFile(value, "utf8");
+  return JSON.parse(text);
+}
+
+async function cmdSign(args: string[]): Promise<void> {
+  const agentId = parseFlag(args, "agent-id");
+  const actionType = parseFlag(args, "action-type");
+  if (!agentId || !actionType) {
+    die("Usage: asqav sign --agent-id ID --action-type T [--compliance-mode] [--action-json PATH]");
+  }
+  const complianceMode = hasFlag(args, "compliance-mode");
+  const actionRef = parseFlag(args, "action-ref");
+  const actionJson = parseFlag(args, "action-json");
+  const sandboxState = parseFlag(args, "sandbox-state");
+  const iterationId = parseFlag(args, "iteration-id");
+  const riskClass = parseFlag(args, "risk-class");
+  const incidentClass = parseFlag(args, "incident-class");
+  const issuerId = parseFlag(args, "issuer-id");
+  const receiptType = parseFlag(args, "receipt-type") ?? "protectmcp:decision";
+  const reason = parseFlag(args, "reason");
+  const policyDecision = parseFlag(args, "policy-decision") ?? "permit";
+  const sessionId = parseFlag(args, "session-id");
+  const validSecondsStr = parseFlag(args, "valid-seconds");
+  const policyArtefactPath = parseFlag(args, "policy-artefact");
+  const output = parseFlag(args, "output") ?? "text";
+
+  if ((policyDecision === "deny" || policyDecision === "rate_limit") && !reason) {
+    die("Error: --reason is required when --policy-decision is deny or rate_limit.");
+  }
+
+  ensureApiKey();
+  let context: Record<string, unknown> | undefined;
+  if (actionJson) {
+    try {
+      context = (await readJsonInput(actionJson)) as Record<string, unknown>;
+    } catch (err) {
+      die(`Error reading action JSON: ${(err as Error).message}`);
+    }
+  }
+  if (policyArtefactPath) {
+    try {
+      const artefact = await readJsonInput(policyArtefactPath);
+      context = { ...(context ?? {}), _policy_artefact: artefact };
+    } catch (err) {
+      die(`Error reading policy artefact: ${(err as Error).message}`);
+    }
+  }
+  const actionId = parseFlag(args, "action-id");
+  if (actionId) {
+    context = { ...(context ?? {}), _action_id: actionId };
+  }
+
+  try {
+    const agent = await Agent.get(agentId);
+    if (sessionId) {
+      // Internal field used by buildSignBody when the session is bound.
+      (agent as unknown as { sessionId: string }).sessionId = sessionId;
+    }
+    const sig = await agent.sign({
+      actionType: actionType,
+      context,
+      complianceMode,
+      actionRef,
+      sandboxState: sandboxState as "enabled" | "disabled" | "unavailable" | undefined,
+      iterationId,
+      riskClass: riskClass as "low" | "medium" | "high" | "unknown" | undefined,
+      incidentClass,
+      issuerId,
+      receiptType: receiptType as
+        | "protectmcp:decision"
+        | "protectmcp:restraint"
+        | "protectmcp:lifecycle",
+      reason,
+      policyDecision: policyDecision as "permit" | "deny" | "rate_limit",
+      validSeconds: validSecondsStr ? Number(validSecondsStr) : undefined,
+    });
+    if (output === "json") {
+      process.stdout.write(`${JSON.stringify(sig, null, 2)}\n`);
+      return;
+    }
+    process.stdout.write(`signature_id: ${sig.signatureId}\n`);
+    process.stdout.write(`action_id:    ${sig.actionId}\n`);
+    process.stdout.write(`algorithm:    ${sig.algorithm ?? "?"}\n`);
+    process.stdout.write(`signed_at:    ${sig.timestamp}\n`);
+    if (sig.policyDigest) process.stdout.write(`policy_digest: ${sig.policyDigest}\n`);
+    if (sig.complianceMode) {
+      process.stdout.write(`compliance_mode: true\n`);
+      if (sig.receiptType) process.stdout.write(`receipt_type:  ${sig.receiptType}\n`);
+      if (sig.actionRef) process.stdout.write(`action_ref:    ${sig.actionRef}\n`);
+      if (sig.previousReceiptHash) {
+        process.stdout.write(`previous_receipt_hash: ${sig.previousReceiptHash}\n`);
+      }
+    }
+    process.stdout.write(`verify_url:   ${sig.verificationUrl}\n`);
+  } catch (err) {
+    die(`Error signing: ${(err as Error).message}`);
+  }
+}
+
+async function cmdAuditPackExport(args: string[]): Promise<void> {
+  const start = parseFlag(args, "start");
+  const end = parseFlag(args, "end");
+  const outputFile = parseFlag(args, "output-file");
+  const organizationId = parseFlag(args, "organization-id");
+  const onlyCompliance = !hasFlag(args, "no-only-compliance");
+  if (!start || !end || !outputFile) {
+    die("Usage: asqav audit-pack export --start ISO --end ISO --output-file PATH [--organization-id ID] [--no-only-compliance]");
+  }
+  ensureApiKey();
+  try {
+    const body: Record<string, unknown> = { start, end, only_compliance: onlyCompliance };
+    if (organizationId) body.organization_id = organizationId;
+    const bundle = await request<{
+      receipt_count?: number;
+      bundle_digest?: string;
+      bundle_signature_algorithm?: string;
+    }>("POST", "/audit-pack/export", body);
+    const fs = await import("node:fs/promises");
+    await fs.writeFile(outputFile, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+    process.stdout.write(`wrote ${bundle.receipt_count ?? "?"} receipts to ${outputFile}\n`);
+    if (bundle.bundle_digest) process.stdout.write(`bundle_digest: ${bundle.bundle_digest}\n`);
+    if (bundle.bundle_signature_algorithm) {
+      process.stdout.write(`algorithm:     ${bundle.bundle_signature_algorithm}\n`);
+    }
+  } catch (err) {
+    die(`Error exporting audit pack: ${(err as Error).message}`);
+  }
+}
+
+async function cmdAuditPackPolicy(args: string[]): Promise<void> {
+  let [digest] = positional(args);
+  if (!digest) die("Usage: asqav audit-pack policy <sha256:hex>");
+  if (!digest.startsWith("sha256:")) {
+    if (/^[0-9a-fA-F]{64}$/.test(digest)) {
+      digest = `sha256:${digest.toLowerCase()}`;
+    } else {
+      die("Error: digest must be sha256:<64-hex> or a bare 64-hex string.");
+    }
+  }
+  const output = parseFlag(args, "output") ?? "json";
+  ensureApiKey();
+  try {
+    const data = await request<unknown>("GET", `/audit-pack/policy/${digest}`);
+    if (output === "text") {
+      const d = data as {
+        digest?: string;
+        organization_id?: string;
+        agent_id?: string;
+        action_type?: string;
+        created_at?: string;
+        artefact?: unknown;
+      };
+      process.stdout.write(`digest:          ${d.digest ?? "?"}\n`);
+      process.stdout.write(`organization_id: ${d.organization_id ?? "?"}\n`);
+      process.stdout.write(`agent_id:        ${d.agent_id ?? "?"}\n`);
+      process.stdout.write(`action_type:     ${d.action_type ?? "?"}\n`);
+      process.stdout.write(`created_at:      ${d.created_at ?? "?"}\n`);
+      process.stdout.write(`--- artefact ---\n${JSON.stringify(d.artefact ?? {}, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+    }
+  } catch (err) {
+    die(`Error fetching artefact: ${(err as Error).message}`);
+  }
+}
+
+async function cmdPayloadsErase(args: string[]): Promise<void> {
+  const [signatureId] = positional(args);
+  if (!signatureId) die("Usage: asqav payloads erase <signature_id> [--yes]");
+  if (!hasFlag(args, "yes") && !hasFlag(args, "y")) {
+    die("Refusing to erase without --yes. Erasure is idempotent but cannot be undone.");
+  }
+  ensureApiKey();
+  try {
+    await request("DELETE", `/signatures/payloads/${signatureId}`);
+    process.stdout.write(`Payload erased for ${signatureId}.\n`);
+    process.stdout.write(`Tombstone written; signature remains cryptographically verifiable.\n`);
+  } catch (err) {
+    die(`Error erasing payload: ${(err as Error).message}`);
+  }
+}
+
+async function cmdOrgSetComplianceStrict(args: string[]): Promise<void> {
+  const [orgId] = positional(args);
+  if (!orgId) die("Usage: asqav org set-compliance-strict <org_id> --enable|--disable");
+  const enable = hasFlag(args, "enable");
+  const disable = hasFlag(args, "disable");
+  if (enable === disable) {
+    die("Error: pass exactly one of --enable or --disable.");
+  }
+  ensureApiKey();
+  try {
+    const out = await request<{ compliance_mode_strict?: boolean }>(
+      "PATCH",
+      `/orgs/${orgId}`,
+      { compliance_mode_strict: enable },
+    );
+    const state = enable ? "enabled" : "disabled";
+    process.stdout.write(`compliance_mode_strict ${state} for org ${orgId}.\n`);
+    if (out && typeof out.compliance_mode_strict === "boolean") {
+      process.stdout.write(
+        `server confirms: compliance_mode_strict=${out.compliance_mode_strict}\n`,
+      );
+    }
+  } catch (err) {
+    die(`Error updating organization: ${(err as Error).message}`);
+  }
+}
+
+async function cmdKeysGenerate(args: string[]): Promise<void> {
+  const algorithm = parseFlag(args, "algorithm") ?? "ed25519";
+  const out = parseFlag(args, "out");
+  if (algorithm === "ml-dsa-65") {
+    die(
+      "ml-dsa-65 keypair generation runs server-side; call `asqav agents create --algorithm ml-dsa-65`.",
+    );
+  }
+  if (algorithm !== "ed25519" && algorithm !== "es256") {
+    die(`unsupported_algorithm: ${algorithm}. Supported: ed25519, es256.`);
+  }
+  try {
+    const kp = generateKeypair(algorithm as LocalSigningAlgorithm);
+    if (out) {
+      const fs = await import("node:fs/promises");
+      // Write the PKCS#8 DER bytes (base64-decoded) so the file is the
+      // raw key material the cloud signing path expects.
+      await fs.writeFile(out, Buffer.from(kp.privateKeyPkcs8B64, "base64"), { mode: 0o600 });
+      process.stdout.write(`Private key (PKCS#8 DER) written to ${out} (mode 0600).\n`);
+    }
+    process.stdout.write(`--- public key (SPKI DER, base64) ---\n${kp.publicKeySpkiB64}\n`);
+  } catch (err) {
+    die(`Error generating keypair: ${(err as Error).message}`);
+  }
+}
+
+async function cmdReplayVerify(args: string[]): Promise<void> {
+  const [agentId, sessionId] = positional(args);
+  if (!agentId || !sessionId) {
+    die("Usage: asqav replay-verify <agent_id> <session_id> [--strict] [--output text|json]");
+  }
+  const strict = hasFlag(args, "strict");
+  const output = parseFlag(args, "output") ?? "text";
+  ensureApiKey();
+  await requireTier("pro");
+  try {
+    const data = await request<{
+      steps?: Array<{
+        signature_id?: string;
+        signed_envelope?: Record<string, unknown>;
+        previous_receipt_hash?: string;
+        previousReceiptHash?: string;
+      }>;
+    }>("GET", `/agents/${agentId}/sessions/${sessionId}/replay`);
+    const steps = Array.isArray(data.steps) ? data.steps : [];
+    if (steps.length === 0) {
+      die("Error: no replay steps returned by the cloud.");
+    }
+    const legacySteps = steps.filter((s) => !s.signed_envelope);
+    const records = steps
+      .filter((s) => !!s.signed_envelope)
+      .map((s) => ({ signedEnvelope: s.signed_envelope as Record<string, unknown> }));
+    const result = verifyChain(records);
+    const chainValid = result.chainIntegrity && legacySteps.length === 0;
+    const strictPass = strict ? chainValid : result.chainIntegrity;
+    if (output === "json") {
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            compliance_chain_valid: chainValid,
+            strict,
+            strict_pass: strictPass,
+            step_count: steps.length,
+            legacy_step_count: legacySteps.length,
+            steps: result.steps,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    } else {
+      process.stdout.write(`compliance_chain_valid: ${chainValid}\n`);
+      process.stdout.write(`strict: ${strict}\n`);
+      process.stdout.write(`steps: ${steps.length} (legacy: ${legacySteps.length})\n`);
+      for (const step of result.steps) {
+        const ok = step.chainValid ? "ok  " : "FAIL";
+        process.stdout.write(`  [${ok}] step ${step.index}\n`);
+      }
+      if (strict && legacySteps.length > 0) {
+        process.stdout.write(
+          `strict mode FAILED: ${legacySteps.length} step(s) lack signed_envelope.\n`,
+        );
+      }
+    }
+    if (!strictPass) process.exit(1);
+  } catch (err) {
+    die(`Error: ${(err as Error).message}`);
+  }
+}
+
+const SUPPORTED_MIGRATIONS = new Set(["v3-20", "v3-21", "v3-22"]);
+
+async function cmdMigrateRun(args: string[]): Promise<void> {
+  const [migration] = positional(args);
+  if (!migration) die("Usage: asqav migrate run v3-20|v3-21|v3-22");
+  if (!SUPPORTED_MIGRATIONS.has(migration)) {
+    die(`Error: unsupported migration ${migration}. Supported: ${[...SUPPORTED_MIGRATIONS].join(", ")}`);
+  }
+  const maintenanceKey = process.env.ASQAV_MAINTENANCE_KEY;
+  if (!maintenanceKey) {
+    die("Error: ASQAV_MAINTENANCE_KEY env var is required for migration commands.");
+  }
+  if (!process.env.ASQAV_API_KEY) {
+    die("Error: ASQAV_API_KEY env var is required.");
+  }
+  const baseUrl = process.env.ASQAV_API_URL ?? "https://api.asqav.com/api/v1";
+  const url = `${baseUrl.replace(/\/+$/, "")}/maintenance/run-migration-${migration}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-API-Key": process.env.ASQAV_API_KEY,
+        "X-Maintenance-Key": maintenanceKey,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    const text = await response.text();
+    if (response.status >= 400) {
+      die(`HTTP ${response.status} from /maintenance/run-migration-${migration}: ${text}`);
+    }
+    try {
+      const parsed = JSON.parse(text);
+      process.stdout.write(`${JSON.stringify(parsed, null, 2)}\n`);
+    } catch {
+      process.stdout.write(`${text}\n`);
+    }
+  } catch (err) {
+    die(`Network error: ${(err as Error).message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Help / usage
 // ---------------------------------------------------------------------------
 
@@ -393,21 +750,28 @@ function printHelp(): void {
 
 Usage:
   asqav --version
-  asqav verify <signature_id>
-  asqav agents list
-  asqav agents create <name>
-  asqav agents revoke <agent_id> [--reason X]
-  asqav sessions list [--limit N] [--status X] [--agent ID]
-  asqav sessions end <session_id> [--status completed]
+  asqav verify <signature_id> [--output text|json]
+  asqav sign --agent-id ID --action-type T [--compliance-mode] [--action-json PATH|-]
+             [--receipt-type protectmcp:decision|...] [--risk-class low|medium|high|unknown]
+             [--sandbox-state enabled|disabled|unavailable] [--iteration-id ID]
+             [--issuer-id LEGAL] [--policy-decision permit|deny|rate_limit] [--reason CODE]
+             [--algorithm ml-dsa-65|ed25519|es256] [--policy-artefact PATH|-]
+             [--session-id ID] [--valid-seconds N] [--output text|json]
+  asqav agents list / create <name> / revoke <agent_id>
+  asqav sessions list / end <session_id>
   asqav replay <agent_id> <session_id> [--json]            (Pro)
+  asqav replay-verify <agent_id> <session_id> [--strict]   (Pro)  IETF chain
   asqav preflight <agent_id> <action_type> [--json]        (Pro)
-  asqav budget check --agent-id ID --limit N --estimated-cost N
-                     [--current-spend N] [--currency USD] [--json]   (Pro)
-  asqav budget record --agent-id ID --action TYPE --actual-cost N --limit N
-                      [--current-spend N] [--currency USD]           (Pro)
-  asqav approve <session_id> <entity_id> [--json]          (Pro)
-  asqav compliance frameworks
-  asqav compliance export --session ID --output PATH [--framework KEY]  (Business)
+  asqav budget check / record                              (Pro)
+  asqav approve <session_id> <entity_id>                   (Pro)
+  asqav compliance frameworks / export                     (Business)
+  asqav audit-pack export --start ISO --end ISO --output-file PATH
+                          [--organization-id ID] [--no-only-compliance]
+  asqav audit-pack policy <sha256:hex> [--output text|json]
+  asqav payloads erase <signature_id> --yes                P4 right-to-erasure
+  asqav org set-compliance-strict <org_id> --enable|--disable
+  asqav keys generate --algorithm ed25519|es256 [--out priv.pem]
+  asqav migrate run v3-20|v3-21|v3-22                      X-Maintenance-Key required
 
 Set ASQAV_API_KEY to authenticate. Get a key at https://asqav.com.
 `);
@@ -431,6 +795,8 @@ export async function runCli(argv: string[]): Promise<void> {
   switch (first) {
     case "verify":
       return cmdVerify(rest);
+    case "sign":
+      return cmdSign(rest);
     case "agents": {
       const [sub, ...rest2] = rest;
       if (sub === "list") return cmdAgentsList();
@@ -446,6 +812,8 @@ export async function runCli(argv: string[]): Promise<void> {
     }
     case "replay":
       return cmdReplay(rest);
+    case "replay-verify":
+      return cmdReplayVerify(rest);
     case "preflight":
       return cmdPreflight(rest);
     case "budget": {
@@ -461,6 +829,32 @@ export async function runCli(argv: string[]): Promise<void> {
       if (sub === "frameworks") return cmdComplianceFrameworks();
       if (sub === "export") return cmdComplianceExport(rest2);
       die("Usage: asqav compliance (frameworks | export)");
+    }
+    case "audit-pack": {
+      const [sub, ...rest2] = rest;
+      if (sub === "export") return cmdAuditPackExport(rest2);
+      if (sub === "policy") return cmdAuditPackPolicy(rest2);
+      die("Usage: asqav audit-pack (export | policy <digest>)");
+    }
+    case "payloads": {
+      const [sub, ...rest2] = rest;
+      if (sub === "erase") return cmdPayloadsErase(rest2);
+      die("Usage: asqav payloads erase <signature_id> --yes");
+    }
+    case "org": {
+      const [sub, ...rest2] = rest;
+      if (sub === "set-compliance-strict") return cmdOrgSetComplianceStrict(rest2);
+      die("Usage: asqav org set-compliance-strict <org_id> --enable|--disable");
+    }
+    case "keys": {
+      const [sub, ...rest2] = rest;
+      if (sub === "generate") return cmdKeysGenerate(rest2);
+      die("Usage: asqav keys generate --algorithm ed25519|es256 [--out PATH]");
+    }
+    case "migrate": {
+      const [sub, ...rest2] = rest;
+      if (sub === "run") return cmdMigrateRun(rest2);
+      die("Usage: asqav migrate run v3-20|v3-21|v3-22");
     }
     default:
       die(`Unknown command: ${first}\nRun 'asqav --help' for usage.`);
