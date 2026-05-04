@@ -2228,7 +2228,7 @@ def verify_compliance_receipt(
     Returns:
         A :class:`ComplianceReceiptVerification` capturing each MUST.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from ._jcs import canonical_json
     from .replay import FIRST_RECEIPT_SEED

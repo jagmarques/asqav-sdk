@@ -354,7 +354,7 @@ def sign(
     if sig.policy_digest:
         print(f"policy_digest: {sig.policy_digest}")
     if sig.compliance_mode:
-        print(f"compliance_mode: True")
+        print("compliance_mode: True")
         if sig.receipt_type:
             print(f"receipt_type:  {sig.receipt_type}")
         if sig.action_ref:
@@ -1343,7 +1343,7 @@ def audit_pack_policy(
         print(f"agent_id:        {data.get('agent_id', '?')}")
         print(f"action_type:     {data.get('action_type', '?')}")
         print(f"created_at:      {data.get('created_at', '?')}")
-        print(f"--- artefact ---")
+        print("--- artefact ---")
         print(json_mod.dumps(data.get("artefact", {}), indent=2))
     else:
         print(json_mod.dumps(data, indent=2, default=str))
@@ -1626,7 +1626,6 @@ def migrate_run(
     # Build a one-off HTTP request that adds the X-Maintenance-Key header.
     # The shared `_post` helper does not let us inject headers, so we use
     # the same urllib path as a plain operator script would.
-    import asqav
     from asqav import init as _init
 
     api_key = os.environ.get("ASQAV_API_KEY")

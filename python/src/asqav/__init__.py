@@ -30,14 +30,6 @@ Get your API key at asqav.com
 from ._jcs import canonical_json
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
-from .keys import (
-    ALGORITHM_ED25519,
-    ALGORITHM_ES256,
-    ALGORITHM_ML_DSA_65,
-    SUPPORTED_ALGORITHMS,
-    LocalKeypair,
-    generate_local_keypair,
-)
 from .client import (
     RECEIPT_TYPE_NAMESPACE,
     SKEW_BOUND_SECONDS,
@@ -122,6 +114,14 @@ from .client import (
 from .compliance import ComplianceBundle, export_bundle
 from .decorators import async_session, session, sign
 from .hooks import clear_hooks, register_after, register_before
+from .keys import (
+    ALGORITHM_ED25519,
+    ALGORITHM_ES256,
+    ALGORITHM_ML_DSA_65,
+    SUPPORTED_ALGORITHMS,
+    LocalKeypair,
+    generate_local_keypair,
+)
 from .local import LocalQueue, local_sign
 from .patterns import PATTERNS, list_patterns, resolve_pattern
 from .phases import PhaseChain, sign_with_phases
