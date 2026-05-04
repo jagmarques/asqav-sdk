@@ -203,6 +203,46 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
+# DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification.
+# The Joint Committee of the European Supervisory Authorities published
+# the final RTS on classification of major ICT-related incidents on
+# 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
+# vocabulary of `incident_class` to exactly six values. Earlier DORA
+# preliminary drafts (and the SDK's previous releases) circulated a
+# 12-value list; the cloud accepts those legacy tokens and normalises
+# them to the canonical six server-side, so this SDK forwards the
+# caller's value verbatim and only rejects tokens that are neither
+# canonical nor a known legacy alias.
+DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
+    {
+        "cybersecurity_related",
+        "process_failure",
+        "system_failure",
+        "external_event",
+        "payment_related",
+        "other",
+    }
+)
+
+# Legacy 12-value vocabulary from pre-final DORA drafts. Mirrored from
+# the cloud's alias dict (cloud PR #194) so the SDK can accept either
+# form without a network roundtrip. The cloud performs the authoritative
+# normalisation; this map is purely for client-side acceptance checks.
+LEGACY_DORA_ALIASES: dict[str, str] = {
+    "malicious_actions": "cybersecurity_related",
+    "cyberattack": "cybersecurity_related",
+    "unauthorised_access": "cybersecurity_related",
+    "process_failure_internal": "process_failure",
+    "human_error": "process_failure",
+    "system_failure_internal": "system_failure",
+    "software_malfunction": "system_failure",
+    "hardware_failure": "system_failure",
+    "third_party_failure": "external_event",
+    "natural_disaster": "external_event",
+    "payment_fraud": "payment_related",
+    "unknown": "other",
+}
+
 # §5.1.2 / V6 verifier MUST reject receipts whose `signed_at` sits more
 # than SKEW_BOUND_SECONDS away from the verifier's wall clock. Mirrored
 # from the cloud's `routes/verify.py:SKEW_BOUND_SECONDS`.
@@ -1171,6 +1211,20 @@ class Agent:
             raise ValueError(
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
+            )
+        # DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
+        # canonical values, plus the legacy 12-value alias set the cloud
+        # still accepts). Reject anything else before the HTTP roundtrip.
+        if incident_class is not None and (
+            incident_class not in DORA_INCIDENT_CLASS_NAMESPACE
+            and incident_class not in LEGACY_DORA_ALIASES
+        ):
+            raise ValueError(
+                "invalid_incident_class: must be one of "
+                f"{sorted(DORA_INCIDENT_CLASS_NAMESPACE)} "
+                "(per DORA RTS JC 2024-33 Annex II field 3.23) "
+                "or a known legacy alias "
+                f"{sorted(LEGACY_DORA_ALIASES)}."
             )
         # F5: SDK helpfully computes action_ref under compliance_mode when
         # the caller did not pre-compute one. Same canonical form the cloud

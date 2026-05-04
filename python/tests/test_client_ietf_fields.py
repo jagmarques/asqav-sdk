@@ -31,6 +31,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import asqav
 from asqav.canonicalize import canonicalize
 from asqav.client import (
+    DORA_INCIDENT_CLASS_NAMESPACE,
+    LEGACY_DORA_ALIASES,
     RECEIPT_TYPE_NAMESPACE,
     Agent,
     SignatureResponse,
@@ -221,7 +223,7 @@ def test_all_profile_fields_passthrough_in_body() -> None:
             iteration_id="iter_42",
             sandbox_state="enabled",
             risk_class="high",
-            incident_class="ICT-INC-001",
+            incident_class="cybersecurity_related",
             issuer_id="legal:Acme GmbH",
             payload_digest="sha256:" + "b" * 64,
         )
@@ -232,7 +234,7 @@ def test_all_profile_fields_passthrough_in_body() -> None:
     assert body["iteration_id"] == "iter_42"
     assert body["sandbox_state"] == "enabled"
     assert body["risk_class"] == "high"
-    assert body["incident_class"] == "ICT-INC-001"
+    assert body["incident_class"] == "cybersecurity_related"
     assert body["issuer_id"] == "legal:Acme GmbH"
     assert body["payload_digest"] == "sha256:" + "b" * 64
 
@@ -273,7 +275,7 @@ def test_signature_response_surfaces_new_fields() -> None:
         "iteration_id": "iter_42",
         "sandbox_state": "enabled",
         "risk_class": "high",
-        "incident_class": "ICT-INC-001",
+        "incident_class": "cybersecurity_related",
         "reason": None,
         "previousReceiptHash": "0" * 64,
     }
@@ -291,7 +293,7 @@ def test_signature_response_surfaces_new_fields() -> None:
     assert resp.iteration_id == "iter_42"
     assert resp.sandbox_state == "enabled"
     assert resp.risk_class == "high"
-    assert resp.incident_class == "ICT-INC-001"
+    assert resp.incident_class == "cybersecurity_related"
     assert resp.previous_receipt_hash == "0" * 64
 
 
@@ -347,3 +349,81 @@ def test_build_sign_body_omits_compliance_when_no_fields() -> None:
         agent_id="agent_001",
     )
     assert "compliance_mode" not in body
+
+
+# ---------------------------------------------------------------------------
+# DORA RTS JC 2024-33 Annex II vocabulary
+# ---------------------------------------------------------------------------
+
+
+def test_dora_incident_class_namespace_is_canonical_six() -> None:
+    """Namespace matches Annex II of JC 2024-33 (RTS published 17 July 2024)."""
+    assert DORA_INCIDENT_CLASS_NAMESPACE == frozenset(
+        {
+            "cybersecurity_related",
+            "process_failure",
+            "system_failure",
+            "external_event",
+            "payment_related",
+            "other",
+        }
+    )
+
+
+def test_dora_legacy_aliases_map_into_canonical_set() -> None:
+    """Every legacy alias resolves to one of the six canonical values."""
+    assert LEGACY_DORA_ALIASES, "alias dict must not be empty"
+    for legacy, canonical in LEGACY_DORA_ALIASES.items():
+        assert canonical in DORA_INCIDENT_CLASS_NAMESPACE, (
+            f"legacy alias {legacy!r} maps to non-canonical {canonical!r}"
+        )
+
+
+@pytest.mark.parametrize("value", sorted(DORA_INCIDENT_CLASS_NAMESPACE))
+def test_canonical_incident_class_passes_validation(value: str) -> None:
+    """All six canonical values are accepted and forwarded verbatim."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            incident_class=value,
+        )
+    assert captured["body"]["incident_class"] == value
+
+
+def test_legacy_incident_class_alias_is_accepted_and_forwarded() -> None:
+    """Legacy alias forwarded verbatim; cloud normalises authoritatively."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            incident_class="cyberattack",
+        )
+    assert captured["body"]["incident_class"] == "cyberattack"
+
+
+def test_invalid_incident_class_raises_before_http() -> None:
+    """A token outside both the canonical and legacy sets is rejected."""
+    with patch("asqav.client._post") as p:
+        with pytest.raises(ValueError, match="invalid_incident_class"):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                incident_class="ICT-INC-001",
+            )
+        p.assert_not_called()

@@ -31,6 +31,8 @@ from ._jcs import canonical_json
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, hash_action
 from .client import (
+    DORA_INCIDENT_CLASS_NAMESPACE,
+    LEGACY_DORA_ALIASES,
     RECEIPT_TYPE_NAMESPACE,
     SKEW_BOUND_SECONDS,
     Agent,
@@ -277,6 +279,9 @@ __all__ = [
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",
+    # DORA RTS JC 2024-33 Annex II vocabulary
+    "DORA_INCIDENT_CLASS_NAMESPACE",
+    "LEGACY_DORA_ALIASES",
     # Algorithm agility
     "ALGORITHM_ML_DSA_65",
     "ALGORITHM_ED25519",
