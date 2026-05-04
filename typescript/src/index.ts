@@ -92,6 +92,41 @@ export {
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
+// IETF -01 wire-shape projection helpers (Section 4 + Section 4.4).
+export {
+  signatureObjectFromResponse,
+  anchorsFromResponse,
+  encodeAnchorValue,
+  type SignatureEnvelope,
+  type AnchorEntry,
+  type ProjectableResponse,
+} from "./ietfProjection.js";
+
+import {
+  signatureObjectFromResponse as _signatureObjectFromResponse,
+  anchorsFromResponse as _anchorsFromResponse,
+  type SignatureEnvelope,
+  type AnchorEntry,
+} from "./ietfProjection.js";
+
+/** IETF -01 N6 ergonomic wrapper. Returns the spec-shape envelope
+ * `{alg, kid, sig}` for a SignatureResponse, projecting from flat
+ * fields when the cloud has not emitted `signatureObject` directly. */
+export function signatureObject(
+  response: SignatureResponse | null | undefined,
+): SignatureEnvelope | undefined {
+  return _signatureObjectFromResponse(response as never);
+}
+
+/** IETF -01 N7 ergonomic wrapper. Returns the spec-shape `anchors[]`
+ * for a SignatureResponse, projecting from flat fields when the cloud
+ * has not emitted `anchors` directly. */
+export function anchors(
+  response: SignatureResponse | null | undefined,
+): AnchorEntry[] | undefined {
+  return _anchorsFromResponse(response as never);
+}
+
 const DEFAULT_BASE_URL = "https://api.asqav.com/api/v1";
 /** Metadata keys allowed alongside a hash-only request. Mirrors the
  * Python whitelist; the server enforces its own. */
@@ -323,6 +358,16 @@ export interface SignatureResponse {
    * (newer servers) or mapped client-side from `policyDecision`
    * (older servers). Undefined for non-compliance receipts. */
   decision?: Decision;
+  /** IETF -01 N6 / Section 4: spec-shape signature envelope object
+   * `{alg, kid, sig}`. Surfaced as `signatureObject` because the
+   * top-level `signature` field is already occupied by the legacy
+   * base64 flat string. Use `signatureObject()` to project from flat
+   * fields when the cloud has not emitted it directly. */
+  signatureObject?: SignatureEnvelope;
+  /** IETF -01 N7 / Section 4.4: spec-shape anchors array. Use
+   * `anchors()` to project from flat fields when the cloud has not
+   * emitted it directly. */
+  anchors?: AnchorEntry[];
 }
 
 export interface SessionResponse {
@@ -818,6 +863,8 @@ export class Agent {
       issuer_id?: string;
       policy_decision?: string;
       decision?: string;
+      signatureObject?: SignatureEnvelope;
+      anchors?: AnchorEntry[];
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -854,6 +901,8 @@ export class Agent {
           ? mapPolicyDecisionToDecision(data.policy_decision)
           : undefined
       ),
+      signatureObject: data.signatureObject,
+      anchors: data.anchors,
     };
 
     _dispatchAfter(options.actionType, response);
