@@ -11,13 +11,59 @@
  *   const sig = await agent.sign({ actionType: "api:call", context: { model: "gpt-4" } });
  */
 
+import { createHash } from "node:crypto";
+import {
+  SUPPORTED_ALGORITHMS,
+  isSupportedAlgorithm,
+  type SupportedAlgorithm,
+} from "./algorithms.js";
 import { canonicalize, hashAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
+import { canonicalJson } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
+
+/** Allowed values for `receiptType` per the IETF Compliance Receipts profile. */
+export const RECEIPT_TYPE_NAMESPACE = [
+  "protectmcp:decision",
+  "protectmcp:restraint",
+  "protectmcp:lifecycle",
+] as const;
+export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
+
+/** Sandbox state vocabulary per the High-Risk gate. */
+export type SandboxState = "enabled" | "disabled" | "unavailable";
+
+/** Risk class controlled vocabulary. */
+export type RiskClass = "low" | "medium" | "high" | "unknown";
+
+/** Policy decision vocabulary; deny / rate_limit require `reason`. */
+export type PolicyDecision = "permit" | "deny" | "rate_limit";
 
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
 export { canonicalize, hashAction } from "./canonicalize.js";
+export { canonicalJson } from "./jcs.js";
+export {
+  verifyChain,
+  deriveChainHash,
+  FIRST_RECEIPT_SEED,
+  type ChainRecord,
+  type ChainStepResult,
+  type ChainVerificationResult,
+  type VerifyChainOptions,
+} from "./replay.js";
+export {
+  SUPPORTED_ALGORITHMS,
+  LOCAL_SIGNING_ALGORITHMS,
+  isSupportedAlgorithm,
+  isLocalSigningAlgorithm,
+  generateKeypair,
+  signMessage,
+  verifyMessage,
+  type SupportedAlgorithm,
+  type LocalSigningAlgorithm,
+  type LocalKeypair,
+} from "./algorithms.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
@@ -104,7 +150,11 @@ export interface InitOptions {
 
 export interface AgentCreateOptions {
   name: string;
-  algorithm?: string;
+  /** One of `ml-dsa-65` (default), `ml-dsa-44`, `ml-dsa-87`, `ed25519`,
+   * or `es256`. Validated client-side; the cloud is the source of
+   * truth on which algorithms are honored on the receipt-signing
+   * path. */
+  algorithm?: SupportedAlgorithm | string;
   capabilities?: string[];
 }
 
@@ -146,6 +196,61 @@ export interface SignOptions {
    * original signer expects on the post-apply attestation. The cloud
    * rejects attestations from any other key with 403 `executor_key_mismatch`. */
   expectedExecutorPubkeyB64?: string;
+
+  // -------------------------------------------------------------------
+  // IETF Compliance Receipts profile fields
+  // (draft-marques-asqav-compliance-receipts-00). All optional client-
+  // side; the cloud applies the per-field MUST/REQUIRED rules when
+  // ``complianceMode=true``. Wire keys are snake_case per the IETF
+  // profile (e.g. ``action_ref``).
+  // -------------------------------------------------------------------
+
+  /** Emit the receipt under the IETF profile. When true, the cloud uses
+   * fail-closed anchoring, raises the retention floor, and writes the
+   * v3-20 envelope fields. Defaults to false. */
+  complianceMode?: boolean;
+
+  /** `sha256:<hex>` of the canonical Action object. When omitted under
+   * `complianceMode=true`, the SDK computes it client-side as
+   * `"sha256:" + sha256(canonicalJson(action))` where `action` is
+   * `{action_type, context}`. */
+  actionRef?: string;
+
+  /** High-Risk gate. Caller-supplied; defaults to `"unavailable"` when
+   * not provided and the receipt is High-Risk. */
+  sandboxState?: SandboxState;
+
+  /** Logical task iteration id, distinct from `session_id`. REQUIRED
+   * for multi-step receipts. */
+  iterationId?: string;
+
+  /** Risk classification controlled vocabulary. */
+  riskClass?: RiskClass;
+
+  /** DORA ITS incident class; empty string when not applicable. */
+  incidentClass?: string;
+
+  /** Names a legal entity. Resolved server-side from
+   * `Organization.legal_entity` when omitted. */
+  issuerId?: string;
+
+  /** `sha256:<hex>` of the request payload. Conceptually the same value
+   * as `context_hash`; emitted under both names for one release. */
+  payloadDigest?: string;
+
+  /** Receipt namespace. One of `protectmcp:decision` |
+   * `protectmcp:restraint` | `protectmcp:lifecycle`. Defaults to
+   * `protectmcp:decision`. Validated client-side. */
+  receiptType?: ReceiptType;
+
+  /** Machine-readable code for `policy_decision in {deny, rate_limit}`.
+   * Drawn from the IETF rejection-reason vocabulary; the cloud is the
+   * source of truth on which codes are accepted. */
+  reason?: string;
+
+  /** Policy decision. `permit` (default), `deny`, or `rate_limit`. When
+   * not `permit`, `reason` is required. */
+  policyDecision?: PolicyDecision;
 }
 
 export interface CoSignature {
@@ -170,6 +275,19 @@ export interface SignatureResponse {
   countersignUrl?: string;
   /** True when the server validated a user_intent envelope on this record. */
   userIntentVerified?: boolean;
+  /** True when the cloud emitted this receipt under the IETF profile. */
+  complianceMode?: boolean;
+  /** IETF §5.7 chain link: `sha256(canonicalJson(predecessor_envelope))`,
+   * lowercase 64-hex. First record per agent is `"0".repeat(64)`. */
+  previousReceiptHash?: string;
+  /** `sha256:<hex>` of the canonical Action object. */
+  actionRef?: string;
+  /** `sha256:<hex>` of the policy artefact retained for this receipt. */
+  policyDigest?: string;
+  /** Receipt namespace echoed from the request. */
+  receiptType?: string;
+  /** Resolved legal entity for this receipt. */
+  issuerId?: string;
 }
 
 export interface SessionResponse {
@@ -182,7 +300,13 @@ export interface SessionResponse {
 
 /** Granular sub-checks the cloud returns alongside `verified`. The
  * `validationLabel` string is the dominant failure reason when
- * `verified=false`, e.g. `signature_expired` or `signer_key_changed`. */
+ * `verified=false`, e.g. `signature_expired` or `signer_key_changed`.
+ *
+ * The IETF Compliance Receipts profile sub-axes (`chainValid`,
+ * `anchorStatusOts`, `anchorStatusRfc3161`, `signedAtSkewSeconds`,
+ * `missingFields`) are populated only when the cloud emits them on a
+ * compliance-mode receipt; older receipts and older deployments leave
+ * them undefined for back-compat. */
 export interface VerificationDetail {
   signerKeyMatch: boolean;
   signatureValid: boolean;
@@ -196,7 +320,31 @@ export interface VerificationDetail {
     | "algorithm_mismatch"
     | "agent_inactive"
     | "agent_unknown"
+    | "chain_break"
+    | "anchor_invalid"
+    | "missing_required_field"
+    | "signed_at_skew"
     | string;
+  /** Absolute skew between the receipt's `signed_at` and the verifier's
+   * wall clock, in seconds. Receipts beyond `SKEW_BOUND_SECONDS`
+   * (300s) are rejected per V6 / §5.1.2. */
+  signedAtSkewSeconds?: number;
+  /** True when the cloud could rederive the chain hash from the stored
+   * `signed_envelope` and the predecessor matches. None on legacy
+   * (pre-IETF) records. */
+  chainValid?: boolean;
+  /** Tri-state OTS status. `pending` means the proof is still inside
+   * the upgrade window; `invalid` means corruption or stale; `valid`
+   * mirrors the Bitcoin block-confirmed case. */
+  anchorStatusOts?: "valid" | "pending" | "invalid";
+  /** RFC 3161 anchor outcome. Deterministic at issuance; never
+   * `pending`. */
+  anchorStatusRfc3161?: "valid" | "pending" | "invalid";
+  /** REQUIRED-fields presence check. When the record is
+   * `compliance_mode=true` and any spec-mandated field has been NULLed
+   * post-issuance, surfaces the missing column names. Empty list /
+   * undefined means every required field is present. */
+  missingFields?: string[];
 }
 
 export interface VerificationResponse {
@@ -497,9 +645,18 @@ export class Agent {
   }
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
+    const algorithm = options.algorithm ?? "ml-dsa-65";
+    // Algorithm agility (AG3, AG4): the cloud accepts ml-dsa-{44,65,87},
+    // ed25519, and es256. Validate client-side so callers get a clean
+    // error before a round-trip.
+    if (!isSupportedAlgorithm(algorithm)) {
+      throw new AsqavError(
+        `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
+      );
+    }
     const data = await request<AgentData>("POST", "/agents/create", {
       name: options.name,
-      algorithm: options.algorithm ?? "ml-dsa-65",
+      algorithm,
       capabilities: options.capabilities ?? [],
     });
     return new Agent(data);
@@ -526,6 +683,39 @@ export class Agent {
     }
     const finalContext = _dispatchBefore(options.actionType, initialContext);
 
+    const complianceMode = options.complianceMode === true;
+
+    // Validate the IETF receipt namespace client-side so callers fail
+    // fast instead of waiting for the server's 422. The cloud is still
+    // the source of truth; we mirror the same vocabulary.
+    if (options.receiptType !== undefined
+      && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)) {
+      throw new AsqavError(
+        `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
+      );
+    }
+    if (options.policyDecision !== undefined
+      && options.policyDecision !== "permit"
+      && !options.reason) {
+      throw new AsqavError(
+        "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
+      );
+    }
+
+    // Compute action_ref client-side when the caller is in compliance
+    // mode and did not supply one. Per spec:
+    //   action_ref = "sha256:" + sha256(canonicalJson(action))
+    // where `action = {action_type, context}` matches the cloud-side
+    // shape used by `hash_action`.
+    let actionRef = options.actionRef;
+    if (complianceMode && actionRef === undefined) {
+      const action = { action_type: options.actionType, context: finalContext };
+      const hex = createHash("sha256")
+        .update(canonicalJson(action))
+        .digest("hex");
+      actionRef = `sha256:${hex}`;
+    }
+
     const body = await buildSignBody({
       actionType: options.actionType,
       context: finalContext,
@@ -546,6 +736,23 @@ export class Agent {
       body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
     }
 
+    // IETF Compliance Receipts profile fields. Wire-format names are
+    // snake_case per draft-marques-asqav-compliance-receipts-00.
+    // `compliance_mode` always travels (default false) so the cloud
+    // knows whether to apply the profile rules. The other fields ride
+    // along when present; the cloud applies the per-field MUST checks.
+    if (complianceMode) body.compliance_mode = true;
+    if (actionRef !== undefined) body.action_ref = actionRef;
+    if (options.sandboxState !== undefined) body.sandbox_state = options.sandboxState;
+    if (options.iterationId !== undefined) body.iteration_id = options.iterationId;
+    if (options.riskClass !== undefined) body.risk_class = options.riskClass;
+    if (options.incidentClass !== undefined) body.incident_class = options.incidentClass;
+    if (options.issuerId !== undefined) body.issuer_id = options.issuerId;
+    if (options.payloadDigest !== undefined) body.payload_digest = options.payloadDigest;
+    if (options.receiptType !== undefined) body.receipt_type = options.receiptType;
+    if (options.reason !== undefined) body.reason = options.reason;
+    if (options.policyDecision !== undefined) body.policy_decision = options.policyDecision;
+
     const data = await request<{
       signature: string;
       signature_id: string;
@@ -559,6 +766,13 @@ export class Agent {
       co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
       countersign_url?: string;
       user_intent_verified?: boolean;
+      compliance_mode?: boolean;
+      previousReceiptHash?: string;
+      previous_receipt_hash?: string;
+      action_ref?: string;
+      policy_digest?: string;
+      receipt_type?: string;
+      issuer_id?: string;
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
     const response: SignatureResponse = {
@@ -577,6 +791,14 @@ export class Agent {
       })),
       countersignUrl: data.countersign_url,
       userIntentVerified: data.user_intent_verified,
+      complianceMode: data.compliance_mode,
+      // Accept either camelCase (per the IETF profile JSON wire) or
+      // snake_case (legacy alias for one release).
+      previousReceiptHash: data.previousReceiptHash ?? data.previous_receipt_hash,
+      actionRef: data.action_ref,
+      policyDigest: data.policy_digest,
+      receiptType: data.receipt_type,
+      issuerId: data.issuer_id,
     };
 
     _dispatchAfter(options.actionType, response);
@@ -754,6 +976,11 @@ export async function verifySignature(signatureId: string): Promise<Verification
       algorithm_match: boolean;
       agent_active: boolean;
       validation_label: string;
+      signed_at_skew_seconds?: number;
+      chain_valid?: boolean;
+      anchor_status_ots?: "valid" | "pending" | "invalid";
+      anchor_status_rfc3161?: "valid" | "pending" | "invalid";
+      missing_fields?: string[];
     };
   }>("GET", `/verify/${signatureId}`);
 
@@ -776,6 +1003,11 @@ export async function verifySignature(signatureId: string): Promise<Verification
           algorithmMatch: data.verification_detail.algorithm_match,
           agentActive: data.verification_detail.agent_active,
           validationLabel: data.verification_detail.validation_label,
+          signedAtSkewSeconds: data.verification_detail.signed_at_skew_seconds,
+          chainValid: data.verification_detail.chain_valid,
+          anchorStatusOts: data.verification_detail.anchor_status_ots,
+          anchorStatusRfc3161: data.verification_detail.anchor_status_rfc3161,
+          missingFields: data.verification_detail.missing_fields,
         }
       : undefined,
   };
