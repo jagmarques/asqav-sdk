@@ -14,22 +14,30 @@ The package ships an `asqav` binary mirroring the Python CLI surface. Set `ASQAV
 
 ```bash
 asqav --version
-asqav verify <signature_id>
-asqav agents list
-asqav agents create my-agent
-asqav agents revoke <agent_id>
-asqav sessions list [--limit N] [--status X] [--agent ID]
-asqav sessions end <session_id>
+asqav verify <signature_id> [--output text|json]           # IETF axes when present
+asqav sign --agent-id ID --action-type T --action-json action.json \
+           --compliance-mode --receipt-type protectmcp:decision \
+           --risk-class high --issuer-id legal:Acme
+asqav agents list / create / revoke
+asqav sessions list / end <session_id>
 asqav replay <agent_id> <session_id> [--json]              # Pro
+asqav replay-verify <agent_id> <session_id> [--strict]     # Pro: IETF chain
 asqav preflight <agent_id> <action_type> [--json]          # Pro
 asqav budget check --agent-id ID --limit 10 --estimated-cost 0.25     # Pro
 asqav budget record --agent-id ID --action api:openai --actual-cost 0.23 --limit 10  # Pro
 asqav approve <session_id> <entity_id>                     # Pro
-asqav compliance frameworks
-asqav compliance export --session ID --output bundle.json  # Business
+asqav compliance frameworks / export                       # Business
+asqav audit-pack export --start ISO --end ISO --output-file bundle.json
+asqav audit-pack policy <sha256:hex>
+asqav payloads erase <signature_id> --yes                  # P4 right-to-erasure
+asqav org set-compliance-strict <org_id> --enable|--disable
+asqav keys generate --algorithm ed25519|es256 [--out priv.bin]
+asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key required
 ```
 
 Pro/Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; older self-hosted deployments without `/account` skip the gate.
+
+The IETF Compliance Receipts profile commands (`sign --compliance-mode`, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per `draft-marques-asqav-compliance-receipts-00`; the CLI accepts the kebab-case equivalents.
 
 ## Quick start
 
@@ -170,6 +178,82 @@ const result = await generateText({
 ```
 
 Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation; failures log a warning instead of throwing.
+
+## Compliance receipts (IETF profile)
+
+Set `complianceMode: true` on `agent.sign(...)` to opt the receipt into the IETF Compliance Receipts profile (`draft-marques-asqav-compliance-receipts-00`). The cloud then emits a §5.7-conformant chain link, content-addressed `policy_digest`, fail-closed anchoring, and the raised retention floor.
+
+```ts
+const sig = await agent.sign({
+  actionType: "stripe:refund",
+  context: { chargeId: "ch_abc", amountCents: 1299, reason: "broken" },
+  complianceMode: true,
+  receiptType: "protectmcp:decision",
+  riskClass: "high",
+  sandboxState: "disabled",
+  iterationId: "refund-ch_abc",
+  policyDecision: "permit",
+});
+
+console.log(sig.previousReceiptHash); // 64 lowercase hex; "0".repeat(64) on first record
+console.log(sig.actionRef);            // sha256:<hex> of the canonical action
+```
+
+Field reference (camelCase on the SDK, snake_case on the JSON wire):
+
+- `complianceMode` -> `compliance_mode`. Default `false`.
+- `receiptType` -> `receipt_type`. One of `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`. Validated client-side.
+- `actionRef` -> `action_ref`. `sha256:<hex>` of the canonical action. SDK derives it under `complianceMode` when omitted.
+- `payloadDigest` -> `payload_digest`. `sha256:<hex>` of the request payload.
+- `issuerId` -> `issuer_id`. Legal entity. Resolved server-side when omitted.
+- `iterationId` -> `iteration_id`. Required for multi-step receipts.
+- `sandboxState` -> `sandbox_state`. One of `enabled`, `disabled`, `unavailable`. Required for High-Risk.
+- `riskClass` -> `risk_class`. One of `low`, `medium`, `high`, `unknown`.
+- `incidentClass` -> `incident_class`. DORA ITS code; empty when not applicable.
+- `policyDecision` -> `policy_decision`. One of `permit`, `deny`, `rate_limit`.
+- `reason` -> `reason`. Required when `policyDecision` is `deny` or `rate_limit`.
+
+### RFC 8785 canonicalization
+
+The exact bytes the cloud signs (and the chain hashes over) are JCS-canonicalized JSON. The SDK exposes the canonicalizer so callers can reproduce them offline:
+
+```ts
+import { canonicalJson } from "@asqav/sdk";
+
+const bytes = canonicalJson({ b: 2, a: 1 }); // -> Uint8Array of `{"a":1,"b":2}`
+```
+
+### Offline chain verification
+
+`verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previousReceiptHash` per §5.7. The first record's seed is `"0".repeat(64)`.
+
+```ts
+import { verifyChain } from "@asqav/sdk";
+
+const result = verifyChain(records);
+if (!result.chainIntegrity) {
+  for (const step of result.steps.filter((s) => !s.chainValid)) {
+    console.error(`step ${step.index}: expected ${step.expectedPreviousReceiptHash}, got ${step.actualPreviousReceiptHash}`);
+  }
+}
+```
+
+Pass `{ legacy: true }` to use the v1 chain shape during the one-release backward-compat window.
+
+### Algorithm agility
+
+`Agent.create({ algorithm })` accepts `ml-dsa-65` (default), `ml-dsa-44`, `ml-dsa-87`, `ed25519`, and `es256`. ML-DSA is server-side only. For Ed25519 / ES256 the SDK ships keypair, sign, and verify helpers via `node:crypto`:
+
+```ts
+import { generateKeypair, signMessage, verifyMessage, canonicalJson } from "@asqav/sdk";
+
+const kp = generateKeypair("ed25519");
+const message = canonicalJson({ intent: "approve refund ch_abc" });
+const sig = signMessage("ed25519", kp.privateKeyPkcs8B64, message);
+const ok = verifyMessage("ed25519", kp.publicKeySpkiB64, message, sig);
+```
+
+ES256 signatures are emitted in IEEE-P1363 (raw r||s) form so they match the cloud verifier byte-for-byte.
 
 ## Errors
 
