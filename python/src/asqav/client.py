@@ -303,6 +303,10 @@ class SignatureResponse:
     # under compliance_mode; older clouds populate the flat fields and
     # the SDK projects via `signature_object()` below.
     signatureObject: dict[str, str] | None = None
+    # IETF -01 N7: spec-shape anchors array. Cloud emits it directly;
+    # older clouds populate the flat fields and the SDK projects via
+    # `anchors_array()` below.
+    anchors: list[dict[str, Any]] | None = None
 
     def signature_object(self) -> dict[str, str] | None:
         """Return the spec-shape signature envelope `{alg, kid, sig}`.
@@ -314,6 +318,18 @@ class SignatureResponse:
         from .ietf_projection import signature_object_from_response
 
         return signature_object_from_response(self)
+
+    def anchors_array(self) -> list[dict[str, Any]] | None:
+        """Return the spec-shape `anchors[]` array.
+
+        IETF -01 N7 / Section 4.4. Returns the cloud-supplied list when
+        available, else projects from the flat columns. None for
+        non-compliance receipts; [] when compliance_mode is on but no
+        anchor columns are populated.
+        """
+        from .ietf_projection import anchors_from_response
+
+        return anchors_from_response(self)
 
 
 @dataclass
@@ -1253,6 +1269,7 @@ class Agent:
                 )
             ),
             signatureObject=data.get("signatureObject"),
+            anchors=data.get("anchors"),
         )
 
         # Dispatch after-hooks (fail-open).

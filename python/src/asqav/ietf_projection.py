@@ -41,6 +41,62 @@ def signature_object_from_response(response: Any) -> dict[str, str] | None:
     return {"alg": alg, "kid": kid, "sig": sig}
 
 
+def anchors_from_response(response: Any) -> list[dict[str, Any]] | None:
+    """Project a SignatureResponse / verify dict into `anchors[]`.
+
+    IETF -01 N7 / Section 4.4. Returns the cloud-supplied list when
+    present (deep-copied so callers cannot mutate the response),
+    otherwise builds entries from the flat columns
+    (`rfc3161_serial`, `rfc3161_tsa`, `bitcoin_anchor.status`).
+    Returns None when the response is non-compliance so legacy
+    callers stay byte-stable; returns [] (not None) when
+    compliance_mode is on but no anchor columns are populated.
+    """
+    cloud_supplied = _get(response, "anchors")
+    if isinstance(cloud_supplied, list):
+        return [dict(e) for e in cloud_supplied]
+
+    if not _get(response, "compliance_mode"):
+        return None
+
+    anchors: list[dict[str, Any]] = []
+
+    rfc3161_serial = _get(response, "rfc3161_serial")
+    rfc3161_tsa = _get(response, "rfc3161_tsa")
+    if rfc3161_serial or rfc3161_tsa:
+        entry: dict[str, Any] = {"type": "rfc3161", "value": ""}
+        if rfc3161_serial:
+            entry["serial"] = rfc3161_serial
+        if rfc3161_tsa:
+            entry["tsa"] = rfc3161_tsa
+        anchors.append(entry)
+
+    bitcoin_anchor = _get(response, "bitcoin_anchor")
+    if bitcoin_anchor is not None:
+        # The SDK BitcoinAnchor dataclass exposes `status`; the OTS
+        # proof bytes are not in the SDK type, so we surface a
+        # presence-only entry. Strict verifiers ignore this projection
+        # unless the cloud has populated `anchors[]` directly.
+        status = _get(bitcoin_anchor, "status")
+        if status:
+            anchors.append(
+                {
+                    "type": "opentimestamps",
+                    "value": "",
+                    "status": status,
+                }
+            )
+
+    return anchors
+
+
+def encode_anchor_value(raw: bytes) -> str:
+    """Helper for callers that hold raw anchor bytes locally."""
+    import base64
+
+    return base64.b64encode(raw).decode()
+
+
 def _get(obj: Any, name: str) -> Any:
     """Read attribute or dict key, whichever exists. None when absent."""
     if obj is None:
