@@ -54,9 +54,20 @@ async function main(): Promise<void> {
     execute: async ({ chargeId, amountCents, reason }) => {
       // Sign the intent FIRST. If the side effect throws, the audit
       // record still proves what the agent decided to do.
+      //
+      // Opt into the IETF Compliance Receipts profile so the cloud
+      // emits a §5.7-conformant chain link, content-addressed
+      // policy_digest, and applies fail-closed anchoring under the
+      // raised retention floor.
       const sig = await agent.sign({
         actionType: "stripe:refund",
         context: { chargeId, amountCents, reason, model: "gpt-4o" },
+        complianceMode: true,
+        receiptType: "protectmcp:decision",
+        riskClass: "high",
+        sandboxState: "disabled",
+        iterationId: `refund-${chargeId}`,
+        policyDecision: "permit",
       });
 
       const result = await stripeRefundStub({ chargeId, amountCents, reason });
