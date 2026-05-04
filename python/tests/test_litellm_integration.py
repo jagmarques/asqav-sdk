@@ -154,6 +154,7 @@ class TestPostCallFailureHook:
                 "error_type": "ValueError",
                 "error_message": "rate limit exceeded",
             },
+            risk_class="medium",
         )
 
 
