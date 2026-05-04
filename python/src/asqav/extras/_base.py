@@ -77,6 +77,7 @@ class AsqavAdapter:
         self,
         action_type: str,
         context: dict | None = None,
+        **compliance_kwargs,
     ) -> SignatureResponse | None:
         """Sign an action via the agent. Returns None on failure (fail-open).
 
@@ -85,6 +86,14 @@ class AsqavAdapter:
 
         When observe mode is enabled, logs the action that would be signed
         without making any API calls and returns None.
+
+        IETF Compliance Receipts profile: subclasses MAY pass any of
+        ``compliance_mode``, ``receipt_type``, ``action_ref``,
+        ``payload_digest``, ``issuer_id``, ``iteration_id``,
+        ``sandbox_state``, ``risk_class``, ``incident_class``, ``reason``,
+        ``policy_decision`` via ``**compliance_kwargs``. They forward
+        verbatim to ``Agent.sign``. Unknown kwargs raise TypeError on
+        ``Agent.sign`` and surface as a fail-open warning here.
         """
         if self._observe:
             logger.info(
@@ -92,7 +101,7 @@ class AsqavAdapter:
             )
             return None
         try:
-            sig = self._agent.sign(action_type, context)
+            sig = self._agent.sign(action_type, context, **compliance_kwargs)
             self._signatures.append(sig)
             return sig
         except AsqavError as exc:
