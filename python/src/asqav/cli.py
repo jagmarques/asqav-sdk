@@ -190,7 +190,7 @@ def sign(
     sandbox_state: str = typer.Option("", "--sandbox-state", help="enabled|disabled|unavailable."),
     iteration_id: str = typer.Option("", "--iteration-id", help="Logical task iteration id (distinct from session_id)."),
     risk_class: str = typer.Option("", "--risk-class", help="low|medium|high|unknown."),
-    incident_class: str = typer.Option("", "--incident-class", help="DORA ITS vocabulary."),
+    incident_class: str = typer.Option("", "--incident-class", help="DORA RTS JC 2024-33 Annex II field 3.23: cybersecurity_related|process_failure|system_failure|external_event|payment_related|other."),
     issuer_id: str = typer.Option("", "--issuer-id", help="Legal entity issuing this receipt; overrides server resolution."),
     receipt_type: str = typer.Option(
         "protectmcp:decision",
