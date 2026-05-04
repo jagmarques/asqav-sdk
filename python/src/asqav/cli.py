@@ -172,6 +172,201 @@ def verify(
 
 
 @app.command()
+def sign(
+    action_type: str = typer.Option(..., "--action-type", help="Action type, e.g. payment.wire_transfer."),
+    action_id: str = typer.Option("", "--action-id", help="Stable client-side action id (the cloud allocates one when empty)."),
+    agent_id: str = typer.Option(..., "--agent-id", help="Agent that signs the receipt."),
+    compliance_mode: bool = typer.Option(
+        False,
+        "--compliance-mode/--no-compliance-mode",
+        help="Emit the receipt under the IETF Compliance Receipts profile.",
+    ),
+    action_ref: str = typer.Option("", "--action-ref", help="`sha256:<hex>` over the canonical Action object. Auto-computed when omitted with --action-json."),
+    action_json: str = typer.Option(
+        "",
+        "--action-json",
+        help="Path to a JSON file or '-' for stdin. The SDK derives `action_ref` from the JCS bytes when --action-ref is empty.",
+    ),
+    sandbox_state: str = typer.Option("", "--sandbox-state", help="enabled|disabled|unavailable."),
+    iteration_id: str = typer.Option("", "--iteration-id", help="Logical task iteration id (distinct from session_id)."),
+    risk_class: str = typer.Option("", "--risk-class", help="low|medium|high|unknown."),
+    incident_class: str = typer.Option("", "--incident-class", help="DORA ITS vocabulary."),
+    issuer_id: str = typer.Option("", "--issuer-id", help="Legal entity issuing this receipt; overrides server resolution."),
+    receipt_type: str = typer.Option(
+        "protectmcp:decision",
+        "--receipt-type",
+        help="protectmcp:decision|protectmcp:restraint|protectmcp:lifecycle.",
+    ),
+    reason: str = typer.Option("", "--reason", help="Required when --policy-decision is deny|rate_limit."),
+    policy_decision: str = typer.Option(
+        "permit",
+        "--policy-decision",
+        help="permit|deny|rate_limit.",
+    ),
+    algorithm: str = typer.Option(
+        "ml-dsa-65",
+        "--algorithm",
+        help="Signing algorithm: ml-dsa-65|ed25519|es256.",
+    ),
+    session_id: str = typer.Option("", "--session-id", help="Bind the record to an existing session."),
+    valid_seconds: int = typer.Option(0, "--valid-seconds", help="Validity window in seconds (0 = no expiry)."),
+    policy_artefact: str = typer.Option(
+        "",
+        "--policy-artefact",
+        help="Path to a JSON file or '-' for stdin. The cloud retains it; the receipt's `policy_digest` is its content hash.",
+    ),
+    output: str = typer.Option("text", "--output", "-o", help="Output format: text or json."),
+) -> None:
+    """Issue a Compliance Receipt via the cloud `/agents/{id}/sign` route.
+
+    Mirrors :py:meth:`asqav.Agent.sign` end-to-end so any flag here maps
+    1:1 to a kwarg on the SDK call. Reads ``--action-json`` from a path
+    or stdin when ``-`` is passed; the SDK then computes ``action_ref``
+    from the JCS bytes if ``--action-ref`` was not supplied.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav import Agent, APIError
+
+    # 1. Load action JSON (file, stdin, or empty).
+    action_obj: dict = {}
+    if action_json:
+        try:
+            if action_json == "-":
+                action_obj = json_mod.loads(sys.stdin.read())
+            else:
+                with open(action_json) as f:
+                    action_obj = json_mod.load(f)
+        except (OSError, json_mod.JSONDecodeError) as exc:
+            print(f"Error reading action JSON: {exc}")
+            raise typer.Exit(code=1)
+
+    # 2. Load policy artefact (sent server-side; the cloud stores it and
+    # stamps `policy_digest` on the receipt).
+    policy_artefact_obj: dict | None = None
+    if policy_artefact:
+        try:
+            if policy_artefact == "-":
+                policy_artefact_obj = json_mod.loads(sys.stdin.read())
+            else:
+                with open(policy_artefact) as f:
+                    policy_artefact_obj = json_mod.load(f)
+        except (OSError, json_mod.JSONDecodeError) as exc:
+            print(f"Error reading policy artefact: {exc}")
+            raise typer.Exit(code=1)
+
+    # 3. Validate policy_decision/reason coupling client-side. The SDK
+    # also validates; this gives a clearer CLI error.
+    if policy_decision in {"deny", "rate_limit"} and not reason:
+        print(
+            "Error: --reason is required when --policy-decision is deny or rate_limit."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        agent = Agent.get(agent_id)
+    except APIError as exc:
+        print(f"Error fetching agent: {exc}")
+        raise typer.Exit(code=1)
+
+    # 4. Build kwargs. Empty strings -> None so the SDK applies defaults.
+    sign_kwargs: dict = {
+        "compliance_mode": compliance_mode,
+        "policy_decision": policy_decision,
+    }
+    if action_ref:
+        sign_kwargs["action_ref"] = action_ref
+    if sandbox_state:
+        sign_kwargs["sandbox_state"] = sandbox_state
+    if iteration_id:
+        sign_kwargs["iteration_id"] = iteration_id
+    if risk_class:
+        sign_kwargs["risk_class"] = risk_class
+    if incident_class:
+        sign_kwargs["incident_class"] = incident_class
+    if issuer_id:
+        sign_kwargs["issuer_id"] = issuer_id
+    if receipt_type:
+        sign_kwargs["receipt_type"] = receipt_type
+    if reason:
+        sign_kwargs["reason"] = reason
+    if valid_seconds > 0:
+        sign_kwargs["valid_seconds"] = valid_seconds
+
+    context = action_obj or None
+    if action_id and context is not None:
+        context = {**context, "_action_id": action_id}
+    elif action_id:
+        context = {"_action_id": action_id}
+
+    if policy_artefact_obj is not None and context is not None:
+        context = {**context, "_policy_artefact": policy_artefact_obj}
+    elif policy_artefact_obj is not None:
+        context = {"_policy_artefact": policy_artefact_obj}
+
+    if session_id:
+        # Internal attribute the SDK consults when building the body.
+        agent._session_id = session_id  # type: ignore[attr-defined]
+
+    if algorithm and algorithm != getattr(agent, "algorithm", None):
+        # The receipt-signing algorithm is bound to the agent server-side.
+        # The CLI surfaces the requested value so callers can detect a
+        # mismatch between intent and what the agent will actually use.
+        print(
+            f"Warning: --algorithm={algorithm} differs from agent.algorithm="
+            f"{agent.algorithm}. The cloud signs under the agent's algorithm."
+        )
+
+    try:
+        sig = agent.sign(action_type, context=context, **sign_kwargs)
+    except (APIError, ValueError) as exc:
+        print(f"Error signing: {exc}")
+        raise typer.Exit(code=1)
+
+    if output == "json":
+        payload = {
+            "signature_id": sig.signature_id,
+            "action_id": sig.action_id,
+            "algorithm": sig.algorithm,
+            "verification_url": sig.verification_url,
+            "signed_at": sig.timestamp,
+            "policy_digest": sig.policy_digest,
+            "policy_decision": sig.policy_decision,
+            "compliance_mode": sig.compliance_mode,
+            "receipt_type": sig.receipt_type,
+            "action_ref": sig.action_ref,
+            "issuer_id": sig.issuer_id,
+            "previous_receipt_hash": sig.previous_receipt_hash,
+            "anchor_status": (
+                sig.bitcoin_anchor.status if sig.bitcoin_anchor else None
+            ),
+            "rfc3161_tsa": sig.rfc3161_tsa,
+            "rfc3161_serial": sig.rfc3161_serial,
+        }
+        print(json_mod.dumps(payload, indent=2, default=str))
+        return
+
+    print(f"signature_id: {sig.signature_id}")
+    print(f"action_id:    {sig.action_id}")
+    print(f"algorithm:    {sig.algorithm}")
+    print(f"signed_at:    {sig.timestamp}")
+    if sig.policy_digest:
+        print(f"policy_digest: {sig.policy_digest}")
+    if sig.compliance_mode:
+        print(f"compliance_mode: True")
+        if sig.receipt_type:
+            print(f"receipt_type:  {sig.receipt_type}")
+        if sig.action_ref:
+            print(f"action_ref:    {sig.action_ref}")
+        if sig.previous_receipt_hash:
+            print(f"previous_receipt_hash: {sig.previous_receipt_hash}")
+    if sig.bitcoin_anchor:
+        print(f"anchor:       {sig.bitcoin_anchor.status}")
+    print(f"verify_url:   {sig.verification_url}")
+
+
+@app.command()
 def replay(
     agent_id: str = typer.Argument(
         default="",

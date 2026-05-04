@@ -80,6 +80,92 @@ def test_verify_not_found(mock_verify: MagicMock) -> None:
     assert "not found" in result.output.lower()
 
 
+# ---------------------------------------------------------------------------
+# sign command (IETF Compliance Receipts profile)
+# ---------------------------------------------------------------------------
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_sign_compliance_mode_calls_sdk(
+    mock_init: MagicMock, mock_get: MagicMock, tmp_path
+) -> None:
+    """sign --compliance-mode threads every IETF flag into Agent.sign()."""
+    fake_agent = MagicMock()
+    fake_agent.agent_id = "agent_x"
+    fake_agent.algorithm = "ml-dsa-65"
+    fake_agent.sign.return_value = MagicMock(
+        signature_id="sig_abc",
+        action_id="act_1",
+        algorithm="ml-dsa-65",
+        timestamp=1717.0,
+        verification_url="https://verify.example/sig_abc",
+        policy_digest="sha256:cafe",
+        policy_decision="permit",
+        compliance_mode=True,
+        receipt_type="protectmcp:decision",
+        action_ref="sha256:beef",
+        issuer_id="legal:Acme",
+        previous_receipt_hash="0" * 64,
+        bitcoin_anchor=None,
+        rfc3161_tsa=None,
+        rfc3161_serial=None,
+    )
+    mock_get.return_value = fake_agent
+
+    action_path = tmp_path / "action.json"
+    action_path.write_text('{"amount_eur": 850000}')
+
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_x",
+            "--action-type", "payment.wire_transfer",
+            "--action-json", str(action_path),
+            "--compliance-mode",
+            "--receipt-type", "protectmcp:decision",
+            "--risk-class", "high",
+            "--issuer-id", "legal:Acme",
+            "--iteration-id", "task-2026-Q2",
+            "--sandbox-state", "enabled",
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "sig_abc" in result.output
+    assert "compliance_mode: True" in result.output
+    assert "receipt_type:  protectmcp:decision" in result.output
+    fake_agent.sign.assert_called_once()
+    call_kwargs = fake_agent.sign.call_args.kwargs
+    assert call_kwargs["compliance_mode"] is True
+    assert call_kwargs["receipt_type"] == "protectmcp:decision"
+    assert call_kwargs["risk_class"] == "high"
+    assert call_kwargs["issuer_id"] == "legal:Acme"
+    assert call_kwargs["iteration_id"] == "task-2026-Q2"
+    assert call_kwargs["sandbox_state"] == "enabled"
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_sign_deny_without_reason_rejects(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """sign --policy-decision deny without --reason exits non-zero."""
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_x",
+            "--action-type", "x.y",
+            "--policy-decision", "deny",
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "--reason is required" in result.output
+
+
 @patch("asqav.verify_signature")
 def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
     """verify --output text surfaces IETF profile sub-axes when present."""
