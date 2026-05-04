@@ -340,7 +340,14 @@ class VerificationDetail:
     Optional on the response; older servers do not return it.
     `validation_label` is one of: valid, invalid_signature,
     signature_expired, signer_key_changed, algorithm_mismatch,
-    agent_inactive, agent_unknown.
+    agent_inactive, agent_unknown, chain_break, anchor_invalid,
+    missing_required_field, signed_at_skew.
+
+    The IETF Compliance Receipts profile fields (`signed_at_skew_seconds`,
+    `chain_valid`, `anchor_status_ots`, `anchor_status_rfc3161`,
+    `missing_fields`) are populated only when the cloud returns them on
+    a compliance-mode receipt; older receipts and older deployments
+    leave them None for back-compat.
     """
 
     signer_key_match: bool
@@ -348,6 +355,12 @@ class VerificationDetail:
     algorithm_match: bool
     agent_active: bool
     validation_label: str
+    # IETF profile sub-axes (cloud may omit on legacy receipts).
+    signed_at_skew_seconds: float | None = None
+    chain_valid: bool | None = None
+    anchor_status_ots: str | None = None
+    anchor_status_rfc3161: str | None = None
+    missing_fields: list[str] | None = None
 
 
 @dataclass
@@ -2133,6 +2146,11 @@ def verify_signature(signature_id: str) -> VerificationResponse:
             algorithm_match=detail_raw["algorithm_match"],
             agent_active=detail_raw["agent_active"],
             validation_label=detail_raw["validation_label"],
+            signed_at_skew_seconds=detail_raw.get("signed_at_skew_seconds"),
+            chain_valid=detail_raw.get("chain_valid"),
+            anchor_status_ots=detail_raw.get("anchor_status_ots"),
+            anchor_status_rfc3161=detail_raw.get("anchor_status_rfc3161"),
+            missing_fields=detail_raw.get("missing_fields"),
         )
         if isinstance(detail_raw, dict)
         else None

@@ -93,8 +93,21 @@ def main(
 
 
 @app.command()
-def verify(signature_id: str = typer.Argument(help="Signature ID to verify.")) -> None:
-    """Verify a signature by ID (public, no auth needed)."""
+def verify(
+    signature_id: str = typer.Argument(help="Signature ID to verify."),
+    output: str = typer.Option(
+        "text", "--output", "-o", help="Output format: text or json."
+    ),
+) -> None:
+    """Verify a signature by ID (public, no auth needed).
+
+    With ``--output json`` returns the full ``VerificationResponse`` plus
+    the IETF profile sub-axes (`chain_valid`, `anchor_status_ots`,
+    `anchor_status_rfc3161`, `signed_at_skew_seconds`, `missing_fields`)
+    when the cloud emitted them.
+    """
+    import json as json_mod
+
     from asqav import APIError, verify_signature
 
     try:
@@ -106,11 +119,56 @@ def verify(signature_id: str = typer.Argument(help="Signature ID to verify.")) -
         print(f"Error: {exc}")
         raise typer.Exit(code=1)
 
+    if output == "json":
+        detail = result.verification_detail
+        payload = {
+            "signature_id": result.signature_id,
+            "agent_id": result.agent_id,
+            "agent_name": result.agent_name,
+            "action_id": result.action_id,
+            "action_type": result.action_type,
+            "algorithm": result.algorithm,
+            "signed_at": result.signed_at,
+            "verified": result.verified,
+            "verification_url": result.verification_url,
+            "verification_detail": (
+                {
+                    "signer_key_match": detail.signer_key_match,
+                    "signature_valid": detail.signature_valid,
+                    "algorithm_match": detail.algorithm_match,
+                    "agent_active": detail.agent_active,
+                    "validation_label": detail.validation_label,
+                    "signed_at_skew_seconds": detail.signed_at_skew_seconds,
+                    "chain_valid": detail.chain_valid,
+                    "anchor_status_ots": detail.anchor_status_ots,
+                    "anchor_status_rfc3161": detail.anchor_status_rfc3161,
+                    "missing_fields": detail.missing_fields,
+                }
+                if detail
+                else None
+            ),
+        }
+        print(json_mod.dumps(payload, indent=2, default=str))
+        return
+
     status = "valid" if result.verified else "invalid"
     print(f"Signature: {status}")
     print(f"Agent: {result.agent_name} ({result.agent_id})")
     print(f"Action: {result.action_type}")
     print(f"Algorithm: {result.algorithm}")
+    detail = result.verification_detail
+    if detail is not None:
+        print(f"Validation: {detail.validation_label}")
+        if detail.chain_valid is not None:
+            print(f"Chain valid: {detail.chain_valid}")
+        if detail.anchor_status_ots is not None:
+            print(f"Anchor (OTS): {detail.anchor_status_ots}")
+        if detail.anchor_status_rfc3161 is not None:
+            print(f"Anchor (RFC 3161): {detail.anchor_status_rfc3161}")
+        if detail.signed_at_skew_seconds is not None:
+            print(f"signed_at skew: {detail.signed_at_skew_seconds}s")
+        if detail.missing_fields:
+            print(f"Missing fields: {', '.join(detail.missing_fields)}")
 
 
 @app.command()

@@ -80,6 +80,77 @@ def test_verify_not_found(mock_verify: MagicMock) -> None:
     assert "not found" in result.output.lower()
 
 
+@patch("asqav.verify_signature")
+def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
+    """verify --output text surfaces IETF profile sub-axes when present."""
+    from asqav import VerificationDetail
+
+    mock_verify.return_value = MagicMock(
+        verified=True,
+        agent_name="ietf-agent",
+        agent_id="agent_ietf",
+        action_type="payment.wire_transfer",
+        algorithm="ml-dsa-65",
+        verification_detail=VerificationDetail(
+            signer_key_match=True,
+            signature_valid=True,
+            algorithm_match=True,
+            agent_active=True,
+            validation_label="valid",
+            signed_at_skew_seconds=1.234,
+            chain_valid=True,
+            anchor_status_ots="pending",
+            anchor_status_rfc3161="valid",
+            missing_fields=None,
+        ),
+    )
+    result = runner.invoke(app, ["verify", "sig_ietf"])
+    assert result.exit_code == 0
+    assert "Chain valid: True" in result.output
+    assert "Anchor (OTS): pending" in result.output
+    assert "Anchor (RFC 3161): valid" in result.output
+    assert "skew: 1.234" in result.output
+
+
+@patch("asqav.verify_signature")
+def test_verify_json_emits_full_detail(mock_verify: MagicMock) -> None:
+    """verify --output json returns the full VerificationResponse."""
+    import json
+
+    from asqav import VerificationDetail
+
+    mock_verify.return_value = MagicMock(
+        signature_id="sig_xyz",
+        agent_id="agent_x",
+        agent_name="agent-x",
+        action_id="act_1",
+        action_type="api:call",
+        algorithm="ml-dsa-65",
+        signed_at=1717171717.0,
+        verified=True,
+        verification_url="https://verify.example/sig_xyz",
+        verification_detail=VerificationDetail(
+            signer_key_match=True,
+            signature_valid=True,
+            algorithm_match=True,
+            agent_active=True,
+            validation_label="valid",
+            signed_at_skew_seconds=0.5,
+            chain_valid=True,
+            anchor_status_ots="valid",
+            anchor_status_rfc3161="valid",
+            missing_fields=[],
+        ),
+    )
+    result = runner.invoke(app, ["verify", "sig_xyz", "--output", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["signature_id"] == "sig_xyz"
+    assert payload["verification_detail"]["chain_valid"] is True
+    assert payload["verification_detail"]["anchor_status_ots"] == "valid"
+    assert payload["verification_detail"]["signed_at_skew_seconds"] == 0.5
+
+
 # ---------------------------------------------------------------------------
 # agents list command
 # ---------------------------------------------------------------------------
