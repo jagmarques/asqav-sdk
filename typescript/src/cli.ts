@@ -420,7 +420,19 @@ async function cmdSign(args: string[]): Promise<void> {
   const issuerId = parseFlag(args, "issuer-id");
   const receiptType = parseFlag(args, "receipt-type") ?? "protectmcp:decision";
   const reason = parseFlag(args, "reason");
-  const policyDecision = parseFlag(args, "policy-decision") ?? "permit";
+  // IETF -01 N3: --decision is the spec-shape flag (allow|deny|rate_limit).
+  // --policy-decision is the legacy flag (permit|deny|rate_limit). They
+  // are mutually convertible; --decision wins when both supplied.
+  const decisionFlag = parseFlag(args, "decision");
+  const decisionMap: Record<string, string> = {
+    allow: "permit",
+    deny: "deny",
+    rate_limit: "rate_limit",
+  };
+  const policyDecision =
+    (decisionFlag !== undefined ? decisionMap[decisionFlag] : undefined)
+    ?? parseFlag(args, "policy-decision")
+    ?? "permit";
   const sessionId = parseFlag(args, "session-id");
   const validSecondsStr = parseFlag(args, "valid-seconds");
   const policyArtefactPath = parseFlag(args, "policy-artefact");
@@ -491,6 +503,9 @@ async function cmdSign(args: string[]): Promise<void> {
       if (sig.actionRef) process.stdout.write(`action_ref:    ${sig.actionRef}\n`);
       if (sig.previousReceiptHash) {
         process.stdout.write(`previous_receipt_hash: ${sig.previousReceiptHash}\n`);
+      }
+      if (sig.decision) {
+        process.stdout.write(`decision:      ${sig.decision}\n`);
       }
     }
     process.stdout.write(`verify_url:   ${sig.verificationUrl}\n`);
@@ -754,7 +769,8 @@ Usage:
   asqav sign --agent-id ID --action-type T [--compliance-mode] [--action-json PATH|-]
              [--receipt-type protectmcp:decision|...] [--risk-class low|medium|high|unknown]
              [--sandbox-state enabled|disabled|unavailable] [--iteration-id ID]
-             [--issuer-id LEGAL] [--policy-decision permit|deny|rate_limit] [--reason CODE]
+             [--issuer-id LEGAL] [--policy-decision permit|deny|rate_limit]
+             [--decision allow|deny|rate_limit] [--reason CODE]
              [--algorithm ml-dsa-65|ed25519|es256] [--policy-artefact PATH|-]
              [--session-id ID] [--valid-seconds N] [--output text|json]
   asqav agents list / create <name> / revoke <agent_id>
