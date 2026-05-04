@@ -4,6 +4,32 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.10 / TypeScript 0.2.8] - 2026-05-04
+
+### Added
+- IETF Compliance Receipts profile shipping. Both SDKs implement the wire shape from `draft-marques-asqav-compliance-receipts` (top-level `decision`, `signatureObject`, `anchors[]`), JCS canonicalisation for the signed envelope, hash-chain `previousReceiptHash`, retention floor, receipt type / reason vocabulary, and algorithm agility.
+
+### Changed
+- Wire-shape alignment with the -00 spec text: `decision` is the canonical top-level field; `signatureObject` carries the signed bytes plus algorithm metadata; `anchors[]` lists every external anchor (TSA, transparency log) with verification material inline.
+- Hash chain field renamed `prev_chain_hash` -> `previousReceiptHash` to match draft naming.
+
+### Notes
+- TypeScript 0.2.5, 0.2.6, 0.2.7 were intermediate work-in-progress versions; 0.2.8 is the first ship that fully matches the -00 wire shape and is the recommended upgrade target.
+- Python 0.3.7 was yanked on PyPI (shipped with `__version__="0.3.6"` baked in); 0.3.8 fixed that. 0.3.9 added the IETF profile incrementally; 0.3.10 finalises wire-shape alignment.
+
+## [Python 0.3.8] - 2026-05-03
+
+### Fixed
+- `asqav.__version__` was drifting at `0.3.6` while the package metadata read `0.3.7`. Bumped to 0.3.8 because PyPI does not allow re-uploading a version. 0.3.7 has been yanked on PyPI.
+
+## [Python 0.3.7] - 2026-05-03
+
+### Added
+- Initial round of IETF Compliance Receipts profile work (superseded by 0.3.9 / 0.3.10).
+
+### Notes
+- Yanked on PyPI: shipped with `__version__="0.3.6"` baked in. Use 0.3.8 or later.
+
 ## [Python 0.3.6] - 2026-05-02
 
 ### Added
