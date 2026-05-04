@@ -1,4 +1,16 @@
-"""Audit trail replay - reconstruct and verify what any agent did, step by step."""
+"""Audit trail replay - reconstruct and verify what any agent did, step by step.
+
+Two chain shapes are supported:
+
+  * **IETF v2** (default): ``previousReceiptHash = sha256(JCS(predecessor
+    signed envelope))`` per draft-marques-asqav-compliance-receipts-00
+    §5.7. First record's predecessor seed is ``"0" * 64``
+    (``FIRST_RECEIPT_SEED``).
+  * **Legacy**: hash over ``{signature_id, action_type, timestamp,
+    prev_hash}`` with empty-string seed. Kept behind ``legacy_chain=True``
+    so historical receipts (issued before the IETF profile landed) keep
+    verifying.
+"""
 
 from __future__ import annotations
 
@@ -8,8 +20,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from ._jcs import canonical_json
 from .client import SignedActionResponse, get_session_signatures
 from .compliance import ComplianceBundle, _normalize_signature
+
+# Per-IETF-profile seed for the first record on every chain. Distinguishes
+# "no predecessor" from "predecessor not yet linked". Mirrors
+# `core/integrity.py:FIRST_RECEIPT_SEED` on the cloud.
+FIRST_RECEIPT_SEED: str = "0" * 64
 
 
 @dataclass
@@ -103,19 +121,31 @@ class ReplayTimeline:
 
         return "\n".join(lines)
 
-    def verify_chain(self) -> bool:
+    def verify_chain(self, *, legacy_chain: bool = False) -> bool:
         """Recompute each step's predecessor hash, compare to stored
         ``prev_chain_hash``. Mismatch = tampering. Steps lacking a stored
-        hash are marked invalid rather than passing silently."""
+        hash are marked invalid rather than passing silently.
+
+        Args:
+            legacy_chain: When True, recomputes using the pre-IETF
+                envelope shape (``{signature_id, action_type, timestamp,
+                prev_hash}``) so receipts issued before the profile
+                landed keep verifying. Default False uses the IETF v2
+                shape per §5.7.
+        """
         if not self.steps:
             self.chain_integrity = True
             return True
 
-        prev_hash = ""
+        seed = "" if legacy_chain else FIRST_RECEIPT_SEED
+        prev_hash = seed
         all_valid = True
 
         for step in self.steps:
             if step.index == 0:
+                # First-record seed: stored prev_chain_hash should match the
+                # spec seed under v2. Legacy chains used None so we accept
+                # both for compatibility with bundles produced pre-v2.
                 step.chain_valid = True
             else:
                 stored = getattr(step, "prev_chain_hash", None)
@@ -127,46 +157,92 @@ class ReplayTimeline:
                     if not step.chain_valid:
                         all_valid = False
 
-            entry = json.dumps(
-                {
-                    "signature_id": step.signature_id,
-                    "action_type": step.action_type,
-                    "timestamp": step.timestamp,
-                    "prev_hash": prev_hash,
-                },
-                sort_keys=True,
-                separators=(",", ":"),
+            prev_hash = _step_chain_hash(
+                step, prev_hash, legacy_chain=legacy_chain
             )
-            prev_hash = hashlib.sha256(entry.encode()).hexdigest()
 
         self.chain_integrity = all_valid
         return all_valid
 
 
-def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
-    """Check each signature chains to the previous via SHA-256.
+def _step_chain_hash(
+    step: ReplayStep, prev_hash: str, *, legacy_chain: bool
+) -> str:
+    """Compute the chain hash a step contributes to the next link.
 
-    Returns a list of booleans, one per signature, indicating whether
-    the chain link from the previous entry is valid.
+    Under the IETF v2 shape (``draft-marques-asqav-compliance-receipts-00``
+    §5.7) this is ``sha256(JCS(predecessor_signed_envelope))``. The
+    "envelope" reconstructed here is the minimum the SDK can rebuild from
+    a ReplayStep: the signature_id, action_type, payload context, and
+    server timestamp, plus the previous-receipt-hash link. This is the
+    same shape the cloud serializes when it computes the chain link, so
+    SDK and cloud agree byte-for-byte for receipts the SDK observed.
+
+    Under ``legacy_chain=True`` the historic shape is used so bundles
+    exported before the profile landed still verify.
     """
-    if not signatures:
-        return []
-
-    results: list[bool] = []
-    prev_hash = ""
-
-    for i, sig in enumerate(signatures):
+    if legacy_chain:
         entry = json.dumps(
             {
-                "signature_id": sig.get("signature_id", ""),
-                "action_type": sig.get("action_type", ""),
-                "timestamp": sig.get("signed_at", sig.get("timestamp", 0)),
+                "signature_id": step.signature_id,
+                "action_type": step.action_type,
+                "timestamp": step.timestamp,
                 "prev_hash": prev_hash,
             },
             sort_keys=True,
             separators=(",", ":"),
         )
-        current_hash = hashlib.sha256(entry.encode()).hexdigest()
+        return hashlib.sha256(entry.encode()).hexdigest()
+
+    envelope = {
+        "signature_id": step.signature_id,
+        "action_type": step.action_type,
+        "context": step.context,
+        "timestamp": step.timestamp,
+        "previousReceiptHash": prev_hash,
+    }
+    return hashlib.sha256(canonical_json(envelope)).hexdigest()
+
+
+def _verify_hash_chain(
+    signatures: list[dict], *, legacy_chain: bool = False
+) -> list[bool]:
+    """Check each signature chains to the previous via SHA-256.
+
+    Returns a list of booleans, one per signature, indicating whether
+    the chain link from the previous entry is valid.
+
+    `legacy_chain` selects the pre-IETF envelope shape so old receipts
+    (recorded before the profile landed) keep verifying.
+    """
+    if not signatures:
+        return []
+
+    results: list[bool] = []
+    prev_hash = "" if legacy_chain else FIRST_RECEIPT_SEED
+
+    for i, sig in enumerate(signatures):
+        if legacy_chain:
+            entry = json.dumps(
+                {
+                    "signature_id": sig.get("signature_id", ""),
+                    "action_type": sig.get("action_type", ""),
+                    "timestamp": sig.get("signed_at", sig.get("timestamp", 0)),
+                    "prev_hash": prev_hash,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            current_hash = hashlib.sha256(entry.encode()).hexdigest()
+        else:
+            envelope = {
+                "signature_id": sig.get("signature_id", ""),
+                "action_type": sig.get("action_type", ""),
+                "context": sig.get("payload"),
+                "timestamp": sig.get("signed_at", sig.get("timestamp", 0)),
+                "previousReceiptHash": prev_hash,
+            }
+            current_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
         results.append(True)  # Valid link in a freshly-built chain
         prev_hash = current_hash
 
@@ -204,25 +280,35 @@ def _build_explanation(action_type: str, context: dict[str, Any] | None) -> str:
     return base
 
 
-def replay(agent_id: str, session_id: str) -> ReplayTimeline:
+def replay(
+    agent_id: str, session_id: str, *, legacy_chain: bool = False
+) -> ReplayTimeline:
     """Fetch signatures for a session and reconstruct the audit trail.
 
     Args:
         agent_id: The agent that owns the session.
         session_id: The session to replay.
+        legacy_chain: When True, derive chain links via the pre-IETF
+            envelope shape so historical receipts verify. Default False
+            uses the IETF v2 shape per §5.7.
 
     Returns:
         A ReplayTimeline with ordered steps and chain verification.
     """
     raw_sigs = get_session_signatures(session_id)
-    return _build_timeline(agent_id, session_id, raw_sigs)
+    return _build_timeline(
+        agent_id, session_id, raw_sigs, legacy_chain=legacy_chain
+    )
 
 
-def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
+def replay_from_bundle(
+    bundle: ComplianceBundle, *, legacy_chain: bool = False
+) -> ReplayTimeline:
     """Reconstruct a timeline from a ComplianceBundle offline.
 
     Args:
         bundle: A previously exported ComplianceBundle.
+        legacy_chain: Use the pre-IETF chain shape; see :func:`replay`.
 
     Returns:
         A ReplayTimeline built from the bundle receipts.
@@ -255,13 +341,17 @@ def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
             )
         )
 
-    return _build_timeline(agent_id, session_id, fake_sigs)
+    return _build_timeline(
+        agent_id, session_id, fake_sigs, legacy_chain=legacy_chain
+    )
 
 
 def _build_timeline(
     agent_id: str,
     session_id: str,
     signatures: list[SignedActionResponse],
+    *,
+    legacy_chain: bool = False,
 ) -> ReplayTimeline:
     """Shared logic to build a ReplayTimeline from a list of signatures."""
     # Sort by timestamp
@@ -269,23 +359,36 @@ def _build_timeline(
 
     # Build normalized dicts for chain verification
     sig_dicts = [_normalize_signature(s) for s in sorted_sigs]
-    chain_results = _verify_hash_chain(sig_dicts)
+    chain_results = _verify_hash_chain(sig_dicts, legacy_chain=legacy_chain)
 
     # Rolling chain hash; each step records its predecessor's value.
+    # Under the IETF v2 profile (§5.7) the seed is the all-zero SHA-256
+    # value so verifiers can distinguish "no predecessor" from "predecessor
+    # not yet linked". Legacy chains used the empty string.
     chain_hashes: list[str] = []
-    prev_hash = ""
+    prev_hash = "" if legacy_chain else FIRST_RECEIPT_SEED
     for sig in sorted_sigs:
-        entry = json.dumps(
-            {
+        if legacy_chain:
+            entry = json.dumps(
+                {
+                    "signature_id": sig.signature_id,
+                    "action_type": sig.action_type,
+                    "timestamp": sig.signed_at,
+                    "prev_hash": prev_hash,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            prev_hash = hashlib.sha256(entry.encode()).hexdigest()
+        else:
+            envelope = {
                 "signature_id": sig.signature_id,
                 "action_type": sig.action_type,
+                "context": sig.payload,
                 "timestamp": sig.signed_at,
-                "prev_hash": prev_hash,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        prev_hash = hashlib.sha256(entry.encode()).hexdigest()
+                "previousReceiptHash": prev_hash,
+            }
+            prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
         chain_hashes.append(prev_hash)
 
     steps: list[ReplayStep] = []
