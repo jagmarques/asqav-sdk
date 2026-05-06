@@ -4,7 +4,7 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
-## [Unreleased: Python 0.3.11 / TypeScript 0.2.9] - 2026-05-04
+## [Python 0.3.11 / TypeScript 0.2.9] - 2026-05-06
 
 ### Fixed
 - DORA `incident_class` vocabulary now matches the canonical six-value list from JC 2024-33 Annex II field 3.23 (the EBA / ESMA / EIOPA Joint Committee Final Report on the draft RTS and ITS on incident reporting under Regulation (EU) 2022/2554, published 17 July 2024). Previous releases forwarded an opaque string with no client-side schema, so callers passing pre-final draft tokens hit a server 422 with no actionable error.
