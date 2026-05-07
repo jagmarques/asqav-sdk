@@ -340,9 +340,10 @@ export interface SignOptions {
    * `Organization.legal_entity` when omitted. */
   issuerId?: string;
 
-  /** `sha256:<hex>` of the request payload. Conceptually the same value
-   * as `context_hash`; emitted under both names for one release. */
-  payloadDigest?: string;
+  /** Digest of the request payload. Accepts the legacy
+   * `"sha256:<hex>"` string or the wire object form
+   * `{ hash, size?, preview? }`. */
+  payloadDigest?: string | { hash: string; size?: number; preview?: string };
 
   /** Receipt namespace. One of `protectmcp:decision` |
    * `protectmcp:restraint` | `protectmcp:lifecycle`. Defaults to
