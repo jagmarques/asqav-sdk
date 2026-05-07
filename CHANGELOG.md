@@ -4,6 +4,12 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.12 / TypeScript 0.2.10] - 2026-05-07
+
+### Changed
+- Both SDKs accept the cloud's wire-shape-aligned `payload_digest`. The legacy `"sha256:<hex>"` string keeps parsing; the new upstream object form `{hash, size?, preview?}` (cloud 0.2.13+) parses too. Type widened on `SignatureResponse.payload_digest` (Python) and `SignActionOptions.payloadDigest` (TypeScript) to `str | dict | None` and `string | { hash; size?; preview? }` respectively.
+- No callsite or behaviour change beyond the type widening. Receipts issued by older clouds and receipts issued by 0.2.13+ both verify on the same path.
+
 ## [Python 0.3.11 / TypeScript 0.2.9] - 2026-05-06
 
 ### Fixed
