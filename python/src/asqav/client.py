@@ -323,7 +323,9 @@ class SignatureResponse:
     compliance_mode: bool = False
     receipt_type: str | None = None
     action_ref: str | None = None
-    payload_digest: str | None = None
+    # payload_digest accepts both shapes for back-compat: legacy
+    # "sha256:<hex>" string or the wire object form {"hash", "size"}.
+    payload_digest: str | dict[str, Any] | None = None
     issuer_id: str | None = None
     iteration_id: str | None = None
     sandbox_state: str | None = None
@@ -1112,7 +1114,7 @@ class Agent:
         compliance_mode: bool = False,
         receipt_type: str | None = None,
         action_ref: str | None = None,
-        payload_digest: str | None = None,
+        payload_digest: str | dict[str, Any] | None = None,
         issuer_id: str | None = None,
         iteration_id: str | None = None,
         sandbox_state: str | None = None,
