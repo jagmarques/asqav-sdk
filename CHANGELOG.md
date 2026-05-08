@@ -4,6 +4,14 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.4.0 / TypeScript 0.3.0] - 2026-05-08
+
+### Changed
+- **Wire shape**: under `compliance_mode`, the cloud emits the three-key Compliance Receipts envelope `{payload, signature, anchors}` plus pure metadata. The SDKs expose `payload`, `signature` (polymorphic: string in legacy, `{alg, kid, sig}` object form under compliance_mode), and `anchors` directly on `SignatureResponse`.
+- **Removed `signatureObject`**: the polymorphic `signature` field carries the same value. Use `response.signature_envelope()` (Python) or `signatureEnvelope(response)` (TypeScript) for the dict form.
+- **Removed flat-field projection fallbacks**: the projection helpers no longer rebuild `{alg, kid, sig}` from `algorithm` + `signature_b64`. Older receipts return None / undefined from the helpers.
+- **Anchor entries carry `commit_hash`** sourced from the cloud's `anchor_commit_hash` column. Field is `None` on legacy rows.
+
 ## [Python 0.3.13 / TypeScript 0.2.11] - 2026-05-08
 
 ### Changed
