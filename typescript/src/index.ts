@@ -330,11 +330,9 @@ export interface SignOptions {
   /** Risk classification controlled vocabulary. */
   riskClass?: RiskClass;
 
-  /** DORA RTS JC 2024-33 Annex II field 3.23 incident class; one of the
-   * six canonical values in `DORA_INCIDENT_CLASS_NAMESPACE`, or a known
-   * legacy alias from `LEGACY_DORA_ALIASES`. Empty string when not
-   * applicable. */
-  incidentClass?: string;
+  /** Incident class; canonical string or array of strings for
+   * multi-regime cases. */
+  incidentClass?: string | string[];
 
   /** Names a legal entity. Resolved server-side from
    * `Organization.legal_entity` when omitted. */
@@ -831,15 +829,21 @@ export class Agent {
     // DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
     // canonical values, plus the legacy 12-value alias set the cloud
     // still accepts). Reject anything else before the HTTP roundtrip.
-    if (options.incidentClass !== undefined
-      && options.incidentClass !== ""
-      && !(DORA_INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(options.incidentClass)
-      && !(options.incidentClass in LEGACY_DORA_ALIASES)) {
-      throw new AsqavError(
-        `invalid_incident_class: must be one of ${DORA_INCIDENT_CLASS_NAMESPACE.join(", ")} `
-          + "(per DORA RTS JC 2024-33 Annex II field 3.23) "
-          + `or a known legacy alias ${Object.keys(LEGACY_DORA_ALIASES).sort().join(", ")}`,
-      );
+    if (options.incidentClass !== undefined && options.incidentClass !== "") {
+      const incidentValues = Array.isArray(options.incidentClass)
+        ? options.incidentClass
+        : [options.incidentClass];
+      for (const ic of incidentValues) {
+        if (
+          !(DORA_INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)
+          && !(ic in LEGACY_DORA_ALIASES)
+        ) {
+          throw new AsqavError(
+            `invalid_incident_class: '${ic}' must be one of ${DORA_INCIDENT_CLASS_NAMESPACE.join(", ")} `
+              + `or a known legacy alias ${Object.keys(LEGACY_DORA_ALIASES).sort().join(", ")}`,
+          );
+        }
+      }
     }
 
     // Compute action_ref client-side when the caller is in compliance
