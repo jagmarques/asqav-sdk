@@ -34,9 +34,14 @@ export interface AnchorEntry {
  * projection helpers read. */
 export interface ProjectableResponse {
   algorithm?: string;
-  signature?: string;
+  // signature is either the object form or a base64 string.
+  signature?: string | SignatureEnvelope;
+  signature_b64?: string;
+  signatureB64?: string;
   key_id?: string;
   kid?: string;
+  issuer_id?: string;
+  issuerId?: string;
   complianceMode?: boolean;
   compliance_mode?: boolean;
   signatureObject?: SignatureEnvelope | null;
@@ -72,15 +77,25 @@ export function signatureObjectFromResponse(
   response: ProjectableResponse | null | undefined,
 ): SignatureEnvelope | undefined {
   if (response == null) return undefined;
+  const directSignature = response.signature;
+  if (
+    directSignature &&
+    typeof directSignature === "object" &&
+    "alg" in directSignature
+  ) {
+    return { ...(directSignature as SignatureEnvelope) };
+  }
   if (response.signatureObject) {
-    // Spread to a fresh object so callers cannot mutate the source.
     return { ...response.signatureObject };
   }
   if (!isComplianceMode(response)) return undefined;
+  const flatSig =
+    typeof directSignature === "string" ? directSignature : undefined;
   return {
     alg: pick<string>(response, "algorithm") ?? "",
-    kid: pick<string>(response, "key_id", "kid") ?? "",
-    sig: pick<string>(response, "signature") ?? "",
+    kid:
+      pick<string>(response, "kid", "issuer_id", "issuerId", "key_id") ?? "",
+    sig: pick<string>(response, "signature_b64", "signatureB64") ?? flatSig ?? "",
   };
 }
 

@@ -25,6 +25,10 @@ def signature_object_from_response(response: Any) -> dict[str, str] | None:
     when the response is non-compliance (no `compliance_mode=True`) so
     legacy receipts are not silently re-shaped.
     """
+    # signature may be the object form directly or under signatureObject.
+    direct_signature = _get(response, "signature")
+    if isinstance(direct_signature, dict) and direct_signature:
+        return dict(direct_signature)
     cloud_supplied = _get(response, "signatureObject")
     if isinstance(cloud_supplied, dict) and cloud_supplied:
         return dict(cloud_supplied)
@@ -33,11 +37,9 @@ def signature_object_from_response(response: Any) -> dict[str, str] | None:
         return None
 
     alg = _get(response, "algorithm") or ""
-    sig = _get(response, "signature") or ""
-    # `key_id` is not surfaced on the dataclass today; cloud will pass
-    # it via `signatureObject` once available. Fall back to the empty
-    # string so the envelope keeps the spec-shape three keys.
-    kid = _get(response, "key_id") or _get(response, "kid") or ""
+    sig = _get(response, "signature_b64") or _get(response, "signature") or ""
+    sig = sig if isinstance(sig, str) else ""
+    kid = _get(response, "kid") or _get(response, "issuer_id") or _get(response, "key_id") or ""
     return {"alg": alg, "kid": kid, "sig": sig}
 
 

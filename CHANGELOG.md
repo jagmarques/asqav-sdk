@@ -4,6 +4,12 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.3.13 / TypeScript 0.2.11] - 2026-05-08
+
+### Changed
+- Both SDK readers accept the new `signature` object form (cloud 0.2.14+) directly, falling back to `signatureObject` for older clouds. Polymorphic `signature: string | object` typed across the public surface. `kid` is read from `kid`, `issuer_id`, or `key_id` in that order.
+- `incident_class` widened to `string | string[] | undefined`. Validator runs vocabulary check element-wise. Array form covers multi-regime cases (e.g. simultaneously DORA + CIRCIA).
+
 ## [Python 0.3.12 / TypeScript 0.2.10] - 2026-05-07
 
 ### Changed
