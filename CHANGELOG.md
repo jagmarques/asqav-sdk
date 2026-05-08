@@ -4,6 +4,11 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.4.3 / TypeScript 0.3.3] - 2026-05-08
+
+### Changed
+- Shared `canonicalize_action(action_type, context)` / `canonicalizeAction(actionType, context)` helper. Both SDKs route `hash_action` / `hashAction`, `_compute_action_ref`, and the hash-only sign body through the same primitive. No wire-format change.
+
 ## [Python 0.4.2 / TypeScript 0.3.2] - 2026-05-08
 
 ### Changed

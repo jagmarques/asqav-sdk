@@ -835,12 +835,9 @@ def _compute_action_ref(
     The Action shape mirrors `core/canonical.py:hash_action` on the cloud
     so the SDK and cloud agree byte-for-byte under JCS encoding.
     """
-    from .canonicalize import canonicalize
+    from .canonicalize import canonicalize_action
 
-    canonical = canonicalize(
-        {"action_type": action_type, "context": context or {}}
-    )
-    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+    return "sha256:" + hashlib.sha256(canonicalize_action(action_type, context)).hexdigest()
 
 
 def _build_sign_body(
@@ -858,11 +855,9 @@ def _build_sign_body(
     whitelisted metadata bag.
     """
     if _mode == "hash-only":
-        from .canonicalize import canonicalize
+        from .canonicalize import canonicalize_action
 
-        canonical_bytes = canonicalize(
-            {"action_type": action_type, "context": context or {}}
-        )
+        canonical_bytes = canonicalize_action(action_type, context)
         payload_size = len(canonical_bytes)
         if _org_salt is not None:
             digest_hex = hmac.new(
