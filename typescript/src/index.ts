@@ -686,9 +686,6 @@ interface BuildSignBodyArgs {
 
 async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
   if (config.mode === "hash-only") {
-    // Compute the canonical bytes once so we can derive both the
-    // self-describing hash and the byte size for the wire
-    // payload_digest object {hash, size}.
     const canonical = canonicalize({
       action_type: args.actionType,
       context: args.context,
@@ -704,16 +701,11 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
       action_type: args.actionType,
     };
     if (args.sessionId !== null) metadata.session_id = args.sessionId;
-    // Optional opt-in: caller adds ``_model_name`` / ``_tool_name`` /
-    // ``_parent_id`` to the context. Other context keys are NEVER
-    // copied. These three identifiers power the agent graph view in
-    // the dashboard - only the name strings travel, never prompts or
-    // tool args.
+    // Opt-in via underscored sentinel keys; nothing else from context travels.
     const ctx = args.context as Record<string, unknown>;
     if (typeof ctx._model_name === "string") metadata.model_name = ctx._model_name;
     if (typeof ctx._tool_name === "string") metadata.tool_name = ctx._tool_name;
     if (typeof ctx._parent_id === "string") metadata.parent_id = ctx._parent_id;
-    // Defensive: drop anything that snuck in outside the whitelist.
     for (const k of Object.keys(metadata)) {
       if (!HASH_ONLY_METADATA_WHITELIST.has(k)) delete metadata[k];
     }
