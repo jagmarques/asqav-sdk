@@ -112,20 +112,24 @@ function jsonString(s: string): string {
   return out;
 }
 
+/** Canonical bytes of `{action_type, context}` for hashing or signing. */
+export function canonicalizeAction(
+  actionType: string,
+  context: Record<string, unknown> = {},
+): Uint8Array {
+  return canonicalize({ action_type: actionType, context });
+}
+
 /**
- * Compute the self-describing hash for an action.
- *
- * Hashes ``{action_type, context}`` in canonical JSON form and returns
- * the result as ``"sha256:<64 hex chars>"``. With ``salt`` set, uses
- * HMAC-SHA-256 instead of plain SHA-256 (per the asqav cloud per-org
- * keyed-hash protocol).
+ * Self-describing hash for an action: `sha256:<hex>`.
+ * With `salt` set, uses HMAC-SHA-256.
  */
 export async function hashAction(
   actionType: string,
   context: Record<string, unknown> = {},
   salt?: Uint8Array,
 ): Promise<string> {
-  const canonical = canonicalize({ action_type: actionType, context });
+  const canonical = canonicalizeAction(actionType, context);
   const hex = salt
     ? createHmac("sha256", Buffer.from(salt)).update(canonical).digest("hex")
     : createHash("sha256").update(canonical).digest("hex");
