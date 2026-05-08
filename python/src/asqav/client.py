@@ -330,7 +330,8 @@ class SignatureResponse:
     iteration_id: str | None = None
     sandbox_state: str | None = None
     risk_class: str | None = None
-    incident_class: str | None = None
+    # str or list of strings for multi-regime cases.
+    incident_class: str | list[str] | None = None
     reason: str | None = None
     previous_receipt_hash: str | None = None
     # IETF -01 N3 / Section 4.2.1: spec-shape `decision` token mirrors
@@ -1119,7 +1120,7 @@ class Agent:
         iteration_id: str | None = None,
         sandbox_state: str | None = None,
         risk_class: str | None = None,
-        incident_class: str | None = None,
+        incident_class: str | list[str] | None = None,
         reason: str | None = None,
         policy_decision: str = "permit",
     ) -> SignatureResponse:
@@ -1324,7 +1325,12 @@ class Agent:
                     else None
                 )
             ),
-            signatureObject=data.get("signatureObject"),
+            # signature may arrive as the object form directly or under signatureObject.
+            signatureObject=(
+                data["signature"]
+                if isinstance(data.get("signature"), dict)
+                else data.get("signatureObject")
+            ),
             anchors=data.get("anchors"),
         )
 
