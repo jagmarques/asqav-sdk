@@ -270,6 +270,34 @@ def test_agents_list_empty(mock_init: MagicMock, mock_get: MagicMock) -> None:
     assert "No agents found" in result.output
 
 
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_agents_list_handles_array_response(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """The cloud returns a bare JSON array; the CLI must render it directly."""
+    mock_get.return_value = [
+        {"name": "alpha", "agent_id": "agent_001", "algorithm": "ml-dsa-65"},
+        {"name": "beta", "agent_id": "agent_002", "algorithm": "ed25519"},
+    ]
+    result = runner.invoke(app, ["agents", "list"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 0
+    assert "alpha" in result.output
+    assert "agent_001" in result.output
+    assert "beta" in result.output
+    assert "agent_002" in result.output
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_agents_list_empty_array(mock_init: MagicMock, mock_get: MagicMock) -> None:
+    """An empty array response must produce the friendly empty message."""
+    mock_get.return_value = []
+    result = runner.invoke(app, ["agents", "list"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 0
+    assert "No agents found" in result.output
+
+
 def test_agents_list_no_api_key() -> None:
     """agents list exits with error when ASQAV_API_KEY is not set."""
     result = runner.invoke(app, ["agents", "list"], env={"ASQAV_API_KEY": ""})
