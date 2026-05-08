@@ -1,5 +1,5 @@
 /**
- * Algorithm agility for the IETF Compliance Receipts profile (AG3, AG4).
+ * Algorithm agility for receipt signing.
  *
  * The cloud accepts `ml-dsa-65` (default), `ed25519`, and `es256` on the
  * receipt-signing path. ML-DSA always runs server-side because it is not
