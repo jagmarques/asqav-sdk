@@ -132,7 +132,7 @@ from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 __all__ = [
     # Initialization
     "init",
