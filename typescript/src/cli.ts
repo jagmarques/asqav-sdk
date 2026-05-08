@@ -32,7 +32,7 @@ import {
   type LocalSigningAlgorithm,
 } from "./index.js";
 
-const CLI_VERSION = "0.3.0";
+const CLI_VERSION = "0.3.2";
 const TIER_RANK: Record<string, number> = {
   free: 0,
   pro: 1,

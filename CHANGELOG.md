@@ -4,6 +4,11 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.4.2 / TypeScript 0.3.2] - 2026-05-08
+
+### Changed
+- **`payload_digest` size on hash-mode signs**: hash-only mode now forwards `payload_size` (byte length of the canonical fingerprint) on every request. The cloud builds the wire `payload_digest` as `{hash, size}` instead of `{hash}` alone. Both SDKs compute the size from the same canonical bytes used for the hash, so callers see no API change. Previous releases relied on the cloud filling size from server-side context, which left hash-only compliance signs without the `size` axis required by the spec.
+
 ## [Python 0.4.0 / TypeScript 0.3.0] - 2026-05-08
 
 ### Changed
