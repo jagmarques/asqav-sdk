@@ -164,7 +164,7 @@ Frameworks shipped today: `eu_ai_act_art12`, `eu_ai_act_art14`, `dora_ict`,
 ## Tips
 
 - Pin `asqav` to a specific version once your governance setup is stable
-  (`pip install asqav==0.4.2`). Lockstep upgrades catch breaking changes early.
+  (`pip install asqav==0.4.3`). Lockstep upgrades catch breaking changes early.
 - The `asqav doctor` step reads only environment variables and the public API,
   so it is safe to run on forks. The bundle export touches your API key and
   produces an artifact, so guard it with
