@@ -420,9 +420,7 @@ async function cmdSign(args: string[]): Promise<void> {
   const issuerId = parseFlag(args, "issuer-id");
   const receiptType = parseFlag(args, "receipt-type") ?? "protectmcp:decision";
   const reason = parseFlag(args, "reason");
-  // IETF -01 N3: --decision is the spec-shape flag (allow|deny|rate_limit).
-  // --policy-decision is the legacy flag (permit|deny|rate_limit). They
-  // are mutually convertible; --decision wins when both supplied.
+  // --decision (allow|deny|rate_limit) wins over legacy --policy-decision.
   const decisionFlag = parseFlag(args, "decision");
   const decisionMap: Record<string, string> = {
     allow: "permit",
