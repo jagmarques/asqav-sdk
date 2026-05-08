@@ -204,7 +204,7 @@ Field reference (camelCase on the SDK, snake_case on the JSON wire):
 - `complianceMode` -> `compliance_mode`. Default `false`.
 - `receiptType` -> `receipt_type`. One of `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`. Validated client-side.
 - `actionRef` -> `action_ref`. `sha256:<hex>` of the canonical action. SDK derives it under `complianceMode` when omitted.
-- `payloadDigest` -> `payload_digest`. `sha256:<hex>` of the request payload.
+- `payloadDigest` -> `payload_digest`. Wire object form `{ hash, size, preview? }`. The SDK forwards `payload_size` (byte length of the canonical fingerprint) on every hash-mode sign so the cloud can build the object. Legacy receipts emitted as plain `sha256:<hex>` strings continue to verify on the read path.
 - `issuerId` -> `issuer_id`. Legal entity. Resolved server-side when omitted.
 - `iterationId` -> `iteration_id`. Required for multi-step receipts.
 - `sandboxState` -> `sandbox_state`. One of `enabled`, `disabled`, `unavailable`. Required for High-Risk.
