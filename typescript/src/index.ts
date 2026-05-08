@@ -11,13 +11,13 @@
  *   const sig = await agent.sign({ actionType: "api:call", context: { model: "gpt-4" } });
  */
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import {
   SUPPORTED_ALGORITHMS,
   isSupportedAlgorithm,
   type SupportedAlgorithm,
 } from "./algorithms.js";
-import { canonicalize, hashAction } from "./canonicalize.js";
+import { canonicalize } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
 import { canonicalJson } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
@@ -686,11 +686,19 @@ interface BuildSignBodyArgs {
 
 async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
   if (config.mode === "hash-only") {
-    const digest = await hashAction(
-      args.actionType,
-      args.context,
-      config.orgSalt ?? undefined,
-    );
+    // Compute the canonical bytes once so we can derive both the
+    // self-describing hash and the byte size for the wire
+    // payload_digest object {hash, size}.
+    const canonical = canonicalize({
+      action_type: args.actionType,
+      context: args.context,
+    });
+    const payloadSize = canonical.byteLength;
+    const salt = config.orgSalt ?? undefined;
+    const hex = salt
+      ? createHmac("sha256", Buffer.from(salt)).update(canonical).digest("hex")
+      : createHash("sha256").update(canonical).digest("hex");
+    const digest = `sha256:${hex}`;
     const metadata: Record<string, unknown> = {
       agent_id: args.agentId,
       action_type: args.actionType,
@@ -713,6 +721,7 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
       action_type: args.actionType,
       hash: digest,
       hash_algo: "sha256",
+      payload_size: payloadSize,
       metadata,
       session_id: args.sessionId,
     };
