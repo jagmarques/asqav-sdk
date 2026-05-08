@@ -1,14 +1,4 @@
-"""Tests for the local-side `verify_compliance_receipt` helper.
-
-The cloud is the authoritative verifier; the SDK helper covers the
-four MUSTs the SDK can check without a network roundtrip:
-
-* REQUIRED fields presence (§5),
-* `receipt_type` in the `protectmcp:*` namespace (F1),
-* 300-second skew bound (V6 / §5.1.2),
-* `previousReceiptHash` rederives over the JCS bytes of the
-  predecessor envelope (§5.7).
-"""
+"""Local `verify_compliance_receipt`: required fields, namespace, skew, chain."""
 
 from __future__ import annotations
 
@@ -108,7 +98,7 @@ def test_multiple_missing_fields_all_reported() -> None:
 
 
 # ---------------------------------------------------------------------------
-# receipt_type namespace (F1)
+# receipt_type namespace
 # ---------------------------------------------------------------------------
 
 
@@ -132,7 +122,7 @@ def test_all_three_namespace_values_accepted() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 300-second skew bound (V6)
+# 300-second skew bound
 # ---------------------------------------------------------------------------
 
 

@@ -1,11 +1,4 @@
-"""IETF -01 N3 / Section 4.2.1: spec-shape `decision` field on the SDK.
-
-The legacy `policy_decision` vocabulary {"permit", "deny", "rate_limit"}
-diverges from the published spec text {"allow", "deny", "rate_limit"}.
-The SDK surfaces a `decision` attribute on SignatureResponse populated
-either from the cloud (newer servers) or by mapping `policy_decision`
-locally (older servers), so callers can read the spec value uniformly.
-"""
+"""Spec-shape `decision` on SignatureResponse mirrors `policy_decision`."""
 
 from __future__ import annotations
 
