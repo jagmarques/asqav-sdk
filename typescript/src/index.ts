@@ -17,7 +17,7 @@ import {
   isSupportedAlgorithm,
   type SupportedAlgorithm,
 } from "./algorithms.js";
-import { canonicalize } from "./canonicalize.js";
+import { canonicalizeAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
 import { canonicalJson } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
@@ -105,7 +105,7 @@ export function mapPolicyDecisionToDecision(
 
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
-export { canonicalize, hashAction } from "./canonicalize.js";
+export { canonicalize, canonicalizeAction, hashAction } from "./canonicalize.js";
 export { canonicalJson } from "./jcs.js";
 export {
   verifyChain,
@@ -676,10 +676,7 @@ interface BuildSignBodyArgs {
 
 async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
   if (config.mode === "hash-only") {
-    const canonical = canonicalize({
-      action_type: args.actionType,
-      context: args.context,
-    });
+    const canonical = canonicalizeAction(args.actionType, args.context);
     const payloadSize = canonical.byteLength;
     const salt = config.orgSalt ?? undefined;
     const hex = salt
