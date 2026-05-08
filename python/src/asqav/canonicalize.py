@@ -26,7 +26,15 @@ import hmac
 import json
 from typing import Any
 
-__all__ = ["canonicalize", "hash_action"]
+__all__ = ["canonicalize", "canonicalize_action", "hash_action"]
+
+
+def canonicalize_action(
+    action_type: str,
+    context: "dict[str, Any] | None" = None,
+) -> bytes:
+    """Canonical bytes of ``{action_type, context}`` for hashing or signing."""
+    return canonicalize({"action_type": action_type, "context": context or {}})
 
 
 def canonicalize(obj: Any) -> bytes:
@@ -85,8 +93,7 @@ def hash_action(
     Returns:
         Self-describing hash string ``"sha256:<64 hex chars>"``.
     """
-    payload = {"action_type": action_type, "context": context or {}}
-    canonical = canonicalize(payload)
+    canonical = canonicalize_action(action_type, context)
     if salt is not None:
         digest = hmac.new(salt, canonical, hashlib.sha256).hexdigest()
     else:
