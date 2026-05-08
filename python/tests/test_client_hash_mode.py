@@ -90,6 +90,28 @@ def test_hash_only_mode_sends_hash_not_context() -> None:
     assert len(body["hash"]) == len("sha256:") + 64
     assert body["hash_algo"] == "sha256"
     assert body["action_type"] == "api:call"
+    # Wire payload_digest carries {hash, size}; the SDK forwards size
+    # alongside the hash so the cloud can build the upstream object form.
+    assert "payload_size" in body
+    assert isinstance(body["payload_size"], int) and body["payload_size"] > 0
+
+
+def test_hash_only_payload_size_matches_canonical_bytes_length() -> None:
+    """payload_size MUST equal the byte length of the canonical fingerprint."""
+    from asqav.canonicalize import canonicalize
+
+    client_mod._mode = "hash-only"
+    client_mod._org_salt = None
+    agent = _make_agent()
+
+    context = {"prompt": "hi", "user_id": "u_001"}
+    expected_bytes = canonicalize({"action_type": "api:call", "context": context})
+
+    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+        agent.sign("api:call", context)
+
+    _, body = mock_post.call_args[0]
+    assert body["payload_size"] == len(expected_bytes)
 
 
 def test_hash_only_metadata_does_not_leak_user_fields() -> None:
