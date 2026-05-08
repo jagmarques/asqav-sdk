@@ -858,14 +858,10 @@ def _build_sign_body(
     user_intent: dict[str, Any] | None = None,
     compliance_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build the JSON body for a ``POST /agents/{id}/sign`` request.
+    """Build the JSON body for ``POST /agents/{id}/sign``.
 
-    Branches on the SDK-level ``_mode``: full-payload sends ``context``
-    as before; hash-only sends a ``hash`` field plus a whitelisted
-    ``metadata`` bag. ``compliance_fields`` carries the IETF Compliance
-    Receipts profile kwargs (``compliance_mode``, ``action_ref`` etc).
-    They are added at the top level of the request body so the cloud's
-    Pydantic ``SignRequest`` model can validate them.
+    full-payload sends ``context``; hash-only sends a digest plus a
+    whitelisted metadata bag.
     """
     if _mode == "hash-only":
         from .canonicalize import canonicalize
@@ -887,11 +883,7 @@ def _build_sign_body(
         }
         if session_id is not None:
             metadata["session_id"] = session_id
-        # Pull optional model_name / tool_name / parent_id from context if
-        # the caller opted in by adding underscored sentinel keys. Other
-        # context keys are NEVER copied; that's the whole point of
-        # hash-only. These three identifiers power the agent graph view
-        # in the dashboard (no prompt or tool-arg content travels).
+        # Opt-in via underscored sentinel keys; nothing else from context travels.
         for src_key, dst_key in (
             ("_model_name", "model_name"),
             ("_tool_name", "tool_name"),
@@ -901,8 +893,6 @@ def _build_sign_body(
                 value = context[src_key]
                 if isinstance(value, str):
                     metadata[dst_key] = value
-        # Defensive: only ship whitelisted keys even if a future caller
-        # mutates `metadata` above.
         metadata = {k: v for k, v in metadata.items() if k in _HASH_ONLY_METADATA_WHITELIST}
         body: dict[str, Any] = {
             "action_type": action_type,
