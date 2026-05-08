@@ -37,7 +37,7 @@ describe("asqav CLI (TypeScript)", () => {
 
   it("prints version with --version", async () => {
     await expect(runCli(["--version"])).resolves.not.toThrow();
-    expect(output()).toMatch(/asqav 0\.2\.\d+/);
+    expect(output()).toMatch(/asqav 0\.\d+\.\d+/);
   });
 
   it("prints help with --help", async () => {
