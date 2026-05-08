@@ -1,110 +1,57 @@
 /**
- * IETF Compliance Receipts -01 wire-shape projection helpers.
+ * Compliance Receipts wire-shape projection helpers.
  *
- * Mirror of `asqav.ietf_projection` (Python) and
- * `asqav_cloud.core.ietf_projection`. Pure functions that re-shape the
- * legacy flat fields into the spec-shape JSON structures the IETF
- * profile defines (Section 4 "JSON Receipt Structure" + Section 4.4
- * "Anchors").
- *
- * Callers use these helpers to produce a draft-conformant view of a
- * receipt for offline verification or audit-pack export when working
- * against an older cloud that does not yet emit `signatureObject` /
- * `anchors` directly.
+ * Pure helpers for offline analysis of a receipt: extract the
+ * spec-shape signature envelope `{alg, kid, sig}` and the anchors[]
+ * array. The cloud emits the three-key envelope directly under
+ * compliance_mode; the helpers below return the cloud-supplied values
+ * and undefined on legacy receipts.
  */
 
-/** Spec-shape signature envelope per Section 4. */
+/** Spec-shape signature envelope. */
 export interface SignatureEnvelope {
   alg: string;
   kid: string;
   sig: string;
 }
 
-/** Spec-shape anchor entry per Section 4.4. */
+/** Spec-shape anchor entry. */
 export interface AnchorEntry {
   type: "rfc3161" | "opentimestamps" | string;
   value: string;
   serial?: string;
   tsa?: string;
   status?: string;
+  commit_hash?: string | null;
   [key: string]: unknown;
 }
 
 /** Minimal duck-typed slice of a SignatureResponse / verify dict the
  * projection helpers read. */
 export interface ProjectableResponse {
-  algorithm?: string;
-  // signature is either the object form or a base64 string.
   signature?: string | SignatureEnvelope;
-  signature_b64?: string;
-  signatureB64?: string;
-  key_id?: string;
-  kid?: string;
-  issuer_id?: string;
-  issuerId?: string;
+  anchors?: AnchorEntry[] | null;
+  payload?: Record<string, unknown> | null;
   complianceMode?: boolean;
   compliance_mode?: boolean;
-  signatureObject?: SignatureEnvelope | null;
-  anchors?: AnchorEntry[] | null;
-  rfc3161_serial?: string;
-  rfc3161_tsa?: string;
-  rfc3161Serial?: string;
-  rfc3161Tsa?: string;
-  bitcoinAnchor?: { status?: string } | null;
-  bitcoin_anchor?: { status?: string } | null;
   [key: string]: unknown;
 }
 
-function pick<T>(obj: ProjectableResponse, ...names: string[]): T | undefined {
-  for (const n of names) {
-    const v = (obj as Record<string, unknown>)[n];
-    if (v !== undefined && v !== null) return v as T;
+/** Return `{alg, kid, sig}` when the response carries the object form,
+ *  else undefined. The cloud emits `signature` as the object form under
+ *  compliance_mode and as a base64 string in legacy mode. */
+export function signatureEnvelopeFromResponse(
+  response: ProjectableResponse | null | undefined,
+): SignatureEnvelope | undefined {
+  if (response == null) return undefined;
+  const sig = response.signature;
+  if (sig && typeof sig === "object" && "alg" in sig && "kid" in sig && "sig" in sig) {
+    return { ...(sig as SignatureEnvelope) };
   }
   return undefined;
 }
 
-function isComplianceMode(obj: ProjectableResponse): boolean {
-  return Boolean(pick<boolean>(obj, "complianceMode", "compliance_mode"));
-}
-
-/** Project a SignatureResponse / verify dict into `{alg, kid, sig}`.
- *
- * Returns the cloud-supplied `signatureObject` when present so callers
- * do not double-project; otherwise builds the envelope from the flat
- * fields. Returns `undefined` for non-compliance receipts so legacy
- * callers stay byte-stable. */
-export function signatureObjectFromResponse(
-  response: ProjectableResponse | null | undefined,
-): SignatureEnvelope | undefined {
-  if (response == null) return undefined;
-  const directSignature = response.signature;
-  if (
-    directSignature &&
-    typeof directSignature === "object" &&
-    "alg" in directSignature
-  ) {
-    return { ...(directSignature as SignatureEnvelope) };
-  }
-  if (response.signatureObject) {
-    return { ...response.signatureObject };
-  }
-  if (!isComplianceMode(response)) return undefined;
-  const flatSig =
-    typeof directSignature === "string" ? directSignature : undefined;
-  return {
-    alg: pick<string>(response, "algorithm") ?? "",
-    kid:
-      pick<string>(response, "kid", "issuer_id", "issuerId", "key_id") ?? "",
-    sig: pick<string>(response, "signature_b64", "signatureB64") ?? flatSig ?? "",
-  };
-}
-
-/** Project a SignatureResponse / verify dict into `anchors[]`.
- *
- * Returns the cloud-supplied list when present (deep-copied), otherwise
- * builds entries from the flat columns. Returns `undefined` for
- * non-compliance receipts; returns `[]` (not undefined) when
- * complianceMode is on but no anchor columns are populated. */
+/** Return the `anchors[]` array when present, else undefined. */
 export function anchorsFromResponse(
   response: ProjectableResponse | null | undefined,
 ): AnchorEntry[] | undefined {
@@ -112,30 +59,7 @@ export function anchorsFromResponse(
   if (Array.isArray(response.anchors)) {
     return response.anchors.map((e) => ({ ...e }));
   }
-  if (!isComplianceMode(response)) return undefined;
-
-  const anchors: AnchorEntry[] = [];
-
-  const rfc3161Serial = pick<string>(response, "rfc3161Serial", "rfc3161_serial");
-  const rfc3161Tsa = pick<string>(response, "rfc3161Tsa", "rfc3161_tsa");
-  if (rfc3161Serial || rfc3161Tsa) {
-    const entry: AnchorEntry = { type: "rfc3161", value: "" };
-    if (rfc3161Serial) entry.serial = rfc3161Serial;
-    if (rfc3161Tsa) entry.tsa = rfc3161Tsa;
-    anchors.push(entry);
-  }
-
-  const bitcoinAnchor = pick<{ status?: string }>(
-    response,
-    "bitcoinAnchor",
-    "bitcoin_anchor",
-  );
-  const status = bitcoinAnchor?.status;
-  if (status) {
-    anchors.push({ type: "opentimestamps", value: "", status });
-  }
-
-  return anchors;
+  return undefined;
 }
 
 /** Helper for callers that hold raw anchor bytes locally. */

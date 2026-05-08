@@ -295,7 +295,9 @@ class SignatureResponse:
     cryptographically signed action from one that is also Bitcoin-anchored.
     """
 
-    signature: str
+    # Polymorphic: str (b64) for legacy, {alg, kid, sig} dict under
+    # compliance_mode. Use signature_envelope() for the dict form.
+    signature: str | dict[str, str]
     signature_id: str
     action_id: str
     timestamp: float
@@ -317,7 +319,7 @@ class SignatureResponse:
     countersign_url: str | None = None
     # True when the server validated a user_intent envelope on this record.
     user_intent_verified: bool | None = None
-    # IETF Compliance Receipts profile fields. Populated by the cloud only
+    # Compliance Receipts profile fields. Populated by the cloud only
     # when `compliance_mode=True` was passed on the sign call. None on
     # legacy receipts so callers can branch cleanly.
     compliance_mode: bool = False
@@ -334,45 +336,33 @@ class SignatureResponse:
     incident_class: str | list[str] | None = None
     reason: str | None = None
     previous_receipt_hash: str | None = None
-    # IETF -01 N3 / Section 4.2.1: spec-shape `decision` token mirrors
-    # `policy_decision` with the spec vocabulary {"allow", "deny",
-    # "rate_limit"}. Mapped client-side from `policy_decision` ("permit"
-    # -> "allow") so callers reading `.decision` get the spec value
-    # without having to know the legacy mapping. None on non-compliance
-    # receipts so legacy code paths stay byte-stable.
+    # Spec `decision` token (allow | deny | rate_limit). None on
+    # non-compliance receipts.
     decision: str | None = None
-    # IETF -01 N6: spec-shape signature envelope object {alg, kid, sig}
-    # surfaced as `signatureObject` on the wire. Cloud emits it directly
-    # under compliance_mode; older clouds populate the flat fields and
-    # the SDK projects via `signature_object()` below.
-    signatureObject: dict[str, str] | None = None
-    # IETF -01 N7: spec-shape anchors array. Cloud emits it directly;
-    # older clouds populate the flat fields and the SDK projects via
-    # `anchors_array()` below.
+    # Three-key Compliance Receipts envelope. `payload` is the canonical
+    # signed dict; `anchors` is the type-discriminated array. None on
+    # legacy receipts.
+    payload: dict[str, Any] | None = None
     anchors: list[dict[str, Any]] | None = None
 
-    def signature_object(self) -> dict[str, str] | None:
+    def signature_envelope(self) -> dict[str, str] | None:
         """Return the spec-shape signature envelope `{alg, kid, sig}`.
 
-        IETF -01 N6 / Section 4. Returns the cloud-supplied
-        `signatureObject` when available, else projects from the flat
-        fields. None for non-compliance receipts.
+        Returns the cloud-supplied object form when present (compliance
+        mode); None otherwise.
         """
-        from .ietf_projection import signature_object_from_response
-
-        return signature_object_from_response(self)
+        if isinstance(self.signature, dict):
+            keys = set(self.signature.keys())
+            if keys >= {"alg", "kid", "sig"}:
+                return self.signature  # type: ignore[return-value]
+        return None
 
     def anchors_array(self) -> list[dict[str, Any]] | None:
-        """Return the spec-shape `anchors[]` array.
-
-        IETF -01 N7 / Section 4.4. Returns the cloud-supplied list when
-        available, else projects from the flat columns. None for
-        non-compliance receipts; [] when compliance_mode is on but no
-        anchor columns are populated.
+        """Return the cloud-supplied `anchors[]` array. None on
+        non-compliance receipts; [] under compliance_mode before
+        anchors land.
         """
-        from .ietf_projection import anchors_from_response
-
-        return anchors_from_response(self)
+        return self.anchors
 
 
 @dataclass
@@ -1325,12 +1315,7 @@ class Agent:
                     else None
                 )
             ),
-            # signature may arrive as the object form directly or under signatureObject.
-            signatureObject=(
-                data["signature"]
-                if isinstance(data.get("signature"), dict)
-                else data.get("signatureObject")
-            ),
+            payload=data.get("payload"),
             anchors=data.get("anchors"),
         )
 

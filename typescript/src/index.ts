@@ -135,9 +135,9 @@ export {
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
 
-// IETF -01 wire-shape projection helpers (Section 4 + Section 4.4).
+// Compliance Receipts wire-shape projection helpers.
 export {
-  signatureObjectFromResponse,
+  signatureEnvelopeFromResponse,
   anchorsFromResponse,
   encodeAnchorValue,
   type SignatureEnvelope,
@@ -146,24 +146,22 @@ export {
 } from "./ietfProjection.js";
 
 import {
-  signatureObjectFromResponse as _signatureObjectFromResponse,
+  signatureEnvelopeFromResponse as _signatureEnvelopeFromResponse,
   anchorsFromResponse as _anchorsFromResponse,
   type SignatureEnvelope,
   type AnchorEntry,
 } from "./ietfProjection.js";
 
-/** IETF -01 N6 ergonomic wrapper. Returns the spec-shape envelope
- * `{alg, kid, sig}` for a SignatureResponse, projecting from flat
- * fields when the cloud has not emitted `signatureObject` directly. */
-export function signatureObject(
+/** Return the spec-shape envelope `{alg, kid, sig}` for a
+ * SignatureResponse, or undefined for legacy receipts. */
+export function signatureEnvelope(
   response: SignatureResponse | null | undefined,
 ): SignatureEnvelope | undefined {
-  return _signatureObjectFromResponse(response as never);
+  return _signatureEnvelopeFromResponse(response as never);
 }
 
-/** IETF -01 N7 ergonomic wrapper. Returns the spec-shape `anchors[]`
- * for a SignatureResponse, projecting from flat fields when the cloud
- * has not emitted `anchors` directly. */
+/** Return the cloud-supplied `anchors[]` array, or undefined for
+ * legacy receipts. */
 export function anchors(
   response: SignatureResponse | null | undefined,
 ): AnchorEntry[] | undefined {
@@ -365,7 +363,10 @@ export interface CoSignature {
 }
 
 export interface SignatureResponse {
-  signature: string;
+  /** Polymorphic. Base64 string in legacy mode, `{alg, kid, sig}` object
+   * form under compliance_mode. Use `signatureEnvelope()` for the dict
+   * form. */
+  signature: string | SignatureEnvelope;
   signatureId: string;
   actionId: string;
   timestamp: string;
@@ -403,15 +404,12 @@ export interface SignatureResponse {
    * (newer servers) or mapped client-side from `policyDecision`
    * (older servers). Undefined for non-compliance receipts. */
   decision?: Decision;
-  /** IETF -01 N6 / Section 4: spec-shape signature envelope object
-   * `{alg, kid, sig}`. Surfaced as `signatureObject` because the
-   * top-level `signature` field is already occupied by the legacy
-   * base64 flat string. Use `signatureObject()` to project from flat
-   * fields when the cloud has not emitted it directly. */
-  signatureObject?: SignatureEnvelope;
-  /** IETF -01 N7 / Section 4.4: spec-shape anchors array. Use
-   * `anchors()` to project from flat fields when the cloud has not
-   * emitted it directly. */
+  /** Compliance Receipts envelope: the canonical signed dict. None on
+   * legacy receipts. */
+  payload?: Record<string, unknown>;
+  /** Compliance Receipts envelope: the type-discriminated anchors
+   * array. None on legacy receipts; `[]` when compliance_mode is on
+   * before anchors land. */
   anchors?: AnchorEntry[];
 }
 
@@ -927,7 +925,7 @@ export class Agent {
       issuer_id?: string;
       policy_decision?: string;
       decision?: string;
-      signatureObject?: SignatureEnvelope;
+      payload?: Record<string, unknown>;
       anchors?: AnchorEntry[];
     }>("POST", `/agents/${this.agentId}/sign`, body);
 
@@ -965,7 +963,7 @@ export class Agent {
           ? mapPolicyDecisionToDecision(data.policy_decision)
           : undefined
       ),
-      signatureObject: data.signatureObject,
+      payload: data.payload,
       anchors: data.anchors,
     };
 

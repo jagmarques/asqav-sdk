@@ -1,18 +1,21 @@
-"""IETF -01 N6 / S2: SDK-side `signature_object()` projection helper.
+"""SDK projection helpers for the three-key Compliance Receipts envelope.
 
-`signature_object()` returns `{alg, kid, sig}` per Section 4
-"JSON Receipt Structure". Gated on `compliance_mode=True`; legacy
-receipts get None back so the additive overlay stays byte-stable.
+`SignatureResponse.signature_envelope()` returns `{alg, kid, sig}` when
+the response carries the object form, None otherwise. `anchors_array()`
+returns the cloud-supplied `anchors` list (possibly empty), None on
+legacy receipts.
 """
 
 from __future__ import annotations
 
 from asqav.client import SignatureResponse
-from asqav.ietf_projection import signature_object_from_response
+from asqav.ietf_projection import (
+    anchors_from_response,
+    signature_envelope_from_response,
+)
 
 
-def test_signature_object_none_for_non_compliance_response():
-    """Non-compliance receipts MUST get None back."""
+def test_legacy_response_signature_envelope_is_none():
     resp = SignatureResponse(
         signature="ZmFrZQ==",
         signature_id="sig_test",
@@ -20,56 +23,66 @@ def test_signature_object_none_for_non_compliance_response():
         timestamp=0.0,
         verification_url="https://verify/example",
     )
-    assert resp.signature_object() is None
+    assert resp.signature_envelope() is None
 
 
-def test_signature_object_returns_cloud_supplied_when_present():
-    """When the cloud emits `signatureObject`, the SDK passes it through."""
+def test_compliance_response_signature_envelope_returns_object_form():
     envelope = {"alg": "ML-DSA-65", "kid": "key_abc", "sig": "ZmFrZQ=="}
     resp = SignatureResponse(
-        signature="ZmFrZQ==",
+        signature=envelope,
         signature_id="sig_test",
         action_id="act_test",
         timestamp=0.0,
         verification_url="https://verify/example",
         compliance_mode=True,
-        signatureObject=envelope,
     )
-    out = resp.signature_object()
+    out = resp.signature_envelope()
     assert out == envelope
-    # Returned dict is a copy (callers cannot mutate the response).
-    out["sig"] = "MUTATED"
-    assert resp.signatureObject["sig"] == "ZmFrZQ=="
 
 
-def test_signature_object_projects_from_flat_fields_under_compliance():
-    """Older clouds without `signatureObject` get projected from flats."""
+def test_signature_envelope_helper_dict_input():
+    envelope = {"alg": "Ed25519", "kid": "k1", "sig": "s"}
+    out = signature_envelope_from_response(
+        {"compliance_mode": True, "signature": envelope}
+    )
+    assert out == envelope
+
+
+def test_signature_envelope_helper_legacy_dict_returns_none():
+    assert (
+        signature_envelope_from_response({"signature": "ZmFrZQ=="})
+        is None
+    )
+
+
+def test_anchors_array_passthrough():
+    cloud_anchors = [
+        {"type": "rfc3161", "value": "ZmFrZQ==", "commit_hash": "h" * 64}
+    ]
+    resp = SignatureResponse(
+        signature={"alg": "ML-DSA-65", "kid": "k", "sig": "s"},
+        signature_id="sig_test",
+        action_id="act_test",
+        timestamp=0.0,
+        verification_url="https://verify/example",
+        compliance_mode=True,
+        anchors=cloud_anchors,
+    )
+    assert resp.anchors_array() == cloud_anchors
+
+
+def test_anchors_array_legacy_is_none():
     resp = SignatureResponse(
         signature="ZmFrZQ==",
         signature_id="sig_test",
         action_id="act_test",
         timestamp=0.0,
         verification_url="https://verify/example",
-        algorithm="ML-DSA-65",
-        compliance_mode=True,
     )
-    out = resp.signature_object()
-    assert set(out.keys()) == {"alg", "kid", "sig"}
-    assert out["alg"] == "ML-DSA-65"
-    # kid not exposed on the dataclass yet -> empty string.
-    assert out["kid"] == ""
-    assert out["sig"] == "ZmFrZQ=="
+    assert resp.anchors_array() is None
 
 
-def test_signature_object_helper_works_on_dict_input():
-    """The free helper accepts both objects and dicts (verify response)."""
-    envelope = {"alg": "ML-DSA-65", "kid": "key_abc", "sig": "ZmFrZQ=="}
-    out = signature_object_from_response(
-        {"compliance_mode": True, "signatureObject": envelope}
-    )
-    assert out == envelope
-
-
-def test_signature_object_helper_none_for_legacy_dict():
-    """Dict input without compliance_mode returns None."""
-    assert signature_object_from_response({"algorithm": "ML-DSA-65"}) is None
+def test_anchors_helper_dict_input():
+    out = anchors_from_response({"anchors": [{"type": "rfc3161"}]})
+    assert out == [{"type": "rfc3161"}]
+    assert anchors_from_response({}) is None
