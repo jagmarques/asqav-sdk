@@ -399,15 +399,8 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             if scenario is None:
                 self._json(404, {"error": "unknown scenario"})
                 return
-            # IETF Compliance Receipts profile (§5): populate `risk_class`
-            # from the scenario's existing `risk_classification` field so the
-            # demo receipt carries the same controlled-vocabulary value the
-            # cloud emits on a real Compliance Receipt envelope. Same for
-            # `receipt_type` (decision namespace per F1) and `reason` /
-            # `policy_decision` per F9.
-            # IETF -01 N3: spec-shape `decision` token alongside the
-            # legacy `policy_decision` so the demo receipt mirrors what
-            # the cloud now emits under compliance_mode.
+            # Mirror the controlled-vocabulary fields the cloud emits
+            # on a real Compliance Receipt envelope.
             policy_decision_value = (
                 "permit" if decision == "approved" else "deny"
             )

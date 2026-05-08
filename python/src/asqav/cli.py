@@ -1404,7 +1404,7 @@ def payloads_erase(
 
 org_app = typer.Typer(
     name="org",
-    help="Organization-level settings (IETF M-NEW-1 strict mode).",
+    help="Organization-level settings.",
     no_args_is_help=True,
 )
 app.add_typer(org_app, name="org")
@@ -1416,7 +1416,7 @@ def org_set_compliance_strict(
     enable: bool = typer.Option(False, "--enable", help="Turn strict mode on."),
     disable: bool = typer.Option(False, "--disable", help="Turn strict mode off."),
 ) -> None:
-    """Toggle per-org `compliance_mode_strict` (M-NEW-1).
+    """Toggle per-org `compliance_mode_strict`.
 
     When True, the cloud rejects any sign request that is not flagged
     `compliance_mode=true` with HTTP 412 so non-instrumented call paths
