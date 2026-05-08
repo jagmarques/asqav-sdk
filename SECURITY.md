@@ -2,7 +2,7 @@
 
 ## Reporting Vulnerabilities
 
-Email support@asqav.com with details. We will respond within 48 hours.
+Email info@asqav.com with details. We will respond within 48 hours.
 
 Do not open public issues for security vulnerabilities.
 
