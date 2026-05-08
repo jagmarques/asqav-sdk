@@ -1,11 +1,4 @@
-"""Tests for algorithm agility on the SDK signing path.
-
-Covers AG3 (Ed25519) and AG4 (ES256) per IETF profile §10.8 plus the
-ML-DSA-65 default. The cloud is authoritative for cryptographic key
-generation when receipts are signed server-side; this module is the
-SDK's offline path (LocalQueue, conformance fixtures, air-gapped
-operator tooling).
-"""
+"""Algorithm agility on the SDK offline signing path."""
 
 from __future__ import annotations
 
@@ -72,7 +65,7 @@ def test_check_algorithm_rejects_unknown() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Ed25519 (AG3)
+# Ed25519
 # ---------------------------------------------------------------------------
 
 
@@ -114,7 +107,7 @@ def test_ed25519_signs_and_verifies() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ES256 (AG4)
+# ES256
 # ---------------------------------------------------------------------------
 
 

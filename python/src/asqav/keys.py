@@ -6,12 +6,6 @@ demos, conformance vectors). This module exposes a tiny stable API so
 callers can opt into Ed25519 or ES256 (in addition to the default
 ML-DSA-65) without depending on `cryptography` / `pynacl` directly.
 
-Spec references:
-  * draft-marques-asqav-compliance-receipts-00 §10.8 (algorithm
-    registry).
-  * IETF audit cycle (`~/.company/cycles/ietf-impl-status-2026-05-04.md`)
-    AG3 (Ed25519) and AG4 (ES256) on the receipt-signing path.
-
 The module is import-safe even when `cryptography` is not installed:
 the import is deferred to call sites so legacy users (cloud-only,
 ML-DSA-65) never see a hard dependency. Callers that ask for Ed25519

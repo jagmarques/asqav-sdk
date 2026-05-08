@@ -82,11 +82,7 @@ export type RiskClass = "low" | "medium" | "high" | "unknown";
 /** Policy decision vocabulary; deny / rate_limit require `reason`. */
 export type PolicyDecision = "permit" | "deny" | "rate_limit";
 
-/** IETF -01 Section 4.2.1 / Devil's Advocate N3: spec-shape `decision`
- * vocabulary on the wire is {"allow", "deny", "rate_limit"}. The legacy
- * `policyDecision` field uses {"permit", "deny", "rate_limit"}. The SDK
- * surfaces both so callers can read whichever they prefer.
- */
+/** Spec-shape decision vocabulary; legacy `policyDecision` uses "permit". */
 export type Decision = "allow" | "deny" | "rate_limit";
 
 /** Map a legacy `policyDecision` token to the spec-shape `decision`. */
@@ -293,9 +289,8 @@ export interface SignOptions {
    * on the server; verifying the record after expiry returns
    * `verified=false` with `validation_label="signature_expired"`. */
   validSeconds?: number;
-  /** A5: counterparty pinning. Base64 of the executor public key the
-   * original signer expects on the post-apply attestation. The cloud
-   * rejects attestations from any other key with 403 `executor_key_mismatch`. */
+  /** Counterparty pin: base64 executor pubkey expected on attestation;
+   * other keys -> 403 `executor_key_mismatch`. */
   expectedExecutorPubkeyB64?: string;
 
   // -------------------------------------------------------------------
@@ -398,11 +393,8 @@ export interface SignatureResponse {
    * `"permit" | "deny" | "rate_limit"`). Kept for backward compat with
    * tooling built against the pre-spec implementation. */
   policyDecision?: PolicyDecision;
-  /** IETF -01 N3 / Section 4.2.1: spec-shape `decision` token mirrors
-   * `policyDecision` with the spec vocabulary
-   * `"allow" | "deny" | "rate_limit"`. Either echoed from the cloud
-   * (newer servers) or mapped client-side from `policyDecision`
-   * (older servers). Undefined for non-compliance receipts. */
+  /** Spec-shape `decision`: echoed from cloud or mapped from
+   * `policyDecision` for older servers. Undefined for non-compliance. */
   decision?: Decision;
   /** Compliance Receipts envelope: the canonical signed dict. None on
    * legacy receipts. */
@@ -448,9 +440,7 @@ export interface VerificationDetail {
     | "missing_required_field"
     | "signed_at_skew"
     | string;
-  /** Absolute skew between the receipt's `signed_at` and the verifier's
-   * wall clock, in seconds. Receipts beyond `SKEW_BOUND_SECONDS`
-   * (300s) are rejected per V6 / §5.1.2. */
+  /** Skew vs verifier wall clock; beyond SKEW_BOUND_SECONDS (300s) -> reject. */
   signedAtSkewSeconds?: number;
   /** True when the cloud could rederive the chain hash from the stored
    * `signed_envelope` and the predecessor matches. None on legacy
@@ -770,9 +760,7 @@ export class Agent {
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
     const algorithm = options.algorithm ?? "ml-dsa-65";
-    // Algorithm agility (AG3, AG4): the cloud accepts ml-dsa-{44,65,87},
-    // ed25519, and es256. Validate client-side so callers get a clean
-    // error before a round-trip.
+    // Cloud accepts ml-dsa-{44,65,87}, ed25519, es256.
     if (!isSupportedAlgorithm(algorithm)) {
       throw new AsqavError(
         `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
@@ -896,9 +884,7 @@ export class Agent {
     if (options.reason !== undefined) body.reason = options.reason;
     if (options.policyDecision !== undefined) {
       body.policy_decision = options.policyDecision;
-      // IETF -01 N3: when compliance_mode is on, also send the spec-shape
-      // `decision` token so a draft-strict cloud picks it up directly.
-      // Older clouds ignore the extra field harmlessly.
+      // Send spec-shape `decision` under compliance_mode; older clouds ignore.
       if (complianceMode) {
         body.decision = mapPolicyDecisionToDecision(options.policyDecision);
       }
@@ -955,10 +941,7 @@ export class Agent {
       receiptType: data.receipt_type,
       issuerId: data.issuer_id,
       policyDecision: data.policy_decision as PolicyDecision | undefined,
-      // IETF -01 N3: surface the spec-shape token. Cloud emits `decision`
-      // alongside `policy_decision` under compliance_mode; older clouds
-      // get a client-side mapping so callers always read a normalised
-      // value.
+      // Prefer cloud-emitted `decision`; map locally for older clouds.
       decision: (data.decision as Decision | undefined) ?? (
         data.compliance_mode
           ? mapPolicyDecisionToDecision(data.policy_decision)
@@ -1180,7 +1163,7 @@ export async function verifySignature(signatureId: string): Promise<Verification
   };
 }
 
-/** Post the executor side of an action (A4 + A5).
+/** Post the executor side of an action.
  *
  * The executor signs the canonical bytes
  * `{applied_at, error_code, outcome, signature_id}` (sorted-keys JSON,
@@ -1223,7 +1206,7 @@ export async function postAppliedAttestation(
   };
 }
 
-/** A2: list rejected sign / verify / replay attempts for the caller's
+/** List rejected sign / verify / replay attempts for the caller's
  * org. Pro+ tier. Public verify rejections (org NULL) are filtered out
  * by design - admins query those separately via maintenance. */
 export async function listRejectedAttempts(

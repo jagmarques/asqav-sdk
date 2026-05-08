@@ -244,17 +244,11 @@ LEGACY_DORA_ALIASES: dict[str, str] = {
     "unknown": "other",
 }
 
-# §5.1.2 / V6 verifier MUST reject receipts whose `signed_at` sits more
-# than SKEW_BOUND_SECONDS away from the verifier's wall clock. Mirrored
-# from the cloud's `routes/verify.py:SKEW_BOUND_SECONDS`.
+# Verifier rejects receipts further than this from the wall clock.
 SKEW_BOUND_SECONDS: int = 300
 
-# IETF -01 Section 4.2.1 / Devil's Advocate N3: spec-shape `decision`
-# vocabulary on the wire is {"allow", "deny", "rate_limit"}. Legacy
-# `policy_decision` uses {"permit", "deny", "rate_limit"}. Map client-
-# side so callers can read `.decision` without having to know the
-# legacy translation. Unknown tokens fall back to "deny" so a strict
-# verifier never sees an out-of-vocabulary value.
+# Spec wire vocabulary {"allow", "deny", "rate_limit"} vs legacy
+# `policy_decision` {"permit", "deny", "rate_limit"}; unknown -> "deny".
 DECISION_MAP: dict[str, str] = {
     "permit": "allow",
     "allow": "allow",
@@ -957,11 +951,9 @@ class Agent:
         Args:
             name: Human-readable name for the agent.
             algorithm: Receipt-signing algorithm. One of `ml-dsa-65`
-                (FIPS 204; default, post-quantum), `ed25519` (mandatory
-                upstream per IETF profile §10.8 AG3), or `es256`
-                (ECDSA-P256 per RFC 7518; AG4). The cloud also accepts
-                `ml-dsa-44` and `ml-dsa-87` for level tuning; pass
-                those strings through as-is.
+                (FIPS 204; default), `ed25519`, or `es256`
+                (ECDSA-P256 per RFC 7518). The cloud also accepts
+                `ml-dsa-44` and `ml-dsa-87`.
             capabilities: List of capabilities/permissions.
 
         Returns:
@@ -1194,9 +1186,7 @@ class Agent:
         except Exception:
             logger.warning("asqav before-hook dispatch failed (fail-open)", exc_info=True)
 
-        # IETF Compliance Receipts profile (F1, F5, F9): validate caller
-        # input client-side so we surface bad arguments as ValueError before
-        # a network roundtrip. The cloud re-validates authoritatively.
+        # Surface bad arguments client-side; the cloud re-validates.
         if receipt_type is not None and receipt_type not in RECEIPT_TYPE_NAMESPACE:
             raise ValueError(
                 "invalid_receipt_type: must be one of "
@@ -1221,9 +1211,7 @@ class Agent:
                 "or a known legacy alias "
                 f"{sorted(LEGACY_DORA_ALIASES)}."
             )
-        # F5: SDK helpfully computes action_ref under compliance_mode when
-        # the caller did not pre-compute one. Same canonical form the cloud
-        # expects (sha256 over JCS bytes of {action_type, context}).
+        # Derive action_ref under compliance_mode when caller omits it.
         if compliance_mode and action_ref is None:
             action_ref = _compute_action_ref(action_type, context)
 
@@ -1257,12 +1245,12 @@ class Agent:
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
-        # Replay protection (A7).
+        # Replay protection.
         if nonce is not None:
             body["nonce"] = nonce
         if valid_seconds is not None:
             body["valid_seconds"] = valid_seconds
-        # Counterparty pinning (A5). Pass through verbatim; server decodes b64.
+        # Counterparty pin: server decodes b64.
         if expected_executor_pubkey_b64 is not None:
             body["expected_executor_pubkey_b64"] = expected_executor_pubkey_b64
         data = _post(f"/agents/{self.agent_id}/sign", body)
@@ -1303,10 +1291,8 @@ class Agent:
                 data.get("previousReceiptHash")
                 or data.get("previous_receipt_hash")
             ),
-            # IETF -01 N3: surface the spec-shape `decision` token. The
-            # cloud emits both `decision` (spec) and `policy_decision`
-            # (legacy) under compliance_mode; pick the cloud's value if
-            # present, otherwise translate locally so older clouds work.
+            # Spec-shape `decision`; fall back to local translation for
+            # older clouds that only emit `policy_decision`.
             decision=(
                 data.get("decision")
                 or (
@@ -2351,9 +2337,9 @@ def verify_compliance_receipt(
     to the cloud:
 
     1. All REQUIRED fields are present (§5).
-    2. ``receipt_type`` is in the `protectmcp:*` namespace (F1).
+    2. ``receipt_type`` is in the `protectmcp:*` namespace.
     3. ``signed_at`` (or ``issued_at``) is within
-       ``SKEW_BOUND_SECONDS`` of ``now`` (V6 / §5.1.2).
+       ``SKEW_BOUND_SECONDS`` of ``now``.
     4. ``previousReceiptHash`` rederives over the predecessor envelope
        under JCS, when one is supplied (§5.7). When the receipt is the
        first on its chain (`previousReceiptHash == "0" * 64`) the
@@ -2395,7 +2381,7 @@ def verify_compliance_receipt(
     if not receipt_type_in_namespace:
         errors.append("invalid_receipt_type")
 
-    # 3. 300-second skew bound (V6).
+    # 3. 300-second skew bound.
     issued_at = envelope.get("issued_at") or envelope.get("signed_at")
     skew_within_bound = False
     if issued_at is None:
@@ -2461,7 +2447,7 @@ def post_applied_attestation(
     signature_b64: str,
     error_code: str | None = None,
 ) -> dict[str, Any]:
-    """Post the executor side of an action (A4+A5).
+    """Post the executor side of an action.
 
     The downstream service that actually carried out the action signs
     `{signature_id, applied_at, outcome, error_code}` with its identity
@@ -2503,7 +2489,7 @@ def list_rejected_attempts(
     limit: int = 100,
     offset: int = 0,
 ) -> dict[str, Any]:
-    """List rejected sign / verify / replay attempts for the org (A2).
+    """List rejected sign / verify / replay attempts for the org.
 
     Pro+ feature. Org-scoped via the API key. Returns the most recent
     rejections first.
