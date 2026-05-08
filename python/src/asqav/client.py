@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import hmac
 import json as _json
 import logging
 import os
@@ -867,9 +868,19 @@ def _build_sign_body(
     Pydantic ``SignRequest`` model can validate them.
     """
     if _mode == "hash-only":
-        from .canonicalize import hash_action
+        from .canonicalize import canonicalize
 
-        digest = hash_action(action_type, context or {}, salt=_org_salt)
+        canonical_bytes = canonicalize(
+            {"action_type": action_type, "context": context or {}}
+        )
+        payload_size = len(canonical_bytes)
+        if _org_salt is not None:
+            digest_hex = hmac.new(
+                _org_salt, canonical_bytes, hashlib.sha256
+            ).hexdigest()
+        else:
+            digest_hex = hashlib.sha256(canonical_bytes).hexdigest()
+        digest = f"sha256:{digest_hex}"
         metadata: dict[str, Any] = {
             "agent_id": agent_id,
             "action_type": action_type,
@@ -897,6 +908,7 @@ def _build_sign_body(
             "action_type": action_type,
             "hash": digest,
             "hash_algo": "sha256",
+            "payload_size": payload_size,
             "metadata": metadata,
             "session_id": session_id,
         }

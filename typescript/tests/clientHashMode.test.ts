@@ -95,6 +95,27 @@ describe("Agent.sign body shape across modes", () => {
     expect(body.hash.length).toBe("sha256:".length + 64);
     expect(body.hash_algo).toBe("sha256");
     expect(body.action_type).toBe("api:call");
+    expect(typeof body.payload_size).toBe("number");
+    expect(body.payload_size).toBeGreaterThan(0);
+  });
+
+  it("hash-only payload_size matches canonical bytes length", async () => {
+    const { canonicalize } = await import("../src/canonicalize.js");
+    _setModeForTests("hash-only");
+    const agent = await makeAgent();
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+
+    const ctx = { prompt: "hi", user_id: "u_001" };
+    await agent.sign({ actionType: "api:call", context: ctx });
+
+    const body = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    const expected = canonicalize({ action_type: "api:call", context: ctx });
+    expect(body.payload_size).toBe(expected.byteLength);
   });
 
   it("hash-only mode does not leak context fields into metadata", async () => {
