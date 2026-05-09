@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   Agent,
@@ -6,6 +7,7 @@ import {
   init,
   verifySignature,
 } from "../src/index.js";
+import { canonicalJson } from "../src/jcs.js";
 
 function mockJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -122,10 +124,17 @@ describe("agent.sign", () => {
     const [signUrl, signInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
     expect(signUrl).toBe("https://api.example.test/api/v1/agents/agt_2/sign");
     expect(signInit.method).toBe("POST");
+    const expectedActionRef =
+      "sha256:" +
+      createHash("sha256")
+        .update(canonicalJson({ action_type: "api:call", context: { model: "gpt-4" } }))
+        .digest("hex");
     expect(JSON.parse(signInit.body as string)).toEqual({
       action_type: "api:call",
       context: { model: "gpt-4" },
       session_id: null,
+      compliance_mode: true,
+      action_ref: expectedActionRef,
     });
 
     expect(sig.signatureId).toBe("sig_1");
