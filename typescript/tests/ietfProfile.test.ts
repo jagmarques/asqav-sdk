@@ -142,7 +142,7 @@ describe("agent.sign IETF profile fields", () => {
     );
 
     const agent = fakeAgent();
-    await agent.sign({ actionType: "api:call", context: {} });
+    await agent.sign({ actionType: "api:call", context: {}, complianceMode: false });
 
     const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(calledInit.body as string) as Record<string, unknown>;

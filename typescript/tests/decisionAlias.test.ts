@@ -107,6 +107,7 @@ describe("agent.sign decision wire field", () => {
     const agent = fakeAgent();
     await agent.sign({
       actionType: "t.test",
+      complianceMode: false,
       policyDecision: "permit",
     });
 
