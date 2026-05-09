@@ -97,8 +97,7 @@ GOLDEN_VECTORS = [
     ),
     (
         "ietf-receipt-envelope",
-        # Profile-shaped envelope per
-        # draft-marques-asqav-compliance-receipts-00 §5.
+        # IETF Compliance Receipts profile envelope shape.
         {
             "type": "protectmcp:decision",
             "issued_at": "2026-05-04T12:00:00Z",
