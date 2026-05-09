@@ -147,7 +147,7 @@ class DemoState:
 
 
 def _canonical(obj: Any) -> bytes:
-    """RFC 8785-style canonical JSON.
+    """JCS-style canonical JSON.
 
     We use json.dumps(sort_keys=True) here to keep the demo dependency-free.
     Production asqav uses the jcs library; behavior matches for the simple
