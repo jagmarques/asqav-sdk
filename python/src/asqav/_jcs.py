@@ -1,13 +1,14 @@
-"""RFC 8785 (JCS) canonicalization helper for the IETF profile.
+"""JCS canonicalization helper for the IETF Compliance Receipts profile.
 
 Public surface: :func:`canonical_json` returning ``bytes``. The output
 is the exact bytes the cloud's ``core/canonical.py:canonical_json``
-produces and the bytes the chain hashes over per
-``draft-marques-asqav-compliance-receipts-00`` §5.7.
+produces and the bytes the chain hashes over.
+
+See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
 
 This module is a named landing for the IETF Compliance Receipts profile
 so callers can ``from asqav._jcs import canonical_json`` to get the same
-function under the spec-mandated name. The legacy
+function under the spec-mandated name.
 ``asqav.canonicalize.canonicalize`` is kept as a public alias for
 backwards compatibility; the two are byte-identical for the JSON value
 types the profile actually signs (objects whose leaves are strings,
@@ -19,9 +20,8 @@ Implementation notes:
     Python ``sort_keys=True`` produces for the ASCII / BMP keys this
     codebase uses).
   - No insignificant whitespace; ``,`` and ``:`` separators only.
-  - UTF-8 byte output with no BOM. Non-ASCII passes through verbatim per
-    RFC 8785 §3.2.3.
-  - ``NaN`` / ``Infinity`` rejected (RFC 8785 §3.2.2).
+  - UTF-8 byte output with no BOM. Non-ASCII passes through verbatim.
+  - ``NaN`` / ``Infinity`` rejected.
   - String escapes follow standard JSON rules (``\\``, ``\"``, ``\b``,
     ``\f``, ``\n``, ``\r``, ``\t``, plus ``\\u00xx`` for control chars
     U+0000..U+001F). All other characters pass through, matching
@@ -43,7 +43,7 @@ __all__ = ["canonical_json"]
 
 
 def canonical_json(obj: Any) -> bytes:
-    """Return RFC 8785 / JCS bytes for ``obj``.
+    """Return canonical JCS bytes for ``obj``.
 
     Same function as :func:`asqav.canonicalize.canonicalize`; exposed
     under the spec-mandated name so IETF profile code reads naturally.
