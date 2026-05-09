@@ -23,7 +23,7 @@ Supported algorithms today:
 
 - `ed25519` - verified server-side via the cryptography library.
 - `ecdsa-p256` - verified server-side via the cryptography library.
-- `webauthn` - stored advisory only. Full WebAuthn assertion verification is on the roadmap. The signature bytes still travel and persist; `user_intent_verified` will be `false` until the WebAuthn worker ships.
+- `webauthn` - cryptographically verified server-side. `public_key` is a CBOR-encoded COSE credential key (EdDSA or ES256), `signature` is the assertion signature, `signed_message` is the bytes the authenticator signed (per WebAuthn, `authenticatorData || SHA-256(clientDataJSON)`). Higher-level checks (challenge match, RP ID, origin, user-present flag) live with the relying-party front end.
 
 If verification fails, the backend returns 400 with `code: USER_INTENT_INVALID` and does not sign over a bogus envelope.
 
