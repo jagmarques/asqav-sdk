@@ -1,7 +1,5 @@
 """Tests for IETF Compliance Receipts profile sign-path fields.
 
-Spec: draft-marques-asqav-compliance-receipts-00 §5.
-
 Each test asserts one behaviour the SDK is responsible for:
 
 * the new kwargs travel to the cloud body,
