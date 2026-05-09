@@ -113,7 +113,7 @@ from .client import (
     verify_output,
     verify_signature,
 )
-from .compliance import ComplianceBundle, export_bundle
+from .compliance import ComplianceBundle, export_bundle, fetch_audit_pack
 from .decorators import async_session, session, sign
 from .hooks import clear_hooks, register_after, register_before
 from .keys import (
@@ -245,6 +245,7 @@ __all__ = [
     # Compliance
     "ComplianceBundle",
     "export_bundle",
+    "fetch_audit_pack",
     # Replay
     "replay",
     "replay_from_bundle",

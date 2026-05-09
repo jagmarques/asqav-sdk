@@ -792,7 +792,7 @@ export class Agent {
     }
     const finalContext = _dispatchBefore(options.actionType, initialContext);
 
-    const complianceMode = options.complianceMode === true;
+    const complianceMode = options.complianceMode !== false;
 
     // Validate the IETF receipt namespace client-side so callers fail
     // fast instead of waiting for the server's 422. The cloud is still
