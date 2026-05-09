@@ -192,10 +192,7 @@ class BitcoinAnchor:
     bitcoin_block: int | None = None
 
 
-# IETF Compliance Receipts profile (draft-marques-asqav-compliance-receipts-00 §5).
-# Receipt type namespace mirrored from the cloud's SignRequest validator
-# (`src/asqav_cloud/api/routes/agents.py`). Kept here so the SDK can reject
-# bad inputs before a network roundtrip.
+# Receipt type namespace mirrored from cloud's SignRequest validator so SDK rejects bad inputs.
 RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     {
         "protectmcp:decision",
@@ -265,9 +262,7 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     """
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
-# REQUIRED fields on a Compliance Receipt envelope per §5 of
-# draft-marques-asqav-compliance-receipts-00. Used by the local
-# `verify_compliance_receipt` helper.
+# REQUIRED fields on a Compliance Receipt envelope; used by `verify_compliance_receipt`.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "receipt_type",
     "issuer_id",
@@ -946,9 +941,8 @@ class Agent:
         Args:
             name: Human-readable name for the agent.
             algorithm: Receipt-signing algorithm. One of `ml-dsa-65`
-                (FIPS 204; default), `ed25519`, or `es256`
-                (ECDSA-P256 per RFC 7518). The cloud also accepts
-                `ml-dsa-44` and `ml-dsa-87`.
+                (FIPS 204; default), `ed25519`, or `es256` (ECDSA-P256).
+                The cloud also accepts `ml-dsa-44` and `ml-dsa-87`.
             capabilities: List of capabilities/permissions.
 
         Returns:
@@ -2305,7 +2299,9 @@ class ComplianceReceiptVerification:
     The cloud is the authoritative verifier; this helper is a
     convenience for callers who want to reject obviously bad receipts
     before involving the network. Each boolean reflects one MUST clause
-    on draft-marques-asqav-compliance-receipts-00 §5.
+    on the IETF Compliance Receipts profile.
+
+    See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
 
     `errors` carries a per-clause failure code so a CLI / dashboard can
     show the user which clause failed. Codes mirror the cloud's
@@ -2331,12 +2327,12 @@ def verify_compliance_receipt(
     Validates the four MUSTs the SDK can check without round-tripping
     to the cloud:
 
-    1. All REQUIRED fields are present (§5).
+    1. All REQUIRED fields are present.
     2. ``receipt_type`` is in the `protectmcp:*` namespace.
     3. ``signed_at`` (or ``issued_at``) is within
        ``SKEW_BOUND_SECONDS`` of ``now``.
     4. ``previousReceiptHash`` rederives over the predecessor envelope
-       under JCS, when one is supplied (§5.7). When the receipt is the
+       under JCS, when one is supplied. When the receipt is the
        first on its chain (`previousReceiptHash == "0" * 64`) the
        rederivation step is skipped.
 

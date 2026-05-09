@@ -8,7 +8,7 @@ Two flows:
 - ``fetch_audit_pack()`` calls the cloud's signed Audit Pack endpoint
   (POST /api/v1/audit-pack/export). The cloud signs the bundle digest
   with the same key family as the receipts and includes the regime
-  mapping per IETF -03 Section 7.
+  mapping defined by the IETF Compliance Receipts profile.
 
 Pick ``fetch_audit_pack`` when the auditor wants the cloud's signed
 manifest; pick ``export_bundle`` for fully-offline / air-gapped flows.
