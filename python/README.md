@@ -1,6 +1,6 @@
 # asqav
 
-Python SDK for [asqav.com](https://asqav.com). All ML-DSA cryptography runs server-side. Drop-in for AI agent governance: audit trails, policy enforcement, compliance.
+Python SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. All ML-DSA cryptography runs server-side. Drop-in audit trails, approvals, policy gates, and compliance reports.
 
 ## Install
 
