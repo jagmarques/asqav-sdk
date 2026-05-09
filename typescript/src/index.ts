@@ -294,11 +294,9 @@ export interface SignOptions {
   expectedExecutorPubkeyB64?: string;
 
   // -------------------------------------------------------------------
-  // IETF Compliance Receipts profile fields
-  // (draft-marques-asqav-compliance-receipts-00). All optional client-
-  // side; the cloud applies the per-field MUST/REQUIRED rules when
-  // ``complianceMode=true``. Wire keys are snake_case per the IETF
-  // profile (e.g. ``action_ref``).
+  // IETF Compliance Receipts profile fields. All optional client-side;
+  // the cloud applies the per-field MUST/REQUIRED rules when
+  // ``complianceMode=true``. Wire keys are snake_case (e.g. ``action_ref``).
   // -------------------------------------------------------------------
 
   /** Emit the receipt under the IETF profile. When true, the cloud uses
@@ -378,7 +376,7 @@ export interface SignatureResponse {
   userIntentVerified?: boolean;
   /** True when the cloud emitted this receipt under the IETF profile. */
   complianceMode?: boolean;
-  /** IETF §5.7 chain link: `sha256(canonicalJson(predecessor_envelope))`,
+  /** IETF chain link: `sha256(canonicalJson(predecessor_envelope))`,
    * lowercase 64-hex. First record per agent is `"0".repeat(64)`. */
   previousReceiptHash?: string;
   /** `sha256:<hex>` of the canonical Action object. */
@@ -450,7 +448,7 @@ export interface VerificationDetail {
    * the upgrade window; `invalid` means corruption or stale; `valid`
    * mirrors the Bitcoin block-confirmed case. */
   anchorStatusOts?: "valid" | "pending" | "invalid";
-  /** RFC 3161 anchor outcome. Deterministic at issuance; never
+  /** Timestamp anchor outcome. Deterministic at issuance; never
    * `pending`. */
   anchorStatusRfc3161?: "valid" | "pending" | "invalid";
   /** REQUIRED-fields presence check. When the record is
@@ -865,10 +863,9 @@ export class Agent {
     }
 
     // IETF Compliance Receipts profile fields. Wire-format names are
-    // snake_case per draft-marques-asqav-compliance-receipts-00.
-    // `compliance_mode` always travels (default false) so the cloud
-    // knows whether to apply the profile rules. The other fields ride
-    // along when present; the cloud applies the per-field MUST checks.
+    // snake_case. `compliance_mode` always travels (default false) so
+    // the cloud knows whether to apply the profile rules. The other
+    // fields ride along when present; the cloud applies per-field checks.
     if (complianceMode) body.compliance_mode = true;
     if (actionRef !== undefined) body.action_ref = actionRef;
     if (options.sandboxState !== undefined) body.sandbox_state = options.sandboxState;

@@ -8,8 +8,8 @@ Two helpers are provided:
 
 * :func:`canonicalize` returns standard JSON bytes for any
   JSON-serializable Python value, following the conventions in
-  ``conformance/vectors.json`` (RFC 8785 JCS subset: keys sorted, no
-  whitespace, raw UTF-8, no trailing newline).
+  ``conformance/vectors.json`` (JCS subset: keys sorted, no whitespace,
+  raw UTF-8, no trailing newline).
 * :func:`hash_action` returns a self-describing hash string of the form
   ``"sha256:<64hex>"`` built from a ``{action_type, context}`` dict. An
   optional ``salt`` switches it to HMAC-SHA-256 for organizations that
@@ -42,9 +42,9 @@ def canonicalize(obj: Any) -> bytes:
 
     Implementation: ``json.dumps`` with ``sort_keys=True``,
     ``separators=(",", ":")`` and ``ensure_ascii=False``. This is a
-    faithful subset of RFC 8785 (JCS) for the value types the asqav
-    cloud actually accepts (``dict``, ``list``, ``str``, ``int``,
-    ``float``, ``bool``, ``None``). The conformance vectors at
+    faithful JCS subset for the value types the asqav cloud actually
+    accepts (``dict``, ``list``, ``str``, ``int``, ``float``, ``bool``,
+    ``None``). The conformance vectors at
     ``conformance/vectors.json`` are generated with the exact same
     rules so SDKs written against this helper agree with the backend
     byte-for-byte.
