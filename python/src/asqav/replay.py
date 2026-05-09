@@ -3,13 +3,14 @@
 Two chain shapes are supported:
 
   * **IETF v2** (default): ``previousReceiptHash = sha256(JCS(predecessor
-    signed envelope))`` per draft-marques-asqav-compliance-receipts-00
-    §5.7. First record's predecessor seed is ``"0" * 64``
+    signed envelope))``. First record's predecessor seed is ``"0" * 64``
     (``FIRST_RECEIPT_SEED``).
   * **Legacy**: hash over ``{signature_id, action_type, timestamp,
     prev_hash}`` with empty-string seed. Kept behind ``legacy_chain=True``
     so historical receipts (issued before the IETF profile landed) keep
     verifying.
+
+See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
 """
 
 from __future__ import annotations
@@ -162,7 +163,7 @@ class ReplayTimeline:
                 envelope shape (``{signature_id, action_type, timestamp,
                 prev_hash}``) so receipts issued before the profile
                 landed keep verifying. Default False uses the IETF v2
-                shape per §5.7.
+                IETF v2 envelope shape.
         """
         if not self.steps:
             self.chain_integrity = True
@@ -346,7 +347,7 @@ def replay(
         session_id: The session to replay.
         legacy_chain: When True, derive chain links via the pre-IETF
             envelope shape so historical receipts verify. Default False
-            uses the IETF v2 shape per §5.7.
+            uses the IETF v2 envelope shape.
 
     Returns:
         A ReplayTimeline with ordered steps and chain verification.
@@ -440,10 +441,7 @@ def _build_timeline(
     sig_dicts = [_normalize_signature(s) for s in sorted_sigs]
     chain_results = _verify_hash_chain(sig_dicts, legacy_chain=legacy_chain)
 
-    # Rolling chain hash; each step records its predecessor's value.
-    # Under the IETF v2 profile (§5.7) the seed is the all-zero SHA-256
-    # value so verifiers can distinguish "no predecessor" from "predecessor
-    # not yet linked". Legacy chains used the empty string.
+    # Rolling chain hash; IETF v2 seeds with all-zero SHA-256 to distinguish "no predecessor".
     chain_hashes: list[str] = []
     prev_hash = "" if legacy_chain else FIRST_RECEIPT_SEED
     for sig, env in zip(sorted_sigs, sorted_envelopes):

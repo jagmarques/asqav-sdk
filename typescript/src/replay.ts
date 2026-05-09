@@ -1,6 +1,7 @@
 /**
- * Offline replay / chain verification for the IETF Compliance Receipts
- * profile (draft-marques-asqav-compliance-receipts-00 §5.7).
+ * Offline replay / chain verification for the IETF Compliance Receipts profile.
+ *
+ * See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
  *
  * The verifier walks an ordered list of signed envelopes for one agent,
  * re-derives each predecessor's `previousReceiptHash`, and reports any
@@ -26,7 +27,7 @@ import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
 
-/** Seed value for the first record on every chain (§5.7). */
+/** Seed value for the first record on every chain. */
 export const FIRST_RECEIPT_SEED = "0".repeat(64);
 
 /** A single record in the chain to verify. */
