@@ -1,4 +1,18 @@
-"""Compliance bundle export for offline audit verification."""
+"""Compliance bundle export for offline audit verification.
+
+Two flows:
+
+- ``export_bundle()`` packages an in-memory list of receipts client-side
+  with a Merkle root. Useful when the caller already has the signed
+  receipts and wants a portable file to hand to an auditor.
+- ``fetch_audit_pack()`` calls the cloud's signed Audit Pack endpoint
+  (POST /api/v1/audit-pack/export). The cloud signs the bundle digest
+  with the same key family as the receipts and includes the regime
+  mapping per IETF -03 Section 7.
+
+Pick ``fetch_audit_pack`` when the auditor wants the cloud's signed
+manifest; pick ``export_bundle`` for fully-offline / air-gapped flows.
+"""
 
 import hashlib
 import json
@@ -7,25 +21,55 @@ from datetime import datetime, timezone
 from typing import Any
 
 FRAMEWORKS = {
-    "eu_ai_act_art12": {
-        "name": "EU AI Act - Article 12 Record-Keeping",
-        "description": "Logging capabilities assessment per Article 12",
-        "version": "2024/1689",
+    "eu_ai_act": {
+        "name": "EU AI Act",
+        "description": "Articles 12 + 26 record-keeping and human oversight",
+        "version": "Regulation (EU) 2024/1689",
     },
-    "eu_ai_act_art14": {
-        "name": "EU AI Act - Article 14 Human Oversight",
-        "description": "Human oversight assessment per Article 14",
-        "version": "2024/1689",
+    "dora": {
+        "name": "DORA",
+        "description": "Digital Operational Resilience Act, Article 17",
+        "version": "Regulation (EU) 2022/2554",
     },
-    "dora_ict": {
-        "name": "DORA ICT Risk Management",
-        "description": "Digital Operational Resilience Act assessment",
-        "version": "2022/2554",
+    "nydfs_500": {
+        "name": "NYDFS Part 500",
+        "description": "23 NYCRR Part 500 audit trail and incident notice",
+        "version": "23 NYCRR 500",
     },
-    "soc2": {
-        "name": "SOC 2 Type II",
-        "description": "Service Organization Control audit evidence",
-        "version": "2017",
+    "colorado_ai": {
+        "name": "Colorado AI Act",
+        "description": "SB 24-205 High-Risk AI System deployer obligations",
+        "version": "SB 24-205",
+    },
+    "texas_traiga": {
+        "name": "Texas TRAIGA",
+        "description": "HB 149 intent-based liability and prohibited-use vocab",
+        "version": "HB 149",
+    },
+    "nist_ai_rmf": {
+        "name": "NIST AI RMF",
+        "description": "Voluntary GOVERN / MAP / MEASURE / MANAGE framework",
+        "version": "NIST AI 100-1",
+    },
+    "circia": {
+        "name": "CIRCIA",
+        "description": "Covered Cyber Incident reporting for critical infrastructure",
+        "version": "Public Law 117-103",
+    },
+    "hipaa_security": {
+        "name": "HIPAA Security Rule",
+        "description": "45 CFR 164.312(b) audit controls",
+        "version": "45 CFR 164",
+    },
+    "sec_17a4a": {
+        "name": "SEC 17 CFR 240.17a-4(a)",
+        "description": "Broker-dealer 6-year retention",
+        "version": "17 CFR 240.17a-4(a)",
+    },
+    "sec_17a4b": {
+        "name": "SEC 17 CFR 240.17a-4(b)",
+        "description": "Broker-dealer 3-year retention",
+        "version": "17 CFR 240.17a-4(b)",
     },
 }
 
@@ -121,7 +165,7 @@ class ComplianceBundle:
 
 def export_bundle(
     signatures: list,
-    framework: str = "eu_ai_act_art12",
+    framework: str = "eu_ai_act",
 ) -> ComplianceBundle:
     """Package signatures into a compliance bundle with Merkle root.
 
@@ -160,3 +204,50 @@ def export_bundle(
             "receipt_hashes": hashes,
         },
     )
+
+
+def fetch_audit_pack(
+    *,
+    start: str,
+    end: str,
+    agent_id: str | None = None,
+    only_compliance: bool = True,
+) -> dict[str, Any]:
+    """Fetch the cloud-signed Audit Pack for a window.
+
+    Wraps POST /api/v1/audit-pack/export. Returns the cloud response as a
+    dict including bundle_digest, bundle_signature, bundle_public_key,
+    receipts, regime_mapping, revocation_manifest, and
+    algorithm_registry_version.
+
+    Args:
+        start: ISO-8601 UTC window start (inclusive).
+        end: ISO-8601 UTC window end (exclusive).
+        agent_id: Optional agent_id to scope the export.
+        only_compliance: When True (default), only Compliance Receipts are
+            included. False also includes pre-compliance-mode receipts.
+
+    Raises:
+        RuntimeError: If asqav.init() has not been called.
+        httpx.HTTPStatusError: On cloud error responses (4xx / 5xx).
+    """
+    from . import client as _client
+
+    if _client._api_key is None:
+        raise RuntimeError("asqav.init(api_key=...) must be called first.")
+    if _client.httpx is None:
+        raise RuntimeError("httpx is required; install with `pip install asqav[http]`.")
+
+    url = _client._api_base.rstrip("/") + "/api/v1/audit-pack/export"
+    body = {"start": start, "end": end, "only_compliance": only_compliance}
+    if agent_id is not None:
+        body["agent_id"] = agent_id
+
+    resp = _client.httpx.post(
+        url,
+        json=body,
+        headers={"Authorization": f"Bearer {_client._api_key}"},
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
