@@ -136,9 +136,16 @@ describe("asqav CLI (TypeScript)", () => {
   it("compliance frameworks lists static set", async () => {
     await runCli(["compliance", "frameworks"]);
     const out = output();
-    expect(out).toContain("eu_ai_act_art12");
-    expect(out).toContain("dora_ict");
-    expect(out).toContain("soc2");
+    expect(out).toContain("eu_ai_act");
+    expect(out).toContain("dora");
+    expect(out).toContain("nydfs_500");
+    expect(out).toContain("colorado_ai");
+    expect(out).toContain("texas_traiga");
+    expect(out).toContain("nist_ai_rmf");
+    expect(out).toContain("circia");
+    expect(out).toContain("hipaa_security");
+    expect(out).toContain("sec_17a4a");
+    expect(out).toContain("sec_17a4b");
   });
 
   it("rejects unknown command with usage hint", async () => {
