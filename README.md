@@ -4,7 +4,7 @@
   </a>
 </p>
 <p align="center">
-  Governance for AI agents. Audit trails, policy enforcement, and compliance.
+  The evidence layer for AI agents. Audit trails, approvals, policy gates, and compliance reports for every action.
 </p>
 <p align="center">
   <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/v/asqav?style=flat-square&logo=pypi&logoColor=white&label=pypi" alt="PyPI version"></a>
@@ -22,7 +22,7 @@
 
 # Asqav SDK - Python + TypeScript
 
-The official client SDKs for [Asqav](https://asqav.com), the governance layer for AI agents. Sign every action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails.
+The official client SDKs for [Asqav](https://asqav.com), the evidence layer for AI agents. Sign every action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails.
 
 This repository ships two SDKs from a single monorepo:
 
