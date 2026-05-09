@@ -21,7 +21,7 @@ asqav verify sig_abc123 --output json
 
 ### `asqav sign`
 
-Issues a Compliance Receipt under [`draft-marques-asqav-compliance-receipts-00`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/). Mirrors `Agent.sign(...)` end-to-end.
+Issues a Compliance Receipt under the [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) IETF profile. Mirrors `Agent.sign(...)` end-to-end.
 
 ```bash
 asqav sign \

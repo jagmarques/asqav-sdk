@@ -37,7 +37,7 @@ asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key r
 
 Pro/Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; older self-hosted deployments without `/account` skip the gate.
 
-The IETF Compliance Receipts profile commands (`sign --compliance-mode`, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per `draft-marques-asqav-compliance-receipts-00`; the CLI accepts the kebab-case equivalents.
+The IETF Compliance Receipts profile commands (`sign --compliance-mode`, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per the [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile; the CLI accepts the kebab-case equivalents.
 
 ## Quick start
 
@@ -181,7 +181,7 @@ Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion
 
 ## Compliance receipts (IETF profile)
 
-Set `complianceMode: true` on `agent.sign(...)` to opt the receipt into the IETF Compliance Receipts profile (`draft-marques-asqav-compliance-receipts-00`). The cloud then emits a §5.7-conformant chain link, content-addressed `policy_digest`, fail-closed anchoring, and the raised retention floor.
+Set `complianceMode: true` on `agent.sign(...)` to opt the receipt into the IETF [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile. The cloud then emits a conformant chain link, content-addressed `policy_digest`, fail-closed anchoring, and the raised retention floor.
 
 ```ts
 const sig = await agent.sign({

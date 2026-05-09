@@ -1,7 +1,5 @@
 """Tests for the IETF v2 chain shape in `asqav.replay`.
 
-Spec: draft-marques-asqav-compliance-receipts-00 §5.7.
-
 The chain link is ``sha256(JCS(predecessor_signed_envelope))``. The
 first record's ``previousReceiptHash`` is ``"0" * 64``
 (``FIRST_RECEIPT_SEED``). The legacy shape is kept available behind

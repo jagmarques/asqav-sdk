@@ -18,9 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-# Public identifiers the Compliance Receipts profile recognises. Mirrors
-# the cloud's SignatureRecord.algorithm column under §10.8 so cloud and
-# SDK never disagree on what a receipt advertises.
+# Profile-recognised algorithm identifiers; mirrors cloud's SignatureRecord.algorithm column.
 ALGORITHM_ML_DSA_65 = "ml-dsa-65"
 ALGORITHM_ED25519 = "ed25519"
 ALGORITHM_ES256 = "es256"
@@ -121,7 +119,7 @@ def _generate_ed25519() -> LocalKeypair:
 
 
 def _generate_es256() -> LocalKeypair:
-    """Generate an ECDSA P-256 keypair (alg=ES256 in JOSE / RFC 7518)."""
+    """Generate an ECDSA P-256 keypair (alg=ES256 in JOSE)."""
     try:
         from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric import ec
