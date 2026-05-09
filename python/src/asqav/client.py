@@ -1091,7 +1091,7 @@ class Agent:
         nonce: str | None = None,
         valid_seconds: int | None = None,
         expected_executor_pubkey_b64: str | None = None,
-        compliance_mode: bool = False,
+        compliance_mode: bool = True,
         receipt_type: str | None = None,
         action_ref: str | None = None,
         payload_digest: str | dict[str, Any] | None = None,

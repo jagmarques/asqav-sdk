@@ -351,12 +351,17 @@ async function cmdApprove(args: string[]): Promise<void> {
 }
 
 async function cmdComplianceFrameworks(): Promise<void> {
-  // Static list mirrors python/src/asqav/compliance.py FRAMEWORKS keys.
   const frameworks: Array<[string, string]> = [
-    ["eu_ai_act_art12", "EU AI Act, Article 12 - Logging"],
-    ["eu_ai_act_art14", "EU AI Act, Article 14 - Human oversight"],
-    ["dora_ict", "DORA - ICT operational resilience"],
-    ["soc2", "SOC 2 - CC7.2 anomaly logging"],
+    ["eu_ai_act", "EU AI Act, Articles 12 + 26"],
+    ["dora", "DORA, Article 17"],
+    ["nydfs_500", "NYDFS Part 500"],
+    ["colorado_ai", "Colorado AI Act SB 24-205"],
+    ["texas_traiga", "Texas TRAIGA HB 149"],
+    ["nist_ai_rmf", "NIST AI RMF"],
+    ["circia", "CIRCIA Covered Cyber Incident"],
+    ["hipaa_security", "HIPAA Security Rule 164.312(b)"],
+    ["sec_17a4a", "SEC 17 CFR 240.17a-4(a) - 6 year"],
+    ["sec_17a4b", "SEC 17 CFR 240.17a-4(b) - 3 year"],
   ];
   for (const [k, name] of frameworks) {
     process.stdout.write(`${k}\t${name}\n`);
@@ -365,7 +370,7 @@ async function cmdComplianceFrameworks(): Promise<void> {
 
 async function cmdComplianceExport(args: string[]): Promise<void> {
   const session = parseFlag(args, "session");
-  const framework = parseFlag(args, "framework") ?? "eu_ai_act_art12";
+  const framework = parseFlag(args, "framework") ?? "eu_ai_act";
   const output = parseFlag(args, "output");
   if (!session || !output) {
     die("Usage: asqav compliance export --session <id> --output <path> [--framework eu_ai_act_art12]");
