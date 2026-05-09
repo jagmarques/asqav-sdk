@@ -109,9 +109,7 @@ _client: Any = None
 # Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
 _mode: str = "full-payload"
 _org_salt: bytes | None = None
-# Metadata keys allowed to ride alongside a hash-only request. The server
-# enforces its own whitelist; this mirrors the conservative default so we
-# don't accidentally leak fields the customer didn't intend to share.
+# Mirrors the server whitelist so we don't leak fields the customer didn't intend to share.
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
 )
@@ -192,10 +190,7 @@ class BitcoinAnchor:
     bitcoin_block: int | None = None
 
 
-# IETF Compliance Receipts profile (draft-marques-asqav-compliance-receipts-00 §5).
-# Receipt type namespace mirrored from the cloud's SignRequest validator
-# (`src/asqav_cloud/api/routes/agents.py`). Kept here so the SDK can reject
-# bad inputs before a network roundtrip.
+# Mirrored from the cloud SignRequest validator so the SDK rejects bad inputs locally.
 RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     {
         "protectmcp:decision",
@@ -204,16 +199,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
-# DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification.
-# The Joint Committee of the European Supervisory Authorities published
-# the final RTS on classification of major ICT-related incidents on
-# 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
-# vocabulary of `incident_class` to exactly six values. Earlier DORA
-# preliminary drafts (and the SDK's previous releases) circulated a
-# 12-value list; the cloud accepts those legacy tokens and normalises
-# them to the canonical six server-side, so this SDK forwards the
-# caller's value verbatim and only rejects tokens that are neither
-# canonical nor a known legacy alias.
+# Canonical six-value `incident_class` vocabulary; cloud normalises pre-final aliases.
 DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     {
         "cybersecurity_related",
@@ -225,10 +211,7 @@ DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
-# Legacy 12-value vocabulary from pre-final DORA drafts. Mirrored from
-# the cloud's alias dict (cloud PR #194) so the SDK can accept either
-# form without a network roundtrip. The cloud performs the authoritative
-# normalisation; this map is purely for client-side acceptance checks.
+# Pre-final 12-value alias map; cloud-authoritative, mirrored client-side for acceptance.
 LEGACY_DORA_ALIASES: dict[str, str] = {
     "malicious_actions": "cybersecurity_related",
     "cyberattack": "cybersecurity_related",
@@ -247,8 +230,7 @@ LEGACY_DORA_ALIASES: dict[str, str] = {
 # Verifier rejects receipts further than this from the wall clock.
 SKEW_BOUND_SECONDS: int = 300
 
-# Spec wire vocabulary {"allow", "deny", "rate_limit"} vs legacy
-# `policy_decision` {"permit", "deny", "rate_limit"}; unknown -> "deny".
+# Spec `decision` {"allow", "deny", "rate_limit"} vs internal `policy_decision`; unknown -> "deny".
 DECISION_MAP: dict[str, str] = {
     "permit": "allow",
     "allow": "allow",
@@ -265,9 +247,7 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     """
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
-# REQUIRED fields on a Compliance Receipt envelope per §5 of
-# draft-marques-asqav-compliance-receipts-00. Used by the local
-# `verify_compliance_receipt` helper.
+# Required envelope fields used by the local `verify_compliance_receipt` helper.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "receipt_type",
     "issuer_id",
@@ -285,13 +265,27 @@ _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
 class SignatureResponse:
     """Response from signing operation.
 
-    The ML-DSA ``signature`` is always present. ``bitcoin_anchor`` carries
-    the anchoring state separately so callers can distinguish a
-    cryptographically signed action from one that is also Bitcoin-anchored.
+    The ML-DSA `signature` is always present. `bitcoin_anchor` carries the
+    anchoring state separately so callers can distinguish a cryptographically
+    signed action from one that is also Bitcoin-anchored.
+
+    Polymorphic / nullable fields:
+    - `signature`: base64 str by default, `{alg, kid, sig}` dict under
+      compliance_mode. Use `signature_envelope()` to access the dict form.
+    - `payload_digest`: accepts `"sha256:<hex>"` or `{"hash", "size"}`.
+    - `incident_class`: str or list of strings for multi-regime cases.
+    - `decision`: spec token (allow | deny | rate_limit), None on
+      non-compliance receipts.
+    - Compliance Receipts fields (`compliance_mode`, `receipt_type`, `payload`,
+      `anchors`, ...) are populated only when `compliance_mode=True` was
+      requested; otherwise None so callers can branch cleanly.
+    - Multi-party countersigning fields (`required_co_signers`,
+      `co_signatures`, `countersign_url`) appear only when the caller passed
+      `co_signers=[...]` to `agent.sign()`.
+    - `user_intent_verified` is True when the server validated a
+      `user_intent` envelope on this record.
     """
 
-    # Polymorphic: str (b64) for legacy, {alg, kid, sig} dict under
-    # compliance_mode. Use signature_envelope() for the dict form.
     signature: str | dict[str, str]
     signature_id: str
     action_id: str
@@ -306,37 +300,22 @@ class SignatureResponse:
     policy_decision: str = "permit"
     authorization_ref: str | None = None
     bitcoin_anchor: BitcoinAnchor | None = None
-    # Multi-party countersigning (optional). When the caller passed
-    # `co_signers=[...]` to `agent.sign()`, the server records the list and
-    # surfaces it back so peers know they need to countersign.
     required_co_signers: list[str] | None = None
     co_signatures: list[dict[str, Any]] | None = None
     countersign_url: str | None = None
-    # True when the server validated a user_intent envelope on this record.
     user_intent_verified: bool | None = None
-    # Compliance Receipts profile fields. Populated by the cloud only
-    # when `compliance_mode=True` was passed on the sign call. None on
-    # legacy receipts so callers can branch cleanly.
     compliance_mode: bool = False
     receipt_type: str | None = None
     action_ref: str | None = None
-    # payload_digest accepts both shapes for back-compat: legacy
-    # "sha256:<hex>" string or the wire object form {"hash", "size"}.
     payload_digest: str | dict[str, Any] | None = None
     issuer_id: str | None = None
     iteration_id: str | None = None
     sandbox_state: str | None = None
     risk_class: str | None = None
-    # str or list of strings for multi-regime cases.
     incident_class: str | list[str] | None = None
     reason: str | None = None
     previous_receipt_hash: str | None = None
-    # Spec `decision` token (allow | deny | rate_limit). None on
-    # non-compliance receipts.
     decision: str | None = None
-    # Three-key Compliance Receipts envelope. `payload` is the canonical
-    # signed dict; `anchors` is the type-discriminated array. None on
-    # legacy receipts.
     payload: dict[str, Any] | None = None
     anchors: list[dict[str, Any]] | None = None
 
@@ -444,7 +423,7 @@ class VerificationDetail:
     algorithm_match: bool
     agent_active: bool
     validation_label: str
-    # IETF profile sub-axes (cloud may omit on legacy receipts).
+    # IETF profile sub-axes; cloud may omit on pre-profile receipts.
     signed_at_skew_seconds: float | None = None
     chain_valid: bool | None = None
     anchor_status_ots: str | None = None
@@ -1192,9 +1171,7 @@ class Agent:
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
             )
-        # DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
-        # canonical values, plus the legacy 12-value alias set the cloud
-        # still accepts). Reject anything else before the HTTP roundtrip.
+        # Reject `incident_class` outside the canonical six and known aliases pre-roundtrip.
         if incident_class is not None and (
             incident_class not in DORA_INCIDENT_CLASS_NAMESPACE
             and incident_class not in LEGACY_DORA_ALIASES
@@ -1269,9 +1246,7 @@ class Agent:
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
             user_intent_verified=data.get("user_intent_verified"),
-            # IETF profile fields. Cloud emits both `previousReceiptHash`
-            # (camelCase per spec) and `previous_receipt_hash` (snake_case
-            # alias). Accept either so the SDK works against both shapes.
+            # Cloud emits both `previousReceiptHash` and `previous_receipt_hash`; accept either.
             compliance_mode=bool(data.get("compliance_mode", False)),
             receipt_type=data.get("receipt_type"),
             action_ref=data.get("action_ref"),
@@ -2411,10 +2386,7 @@ def verify_compliance_receipt(
         if actual_prev != expected_prev:
             chain_link_rederives = False
             errors.append("chain_link_mismatch")
-    # else: caller did not pass a predecessor; cannot rederive. We
-    # leave `chain_link_rederives=True` since "did not check" is not the
-    # same as "failed to check". Callers needing strictness pass the
-    # predecessor.
+    # else: no predecessor passed; "did not check" leaves chain_link_rederives=True.
 
     valid = (
         fields_present
@@ -3365,7 +3337,7 @@ def generate_attestation(
 
 
 def verify_attestation(attestation: dict[str, Any]) -> dict[str, Any]:
-    """Verify a previously generated attestation document.
+    """Verify a generated attestation document.
 
     Checks the attestation signature and verifies each signature in
     the document's signature list.

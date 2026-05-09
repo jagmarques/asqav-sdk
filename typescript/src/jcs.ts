@@ -85,10 +85,7 @@ function numberToCanonical(n: number): string {
   if (Number.isInteger(n) && Number.isSafeInteger(n)) {
     return n.toString();
   }
-  // For floats, V8's Number.toString already produces the shortest
-  // round-trip representation that ECMA-262 mandates and RFC 8785
-  // references. The Compliance Receipts profile signs no floats, so
-  // this branch is not exercised by spec vectors.
+  // Floats: Number.toString gives the shortest round-trip; profile signs no floats.
   return n.toString();
 }
 

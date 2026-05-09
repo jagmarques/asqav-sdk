@@ -158,9 +158,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Programmatic API
-# ---------------------------------------------------------------------------
+# === Programmatic API ===
 
 
 def make_bundle_from_report(

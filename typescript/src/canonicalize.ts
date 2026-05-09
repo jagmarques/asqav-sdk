@@ -43,9 +43,7 @@ function canonicalString(value: unknown): string {
     if (!Number.isFinite(value)) {
       throw new Error("NaN / Infinity are not allowed in canonical JSON");
     }
-    // Integers serialize without trailing .0; finite floats use the
-    // shortest round-trip representation, which is what V8's Number.toString
-    // already produces and what RFC 8785 specifies via ECMAScript.
+    // Shortest round-trip representation per the canonical JSON spec via ECMAScript.
     return numberToCanonical(value);
   }
   if (typeof value === "string") {

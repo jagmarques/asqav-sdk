@@ -6,11 +6,10 @@ demos, conformance vectors). This module exposes a tiny stable API so
 callers can opt into Ed25519 or ES256 (in addition to the default
 ML-DSA-65) without depending on `cryptography` / `pynacl` directly.
 
-The module is import-safe even when `cryptography` is not installed:
-the import is deferred to call sites so legacy users (cloud-only,
-ML-DSA-65) never see a hard dependency. Callers that ask for Ed25519
-or ES256 without the optional dep get a clear ImportError pointing
-them at the install command.
+The module is import-safe when `cryptography` is not installed: imports are
+deferred to call sites so cloud-only ML-DSA-65 users never see a hard
+dependency. Callers that ask for Ed25519 or ES256 without the optional dep
+get a clear ImportError pointing them at the install command.
 """
 
 from __future__ import annotations
@@ -18,9 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-# Public identifiers the Compliance Receipts profile recognises. Mirrors
-# the cloud's SignatureRecord.algorithm column under §10.8 so cloud and
-# SDK never disagree on what a receipt advertises.
+# Mirrors the cloud's SignatureRecord.algorithm vocabulary so receipts agree.
 ALGORITHM_ML_DSA_65 = "ml-dsa-65"
 ALGORITHM_ED25519 = "ed25519"
 ALGORITHM_ES256 = "es256"
@@ -87,9 +84,7 @@ def generate_local_keypair(algorithm: Algorithm = "ml-dsa-65") -> LocalKeypair:
     return _generate_ml_dsa_65()
 
 
-# ---------------------------------------------------------------------------
-# Per-algorithm implementations.
-# ---------------------------------------------------------------------------
+# === Per-algorithm implementations ===
 
 
 def _generate_ed25519() -> LocalKeypair:
