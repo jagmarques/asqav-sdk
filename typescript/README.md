@@ -1,6 +1,6 @@
 # asqav
 
-TypeScript SDK for [asqav.com](https://asqav.com). All ML-DSA cryptography runs server-side. Zero native dependencies.
+TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. All ML-DSA cryptography runs server-side. Zero native dependencies.
 
 ## Install
 
