@@ -3,14 +3,16 @@
 The Asqav cloud signs receipts server-side; client-side keypair
 generation is only useful for offline scenarios (LocalQueue, air-gapped
 demos, conformance vectors). This module exposes a tiny stable API so
-callers can opt into Ed25519 or ES256 (in addition to the default
-ML-DSA-65) without depending on `cryptography` / `pynacl` directly.
+callers can opt into Ed25519 or ES256 without depending on
+`cryptography` / `pynacl` directly. ML-DSA-65 keypair generation
+happens server-side in the cloud KMS; call
+`asqav.Agent.create(name, algorithm='ml-dsa-65')` for that path.
 
 The module is import-safe even when `cryptography` is not installed:
-the import is deferred to call sites so cloud-only users
-ML-DSA-65) never see a hard dependency. Callers that ask for Ed25519
-or ES256 without the optional dep get a clear ImportError pointing
-them at the install command.
+the import is deferred to call sites so cloud-only users never see a
+hard dependency. Callers that ask for Ed25519 or ES256 without the
+optional dep get a clear ImportError pointing them at the install
+command.
 """
 
 from __future__ import annotations
@@ -23,11 +25,14 @@ ALGORITHM_ML_DSA_65 = "ml-dsa-65"
 ALGORITHM_ED25519 = "ed25519"
 ALGORITHM_ES256 = "es256"
 
+# Algorithms `generate_local_keypair` can mint locally. ML-DSA-65
+# keypair generation is server-side only (cloud KMS) so it is not in
+# this set.
 SUPPORTED_ALGORITHMS: frozenset[str] = frozenset(
-    {ALGORITHM_ML_DSA_65, ALGORITHM_ED25519, ALGORITHM_ES256}
+    {ALGORITHM_ED25519, ALGORITHM_ES256}
 )
 
-Algorithm = Literal["ml-dsa-65", "ed25519", "es256"]
+Algorithm = Literal["ed25519", "es256"]
 
 
 @dataclass
@@ -57,20 +62,22 @@ def _check_algorithm(algorithm: str) -> str:
     return norm
 
 
-def generate_local_keypair(algorithm: Algorithm = "ml-dsa-65") -> LocalKeypair:
+def generate_local_keypair(algorithm: Algorithm = "ed25519") -> LocalKeypair:
     """Generate a keypair locally for the requested algorithm.
 
     For cloud-signed receipts the cloud generates the keypair; this
     helper is for offline scenarios (LocalQueue, conformance vector
     fixtures, air-gapped operator tooling).
 
+    ML-DSA-65 keypair generation is server-side only; call
+    `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one via
+    the cloud KMS.
+
     Args:
-        algorithm: One of `ml-dsa-65`, `ed25519`, `es256`. Default is
-            `ml-dsa-65` to match the cloud's default.
+        algorithm: One of `ed25519`, `es256`. Default is `ed25519`.
 
     Returns:
-        A :class:`LocalKeypair` with PEM-encoded keys (or raw bytes for
-        ML-DSA-65; PEM is not standardised for that algorithm yet).
+        A :class:`LocalKeypair` with PEM-encoded keys.
 
     Raises:
         ValueError: If `algorithm` is not in `SUPPORTED_ALGORITHMS`.
@@ -80,9 +87,7 @@ def generate_local_keypair(algorithm: Algorithm = "ml-dsa-65") -> LocalKeypair:
     alg = _check_algorithm(algorithm)
     if alg == ALGORITHM_ED25519:
         return _generate_ed25519()
-    if alg == ALGORITHM_ES256:
-        return _generate_es256()
-    return _generate_ml_dsa_65()
+    return _generate_es256()
 
 
 # ---------------------------------------------------------------------------
@@ -142,20 +147,4 @@ def _generate_es256() -> LocalKeypair:
         algorithm=ALGORITHM_ES256,
         private_key_pem=private_pem,
         public_key_pem=public_pem,
-    )
-
-
-def _generate_ml_dsa_65() -> LocalKeypair:
-    """Stub for ML-DSA-65; the cloud is authoritative for this algorithm.
-
-    Local ML-DSA-65 keypair generation is not implemented in this release.
-    The cloud signs ML-DSA-65 receipts server-side; call
-    `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint the
-    keypair via the cloud KMS. See https://asqav.com/docs for details.
-    """
-    raise NotImplementedError(
-        "ml-dsa-65 keypair generation is not implemented locally; "
-        "ML-DSA-65 keys are minted server-side. Call "
-        "`asqav.Agent.create(name, algorithm='ml-dsa-65')` to have the "
-        "cloud KMS generate the keypair. See https://asqav.com/docs."
     )
