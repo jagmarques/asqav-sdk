@@ -44,7 +44,7 @@ def _make_timeline(n: int = 3) -> ReplayTimeline:
 
     Tracks the same envelope shape `_build_timeline` produces so
     `verify_chain()` (default-mode v2) succeeds on a freshly built
-    timeline. Legacy-shape coverage lives in test_replay_ietf_chain.py.
+    timeline. Envelope coverage lives in test_replay_ietf_chain.py.
     """
     import hashlib
 

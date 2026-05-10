@@ -8,7 +8,7 @@ sub-axes (`anchor_valid_ots`, `anchor_valid_rfc3161`,
 `policy_digest_resolved`, `duplicate_emission_candidate`,
 `regimes_satisfied`). These tests pin that the SDK parser populates the
 dataclasses with all of them, and that the inner anchor `type` field
-admits both the canonical `"opentimestamps"` and the legacy `"ots"`
+admits both the canonical `"opentimestamps"` and the alias `"ots"`
 alias the cloud `/verify/example` fixture still emits.
 """
 
@@ -203,7 +203,7 @@ def test_verifier_signature_present_or_null() -> None:
 def test_anchor_type_accepts_opentimestamps_and_ots() -> None:
     """The cloud `_project_anchors` emits `type: "opentimestamps"`
     (canonical) but the `/verify/example` fixture still emits
-    `type: "ots"` (legacy). The SDK type stub admits both literals
+    `type: "ots"` (alias). The SDK type stub admits both literals
     and the parser does not silently rewrite."""
     payload = _full_cloud_payload()
     payload["anchors"] = [
