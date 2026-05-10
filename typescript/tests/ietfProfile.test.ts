@@ -13,7 +13,6 @@ import {
   Agent,
   AsqavError,
   DORA_INCIDENT_CLASS_NAMESPACE,
-  LEGACY_DORA_ALIASES,
   RECEIPT_TYPE_NAMESPACE,
   _resetForTests,
   init,
@@ -204,15 +203,6 @@ describe("agent.sign IETF profile fields", () => {
     );
   });
 
-  it("every legacy DORA alias maps into the canonical six", () => {
-    const canonical = new Set<string>(DORA_INCIDENT_CLASS_NAMESPACE);
-    expect(Object.keys(LEGACY_DORA_ALIASES).length).toBeGreaterThan(0);
-    for (const [legacy, target] of Object.entries(LEGACY_DORA_ALIASES)) {
-      expect(canonical.has(target)).toBe(true);
-      expect(legacy.length).toBeGreaterThan(0);
-    }
-  });
-
   it("forwards every canonical incident_class without raising", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       jsonResponse({
@@ -236,26 +226,26 @@ describe("agent.sign IETF profile fields", () => {
     }
   });
 
-  it("forwards a legacy DORA alias verbatim (cloud normalises authoritatively)", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse({
-        signature: "s",
-        signature_id: "sig_1",
-        action_id: "act_1",
-        timestamp: "t",
-        verification_url: "u",
-      }),
-    );
+  it("rejects pre-alignment DORA tokens before any HTTP call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     const agent = fakeAgent();
-    await agent.sign({
-      actionType: "api:call",
-      context: {},
-      complianceMode: true,
-      incidentClass: "cyberattack",
-    });
-    const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(calledInit.body as string) as Record<string, unknown>;
-    expect(body.incident_class).toBe("cyberattack");
+    for (const token of [
+      "cyberattack",
+      "payment_fraud",
+      "malicious_actions",
+      "human_error",
+      "unknown",
+    ]) {
+      await expect(
+        agent.sign({
+          actionType: "api:call",
+          context: {},
+          complianceMode: true,
+          incidentClass: token,
+        }),
+      ).rejects.toThrow(/invalid_incident_class/);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("rejects an out-of-vocabulary incident_class before any HTTP call", async () => {

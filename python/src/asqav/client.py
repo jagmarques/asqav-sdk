@@ -205,12 +205,9 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
 # The Joint Committee of the European Supervisory Authorities published
 # the final RTS on classification of major ICT-related incidents on
 # 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
-# vocabulary of `incident_class` to exactly six values. Earlier DORA
-# preliminary drafts (and the SDK's previous releases) circulated a
-# 12-value list; the cloud accepts those legacy tokens and normalises
-# them to the canonical six server-side, so this SDK forwards the
-# caller's value verbatim and only rejects tokens that are neither
-# canonical nor a known legacy alias.
+# vocabulary of `incident_class` to exactly six values. The cloud
+# accepts only these canonical tokens; this SDK forwards the caller's
+# value verbatim and rejects anything outside the canonical set.
 DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     {
         "cybersecurity_related",
@@ -222,29 +219,10 @@ DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
-# Legacy 12-value vocabulary from pre-final DORA drafts. Mirrored from
-# the cloud's alias dict (cloud PR #194) so the SDK can accept either
-# form without a network roundtrip. The cloud performs the authoritative
-# normalisation; this map is purely for client-side acceptance checks.
-LEGACY_DORA_ALIASES: dict[str, str] = {
-    "malicious_actions": "cybersecurity_related",
-    "cyberattack": "cybersecurity_related",
-    "unauthorised_access": "cybersecurity_related",
-    "process_failure_internal": "process_failure",
-    "human_error": "process_failure",
-    "system_failure_internal": "system_failure",
-    "software_malfunction": "system_failure",
-    "hardware_failure": "system_failure",
-    "third_party_failure": "external_event",
-    "natural_disaster": "external_event",
-    "payment_fraud": "payment_related",
-    "unknown": "other",
-}
-
 # Verifier rejects receipts further than this from the wall clock.
 SKEW_BOUND_SECONDS: int = 300
 
-# Spec wire vocabulary {"allow", "deny", "rate_limit"} vs legacy
+# Spec wire vocabulary {"allow", "deny", "rate_limit"} vs original
 # `policy_decision` {"permit", "deny", "rate_limit"}; unknown -> "deny".
 DECISION_MAP: dict[str, str] = {
     "permit": "allow",
@@ -285,7 +263,7 @@ class SignatureResponse:
     cryptographically signed action from one that is also Bitcoin-anchored.
     """
 
-    # Polymorphic: str (b64) for legacy, {alg, kid, sig} dict under
+    # Polymorphic: str (b64) for non-compliance, {alg, kid, sig} dict under
     # compliance_mode. Use signature_envelope() for the dict form.
     signature: str | dict[str, str]
     signature_id: str
@@ -311,7 +289,7 @@ class SignatureResponse:
     user_intent_verified: bool | None = None
     # Compliance Receipts profile fields. Populated by the cloud only
     # when `compliance_mode=True` was passed on the sign call. None on
-    # legacy receipts so callers can branch cleanly.
+    # non-compliance receipts so callers can branch cleanly.
     compliance_mode: bool = False
     receipt_type: str | None = None
     action_ref: str | None = None
@@ -331,7 +309,7 @@ class SignatureResponse:
     decision: str | None = None
     # Three-key Compliance Receipts envelope. `payload` is the canonical
     # signed dict; `anchors` is the type-discriminated array. None on
-    # legacy receipts.
+    # non-compliance receipts.
     payload: dict[str, Any] | None = None
     anchors: list[dict[str, Any]] | None = None
 
@@ -1230,19 +1208,17 @@ class Agent:
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
             )
-        # DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
-        # canonical values, plus the legacy 12-value alias set the cloud
-        # still accepts). Reject anything else before the HTTP roundtrip.
-        if incident_class is not None and (
-            incident_class not in DORA_INCIDENT_CLASS_NAMESPACE
-            and incident_class not in LEGACY_DORA_ALIASES
+        # DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check
+        # (six canonical values). Reject anything else before the HTTP
+        # roundtrip.
+        if (
+            incident_class is not None
+            and incident_class not in DORA_INCIDENT_CLASS_NAMESPACE
         ):
             raise ValueError(
                 "invalid_incident_class: must be one of "
                 f"{sorted(DORA_INCIDENT_CLASS_NAMESPACE)} "
-                "(per DORA RTS JC 2024-33 Annex II field 3.23) "
-                "or a known legacy alias "
-                f"{sorted(LEGACY_DORA_ALIASES)}."
+                "(per DORA RTS JC 2024-33 Annex II field 3.23)."
             )
         # Derive action_ref under compliance_mode when caller omits it.
         if compliance_mode and action_ref is None:

@@ -73,7 +73,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
     expect(out).toBe("{\"s\":\"\\u0001\\u001f\"}");
   });
 
-  it("is byte-identical with canonicalize() (legacy alias)", () => {
+  it("is byte-identical with canonicalize() (alias)", () => {
     const input = { z: 1, a: { c: [1, 2, 3], b: "x" } };
     expect(canonicalJson(input)).toEqual(canonicalize(input));
   });
