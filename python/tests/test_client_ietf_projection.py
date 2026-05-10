@@ -3,7 +3,7 @@
 `SignatureResponse.signature_envelope()` returns `{alg, kid, sig}` when
 the response carries the object form, None otherwise. `anchors_array()`
 returns the cloud-supplied `anchors` list (possibly empty), None on
-legacy receipts.
+non-compliance receipts.
 """
 
 from __future__ import annotations
