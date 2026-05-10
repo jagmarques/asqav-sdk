@@ -60,7 +60,7 @@ export interface ChainVerificationResult {
 }
 
 /** Reserved for future verifier knobs. No keys are accepted today;
- * passing any unrecognized key (including the removed `legacy` flag)
+ * passing any unrecognized key (including flag names removed in this release)
  * throws so silent-fallback bugs surface immediately. */
 export type VerifyChainOptions = Record<string, never>;
 
@@ -72,9 +72,9 @@ export type VerifyChainOptions = Record<string, never>;
  * `chainIntegrity=false` because the predecessor links won't match.
  *
  * @throws TypeError if `options` carries any unrecognized key. The
- *   removed `legacy` flag is the most common offender; callers that
- *   verified synthetic-shape chains must migrate their bundles to
- *   carry `signedEnvelope` on every step.
+ *   `signedEnvelope` is now required on every step; callers that
+ *   relied on a synthetic chain shape must migrate their bundles
+ *   accordingly.
  */
 export function verifyChain(
   records: ChainRecord[],
@@ -84,7 +84,7 @@ export function verifyChain(
   if (unknownKeys.length > 0) {
     throw new TypeError(
       `verifyChain: unsupported option(s) ${unknownKeys.map((k) => JSON.stringify(k)).join(", ")}. ` +
-        "The verifier accepts no options today; passing { legacy: true } from a prior release " +
+        "The verifier accepts no options today. " +
         "is not honored and would have silently fallen back to v2 verification. " +
         "Migrate bundles to carry `signedEnvelope` on every step.",
     );
