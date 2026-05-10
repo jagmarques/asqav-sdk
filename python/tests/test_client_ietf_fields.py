@@ -17,7 +17,6 @@ validator is exercised in `tests/conformance/test_ietf_vectors.py`.
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import sys
 from unittest.mock import patch
@@ -36,7 +35,6 @@ from asqav.client import (
     _build_sign_body,
     _compute_action_ref,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

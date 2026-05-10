@@ -201,7 +201,7 @@ def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
     results: list[bool] = []
     prev_hash = FIRST_RECEIPT_SEED
 
-    for i, sig in enumerate(signatures):
+    for sig in signatures:
         envelope = {
             "signature_id": sig.get("signature_id", ""),
             "action_type": sig.get("action_type", ""),

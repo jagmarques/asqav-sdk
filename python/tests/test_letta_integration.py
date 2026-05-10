@@ -79,7 +79,7 @@ def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
     """retrieve('human', agent_id='agent-123') matches the real letta-client signature."""
     client = _make_client()
     hook.wrap_client(client)
-    # This is the canonical call form — must not raise TypeError.
+    # This is the canonical call form - must not raise TypeError.
     client.agents.blocks.retrieve("human", agent_id="agent-123")
 
     ctx = hook._sign_action.call_args_list[0][0][1]

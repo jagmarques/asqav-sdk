@@ -39,7 +39,7 @@ if not api_key:
 
 asqav.init(api_key=api_key)
 
-# Register the callback once — DSPy calls it automatically for every
+# Register the callback once - DSPy calls it automatically for every
 # module, LM, and tool invocation from this point on.
 dspy.configure(
     lm=dspy.LM("openai/gpt-4o"),
