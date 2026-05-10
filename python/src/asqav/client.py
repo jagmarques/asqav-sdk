@@ -419,19 +419,20 @@ class CertificateResponse:
 
 @dataclass
 class VerificationDetail:
-    """Granular per-axis verification outcome (May 2026 release).
+    """Granular per-axis verification outcome.
 
-    Optional on the response; older servers do not return it.
-    `validation_label` is one of: valid, invalid_signature,
-    signature_expired, signer_key_changed, algorithm_mismatch,
-    agent_inactive, agent_unknown, chain_break, anchor_invalid,
-    missing_required_field, signed_at_skew.
+    Optional on the response. `validation_label` vocabulary:
+    valid, invalid_signature, signature_expired, signer_key_changed,
+    algorithm_mismatch, agent_inactive, agent_unknown, chain_break,
+    anchor_invalid, missing_required_field, signed_at_skew,
+    agent_revoked_before_issuance.
 
-    The IETF Compliance Receipts profile fields (`signed_at_skew_seconds`,
-    `chain_valid`, `anchor_status_ots`, `anchor_status_rfc3161`,
-    `missing_fields`) are populated only when the cloud returns them on
-    a compliance-mode receipt; older receipts and older deployments
-    leave them None for back-compat.
+    The IETF profile sub-axes (`signed_at_skew_seconds`, `chain_valid`,
+    `anchor_valid_ots`, `anchor_valid_rfc3161`, `anchor_status_ots`,
+    `anchor_status_rfc3161`, `missing_fields`, `policy_digest_resolved`,
+    `duplicate_emission_candidate`) populate only when the cloud emits
+    them on a compliance-mode receipt; non-compliance-mode receipts leave
+    them None.
     """
 
     signer_key_match: bool
@@ -439,17 +440,41 @@ class VerificationDetail:
     algorithm_match: bool
     agent_active: bool
     validation_label: str
-    # IETF profile sub-axes (cloud may omit on legacy receipts).
     signed_at_skew_seconds: float | None = None
     chain_valid: bool | None = None
+    anchor_valid_ots: bool | None = None
+    anchor_valid_rfc3161: bool | None = None
     anchor_status_ots: str | None = None
     anchor_status_rfc3161: str | None = None
     missing_fields: list[str] | None = None
+    policy_digest_resolved: bool | None = None
+    duplicate_emission_candidate: bool | None = None
+
+
+@dataclass
+class BitcoinAnchorStatus:
+    """Bitcoin anchor state on a verification response.
+
+    `status` vocabulary: none, pending, confirmed, failed.
+    `bitcoin_tx` and `bitcoin_block` populate once the OpenTimestamps
+    proof upgrades to a confirmed Bitcoin attestation.
+    """
+
+    status: str
+    bitcoin_tx: str | None = None
+    bitcoin_block: int | None = None
 
 
 @dataclass
 class VerificationResponse:
-    """Public verification response."""
+    """Public verification response.
+
+    `verified` is signature-only; anchor outcome lives on `bitcoin_anchor`.
+    `signature_envelope` and `anchors` are the IETF Compliance Receipts
+    projection (`{alg, kid}` and the cloud anchors list); both are None
+    on non-compliance-mode receipts. `algorithm_registry_version` is the
+    registry version in force at issuance.
+    """
 
     signature_id: str
     agent_id: str
@@ -463,6 +488,11 @@ class VerificationResponse:
     verified: bool
     verification_url: str
     verification_detail: VerificationDetail | None = None
+    type: str = "signature"
+    bitcoin_anchor: BitcoinAnchorStatus | None = None
+    signature_envelope: dict[str, str] | None = None
+    anchors: list[dict[str, Any]] | None = None
+    algorithm_registry_version: str | None = None
 
 
 @dataclass
@@ -2269,11 +2299,25 @@ def verify_signature(signature_id: str) -> VerificationResponse:
             validation_label=detail_raw["validation_label"],
             signed_at_skew_seconds=detail_raw.get("signed_at_skew_seconds"),
             chain_valid=detail_raw.get("chain_valid"),
+            anchor_valid_ots=detail_raw.get("anchor_valid_ots"),
+            anchor_valid_rfc3161=detail_raw.get("anchor_valid_rfc3161"),
             anchor_status_ots=detail_raw.get("anchor_status_ots"),
             anchor_status_rfc3161=detail_raw.get("anchor_status_rfc3161"),
             missing_fields=detail_raw.get("missing_fields"),
+            policy_digest_resolved=detail_raw.get("policy_digest_resolved"),
+            duplicate_emission_candidate=detail_raw.get("duplicate_emission_candidate"),
         )
         if isinstance(detail_raw, dict)
+        else None
+    )
+    anchor_raw = data.get("bitcoin_anchor")
+    bitcoin_anchor = (
+        BitcoinAnchorStatus(
+            status=anchor_raw.get("status", "none"),
+            bitcoin_tx=anchor_raw.get("bitcoin_tx"),
+            bitcoin_block=anchor_raw.get("bitcoin_block"),
+        )
+        if isinstance(anchor_raw, dict)
         else None
     )
     return VerificationResponse(
@@ -2289,6 +2333,11 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         verified=data["verified"],
         verification_url=data["verification_url"],
         verification_detail=detail,
+        type=data.get("type", "signature"),
+        bitcoin_anchor=bitcoin_anchor,
+        signature_envelope=data.get("signature_envelope"),
+        anchors=data.get("anchors"),
+        algorithm_registry_version=data.get("algorithm_registry_version"),
     )
 
 
