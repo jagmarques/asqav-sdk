@@ -4,6 +4,19 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
+
+### Changed
+- **`complianceMode` defaults to `True`**. New SDK callers get a Compliance Receipt out of the box; pass `complianceMode: false` to opt out. Both Python and TypeScript.
+- **`FRAMEWORKS` list** replaced with the 9 regime tokens the cloud actually emits: `eu_ai_act`, `dora`, `nydfs_500`, `colorado_ai`, `texas_traiga`, `nist_ai_rmf`, `circia`, `hipaa_security`, `sec_17a4a`, `sec_17a4b`. Drops the four placeholder tokens (`eu_ai_act_art12`, `eu_ai_act_art14`, `dora_ict`, `soc2`).
+
+### Added
+- `fetch_audit_pack()` (Python) / `fetchAuditPack()` (TypeScript): wraps the cloud `/api/v1/audit-pack/export` endpoint and returns the cloud-signed bundle (`bundle_digest`, `bundle_signature`, `regime_mapping`, `revocation_manifest`). Use this to pull a regulator-ready Audit Pack; the offline `export_bundle` aggregator stays for self-hosted-signer use.
+
+### Internal
+- Comment-hygiene + AI-navigation gold standard sweep across both SDK source trees (47 multi-line comment blocks collapsed; 14 forbidden framing tokens reworded; SignatureResponse / ReplayStep / ReplayTimeline class docstrings expanded).
+- Stripped draft-version refs (`-00`) and spec-section citations (`§5`, `§5.7`) from SDK source + docs. Public-facing references now use the version-less Datatracker URL `https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/`.
+
 ## [Python 0.4.3 / TypeScript 0.3.3] - 2026-05-08
 
 ### Changed
