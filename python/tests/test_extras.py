@@ -10,15 +10,21 @@ import pytest
 
 
 def _module_installed(name: str) -> bool:
-    """True if ``name`` is importable in the current interpreter.
+    """True if ``name`` is reachable on the filesystem.
 
-    Tolerates earlier test fixtures that injected mocks into sys.modules
-    (those mocks may have ``__spec__ = None`` and trip ``find_spec``).
+    Pops any pre-existing ``sys.modules`` entry before probing so a mock
+    injected by an earlier test (with ``__spec__ = None``) does not mask
+    a real on-disk install. Restores the entry afterwards so we do not
+    perturb the rest of the test session.
     """
+    saved = sys.modules.pop(name, None)
     try:
         spec = importlib.util.find_spec(name)
     except (ValueError, ModuleNotFoundError, ImportError):
-        return False
+        spec = None
+    finally:
+        if saved is not None:
+            sys.modules[name] = saved
     return spec is not None
 
 # -- Packaging tests (no framework deps needed) --
