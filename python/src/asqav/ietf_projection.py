@@ -31,7 +31,7 @@ def anchors_from_response(response: Any) -> list[dict[str, Any]] | None:
     """Return the `anchors[]` array when present, else None.
 
     Cloud emits the array directly under compliance_mode (possibly as
-    []). None on legacy receipts.
+    []). None on non-compliance receipts.
     """
     anchors = _get(response, "anchors")
     if isinstance(anchors, list):

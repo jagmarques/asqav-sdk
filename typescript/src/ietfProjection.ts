@@ -5,7 +5,7 @@
  * spec-shape signature envelope `{alg, kid, sig}` and the anchors[]
  * array. The cloud emits the three-key envelope directly under
  * compliance_mode; the helpers below return the cloud-supplied values
- * and undefined on legacy receipts.
+ * and undefined on non-compliance receipts.
  */
 
 /** Spec-shape signature envelope. */
