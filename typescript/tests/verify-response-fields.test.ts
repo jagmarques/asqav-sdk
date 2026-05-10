@@ -10,7 +10,7 @@
  * pin that the parser populates the TS interface with all of them, that
  * the `validationLabel` union admits `agent_revoked_before_issuance`,
  * and that the inner anchor `type` admits both `"opentimestamps"`
- * (canonical) and `"ots"` (legacy fixture alias).
+ * (canonical) and `"ots"` (fixture alias).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

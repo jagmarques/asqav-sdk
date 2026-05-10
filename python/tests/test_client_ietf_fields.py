@@ -30,7 +30,6 @@ import asqav
 from asqav.canonicalize import canonicalize
 from asqav.client import (
     DORA_INCIDENT_CLASS_NAMESPACE,
-    LEGACY_DORA_ALIASES,
     RECEIPT_TYPE_NAMESPACE,
     Agent,
     SignatureResponse,
@@ -176,7 +175,7 @@ def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
     """compliance_mode is now on by default, so the body carries the
     Compliance Receipts fields without the caller having to opt in.
 
-    The legacy "no extra fields" shape is preserved by passing
+    The "no extra fields" shape is preserved by passing
     ``compliance_mode=False`` explicitly.
     """
     captured: dict = {}
@@ -201,7 +200,7 @@ def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
         "issuer_id",
         "payload_digest",
     ):
-        assert k not in body, f"unexpected legacy-mode field: {k}"
+        assert k not in body, f"unexpected compliance-mode-off field: {k}"
 
 
 # ---------------------------------------------------------------------------
@@ -373,15 +372,6 @@ def test_dora_incident_class_namespace_is_canonical_six() -> None:
     )
 
 
-def test_dora_legacy_aliases_map_into_canonical_set() -> None:
-    """Every legacy alias resolves to one of the six canonical values."""
-    assert LEGACY_DORA_ALIASES, "alias dict must not be empty"
-    for legacy, canonical in LEGACY_DORA_ALIASES.items():
-        assert canonical in DORA_INCIDENT_CLASS_NAMESPACE, (
-            f"legacy alias {legacy!r} maps to non-canonical {canonical!r}"
-        )
-
-
 @pytest.mark.parametrize("value", sorted(DORA_INCIDENT_CLASS_NAMESPACE))
 def test_canonical_incident_class_passes_validation(value: str) -> None:
     """All six canonical values are accepted and forwarded verbatim."""
@@ -401,26 +391,8 @@ def test_canonical_incident_class_passes_validation(value: str) -> None:
     assert captured["body"]["incident_class"] == value
 
 
-def test_legacy_incident_class_alias_is_accepted_and_forwarded() -> None:
-    """Legacy alias forwarded verbatim; cloud normalises authoritatively."""
-    captured: dict = {}
-
-    def fake_post(path: str, body: dict) -> dict:
-        captured["body"] = body
-        return _ok_response()
-
-    with patch("asqav.client._post", side_effect=fake_post):
-        _agent().sign(
-            "api:call",
-            {"k": "v"},
-            compliance_mode=True,
-            incident_class="cyberattack",
-        )
-    assert captured["body"]["incident_class"] == "cyberattack"
-
-
 def test_invalid_incident_class_raises_before_http() -> None:
-    """A token outside both the canonical and legacy sets is rejected."""
+    """A token outside the canonical six is rejected before the HTTP call."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="invalid_incident_class"):
             _agent().sign(
@@ -430,3 +402,23 @@ def test_invalid_incident_class_raises_before_http() -> None:
                 incident_class="ICT-INC-001",
             )
         p.assert_not_called()
+
+
+def test_pre_alignment_token_now_rejected() -> None:
+    """The cloud purged the alias map; the SDK rejects the same tokens."""
+    for token in (
+        "cyberattack",
+        "payment_fraud",
+        "malicious_actions",
+        "human_error",
+        "unknown",
+    ):
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError, match="invalid_incident_class"):
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    incident_class=token,
+                )
+            p.assert_not_called()
