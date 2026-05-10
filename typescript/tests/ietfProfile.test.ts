@@ -226,7 +226,7 @@ describe("agent.sign IETF profile fields", () => {
     }
   });
 
-  it("rejects pre-alignment DORA tokens before any HTTP call", async () => {
+  it("rejects off-vocabulary DORA tokens before any HTTP call", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const agent = fakeAgent();
     for (const token of [

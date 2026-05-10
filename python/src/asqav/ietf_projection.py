@@ -3,7 +3,7 @@
 Pure helpers for offline analysis of a receipt: extract the spec-shape
 signature envelope `{alg, kid, sig}` and the anchors[] array. The
 cloud emits the three-key envelope directly under compliance_mode; the
-helpers below return the cloud-supplied values and None on legacy
+helpers below return the cloud-supplied values and None on flat-shape
 receipts.
 """
 
@@ -16,7 +16,7 @@ def signature_envelope_from_response(response: Any) -> dict[str, str] | None:
     """Return `{alg, kid, sig}` when the response carries it, else None.
 
     The cloud emits `signature` as the object form under compliance_mode
-    and as a base64 string in legacy mode. None on legacy receipts so
+    and as a base64 string in flat mode. None on flat-shape receipts so
     callers can branch cleanly.
     """
     sig = _get(response, "signature")

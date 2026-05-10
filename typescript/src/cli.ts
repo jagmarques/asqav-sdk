@@ -419,7 +419,7 @@ async function cmdSign(args: string[]): Promise<void> {
   const issuerId = parseFlag(args, "issuer-id");
   const receiptType = parseFlag(args, "receipt-type") ?? "protectmcp:decision";
   const reason = parseFlag(args, "reason");
-  // --decision (allow|deny|rate_limit) wins over legacy --policy-decision.
+  // --decision (allow|deny|rate_limit) takes precedence over --policy-decision.
   const decisionFlag = parseFlag(args, "decision");
   const decisionMap: Record<string, string> = {
     allow: "permit",
@@ -669,12 +669,12 @@ async function cmdReplayVerify(args: string[]): Promise<void> {
     if (steps.length === 0) {
       die("Error: no replay steps returned by the cloud.");
     }
-    const legacySteps = steps.filter((s) => !s.signed_envelope);
+    const syntheticSteps = steps.filter((s) => !s.signed_envelope);
     const records = steps
       .filter((s) => !!s.signed_envelope)
       .map((s) => ({ signedEnvelope: s.signed_envelope as Record<string, unknown> }));
     const result = verifyChain(records);
-    const chainValid = result.chainIntegrity && legacySteps.length === 0;
+    const chainValid = result.chainIntegrity && syntheticSteps.length === 0;
     const strictPass = strict ? chainValid : result.chainIntegrity;
     if (output === "json") {
       process.stdout.write(
@@ -684,7 +684,7 @@ async function cmdReplayVerify(args: string[]): Promise<void> {
             strict,
             strict_pass: strictPass,
             step_count: steps.length,
-            legacy_step_count: legacySteps.length,
+            synthetic_step_count: syntheticSteps.length,
             steps: result.steps,
           },
           null,
@@ -694,14 +694,14 @@ async function cmdReplayVerify(args: string[]): Promise<void> {
     } else {
       process.stdout.write(`compliance_chain_valid: ${chainValid}\n`);
       process.stdout.write(`strict: ${strict}\n`);
-      process.stdout.write(`steps: ${steps.length} (legacy: ${legacySteps.length})\n`);
+      process.stdout.write(`steps: ${steps.length} (synthetic: ${syntheticSteps.length})\n`);
       for (const step of result.steps) {
         const ok = step.chainValid ? "ok  " : "FAIL";
         process.stdout.write(`  [${ok}] step ${step.index}\n`);
       }
-      if (strict && legacySteps.length > 0) {
+      if (strict && syntheticSteps.length > 0) {
         process.stdout.write(
-          `strict mode FAILED: ${legacySteps.length} step(s) lack signed_envelope.\n`,
+          `strict mode FAILED: ${syntheticSteps.length} step(s) lack signed_envelope.\n`,
         );
       }
     }

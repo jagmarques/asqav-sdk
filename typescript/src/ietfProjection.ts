@@ -39,7 +39,7 @@ export interface ProjectableResponse {
 
 /** Return `{alg, kid, sig}` when the response carries the object form,
  *  else undefined. The cloud emits `signature` as the object form under
- *  compliance_mode and as a base64 string in legacy mode. */
+ *  compliance_mode and as a base64 string in flat mode. */
 export function signatureEnvelopeFromResponse(
   response: ProjectableResponse | null | undefined,
 ): SignatureEnvelope | undefined {
