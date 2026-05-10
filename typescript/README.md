@@ -204,7 +204,7 @@ Field reference (camelCase on the SDK, snake_case on the JSON wire):
 - `complianceMode` -> `compliance_mode`. Default `false`.
 - `receiptType` -> `receipt_type`. One of `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`. Validated client-side.
 - `actionRef` -> `action_ref`. `sha256:<hex>` of the canonical action. SDK derives it under `complianceMode` when omitted.
-- `payloadDigest` -> `payload_digest`. Wire object form `{ hash, size, preview? }`. SDK forwards `payload_size` on every hash-mode sign. Legacy plain-string `sha256:<hex>` receipts still verify.
+- `payloadDigest` -> `payload_digest`. Wire object form `{ hash, size, preview? }`. SDK forwards `payload_size` on every hash-mode sign. Plain-string `sha256:<hex>` receipts still verify.
 - `issuerId` -> `issuer_id`. Legal entity. Resolved server-side when omitted.
 - `iterationId` -> `iteration_id`. Required for multi-step receipts.
 - `sandboxState` -> `sandbox_state`. One of `enabled`, `disabled`, `unavailable`. Required for High-Risk.
@@ -238,7 +238,7 @@ if (!result.chainIntegrity) {
 }
 ```
 
-Pass `{ legacy: true }` to use the v1 chain shape during the one-release backward-compat window.
+The verifier accepts no options today; passing any flag throws `TypeError`.
 
 ### Algorithm agility
 
