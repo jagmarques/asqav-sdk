@@ -599,8 +599,8 @@ def test_compliance_frameworks_lists_known() -> None:
     result = runner.invoke(app, ["compliance", "frameworks"])
     assert result.exit_code == 0
     # FRAMEWORKS dict from compliance.py contains at least these.
-    assert "eu_ai_act_art12" in result.output
-    assert "soc2" in result.output
+    assert "eu_ai_act" in result.output
+    assert "dora" in result.output
 
 
 @patch("asqav.compliance.export_bundle")
