@@ -6,7 +6,7 @@
  * both implementations, so a hash computed in Node and a hash computed in
  * Python over the same dict are guaranteed to agree.
  *
- * RFC 8785 (JCS) subset:
+ * JCS subset:
  *   - object keys sorted lexicographically
  *   - no whitespace anywhere
  *   - non-ASCII strings emitted as raw UTF-8
@@ -43,7 +43,7 @@ function canonicalString(value: unknown): string {
     if (!Number.isFinite(value)) {
       throw new Error("NaN / Infinity are not allowed in canonical JSON");
     }
-    // Shortest round-trip representation per the canonical JSON spec via ECMAScript.
+    // Integers serialize without trailing .0; floats use V8's shortest round-trip via Number.toString.
     return numberToCanonical(value);
   }
   if (typeof value === "string") {
@@ -73,7 +73,7 @@ function numberToCanonical(n: number): string {
 }
 
 /**
- * RFC 8259 / RFC 8785 string serialization.
+ * Standard JSON string serialization.
  *
  * Escapes control chars below U+0020, plus the two characters that JSON
  * requires (`"` and `\`). Everything U+0020 and above (including all

@@ -1,10 +1,16 @@
-"""Audit trail replay: reconstruct and verify what any agent did, step by step.
+"""Audit trail replay - reconstruct and verify what any agent did, step by step.
 
-Two chain shapes are supported. IETF v2 (default) uses
-`previousReceiptHash = sha256(JCS(predecessor signed envelope))` with
-`FIRST_RECEIPT_SEED` as the first record's predecessor. The pre-profile
-shape (set via `legacy_chain=True`) hashes `{signature_id, action_type,
-timestamp, prev_hash}` with an empty seed so historical receipts verify.
+Two chain shapes are supported:
+
+  * **IETF v2** (default): ``previousReceiptHash = sha256(JCS(predecessor
+    signed envelope))``. First record's predecessor seed is ``"0" * 64``
+    (``FIRST_RECEIPT_SEED``).
+  * **Legacy**: hash over ``{signature_id, action_type, timestamp,
+    prev_hash}`` with empty-string seed. Kept behind ``legacy_chain=True``
+    so historical receipts (issued before the IETF profile landed) keep
+    verifying.
+
+See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
 """
 
 from __future__ import annotations
@@ -19,20 +25,15 @@ from ._jcs import canonical_json
 from .client import SignedActionResponse, get_session_signatures
 from .compliance import ComplianceBundle, _normalize_signature
 
-# Seed for the first record so verifiers distinguish "no predecessor" from "not yet linked".
+# Per-IETF-profile seed for the first record on every chain. Distinguishes
+# "no predecessor" from "predecessor not yet linked". Mirrors
+# `core/integrity.py:FIRST_RECEIPT_SEED` on the cloud.
 FIRST_RECEIPT_SEED: str = "0" * 64
 
 
 @dataclass
 class ReplayStep:
-    """Single step in an audit trail replay.
-
-    `signed_envelope` (when present) is the exact byte payload the cloud
-    hashed under `compute_signature_record_hash_v2`; verify_chain reproduces
-    that hash and tampering of any field surfaces. Steps without an envelope
-    fall back to the synthetic shape and set `legacy_chain=True` so callers
-    can see which steps lack byte-level chain proof.
-    """
+    """Single step in an audit trail replay."""
 
     index: int
     action_type: str
@@ -42,25 +43,37 @@ class ReplayStep:
     verification_url: str
     chain_valid: bool
     explanation: str
+    # Predecessor's chain hash; verify_chain recomputes and compares.
     prev_chain_hash: str | None = None
+    # IETF Compliance Receipts profile: when the caller has the full
+    # signed envelope for this step (the exact bytes the cloud put under
+    # `compute_signature_record_hash_v2`), verify_chain hashes those
+    # bytes byte-for-byte and tampering of any field surfaces. Legacy
+    # bundles that pre-date the profile leave this None and fall back
+    # to the synthetic shape (internal-consistency only).
     signed_envelope: dict[str, Any] | None = None
+    # Marks a step that fell back to the synthetic envelope shape
+    # because no `signed_envelope` was attached. A timeline whose
+    # compliance steps all carry envelopes has `legacy_chain=False`
+    # on every step; mixed timelines flag the legacy ones so callers
+    # know which steps lack byte-level chain proof.
     legacy_chain: bool = False
 
 
 @dataclass
 class ReplayTimeline:
-    """Complete audit trail timeline for a session.
-
-    `chain_integrity` is True when the chain links in this bundle are
-    self-consistent. `compliance_chain_valid` is True only when every step
-    carried a `signed_envelope` and verified byte-for-byte against the
-    cloud's `compute_signature_record_hash_v2`.
-    """
+    """Complete audit trail timeline for a session."""
 
     agent_id: str
     session_id: str
     steps: list[ReplayStep] = field(default_factory=list)
     chain_integrity: bool = True
+    # IETF Compliance Receipts profile: True only when EVERY step under
+    # compliance mode carried a `signed_envelope` and verified
+    # byte-for-byte against the cloud's `compute_signature_record_hash_v2`.
+    # Distinguishes "the chain links inside this bundle are
+    # self-consistent" (chain_integrity) from "this bundle survives
+    # the cloud-side byte-for-byte check" (compliance_chain_valid).
     compliance_chain_valid: bool = True
     start_time: float | None = None
     end_time: float | None = None
@@ -150,7 +163,7 @@ class ReplayTimeline:
                 envelope shape (``{signature_id, action_type, timestamp,
                 prev_hash}``) so receipts issued before the profile
                 landed keep verifying. Default False uses the IETF v2
-                shape per §5.7.
+                IETF v2 envelope shape.
         """
         if not self.steps:
             self.chain_integrity = True
@@ -160,12 +173,17 @@ class ReplayTimeline:
         seed = "" if legacy_chain else FIRST_RECEIPT_SEED
         prev_hash = seed
         all_valid = True
-        # Synthetic shape cannot prove byte-level integrity, so degrade in legacy mode.
+        # `compliance_chain_valid` requires every step to carry a
+        # signed_envelope AND verify against it. Legacy verify_chain
+        # callers (legacy_chain=True) intentionally degrade this to
+        # False: the synthetic shape cannot prove byte-level integrity.
         compliance_valid = not legacy_chain
 
         for step in self.steps:
             if step.index == 0:
-                # Pre-v2 chains used None for the first record; accept both seed forms.
+                # First-record seed: stored prev_chain_hash should match the
+                # spec seed under v2. Legacy chains used None so we accept
+                # both for compatibility with bundles produced pre-v2.
                 step.chain_valid = True
             else:
                 stored = getattr(step, "prev_chain_hash", None)
@@ -177,7 +195,10 @@ class ReplayTimeline:
                     if not step.chain_valid:
                         all_valid = False
 
-            # Prefer the cloud byte-for-byte shape; flag synthetic-path steps for callers.
+            # Chain-link contribution. Prefer the cloud byte-for-byte
+            # shape when the envelope is present; flag the synthetic
+            # path as legacy so callers can spot which steps are
+            # internal-consistency only.
             envelope = getattr(step, "signed_envelope", None)
             if envelope is not None and not legacy_chain:
                 step.legacy_chain = False
@@ -193,7 +214,9 @@ class ReplayTimeline:
                 )
 
         self.chain_integrity = all_valid
-        # Any synthetic fallback or broken link drops compliance_chain_valid to False.
+        # compliance_chain_valid is True only when every step verified
+        # under the cloud envelope shape. A single legacy fallback or a
+        # broken link drops it.
         self.compliance_chain_valid = bool(compliance_valid and all_valid)
         return all_valid
 
@@ -324,7 +347,7 @@ def replay(
         session_id: The session to replay.
         legacy_chain: When True, derive chain links via the pre-IETF
             envelope shape so historical receipts verify. Default False
-            uses the IETF v2 shape per §5.7.
+            uses the IETF v2 envelope shape.
 
     Returns:
         A ReplayTimeline with ordered steps and chain verification.
@@ -341,7 +364,7 @@ def replay_from_bundle(
     """Reconstruct a timeline from a ComplianceBundle offline.
 
     Args:
-        bundle: An exported ComplianceBundle.
+        bundle: A previously exported ComplianceBundle.
         legacy_chain: Use the pre-IETF chain shape; see :func:`replay`.
 
     Returns:
@@ -358,7 +381,10 @@ def replay_from_bundle(
     if not session_id:
         session_id = "bundle"
 
-    # Receipts keep `signed_envelope` as a sidecar so verify_chain can match the cloud hash.
+    # Convert receipts to SignedActionResponse-like objects for processing.
+    # Receipts that carry `signed_envelope` (the IETF profile bytes the
+    # cloud anchored) keep it as a sidecar so verify_chain can reproduce
+    # the cloud hash byte-for-byte.
     fake_sigs = []
     envelopes: list[dict[str, Any] | None] = []
     for r in bundle.receipts:
@@ -415,7 +441,7 @@ def _build_timeline(
     sig_dicts = [_normalize_signature(s) for s in sorted_sigs]
     chain_results = _verify_hash_chain(sig_dicts, legacy_chain=legacy_chain)
 
-    # Rolling chain hash; v2 seeds with all-zero SHA-256, pre-profile chains used "".
+    # Rolling chain hash; IETF v2 seeds with all-zero SHA-256 to distinguish "no predecessor".
     chain_hashes: list[str] = []
     prev_hash = "" if legacy_chain else FIRST_RECEIPT_SEED
     for sig, env in zip(sorted_sigs, sorted_envelopes):
