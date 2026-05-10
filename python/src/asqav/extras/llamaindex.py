@@ -95,9 +95,7 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
             event_ends_to_ignore=event_ends_to_ignore or [],
         )
 
-    # ------------------------------------------------------------------
-    # BaseCallbackHandler interface
-    # ------------------------------------------------------------------
+    # === BaseCallbackHandler interface ===
 
     def on_event_start(
         self,
