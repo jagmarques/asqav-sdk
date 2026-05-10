@@ -4,6 +4,13 @@ All notable changes to asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `VerificationResponse` exposes `type`, `bitcoinAnchor`, `signatureEnvelope`, `anchors`, `algorithmRegistryVersion` (Python: snake_case). Match the cloud `/verify` response per IETF -03 §8.1.
+- `VerificationDetail` exposes `anchorValidOts`, `anchorValidRfc3161`, `policyDigestResolved`, `duplicateEmissionCandidate`.
+- TypeScript validation-label union includes `agent_revoked_before_issuance`.
+
 ## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
 
 ### Changed

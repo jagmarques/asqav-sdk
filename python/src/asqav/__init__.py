@@ -41,6 +41,7 @@ from .client import (
     ApprovalResponse,
     AsqavError,
     AuthenticationError,
+    BitcoinAnchorStatus,
     BudgetCheckResult,
     BudgetTracker,
     CertificateResponse,
@@ -202,6 +203,7 @@ __all__ = [
     "verify_signature",
     "verify_output",
     "VerificationDetail",
+    "BitcoinAnchorStatus",
     # May 2026 release helpers
     "post_applied_attestation",
     "list_rejected_attempts",
