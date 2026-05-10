@@ -1431,7 +1431,7 @@ def keys_generate(
     algorithm: str = typer.Option(
         "ed25519",
         "--algorithm",
-        help="ml-dsa-65|ed25519|es256. ml-dsa-65 keygen is server-side only.",
+        help="ed25519|es256. ml-dsa-65 keygen is server-side only.",
     ),
     out: str = typer.Option(
         "",
@@ -1441,16 +1441,14 @@ def keys_generate(
 ) -> None:
     """Generate a local keypair (offline / air-gapped flows).
 
-    Ed25519 and ES256 emit PKCS#8 PEM. ML-DSA-65 raises a clear error
-    pointing the caller at `asqav agents create` (server-side keygen).
+    Ed25519 and ES256 emit PKCS#8 PEM. ML-DSA-65 is rejected with a
+    `unsupported_algorithm` error; call `asqav agents create` to mint
+    one via the cloud KMS.
     """
     from asqav import generate_local_keypair
 
     try:
-        kp = generate_local_keypair(algorithm)
-    except NotImplementedError as exc:
-        print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        kp = generate_local_keypair(algorithm)  # type: ignore[arg-type]
     except (ValueError, ImportError) as exc:
         print(f"Error: {exc}")
         raise typer.Exit(code=1)

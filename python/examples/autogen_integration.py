@@ -66,7 +66,7 @@ def create_governed_agent(name: str, system_message: str, asqav_action_type: str
             }
             
             try:
-                signature = audit_agent.sign(asqav_action_type, action_data)
+                audit_agent.sign(asqav_action_type, action_data)
                 print(f"✅ ASQAV: Action signed for agent '{name}'")
             except Exception as e:
                 print(f"⚠️  ASQAV signing failed: {e}")
@@ -87,12 +87,7 @@ def main():
         name="Researcher",
         system_message="You are a research assistant. Find and summarize information."
     )
-    
-    reviewer = create_governed_agent(
-        name="Reviewer", 
-        system_message="You are a critical reviewer. Check facts and identify gaps."
-    )
-    
+
     user_proxy = UserProxyAgent(
         name="User",
         human_input_mode="NEVER",
