@@ -10,8 +10,16 @@ import pytest
 
 
 def _module_installed(name: str) -> bool:
-    """True if ``name`` is importable in the current interpreter."""
-    return importlib.util.find_spec(name) is not None
+    """True if ``name`` is importable in the current interpreter.
+
+    Tolerates earlier test fixtures that injected mocks into sys.modules
+    (those mocks may have ``__spec__ = None`` and trip ``find_spec``).
+    """
+    try:
+        spec = importlib.util.find_spec(name)
+    except (ValueError, ModuleNotFoundError, ImportError):
+        return False
+    return spec is not None
 
 # -- Packaging tests (no framework deps needed) --
 
