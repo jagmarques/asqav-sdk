@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
+
+
+def _module_installed(name: str) -> bool:
+    """True if ``name`` is importable in the current interpreter."""
+    return importlib.util.find_spec(name) is not None
 
 # -- Packaging tests (no framework deps needed) --
 
@@ -84,6 +90,7 @@ def _purge(*module_names: str) -> None:
         sys.modules.pop(name, None)
 
 
+@pytest.mark.skipif(_module_installed("langchain_core"), reason="langchain-core installed; stub error path is unreachable in this env")
 def test_langchain_stub_import_error():
     """Importing langchain stub raises ImportError when langchain-core is not installed."""
     _purge("asqav.extras.langchain", "langchain_core", "langchain_core.callbacks")
@@ -91,6 +98,7 @@ def test_langchain_stub_import_error():
         import asqav.extras.langchain  # noqa: F401
 
 
+@pytest.mark.skipif(_module_installed("crewai"), reason="crewai installed; stub error path is unreachable in this env")
 def test_crewai_stub_import_error():
     """Importing crewai stub raises ImportError when crewai is not installed."""
     _purge("asqav.extras.crewai", "crewai")
@@ -98,6 +106,7 @@ def test_crewai_stub_import_error():
         import asqav.extras.crewai  # noqa: F401
 
 
+@pytest.mark.skipif(_module_installed("litellm"), reason="litellm installed; stub error path is unreachable in this env")
 def test_litellm_stub_import_error():
     """Importing litellm stub raises ImportError when litellm is not installed."""
     _purge("asqav.extras.litellm", "litellm")
@@ -105,6 +114,7 @@ def test_litellm_stub_import_error():
         import asqav.extras.litellm  # noqa: F401
 
 
+@pytest.mark.skipif(_module_installed("haystack"), reason="haystack-ai installed; stub error path is unreachable in this env")
 def test_haystack_stub_import_error():
     """Importing haystack stub raises ImportError when haystack-ai is not installed."""
     _purge("asqav.extras.haystack", "haystack", "haystack.dataclasses")
@@ -112,6 +122,7 @@ def test_haystack_stub_import_error():
         import asqav.extras.haystack  # noqa: F401
 
 
+@pytest.mark.skipif(_module_installed("agents"), reason="openai-agents installed; stub error path is unreachable in this env")
 def test_openai_agents_stub_import_error():
     """Importing openai_agents stub raises ImportError when openai-agents is not installed."""
     _purge("asqav.extras.openai_agents", "agents", "agents.tracing")
