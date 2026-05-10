@@ -415,11 +415,12 @@ export interface SessionResponse {
  * `validationLabel` string is the dominant failure reason when
  * `verified=false`, e.g. `signature_expired` or `signer_key_changed`.
  *
- * The IETF Compliance Receipts profile sub-axes (`chainValid`,
- * `anchorStatusOts`, `anchorStatusRfc3161`, `signedAtSkewSeconds`,
- * `missingFields`) are populated only when the cloud emits them on a
- * compliance-mode receipt; older receipts and older deployments leave
- * them undefined for back-compat. */
+ * The IETF profile sub-axes (`chainValid`, `anchorValidOts`,
+ * `anchorValidRfc3161`, `anchorStatusOts`, `anchorStatusRfc3161`,
+ * `signedAtSkewSeconds`, `missingFields`, `policyDigestResolved`,
+ * `duplicateEmissionCandidate`) populate only when the cloud emits
+ * them on a compliance-mode receipt; non-compliance-mode receipts
+ * leave them undefined. */
 export interface VerificationDetail {
   signerKeyMatch: boolean;
   signatureValid: boolean;
@@ -433,29 +434,49 @@ export interface VerificationDetail {
     | "algorithm_mismatch"
     | "agent_inactive"
     | "agent_unknown"
+    | "agent_revoked_before_issuance"
     | "chain_break"
     | "anchor_invalid"
     | "missing_required_field"
     | "signed_at_skew"
     | string;
-  /** Skew vs verifier wall clock; beyond SKEW_BOUND_SECONDS (300s) -> reject. */
+  /** Skew vs verifier wall clock; beyond the cloud's bound -> reject. */
   signedAtSkewSeconds?: number;
   /** True when the cloud could rederive the chain hash from the stored
-   * `signed_envelope` and the predecessor matches. None on legacy
-   * (pre-IETF) records. */
+   * `signed_envelope` and the predecessor matches. Undefined on
+   * non-compliance-mode records. */
   chainValid?: boolean;
-  /** Tri-state OTS status. `pending` means the proof is still inside
-   * the upgrade window; `invalid` means corruption or stale; `valid`
-   * mirrors the Bitcoin block-confirmed case. */
+  /** OTS proof bool form. True when the OpenTimestamps proof rederived. */
+  anchorValidOts?: boolean;
+  /** Timestamp anchor bool form. True when the timestamp rederived. */
+  anchorValidRfc3161?: boolean;
+  /** Tri-state OTS status. `pending` means inside the upgrade window;
+   * `invalid` means corruption or stale; `valid` mirrors the Bitcoin
+   * block-confirmed case. */
   anchorStatusOts?: "valid" | "pending" | "invalid";
   /** Timestamp anchor outcome. Deterministic at issuance; never
    * `pending`. */
   anchorStatusRfc3161?: "valid" | "pending" | "invalid";
-  /** REQUIRED-fields presence check. When the record is
-   * `compliance_mode=true` and any spec-mandated field has been NULLed
-   * post-issuance, surfaces the missing column names. Empty list /
-   * undefined means every required field is present. */
+  /** REQUIRED-fields presence check. Surfaces column names NULLed
+   * post-issuance on a compliance-mode receipt; empty / undefined means
+   * every required field is present. */
   missingFields?: string[];
+  /** True when the policy digest at issuance resolved to a known artefact. */
+  policyDigestResolved?: boolean;
+  /** True / non-empty when more than one receipt exists for the
+   * (action_ref, issuer_id) pair; reporting flag, not a verification
+   * downgrade. */
+  duplicateEmissionCandidate?: boolean | string;
+}
+
+/** Bitcoin anchor state on a verification response. `status` vocabulary:
+ * none | pending | confirmed | failed. `bitcoinTx` and `bitcoinBlock`
+ * populate once the OpenTimestamps proof upgrades to a confirmed
+ * Bitcoin attestation. */
+export interface BitcoinAnchorStatus {
+  status: "none" | "pending" | "confirmed" | "failed" | string;
+  bitcoinTx?: string | null;
+  bitcoinBlock?: number | null;
 }
 
 export interface VerificationResponse {
@@ -471,6 +492,19 @@ export interface VerificationResponse {
   verified: boolean;
   verificationUrl?: string;
   verificationDetail?: VerificationDetail;
+  /** Receipt kind. Always `"signature"` for this response shape. */
+  type?: string;
+  /** Bitcoin anchor state; `status: "none"` when the receipt has no anchor. */
+  bitcoinAnchor?: BitcoinAnchorStatus;
+  /** IETF projection of the signed envelope: `{alg, kid}`. Undefined on
+   * non-compliance-mode receipts. */
+  signatureEnvelope?: { alg: string; kid: string } & Record<string, string>;
+  /** IETF anchors projection: list of `{type, value, ...}` per anchor.
+   * Undefined on non-compliance-mode receipts. */
+  anchors?: Array<{ type: string; value: string } & Record<string, unknown>>;
+  /** Algorithm registry version in force at issuance. Undefined on
+   * pre-migration rows. */
+  algorithmRegistryVersion?: string;
 }
 
 export interface AppliedAttestationOptions {
@@ -1122,10 +1156,23 @@ export async function verifySignature(signatureId: string): Promise<Verification
       validation_label: string;
       signed_at_skew_seconds?: number;
       chain_valid?: boolean;
+      anchor_valid_ots?: boolean;
+      anchor_valid_rfc3161?: boolean;
       anchor_status_ots?: "valid" | "pending" | "invalid";
       anchor_status_rfc3161?: "valid" | "pending" | "invalid";
       missing_fields?: string[];
+      policy_digest_resolved?: boolean;
+      duplicate_emission_candidate?: boolean | string;
     };
+    type?: string;
+    bitcoin_anchor?: {
+      status: string;
+      bitcoin_tx?: string | null;
+      bitcoin_block?: number | null;
+    };
+    signature_envelope?: { alg: string; kid: string } & Record<string, string>;
+    anchors?: Array<{ type: string; value: string } & Record<string, unknown>>;
+    algorithm_registry_version?: string;
   }>("GET", `/verify/${signatureId}`);
 
   return {
@@ -1149,11 +1196,26 @@ export async function verifySignature(signatureId: string): Promise<Verification
           validationLabel: data.verification_detail.validation_label,
           signedAtSkewSeconds: data.verification_detail.signed_at_skew_seconds,
           chainValid: data.verification_detail.chain_valid,
+          anchorValidOts: data.verification_detail.anchor_valid_ots,
+          anchorValidRfc3161: data.verification_detail.anchor_valid_rfc3161,
           anchorStatusOts: data.verification_detail.anchor_status_ots,
           anchorStatusRfc3161: data.verification_detail.anchor_status_rfc3161,
           missingFields: data.verification_detail.missing_fields,
+          policyDigestResolved: data.verification_detail.policy_digest_resolved,
+          duplicateEmissionCandidate: data.verification_detail.duplicate_emission_candidate,
         }
       : undefined,
+    type: data.type,
+    bitcoinAnchor: data.bitcoin_anchor
+      ? {
+          status: data.bitcoin_anchor.status,
+          bitcoinTx: data.bitcoin_anchor.bitcoin_tx,
+          bitcoinBlock: data.bitcoin_anchor.bitcoin_block,
+        }
+      : undefined,
+    signatureEnvelope: data.signature_envelope,
+    anchors: data.anchors,
+    algorithmRegistryVersion: data.algorithm_registry_version,
   };
 }
 
