@@ -38,9 +38,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e "./python[all]" pytest ruff
+      - run: pip install -e "./python[all,dev]" pytest ruff
       - run: ruff check python/src
-      - run: pytest python/tests -v --tb=short --continue-on-collection-errors || true
+      - run: pytest python/tests -v --tb=short --continue-on-collection-errors
 
   typescript:
     needs: changes
