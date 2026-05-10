@@ -344,7 +344,7 @@ describe("asqav CLI (TypeScript)", () => {
     expect(output()).toContain("v3-22");
   });
 
-  it("replay-verify --strict rejects legacy steps", async () => {
+  it("replay-verify --strict rejects synthetic-shape steps", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse({ tier: "pro", organization_id: "o", organization_name: "n" }))
       .mockResolvedValueOnce(

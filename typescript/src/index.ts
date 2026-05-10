@@ -35,12 +35,9 @@ export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
  * The Joint Committee of the European Supervisory Authorities published
  * the final RTS on classification of major ICT-related incidents on
  * 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
- * vocabulary of `incident_class` to exactly six values. Earlier DORA
- * preliminary drafts (and the SDK's previous releases) circulated a
- * 12-value list; the cloud accepts those legacy tokens and normalises
- * them to the canonical six server-side, so this SDK forwards the
- * caller's value verbatim and only rejects tokens that are neither
- * canonical nor a known legacy alias.
+ * vocabulary of `incident_class` to exactly six values. The cloud
+ * accepts only these canonical tokens; this SDK forwards the caller's
+ * value verbatim and rejects anything outside the canonical set.
  */
 export const DORA_INCIDENT_CLASS_NAMESPACE = [
   "cybersecurity_related",
@@ -52,27 +49,6 @@ export const DORA_INCIDENT_CLASS_NAMESPACE = [
 ] as const;
 export type DoraIncidentClass = (typeof DORA_INCIDENT_CLASS_NAMESPACE)[number];
 
-/** Legacy 12-value vocabulary from pre-final DORA drafts. Mirrored from
- * the cloud's alias dict (cloud PR #194) so the SDK can accept either
- * form without a network roundtrip. The cloud performs the authoritative
- * normalisation; this map is purely for client-side acceptance checks.
- */
-export const LEGACY_DORA_ALIASES: Readonly<Record<string, DoraIncidentClass>> =
-  Object.freeze({
-    malicious_actions: "cybersecurity_related",
-    cyberattack: "cybersecurity_related",
-    unauthorised_access: "cybersecurity_related",
-    process_failure_internal: "process_failure",
-    human_error: "process_failure",
-    system_failure_internal: "system_failure",
-    software_malfunction: "system_failure",
-    hardware_failure: "system_failure",
-    third_party_failure: "external_event",
-    natural_disaster: "external_event",
-    payment_fraud: "payment_related",
-    unknown: "other",
-  });
-
 /** Sandbox state vocabulary per the High-Risk gate. */
 export type SandboxState = "enabled" | "disabled" | "unavailable";
 
@@ -82,10 +58,10 @@ export type RiskClass = "low" | "medium" | "high" | "unknown";
 /** Policy decision vocabulary; deny / rate_limit require `reason`. */
 export type PolicyDecision = "permit" | "deny" | "rate_limit";
 
-/** Spec-shape decision vocabulary; legacy `policyDecision` uses "permit". */
+/** Spec-shape decision vocabulary; original `policyDecision` uses "permit". */
 export type Decision = "allow" | "deny" | "rate_limit";
 
-/** Map a legacy `policyDecision` token to the spec-shape `decision`. */
+/** Map an original `policyDecision` token to the spec-shape `decision`. */
 export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
   permit: "allow",
   allow: "allow",
@@ -149,7 +125,7 @@ import {
 } from "./ietfProjection.js";
 
 /** Return the spec-shape envelope `{alg, kid, sig}` for a
- * SignatureResponse, or undefined for legacy receipts. */
+ * SignatureResponse, or undefined for non-compliance receipts. */
 export function signatureEnvelope(
   response: SignatureResponse | null | undefined,
 ): SignatureEnvelope | undefined {
@@ -157,7 +133,7 @@ export function signatureEnvelope(
 }
 
 /** Return the cloud-supplied `anchors[]` array, or undefined for
- * legacy receipts. */
+ * non-compliance receipts. */
 export function anchors(
   response: SignatureResponse | null | undefined,
 ): AnchorEntry[] | undefined {
@@ -329,7 +305,7 @@ export interface SignOptions {
    * `Organization.legal_entity` when omitted. */
   issuerId?: string;
 
-  /** Digest of the request payload. Accepts the legacy
+  /** Digest of the request payload. Accepts the
    * `"sha256:<hex>"` string or the wire object form
    * `{ hash, size?, preview? }`. */
   payloadDigest?: string | { hash: string; size?: number; preview?: string };
@@ -356,7 +332,7 @@ export interface CoSignature {
 }
 
 export interface SignatureResponse {
-  /** Polymorphic. Base64 string in legacy mode, `{alg, kid, sig}` object
+  /** Polymorphic. Base64 string in non-compliance mode, `{alg, kid, sig}` object
    * form under compliance_mode. Use `signatureEnvelope()` for the dict
    * form. */
   signature: string | SignatureEnvelope;
@@ -387,7 +363,7 @@ export interface SignatureResponse {
   receiptType?: string;
   /** Resolved legal entity for this receipt. */
   issuerId?: string;
-  /** Legacy `policy_decision` value echoed from the request (one of
+  /** Original `policy_decision` value echoed from the request (one of
    * `"permit" | "deny" | "rate_limit"`). Kept for backward compat with
    * tooling built against the pre-spec implementation. */
   policyDecision?: PolicyDecision;
@@ -395,10 +371,10 @@ export interface SignatureResponse {
    * `policyDecision` for older servers. Undefined for non-compliance. */
   decision?: Decision;
   /** Compliance Receipts envelope: the canonical signed dict. None on
-   * legacy receipts. */
+   * non-compliance receipts. */
   payload?: Record<string, unknown>;
   /** Compliance Receipts envelope: the type-discriminated anchors
-   * array. None on legacy receipts; `[]` when compliance_mode is on
+   * array. None on non-compliance receipts; `[]` when compliance_mode is on
    * before anchors land. */
   anchors?: AnchorEntry[];
 }
@@ -504,7 +480,7 @@ export interface VerificationResponse {
    * non-compliance-mode receipts. */
   signatureEnvelope?: { alg: string; kid: string } & Record<string, string>;
   /** IETF anchors projection: list of `{type, value, ...}` per anchor.
-   * `type` admits the canonical `"opentimestamps"` and the legacy
+   * `type` admits the canonical `"opentimestamps"` and the original
    * `"ots"` alias plus `"rfc3161"`; the SDK never silently rewrites,
    * callers should normalize `"ots"` to `"opentimestamps"` if they
    * compare against the cloud surface. Undefined on non-compliance-mode
@@ -861,20 +837,15 @@ export class Agent {
       );
     }
     // DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
-    // canonical values, plus the legacy 12-value alias set the cloud
-    // still accepts). Reject anything else before the HTTP roundtrip.
+    // canonical values). Reject anything else before the HTTP roundtrip.
     if (options.incidentClass !== undefined && options.incidentClass !== "") {
       const incidentValues = Array.isArray(options.incidentClass)
         ? options.incidentClass
         : [options.incidentClass];
       for (const ic of incidentValues) {
-        if (
-          !(DORA_INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)
-          && !(ic in LEGACY_DORA_ALIASES)
-        ) {
+        if (!(DORA_INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)) {
           throw new AsqavError(
-            `invalid_incident_class: '${ic}' must be one of ${DORA_INCIDENT_CLASS_NAMESPACE.join(", ")} `
-              + `or a known legacy alias ${Object.keys(LEGACY_DORA_ALIASES).sort().join(", ")}`,
+            `invalid_incident_class: '${ic}' must be one of ${DORA_INCIDENT_CLASS_NAMESPACE.join(", ")}`,
           );
         }
       }
@@ -980,7 +951,7 @@ export class Agent {
       userIntentVerified: data.user_intent_verified,
       complianceMode: data.compliance_mode,
       // Accept either camelCase (per the IETF profile JSON wire) or
-      // snake_case (legacy alias for one release).
+      // snake_case (alias for one release).
       previousReceiptHash: data.previousReceiptHash ?? data.previous_receipt_hash,
       actionRef: data.action_ref,
       policyDigest: data.policy_digest,

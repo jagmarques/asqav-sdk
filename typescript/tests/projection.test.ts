@@ -3,7 +3,7 @@
  *
  * `signatureEnvelope(resp)` returns `{alg, kid, sig}` when the response
  * carries the object form, undefined otherwise. `anchors(resp)` returns
- * the cloud-supplied array, undefined for legacy receipts.
+ * the cloud-supplied array, undefined for non-compliance receipts.
  */
 
 import { describe, expect, it } from "vitest";

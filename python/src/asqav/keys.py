@@ -7,7 +7,7 @@ callers can opt into Ed25519 or ES256 (in addition to the default
 ML-DSA-65) without depending on `cryptography` / `pynacl` directly.
 
 The module is import-safe even when `cryptography` is not installed:
-the import is deferred to call sites so legacy users (cloud-only,
+the import is deferred to call sites so pre-IETF users (cloud-only,
 ML-DSA-65) never see a hard dependency. Callers that ask for Ed25519
 or ES256 without the optional dep get a clear ImportError pointing
 them at the install command.
