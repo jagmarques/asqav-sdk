@@ -72,9 +72,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
         )
         BaseCallback.__init__(self)
 
-    # ------------------------------------------------------------------
-    # Module handlers
-    # ------------------------------------------------------------------
+    # === Module handlers ===
 
     def on_module_start(
         self,
@@ -108,9 +106,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
-    # ------------------------------------------------------------------
-    # LM handlers
-    # ------------------------------------------------------------------
+    # === LM handlers ===
 
     def on_lm_start(
         self,
@@ -145,9 +141,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
-    # ------------------------------------------------------------------
-    # Tool handlers
-    # ------------------------------------------------------------------
+    # === Tool handlers ===
 
     def on_tool_start(
         self,
@@ -182,9 +176,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
-    # ------------------------------------------------------------------
-    # Evaluate handlers
-    # ------------------------------------------------------------------
+    # === Evaluate handlers ===
 
     def on_evaluate_start(
         self,
@@ -218,9 +210,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
-    # ------------------------------------------------------------------
-    # Adapter format handlers
-    # ------------------------------------------------------------------
+    # === Adapter format handlers ===
 
     def on_adapter_format_start(
         self,
@@ -254,9 +244,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
-    # ------------------------------------------------------------------
-    # Adapter parse handlers
-    # ------------------------------------------------------------------
+    # === Adapter parse handlers ===
 
     def on_adapter_parse_start(
         self,

@@ -98,9 +98,7 @@ class AsqavInstructorHook(AsqavAdapter):
     ) -> None:
         super().__init__(api_key=api_key, agent_name=agent_name, agent_id=agent_id)
 
-    # ------------------------------------------------------------------
-    # Public attachment surface
-    # ------------------------------------------------------------------
+    # === Public attachment surface ===
 
     def attach(self, client: Any) -> None:
         """Register this hook on an instructor client.
@@ -120,9 +118,7 @@ class AsqavInstructorHook(AsqavAdapter):
         client.on(HookName.COMPLETION_LAST_ATTEMPT, self._on_last_attempt)
         client.on(HookName.PARSE_ERROR, self._on_parse_error)
 
-    # ------------------------------------------------------------------
-    # Event handlers
-    # ------------------------------------------------------------------
+    # === Event handlers ===
 
     def _on_kwargs(self, *args: Any, **kwargs: Any) -> None:
         """instructor emits the LLM kwargs right before the call."""
