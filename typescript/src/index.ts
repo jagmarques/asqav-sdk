@@ -492,12 +492,12 @@ export interface VerificationResponse {
     } & Record<string, unknown>
   >;
   /** Algorithm registry version in force at issuance. Undefined on
-   * pre-migration rows. */
+   * rows lacking the column. */
   algorithmRegistryVersion?: string;
   /** Verifier's `{alg, sig, kid}` block over the verification outcome.
    * Cloud emits this on compliance-mode receipts so a downstream
    * regulator can re-check the verification decision without re-running
-   * the verifier. Undefined on non-compliance / pre-migration receipts. */
+   * the verifier. Undefined on non-compliance receipts. */
   verifierSignature?: { alg: string; sig: string; kid: string };
 }
 

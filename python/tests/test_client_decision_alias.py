@@ -9,7 +9,7 @@ from asqav.client import (
 )
 
 
-def test_decision_map_covers_full_legacy_vocabulary():
+def test_decision_map_covers_full_alias_vocabulary():
     """Every aliased `policy_decision` token resolves to a spec token."""
     assert DECISION_MAP["permit"] == "allow"
     assert DECISION_MAP["deny"] == "deny"
@@ -39,7 +39,7 @@ def test_signature_response_decision_default_none():
         verification_url="https://verify/example",
     )
     assert resp.decision is None
-    # Legacy field default preserved.
+    # Aliased field default preserved.
     assert resp.policy_decision == "permit"
 
 

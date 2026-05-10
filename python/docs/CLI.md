@@ -82,7 +82,7 @@ asqav audit-pack policy a3f6...c91d --output text
 
 ### `asqav replay-verify <agent_id> <session_id> [--strict]`
 
-Re-derives the IETF chain over `sha256(canonical_json(signed_envelope))`. With `--strict` rejects any step that lacks a cloud-emitted `signed_envelope` (legacy synthetic shape cannot prove byte-level integrity).
+Re-derives the IETF chain over `sha256(canonical_json(signed_envelope))`. With `--strict` rejects any step that lacks a cloud-emitted `signed_envelope` (synthetic fallback shape cannot prove byte-level integrity).
 
 ```bash
 asqav replay-verify agt_x7y8z9 sess_abc --strict --output json

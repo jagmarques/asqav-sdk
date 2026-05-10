@@ -209,7 +209,7 @@ describe("verifySignature response fields", () => {
 
   it("test_anchor_type_accepts_opentimestamps_and_ots", async () => {
     // _project_anchors emits "opentimestamps" (canonical), the
-    // /verify/example fixture still emits "ots" (legacy). The SDK
+    // /verify/example fixture still emits "ots" (alias). The SDK
     // type stub admits both literals and the parser does not silently
     // rewrite.
     const payload = {

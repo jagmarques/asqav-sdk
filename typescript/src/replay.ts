@@ -6,18 +6,12 @@
  * The verifier walks an ordered list of signed envelopes for one agent,
  * re-derives each predecessor's `previousReceiptHash`, and reports any
  * mismatch as a chain break. Equivalent to the Python SDK's
- * `replay.ReplayTimeline.verify_chain` rewritten for the v2 chain shape.
+ * `replay.ReplayTimeline.verify_chain`.
  *
- * v2 (default) chain link:
+ * Chain link:
  *
  *   previousReceiptHash[i+1] = sha256(canonicalJson(envelope[i]))   // 64 hex
  *   previousReceiptHash[0]   = "0".repeat(64)
- *
- * Legacy chain link (kept under `legacy: true` for one release):
- *
- *   prev_hash[i+1] = sha256(json.dumps(
- *     {signature_id, action_type, timestamp, prev_hash}, sort_keys=True
- *   ))
  *
  * This module is import-free of any HTTP / network code so it can run
  * over a downloaded ComplianceBundle.
@@ -65,11 +59,10 @@ export interface ChainVerificationResult {
   steps: ChainStepResult[];
 }
 
-export interface VerifyChainOptions {
-  /** Use the legacy v1 chain shape instead of the v2 / IETF shape.
-   * Kept for one release per the backward-compat window. */
-  legacy?: boolean;
-}
+/** Reserved for future verifier knobs. No keys are accepted today;
+ * passing any unrecognized key (including the removed `legacy` flag)
+ * throws so silent-fallback bugs surface immediately. */
+export type VerifyChainOptions = Record<string, never>;
 
 /**
  * Re-derive the chain over an ordered list of signed envelopes for one
@@ -77,13 +70,24 @@ export interface VerifyChainOptions {
  *
  * The list MUST be in chain order (oldest first). Mixing agents yields
  * `chainIntegrity=false` because the predecessor links won't match.
+ *
+ * @throws TypeError if `options` carries any unrecognized key. The
+ *   removed `legacy` flag is the most common offender; callers that
+ *   verified synthetic-shape chains must migrate their bundles to
+ *   carry `signedEnvelope` on every step.
  */
 export function verifyChain(
   records: ChainRecord[],
   options: VerifyChainOptions = {},
 ): ChainVerificationResult {
-  if (options.legacy === true) {
-    return verifyChainLegacy(records);
+  const unknownKeys = Object.keys(options ?? {});
+  if (unknownKeys.length > 0) {
+    throw new TypeError(
+      `verifyChain: unsupported option(s) ${unknownKeys.map((k) => JSON.stringify(k)).join(", ")}. ` +
+        "The verifier accepts no options today; passing { legacy: true } from a prior release " +
+        "is not honored and would have silently fallen back to v2 verification. " +
+        "Migrate bundles to carry `signedEnvelope` on every step.",
+    );
   }
 
   const steps: ChainStepResult[] = [];
@@ -121,7 +125,7 @@ export function verifyChain(
 }
 
 /**
- * Convenience: derive the v2 chain hash for one signed envelope.
+ * Convenience: derive the chain hash for one signed envelope.
  *
  *   sha256(canonicalJson(envelope))
  */
@@ -131,50 +135,4 @@ export function deriveChainHash(envelope: Record<string, unknown>): string {
 
 function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
-}
-
-// === Pre-IETF v1 chain shape (retained for one release) ===
-
-interface LegacyMinimalRecord {
-  signature_id?: string;
-  action_type?: string;
-  timestamp?: number | string;
-  signed_at?: number | string;
-}
-
-function verifyChainLegacy(records: ChainRecord[]): ChainVerificationResult {
-  const steps: ChainStepResult[] = [];
-  let allValid = true;
-  let prevHash = "";
-
-  for (let i = 0; i < records.length; i++) {
-    const env = records[i].signedEnvelope as LegacyMinimalRecord & Record<string, unknown>;
-    const actualPrev = String(env.previousReceiptHash ?? env.previous_hash ?? "");
-
-    const chainValid = i === 0 ? true : actualPrev === prevHash;
-    if (!chainValid) allValid = false;
-
-    const entry = JSON.stringify({
-      signature_id: env.signature_id ?? "",
-      action_type: env.action_type ?? "",
-      timestamp: env.signed_at ?? env.timestamp ?? 0,
-      prev_hash: prevHash,
-    });
-    // JSON.stringify in JS does not sort keys; the Python legacy form
-    // uses sort_keys=True. We match Python's output by sorting.
-    const sortedEntry = JSON.stringify(JSON.parse(entry), Object.keys(JSON.parse(entry)).sort());
-    const derived = sha256Hex(new TextEncoder().encode(sortedEntry));
-
-    steps.push({
-      index: i,
-      chainValid,
-      expectedPreviousReceiptHash: i === 0 ? "" : prevHash,
-      actualPreviousReceiptHash: actualPrev,
-      derivedChainHash: derived,
-    });
-
-    prevHash = derived;
-  }
-
-  return { chainIntegrity: allValid, steps };
 }
