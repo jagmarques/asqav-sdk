@@ -16,6 +16,7 @@ manifest; pick ``export_bundle`` for fully-offline / air-gapped flows.
 
 import hashlib
 import json
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -71,6 +72,16 @@ FRAMEWORKS = {
         "description": "Broker-dealer 3-year retention",
         "version": "17 CFR 240.17a-4(b)",
     },
+}
+
+# Legacy framework keys that were removed in 0.4.4. We accept them with a
+# DeprecationWarning so existing bundles + scripts keep working through the
+# next release window. Remove this map once downstream callers migrate.
+LEGACY_FRAMEWORK_ALIASES = {
+    "soc2": "eu_ai_act",
+    "eu_ai_act_art12": "eu_ai_act",
+    "eu_ai_act_art14": "eu_ai_act",
+    "dora_ict": "dora",
 }
 
 
@@ -179,6 +190,15 @@ def export_bundle(
     Raises:
         ValueError: If the framework key is not recognized.
     """
+    if framework in LEGACY_FRAMEWORK_ALIASES:
+        new = LEGACY_FRAMEWORK_ALIASES[framework]
+        warnings.warn(
+            f"Framework key {framework!r} is deprecated, use {new!r} instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        framework = new
+
     if framework not in FRAMEWORKS:
         raise ValueError(
             f"Unknown framework {framework!r}. "
