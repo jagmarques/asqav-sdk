@@ -404,8 +404,8 @@ def test_invalid_incident_class_raises_before_http() -> None:
         p.assert_not_called()
 
 
-def test_pre_alignment_token_now_rejected() -> None:
-    """The cloud purged the alias map; the SDK rejects the same tokens."""
+def test_off_vocabulary_tokens_rejected_before_http() -> None:
+    """Tokens outside the canonical six values are rejected client-side."""
     for token in (
         "cyberattack",
         "payment_fraud",

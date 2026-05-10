@@ -293,7 +293,7 @@ class SignatureResponse:
     compliance_mode: bool = False
     receipt_type: str | None = None
     action_ref: str | None = None
-    # payload_digest accepts both shapes for back-compat: legacy
+    # payload_digest accepts both shapes: the
     # "sha256:<hex>" string or the wire object form {"hash", "size"}.
     payload_digest: str | dict[str, Any] | None = None
     issuer_id: str | None = None
@@ -463,7 +463,7 @@ class VerificationResponse:
     receipts so a downstream regulator can re-check the verification
     decision without re-running the verifier). None on non-compliance
     or pre-migration receipts. Inner anchor entries on `anchors` carry a
-    `type` of `"opentimestamps"` (canonical), `"ots"` (legacy alias),
+    `type` of `"opentimestamps"` (canonical), `"ots"` (alias),
     or `"rfc3161"`.
     """
 

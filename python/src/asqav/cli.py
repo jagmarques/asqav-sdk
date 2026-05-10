@@ -1485,16 +1485,14 @@ def replay_verify_cmd(
     strict: bool = typer.Option(
         False,
         "--strict",
-        help="Reject legacy synthetic-shape steps. The IETF profile rederives the chain over `sha256(canonical_json(signed_envelope))`; legacy steps cannot prove byte-level integrity.",
+        help="Require every step to carry a cloud `signed_envelope`. Synthetic-shape fallback steps cannot prove byte-level integrity.",
     ),
     output: str = typer.Option("text", "--output", "-o", help="Output format: text or json."),
 ) -> None:
     """Re-derive a session's IETF chain (`sha256(canonical_json(signed_envelope))`).
 
     Wraps :func:`asqav.replay`. With ``--strict`` the command fails
-    when any step lacks the cloud-emitted ``signed_envelope`` and falls
-    back to the synthetic shape (because that synthetic shape cannot
-    prove byte-level integrity per the IETF profile).
+    when any step lacks the cloud-emitted ``signed_envelope``.
     """
     import json as json_mod
 
@@ -1511,9 +1509,9 @@ def replay_verify_cmd(
 
     timeline.verify_chain()
     chain_valid = bool(timeline.compliance_chain_valid)
-    legacy_steps = [s for s in timeline.steps if getattr(s, "legacy_chain", False)]
-    has_legacy = bool(legacy_steps)
-    strict_pass = chain_valid and not (strict and has_legacy)
+    synthetic_steps = [s for s in timeline.steps if s.signed_envelope is None]
+    has_synthetic = bool(synthetic_steps)
+    strict_pass = chain_valid and not (strict and has_synthetic)
 
     if output == "json":
         print(json_mod.dumps({
@@ -1521,13 +1519,13 @@ def replay_verify_cmd(
             "strict": strict,
             "strict_pass": strict_pass,
             "step_count": len(timeline.steps),
-            "legacy_step_count": len(legacy_steps),
+            "synthetic_step_count": len(synthetic_steps),
             "steps": [
                 {
                     "index": s.index,
                     "signature_id": getattr(s, "signature_id", None),
                     "chain_valid": getattr(s, "chain_valid", None),
-                    "legacy_chain": getattr(s, "legacy_chain", None),
+                    "has_envelope": s.signed_envelope is not None,
                 }
                 for s in timeline.steps
             ],
@@ -1538,14 +1536,14 @@ def replay_verify_cmd(
 
     print(f"compliance_chain_valid: {chain_valid}")
     print(f"strict: {strict}")
-    print(f"steps: {len(timeline.steps)} (legacy: {len(legacy_steps)})")
+    print(f"steps: {len(timeline.steps)} (synthetic: {len(synthetic_steps)})")
     for s in timeline.steps:
         ok = getattr(s, "chain_valid", False)
-        legacy = "legacy" if getattr(s, "legacy_chain", False) else "envelope"
+        shape = "envelope" if s.signed_envelope is not None else "synthetic"
         marker = "ok  " if ok else "FAIL"
-        print(f"  [{marker}] step {s.index} ({legacy}) sig={getattr(s, 'signature_id', '?')}")
-    if strict and has_legacy:
-        print("strict mode FAILED: at least one step uses the legacy synthetic shape.")
+        print(f"  [{marker}] step {s.index} ({shape}) sig={getattr(s, 'signature_id', '?')}")
+    if strict and has_synthetic:
+        print("strict mode FAILED: at least one step lacks the cloud signed_envelope.")
     if not strict_pass:
         raise typer.Exit(code=1)
 

@@ -165,7 +165,7 @@ def test_golden_vector_matches(name: str, obj, expected: str) -> None:
     GOLDEN_VECTORS,
     ids=[name for name, _, _ in GOLDEN_VECTORS],
 )
-def test_byte_equality_with_legacy_canonicalize(name: str, obj, expected: str) -> None:
+def test_byte_equality_with_canonicalize_alias(name: str, obj, expected: str) -> None:
     """`_jcs.canonical_json` and `canonicalize.canonicalize` agree byte-for-byte."""
     assert canonical_json(obj) == canonicalize(obj), f"{name}: drift"
 
