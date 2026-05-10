@@ -97,8 +97,7 @@ def _generate_ed25519() -> LocalKeypair:
     except ImportError as e:
         raise ImportError(
             "ed25519 keypair generation requires the `cryptography` "
-            "package. Install with `pip install asqav[crypto]` or "
-            "`pip install cryptography`."
+            "package. Install with `pip install cryptography`."
         ) from e
 
     private_key = ed25519.Ed25519PrivateKey.generate()
@@ -126,8 +125,7 @@ def _generate_es256() -> LocalKeypair:
     except ImportError as e:
         raise ImportError(
             "es256 keypair generation requires the `cryptography` "
-            "package. Install with `pip install asqav[crypto]` or "
-            "`pip install cryptography`."
+            "package. Install with `pip install cryptography`."
         ) from e
 
     private_key = ec.generate_private_key(ec.SECP256R1())
@@ -150,12 +148,14 @@ def _generate_es256() -> LocalKeypair:
 def _generate_ml_dsa_65() -> LocalKeypair:
     """Stub for ML-DSA-65; the cloud is authoritative for this algorithm.
 
-    A pure-Python or Rust ML-DSA library is not yet in our optional deps.
-    Calling this raises NotImplementedError with a pointer to the cloud
-    `Agent.create()` flow which the SDK already supports.
+    Local ML-DSA-65 keypair generation is not implemented in this release.
+    The cloud signs ML-DSA-65 receipts server-side; call
+    `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint the
+    keypair via the cloud KMS. See https://asqav.com/docs for details.
     """
     raise NotImplementedError(
-        "ml-dsa-65 keypair generation runs server-side; call "
+        "ml-dsa-65 keypair generation is not implemented locally; "
+        "ML-DSA-65 keys are minted server-side. Call "
         "`asqav.Agent.create(name, algorithm='ml-dsa-65')` to have the "
-        "cloud generate the keypair."
+        "cloud KMS generate the keypair. See https://asqav.com/docs."
     )
