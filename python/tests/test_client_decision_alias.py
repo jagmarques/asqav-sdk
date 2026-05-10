@@ -10,7 +10,7 @@ from asqav.client import (
 
 
 def test_decision_map_covers_full_legacy_vocabulary():
-    """Every legacy `policy_decision` token resolves to a spec token."""
+    """Every aliased `policy_decision` token resolves to a spec token."""
     assert DECISION_MAP["permit"] == "allow"
     assert DECISION_MAP["deny"] == "deny"
     assert DECISION_MAP["rate_limit"] == "rate_limit"
