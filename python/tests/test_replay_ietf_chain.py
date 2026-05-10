@@ -2,8 +2,7 @@
 
 The chain link is ``sha256(JCS(predecessor_signed_envelope))``. The
 first record's ``previousReceiptHash`` is ``"0" * 64``
-(``FIRST_RECEIPT_SEED``). The legacy shape is kept available behind
-``legacy_chain=True`` so historic bundles still verify.
+(``FIRST_RECEIPT_SEED``).
 """
 
 from __future__ import annotations
@@ -143,59 +142,13 @@ def test_v2_verify_chain_detects_tamper() -> None:
     assert timeline.steps[1].chain_valid is False
 
 
-def test_v2_chain_differs_from_legacy_for_same_signatures() -> None:
-    """The v2 envelope shape produces different bytes than the legacy
-    envelope so a forged legacy chain cannot pass v2 verification."""
-    sigs = [_make_signed_action(idx=i) for i in range(3)]
-    v2 = _build_timeline("agent_001", "sess_1", sigs, legacy_chain=False)
-    legacy = _build_timeline("agent_001", "sess_1", sigs, legacy_chain=True)
-    # First step has no predecessor in either (None), so compare step 1.
-    assert v2.steps[1].prev_chain_hash != legacy.steps[1].prev_chain_hash
-
 
 # ---------------------------------------------------------------------------
-# legacy_chain flag
+# _step_chain_hash helper
 # ---------------------------------------------------------------------------
 
 
-def test_legacy_chain_uses_old_envelope_shape() -> None:
-    """legacy_chain=True reproduces the pre-IETF chain hash byte-for-byte."""
-    sigs = [_make_signed_action(idx=0), _make_signed_action(idx=1)]
-    timeline = _build_timeline(
-        "agent_001", "sess_1", sigs, legacy_chain=True
-    )
 
-    expected = hashlib.sha256(
-        json.dumps(
-            {
-                "signature_id": sigs[0].signature_id,
-                "action_type": sigs[0].action_type,
-                "timestamp": sigs[0].signed_at,
-                "prev_hash": "",
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode()
-    ).hexdigest()
-    assert timeline.steps[1].prev_chain_hash == expected
-
-
-def test_legacy_chain_verify_succeeds() -> None:
-    sigs = [_make_signed_action(idx=i) for i in range(3)]
-    timeline = _build_timeline(
-        "agent_001", "sess_1", sigs, legacy_chain=True
-    )
-    assert timeline.verify_chain(legacy_chain=True) is True
-
-
-def test_legacy_chain_verify_fails_when_called_under_v2() -> None:
-    """A timeline built under legacy shape does not verify under v2."""
-    sigs = [_make_signed_action(idx=i) for i in range(3)]
-    timeline = _build_timeline(
-        "agent_001", "sess_1", sigs, legacy_chain=True
-    )
-    # Timeline stores legacy hashes. Verifying under v2 must reject.
-    assert timeline.verify_chain(legacy_chain=False) is False
 
 
 # ---------------------------------------------------------------------------
@@ -203,58 +156,7 @@ def test_legacy_chain_verify_fails_when_called_under_v2() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_step_chain_hash_v2_matches_envelope() -> None:
-    step = ReplayStep(
-        index=0,
-        action_type="api:call",
-        context={"x": 1},
-        timestamp=1700000000.0,
-        signature_id="sid_001",
-        verification_url="https://asqav.com/verify/sid_001",
-        chain_valid=True,
-        explanation="x",
-    )
-    expected = hashlib.sha256(
-        canonical_json(
-            {
-                "signature_id": "sid_001",
-                "action_type": "api:call",
-                "context": {"x": 1},
-                "timestamp": 1700000000.0,
-                "previousReceiptHash": FIRST_RECEIPT_SEED,
-            }
-        )
-    ).hexdigest()
-    assert (
-        _step_chain_hash(step, FIRST_RECEIPT_SEED, legacy_chain=False)
-        == expected
-    )
 
-
-def test_step_chain_hash_legacy_matches_old_shape() -> None:
-    step = ReplayStep(
-        index=0,
-        action_type="api:call",
-        context={"x": 1},
-        timestamp=1700000000.0,
-        signature_id="sid_001",
-        verification_url="x",
-        chain_valid=True,
-        explanation="x",
-    )
-    expected = hashlib.sha256(
-        json.dumps(
-            {
-                "signature_id": "sid_001",
-                "action_type": "api:call",
-                "timestamp": 1700000000.0,
-                "prev_hash": "",
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode()
-    ).hexdigest()
-    assert _step_chain_hash(step, "", legacy_chain=True) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -262,10 +164,9 @@ def test_step_chain_hash_legacy_matches_old_shape() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_empty_timeline_verifies_under_both_modes() -> None:
+def test_empty_timeline_verifies() -> None:
     timeline = ReplayTimeline(agent_id="agent_001", session_id="sess_1")
     assert timeline.verify_chain() is True
-    assert timeline.verify_chain(legacy_chain=True) is True
     assert timeline.compliance_chain_valid is True
 
 
@@ -316,13 +217,12 @@ def test_envelope_path_matches_cloud_v2_hash_byte_for_byte() -> None:
     assert timeline.steps[1].prev_chain_hash == env1_prev
     assert timeline.verify_chain() is True
     assert timeline.compliance_chain_valid is True
-    assert all(s.legacy_chain is False for s in timeline.steps)
 
 
 def test_envelope_path_detects_field_tamper_outside_synthetic_shape() -> None:
     """Tampering `policy_decision` (a field NOT in the synthetic envelope)
     is caught only when signed_envelope is attached. Without it the
-    legacy synthetic shape would silently pass."""
+    synthetic shape would silently pass."""
     env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
     env1_prev = hashlib.sha256(canonical_json(env0)).hexdigest()
     env1 = _compliance_envelope(idx=1, prev_hash=env1_prev)
@@ -342,7 +242,7 @@ def test_envelope_path_detects_field_tamper_outside_synthetic_shape() -> None:
     assert timeline.compliance_chain_valid is False
 
 
-def test_legacy_synthetic_shape_misses_policy_decision_tamper() -> None:
+def test_synthetic_shape_misses_policy_decision_tamper() -> None:
     """Documents the weakness the H-NEW-1 fix closes: without
     signed_envelope, a `policy_decision` flip is invisible because the
     synthetic envelope does not include it."""
@@ -352,12 +252,12 @@ def test_legacy_synthetic_shape_misses_policy_decision_tamper() -> None:
     assert timeline.verify_chain() is True
     # But compliance_chain_valid is False because envelopes were absent.
     assert timeline.compliance_chain_valid is False
-    assert all(s.legacy_chain is True for s in timeline.steps)
+    assert all(s.signed_envelope is None for s in timeline.steps)
 
 
-def test_mixed_envelope_steps_set_per_step_legacy_chain_flag() -> None:
-    """A timeline with envelopes on some steps and not others marks the
-    bare steps as legacy_chain=True and drops compliance_chain_valid."""
+def test_mixed_envelope_steps_drop_compliance_chain_valid() -> None:
+    """A timeline with envelopes on some steps and not others drops
+    compliance_chain_valid."""
     env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
 
     sigs = [_make_signed_action(idx=i) for i in range(2)]
@@ -365,8 +265,8 @@ def test_mixed_envelope_steps_set_per_step_legacy_chain_flag() -> None:
         "agent_001", "sess_1", sigs, signed_envelopes=[env0, None]
     )
     timeline.verify_chain()
-    assert timeline.steps[0].legacy_chain is False
-    assert timeline.steps[1].legacy_chain is True
+    assert timeline.steps[0].signed_envelope is not None
+    assert timeline.steps[1].signed_envelope is None
     assert timeline.compliance_chain_valid is False
 
 
@@ -380,4 +280,4 @@ def test_to_dict_includes_signed_envelope_and_compliance_flag() -> None:
     d = timeline.to_dict()
     assert d["compliance_chain_valid"] is True
     assert d["steps"][0]["signed_envelope"] == env0
-    assert d["steps"][0]["legacy_chain"] is False
+    
