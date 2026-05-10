@@ -8,7 +8,6 @@ first record's ``previousReceiptHash`` is ``"0" * 64``
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import sys
 
@@ -18,13 +17,10 @@ from asqav._jcs import canonical_json
 from asqav.client import SignedActionResponse
 from asqav.replay import (
     FIRST_RECEIPT_SEED,
-    ReplayStep,
     ReplayTimeline,
     _build_timeline,
-    _step_chain_hash,
     _verify_hash_chain,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -280,4 +276,4 @@ def test_to_dict_includes_signed_envelope_and_compliance_flag() -> None:
     d = timeline.to_dict()
     assert d["compliance_chain_valid"] is True
     assert d["steps"][0]["signed_envelope"] == env0
-    
+

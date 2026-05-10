@@ -991,10 +991,12 @@ def test_keys_generate_ed25519(tmp_path) -> None:
 
 
 def test_keys_generate_ml_dsa_errors() -> None:
-    """keys generate --algorithm ml-dsa-65 prints a server-side hint."""
+    """keys generate --algorithm ml-dsa-65 rejects: ML-DSA-65 keypair
+    generation is server-side only (cloud KMS), not in the SDK's local
+    SUPPORTED_ALGORITHMS set."""
     result = runner.invoke(app, ["keys", "generate", "--algorithm", "ml-dsa-65"])
     assert result.exit_code == 1
-    assert "server-side" in result.output.lower() or "agent.create" in result.output.lower()
+    assert "unsupported_algorithm" in result.output.lower()
 
 
 # ---------------------------------------------------------------------------
