@@ -95,7 +95,7 @@ Signatures are NOT replay-stable: re-sending the same `(action_type, context)` p
 
 ## Verifying mode
 
-Each signed record has a `mode` field on `signature_records` with value `"hash"` or `"payload"`. Verifiers SHOULD read `signature_records.mode` to determine which form to expect, rather than inspecting the signed bytes. The hash-mode signing input includes `"v": 1` and `"mode": "hash"` for self-description; the payload-mode signing input keeps the legacy shape unchanged for backward compatibility.
+Each signed record has a `mode` field on `signature_records` with value `"hash"` or `"payload"`. Verifiers SHOULD read `signature_records.mode` to determine which form to expect, rather than inspecting the signed bytes. The hash-mode signing input includes `"v": 1` and `"mode": "hash"` for self-description; the payload-mode signing input keeps the flat shape unchanged.
 
 ## Test vectors
 

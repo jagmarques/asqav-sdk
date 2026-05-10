@@ -1016,7 +1016,7 @@ def test_replay_verify_chain_valid(
     step.index = 0
     step.signature_id = "sig_1"
     step.chain_valid = True
-    step.legacy_chain = False
+    step.signed_envelope = {"x": 1}
     timeline.steps = [step]
 
     def verify_chain_stub() -> bool:
@@ -1037,10 +1037,10 @@ def test_replay_verify_chain_valid(
 @patch("asqav.client._get")
 @patch("asqav.replay")
 @patch("asqav.init")
-def test_replay_verify_strict_rejects_legacy(
+def test_replay_verify_strict_rejects_steps_without_envelope(
     mock_init: MagicMock, mock_replay: MagicMock, mock_account: MagicMock
 ) -> None:
-    """replay-verify --strict fails when any step is legacy."""
+    """replay-verify --strict fails when any step lacks signed_envelope."""
     mock_account.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
     timeline = MagicMock()
     timeline.compliance_chain_valid = True
@@ -1048,7 +1048,7 @@ def test_replay_verify_strict_rejects_legacy(
     step.index = 0
     step.signature_id = "sig_1"
     step.chain_valid = True
-    step.legacy_chain = True
+    step.signed_envelope = None
     timeline.steps = [step]
     timeline.verify_chain = lambda: True
     mock_replay.return_value = timeline
