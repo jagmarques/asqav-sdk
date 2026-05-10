@@ -10,9 +10,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - `VerificationResponse` exposes `type`, `bitcoinAnchor`, `signatureEnvelope`, `anchors`, `algorithmRegistryVersion` (Python: snake_case). Match the cloud `/verify` response per IETF -03 §8.1.
 - `VerificationDetail` exposes `anchorValidOts`, `anchorValidRfc3161`, `policyDigestResolved`, `duplicateEmissionCandidate`.
 - TypeScript validation-label union includes `agent_revoked_before_issuance`.
-- `VerificationResponse.verifierSignature` (Python: `verifier_signature`): verifier's `{alg, sig, kid}` block over the verification outcome. Closes the gap from cloud PR #337 that landed after SDK projection PR #160.
-- `VerificationDetail.regimesSatisfied` (Python: `regimes_satisfied`): regulator tokens the cloud derived for the receipt (e.g. `eu_ai_act`, `dora`). Same gap as above.
-- Inner anchor `type` admits the canonical `"opentimestamps"`, the `"ots"` alias (still emitted by the cloud `/verify/example` fixture from PR #332), and `"rfc3161"`. The SDK does not silently rewrite; callers should normalize `"ots"` to `"opentimestamps"` if they compare against the canonical cloud surface.
+- `VerificationDetail.regimesSatisfied` (Python: `regimes_satisfied`): regulator tokens the cloud derived for the receipt (e.g. `eu_ai_act`, `dora`).
+
+### Removed
+- `VerificationResponse.verifierSignature` (Python: `verifier_signature`). The cloud no longer emits this field; it always projected as `null`, so the typed surface is dropped rather than left in as dead weight.
+- Inner anchor `type` no longer admits the legacy `"ots"` alias. The cloud emits only `"opentimestamps"` (canonical) and `"rfc3161"`; the SDK type stubs are tightened accordingly.
+
+### Changed
+- `generate_local_keypair` no longer accepts `"ml-dsa-65"`. ML-DSA-65 keypair generation is server-side only (cloud KMS); call `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one. `SUPPORTED_ALGORITHMS` is now `{ed25519, es256}` and the default for `generate_local_keypair()` is `ed25519`. The previous behaviour raised `NotImplementedError` at call time; this is now a `ValueError` at validation time, with the typed `Algorithm` Literal narrowed to reflect what the SDK actually mints locally.
 
 ## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
 

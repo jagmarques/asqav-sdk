@@ -458,13 +458,8 @@ class VerificationResponse:
     on non-compliance-mode receipts. `algorithm_registry_version` is the
     registry version in force at issuance.
 
-    `verifier_signature` is the verifier's `{alg, sig, kid}` block over
-    the verification outcome (cloud emits this on compliance-mode
-    receipts so a downstream regulator can re-check the verification
-    decision without re-running the verifier). None on non-compliance
-    or receipts lacking the column. Inner anchor entries on `anchors` carry a
-    `type` of `"opentimestamps"` (canonical), `"ots"` (alias),
-    or `"rfc3161"`.
+    Inner anchor entries on `anchors` carry a `type` of
+    `"opentimestamps"` or `"rfc3161"`.
     """
 
     signature_id: str
@@ -484,7 +479,6 @@ class VerificationResponse:
     signature_envelope: dict[str, str] | None = None
     anchors: list[dict[str, Any]] | None = None
     algorithm_registry_version: str | None = None
-    verifier_signature: dict[str, str] | None = None
 
 
 @dataclass
@@ -2329,7 +2323,6 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         signature_envelope=data.get("signature_envelope"),
         anchors=data.get("anchors"),
         algorithm_registry_version=data.get("algorithm_registry_version"),
-        verifier_signature=data.get("verifier_signature"),
     )
 
 

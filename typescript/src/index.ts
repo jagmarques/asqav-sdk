@@ -480,25 +480,17 @@ export interface VerificationResponse {
    * non-compliance-mode receipts. */
   signatureEnvelope?: { alg: string; kid: string } & Record<string, string>;
   /** IETF anchors projection: list of `{type, value, ...}` per anchor.
-   * `type` admits the canonical `"opentimestamps"` and the original
-   * `"ots"` alias plus `"rfc3161"`; the SDK never silently rewrites,
-   * callers should normalize `"ots"` to `"opentimestamps"` if they
-   * compare against the cloud surface. Undefined on non-compliance-mode
-   * receipts. */
+   * `type` is `"opentimestamps"` or `"rfc3161"`. Undefined on
+   * non-compliance-mode receipts. */
   anchors?: Array<
     {
-      type: "opentimestamps" | "ots" | "rfc3161" | string;
+      type: "opentimestamps" | "rfc3161" | string;
       value: string;
     } & Record<string, unknown>
   >;
   /** Algorithm registry version in force at issuance. Undefined on
    * rows lacking the column. */
   algorithmRegistryVersion?: string;
-  /** Verifier's `{alg, sig, kid}` block over the verification outcome.
-   * Cloud emits this on compliance-mode receipts so a downstream
-   * regulator can re-check the verification decision without re-running
-   * the verifier. Undefined on non-compliance receipts. */
-  verifierSignature?: { alg: string; sig: string; kid: string };
 }
 
 export interface AppliedAttestationOptions {
@@ -1163,12 +1155,11 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signature_envelope?: { alg: string; kid: string } & Record<string, string>;
     anchors?: Array<
       {
-        type: "opentimestamps" | "ots" | "rfc3161" | string;
+        type: "opentimestamps" | "rfc3161" | string;
         value: string;
       } & Record<string, unknown>
     >;
     algorithm_registry_version?: string;
-    verifier_signature?: { alg: string; sig: string; kid: string };
   }>("GET", `/verify/${signatureId}`);
 
   return {
@@ -1213,7 +1204,6 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signatureEnvelope: data.signature_envelope,
     anchors: data.anchors,
     algorithmRegistryVersion: data.algorithm_registry_version,
-    verifierSignature: data.verifier_signature,
   };
 }
 

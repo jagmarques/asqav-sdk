@@ -2,15 +2,13 @@
  * SDK parser surfaces every field the cloud `/verify` returns.
  *
  * The cloud's `VerificationResponse` emits the IETF projection
- * (`signature_envelope`, `anchors`, `algorithm_registry_version`,
- * `verifier_signature`), the `bitcoin_anchor` block, the receipt `type`
- * discriminator, and the `VerificationDetail` sub-axes
- * (`anchor_valid_ots`, `anchor_valid_rfc3161`, `policy_digest_resolved`,
+ * (`signature_envelope`, `anchors`, `algorithm_registry_version`),
+ * the `bitcoin_anchor` block, the receipt `type` discriminator, and
+ * the `VerificationDetail` sub-axes (`anchor_valid_ots`,
+ * `anchor_valid_rfc3161`, `policy_digest_resolved`,
  * `duplicate_emission_candidate`, `regimes_satisfied`). These tests
- * pin that the parser populates the TS interface with all of them, that
- * the `validationLabel` union admits `agent_revoked_before_issuance`,
- * and that the inner anchor `type` admits both `"opentimestamps"`
- * (canonical) and `"ots"` (fixture alias).
+ * pin that the parser populates the TS interface with all of them and
+ * that the `validationLabel` union admits `agent_revoked_before_issuance`.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -71,11 +69,6 @@ function fullCloudPayload() {
       { type: "opentimestamps", value: "b3RzZmFrZQ==" },
     ],
     algorithm_registry_version: "2026-05",
-    verifier_signature: {
-      alg: "ML-DSA-65",
-      sig: "dmVyaWZpZXJzaWc=",
-      kid: "verifier_kid_full",
-    },
   };
 }
 
@@ -113,11 +106,6 @@ describe("verifySignature response fields", () => {
     });
     expect(response.anchors?.[1]?.type).toBe("opentimestamps");
     expect(response.algorithmRegistryVersion).toBe("2026-05");
-    expect(response.verifierSignature).toEqual({
-      alg: "ML-DSA-65",
-      sig: "dmVyaWZpZXJzaWc=",
-      kid: "verifier_kid_full",
-    });
   });
 
   it("exposes the four extra VerificationDetail sub-axes", async () => {
@@ -158,7 +146,6 @@ describe("verifySignature response fields", () => {
     expect(response.signatureEnvelope).toBeUndefined();
     expect(response.anchors).toBeUndefined();
     expect(response.algorithmRegistryVersion).toBeUndefined();
-    expect(response.verifierSignature).toBeUndefined();
     expect(response.verificationDetail).toBeUndefined();
   });
 
@@ -176,55 +163,21 @@ describe("verifySignature response fields", () => {
     ]);
   });
 
-  it("test_verifier_signature_present_or_null", async () => {
-    // verifier_signature is the verifier's {alg, sig, kid} block.
-    // Populated on compliance-mode receipts, undefined otherwise.
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      jsonResponse(fullCloudPayload()),
-    );
-    const full = await verifySignature("sig_test_full");
-    expect(full.verifierSignature).toEqual({
-      alg: "ML-DSA-65",
-      sig: "dmVyaWZpZXJzaWc=",
-      kid: "verifier_kid_full",
-    });
-
-    const minimal = {
-      signature_id: "sig_no_vs",
-      agent_id: "agent_no_vs",
-      agent_name: "no-vs",
-      action_id: "act",
-      action_type: "x.y",
-      payload: null,
-      signature: "ZmFrZQ==",
-      algorithm: "Ed25519",
-      signed_at: "2026-05-10T12:00:00+00:00",
-      verified: true,
-      verification_url: "https://verify.example/sig_no_vs",
-    };
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(minimal));
-    const bare = await verifySignature("sig_no_vs");
-    expect(bare.verifierSignature).toBeUndefined();
-  });
-
-  it("test_anchor_type_accepts_opentimestamps_and_ots", async () => {
-    // _project_anchors emits "opentimestamps" (canonical), the
-    // /verify/example fixture still emits "ots" (alias). The SDK
-    // type stub admits both literals and the parser does not silently
-    // rewrite.
+  it("test_anchor_type_accepts_opentimestamps_and_rfc3161", async () => {
+    // _project_anchors emits "opentimestamps" (canonical) and
+    // "rfc3161". The SDK parser does not silently rewrite.
     const payload = {
       ...fullCloudPayload(),
       anchors: [
         { type: "rfc3161", value: "ZmFrZQ==" },
         { type: "opentimestamps", value: "Y2Fub25pY2Fs" },
-        { type: "ots", value: "bGVnYWN5" },
       ],
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(payload));
 
     const response = await verifySignature("sig_test_full");
     const types = response.anchors?.map((a) => a.type);
-    expect(types).toEqual(["rfc3161", "opentimestamps", "ots"]);
+    expect(types).toEqual(["rfc3161", "opentimestamps"]);
   });
 
   it("admits agent_revoked_before_issuance on the validation-label union", async () => {
