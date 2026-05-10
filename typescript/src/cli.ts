@@ -369,7 +369,7 @@ async function cmdComplianceExport(args: string[]): Promise<void> {
   const framework = parseFlag(args, "framework") ?? "eu_ai_act";
   const output = parseFlag(args, "output");
   if (!session || !output) {
-    die("Usage: asqav compliance export --session <id> --output <path> [--framework eu_ai_act_art12]");
+    die("Usage: asqav compliance export --session <id> --output <path> [--framework eu_ai_act]");
   }
   ensureApiKey();
   await requireTier("business");
