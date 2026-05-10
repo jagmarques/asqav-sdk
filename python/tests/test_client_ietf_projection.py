@@ -15,7 +15,7 @@ from asqav.ietf_projection import (
 )
 
 
-def test_legacy_response_signature_envelope_is_none():
+def test_flat_response_signature_envelope_is_none():
     resp = SignatureResponse(
         signature="ZmFrZQ==",
         signature_id="sig_test",
@@ -48,7 +48,7 @@ def test_signature_envelope_helper_dict_input():
     assert out == envelope
 
 
-def test_signature_envelope_helper_legacy_dict_returns_none():
+def test_signature_envelope_helper_string_returns_none():
     assert (
         signature_envelope_from_response({"signature": "ZmFrZQ=="})
         is None
@@ -71,7 +71,7 @@ def test_anchors_array_passthrough():
     assert resp.anchors_array() == cloud_anchors
 
 
-def test_anchors_array_legacy_is_none():
+def test_anchors_array_string_signature_is_none():
     resp = SignatureResponse(
         signature="ZmFrZQ==",
         signature_id="sig_test",

@@ -37,7 +37,7 @@ function fakeAgent(): Agent {
 }
 
 describe("DECISION_MAP", () => {
-  it("covers the full legacy vocabulary", () => {
+  it("covers the full alias vocabulary", () => {
     expect(DECISION_MAP.permit).toBe("allow");
     expect(DECISION_MAP.deny).toBe("deny");
     expect(DECISION_MAP.rate_limit).toBe("rate_limit");
@@ -168,7 +168,7 @@ describe("agent.sign decision wire field", () => {
     expect(resp.decision).toBe("allow");
   });
 
-  it("decision undefined on legacy non-compliance receipts", async () => {
+  it("decision undefined on non-compliance receipts", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         signature: "sig",

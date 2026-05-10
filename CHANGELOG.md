@@ -12,7 +12,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - TypeScript validation-label union includes `agent_revoked_before_issuance`.
 - `VerificationResponse.verifierSignature` (Python: `verifier_signature`): verifier's `{alg, sig, kid}` block over the verification outcome. Closes the gap from cloud PR #337 that landed after SDK projection PR #160.
 - `VerificationDetail.regimesSatisfied` (Python: `regimes_satisfied`): regulator tokens the cloud derived for the receipt (e.g. `eu_ai_act`, `dora`). Same gap as above.
-- Inner anchor `type` admits the canonical `"opentimestamps"`, the legacy `"ots"` alias (still emitted by the cloud `/verify/example` fixture from PR #332), and `"rfc3161"`. The SDK does not silently rewrite; callers should normalize `"ots"` to `"opentimestamps"` if they compare against the canonical cloud surface.
+- Inner anchor `type` admits the canonical `"opentimestamps"`, the `"ots"` alias (still emitted by the cloud `/verify/example` fixture from PR #332), and `"rfc3161"`. The SDK does not silently rewrite; callers should normalize `"ots"` to `"opentimestamps"` if they compare against the canonical cloud surface.
 
 ## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
 
@@ -40,10 +40,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Python 0.4.0 / TypeScript 0.3.0] - 2026-05-08
 
 ### Changed
-- **Wire shape**: under `compliance_mode`, the cloud emits the three-key Compliance Receipts envelope `{payload, signature, anchors}` plus pure metadata. The SDKs expose `payload`, `signature` (polymorphic: string in legacy, `{alg, kid, sig}` object form under compliance_mode), and `anchors` directly on `SignatureResponse`.
+- **Wire shape**: under `compliance_mode`, the cloud emits the three-key Compliance Receipts envelope `{payload, signature, anchors}` plus pure metadata. The SDKs expose `payload`, `signature` (polymorphic: string in non-compliance, `{alg, kid, sig}` object form under compliance_mode), and `anchors` directly on `SignatureResponse`.
 - **Removed `signatureObject`**: the polymorphic `signature` field carries the same value. Use `response.signature_envelope()` (Python) or `signatureEnvelope(response)` (TypeScript) for the dict form.
 - **Removed flat-field projection fallbacks**: the projection helpers no longer rebuild `{alg, kid, sig}` from `algorithm` + `signature_b64`. Older receipts return None / undefined from the helpers.
-- **Anchor entries carry `commit_hash`** sourced from the cloud's `anchor_commit_hash` column. Field is `None` on legacy rows.
+- **Anchor entries carry `commit_hash`** sourced from the cloud's `anchor_commit_hash` column. Field is `None` on rows that lack the column.
 
 ## [Python 0.3.13 / TypeScript 0.2.11] - 2026-05-08
 
@@ -54,7 +54,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Python 0.3.12 / TypeScript 0.2.10] - 2026-05-07
 
 ### Changed
-- Both SDKs accept the cloud's wire-shape-aligned `payload_digest`. The legacy `"sha256:<hex>"` string keeps parsing; the new upstream object form `{hash, size?, preview?}` (cloud 0.2.13+) parses too. Type widened on `SignatureResponse.payload_digest` (Python) and `SignActionOptions.payloadDigest` (TypeScript) to `str | dict | None` and `string | { hash; size?; preview? }` respectively.
+- Both SDKs accept the cloud's wire-shape-aligned `payload_digest`. The plain `"sha256:<hex>"` string keeps parsing; the new upstream object form `{hash, size?, preview?}` (cloud 0.2.13+) parses too. Type widened on `SignatureResponse.payload_digest` (Python) and `SignActionOptions.payloadDigest` (TypeScript) to `str | dict | None` and `string | { hash; size?; preview? }` respectively.
 - No callsite or behaviour change beyond the type widening. Receipts issued by older clouds and receipts issued by 0.2.13+ both verify on the same path.
 
 ## [Python 0.3.11 / TypeScript 0.2.9] - 2026-05-06
@@ -65,7 +65,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ### Added
 - `DORA_INCIDENT_CLASS_NAMESPACE` (Python `frozenset`, TypeScript `as const` tuple plus `DoraIncidentClass` union) exposing the six canonical values: `cybersecurity_related`, `process_failure`, `system_failure`, `external_event`, `payment_related`, `other`.
 - Cloud accepts the canonical 6-value vocabulary only; SDK validates client-side before the HTTP roundtrip.
-- `sign` / `agent.sign` raise `ValueError` (Python) or `AsqavError` (TypeScript) before any HTTP call when `incident_class` is neither canonical nor a known legacy alias, matching how `RECEIPT_TYPE_NAMESPACE` is policed.
+- `sign` / `agent.sign` raise `ValueError` (Python) or `AsqavError` (TypeScript) before any HTTP call when `incident_class` is outside the canonical six, matching how `RECEIPT_TYPE_NAMESPACE` is policed.
 
 ### Changed
 - CLI `--incident-class` help text and `python/docs/CLI.md` flag table replaced the "DORA ITS vocabulary" gloss with the canonical six values and the JC 2024-33 citation.
@@ -101,7 +101,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Python 0.3.6] - 2026-05-02
 
 ### Added
-- Python CLI gap-fill. New commands wrap previously REST-only endpoints:
+- Python CLI gap-fill. New commands wrap the REST-only endpoints:
   - `asqav agents revoke <agent_id> [--reason X]` (Pro)
   - `asqav sessions list [--limit N] [--status X] [--agent ID]`
   - `asqav sessions end <session_id> [--status completed]`
