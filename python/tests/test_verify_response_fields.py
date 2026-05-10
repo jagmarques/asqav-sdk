@@ -2,14 +2,11 @@
 
 The cloud's `VerificationResponse` (in `asqav_cloud/api/routes/verify.py`)
 emits the IETF projection (`signature_envelope`, `anchors`,
-`algorithm_registry_version`, `verifier_signature`), the Bitcoin anchor
-block, the receipt `type` discriminator, and the `VerificationDetail`
-sub-axes (`anchor_valid_ots`, `anchor_valid_rfc3161`,
-`policy_digest_resolved`, `duplicate_emission_candidate`,
-`regimes_satisfied`). These tests pin that the SDK parser populates the
-dataclasses with all of them, and that the inner anchor `type` field
-admits both the canonical `"opentimestamps"` and the alias `"ots"`
-alias the cloud `/verify/example` fixture still emits.
+`algorithm_registry_version`), the Bitcoin anchor block, the receipt
+`type` discriminator, and the `VerificationDetail` sub-axes
+(`anchor_valid_ots`, `anchor_valid_rfc3161`, `policy_digest_resolved`,
+`duplicate_emission_candidate`, `regimes_satisfied`). These tests pin
+that the SDK parser populates the dataclasses with all of them.
 """
 
 from __future__ import annotations
@@ -71,11 +68,6 @@ def _full_cloud_payload() -> dict:
             {"type": "opentimestamps", "value": "b3RzZmFrZQ=="},
         ],
         "algorithm_registry_version": "2026-05",
-        "verifier_signature": {
-            "alg": "ML-DSA-65",
-            "sig": "dmVyaWZpZXJzaWc=",
-            "kid": "verifier_kid_full",
-        },
     }
 
 
@@ -105,11 +97,6 @@ def test_verification_response_exposes_ietf_projection_fields() -> None:
     assert response.anchors[0]["type"] == "rfc3161"
     assert response.anchors[1]["type"] == "opentimestamps"
     assert response.algorithm_registry_version == "2026-05"
-    assert response.verifier_signature == {
-        "alg": "ML-DSA-65",
-        "sig": "dmVyaWZpZXJzaWc=",
-        "kid": "verifier_kid_full",
-    }
 
 
 def test_verification_detail_exposes_extra_sub_axes() -> None:
@@ -151,7 +138,6 @@ def test_minimal_response_leaves_new_fields_none() -> None:
     assert response.signature_envelope is None
     assert response.anchors is None
     assert response.algorithm_registry_version is None
-    assert response.verifier_signature is None
     assert response.verification_detail is None
 
 
@@ -168,55 +154,21 @@ def test_regimes_satisfied_present() -> None:
     assert detail.regimes_satisfied == ["eu_ai_act", "dora"]
 
 
-def test_verifier_signature_present_or_null() -> None:
-    """`verifier_signature` is the verifier's `{alg, sig, kid}` block.
-    Populated on compliance-mode receipts, None otherwise. Cloud PR #337
-    added this; pin both branches."""
-    payload = _full_cloud_payload()
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
-        response = verify_signature("sig_test_full")
-
-    assert response.verifier_signature == {
-        "alg": "ML-DSA-65",
-        "sig": "dmVyaWZpZXJzaWc=",
-        "kid": "verifier_kid_full",
-    }
-
-    minimal = {
-        "signature_id": "sig_no_vs",
-        "agent_id": "agent_no_vs",
-        "agent_name": "no-vs",
-        "action_id": "act",
-        "action_type": "x.y",
-        "payload": None,
-        "signature": "ZmFrZQ==",
-        "algorithm": "Ed25519",
-        "signed_at": "2026-05-10T12:00:00+00:00",
-        "verified": True,
-        "verification_url": "https://verify.example/sig_no_vs",
-    }
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(minimal)):
-        response = verify_signature("sig_no_vs")
-    assert response.verifier_signature is None
-
-
-def test_anchor_type_accepts_opentimestamps_and_ots() -> None:
+def test_anchor_type_accepts_opentimestamps_and_rfc3161() -> None:
     """The cloud `_project_anchors` emits `type: "opentimestamps"`
-    (canonical) but the `/verify/example` fixture still emits
-    `type: "ots"` (alias). The SDK type stub admits both literals
-    and the parser does not silently rewrite."""
+    (canonical) and `type: "rfc3161"`. The SDK parser does not silently
+    rewrite."""
     payload = _full_cloud_payload()
     payload["anchors"] = [
         {"type": "rfc3161", "value": "ZmFrZQ=="},
         {"type": "opentimestamps", "value": "Y2Fub25pY2Fs"},
-        {"type": "ots", "value": "bGVnYWN5"},
     ]
     with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
         response = verify_signature("sig_test_full")
 
     assert response.anchors is not None
     types = [a["type"] for a in response.anchors]
-    assert types == ["rfc3161", "opentimestamps", "ots"]
+    assert types == ["rfc3161", "opentimestamps"]
 
 
 def test_dataclass_defaults_construct_without_new_fields() -> None:
@@ -253,4 +205,3 @@ def test_dataclass_defaults_construct_without_new_fields() -> None:
     assert response.signature_envelope is None
     assert response.anchors is None
     assert response.algorithm_registry_version is None
-    assert response.verifier_signature is None
