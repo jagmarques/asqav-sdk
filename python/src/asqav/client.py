@@ -430,9 +430,13 @@ class VerificationDetail:
     The IETF profile sub-axes (`signed_at_skew_seconds`, `chain_valid`,
     `anchor_valid_ots`, `anchor_valid_rfc3161`, `anchor_status_ots`,
     `anchor_status_rfc3161`, `missing_fields`, `policy_digest_resolved`,
-    `duplicate_emission_candidate`) populate only when the cloud emits
-    them on a compliance-mode receipt; non-compliance-mode receipts leave
-    them None.
+    `duplicate_emission_candidate`, `regimes_satisfied`) populate only
+    when the cloud emits them on a compliance-mode receipt;
+    non-compliance-mode receipts leave them None / empty.
+
+    `regimes_satisfied` is the regulator-token list the cloud derived for
+    the receipt (e.g. `eu_ai_act`, `dora`); empty list when the cloud
+    surface omits the field.
     """
 
     signer_key_match: bool
@@ -449,6 +453,7 @@ class VerificationDetail:
     missing_fields: list[str] | None = None
     policy_digest_resolved: bool | None = None
     duplicate_emission_candidate: bool | None = None
+    regimes_satisfied: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -474,6 +479,14 @@ class VerificationResponse:
     projection (`{alg, kid}` and the cloud anchors list); both are None
     on non-compliance-mode receipts. `algorithm_registry_version` is the
     registry version in force at issuance.
+
+    `verifier_signature` is the verifier's `{alg, sig, kid}` block over
+    the verification outcome (cloud emits this on compliance-mode
+    receipts so a downstream regulator can re-check the verification
+    decision without re-running the verifier). None on non-compliance
+    or pre-migration receipts. Inner anchor entries on `anchors` carry a
+    `type` of `"opentimestamps"` (canonical), `"ots"` (legacy alias),
+    or `"rfc3161"`.
     """
 
     signature_id: str
@@ -493,6 +506,7 @@ class VerificationResponse:
     signature_envelope: dict[str, str] | None = None
     anchors: list[dict[str, Any]] | None = None
     algorithm_registry_version: str | None = None
+    verifier_signature: dict[str, str] | None = None
 
 
 @dataclass
@@ -2306,6 +2320,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
             missing_fields=detail_raw.get("missing_fields"),
             policy_digest_resolved=detail_raw.get("policy_digest_resolved"),
             duplicate_emission_candidate=detail_raw.get("duplicate_emission_candidate"),
+            regimes_satisfied=list(detail_raw.get("regimes_satisfied") or []),
         )
         if isinstance(detail_raw, dict)
         else None
@@ -2338,6 +2353,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         signature_envelope=data.get("signature_envelope"),
         anchors=data.get("anchors"),
         algorithm_registry_version=data.get("algorithm_registry_version"),
+        verifier_signature=data.get("verifier_signature"),
     )
 
 

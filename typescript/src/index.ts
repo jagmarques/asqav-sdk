@@ -418,9 +418,9 @@ export interface SessionResponse {
  * The IETF profile sub-axes (`chainValid`, `anchorValidOts`,
  * `anchorValidRfc3161`, `anchorStatusOts`, `anchorStatusRfc3161`,
  * `signedAtSkewSeconds`, `missingFields`, `policyDigestResolved`,
- * `duplicateEmissionCandidate`) populate only when the cloud emits
- * them on a compliance-mode receipt; non-compliance-mode receipts
- * leave them undefined. */
+ * `duplicateEmissionCandidate`, `regimesSatisfied`) populate only
+ * when the cloud emits them on a compliance-mode receipt;
+ * non-compliance-mode receipts leave them undefined. */
 export interface VerificationDetail {
   signerKeyMatch: boolean;
   signatureValid: boolean;
@@ -467,6 +467,10 @@ export interface VerificationDetail {
    * (action_ref, issuer_id) pair; reporting flag, not a verification
    * downgrade. */
   duplicateEmissionCandidate?: boolean | string;
+  /** Regulator tokens the cloud derived for the receipt (e.g.
+   * `eu_ai_act`, `dora`). Empty / undefined on non-compliance-mode
+   * receipts. */
+  regimesSatisfied?: string[];
 }
 
 /** Bitcoin anchor state on a verification response. `status` vocabulary:
@@ -500,11 +504,25 @@ export interface VerificationResponse {
    * non-compliance-mode receipts. */
   signatureEnvelope?: { alg: string; kid: string } & Record<string, string>;
   /** IETF anchors projection: list of `{type, value, ...}` per anchor.
-   * Undefined on non-compliance-mode receipts. */
-  anchors?: Array<{ type: string; value: string } & Record<string, unknown>>;
+   * `type` admits the canonical `"opentimestamps"` and the legacy
+   * `"ots"` alias plus `"rfc3161"`; the SDK never silently rewrites,
+   * callers should normalize `"ots"` to `"opentimestamps"` if they
+   * compare against the cloud surface. Undefined on non-compliance-mode
+   * receipts. */
+  anchors?: Array<
+    {
+      type: "opentimestamps" | "ots" | "rfc3161" | string;
+      value: string;
+    } & Record<string, unknown>
+  >;
   /** Algorithm registry version in force at issuance. Undefined on
    * pre-migration rows. */
   algorithmRegistryVersion?: string;
+  /** Verifier's `{alg, sig, kid}` block over the verification outcome.
+   * Cloud emits this on compliance-mode receipts so a downstream
+   * regulator can re-check the verification decision without re-running
+   * the verifier. Undefined on non-compliance / pre-migration receipts. */
+  verifierSignature?: { alg: string; sig: string; kid: string };
 }
 
 export interface AppliedAttestationOptions {
@@ -1163,6 +1181,7 @@ export async function verifySignature(signatureId: string): Promise<Verification
       missing_fields?: string[];
       policy_digest_resolved?: boolean;
       duplicate_emission_candidate?: boolean | string;
+      regimes_satisfied?: string[];
     };
     type?: string;
     bitcoin_anchor?: {
@@ -1171,8 +1190,14 @@ export async function verifySignature(signatureId: string): Promise<Verification
       bitcoin_block?: number | null;
     };
     signature_envelope?: { alg: string; kid: string } & Record<string, string>;
-    anchors?: Array<{ type: string; value: string } & Record<string, unknown>>;
+    anchors?: Array<
+      {
+        type: "opentimestamps" | "ots" | "rfc3161" | string;
+        value: string;
+      } & Record<string, unknown>
+    >;
     algorithm_registry_version?: string;
+    verifier_signature?: { alg: string; sig: string; kid: string };
   }>("GET", `/verify/${signatureId}`);
 
   return {
@@ -1203,6 +1228,7 @@ export async function verifySignature(signatureId: string): Promise<Verification
           missingFields: data.verification_detail.missing_fields,
           policyDigestResolved: data.verification_detail.policy_digest_resolved,
           duplicateEmissionCandidate: data.verification_detail.duplicate_emission_candidate,
+          regimesSatisfied: data.verification_detail.regimes_satisfied,
         }
       : undefined,
     type: data.type,
@@ -1216,6 +1242,7 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signatureEnvelope: data.signature_envelope,
     anchors: data.anchors,
     algorithmRegistryVersion: data.algorithm_registry_version,
+    verifierSignature: data.verifier_signature,
   };
 }
 
