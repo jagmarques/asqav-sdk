@@ -20,7 +20,6 @@ from asqav.keys import (
     generate_local_keypair,
 )
 
-
 # ---------------------------------------------------------------------------
 # Constants and namespace
 # ---------------------------------------------------------------------------
@@ -28,7 +27,7 @@ from asqav.keys import (
 
 def test_supported_algorithms_set() -> None:
     assert SUPPORTED_ALGORITHMS == frozenset(
-        {ALGORITHM_ML_DSA_65, ALGORITHM_ED25519, ALGORITHM_ES256}
+        {ALGORITHM_ED25519, ALGORITHM_ES256}
     )
 
 
@@ -56,12 +55,17 @@ def test_re_exports_at_package_root() -> None:
 def test_check_algorithm_normalises_case() -> None:
     assert _check_algorithm("ED25519") == "ed25519"
     assert _check_algorithm("ES256") == "es256"
-    assert _check_algorithm("ML-DSA-65") == "ml-dsa-65"
 
 
 def test_check_algorithm_rejects_unknown() -> None:
     with pytest.raises(ValueError, match="unsupported_algorithm"):
         _check_algorithm("rsa")
+
+
+def test_check_algorithm_rejects_ml_dsa_65() -> None:
+    """ml-dsa-65 keypair generation is server-side only."""
+    with pytest.raises(ValueError, match="unsupported_algorithm"):
+        _check_algorithm("ml-dsa-65")
 
 
 # ---------------------------------------------------------------------------
@@ -149,21 +153,22 @@ def test_es256_signs_and_verifies() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ML-DSA-65 default
+# ML-DSA-65 is server-side only
 # ---------------------------------------------------------------------------
 
 
-def test_ml_dsa_65_local_generation_routes_to_cloud() -> None:
-    """Local ML-DSA-65 generation is not implemented; SDK points the
-    caller to `Agent.create()` so the cloud generates the keypair."""
-    with pytest.raises(NotImplementedError, match="server-side"):
-        generate_local_keypair("ml-dsa-65")
+def test_ml_dsa_65_local_generation_rejected() -> None:
+    """Local ML-DSA-65 generation is not supported; the cloud KMS mints
+    these keys. SDK rejects the request rather than shipping a stub."""
+    with pytest.raises(ValueError, match="unsupported_algorithm"):
+        generate_local_keypair("ml-dsa-65")  # type: ignore[arg-type]
 
 
-def test_default_algorithm_is_ml_dsa_65() -> None:
-    """`generate_local_keypair()` with no args defaults to ML-DSA-65."""
-    with pytest.raises(NotImplementedError):
-        generate_local_keypair()
+def test_default_algorithm_is_ed25519() -> None:
+    """`generate_local_keypair()` with no args defaults to ed25519."""
+    pytest.importorskip("cryptography")
+    kp = generate_local_keypair()
+    assert kp.algorithm == "ed25519"
 
 
 # ---------------------------------------------------------------------------
