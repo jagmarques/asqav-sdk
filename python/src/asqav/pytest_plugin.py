@@ -38,7 +38,7 @@ class _PluginState:
     enabled: bool = False
     agent_name: str = "test-runner"
     output_path: str = "audit-bundle.json"
-    framework: str = "soc2"
+    framework: str = "eu_ai_act"
     results: list[CapturedOutcome] = field(default_factory=list)
     signatures: list[Any] = field(default_factory=list)
     agent: Any = None
@@ -70,8 +70,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption(
         "--asqav-framework",
         action="store",
-        default="soc2",
-        help="Compliance framework key (default: soc2). See `asqav compliance frameworks`.",
+        default="eu_ai_act",
+        help="Compliance framework key (default: eu_ai_act). See `asqav compliance frameworks`.",
     )
 
 
@@ -162,7 +162,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
 
 def make_bundle_from_report(
-    signatures: list[Any], *, framework: str = "soc2"
+    signatures: list[Any], *, framework: str = "eu_ai_act"
 ) -> Any:
     """Build a ComplianceBundle from a list of pre-signed test results.
 
