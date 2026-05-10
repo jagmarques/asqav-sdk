@@ -133,9 +133,7 @@ function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-// ---------------------------------------------------------------------------
-// Legacy v1 chain shape (kept for one release).
-// ---------------------------------------------------------------------------
+// === Pre-IETF v1 chain shape (retained for one release) ===
 
 interface LegacyMinimalRecord {
   signature_id?: string;

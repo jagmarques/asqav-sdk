@@ -38,12 +38,7 @@
 
 import type { Agent } from "../index.js";
 
-// ---------------------------------------------------------------------------
-// Minimal local copies of the @opentelemetry/api types we depend on. We
-// avoid a hard dep so users without OTel installed can still import this
-// module. These names + shapes match @opentelemetry/api 1.x and the
-// noopTracer in packages/otel/src/noop-tracer.ts.
-// ---------------------------------------------------------------------------
+// Local copies of @opentelemetry/api 1.x types so users without OTel can still import this.
 
 type AttributeValue =
   | string
@@ -92,9 +87,7 @@ export interface Tracer {
   ): unknown;
 }
 
-// ---------------------------------------------------------------------------
-// Action-type mapping
-// ---------------------------------------------------------------------------
+// === Action-type mapping ===
 
 /**
  * Map a Vercel AI SDK span name to an asqav action_type.
@@ -133,9 +126,7 @@ export function mapSpanNameToActionType(name: string): string {
   return name;
 }
 
-// ---------------------------------------------------------------------------
-// Options
-// ---------------------------------------------------------------------------
+// === Options ===
 
 export interface CreateAsqavExporterOptions {
   /**
@@ -159,9 +150,7 @@ export interface CreateAsqavExporterOptions {
   onError?: (err: unknown, span: { name: string; attributes: Attributes }) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Implementation
-// ---------------------------------------------------------------------------
+// === Implementation ===
 
 const noop = (): void => undefined;
 
