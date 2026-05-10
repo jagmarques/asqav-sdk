@@ -35,9 +35,7 @@ from .client import Agent, SessionResponse, SignatureResponse, get_agent
 F = TypeVar("F")
 
 
-# ---------------------------------------------------------------------------
-# Session context manager
-# ---------------------------------------------------------------------------
+# === Session context manager ===
 
 
 class Session:
@@ -126,9 +124,7 @@ async def async_session() -> AsyncGenerator[Session, None]:
         agent.end_session(status="completed")
 
 
-# ---------------------------------------------------------------------------
-# sign decorator
-# ---------------------------------------------------------------------------
+# === sign decorator ===
 
 
 def sign(func: Any = None, *, action_type: str | None = None) -> Any:
