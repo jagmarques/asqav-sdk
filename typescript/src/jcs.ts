@@ -29,7 +29,7 @@
  * is the named landing for the IETF profile callers.
  */
 
-export type JsonValue =
+type JsonValue =
   | null
   | boolean
   | number
