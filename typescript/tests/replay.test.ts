@@ -111,7 +111,7 @@ describe("verifyChain (v2, IETF profile)", () => {
     expect(result.chainIntegrity).toBe(true);
   });
 
-  it("throws when given an unsupported option (e.g. removed legacy flag)", () => {
+  it("throws when given an unsupported option", () => {
     const env = {
       signature_id: "sig_1",
       action_type: "api:call",
@@ -119,7 +119,7 @@ describe("verifyChain (v2, IETF profile)", () => {
       previousReceiptHash: FIRST_RECEIPT_SEED,
     };
     expect(() =>
-      verifyChain([{ signedEnvelope: env }], { legacy: true } as never),
+      verifyChain([{ signedEnvelope: env }], { unknownFlag: true } as never),
     ).toThrow(TypeError);
   });
 });
