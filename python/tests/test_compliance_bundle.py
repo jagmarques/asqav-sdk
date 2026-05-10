@@ -100,28 +100,28 @@ class TestMerkleRoot:
 class TestExportBundle:
     def test_with_signature_responses(self):
         sigs = [_make_sig_response(signature_id=f"sid_{i}") for i in range(3)]
-        bundle = export_bundle(sigs, framework="eu_ai_act_art12")
+        bundle = export_bundle(sigs, framework="eu_ai_act")
 
-        assert bundle.framework == "eu_ai_act_art12"
+        assert bundle.framework == "eu_ai_act"
         assert bundle.receipt_count == 3
         assert len(bundle.receipts) == 3
         assert bundle.merkle_root
-        assert bundle.framework_metadata == FRAMEWORKS["eu_ai_act_art12"]
+        assert bundle.framework_metadata == FRAMEWORKS["eu_ai_act"]
 
     def test_with_signed_action_responses(self):
         actions = [_make_signed_action(signature_id=f"sid_{i}") for i in range(2)]
-        bundle = export_bundle(actions, framework="soc2")
+        bundle = export_bundle(actions, framework="nist_ai_rmf")
 
-        assert bundle.framework == "soc2"
+        assert bundle.framework == "nist_ai_rmf"
         assert bundle.receipt_count == 2
-        assert bundle.framework_metadata["name"] == "SOC 2 Type II"
+        assert bundle.framework_metadata["name"] == "NIST AI RMF"
 
     def test_with_dicts(self):
         dicts = [
             {"signature_id": "sid_d1", "action": "test"},
             {"signature_id": "sid_d2", "action": "test2"},
         ]
-        bundle = export_bundle(dicts, framework="dora_ict")
+        bundle = export_bundle(dicts, framework="dora")
         assert bundle.receipt_count == 2
         assert bundle.receipts[0]["signature_id"] == "sid_d1"
 
@@ -142,7 +142,7 @@ class TestExportBundle:
             assert "nonexistent" in str(e)
 
     def test_empty_signatures(self):
-        bundle = export_bundle([], framework="eu_ai_act_art14")
+        bundle = export_bundle([], framework="hipaa_security")
         assert bundle.receipt_count == 0
         assert len(bundle.receipts) == 0
         assert bundle.merkle_root == hashlib.sha256(b"").hexdigest()
@@ -168,7 +168,7 @@ class TestExportBundle:
 
     def test_default_framework(self):
         bundle = export_bundle([_make_sig_response()])
-        assert bundle.framework == "eu_ai_act_art12"
+        assert bundle.framework == "eu_ai_act"
 
     def test_all_frameworks_valid(self):
         for fw_key in FRAMEWORKS:
@@ -186,7 +186,7 @@ class TestSerialization:
         bundle = export_bundle([_make_sig_response()])
         d = bundle.to_dict()
         assert isinstance(d, dict)
-        assert d["framework"] == "eu_ai_act_art12"
+        assert d["framework"] == "eu_ai_act"
         assert d["receipt_count"] == 1
         assert "merkle_root" in d
 
@@ -194,7 +194,7 @@ class TestSerialization:
         bundle = export_bundle([_make_sig_response()])
         j = bundle.to_json()
         parsed = json.loads(j)
-        assert parsed["framework"] == "eu_ai_act_art12"
+        assert parsed["framework"] == "eu_ai_act"
         assert parsed["receipt_count"] == 1
 
     def test_to_file(self):
@@ -207,7 +207,7 @@ class TestSerialization:
             bundle.to_file(path)
             with open(path) as f:
                 parsed = json.load(f)
-            assert parsed["framework"] == "eu_ai_act_art12"
+            assert parsed["framework"] == "eu_ai_act"
             assert parsed["receipt_count"] == 2
             assert parsed["merkle_root"] == bundle.merkle_root
         finally:
@@ -216,7 +216,7 @@ class TestSerialization:
     def test_to_json_roundtrip(self):
         bundle = export_bundle(
             [_make_sig_response(), _make_signed_action()],
-            framework="dora_ict",
+            framework="dora",
         )
         j = bundle.to_json()
         parsed = json.loads(j)
