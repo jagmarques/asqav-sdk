@@ -1648,7 +1648,7 @@ def compliance_frameworks() -> None:
 def compliance_export(
     session: str = typer.Option(..., "--session", help="Session ID to bundle signatures from."),
     framework: str = typer.Option(
-        "eu_ai_act_art12", "--framework", help="Compliance framework key."
+        "eu_ai_act", "--framework", help="Compliance framework key."
     ),
     output: str = typer.Option(..., "--output", "-o", help="File to write the bundle JSON to."),
 ) -> None:

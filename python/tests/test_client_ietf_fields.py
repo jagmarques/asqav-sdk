@@ -173,7 +173,12 @@ def test_compliance_mode_caller_supplied_action_ref_wins() -> None:
 
 
 def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
-    """Without compliance_mode the body shape is exactly the legacy shape."""
+    """compliance_mode is now on by default, so the body carries the
+    Compliance Receipts fields without the caller having to opt in.
+
+    The legacy "no extra fields" shape is preserved by passing
+    ``compliance_mode=False`` explicitly.
+    """
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -181,7 +186,7 @@ def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
         return _ok_response()
 
     with patch("asqav.client._post", side_effect=fake_post):
-        _agent().sign("api:call", {"k": "v"})
+        _agent().sign("api:call", {"k": "v"}, compliance_mode=False)
 
     body = captured["body"]
     for k in (

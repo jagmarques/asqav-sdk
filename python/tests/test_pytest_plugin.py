@@ -34,7 +34,7 @@ def _config(**opts) -> MagicMock:  # type: ignore[no-untyped-def]
         "--asqav": False,
         "--asqav-agent": "test-runner",
         "--asqav-output": "audit-bundle.json",
-        "--asqav-framework": "soc2",
+        "--asqav-framework": "eu_ai_act",
     }
     defaults.update(opts)
     cfg.getoption.side_effect = lambda key: defaults[key]
@@ -62,14 +62,14 @@ def test_configure_enables_plugin(mock_init: MagicMock, mock_create: MagicMock) 
             "--asqav": True,
             "--asqav-agent": "ci-runner",
             "--asqav-output": "out.json",
-            "--asqav-framework": "soc2",
+            "--asqav-framework": "eu_ai_act",
         }))
 
     state = _get_state_for_tests()
     assert state.enabled is True
     assert state.agent_name == "ci-runner"
     assert state.output_path == "out.json"
-    assert state.framework == "soc2"
+    assert state.framework == "eu_ai_act"
     mock_create.assert_called_once_with("ci-runner")
 
 
@@ -187,11 +187,11 @@ def test_sessionfinish_writes_bundle(mock_export: MagicMock, tmp_path) -> None:
     state.enabled = True
     state.signatures = [MagicMock(), MagicMock()]
     state.output_path = str(tmp_path / "out.json")
-    state.framework = "soc2"
+    state.framework = "eu_ai_act"
 
     pytest_sessionfinish(MagicMock(), 0)
 
-    mock_export.assert_called_once_with(state.signatures, framework="soc2")
+    mock_export.assert_called_once_with(state.signatures, framework="eu_ai_act")
     mock_bundle.to_file.assert_called_once_with(state.output_path)
 
 
@@ -215,6 +215,6 @@ def test_make_bundle_from_report(mock_export: MagicMock) -> None:
     """make_bundle_from_report wraps export_bundle and forwards the framework."""
     mock_export.return_value = MagicMock(receipt_count=3)
     sigs = [MagicMock(), MagicMock(), MagicMock()]
-    bundle = make_bundle_from_report(sigs, framework="dora_ict")
-    mock_export.assert_called_once_with(sigs, framework="dora_ict")
+    bundle = make_bundle_from_report(sigs, framework="dora")
+    mock_export.assert_called_once_with(sigs, framework="dora")
     assert bundle.receipt_count == 3
