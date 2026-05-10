@@ -16,7 +16,7 @@
 
 import { createHash, createHmac } from "node:crypto";
 
-export type JsonValue =
+type JsonValue =
   | null
   | boolean
   | number
