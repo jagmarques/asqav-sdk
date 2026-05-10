@@ -27,9 +27,7 @@ import webbrowser
 from dataclasses import dataclass, field
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Pre-loaded scenarios
-# ---------------------------------------------------------------------------
+# === Pre-loaded scenarios ===
 
 SCENARIOS: list[dict[str, Any]] = [
     {
@@ -134,9 +132,7 @@ SCENARIOS: list[dict[str, Any]] = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Local HMAC-signed receipt (no ML-DSA dep — keeps demo zero-install)
-# ---------------------------------------------------------------------------
+# === Local HMAC-signed receipt (no ML-DSA dep, keeps demo zero-install) ===
 
 @dataclass
 class DemoState:
@@ -175,9 +171,7 @@ def _verify(state: DemoState, receipt: dict[str, Any]) -> bool:
     return hmac.compare_digest(base64.b64decode(b64sig), expected)
 
 
-# ---------------------------------------------------------------------------
-# HTML (bundled — no external assets, no CDN)
-# ---------------------------------------------------------------------------
+# === HTML (bundled, no external assets, no CDN) ===
 
 HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
@@ -346,9 +340,7 @@ load();
 """
 
 
-# ---------------------------------------------------------------------------
-# HTTP server
-# ---------------------------------------------------------------------------
+# === HTTP server ===
 
 class DemoHandler(http.server.BaseHTTPRequestHandler):
     state: DemoState
