@@ -111,14 +111,15 @@ describe("verifyChain (v2, IETF profile)", () => {
     expect(result.chainIntegrity).toBe(true);
   });
 
-  it("legacy: true uses the v1 chain shape", () => {
+  it("throws when given an unsupported option (e.g. removed legacy flag)", () => {
     const env = {
       signature_id: "sig_1",
       action_type: "api:call",
       timestamp: 1,
-      previousReceiptHash: "",
+      previousReceiptHash: FIRST_RECEIPT_SEED,
     };
-    const result = verifyChain([{ signedEnvelope: env }], { legacy: true });
-    expect(result.chainIntegrity).toBe(true);
+    expect(() =>
+      verifyChain([{ signedEnvelope: env }], { legacy: true } as never),
+    ).toThrow(TypeError);
   });
 });

@@ -31,7 +31,7 @@ function bareResponse(extra: Partial<SignatureResponse> = {}): SignatureResponse
 }
 
 describe("signatureEnvelope()", () => {
-  it("returns undefined for legacy receipts (string signature)", () => {
+  it("returns undefined for flat-shape receipts (string signature)", () => {
     expect(signatureEnvelope(bareResponse())).toBeUndefined();
   });
 
@@ -59,7 +59,7 @@ describe("signatureEnvelope()", () => {
     expect(out).toEqual({ alg: "Ed25519", kid: "k1", sig: "s" });
   });
 
-  it("free helper returns undefined for legacy string signature", () => {
+  it("free helper returns undefined for flat string signature", () => {
     expect(
       signatureEnvelopeFromResponse({ signature: "ZmFrZQ==" }),
     ).toBeUndefined();
@@ -67,7 +67,7 @@ describe("signatureEnvelope()", () => {
 });
 
 describe("anchors()", () => {
-  it("returns undefined for legacy receipts", () => {
+  it("returns undefined for flat-shape receipts", () => {
     expect(anchors(bareResponse())).toBeUndefined();
   });
 
