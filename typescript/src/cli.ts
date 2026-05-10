@@ -105,17 +105,13 @@ function positional(args: string[]): string[] {
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// Commands
-// ---------------------------------------------------------------------------
+// === Commands ===
 
 async function cmdVerify(args: string[]): Promise<void> {
   const [sigId] = positional(args);
   if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
   const output = parseFlag(args, "output") ?? "text";
-  // Verify is public (no auth required) but the underlying request
-  // helper short-circuits on missing config; init with whatever key is
-  // available so the public endpoint still works.
+  // Verify is public, but `request` short-circuits on missing config; init with any key.
   init({ apiKey: process.env.ASQAV_API_KEY ?? "anon" });
   try {
     const r = await verifySignature(sigId);
@@ -392,9 +388,7 @@ async function cmdComplianceExport(args: string[]): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// IETF Compliance Receipts profile commands
-// ---------------------------------------------------------------------------
+// === IETF Compliance Receipts profile commands ===
 
 async function readJsonInput(value: string): Promise<unknown> {
   if (value === "-") {
@@ -759,9 +753,7 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Help / usage
-// ---------------------------------------------------------------------------
+// === Help / usage ===
 
 function printHelp(): void {
   process.stdout.write(`asqav - AI agent governance CLI (TypeScript build)
@@ -796,9 +788,7 @@ Set ASQAV_API_KEY to authenticate. Get a key at https://asqav.com.
 `);
 }
 
-// ---------------------------------------------------------------------------
-// Dispatcher
-// ---------------------------------------------------------------------------
+// === Dispatcher ===
 
 export async function runCli(argv: string[]): Promise<void> {
   const [first, ...rest] = argv;

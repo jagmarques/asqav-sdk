@@ -310,9 +310,7 @@ def sign(
         agent._session_id = session_id  # type: ignore[attr-defined]
 
     if algorithm and algorithm != getattr(agent, "algorithm", None):
-        # The receipt-signing algorithm is bound to the agent server-side.
-        # The CLI surfaces the requested value so callers can detect a
-        # mismatch between intent and what the agent will actually use.
+        # Algorithm is bound server-side; surface mismatch so callers see intent vs actual.
         print(
             f"Warning: --algorithm={algorithm} differs from agent.algorithm="
             f"{agent.algorithm}. The cloud signs under the agent's algorithm."
@@ -540,9 +538,7 @@ def agents_revoke(
     print(f"Revoked {agent_id}")
 
 
-# ---------------------------------------------------------------------------
-# sessions commands
-# ---------------------------------------------------------------------------
+# === sessions commands ===
 
 
 sessions_app = typer.Typer(
@@ -601,9 +597,7 @@ def sessions_end(
     print(f"Session {session_id} -> {status}")
 
 
-# ---------------------------------------------------------------------------
-# policies commands
-# ---------------------------------------------------------------------------
+# === policies commands ===
 
 
 policies_app = typer.Typer(
@@ -678,9 +672,7 @@ def policies_delete(policy_id: str = typer.Argument(help="Policy ID to delete.")
     print(f"Deleted policy {policy_id}")
 
 
-# ---------------------------------------------------------------------------
-# webhooks commands
-# ---------------------------------------------------------------------------
+# === webhooks commands ===
 
 
 webhooks_app = typer.Typer(
@@ -748,9 +740,7 @@ def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> Non
     print(f"Deleted webhook {webhook_id}")
 
 
-# ---------------------------------------------------------------------------
-# sync command
-# ---------------------------------------------------------------------------
+# === sync command ===
 
 
 def _init_sdk() -> None:
@@ -848,9 +838,7 @@ def sync() -> None:
             print(f"  {err['id']}: {err['error']}")
 
 
-# ---------------------------------------------------------------------------
-# queue subcommands
-# ---------------------------------------------------------------------------
+# === queue subcommands ===
 
 
 @queue_app.command("list")
@@ -883,9 +871,7 @@ def queue_count() -> None:
     print(f"{n} pending items.")
 
 
-# ---------------------------------------------------------------------------
-# quickstart command
-# ---------------------------------------------------------------------------
+# === quickstart command ===
 
 
 @app.command()
@@ -958,9 +944,7 @@ def quickstart() -> None:
     typer.echo("4. Run diagnostics:  asqav doctor")
 
 
-# ---------------------------------------------------------------------------
-# doctor command
-# ---------------------------------------------------------------------------
+# === doctor command ===
 
 
 @app.command()
@@ -1050,9 +1034,7 @@ def queue_clear(
     print(f"Cleared {deleted} items.")
 
 
-# ---------------------------------------------------------------------------
-# preflight command (wraps Agent.preflight)
-# ---------------------------------------------------------------------------
+# === preflight command (wraps Agent.preflight) ===
 
 
 @app.command()
@@ -1101,9 +1083,7 @@ def preflight(
         raise typer.Exit(code=1)
 
 
-# ---------------------------------------------------------------------------
-# budget commands (wraps BudgetTracker)
-# ---------------------------------------------------------------------------
+# === budget commands (wraps BudgetTracker) ===
 
 
 @budget_app.command("check")
@@ -1189,9 +1169,7 @@ def budget_record(
     typer.echo(f"verify_url:   {sig.verification_url}")
 
 
-# ---------------------------------------------------------------------------
-# approve command (wraps approve_action)
-# ---------------------------------------------------------------------------
+# === approve command (wraps approve_action) ===
 
 
 @app.command()
@@ -1232,9 +1210,7 @@ def approve(
         typer.echo(f"{verdict}  {progress} signatures, status={result.status}")
 
 
-# ---------------------------------------------------------------------------
-# compliance commands (wraps export_bundle)
-# ---------------------------------------------------------------------------
+# === compliance commands (wraps export_bundle) ===
 
 
 audit_pack_app = typer.Typer(
@@ -1349,9 +1325,7 @@ def audit_pack_policy(
         print(json_mod.dumps(data, indent=2, default=str))
 
 
-# ---------------------------------------------------------------------------
-# payloads erase command (P4: GDPR right-to-erasure)
-# ---------------------------------------------------------------------------
+# === payloads erase command (P4: GDPR right-to-erasure) ===
 
 
 payloads_app = typer.Typer(
@@ -1397,9 +1371,7 @@ def payloads_erase(
     print("Tombstone written; signature remains cryptographically verifiable.")
 
 
-# ---------------------------------------------------------------------------
-# org settings (compliance_mode_strict)
-# ---------------------------------------------------------------------------
+# === org settings (compliance_mode_strict) ===
 
 
 org_app = typer.Typer(
@@ -1443,9 +1415,7 @@ def org_set_compliance_strict(
         print(f"server confirms: compliance_mode_strict={out['compliance_mode_strict']}")
 
 
-# ---------------------------------------------------------------------------
-# keys generate (local keypair)
-# ---------------------------------------------------------------------------
+# === keys generate (local keypair) ===
 
 
 keys_app = typer.Typer(
@@ -1503,9 +1473,7 @@ def keys_generate(
     sys.stdout.write(kp.public_key_pem.decode("utf-8", errors="replace"))
 
 
-# ---------------------------------------------------------------------------
-# replay verify (IETF chain verification)
-# ---------------------------------------------------------------------------
+# === replay verify (IETF chain verification) ===
 
 
 # Mounted as a top-level command (not a subapp) so the existing
@@ -1582,9 +1550,7 @@ def replay_verify_cmd(
         raise typer.Exit(code=1)
 
 
-# ---------------------------------------------------------------------------
-# migrate run (operator commands)
-# ---------------------------------------------------------------------------
+# === migrate run (operator commands) ===
 
 
 migrate_app = typer.Typer(
@@ -1623,9 +1589,7 @@ def migrate_run(
         print("Error: ASQAV_MAINTENANCE_KEY env var is required for migration commands.")
         raise typer.Exit(code=1)
 
-    # Build a one-off HTTP request that adds the X-Maintenance-Key header.
-    # The shared `_post` helper does not let us inject headers, so we use
-    # the same urllib path as a plain operator script would.
+    # `_post` cannot inject headers, so build a one-off urllib request with X-Maintenance-Key.
     from asqav import init as _init
 
     api_key = os.environ.get("ASQAV_API_KEY")
