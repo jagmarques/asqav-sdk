@@ -43,7 +43,7 @@ class AsqavLettaHook(AsqavAdapter):
     operations. Signs ``memory:read``, ``memory:read.end``,
     ``memory:read.error``, ``memory:write``, ``memory:write.end``, and
     ``memory:write.error`` events on every memory block access. All
-    signing is fail-open — governance failures are logged but never
+    signing is fail-open - governance failures are logged but never
     interrupt client or agent execution.
 
     Args:
