@@ -10,6 +10,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - `VerificationResponse` exposes `type`, `bitcoinAnchor`, `signatureEnvelope`, `anchors`, `algorithmRegistryVersion` (Python: snake_case). Match the cloud `/verify` response per IETF -03 §8.1.
 - `VerificationDetail` exposes `anchorValidOts`, `anchorValidRfc3161`, `policyDigestResolved`, `duplicateEmissionCandidate`.
 - TypeScript validation-label union includes `agent_revoked_before_issuance`.
+- `VerificationResponse.verifierSignature` (Python: `verifier_signature`): verifier's `{alg, sig, kid}` block over the verification outcome. Closes the gap from cloud PR #337 that landed after SDK projection PR #160.
+- `VerificationDetail.regimesSatisfied` (Python: `regimes_satisfied`): regulator tokens the cloud derived for the receipt (e.g. `eu_ai_act`, `dora`). Same gap as above.
+- Inner anchor `type` admits the canonical `"opentimestamps"`, the legacy `"ots"` alias (still emitted by the cloud `/verify/example` fixture from PR #332), and `"rfc3161"`. The SDK does not silently rewrite; callers should normalize `"ots"` to `"opentimestamps"` if they compare against the canonical cloud surface.
 
 ## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
 
