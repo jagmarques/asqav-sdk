@@ -1,5 +1,5 @@
 /**
- * IETF -01 N3 / Section 4.2.1: spec-shape `decision` alias on the TS SDK.
+ * Spec-shape `decision` alias on the TS SDK.
  *
  * Covers the DECISION_MAP, the `mapPolicyDecisionToDecision` helper, and
  * end-to-end propagation of the `decision` token on a fake `agent.sign`

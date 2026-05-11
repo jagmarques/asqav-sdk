@@ -2,7 +2,7 @@
  * Mode resolver for hash-only vs full-payload signing.
  *
  * Mirrors ``asqav._mode`` in the Python SDK exactly: same precedence
- * (explicit > env > URL auto-detection) and same "is this an asqav cloud
+ * (explicit > env > URL auto-detection) and same "is this an Asqav cloud
  * URL?" rule.
  */
 
@@ -11,7 +11,7 @@ export type Mode = "hash-only" | "full-payload";
 const VALID_EXPLICIT = new Set<string>(["auto", "hash-only", "full-payload"]);
 const VALID_ENV = new Set<string>(["hash-only", "full-payload"]);
 
-/** True if ``hostname`` is the asqav cloud API. Subdomain-attack-safe. */
+/** True if ``hostname`` is the Asqav cloud API. Subdomain-attack-safe. */
 export function isAsqavCloudHost(hostname: string | null | undefined): boolean {
   if (!hostname) return false;
   const h = hostname.toLowerCase().trim().replace(/\.+$/, "");

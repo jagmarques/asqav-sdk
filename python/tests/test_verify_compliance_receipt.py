@@ -247,9 +247,8 @@ def test_no_predecessor_supplied_leaves_chain_check_passive() -> None:
 
 
 def test_sandbox_state_out_of_enum_is_rejected() -> None:
-    """draft-marques-asqav-compliance-receipts Section 4.1.6 restricts
-    `sandbox_state` to {enabled, disabled, unavailable}. A receipt that
-    carries any other token MUST verify as invalid."""
+    """`sandbox_state` is restricted to {enabled, disabled, unavailable};
+    a receipt that carries any other token MUST verify as invalid."""
     env = _good_envelope(sandbox_state="sandboxed")
     result = verify_compliance_receipt(env)
     assert result.valid is False
@@ -273,8 +272,7 @@ def test_sandbox_state_absent_is_accepted() -> None:
 
 
 def test_deny_decision_without_reason_is_rejected() -> None:
-    """Spec Section 4.1.9 (`reason`) makes the field REQUIRED whenever
-    `decision` is `deny` or `rate_limit`. Closes the SDK side of GAP-E4."""
+    """`reason` is REQUIRED whenever `decision` is `deny` or `rate_limit`."""
     env = _good_envelope(decision="deny")
     result = verify_compliance_receipt(env)
     assert result.valid is False
@@ -304,9 +302,8 @@ def test_allow_decision_without_reason_is_accepted() -> None:
 
 
 def test_anchor_with_empty_value_is_rejected() -> None:
-    """Spec Section 4.7 (`anchors[]`) declares `value` REQUIRED on every
-    anchor entry; entries served without `value` MUST NOT be reported as
-    anchor_valid_*=true. Closes the SDK side of GAP-E6."""
+    """`anchors[].value` is REQUIRED on every anchor entry; entries served
+    without `value` MUST NOT be reported as anchor_valid_*=true."""
     env = _good_envelope()
     env["anchors"] = [{"type": "rfc3161", "value": ""}]
     result = verify_compliance_receipt(env)

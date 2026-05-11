@@ -12,9 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from asqav.client import Agent, SDTokenResponse
 from asqav.scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 MOCK_SD_RESPONSE = {
     "token": "eyJ0eXAiOiJzZC1qd3QifQ.payload~disc_a~disc_b~disc_c~",
@@ -58,9 +56,7 @@ def _sd_token_response(data: dict | None = None) -> SDTokenResponse:
     )
 
 
-# ---------------------------------------------------------------------------
-# ScopeToken dataclass tests
-# ---------------------------------------------------------------------------
+# === ScopeToken dataclass tests ===
 
 
 class TestScopeToken:
@@ -178,9 +174,7 @@ class TestScopeToken:
         assert st.metadata == {}
 
 
-# ---------------------------------------------------------------------------
-# create_scope_token tests
-# ---------------------------------------------------------------------------
+# === create_scope_token tests ===
 
 
 class TestCreateScopeToken:
@@ -236,9 +230,7 @@ class TestCreateScopeToken:
         assert "metadata" not in mock_sd.call_args.kwargs["disclosable"]
 
 
-# ---------------------------------------------------------------------------
-# Agent.create_scope_token convenience method
-# ---------------------------------------------------------------------------
+# === Agent.create_scope_token convenience method ===
 
 
 class TestAgentScopeTokenMethod:
@@ -270,9 +262,7 @@ class TestAgentScopeTokenMethod:
         assert token.metadata == {"env": "staging"}
 
 
-# ---------------------------------------------------------------------------
-# verify_scope_token tests
-# ---------------------------------------------------------------------------
+# === verify_scope_token tests ===
 
 
 class TestVerifyScopeToken:
@@ -309,9 +299,7 @@ class TestVerifyScopeToken:
         assert result["signed_at"] == 1700000001.0
 
 
-# ---------------------------------------------------------------------------
-# Module-level imports
-# ---------------------------------------------------------------------------
+# === Module-level imports ===
 
 
 class TestModuleExports:
@@ -331,9 +319,7 @@ class TestModuleExports:
         assert "is_replay" in asqav.__all__
 
 
-# ---------------------------------------------------------------------------
-# Nonce replay protection tests
-# ---------------------------------------------------------------------------
+# === Nonce replay protection tests ===
 
 
 class TestNonceReplayProtection:

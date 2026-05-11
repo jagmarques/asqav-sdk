@@ -1,6 +1,6 @@
-"""Fingerprint helpers for the asqav SDK.
+"""Fingerprint helpers for the Asqav SDK.
 
-This module produces the bytes the asqav backend signs (and, in
+This module produces the bytes the Asqav backend signs (and, in
 hash-only mode, the bytes the SDK hashes locally before sending to the
 cloud).
 
@@ -14,14 +14,14 @@ Three helpers are provided:
   ``tool_args`` payloads that rejects floats with a JSON-pointer-locating
   error before delegating to :func:`canonicalize`. The Compliance
   Receipts profile excludes floats from the signed canonical scope
-  because RFC 8785 section 3.2.2 only fixes byte-stable numeric output
-  for safe-range integers; floats drift across runtimes.
+  because canonical JSON only fixes byte-stable numeric output for
+  safe-range integers; floats drift across runtimes.
 * :func:`hash_action` returns a self-describing hash string of the form
   ``"sha256:<64hex>"`` built from a ``{action_type, context}`` dict. An
   optional ``salt`` switches it to HMAC-SHA-256 for organizations that
   use a per-org keyed hash.
 
-Customers without an asqav SDK can reproduce these helpers in a few lines
+Customers without the Asqav SDK can reproduce these helpers in a few lines
 of stdlib Python (see ``docs/fingerprint-spec.md``).
 """
 
@@ -53,7 +53,7 @@ def canonicalize(obj: Any) -> bytes:
 
     Implementation: ``json.dumps`` with ``sort_keys=True``,
     ``separators=(",", ":")`` and ``ensure_ascii=False``. This is a
-    faithful JCS subset for the value types the asqav cloud actually
+    faithful JCS subset for the value types the Asqav cloud actually
     accepts (``dict``, ``list``, ``str``, ``int``, ``float``, ``bool``,
     ``None``). The conformance vectors at
     ``conformance/vectors.json`` are generated with the exact same
@@ -112,12 +112,12 @@ def _find_float_pointer(value: Any, pointer: str) -> str | None:
 def canonicalize_tool_args(args: dict[str, Any] | list[Any]) -> bytes:
     """Return JCS-canonical bytes of ``tool_args``, rejecting floats.
 
-    Floats are not byte-stable across runtimes per RFC 8785 section 3.2.2,
-    so the Compliance Receipts profile keeps them out of the signed
-    canonical scope. Serialize numerics as strings (``"1.5"``) or
-    integer-rational pairs before calling this helper. Booleans and
-    integers (including arbitrarily large ``int``) are accepted because
-    JCS pins their byte form.
+    Floats are not byte-stable across runtimes, so the Compliance Receipts
+    profile keeps them out of the signed canonical scope. Serialize
+    numerics as strings (``"1.5"``) or integer-rational pairs before
+    calling this helper. Booleans and integers (including arbitrarily
+    large ``int``) are accepted because JCS pins their byte form.
+    See ``docs/fingerprint-spec.md`` for the canonical-form rules.
 
     Args:
         args: A dict or list of tool arguments. Leaves may be ``str``,
@@ -154,7 +154,7 @@ def hash_action(
     vectors and the backend's hash-only ingestion shape.
 
     With ``salt`` set, returns HMAC-SHA-256 instead of plain SHA-256.
-    Use the per-organization salt fetched from the asqav dashboard.
+    Use the per-organization salt fetched from the Asqav dashboard.
 
     Args:
         action_type: The action type string (e.g. ``"api:call"``).

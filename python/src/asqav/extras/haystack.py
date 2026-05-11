@@ -30,7 +30,7 @@ from ._base import AsqavAdapter
 
 @component
 class AsqavComponent(AsqavAdapter):
-    """Haystack pipeline component that signs data through asqav governance.
+    """Haystack pipeline component that signs data through Asqav governance.
 
     Signs each pipeline run with data length and metadata keys.
     Signing failures are fail-open - data always flows through.

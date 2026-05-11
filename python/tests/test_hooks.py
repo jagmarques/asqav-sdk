@@ -1,4 +1,4 @@
-"""Tests for the asqav hooks/middleware system."""
+"""Tests for the Asqav hooks/middleware system."""
 
 from __future__ import annotations
 

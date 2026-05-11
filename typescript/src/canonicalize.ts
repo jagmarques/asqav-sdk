@@ -150,11 +150,11 @@ function findFloatPointer(value: unknown, pointer: string): string | null {
 /**
  * Pre-validate ``tool_args`` and return JCS-canonical bytes.
  *
- * Floats are not byte-stable across runtimes per RFC 8785 section 3.2.2,
- * so the Compliance Receipts profile keeps them out of the signed
- * canonical scope. Serialize numerics as strings (``"1.5"``) or
- * integer-rational pairs before calling this helper. Integers (including
- * any value where ``Number.isInteger`` is true) and booleans pass through.
+ * Floats are not byte-stable across runtimes, so the Compliance Receipts
+ * profile keeps them out of the signed canonical scope. Serialize
+ * numerics as strings (``"1.5"``) or integer-rational pairs before
+ * calling this helper. Integers (including any value where
+ * ``Number.isInteger`` is true) and booleans pass through.
  *
  * @throws Error When any leaf is a non-integer or non-finite number; the
  *   message includes the JSON pointer to the offending value so the

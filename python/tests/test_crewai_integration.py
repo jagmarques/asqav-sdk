@@ -18,9 +18,7 @@ sys.modules.pop("asqav.extras.crewai", None)
 
 from asqav.extras.crewai import AsqavCrewHook  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -35,9 +33,7 @@ def hook():
     return h
 
 
-# ---------------------------------------------------------------------------
-# on_task_start
-# ---------------------------------------------------------------------------
+# === on_task_start ===
 
 
 def test_on_task_start_signs_action(hook):
@@ -59,9 +55,7 @@ def test_on_task_start_without_role(hook):
     assert ctx["task_description"] == "Analyze data"
 
 
-# ---------------------------------------------------------------------------
-# on_task_complete
-# ---------------------------------------------------------------------------
+# === on_task_complete ===
 
 
 def test_on_task_complete_signs_action(hook):
@@ -87,9 +81,7 @@ def test_on_task_complete_without_output(hook):
     assert "output_length" not in ctx
 
 
-# ---------------------------------------------------------------------------
-# on_task_fail
-# ---------------------------------------------------------------------------
+# === on_task_fail ===
 
 
 def test_on_task_fail_signs_action(hook):
@@ -115,9 +107,7 @@ def test_on_task_fail_without_error(hook):
     assert "error" not in ctx
 
 
-# ---------------------------------------------------------------------------
-# step_callback
-# ---------------------------------------------------------------------------
+# === step_callback ===
 
 
 def test_step_callback_signs_action(hook):
@@ -135,9 +125,7 @@ def test_step_callback_signs_action(hook):
     assert "search" in ctx["step_output"]
 
 
-# ---------------------------------------------------------------------------
-# task_callback
-# ---------------------------------------------------------------------------
+# === task_callback ===
 
 
 def test_task_callback_signs_action(hook):
@@ -173,9 +161,7 @@ def test_task_callback_handles_missing_attributes(hook):
     assert "output_length" not in ctx
 
 
-# ---------------------------------------------------------------------------
-# Truncation
-# ---------------------------------------------------------------------------
+# === Truncation ===
 
 
 def test_description_truncated(hook):
@@ -199,9 +185,7 @@ def test_step_output_truncated(hook):
     assert len(ctx["step_output"]) == 200
 
 
-# ---------------------------------------------------------------------------
-# Fail-open
-# ---------------------------------------------------------------------------
+# === Fail-open ===
 
 
 def test_fail_open_on_sign_error(hook):
@@ -224,9 +208,7 @@ def test_fail_open_on_sign_error(hook):
     hook.task_callback(MagicMock(spec=[]))
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 @pytest.fixture(autouse=True, scope="module")
