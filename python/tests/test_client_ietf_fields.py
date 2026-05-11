@@ -36,9 +36,7 @@ from asqav.client import (
     _compute_action_ref,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 def _agent() -> Agent:
@@ -68,9 +66,7 @@ def _ok_response(extra: dict | None = None) -> dict:
     return base
 
 
-# ---------------------------------------------------------------------------
-# Namespace + validation
-# ---------------------------------------------------------------------------
+# === Namespace + validation ===
 
 
 def test_receipt_type_namespace_constant() -> None:
@@ -110,9 +106,7 @@ def test_deny_without_reason_raises_before_http() -> None:
         p.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# action_ref auto-compute
-# ---------------------------------------------------------------------------
+# === action_ref auto-compute ===
 
 
 def test_compute_action_ref_matches_canonical_sha256() -> None:
@@ -201,9 +195,7 @@ def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
         assert k not in body, f"unexpected compliance-mode-off field: {k}"
 
 
-# ---------------------------------------------------------------------------
-# Pass-through of all profile fields
-# ---------------------------------------------------------------------------
+# === Pass-through of all profile fields ===
 
 
 def test_all_profile_fields_passthrough_in_body() -> None:
@@ -259,9 +251,7 @@ def test_deny_with_reason_passes_through() -> None:
     assert captured["body"]["reason"] == "policy_violation_outbound_url"
 
 
-# ---------------------------------------------------------------------------
-# Response parsing
-# ---------------------------------------------------------------------------
+# === Response parsing ===
 
 
 def test_signature_response_surfaces_new_fields() -> None:
@@ -309,9 +299,7 @@ def test_response_accepts_snake_case_previous_receipt_hash() -> None:
     assert resp.previous_receipt_hash == "f" * 64
 
 
-# ---------------------------------------------------------------------------
-# Re-export
-# ---------------------------------------------------------------------------
+# === Re-export ===
 
 
 def test_constant_is_re_exported_at_top_level() -> None:
@@ -319,9 +307,7 @@ def test_constant_is_re_exported_at_top_level() -> None:
     assert asqav.RECEIPT_TYPE_NAMESPACE == RECEIPT_TYPE_NAMESPACE
 
 
-# ---------------------------------------------------------------------------
-# _build_sign_body branches
-# ---------------------------------------------------------------------------
+# === _build_sign_body branches ===
 
 
 def test_build_sign_body_full_payload_includes_compliance_fields() -> None:
@@ -351,9 +337,7 @@ def test_build_sign_body_omits_compliance_when_no_fields() -> None:
     assert "compliance_mode" not in body
 
 
-# ---------------------------------------------------------------------------
-# DORA RTS JC 2024-33 Annex II vocabulary
-# ---------------------------------------------------------------------------
+# === DORA RTS JC 2024-33 Annex II vocabulary ===
 
 
 def test_dora_incident_class_namespace_is_canonical_six() -> None:

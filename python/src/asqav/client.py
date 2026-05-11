@@ -109,9 +109,7 @@ _client: Any = None
 # Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
 _mode: str = "full-payload"
 _org_salt: bytes | None = None
-# Metadata keys allowed to ride alongside a hash-only request. The server
-# enforces its own whitelist; this mirrors the conservative default so we
-# don't accidentally leak fields the customer didn't intend to share.
+#: Hash-only request metadata allowlist; mirrors the server-enforced whitelist.
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
 )
@@ -201,13 +199,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
-# DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification.
-# The Joint Committee of the European Supervisory Authorities published
-# the final RTS on classification of major ICT-related incidents on
-# 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
-# vocabulary of `incident_class` to exactly six values. The cloud
-# accepts only these canonical tokens; this SDK forwards the caller's
-# value verbatim and rejects anything outside the canonical set.
+#: Canonical `incident_class` vocabulary; cloud rejects anything outside this set.
 DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     {
         "cybersecurity_related",
@@ -279,17 +271,13 @@ class SignatureResponse:
     policy_decision: str = "permit"
     authorization_ref: str | None = None
     bitcoin_anchor: BitcoinAnchor | None = None
-    # Multi-party countersigning (optional). When the caller passed
-    # `co_signers=[...]` to `agent.sign()`, the server records the list and
-    # surfaces it back so peers know they need to countersign.
+    # Multi-party countersigning: peer agent_ids the original signer expects to countersign.
     required_co_signers: list[str] | None = None
     co_signatures: list[dict[str, Any]] | None = None
     countersign_url: str | None = None
     # True when the server validated a user_intent envelope on this record.
     user_intent_verified: bool | None = None
-    # Compliance Receipts profile fields. Populated by the cloud only
-    # when `compliance_mode=True` was passed on the sign call. None on
-    # non-compliance receipts so callers can branch cleanly.
+    # Compliance Receipts profile fields populated by cloud when compliance_mode=True.
     compliance_mode: bool = False
     receipt_type: str | None = None
     action_ref: str | None = None
@@ -307,9 +295,7 @@ class SignatureResponse:
     # Spec `decision` token (allow | deny | rate_limit). None on
     # non-compliance receipts.
     decision: str | None = None
-    # Three-key Compliance Receipts envelope. `payload` is the canonical
-    # signed dict; `anchors` is the type-discriminated array. None on
-    # non-compliance receipts.
+    # Three-key Compliance Receipts envelope (payload + anchors); None on non-compliance.
     payload: dict[str, Any] | None = None
     anchors: list[dict[str, Any]] | None = None
 
@@ -1202,9 +1188,7 @@ class Agent:
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
             )
-        # DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check
-        # (six canonical values). Reject anything else before the HTTP
-        # roundtrip.
+        # Fail fast on incident_class vocabulary before the HTTP roundtrip.
         if (
             incident_class is not None
             and incident_class not in DORA_INCIDENT_CLASS_NAMESPACE
@@ -1277,9 +1261,7 @@ class Agent:
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
             user_intent_verified=data.get("user_intent_verified"),
-            # IETF profile fields. Cloud emits both `previousReceiptHash`
-            # (camelCase per spec) and `previous_receipt_hash` (snake_case
-            # alias). Accept either so the SDK works against both shapes.
+            # Accept both camelCase `previousReceiptHash` and snake_case alias on the wire.
             compliance_mode=bool(data.get("compliance_mode", False)),
             receipt_type=data.get("receipt_type"),
             action_ref=data.get("action_ref"),
@@ -2441,10 +2423,7 @@ def verify_compliance_receipt(
         if actual_prev != expected_prev:
             chain_link_rederives = False
             errors.append("chain_link_mismatch")
-    # else: caller did not pass a predecessor; cannot rederive. We
-    # leave `chain_link_rederives=True` since "did not check" is not the
-    # same as "failed to check". Callers needing strictness pass the
-    # predecessor.
+    # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
 
     valid = (
         fields_present
