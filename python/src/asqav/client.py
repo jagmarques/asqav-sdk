@@ -1,7 +1,7 @@
 """
-asqav API Client - Thin SDK that connects to asqav.com.
+Asqav API Client - Thin SDK that connects to asqav.com.
 
-This module provides the API client for connecting to asqav Cloud.
+This module provides the API client for connecting to Asqav Cloud.
 All ML-DSA cryptography happens server-side; this SDK handles
 API communication and response parsing.
 
@@ -213,25 +213,17 @@ DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
-#: Canonical `incident_class` vocabulary under the HIPAA Security Rule
-#: (45 CFR 164.304). HIPAA is one of the canonical source regimes for
-#: incident_class; the SDK accepts a HIPAA token so that a Covered Entity
-#: does not have to fall back to a DORA category. Closes GAP-E13.
+#: HIPAA Security Rule incident_class vocabulary (45 CFR 164.304).
 HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     {"hipaa_security_incident"}
 )
 
-#: Union of every canonical incident_class token the SDK accepts. The
-#: cloud's `core/incident_vocabulary.py` is authoritative; this mirror
-#: spares callers a network round-trip on obvious mistakes.
+#: Union of every canonical incident_class token the SDK accepts.
 INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
     DORA_INCIDENT_CLASS_NAMESPACE | HIPAA_INCIDENT_CLASS_NAMESPACE
 )
 
-#: Sandbox-state enum mirrored from the receipts spec. Closes the SDK
-#: side of GAP-E3: the cloud already gates the vocabulary on emit; the
-#: SDK now refuses out-of-vocabulary values before the HTTP call and
-#: rejects them on the verify path.
+#: Sandbox-state enum: {enabled, disabled, unavailable}.
 SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
     {"enabled", "disabled", "unavailable"}
 )
@@ -257,10 +249,8 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     """
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
-# REQUIRED fields on a Compliance Receipt envelope; used by `verify_compliance_receipt`.
-# Field names match the canonical wire form: the top-level discriminator
-# is ``type``, not the SDK's internal ``receipt_type`` attribute.
-# Conformant emitters MUST translate to ``type`` on emission.
+#: REQUIRED fields on a Compliance Receipt envelope (wire form); top-level
+#: discriminator is ``type``. Used by `verify_compliance_receipt`.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "type",
     "issuer_id",
@@ -941,7 +931,7 @@ def _build_sign_body(
 
 @dataclass
 class Agent:
-    """Agent representation from asqav Cloud.
+    """Agent representation from Asqav Cloud.
 
     All ML-DSA cryptography happens server-side.
     This is a thin client that wraps API calls.
@@ -963,7 +953,7 @@ class Agent:
         algorithm: str = "ml-dsa-65",
         capabilities: list[str] | None = None,
     ) -> Agent:
-        """Create a new agent via asqav Cloud.
+        """Create a new agent via Asqav Cloud.
 
         The server generates the keypair. The private key never leaves
         the server.
@@ -1216,9 +1206,7 @@ class Agent:
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
             )
-        # Fail fast on sandbox_state vocabulary before the HTTP roundtrip;
-        # the field is restricted to {enabled, disabled, unavailable}.
-        # Closes the SDK side of GAP-E3.
+        # Fail fast on sandbox_state vocabulary before the HTTP roundtrip.
         if (
             sandbox_state is not None
             and sandbox_state not in SANDBOX_STATE_NAMESPACE
@@ -1852,19 +1840,19 @@ def init(
     mode: str = "auto",
     org_salt: bytes | None = None,
 ) -> None:
-    """Initialize the asqav SDK.
+    """Initialize the Asqav SDK.
 
     Args:
-        api_key: Your asqav API key. Can also be set via ASQAV_API_KEY env var.
+        api_key: Your Asqav API key. Can also be set via ASQAV_API_KEY env var.
         base_url: Override API base URL (for testing).
         mode: Wire format for ``Agent.sign``. One of ``"auto"`` (default),
             ``"hash-only"``, or ``"full-payload"``. ``auto`` resolves to
-            ``hash-only`` for the asqav cloud (``*.asqav.com``) and
+            ``hash-only`` for the Asqav cloud (``*.asqav.com``) and
             ``full-payload`` for self-hosted deployments. The
             ``ASQAV_MODE`` env var is consulted when ``mode="auto"``.
         org_salt: Optional 32-byte per-organization salt. When set, the
             SDK uses HMAC-SHA-256 instead of plain SHA-256 for hash-only
-            requests. Fetch yours from the asqav dashboard.
+            requests. Fetch yours from the Asqav dashboard.
 
     Raises:
         AuthenticationError: If no API key is provided.
@@ -2449,9 +2437,7 @@ def verify_compliance_receipt(
     if missing:
         errors.append(f"missing_fields:{','.join(missing)}")
 
-    # 2. ``type`` namespace. Spec wire field is ``type``; the legacy
-    # ``receipt_type`` attribute is still accepted on input for callers
-    # that have not yet migrated their emitter to the wire form.
+    # 2. ``type`` namespace. Wire field is ``type``; ``receipt_type`` accepted too.
     rt = envelope.get("type") or envelope.get("receipt_type")
     receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
     if not receipt_type_in_namespace:
@@ -2471,10 +2457,7 @@ def verify_compliance_receipt(
                 s = str(issued_at).replace("Z", "+00:00")
                 ts = datetime.fromisoformat(s).timestamp()
             wall = now if now is not None else time.time()
-            # Verifiers MUST reject receipts whose ``issued_at`` is more
-            # than SKEW_BOUND_SECONDS ahead of the verifier clock and MUST
-            # NOT reject solely because ``issued_at`` lies in the past.
-            # Past skew is bounded by the retention floor, not freshness.
+            # Reject future skew > SKEW_BOUND_SECONDS; past skew bounded by retention.
             skew = ts - wall
             skew_within_bound = skew <= SKEW_BOUND_SECONDS
             if not skew_within_bound:
@@ -2506,15 +2489,7 @@ def verify_compliance_receipt(
             errors.append("chain_link_mismatch")
     # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
 
-    # 5. Conditional MUSTs on the inner payload.
-    #
-    #   * `sandbox_state` value space is restricted to
-    #     {enabled, disabled, unavailable}. Closes the SDK side of GAP-E3.
-    #   * `reason` is REQUIRED whenever `decision` is `deny` or
-    #     `rate_limit`. Closes the SDK side of GAP-E4.
-    #   * Each entry in `anchors[]` requires a non-empty `value`; entries
-    #     with an empty `value` MUST NOT be reported as anchor_valid_*=true.
-    #     Closes the SDK side of GAP-E6.
+    # 5. Conditional MUSTs: sandbox_state, reason on deny/rate_limit, anchors[].value.
     _payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
     if isinstance(_payload, dict):
         _sandbox = _payload.get("sandbox_state")
@@ -2554,9 +2529,7 @@ def verify_compliance_receipt(
             if not outcome.valid:
                 errors.append(f"counterparty_binding_{outcome.label}")
 
-    # Conditional-MUST failures land in `errors` only; a separate axis flag
-    # would bloat the dataclass for axes the cloud already gates. Surface
-    # them through the unified error list and the top-level `valid` boolean.
+    # Conditional-MUST failures surface through `errors` and `valid` only (no per-axis flag).
     _conditional_must_fail = any(
         e.startswith(
             (
@@ -3614,7 +3587,7 @@ class BudgetTracker:
     agent.sign() method, so the trail can be replayed and checked
     against the verification endpoint later.
 
-    This is a client-side helper. The asqav API does not enforce
+    This is a client-side helper. The Asqav API does not enforce
     budgets directly; enforcement happens in the caller before
     executing the action. The tracker fails closed: if an estimated
     cost would exceed the remaining budget, check() returns
