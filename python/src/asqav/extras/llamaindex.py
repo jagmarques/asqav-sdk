@@ -66,13 +66,13 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
     and records signed governance events for LLM calls, queries, retrieval,
     function/tool calls, agent steps, embeddings, reranking, and sub-questions.
 
-    Signing is fail-open: asqav failures are logged but never raised, so
-    LlamaIndex pipelines keep running even when asqav is unreachable.
+    Signing is fail-open: Asqav failures are logged but never raised, so
+    LlamaIndex pipelines keep running even when Asqav is unreachable.
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
         event_starts_to_ignore: LlamaIndex event types to skip on start.
         event_ends_to_ignore: LlamaIndex event types to skip on end.
     """
@@ -134,7 +134,7 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
             self._sign_action(f"llamaindex.{event_type.value}.end", context)
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
-        """Start a trace - begins an asqav session for grouped signing."""
+        """Start a trace - begins an Asqav session for grouped signing."""
         if trace_id:
             self._start_session()
 
@@ -143,6 +143,6 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
         trace_id: Optional[str] = None,
         trace_map: Optional[Dict[str, List[str]]] = None,
     ) -> None:
-        """End a trace - closes the asqav session."""
+        """End a trace - closes the Asqav session."""
         if self._session_id is not None:
             self._end_session("completed")

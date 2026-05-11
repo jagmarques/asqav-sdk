@@ -45,7 +45,7 @@ def _make_signed_action(
 
 
 def test_first_receipt_seed_is_64_zero_hex() -> None:
-    """`FIRST_RECEIPT_SEED == "0" * 64` per §5.7."""
+    """`FIRST_RECEIPT_SEED == "0" * 64` is the chain seed."""
     assert FIRST_RECEIPT_SEED == "0" * 64
     assert len(FIRST_RECEIPT_SEED) == 64
     assert all(c == "0" for c in FIRST_RECEIPT_SEED)
@@ -407,8 +407,6 @@ def test_verify_hash_chain_actually_verifies_link_values() -> None:
     results = _verify_hash_chain(sigs_data)
     assert results[0] is True
     assert results[1] is False
-    # Third link's stored hash is computed from sig 1's synthetic envelope,
-    # which is unchanged by the `previousReceiptHash` field tamper, so it
-    # stays True.
+    # Third link's hash is derived from sig 1's envelope (unchanged), so it stays True.
     assert results[2] is True
 

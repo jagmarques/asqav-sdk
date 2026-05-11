@@ -17,9 +17,7 @@ import pytest
 
 from asqav.client import AsqavError
 
-# ---------------------------------------------------------------------------
-# Mock langchain_core before importing the handler
-# ---------------------------------------------------------------------------
+# === Mock langchain_core before importing the handler ===
 
 _original_modules: dict[str, ModuleType | None] = {}
 
@@ -92,9 +90,7 @@ LLMResult = _install_langchain_mocks()
 from asqav.extras.langchain import AsqavCallbackHandler  # noqa: E402, I001
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -111,9 +107,7 @@ def handler():
     return h
 
 
-# ---------------------------------------------------------------------------
-# Chain callback tests
-# ---------------------------------------------------------------------------
+# === Chain callback tests ===
 
 
 def test_on_chain_start_signs_action(handler):
@@ -158,9 +152,7 @@ def test_on_chain_error_signs_action(handler):
     )
 
 
-# ---------------------------------------------------------------------------
-# Tool callback tests
-# ---------------------------------------------------------------------------
+# === Tool callback tests ===
 
 
 def test_on_tool_start_signs_action(handler):
@@ -193,9 +185,7 @@ def test_on_tool_error_signs_action(handler):
     )
 
 
-# ---------------------------------------------------------------------------
-# LLM callback tests
-# ---------------------------------------------------------------------------
+# === LLM callback tests ===
 
 
 def test_on_llm_start_signs_action(handler):
@@ -255,9 +245,7 @@ def test_on_llm_error_signs_action(handler):
     )
 
 
-# ---------------------------------------------------------------------------
-# Edge cases and fail-open
-# ---------------------------------------------------------------------------
+# === Edge cases and fail-open ===
 
 
 def test_tool_input_truncated(handler):
@@ -300,9 +288,7 @@ def test_fail_open_on_sign_error():
     assert len(h._signatures) == 0
 
 
-# ---------------------------------------------------------------------------
-# Cleanup: restore sys.modules
-# ---------------------------------------------------------------------------
+# === Cleanup: restore sys.modules ===
 
 
 def teardown_module() -> None:
