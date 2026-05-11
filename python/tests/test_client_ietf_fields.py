@@ -405,3 +405,112 @@ def test_pre_alignment_token_now_rejected() -> None:
                     incident_class=token,
                 )
             p.assert_not_called()
+
+
+# === HIPAA Security Rule vocabulary (GAP-E13) ===
+
+
+def test_hipaa_security_incident_token_accepted() -> None:
+    """Spec Section 4.2 (`incident_class`) names HIPAA 45 CFR 164.304 as a
+    canonical source regime alongside DORA. The SDK MUST accept the HIPAA
+    token so a Covered Entity is not forced into a DORA category."""
+    from asqav.client import HIPAA_INCIDENT_CLASS_NAMESPACE
+
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    assert "hipaa_security_incident" in HIPAA_INCIDENT_CLASS_NAMESPACE
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            incident_class="hipaa_security_incident",
+        )
+    assert captured["body"]["incident_class"] == "hipaa_security_incident"
+
+
+def test_incident_class_list_form_accepted_with_mixed_regimes() -> None:
+    """Spec Section 4.2: `incident_class` MAY be a JSON array of canonical
+    strings to preserve cross-regime classification (e.g. one Action that
+    is both a DORA ICT-related incident and a HIPAA security incident)."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            incident_class=["cybersecurity_related", "hipaa_security_incident"],
+        )
+    assert captured["body"]["incident_class"] == [
+        "cybersecurity_related",
+        "hipaa_security_incident",
+    ]
+
+
+def test_incident_class_list_rejects_unknown_token_in_array() -> None:
+    """A single bad token in an array MUST fail preflight; otherwise a
+    typo travels to the cloud and lands a non-conformant receipt."""
+    with patch("asqav.client._post") as p:
+        with pytest.raises(ValueError, match="invalid_incident_class"):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                incident_class=["cybersecurity_related", "not_a_real_regime"],
+            )
+        p.assert_not_called()
+
+
+# === Sandbox state enum (GAP-E3) ===
+
+
+def test_sandbox_state_namespace_matches_upstream_enum() -> None:
+    """draft-marques-asqav-compliance-receipts Section 4.1.6 inherits the
+    upstream enum unchanged: {enabled, disabled, unavailable}."""
+    from asqav.client import SANDBOX_STATE_NAMESPACE
+
+    assert SANDBOX_STATE_NAMESPACE == frozenset(
+        {"enabled", "disabled", "unavailable"}
+    )
+
+
+@pytest.mark.parametrize("value", ["enabled", "disabled", "unavailable"])
+def test_canonical_sandbox_state_passes_preflight(value: str) -> None:
+    """All three canonical values are accepted and forwarded verbatim."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            sandbox_state=value,
+        )
+    assert captured["body"]["sandbox_state"] == value
+
+
+def test_invalid_sandbox_state_raises_before_http() -> None:
+    """A value outside the upstream enum is rejected client-side; this
+    closes the SDK side of GAP-E3 (cloud was the only enforcer)."""
+    with patch("asqav.client._post") as p:
+        with pytest.raises(ValueError, match="invalid_sandbox_state"):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                sandbox_state="sandboxed",  # plausible-looking typo
+            )
+        p.assert_not_called()

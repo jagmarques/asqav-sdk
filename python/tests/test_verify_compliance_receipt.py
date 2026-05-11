@@ -241,3 +241,98 @@ def test_no_predecessor_supplied_leaves_chain_check_passive() -> None:
     env = _good_envelope(previousReceiptHash="a" * 64)
     result = verify_compliance_receipt(env)
     assert result.chain_link_rederives is True
+
+
+# === Conditional MUSTs on the inner payload ===
+
+
+def test_sandbox_state_out_of_enum_is_rejected() -> None:
+    """draft-marques-asqav-compliance-receipts Section 4.1.6 restricts
+    `sandbox_state` to {enabled, disabled, unavailable}. A receipt that
+    carries any other token MUST verify as invalid."""
+    env = _good_envelope(sandbox_state="sandboxed")
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "invalid_sandbox_state" in result.errors
+
+
+def test_sandbox_state_canonical_value_passes() -> None:
+    env = _good_envelope(sandbox_state="enabled")
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+    assert "invalid_sandbox_state" not in result.errors
+
+
+def test_sandbox_state_absent_is_accepted() -> None:
+    """The field is OPTIONAL at the syntactic layer; absence MUST NOT
+    fail the helper."""
+    env = _good_envelope()
+    assert "sandbox_state" not in env
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+
+
+def test_deny_decision_without_reason_is_rejected() -> None:
+    """Spec Section 4.1.9 (`reason`) makes the field REQUIRED whenever
+    `decision` is `deny` or `rate_limit`. Closes the SDK side of GAP-E4."""
+    env = _good_envelope(decision="deny")
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "missing_reason_on_deny_or_rate_limit" in result.errors
+
+
+def test_rate_limit_decision_without_reason_is_rejected() -> None:
+    env = _good_envelope(decision="rate_limit")
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "missing_reason_on_deny_or_rate_limit" in result.errors
+
+
+def test_deny_decision_with_reason_passes() -> None:
+    env = _good_envelope(decision="deny", reason="policy:outbound_blocked")
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+    assert "missing_reason_on_deny_or_rate_limit" not in result.errors
+
+
+def test_allow_decision_without_reason_is_accepted() -> None:
+    """`reason` is conditional, not unconditional; allow-decisions without
+    reason MUST verify."""
+    env = _good_envelope(decision="allow")
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+
+
+def test_anchor_with_empty_value_is_rejected() -> None:
+    """Spec Section 4.7 (`anchors[]`) declares `value` REQUIRED on every
+    anchor entry; entries served without `value` MUST NOT be reported as
+    anchor_valid_*=true. Closes the SDK side of GAP-E6."""
+    env = _good_envelope()
+    env["anchors"] = [{"type": "rfc3161", "value": ""}]
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert any(e.startswith("anchor_missing_value:") for e in result.errors)
+
+
+def test_anchor_without_value_key_is_rejected() -> None:
+    env = _good_envelope()
+    env["anchors"] = [{"type": "opentimestamps", "status": "pending"}]
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert any(e.startswith("anchor_missing_value:") for e in result.errors)
+
+
+def test_anchor_with_populated_value_passes() -> None:
+    env = _good_envelope()
+    env["anchors"] = [{"type": "rfc3161", "value": "dGVzdA=="}]
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+
+
+def test_empty_anchors_array_does_not_trip_the_check() -> None:
+    """An empty anchors array is the cloud's pre-anchor state; the helper
+    leaves that condition to the anchors-required clause checked elsewhere."""
+    env = _good_envelope()
+    env["anchors"] = []
+    result = verify_compliance_receipt(env)
+    assert not any(e.startswith("anchor_missing_value:") for e in result.errors)

@@ -54,8 +54,34 @@ export const DORA_INCIDENT_CLASS_NAMESPACE = [
 ] as const;
 export type DoraIncidentClass = (typeof DORA_INCIDENT_CLASS_NAMESPACE)[number];
 
-/** Sandbox state vocabulary per the High-Risk gate. */
-export type SandboxState = "enabled" | "disabled" | "unavailable";
+/** HIPAA Security Rule canonical incident classification.
+ *
+ * Closes GAP-E13: draft-marques-asqav-compliance-receipts Section 4.2
+ * names HIPAA 45 CFR 164.304 as one of the canonical source regimes for
+ * `incident_class` alongside DORA, NYDFS, and CIRCIA. A Covered Entity
+ * SHOULD be able to emit a HIPAA token without falling back to a DORA
+ * category.
+ */
+export const HIPAA_INCIDENT_CLASS_NAMESPACE = [
+  "hipaa_security_incident",
+] as const;
+export type HipaaIncidentClass = (typeof HIPAA_INCIDENT_CLASS_NAMESPACE)[number];
+
+/** Union of every canonical incident_class token the SDK accepts. The
+ * cloud's `core/incident_vocabulary.py` is authoritative; this mirror
+ * spares callers a network round-trip on obvious mistakes.
+ */
+export const INCIDENT_CLASS_NAMESPACE = [
+  ...DORA_INCIDENT_CLASS_NAMESPACE,
+  ...HIPAA_INCIDENT_CLASS_NAMESPACE,
+] as const;
+export type IncidentClass = (typeof INCIDENT_CLASS_NAMESPACE)[number];
+
+/** Sandbox state vocabulary per the High-Risk gate. Closes GAP-E3 on the
+ * TypeScript SDK: the cloud already enforces this enum, the SDK now
+ * refuses out-of-vocabulary values before the HTTP roundtrip. */
+export const SANDBOX_STATE_NAMESPACE = ["enabled", "disabled", "unavailable"] as const;
+export type SandboxState = (typeof SANDBOX_STATE_NAMESPACE)[number];
 
 /** Risk class controlled vocabulary. */
 export type RiskClass = "low" | "medium" | "high" | "unknown";
@@ -830,15 +856,28 @@ export class Agent {
         "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
       );
     }
+    // Fail fast on sandbox_state vocabulary before the HTTP roundtrip.
+    // Closes the TS side of GAP-E3; spec Section 4.1.6 restricts the field
+    // to {enabled, disabled, unavailable}.
+    if (
+      options.sandboxState !== undefined
+      && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
+    ) {
+      throw new AsqavError(
+        `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
+      );
+    }
     // Fail fast on incident_class vocabulary before the HTTP roundtrip.
+    // Accepts the HIPAA token in addition to the six DORA tokens; closes
+    // the TS side of GAP-E13.
     if (options.incidentClass !== undefined && options.incidentClass !== "") {
       const incidentValues = Array.isArray(options.incidentClass)
         ? options.incidentClass
         : [options.incidentClass];
       for (const ic of incidentValues) {
-        if (!(DORA_INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)) {
+        if (!(INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)) {
           throw new AsqavError(
-            `invalid_incident_class: '${ic}' must be one of ${DORA_INCIDENT_CLASS_NAMESPACE.join(", ")}`,
+            `invalid_incident_class: '${ic}' must be one of ${INCIDENT_CLASS_NAMESPACE.join(", ")}`,
           );
         }
       }
