@@ -29,7 +29,7 @@ Get your API key at asqav.com
 
 from ._jcs import canonical_json
 from .async_client import AsyncAgent
-from .canonicalize import canonicalize, hash_action
+from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
 from .client import (
     DORA_INCIDENT_CLASS_NAMESPACE,
     RECEIPT_TYPE_NAMESPACE,
@@ -146,6 +146,7 @@ __all__ = [
     "health_check",
     # Fingerprint helpers
     "canonicalize",
+    "canonicalize_tool_args",
     "canonical_json",
     "hash_action",
     # Agent
