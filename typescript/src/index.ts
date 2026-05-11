@@ -4,7 +4,7 @@
  * Thin TypeScript SDK for asqav.com. All ML-DSA cryptography happens server-side.
  *
  * Quick start:
- *   import { init, Agent } from "asqav";
+ *   import { init, Agent } from "@asqav/sdk";
  *
  *   init({ apiKey: "sk_..." });
  *   const agent = await Agent.create({ name: "my-agent" });
