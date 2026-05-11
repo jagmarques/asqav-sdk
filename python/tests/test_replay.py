@@ -135,18 +135,69 @@ class TestTimelineOrdering:
 
 class TestChainVerification:
     def test_valid_chain(self):
-        """A freshly built chain should verify successfully."""
-        sig_dicts = [
-            {
+        """A correctly chained sig list verifies link-by-link."""
+        import hashlib
+
+        from asqav._jcs import canonical_json
+        from asqav.replay import FIRST_RECEIPT_SEED
+
+        sig_dicts: list[dict] = []
+        prev_hash = FIRST_RECEIPT_SEED
+        for i in range(4):
+            sig = {
                 "signature_id": f"sid_{i}",
                 "action_type": "api:call",
                 "signed_at": 1700000000.0 + i * 10,
+                "previousReceiptHash": prev_hash,
             }
-            for i in range(4)
-        ]
+            sig_dicts.append(sig)
+            envelope = {
+                "signature_id": sig["signature_id"],
+                "action_type": sig["action_type"],
+                "context": sig.get("payload"),
+                "timestamp": sig["signed_at"],
+                "previousReceiptHash": prev_hash,
+            }
+            prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
+
         results = _verify_hash_chain(sig_dicts)
-        assert all(results)
-        assert len(results) == 4
+        assert results == [True, True, True, True]
+
+    def test_invalid_chain_link_is_flagged(self):
+        """A wrong stored previousReceiptHash returns False for that link."""
+        import hashlib
+
+        from asqav._jcs import canonical_json
+        from asqav.replay import FIRST_RECEIPT_SEED
+
+        sig_dicts: list[dict] = []
+        prev_hash = FIRST_RECEIPT_SEED
+        for i in range(3):
+            sig = {
+                "signature_id": f"sid_{i}",
+                "action_type": "api:call",
+                "signed_at": 1700000000.0 + i * 10,
+                "previousReceiptHash": prev_hash,
+            }
+            sig_dicts.append(sig)
+            envelope = {
+                "signature_id": sig["signature_id"],
+                "action_type": sig["action_type"],
+                "context": sig.get("payload"),
+                "timestamp": sig["signed_at"],
+                "previousReceiptHash": prev_hash,
+            }
+            prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
+
+        # Forge the second receipt's stored predecessor link.
+        sig_dicts[1]["previousReceiptHash"] = "f" * 64
+        results = _verify_hash_chain(sig_dicts)
+        assert results[0] is True
+        assert results[1] is False
+        # Step 2's stored link still matches step 1's *derived* hash from the
+        # synthetic envelope (the corruption is on the recorded link, not the
+        # hashed fields), so step 2 verifies on its own.
+        assert results[2] is True
 
     def test_tampered_entry_detected(self):
         """Changing a field mid-chain should break chain integrity for that step.
