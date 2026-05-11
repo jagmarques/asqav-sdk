@@ -234,8 +234,12 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
 # REQUIRED fields on a Compliance Receipt envelope; used by `verify_compliance_receipt`.
+# Field names match the wire form defined in
+# draft-marques-asqav-compliance-receipts (Section 2.1, worked example); the
+# top-level discriminator is ``type``, not the SDK's internal ``receipt_type``
+# attribute. Conformant emitters MUST translate to ``type`` on emission.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
-    "receipt_type",
+    "type",
     "issuer_id",
     "agent_id",
     "action_ref",
@@ -2351,9 +2355,11 @@ def verify_compliance_receipt(
     to the cloud:
 
     1. All REQUIRED fields are present.
-    2. ``receipt_type`` is in the `protectmcp:*` namespace.
-    3. ``signed_at`` (or ``issued_at``) is within
-       ``SKEW_BOUND_SECONDS`` of ``now``.
+    2. ``type`` is in the `protectmcp:*` namespace.
+    3. ``issued_at`` is not more than ``SKEW_BOUND_SECONDS`` ahead of
+       ``now``. Past skew is bounded by the retention floor, not by
+       freshness, so historical receipts within retention verify on the
+       same path as fresh ones (spec Section 2.1, ``issued_at``).
     4. ``previousReceiptHash`` rederives over the predecessor's inner
        compliance payload under JCS, when one is supplied. The cloud
        hashes ``canonical_json(payload)`` only, not the bundle wrapper,
@@ -2403,8 +2409,10 @@ def verify_compliance_receipt(
     if missing:
         errors.append(f"missing_fields:{','.join(missing)}")
 
-    # 2. receipt_type namespace.
-    rt = envelope.get("receipt_type") or envelope.get("type")
+    # 2. ``type`` namespace. Spec wire field is ``type``; the legacy
+    # ``receipt_type`` attribute is still accepted on input for callers
+    # that have not yet migrated their emitter to the wire form.
+    rt = envelope.get("type") or envelope.get("receipt_type")
     receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
     if not receipt_type_in_namespace:
         errors.append("invalid_receipt_type")
@@ -2423,7 +2431,12 @@ def verify_compliance_receipt(
                 s = str(issued_at).replace("Z", "+00:00")
                 ts = datetime.fromisoformat(s).timestamp()
             wall = now if now is not None else time.time()
-            skew = abs(ts - wall)
+            # Spec (draft-marques-asqav-compliance-receipts Section 2.1,
+            # issued_at): verifiers MUST reject receipts whose ``issued_at``
+            # is more than SKEW_BOUND_SECONDS ahead of the verifier clock and
+            # MUST NOT reject solely because ``issued_at`` lies in the past.
+            # Past skew is bounded by the retention floor, not freshness.
+            skew = ts - wall
             skew_within_bound = skew <= SKEW_BOUND_SECONDS
             if not skew_within_bound:
                 errors.append("signed_at_skew")
