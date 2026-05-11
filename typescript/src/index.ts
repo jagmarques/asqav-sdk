@@ -27,8 +27,13 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:decision",
   "protectmcp:restraint",
   "protectmcp:lifecycle",
+  "protectmcp:acknowledgment",
 ] as const;
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
+
+/** Receipt type emitted by an acknowledging agent (B) over an originating
+ * receipt; the binding object travels on B's signed payload. */
+export const ACKNOWLEDGMENT_RECEIPT_TYPE = "protectmcp:acknowledgment" as const;
 
 /** DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification.
  *
@@ -116,6 +121,16 @@ export {
   type AnchorEntry,
   type ProjectableResponse,
 } from "./ietfProjection.js";
+
+// Counterparty acknowledgment binding (IETF -04 counterparty_binding extension).
+export {
+  computeCounterpartyBinding,
+  computeEnvelopeHash,
+  verifyCounterpartyBinding,
+  type CounterpartyBinding,
+  type CounterpartyBindingVerification,
+  type ComputeCounterpartyBindingOptions,
+} from "./counterparty.js";
 
 import {
   signatureEnvelopeFromResponse as _signatureEnvelopeFromResponse,
