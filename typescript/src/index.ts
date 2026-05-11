@@ -856,9 +856,9 @@ export class Agent {
         "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
       );
     }
-    // Fail fast on sandbox_state vocabulary before the HTTP roundtrip.
-    // Closes the TS side of GAP-E3; spec Section 4.1.6 restricts the field
-    // to {enabled, disabled, unavailable}.
+    // Fail fast on sandbox_state vocabulary before the HTTP roundtrip;
+    // the field is restricted to {enabled, disabled, unavailable}.
+    // Closes the TS side of GAP-E3.
     if (
       options.sandboxState !== undefined
       && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
