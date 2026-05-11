@@ -86,7 +86,12 @@ export function mapPolicyDecisionToDecision(
 
 export { clearHooks, registerAfter, registerBefore } from "./hooks.js";
 export type { AfterHook, BeforeHook } from "./hooks.js";
-export { canonicalize, canonicalizeAction, hashAction } from "./canonicalize.js";
+export {
+  canonicalize,
+  canonicalizeAction,
+  canonicalizeToolArgs,
+  hashAction,
+} from "./canonicalize.js";
 export { canonicalJson } from "./jcs.js";
 export {
   verifyChain,

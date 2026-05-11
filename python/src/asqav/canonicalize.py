@@ -4,12 +4,18 @@ This module produces the bytes the asqav backend signs (and, in
 hash-only mode, the bytes the SDK hashes locally before sending to the
 cloud).
 
-Two helpers are provided:
+Three helpers are provided:
 
 * :func:`canonicalize` returns standard JSON bytes for any
   JSON-serializable Python value, following the conventions in
   ``conformance/vectors.json`` (JCS subset: keys sorted, no whitespace,
   raw UTF-8, no trailing newline).
+* :func:`canonicalize_tool_args` is a user-facing pre-validator over
+  ``tool_args`` payloads that rejects floats with a JSON-pointer-locating
+  error before delegating to :func:`canonicalize`. The Compliance
+  Receipts profile excludes floats from the signed canonical scope
+  because RFC 8785 section 3.2.2 only fixes byte-stable numeric output
+  for safe-range integers; floats drift across runtimes.
 * :func:`hash_action` returns a self-describing hash string of the form
   ``"sha256:<64hex>"`` built from a ``{action_type, context}`` dict. An
   optional ``salt`` switches it to HMAC-SHA-256 for organizations that
@@ -26,7 +32,12 @@ import hmac
 import json
 from typing import Any
 
-__all__ = ["canonicalize", "canonicalize_action", "hash_action"]
+__all__ = [
+    "canonicalize",
+    "canonicalize_action",
+    "canonicalize_tool_args",
+    "hash_action",
+]
 
 
 def canonicalize_action(
@@ -69,6 +80,66 @@ def canonicalize(obj: Any) -> bytes:
         ensure_ascii=False,
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _find_float_pointer(value: Any, pointer: str) -> str | None:
+    """Return JSON pointer to the first float found in ``value``, else None.
+
+    Walks dicts and lists depth-first in insertion order so the reported
+    pointer is stable for a given input. ``bool`` is excluded because
+    Python's ``isinstance(True, int)`` is True and ``bool`` is JCS-safe.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, float):
+        return pointer
+    if isinstance(value, dict):
+        for key, sub in value.items():
+            token = str(key).replace("~", "~0").replace("/", "~1")
+            hit = _find_float_pointer(sub, f"{pointer}/{token}")
+            if hit is not None:
+                return hit
+        return None
+    if isinstance(value, list):
+        for idx, sub in enumerate(value):
+            hit = _find_float_pointer(sub, f"{pointer}/{idx}")
+            if hit is not None:
+                return hit
+        return None
+    return None
+
+
+def canonicalize_tool_args(args: dict[str, Any] | list[Any]) -> bytes:
+    """Return JCS-canonical bytes of ``tool_args``, rejecting floats.
+
+    Floats are not byte-stable across runtimes per RFC 8785 section 3.2.2,
+    so the Compliance Receipts profile keeps them out of the signed
+    canonical scope. Serialize numerics as strings (``"1.5"``) or
+    integer-rational pairs before calling this helper. Booleans and
+    integers (including arbitrarily large ``int``) are accepted because
+    JCS pins their byte form.
+
+    Args:
+        args: A dict or list of tool arguments. Leaves may be ``str``,
+            ``int``, ``bool``, ``None``, ``dict``, or ``list``. ``float``
+            is rejected.
+
+    Returns:
+        UTF-8 encoded JCS-canonical bytes.
+
+    Raises:
+        ValueError: If any leaf is a ``float``. The message includes the
+            JSON pointer to the offending value so the caller can fix
+            the input.
+    """
+    pointer = _find_float_pointer(args, "")
+    if pointer is not None:
+        raise ValueError(
+            f"tool_args float at {pointer or '/'}: floats are not byte-stable "
+            "across runtimes per RFC 8785 section 3.2.2; serialize numerics "
+            "as strings or rationals before passing to canonicalize_tool_args"
+        )
+    return canonicalize(args)
 
 
 def hash_action(
