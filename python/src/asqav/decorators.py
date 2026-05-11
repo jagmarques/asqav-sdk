@@ -1,4 +1,4 @@
-"""Ergonomic signing patterns for asqav SDK.
+"""Ergonomic signing patterns for the Asqav SDK.
 
 Provides the @asqav.sign decorator and asqav.session() context manager
 for developers who want concise, Pythonic signing without manual Agent calls.

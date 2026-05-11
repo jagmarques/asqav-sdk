@@ -11,9 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import Agent, PreflightResult
 
-# ---------------------------------------------------------------------------
-# Direct PreflightResult construction tests
-# ---------------------------------------------------------------------------
+# === Direct PreflightResult construction tests ===
 
 
 def test_explanation_field_exists():
@@ -39,9 +37,7 @@ def test_explanation_defaults_to_empty():
     assert result.explanation == ""
 
 
-# ---------------------------------------------------------------------------
-# Integration tests via Agent.preflight()
-# ---------------------------------------------------------------------------
+# === Integration tests via Agent.preflight() ===
 
 
 MOCK_AGENT_DATA = {

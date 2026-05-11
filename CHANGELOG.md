@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to asqav (the SDK) will be documented here.
+All notable changes to Asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
@@ -16,7 +16,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Removed
 - `VerificationResponse.verifierSignature` (Python: `verifier_signature`). The cloud no longer emits this field; it always projected as `null`, so the typed surface is dropped rather than left in as dead weight.
-- Inner anchor `type` no longer admits the legacy `"ots"` alias. The cloud emits only `"opentimestamps"` (canonical) and `"rfc3161"`; the SDK type stubs are tightened accordingly.
+- Inner anchor `type` rejects the `"ots"` alias. The cloud emits only `"opentimestamps"` (canonical) and `"rfc3161"`; the SDK type stubs are tightened accordingly.
 
 ### Changed
 - `generate_local_keypair` no longer accepts `"ml-dsa-65"`. ML-DSA-65 keypair generation is server-side only (cloud KMS); call `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one. `SUPPORTED_ALGORITHMS` is now `{ed25519, es256}` and the default for `generate_local_keypair()` is `ed25519`. The previous behaviour raised `NotImplementedError` at call time; this is now a `ValueError` at validation time, with the typed `Algorithm` Literal narrowed to reflect what the SDK actually mints locally.

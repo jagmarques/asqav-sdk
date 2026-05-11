@@ -16,9 +16,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# ---------------------------------------------------------------------------
-# Inject fake instructor.core.hooks module before importing the integration
-# ---------------------------------------------------------------------------
+# === Inject fake instructor.core.hooks module before importing the integration ===
 
 _MISSING = object()
 _original_modules: dict[str, ModuleType | object] = {}
@@ -77,9 +75,7 @@ def hook() -> AsqavInstructorHook:
     return h
 
 
-# ---------------------------------------------------------------------------
-# Initialization
-# ---------------------------------------------------------------------------
+# === Initialization ===
 
 
 def test_no_init_raises_when_no_api_key() -> None:
@@ -90,9 +86,7 @@ def test_no_init_raises_when_no_api_key() -> None:
             AsqavInstructorHook(agent_name="extractor")
 
 
-# ---------------------------------------------------------------------------
-# attach()
-# ---------------------------------------------------------------------------
+# === attach() ===
 
 
 def test_attach_registers_all_five_hooks(hook: AsqavInstructorHook) -> None:
@@ -115,9 +109,7 @@ def test_attach_rejects_non_instructor_client(hook: AsqavInstructorHook) -> None
         hook.attach(not_a_client)
 
 
-# ---------------------------------------------------------------------------
-# completion:kwargs
-# ---------------------------------------------------------------------------
+# === completion:kwargs ===
 
 
 def test_on_kwargs_signs_start(hook: AsqavInstructorHook) -> None:
@@ -139,9 +131,7 @@ def test_on_kwargs_handles_missing_fields(hook: AsqavInstructorHook) -> None:
     assert args[1] == {"model": "unknown", "response_model": None, "stream": False}
 
 
-# ---------------------------------------------------------------------------
-# completion:response
-# ---------------------------------------------------------------------------
+# === completion:response ===
 
 
 def test_on_response_signs_complete_with_usage(hook: AsqavInstructorHook) -> None:
@@ -169,9 +159,7 @@ def test_on_response_handles_missing_usage(hook: AsqavInstructorHook) -> None:
     assert args[1] == {"id": "cmpl_a2"}
 
 
-# ---------------------------------------------------------------------------
-# error events
-# ---------------------------------------------------------------------------
+# === error events ===
 
 
 def test_on_error_signs_completion_error(hook: AsqavInstructorHook) -> None:
@@ -196,9 +184,7 @@ def test_on_parse_error_signs_parse_error(hook: AsqavInstructorHook) -> None:
     assert args[1]["error_type"] == "ValueError"
 
 
-# ---------------------------------------------------------------------------
-# Fail-open: signing must never block instructor execution
-# ---------------------------------------------------------------------------
+# === Fail-open: signing must never block instructor execution ===
 
 
 def test_fail_open_on_asqav_error() -> None:
@@ -224,9 +210,7 @@ def test_fail_open_on_asqav_error() -> None:
     assert len(h._signatures) == 0
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 def teardown_module() -> None:

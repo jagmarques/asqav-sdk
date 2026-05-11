@@ -1,4 +1,4 @@
-"""asqav demo - local interactive governance dashboard.
+"""Asqav demo - local interactive governance dashboard.
 
 Runs at http://localhost:3030 with 4 pre-loaded scenarios. No signup, no
 Docker, no API key. Everything is in-memory: a tiny policy engine, an
@@ -177,7 +177,7 @@ HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>asqav demo</title>
+<title>Asqav demo</title>
 <style>
 :root {
   --bg: #0b0c0f; --surface: #14161a; --line: #22252b; --text: #e7e9ec;
@@ -240,7 +240,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 </head>
 <body>
 <header>
-  <h1>asqav demo - local governance dashboard</h1>
+  <h1>Asqav demo - local governance dashboard</h1>
   <div class="sub">4 scenarios. Approve or deny. Each decision becomes a verifiable signed receipt. No signup, no Docker, no API key.</div>
 </header>
 <main id="main">Loading...</main>
@@ -445,7 +445,7 @@ def serve(port: int = 3030, open_browser: bool = True) -> None:
     port = _find_free_port(port)
     with socketserver.ThreadingTCPServer(("127.0.0.1", port), DemoHandler) as httpd:
         url = f"http://127.0.0.1:{port}"
-        print(f"asqav demo running at {url}")
+        print(f"Asqav demo running at {url}")
         print("  - 4 pre-loaded scenarios: rm -rf, fintech wire, k8s scale-to-zero, clinical lab order")
         print("  - No signup, no Docker, no API key")
         print("  - Press Ctrl-C to stop")

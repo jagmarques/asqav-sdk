@@ -2,9 +2,9 @@
 
 The helper pre-validates ``tool_args`` payloads against the
 Compliance Receipts canonicalization rule: no floats in the signed
-canonical scope, because RFC 8785 section 3.2.2 only fixes byte-stable
-numeric output for safe-range integers. Floats drift across runtimes
-and break verifier equality.
+canonical scope, because canonical JSON only fixes byte-stable numeric
+output for safe-range integers. Floats drift across runtimes and
+break verifier equality.
 """
 
 from __future__ import annotations

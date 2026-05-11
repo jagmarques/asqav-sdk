@@ -1,4 +1,4 @@
-"""Async API Client for asqav SDK.
+"""Async API Client for the Asqav SDK.
 
 Provides AsyncAgent, an async mirror of the sync Agent class.
 Uses httpx.AsyncClient for non-blocking HTTP calls.
@@ -140,7 +140,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
 
 @dataclass
 class AsyncAgent:
-    """Async agent representation from asqav Cloud.
+    """Async agent representation from Asqav Cloud.
 
     Mirrors the sync Agent class but uses async HTTP calls.
     All ML-DSA cryptography happens server-side.
@@ -175,7 +175,7 @@ class AsyncAgent:
         algorithm: str = "ml-dsa-65",
         capabilities: list[str] | None = None,
     ) -> AsyncAgent:
-        """Create a new agent via asqav Cloud.
+        """Create a new agent via Asqav Cloud.
 
         Args:
             name: Human-readable name for the agent.
