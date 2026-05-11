@@ -13,7 +13,10 @@ import {
   Agent,
   AsqavError,
   DORA_INCIDENT_CLASS_NAMESPACE,
+  HIPAA_INCIDENT_CLASS_NAMESPACE,
+  INCIDENT_CLASS_NAMESPACE,
   RECEIPT_TYPE_NAMESPACE,
+  SANDBOX_STATE_NAMESPACE,
   _resetForTests,
   init,
 } from "../src/index.js";
@@ -259,6 +262,82 @@ describe("agent.sign IETF profile fields", () => {
         incidentClass: "ICT-INC-001",
       }),
     ).rejects.toThrow(/invalid_incident_class/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  // === HIPAA incident_class vocabulary (GAP-E13) ===
+
+  it("accepts the HIPAA security incident token", async () => {
+    expect(HIPAA_INCIDENT_CLASS_NAMESPACE).toContain("hipaa_security_incident");
+    expect(INCIDENT_CLASS_NAMESPACE).toContain("hipaa_security_incident");
+
+    let capturedBody: Record<string, unknown> | null = null;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      capturedBody = JSON.parse((init?.body as string) ?? "{}");
+      return jsonResponse({
+        signature: "sig",
+        signature_id: "sigid",
+        action_id: "act",
+        timestamp: "2026-05-04T00:00:00Z",
+        verification_url: "https://example.test",
+      });
+    });
+    const agent = fakeAgent();
+    await agent.sign({
+      actionType: "api:call",
+      context: {},
+      complianceMode: true,
+      incidentClass: "hipaa_security_incident",
+    });
+    expect((capturedBody as unknown as Record<string, unknown>).incident_class).toBe(
+      "hipaa_security_incident",
+    );
+  });
+
+  it("accepts an array mixing DORA and HIPAA tokens for cross-regime classification", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      capturedBody = JSON.parse((init?.body as string) ?? "{}");
+      return jsonResponse({
+        signature: "sig",
+        signature_id: "sigid",
+        action_id: "act",
+        timestamp: "2026-05-04T00:00:00Z",
+        verification_url: "https://example.test",
+      });
+    });
+    const agent = fakeAgent();
+    await agent.sign({
+      actionType: "api:call",
+      context: {},
+      complianceMode: true,
+      incidentClass: ["cybersecurity_related", "hipaa_security_incident"],
+    });
+    expect(
+      (capturedBody as unknown as Record<string, unknown>).incident_class,
+    ).toEqual(["cybersecurity_related", "hipaa_security_incident"]);
+  });
+
+  // === Sandbox state enum (GAP-E3) ===
+
+  it("SANDBOX_STATE_NAMESPACE matches the upstream enum", () => {
+    expect([...SANDBOX_STATE_NAMESPACE].sort()).toEqual(
+      ["disabled", "enabled", "unavailable"],
+    );
+  });
+
+  it("rejects an out-of-vocabulary sandbox_state before any HTTP call", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const agent = fakeAgent();
+    await expect(
+      agent.sign({
+        actionType: "api:call",
+        context: {},
+        complianceMode: true,
+        // @ts-expect-error -- intentional: testing runtime guard with a string outside the enum.
+        sandboxState: "sandboxed",
+      }),
+    ).rejects.toThrow(/invalid_sandbox_state/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
