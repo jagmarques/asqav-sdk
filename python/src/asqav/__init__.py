@@ -114,6 +114,13 @@ from .client import (
     verify_signature,
 )
 from .compliance import ComplianceBundle, export_bundle, fetch_audit_pack
+from .counterparty import (
+    ACKNOWLEDGMENT_RECEIPT_TYPE,
+    CounterpartyBinding,
+    CounterpartyBindingVerification,
+    compute_counterparty_binding,
+    verify_counterparty_binding,
+)
 from .decorators import async_session, session, sign
 from .hooks import clear_hooks, register_after, register_before
 from .keys import (
@@ -281,6 +288,12 @@ __all__ = [
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",
+    # Counterparty acknowledgment binding (IETF -04 counterparty_binding extension)
+    "ACKNOWLEDGMENT_RECEIPT_TYPE",
+    "CounterpartyBinding",
+    "CounterpartyBindingVerification",
+    "compute_counterparty_binding",
+    "verify_counterparty_binding",
     # DORA RTS JC 2024-33 Annex II vocabulary
     "DORA_INCIDENT_CLASS_NAMESPACE",
     # Algorithm agility
