@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### Added
+- Counterparty acknowledgment helpers (`compute_counterparty_binding`, `verify_counterparty_binding`, `CounterpartyBinding`, `ACKNOWLEDGMENT_RECEIPT_TYPE`) in both Python and TypeScript. Mirrors the cloud's `counterparty_binding` extension field; computes base64 SHA-256 of the originating envelope's canonical bytes and recompares at verify time. `protectmcp:acknowledgment` joins the receipt-type namespace. `verify_compliance_receipt` accepts an optional `originating_envelope` argument and surfaces `counterparty_binding_verified`.
 - `VerificationResponse` exposes `type`, `bitcoinAnchor`, `signatureEnvelope`, `anchors`, `algorithmRegistryVersion` (Python: snake_case). Match the cloud `/verify` response per IETF -03 §8.1.
 - `VerificationDetail` exposes `anchorValidOts`, `anchorValidRfc3161`, `policyDigestResolved`, `duplicateEmissionCandidate`.
 - TypeScript validation-label union includes `agent_revoked_before_issuance`.
