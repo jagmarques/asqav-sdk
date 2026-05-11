@@ -2451,11 +2451,20 @@ def verify_compliance_receipt(
     if has_binding and originating_envelope is not None:
         from .counterparty import verify_counterparty_binding
 
-        ack_env = envelope if "payload" in envelope else {"payload": payload_obj}
-        outcome = verify_counterparty_binding(ack_env, originating_envelope)
-        counterparty_binding_verified = outcome.valid
-        if not outcome.valid:
-            errors.append(f"counterparty_binding_{outcome.label}")
+        binding_obj = payload_obj["counterparty_binding"]
+        has_full_envelope = "payload" in envelope
+        expects_ack_kid = isinstance(binding_obj.get("expect_ack_from"), str)
+        if expects_ack_kid and not has_full_envelope:
+            # Payload-only input cannot supply ``signature.kid``; surface a
+            # clear outcome instead of a silent kid-axis false negative.
+            counterparty_binding_verified = False
+            errors.append("counterparty_binding_requires_full_envelope")
+        else:
+            ack_env = envelope if has_full_envelope else {"payload": payload_obj}
+            outcome = verify_counterparty_binding(ack_env, originating_envelope)
+            counterparty_binding_verified = outcome.valid
+            if not outcome.valid:
+                errors.append(f"counterparty_binding_{outcome.label}")
 
     valid = (
         fields_present
