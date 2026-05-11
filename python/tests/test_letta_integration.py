@@ -16,9 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Inject a fake letta_client module before importing the hook
-# ---------------------------------------------------------------------------
+# === Inject a fake letta_client module before importing the hook ===
 
 _fake_letta_client = types.ModuleType("letta_client")
 sys.modules["letta_client"] = _fake_letta_client
@@ -26,9 +24,7 @@ sys.modules.pop("asqav.extras.letta", None)
 
 from asqav.extras.letta import AsqavLettaHook  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# === Helpers ===
 
 
 def _make_client(
@@ -52,9 +48,7 @@ def _make_client(
     return client
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -70,9 +64,7 @@ def hook() -> AsqavLettaHook:
     return h
 
 
-# ---------------------------------------------------------------------------
-# Canonical API: positional block_label, keyword-only agent_id
-# ---------------------------------------------------------------------------
+# === Canonical API: positional block_label, keyword-only agent_id ===
 
 
 def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
@@ -118,9 +110,7 @@ def test_update_without_value_still_calls_original(hook: AsqavLettaHook) -> None
     assert "value" not in kwargs
 
 
-# ---------------------------------------------------------------------------
-# wrap_client: memory:read
-# ---------------------------------------------------------------------------
+# === wrap_client: memory:read ===
 
 
 def test_wrap_client_signs_memory_read(hook: AsqavLettaHook) -> None:
@@ -170,9 +160,7 @@ def test_wrap_client_retrieve_returns_original_result(hook: AsqavLettaHook) -> N
     assert result is sentinel
 
 
-# ---------------------------------------------------------------------------
-# wrap_client: memory:write
-# ---------------------------------------------------------------------------
+# === wrap_client: memory:write ===
 
 
 def test_wrap_client_signs_memory_write(hook: AsqavLettaHook) -> None:
@@ -223,9 +211,7 @@ def test_wrap_client_update_returns_original_result(hook: AsqavLettaHook) -> Non
     assert result is sentinel
 
 
-# ---------------------------------------------------------------------------
-# Error paths
-# ---------------------------------------------------------------------------
+# === Error paths ===
 
 
 def test_wrap_client_signs_read_error_on_exception(hook: AsqavLettaHook) -> None:
@@ -308,9 +294,7 @@ def test_wrap_client_signs_write_start_and_error_on_failure(hook: AsqavLettaHook
     assert hook._sign_action.call_args_list[1][0][0] == "memory:write.error"
 
 
-# ---------------------------------------------------------------------------
-# Truncation
-# ---------------------------------------------------------------------------
+# === Truncation ===
 
 
 def test_agent_id_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
@@ -347,9 +331,7 @@ def test_error_message_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
     assert len(ctx["error"]) == 200
 
 
-# ---------------------------------------------------------------------------
-# Fail-open: signing must never block memory operations
-# ---------------------------------------------------------------------------
+# === Fail-open: signing must never block memory operations ===
 
 
 def test_fail_open_memory_read_does_not_block_retrieve(hook: AsqavLettaHook) -> None:
@@ -408,9 +390,7 @@ def test_fail_open_read_error_signing_does_not_swallow_exception(
         client.agents.blocks.retrieve("b", agent_id="a")
 
 
-# ---------------------------------------------------------------------------
-# Multiple clients tracked independently
-# ---------------------------------------------------------------------------
+# === Multiple clients tracked independently ===
 
 
 def test_multiple_clients_tracked_independently(hook: AsqavLettaHook) -> None:
@@ -429,9 +409,7 @@ def test_multiple_clients_tracked_independently(hook: AsqavLettaHook) -> None:
     assert calls[2][0][1]["agent_id"] == "agent-b"
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 @pytest.fixture(autouse=True, scope="module")
