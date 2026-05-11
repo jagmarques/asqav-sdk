@@ -118,6 +118,61 @@ export function canonicalizeAction(
   return canonicalize({ action_type: actionType, context });
 }
 
+function escapeJsonPointerToken(token: string): string {
+  return token.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+function findFloatPointer(value: unknown, pointer: string): string | null {
+  if (typeof value === "number" && !Number.isInteger(value)) {
+    return pointer;
+  }
+  if (typeof value === "number" && !Number.isFinite(value)) {
+    return pointer;
+  }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const hit = findFloatPointer(value[i], `${pointer}/${i}`);
+      if (hit !== null) return hit;
+    }
+    return null;
+  }
+  if (value !== null && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    for (const key of Object.keys(obj)) {
+      const hit = findFloatPointer(obj[key], `${pointer}/${escapeJsonPointerToken(key)}`);
+      if (hit !== null) return hit;
+    }
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Pre-validate ``tool_args`` and return JCS-canonical bytes.
+ *
+ * Floats are not byte-stable across runtimes per RFC 8785 section 3.2.2,
+ * so the Compliance Receipts profile keeps them out of the signed
+ * canonical scope. Serialize numerics as strings (``"1.5"``) or
+ * integer-rational pairs before calling this helper. Integers (including
+ * any value where ``Number.isInteger`` is true) and booleans pass through.
+ *
+ * @throws Error When any leaf is a non-integer or non-finite number; the
+ *   message includes the JSON pointer to the offending value so the
+ *   caller can fix the input.
+ */
+export function canonicalizeToolArgs(args: unknown): Uint8Array {
+  const pointer = findFloatPointer(args, "");
+  if (pointer !== null) {
+    const where = pointer === "" ? "/" : pointer;
+    throw new Error(
+      `tool_args float at ${where}: floats are not byte-stable across runtimes `
+      + "per RFC 8785 section 3.2.2; serialize numerics as strings or rationals "
+      + "before passing to canonicalizeToolArgs",
+    );
+  }
+  return canonicalize(args);
+}
+
 /**
  * Self-describing hash for an action: `sha256:<hex>`.
  * With `salt` set, uses HMAC-SHA-256.
