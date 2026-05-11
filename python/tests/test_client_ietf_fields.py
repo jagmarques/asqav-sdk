@@ -411,9 +411,9 @@ def test_pre_alignment_token_now_rejected() -> None:
 
 
 def test_hipaa_security_incident_token_accepted() -> None:
-    """Spec Section 4.2 (`incident_class`) names HIPAA 45 CFR 164.304 as a
-    canonical source regime alongside DORA. The SDK MUST accept the HIPAA
-    token so a Covered Entity is not forced into a DORA category."""
+    """HIPAA 45 CFR 164.304 is a canonical `incident_class` source regime
+    alongside DORA. The SDK MUST accept the HIPAA token so a Covered
+    Entity is not forced into a DORA category."""
     from asqav.client import HIPAA_INCIDENT_CLASS_NAMESPACE
 
     captured: dict = {}
@@ -434,9 +434,9 @@ def test_hipaa_security_incident_token_accepted() -> None:
 
 
 def test_incident_class_list_form_accepted_with_mixed_regimes() -> None:
-    """Spec Section 4.2: `incident_class` MAY be a JSON array of canonical
-    strings to preserve cross-regime classification (e.g. one Action that
-    is both a DORA ICT-related incident and a HIPAA security incident)."""
+    """`incident_class` MAY be a JSON array of canonical strings to preserve
+    cross-regime classification (e.g. one Action that is both a DORA
+    ICT-related incident and a HIPAA security incident)."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -474,8 +474,8 @@ def test_incident_class_list_rejects_unknown_token_in_array() -> None:
 
 
 def test_sandbox_state_namespace_matches_upstream_enum() -> None:
-    """draft-marques-asqav-compliance-receipts Section 4.1.6 inherits the
-    upstream enum unchanged: {enabled, disabled, unavailable}."""
+    """The `sandbox_state` enum inherits the upstream values unchanged:
+    {enabled, disabled, unavailable}."""
     from asqav.client import SANDBOX_STATE_NAMESPACE
 
     assert SANDBOX_STATE_NAMESPACE == frozenset(

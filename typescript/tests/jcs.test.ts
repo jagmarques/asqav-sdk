@@ -1,8 +1,8 @@
 /**
- * RFC 8785 (JCS) golden-vector tests for `canonicalJson`.
+ * Canonical-JSON (JCS) golden-vector tests for `canonicalJson`.
  *
- * Vectors come from RFC 8785 §3 (the appendix of test data).
- * https://datatracker.ietf.org/doc/html/rfc8785
+ * Vectors come from the canonical-JSON appendix of test data.
+ * See https://datatracker.ietf.org/doc/html/rfc8785 for the canonical form.
  */
 
 import { createHash } from "node:crypto";
@@ -19,9 +19,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
   it("§3.2.3 sorts object keys lexicographically (UTF-16 code unit order)", () => {
     const input = { peach: "This sorting order", péché: "is wrong according to French", pêche: "but ordains", sin: "ordering by code unit" };
     const out = decode(canonicalJson(input));
-    // The keys end up sorted by JavaScript's default string sort, which is
-    // UTF-16 code unit order: ascii letters come before pre-composed Latin
-    // accented letters.
+    // Keys sort by JavaScript's default UTF-16 code unit order: ascii letters precede pre-composed Latin accented letters.
     expect(out).toBe(
       "{\"peach\":\"This sorting order\",\"péché\":\"is wrong according to French\",\"pêche\":\"but ordains\",\"sin\":\"ordering by code unit\"}"
     );
@@ -85,7 +83,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
   });
 
   it("known SHA-256 digest for the §5.7 chain seed envelope", () => {
-    // First record's previousReceiptHash MUST equal "0"*64 per §5.7.
+    // First record's previousReceiptHash MUST equal "0"*64 (chain seed).
     const envelope = {
       type: "protectmcp:decision",
       issued_at: "2026-05-04T00:00:00Z",

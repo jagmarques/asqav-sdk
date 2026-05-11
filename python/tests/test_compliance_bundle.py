@@ -18,9 +18,7 @@ from asqav.compliance import (
     export_bundle,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 def _make_sig_response(**overrides) -> SignatureResponse:
     defaults = {
@@ -50,9 +48,7 @@ def _make_signed_action(**overrides) -> SignedActionResponse:
     return SignedActionResponse(**defaults)
 
 
-# ---------------------------------------------------------------------------
-# Merkle root tests
-# ---------------------------------------------------------------------------
+# === Merkle root tests ===
 
 class TestMerkleRoot:
     def test_single_hash(self):
@@ -93,9 +89,7 @@ class TestMerkleRoot:
         assert r1 == r2
 
 
-# ---------------------------------------------------------------------------
-# export_bundle tests
-# ---------------------------------------------------------------------------
+# === export_bundle tests ===
 
 class TestExportBundle:
     def test_with_signature_responses(self):
@@ -177,9 +171,7 @@ class TestExportBundle:
             assert bundle.framework_metadata == FRAMEWORKS[fw_key]
 
 
-# ---------------------------------------------------------------------------
-# Serialization tests
-# ---------------------------------------------------------------------------
+# === Serialization tests ===
 
 class TestSerialization:
     def test_to_dict(self):

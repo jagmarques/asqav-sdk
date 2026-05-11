@@ -11,9 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import asqav
 from asqav.client import Agent, SignatureResponse, generate_trace_id
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig_abc123",
@@ -36,9 +34,7 @@ def _make_agent() -> Agent:
     )
 
 
-# ---------------------------------------------------------------------------
-# generate_trace_id tests
-# ---------------------------------------------------------------------------
+# === generate_trace_id tests ===
 
 
 def test_generate_trace_id_returns_hex_string() -> None:
@@ -61,9 +57,7 @@ def test_generate_trace_id_exported() -> None:
     assert callable(asqav.generate_trace_id)
 
 
-# ---------------------------------------------------------------------------
-# sign() with trace_id and parent_id
-# ---------------------------------------------------------------------------
+# === sign() with trace_id and parent_id ===
 
 
 @patch("asqav.client._post")

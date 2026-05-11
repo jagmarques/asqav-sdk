@@ -70,18 +70,18 @@ def _exception_name(exc: BaseException | None) -> str | None:
 
 
 class AsqavInstructorHook(AsqavAdapter):
-    """asqav adapter for instructor clients.
+    """Asqav adapter for instructor clients.
 
     Signs ``instructor.completion.start`` on every extraction request,
     ``instructor.completion.complete`` on each successful response, and
     ``instructor.completion.error`` / ``instructor.parse.error`` on the two
-    failure paths. Signing is fail-open: if asqav is unreachable the
+    failure paths. Signing is fail-open: if Asqav is unreachable the
     extraction still runs.
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
 
     Example:
         client = instructor.from_provider("openai/gpt-4o-mini")

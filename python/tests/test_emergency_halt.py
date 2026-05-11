@@ -11,9 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import asqav
 from asqav.client import emergency_halt
 
-# ---------------------------------------------------------------------------
-# emergency_halt tests
-# ---------------------------------------------------------------------------
+# === emergency_halt tests ===
 
 
 @patch("asqav.client._post")

@@ -10,9 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import Agent
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig_abc123",
@@ -23,9 +21,7 @@ MOCK_SIGN_RESPONSE: dict = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Reproducibility metadata tests
-# ---------------------------------------------------------------------------
+# === Reproducibility metadata tests ===
 
 
 @patch("asqav.client._post")
@@ -152,9 +148,7 @@ def test_sign_with_none_context_and_metadata(mock_post: object) -> None:
     assert call_body["context"]["_system_prompt_hash"] == "hash_value"
 
 
-# ---------------------------------------------------------------------------
-# Pattern resolution in sign()
-# ---------------------------------------------------------------------------
+# === Pattern resolution in sign() ===
 
 
 @patch("asqav.client._post")

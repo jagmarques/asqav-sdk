@@ -1,4 +1,4 @@
-"""Tests for asqav SDK client -- multi-party signing methods."""
+"""Tests for the Asqav SDK client -- multi-party signing methods."""
 
 from __future__ import annotations
 
@@ -17,9 +17,7 @@ from asqav.client import (
     _parse_signing_session,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 MOCK_SESSION_RESPONSE: dict = {
     "session_id": "thr_abc123",
@@ -83,9 +81,7 @@ MOCK_APPROVE_APPROVED: dict = {
 }
 
 
-# ---------------------------------------------------------------------------
-# request_action tests
-# ---------------------------------------------------------------------------
+# === request_action tests ===
 
 
 @patch("asqav.client._post")
@@ -147,9 +143,7 @@ def test_request_action_without_params_omits_key(mock_post: object) -> None:
     assert "params" not in call_body
 
 
-# ---------------------------------------------------------------------------
-# approve_action tests
-# ---------------------------------------------------------------------------
+# === approve_action tests ===
 
 
 @patch("asqav.client._post")
@@ -190,9 +184,7 @@ def test_approve_action_approved(mock_post: object) -> None:
     assert result.signatures_collected == 2
 
 
-# ---------------------------------------------------------------------------
-# get_action_status tests
-# ---------------------------------------------------------------------------
+# === get_action_status tests ===
 
 
 @patch("asqav.client._get")
@@ -234,9 +226,7 @@ def test_get_action_status_approved(mock_get: object) -> None:
     assert sig1.entity_class == "B"
 
 
-# ---------------------------------------------------------------------------
-# Regression: sign() method unchanged
-# ---------------------------------------------------------------------------
+# === Regression: sign() method unchanged ===
 
 
 def test_sign_method_exists_on_agent() -> None:
@@ -287,9 +277,7 @@ def test_sign_passes_counterparty_into_context(mock_post: object) -> None:
     assert sent_body["context"]["_counterparty"] == cp
 
 
-# ---------------------------------------------------------------------------
-# Agent.sign_batch
-# ---------------------------------------------------------------------------
+# === Agent.sign_batch ===
 
 
 def _make_agent() -> "asqav.Agent":
@@ -382,9 +370,7 @@ def test_sign_batch_rejects_missing_action_type() -> None:
         agent.sign_batch([{"context": {"x": 1}}])
 
 
-# ---------------------------------------------------------------------------
-# _parse_signing_session helper
-# ---------------------------------------------------------------------------
+# === _parse_signing_session helper ===
 
 
 def test_parse_signing_session_minimal() -> None:

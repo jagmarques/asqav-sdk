@@ -13,7 +13,7 @@ def _module_installed(name: str) -> bool:
     """True if ``name`` is reachable on the filesystem.
 
     Pops any pre-existing ``sys.modules`` entry before probing so a mock
-    injected by an earlier test (with ``__spec__ = None``) does not mask
+    injected by another test (with ``__spec__ = None``) does not mask
     a real on-disk install. Restores the entry afterwards so we do not
     perturb the rest of the test session.
     """
@@ -95,7 +95,7 @@ def test_extras_package_importable():
 def _purge(*module_names: str) -> None:
     """Drop modules from sys.modules so a fresh import re-runs the guards.
 
-    Earlier integration tests inject framework mocks (sys.modules["crewai"] = ...).
+    Other integration tests inject framework mocks (sys.modules["crewai"] = ...).
     Without this purge the stub re-import sees the mock and skips the
     ImportError path, so the stub-import test silently passes when the user
     actually has the framework missing. Fail closed by clearing both.

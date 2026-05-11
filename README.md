@@ -275,7 +275,7 @@ The cloud `/verify` endpoint reports the same outcome on the verification respon
 
 ## Conformance
 
-The `conformance/` directory contains shared test fixtures both SDKs run against. Adding a new feature means adding a fixture there first, then making both SDKs pass it. CI reruns both matrices whenever `conformance/` changes, even if neither `python/` nor `typescript/` was touched, so cross-language drift is caught at PR time.
+The `conformance/` directory contains shared test fixtures both SDKs run against. Adding a feature means adding a fixture there first, then making both SDKs pass it. CI reruns both matrices whenever `conformance/` changes, even if neither `python/` nor `typescript/` was touched, so cross-language drift is caught at PR time.
 
 ## CI
 

@@ -409,9 +409,7 @@ async function cmdSign(args: string[]): Promise<void> {
   if (!agentId || !actionType) {
     die("Usage: asqav sign --agent-id ID --action-type T [--no-compliance-mode] [--action-json PATH]");
   }
-  // Compliance Receipts default to compliance_mode=true to match the SDK
-  // constructor default (typescript/src/index.ts) and the Python SDK. Pass
-  // --no-compliance-mode to opt out for the rare non-profile receipt.
+  // Compliance Receipts default to compliance_mode=true; pass --no-compliance-mode to opt out.
   const complianceMode = !hasFlag(args, "no-compliance-mode");
   const actionRef = parseFlag(args, "action-ref");
   const actionJson = parseFlag(args, "action-json");

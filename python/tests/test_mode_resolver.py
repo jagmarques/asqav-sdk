@@ -6,9 +6,7 @@ import pytest
 
 from asqav._mode import _is_asqav_cloud_host, _resolve_mode
 
-# ---------------------------------------------------------------------------
-# Cloud host detection
-# ---------------------------------------------------------------------------
+# === Cloud host detection ===
 
 
 @pytest.mark.parametrize(
@@ -34,9 +32,7 @@ def test_is_asqav_cloud_host(host: str | None, expected: bool) -> None:
     assert _is_asqav_cloud_host(host) is expected
 
 
-# ---------------------------------------------------------------------------
-# Resolution precedence
-# ---------------------------------------------------------------------------
+# === Resolution precedence ===
 
 
 def test_explicit_overrides_env_and_url() -> None:
@@ -81,9 +77,7 @@ def test_invalid_explicit_raises() -> None:
         _resolve_mode(api_base_url=None, env=None, explicit="banana")
 
 
-# ---------------------------------------------------------------------------
-# Auto detection scenarios
-# ---------------------------------------------------------------------------
+# === Auto detection scenarios ===
 
 
 @pytest.mark.parametrize(
