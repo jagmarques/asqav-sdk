@@ -26,9 +26,7 @@ except ImportError:
         "Install with: pip install asqav[dspy]"
     )
 
-# ---------------------------------------------------------------------------
-# Initialise asqav
-# ---------------------------------------------------------------------------
+# === Initialise asqav ===
 
 api_key = os.environ.get("ASQAV_API_KEY", "")
 if not api_key:
@@ -46,9 +44,7 @@ dspy.configure(
     callbacks=[AsqavDSPyCallback(agent_name="dspy-demo")],
 )
 
-# ---------------------------------------------------------------------------
-# Define a DSPy program
-# ---------------------------------------------------------------------------
+# === Define a DSPy program ===
 
 
 class RAGPipeline(dspy.Module):
@@ -63,9 +59,7 @@ class RAGPipeline(dspy.Module):
         return self.generate(context=context, question=question)
 
 
-# ---------------------------------------------------------------------------
-# Run the program
-# ---------------------------------------------------------------------------
+# === Run the program ===
 
 pipeline = RAGPipeline()
 

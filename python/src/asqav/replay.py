@@ -20,9 +20,7 @@ from ._jcs import canonical_json
 from .client import SignedActionResponse, get_session_signatures
 from .compliance import ComplianceBundle, _normalize_signature
 
-# Per-IETF-profile seed for the first record on every chain. Distinguishes
-# "no predecessor" from "predecessor not yet linked". Mirrors
-# `core/integrity.py:FIRST_RECEIPT_SEED` on the cloud.
+#: Seed planted as `previousReceiptHash` on the first record per chain (mirrors cloud).
 FIRST_RECEIPT_SEED: str = "0" * 64
 
 
@@ -40,10 +38,7 @@ class ReplayStep:
     explanation: str
     # Predecessor's chain hash; verify_chain recomputes and compares.
     prev_chain_hash: str | None = None
-    # When the caller has the full signed envelope for this step (the
-    # exact bytes the cloud put under `compute_signature_record_hash_v2`),
-    # verify_chain hashes those bytes byte-for-byte and tampering of any
-    # field surfaces.
+    # Full signed envelope bytes; verify_chain hashes byte-for-byte when present.
     signed_envelope: dict[str, Any] | None = None
 
 
@@ -55,9 +50,7 @@ class ReplayTimeline:
     session_id: str
     steps: list[ReplayStep] = field(default_factory=list)
     chain_integrity: bool = True
-    # True only when EVERY step under compliance mode carried a
-    # `signed_envelope` and verified byte-for-byte against the cloud's
-    # `compute_signature_record_hash_v2`.
+    # True only when every compliance-mode step verified byte-for-byte from its signed envelope.
     compliance_chain_valid: bool = True
     start_time: float | None = None
     end_time: float | None = None
