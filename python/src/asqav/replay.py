@@ -307,7 +307,7 @@ def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
     """Reconstruct a timeline from a ComplianceBundle offline.
 
     Args:
-        bundle: A ComplianceBundle from an earlier export.
+        bundle: A ComplianceBundle export.
 
     Returns:
         A ReplayTimeline built from the bundle receipts.

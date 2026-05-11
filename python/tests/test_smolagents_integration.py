@@ -16,9 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Inject a fake smolagents module before importing the hook
-# ---------------------------------------------------------------------------
+# === Inject a fake smolagents module before importing the hook ===
 
 _fake_smolagents = types.ModuleType("smolagents")
 sys.modules["smolagents"] = _fake_smolagents
@@ -26,9 +24,7 @@ sys.modules.pop("asqav.extras.smolagents", None)
 
 from asqav.extras.smolagents import AsqavSmolagentsHook  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# === Helpers ===
 
 
 def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
@@ -39,9 +35,7 @@ def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
     return tool
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -57,9 +51,7 @@ def hook() -> AsqavSmolagentsHook:
     return h
 
 
-# ---------------------------------------------------------------------------
-# wrap_tool: tool:start
-# ---------------------------------------------------------------------------
+# === wrap_tool: tool:start ===
 
 
 def test_wrap_tool_signs_tool_start(hook: AsqavSmolagentsHook) -> None:
@@ -95,9 +87,7 @@ def test_wrap_tool_signs_tool_start_no_args(hook: AsqavSmolagentsHook) -> None:
     assert start_ctx["input"] == ""
 
 
-# ---------------------------------------------------------------------------
-# wrap_tool: tool:end
-# ---------------------------------------------------------------------------
+# === wrap_tool: tool:end ===
 
 
 def test_wrap_tool_signs_tool_end(hook: AsqavSmolagentsHook) -> None:
@@ -134,9 +124,7 @@ def test_wrap_tool_signs_two_actions_per_successful_call(
     assert hook._sign_action.call_args_list[1][0][0] == "tool:end"
 
 
-# ---------------------------------------------------------------------------
-# wrap_tool: tool:error
-# ---------------------------------------------------------------------------
+# === wrap_tool: tool:error ===
 
 
 def test_wrap_tool_signs_tool_error_on_exception(hook: AsqavSmolagentsHook) -> None:
@@ -182,9 +170,7 @@ def test_wrap_tool_signs_start_and_error_on_failure(
     assert hook._sign_action.call_args_list[1][0][0] == "tool:error"
 
 
-# ---------------------------------------------------------------------------
-# Truncation
-# ---------------------------------------------------------------------------
+# === Truncation ===
 
 
 def test_input_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None:
@@ -210,9 +196,7 @@ def test_error_message_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None
     assert len(error_ctx["error"]) == 200
 
 
-# ---------------------------------------------------------------------------
-# Fail-open: signing must never block tool execution
-# ---------------------------------------------------------------------------
+# === Fail-open: signing must never block tool execution ===
 
 
 def test_fail_open_tool_start_does_not_block_execution(
@@ -260,9 +244,7 @@ def test_fail_open_tool_error_does_not_swallow_exception(
         tool.forward("input")
 
 
-# ---------------------------------------------------------------------------
-# Multiple tools tracked independently
-# ---------------------------------------------------------------------------
+# === Multiple tools tracked independently ===
 
 
 def test_multiple_tools_tracked_independently(hook: AsqavSmolagentsHook) -> None:
@@ -284,9 +266,7 @@ def test_multiple_tools_tracked_independently(hook: AsqavSmolagentsHook) -> None
     assert calls[3][0][1]["tool"] == "tool_b"
 
 
-# ---------------------------------------------------------------------------
-# Tool name fallback
-# ---------------------------------------------------------------------------
+# === Tool name fallback ===
 
 
 def test_tool_name_falls_back_to_class_name(hook: AsqavSmolagentsHook) -> None:
@@ -302,9 +282,7 @@ def test_tool_name_falls_back_to_class_name(hook: AsqavSmolagentsHook) -> None:
     assert start_ctx["tool"] == "MyCustomTool"
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 @pytest.fixture(autouse=True, scope="module")

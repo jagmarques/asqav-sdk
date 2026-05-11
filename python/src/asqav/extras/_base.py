@@ -1,4 +1,4 @@
-"""Base adapter class for asqav framework integrations.
+"""Base adapter class for Asqav framework integrations.
 
 All framework-specific adapters (LangChain, CrewAI, LiteLLM, Haystack,
 OpenAI Agents) extend AsqavAdapter. This isolates signing logic from
@@ -32,7 +32,7 @@ def _class_name_to_agent_name(cls_name: str) -> str:
 
 
 class AsqavAdapter:
-    """Base class for asqav framework integrations.
+    """Base class for Asqav framework integrations.
 
     Provides shared helpers for agent initialization, action signing,
     and optional session grouping. Subclasses implement framework-specific
@@ -82,7 +82,7 @@ class AsqavAdapter:
         """Sign an action via the agent. Returns None on failure (fail-open).
 
         Governance failures are logged but never raise - the user's AI
-        pipeline must not break because of asqav availability issues.
+        pipeline must not break because of Asqav availability issues.
 
         When observe mode is enabled, logs the action that would be signed
         without making any API calls and returns None.

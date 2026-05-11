@@ -1,7 +1,7 @@
 """Verify user_intent kwarg passes through to the wire body.
 
 The SDK does not interpret user_intent; it only serializes the dict as-is.
-Backend verification is covered by the asqav backend test suite.
+Backend verification is covered by the Asqav backend test suite.
 """
 
 from __future__ import annotations

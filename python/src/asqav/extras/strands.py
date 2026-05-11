@@ -7,7 +7,7 @@ Auto-signs every model call from a Strands ``Agent`` via the typed hooks API
 an ``strands:model_call`` governance signature with input/output hashes, model
 name, and latency. Signing is fail-open so governance never breaks the agent.
 
-This adapter is implemented as a thin wrapper over the asqav SDK's generic
+This adapter is implemented as a thin wrapper over the Asqav SDK's generic
 hooks system (:mod:`asqav.hooks`). Input/output hashing is registered as an
 internal ``before`` hook so the same pattern is available to any user
 integration.
@@ -95,7 +95,7 @@ def _extract_messages(event: Any) -> Any:
 
 
 def _strands_before_hook(action_type: str, context: dict) -> dict:
-    """Internal asqav before-hook that normalises strands:model_call context.
+    """Internal Asqav before-hook that normalises strands:model_call context.
 
     Ensures ``input_hash`` and ``output_hash`` keys exist with a stable
     fallback even when the caller did not provide them. This demonstrates the
@@ -133,8 +133,8 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
         algorithm: Optional signing algorithm hint recorded in the context.
     """
 

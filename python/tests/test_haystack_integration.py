@@ -12,9 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import SignatureResponse
 
-# ---------------------------------------------------------------------------
-# Mock haystack before importing the integration module
-# ---------------------------------------------------------------------------
+# === Mock haystack before importing the integration module ===
 
 _mock_haystack = ModuleType("haystack")
 
@@ -56,9 +54,7 @@ def _make_component() -> AsqavComponent:
         return AsqavComponent(agent_name="test-pipeline")
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
+# === Tests ===
 
 
 class TestRun:

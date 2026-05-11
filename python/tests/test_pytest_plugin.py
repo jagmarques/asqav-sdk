@@ -41,9 +41,7 @@ def _config(**opts) -> MagicMock:  # type: ignore[no-untyped-def]
     return cfg
 
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
+# === Configuration ===
 
 
 def test_disabled_by_default() -> None:
@@ -80,9 +78,7 @@ def test_configure_without_api_key_raises() -> None:
             pytest_configure(_config(**{"--asqav": True}))
 
 
-# ---------------------------------------------------------------------------
-# Result capture
-# ---------------------------------------------------------------------------
+# === Result capture ===
 
 
 def test_makereport_captures_call_phase() -> None:
@@ -172,9 +168,7 @@ def test_sign_failure_does_not_mask_test() -> None:
     assert any("sign failed" in s[1] for s in report.sections)
 
 
-# ---------------------------------------------------------------------------
-# Session finish
-# ---------------------------------------------------------------------------
+# === Session finish ===
 
 
 @patch("asqav.compliance.export_bundle")
@@ -205,9 +199,7 @@ def test_sessionfinish_noop_when_no_signatures() -> None:
     pytest_sessionfinish(MagicMock(), 0)
 
 
-# ---------------------------------------------------------------------------
-# Programmatic API
-# ---------------------------------------------------------------------------
+# === Programmatic API ===
 
 
 @patch("asqav.compliance.export_bundle")

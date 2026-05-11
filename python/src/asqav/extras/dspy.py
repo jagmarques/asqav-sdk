@@ -47,17 +47,17 @@ def _exception_name(exception: BaseException | None) -> str | None:
 
 
 class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
-    """DSPy callback that signs module, LM, and tool events via asqav.
+    """DSPy callback that signs module, LM, and tool events via Asqav.
 
     Implements ``dspy.utils.callback.BaseCallback`` and records signed
     governance events for every module execution, LM call, and tool
-    invocation. Signing is fail-open: asqav failures are logged but never
-    raised, so DSPy pipelines keep running even when asqav is unreachable.
+    invocation. Signing is fail-open: Asqav failures are logged but never
+    raised, so DSPy pipelines keep running even when Asqav is unreachable.
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
     """
 
     def __init__(

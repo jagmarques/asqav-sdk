@@ -13,9 +13,7 @@ import asqav
 from asqav import client as asqav_client
 from asqav.decorators import session, sign
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 MOCK_AGENT_RESPONSE: dict = {
     "agent_id": "agent_test_123",
@@ -84,9 +82,7 @@ def _reset_global_agent() -> None:
     asqav_client._global_agent = None
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
+# === Tests ===
 
 
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)

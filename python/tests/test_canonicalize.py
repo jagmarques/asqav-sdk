@@ -2,7 +2,7 @@
 
 If this file fails, either:
 
-1. ``canonicalize.py`` drifted from RFC 8785 JCS subset, or
+1. ``canonicalize.py`` drifted from the JCS subset, or
 2. ``conformance/vectors.json`` was edited without regenerating derived
    fields (hash, canonical).
 

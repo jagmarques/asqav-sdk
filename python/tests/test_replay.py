@@ -19,9 +19,7 @@ from asqav.replay import (
     replay_from_bundle,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 def _make_signed_action(**overrides) -> SignedActionResponse:
     defaults = {
@@ -90,9 +88,7 @@ def _make_timeline(n: int = 3) -> ReplayTimeline:
     )
 
 
-# ---------------------------------------------------------------------------
-# Timeline ordering
-# ---------------------------------------------------------------------------
+# === Timeline ordering ===
 
 class TestTimelineOrdering:
     def test_steps_ordered_by_timestamp(self):
@@ -129,9 +125,7 @@ class TestTimelineOrdering:
         assert indices == list(range(5))
 
 
-# ---------------------------------------------------------------------------
-# Chain verification
-# ---------------------------------------------------------------------------
+# === Chain verification ===
 
 class TestChainVerification:
     def test_valid_chain(self):
@@ -194,9 +188,7 @@ class TestChainVerification:
         results = _verify_hash_chain(sig_dicts)
         assert results[0] is True
         assert results[1] is False
-        # Step 2's stored link still matches step 1's *derived* hash from the
-        # synthetic envelope (the corruption is on the recorded link, not the
-        # hashed fields), so step 2 verifies on its own.
+        # Step 2's link still matches step 1's *derived* hash (corruption is on the recorded link).
         assert results[2] is True
 
     def test_tampered_entry_detected(self):
@@ -259,9 +251,7 @@ class TestChainVerification:
         assert results == [True]
 
 
-# ---------------------------------------------------------------------------
-# replay_from_bundle
-# ---------------------------------------------------------------------------
+# === replay_from_bundle ===
 
 class TestReplayFromBundle:
     def test_basic_reconstruction(self):
@@ -317,9 +307,7 @@ class TestReplayFromBundle:
         assert timeline.end_time is None
 
 
-# ---------------------------------------------------------------------------
-# Summary output
-# ---------------------------------------------------------------------------
+# === Summary output ===
 
 class TestSummary:
     def test_summary_contains_key_info(self):
@@ -357,9 +345,7 @@ class TestSummary:
         assert "Steps:" not in text
 
 
-# ---------------------------------------------------------------------------
-# Serialization roundtrip
-# ---------------------------------------------------------------------------
+# === Serialization roundtrip ===
 
 class TestSerialization:
     def test_to_json_roundtrip(self):
@@ -407,9 +393,7 @@ class TestSerialization:
         assert "explanation" in step
 
 
-# ---------------------------------------------------------------------------
-# Empty signatures
-# ---------------------------------------------------------------------------
+# === Empty signatures ===
 
 class TestEmptySignatures:
     def test_empty_verify_chain(self):
@@ -433,9 +417,7 @@ class TestEmptySignatures:
         assert d["steps"] == []
 
 
-# ---------------------------------------------------------------------------
-# Explanation builder
-# ---------------------------------------------------------------------------
+# === Explanation builder ===
 
 class TestBuildExplanation:
     def test_api_category(self):
