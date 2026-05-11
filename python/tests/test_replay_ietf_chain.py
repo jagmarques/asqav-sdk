@@ -22,9 +22,7 @@ from asqav.replay import (
     _verify_hash_chain,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 def _make_signed_action(
@@ -43,9 +41,7 @@ def _make_signed_action(
     )
 
 
-# ---------------------------------------------------------------------------
-# FIRST_RECEIPT_SEED matches the spec
-# ---------------------------------------------------------------------------
+# === FIRST_RECEIPT_SEED matches the spec ===
 
 
 def test_first_receipt_seed_is_64_zero_hex() -> None:
@@ -55,9 +51,7 @@ def test_first_receipt_seed_is_64_zero_hex() -> None:
     assert all(c == "0" for c in FIRST_RECEIPT_SEED)
 
 
-# ---------------------------------------------------------------------------
-# IETF v2 default behaviour
-# ---------------------------------------------------------------------------
+# === IETF v2 default behaviour ===
 
 
 def test_v2_chain_hash_matches_jcs_of_envelope() -> None:
@@ -139,25 +133,19 @@ def test_v2_verify_chain_detects_tamper() -> None:
 
 
 
-# ---------------------------------------------------------------------------
-# _step_chain_hash helper
-# ---------------------------------------------------------------------------
+# === _step_chain_hash helper ===
 
 
 
 
 
-# ---------------------------------------------------------------------------
-# _step_chain_hash helper
-# ---------------------------------------------------------------------------
+# === _step_chain_hash helper ===
 
 
 
 
 
-# ---------------------------------------------------------------------------
-# Empty timeline
-# ---------------------------------------------------------------------------
+# === Empty timeline ===
 
 
 def test_empty_timeline_verifies() -> None:
@@ -166,9 +154,7 @@ def test_empty_timeline_verifies() -> None:
     assert timeline.compliance_chain_valid is True
 
 
-# ---------------------------------------------------------------------------
-# H-NEW-1: signed_envelope path verifies byte-for-byte against the cloud
-# ---------------------------------------------------------------------------
+# === H-NEW-1: signed_envelope path verifies byte-for-byte against the cloud ===
 
 
 def _compliance_envelope(

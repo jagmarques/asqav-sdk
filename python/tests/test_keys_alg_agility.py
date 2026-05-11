@@ -20,9 +20,7 @@ from asqav.keys import (
     generate_local_keypair,
 )
 
-# ---------------------------------------------------------------------------
-# Constants and namespace
-# ---------------------------------------------------------------------------
+# === Constants and namespace ===
 
 
 def test_supported_algorithms_set() -> None:
@@ -47,9 +45,7 @@ def test_re_exports_at_package_root() -> None:
     assert asqav.generate_local_keypair is generate_local_keypair
 
 
-# ---------------------------------------------------------------------------
-# _check_algorithm
-# ---------------------------------------------------------------------------
+# === _check_algorithm ===
 
 
 def test_check_algorithm_normalises_case() -> None:
@@ -68,9 +64,7 @@ def test_check_algorithm_rejects_ml_dsa_65() -> None:
         _check_algorithm("ml-dsa-65")
 
 
-# ---------------------------------------------------------------------------
-# Ed25519
-# ---------------------------------------------------------------------------
+# === Ed25519 ===
 
 
 def test_ed25519_keypair_generates_pem() -> None:
@@ -110,9 +104,7 @@ def test_ed25519_signs_and_verifies() -> None:
     pub.verify(sig, msg)  # raises on failure
 
 
-# ---------------------------------------------------------------------------
-# ES256
-# ---------------------------------------------------------------------------
+# === ES256 ===
 
 
 def test_es256_keypair_generates_pem() -> None:
@@ -152,9 +144,7 @@ def test_es256_signs_and_verifies() -> None:
     pub.verify(sig, msg, ec.ECDSA(hashes.SHA256()))
 
 
-# ---------------------------------------------------------------------------
-# ML-DSA-65 is server-side only
-# ---------------------------------------------------------------------------
+# === ML-DSA-65 is server-side only ===
 
 
 def test_ml_dsa_65_local_generation_rejected() -> None:
@@ -171,9 +161,7 @@ def test_default_algorithm_is_ed25519() -> None:
     assert kp.algorithm == "ed25519"
 
 
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
+# === Validation ===
 
 
 def test_unsupported_algorithm_raises_value_error() -> None:

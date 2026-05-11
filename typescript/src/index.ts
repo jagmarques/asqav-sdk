@@ -166,9 +166,7 @@ const config: Config = {
   orgSalt: null,
 };
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
+// === Errors ===
 
 export class AsqavError extends Error {
   constructor(message: string) {
@@ -200,9 +198,7 @@ export class APIError extends AsqavError {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
+// === Public types ===
 
 export interface InitOptions {
   apiKey?: string;
@@ -269,11 +265,7 @@ export interface SignOptions {
    * other keys -> 403 `executor_key_mismatch`. */
   expectedExecutorPubkeyB64?: string;
 
-  // -------------------------------------------------------------------
-  // IETF Compliance Receipts profile fields. All optional client-side;
-  // the cloud applies the per-field MUST/REQUIRED rules when
-  // ``complianceMode=true``. Wire keys are snake_case (e.g. ``action_ref``).
-  // -------------------------------------------------------------------
+  // === IETF Compliance Receipts profile fields ===
 
   /** Emit the receipt under the IETF profile. When true, the cloud uses
    * fail-closed anchoring, raises the retention floor, and writes the
@@ -567,9 +559,7 @@ export interface PreflightResult {
   explanation: string;
 }
 
-// ---------------------------------------------------------------------------
-// init
-// ---------------------------------------------------------------------------
+// === init ===
 
 export function init(options: InitOptions = {}): void {
   const apiKey = options.apiKey ?? process.env.ASQAV_API_KEY ?? null;
@@ -594,9 +584,7 @@ function ensureInitialized(): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// HTTP request helper with retry
-// ---------------------------------------------------------------------------
+// === HTTP request helper with retry ===
 
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
@@ -680,9 +668,7 @@ export async function request<T = unknown>(
   throw new APIError(`Request failed after ${MAX_ATTEMPTS} attempts`, 0);
 }
 
-// ---------------------------------------------------------------------------
-// Sign body builder (mode-aware)
-// ---------------------------------------------------------------------------
+// === Sign body builder (mode-aware) ===
 
 interface BuildSignBodyArgs {
   actionType: string;
@@ -734,9 +720,7 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
   return fullBody;
 }
 
-// ---------------------------------------------------------------------------
-// Agent
-// ---------------------------------------------------------------------------
+// === Agent ===
 
 interface AgentData {
   agent_id: string;
@@ -812,9 +796,7 @@ export class Agent {
 
     const complianceMode = options.complianceMode !== false;
 
-    // Validate the IETF receipt namespace client-side so callers fail
-    // fast instead of waiting for the server's 422. The cloud is still
-    // the source of truth; we mirror the same vocabulary.
+    // Fail fast on receipt_type before the HTTP roundtrip; cloud remains source of truth.
     if (options.receiptType !== undefined
       && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)) {
       throw new AsqavError(
@@ -828,8 +810,7 @@ export class Agent {
         "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
       );
     }
-    // DORA RTS JC 2024-33 Annex II field 3.23 vocabulary check (six
-    // canonical values). Reject anything else before the HTTP roundtrip.
+    // Fail fast on incident_class vocabulary before the HTTP roundtrip.
     if (options.incidentClass !== undefined && options.incidentClass !== "") {
       const incidentValues = Array.isArray(options.incidentClass)
         ? options.incidentClass
@@ -843,11 +824,7 @@ export class Agent {
       }
     }
 
-    // Compute action_ref client-side when the caller is in compliance
-    // mode and did not supply one. Per spec:
-    //   action_ref = "sha256:" + sha256(canonicalJson(action))
-    // where `action = {action_type, context}` matches the cloud-side
-    // shape used by `hash_action`.
+    // Derive action_ref locally when omitted under compliance mode; matches cloud hash_action shape.
     let actionRef = options.actionRef;
     if (complianceMode && actionRef === undefined) {
       const action = { action_type: options.actionType, context: finalContext };
@@ -877,10 +854,7 @@ export class Agent {
       body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
     }
 
-    // IETF Compliance Receipts profile fields. Wire-format names are
-    // snake_case. `compliance_mode` always travels (default false) so
-    // the cloud knows whether to apply the profile rules. The other
-    // fields ride along when present; the cloud applies per-field checks.
+    // IETF Compliance Receipts profile fields ride along as snake_case wire keys.
     if (complianceMode) body.compliance_mode = true;
     if (actionRef !== undefined) body.action_ref = actionRef;
     if (options.sandboxState !== undefined) body.sandbox_state = options.sandboxState;
@@ -1112,9 +1086,7 @@ export class Agent {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Standalone functions
-// ---------------------------------------------------------------------------
+// === Standalone functions ===
 
 export async function verifySignature(signatureId: string): Promise<VerificationResponse> {
   const data = await request<{
@@ -1353,9 +1325,7 @@ export async function exportAuditJson(
   return request<unknown>("GET", path);
 }
 
-// ---------------------------------------------------------------------------
-// Internal config exposure for tests only
-// ---------------------------------------------------------------------------
+// === Internal config exposure for tests only ===
 
 /** @internal - reset module state. Used in tests. */
 export function _resetForTests(): void {
