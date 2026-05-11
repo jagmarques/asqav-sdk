@@ -2354,10 +2354,13 @@ def verify_compliance_receipt(
     2. ``receipt_type`` is in the `protectmcp:*` namespace.
     3. ``signed_at`` (or ``issued_at``) is within
        ``SKEW_BOUND_SECONDS`` of ``now``.
-    4. ``previousReceiptHash`` rederives over the predecessor envelope
-       under JCS, when one is supplied. When the receipt is the
-       first on its chain (`previousReceiptHash == "0" * 64`) the
-       rederivation step is skipped.
+    4. ``previousReceiptHash`` rederives over the predecessor's inner
+       compliance payload under JCS, when one is supplied. The cloud
+       hashes ``canonical_json(payload)`` only, not the bundle wrapper,
+       so a predecessor passed in as ``{payload, signature, anchors}``
+       gets unwrapped before hashing. When the receipt is the first on
+       its chain (``previousReceiptHash == "0" * 64``) the rederivation
+       step is skipped.
 
     A fifth check fires when the receipt carries a
     ``counterparty_binding`` object and the caller supplies the
@@ -2435,8 +2438,16 @@ def verify_compliance_receipt(
         # First record on the chain; nothing to rederive.
         pass
     elif predecessor_envelope is not None:
+        # Cloud hashes the inner compliance payload only; the bundle-shaped wrapper diverges.
+        _inner = predecessor_envelope.get("payload")
+        if isinstance(_inner, dict) and (
+            "signature" in predecessor_envelope or "anchors" in predecessor_envelope
+        ):
+            _chain_input: dict[str, Any] = _inner
+        else:
+            _chain_input = predecessor_envelope
         actual_prev = hashlib.sha256(
-            canonical_json(predecessor_envelope)
+            canonical_json(_chain_input)
         ).hexdigest()
         if actual_prev != expected_prev:
             chain_link_rederives = False
