@@ -214,10 +214,9 @@ DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
 )
 
 #: Canonical `incident_class` vocabulary under the HIPAA Security Rule
-#: (45 CFR 164.304). Closes GAP-E13: draft-marques-asqav-compliance-receipts
-#: Section 4.2 (`incident_class`) names HIPAA as one of the canonical
-#: source regimes; the SDK now accepts a HIPAA token instead of forcing a
-#: Covered Entity to fall back to a DORA category.
+#: (45 CFR 164.304). HIPAA is one of the canonical source regimes for
+#: incident_class; the SDK accepts a HIPAA token so that a Covered Entity
+#: does not have to fall back to a DORA category. Closes GAP-E13.
 HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     {"hipaa_security_incident"}
 )
@@ -229,10 +228,10 @@ INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
     DORA_INCIDENT_CLASS_NAMESPACE | HIPAA_INCIDENT_CLASS_NAMESPACE
 )
 
-#: Sandbox-state enum from upstream draft-marques-acta-receipts Section 4.6.
-#: Closes the SDK side of GAP-E3: the cloud already gates the vocabulary on
-#: emit, the SDK now refuses out-of-vocabulary values before the HTTP call
-#: and rejects them on the verify path.
+#: Sandbox-state enum mirrored from the receipts spec. Closes the SDK
+#: side of GAP-E3: the cloud already gates the vocabulary on emit; the
+#: SDK now refuses out-of-vocabulary values before the HTTP call and
+#: rejects them on the verify path.
 SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
     {"enabled", "disabled", "unavailable"}
 )
@@ -259,10 +258,9 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
 # REQUIRED fields on a Compliance Receipt envelope; used by `verify_compliance_receipt`.
-# Field names match the wire form defined in
-# draft-marques-asqav-compliance-receipts (Section 2.1, worked example); the
-# top-level discriminator is ``type``, not the SDK's internal ``receipt_type``
-# attribute. Conformant emitters MUST translate to ``type`` on emission.
+# Field names match the canonical wire form: the top-level discriminator
+# is ``type``, not the SDK's internal ``receipt_type`` attribute.
+# Conformant emitters MUST translate to ``type`` on emission.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "type",
     "issuer_id",
@@ -1218,21 +1216,19 @@ class Agent:
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
             )
-        # Fail fast on sandbox_state vocabulary before the HTTP roundtrip.
-        # Closes the SDK side of GAP-E3; spec Section 4.1.6 (`sandbox_state`)
-        # restricts the field to {enabled, disabled, unavailable}.
+        # Fail fast on sandbox_state vocabulary before the HTTP roundtrip;
+        # the field is restricted to {enabled, disabled, unavailable}.
+        # Closes the SDK side of GAP-E3.
         if (
             sandbox_state is not None
             and sandbox_state not in SANDBOX_STATE_NAMESPACE
         ):
             raise ValueError(
                 "invalid_sandbox_state: must be one of "
-                f"{sorted(SANDBOX_STATE_NAMESPACE)} "
-                "(per draft-marques-asqav-compliance-receipts Section 4.1.6)."
+                f"{sorted(SANDBOX_STATE_NAMESPACE)}."
             )
         # Fail fast on incident_class vocabulary before the HTTP roundtrip.
-        # Lists / arrays are also valid per spec Section 4.2 (`incident_class`
-        # MUST be a JSON string OR a JSON array of such strings).
+        # The field accepts a JSON string or a JSON array of such strings.
         if incident_class is not None:
             _tokens = (
                 incident_class
@@ -2475,10 +2471,9 @@ def verify_compliance_receipt(
                 s = str(issued_at).replace("Z", "+00:00")
                 ts = datetime.fromisoformat(s).timestamp()
             wall = now if now is not None else time.time()
-            # Spec (draft-marques-asqav-compliance-receipts Section 2.1,
-            # issued_at): verifiers MUST reject receipts whose ``issued_at``
-            # is more than SKEW_BOUND_SECONDS ahead of the verifier clock and
-            # MUST NOT reject solely because ``issued_at`` lies in the past.
+            # Verifiers MUST reject receipts whose ``issued_at`` is more
+            # than SKEW_BOUND_SECONDS ahead of the verifier clock and MUST
+            # NOT reject solely because ``issued_at`` lies in the past.
             # Past skew is bounded by the retention floor, not freshness.
             skew = ts - wall
             skew_within_bound = skew <= SKEW_BOUND_SECONDS
@@ -2513,13 +2508,13 @@ def verify_compliance_receipt(
 
     # 5. Conditional MUSTs on the inner payload.
     #
-    #   * Spec Section 4.1.6 (`sandbox_state`) restricts the value space to
+    #   * `sandbox_state` value space is restricted to
     #     {enabled, disabled, unavailable}. Closes the SDK side of GAP-E3.
-    #   * Spec Section 4.1.9 (`reason`) is REQUIRED whenever `decision` is
-    #     `deny` or `rate_limit`. Closes the SDK side of GAP-E4.
-    #   * Spec Section 4.7 (`anchors[]`) declares `value` REQUIRED on every
-    #     anchor entry; entries with an empty `value` MUST NOT be reported
-    #     as anchor_valid_*=true. Closes the SDK side of GAP-E6.
+    #   * `reason` is REQUIRED whenever `decision` is `deny` or
+    #     `rate_limit`. Closes the SDK side of GAP-E4.
+    #   * Each entry in `anchors[]` requires a non-empty `value`; entries
+    #     with an empty `value` MUST NOT be reported as anchor_valid_*=true.
+    #     Closes the SDK side of GAP-E6.
     _payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
     if isinstance(_payload, dict):
         _sandbox = _payload.get("sandbox_state")
