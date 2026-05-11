@@ -16,9 +16,7 @@ from asqav.cli import app
 runner = CliRunner()
 
 
-# ---------------------------------------------------------------------------
-# Version
-# ---------------------------------------------------------------------------
+# === Version ===
 
 
 def test_version() -> None:
@@ -29,9 +27,7 @@ def test_version() -> None:
     assert __version__ in result.output
 
 
-# ---------------------------------------------------------------------------
-# verify command
-# ---------------------------------------------------------------------------
+# === verify command ===
 
 
 @patch("asqav.verify_signature")
@@ -80,9 +76,7 @@ def test_verify_not_found(mock_verify: MagicMock) -> None:
     assert "not found" in result.output.lower()
 
 
-# ---------------------------------------------------------------------------
-# sign command (IETF Compliance Receipts profile)
-# ---------------------------------------------------------------------------
+# === sign command (IETF Compliance Receipts profile) ===
 
 
 @patch("asqav.Agent.get")
@@ -237,9 +231,7 @@ def test_verify_json_emits_full_detail(mock_verify: MagicMock) -> None:
     assert payload["verification_detail"]["signed_at_skew_seconds"] == 0.5
 
 
-# ---------------------------------------------------------------------------
-# agents list command
-# ---------------------------------------------------------------------------
+# === agents list command ===
 
 
 @patch("asqav.client._get")
@@ -305,9 +297,7 @@ def test_agents_list_no_api_key() -> None:
     assert "ASQAV_API_KEY" in result.output
 
 
-# ---------------------------------------------------------------------------
-# agents create command
-# ---------------------------------------------------------------------------
+# === agents create command ===
 
 
 @patch("asqav.Agent.create")
@@ -332,9 +322,7 @@ def test_agents_create(mock_init: MagicMock, mock_create: MagicMock) -> None:
     mock_create.assert_called_once_with("my-agent")
 
 
-# ---------------------------------------------------------------------------
-# quickstart command
-# ---------------------------------------------------------------------------
+# === quickstart command ===
 
 
 def test_quickstart_with_api_key() -> None:
@@ -356,9 +344,7 @@ def test_quickstart_without_api_key() -> None:
     assert "mcpServers" in result.output
 
 
-# ---------------------------------------------------------------------------
-# doctor command
-# ---------------------------------------------------------------------------
+# === doctor command ===
 
 
 def test_doctor_no_api_key() -> None:
@@ -394,9 +380,7 @@ def test_doctor_api_unreachable(mock_init: MagicMock, mock_health: MagicMock) ->
     assert "Connection refused" in result.output
 
 
-# ---------------------------------------------------------------------------
-# replay command
-# ---------------------------------------------------------------------------
+# === replay command ===
 
 
 def _fake_timeline(*, chain_integrity: bool = True) -> MagicMock:
@@ -466,9 +450,7 @@ def test_replay_bundle_missing_file() -> None:
     assert "Error reading bundle" in result.output
 
 
-# ---------------------------------------------------------------------------
-# preflight command
-# ---------------------------------------------------------------------------
+# === preflight command ===
 
 
 @patch("asqav.Agent.get")
@@ -508,9 +490,7 @@ def test_preflight_blocked(mock_init: MagicMock, mock_get: MagicMock) -> None:
     assert "agent is suspended" in result.output
 
 
-# ---------------------------------------------------------------------------
-# budget commands
-# ---------------------------------------------------------------------------
+# === budget commands ===
 
 
 @patch("asqav.Agent.get")
@@ -567,9 +547,7 @@ def test_budget_record(
     mock_record.assert_called_once()
 
 
-# ---------------------------------------------------------------------------
-# approve command
-# ---------------------------------------------------------------------------
+# === approve command ===
 
 
 @patch("asqav.approve_action")
@@ -589,9 +567,7 @@ def test_approve_approved(mock_init: MagicMock, mock_approve: MagicMock) -> None
     assert "APPROVED" in result.output
 
 
-# ---------------------------------------------------------------------------
-# compliance commands
-# ---------------------------------------------------------------------------
+# === compliance commands ===
 
 
 def test_compliance_frameworks_lists_known() -> None:
@@ -644,9 +620,7 @@ def test_compliance_export_unknown_framework(
     assert "nonexistent" in result.output
 
 
-# ---------------------------------------------------------------------------
-# Tier gating
-# ---------------------------------------------------------------------------
+# === Tier gating ===
 
 
 @patch("asqav.client._get")
@@ -726,9 +700,7 @@ def test_unreachable_account_endpoint_does_not_block(
     assert result.exit_code == 0
 
 
-# ---------------------------------------------------------------------------
-# CLI gap-fill (agents revoke, sessions, policies, webhooks)
-# ---------------------------------------------------------------------------
+# === CLI gap-fill (agents revoke, sessions, policies, webhooks) ===
 
 
 @patch("asqav.Agent.get")
@@ -846,9 +818,7 @@ def test_policies_blocked_on_free_tier(
     assert result.exit_code == 2
 
 
-# ---------------------------------------------------------------------------
-# audit-pack export / policy
-# ---------------------------------------------------------------------------
+# === audit-pack export / policy ===
 
 
 @patch("asqav.client._post")
@@ -912,9 +882,7 @@ def test_audit_pack_policy_resolves_digest(
     assert called_path == f"/audit-pack/policy/sha256:{'a' * 64}"
 
 
-# ---------------------------------------------------------------------------
-# payloads erase
-# ---------------------------------------------------------------------------
+# === payloads erase ===
 
 
 @patch("asqav.client._delete")
@@ -934,9 +902,7 @@ def test_payloads_erase_calls_delete(
     mock_delete.assert_called_once_with("/signatures/payloads/sig_abc")
 
 
-# ---------------------------------------------------------------------------
-# org set-compliance-strict
-# ---------------------------------------------------------------------------
+# === org set-compliance-strict ===
 
 
 @patch("asqav.client._patch")
@@ -965,9 +931,7 @@ def test_org_set_compliance_strict_requires_one_flag() -> None:
     assert result.exit_code == 1
 
 
-# ---------------------------------------------------------------------------
-# keys generate
-# ---------------------------------------------------------------------------
+# === keys generate ===
 
 
 def test_keys_generate_ed25519(tmp_path) -> None:
@@ -999,9 +963,7 @@ def test_keys_generate_ml_dsa_errors() -> None:
     assert "unsupported_algorithm" in result.output.lower()
 
 
-# ---------------------------------------------------------------------------
-# replay-verify
-# ---------------------------------------------------------------------------
+# === replay-verify ===
 
 
 @patch("asqav.client._get")
@@ -1064,9 +1026,7 @@ def test_replay_verify_strict_rejects_steps_without_envelope(
     assert "strict mode FAILED" in result.output
 
 
-# ---------------------------------------------------------------------------
-# migrate run
-# ---------------------------------------------------------------------------
+# === migrate run ===
 
 
 def test_migrate_run_requires_maintenance_key(monkeypatch) -> None:
