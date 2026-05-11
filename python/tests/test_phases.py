@@ -8,9 +8,7 @@ from unittest.mock import MagicMock, patch
 from asqav.client import PreflightResult, SignatureResponse
 from asqav.phases import PhaseChain, sign_with_phases
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# === Helpers ===
 
 
 def _mock_agent(cleared: bool = True) -> MagicMock:
@@ -45,9 +43,7 @@ def _mock_agent(cleared: bool = True) -> MagicMock:
     return agent
 
 
-# ---------------------------------------------------------------------------
-# Three-phase flow
-# ---------------------------------------------------------------------------
+# === Three-phase flow ===
 
 
 def test_full_three_phase_flow():
@@ -110,9 +106,7 @@ def test_trace_id_auto_generated():
     assert chain.trace_id == "auto-tid-999"
 
 
-# ---------------------------------------------------------------------------
-# PhaseChain serialization
-# ---------------------------------------------------------------------------
+# === PhaseChain serialization ===
 
 
 def test_to_dict():
@@ -153,9 +147,7 @@ def test_to_json():
     assert parsed == chain.to_dict()
 
 
-# ---------------------------------------------------------------------------
-# Agent convenience method
-# ---------------------------------------------------------------------------
+# === Agent convenience method ===
 
 
 def test_agent_convenience_method():

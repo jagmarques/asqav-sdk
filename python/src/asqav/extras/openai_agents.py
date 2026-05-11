@@ -60,8 +60,8 @@ class AsqavGuardrail(AsqavAdapter):
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
     """
 
     def _resolve_agent_name(self, agent: Any) -> str:
@@ -141,8 +141,8 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
     """
 
     def on_trace_start(self, trace: Trace) -> None:
@@ -209,9 +209,9 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
             logger.warning("asqav span:end signing failed (fail-open): %s", exc)
 
     def shutdown(self) -> None:
-        """End the asqav session on processor shutdown."""
+        """End the Asqav session on processor shutdown."""
         self._end_session(status="completed")
 
     def force_flush(self) -> None:
-        """No-op - asqav signs events synchronously."""
+        """No-op - Asqav signs events synchronously."""
         pass

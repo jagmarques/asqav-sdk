@@ -1,4 +1,4 @@
-"""Retry logic with exponential backoff for asqav SDK.
+"""Retry logic with exponential backoff for the Asqav SDK.
 
 Provides decorators for automatic retry of transient API errors
 with exponential backoff and jitter. Works with both sync and async functions.

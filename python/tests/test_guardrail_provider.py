@@ -18,9 +18,7 @@ sys.modules.pop("asqav.extras.crewai", None)
 from asqav.client import PreflightResult, SignatureResponse  # noqa: E402
 from asqav.extras.crewai import AsqavGuardrailProvider  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -44,9 +42,7 @@ def _make_request(tool_name: str = "search", tool_input: dict | None = None):
     return req
 
 
-# ---------------------------------------------------------------------------
-# Evaluate - allow
-# ---------------------------------------------------------------------------
+# === Evaluate - allow ===
 
 
 def test_evaluate_allow(provider):
@@ -77,9 +73,7 @@ def test_evaluate_allow(provider):
     provider._agent.preflight.assert_called_once_with("tool:search")
 
 
-# ---------------------------------------------------------------------------
-# Evaluate - deny
-# ---------------------------------------------------------------------------
+# === Evaluate - deny ===
 
 
 def test_evaluate_deny(provider):
@@ -104,9 +98,7 @@ def test_evaluate_deny(provider):
     provider._agent.sign.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# Edge cases
-# ---------------------------------------------------------------------------
+# === Edge cases ===
 
 
 def test_evaluate_unknown_tool(provider):
@@ -182,9 +174,7 @@ def test_evaluate_sign_failure_returns_none_signature(provider):
     assert result["metadata"]["signature_id"] is None
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 @pytest.fixture(autouse=True, scope="module")

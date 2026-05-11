@@ -52,8 +52,8 @@ class AsqavSmolagentsHook(AsqavAdapter):
 
     Args:
         api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for a new asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing asqav agent (calls ``Agent.get``).
+        agent_name: Name for an Asqav agent (calls ``Agent.create``).
+        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
     """
 
     def wrap_tool(self, tool: Any) -> Any:

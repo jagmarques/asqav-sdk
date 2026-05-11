@@ -28,7 +28,7 @@ from ._base import AsqavAdapter
 
 
 class AsqavGuardrail(AsqavAdapter):
-    """Guardrail that signs LiteLLM calls via asqav governance.
+    """Guardrail that signs LiteLLM calls via Asqav governance.
 
     Registers as a LiteLLM callback to sign pre-call, post-call,
     error, and moderation events. Signing failures are fail-open -

@@ -1,4 +1,4 @@
-"""Generic hooks/middleware system for asqav signing.
+"""Generic hooks/middleware system for Asqav signing.
 
 Register before/after callbacks that fire around every ``Agent.sign(...)`` call.
 Before-hooks may mutate the context dict; after-hooks observe the response.
