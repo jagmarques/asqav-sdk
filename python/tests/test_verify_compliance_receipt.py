@@ -22,10 +22,13 @@ from asqav.replay import FIRST_RECEIPT_SEED
 
 
 def _good_envelope(**overrides) -> dict:
-    """A receipt envelope that passes every check by default."""
+    """A receipt envelope that passes every check by default.
+
+    Uses the spec wire form ``type`` (draft-marques-asqav-compliance-receipts
+    Section 2.1) rather than the SDK-internal ``receipt_type`` attribute.
+    """
     base = {
         "type": "protectmcp:decision",
-        "receipt_type": "protectmcp:decision",
         "issued_at": datetime.now(timezone.utc).isoformat(),
         "issuer_id": "legal:Acme GmbH",
         "agent_id": "agent_001",
@@ -94,7 +97,7 @@ def test_multiple_missing_fields_all_reported() -> None:
 
 
 def test_receipt_type_outside_namespace_rejected() -> None:
-    env = _good_envelope(receipt_type="custom:weird", type="custom:weird")
+    env = _good_envelope(type="custom:weird")
     result = verify_compliance_receipt(env)
     assert result.receipt_type_in_namespace is False
     assert result.valid is False
@@ -107,9 +110,26 @@ def test_all_three_namespace_values_accepted() -> None:
         "protectmcp:restraint",
         "protectmcp:lifecycle",
     ):
-        env = _good_envelope(receipt_type=rt, type=rt)
+        env = _good_envelope(type=rt)
         result = verify_compliance_receipt(env)
         assert result.receipt_type_in_namespace is True, rt
+
+
+def test_legacy_receipt_type_attribute_still_accepted_for_namespace() -> None:
+    """Callers that have not yet migrated their emitter to the wire form
+    may still ship a ``receipt_type`` attribute; the namespace check
+    falls back to it. The REQUIRED-fields check, however, demands the
+    wire ``type``."""
+    env = _good_envelope()
+    env["receipt_type"] = env.pop("type")
+    result = verify_compliance_receipt(env)
+    # Namespace fallback succeeds.
+    assert result.receipt_type_in_namespace is True
+    # But REQUIRED-fields check insists on the wire ``type``.
+    assert result.fields_present is False
+    assert any(
+        e.startswith("missing_fields:") and "type" in e for e in result.errors
+    )
 
 
 # === 300-second skew bound ===
@@ -127,11 +147,28 @@ def test_skew_well_within_boundary_is_accepted() -> None:
     assert result.valid is True
 
 
-def test_skew_just_over_boundary_is_rejected() -> None:
-    """A receipt 305s old (just past the 300s bound) is rejected."""
+def test_skew_just_over_past_boundary_is_accepted() -> None:
+    """Spec Section 2.1 issued_at: verifiers MUST NOT reject a receipt
+    solely because ``issued_at`` lies in the past. A receipt 305s old is
+    therefore accepted by the freshness check; retention is enforced
+    elsewhere."""
     now = time.time()
     issued = datetime.fromtimestamp(
         now - SKEW_BOUND_SECONDS - 5, tz=timezone.utc
+    ).isoformat()
+    env = _good_envelope(issued_at=issued)
+    result = verify_compliance_receipt(env, now=now)
+    assert result.skew_within_bound is True
+    assert "signed_at_skew" not in result.errors
+
+
+def test_skew_in_future_is_rejected() -> None:
+    """Spec Section 2.1 issued_at: verifiers MUST reject when
+    ``issued_at`` is more than SKEW_BOUND_SECONDS ahead of the
+    verifier's own clock."""
+    now = time.time()
+    issued = datetime.fromtimestamp(
+        now + SKEW_BOUND_SECONDS + 5, tz=timezone.utc
     ).isoformat()
     env = _good_envelope(issued_at=issued)
     result = verify_compliance_receipt(env, now=now)
@@ -140,14 +177,26 @@ def test_skew_just_over_boundary_is_rejected() -> None:
     assert "signed_at_skew" in result.errors
 
 
-def test_skew_in_future_is_also_rejected() -> None:
+def test_skew_one_hour_in_past_is_accepted() -> None:
+    """M4 audit fix: an hour-old receipt (skew = -3600s) MUST verify."""
     now = time.time()
-    issued = datetime.fromtimestamp(
-        now + SKEW_BOUND_SECONDS + 5, tz=timezone.utc
-    ).isoformat()
+    issued = datetime.fromtimestamp(now - 3600, tz=timezone.utc).isoformat()
+    env = _good_envelope(issued_at=issued)
+    result = verify_compliance_receipt(env, now=now)
+    assert result.skew_within_bound is True
+    assert result.valid is True
+
+
+def test_skew_one_hour_in_future_is_rejected() -> None:
+    """M4 audit fix: a receipt timestamped an hour ahead (skew = +3600s)
+    is outside the 300s bound and MUST reject."""
+    now = time.time()
+    issued = datetime.fromtimestamp(now + 3600, tz=timezone.utc).isoformat()
     env = _good_envelope(issued_at=issued)
     result = verify_compliance_receipt(env, now=now)
     assert result.skew_within_bound is False
+    assert result.valid is False
+    assert "signed_at_skew" in result.errors
 
 
 def test_skew_accepts_unix_seconds_too() -> None:
