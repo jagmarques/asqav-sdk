@@ -1,4 +1,4 @@
-"""Tests for asqav local queue-and-sync."""
+"""Tests for the Asqav local queue-and-sync."""
 
 from __future__ import annotations
 
@@ -13,9 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.local import LocalQueue, local_sign
 
-# ---------------------------------------------------------------------------
-# LocalQueue unit tests
-# ---------------------------------------------------------------------------
+# === LocalQueue unit tests ===
 
 
 def test_enqueue_creates_file(tmp_path: object) -> None:
@@ -155,9 +153,7 @@ def test_local_sign_convenience(tmp_path: object) -> None:
     assert data["action_type"] == "deploy:model"
 
 
-# ---------------------------------------------------------------------------
-# CLI tests
-# ---------------------------------------------------------------------------
+# === CLI tests ===
 
 
 from typer.testing import CliRunner  # noqa: E402

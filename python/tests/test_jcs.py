@@ -1,6 +1,6 @@
-"""RFC 8785 (JCS) golden vector tests for `asqav._jcs.canonical_json`.
+"""Canonical-JSON (JCS) golden vector tests for `asqav._jcs.canonical_json`.
 
-Vectors mirror the appendix of RFC 8785 plus a few profile-shaped
+Vectors mirror the canonical-JSON appendix plus a few profile-shaped
 examples (signed envelopes from the IETF Compliance Receipts profile).
 Drift here means the SDK and the cloud disagree on the bytes that get
 signed, which silently breaks signature verification, so this file is a
@@ -22,19 +22,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from asqav._jcs import canonical_json
 from asqav.canonicalize import canonicalize
 
-# ---------------------------------------------------------------------------
-# RFC 8785 §3.2 golden vectors
-# ---------------------------------------------------------------------------
-#
+# === Golden vectors ===
 # Each entry: (name, input, expected canonical UTF-8 string).
-#
-# Sources:
-#   * "rfc8785-empty-object" -> RFC 8785 §3.2 Example 1.
-#   * "rfc8785-key-ordering" -> RFC 8785 §3.2.3 (key sort by UTF-16 code units).
-#   * "rfc8785-string-escapes" -> RFC 8785 §3.2.3 / RFC 8259 §7.
-#   * "rfc8785-integers" -> RFC 8785 §3.2.2 (integers within safe range).
-#   * "rfc8785-nested" -> typical nested structure used in receipts.
-#   * "ietf-receipt-envelope" -> profile-shaped signed envelope.
 GOLDEN_VECTORS = [
     (
         "rfc8785-empty-object",
@@ -86,7 +75,7 @@ GOLDEN_VECTORS = [
     ),
     (
         "rfc8785-string-non-ascii-passthrough",
-        # RFC 8785 §3.2.3: non-ASCII passes through as raw UTF-8.
+        # Non-ASCII passes through as raw UTF-8.
         {"x": "héllo"},
         '{"x":"héllo"}',
     ),
@@ -155,7 +144,7 @@ GOLDEN_VECTORS[-1] = (
     ids=[name for name, _, _ in GOLDEN_VECTORS],
 )
 def test_golden_vector_matches(name: str, obj, expected: str) -> None:
-    """Each RFC 8785 vector serializes to its expected canonical string."""
+    """Each golden vector serializes to its expected canonical string."""
     actual = canonical_json(obj).decode("utf-8")
     assert actual == expected, f"{name}: drift\n  expected: {expected!r}\n  actual:   {actual!r}"
 
@@ -170,9 +159,7 @@ def test_byte_equality_with_canonicalize_alias(name: str, obj, expected: str) ->
     assert canonical_json(obj) == canonicalize(obj), f"{name}: drift"
 
 
-# ---------------------------------------------------------------------------
-# Edge cases the spec explicitly calls out
-# ---------------------------------------------------------------------------
+# === Edge cases the spec explicitly calls out ===
 
 
 def test_nan_is_rejected() -> None:

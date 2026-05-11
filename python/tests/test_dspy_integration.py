@@ -15,9 +15,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# ---------------------------------------------------------------------------
-# Inject fake dspy modules before importing the callback
-# ---------------------------------------------------------------------------
+# === Inject fake dspy modules before importing the callback ===
 
 _MISSING = object()
 _original_modules: dict[str, ModuleType | object] = {}
@@ -62,9 +60,7 @@ BaseCallback = _install_dspy_mocks()
 
 from asqav.extras.dspy import AsqavDSPyCallback  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -80,9 +76,7 @@ def cb() -> AsqavDSPyCallback:
     return callback
 
 
-# ---------------------------------------------------------------------------
-# Subclass check
-# ---------------------------------------------------------------------------
+# === Subclass check ===
 
 
 def test_is_base_callback_subclass() -> None:
@@ -90,9 +84,7 @@ def test_is_base_callback_subclass() -> None:
     assert issubclass(AsqavDSPyCallback, BaseCallback)
 
 
-# ---------------------------------------------------------------------------
-# Module handlers
-# ---------------------------------------------------------------------------
+# === Module handlers ===
 
 
 def test_on_module_start_signs_action(cb: AsqavDSPyCallback) -> None:
@@ -140,9 +132,7 @@ def test_on_module_start_non_dict_inputs(cb: AsqavDSPyCallback) -> None:
     assert ctx["input_keys"] == []
 
 
-# ---------------------------------------------------------------------------
-# LM handlers
-# ---------------------------------------------------------------------------
+# === LM handlers ===
 
 
 def test_on_lm_start_signs_action(cb: AsqavDSPyCallback) -> None:
@@ -187,9 +177,7 @@ def test_on_lm_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     assert ctx["exception"] == "TimeoutError"
 
 
-# ---------------------------------------------------------------------------
-# Tool handlers
-# ---------------------------------------------------------------------------
+# === Tool handlers ===
 
 
 def test_on_tool_start_signs_action(cb: AsqavDSPyCallback) -> None:
@@ -233,9 +221,7 @@ def test_on_tool_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     assert ctx["exception"] == "RuntimeError"
 
 
-# ---------------------------------------------------------------------------
-# Input keys are sorted
-# ---------------------------------------------------------------------------
+# === Input keys are sorted ===
 
 
 def test_input_keys_are_sorted(cb: AsqavDSPyCallback) -> None:
@@ -245,9 +231,7 @@ def test_input_keys_are_sorted(cb: AsqavDSPyCallback) -> None:
     assert ctx["input_keys"] == ["a", "m", "z"]
 
 
-# ---------------------------------------------------------------------------
-# Evaluate handlers
-# ---------------------------------------------------------------------------
+# === Evaluate handlers ===
 
 
 def test_on_evaluate_start_signs_action(cb: AsqavDSPyCallback) -> None:
@@ -280,9 +264,7 @@ def test_on_evaluate_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     assert ctx["exception"] == "RuntimeError"
 
 
-# ---------------------------------------------------------------------------
-# Adapter format handlers
-# ---------------------------------------------------------------------------
+# === Adapter format handlers ===
 
 
 def test_on_adapter_format_start_signs_action(cb: AsqavDSPyCallback) -> None:
@@ -307,9 +289,7 @@ def test_on_adapter_format_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Adapter parse handlers
-# ---------------------------------------------------------------------------
+# === Adapter parse handlers ===
 
 
 def test_on_adapter_parse_start_signs_action(cb: AsqavDSPyCallback) -> None:
@@ -333,9 +313,7 @@ def test_on_adapter_parse_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     assert ctx["exception"] == "ValueError"
 
 
-# ---------------------------------------------------------------------------
-# Fail-open: signing must never block DSPy execution
-# ---------------------------------------------------------------------------
+# === Fail-open: signing must never block DSPy execution ===
 
 
 def test_fail_open_on_asqav_error(cb: AsqavDSPyCallback) -> None:
@@ -369,9 +347,7 @@ def test_fail_open_on_asqav_error(cb: AsqavDSPyCallback) -> None:
     assert len(live_cb._signatures) == 0
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 def teardown_module() -> None:

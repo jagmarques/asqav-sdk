@@ -13,9 +13,7 @@ import pytest
 from asqav.client import AsqavError, SignatureResponse
 from asqav.extras._base import AsqavAdapter, _class_name_to_agent_name
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig_abc123",
@@ -26,9 +24,7 @@ MOCK_SIGN_RESPONSE: dict = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Helper: concrete subclass for testing
-# ---------------------------------------------------------------------------
+# === Helper: concrete subclass for testing ===
 
 
 class _TestAdapter(AsqavAdapter):
@@ -43,9 +39,7 @@ class AsqavCallbackHandler(AsqavAdapter):
     pass
 
 
-# ---------------------------------------------------------------------------
-# Name generation
-# ---------------------------------------------------------------------------
+# === Name generation ===
 
 
 def test_class_name_to_agent_name():
@@ -60,9 +54,7 @@ def test_class_name_to_agent_name_simple():
     assert _class_name_to_agent_name("Adapter") == "adapter"
 
 
-# ---------------------------------------------------------------------------
-# Initialization
-# ---------------------------------------------------------------------------
+# === Initialization ===
 
 
 def test_init_raises_without_asqav_init():
@@ -101,9 +93,7 @@ def test_init_auto_name_from_subclass(mock_agent_cls):
     mock_agent_cls.create.assert_called_once_with("asqav-callback-handler")
 
 
-# ---------------------------------------------------------------------------
-# _sign_action
-# ---------------------------------------------------------------------------
+# === _sign_action ===
 
 
 @patch("asqav.extras._base.Agent")
@@ -154,9 +144,7 @@ def test_sign_action_fail_open(mock_agent_cls):
     assert len(adapter._signatures) == 0
 
 
-# ---------------------------------------------------------------------------
-# Session lifecycle
-# ---------------------------------------------------------------------------
+# === Session lifecycle ===
 
 
 @patch("asqav.extras._base.Agent")
@@ -234,9 +222,7 @@ def test_end_session_skips_when_no_agent_session(mock_agent_cls):
     mock_agent.end_session.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# IETF Compliance Receipts profile pass-through
-# ---------------------------------------------------------------------------
+# === IETF Compliance Receipts profile pass-through ===
 
 
 @patch("asqav.extras._base.Agent")

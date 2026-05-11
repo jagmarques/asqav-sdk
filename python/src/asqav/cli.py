@@ -806,7 +806,7 @@ def _require_tier(min_tier: str) -> None:
 
 @app.command()
 def sync() -> None:
-    """Sync local queue to the asqav API."""
+    """Sync local queue to the Asqav API."""
     _init_sdk()
 
     from asqav.local import LocalQueue

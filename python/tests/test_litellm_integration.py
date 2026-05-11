@@ -13,9 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import AsqavError, SignatureResponse
 
-# ---------------------------------------------------------------------------
-# Mock litellm before importing the integration module
-# ---------------------------------------------------------------------------
+# === Mock litellm before importing the integration module ===
 
 _mock_litellm = ModuleType("litellm")
 sys.modules.setdefault("litellm", _mock_litellm)
@@ -39,9 +37,7 @@ def _make_guardrail() -> AsqavGuardrail:
         return AsqavGuardrail(agent_name="test-litellm")
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
+# === Tests ===
 
 
 class TestPreCallHook:

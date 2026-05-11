@@ -1,7 +1,7 @@
 """
-asqav local mode - Queue actions offline and sync when connectivity returns.
+Asqav local mode - Queue actions offline and sync when connectivity returns.
 
-Enables developers to use asqav in offline or air-gapped environments.
+Enables developers to use Asqav in offline or air-gapped environments.
 Actions are queued locally as JSON files and synced to the API later.
 
 Usage:
@@ -29,7 +29,7 @@ _DEFAULT_QUEUE_DIR = os.path.join(os.path.expanduser("~"), ".asqav", "queue")
 
 
 class LocalQueue:
-    """Queue for offline action signing with later sync to asqav API."""
+    """Queue for offline action signing with later sync to the Asqav API."""
 
     def __init__(self, queue_dir: str | None = None) -> None:
         resolved = (

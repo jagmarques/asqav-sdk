@@ -116,7 +116,7 @@ def test_es256_keypair_generates_pem() -> None:
 
 
 def test_es256_curve_is_p256() -> None:
-    """ES256 means ECDSA over P-256 per RFC 7518."""
+    """ES256 means ECDSA over the P-256 curve."""
     pytest.importorskip("cryptography")
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec

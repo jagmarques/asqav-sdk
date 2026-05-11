@@ -56,8 +56,7 @@ export type DoraIncidentClass = (typeof DORA_INCIDENT_CLASS_NAMESPACE)[number];
 
 /** HIPAA Security Rule canonical incident classification.
  *
- * Closes GAP-E13: draft-marques-asqav-compliance-receipts Section 4.2
- * names HIPAA 45 CFR 164.304 as one of the canonical source regimes for
+ * HIPAA 45 CFR 164.304 is one of the canonical source regimes for
  * `incident_class` alongside DORA, NYDFS, and CIRCIA. A Covered Entity
  * SHOULD be able to emit a HIPAA token without falling back to a DORA
  * category.
@@ -856,9 +855,7 @@ export class Agent {
         "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
       );
     }
-    // Fail fast on sandbox_state vocabulary before the HTTP roundtrip;
-    // the field is restricted to {enabled, disabled, unavailable}.
-    // Closes the TS side of GAP-E3.
+    // Fail fast on sandbox_state vocabulary (restricted to {enabled, disabled, unavailable}) before the HTTP roundtrip.
     if (
       options.sandboxState !== undefined
       && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
@@ -867,9 +864,7 @@ export class Agent {
         `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
       );
     }
-    // Fail fast on incident_class vocabulary before the HTTP roundtrip.
-    // Accepts the HIPAA token in addition to the six DORA tokens; closes
-    // the TS side of GAP-E13.
+    // Fail fast on incident_class vocabulary (HIPAA token plus the six DORA tokens) before the HTTP roundtrip.
     if (options.incidentClass !== undefined && options.incidentClass !== "") {
       const incidentValues = Array.isArray(options.incidentClass)
         ? options.incidentClass

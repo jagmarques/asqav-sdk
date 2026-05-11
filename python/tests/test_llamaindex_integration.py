@@ -17,9 +17,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# ---------------------------------------------------------------------------
-# Inject fake llama_index modules before importing the handler
-# ---------------------------------------------------------------------------
+# === Inject fake llama_index modules before importing the handler ===
 
 _MISSING = object()
 _original_modules: dict[str, ModuleType | object] = {}
@@ -140,9 +138,7 @@ _install_llamaindex_mocks()
 
 from asqav.extras.llamaindex import AsqavLlamaIndexHandler  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 @pytest.fixture()
@@ -158,9 +154,7 @@ def handler() -> AsqavLlamaIndexHandler:
     return h
 
 
-# ---------------------------------------------------------------------------
-# Subclass check
-# ---------------------------------------------------------------------------
+# === Subclass check ===
 
 
 def test_is_base_callback_handler_subclass() -> None:
@@ -168,9 +162,7 @@ def test_is_base_callback_handler_subclass() -> None:
     assert issubclass(AsqavLlamaIndexHandler, BaseCallbackHandler)
 
 
-# ---------------------------------------------------------------------------
-# on_event_start - signed event types
-# ---------------------------------------------------------------------------
+# === on_event_start - signed event types ===
 
 
 def test_on_event_start_llm(handler: AsqavLlamaIndexHandler) -> None:
@@ -295,9 +287,7 @@ def test_on_event_start_synthesize(handler: AsqavLlamaIndexHandler) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# on_event_start - ignored event types (not in _SIGNED_EVENT_TYPES)
-# ---------------------------------------------------------------------------
+# === on_event_start - ignored event types (not in _SIGNED_EVENT_TYPES) ===
 
 
 def test_on_event_start_ignores_chunking(handler: AsqavLlamaIndexHandler) -> None:
@@ -330,9 +320,7 @@ def test_on_event_start_ignores_exception(handler: AsqavLlamaIndexHandler) -> No
     handler._sign_action.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# on_event_start - returns event_id
-# ---------------------------------------------------------------------------
+# === on_event_start - returns event_id ===
 
 
 def test_on_event_start_returns_event_id(handler: AsqavLlamaIndexHandler) -> None:
@@ -347,9 +335,7 @@ def test_on_event_start_returns_event_id_for_ignored(handler: AsqavLlamaIndexHan
     assert result == "skip-id"
 
 
-# ---------------------------------------------------------------------------
-# on_event_start - parent_id handling
-# ---------------------------------------------------------------------------
+# === on_event_start - parent_id handling ===
 
 
 def test_on_event_start_no_parent_id(handler: AsqavLlamaIndexHandler) -> None:
@@ -366,9 +352,7 @@ def test_on_event_start_with_parent_id(handler: AsqavLlamaIndexHandler) -> None:
     assert ctx["parent_id"] == "parent-abc"
 
 
-# ---------------------------------------------------------------------------
-# on_event_end
-# ---------------------------------------------------------------------------
+# === on_event_end ===
 
 
 def test_on_event_end_llm(handler: AsqavLlamaIndexHandler) -> None:
@@ -407,9 +391,7 @@ def test_on_event_end_ignores_chunking(handler: AsqavLlamaIndexHandler) -> None:
     handler._sign_action.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# on_event_start/end - user-configured event_starts_to_ignore
-# ---------------------------------------------------------------------------
+# === on_event_start/end - user-configured event_starts_to_ignore ===
 
 
 def test_event_starts_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
@@ -447,9 +429,7 @@ def test_event_ends_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
     h._sign_action.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# Payload keys
-# ---------------------------------------------------------------------------
+# === Payload keys ===
 
 
 def test_payload_keys_sorted(handler: AsqavLlamaIndexHandler) -> None:
@@ -468,9 +448,7 @@ def test_payload_none_gives_empty_keys(handler: AsqavLlamaIndexHandler) -> None:
     assert ctx["payload_keys"] == []
 
 
-# ---------------------------------------------------------------------------
-# start_trace / end_trace
-# ---------------------------------------------------------------------------
+# === start_trace / end_trace ===
 
 
 def test_start_trace_begins_session(handler: AsqavLlamaIndexHandler) -> None:
@@ -503,9 +481,7 @@ def test_end_trace_no_session_is_noop(handler: AsqavLlamaIndexHandler) -> None:
     handler._end_session.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# Fail-open: signing must never block LlamaIndex execution
-# ---------------------------------------------------------------------------
+# === Fail-open: signing must never block LlamaIndex execution ===
 
 
 def test_fail_open_on_asqav_error() -> None:
@@ -538,9 +514,7 @@ def test_fail_open_on_asqav_error() -> None:
     assert len(live_handler._signatures) == 0
 
 
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+# === Cleanup ===
 
 
 def teardown_module() -> None:

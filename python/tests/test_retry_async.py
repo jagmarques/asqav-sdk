@@ -14,9 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from asqav.client import APIError, AuthenticationError, RateLimitError
 from asqav.retry import with_async_retry, with_retry
 
-# ---------------------------------------------------------------------------
-# Retry: rate limit error is retried
-# ---------------------------------------------------------------------------
+# === Retry: rate limit error is retried ===
 
 
 @patch("asqav.retry.time.sleep")
@@ -38,9 +36,7 @@ def test_retry_on_rate_limit(mock_sleep: MagicMock) -> None:
     mock_sleep.assert_called_once_with(1.0)
 
 
-# ---------------------------------------------------------------------------
-# Retry: server error (5xx) is retried
-# ---------------------------------------------------------------------------
+# === Retry: server error (5xx) is retried ===
 
 
 @patch("asqav.retry.time.sleep")
@@ -66,9 +62,7 @@ def test_retry_on_server_error(mock_sleep: MagicMock) -> None:
     assert mock_sleep.call_args_list[1][0][0] == 1.0
 
 
-# ---------------------------------------------------------------------------
-# Retry: auth error is NOT retried
-# ---------------------------------------------------------------------------
+# === Retry: auth error is NOT retried ===
 
 
 def test_no_retry_on_auth_error() -> None:
@@ -86,9 +80,7 @@ def test_no_retry_on_auth_error() -> None:
     assert call_count == 1  # No retry
 
 
-# ---------------------------------------------------------------------------
-# Retry: client error (4xx, not 429) is NOT retried
-# ---------------------------------------------------------------------------
+# === Retry: client error (4xx, not 429) is NOT retried ===
 
 
 def test_no_retry_on_client_error() -> None:
@@ -106,9 +98,7 @@ def test_no_retry_on_client_error() -> None:
     assert call_count == 1  # No retry
 
 
-# ---------------------------------------------------------------------------
-# Retry: exhaustion raises last error
-# ---------------------------------------------------------------------------
+# === Retry: exhaustion raises last error ===
 
 
 @patch("asqav.retry.time.sleep")
@@ -128,9 +118,7 @@ def test_retry_exhaustion(mock_sleep: MagicMock) -> None:
     assert mock_sleep.call_count == 2
 
 
-# ---------------------------------------------------------------------------
-# Retry: connection error is retried
-# ---------------------------------------------------------------------------
+# === Retry: connection error is retried ===
 
 
 @patch("asqav.retry.time.sleep")
@@ -152,9 +140,7 @@ def test_retry_on_connection_error(mock_sleep: MagicMock) -> None:
     mock_sleep.assert_called_once_with(0.5)
 
 
-# ---------------------------------------------------------------------------
-# Async: create agent
-# ---------------------------------------------------------------------------
+# === Async: create agent ===
 
 
 @pytest.mark.asyncio
@@ -188,9 +174,7 @@ async def test_async_create_agent(mock_post: AsyncMock) -> None:
     assert isinstance(agent, AsyncAgent)
 
 
-# ---------------------------------------------------------------------------
-# Async: sign action
-# ---------------------------------------------------------------------------
+# === Async: sign action ===
 
 
 @pytest.mark.asyncio
@@ -233,9 +217,7 @@ async def test_async_sign(mock_post: AsyncMock) -> None:
     assert result.signature_id == "sigid_001"
 
 
-# ---------------------------------------------------------------------------
-# Async: verify signature
-# ---------------------------------------------------------------------------
+# === Async: verify signature ===
 
 
 @pytest.mark.asyncio
@@ -289,9 +271,7 @@ async def test_async_verify() -> None:
     assert result.agent_name == "test-agent"
 
 
-# ---------------------------------------------------------------------------
-# Async: retry works with async functions
-# ---------------------------------------------------------------------------
+# === Async: retry works with async functions ===
 
 
 @pytest.mark.asyncio

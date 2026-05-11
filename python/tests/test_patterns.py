@@ -9,9 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.patterns import PATTERNS, list_patterns, resolve_pattern
 
-# ---------------------------------------------------------------------------
-# resolve_pattern tests
-# ---------------------------------------------------------------------------
+# === resolve_pattern tests ===
 
 
 def test_resolve_known_sql_read() -> None:
@@ -63,9 +61,7 @@ def test_resolve_known_admin_action() -> None:
     assert resolve_pattern("admin-action") == "admin:*"
 
 
-# ---------------------------------------------------------------------------
-# Passthrough for unknown patterns
-# ---------------------------------------------------------------------------
+# === Passthrough for unknown patterns ===
 
 
 def test_resolve_unknown_passthrough() -> None:
@@ -81,9 +77,7 @@ def test_resolve_arbitrary_string_passthrough() -> None:
     assert resolve_pattern("some-random-thing") == "some-random-thing"
 
 
-# ---------------------------------------------------------------------------
-# list_patterns tests
-# ---------------------------------------------------------------------------
+# === list_patterns tests ===
 
 
 def test_list_patterns_returns_all() -> None:
