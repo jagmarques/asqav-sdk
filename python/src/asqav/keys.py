@@ -25,9 +25,7 @@ ALGORITHM_ML_DSA_65 = "ml-dsa-65"
 ALGORITHM_ED25519 = "ed25519"
 ALGORITHM_ES256 = "es256"
 
-# Algorithms `generate_local_keypair` can mint locally. ML-DSA-65
-# keypair generation is server-side only (cloud KMS) so it is not in
-# this set.
+#: Algorithms `generate_local_keypair` can mint locally (ML-DSA-65 is cloud-KMS only).
 SUPPORTED_ALGORITHMS: frozenset[str] = frozenset(
     {ALGORITHM_ED25519, ALGORITHM_ES256}
 )
@@ -90,9 +88,7 @@ def generate_local_keypair(algorithm: Algorithm = "ed25519") -> LocalKeypair:
     return _generate_es256()
 
 
-# ---------------------------------------------------------------------------
-# Per-algorithm implementations.
-# ---------------------------------------------------------------------------
+# === Per-algorithm implementations ===
 
 
 def _generate_ed25519() -> LocalKeypair:
