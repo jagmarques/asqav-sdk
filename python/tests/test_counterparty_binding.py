@@ -202,3 +202,32 @@ def test_acknowledgment_receipt_type_in_namespace():
     from asqav.client import RECEIPT_TYPE_NAMESPACE
 
     assert ACKNOWLEDGMENT_RECEIPT_TYPE in RECEIPT_TYPE_NAMESPACE
+
+
+def test_verify_compliance_receipt_payload_only_with_expect_ack_from_surfaces_error():
+    """A payload-only caller with expect_ack_from cannot verify the kid axis.
+
+    Regression for the bug where ``{"payload": payload_obj}`` wrapping
+    dropped the signature, leaving ``ack_kid=None`` and producing a
+    silent ``counterparty_binding_kid_mismatch`` false negative against
+    every otherwise-valid acknowledgment.
+    """
+    orig = _orig_envelope()
+    ack = _ack_envelope(orig, expect_ack_from="kid-B", ack_kid="kid-B")
+    result = verify_compliance_receipt(
+        ack["payload"], originating_envelope=orig
+    )
+    assert result.counterparty_binding_verified is False
+    assert "counterparty_binding_requires_full_envelope" in result.errors
+    assert not any(
+        e == "counterparty_binding_kid_mismatch" for e in result.errors
+    )
+
+
+def test_verify_compliance_receipt_payload_only_without_expect_ack_from_still_works():
+    orig = _orig_envelope()
+    ack = _ack_envelope(orig)
+    result = verify_compliance_receipt(
+        ack["payload"], originating_envelope=orig
+    )
+    assert result.counterparty_binding_verified is True
