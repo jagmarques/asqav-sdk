@@ -196,6 +196,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:decision",
         "protectmcp:restraint",
         "protectmcp:lifecycle",
+        "protectmcp:acknowledgment",
     }
 )
 
@@ -2322,6 +2323,10 @@ class ComplianceReceiptVerification:
     `errors` carries a per-clause failure code so a CLI / dashboard can
     show the user which clause failed. Codes mirror the cloud's
     `validation_label` vocabulary in `routes/verify.py`.
+
+    `counterparty_binding_verified` is None when the receipt carries no
+    ``counterparty_binding`` field; True/False when the originating
+    envelope was supplied and the recomputed digest was compared.
     """
 
     valid: bool
@@ -2330,12 +2335,14 @@ class ComplianceReceiptVerification:
     skew_within_bound: bool
     chain_link_rederives: bool
     errors: list[str]
+    counterparty_binding_verified: bool | None = None
 
 
 def verify_compliance_receipt(
     envelope: dict[str, Any],
     *,
     predecessor_envelope: dict[str, Any] | None = None,
+    originating_envelope: dict[str, Any] | None = None,
     now: float | None = None,
 ) -> ComplianceReceiptVerification:
     """Local-side sanity-check on a Compliance Receipt envelope.
@@ -2352,6 +2359,13 @@ def verify_compliance_receipt(
        first on its chain (`previousReceiptHash == "0" * 64`) the
        rederivation step is skipped.
 
+    A fifth check fires when the receipt carries a
+    ``counterparty_binding`` object and the caller supplies the
+    originating envelope: the SHA-256 digest of the canonical bytes is
+    recomputed and compared to ``envelope_hash``, and (when present)
+    ``expect_ack_from`` is cross-checked against the acknowledging
+    receipt's ``signature.kid``.
+
     The cloud is authoritative for cryptographic signature checks,
     policy_digest resolution against the Audit Pack, and anchor
     verification. This helper is a convenience.
@@ -2361,6 +2375,10 @@ def verify_compliance_receipt(
         predecessor_envelope: Optional predecessor envelope. When
             provided, the chain-link is rederived and compared to
             ``envelope["previousReceiptHash"]``.
+        originating_envelope: Optional originating envelope referenced by
+            ``payload.counterparty_binding.receipt_ref`` on an
+            acknowledgment receipt. When provided, the binding's
+            ``envelope_hash`` is recomputed and compared.
         now: Optional override for the verifier wall clock (UNIX
             seconds). Defaults to ``time.time()``.
 
@@ -2425,11 +2443,26 @@ def verify_compliance_receipt(
             errors.append("chain_link_mismatch")
     # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
 
+    counterparty_binding_verified: bool | None = None
+    payload_obj = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
+    has_binding = isinstance(payload_obj, dict) and isinstance(
+        payload_obj.get("counterparty_binding"), dict
+    )
+    if has_binding and originating_envelope is not None:
+        from .counterparty import verify_counterparty_binding
+
+        ack_env = envelope if "payload" in envelope else {"payload": payload_obj}
+        outcome = verify_counterparty_binding(ack_env, originating_envelope)
+        counterparty_binding_verified = outcome.valid
+        if not outcome.valid:
+            errors.append(f"counterparty_binding_{outcome.label}")
+
     valid = (
         fields_present
         and receipt_type_in_namespace
         and skew_within_bound
         and chain_link_rederives
+        and (counterparty_binding_verified is not False)
     )
     return ComplianceReceiptVerification(
         valid=valid,
@@ -2438,6 +2471,7 @@ def verify_compliance_receipt(
         skew_within_bound=skew_within_bound,
         chain_link_rederives=chain_link_rederives,
         errors=errors,
+        counterparty_binding_verified=counterparty_binding_verified,
     )
 
 
