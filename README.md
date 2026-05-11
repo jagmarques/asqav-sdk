@@ -65,14 +65,17 @@ print(sig.signature_id, sig.verify_url)
 TypeScript:
 
 ```ts
-import { Asqav } from "@asqav/sdk";
+import { init, Agent } from "@asqav/sdk";
 
-const asqav = new Asqav({ apiKey: "sk_..." });
+init({ apiKey: "sk_..." });
 
-const agent = await asqav.Agent.create("my-agent");
-const sig = await agent.sign("api:call", { model: "gpt-4" });
+const agent = await Agent.create({ name: "my-agent" });
+const sig = await agent.sign({
+  actionType: "api:call",
+  context: { model: "gpt-4" },
+});
 
-console.log(sig.signatureId, sig.verifyUrl);
+console.log(sig.signatureId, sig.verificationUrl);
 ```
 
 Each signed action returns a receipt like:
