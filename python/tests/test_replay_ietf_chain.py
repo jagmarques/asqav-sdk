@@ -263,3 +263,152 @@ def test_to_dict_includes_signed_envelope_and_compliance_flag() -> None:
     assert d["compliance_chain_valid"] is True
     assert d["steps"][0]["signed_envelope"] == env0
 
+
+# === H12 + H13: chain digest scope matches cloud + verifier actually verifies ===
+
+
+def _cloud_payload(idx: int, prev_hash: str) -> dict:
+    """Build the inner IETF payload bytes the cloud signs and chains over.
+
+    Mirrors ``build_compliance_payload`` plus ``_canonical_json`` in
+    ``asqav_cloud.api.routes.agents``: the chain hash is
+    ``sha256(canonical_json(this dict))``.
+    """
+    return {
+        "v": 1,
+        "action_id": f"act_{idx:03d}",
+        "agent_id": "agent_001",
+        "org_id": "org_test",
+        "policy_digest": "sha256:" + "a" * 64,
+        "type": "protectmcp:decision",
+        "issued_at": f"2026-05-04T00:00:0{idx}Z",
+        "issuer_id": "kid_test",
+        "action_ref": "sha256:" + "b" * 64,
+        "payload_digest": {"hash": "c" * 64, "size": 12},
+        "previousReceiptHash": prev_hash,
+        "decision": "permit",
+        "mode": "payload",
+        "action_type": "api:call",
+        "context": {"step": idx},
+        "timestamp": f"2026-05-04T00:00:0{idx}Z",
+    }
+
+
+def test_three_receipt_chain_matches_cloud_byte_for_byte() -> None:
+    """Mirrors the cloud's `sha256(canonical_json(payload))` chain link.
+
+    Builds three payloads with each `previousReceiptHash` chained from the
+    SHA-256 of the previous payload's canonical JSON, then asserts the
+    SDK verifier accepts every link.
+    """
+    p0 = _cloud_payload(0, FIRST_RECEIPT_SEED)
+    h0 = hashlib.sha256(canonical_json(p0)).hexdigest()
+    p1 = _cloud_payload(1, h0)
+    h1 = hashlib.sha256(canonical_json(p1)).hexdigest()
+    p2 = _cloud_payload(2, h1)
+
+    sigs = [_make_signed_action(idx=i) for i in range(3)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[p0, p1, p2]
+    )
+
+    # Stored predecessor hashes match cloud-derived values.
+    assert timeline.steps[1].prev_chain_hash == h0
+    assert timeline.steps[2].prev_chain_hash == h1
+
+    assert timeline.verify_chain() is True
+    assert timeline.compliance_chain_valid is True
+    assert all(s.chain_valid for s in timeline.steps)
+
+
+def test_three_receipt_chain_detects_single_link_tamper() -> None:
+    """A forged `previousReceiptHash` on one receipt fails only that link."""
+    p0 = _cloud_payload(0, FIRST_RECEIPT_SEED)
+    h0 = hashlib.sha256(canonical_json(p0)).hexdigest()
+    p1 = _cloud_payload(1, h0)
+    h1 = hashlib.sha256(canonical_json(p1)).hexdigest()
+    p2 = _cloud_payload(2, h1)
+
+    sigs = [_make_signed_action(idx=i) for i in range(3)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[p0, p1, p2]
+    )
+    # Sanity: clean chain verifies.
+    assert timeline.verify_chain() is True
+
+    # Forge: rewrite step 2's stored predecessor link to junk.
+    timeline.steps[2].prev_chain_hash = "f" * 64
+
+    assert timeline.verify_chain() is False
+    # Only the corrupted link reports False.
+    assert timeline.steps[0].chain_valid is True
+    assert timeline.steps[1].chain_valid is True
+    assert timeline.steps[2].chain_valid is False
+    assert timeline.chain_integrity is False
+
+
+def test_chain_digest_unwraps_bundle_shaped_envelope() -> None:
+    """When the caller passes `{payload, signature, anchors}` (audit-pack
+    bundle shape), the SDK hashes only the inner `payload` so the chain
+    matches the cloud's `sha256(canonical_json(payload))`."""
+    p0 = _cloud_payload(0, FIRST_RECEIPT_SEED)
+    h0 = hashlib.sha256(canonical_json(p0)).hexdigest()
+    p1 = _cloud_payload(1, h0)
+
+    bundle0 = {
+        "payload": p0,
+        "signature": {"alg": "ML-DSA-65", "kid": "kid_test", "sig": "b64sig"},
+        "anchors": [],
+    }
+    bundle1 = {
+        "payload": p1,
+        "signature": {"alg": "ML-DSA-65", "kid": "kid_test", "sig": "b64sig"},
+        "anchors": [],
+    }
+
+    sigs = [_make_signed_action(idx=i) for i in range(2)]
+    timeline = _build_timeline(
+        "agent_001", "sess_1", sigs, signed_envelopes=[bundle0, bundle1]
+    )
+    assert timeline.steps[1].prev_chain_hash == h0
+    assert timeline.verify_chain() is True
+
+
+def test_verify_hash_chain_actually_verifies_link_values() -> None:
+    """Regression for H13: ``_verify_hash_chain`` must compare each stored
+    `previousReceiptHash` to the predecessor's derived hash, not blindly
+    return True."""
+    from asqav.replay import _verify_hash_chain
+
+    # Build a synthetic-shape chain with correct stored prev hashes.
+    sigs_data: list[dict] = []
+    prev = FIRST_RECEIPT_SEED
+    for i in range(3):
+        sig = {
+            "signature_id": f"sid_{i}",
+            "action_type": "api:call",
+            "signed_at": 1700000000.0 + i,
+            "previousReceiptHash": prev,
+        }
+        sigs_data.append(sig)
+        envelope = {
+            "signature_id": sig["signature_id"],
+            "action_type": sig["action_type"],
+            "context": sig.get("payload"),
+            "timestamp": sig["signed_at"],
+            "previousReceiptHash": prev,
+        }
+        prev = hashlib.sha256(canonical_json(envelope)).hexdigest()
+
+    assert _verify_hash_chain(sigs_data) == [True, True, True]
+
+    # Corrupt the middle link's stored hash.
+    sigs_data[1]["previousReceiptHash"] = "0" * 64
+    results = _verify_hash_chain(sigs_data)
+    assert results[0] is True
+    assert results[1] is False
+    # Third link's stored hash is computed from sig 1's synthetic envelope,
+    # which is unchanged by the `previousReceiptHash` field tamper, so it
+    # stays True.
+    assert results[2] is True
+
