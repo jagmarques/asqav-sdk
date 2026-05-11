@@ -8,10 +8,14 @@
  * mismatch as a chain break. Equivalent to the Python SDK's
  * `replay.ReplayTimeline.verify_chain`.
  *
- * Chain link:
+ * Chain link (cloud-canonical):
  *
- *   previousReceiptHash[i+1] = sha256(canonicalJson(envelope[i]))   // 64 hex
+ *   previousReceiptHash[i+1] = sha256(canonicalJson(payload[i]))   // 64 hex
  *   previousReceiptHash[0]   = "0".repeat(64)
+ *
+ * The cloud hashes the inner compliance payload only, not the
+ * `{payload, signature, anchors}` wrapper. When a record's `signedEnvelope`
+ * carries that wrapper, the verifier unwraps and hashes only `payload`.
  *
  * This module is import-free of any HTTP / network code so it can run
  * over a downloaded ComplianceBundle.
@@ -97,8 +101,11 @@ export function verifyChain(
   for (let i = 0; i < records.length; i++) {
     const record = records[i];
     const env = record.signedEnvelope;
-    const actualPrev = String(env.previousReceiptHash ?? env.previous_receipt_hash ?? "");
-    const derived = sha256Hex(canonicalJson(env));
+    const chainInput = payloadForChain(env);
+    const actualPrev = String(
+      chainInput.previousReceiptHash ?? chainInput.previous_receipt_hash ?? "",
+    );
+    const derived = sha256Hex(canonicalJson(chainInput));
 
     const chainValid = actualPrev === expectedPrev;
     if (!chainValid) allValid = false;
@@ -127,10 +134,33 @@ export function verifyChain(
 /**
  * Convenience: derive the chain hash for one signed envelope.
  *
- *   sha256(canonicalJson(envelope))
+ *   sha256(canonicalJson(payload))   // bundle-shaped envelopes are unwrapped
  */
 export function deriveChainHash(envelope: Record<string, unknown>): string {
-  return sha256Hex(canonicalJson(envelope));
+  return sha256Hex(canonicalJson(payloadForChain(envelope)));
+}
+
+/**
+ * Return the inner compliance payload the cloud hashes for the chain link.
+ *
+ * The cloud computes `sha256(canonicalJson(payload))` where `payload` is
+ * the IETF compliance payload dict. When the input is the bundle-shaped
+ * `{payload, signature, anchors, ...}` wrapper this returns
+ * `envelope.payload`; otherwise the envelope is hashed as-is.
+ */
+function payloadForChain(
+  envelope: Record<string, unknown>,
+): Record<string, unknown> {
+  const inner = envelope.payload;
+  if (
+    inner !== null &&
+    typeof inner === "object" &&
+    !Array.isArray(inner) &&
+    ("signature" in envelope || "anchors" in envelope)
+  ) {
+    return inner as Record<string, unknown>;
+  }
+  return envelope;
 }
 
 function sha256Hex(bytes: Uint8Array): string {
