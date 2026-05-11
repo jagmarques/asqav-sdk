@@ -16,8 +16,9 @@ The package ships an `asqav` binary mirroring the Python CLI surface. Set `ASQAV
 asqav --version
 asqav verify <signature_id> [--output text|json]           # IETF axes when present
 asqav sign --agent-id ID --action-type T --action-json action.json \
-           --compliance-mode --receipt-type protectmcp:decision \
+           --receipt-type protectmcp:decision \
            --risk-class high --issuer-id legal:Acme
+           # add --no-compliance-mode to opt out of the IETF profile (default is on)
 asqav agents list / create / revoke
 asqav sessions list / end <session_id>
 asqav replay <agent_id> <session_id> [--json]              # Pro
@@ -37,7 +38,7 @@ asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key r
 
 Pro/Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; older self-hosted deployments without `/account` skip the gate.
 
-The IETF Compliance Receipts profile commands (`sign --compliance-mode`, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per the [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile; the CLI accepts the kebab-case equivalents.
+The IETF Compliance Receipts profile commands (`sign` defaults to the profile; pass `--no-compliance-mode` to opt out, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per the [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile; the CLI accepts the kebab-case equivalents.
 
 ## Quick start
 
