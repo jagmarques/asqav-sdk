@@ -18,9 +18,7 @@ from asqav.client import (
 )
 from asqav.replay import FIRST_RECEIPT_SEED
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# === Fixtures ===
 
 
 def _good_envelope(**overrides) -> dict:
@@ -41,9 +39,7 @@ def _good_envelope(**overrides) -> dict:
     return base
 
 
-# ---------------------------------------------------------------------------
-# Happy path
-# ---------------------------------------------------------------------------
+# === Happy path ===
 
 
 def test_clean_first_receipt_validates() -> None:
@@ -68,9 +64,7 @@ def test_chain_link_rederives_against_predecessor() -> None:
     assert result.chain_link_rederives is True
 
 
-# ---------------------------------------------------------------------------
-# Missing fields (§5)
-# ---------------------------------------------------------------------------
+# === Compliance-Receipt minimum-required-fields contract ===
 
 
 def test_missing_required_field_flags_fields_present_false() -> None:
@@ -96,9 +90,7 @@ def test_multiple_missing_fields_all_reported() -> None:
     assert "payload_digest" in err
 
 
-# ---------------------------------------------------------------------------
-# receipt_type namespace
-# ---------------------------------------------------------------------------
+# === receipt_type namespace ===
 
 
 def test_receipt_type_outside_namespace_rejected() -> None:
@@ -120,9 +112,7 @@ def test_all_three_namespace_values_accepted() -> None:
         assert result.receipt_type_in_namespace is True, rt
 
 
-# ---------------------------------------------------------------------------
-# 300-second skew bound
-# ---------------------------------------------------------------------------
+# === 300-second skew bound ===
 
 
 def test_skew_well_within_boundary_is_accepted() -> None:
@@ -174,9 +164,7 @@ def test_invalid_issued_at_is_flagged() -> None:
     assert "invalid_issued_at" in result.errors
 
 
-# ---------------------------------------------------------------------------
-# Chain link rederivation (§5.7)
-# ---------------------------------------------------------------------------
+# === Chain link rederivation contract ===
 
 
 def test_chain_link_mismatch_detected() -> None:
