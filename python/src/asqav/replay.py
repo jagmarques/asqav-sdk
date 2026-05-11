@@ -2,7 +2,14 @@
 
 Chain shape (IETF Compliance Receipts):
 
-  ``previousReceiptHash = sha256(JCS(predecessor signed envelope))``.
+  ``previousReceiptHash = sha256(JCS(predecessor compliance payload))``.
+
+The chain link is over the inner payload bytes only, NOT the full
+``{payload, signature, anchors}`` envelope. This matches the cloud's
+on-chain digest (``sha256(SignatureRecord.message)`` where ``message`` is
+``canonical_json(payload)``). When a step carries the full bundle-shaped
+envelope with a top-level ``payload`` dict, the verifier hashes only that
+sub-dict so the result is byte-identical to the cloud.
 
 The first record's predecessor seed is ``"0" * 64`` (``FIRST_RECEIPT_SEED``).
 See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
@@ -18,10 +25,30 @@ from typing import Any
 
 from ._jcs import canonical_json
 from .client import SignedActionResponse, get_session_signatures
-from .compliance import ComplianceBundle, _normalize_signature
+from .compliance import ComplianceBundle
 
 #: Seed planted as `previousReceiptHash` on the first record per chain (mirrors cloud).
 FIRST_RECEIPT_SEED: str = "0" * 64
+
+
+def _payload_bytes_for_chain(envelope: dict[str, Any]) -> bytes:
+    """Return the canonical JSON bytes the cloud hashes for the chain link.
+
+    The cloud computes ``sha256(canonical_json(payload))`` where ``payload``
+    is the IETF compliance payload dict. When ``envelope`` is the
+    bundle-shaped ``{payload, signature, anchors, ...}`` wrapper this
+    extracts ``envelope["payload"]``; when it is already the payload dict
+    (no ``signature`` sibling) the dict is hashed as-is.
+    """
+    inner = envelope.get("payload")
+    if isinstance(inner, dict) and ("signature" in envelope or "anchors" in envelope):
+        return canonical_json(inner)
+    return canonical_json(envelope)
+
+
+def _chain_hash_for_envelope(envelope: dict[str, Any]) -> str:
+    """SHA-256 of the cloud's chain input for one envelope."""
+    return hashlib.sha256(_payload_bytes_for_chain(envelope)).hexdigest()
 
 
 @dataclass
@@ -127,10 +154,13 @@ class ReplayTimeline:
         hash are marked invalid rather than passing silently.
 
         Each step MUST carry `signed_envelope`. The chain hash is computed
-        as ``sha256(JCS(signed_envelope))`` so the result matches the
-        cloud's ``compute_signature_record_hash_v2`` byte-for-byte. Steps
-        without an envelope cannot prove byte-level integrity and drop
-        `compliance_chain_valid`.
+        as ``sha256(JCS(payload))`` over the inner compliance payload so the
+        result matches the cloud's on-chain digest byte-for-byte. When the
+        envelope is bundle-shaped (``{payload, signature, anchors, ...}``)
+        only the ``payload`` sub-dict is hashed; when it is already a
+        payload-shaped dict the whole dict is hashed. Steps without an
+        envelope cannot prove byte-level integrity and drop
+        ``compliance_chain_valid``.
         """
         if not self.steps:
             self.chain_integrity = True
@@ -156,7 +186,7 @@ class ReplayTimeline:
 
             envelope = getattr(step, "signed_envelope", None)
             if envelope is not None:
-                prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
+                prev_hash = _chain_hash_for_envelope(envelope)
             else:
                 compliance_valid = False
                 prev_hash = _step_chain_hash(step, prev_hash)
@@ -185,8 +215,18 @@ def _step_chain_hash(step: ReplayStep, prev_hash: str) -> str:
 def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
     """Check each signature chains to the previous via SHA-256.
 
-    Returns a list of booleans, one per signature, indicating whether
-    the chain link from the previous entry is valid.
+    Returns a list of booleans, one per signature, indicating whether the
+    chain link from the previous entry is valid. Each entry's stored
+    ``previousReceiptHash`` (or snake-case ``previous_receipt_hash``) is
+    compared to the predecessor's derived chain hash; the seed
+    ``FIRST_RECEIPT_SEED`` is expected on the first entry. Entries that
+    omit the link field are treated as unverifiable (``False``) rather
+    than passing silently.
+
+    Note: this synthetic-shape verifier can only catch tampering of the
+    fields it hashes (``signature_id``, ``action_type``, ``payload``,
+    ``signed_at``). Byte-level integrity against the cloud requires the
+    full ``signed_envelope`` path on :meth:`ReplayTimeline.verify_chain`.
     """
     if not signatures:
         return []
@@ -194,7 +234,18 @@ def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
     results: list[bool] = []
     prev_hash = FIRST_RECEIPT_SEED
 
-    for sig in signatures:
+    for idx, sig in enumerate(signatures):
+        stored = sig.get("previousReceiptHash")
+        if stored is None:
+            stored = sig.get("previous_receipt_hash")
+        if idx == 0:
+            link_valid = True
+        elif stored is None:
+            link_valid = False
+        else:
+            link_valid = str(stored) == prev_hash
+        results.append(link_valid)
+
         envelope = {
             "signature_id": sig.get("signature_id", ""),
             "action_type": sig.get("action_type", ""),
@@ -202,9 +253,7 @@ def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
             "timestamp": sig.get("signed_at", sig.get("timestamp", 0)),
             "previousReceiptHash": prev_hash,
         }
-        current_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
-        results.append(True)
-        prev_hash = current_hash
+        prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
 
     return results
 
@@ -316,14 +365,11 @@ def _build_timeline(
     else:
         sorted_envelopes = [None] * len(sorted_sigs)
 
-    sig_dicts = [_normalize_signature(s) for s in sorted_sigs]
-    chain_results = _verify_hash_chain(sig_dicts)
-
     chain_hashes: list[str] = []
     prev_hash = FIRST_RECEIPT_SEED
     for sig, env in zip(sorted_sigs, sorted_envelopes):
         if env is not None:
-            prev_hash = hashlib.sha256(canonical_json(env)).hexdigest()
+            prev_hash = _chain_hash_for_envelope(env)
         else:
             envelope = {
                 "signature_id": sig.signature_id,
@@ -335,6 +381,7 @@ def _build_timeline(
             prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
         chain_hashes.append(prev_hash)
 
+    # Freshly built: initial chain_valid is True everywhere; verify_chain() catches later tampering.
     steps: list[ReplayStep] = []
     for i, sig in enumerate(sorted_sigs):
         explanation = _build_explanation(sig.action_type, sig.payload)
@@ -348,7 +395,7 @@ def _build_timeline(
                 timestamp=sig.signed_at,
                 signature_id=sig.signature_id,
                 verification_url=sig.verification_url,
-                chain_valid=chain_results[i] if i < len(chain_results) else False,
+                chain_valid=True,
                 explanation=explanation,
                 prev_chain_hash=prev_chain_hash,
                 signed_envelope=env,
@@ -357,7 +404,7 @@ def _build_timeline(
 
     start_time = sorted_sigs[0].signed_at if sorted_sigs else None
     end_time = sorted_sigs[-1].signed_at if sorted_sigs else None
-    chain_integrity = all(chain_results) if chain_results else True
+    chain_integrity = True
     compliance_chain_valid = (
         chain_integrity
         and all(env is not None for env in sorted_envelopes)
