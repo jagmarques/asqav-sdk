@@ -122,4 +122,41 @@ describe("verifyChain (v2, IETF profile)", () => {
       verifyChain([{ signedEnvelope: env }], { unknownFlag: true } as never),
     ).toThrow(TypeError);
   });
+
+  // H12: chain digest scope matches cloud (payload-only, not full envelope).
+  it("unwraps bundle-shaped envelopes and hashes only `payload`", () => {
+    const p0 = makeEnvelope(0, FIRST_RECEIPT_SEED);
+    const h0 = sha256Hex(canonicalJson(p0));
+    const p1 = makeEnvelope(1, h0);
+
+    const bundle0: Record<string, unknown> = {
+      payload: p0,
+      signature: { alg: "ML-DSA-65", kid: "kid_test", sig: "b64sig" },
+      anchors: [],
+    };
+    const bundle1: Record<string, unknown> = {
+      payload: p1,
+      signature: { alg: "ML-DSA-65", kid: "kid_test", sig: "b64sig" },
+      anchors: [],
+    };
+
+    const result = verifyChain([
+      { signedEnvelope: bundle0 },
+      { signedEnvelope: bundle1 },
+    ]);
+    expect(result.chainIntegrity).toBe(true);
+    expect(result.steps[1].expectedPreviousReceiptHash).toBe(h0);
+  });
+
+  it("detects a single forged link in a 3-receipt chain", () => {
+    const records = buildChain(3);
+    // Forge: rewrite the third record's previousReceiptHash to junk.
+    (records[2].signedEnvelope as Record<string, unknown>).previousReceiptHash =
+      "f".repeat(64);
+    const result = verifyChain(records);
+    expect(result.chainIntegrity).toBe(false);
+    expect(result.steps[0].chainValid).toBe(true);
+    expect(result.steps[1].chainValid).toBe(true);
+    expect(result.steps[2].chainValid).toBe(false);
+  });
 });
