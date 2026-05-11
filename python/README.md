@@ -115,7 +115,6 @@ Algorithm agility per profile section 10.8 is exposed via `asqav.SUPPORTED_ALGOR
 
 - Repository: <https://github.com/jagmarques/asqav-sdk>
 - Full docs: <https://asqav.com/docs>
-- Roadmap: <https://asqav.com/roadmap>
 
 ## License
 
