@@ -200,7 +200,8 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     }
 )
 
-#: Canonical `incident_class` vocabulary; cloud rejects anything outside this set.
+#: Canonical `incident_class` vocabulary under DORA Annex II field 3.23.
+#: Cloud rejects anything outside this set for receipts bound to DORA.
 DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
     {
         "cybersecurity_related",
@@ -210,6 +211,30 @@ DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
         "payment_related",
         "other",
     }
+)
+
+#: Canonical `incident_class` vocabulary under the HIPAA Security Rule
+#: (45 CFR 164.304). Closes GAP-E13: draft-marques-asqav-compliance-receipts
+#: Section 4.2 (`incident_class`) names HIPAA as one of the canonical
+#: source regimes; the SDK now accepts a HIPAA token instead of forcing a
+#: Covered Entity to fall back to a DORA category.
+HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
+    {"hipaa_security_incident"}
+)
+
+#: Union of every canonical incident_class token the SDK accepts. The
+#: cloud's `core/incident_vocabulary.py` is authoritative; this mirror
+#: spares callers a network round-trip on obvious mistakes.
+INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
+    DORA_INCIDENT_CLASS_NAMESPACE | HIPAA_INCIDENT_CLASS_NAMESPACE
+)
+
+#: Sandbox-state enum from upstream draft-marques-acta-receipts Section 4.6.
+#: Closes the SDK side of GAP-E3: the cloud already gates the vocabulary on
+#: emit, the SDK now refuses out-of-vocabulary values before the HTTP call
+#: and rejects them on the verify path.
+SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
+    {"enabled", "disabled", "unavailable"}
 )
 
 # Verifier rejects receipts further than this from the wall clock.
@@ -1193,16 +1218,35 @@ class Agent:
                 "missing_reason: policy_decision=deny|rate_limit "
                 "requires a `reason` code."
             )
-        # Fail fast on incident_class vocabulary before the HTTP roundtrip.
+        # Fail fast on sandbox_state vocabulary before the HTTP roundtrip.
+        # Closes the SDK side of GAP-E3; spec Section 4.1.6 (`sandbox_state`)
+        # restricts the field to {enabled, disabled, unavailable}.
         if (
-            incident_class is not None
-            and incident_class not in DORA_INCIDENT_CLASS_NAMESPACE
+            sandbox_state is not None
+            and sandbox_state not in SANDBOX_STATE_NAMESPACE
         ):
             raise ValueError(
-                "invalid_incident_class: must be one of "
-                f"{sorted(DORA_INCIDENT_CLASS_NAMESPACE)} "
-                "(per DORA RTS JC 2024-33 Annex II field 3.23)."
+                "invalid_sandbox_state: must be one of "
+                f"{sorted(SANDBOX_STATE_NAMESPACE)} "
+                "(per draft-marques-asqav-compliance-receipts Section 4.1.6)."
             )
+        # Fail fast on incident_class vocabulary before the HTTP roundtrip.
+        # Lists / arrays are also valid per spec Section 4.2 (`incident_class`
+        # MUST be a JSON string OR a JSON array of such strings).
+        if incident_class is not None:
+            _tokens = (
+                incident_class
+                if isinstance(incident_class, list)
+                else [incident_class]
+            )
+            for _t in _tokens:
+                if _t not in INCIDENT_CLASS_NAMESPACE:
+                    raise ValueError(
+                        "invalid_incident_class: must be one of "
+                        f"{sorted(INCIDENT_CLASS_NAMESPACE)} "
+                        "(per DORA RTS JC 2024-33 Annex II field 3.23 "
+                        "or HIPAA 45 CFR 164.304)."
+                    )
         # Derive action_ref under compliance_mode when caller omits it.
         if compliance_mode and action_ref is None:
             action_ref = _compute_action_ref(action_type, context)
@@ -2467,6 +2511,31 @@ def verify_compliance_receipt(
             errors.append("chain_link_mismatch")
     # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
 
+    # 5. Conditional MUSTs on the inner payload.
+    #
+    #   * Spec Section 4.1.6 (`sandbox_state`) restricts the value space to
+    #     {enabled, disabled, unavailable}. Closes the SDK side of GAP-E3.
+    #   * Spec Section 4.1.9 (`reason`) is REQUIRED whenever `decision` is
+    #     `deny` or `rate_limit`. Closes the SDK side of GAP-E4.
+    #   * Spec Section 4.7 (`anchors[]`) declares `value` REQUIRED on every
+    #     anchor entry; entries with an empty `value` MUST NOT be reported
+    #     as anchor_valid_*=true. Closes the SDK side of GAP-E6.
+    _payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
+    if isinstance(_payload, dict):
+        _sandbox = _payload.get("sandbox_state")
+        if _sandbox is not None and _sandbox not in SANDBOX_STATE_NAMESPACE:
+            errors.append("invalid_sandbox_state")
+        _decision = _payload.get("decision")
+        if _decision in {"deny", "rate_limit"} and not _payload.get("reason"):
+            errors.append("missing_reason_on_deny_or_rate_limit")
+    _anchors = envelope.get("anchors")
+    if isinstance(_anchors, list):
+        for _i, _entry in enumerate(_anchors):
+            if not isinstance(_entry, dict):
+                continue
+            if not _entry.get("value"):
+                errors.append(f"anchor_missing_value:{_i}")
+
     counterparty_binding_verified: bool | None = None
     payload_obj = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
     has_binding = isinstance(payload_obj, dict) and isinstance(
@@ -2490,11 +2559,25 @@ def verify_compliance_receipt(
             if not outcome.valid:
                 errors.append(f"counterparty_binding_{outcome.label}")
 
+    # Conditional-MUST failures land in `errors` only; a separate axis flag
+    # would bloat the dataclass for axes the cloud already gates. Surface
+    # them through the unified error list and the top-level `valid` boolean.
+    _conditional_must_fail = any(
+        e.startswith(
+            (
+                "invalid_sandbox_state",
+                "missing_reason_on_deny_or_rate_limit",
+                "anchor_missing_value:",
+            )
+        )
+        for e in errors
+    )
     valid = (
         fields_present
         and receipt_type_in_namespace
         and skew_within_bound
         and chain_link_rederives
+        and not _conditional_must_fail
         and (counterparty_binding_verified is not False)
     )
     return ComplianceReceiptVerification(
