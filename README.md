@@ -238,6 +238,38 @@ console.log(result.agentId, result.chainHash);
 
 Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 (the JSON format spec) payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
+## Counterparty acknowledgment
+
+When two agents hand off a workflow (A signs an action, B acts on it), the SDK lets B emit a `protectmcp:acknowledgment` receipt that cryptographically binds B's bytes to A's. The bundle carries A's full envelope, B's acknowledgment, and a SHA-256 binding the verifier recomputes offline. A tampered intermediary cannot mutate the bytes without breaking the equality, so a regulator can verify the handoff with one digest comparison.
+
+Python:
+
+```python
+from asqav import compute_counterparty_binding, verify_counterparty_binding
+
+binding = compute_counterparty_binding(originating_envelope)
+b_payload["counterparty_binding"] = binding.to_wire()
+# ... B signs b_payload normally ...
+
+outcome = verify_counterparty_binding(b_envelope, originating_envelope)
+assert outcome.valid, outcome.label
+```
+
+TypeScript:
+
+```ts
+import { computeCounterpartyBinding, verifyCounterpartyBinding } from "@asqav/sdk";
+
+const binding = computeCounterpartyBinding(originatingEnvelope);
+bPayload.counterparty_binding = binding;
+// ... B signs bPayload normally ...
+
+const outcome = verifyCounterpartyBinding(bEnvelope, originatingEnvelope);
+if (!outcome.valid) throw new Error(outcome.label);
+```
+
+The cloud `/verify` endpoint reports the same outcome on the verification response under `counterparty_binding_verified`, and `/audit-pack/export` pulls the originating receipt into the bundle automatically when an acknowledgment in the export window references one outside it.
+
 ## Conformance
 
 The `conformance/` directory contains shared test fixtures both SDKs run against. Adding a new feature means adding a fixture there first, then making both SDKs pass it. CI reruns both matrices whenever `conformance/` changes, even if neither `python/` nor `typescript/` was touched, so cross-language drift is caught at PR time.
