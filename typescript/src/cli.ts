@@ -407,9 +407,12 @@ async function cmdSign(args: string[]): Promise<void> {
   const agentId = parseFlag(args, "agent-id");
   const actionType = parseFlag(args, "action-type");
   if (!agentId || !actionType) {
-    die("Usage: asqav sign --agent-id ID --action-type T [--compliance-mode] [--action-json PATH]");
+    die("Usage: asqav sign --agent-id ID --action-type T [--no-compliance-mode] [--action-json PATH]");
   }
-  const complianceMode = hasFlag(args, "compliance-mode");
+  // Compliance Receipts default to compliance_mode=true to match the SDK
+  // constructor default (typescript/src/index.ts) and the Python SDK. Pass
+  // --no-compliance-mode to opt out for the rare non-profile receipt.
+  const complianceMode = !hasFlag(args, "no-compliance-mode");
   const actionRef = parseFlag(args, "action-ref");
   const actionJson = parseFlag(args, "action-json");
   const sandboxState = parseFlag(args, "sandbox-state");
@@ -761,7 +764,7 @@ function printHelp(): void {
 Usage:
   asqav --version
   asqav verify <signature_id> [--output text|json]
-  asqav sign --agent-id ID --action-type T [--compliance-mode] [--action-json PATH|-]
+  asqav sign --agent-id ID --action-type T [--no-compliance-mode] [--action-json PATH|-]
              [--receipt-type protectmcp:decision|...] [--risk-class low|medium|high|unknown]
              [--sandbox-state enabled|disabled|unavailable] [--iteration-id ID]
              [--issuer-id LEGAL] [--policy-decision permit|deny|rate_limit]
