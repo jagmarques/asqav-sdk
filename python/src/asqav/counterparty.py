@@ -48,8 +48,8 @@ class CounterpartyBinding:
     the verifier uses to fetch A's envelope from the Audit Pack or a
     Deployer-published index. ``expect_ack_from`` is an OPTIONAL
     cross-check on the acknowledging receipt's signature ``kid``;
-    ``transport_label`` is operational only and MUST NOT be used to
-    derive trust.
+    ``transport_label`` is operational only and MUST NOT serve as a
+    basis for trust derivation.
     """
 
     envelope_hash: str = field(

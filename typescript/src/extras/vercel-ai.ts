@@ -135,8 +135,8 @@ export interface CreateAsqavExporterOptions {
    */
   agent?: Agent;
   /**
-   * Asqav API key. Required when `agent` is not supplied; used to lazily
-   * attach to the named agent on first span.
+   * Asqav API key. Required when `agent` is not supplied; the adapter
+   * lazily attaches to the named agent on first span using this key.
    */
   apiKey?: string;
   /** Asqav agent id to attach to when `agent` is not supplied. */
@@ -236,7 +236,7 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
     if (!opts.agent) {
       // Lazy attach not supported in v1: require pre-built agent.
       onError(
-        new Error("createAsqavExporter currently requires a pre-built Agent"),
+        new Error("createAsqavExporter requires a pre-built Agent"),
         { name: state.name, attributes: state.attributes },
       );
       return;

@@ -73,7 +73,7 @@ describe("verifyChain (v2, IETF profile)", () => {
 
   it("detects a tampered envelope mid-chain", () => {
     const records = buildChain(3);
-    // Mutate the second record's payload_digest so the [1]->[2] chain link no longer matches.
+    // Mutate the second record's payload_digest so the [1]->[2] chain link diverges.
     (records[1].signedEnvelope as Record<string, unknown>).payload_digest =
       `sha256:${"f".repeat(64)}`;
     const result = verifyChain(records);
