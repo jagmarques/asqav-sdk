@@ -218,7 +218,7 @@ def test_envelope_path_detects_field_tamper_outside_synthetic_shape() -> None:
     timeline.steps[0].signed_envelope = {**env0, "policy_decision": "deny"}
 
     # verify_chain re-derives prev_hash from the (tampered) envelope and
-    # the stored prev_chain_hash on step 1 no longer matches.
+    # the stored prev_chain_hash on step 1 mismatches.
     assert timeline.verify_chain() is False
     assert timeline.steps[1].chain_valid is False
     assert timeline.compliance_chain_valid is False
