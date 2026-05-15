@@ -222,7 +222,7 @@ class TestChainVerification:
         assert timeline.chain_integrity is False
 
     def test_verify_chain_detects_reordered_steps(self):
-        """Swap two steps; the predecessor hash on the moved step no longer matches."""
+        """Swap two steps; the predecessor hash on the moved step diverges."""
         timeline = _make_timeline(4)
         assert timeline.verify_chain() is True
         timeline.steps[1], timeline.steps[2] = timeline.steps[2], timeline.steps[1]

@@ -747,7 +747,7 @@ def span(
 
 
 def get_current_span() -> Span | None:
-    """Get the currently active span, if any."""
+    """Get the active span, if any."""
     return _current_span
 
 
@@ -3417,7 +3417,7 @@ def generate_attestation(
     Args:
         agent_id: The agent to generate an attestation for.
         session_id: Optional session to include signature details from.
-        format: Output format (currently only "json" is supported).
+        format: Output format. Only "json" is supported.
 
     Returns:
         Dict containing the attestation document with an embedded signature

@@ -98,7 +98,7 @@ def _strands_before_hook(action_type: str, context: dict) -> dict:
     """Internal Asqav before-hook that normalises strands:model_call context.
 
     Ensures ``input_hash`` and ``output_hash`` keys exist with a stable
-    fallback even when the caller did not provide them. This demonstrates the
+    fallback even when the caller omits them. This demonstrates the
     hooks pattern enriching context generically.
     """
     if action_type != _STRANDS_ACTION:
