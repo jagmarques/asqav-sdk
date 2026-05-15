@@ -32,7 +32,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 from urllib.parse import urljoin
 
 if TYPE_CHECKING:
@@ -228,16 +228,46 @@ SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
     {"enabled", "disabled", "unavailable"}
 )
 
+#: Producer-side `capture_topology` vocabulary mirrored from the cloud
+#: SignRequest Literal. See docs/capture-topology.md.
+CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
+    {
+        "in_process_sdk",
+        "network_proxy",
+        "browser_extension",
+        "ebpf_observer",
+        "mcp_proxy",
+    }
+)
+
+#: Internal `policy_decision` vocabulary; `none` is the lifecycle opt-out
+#: gated to receipt_type startswith `protectmcp:lifecycle`.
+PolicyDecision = Literal["permit", "deny", "rate_limit", "none"]
+
+#: Wire-shape `decision` vocabulary; `observation` is reserved to lifecycle
+#: receipts emitted under `policy_decision="none"`.
+Decision = Literal["allow", "deny", "rate_limit", "observation"]
+
+#: Capture-topology vocabulary as a Literal for callers preferring the type form.
+CaptureTopology = Literal[
+    "in_process_sdk",
+    "network_proxy",
+    "browser_extension",
+    "ebpf_observer",
+    "mcp_proxy",
+]
+
 # Verifier rejects receipts further than this from the wall clock.
 SKEW_BOUND_SECONDS: int = 300
 
-# Spec wire vocabulary {"allow", "deny", "rate_limit"} vs original
-# `policy_decision` {"permit", "deny", "rate_limit"}; unknown -> "deny".
+#: vocabulary | wire `{allow, deny, rate_limit, observation}` keyed by
+#: internal `{permit, allow, deny, rate_limit, none}`. Unknown -> "deny".
 DECISION_MAP: dict[str, str] = {
     "permit": "allow",
     "allow": "allow",
     "deny": "deny",
     "rate_limit": "rate_limit",
+    "none": "observation",
 }
 
 
@@ -1116,6 +1146,7 @@ class Agent:
         incident_class: str | list[str] | None = None,
         reason: str | None = None,
         policy_decision: str = "permit",
+        capture_topology: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -1152,6 +1183,10 @@ class Agent:
             model_name: Optional name of the model being called when this
                 action is an LLM call (e.g. "gpt-4", "claude-opus-4-7").
                 Only the name string travels; the prompt does not.
+            capture_topology: Producer-side topology. One of
+                ``in_process_sdk``, ``network_proxy``, ``browser_extension``,
+                ``ebpf_observer``, ``mcp_proxy``. Stamped on the audit-pack
+                manifest entry; never on the signed payload.
 
         Returns:
             SignatureResponse with the signature.
@@ -1215,6 +1250,15 @@ class Agent:
                 "invalid_sandbox_state: must be one of "
                 f"{sorted(SANDBOX_STATE_NAMESPACE)}."
             )
+        # Fail fast on capture_topology vocabulary before the HTTP roundtrip.
+        if (
+            capture_topology is not None
+            and capture_topology not in CAPTURE_TOPOLOGY_NAMESPACE
+        ):
+            raise ValueError(
+                "invalid_capture_topology: must be one of "
+                f"{sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
+            )
         # Fail fast on incident_class vocabulary before the HTTP roundtrip.
         # The field accepts a JSON string or a JSON array of such strings.
         if incident_class is not None:
@@ -1251,6 +1295,7 @@ class Agent:
                 ("risk_class", risk_class),
                 ("incident_class", incident_class),
                 ("reason", reason),
+                ("capture_topology", capture_topology),
             ):
                 if v is not None:
                     compliance_fields[k] = v

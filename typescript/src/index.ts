@@ -82,21 +82,37 @@ export type IncidentClass = (typeof INCIDENT_CLASS_NAMESPACE)[number];
 export const SANDBOX_STATE_NAMESPACE = ["enabled", "disabled", "unavailable"] as const;
 export type SandboxState = (typeof SANDBOX_STATE_NAMESPACE)[number];
 
+/** Producer-side `capture_topology` vocabulary; mirrors the cloud
+ * SignRequest Literal and the IETF -04 capture-topologies appendix. */
+export const CAPTURE_TOPOLOGY_NAMESPACE = [
+  "in_process_sdk",
+  "network_proxy",
+  "browser_extension",
+  "ebpf_observer",
+  "mcp_proxy",
+] as const;
+export type CaptureTopology = (typeof CAPTURE_TOPOLOGY_NAMESPACE)[number];
+
 /** Risk class controlled vocabulary. */
 export type RiskClass = "low" | "medium" | "high" | "unknown";
 
-/** Policy decision vocabulary; deny / rate_limit require `reason`. */
-export type PolicyDecision = "permit" | "deny" | "rate_limit";
+/** Policy decision vocabulary; deny / rate_limit require `reason`. `none`
+ * is the lifecycle opt-out gated to `protectmcp:lifecycle` receipts. */
+export type PolicyDecision = "permit" | "deny" | "rate_limit" | "none";
 
-/** Spec-shape decision vocabulary; original `policyDecision` uses "permit". */
-export type Decision = "allow" | "deny" | "rate_limit";
+/** Spec-shape decision vocabulary; `observation` is reserved to
+ * lifecycle receipts emitted under `policyDecision="none"` (IETF -04). */
+export type Decision = "allow" | "deny" | "rate_limit" | "observation";
 
-/** Map an original `policyDecision` token to the spec-shape `decision`. */
+/** Map an original `policyDecision` token to the spec-shape `decision`.
+ * The `none -> observation` row is gated to lifecycle receipts by the
+ * no-false-attestation rule on the cloud side. */
 export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
   permit: "allow",
   allow: "allow",
   deny: "deny",
   rate_limit: "rate_limit",
+  none: "observation",
 });
 
 /** Translate `policyDecision` to the spec-shape `decision`. Falls back
@@ -357,9 +373,16 @@ export interface SignOptions {
    * source of truth on which codes are accepted. */
   reason?: string;
 
-  /** Policy decision. `permit` (default), `deny`, or `rate_limit`. When
-   * not `permit`, `reason` is required. */
+  /** Policy decision. `permit` (default), `deny`, `rate_limit`, or `none`.
+   * `none` is the lifecycle opt-out and requires `receiptType` in the
+   * `protectmcp:lifecycle` namespace. When `deny` or `rate_limit`,
+   * `reason` is required. */
   policyDecision?: PolicyDecision;
+
+  /** Producer-side topology. One of `in_process_sdk`, `network_proxy`,
+   * `browser_extension`, `ebpf_observer`, `mcp_proxy`. Stamped on the
+   * audit-pack manifest entry; never on the signed payload. */
+  captureTopology?: CaptureTopology;
 }
 
 export interface CoSignature {
@@ -848,12 +871,12 @@ export class Agent {
         `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
       );
     }
-    if (options.policyDecision !== undefined
-      && options.policyDecision !== "permit"
-      && !options.reason) {
-      throw new AsqavError(
-        "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
-      );
+    if (options.policyDecision === "deny" || options.policyDecision === "rate_limit") {
+      if (!options.reason) {
+        throw new AsqavError(
+          "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
+        );
+      }
     }
     // Fail fast on sandbox_state vocabulary (restricted to {enabled, disabled, unavailable}) before the HTTP roundtrip.
     if (
@@ -862,6 +885,15 @@ export class Agent {
     ) {
       throw new AsqavError(
         `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
+      );
+    }
+    // Fail fast on capture_topology vocabulary (5 values) before the HTTP roundtrip.
+    if (
+      options.captureTopology !== undefined
+      && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
+    ) {
+      throw new AsqavError(
+        `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
       );
     }
     // Fail fast on incident_class vocabulary (HIPAA token plus the six DORA tokens) before the HTTP roundtrip.
@@ -925,6 +957,10 @@ export class Agent {
       if (complianceMode) {
         body.decision = mapPolicyDecisionToDecision(options.policyDecision);
       }
+    }
+    // Producer-side topology; only meaningful under compliance_mode (manifest projection).
+    if (complianceMode && options.captureTopology !== undefined) {
+      body.capture_topology = options.captureTopology;
     }
 
     const data = await request<{
