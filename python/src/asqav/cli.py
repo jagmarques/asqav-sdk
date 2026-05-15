@@ -1142,7 +1142,7 @@ def budget_record(
     actual_cost: float = typer.Option(..., "--actual-cost", help="Realized cost."),
     limit: float = typer.Option(..., "--limit", help="Budget ceiling for the signed payload."),
     current_spend: float = typer.Option(
-        0.0, "--current-spend", help="Cumulative spend before this record."
+        0.0, "--current-spend", help="Cumulative spend prior to this record."
     ),
     currency: str = typer.Option("USD", "--currency", help="Currency code."),
 ) -> None:
