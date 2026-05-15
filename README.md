@@ -131,7 +131,7 @@ What ships on Asqav today. Each item is available on `main`.
 
 **3. Bring-your-own KMS (AWS KMS / GCP KMS)** - Enterprise tier
 - WHAT: Bring-your-own KMS. Provision your agents' ML-DSA-65 keys in your own AWS KMS or GCP KMS so signing material lives in your HSM, not ours.
-- WHY NOW: AWS KMS uses the `ML_DSA_65` key spec on FIPS 140-3 Level 3 HSMs; GCP KMS uses `PQ_SIGN_ML_DSA_65` (currently in software preview, HSM coming). Toggle with `KMS_PROVIDER=aws|gcp`.
+- WHY NOW: AWS KMS uses the `ML_DSA_65` key spec on FIPS 140-3 Level 3 HSMs; GCP KMS uses `PQ_SIGN_ML_DSA_65` (software preview today, HSM coming). Toggle with `KMS_PROVIDER=aws|gcp`.
 
 **4. Customer-owned storage**
 - WHAT: Customer-owned storage on self-hosted. Postgres, Redis, raw payloads, and ML-DSA private keys all sit in your container. Optional upstream relay only ever sees `{hash, signature, timestamp, algorithm, agent_id, signature_id}`.
@@ -182,7 +182,7 @@ The Python SDK additionally ships:
 - Cookbooks for Streamlit dashboards and Dify workflows under `python/examples/`.
 - Local-mode offline signing with deferred sync.
 
-The TypeScript SDK currently focuses on the core API and `Agent` surface for Node 20+ runtimes. It additionally ships:
+The TypeScript SDK focuses on the core API and `Agent` surface for Node 20+ runtimes. It additionally ships:
 
 - The `user_intent` envelope on `agent.sign(...)`.
 - A Vercel AI SDK adapter at `@asqav/sdk/extras/vercel-ai` that plugs into `experimental_telemetry: { tracer }` and signs every span the AI SDK opens.
@@ -299,7 +299,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide. The short
 2. Run the relevant test suite locally.
    - Python: `cd python && pip install -e ".[all]" pytest && pytest tests -v`
    - TypeScript: `cd typescript && npm ci && npm test`
-3. Open a pull request against `main`. CI must go green before merge.
+3. Open a pull request against `main`. CI must go green for the PR to land.
 
 Direct pushes to `main` are blocked. Every change lands through a PR.
 
@@ -309,8 +309,8 @@ Because both SDKs live in one repo but ship to different registries on independe
 
 | Language | Tag pattern | Registry |
 |---|---|---|
-| Python | `py-v0.2.21`, `py-v0.3.0`, ... | PyPI |
-| TypeScript | `ts-v0.1.0`, `ts-v0.1.1`, ... | npm |
+| Python | `py-vMAJOR.MINOR.PATCH` (e.g. `py-v1.2.3`) | PyPI |
+| TypeScript | `ts-vMAJOR.MINOR.PATCH` (e.g. `ts-v1.2.3`) | npm |
 
 To cut a release:
 
