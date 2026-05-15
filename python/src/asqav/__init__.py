@@ -31,6 +31,7 @@ from ._jcs import canonical_json
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
 from .client import (
+    CAPTURE_TOPOLOGY_NAMESPACE,
     DORA_INCIDENT_CLASS_NAMESPACE,
     RECEIPT_TYPE_NAMESPACE,
     SKEW_BOUND_SECONDS,
@@ -297,6 +298,8 @@ __all__ = [
     "verify_counterparty_binding",
     # DORA RTS JC 2024-33 Annex II vocabulary
     "DORA_INCIDENT_CLASS_NAMESPACE",
+    # IETF -04 capture-topologies appendix vocabulary
+    "CAPTURE_TOPOLOGY_NAMESPACE",
     # Algorithm agility
     "ALGORITHM_ML_DSA_65",
     "ALGORITHM_ED25519",
