@@ -138,6 +138,90 @@
       "sha256": "9d62c8f11b8d3922e838edfecd866eae20e4865b38cdd58092e8b592aa789c30",
       "expected_verify": false,
       "reason": "Because card_version is inside the signed payload, any attempt to rewrite it post-signing changes the canonical bytes and breaks the signature."
+    },
+    {
+      "name": "capture_topology_in_process_sdk",
+      "description": "Audit Pack manifest entry stamped with capture_topology=in_process_sdk. Producer-side metadata; lives in `manifest`, never in the signed payload.",
+      "input": {
+        "action_type": "api:call",
+        "context": {"tool": "database.query"},
+        "manifest": {"capture_topology": "in_process_sdk"}
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"in_process_sdk\"}}",
+      "sha256": "f4b6da748f7720f15450cf61fa2c4cf8c3e9148fc15ab6b6cd15d8d3f3fd341e",
+      "capture_topology": "in_process_sdk",
+      "expected_verify": true,
+      "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
+    },
+    {
+      "name": "capture_topology_network_proxy",
+      "description": "Audit Pack manifest entry stamped with capture_topology=network_proxy. Producer-side metadata; lives in `manifest`, never in the signed payload.",
+      "input": {
+        "action_type": "api:call",
+        "context": {"tool": "database.query"},
+        "manifest": {"capture_topology": "network_proxy"}
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"network_proxy\"}}",
+      "sha256": "de100ddcb08a1aadf3ade136a42ce554d38004ba06bbc4f0cecdc2235d46bd9d",
+      "capture_topology": "network_proxy",
+      "expected_verify": true,
+      "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
+    },
+    {
+      "name": "capture_topology_browser_extension",
+      "description": "Audit Pack manifest entry stamped with capture_topology=browser_extension. Producer-side metadata; lives in `manifest`, never in the signed payload.",
+      "input": {
+        "action_type": "api:call",
+        "context": {"tool": "database.query"},
+        "manifest": {"capture_topology": "browser_extension"}
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"browser_extension\"}}",
+      "sha256": "9375a5437440101f386da4f6af0b2b64b1ed1f53fa3bdd5334363f15a173bd15",
+      "capture_topology": "browser_extension",
+      "expected_verify": true,
+      "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
+    },
+    {
+      "name": "capture_topology_ebpf_observer",
+      "description": "Audit Pack manifest entry stamped with capture_topology=ebpf_observer. Producer-side metadata; lives in `manifest`, never in the signed payload.",
+      "input": {
+        "action_type": "api:call",
+        "context": {"tool": "database.query"},
+        "manifest": {"capture_topology": "ebpf_observer"}
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"ebpf_observer\"}}",
+      "sha256": "57d912d39dd720ea6ceb3bfbf7103c45f74519e5a4e9583211cf24fda0d33491",
+      "capture_topology": "ebpf_observer",
+      "expected_verify": true,
+      "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
+    },
+    {
+      "name": "capture_topology_mcp_proxy",
+      "description": "Audit Pack manifest entry stamped with capture_topology=mcp_proxy. Producer-side metadata; lives in `manifest`, never in the signed payload.",
+      "input": {
+        "action_type": "api:call",
+        "context": {"tool": "database.query"},
+        "manifest": {"capture_topology": "mcp_proxy"}
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"mcp_proxy\"}}",
+      "sha256": "4731cae72f4a30b5c10a688541faf8759873af7d78b8fe999069e112217b82c7",
+      "capture_topology": "mcp_proxy",
+      "expected_verify": true,
+      "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
+    },
+    {
+      "name": "capture_topology_unknown_value_rejected",
+      "description": "An unknown capture_topology value MUST be rejected by a conformant SDK before the HTTP roundtrip. Canonical bytes are still defined so implementers can verify rejection without depending on hash drift.",
+      "input": {
+        "action_type": "api:call",
+        "context": {"tool": "database.query"},
+        "manifest": {"capture_topology": "rootkit"}
+      },
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"rootkit\"}}",
+      "sha256": "d2a306e1c437b467c431b7d1b4a70c1190aec10642e43ac002c55bb84dd3e617",
+      "capture_topology": "rootkit",
+      "expected_verify": false,
+      "reason": "capture_topology is a closed Literal of {in_process_sdk, network_proxy, browser_extension, ebpf_observer, mcp_proxy}; any other value is rejected client-side."
     }
   ]
 }

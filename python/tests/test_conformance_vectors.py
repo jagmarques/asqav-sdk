@@ -11,7 +11,20 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.json"
+
+# Closed Literal mirrored from the cloud SignRequest and IETF draft -04 appendix.
+CAPTURE_TOPOLOGY_VOCABULARY: frozenset[str] = frozenset(
+    {
+        "in_process_sdk",
+        "network_proxy",
+        "browser_extension",
+        "ebpf_observer",
+        "mcp_proxy",
+    }
+)
 
 
 def _jcs(obj: object) -> str:
@@ -79,3 +92,56 @@ def test_nonce_mismatch_vector_has_peer_sent_nonce() -> None:
     v = next(x for x in d["vectors"] if x["name"] == "nonce_mismatch")
     assert "peer_sent_nonce" in v
     assert v["input"].get("client_nonce") != v["peer_sent_nonce"]
+
+
+# === capture_topology vocabulary parity (IETF -04 appendix + cloud SignRequest) ===
+
+
+def _capture_vectors() -> list[dict]:
+    """Return all conformance vectors that exercise the capture_topology field."""
+    d = json.loads(VECTORS_PATH.read_text())
+    return [v for v in d["vectors"] if v["name"].startswith("capture_topology_")]
+
+
+def test_capture_topology_covers_full_closed_vocabulary() -> None:
+    """All five IETF -04 capture topologies must appear as accepted vectors."""
+    accepted = {
+        v["capture_topology"]
+        for v in _capture_vectors()
+        if v.get("expected_verify") is True
+    }
+    assert accepted == CAPTURE_TOPOLOGY_VOCABULARY, (
+        f"capture_topology vector coverage drift: {accepted ^ CAPTURE_TOPOLOGY_VOCABULARY}"
+    )
+
+
+@pytest.mark.parametrize("value", sorted(CAPTURE_TOPOLOGY_VOCABULARY))
+def test_capture_topology_value_round_trips_via_manifest(value: str) -> None:
+    """Each accepted vector stamps capture_topology on the manifest entry.
+
+    The token must never appear inside the signed payload bytes.
+    """
+    matching = [
+        v
+        for v in _capture_vectors()
+        if v.get("capture_topology") == value and v.get("expected_verify") is True
+    ]
+    assert len(matching) == 1, f"expected exactly one accepted vector for {value}"
+    v = matching[0]
+    assert "manifest" in v["input"], f"{v['name']}: capture_topology must live in `manifest`"
+    assert v["input"]["manifest"]["capture_topology"] == value
+    assert "capture_topology" not in v["input"].get("context", {}), (
+        f"{v['name']}: capture_topology MUST NOT appear inside the signed payload"
+    )
+
+
+def test_capture_topology_unknown_value_is_a_failure_vector() -> None:
+    """An out-of-vocabulary capture_topology token is a rejected conformance vector."""
+    rejected = [
+        v
+        for v in _capture_vectors()
+        if v.get("expected_verify") is False
+    ]
+    assert rejected, "missing the unknown-value rejection vector"
+    v = rejected[0]
+    assert v["capture_topology"] not in CAPTURE_TOPOLOGY_VOCABULARY
