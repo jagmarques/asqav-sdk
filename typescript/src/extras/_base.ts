@@ -140,11 +140,21 @@ function defaultOnError(err: unknown, ctx: { actionType: string }): void {
 }
 
 /**
- * Helper that frameworks call when their host package is missing. Mirrors
- * the Python ``ImportError`` thrown at module import time.
+ * Throw the canonical missing-peer error for an Asqav framework adapter.
+ * Mirrors the Python ``ImportError`` contract. Optional ``cause`` keeps
+ * the underlying module-resolution error (ERR_MODULE_NOT_FOUND, ESM/CJS
+ * interop, version mismatch, native binding crash) visible to the user.
  */
-export function raiseMissingPeer(peer: string, install: string): never {
+export function raiseMissingPeer(
+  framework: string,
+  peer: string,
+  install: string,
+  cause?: unknown,
+): never {
+  const suffix = cause
+    ? ` (import error: ${cause instanceof Error ? cause.message : String(cause)})`
+    : "";
   throw new Error(
-    `${peer} is required for this Asqav adapter. Install with: ${install}`,
+    `${framework} integration requires ${peer}. Install with: ${install}.${suffix}`,
   );
 }
