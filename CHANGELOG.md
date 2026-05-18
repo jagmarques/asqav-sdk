@@ -6,7 +6,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
-### Added
+## [Python 0.4.5 / TypeScript 0.3.5] - 2026-05-18
+
+### Added (TypeScript)
+- Three framework adapters under `@asqav/sdk/extras`: `AsqavCallbackHandler` (LangChain.js, `@langchain/core`), `AsqavMastraHook` (Mastra, `@mastra/core`), `AsqavOpenAIAgentsAdapter` (OpenAI Agents JS, `@openai/agents`). Each is lazy-imported through an optional peer dependency and falls back with a clear ImportError-equivalent message when the peer is not installed.
+- `raiseMissingPeer(framework, peer, install, cause?)` is now exported from `@asqav/sdk/extras` so downstream adapter authors share the same Python-parity ImportError contract.
+- `python/docs/self-hosted-signer.md`: split-trust deployment guide showing how to point the SDK at a customer-operated signer container via `ASQAV_API_URL` plus the runnable `docker-compose.signer.yml`.
+
+### Added (Python + TypeScript)
 - `canonicalize_tool_args` (Python) and `canonicalizeToolArgs` (TypeScript) pre-validate `tool_args` payloads and reject float leaves with a JSON-pointer-locating error before delegating to JCS canonicalization, surfacing the rule that floats are not byte-stable across runtimes.
 - Counterparty acknowledgment helpers (`compute_counterparty_binding`, `verify_counterparty_binding`, `CounterpartyBinding`, `ACKNOWLEDGMENT_RECEIPT_TYPE`) in both Python and TypeScript. Mirrors the cloud's `counterparty_binding` extension field; computes base64 SHA-256 of the originating envelope's canonical bytes and recompares at verify time. `protectmcp:acknowledgment` joins the receipt-type namespace. `verify_compliance_receipt` accepts an optional `originating_envelope` argument and surfaces `counterparty_binding_verified`.
 - `VerificationResponse` exposes `type`, `bitcoinAnchor`, `signatureEnvelope`, `anchors`, `algorithmRegistryVersion` (Python: snake_case). Match the cloud `/verify` response per IETF -03 §8.1.
@@ -20,6 +27,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Changed
 - `generate_local_keypair` no longer accepts `"ml-dsa-65"`. ML-DSA-65 keypair generation is server-side only (cloud KMS); call `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one. `SUPPORTED_ALGORITHMS` is now `{ed25519, es256}` and the default for `generate_local_keypair()` is `ed25519`. The previous behaviour raised `NotImplementedError` at call time; this is now a `ValueError` at validation time, with the typed `Algorithm` Literal narrowed to reflect what the SDK actually mints locally.
+- `raiseMissingPeer` (TypeScript) signature is now `(framework, peer, install, cause?)` rather than `(peer, install)`. The optional `cause` preserves the underlying `(import error: ...)` context the inline pattern emitted. The three first-party adapters all call through it, matching the Python ImportError contract.
 
 ## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
 
