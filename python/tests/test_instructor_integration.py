@@ -59,7 +59,7 @@ def _remove_instructor_mocks() -> None:
 
 HookName = _install_instructor_mocks()
 
-from asqav.extras.instructor import AsqavInstructorHook  # noqa: E402
+from asqav.extras.instructor import AsqavInstructorHook
 
 
 @pytest.fixture

@@ -24,7 +24,7 @@ sys.modules["agents.tracing"] = _mock_agents_tracing
 
 sys.modules.pop("asqav.extras.openai_agents", None)
 
-from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa: E402, I001
+from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult
 
 
 # === Helpers ===

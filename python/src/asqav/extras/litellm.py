@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    import litellm  # noqa: F401
+    import litellm
 except ImportError:
     raise ImportError(
         "LiteLLM integration requires litellm. "

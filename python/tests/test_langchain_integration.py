@@ -87,7 +87,7 @@ def _remove_langchain_mocks() -> None:
 # Install mocks before importing the handler
 LLMResult = _install_langchain_mocks()
 
-from asqav.extras.langchain import AsqavCallbackHandler  # noqa: E402, I001
+from asqav.extras.langchain import AsqavCallbackHandler
 
 
 # === Fixtures ===

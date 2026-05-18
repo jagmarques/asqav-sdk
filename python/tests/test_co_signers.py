@@ -115,7 +115,7 @@ def test_countersign_posts_to_correct_path(mock_post: object) -> None:
         "verification_url": "https://api.asqav.com/api/v1/verify/sig_01",
         "required_co_signers": ["agent_alice"],
         "co_signatures": [
-            {"agent_id": "agent_alice", "signature": "co_sig_bytes", "signed_at": "2026-04-28T10:00:01Z"}  # noqa: E501
+            {"agent_id": "agent_alice", "signature": "co_sig_bytes", "signed_at": "2026-04-28T10:00:01Z"}
         ],
     }
     agent = _make_agent()

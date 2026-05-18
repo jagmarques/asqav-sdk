@@ -15,8 +15,8 @@ sys.modules["crewai"] = _fake_crewai
 # Remove any cached version first so the fresh fake module is used.
 sys.modules.pop("asqav.extras.crewai", None)
 
-from asqav.client import PreflightResult, SignatureResponse  # noqa: E402
-from asqav.extras.crewai import AsqavGuardrailProvider  # noqa: E402
+from asqav.client import PreflightResult, SignatureResponse
+from asqav.extras.crewai import AsqavGuardrailProvider
 
 # === Fixtures ===
 

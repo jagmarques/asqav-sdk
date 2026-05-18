@@ -142,169 +142,169 @@ from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
 __version__ = "0.4.5"
 __all__ = [
-    # Initialization
-    "init",
-    "health_check",
-    # Fingerprint helpers
-    "canonicalize",
-    "canonicalize_tool_args",
-    "canonical_json",
-    "hash_action",
-    # Agent
-    "Agent",
-    "AgentResponse",
-    "get_agent",
-    "PreflightResult",
-    # Responses
-    "TokenResponse",
-    "SDTokenResponse",
-    "SignatureResponse",
-    "SignedActionResponse",
-    "SessionResponse",
-    "CertificateResponse",
-    "VerificationResponse",
-    # Multi-Party Signing
-    "SigningSessionResponse",
-    "ApprovalResponse",
-    "SignatureDetail",
-    "request_action",
-    "approve_action",
-    "get_action_status",
-    # Signing Groups
-    "SigningGroupResponse",
-    "create_signing_group",
-    "get_signing_group",
-    "update_signing_group",
-    # Agents
-    "list_agents",
-    # Signing Entities
-    "SigningEntityResponse",
-    "add_entity",
-    "list_entities",
-    "remove_entity",
-    # Group Keypairs
-    "GroupKeypairResponse",
-    "GroupSignResponse",
-    "generate_keypair",
-    "get_keypair",
-    "group_sign",
-    "KeyRefreshResponse",
-    "refresh_keypair",
-    "ShareRecoveryResponse",
-    "recover_share",
-    # Risk Rules
-    "RiskRuleResponse",
-    "create_risk_rule",
-    "list_risk_rules",
-    "get_risk_rule",
-    "update_risk_rule",
-    "delete_risk_rule",
-    # Delegations
-    "DelegationResponse",
-    "create_delegation",
-    "list_delegations",
-    "get_delegation",
-    "revoke_delegation",
-    # Session Listing
-    "list_sessions",
-    # Verification
-    "verify_signature",
-    "verify_output",
-    "VerificationDetail",
-    "BitcoinAnchorStatus",
-    # May 2026 release helpers
-    "post_applied_attestation",
-    "list_rejected_attempts",
-    # Trust Signal Export
-    "generate_attestation",
-    "verify_attestation",
-    # Sessions
-    "get_session_signatures",
-    # Export
-    "export_audit_json",
-    "export_audit_csv",
-    # Trace Correlation
-    "generate_trace_id",
-    # Emergency Halt
-    "emergency_halt",
-    # Tracing
-    "Span",
-    "span",
-    "get_current_span",
-    # OTEL Export
-    "configure_otel",
-    "export_spans",
-    "flush_spans",
-    # Decorators
-    "secure",
-    "secure_async",
-    "sign",
-    "session",
-    "async_session",
-    # Async
-    "AsyncAgent",
-    # Local Queue
-    "LocalQueue",
-    "local_sign",
-    # Retry
-    "with_retry",
-    "with_async_retry",
-    # Budget Tracking
-    "BudgetTracker",
-    "BudgetCheckResult",
-    # Compliance
-    "ComplianceBundle",
-    "export_bundle",
-    "fetch_audit_pack",
-    # Replay
-    "replay",
-    "replay_from_bundle",
-    "ReplayTimeline",
-    "ReplayStep",
+    # Counterparty acknowledgment binding (IETF -04 counterparty_binding extension)
+    "ACKNOWLEDGMENT_RECEIPT_TYPE",
+    "ALGORITHM_ED25519",
+    "ALGORITHM_ES256",
+    # Algorithm agility
+    "ALGORITHM_ML_DSA_65",
+    # IETF -04 capture-topologies appendix vocabulary
+    "CAPTURE_TOPOLOGY_NAMESPACE",
+    # DORA RTS JC 2024-33 Annex II vocabulary
+    "DORA_INCIDENT_CLASS_NAMESPACE",
     # Patterns
     "PATTERNS",
-    "resolve_pattern",
-    "list_patterns",
-    # Scope Tokens
-    "ScopeToken",
-    "create_scope_token",
-    "verify_scope_token",
-    "is_replay",
-    # Three-Phase Signing
-    "PhaseChain",
-    "sign_with_phases",
-    # Reasoning Trace
-    "ReasoningReceipt",
-    "sign_reasoning",
-    # Hooks
-    "register_before",
-    "register_after",
-    "clear_hooks",
-    # Exceptions
-    "AsqavError",
-    "AuthenticationError",
-    "RateLimitError",
-    "APIError",
     # IETF Compliance Receipts profile
     "RECEIPT_TYPE_NAMESPACE",
     "SKEW_BOUND_SECONDS",
+    "SUPPORTED_ALGORITHMS",
+    "APIError",
+    # Agent
+    "Agent",
+    "AgentResponse",
+    "ApprovalResponse",
+    # Exceptions
+    "AsqavError",
+    # Async
+    "AsyncAgent",
+    "AuthenticationError",
+    "BitcoinAnchorStatus",
+    "BudgetCheckResult",
+    # Budget Tracking
+    "BudgetTracker",
+    "CertificateResponse",
+    # Compliance
+    "ComplianceBundle",
     "ComplianceReceiptVerification",
-    "verify_compliance_receipt",
-    # Counterparty acknowledgment binding (IETF -04 counterparty_binding extension)
-    "ACKNOWLEDGMENT_RECEIPT_TYPE",
     "CounterpartyBinding",
     "CounterpartyBindingVerification",
-    "compute_counterparty_binding",
-    "verify_counterparty_binding",
-    # DORA RTS JC 2024-33 Annex II vocabulary
-    "DORA_INCIDENT_CLASS_NAMESPACE",
-    # IETF -04 capture-topologies appendix vocabulary
-    "CAPTURE_TOPOLOGY_NAMESPACE",
-    # Algorithm agility
-    "ALGORITHM_ML_DSA_65",
-    "ALGORITHM_ED25519",
-    "ALGORITHM_ES256",
-    "SUPPORTED_ALGORITHMS",
+    # Delegations
+    "DelegationResponse",
+    # Group Keypairs
+    "GroupKeypairResponse",
+    "GroupSignResponse",
+    "KeyRefreshResponse",
     "LocalKeypair",
+    # Local Queue
+    "LocalQueue",
+    # Three-Phase Signing
+    "PhaseChain",
+    "PreflightResult",
+    "RateLimitError",
+    # Reasoning Trace
+    "ReasoningReceipt",
+    "ReplayStep",
+    "ReplayTimeline",
+    # Risk Rules
+    "RiskRuleResponse",
+    "SDTokenResponse",
+    # Scope Tokens
+    "ScopeToken",
+    "SessionResponse",
+    "ShareRecoveryResponse",
+    "SignatureDetail",
+    "SignatureResponse",
+    "SignedActionResponse",
+    # Signing Entities
+    "SigningEntityResponse",
+    # Signing Groups
+    "SigningGroupResponse",
+    # Multi-Party Signing
+    "SigningSessionResponse",
+    # Tracing
+    "Span",
+    # Responses
+    "TokenResponse",
+    "VerificationDetail",
+    "VerificationResponse",
+    "add_entity",
+    "approve_action",
+    "async_session",
+    "canonical_json",
+    # Fingerprint helpers
+    "canonicalize",
+    "canonicalize_tool_args",
+    "clear_hooks",
+    "compute_counterparty_binding",
+    # OTEL Export
+    "configure_otel",
+    "create_delegation",
+    "create_risk_rule",
+    "create_scope_token",
+    "create_signing_group",
+    "delete_risk_rule",
+    # Emergency Halt
+    "emergency_halt",
+    "export_audit_csv",
+    # Export
+    "export_audit_json",
+    "export_bundle",
+    "export_spans",
+    "fetch_audit_pack",
+    "flush_spans",
+    # Trust Signal Export
+    "generate_attestation",
+    "generate_keypair",
     "generate_local_keypair",
+    # Trace Correlation
+    "generate_trace_id",
+    "get_action_status",
+    "get_agent",
+    "get_current_span",
+    "get_delegation",
+    "get_keypair",
+    "get_risk_rule",
+    # Sessions
+    "get_session_signatures",
+    "get_signing_group",
+    "group_sign",
+    "hash_action",
+    "health_check",
+    # Initialization
+    "init",
+    "is_replay",
+    # Agents
+    "list_agents",
+    "list_delegations",
+    "list_entities",
+    "list_patterns",
+    "list_rejected_attempts",
+    "list_risk_rules",
+    # Session Listing
+    "list_sessions",
+    "local_sign",
+    # May 2026 release helpers
+    "post_applied_attestation",
+    "recover_share",
+    "refresh_keypair",
+    "register_after",
+    # Hooks
+    "register_before",
+    "remove_entity",
+    # Replay
+    "replay",
+    "replay_from_bundle",
+    "request_action",
+    "resolve_pattern",
+    "revoke_delegation",
+    # Decorators
+    "secure",
+    "secure_async",
+    "session",
+    "sign",
+    "sign_reasoning",
+    "sign_with_phases",
+    "span",
+    "update_risk_rule",
+    "update_signing_group",
+    "verify_attestation",
+    "verify_compliance_receipt",
+    "verify_counterparty_binding",
+    "verify_output",
+    "verify_scope_token",
+    # Verification
+    "verify_signature",
+    "with_async_retry",
+    # Retry
+    "with_retry",
 ]

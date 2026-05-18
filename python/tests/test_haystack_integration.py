@@ -35,7 +35,7 @@ class _MockComponent:
 _mock_haystack.component = _MockComponent()  # type: ignore[attr-defined]
 sys.modules.setdefault("haystack", _mock_haystack)
 
-from asqav.extras.haystack import AsqavComponent  # noqa: E402
+from asqav.extras.haystack import AsqavComponent
 
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig_abc123",

@@ -18,7 +18,7 @@ from asqav.client import AsqavError, SignatureResponse
 _mock_litellm = ModuleType("litellm")
 sys.modules.setdefault("litellm", _mock_litellm)
 
-from asqav.extras.litellm import AsqavGuardrail  # noqa: E402
+from asqav.extras.litellm import AsqavGuardrail
 
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig_abc123",

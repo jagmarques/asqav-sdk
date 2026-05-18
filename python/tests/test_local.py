@@ -156,9 +156,9 @@ def test_local_sign_convenience(tmp_path: object) -> None:
 # === CLI tests ===
 
 
-from typer.testing import CliRunner  # noqa: E402
+from typer.testing import CliRunner
 
-from asqav.cli import app  # noqa: E402
+from asqav.cli import app
 
 runner = CliRunner()
 

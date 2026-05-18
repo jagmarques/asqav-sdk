@@ -22,7 +22,7 @@ _fake_letta_client = types.ModuleType("letta_client")
 sys.modules["letta_client"] = _fake_letta_client
 sys.modules.pop("asqav.extras.letta", None)
 
-from asqav.extras.letta import AsqavLettaHook  # noqa: E402
+from asqav.extras.letta import AsqavLettaHook
 
 # === Helpers ===
 

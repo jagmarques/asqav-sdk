@@ -11,8 +11,8 @@ import pytest
 # Ensure src is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import asqav  # noqa: E402
-from asqav import hooks as hooks_module  # noqa: E402
+import asqav
+from asqav import hooks as hooks_module
 
 
 def _make_agent() -> "asqav.Agent":

@@ -62,12 +62,12 @@ def test_all_extra_includes_everything():
     all_deps = opt_deps["all"]
 
     # Each framework extra's deps should appear in 'all'
-    framework_extras = ["httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents"]  # noqa: E501
+    framework_extras = ["httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents"]
     for extra in framework_extras:
         for dep in opt_deps[extra]:
             # Strip version specifiers for matching
             dep_name = dep.split(">=")[0].split("<=")[0].split("==")[0].strip()
-            all_dep_names = [d.split(">=")[0].split("<=")[0].split("==")[0].strip() for d in all_deps]  # noqa: E501
+            all_dep_names = [d.split(">=")[0].split("<=")[0].split("==")[0].strip() for d in all_deps]
             assert dep_name in all_dep_names, (
                 f"Dep '{dep_name}' from extra '{extra}' not found in 'all'"
             )
@@ -109,7 +109,7 @@ def test_langchain_stub_import_error():
     """Importing langchain stub raises ImportError when langchain-core is not installed."""
     _purge("asqav.extras.langchain", "langchain_core", "langchain_core.callbacks")
     with pytest.raises(ImportError, match="pip install asqav"):
-        import asqav.extras.langchain  # noqa: F401
+        import asqav.extras.langchain
 
 
 @pytest.mark.skipif(_module_installed("crewai"), reason="crewai installed; stub error path is unreachable in this env")
@@ -117,7 +117,7 @@ def test_crewai_stub_import_error():
     """Importing crewai stub raises ImportError when crewai is not installed."""
     _purge("asqav.extras.crewai", "crewai")
     with pytest.raises(ImportError, match="pip install asqav"):
-        import asqav.extras.crewai  # noqa: F401
+        import asqav.extras.crewai
 
 
 @pytest.mark.skipif(_module_installed("litellm"), reason="litellm installed; stub error path is unreachable in this env")
@@ -125,7 +125,7 @@ def test_litellm_stub_import_error():
     """Importing litellm stub raises ImportError when litellm is not installed."""
     _purge("asqav.extras.litellm", "litellm")
     with pytest.raises(ImportError, match="pip install asqav"):
-        import asqav.extras.litellm  # noqa: F401
+        import asqav.extras.litellm
 
 
 @pytest.mark.skipif(_module_installed("haystack"), reason="haystack-ai installed; stub error path is unreachable in this env")
@@ -133,7 +133,7 @@ def test_haystack_stub_import_error():
     """Importing haystack stub raises ImportError when haystack-ai is not installed."""
     _purge("asqav.extras.haystack", "haystack", "haystack.dataclasses")
     with pytest.raises(ImportError, match="pip install asqav"):
-        import asqav.extras.haystack  # noqa: F401
+        import asqav.extras.haystack
 
 
 @pytest.mark.skipif(_module_installed("agents"), reason="openai-agents installed; stub error path is unreachable in this env")
@@ -141,4 +141,4 @@ def test_openai_agents_stub_import_error():
     """Importing openai_agents stub raises ImportError when openai-agents is not installed."""
     _purge("asqav.extras.openai_agents", "agents", "agents.tracing")
     with pytest.raises(ImportError, match="pip install asqav"):
-        import asqav.extras.openai_agents  # noqa: F401
+        import asqav.extras.openai_agents

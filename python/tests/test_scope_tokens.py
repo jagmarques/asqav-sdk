@@ -190,7 +190,7 @@ class TestCreateScopeToken:
         assert token.actions == ["data:read:*"]
         mock_sd.assert_called_once()
         call_kwargs = mock_sd.call_args
-        assert "scope_actions" in call_kwargs[1]["claims"] or "scope_actions" in call_kwargs.kwargs.get("claims", {})  # noqa: E501
+        assert "scope_actions" in call_kwargs[1]["claims"] or "scope_actions" in call_kwargs.kwargs.get("claims", {})
 
     def test_semantic_pattern_resolved(self):
         agent = _make_agent()

@@ -136,7 +136,7 @@ def _remove_llamaindex_mocks() -> None:
 
 _install_llamaindex_mocks()
 
-from asqav.extras.llamaindex import AsqavLlamaIndexHandler  # noqa: E402
+from asqav.extras.llamaindex import AsqavLlamaIndexHandler
 
 # === Fixtures ===
 

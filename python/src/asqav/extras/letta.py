@@ -21,7 +21,7 @@ import logging
 from typing import Any
 
 try:
-    import letta_client  # noqa: F401
+    import letta_client
 except ImportError:
     raise ImportError(
         "letta integration requires letta-client. "

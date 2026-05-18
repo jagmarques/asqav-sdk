@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    import crewai  # noqa: F401
+    import crewai
 except ImportError:
     raise ImportError(
         "CrewAI integration requires crewai. "

@@ -22,7 +22,7 @@ _fake_smolagents = types.ModuleType("smolagents")
 sys.modules["smolagents"] = _fake_smolagents
 sys.modules.pop("asqav.extras.smolagents", None)
 
-from asqav.extras.smolagents import AsqavSmolagentsHook  # noqa: E402
+from asqav.extras.smolagents import AsqavSmolagentsHook
 
 # === Helpers ===
 

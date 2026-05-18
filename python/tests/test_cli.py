@@ -938,7 +938,7 @@ def test_keys_generate_ed25519(tmp_path) -> None:
     """keys generate --algorithm ed25519 emits a PKCS#8 PEM private key."""
     pytest_skipif_no_crypto = False
     try:
-        from cryptography.hazmat.primitives.asymmetric import ed25519  # noqa: F401
+        from cryptography.hazmat.primitives.asymmetric import ed25519
     except ImportError:
         pytest_skipif_no_crypto = True
     if pytest_skipif_no_crypto:

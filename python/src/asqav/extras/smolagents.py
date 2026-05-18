@@ -28,7 +28,7 @@ import logging
 from typing import Any
 
 try:
-    import smolagents  # noqa: F401
+    import smolagents
 except ImportError:
     raise ImportError(
         "smolagents integration requires smolagents. "

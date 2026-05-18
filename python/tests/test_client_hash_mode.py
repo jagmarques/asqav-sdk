@@ -16,9 +16,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import asqav  # noqa: E402
-from asqav import client as client_mod  # noqa: E402
-from asqav.client import Agent  # noqa: E402
+import asqav
+from asqav import client as client_mod
+from asqav.client import Agent
 
 # A canned response that satisfies SignatureResponse decoding.
 MOCK_SIGN_RESPONSE: dict = {

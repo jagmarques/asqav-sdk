@@ -9,7 +9,6 @@ a verifiable receipt.
 Usage: `asqav demo`
 """
 
-# ruff: noqa: E501
 
 from __future__ import annotations
 
@@ -345,7 +344,7 @@ load();
 class DemoHandler(http.server.BaseHTTPRequestHandler):
     state: DemoState
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: ARG002
+    def log_message(self, format: str, *args: Any) -> None:
         return  # Suppress default access logs
 
     def _json(self, status: int, body: dict[str, Any]) -> None:
@@ -356,7 +355,7 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         if self.path == "/":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -368,7 +367,7 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             return
         self._json(404, {"error": "not found"})
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length) if length else b"{}"
         try:

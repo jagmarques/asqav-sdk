@@ -58,7 +58,7 @@ def _remove_dspy_mocks() -> None:
 
 BaseCallback = _install_dspy_mocks()
 
-from asqav.extras.dspy import AsqavDSPyCallback  # noqa: E402
+from asqav.extras.dspy import AsqavDSPyCallback
 
 # === Fixtures ===
 

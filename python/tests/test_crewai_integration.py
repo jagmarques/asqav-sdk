@@ -16,7 +16,7 @@ sys.modules["crewai"] = _fake_crewai
 # Remove any cached version first so the fresh fake module is used.
 sys.modules.pop("asqav.extras.crewai", None)
 
-from asqav.extras.crewai import AsqavCrewHook  # noqa: E402
+from asqav.extras.crewai import AsqavCrewHook
 
 # === Fixtures ===
 
