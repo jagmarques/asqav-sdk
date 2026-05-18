@@ -43,11 +43,11 @@ try:
         HookProvider,
         HookRegistry,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "Strands integration requires strands-agents. "
         "Install with: pip install asqav[strands]"
-    )
+    ) from err
 
 from .. import hooks as _asqav_hooks
 from ._base import AsqavAdapter
