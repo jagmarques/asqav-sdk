@@ -17,7 +17,7 @@
  * Mastra instance is present.
  */
 
-import { AsqavAdapter, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 
 const MAX_PREVIEW = 200;
 
@@ -76,10 +76,11 @@ export class AsqavMastraHook extends AsqavAdapter {
       // @ts-ignore optional peer dependency
       return (await import("@mastra/core")) as unknown;
     } catch (err) {
-      throw new Error(
-        "Mastra integration requires @mastra/core. "
-        + "Install with: npm install @mastra/core. "
-        + `(import error: ${err instanceof Error ? err.message : String(err)})`,
+      raiseMissingPeer(
+        "Mastra",
+        "@mastra/core",
+        "npm install @mastra/core",
+        err,
       );
     }
   }
