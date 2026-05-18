@@ -222,6 +222,226 @@
       "capture_topology": "rootkit",
       "expected_verify": false,
       "reason": "capture_topology is a closed Literal of {in_process_sdk, network_proxy, browser_extension, ebpf_observer, mcp_proxy}; any other value is rejected client-side."
+    },
+    {
+      "name": "counterparty_binding_happy_path",
+      "description": "B's acknowledgment payload carries counterparty_binding with all four members set. envelope_hash is base64 SHA-256 over A's full signed envelope (signature included).",
+      "input": {
+        "action_id": "act_01HVZB_ACK_0001",
+        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "alg": "SHA-256",
+          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0001\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "7857e59e44ee36292a9f23667b8eac0c4461906994669ef286dd0b24365a706b",
+      "counterparty_binding": {
+        "envelope_hash_base64": "DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=",
+        "envelope_hash_hex": "0d6c88a16e96fd3429be13e44dc957062f77d417dc0c3ea28e4fa496230de2a9",
+        "originating_envelope_ref": "counterparty_binding_envelope_byte_equality"
+      },
+      "expected_verify": true,
+      "reason": "Happy path: B emits counterparty_binding over A's full signed envelope; verifier resolves receipt_ref, recomputes digest, equality holds."
+    },
+    {
+      "name": "counterparty_binding_envelope_byte_equality",
+      "description": "A's full signed envelope ({payload, signature, anchors}). Two independent implementations canonicalizing this object MUST produce identical bytes and the SHA-256 hex pinned here. Base64 of the digest is the value B places in counterparty_binding.envelope_hash on the happy-path vector.",
+      "input": {
+        "anchors": [
+          {
+            "tsa_url": "https://tsa.example/timestamp",
+            "type": "rfc3161",
+            "value": "AAAA_synthetic_tsr_base64_placeholder_AAAA"
+          }
+        ],
+        "payload": {
+          "action_id": "act_01HVZA_ORIGINATOR_0001",
+          "action_ref": "act_01HVZA_ORIGINATOR_0001",
+          "agent_id": "agt_originator_A",
+          "decision": "allow",
+          "issued_at": "2026-05-18T20:00:00+00:00",
+          "issuer_id": "00000000000000000098",
+          "org_id": "org_demo",
+          "payload_digest": {
+            "alg": "SHA-256",
+            "value": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          },
+          "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+          "previousReceiptHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "sandbox_state": "live",
+          "tool_name": "database.query",
+          "type": "protectmcp:action",
+          "v": 1
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "00000000000000000098",
+          "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
+        }
+      },
+      "canonical": "{\"anchors\":[{\"tsa_url\":\"https://tsa.example/timestamp\",\"type\":\"rfc3161\",\"value\":\"AAAA_synthetic_tsr_base64_placeholder_AAAA\"}],\"payload\":{\"action_id\":\"act_01HVZA_ORIGINATOR_0001\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_originator_A\",\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:00+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:action\",\"v\":1},\"signature\":{\"alg\":\"ML-DSA-65\",\"kid\":\"00000000000000000098\",\"sig\":\"AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA\"}}",
+      "sha256": "0d6c88a16e96fd3429be13e44dc957062f77d417dc0c3ea28e4fa496230de2a9",
+      "counterparty_binding": {
+        "envelope_hash_base64": "DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=",
+        "envelope_hash_base64url": "DWyIoW6W_TQpvhPkTclXBi931BfcDD6ijk-kliMN4qk="
+      },
+      "expected_verify": true,
+      "reason": "Envelope byte-equality: JCS-canonical bytes of A's signed envelope reproduce the same SHA-256 across implementations. Digest scope includes signature bytes per draft-04."
+    },
+    {
+      "name": "counterparty_binding_base64url_tolerance",
+      "description": "Same originating envelope, same SHA-256 digest, but B encoded envelope_hash with base64url instead of standard base64. Verifier MUST accept both alphabets and normalise before byte-comparing.",
+      "input": {
+        "action_id": "act_01HVZB_ACK_0003",
+        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "DWyIoW6W_TQpvhPkTclXBi931BfcDD6ijk-kliMN4qk=",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "alg": "SHA-256",
+          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0003\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DWyIoW6W_TQpvhPkTclXBi931BfcDD6ijk-kliMN4qk=\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "bd1b607e03b63dc6e86097341359fa4d23f4334ec7330fded86aa60aef312993",
+      "counterparty_binding": {
+        "envelope_hash_base64url": "DWyIoW6W_TQpvhPkTclXBi931BfcDD6ijk-kliMN4qk=",
+        "envelope_hash_base64": "DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=",
+        "originating_envelope_ref": "counterparty_binding_envelope_byte_equality"
+      },
+      "expected_verify": true,
+      "reason": "base64 / base64url tolerance: both encodings of the same SHA-256 digest MUST verify-equal against the recomputed digest of A's envelope."
+    },
+    {
+      "name": "counterparty_binding_opaque_receipt_ref",
+      "description": "receipt_ref is opaque to the verifier; producers MAY use any stable identifier scheme. This vector pins an unusual URN-with-fragment form to confirm the field round-trips unchanged through the canonical bytes.",
+      "input": {
+        "action_id": "act_01HVZB_ACK_0004",
+        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=",
+          "receipt_ref": "urn:uuid:12345678-1234-5678-1234-567812345678#segment[0]"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:02+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "alg": "SHA-256",
+          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0004\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=\",\"receipt_ref\":\"urn:uuid:12345678-1234-5678-1234-567812345678#segment[0]\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:02+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "aa96a7ffa667af21b41d6c81ebfc815654bc9e01421c699a662964ce39fd08f6",
+      "counterparty_binding": {
+        "receipt_ref": "urn:uuid:12345678-1234-5678-1234-567812345678#segment[0]"
+      },
+      "expected_verify": true,
+      "reason": "receipt_ref is an opaque resolvable locator; verifier MUST NOT interpret its structure, only resolve it. Round-trip equality is preserved by JCS."
+    },
+    {
+      "name": "counterparty_binding_transport_label_non_trust",
+      "description": "transport_label is operational metadata only. This vector declares transport_label=http while the actual receipt was relayed over an MCP intermediary; the verifier MUST report the binding result on envelope_hash alone and MUST NOT derive trust from the label.",
+      "input": {
+        "action_id": "act_01HVZB_ACK_0005",
+        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "http"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:03+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "alg": "SHA-256",
+          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0005\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DWyIoW6W/TQpvhPkTclXBi931BfcDD6ijk+kliMN4qk=\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"transport_label\":\"http\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:03+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "bc4d977ee8b17342344211d78f3bef62ee185c4976e80d7e12418834d93affbf",
+      "counterparty_binding": {
+        "transport_label_declared": "http",
+        "transport_label_actual": "mcp"
+      },
+      "expected_verify": true,
+      "reason": "transport_label is operational only; verifiers MUST NOT derive trust from it. Binding still resolves on envelope_hash equality regardless of declared label."
+    },
+    {
+      "name": "counterparty_binding_missing_envelope_hash_rejected",
+      "description": "counterparty_binding is present but envelope_hash member is absent. envelope_hash is REQUIRED in draft-04; this vector MUST be reported non-conformant by a verifier.",
+      "input": {
+        "action_id": "act_01HVZB_ACK_0006",
+        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:04+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "alg": "SHA-256",
+          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0006\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:04+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "601b05853ff8aee9354e5bbd992dec1a1bc131f971e27ac8e30d58f1e904850b",
+      "counterparty_binding_member_missing": "envelope_hash",
+      "expected_verify": false,
+      "reason": "envelope_hash is REQUIRED on counterparty_binding; absence breaks the cross-agent byte-equality guarantee and MUST cause the acknowledging receipt to be reported non-conformant."
     }
   ]
 }
