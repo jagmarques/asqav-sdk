@@ -16,7 +16,7 @@
  * ``BaseCallbackHandler`` from ``@langchain/core/callbacks/base``.
  */
 
-import { AsqavAdapter, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 
 // Local LangChain.js types so this module compiles even when the peer
 // package is not installed. The actual base class is loaded lazily.
@@ -72,10 +72,11 @@ async function loadBase(): Promise<BaseCallbackHandlerCtor> {
     }
     return ctor;
   } catch (err) {
-    throw new Error(
-      "LangChain.js integration requires @langchain/core. "
-      + "Install with: npm install @langchain/core. "
-      + `(import error: ${err instanceof Error ? err.message : String(err)})`,
+    raiseMissingPeer(
+      "LangChain.js",
+      "@langchain/core",
+      "npm install @langchain/core",
+      err,
     );
   }
 }
