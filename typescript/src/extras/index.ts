@@ -7,7 +7,7 @@
  * import everything from a single specifier.
  */
 
-export { AsqavAdapter, type AsqavAdapterOptions } from "./_base.js";
+export { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 export { AsqavCallbackHandler } from "./langchain.js";
 export type { AsqavCallbackHandlerOptions } from "./langchain.js";
 export { AsqavMastraHook } from "./mastra.js";

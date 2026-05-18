@@ -17,7 +17,7 @@
  * runs. Operates fail-open so governance never breaks the agent loop.
  */
 
-import { AsqavAdapter, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 
 const MAX_PREVIEW = 200;
 
@@ -61,10 +61,11 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
       // @ts-ignore optional peer dependency
       return (await import("@openai/agents")) as unknown;
     } catch (err) {
-      throw new Error(
-        "OpenAI Agents JS integration requires @openai/agents. "
-        + "Install with: npm install @openai/agents. "
-        + `(import error: ${err instanceof Error ? err.message : String(err)})`,
+      raiseMissingPeer(
+        "OpenAI Agents JS",
+        "@openai/agents",
+        "npm install @openai/agents",
+        err,
       );
     }
   }
