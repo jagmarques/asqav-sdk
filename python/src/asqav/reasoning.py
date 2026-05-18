@@ -1,13 +1,8 @@
 """Reasoning-trace signing helper.
 
 Captures an LLM action's prompt, reasoning trace, and output as a single
-signed receipt. Only SHA-256 hashes of the three payloads are sent to the
-API by default, so raw prompt text and intermediate chain-of-thought never
-leave the caller unless explicitly opted in via ``store_raw``.
-
-Built on top of ``Agent.sign`` (client.py:799) and the existing context
-fields already understood by the server (``_system_prompt_hash``,
-``_tool_inputs_hash``). No new server surface is required.
+signed receipt. Only SHA-256 hashes are posted by default; raw text never
+leaves the caller unless ``store_raw`` is set.
 """
 
 from __future__ import annotations
@@ -19,12 +14,7 @@ from typing import Any
 
 
 def _sha256(data: Any) -> str:
-    """Return hex SHA-256 of ``data``.
-
-    Dicts and lists are serialized via ``json.dumps(..., sort_keys=True)``
-    so equivalent structures produce equal hashes. Bytes pass through.
-    Everything else is ``str()``-coerced.
-    """
+    """Return hex SHA-256 of ``data`` (dicts/lists JSON-serialized; bytes pass through)."""
     if isinstance(data, bytes):
         payload = data
     elif isinstance(data, str):
@@ -81,32 +71,8 @@ def sign_reasoning(
 ) -> ReasoningReceipt:
     """Sign an LLM action's prompt + reasoning trace + output.
 
-    By default only SHA-256 hashes of the three payloads are posted to the
-    API. The raw text never leaves the caller. Set ``store_raw=True`` to
-    additionally post the raw payloads (subject to ``retention_days`` on
-    the server side).
-
-    Args:
-        agent: An ``Agent`` (or compatible) with a ``.sign(...)`` method.
-        prompt: The user-visible or system prompt. Any JSON-serializable
-            value is accepted; strings and dicts are formatted before
-            hashing.
-        trace: The reasoning trace (chain-of-thought messages, tool calls,
-            intermediate steps). Any JSON-serializable value.
-        output: The final model output.
-        action_type: Action type passed through to ``sign``. Defaults to
-            ``"ai:reasoning"``.
-        context: Extra context merged into the ``sign`` call.
-        trace_id: Optional trace ID for correlation.
-        parent_id: Optional parent signature ID for chaining.
-        store_raw: If True, include the raw prompt/trace/output in the
-            signed context. Default False (hash-only).
-        retention_days: Optional server-side retention window for raw
-            payloads. Only meaningful when ``store_raw=True``.
-
-    Returns:
-        ``ReasoningReceipt`` bundling the underlying signature and the
-        three hashes.
+    Posts only SHA-256 hashes by default; set ``store_raw=True`` to additionally
+    post raw payloads (subject to ``retention_days`` server-side).
     """
     prompt_hash = _sha256(prompt)
     trace_hash = _sha256(trace)

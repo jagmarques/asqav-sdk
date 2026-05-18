@@ -1,11 +1,4 @@
-"""Compliance Receipts wire-shape projection helpers.
-
-Pure helpers for offline analysis of a receipt: extract the spec-shape
-signature envelope `{alg, kid, sig}` and the anchors[] array. The
-cloud emits the three-key envelope directly under compliance_mode; the
-helpers below return the cloud-supplied values and None on flat-shape
-receipts.
-"""
+"""Compliance Receipts wire-shape projection helpers for offline receipt analysis."""
 
 from __future__ import annotations
 
@@ -13,12 +6,7 @@ from typing import Any
 
 
 def signature_envelope_from_response(response: Any) -> dict[str, str] | None:
-    """Return `{alg, kid, sig}` when the response carries it, else None.
-
-    The cloud emits `signature` as the object form under compliance_mode
-    and as a base64 string in flat mode. None on flat-shape receipts so
-    callers can branch cleanly.
-    """
+    """Return ``{alg, kid, sig}`` for compliance-mode receipts, else ``None`` (flat shape)."""
     sig = _get(response, "signature")
     if isinstance(sig, dict):
         keys = set(sig.keys())
@@ -28,11 +16,7 @@ def signature_envelope_from_response(response: Any) -> dict[str, str] | None:
 
 
 def anchors_from_response(response: Any) -> list[dict[str, Any]] | None:
-    """Return the `anchors[]` array when present, else None.
-
-    Cloud emits the array directly under compliance_mode (possibly as
-    []). None on non-compliance receipts.
-    """
+    """Return the ``anchors[]`` array when present, else ``None``."""
     anchors = _get(response, "anchors")
     if isinstance(anchors, list):
         return [dict(e) for e in anchors]

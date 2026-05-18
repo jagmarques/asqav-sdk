@@ -1,23 +1,7 @@
 """Mode resolver for hash-only vs full-payload signing.
 
-The Asqav SDK supports two signing wire formats:
-
-* ``"full-payload"``: send the raw ``context`` dict to the server. This is
-  the default for self-hosted deployments where the server already
-  holds the data.
-* ``"hash-only"``: hash the canonical ``{action_type, context}`` locally
-  and send only the hash plus a small whitelisted metadata bag. This is
-  the GDPR data-minimization mode used by the Asqav cloud (api.asqav.com).
-
-Resolution precedence (highest first):
-
-1. Explicit constructor / init kwarg (``mode="hash-only"``).
-2. Environment variable ``ASQAV_MODE``.
-3. Auto-detection from ``api_base_url``: hostnames matching the Asqav
-   cloud (``api.asqav.com`` or any ``*.asqav.com`` API host) default to
-   hash-only. Anything else (localhost, custom domains, ``myasqav.com``,
-   subdomain attacks like ``asqav.com.evil.com``) defaults to
-   full-payload.
+Resolution order: explicit kwarg, ``ASQAV_MODE`` env, then hostname auto-detection
+(``*.asqav.com`` -> hash-only, else full-payload).
 """
 
 from __future__ import annotations
@@ -31,13 +15,7 @@ _VALID_ENV = {"hash-only", "full-payload"}
 
 
 def _is_asqav_cloud_host(hostname: str | None) -> bool:
-    """True if ``hostname`` is the Asqav cloud API.
-
-    Matches ``api.asqav.com`` exactly, or any subdomain of ``asqav.com``
-    (e.g. ``staging.asqav.com``). Rejects look-alikes such as
-    ``myasqav.com`` (different domain) and ``asqav.com.evil.com``
-    (subdomain attack: the registrable domain is ``evil.com``).
-    """
+    """True if ``hostname`` is ``api.asqav.com`` or any ``*.asqav.com`` subdomain."""
     if not hostname:
         return False
     h = hostname.lower().strip().rstrip(".")
@@ -51,21 +29,7 @@ def _resolve_mode(
     env: str | None,
     explicit: str | None = "auto",
 ) -> Mode:
-    """Resolve the wire mode for a client.
-
-    Args:
-        api_base_url: The configured API URL (may be ``None``).
-        env: Value of the ``ASQAV_MODE`` environment variable, or ``None``.
-        explicit: Explicit mode passed by the caller. ``"auto"`` (the
-            default) defers to env then auto-detection.
-
-    Returns:
-        Either ``"hash-only"`` or ``"full-payload"``.
-
-    Raises:
-        ValueError: If ``explicit`` is not one of ``auto``, ``hash-only``,
-            ``full-payload``.
-    """
+    """Resolve the wire mode; ``explicit`` wins, then ``env``, then host auto-detection."""
     if explicit is None:
         explicit = "auto"
     if explicit not in _VALID_EXPLICIT:
