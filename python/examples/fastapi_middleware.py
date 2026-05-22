@@ -124,6 +124,10 @@ class AsqavAuditMiddleware(BaseHTTPMiddleware):
                 media_type="application/json",
             )
 
+        # Cache the parsed body so downstream handlers can read it too
+        # (ASGI receive stream is consumed by request.json())
+        request.state.body = body
+
         # --- Sign the request ---
         start_time = time.time()
         sig = self._agent.sign(
@@ -155,7 +159,7 @@ class AsqavAuditMiddleware(BaseHTTPMiddleware):
         # --- Add signature header to response ---
         if sig:
             response.headers["X-Asqav-Signature"] = sig.signature_id
-            response.headers["X-Asqav-Verify"] = sig.verify_url
+            response.headers["X-Asqav-Verify"] = sig.verification_url
 
         return response
 
@@ -209,7 +213,7 @@ _init_asqav()
 @app.post("/api/chat")
 async def chat(request: Request) -> dict[str, Any]:
     """AI chat endpoint - all requests are audited by asqav middleware."""
-    body = await request.json()
+    body = getattr(request.state, "body", None) or await request.json()
     model = body.get("model", "gpt-4")
     prompt = body.get("prompt", "")
 
@@ -224,7 +228,7 @@ async def chat(request: Request) -> dict[str, Any]:
 @app.post("/api/embeddings")
 async def embeddings(request: Request) -> dict[str, Any]:
     """AI embeddings endpoint - all requests are audited by asqav middleware."""
-    body = await request.json()
+    body = getattr(request.state, "body", None) or await request.json()
     model = body.get("model", "text-embedding-3-small")
     text = body.get("text", "")
 

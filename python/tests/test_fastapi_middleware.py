@@ -112,7 +112,7 @@ def mock_agent():
         mock_agent = MagicMock()
         mock_sig = MagicMock()
         mock_sig.signature_id = "sig_test_123"
-        mock_sig.verify_url = "https://asqav.com/verify/sig_test_123"
+        mock_sig.verification_url = "https://asqav.com/verify/sig_test_123"
         mock_agent.sign.return_value = mock_sig
         mock_agent_cls.create.return_value = mock_agent
         yield mock_agent
