@@ -1,6 +1,6 @@
 {
   "name": "@asqav/sdk",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "AI agent governance - audit trails, policy enforcement, ML-DSA cryptographic signatures",
   "keywords": [
     "ai",
@@ -36,10 +36,30 @@
       "import": "./dist/cli.mjs",
       "require": "./dist/cli.js"
     },
+    "./extras": {
+      "types": "./dist/extras/index.d.ts",
+      "import": "./dist/extras/index.mjs",
+      "require": "./dist/extras/index.js"
+    },
     "./extras/vercel-ai": {
       "types": "./dist/extras/vercel-ai.d.ts",
       "import": "./dist/extras/vercel-ai.mjs",
       "require": "./dist/extras/vercel-ai.js"
+    },
+    "./extras/langchain": {
+      "types": "./dist/extras/langchain.d.ts",
+      "import": "./dist/extras/langchain.mjs",
+      "require": "./dist/extras/langchain.js"
+    },
+    "./extras/mastra": {
+      "types": "./dist/extras/mastra.d.ts",
+      "import": "./dist/extras/mastra.mjs",
+      "require": "./dist/extras/mastra.js"
+    },
+    "./extras/openai-agents": {
+      "types": "./dist/extras/openai-agents.d.ts",
+      "import": "./dist/extras/openai-agents.mjs",
+      "require": "./dist/extras/openai-agents.js"
     }
   },
   "files": [
@@ -48,13 +68,29 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/cli.ts src/extras/vercel-ai.ts --format cjs,esm --dts --clean",
+    "build": "tsup src/index.ts src/cli.ts src/extras/index.ts src/extras/vercel-ai.ts src/extras/langchain.ts src/extras/mastra.ts src/extras/openai-agents.ts --format cjs,esm --dts --clean",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=18"
+  },
+  "peerDependencies": {
+    "@langchain/core": "*",
+    "@mastra/core": "*",
+    "@openai/agents": "*"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    },
+    "@mastra/core": {
+      "optional": true
+    },
+    "@openai/agents": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
