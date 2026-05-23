@@ -42,3 +42,14 @@ COMPANY.md
 .cursor/
 COMPANY.md
 CLAUDE.md
+
+# AI dev tool artefacts (not tracked, may contain session data)
+.gemini/
+.codex/
+.copilot/
+.github_token
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
