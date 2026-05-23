@@ -180,6 +180,18 @@ const result = await generateText({
 
 Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation; failures log a warning instead of throwing.
 
+### LangChain.js
+
+`AsqavCallbackHandler` at `@asqav/sdk/extras/langchain` plugs into LangChain.js's `callbacks` array and signs each chain, tool, and LLM lifecycle event. Construct it via the async factory: `const handler = await AsqavCallbackHandler.create({ agent });` then pass to a chain or model `callbacks: [handler]`. Requires `@langchain/core` as a peer dep.
+
+### Mastra
+
+`AsqavMastraHook` at `@asqav/sdk/extras/mastra` attaches to a Mastra agent and signs each step lifecycle event: `await new AsqavMastraHook({ agent }).attach(mastraAgent)`. Requires `@mastra/core` as a peer dep.
+
+### OpenAI Agents JS
+
+`AsqavOpenAIAgentsAdapter` at `@asqav/sdk/extras/openai-agents` wraps individual tools so each invocation signs `tool:start` / `tool:end` / `tool:error`. Use `const wrapped = new AsqavOpenAIAgentsAdapter({ agent }).wrapTool(tool)` and pass the wrapped tool into your `@openai/agents` runner. Requires `@openai/agents` as a peer dep.
+
 ## Compliance receipts (IETF profile)
 
 Set `complianceMode: true` on `agent.sign(...)` to opt the receipt into the IETF [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile. The cloud then emits a conformant chain link, content-addressed `policy_digest`, fail-closed anchoring, and the raised retention floor.
