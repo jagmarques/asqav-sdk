@@ -1,21 +1,8 @@
 """Counterparty acknowledgment binding helpers for the IETF Compliance Receipts profile.
 
-Public surface:
-
-* :class:`CounterpartyBinding` - dataclass mirror of the cloud's
-  ``core.envelope.CounterpartyBinding`` Pydantic model.
-* :func:`compute_counterparty_binding` - builds the binding object from
-  an originating envelope; computes the base64 SHA-256 over its
-  canonical bytes.
-* :func:`verify_counterparty_binding` - re-derives the digest from the
-  originating envelope and reports the per-axis outcome.
-
-The acknowledging receipt's ``receipt_type`` is
-``protectmcp:acknowledgment``; the binding object travels on the signed
-payload of B's receipt and gates verification per the staged IETF -04
-revision (Sections 4.6 and 4.6.1).
-
-See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
+Builds and verifies the ``protectmcp:acknowledgment`` binding that ties B's
+receipt to A's originating envelope via a base64 SHA-256 over A's canonical
+bytes (see draft-marques-asqav-compliance-receipts Sections 4.6 and 4.6.1).
 """
 
 from __future__ import annotations
@@ -42,14 +29,8 @@ ACKNOWLEDGMENT_RECEIPT_TYPE: str = "protectmcp:acknowledgment"
 class CounterpartyBinding:
     """Acknowledger's cross-agent byte-equality binding to an originating receipt.
 
-    ``envelope_hash`` is the base64-encoded SHA-256 digest over the
-    originating receipt's full canonical signed envelope (signature
-    bytes included). ``receipt_ref`` is the opaque resolvable locator
-    the verifier uses to fetch A's envelope from the Audit Pack or a
-    Deployer-published index. ``expect_ack_from`` is an OPTIONAL
-    cross-check on the acknowledging receipt's signature ``kid``;
-    ``transport_label`` is operational only and MUST NOT serve as a
-    basis for trust derivation.
+    ``transport_label`` is operational only and MUST NOT serve as a basis for
+    trust derivation.
     """
 
     envelope_hash: str = field(
@@ -68,12 +49,7 @@ class CounterpartyBinding:
     )
 
     def to_wire(self) -> dict[str, Any]:
-        """Return the wire-shape dict suitable for placement on the signed payload.
-
-        Drops keys whose value is ``None`` so omitted OPTIONAL fields do
-        not appear in the canonical bytes; this keeps the JCS output
-        byte-identical to the cloud's emit path.
-        """
+        """Return the wire-shape dict; drops ``None`` keys to match cloud JCS."""
         out: dict[str, Any] = {
             "envelope_hash": self.envelope_hash,
             "receipt_ref": self.receipt_ref,
@@ -86,12 +62,7 @@ class CounterpartyBinding:
 
 
 def compute_envelope_hash(envelope: dict[str, Any]) -> str:
-    """Base64 of SHA-256 over the originating envelope's full JCS bytes.
-
-    Mirrors the cloud's ``core.envelope.compute_envelope_hash`` so the
-    acknowledger and the verifier produce byte-identical digests across
-    Python and TypeScript SDKs and the cloud emit path.
-    """
+    """Base64 SHA-256 over the envelope's JCS bytes."""
     return base64.b64encode(hashlib.sha256(canonical_json(envelope)).digest()).decode()
 
 
@@ -104,24 +75,9 @@ def compute_counterparty_binding(
 ) -> CounterpartyBinding:
     """Build a :class:`CounterpartyBinding` for the originating envelope.
 
-    Args:
-        originating_envelope: Full signed envelope (``{payload, signature, anchors?}``)
-            of A's receipt. The digest is computed over the canonical bytes of
-            the dict as-passed; callers MUST pass the bytes B actually received,
-            not a re-canonicalization, so intermediary tampering is detectable.
-        receipt_ref: Resolvable locator for A's receipt. Defaults to
-            ``originating_envelope["payload"]["action_id"]`` when present so the
-            common case can be a one-liner; callers SHOULD pass an explicit
-            value when their Audit Pack production layer uses a different
-            identifier scheme.
-        expect_ack_from: Optional declared acknowledger identifier; the verifier
-            cross-checks the acknowledging receipt's ``signature.kid`` against
-            this value when present.
-        transport_label: Optional operational transport hint.
-
-    Returns:
-        A :class:`CounterpartyBinding` ready to place on the acknowledgment
-        receipt's signed payload via :meth:`CounterpartyBinding.to_wire`.
+    Callers MUST pass the bytes B actually received (not a re-canonicalization)
+    so intermediary tampering is detectable. ``receipt_ref`` defaults to
+    ``originating_envelope["payload"]["action_id"]`` when present.
     """
     if receipt_ref is None:
         payload = originating_envelope.get("payload")
@@ -143,12 +99,7 @@ def compute_counterparty_binding(
 
 @dataclass
 class CounterpartyBindingVerification:
-    """Outcome of the SDK-side counterparty-binding sanity check.
-
-    ``valid`` is the AND of all populated booleans. Per-axis labels mirror
-    the cloud's ``counterparty_binding_verified`` vocabulary in
-    ``api/routes/verify.py``.
-    """
+    """Outcome of the counterparty-binding sanity check; ``valid`` ANDs all populated booleans."""
 
     valid: bool
     envelope_hash_matches: bool
@@ -162,10 +113,9 @@ def verify_counterparty_binding(
 ) -> CounterpartyBindingVerification:
     """Re-derive and compare the binding's ``envelope_hash``.
 
-    Returns ``label`` in {``matches``, ``mismatch``, ``unresolved``,
-    ``kid_mismatch``} so callers can distinguish a tampered handoff from
-    a missing originator. ``kid_matches`` is None when
-    ``expect_ack_from`` was not declared on the binding.
+    ``label`` is one of ``matches``, ``mismatch``, ``unresolved``,
+    ``kid_mismatch``. ``kid_matches`` is ``None`` when ``expect_ack_from`` was
+    not declared.
     """
     payload = acknowledgment_envelope.get("payload")
     if not isinstance(payload, dict):
