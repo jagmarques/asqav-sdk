@@ -29,11 +29,11 @@ from typing import Any
 
 try:
     import smolagents  # noqa: F401
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "smolagents integration requires smolagents. "
         "Install with: pip install asqav[smolagents]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 
