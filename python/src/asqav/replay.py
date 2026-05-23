@@ -1,18 +1,8 @@
-"""Audit trail replay: reconstruct and verify what any agent did, step by step.
+"""Audit trail replay: reconstruct and verify what an agent did step by step.
 
-Chain shape (IETF Compliance Receipts):
-
-  ``previousReceiptHash = sha256(JCS(predecessor compliance payload))``.
-
-The chain link is over the inner payload bytes only, NOT the full
-``{payload, signature, anchors}`` envelope. This matches the cloud's
-on-chain digest (``sha256(SignatureRecord.message)`` where ``message`` is
-``canonical_json(payload)``). When a step carries the full bundle-shaped
-envelope with a top-level ``payload`` dict, the verifier hashes only that
-sub-dict so the result is byte-identical to the cloud.
-
-The first record's predecessor seed is ``"0" * 64`` (``FIRST_RECEIPT_SEED``).
-See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
+Chain link is ``previousReceiptHash = sha256(JCS(predecessor compliance payload))``
+over the inner payload bytes only (matches the cloud's on-chain digest); first
+record uses ``FIRST_RECEIPT_SEED = "0" * 64``.
 """
 
 from __future__ import annotations
@@ -34,11 +24,8 @@ FIRST_RECEIPT_SEED: str = "0" * 64
 def _payload_bytes_for_chain(envelope: dict[str, Any]) -> bytes:
     """Return the canonical JSON bytes the cloud hashes for the chain link.
 
-    The cloud computes ``sha256(canonical_json(payload))`` where ``payload``
-    is the IETF compliance payload dict. When ``envelope`` is the
-    bundle-shaped ``{payload, signature, anchors, ...}`` wrapper this
-    extracts ``envelope["payload"]``; when it is already the payload dict
-    (no ``signature`` sibling) the dict is hashed as-is.
+    Extracts ``envelope["payload"]`` when bundle-shaped (``signature`` /
+    ``anchors`` sibling present), else hashes the dict as-is.
     """
     inner = envelope.get("payload")
     if isinstance(inner, dict) and ("signature" in envelope or "anchors" in envelope):
@@ -149,18 +136,10 @@ class ReplayTimeline:
         return "\n".join(lines)
 
     def verify_chain(self) -> bool:
-        """Recompute each step's predecessor hash, compare to stored
-        ``prev_chain_hash``. Mismatch = tampering. Steps lacking a stored
-        hash are marked invalid rather than passing silently.
+        """Recompute each step's predecessor hash and compare to stored ``prev_chain_hash``.
 
-        Each step MUST carry `signed_envelope`. The chain hash is computed
-        as ``sha256(JCS(payload))`` over the inner compliance payload so the
-        result matches the cloud's on-chain digest byte-for-byte. When the
-        envelope is bundle-shaped (``{payload, signature, anchors, ...}``)
-        only the ``payload`` sub-dict is hashed; when it is already a
-        payload-shaped dict the whole dict is hashed. Steps without an
-        envelope cannot prove byte-level integrity and drop
-        ``compliance_chain_valid``.
+        Mismatch or missing = tampering. Steps lacking ``signed_envelope`` drop
+        ``compliance_chain_valid`` since byte-level integrity cannot be proven.
         """
         if not self.steps:
             self.chain_integrity = True
@@ -197,10 +176,10 @@ class ReplayTimeline:
 
 
 def _step_chain_hash(step: ReplayStep, prev_hash: str) -> str:
-    """Compute the synthetic chain hash a step contributes when no
-    `signed_envelope` is attached. Internal-consistency only: tampering
-    of fields outside the synthetic shape will NOT be caught. Callers
-    that need byte-level integrity MUST attach `signed_envelope`.
+    """Compute the synthetic chain hash a step contributes when no envelope is attached.
+
+    Internal-consistency only; callers needing byte-level integrity MUST attach
+    ``signed_envelope``.
     """
     envelope = {
         "signature_id": step.signature_id,
@@ -215,18 +194,9 @@ def _step_chain_hash(step: ReplayStep, prev_hash: str) -> str:
 def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
     """Check each signature chains to the previous via SHA-256.
 
-    Returns a list of booleans, one per signature, indicating whether the
-    chain link from the previous entry is valid. Each entry's stored
-    ``previousReceiptHash`` (or snake-case ``previous_receipt_hash``) is
-    compared to the predecessor's derived chain hash; the seed
-    ``FIRST_RECEIPT_SEED`` is expected on the first entry. Entries that
-    omit the link field are treated as unverifiable (``False``) rather
-    than passing silently.
-
-    Note: this synthetic-shape verifier can only catch tampering of the
-    fields it hashes (``signature_id``, ``action_type``, ``payload``,
-    ``signed_at``). Byte-level integrity against the cloud requires the
-    full ``signed_envelope`` path on :meth:`ReplayTimeline.verify_chain`.
+    Returns a per-entry boolean; missing link fields are treated as unverifiable.
+    Byte-level integrity against the cloud requires the ``signed_envelope`` path
+    on :meth:`ReplayTimeline.verify_chain`.
     """
     if not signatures:
         return []
@@ -290,28 +260,13 @@ def _build_explanation(action_type: str, context: dict[str, Any] | None) -> str:
 
 
 def replay(agent_id: str, session_id: str) -> ReplayTimeline:
-    """Fetch signatures for a session and reconstruct the audit trail.
-
-    Args:
-        agent_id: The agent that owns the session.
-        session_id: The session to replay.
-
-    Returns:
-        A ReplayTimeline with ordered steps and chain verification.
-    """
+    """Fetch signatures for a session and reconstruct a :class:`ReplayTimeline`."""
     raw_sigs = get_session_signatures(session_id)
     return _build_timeline(agent_id, session_id, raw_sigs)
 
 
 def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
-    """Reconstruct a timeline from a ComplianceBundle offline.
-
-    Args:
-        bundle: A ComplianceBundle export.
-
-    Returns:
-        A ReplayTimeline built from the bundle receipts.
-    """
+    """Reconstruct a :class:`ReplayTimeline` from a :class:`ComplianceBundle` export offline."""
     agent_id = ""
     session_id = ""
     if bundle.receipts:
