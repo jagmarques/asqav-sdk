@@ -30,6 +30,7 @@ import {
   verifyChain,
   verifySignature,
   type LocalSigningAlgorithm,
+  type SignatureResponse,
 } from "./index.js";
 
 export const CLI_VERSION = "0.3.5";
@@ -403,110 +404,188 @@ async function readJsonInput(value: string): Promise<unknown> {
   return JSON.parse(text);
 }
 
-async function cmdSign(args: string[]): Promise<void> {
-  const agentId = parseFlag(args, "agent-id");
-  const actionType = parseFlag(args, "action-type");
-  if (!agentId || !actionType) {
-    die("Usage: asqav sign --agent-id ID --action-type T [--no-compliance-mode] [--action-json PATH]");
-  }
-  // Compliance Receipts default to compliance_mode=true; pass --no-compliance-mode to opt out.
-  const complianceMode = !hasFlag(args, "no-compliance-mode");
-  const actionRef = parseFlag(args, "action-ref");
-  const actionJson = parseFlag(args, "action-json");
-  const sandboxState = parseFlag(args, "sandbox-state");
-  const iterationId = parseFlag(args, "iteration-id");
-  const riskClass = parseFlag(args, "risk-class");
-  const incidentClass = parseFlag(args, "incident-class");
-  const issuerId = parseFlag(args, "issuer-id");
-  const receiptType = parseFlag(args, "receipt-type") ?? "protectmcp:decision";
-  const reason = parseFlag(args, "reason");
-  // --decision (allow|deny|rate_limit) takes precedence over --policy-decision.
+/** Parsed shape of `asqav sign` flags; bundles raw strings without
+ * applying any type casts (those happen in `buildSignCallArgs`). */
+interface SignCliFlags {
+  agentId: string | undefined;
+  actionType: string | undefined;
+  complianceMode: boolean;
+  actionRef: string | undefined;
+  actionJson: string | undefined;
+  actionId: string | undefined;
+  sandboxState: string | undefined;
+  iterationId: string | undefined;
+  riskClass: string | undefined;
+  incidentClass: string | undefined;
+  issuerId: string | undefined;
+  receiptType: string;
+  reason: string | undefined;
+  policyDecision: string;
+  sessionId: string | undefined;
+  validSecondsStr: string | undefined;
+  policyArtefactPath: string | undefined;
+  output: string;
+}
+
+/** Resolve `--decision` (allow|deny|rate_limit) into a policy_decision
+ * token; `--decision` wins over `--policy-decision`. Defaults to permit. */
+function resolvePolicyDecision(args: string[]): string {
   const decisionFlag = parseFlag(args, "decision");
   const decisionMap: Record<string, string> = {
     allow: "permit",
     deny: "deny",
     rate_limit: "rate_limit",
   };
-  const policyDecision =
-    (decisionFlag !== undefined ? decisionMap[decisionFlag] : undefined)
-    ?? parseFlag(args, "policy-decision")
-    ?? "permit";
-  const sessionId = parseFlag(args, "session-id");
-  const validSecondsStr = parseFlag(args, "valid-seconds");
-  const policyArtefactPath = parseFlag(args, "policy-artefact");
-  const output = parseFlag(args, "output") ?? "text";
+  const fromDecision = decisionFlag !== undefined ? decisionMap[decisionFlag] : undefined;
+  return fromDecision ?? parseFlag(args, "policy-decision") ?? "permit";
+}
 
-  if ((policyDecision === "deny" || policyDecision === "rate_limit") && !reason) {
+/** Pull every `asqav sign` flag into a strongly-typed bag. No
+ * validation, no fs reads, no type narrowing yet. */
+function parseSignFlags(args: string[]): SignCliFlags {
+  return {
+    agentId: parseFlag(args, "agent-id"),
+    actionType: parseFlag(args, "action-type"),
+    complianceMode: !hasFlag(args, "no-compliance-mode"),
+    actionRef: parseFlag(args, "action-ref"),
+    actionJson: parseFlag(args, "action-json"),
+    actionId: parseFlag(args, "action-id"),
+    sandboxState: parseFlag(args, "sandbox-state"),
+    iterationId: parseFlag(args, "iteration-id"),
+    riskClass: parseFlag(args, "risk-class"),
+    incidentClass: parseFlag(args, "incident-class"),
+    issuerId: parseFlag(args, "issuer-id"),
+    receiptType: parseFlag(args, "receipt-type") ?? "protectmcp:decision",
+    reason: parseFlag(args, "reason"),
+    policyDecision: resolvePolicyDecision(args),
+    sessionId: parseFlag(args, "session-id"),
+    validSecondsStr: parseFlag(args, "valid-seconds"),
+    policyArtefactPath: parseFlag(args, "policy-artefact"),
+    output: parseFlag(args, "output") ?? "text",
+  };
+}
+
+/** Pre-flight validation that exits the process on a usage error. */
+function validateSignFlags(flags: SignCliFlags): void {
+  if (!flags.agentId || !flags.actionType) {
+    die("Usage: asqav sign --agent-id ID --action-type T [--no-compliance-mode] [--action-json PATH]");
+  }
+  if (
+    (flags.policyDecision === "deny" || flags.policyDecision === "rate_limit")
+    && !flags.reason
+  ) {
     die("Error: --reason is required when --policy-decision is deny or rate_limit.");
   }
+}
 
-  ensureApiKey();
+/** Assemble the call-time `context` map by reading the optional JSON
+ * file, layering the optional policy artefact under a sentinel key, and
+ * stamping the `_action_id` sentinel when supplied. */
+async function loadSignContext(
+  flags: SignCliFlags,
+): Promise<Record<string, unknown> | undefined> {
   let context: Record<string, unknown> | undefined;
-  if (actionJson) {
+  if (flags.actionJson) {
     try {
-      context = (await readJsonInput(actionJson)) as Record<string, unknown>;
+      context = (await readJsonInput(flags.actionJson)) as Record<string, unknown>;
     } catch (err) {
       die(`Error reading action JSON: ${(err as Error).message}`);
     }
   }
-  if (policyArtefactPath) {
+  if (flags.policyArtefactPath) {
     try {
-      const artefact = await readJsonInput(policyArtefactPath);
+      const artefact = await readJsonInput(flags.policyArtefactPath);
       context = { ...(context ?? {}), _policy_artefact: artefact };
     } catch (err) {
       die(`Error reading policy artefact: ${(err as Error).message}`);
     }
   }
-  const actionId = parseFlag(args, "action-id");
-  if (actionId) {
-    context = { ...(context ?? {}), _action_id: actionId };
+  if (flags.actionId) {
+    context = { ...(context ?? {}), _action_id: flags.actionId };
   }
+  return context;
+}
+
+/** Project the CLI-shape flags into the SDK's `SignOptions` shape with
+ * the narrow casts the SDK accepts. Pure: no IO. */
+function buildSignCallOptions(
+  flags: SignCliFlags,
+  context: Record<string, unknown> | undefined,
+): Parameters<Agent["sign"]>[0] {
+  return {
+    actionType: flags.actionType as string,
+    context,
+    complianceMode: flags.complianceMode,
+    actionRef: flags.actionRef,
+    sandboxState: flags.sandboxState as
+      | "enabled"
+      | "disabled"
+      | "unavailable"
+      | undefined,
+    iterationId: flags.iterationId,
+    riskClass: flags.riskClass as
+      | "low"
+      | "medium"
+      | "high"
+      | "unknown"
+      | undefined,
+    incidentClass: flags.incidentClass,
+    issuerId: flags.issuerId,
+    receiptType: flags.receiptType as
+      | "protectmcp:decision"
+      | "protectmcp:restraint"
+      | "protectmcp:lifecycle",
+    reason: flags.reason,
+    policyDecision: flags.policyDecision as "permit" | "deny" | "rate_limit",
+    validSeconds: flags.validSecondsStr ? Number(flags.validSecondsStr) : undefined,
+  };
+}
+
+/** Print the human-readable sign output. JSON output is handled by the
+ * caller because it is a single line. */
+function printSignTextOutput(sig: SignatureResponse): void {
+  process.stdout.write(`signature_id: ${sig.signatureId}\n`);
+  process.stdout.write(`action_id:    ${sig.actionId}\n`);
+  process.stdout.write(`algorithm:    ${sig.algorithm ?? "?"}\n`);
+  process.stdout.write(`signed_at:    ${sig.timestamp}\n`);
+  if (sig.policyDigest) process.stdout.write(`policy_digest: ${sig.policyDigest}\n`);
+  if (sig.complianceMode) printSignComplianceFields(sig);
+  process.stdout.write(`verify_url:   ${sig.verificationUrl}\n`);
+}
+
+/** Print the IETF Compliance Receipts profile fields. Split out so
+ * `printSignTextOutput` stays a flat decision tree. */
+function printSignComplianceFields(sig: SignatureResponse): void {
+  process.stdout.write(`compliance_mode: true\n`);
+  if (sig.receiptType) process.stdout.write(`receipt_type:  ${sig.receiptType}\n`);
+  if (sig.actionRef) process.stdout.write(`action_ref:    ${sig.actionRef}\n`);
+  if (sig.previousReceiptHash) {
+    process.stdout.write(`previous_receipt_hash: ${sig.previousReceiptHash}\n`);
+  }
+  if (sig.decision) {
+    process.stdout.write(`decision:      ${sig.decision}\n`);
+  }
+}
+
+async function cmdSign(args: string[]): Promise<void> {
+  const flags = parseSignFlags(args);
+  validateSignFlags(flags);
+
+  ensureApiKey();
+  const context = await loadSignContext(flags);
 
   try {
-    const agent = await Agent.get(agentId);
-    if (sessionId) {
+    const agent = await Agent.get(flags.agentId as string);
+    if (flags.sessionId) {
       // Internal field used by buildSignBody when the session is bound.
-      (agent as unknown as { sessionId: string }).sessionId = sessionId;
+      (agent as unknown as { sessionId: string }).sessionId = flags.sessionId;
     }
-    const sig = await agent.sign({
-      actionType: actionType,
-      context,
-      complianceMode,
-      actionRef,
-      sandboxState: sandboxState as "enabled" | "disabled" | "unavailable" | undefined,
-      iterationId,
-      riskClass: riskClass as "low" | "medium" | "high" | "unknown" | undefined,
-      incidentClass,
-      issuerId,
-      receiptType: receiptType as
-        | "protectmcp:decision"
-        | "protectmcp:restraint"
-        | "protectmcp:lifecycle",
-      reason,
-      policyDecision: policyDecision as "permit" | "deny" | "rate_limit",
-      validSeconds: validSecondsStr ? Number(validSecondsStr) : undefined,
-    });
-    if (output === "json") {
+    const sig = await agent.sign(buildSignCallOptions(flags, context));
+    if (flags.output === "json") {
       process.stdout.write(`${JSON.stringify(sig, null, 2)}\n`);
       return;
     }
-    process.stdout.write(`signature_id: ${sig.signatureId}\n`);
-    process.stdout.write(`action_id:    ${sig.actionId}\n`);
-    process.stdout.write(`algorithm:    ${sig.algorithm ?? "?"}\n`);
-    process.stdout.write(`signed_at:    ${sig.timestamp}\n`);
-    if (sig.policyDigest) process.stdout.write(`policy_digest: ${sig.policyDigest}\n`);
-    if (sig.complianceMode) {
-      process.stdout.write(`compliance_mode: true\n`);
-      if (sig.receiptType) process.stdout.write(`receipt_type:  ${sig.receiptType}\n`);
-      if (sig.actionRef) process.stdout.write(`action_ref:    ${sig.actionRef}\n`);
-      if (sig.previousReceiptHash) {
-        process.stdout.write(`previous_receipt_hash: ${sig.previousReceiptHash}\n`);
-      }
-      if (sig.decision) {
-        process.stdout.write(`decision:      ${sig.decision}\n`);
-      }
-    }
-    process.stdout.write(`verify_url:   ${sig.verificationUrl}\n`);
+    printSignTextOutput(sig);
   } catch (err) {
     die(`Error signing: ${(err as Error).message}`);
   }
