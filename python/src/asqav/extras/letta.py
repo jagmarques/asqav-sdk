@@ -22,11 +22,11 @@ from typing import Any
 
 try:
     import letta_client  # noqa: F401
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "letta integration requires letta-client. "
         "Install with: pip install asqav[letta]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 

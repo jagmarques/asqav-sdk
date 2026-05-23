@@ -2030,9 +2030,18 @@ def _handle_response(response: Any) -> None:
         raise RateLimitError("Rate limit exceeded. Upgrade at asqav.com/pricing")
     elif response.status_code >= 400:
         try:
-            error = response.json().get("error", "Unknown error")
+            body = response.json()
+            error = body.get("detail") or body.get("error") or response.text or "Unknown error"
+            if isinstance(error, list):
+                error = "; ".join(
+                    f"{e.get('loc', ['?'])[-1]}: {e.get('msg', '')}".strip(": ")
+                    for e in error
+                    if isinstance(e, dict)
+                ) or str(error)
+            elif not isinstance(error, str):
+                error = str(error)
         except Exception:
-            error = response.text
+            error = response.text or "Unknown error"
         raise APIError(error, response.status_code)
 
 
@@ -2422,50 +2431,9 @@ def verify_compliance_receipt(
     originating_envelope: dict[str, Any] | None = None,
     now: float | None = None,
 ) -> ComplianceReceiptVerification:
-    """Local-side sanity-check on a Compliance Receipt envelope.
-
-    Validates the four MUSTs the SDK can check without round-tripping
-    to the cloud:
-
-    1. All REQUIRED fields are present.
-    2. ``type`` is in the `protectmcp:*` namespace.
-    3. ``issued_at`` is not more than ``SKEW_BOUND_SECONDS`` ahead of
-       ``now``. Past skew is bounded by the retention floor, not by
-       freshness, so historical receipts within retention verify on the
-       same path as fresh ones (spec Section 2.1, ``issued_at``).
-    4. ``previousReceiptHash`` rederives over the predecessor's inner
-       compliance payload under JCS, when one is supplied. The cloud
-       hashes ``canonical_json(payload)`` only, not the bundle wrapper,
-       so a predecessor passed in as ``{payload, signature, anchors}``
-       gets unwrapped before hashing. When the receipt is the first on
-       its chain (``previousReceiptHash == "0" * 64``) the rederivation
-       step is skipped.
-
-    A fifth check fires when the receipt carries a
-    ``counterparty_binding`` object and the caller supplies the
-    originating envelope: the SHA-256 digest of the canonical bytes is
-    recomputed and compared to ``envelope_hash``, and (when present)
-    ``expect_ack_from`` is cross-checked against the acknowledging
-    receipt's ``signature.kid``.
-
-    The cloud is authoritative for cryptographic signature checks,
-    policy_digest resolution against the Audit Pack, and anchor
-    verification. This helper is a convenience.
-
-    Args:
-        envelope: The signed receipt envelope, as a dict.
-        predecessor_envelope: Optional predecessor envelope. When
-            provided, the chain-link is rederived and compared to
-            ``envelope["previousReceiptHash"]``.
-        originating_envelope: Optional originating envelope referenced by
-            ``payload.counterparty_binding.receipt_ref`` on an
-            acknowledgment receipt. When provided, the binding's
-            ``envelope_hash`` is recomputed and compared.
-        now: Optional override for the verifier wall clock (UNIX
-            seconds). Defaults to ``time.time()``.
-
-    Returns:
-        A :class:`ComplianceReceiptVerification` capturing each MUST.
+    """Local sanity-check on a Compliance Receipt envelope: REQUIRED fields, namespace,
+    freshness skew, chain-link rederivation, and counterparty binding when supplied.
+    Cloud is authoritative for signature checks, policy_digest resolution, and anchors.
     """
     from datetime import datetime
 
@@ -3624,19 +3592,8 @@ class BudgetCheckResult:
 
 
 class BudgetTracker:
-    """Client-side spend budget tracking for agent actions.
-
-    Uses signed records to track cumulative spend, making the budget
-    trail tamper-evident and independently verifiable. All spend
-    entries are persisted as ML-DSA signatures via the existing
-    agent.sign() method, so the trail can be replayed and checked
-    against the verification endpoint later.
-
-    This is a client-side helper. The Asqav API does not enforce
-    budgets directly; enforcement happens in the caller before
-    executing the action. The tracker fails closed: if an estimated
-    cost would exceed the remaining budget, check() returns
-    allowed=False with reason="budget_exhausted".
+    """Client-side spend tracker over signed `agent.sign()` records, tamper-evident and
+    replayable. Fails closed; caller enforces (the Asqav API does not).
 
     Example:
         agent = asqav.Agent.create("my-agent")

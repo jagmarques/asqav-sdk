@@ -16,11 +16,11 @@ from typing import Any
 try:
     from langchain_core.callbacks import BaseCallbackHandler
     from langchain_core.outputs import LLMResult
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "LangChain integration requires langchain-core. "
         "Install with: pip install asqav[langchain]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 
