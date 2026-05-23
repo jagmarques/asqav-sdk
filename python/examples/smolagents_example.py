@@ -19,11 +19,11 @@ from asqav.extras.smolagents import AsqavSmolagentsHook
 
 try:
     from smolagents import CodeAgent, HfApiModel, tool
-except ImportError:
+except ImportError as err:
     raise SystemExit(
         "smolagents is required for this example.\n"
         "Install with: pip install asqav[smolagents]"
-    )
+    ) from err
 
 # ---------------------------------------------------------------------------
 # Initialise asqav
