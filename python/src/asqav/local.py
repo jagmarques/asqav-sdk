@@ -1,20 +1,4 @@
-"""
-Asqav local mode - Queue actions offline and sync when connectivity returns.
-
-Enables developers to use Asqav in offline or air-gapped environments.
-Actions are queued locally as JSON files and synced to the API later.
-
-Usage:
-    from asqav import LocalQueue, local_sign
-
-    # Queue an action locally
-    item_id = local_sign("agent_123", "api:call", {"model": "gpt-4"})
-
-    # Sync when ready
-    queue = LocalQueue()
-    result = queue.sync()
-    print(f"Synced {result['synced']}/{result['total']} items")
-"""
+"""Asqav local mode: queue actions offline as JSON files and sync to the API later."""
 
 from __future__ import annotations
 
