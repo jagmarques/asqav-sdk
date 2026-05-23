@@ -1,9 +1,4 @@
-"""Semantic action patterns for asqav.
-
-Maps human-friendly pattern names to glob-style action type strings,
-so users can write agent.sign("sql-destructive", {...}) instead of
-remembering the full action namespace.
-"""
+"""Semantic action patterns mapping human-friendly names to glob action-type strings."""
 
 from __future__ import annotations
 
@@ -24,24 +19,10 @@ PATTERNS: dict[str, str] = {
 
 
 def resolve_pattern(pattern: str) -> str:
-    """Resolve a semantic pattern name to its glob string.
-
-    If the pattern matches a known semantic name, return the corresponding
-    glob. Otherwise return the pattern as-is (passthrough for custom patterns).
-
-    Args:
-        pattern: A semantic name like "sql-read" or a raw action type.
-
-    Returns:
-        The resolved glob pattern string.
-    """
+    """Resolve a semantic pattern name to its glob string; passthrough for unknown patterns."""
     return PATTERNS.get(pattern, pattern)
 
 
 def list_patterns() -> dict[str, str]:
-    """Return all available semantic action patterns.
-
-    Returns:
-        Dict mapping semantic names to their glob patterns.
-    """
+    """Return all available semantic action patterns."""
     return dict(PATTERNS)

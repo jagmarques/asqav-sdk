@@ -1,9 +1,7 @@
 """Base adapter class for Asqav framework integrations.
 
-All framework-specific adapters (LangChain, CrewAI, LiteLLM, Haystack,
-OpenAI Agents) extend AsqavAdapter. This isolates signing logic from
-framework callback/hook APIs so framework breaking changes only affect
-the thin framework-facing layer.
+Isolates signing logic from framework callback/hook APIs so breaking changes
+affect only the thin framework-facing layer.
 """
 
 from __future__ import annotations
@@ -19,12 +17,7 @@ logger = logging.getLogger("asqav")
 
 
 def _class_name_to_agent_name(cls_name: str) -> str:
-    """Convert CamelCase class name to kebab-case agent name.
-
-    Examples:
-        AsqavCallbackHandler -> asqav-callback-handler
-        AsqavCrewHook -> asqav-crew-hook
-    """
+    """Convert CamelCase class name to kebab-case (e.g. AsqavCrewHook -> asqav-crew-hook)."""
     # Insert hyphen before uppercase letters, then lowercase
     s = re.sub(r"(?<=[a-z0-9])([A-Z])", r"-\1", cls_name)
     s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1-\2", s)
@@ -34,21 +27,9 @@ def _class_name_to_agent_name(cls_name: str) -> str:
 class AsqavAdapter:
     """Base class for Asqav framework integrations.
 
-    Provides shared helpers for agent initialization, action signing,
-    and optional session grouping. Subclasses implement framework-specific
-    interfaces (callbacks, hooks, guardrails, components) and call
-    ``_sign_action`` to record governance events.
-
-    Args:
-        api_key: Optional API key override (uses asqav.init() default).
-        agent_name: Name for a new agent (calls Agent.create).
-        agent_id: ID of an existing agent (calls Agent.get).
-
-    If neither ``agent_name`` nor ``agent_id`` is provided, the agent name
-    is auto-generated from the subclass class name.
-
-    Raises:
-        AsqavError: If ``asqav.init()`` has not been called.
+    Subclasses call ``_sign_action`` to record governance events. Agent name
+    defaults to a kebab-cased subclass class name when neither ``agent_name``
+    nor ``agent_id`` is provided.
     """
 
     def __init__(
@@ -79,21 +60,10 @@ class AsqavAdapter:
         context: dict | None = None,
         **compliance_kwargs,
     ) -> SignatureResponse | None:
-        """Sign an action via the agent. Returns None on failure (fail-open).
+        """Sign an action via the agent; returns ``None`` on failure (fail-open).
 
-        Governance failures are logged but never raise - the user's AI
-        pipeline must not break because of Asqav availability issues.
-
-        When observe mode is enabled, logs the action that would be signed
-        without making any API calls and returns None.
-
-        IETF Compliance Receipts profile: subclasses MAY pass any of
-        ``compliance_mode``, ``receipt_type``, ``action_ref``,
-        ``payload_digest``, ``issuer_id``, ``iteration_id``,
-        ``sandbox_state``, ``risk_class``, ``incident_class``, ``reason``,
-        ``policy_decision`` via ``**compliance_kwargs``. They forward
-        verbatim to ``Agent.sign``. Unknown kwargs raise TypeError on
-        ``Agent.sign`` and surface as a fail-open warning here.
+        ``compliance_kwargs`` forwards IETF Compliance Receipts fields to
+        ``Agent.sign``.
         """
         if self._observe:
             logger.info(

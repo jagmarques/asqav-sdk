@@ -1,18 +1,8 @@
-"""Algorithm-agility helpers for the IETF Compliance Receipts profile.
+"""Algorithm-agility helpers for offline keypair generation (Ed25519, ES256).
 
-The Asqav cloud signs receipts server-side; client-side keypair
-generation is only useful for offline scenarios (LocalQueue, air-gapped
-demos, conformance vectors). This module exposes a tiny stable API so
-callers can opt into Ed25519 or ES256 without depending on
-`cryptography` / `pynacl` directly. ML-DSA-65 keypair generation
-happens server-side in the cloud KMS; call
-`asqav.Agent.create(name, algorithm='ml-dsa-65')` for that path.
-
-The module is import-safe even when `cryptography` is not installed:
-the import is deferred to call sites so cloud-only users never see a
-hard dependency. Callers that ask for Ed25519 or ES256 without the
-optional dep get a clear ImportError pointing them at the install
-command.
+ML-DSA-65 is cloud-KMS only via ``Agent.create(algorithm='ml-dsa-65')``.
+``cryptography`` is a deferred optional import so cloud-only callers never see
+a hard dependency.
 """
 
 from __future__ import annotations
@@ -37,11 +27,8 @@ Algorithm = Literal["ed25519", "es256"]
 class LocalKeypair:
     """A locally-generated keypair for offline / air-gapped flows.
 
-    `private_key_pem` is PKCS#8 (Ed25519, ES256) or a raw 32-byte secret
-    for ML-DSA-65. `public_key_pem` is SubjectPublicKeyInfo (Ed25519,
-    ES256) or raw 32-byte public for ML-DSA-65. The SDK intentionally
-    does not retain the private key after the dataclass is returned;
-    storage is the caller's problem.
+    PEM-encoded (PKCS#8 private, SubjectPublicKeyInfo public). The SDK does
+    not retain the private key after return.
     """
 
     algorithm: str
@@ -61,26 +48,10 @@ def _check_algorithm(algorithm: str) -> str:
 
 
 def generate_local_keypair(algorithm: Algorithm = "ed25519") -> LocalKeypair:
-    """Generate a keypair locally for the requested algorithm.
+    """Generate a local Ed25519 or ES256 keypair for offline flows.
 
-    For cloud-signed receipts the cloud generates the keypair; this
-    helper is for offline scenarios (LocalQueue, conformance vector
-    fixtures, air-gapped operator tooling).
-
-    ML-DSA-65 keypair generation is server-side only; call
-    `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one via
-    the cloud KMS.
-
-    Args:
-        algorithm: One of `ed25519`, `es256`. Default is `ed25519`.
-
-    Returns:
-        A :class:`LocalKeypair` with PEM-encoded keys.
-
-    Raises:
-        ValueError: If `algorithm` is not in `SUPPORTED_ALGORITHMS`.
-        ImportError: If the optional `cryptography` package is needed
-            but not installed.
+    Raises ``ValueError`` for unsupported algorithms and ``ImportError`` when
+    ``cryptography`` is missing.
     """
     alg = _check_algorithm(algorithm)
     if alg == ALGORITHM_ED25519:
