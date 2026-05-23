@@ -36,6 +36,9 @@ dist/
 
 # local tooling state (never commit)
 .company/
+COMPANY.md
 .claude/
 .planning/
 .cursor/
+COMPANY.md
+CLAUDE.md

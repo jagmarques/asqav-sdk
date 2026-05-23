@@ -17,7 +17,7 @@
   <a href="https://asqav.com">Website</a> |
   <a href="https://asqav.com/docs">Docs</a> |
   <a href="https://asqav.com/docs/sdk">SDK Guide</a> |
-  <a href="https://asqav.com/compliance">Compliance</a>
+  <a href="https://www.asqav.com/docs">Compliance</a>
 </p>
 
 # Asqav SDK - Python + TypeScript
@@ -186,8 +186,9 @@ The TypeScript SDK focuses on the core API and `Agent` surface for Node 20+ runt
 
 - The `user_intent` envelope on `agent.sign(...)`.
 - A Vercel AI SDK adapter at `@asqav/sdk/extras/vercel-ai` that plugs into `experimental_telemetry: { tracer }` and signs every span the AI SDK opens.
-
-Other framework integrations are tracked on the roadmap.
+- A LangChain.js callback handler `AsqavCallbackHandler` at `@asqav/sdk/extras/langchain` that signs each chain step.
+- A Mastra hook `AsqavMastraHook` at `@asqav/sdk/extras/mastra` that signs each step the Mastra agent emits.
+- An OpenAI Agents JS adapter `AsqavOpenAIAgentsAdapter` at `@asqav/sdk/extras/openai-agents` that signs tool calls on the agent runner.
 
 If a feature exists in one SDK but not the other, the language README will mark it explicitly.
 
@@ -353,7 +354,6 @@ Machine-readable service descriptor at [`https://asqav.com/.well-known/governanc
 
 - Docs: <https://asqav.com/docs>
 - Repo: <https://github.com/jagmarques/asqav-sdk>
-- Integration docs: <https://asqav.com/docs/integrations>
 - Blog: <https://dev.to/jagmarques>
 - Dashboard: <https://asqav.com/dashboard>
 
