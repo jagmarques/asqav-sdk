@@ -1,16 +1,7 @@
-"""Pytest plugin: sign each test result and produce a compliance bundle.
+"""Pytest plugin that signs each test outcome and emits a ComplianceBundle.
 
-Activates with `pytest --asqav --asqav-agent=test-runner`. Each test result
-(passed/failed/skipped) is signed via agent.sign() and included in a
-ComplianceBundle written at the end of the run.
-
-Both surfaces are exposed:
-
-- CLI: `pytest --asqav` runs the plugin via pytest's entry-point system.
-- API: import `asqav.pytest_plugin` and call `make_bundle_from_report(...)`
-  if you have your own test runner.
-
-Requires `ASQAV_API_KEY` in the environment.
+Activate with ``pytest --asqav --asqav-agent=test-runner``; ``ASQAV_API_KEY``
+must be set.
 """
 
 from __future__ import annotations
@@ -164,12 +155,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 def make_bundle_from_report(
     signatures: list[Any], *, framework: str = "eu_ai_act"
 ) -> Any:
-    """Build a ComplianceBundle from a list of pre-signed test results.
-
-    Use from a custom test runner that signs results itself and just wants
-    the bundle structure. Returns the same ComplianceBundle the pytest hook
-    writes at end-of-run.
-    """
+    """Build a :class:`ComplianceBundle` from pre-signed test results."""
     from asqav.compliance import export_bundle
 
     return export_bundle(signatures, framework=framework)

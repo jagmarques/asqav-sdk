@@ -1,26 +1,4 @@
-"""Ergonomic signing patterns for the Asqav SDK.
-
-Provides the @asqav.sign decorator and asqav.session() context manager
-for developers who want concise, Pythonic signing without manual Agent calls.
-
-Example - decorator:
-    import asqav
-
-    asqav.init(api_key="sk_...")
-
-    @asqav.sign
-    def process_data(data: dict) -> dict:
-        return {"processed": True}
-
-    @asqav.sign(action_type="deploy:prod")
-    def deploy(env: str) -> None:
-        ...
-
-Example - session context manager:
-    with asqav.session() as s:
-        s.sign("data:read", {"file": "config.json"})
-        s.sign("data:write", {"file": "output.json"})
-"""
+"""Ergonomic signing: ``@asqav.sign`` decorator and ``asqav.session()`` (sync + async)."""
 
 from __future__ import annotations
 
@@ -39,10 +17,7 @@ F = TypeVar("F")
 
 
 class Session:
-    """Groups multiple sign calls under a single session.
-
-    Created by the session() context manager. Do not instantiate directly.
-    """
+    """Groups sign calls under a single session; created by :func:`session`."""
 
     def __init__(self, agent: Agent, session_response: SessionResponse) -> None:
         self._agent = agent
@@ -53,30 +28,13 @@ class Session:
         return self._session_response.session_id
 
     def sign(self, action_type: str, context: dict[str, Any] | None = None) -> SignatureResponse:
-        """Sign an action within this session.
-
-        Args:
-            action_type: Type of action (e.g., "data:read", "api:call").
-            context: Additional context for the action.
-
-        Returns:
-            SignatureResponse with the signature.
-        """
+        """Sign an action within this session."""
         return self._agent.sign(action_type, context)
 
 
 @contextmanager
 def session() -> Generator[Session, None, None]:
-    """Context manager that groups multiple sign calls under a session.
-
-    Usage:
-        with asqav.session() as s:
-            s.sign("data:read", {"file": "config.json"})
-            s.sign("data:write", {"file": "output.json"})
-
-    On enter, starts a session via the API. On exit, ends the session.
-    If an exception occurs, signs an error action before ending with error status.
-    """
+    """Context manager that groups sign calls; signs ``session:error`` on exception."""
     agent = get_agent()
     session_resp = agent.start_session()
     sess = Session(agent, session_resp)
@@ -97,16 +55,7 @@ def session() -> Generator[Session, None, None]:
 
 @asynccontextmanager
 async def async_session() -> AsyncGenerator[Session, None]:
-    """Async context manager that groups multiple sign calls under a session.
-
-    Usage:
-        async with asqav.async_session() as s:
-            s.sign("data:read", {"file": "config.json"})
-            s.sign("data:write", {"file": "output.json"})
-
-    Same lifecycle as the sync version - starts session on enter,
-    ends on exit, signs errors on exception.
-    """
+    """Async counterpart of :func:`session`; signs ``session:error`` on exception."""
     agent = get_agent()
     session_resp = agent.start_session()
     sess = Session(agent, session_resp)
@@ -128,23 +77,9 @@ async def async_session() -> AsyncGenerator[Session, None]:
 
 
 def sign(func: Any = None, *, action_type: str | None = None) -> Any:
-    """Decorator to auto-sign function execution.
+    """Decorator that auto-signs function execution (sync + async, with or without parens).
 
-    Works on both sync and async functions (auto-detects coroutines).
-    Can be used with or without parentheses:
-
-        @asqav.sign
-        def my_func(): ...
-
-        @asqav.sign(action_type="deploy:prod")
-        def my_func(): ...
-
-    Args:
-        func: The function to decorate (when used without parens).
-        action_type: Override the default "function:call" action type.
-
-    Returns:
-        Decorated function that signs calls via asqav.
+    ``action_type`` overrides the default ``"function:call"``.
     """
 
     def decorator(fn: Any) -> Any:

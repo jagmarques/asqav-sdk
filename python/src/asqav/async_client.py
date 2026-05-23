@@ -1,17 +1,4 @@
-"""Async API Client for the Asqav SDK.
-
-Provides AsyncAgent, an async mirror of the sync Agent class.
-Uses httpx.AsyncClient for non-blocking HTTP calls.
-
-Example:
-    import asqav
-    from asqav.async_client import AsyncAgent
-
-    asqav.init(api_key="sk_...")
-
-    agent = await AsyncAgent.create("my-agent")
-    sig = await agent.sign("api:call", {"model": "gpt-4"})
-"""
+"""Async API client; :class:`AsyncAgent` mirrors :class:`Agent` over ``httpx.AsyncClient``."""
 
 from __future__ import annotations
 
@@ -59,11 +46,7 @@ def _ensure_initialized() -> None:
 
 
 def _get_config() -> tuple[str, str]:
-    """Get current API configuration from client module.
-
-    Returns:
-        Tuple of (api_base, api_key).
-    """
+    """Get the current ``(api_base, api_key)`` tuple from the client module."""
 
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
@@ -140,24 +123,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
 
 @dataclass
 class AsyncAgent:
-    """Async agent representation from Asqav Cloud.
-
-    Mirrors the sync Agent class but uses async HTTP calls.
-    All ML-DSA cryptography happens server-side.
-
-    Example:
-        import asqav
-        from asqav.async_client import AsyncAgent
-
-        asqav.init(api_key="sk_...")
-
-        agent = await AsyncAgent.create("my-agent")
-        sig = await agent.sign("api:call", {"model": "gpt-4"})
-
-        session = await agent.start_session()
-        await agent.sign("read:data", {"file": "config.json"})
-        await agent.end_session()
-    """
+    """Async agent representation; mirrors the sync :class:`Agent` over async HTTP."""
 
     agent_id: str
     name: str
@@ -175,16 +141,7 @@ class AsyncAgent:
         algorithm: str = "ml-dsa-65",
         capabilities: list[str] | None = None,
     ) -> AsyncAgent:
-        """Create a new agent via Asqav Cloud.
-
-        Args:
-            name: Human-readable name for the agent.
-            algorithm: ML-DSA level (ml-dsa-44, ml-dsa-65, ml-dsa-87).
-            capabilities: List of capabilities/permissions.
-
-        Returns:
-            An AsyncAgent instance.
-        """
+        """Create a new agent via Asqav Cloud; ``algorithm`` is ml-dsa-44/65/87."""
         data = await _async_post(
             "/agents/create",
             {
@@ -206,14 +163,7 @@ class AsyncAgent:
 
     @classmethod
     async def get(cls, agent_id: str) -> AsyncAgent:
-        """Get an existing agent by ID.
-
-        Args:
-            agent_id: The agent ID to retrieve.
-
-        Returns:
-            An AsyncAgent instance.
-        """
+        """Get an existing agent by ID."""
         data = await _async_get(f"/agents/{agent_id}")
 
         return cls(
@@ -237,21 +187,7 @@ class AsyncAgent:
         co_signers: list[str] | None = None,
         user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
-        """Sign an action cryptographically (async).
-
-        Args:
-            action_type: Type of action (e.g., "read:data", "api:call").
-            context: Additional context for the action.
-            tool_name: Optional tool name when this action is a tool call.
-            model_name: Optional model name when this action is an LLM call.
-            parent_id: Optional parent action ID for the agent graph view.
-            co_signers: Optional list of agent_ids in the same org expected
-                to countersign this record. The other agents fetch the
-                record by id and call ``agent.countersign(signature_id)``.
-
-        Returns:
-            SignatureResponse with the signature.
-        """
+        """Sign an action cryptographically (async); ``co_signers`` lists countersigner agents."""
         from .client import _build_sign_body
 
         if tool_name or model_name or parent_id:
@@ -296,16 +232,7 @@ class AsyncAgent:
         )
 
     async def countersign(self, signature_id: str) -> SignatureResponse:
-        """Countersign an existing signature record (async).
-
-        Args:
-            signature_id: The ``sig_...`` id returned by the original
-                ``sign(co_signers=[...])`` call.
-
-        Returns:
-            SignatureResponse with the updated record (including this
-            agent's signature appended to ``co_signatures``).
-        """
+        """Countersign an existing signature record (async); appends to ``co_signatures``."""
         data = await _async_post(
             f"/agents/{self.agent_id}/countersign/{signature_id}",
             {},
@@ -331,11 +258,7 @@ class AsyncAgent:
         )
 
     async def start_session(self) -> SessionResponse:
-        """Start a new session (async).
-
-        Returns:
-            SessionResponse with session details.
-        """
+        """Start a new session (async)."""
         data = await _async_post("/sessions/", {"agent_id": self.agent_id})
 
         self._session_id = data["session_id"]
@@ -348,14 +271,7 @@ class AsyncAgent:
         )
 
     async def end_session(self, status: str = "completed") -> SessionResponse:
-        """End the current session (async).
-
-        Args:
-            status: Final status (completed, error, timeout).
-
-        Returns:
-            SessionResponse with final details.
-        """
+        """End the current session (async); ``status`` is completed/error/timeout."""
         if not self._session_id:
             raise AsqavError("No active session")
 
@@ -376,22 +292,7 @@ class AsyncAgent:
         )
 
     async def preflight(self, action_type: str) -> PreflightResult:
-        """Pre-flight check combining revocation, suspension, and policy status (async).
-
-        Returns a single result indicating whether the agent is cleared to
-        perform the given action type. Combines:
-        - Agent status (not revoked, not suspended)
-        - Policy check (action allowed by org policies)
-
-        Fail-open: if any individual check errors out, the agent is not
-        blocked. A warning is added to reasons instead.
-
-        Args:
-            action_type: The action to check (e.g., "data:read", "api:call").
-
-        Returns:
-            PreflightResult with combined check outcome.
-        """
+        """Pre-flight check (async): revocation + suspension + policy; fail-open on errors."""
         agent_active = True
         policy_allowed = True
         reasons: list[str] = []
@@ -431,14 +332,7 @@ class AsyncAgent:
         )
 
     async def verify(self, signature_id: str) -> VerificationResponse:
-        """Publicly verify a signature by ID (async).
-
-        Args:
-            signature_id: The signature ID to verify.
-
-        Returns:
-            VerificationResponse with verification details.
-        """
+        """Publicly verify a signature by ID (async)."""
         _ensure_httpx()
         api_base, _ = _get_config()
         url = f"{api_base}/verify/{signature_id}"
