@@ -160,6 +160,199 @@ def test_sign_deny_without_reason_rejects(
     assert "--reason is required" in result.output
 
 
+# === sign command: previously uncovered branches ===
+
+
+@patch("asqav.init")
+def test_sign_action_json_invalid_exits_1(
+    mock_init: MagicMock, tmp_path
+) -> None:
+    """A malformed --action-json file is reported with a clear error."""
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json")
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_x",
+            "--action-type", "payment.wire_transfer",
+            "--action-json", str(bad),
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "Error reading action JSON" in result.output
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_sign_agent_get_api_error_exits_1(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """Agent.get APIError surfaces as 'Error fetching agent' and exit 1."""
+    from asqav import APIError
+
+    mock_get.side_effect = APIError("agent revoked", 404)
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_missing",
+            "--action-type", "x.y",
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "Error fetching agent" in result.output
+
+
+@patch("asqav.Agent.get")
+@patch("asqav.init")
+def test_sign_json_output_with_policy_artefact_and_algo_mismatch(
+    mock_init: MagicMock, mock_get: MagicMock, tmp_path
+) -> None:
+    """Exercise --output json + --policy-artefact + algorithm mismatch + --session-id.
+
+    Covers: JSON renderer, _load_json_arg file branch, _build_sign_context
+    policy_artefact wiring, the algorithm-mismatch warning, and the
+    --session-id agent attribute injection.
+    """
+    import json
+
+    fake_agent = MagicMock()
+    fake_agent.agent_id = "agent_x"
+    fake_agent.algorithm = "ml-dsa-65"
+    fake_agent.sign.return_value = MagicMock(
+        signature_id="sig_json",
+        action_id="act_json",
+        algorithm="ml-dsa-65",
+        timestamp=1717.0,
+        verification_url="https://verify.example/sig_json",
+        policy_digest="sha256:abc",
+        policy_decision="permit",
+        compliance_mode=False,
+        receipt_type="protectmcp:decision",
+        action_ref=None,
+        issuer_id=None,
+        previous_receipt_hash=None,
+        bitcoin_anchor=MagicMock(status="pending"),
+        rfc3161_tsa="tsa.example",
+        rfc3161_serial="123",
+    )
+    mock_get.return_value = fake_agent
+
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text('{"rule": "deny_over_500k"}')
+
+    result = runner.invoke(
+        app,
+        [
+            "sign",
+            "--agent-id", "agent_x",
+            "--action-type", "payment.wire_transfer",
+            "--policy-artefact", str(policy_path),
+            "--session-id", "sess_bound",
+            "--algorithm", "ed25519",  # mismatch
+            "--output", "json",
+        ],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "Warning: --algorithm=ed25519" in result.output
+    # session_id was threaded onto the agent before sign()
+    assert fake_agent._session_id == "sess_bound"
+    # context wraps the policy artefact under _policy_artefact
+    ctx = fake_agent.sign.call_args.kwargs["context"]
+    assert ctx["_policy_artefact"] == {"rule": "deny_over_500k"}
+    # JSON output is parseable and carries anchor + RFC 3161 fields
+    json_start = result.output.find("{")
+    payload = json.loads(result.output[json_start:])
+    assert payload["signature_id"] == "sig_json"
+    assert payload["anchor_status"] == "pending"
+    assert payload["rfc3161_tsa"] == "tsa.example"
+
+
+# === sign command helpers (unit tests, no CLI runner) ===
+
+
+def test_load_json_arg_empty_returns_none() -> None:
+    from asqav.cli import _load_json_arg
+
+    assert _load_json_arg("", "any") is None
+
+
+def test_build_sign_kwargs_drops_empty_strings() -> None:
+    from asqav.cli import _build_sign_kwargs
+
+    out = _build_sign_kwargs(
+        compliance_mode=True,
+        policy_decision="permit",
+        action_ref="",
+        sandbox_state="enabled",
+        iteration_id="",
+        risk_class="high",
+        incident_class="",
+        issuer_id="",
+        receipt_type="protectmcp:decision",
+        reason="",
+        valid_seconds=0,
+    )
+    assert out == {
+        "compliance_mode": True,
+        "policy_decision": "permit",
+        "sandbox_state": "enabled",
+        "risk_class": "high",
+        "receipt_type": "protectmcp:decision",
+    }
+
+
+def test_build_sign_kwargs_includes_valid_seconds_when_positive() -> None:
+    from asqav.cli import _build_sign_kwargs
+
+    out = _build_sign_kwargs(
+        compliance_mode=False,
+        policy_decision="permit",
+        action_ref="",
+        sandbox_state="",
+        iteration_id="",
+        risk_class="",
+        incident_class="",
+        issuer_id="",
+        receipt_type="",
+        reason="",
+        valid_seconds=60,
+    )
+    assert out["valid_seconds"] == 60
+
+
+def test_build_sign_context_merges_action_id_and_policy() -> None:
+    from asqav.cli import _build_sign_context
+
+    out = _build_sign_context(
+        {"amount": 1000},
+        "act_123",
+        {"rule": "deny"},
+    )
+    assert out == {
+        "amount": 1000,
+        "_action_id": "act_123",
+        "_policy_artefact": {"rule": "deny"},
+    }
+
+
+def test_build_sign_context_returns_none_when_empty() -> None:
+    from asqav.cli import _build_sign_context
+
+    assert _build_sign_context({}, "", None) is None
+
+
+def test_build_sign_context_only_action_id() -> None:
+    """`--action-id` without --action-json produces a context with just the id."""
+    from asqav.cli import _build_sign_context
+
+    assert _build_sign_context({}, "act_only", None) == {"_action_id": "act_only"}
+
+
 @patch("asqav.verify_signature")
 def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
     """verify --output text surfaces IETF profile sub-axes when present."""
