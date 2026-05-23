@@ -1,26 +1,7 @@
-"""Generic hooks/middleware system for Asqav signing.
+"""Generic before/after hooks around ``Agent.sign(...)``.
 
-Register before/after callbacks that fire around every ``Agent.sign(...)`` call.
-Before-hooks may mutate the context dict; after-hooks observe the response.
-Both are fail-open: if a registered hook raises, it is logged and signing
-continues unaffected.
-
-Pattern matching:
-    - ``"*"`` matches every action_type
-    - ``"strands:*"`` glob-matches any action_type starting with ``strands:``
-    - A compiled ``re.Pattern`` is matched with ``pattern.search(action_type)``
-    - Otherwise the pattern must equal the action_type exactly
-
-Usage::
-
-    import asqav
-
-    def add_request_id(action_type, context):
-        context["request_id"] = "req_abc"
-        return context
-
-    asqav.register_before("*", add_request_id)
-    asqav.register_after("strands:*", lambda resp: print(resp.signature_id))
+Patterns may be glob, regex, ``"*"``, or exact action_type. Both directions
+fail-open: hook exceptions are logged and signing continues.
 """
 
 from __future__ import annotations
@@ -54,23 +35,17 @@ def _matches(pattern: PatternType, action_type: str) -> bool:
 
 
 def register_before(pattern: PatternType, fn: BeforeHook) -> None:
-    """Register ``fn`` to run before signing actions matching ``pattern``.
+    """Register ``fn(action_type, context)`` to run before signing matching actions.
 
-    The hook is called as ``fn(action_type, context)`` and may return a
-    modified context dict; if it returns ``None`` the existing context is
-    kept. Hooks are invoked in registration order.
+    Return a dict to replace the context or ``None`` to keep it. Hooks run in
+    registration order.
     """
     with _lock:
         _before_hooks.append((pattern, fn))
 
 
 def register_after(pattern: PatternType, fn: AfterHook) -> None:
-    """Register ``fn`` to run after signing actions matching ``pattern``.
-
-    The hook is called as ``fn(response)`` where ``response`` is a
-    ``SignatureResponse``. After-hooks are observers; their return value is
-    ignored.
-    """
+    """Register ``fn(response)`` to observe signing for matching actions."""
     with _lock:
         _after_hooks.append((pattern, fn))
 

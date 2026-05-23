@@ -1,17 +1,7 @@
-"""Retry logic with exponential backoff for the Asqav SDK.
+"""Retry decorators with exponential backoff + jitter for sync and async functions.
 
-Provides decorators for automatic retry of transient API errors
-with exponential backoff and jitter. Works with both sync and async functions.
-
-Retries on:
-    - RateLimitError (429)
-    - APIError with 5xx status codes
-    - ConnectionError
-    - TimeoutError
-
-Does NOT retry:
-    - AuthenticationError (401/403)
-    - APIError with 4xx status codes (except 429)
+Retries 429, 5xx, ``ConnectionError``, and ``TimeoutError``; never retries
+4xx except 429 or :class:`AuthenticationError`.
 """
 
 from __future__ import annotations
@@ -27,21 +17,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def _is_retryable(exc: Exception) -> bool:
-    """Determine if an exception is retryable.
-
-    Uses lazy imports to avoid circular dependency with client.py.
-
-    Returns True for:
-        - RateLimitError
-        - APIError with 5xx status code
-        - ConnectionError
-        - TimeoutError
-
-    Returns False for:
-        - AuthenticationError
-        - APIError with 4xx status code (except 429, which is RateLimitError)
-        - Any other exception
-    """
+    """Return True for retryable exceptions: rate-limit, 5xx, connection, timeout."""
     from .client import APIError, AuthenticationError, RateLimitError
 
     if isinstance(exc, AuthenticationError):
@@ -67,17 +43,7 @@ def _calculate_delay(
     max_delay: float,
     jitter: bool,
 ) -> float:
-    """Calculate delay for a given retry attempt using exponential backoff.
-
-    Args:
-        attempt: Zero-based attempt number.
-        base_delay: Base delay in seconds.
-        max_delay: Maximum delay cap in seconds.
-        jitter: Whether to add random jitter.
-
-    Returns:
-        Delay in seconds.
-    """
+    """Exponential backoff delay in seconds for ``attempt`` (zero-based)."""
     delay = min(base_delay * (2 ** attempt), max_delay)
     if jitter:
         delay = random.uniform(0, delay)
@@ -90,22 +56,7 @@ def with_retry(
     max_delay: float = 30.0,
     jitter: bool = True,
 ) -> Callable[[F], F]:
-    """Decorator for retrying sync functions with exponential backoff.
-
-    Args:
-        max_retries: Maximum number of retry attempts (default 3).
-        base_delay: Initial delay in seconds (default 0.5).
-        max_delay: Maximum delay cap in seconds (default 30.0).
-        jitter: Add random jitter to delay (default True).
-
-    Returns:
-        Decorated function with retry logic.
-
-    Example:
-        @with_retry(max_retries=5, base_delay=1.0)
-        def call_api():
-            return _post("/endpoint", data)
-    """
+    """Decorator that retries sync functions with exponential backoff + optional jitter."""
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
@@ -133,22 +84,7 @@ def with_async_retry(
     max_delay: float = 30.0,
     jitter: bool = True,
 ) -> Callable[[F], F]:
-    """Decorator for retrying async functions with exponential backoff.
-
-    Args:
-        max_retries: Maximum number of retry attempts (default 3).
-        base_delay: Initial delay in seconds (default 0.5).
-        max_delay: Maximum delay cap in seconds (default 30.0).
-        jitter: Add random jitter to delay (default True).
-
-    Returns:
-        Decorated async function with retry logic.
-
-    Example:
-        @with_async_retry(max_retries=5, base_delay=1.0)
-        async def call_api():
-            return await _async_post("/endpoint", data)
-    """
+    """Decorator that retries async functions with exponential backoff + optional jitter."""
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
