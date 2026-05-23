@@ -235,6 +235,99 @@ describe("asqav CLI (TypeScript)", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it("sign exits with usage when --agent-id missing", async () => {
+    try {
+      await runCli(["sign", "--action-type", "x.y"]);
+    } catch {
+      // exit
+    }
+    expect(output()).toContain("Usage: asqav sign");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("sign prints text output and surfaces compliance fields", async () => {
+    vi.spyOn(globalThis, "fetch")
+      // Agent.get
+      .mockResolvedValueOnce(
+        jsonResponse({
+          agent_id: "agt_x",
+          name: "n",
+          public_key: "pk",
+          key_id: "kid",
+          algorithm: "ml-dsa-65",
+          capabilities: [],
+          created_at: "2026-01-01T00:00:00Z",
+        }),
+      )
+      // /agents/{id}/sign
+      .mockResolvedValueOnce(
+        jsonResponse({
+          signature: "sig_b64",
+          signature_id: "sig_1",
+          action_id: "act_1",
+          timestamp: "2026-05-04T00:00:00Z",
+          verification_url: "https://verify.example/sig_1",
+          algorithm: "ml-dsa-65",
+          policy_digest: "sha256:abc",
+          compliance_mode: true,
+          receipt_type: "protectmcp:decision",
+          action_ref: "sha256:def",
+          previous_receipt_hash: "0".repeat(64),
+          decision: "allow",
+        }),
+      );
+    await runCli([
+      "sign",
+      "--agent-id", "agt_x",
+      "--action-type", "x.y",
+      "--session-id", "sess_1",
+    ]);
+    const out = output();
+    expect(out).toContain("signature_id: sig_1");
+    expect(out).toContain("compliance_mode: true");
+    expect(out).toContain("receipt_type:  protectmcp:decision");
+    expect(out).toContain("action_ref:    sha256:def");
+    expect(out).toContain("decision:      allow");
+    expect(out).toContain("policy_digest: sha256:abc");
+    expect(out).toContain("verify_url:   https://verify.example/sig_1");
+  });
+
+  it("sign --output json emits the camelCase payload", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        jsonResponse({
+          agent_id: "agt_y",
+          name: "n",
+          public_key: "pk",
+          key_id: "kid",
+          algorithm: "ed25519",
+          capabilities: [],
+          created_at: "2026-01-01T00:00:00Z",
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          signature: "sig_b64",
+          signature_id: "sig_2",
+          action_id: "act_2",
+          timestamp: "2026-05-04T00:00:00Z",
+          verification_url: "https://verify.example/sig_2",
+          algorithm: "ed25519",
+        }),
+      );
+    await runCli([
+      "sign",
+      "--agent-id", "agt_y",
+      "--action-type", "x.y",
+      "--no-compliance-mode",
+      "--output", "json",
+      "--decision", "allow",
+    ]);
+    const parsed = JSON.parse(output());
+    expect(parsed.signatureId).toBe("sig_2");
+    expect(parsed.algorithm).toBe("ed25519");
+  });
+
   it("audit-pack policy normalizes a bare 64-hex digest", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
