@@ -24,11 +24,11 @@ from typing import Any, Dict, List, Optional
 try:
     from llama_index.core.callbacks.base_handler import BaseCallbackHandler
     from llama_index.core.callbacks.schema import CBEventType
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "LlamaIndex integration requires llama-index-core. "
         "Install with: pip install asqav[llamaindex]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 
