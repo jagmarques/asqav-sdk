@@ -19,11 +19,11 @@ from typing import Optional
 
 try:
     from haystack import component
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "Haystack integration requires haystack-ai. "
         "Install with: pip install asqav[haystack]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 

@@ -18,11 +18,11 @@ from typing import Any
 
 try:
     import litellm  # noqa: F401
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "LiteLLM integration requires litellm. "
         "Install with: pip install asqav[litellm]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 
