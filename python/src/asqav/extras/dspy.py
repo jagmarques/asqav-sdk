@@ -20,11 +20,11 @@ from typing import Any
 
 try:
     from dspy.utils.callback import BaseCallback
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "DSPy integration requires dspy. "
         "Install with: pip install asqav[dspy]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 

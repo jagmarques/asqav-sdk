@@ -20,11 +20,11 @@ from asqav.extras.dspy import AsqavDSPyCallback
 
 try:
     import dspy
-except ImportError:
+except ImportError as err:
     raise SystemExit(
         "dspy is required for this example.\n"
         "Install with: pip install asqav[dspy]"
-    )
+    ) from err
 
 # === Initialise asqav ===
 

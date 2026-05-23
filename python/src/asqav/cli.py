@@ -115,9 +115,9 @@ def verify(
     except APIError as exc:
         if exc.status_code == 404:
             print(f"Signature not found: {signature_id}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if output == "json":
         detail = result.verification_detail
@@ -240,7 +240,7 @@ def sign(
                     action_obj = json_mod.load(f)
         except (OSError, json_mod.JSONDecodeError) as exc:
             print(f"Error reading action JSON: {exc}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
 
     # 2. Load policy artefact (sent server-side; the cloud stores it and
     # stamps `policy_digest` on the receipt).
@@ -254,7 +254,7 @@ def sign(
                     policy_artefact_obj = json_mod.load(f)
         except (OSError, json_mod.JSONDecodeError) as exc:
             print(f"Error reading policy artefact: {exc}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
 
     # 3. Validate policy_decision/reason coupling client-side. The SDK
     # also validates; this gives a clearer CLI error.
@@ -268,7 +268,7 @@ def sign(
         agent = Agent.get(agent_id)
     except APIError as exc:
         print(f"Error fetching agent: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     # 4. Build kwargs. Empty strings -> None so the SDK applies defaults.
     sign_kwargs: dict = {
@@ -320,7 +320,7 @@ def sign(
         sig = agent.sign(action_type, context=context, **sign_kwargs)
     except (APIError, ValueError) as exc:
         print(f"Error signing: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if output == "json":
         payload = {
@@ -409,7 +409,7 @@ def replay(
                 data = json_mod.load(f)
         except OSError as exc:
             print(f"Error reading bundle: {exc}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
 
         try:
             cb = ComplianceBundle(
@@ -424,7 +424,7 @@ def replay(
             timeline = replay_from_bundle(cb)
         except Exception as exc:
             print(f"Error replaying bundle: {exc}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
     else:
         if not agent_id or not session_id:
             print(
@@ -443,7 +443,7 @@ def replay(
             timeline = replay_api(agent_id, session_id)
         except APIError as exc:
             print(f"Error: {exc}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
 
     if output:
         timeline.to_file(output)
@@ -481,7 +481,7 @@ def agents_list() -> None:
         data = _get("/agents")
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     agents = data if isinstance(data, list) else data.get("agents", [])
     if not agents:
@@ -513,7 +513,7 @@ def agents_create(name: str = typer.Argument(help="Name for the new agent.")) ->
         agent = asqav.Agent.create(name)
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     print(f"Agent created: {agent.name} ({agent.agent_id})")
     print(f"Algorithm: {agent.algorithm}")
@@ -534,7 +534,7 @@ def agents_revoke(
         agent.revoke(reason=reason)
     except APIError as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     print(f"Revoked {agent_id}")
 
 
@@ -568,7 +568,7 @@ def sessions_list(
         rows = list_sessions(**kwargs)
     except APIError as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if not rows:
         print("No sessions found.")
@@ -593,7 +593,7 @@ def sessions_end(
         _patch(f"/sessions/{session_id}", {"status": status})
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     print(f"Session {session_id} -> {status}")
 
 
@@ -619,7 +619,7 @@ def policies_list() -> None:
         data = _get("/policies")
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     rows = data if isinstance(data, list) else []
     if not rows:
         print("No policies defined.")
@@ -653,7 +653,7 @@ def policies_create(
         )
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     print(f"Created policy {out.get('id', '?')}: {name}")
 
 
@@ -668,7 +668,7 @@ def policies_delete(policy_id: str = typer.Argument(help="Policy ID to delete.")
         _delete(f"/policies/{policy_id}")
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     print(f"Deleted policy {policy_id}")
 
 
@@ -694,7 +694,7 @@ def webhooks_list() -> None:
         data = _get("/webhooks")
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     rows = data if isinstance(data, list) else []
     if not rows:
         print("No webhooks configured.")
@@ -721,7 +721,7 @@ def webhooks_create(
         out = _post("/webhooks", {"url": url, "events": event_list})
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     print(f"Created webhook {out.get('id', '?')}: {url}")
 
 
@@ -736,7 +736,7 @@ def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> Non
         _delete(f"/webhooks/{webhook_id}")
     except Exception as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     print(f"Deleted webhook {webhook_id}")
 
 
@@ -1059,7 +1059,7 @@ def preflight(
         result = agent.preflight(action_type)
     except APIError as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if json_out:
         print(json_mod.dumps({
@@ -1162,7 +1162,7 @@ def budget_record(
         sig = tracker.record(action_type, actual_cost=actual_cost)
     except APIError as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     typer.echo(f"signature_id: {sig.signature_id}")
     typer.echo(f"action_id:    {sig.action_id}")
@@ -1189,7 +1189,7 @@ def approve(
         result = approve_action(session_id=session_id, entity_id=entity_id)
     except APIError as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if json_out:
         print(json_mod.dumps({
@@ -1262,14 +1262,14 @@ def audit_pack_export(
         bundle = _post("/audit-pack/export", body)
     except Exception as exc:
         print(f"Error exporting audit pack: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     try:
         with open(output_file, "w") as f:
             json_mod.dump(bundle, f, indent=2, default=str)
     except OSError as exc:
         print(f"Error writing bundle: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     count = bundle.get("receipt_count", "?")
     digest = bundle.get("bundle_digest", "?")
@@ -1311,7 +1311,7 @@ def audit_pack_policy(
         data = _get(f"/audit-pack/policy/{digest}")
     except Exception as exc:
         print(f"Error fetching artefact: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if output == "text":
         print(f"digest:          {data.get('digest', '?')}")
@@ -1365,7 +1365,7 @@ def payloads_erase(
         _delete(f"/signatures/payloads/{signature_id}")
     except Exception as exc:
         print(f"Error erasing payload: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     print(f"Payload erased for {signature_id}.")
     print("Tombstone written; signature remains cryptographically verifiable.")
@@ -1407,7 +1407,7 @@ def org_set_compliance_strict(
         out = _patch(f"/orgs/{org_id}", body)
     except Exception as exc:
         print(f"Error updating organization: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     state = "enabled" if enable else "disabled"
     print(f"compliance_mode_strict {state} for org {org_id}.")
@@ -1451,7 +1451,7 @@ def keys_generate(
         kp = generate_local_keypair(algorithm)  # type: ignore[arg-type]
     except (ValueError, ImportError) as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     if out:
         try:
@@ -1459,7 +1459,7 @@ def keys_generate(
                 f.write(kp.private_key_pem)
         except OSError as exc:
             print(f"Error writing key file: {exc}")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
         try:
             os_module = __import__("os")
             os_module.chmod(out, 0o600)
@@ -1503,7 +1503,7 @@ def replay_verify_cmd(
         timeline = replay_api(agent_id, session_id)
     except APIError as exc:
         print(f"Error fetching timeline: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     timeline.verify_chain()
     chain_valid = bool(timeline.compliance_chain_valid)
@@ -1619,10 +1619,10 @@ def migrate_run(
         except Exception:
             detail = str(exc)
         print(f"HTTP {exc.code} from /maintenance/run-migration-{migration}: {detail}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     except urllib.error.URLError as exc:
         print(f"Network error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     try:
         parsed = json_mod.loads(body)
@@ -1663,13 +1663,13 @@ def compliance_export(
         sigs = get_session_signatures(session)
     except APIError as exc:
         print(f"Error fetching signatures: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     try:
         bundle = export_bundle(sigs, framework=framework)
     except ValueError as exc:
         print(f"Error: {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     bundle.to_file(output)
     typer.echo(f"wrote {bundle.receipt_count} receipts to {output}")

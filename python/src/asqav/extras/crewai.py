@@ -20,11 +20,11 @@ from typing import Any
 
 try:
     import crewai  # noqa: F401
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "CrewAI integration requires crewai. "
         "Install with: pip install asqav[crewai]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 
