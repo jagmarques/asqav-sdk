@@ -1,17 +1,7 @@
 """Compliance bundle export for offline audit verification.
 
-Two flows:
-
-- ``export_bundle()`` packages an in-memory list of receipts client-side
-  with a Merkle root. Useful when the caller already has the signed
-  receipts and wants a portable file to hand to an auditor.
-- ``fetch_audit_pack()`` calls the cloud's signed Audit Pack endpoint
-  (POST /api/v1/audit-pack/export). The cloud signs the bundle digest
-  with the same key family as the receipts and includes the regime
-  mapping defined by the IETF Compliance Receipts profile.
-
-Pick ``fetch_audit_pack`` when the auditor wants the cloud's signed
-manifest; pick ``export_bundle`` for fully-offline / air-gapped flows.
+:func:`export_bundle` packages receipts client-side with a Merkle root;
+:func:`fetch_audit_pack` calls the cloud's signed ``/audit-pack/export``.
 """
 
 import hashlib
@@ -74,11 +64,7 @@ FRAMEWORKS = {
 }
 
 def _compute_merkle_root(hashes: list[str]) -> str:
-    """Compute Merkle root from a list of hex hashes.
-
-    Standard binary Merkle tree. Odd-length levels duplicate the last hash.
-    Returns the empty-string SHA-256 hash when the list is empty.
-    """
+    """Compute Merkle root from hex hashes (binary tree, odd levels duplicate the tail)."""
     if not hashes:
         return hashlib.sha256(b"").hexdigest()
 
@@ -166,17 +152,9 @@ def export_bundle(
     signatures: list,
     framework: str = "eu_ai_act",
 ) -> ComplianceBundle:
-    """Package signatures into a compliance bundle with Merkle root.
+    """Package signatures into a :class:`ComplianceBundle` with a Merkle root.
 
-    Args:
-        signatures: List of SignatureResponse, SignedActionResponse, or dicts.
-        framework: Key from FRAMEWORKS dict identifying the compliance standard.
-
-    Returns:
-        A ComplianceBundle ready for export.
-
-    Raises:
-        ValueError: If the framework key is not recognized.
+    Raises ``ValueError`` for unknown framework keys.
     """
     if framework not in FRAMEWORKS:
         raise ValueError(
@@ -212,23 +190,10 @@ def fetch_audit_pack(
     agent_id: str | None = None,
     only_compliance: bool = True,
 ) -> dict[str, Any]:
-    """Fetch the cloud-signed Audit Pack for a window.
+    """Fetch the cloud-signed Audit Pack for a window via ``POST /audit-pack/export``.
 
-    Wraps POST /api/v1/audit-pack/export. Returns the cloud response as a
-    dict including bundle_digest, bundle_signature, bundle_public_key,
-    receipts, regime_mapping, revocation_manifest, and
-    algorithm_registry_version.
-
-    Args:
-        start: ISO-8601 UTC window start (inclusive).
-        end: ISO-8601 UTC window end (exclusive).
-        agent_id: Optional agent_id to scope the export.
-        only_compliance: When True (default), only Compliance Receipts are
-            included. False also includes pre-compliance-mode receipts.
-
-    Raises:
-        RuntimeError: If asqav.init() has not been called.
-        httpx.HTTPStatusError: On cloud error responses (4xx / 5xx).
+    Returns the cloud response dict (bundle_digest, bundle_signature, receipts,
+    regime_mapping, revocation_manifest, algorithm_registry_version).
     """
     from . import client as _client
 

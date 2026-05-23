@@ -1,26 +1,8 @@
-"""instructor integration for asqav.
+"""instructor integration for asqav (``pip install asqav[instructor]``).
 
-Install: pip install asqav[instructor]
-
-Usage::
-
-    import asqav
-    import instructor
-    from asqav.extras.instructor import AsqavInstructorHook
-
-    asqav.init(api_key="...")
-    client = instructor.from_provider("openai/gpt-4o-mini")
-
-    hook = AsqavInstructorHook(agent_name="my-extractor")
-    hook.attach(client)
-
-    # Every client.chat.completions.create(...) call is now signed via asqav.
-
-instructor's hook system fires four events: ``completion:kwargs`` (request),
-``completion:response`` (success), ``completion:error`` (HTTP / provider
-error), ``parse:error`` (model output failed Pydantic validation). The
-adapter signs each event with a stable ``action_type`` so an auditor can
-distinguish requests, successes, and the two failure modes.
+Signs ``completion:kwargs``, ``completion:response``, ``completion:error``, and
+``parse:error`` events so auditors can distinguish requests, successes, and the
+two failure modes.
 """
 
 from __future__ import annotations
@@ -70,24 +52,7 @@ def _exception_name(exc: BaseException | None) -> str | None:
 
 
 class AsqavInstructorHook(AsqavAdapter):
-    """Asqav adapter for instructor clients.
-
-    Signs ``instructor.completion.start`` on every extraction request,
-    ``instructor.completion.complete`` on each successful response, and
-    ``instructor.completion.error`` / ``instructor.parse.error`` on the two
-    failure paths. Signing is fail-open: if Asqav is unreachable the
-    extraction still runs.
-
-    Args:
-        api_key: Optional API key override (uses ``asqav.init()`` default).
-        agent_name: Name for an Asqav agent (calls ``Agent.create``).
-        agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
-
-    Example:
-        client = instructor.from_provider("openai/gpt-4o-mini")
-        hook = AsqavInstructorHook(agent_name="my-extractor")
-        hook.attach(client)
-    """
+    """Asqav adapter for instructor clients; fail-open (extraction runs even if Asqav is down)."""
 
     def __init__(
         self,
@@ -101,12 +66,7 @@ class AsqavInstructorHook(AsqavAdapter):
     # === Public attachment surface ===
 
     def attach(self, client: Any) -> None:
-        """Register this hook on an instructor client.
-
-        Accepts both sync (``instructor.from_openai`` style) and async
-        (``instructor.from_openai(client, ...)`` with the async OpenAI client)
-        instructor clients. Both expose the same ``.on()`` interface.
-        """
+        """Register this hook on an instructor client (sync or async; both expose ``.on()``)."""
         if not hasattr(client, "on"):
             raise TypeError(
                 "client does not look like an instructor client; "
