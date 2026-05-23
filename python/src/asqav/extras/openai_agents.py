@@ -28,11 +28,11 @@ from typing import Any
 
 try:
     from agents.tracing import Span, Trace, TracingProcessor
-except ImportError:
+except ImportError as err:
     raise ImportError(
         "OpenAI Agents integration requires openai-agents. "
         "Install with: pip install asqav[openai-agents]"
-    )
+    ) from err
 
 from ._base import AsqavAdapter
 

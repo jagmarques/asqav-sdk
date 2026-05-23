@@ -19,11 +19,11 @@ from asqav.extras.strands import AsqavStrandsHooks
 
 try:
     from strands import Agent
-except ImportError:
+except ImportError as err:
     raise SystemExit(
         "strands-agents is required for this example.\n"
         "Install with: pip install asqav[strands]"
-    )
+    ) from err
 
 # ---------------------------------------------------------------------------
 # Initialise asqav
