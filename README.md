@@ -17,7 +17,7 @@
   <a href="https://asqav.com">Website</a> |
   <a href="https://asqav.com/docs">Docs</a> |
   <a href="https://asqav.com/docs/sdk">SDK Guide</a> |
-  <a href="https://asqav.com/compliance">Compliance</a>
+  <a href="https://www.asqav.com/docs">Compliance</a>
 </p>
 
 # Asqav SDK - Python + TypeScript
@@ -354,7 +354,6 @@ Machine-readable service descriptor at [`https://asqav.com/.well-known/governanc
 
 - Docs: <https://asqav.com/docs>
 - Repo: <https://github.com/jagmarques/asqav-sdk>
-- Integration docs: <https://asqav.com/docs/integrations>
 - Blog: <https://dev.to/jagmarques>
 - Dashboard: <https://asqav.com/dashboard>
 

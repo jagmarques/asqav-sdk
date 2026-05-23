@@ -2030,9 +2030,18 @@ def _handle_response(response: Any) -> None:
         raise RateLimitError("Rate limit exceeded. Upgrade at asqav.com/pricing")
     elif response.status_code >= 400:
         try:
-            error = response.json().get("error", "Unknown error")
+            body = response.json()
+            error = body.get("detail") or body.get("error") or response.text or "Unknown error"
+            if isinstance(error, list):
+                error = "; ".join(
+                    f"{e.get('loc', ['?'])[-1]}: {e.get('msg', '')}".strip(": ")
+                    for e in error
+                    if isinstance(e, dict)
+                ) or str(error)
+            elif not isinstance(error, str):
+                error = str(error)
         except Exception:
-            error = response.text
+            error = response.text or "Unknown error"
         raise APIError(error, response.status_code)
 
 
