@@ -27,6 +27,7 @@ Commands:
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 try:
     import typer
@@ -171,6 +172,134 @@ def verify(
             print(f"Missing fields: {', '.join(detail.missing_fields)}")
 
 
+def _load_json_arg(source: str, label: str) -> dict | None:
+    """Load a JSON arg from a file path, stdin (`-`), or return None when empty.
+
+    Used by `sign` for `--action-json` and `--policy-artefact`. Exits 1 on
+    OSError or JSONDecodeError with a clear `label`-prefixed message so
+    the caller knows which arg failed.
+    """
+    import json as json_mod
+
+    if not source:
+        return None
+    try:
+        if source == "-":
+            return json_mod.loads(sys.stdin.read())
+        with open(source) as f:
+            return json_mod.load(f)
+    except (OSError, json_mod.JSONDecodeError) as exc:
+        print(f"Error reading {label}: {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+def _build_sign_kwargs(
+    *,
+    compliance_mode: bool,
+    policy_decision: str,
+    action_ref: str,
+    sandbox_state: str,
+    iteration_id: str,
+    risk_class: str,
+    incident_class: str,
+    issuer_id: str,
+    receipt_type: str,
+    reason: str,
+    valid_seconds: int,
+) -> dict:
+    """Translate CLI flags into Agent.sign() kwargs.
+
+    Empty-string options are dropped so the SDK falls back to its own
+    defaults; non-empty values pass through 1:1.
+    """
+    kwargs: dict = {
+        "compliance_mode": compliance_mode,
+        "policy_decision": policy_decision,
+    }
+    optional = {
+        "action_ref": action_ref,
+        "sandbox_state": sandbox_state,
+        "iteration_id": iteration_id,
+        "risk_class": risk_class,
+        "incident_class": incident_class,
+        "issuer_id": issuer_id,
+        "receipt_type": receipt_type,
+        "reason": reason,
+    }
+    for key, value in optional.items():
+        if value:
+            kwargs[key] = value
+    if valid_seconds > 0:
+        kwargs["valid_seconds"] = valid_seconds
+    return kwargs
+
+
+def _build_sign_context(
+    action_obj: dict | None,
+    action_id: str,
+    policy_artefact_obj: dict | None,
+) -> dict | None:
+    """Assemble the `context` dict the SDK consumes.
+
+    Returns None when no fields are supplied so the SDK skips the kwarg.
+    `_action_id` and `_policy_artefact` are reserved internal keys the
+    SDK strips before serializing the canonical Action object.
+    """
+    context: dict | None = action_obj or None
+    if action_id:
+        context = {**(context or {}), "_action_id": action_id}
+    if policy_artefact_obj is not None:
+        context = {**(context or {}), "_policy_artefact": policy_artefact_obj}
+    return context
+
+
+def _print_sign_result_json(sig: Any) -> None:
+    """Render the Signature as the documented JSON payload."""
+    import json as json_mod
+
+    payload = {
+        "signature_id": sig.signature_id,
+        "action_id": sig.action_id,
+        "algorithm": sig.algorithm,
+        "verification_url": sig.verification_url,
+        "signed_at": sig.timestamp,
+        "policy_digest": sig.policy_digest,
+        "policy_decision": sig.policy_decision,
+        "compliance_mode": sig.compliance_mode,
+        "receipt_type": sig.receipt_type,
+        "action_ref": sig.action_ref,
+        "issuer_id": sig.issuer_id,
+        "previous_receipt_hash": sig.previous_receipt_hash,
+        "anchor_status": (
+            sig.bitcoin_anchor.status if sig.bitcoin_anchor else None
+        ),
+        "rfc3161_tsa": sig.rfc3161_tsa,
+        "rfc3161_serial": sig.rfc3161_serial,
+    }
+    print(json_mod.dumps(payload, indent=2, default=str))
+
+
+def _print_sign_result_text(sig: Any) -> None:
+    """Render the Signature as human-readable text lines."""
+    print(f"signature_id: {sig.signature_id}")
+    print(f"action_id:    {sig.action_id}")
+    print(f"algorithm:    {sig.algorithm}")
+    print(f"signed_at:    {sig.timestamp}")
+    if sig.policy_digest:
+        print(f"policy_digest: {sig.policy_digest}")
+    if sig.compliance_mode:
+        print("compliance_mode: True")
+        if sig.receipt_type:
+            print(f"receipt_type:  {sig.receipt_type}")
+        if sig.action_ref:
+            print(f"action_ref:    {sig.action_ref}")
+        if sig.previous_receipt_hash:
+            print(f"previous_receipt_hash: {sig.previous_receipt_hash}")
+    if sig.bitcoin_anchor:
+        print(f"anchor:       {sig.bitcoin_anchor.status}")
+    print(f"verify_url:   {sig.verification_url}")
+
+
 @app.command()
 def sign(
     action_type: str = typer.Option(..., "--action-type", help="Action type, e.g. payment.wire_transfer."),
@@ -224,40 +353,12 @@ def sign(
     or stdin when ``-`` is passed; the SDK then computes ``action_ref``
     from the JCS bytes if ``--action-ref`` was not supplied.
     """
-    import json as json_mod
-
     _init_sdk()
     from asqav import Agent, APIError
 
-    # 1. Load action JSON (file, stdin, or empty).
-    action_obj: dict = {}
-    if action_json:
-        try:
-            if action_json == "-":
-                action_obj = json_mod.loads(sys.stdin.read())
-            else:
-                with open(action_json) as f:
-                    action_obj = json_mod.load(f)
-        except (OSError, json_mod.JSONDecodeError) as exc:
-            print(f"Error reading action JSON: {exc}")
-            raise typer.Exit(code=1) from exc
+    action_obj = _load_json_arg(action_json, "action JSON") or {}
+    policy_artefact_obj = _load_json_arg(policy_artefact, "policy artefact")
 
-    # 2. Load policy artefact (sent server-side; the cloud stores it and
-    # stamps `policy_digest` on the receipt).
-    policy_artefact_obj: dict | None = None
-    if policy_artefact:
-        try:
-            if policy_artefact == "-":
-                policy_artefact_obj = json_mod.loads(sys.stdin.read())
-            else:
-                with open(policy_artefact) as f:
-                    policy_artefact_obj = json_mod.load(f)
-        except (OSError, json_mod.JSONDecodeError) as exc:
-            print(f"Error reading policy artefact: {exc}")
-            raise typer.Exit(code=1) from exc
-
-    # 3. Validate policy_decision/reason coupling client-side. The SDK
-    # also validates; this gives a clearer CLI error.
     if policy_decision in {"deny", "rate_limit"} and not reason:
         print(
             "Error: --reason is required when --policy-decision is deny or rate_limit."
@@ -270,40 +371,20 @@ def sign(
         print(f"Error fetching agent: {exc}")
         raise typer.Exit(code=1) from exc
 
-    # 4. Build kwargs. Empty strings -> None so the SDK applies defaults.
-    sign_kwargs: dict = {
-        "compliance_mode": compliance_mode,
-        "policy_decision": policy_decision,
-    }
-    if action_ref:
-        sign_kwargs["action_ref"] = action_ref
-    if sandbox_state:
-        sign_kwargs["sandbox_state"] = sandbox_state
-    if iteration_id:
-        sign_kwargs["iteration_id"] = iteration_id
-    if risk_class:
-        sign_kwargs["risk_class"] = risk_class
-    if incident_class:
-        sign_kwargs["incident_class"] = incident_class
-    if issuer_id:
-        sign_kwargs["issuer_id"] = issuer_id
-    if receipt_type:
-        sign_kwargs["receipt_type"] = receipt_type
-    if reason:
-        sign_kwargs["reason"] = reason
-    if valid_seconds > 0:
-        sign_kwargs["valid_seconds"] = valid_seconds
-
-    context = action_obj or None
-    if action_id and context is not None:
-        context = {**context, "_action_id": action_id}
-    elif action_id:
-        context = {"_action_id": action_id}
-
-    if policy_artefact_obj is not None and context is not None:
-        context = {**context, "_policy_artefact": policy_artefact_obj}
-    elif policy_artefact_obj is not None:
-        context = {"_policy_artefact": policy_artefact_obj}
+    sign_kwargs = _build_sign_kwargs(
+        compliance_mode=compliance_mode,
+        policy_decision=policy_decision,
+        action_ref=action_ref,
+        sandbox_state=sandbox_state,
+        iteration_id=iteration_id,
+        risk_class=risk_class,
+        incident_class=incident_class,
+        issuer_id=issuer_id,
+        receipt_type=receipt_type,
+        reason=reason,
+        valid_seconds=valid_seconds,
+    )
+    context = _build_sign_context(action_obj, action_id, policy_artefact_obj)
 
     if session_id:
         # Internal attribute the SDK consults when building the body.
@@ -323,45 +404,9 @@ def sign(
         raise typer.Exit(code=1) from exc
 
     if output == "json":
-        payload = {
-            "signature_id": sig.signature_id,
-            "action_id": sig.action_id,
-            "algorithm": sig.algorithm,
-            "verification_url": sig.verification_url,
-            "signed_at": sig.timestamp,
-            "policy_digest": sig.policy_digest,
-            "policy_decision": sig.policy_decision,
-            "compliance_mode": sig.compliance_mode,
-            "receipt_type": sig.receipt_type,
-            "action_ref": sig.action_ref,
-            "issuer_id": sig.issuer_id,
-            "previous_receipt_hash": sig.previous_receipt_hash,
-            "anchor_status": (
-                sig.bitcoin_anchor.status if sig.bitcoin_anchor else None
-            ),
-            "rfc3161_tsa": sig.rfc3161_tsa,
-            "rfc3161_serial": sig.rfc3161_serial,
-        }
-        print(json_mod.dumps(payload, indent=2, default=str))
+        _print_sign_result_json(sig)
         return
-
-    print(f"signature_id: {sig.signature_id}")
-    print(f"action_id:    {sig.action_id}")
-    print(f"algorithm:    {sig.algorithm}")
-    print(f"signed_at:    {sig.timestamp}")
-    if sig.policy_digest:
-        print(f"policy_digest: {sig.policy_digest}")
-    if sig.compliance_mode:
-        print("compliance_mode: True")
-        if sig.receipt_type:
-            print(f"receipt_type:  {sig.receipt_type}")
-        if sig.action_ref:
-            print(f"action_ref:    {sig.action_ref}")
-        if sig.previous_receipt_hash:
-            print(f"previous_receipt_hash: {sig.previous_receipt_hash}")
-    if sig.bitcoin_anchor:
-        print(f"anchor:       {sig.bitcoin_anchor.status}")
-    print(f"verify_url:   {sig.verification_url}")
+    _print_sign_result_text(sig)
 
 
 @app.command()
