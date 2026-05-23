@@ -738,6 +738,253 @@ export async function request<T = unknown>(
 
 // === Sign body builder (mode-aware) ===
 
+/**
+ * Merge explicit kwargs (`toolName`, `modelName`, `parentId`) into the
+ * caller-supplied context as underscored sentinel keys so the hash-only
+ * metadata builder picks them up. Returns a fresh object only when one
+ * of the kwargs was present; otherwise returns the original ref. Mirrors
+ * the Python SDK's surface-into-context behaviour.
+ */
+function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown> {
+  const initial = options.context ?? {};
+  if (
+    options.toolName === undefined
+    && options.modelName === undefined
+    && options.parentId === undefined
+  ) {
+    return initial;
+  }
+  const merged: Record<string, unknown> = { ...initial };
+  if (options.toolName !== undefined) merged._tool_name = options.toolName;
+  if (options.modelName !== undefined) merged._model_name = options.modelName;
+  if (options.parentId !== undefined) merged._parent_id = options.parentId;
+  return merged;
+}
+
+/**
+ * Fail-fast vocabulary checks on caller input before the HTTP roundtrip.
+ * The cloud remains source of truth; these mirror the canonical sets so
+ * obvious mistakes do not consume a network call. Throws AsqavError on
+ * the first offending field.
+ */
+function validateSignOptions(options: SignOptions): void {
+  if (
+    options.receiptType !== undefined
+    && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)
+  ) {
+    throw new AsqavError(
+      `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    (options.policyDecision === "deny" || options.policyDecision === "rate_limit")
+    && !options.reason
+  ) {
+    throw new AsqavError(
+      "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
+    );
+  }
+  if (
+    options.sandboxState !== undefined
+    && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
+  ) {
+    throw new AsqavError(
+      `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    options.captureTopology !== undefined
+    && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
+  ) {
+    throw new AsqavError(
+      `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
+    );
+  }
+  validateIncidentClass(options.incidentClass);
+}
+
+/**
+ * Reject `incident_class` values outside the canonical union (HIPAA
+ * token plus the six DORA tokens). Accepts a single value, an array,
+ * or undefined / empty string (skip).
+ */
+function validateIncidentClass(value: string | string[] | undefined): void {
+  if (value === undefined || value === "") return;
+  const values = Array.isArray(value) ? value : [value];
+  for (const ic of values) {
+    if (!(INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)) {
+      throw new AsqavError(
+        `invalid_incident_class: '${ic}' must be one of ${INCIDENT_CLASS_NAMESPACE.join(", ")}`,
+      );
+    }
+  }
+}
+
+/**
+ * Derive `action_ref` locally when omitted under compliance mode; matches
+ * the cloud's `hash_action` shape (`sha256:<hex>` over canonical JSON of
+ * `{action_type, context}`). Returns the caller's value verbatim when
+ * compliance mode is off or `actionRef` is already set.
+ */
+function deriveActionRef(
+  complianceMode: boolean,
+  actionRef: string | undefined,
+  actionType: string,
+  context: Record<string, unknown>,
+): string | undefined {
+  if (!complianceMode || actionRef !== undefined) return actionRef;
+  const action = { action_type: actionType, context };
+  const hex = createHash("sha256").update(canonicalJson(action)).digest("hex");
+  return `sha256:${hex}`;
+}
+
+/**
+ * Tack the optional non-IETF wire fields (`co_signers`, `nonce`,
+ * `valid_seconds`, `expected_executor_pubkey_b64`) onto the body when
+ * the caller supplied them. Mutates `body` in place for parity with the
+ * inline original.
+ */
+function applyOptionalWireFields(
+  body: Record<string, unknown>,
+  options: SignOptions,
+): void {
+  if (options.coSigners && options.coSigners.length > 0) {
+    body.co_signers = [...options.coSigners];
+  }
+  if (options.nonce !== undefined) body.nonce = options.nonce;
+  if (options.validSeconds !== undefined) body.valid_seconds = options.validSeconds;
+  if (options.expectedExecutorPubkeyB64 !== undefined) {
+    body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
+  }
+}
+
+/** Snake_case wire-key projection of the optional IETF profile fields
+ * that do not depend on `complianceMode`. Defined as a const table so
+ * the `applyComplianceFields` loop stays single-pass. */
+const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
+  wire: string;
+  read: (o: SignOptions) => unknown;
+}> = [
+  { wire: "sandbox_state", read: (o) => o.sandboxState },
+  { wire: "iteration_id", read: (o) => o.iterationId },
+  { wire: "risk_class", read: (o) => o.riskClass },
+  { wire: "incident_class", read: (o) => o.incidentClass },
+  { wire: "issuer_id", read: (o) => o.issuerId },
+  { wire: "payload_digest", read: (o) => o.payloadDigest },
+  { wire: "receipt_type", read: (o) => o.receiptType },
+  { wire: "reason", read: (o) => o.reason },
+];
+
+/**
+ * Project IETF Compliance Receipts profile fields onto the request body
+ * using snake_case wire keys. Adds `compliance_mode`, `action_ref`, the
+ * non-conditional optional fields (`sandbox_state`, `iteration_id`,
+ * `risk_class`, `incident_class`, `issuer_id`, `payload_digest`,
+ * `receipt_type`, `reason`), then the decision / topology fields that
+ * depend on `complianceMode`.
+ */
+function applyComplianceFields(
+  body: Record<string, unknown>,
+  options: SignOptions,
+  complianceMode: boolean,
+  actionRef: string | undefined,
+): void {
+  if (complianceMode) body.compliance_mode = true;
+  if (actionRef !== undefined) body.action_ref = actionRef;
+  for (const { wire, read } of IETF_OPTIONAL_FIELD_MAP) {
+    const value = read(options);
+    if (value !== undefined) body[wire] = value;
+  }
+  applyDecisionFields(body, options, complianceMode);
+}
+
+/** Attach `policy_decision`, the spec-shape `decision` mirror, and the
+ * compliance-only `capture_topology` to the body. Split out so
+ * `applyComplianceFields` stays a flat loop plus one helper call. */
+function applyDecisionFields(
+  body: Record<string, unknown>,
+  options: SignOptions,
+  complianceMode: boolean,
+): void {
+  if (options.policyDecision !== undefined) {
+    body.policy_decision = options.policyDecision;
+    if (complianceMode) {
+      body.decision = mapPolicyDecisionToDecision(options.policyDecision);
+    }
+  }
+  if (complianceMode && options.captureTopology !== undefined) {
+    body.capture_topology = options.captureTopology;
+  }
+}
+
+/** Wire shape returned by `POST /agents/:id/sign`. Defined once so the
+ * response-shaping helper can be reused and type-checked. */
+interface SignWireResponse {
+  signature: string;
+  signature_id: string;
+  action_id: string;
+  timestamp: string;
+  verification_url: string;
+  algorithm?: string;
+  chain_hash?: string;
+  record_hash?: string;
+  required_co_signers?: string[];
+  co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
+  countersign_url?: string;
+  user_intent_verified?: boolean;
+  compliance_mode?: boolean;
+  previousReceiptHash?: string;
+  previous_receipt_hash?: string;
+  action_ref?: string;
+  policy_digest?: string;
+  receipt_type?: string;
+  issuer_id?: string;
+  policy_decision?: string;
+  decision?: string;
+  payload?: Record<string, unknown>;
+  anchors?: AnchorEntry[];
+}
+
+/**
+ * Shape the snake_case wire response into the camelCase
+ * `SignatureResponse` returned to callers. Prefers cloud-supplied
+ * `decision`; maps from `policy_decision` for older clouds under
+ * compliance_mode. Accepts either casing on `previous_receipt_hash`.
+ */
+function mapSignWireToResponse(data: SignWireResponse): SignatureResponse {
+  return {
+    signature: data.signature,
+    signatureId: data.signature_id,
+    actionId: data.action_id,
+    timestamp: data.timestamp,
+    verificationUrl: data.verification_url,
+    algorithm: data.algorithm,
+    chainHash: data.chain_hash ?? data.record_hash,
+    requiredCoSigners: data.required_co_signers,
+    coSignatures: data.co_signatures?.map((s) => ({
+      agentId: s.agent_id,
+      signature: s.signature,
+      signedAt: s.signed_at,
+    })),
+    countersignUrl: data.countersign_url,
+    userIntentVerified: data.user_intent_verified,
+    complianceMode: data.compliance_mode,
+    previousReceiptHash: data.previousReceiptHash ?? data.previous_receipt_hash,
+    actionRef: data.action_ref,
+    policyDigest: data.policy_digest,
+    receiptType: data.receipt_type,
+    issuerId: data.issuer_id,
+    policyDecision: data.policy_decision as PolicyDecision | undefined,
+    decision: (data.decision as Decision | undefined) ?? (
+      data.compliance_mode
+        ? mapPolicyDecisionToDecision(data.policy_decision)
+        : undefined
+    ),
+    payload: data.payload,
+    anchors: data.anchors,
+  };
+}
+
 interface BuildSignBodyArgs {
   actionType: string;
   context: Record<string, unknown>;
@@ -847,78 +1094,18 @@ export class Agent {
   }
 
   async sign(options: SignOptions): Promise<SignatureResponse> {
-    let initialContext = options.context ?? {};
-    // Surface explicit kwargs into the underscored sentinel keys so the
-    // hash-only metadata builder picks them up. Mirrors the Python SDK.
-    if (
-      options.toolName !== undefined
-      || options.modelName !== undefined
-      || options.parentId !== undefined
-    ) {
-      initialContext = { ...initialContext };
-      if (options.toolName !== undefined) initialContext._tool_name = options.toolName;
-      if (options.modelName !== undefined) initialContext._model_name = options.modelName;
-      if (options.parentId !== undefined) initialContext._parent_id = options.parentId;
-    }
+    const initialContext = surfaceKwargsIntoContext(options);
     const finalContext = _dispatchBefore(options.actionType, initialContext);
-
     const complianceMode = options.complianceMode !== false;
 
-    // Fail fast on receipt_type before the HTTP roundtrip; cloud remains source of truth.
-    if (options.receiptType !== undefined
-      && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)) {
-      throw new AsqavError(
-        `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
-      );
-    }
-    if (options.policyDecision === "deny" || options.policyDecision === "rate_limit") {
-      if (!options.reason) {
-        throw new AsqavError(
-          "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
-        );
-      }
-    }
-    // Fail fast on sandbox_state vocabulary (restricted to {enabled, disabled, unavailable}) before the HTTP roundtrip.
-    if (
-      options.sandboxState !== undefined
-      && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
-    ) {
-      throw new AsqavError(
-        `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
-      );
-    }
-    // Fail fast on capture_topology vocabulary (5 values) before the HTTP roundtrip.
-    if (
-      options.captureTopology !== undefined
-      && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
-    ) {
-      throw new AsqavError(
-        `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
-      );
-    }
-    // Fail fast on incident_class vocabulary (HIPAA token plus the six DORA tokens) before the HTTP roundtrip.
-    if (options.incidentClass !== undefined && options.incidentClass !== "") {
-      const incidentValues = Array.isArray(options.incidentClass)
-        ? options.incidentClass
-        : [options.incidentClass];
-      for (const ic of incidentValues) {
-        if (!(INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)) {
-          throw new AsqavError(
-            `invalid_incident_class: '${ic}' must be one of ${INCIDENT_CLASS_NAMESPACE.join(", ")}`,
-          );
-        }
-      }
-    }
+    validateSignOptions(options);
 
-    // Derive action_ref locally when omitted under compliance mode; matches cloud hash_action shape.
-    let actionRef = options.actionRef;
-    if (complianceMode && actionRef === undefined) {
-      const action = { action_type: options.actionType, context: finalContext };
-      const hex = createHash("sha256")
-        .update(canonicalJson(action))
-        .digest("hex");
-      actionRef = `sha256:${hex}`;
-    }
+    const actionRef = deriveActionRef(
+      complianceMode,
+      options.actionRef,
+      options.actionType,
+      finalContext,
+    );
 
     const body = await buildSignBody({
       actionType: options.actionType,
@@ -927,103 +1114,15 @@ export class Agent {
       agentId: this.agentId,
       userIntent: options.userIntent,
     });
-    if (options.coSigners && options.coSigners.length > 0) {
-      body.co_signers = [...options.coSigners];
-    }
-    if (options.nonce !== undefined) {
-      body.nonce = options.nonce;
-    }
-    if (options.validSeconds !== undefined) {
-      body.valid_seconds = options.validSeconds;
-    }
-    if (options.expectedExecutorPubkeyB64 !== undefined) {
-      body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
-    }
+    applyOptionalWireFields(body, options);
+    applyComplianceFields(body, options, complianceMode, actionRef);
 
-    // IETF Compliance Receipts profile fields ride along as snake_case wire keys.
-    if (complianceMode) body.compliance_mode = true;
-    if (actionRef !== undefined) body.action_ref = actionRef;
-    if (options.sandboxState !== undefined) body.sandbox_state = options.sandboxState;
-    if (options.iterationId !== undefined) body.iteration_id = options.iterationId;
-    if (options.riskClass !== undefined) body.risk_class = options.riskClass;
-    if (options.incidentClass !== undefined) body.incident_class = options.incidentClass;
-    if (options.issuerId !== undefined) body.issuer_id = options.issuerId;
-    if (options.payloadDigest !== undefined) body.payload_digest = options.payloadDigest;
-    if (options.receiptType !== undefined) body.receipt_type = options.receiptType;
-    if (options.reason !== undefined) body.reason = options.reason;
-    if (options.policyDecision !== undefined) {
-      body.policy_decision = options.policyDecision;
-      // Send spec-shape `decision` under compliance_mode; older clouds ignore.
-      if (complianceMode) {
-        body.decision = mapPolicyDecisionToDecision(options.policyDecision);
-      }
-    }
-    // Producer-side topology; only meaningful under compliance_mode (manifest projection).
-    if (complianceMode && options.captureTopology !== undefined) {
-      body.capture_topology = options.captureTopology;
-    }
-
-    const data = await request<{
-      signature: string;
-      signature_id: string;
-      action_id: string;
-      timestamp: string;
-      verification_url: string;
-      algorithm?: string;
-      chain_hash?: string;
-      record_hash?: string;
-      required_co_signers?: string[];
-      co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
-      countersign_url?: string;
-      user_intent_verified?: boolean;
-      compliance_mode?: boolean;
-      previousReceiptHash?: string;
-      previous_receipt_hash?: string;
-      action_ref?: string;
-      policy_digest?: string;
-      receipt_type?: string;
-      issuer_id?: string;
-      policy_decision?: string;
-      decision?: string;
-      payload?: Record<string, unknown>;
-      anchors?: AnchorEntry[];
-    }>("POST", `/agents/${this.agentId}/sign`, body);
-
-    const response: SignatureResponse = {
-      signature: data.signature,
-      signatureId: data.signature_id,
-      actionId: data.action_id,
-      timestamp: data.timestamp,
-      verificationUrl: data.verification_url,
-      algorithm: data.algorithm,
-      chainHash: data.chain_hash ?? data.record_hash,
-      requiredCoSigners: data.required_co_signers,
-      coSignatures: data.co_signatures?.map((s) => ({
-        agentId: s.agent_id,
-        signature: s.signature,
-        signedAt: s.signed_at,
-      })),
-      countersignUrl: data.countersign_url,
-      userIntentVerified: data.user_intent_verified,
-      complianceMode: data.compliance_mode,
-      // Accept either camelCase (per the IETF profile JSON wire) or
-      // snake_case (alias for one release).
-      previousReceiptHash: data.previousReceiptHash ?? data.previous_receipt_hash,
-      actionRef: data.action_ref,
-      policyDigest: data.policy_digest,
-      receiptType: data.receipt_type,
-      issuerId: data.issuer_id,
-      policyDecision: data.policy_decision as PolicyDecision | undefined,
-      // Prefer cloud-emitted `decision`; map locally for older clouds.
-      decision: (data.decision as Decision | undefined) ?? (
-        data.compliance_mode
-          ? mapPolicyDecisionToDecision(data.policy_decision)
-          : undefined
-      ),
-      payload: data.payload,
-      anchors: data.anchors,
-    };
-
+    const data = await request<SignWireResponse>(
+      "POST",
+      `/agents/${this.agentId}/sign`,
+      body,
+    );
+    const response = mapSignWireToResponse(data);
     _dispatchAfter(options.actionType, response);
     return response;
   }
