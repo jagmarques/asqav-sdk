@@ -197,6 +197,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:restraint",
         "protectmcp:lifecycle",
         "protectmcp:acknowledgment",
+        "protectmcp:observation",
     }
 )
 
@@ -237,6 +238,7 @@ CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
         "browser_extension",
         "ebpf_observer",
         "mcp_proxy",
+        "passive_telemetry",
     }
 )
 
@@ -255,6 +257,7 @@ CaptureTopology = Literal[
     "browser_extension",
     "ebpf_observer",
     "mcp_proxy",
+    "passive_telemetry",
 ]
 
 # Verifier rejects receipts further than this from the wall clock.
@@ -1185,8 +1188,10 @@ class Agent:
                 Only the name string travels; the prompt does not.
             capture_topology: Producer-side topology. One of
                 ``in_process_sdk``, ``network_proxy``, ``browser_extension``,
-                ``ebpf_observer``, ``mcp_proxy``. Stamped on the audit-pack
-                manifest entry; never on the signed payload.
+                ``ebpf_observer``, ``mcp_proxy``, ``passive_telemetry``.
+                Stamped on the audit-pack manifest entry; never on the
+                signed payload. ``passive_telemetry`` requires
+                ``receipt_type='protectmcp:observation'`` (false-attestation guard).
 
         Returns:
             SignatureResponse with the signature.
@@ -1258,6 +1263,18 @@ class Agent:
             raise ValueError(
                 "invalid_capture_topology: must be one of "
                 f"{sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
+            )
+        # Mirror cloud rule 8: passive_telemetry observes after the fact, so
+        # it cannot certify a policy evaluation; receipts MUST use
+        # protectmcp:observation rather than :decision.
+        if (
+            capture_topology == "passive_telemetry"
+            and receipt_type == "protectmcp:decision"
+        ):
+            raise ValueError(
+                "false_attestation_guard: capture_topology=passive_telemetry "
+                "receipts must use receipt_type=protectmcp:observation, "
+                "not :decision."
             )
         # Fail fast on incident_class vocabulary before the HTTP roundtrip.
         # The field accepts a JSON string or a JSON array of such strings.

@@ -12,6 +12,7 @@ import {
   Agent,
   CAPTURE_TOPOLOGY_NAMESPACE,
   DECISION_MAP,
+  RECEIPT_TYPE_NAMESPACE,
   _resetForTests,
   init,
   mapPolicyDecisionToDecision,
@@ -59,6 +60,21 @@ describe("CAPTURE_TOPOLOGY_NAMESPACE", () => {
         "in_process_sdk",
         "mcp_proxy",
         "network_proxy",
+        "passive_telemetry",
+      ],
+    );
+  });
+});
+
+describe("RECEIPT_TYPE_NAMESPACE", () => {
+  it("includes the observation token paired with passive_telemetry", () => {
+    expect([...RECEIPT_TYPE_NAMESPACE].sort()).toEqual(
+      [
+        "protectmcp:acknowledgment",
+        "protectmcp:decision",
+        "protectmcp:lifecycle",
+        "protectmcp:observation",
+        "protectmcp:restraint",
       ],
     );
   });
@@ -158,6 +174,7 @@ describe("agent.sign capture_topology + observation wire fields", () => {
     "browser_extension",
     "ebpf_observer",
     "mcp_proxy",
+    "passive_telemetry",
   ] as const)("passes captureTopology=%s through on the outgoing body", async (value) => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
@@ -174,6 +191,9 @@ describe("agent.sign capture_topology + observation wire fields", () => {
       actionType: "t.test",
       complianceMode: true,
       captureTopology: value,
+      receiptType: value === "passive_telemetry"
+        ? "protectmcp:observation"
+        : "protectmcp:decision",
     });
 
     const init = fetchSpy.mock.calls[0][1];
@@ -236,5 +256,108 @@ describe("agent.sign capture_topology + observation wire fields", () => {
     const init = fetchSpy.mock.calls[0][1];
     const body = JSON.parse((init?.body as string) ?? "{}");
     expect(body.capture_topology).toBeUndefined();
+  });
+
+  it.each([
+    "bogus",
+    "in-process-sdk",
+    "PASSIVE_TELEMETRY",
+    "ROOTKIT",
+  ] as const)("rejects out-of-vocabulary captureTopology=%s", async (bad) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const agent = fakeAgent();
+    await expect(
+      agent.sign({
+        actionType: "t.test",
+        complianceMode: true,
+        // @ts-expect-error - intentionally outside the closed Literal
+        captureTopology: bad,
+      }),
+    ).rejects.toThrow(/invalid_capture_topology/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "protectmcp:decision",
+    "protectmcp:restraint",
+    "protectmcp:lifecycle",
+    "protectmcp:acknowledgment",
+    "protectmcp:observation",
+  ] as const)("accepts receiptType=%s on the outgoing body", async (value) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        signature: "sig",
+        signature_id: "sig_test",
+        action_id: "act_test",
+        timestamp: "2026-05-15T00:00:00Z",
+        verification_url: "https://verify",
+      }),
+    );
+    const agent = fakeAgent();
+    await agent.sign({
+      actionType: "t.test",
+      complianceMode: true,
+      receiptType: value,
+      policyDecision: value === "protectmcp:lifecycle" ? "none" : "permit",
+    });
+    const init = fetchSpy.mock.calls[0][1];
+    const body = JSON.parse((init?.body as string) ?? "{}");
+    expect(body.receipt_type).toBe(value);
+  });
+
+  it.each([
+    "protectmcp:bogus",
+    "protectmcp:Observation",
+    "decision",
+    "observation",
+  ] as const)("rejects out-of-vocabulary receiptType=%s", async (bad) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const agent = fakeAgent();
+    await expect(
+      agent.sign({
+        actionType: "t.test",
+        complianceMode: true,
+        // @ts-expect-error - intentionally outside the closed Literal
+        receiptType: bad,
+      }),
+    ).rejects.toThrow(/invalid_receipt_type/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects passive_telemetry paired with protectmcp:decision (rule 8)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const agent = fakeAgent();
+    await expect(
+      agent.sign({
+        actionType: "t.test",
+        complianceMode: true,
+        captureTopology: "passive_telemetry",
+        receiptType: "protectmcp:decision",
+      }),
+    ).rejects.toThrow(/false_attestation_guard/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("accepts passive_telemetry paired with protectmcp:observation", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        signature: "sig",
+        signature_id: "sig_test",
+        action_id: "act_test",
+        timestamp: "2026-05-15T00:00:00Z",
+        verification_url: "https://verify",
+      }),
+    );
+    const agent = fakeAgent();
+    await agent.sign({
+      actionType: "t.test",
+      complianceMode: true,
+      captureTopology: "passive_telemetry",
+      receiptType: "protectmcp:observation",
+    });
+    const init = fetchSpy.mock.calls[0][1];
+    const body = JSON.parse((init?.body as string) ?? "{}");
+    expect(body.capture_topology).toBe("passive_telemetry");
+    expect(body.receipt_type).toBe("protectmcp:observation");
   });
 });
