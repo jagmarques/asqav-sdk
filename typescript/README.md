@@ -215,7 +215,7 @@ console.log(sig.actionRef);            // sha256:<hex> of the canonical action
 Field reference (camelCase on the SDK, snake_case on the JSON wire):
 
 - `complianceMode` -> `compliance_mode`. Default `false`.
-- `receiptType` -> `receipt_type`. One of `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`. Validated client-side.
+- `receiptType` -> `receipt_type`. One of `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:acknowledgment`, `protectmcp:observation`. Validated client-side.
 - `actionRef` -> `action_ref`. `sha256:<hex>` of the canonical action. SDK derives it under `complianceMode` when omitted.
 - `payloadDigest` -> `payload_digest`. Wire object form `{ hash, size, preview? }`. SDK forwards `payload_size` on every hash-mode sign. Plain-string `sha256:<hex>` receipts still verify.
 - `issuerId` -> `issuer_id`. Legal entity. Resolved server-side when omitted.
@@ -225,6 +225,24 @@ Field reference (camelCase on the SDK, snake_case on the JSON wire):
 - `incidentClass` -> `incident_class`. Canonical 6-value Annex II field 3.23 list from JC 2024-33 (17 July 2024) Empty when not applicable.
 - `policyDecision` -> `policy_decision`. One of `permit`, `deny`, `rate_limit`.
 - `reason` -> `reason`. Required when `policyDecision` is `deny` or `rate_limit`.
+
+### Shadow AI capture (passive_telemetry)
+
+Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block (SIEM forwarder, browser extension in observe-only mode, NetFlow-style proxy with no enforcement hook).
+
+Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK enforces the cloud's rule 8 guard before the HTTP roundtrip: pairing `captureTopology: "passive_telemetry"` with `receiptType: "protectmcp:decision"` throws `AsqavError("false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision")` (`typescript/src/index.ts:808-815`).
+
+```ts
+const sig = await agent.sign({
+  actionType: "mcp:tool_call",
+  context: { server: "filesystem", tool: "read" },
+  receiptType: "protectmcp:observation",
+  captureTopology: "passive_telemetry",
+  issuerId: "legal:Acme GmbH",
+});
+```
+
+`captureTopology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`; only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
 
 ### RFC 8785 canonicalization
 
