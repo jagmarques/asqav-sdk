@@ -247,7 +247,7 @@ def test_capture_topology_parametrised_rejects_unknown(bad_value: str) -> None:
 
 @pytest.mark.parametrize("value", sorted(RECEIPT_TYPE_NAMESPACE))
 def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
-    """All 5 receipt_type tokens (incl. :observation) accepted client-side."""
+    """Every token in the receipt_type vocabulary is accepted client-side."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -258,8 +258,8 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
         "compliance_mode": True,
         "receipt_type": value,
     }
-    # `protectmcp:lifecycle` paired with `none` exercises the opt-out path.
-    if value == "protectmcp:lifecycle":
+    # Lifecycle namespace pairs with `none` to exercise the opt-out path.
+    if value.startswith("protectmcp:lifecycle"):
         kwargs["policy_decision"] = "none"
 
     with patch("asqav.client._post", side_effect=fake_post):
