@@ -20,6 +20,7 @@ import asqav
 from asqav.client import (
     CAPTURE_TOPOLOGY_NAMESPACE,
     DECISION_MAP,
+    RECEIPT_TYPE_NAMESPACE,
     Agent,
     _map_policy_decision_to_decision,
 )
@@ -123,6 +124,7 @@ def test_capture_topology_namespace_matches_cloud_literal() -> None:
             "browser_extension",
             "ebpf_observer",
             "mcp_proxy",
+            "passive_telemetry",
         }
     )
 
@@ -198,3 +200,120 @@ def test_capture_topology_dropped_outside_compliance_mode() -> None:
             capture_topology="mcp_proxy",
         )
     assert "capture_topology" not in captured["body"]
+
+
+# === parametrised vocabulary parity (capture_topology + receipt_type) ===
+
+
+@pytest.mark.parametrize("value", sorted(CAPTURE_TOPOLOGY_NAMESPACE))
+def test_capture_topology_parametrised_accepts_all_values(value: str) -> None:
+    """Every value in the 6-token vocabulary is forwarded on the body."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            capture_topology=value,
+            receipt_type=(
+                "protectmcp:observation"
+                if value == "passive_telemetry"
+                else "protectmcp:decision"
+            ),
+        )
+    assert captured["body"]["capture_topology"] == value
+
+
+@pytest.mark.parametrize(
+    "bad_value", ["bogus", "in-process-sdk", "PASSIVE_TELEMETRY", " "]
+)
+def test_capture_topology_parametrised_rejects_unknown(bad_value: str) -> None:
+    """Any value outside the closed vocabulary is rejected client-side."""
+    with patch("asqav.client._post") as p:
+        with pytest.raises(ValueError, match="invalid_capture_topology"):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                capture_topology=bad_value,
+            )
+        p.assert_not_called()
+
+
+@pytest.mark.parametrize("value", sorted(RECEIPT_TYPE_NAMESPACE))
+def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
+    """All 5 receipt_type tokens (incl. :observation) accepted client-side."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    kwargs: dict = {
+        "compliance_mode": True,
+        "receipt_type": value,
+    }
+    # `protectmcp:lifecycle` paired with `none` exercises the opt-out path.
+    if value == "protectmcp:lifecycle":
+        kwargs["policy_decision"] = "none"
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign("api:call", {"k": "v"}, **kwargs)
+    assert captured["body"]["receipt_type"] == value
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    ["protectmcp:bogus", "protectmcp:Observation", "decision", "observation"],
+)
+def test_receipt_type_parametrised_rejects_unknown(bad_value: str) -> None:
+    """Any token outside the closed receipt-type vocabulary is rejected."""
+    with patch("asqav.client._post") as p:
+        with pytest.raises(ValueError, match="invalid_receipt_type"):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                receipt_type=bad_value,
+            )
+        p.assert_not_called()
+
+
+def test_passive_telemetry_with_decision_receipt_rejected() -> None:
+    """Client-side mirror of cloud rule 8: passive_telemetry +
+    protectmcp:decision fails before the HTTP roundtrip."""
+    with patch("asqav.client._post") as p:
+        with pytest.raises(ValueError, match="false_attestation_guard"):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                capture_topology="passive_telemetry",
+                receipt_type="protectmcp:decision",
+            )
+        p.assert_not_called()
+
+
+def test_passive_telemetry_with_observation_receipt_accepted() -> None:
+    """The matched pair (passive_telemetry + :observation) passes through."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        _agent().sign(
+            "api:call",
+            {"k": "v"},
+            compliance_mode=True,
+            capture_topology="passive_telemetry",
+            receipt_type="protectmcp:observation",
+        )
+    assert captured["body"]["capture_topology"] == "passive_telemetry"
+    assert captured["body"]["receipt_type"] == "protectmcp:observation"
