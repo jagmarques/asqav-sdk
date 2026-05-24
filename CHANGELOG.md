@@ -6,6 +6,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [Python 0.4.8] - 2026-05-24
+
+### Fixed
+- Adds `templates/shadow-ai/.env.template` to the packaged wheel and sdist via a single-file `force-include` scoped to that path. Without it, `asqav shadow-ai init` raised `FileNotFoundError` mid-scaffold and left the target directory half-written.
+
+## [Python 0.4.7] - 2026-05-24
+
+### Fixed
+- Package the `templates/shadow-ai/` docker-compose template set under `asqav/templates/shadow-ai/` so `asqav shadow-ai init` resolves its assets from the installed wheel.
+
+## [Python 0.4.6] - 2026-05-24
+
+### Added
+- `protectmcp:observation` receipt type and `passive_telemetry` capture topology in the SDK vocabularies, with the cross-field guard that rejects pairing observation receipts with attesting topologies (`producer_attested`, `forwarder_attested`).
+
 ## [Python 0.4.5 / TypeScript 0.3.5] - 2026-05-18
 
 ### Added (TypeScript)
