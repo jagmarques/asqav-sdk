@@ -86,12 +86,30 @@ Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a 
 
 The four envelope extensions most callers reach for:
 
-- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, or `protectmcp:lifecycle`.
+- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:acknowledgment`, or `protectmcp:observation`.
 - `risk_class` - controlled vocabulary: `unacceptable | high | limited | minimal | gpai | low | medium | unknown`.
 - `iteration_id` - logical task id, distinct from session.
 - `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
 - `incident_class` - DORA / NYDFS / CIRCIA token (or array of tokens).
 - `issuer_id` - LEI (ISO 17442), EIN, CIK, or a W3C DID for non-LEI deployers.
+
+### Shadow AI capture (passive_telemetry)
+
+Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block (SIEM forwarder, browser extension in observe-only mode, NetFlow-style proxy with no enforcement hook).
+
+Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK enforces the cloud's rule 8 guard before the HTTP roundtrip: pairing `capture_topology='passive_telemetry'` with `receipt_type='protectmcp:decision'` raises `ValueError("false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision (rule 8)")` (`python/src/asqav/client.py:1270-1278`).
+
+```python
+sig = agent.sign(
+    "mcp:tool_call",
+    {"server": "filesystem", "tool": "read"},
+    receipt_type="protectmcp:observation",
+    capture_topology="passive_telemetry",
+    issuer_id="legal:Acme GmbH",
+)
+```
+
+`capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`; only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
 
 ### Audit Pack export
 
