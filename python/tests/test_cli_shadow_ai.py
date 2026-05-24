@@ -88,3 +88,121 @@ def test_init_with_upstream_override(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     body = (target / ".env.template").read_text(encoding="utf-8")
     assert "OPENAI_UPSTREAM=https://proxy.example.com" in body
+
+
+def test_init_calls_ensure_policy_when_api_key_set(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """`init` triggers _ensure_shadow_ai_policy when ASQAV_API_KEY is in env."""
+    from asqav import cli as cli_mod
+
+    calls: list[bool] = []
+    monkeypatch.setattr(cli_mod, "_ensure_shadow_ai_policy", lambda: calls.append(True) or True)
+    monkeypatch.setenv("ASQAV_API_KEY", "sk_test_dummy")
+
+    target = tmp_path / "stack"
+    result = runner.invoke(app, ["shadow-ai", "init", "--dir", str(target)])
+    assert result.exit_code == 0, result.output
+    assert calls == [True]
+
+
+def test_init_prints_hint_when_api_key_absent(tmp_path: Path, monkeypatch) -> None:
+    """`init` skips ensure_policy and prints the hint when ASQAV_API_KEY is unset."""
+    from asqav import cli as cli_mod
+
+    calls: list[bool] = []
+    monkeypatch.setattr(cli_mod, "_ensure_shadow_ai_policy", lambda: calls.append(True) or True)
+    monkeypatch.delenv("ASQAV_API_KEY", raising=False)
+
+    target = tmp_path / "stack"
+    result = runner.invoke(app, ["shadow-ai", "init", "--dir", str(target)])
+    assert result.exit_code == 0, result.output
+    assert calls == []
+    assert "ensure-policy" in result.output
+
+
+def test_ensure_policy_noop_when_present(monkeypatch) -> None:
+    """`ensure-policy` exits 0 with an 'already present' line when a matching policy exists."""
+    from asqav import cli as cli_mod
+    from asqav import client as client_mod
+
+    monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
+    monkeypatch.setattr(
+        client_mod,
+        "_get",
+        lambda path: [
+            {"id": "pol_existing_abc", "action_pattern": "*", "action": "monitor", "is_active": True}
+        ],
+    )
+
+    def _refuse_post(path, data):
+        raise AssertionError("ensure-policy must not POST when a matching policy already exists")
+
+    monkeypatch.setattr(client_mod, "_post", _refuse_post)
+
+    result = runner.invoke(app, ["shadow-ai", "ensure-policy"])
+    assert result.exit_code == 0, result.output
+    assert "already present" in result.output
+    assert "pol_existing_abc" in result.output
+
+
+def test_ensure_policy_creates_when_absent(monkeypatch) -> None:
+    """`ensure-policy` POSTs a new monitor policy when none matches."""
+    from asqav import cli as cli_mod
+    from asqav import client as client_mod
+
+    monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
+    monkeypatch.setattr(client_mod, "_get", lambda path: [])
+
+    posted: list[dict] = []
+
+    def _capture_post(path, data):
+        posted.append({"path": path, "data": data})
+        return {"id": "pol_new_xyz", "action_pattern": "*", "action": "monitor", "is_active": True}
+
+    monkeypatch.setattr(client_mod, "_post", _capture_post)
+
+    result = runner.invoke(app, ["shadow-ai", "ensure-policy"])
+    assert result.exit_code == 0, result.output
+    assert "Created shadow-AI monitor policy" in result.output
+    assert "pol_new_xyz" in result.output
+    assert len(posted) == 1
+    assert posted[0]["path"] == "/policies"
+    assert posted[0]["data"]["action_pattern"] == "*"
+    assert posted[0]["data"]["action"] == "monitor"
+    assert posted[0]["data"]["is_active"] is True
+
+
+def test_ensure_policy_exits_nonzero_when_list_fails(monkeypatch) -> None:
+    """`ensure-policy` exits 1 with a diagnostic when listing policies raises."""
+    from asqav import cli as cli_mod
+    from asqav import client as client_mod
+
+    monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
+
+    def _boom(path):
+        raise RuntimeError("network unreachable")
+
+    monkeypatch.setattr(client_mod, "_get", _boom)
+
+    result = runner.invoke(app, ["shadow-ai", "ensure-policy"])
+    assert result.exit_code == 1
+    assert "Could not list policies" in result.output
+
+
+def test_ensure_policy_exits_nonzero_when_create_fails(monkeypatch) -> None:
+    """`ensure-policy` exits 1 with a diagnostic when POSTing the new policy raises."""
+    from asqav import cli as cli_mod
+    from asqav import client as client_mod
+
+    monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
+    monkeypatch.setattr(client_mod, "_get", lambda path: [])
+
+    def _boom(path, data):
+        raise RuntimeError("server returned 403")
+
+    monkeypatch.setattr(client_mod, "_post", _boom)
+
+    result = runner.invoke(app, ["shadow-ai", "ensure-policy"])
+    assert result.exit_code == 1
+    assert "Could not create shadow-ai monitor policy" in result.output
