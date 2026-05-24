@@ -21,6 +21,7 @@ Commands:
     asqav sync                                 - Sync local queue to API
     asqav queue list / count / clear           - Manage local queue
     asqav demo / quickstart / doctor           - Onboarding + diagnostics
+    asqav shadow-ai init / up / down / status / logs - Egress signing shim
     asqav --version                            - Show version
 """
 
@@ -1719,3 +1720,277 @@ def compliance_export(
     bundle.to_file(output)
     typer.echo(f"wrote {bundle.receipt_count} receipts to {output}")
     typer.echo(f"merkle_root: {bundle.merkle_root}")
+
+
+# === shadow-ai (egress shim scaffolding + lifecycle) ===
+
+
+shadow_ai_app = typer.Typer(
+    name="shadow-ai",
+    help="Scaffold and run the Asqav shadow-AI egress signing shim.",
+    no_args_is_help=True,
+)
+app.add_typer(shadow_ai_app, name="shadow-ai")
+
+
+_SHADOW_AI_TEMPLATE_FILES = ("docker-compose.yml", ".env.template", "README.md")
+_SHADOW_AI_REQUIRED_ENV_VARS = ("ASQAV_API_KEY", "ASQAV_AGENT_ID", "POSTGRES_PASSWORD")
+
+
+def _shadow_ai_template_dir() -> "object":
+    """Resolve the shipped templates directory as an importlib.resources Traversable."""
+    from importlib.resources import files
+
+    return files("asqav").joinpath("templates", "shadow-ai")
+
+
+def _shadow_ai_copy_templates(dest: "object", force: bool) -> list[str]:
+    """Copy the three template files into dest, returning the written paths."""
+    from pathlib import Path
+
+    dest_path = Path(str(dest))
+    dest_path.mkdir(parents=True, exist_ok=True)
+    src_root = _shadow_ai_template_dir()
+    written: list[str] = []
+    for name in _SHADOW_AI_TEMPLATE_FILES:
+        target = dest_path / name
+        if target.exists() and not force:
+            raise FileExistsError(str(target))
+        data = src_root.joinpath(name).read_bytes()
+        target.write_bytes(data)
+        written.append(str(target))
+    return written
+
+
+def _shadow_ai_parse_env(env_path: "object") -> dict[str, str]:
+    """Return a dict of KEY=VALUE pairs from a dotenv-style file."""
+    from pathlib import Path
+
+    out: dict[str, str] = {}
+    for raw in Path(str(env_path)).read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        out[key.strip()] = value.strip()
+    return out
+
+
+def _shadow_ai_validate_env(dir_path: "object") -> "object":
+    """Return the .env path if present and required vars are non-empty, else raise."""
+    from pathlib import Path
+
+    base = Path(str(dir_path))
+    env_path = base / ".env"
+    if not env_path.exists():
+        raise FileNotFoundError(
+            f"Missing {env_path}. Copy .env.template to .env and fill in the required values."
+        )
+    parsed = _shadow_ai_parse_env(env_path)
+    missing = [k for k in _SHADOW_AI_REQUIRED_ENV_VARS if not parsed.get(k)]
+    if missing:
+        raise ValueError(
+            "Required environment variables are unset in .env: " + ", ".join(missing)
+        )
+    return env_path
+
+
+@shadow_ai_app.command("init")
+def shadow_ai_init(
+    dir: str = typer.Option(
+        "./shadow-ai",
+        "--dir",
+        help="Target directory the template files are written into.",
+    ),
+    upstream: str = typer.Option(
+        "",
+        "--upstream",
+        help="Override OPENAI_UPSTREAM in the generated .env.template (default upstream is api.openai.com).",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite existing files in the target directory.",
+    ),
+) -> None:
+    """Scaffold docker-compose.yml, .env.template, and README.md into the target directory."""
+    from pathlib import Path
+
+    target = Path(dir)
+    try:
+        written = _shadow_ai_copy_templates(target, force=force)
+    except FileExistsError as exc:
+        print(
+            f"Refusing to overwrite existing file: {exc}. Re-run with --force to replace."
+        )
+        raise typer.Exit(code=1) from exc
+
+    if upstream:
+        env_template_path = target / ".env.template"
+        text = env_template_path.read_text(encoding="utf-8")
+        text = text.replace(
+            "OPENAI_UPSTREAM=https://api.openai.com",
+            f"OPENAI_UPSTREAM={upstream}",
+        )
+        env_template_path.write_text(text, encoding="utf-8")
+
+    print(f"Scaffolded shadow-AI shim into {target}")
+    for path in written:
+        print(f"  wrote {path}")
+    print("Next: copy .env.template to .env, fill in the values, then `asqav shadow-ai up`.")
+
+
+@shadow_ai_app.command("up")
+def shadow_ai_up(
+    dir: str = typer.Option(
+        "./shadow-ai",
+        "--dir",
+        help="Directory holding docker-compose.yml and .env.",
+    ),
+) -> None:
+    """Start the shim + signer stack via docker compose up -d --build."""
+    import subprocess
+    from pathlib import Path
+
+    base = Path(dir)
+    compose = base / "docker-compose.yml"
+    if not compose.exists():
+        print(f"No docker-compose.yml at {compose}. Run `asqav shadow-ai init --dir {dir}` first.")
+        raise typer.Exit(code=1)
+
+    try:
+        _shadow_ai_validate_env(base)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    cmd = ["docker", "compose", "-f", str(compose), "up", "-d", "--build"]
+    try:
+        result = subprocess.run(cmd, cwd=str(base), check=False)
+    except FileNotFoundError as exc:
+        print("Error: docker CLI not found on PATH.")
+        raise typer.Exit(code=1) from exc
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
+
+
+@shadow_ai_app.command("down")
+def shadow_ai_down(
+    dir: str = typer.Option(
+        "./shadow-ai",
+        "--dir",
+        help="Directory holding docker-compose.yml.",
+    ),
+) -> None:
+    """Stop the shim + signer stack via docker compose down."""
+    import subprocess
+    from pathlib import Path
+
+    base = Path(dir)
+    compose = base / "docker-compose.yml"
+    if not compose.exists():
+        print(f"No docker-compose.yml at {compose}.")
+        raise typer.Exit(code=1)
+    cmd = ["docker", "compose", "-f", str(compose), "down"]
+    try:
+        result = subprocess.run(cmd, cwd=str(base), check=False)
+    except FileNotFoundError as exc:
+        print("Error: docker CLI not found on PATH.")
+        raise typer.Exit(code=1) from exc
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
+
+
+@shadow_ai_app.command("status")
+def shadow_ai_status(
+    dir: str = typer.Option(
+        "./shadow-ai",
+        "--dir",
+        help="Directory holding docker-compose.yml (read for scaffold presence; health probe is over HTTP).",
+    ),
+    shim_url: str = typer.Option(
+        "http://localhost:8080",
+        "--shim-url",
+        help="Base URL of the local egress shim.",
+    ),
+    signer_url: str = typer.Option(
+        "http://localhost:8000",
+        "--signer-url",
+        help="Base URL of the local signer.",
+    ),
+) -> None:
+    """Probe shim /_healthz and signer /api/v1/health/; exit 0 only if both are healthy."""
+    from pathlib import Path
+
+    compose = Path(dir) / "docker-compose.yml"
+    if not compose.exists():
+        print(
+            f"No docker-compose.yml at {compose}. Run `asqav shadow-ai init --dir {dir}` first."
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        import httpx
+    except ImportError as exc:
+        print("Error: status requires httpx. Install with: pip install asqav[cli]")
+        raise typer.Exit(code=1) from exc
+
+    shim_endpoint = shim_url.rstrip("/") + "/_healthz"
+    signer_endpoint = signer_url.rstrip("/") + "/api/v1/health/"
+
+    def _probe(label: str, url: str) -> bool:
+        try:
+            resp = httpx.get(url, timeout=5.0)
+        except httpx.HTTPError as exc:
+            print(f"{label}: unreachable ({exc.__class__.__name__})")
+            return False
+        ok = 200 <= resp.status_code < 300
+        print(f"{label}: {'healthy' if ok else 'unhealthy'} (HTTP {resp.status_code}) at {url}")
+        return ok
+
+    shim_ok = _probe("shim", shim_endpoint)
+    signer_ok = _probe("signer", signer_endpoint)
+    if not (shim_ok and signer_ok):
+        raise typer.Exit(code=1)
+
+
+@shadow_ai_app.command("logs")
+def shadow_ai_logs(
+    dir: str = typer.Option(
+        "./shadow-ai",
+        "--dir",
+        help="Directory holding docker-compose.yml.",
+    ),
+    follow: bool = typer.Option(
+        False,
+        "--follow",
+        "-f",
+        help="Stream logs (docker compose logs -f).",
+    ),
+    tail: int = typer.Option(
+        0,
+        "--tail",
+        help="Show only the last N log lines (0 = all).",
+    ),
+) -> None:
+    """Tail docker compose logs for the shim + signer stack."""
+    import subprocess
+    from pathlib import Path
+
+    base = Path(dir)
+    compose = base / "docker-compose.yml"
+    if not compose.exists():
+        print(f"No docker-compose.yml at {compose}.")
+        raise typer.Exit(code=1)
+    cmd = ["docker", "compose", "-f", str(compose), "logs"]
+    if follow:
+        cmd.append("-f")
+    if tail > 0:
+        cmd.extend(["--tail", str(tail)])
+    try:
+        result = subprocess.run(cmd, cwd=str(base), check=False)
+    except FileNotFoundError as exc:
+        print("Error: docker CLI not found on PATH.")
+        raise typer.Exit(code=1) from exc
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
