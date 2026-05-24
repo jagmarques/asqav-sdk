@@ -98,6 +98,12 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/asqav/templates" = "asqav/templates"
+
+[tool.hatch.build.targets.sdist.force-include]
+"src/asqav/templates" = "src/asqav/templates"
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
