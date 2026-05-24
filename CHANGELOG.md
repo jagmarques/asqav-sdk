@@ -6,6 +6,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [Python 0.4.9] - 2026-05-25
+
+### Changed
+- Wire-format break: SDK now reads the provider-agnostic anchor field names from cloud responses. `bitcoin.bitcoin_tx` is now `bitcoin.anchor_tx_ref` and `bitcoin.bitcoin_block` is now `bitcoin.anchor_block_height` on `/api/v1/sessions/{id}/signatures` and `/api/v1/agents/{id}/sign` response bodies. Requires Asqav cloud 0.3.8 or higher.
+- Public dataclass fields `BitcoinAnchor.bitcoin_tx` and `BitcoinAnchor.bitcoin_block` (and `BitcoinAnchorStatus.bitcoin_tx` / `bitcoin_block`) are renamed to `anchor_tx_ref` and `anchor_block_height` to match the new wire vocabulary. Consumers reading these attributes MUST update.
+
+### Added
+- `protectmcp:lifecycle:configuration_change` is now part of `RECEIPT_TYPE_NAMESPACE`. The Asqav cloud accepts this token to record lifecycle conflict receipts; the SDK was rejecting it client-side with `invalid_receipt_type`. The vocabulary on `python/src/asqav/client.py` now mirrors the cloud's pydantic validator and the parametrised test covers the new value.
+
+## [TypeScript 0.3.7] - 2026-05-25
+
+### Changed
+- Wire-format break: SDK now reads the provider-agnostic anchor field names from cloud responses. `bitcoin.bitcoin_tx` is now `bitcoin.anchor_tx_ref` and `bitcoin.bitcoin_block` is now `bitcoin.anchor_block_height` on the verify response. Requires Asqav cloud 0.3.8 or higher.
+- Public interface `BitcoinAnchorStatus.bitcoinTx` and `bitcoinBlock` are renamed to `anchorTxRef` and `anchorBlockHeight` to match the new wire vocabulary. Consumers reading these properties MUST update.
+
+### Added
+- `protectmcp:lifecycle:configuration_change` is now part of `RECEIPT_TYPE_NAMESPACE` so the SDK forwards the value through `agent.sign(...)` instead of throwing `invalid_receipt_type` client-side.
+
 ## [Python 0.4.8] - 2026-05-24
 
 ### Fixed
