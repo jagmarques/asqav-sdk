@@ -1,0 +1,34 @@
+# Asqav shadow-AI capture - egress signing proxy for managed workloads
+#
+# Sign-only, fail-open. The shim signs every outbound LLM request via the
+# co-located asqav-signer, then forwards the request upstream unchanged.
+# See docs/shadow-ai-via-corporate-proxy.md for the full pattern.
+
+services:
+  asqav-egress-shim:
+    build:
+      context: ./shim
+    ports:
+      - "8080:8080"
+    environment:
+      - ASQAV_SIGNER_URL=http://asqav-signer:8000
+      - ASQAV_API_KEY=${ASQAV_API_KEY:?ASQAV_API_KEY must be set in .env}
+      - ASQAV_AGENT_ID=${ASQAV_AGENT_ID:?ASQAV_AGENT_ID must be set in .env}
+      - ASQAV_FAIL_OPEN=1
+      - OPENAI_UPSTREAM=https://api.openai.com
+      - ANTHROPIC_UPSTREAM=https://api.anthropic.com
+    depends_on:
+      - asqav-signer
+    restart: unless-stopped
+
+  asqav-signer:
+    extends:
+      file: ../../docker-compose.signer.yml
+      service: asqav-signer
+    volumes:
+      - ./secrets/license.json:/run/secrets/asqav-license.json:ro
+      - signer-keys:/var/lib/asqav/keys
+    restart: unless-stopped
+
+volumes:
+  signer-keys:
