@@ -73,6 +73,7 @@ describe("RECEIPT_TYPE_NAMESPACE", () => {
         "protectmcp:acknowledgment",
         "protectmcp:decision",
         "protectmcp:lifecycle",
+        "protectmcp:lifecycle:configuration_change",
         "protectmcp:observation",
         "protectmcp:restraint",
       ],
@@ -281,6 +282,7 @@ describe("agent.sign capture_topology + observation wire fields", () => {
     "protectmcp:decision",
     "protectmcp:restraint",
     "protectmcp:lifecycle",
+    "protectmcp:lifecycle:configuration_change",
     "protectmcp:acknowledgment",
     "protectmcp:observation",
   ] as const)("accepts receiptType=%s on the outgoing body", async (value) => {
@@ -298,7 +300,7 @@ describe("agent.sign capture_topology + observation wire fields", () => {
       actionType: "t.test",
       complianceMode: true,
       receiptType: value,
-      policyDecision: value === "protectmcp:lifecycle" ? "none" : "permit",
+      policyDecision: value.startsWith("protectmcp:lifecycle") ? "none" : "permit",
     });
     const init = fetchSpy.mock.calls[0][1];
     const body = JSON.parse((init?.body as string) ?? "{}");
