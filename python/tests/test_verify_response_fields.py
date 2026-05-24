@@ -42,8 +42,8 @@ def _full_cloud_payload() -> dict:
         "verification_url": "https://verify.example/sig_test_full",
         "bitcoin_anchor": {
             "status": "confirmed",
-            "bitcoin_tx": "abc123",
-            "bitcoin_block": 850000,
+            "anchor_tx_ref": "abc123",
+            "anchor_block_height": 850000,
         },
         "verification_detail": {
             "signer_key_match": True,
@@ -89,8 +89,8 @@ def test_verification_response_exposes_ietf_projection_fields() -> None:
     assert response.type == "signature"
     assert isinstance(response.bitcoin_anchor, BitcoinAnchorStatus)
     assert response.bitcoin_anchor.status == "confirmed"
-    assert response.bitcoin_anchor.bitcoin_tx == "abc123"
-    assert response.bitcoin_anchor.bitcoin_block == 850000
+    assert response.bitcoin_anchor.anchor_tx_ref == "abc123"
+    assert response.bitcoin_anchor.anchor_block_height == 850000
     assert response.signature_envelope == {"alg": "ML-DSA-65", "kid": "key_full"}
     assert response.anchors is not None
     assert len(response.anchors) == 2
