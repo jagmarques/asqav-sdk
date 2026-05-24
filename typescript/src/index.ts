@@ -27,6 +27,7 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:decision",
   "protectmcp:restraint",
   "protectmcp:lifecycle",
+  "protectmcp:lifecycle:configuration_change",
   "protectmcp:acknowledgment",
   "protectmcp:observation",
 ] as const;
@@ -514,14 +515,15 @@ export interface VerificationDetail {
   regimesSatisfied?: string[];
 }
 
-/** Bitcoin anchor state on a verification response. `status` vocabulary:
- * none | pending | confirmed | failed. `bitcoinTx` and `bitcoinBlock`
- * populate once the OpenTimestamps proof upgrades to a confirmed
- * Bitcoin attestation. */
+/** Anchor attestation state on a verification response. `status`
+ * vocabulary: none | pending | confirmed | failed. `anchorTxRef` and
+ * `anchorBlockHeight` populate once the OpenTimestamps proof upgrades
+ * to a confirmed attestation. Field names are provider-agnostic so the
+ * response shape survives a future switch off OpenTimestamps + Bitcoin. */
 export interface BitcoinAnchorStatus {
   status: "none" | "pending" | "confirmed" | "failed" | string;
-  bitcoinTx?: string | null;
-  bitcoinBlock?: number | null;
+  anchorTxRef?: string | null;
+  anchorBlockHeight?: number | null;
 }
 
 export interface VerificationResponse {
@@ -1323,8 +1325,8 @@ export async function verifySignature(signatureId: string): Promise<Verification
     type?: string;
     bitcoin_anchor?: {
       status: string;
-      bitcoin_tx?: string | null;
-      bitcoin_block?: number | null;
+      anchor_tx_ref?: string | null;
+      anchor_block_height?: number | null;
     };
     signature_envelope?: { alg: string; kid: string } & Record<string, string>;
     anchors?: Array<
@@ -1371,8 +1373,8 @@ export async function verifySignature(signatureId: string): Promise<Verification
     bitcoinAnchor: data.bitcoin_anchor
       ? {
           status: data.bitcoin_anchor.status,
-          bitcoinTx: data.bitcoin_anchor.bitcoin_tx,
-          bitcoinBlock: data.bitcoin_anchor.bitcoin_block,
+          anchorTxRef: data.bitcoin_anchor.anchor_tx_ref,
+          anchorBlockHeight: data.bitcoin_anchor.anchor_block_height,
         }
       : undefined,
     signatureEnvelope: data.signature_envelope,
