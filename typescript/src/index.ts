@@ -28,6 +28,7 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:restraint",
   "protectmcp:lifecycle",
   "protectmcp:acknowledgment",
+  "protectmcp:observation",
 ] as const;
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
 
@@ -90,6 +91,7 @@ export const CAPTURE_TOPOLOGY_NAMESPACE = [
   "browser_extension",
   "ebpf_observer",
   "mcp_proxy",
+  "passive_telemetry",
 ] as const;
 export type CaptureTopology = (typeof CAPTURE_TOPOLOGY_NAMESPACE)[number];
 
@@ -364,7 +366,8 @@ export interface SignOptions {
   payloadDigest?: string | { hash: string; size?: number; preview?: string };
 
   /** Receipt namespace. One of `protectmcp:decision` |
-   * `protectmcp:restraint` | `protectmcp:lifecycle`. Defaults to
+   * `protectmcp:restraint` | `protectmcp:lifecycle` |
+   * `protectmcp:acknowledgment` | `protectmcp:observation`. Defaults to
    * `protectmcp:decision`. Validated client-side. */
   receiptType?: ReceiptType;
 
@@ -380,8 +383,10 @@ export interface SignOptions {
   policyDecision?: PolicyDecision;
 
   /** Producer-side topology. One of `in_process_sdk`, `network_proxy`,
-   * `browser_extension`, `ebpf_observer`, `mcp_proxy`. Stamped on the
-   * audit-pack manifest entry; never on the signed payload. */
+   * `browser_extension`, `ebpf_observer`, `mcp_proxy`, `passive_telemetry`.
+   * Stamped on the audit-pack manifest entry; never on the signed payload.
+   * `passive_telemetry` requires `receiptType='protectmcp:observation'`
+   * (false-attestation guard). */
   captureTopology?: CaptureTopology;
 }
 
@@ -798,6 +803,14 @@ function validateSignOptions(options: SignOptions): void {
   ) {
     throw new AsqavError(
       `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    options.captureTopology === "passive_telemetry"
+    && options.receiptType === "protectmcp:decision"
+  ) {
+    throw new AsqavError(
+      "false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision",
     );
   }
   validateIncidentClass(options.incidentClass);
