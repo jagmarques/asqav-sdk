@@ -169,25 +169,28 @@ def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
         return None
     return BitcoinAnchor(
         status=raw.get("status") or "none",
-        bitcoin_tx=raw.get("bitcoin_tx"),
-        bitcoin_block=raw.get("bitcoin_block"),
+        anchor_tx_ref=raw.get("anchor_tx_ref"),
+        anchor_block_height=raw.get("anchor_block_height"),
     )
 
 
 @dataclass
 class BitcoinAnchor:
-    """Bitcoin anchor state for a signed action.
+    """Anchor attestation state for a signed action.
 
-    Branch on ``status`` before treating the signature as Bitcoin-anchored:
+    Branch on ``status`` before treating the signature as anchored:
     - ``none``: no OpenTimestamps proof was attached (free tier path).
-    - ``pending``: OTS stamp submitted, not yet included in a Bitcoin block.
+    - ``pending``: OTS stamp submitted, not yet included in a block.
     - ``confirmed``: OTS calendar upgraded the proof to a specific block.
     - ``failed``: OTS upgrade failed permanently; treat as unanchored.
+
+    Field names are provider-agnostic so the response shape survives a
+    future switch off OpenTimestamps + Bitcoin.
     """
 
     status: str
-    bitcoin_tx: str | None = None
-    bitcoin_block: int | None = None
+    anchor_tx_ref: str | None = None
+    anchor_block_height: int | None = None
 
 
 # Receipt type namespace mirrored from cloud's SignRequest validator so SDK rejects bad inputs.
@@ -196,6 +199,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:decision",
         "protectmcp:restraint",
         "protectmcp:lifecycle",
+        "protectmcp:lifecycle:configuration_change",
         "protectmcp:acknowledgment",
         "protectmcp:observation",
     }
@@ -473,16 +477,18 @@ class VerificationDetail:
 
 @dataclass
 class BitcoinAnchorStatus:
-    """Bitcoin anchor state on a verification response.
+    """Anchor attestation state on a verification response.
 
     `status` vocabulary: none, pending, confirmed, failed.
-    `bitcoin_tx` and `bitcoin_block` populate once the OpenTimestamps
-    proof upgrades to a confirmed Bitcoin attestation.
+    `anchor_tx_ref` and `anchor_block_height` populate once the
+    OpenTimestamps proof upgrades to a confirmed attestation. Field
+    names are provider-agnostic so the response shape survives a future
+    switch off OpenTimestamps + Bitcoin.
     """
 
     status: str
-    bitcoin_tx: str | None = None
-    bitcoin_block: int | None = None
+    anchor_tx_ref: str | None = None
+    anchor_block_height: int | None = None
 
 
 @dataclass
@@ -2385,8 +2391,8 @@ def verify_signature(signature_id: str) -> VerificationResponse:
     bitcoin_anchor = (
         BitcoinAnchorStatus(
             status=anchor_raw.get("status", "none"),
-            bitcoin_tx=anchor_raw.get("bitcoin_tx"),
-            bitcoin_block=anchor_raw.get("bitcoin_block"),
+            anchor_tx_ref=anchor_raw.get("anchor_tx_ref"),
+            anchor_block_height=anchor_raw.get("anchor_block_height"),
         )
         if isinstance(anchor_raw, dict)
         else None
