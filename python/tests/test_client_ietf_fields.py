@@ -76,6 +76,7 @@ def test_receipt_type_namespace_constant() -> None:
             "protectmcp:decision",
             "protectmcp:restraint",
             "protectmcp:lifecycle",
+            "protectmcp:lifecycle:configuration_change",
             "protectmcp:acknowledgment",
             "protectmcp:observation",
         }

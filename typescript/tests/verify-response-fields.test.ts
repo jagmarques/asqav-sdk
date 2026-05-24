@@ -43,8 +43,8 @@ function fullCloudPayload() {
     verification_url: "https://verify.example/sig_test_full",
     bitcoin_anchor: {
       status: "confirmed",
-      bitcoin_tx: "abc123",
-      bitcoin_block: 850000,
+      anchor_tx_ref: "abc123",
+      anchor_block_height: 850000,
     },
     verification_detail: {
       signer_key_match: true,
@@ -92,8 +92,8 @@ describe("verifySignature response fields", () => {
     expect(response.type).toBe("signature");
     expect(response.bitcoinAnchor).toEqual({
       status: "confirmed",
-      bitcoinTx: "abc123",
-      bitcoinBlock: 850000,
+      anchorTxRef: "abc123",
+      anchorBlockHeight: 850000,
     });
     expect(response.signatureEnvelope).toEqual({
       alg: "ML-DSA-65",
