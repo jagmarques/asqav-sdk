@@ -16,10 +16,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ### Fixed
 - Package the `templates/shadow-ai/` docker-compose template set under `asqav/templates/shadow-ai/` so `asqav shadow-ai init` resolves its assets from the installed wheel.
 
+## [TypeScript 0.3.6] - 2026-05-24
+
+### Added
+- `protectmcp:observation` receipt_type and `passive_telemetry` capture_topology in the wire vocabulary.
+- Client-side false-attestation guard mirroring the cloud rule: rejects `capture_topology=passive_telemetry` paired with `receipt_type=protectmcp:decision`, with verbatim message `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision (rule 8)`.
+- 288 jest tests across 25 files pass against the new vocab.
+
 ## [Python 0.4.6] - 2026-05-24
 
 ### Added
-- `protectmcp:observation` receipt type and `passive_telemetry` capture topology in the SDK vocabularies, with the cross-field guard that rejects pairing observation receipts with attesting topologies (`producer_attested`, `forwarder_attested`).
+- `protectmcp:observation` receipt_type and `passive_telemetry` capture_topology in the SDK vocabularies.
+- Client-side false-attestation guard mirroring the cloud rule: rejects `capture_topology=passive_telemetry` paired with `receipt_type=protectmcp:decision`, with verbatim message `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision (rule 8)`.
 
 ## [Python 0.4.5 / TypeScript 0.3.5] - 2026-05-18
 
