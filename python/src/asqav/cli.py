@@ -1837,7 +1837,69 @@ def shadow_ai_init(
     print(f"Scaffolded shadow-AI shim into {target}")
     for path in written:
         print(f"  wrote {path}")
+
+    import os as _os
+    if _os.environ.get("ASQAV_API_KEY"):
+        _ensure_shadow_ai_policy()
+    else:
+        print(
+            "Hint: set ASQAV_API_KEY then run `asqav shadow-ai ensure-policy` to "
+            "register the monitor policy required by the no-false-attestation gate."
+        )
+
     print("Next: copy .env.template to .env, fill in the values, then `asqav shadow-ai up`.")
+
+
+SHADOW_AI_POLICY_NAME = "shadow-ai egress monitor"
+
+
+def _ensure_shadow_ai_policy() -> bool:
+    """Idempotently register the `monitor *` policy required by the cloud
+    no-false-attestation gate for compliance-mode sign calls; returns False on failure without raising."""
+    _init_sdk()
+    from asqav.client import _get, _post
+
+    try:
+        existing = _get("/policies")
+    except Exception as exc:
+        print(f"Could not list policies to ensure the shadow-ai policy: {exc}")
+        return False
+    rows = existing if isinstance(existing, list) else []
+    for p in rows:
+        if (
+            p.get("action_pattern") == "*"
+            and p.get("action") == "monitor"
+            and p.get("is_active")
+        ):
+            print(f"Shadow-AI monitor policy already present: id={p.get('id')}")
+            return True
+    try:
+        created = _post(
+            "/policies",
+            {
+                "name": SHADOW_AI_POLICY_NAME,
+                "action_pattern": "*",
+                "action": "monitor",
+                "is_active": True,
+            },
+        )
+        print(
+            f"Created shadow-AI monitor policy: id={created.get('id', '?')}. "
+            "Required so compliance_mode=true sign calls pass the no-false-attestation gate."
+        )
+        return True
+    except Exception as exc:
+        print(f"Could not create shadow-ai monitor policy: {exc}")
+        return False
+
+
+@shadow_ai_app.command("ensure-policy")
+def shadow_ai_ensure_policy() -> None:
+    """Idempotently register the `monitor *` policy that the cloud needs to
+    accept `compliance_mode=true` shadow-AI sign calls."""
+    ok = _ensure_shadow_ai_policy()
+    if not ok:
+        raise typer.Exit(code=1)
 
 
 @shadow_ai_app.command("up")
