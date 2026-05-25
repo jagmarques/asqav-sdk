@@ -155,7 +155,7 @@ Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment
 
 The `protectmcp:observation:result_bound` `receiptType` variant carries `resultDigest` and lets observation receipts bind to a specific tool result without claiming the policy gated the call.
 
-### Build provenance fields (optional)
+### Build-provenance 4-tuple
 
 Four optional wire fields bind build-side provenance into the signed receipt, subsuming standalone SBOM or SLSA verifiers in a single envelope. All four are independent and may be set together or individually:
 
@@ -208,7 +208,7 @@ Each list must be a non-empty array of strings, each entry up to 128 characters;
 
 See <https://www.asqav.com/docs/threat-framework-mapping>.
 
-### Audit export
+### Audit Pack export
 
 The SDK exposes the public audit-trail endpoint as `exportAuditJson` for filtered windows of receipts (Pro tier and above):
 
