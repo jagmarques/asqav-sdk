@@ -1236,6 +1236,10 @@ class Agent:
         tool_fingerprint: str | None = None,
         config_manifest_digest: str | None = None,
         cve_inventory_digest: str | None = None,
+        executable_hash: str | None = None,
+        sbom_digest: str | None = None,
+        slsa_provenance_pointer: str | None = None,
+        supply_chain_pointer: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -1310,6 +1314,19 @@ class Agent:
                 the agent's CVE inventory snapshot at signing time. MUST
                 match ``sha256:<64-hex>`` (rule 11); use
                 ``_compute_cve_inventory_digest`` to avoid drift.
+            executable_hash: Build-provenance 4-tuple. ``sha256:<hex>``
+                of the executable that invoked the action. Binds
+                build-side provenance into the signed receipt. MUST
+                match ``sha256:<64-hex>`` (rule 11).
+            sbom_digest: Build-provenance 4-tuple. ``sha256:<hex>`` of
+                the canonical CycloneDX or SPDX SBOM document. MUST
+                match ``sha256:<64-hex>`` (rule 11).
+            slsa_provenance_pointer: Build-provenance 4-tuple. https
+                URL to the SLSA attestation envelope for the executing
+                build.
+            supply_chain_pointer: Build-provenance 4-tuple. https URL
+                to the in-toto, Sigstore, or Rekor entry covering the
+                executing build.
 
         Returns:
             SignatureResponse with the signature.
@@ -1445,11 +1462,23 @@ class Agent:
             ("tool_fingerprint", tool_fingerprint),
             ("config_manifest_digest", config_manifest_digest),
             ("cve_inventory_digest", cve_inventory_digest),
+            ("executable_hash", executable_hash),
+            ("sbom_digest", sbom_digest),
         ):
             if _value is not None and not _SHA256_HEX_RE.match(_value):
                 raise ValueError(
                     f"digest_format_guard: {_name} must match "
                     "sha256:<64-hex> (rule 11)"
+                )
+        for _name, _value in (
+            ("slsa_provenance_pointer", slsa_provenance_pointer),
+            ("supply_chain_pointer", supply_chain_pointer),
+        ):
+            if _value is not None and not (
+                _value.startswith("https://") or _value.startswith("http://")
+            ):
+                raise ValueError(
+                    f"pointer_url_guard: {_name} must be an http(s) URL"
                 )
 
         # Derive action_ref under compliance_mode when caller omits it.
@@ -1494,6 +1523,10 @@ class Agent:
                 ("tool_fingerprint", tool_fingerprint),
                 ("config_manifest_digest", config_manifest_digest),
                 ("cve_inventory_digest", cve_inventory_digest),
+                ("executable_hash", executable_hash),
+                ("sbom_digest", sbom_digest),
+                ("slsa_provenance_pointer", slsa_provenance_pointer),
+                ("supply_chain_pointer", supply_chain_pointer),
             ):
                 if v is not None:
                     compliance_fields[k] = v
