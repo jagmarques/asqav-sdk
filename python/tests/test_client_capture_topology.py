@@ -261,6 +261,10 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
     # Lifecycle namespace pairs with `none` to exercise the opt-out path.
     if value.startswith("protectmcp:lifecycle"):
         kwargs["policy_decision"] = "none"
+    # Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
+    # receipts MUST carry config_manifest_digest.
+    if value == "protectmcp:lifecycle:configuration_change":
+        kwargs["config_manifest_digest"] = "sha256:" + "0" * 64
 
     with patch("asqav.client._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, **kwargs)

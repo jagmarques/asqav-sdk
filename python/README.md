@@ -86,7 +86,7 @@ Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a 
 
 The four envelope extensions most callers reach for:
 
-- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:acknowledgment`, or `protectmcp:observation`.
+- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:lifecycle:configuration_change`, `protectmcp:acknowledgment`, `protectmcp:observation`, or `protectmcp:observation:result_bound` (observation receipts that bind tool output via `result_digest`).
 - `risk_class` - controlled vocabulary: `unacceptable | high | limited | minimal | gpai | low | medium | unknown`.
 - `iteration_id` - logical task id, distinct from session.
 - `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
@@ -97,7 +97,7 @@ The four envelope extensions most callers reach for:
 
 Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block (SIEM forwarder, browser extension in observe-only mode, NetFlow-style proxy with no enforcement hook).
 
-Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry` (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip (`python/src/asqav/client.py:1273-1284`).
+Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry` (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip (see `false_attestation_guard` in `python/src/asqav/client.py`).
 
 ```python
 sig = agent.sign(
@@ -110,6 +110,47 @@ sig = agent.sign(
 ```
 
 `capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`; only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
+
+### Configuration change receipts (rule 9)
+
+A `receipt_type='protectmcp:lifecycle:configuration_change'` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate (NSA CSI U/OO/6030316-26 alignment): the receipt MUST carry `config_manifest_digest`. Omitting it raises `ValueError` with the verbatim `false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)` message before the HTTP roundtrip.
+
+```python
+sig = agent.sign(
+    "mcp:config_update",
+    {"server": "filesystem", "delta": "tool_added"},
+    receipt_type="protectmcp:lifecycle:configuration_change",
+    policy_decision="none",
+    config_manifest_digest="sha256:<hex of manifest>",
+    cve_inventory_digest="sha256:<hex of cve snapshot>",
+)
+```
+
+Five new wire fields land on `sign()` for NSA CSI alignment: `result_digest` (tool output hash), `expires_at` (validity horizon), `tool_fingerprint` (`sha256:<hex>` over `{tool_name, schema}` - auto-derived when `tool_name` + `tool_schema` are present), `config_manifest_digest` and `cve_inventory_digest`. The `nonce` field is auto-generated as 12 random bytes when the caller omits one; the cloud verifier rejects duplicates inside the validity window.
+
+### Expiry precedence (rule 10)
+
+`valid_seconds` (legacy, server computes `valid_until = signed_at + valid_seconds`) and `expires_at` (caller-supplied horizon) are mutually exclusive. Pass exactly one of the two: `valid_seconds=3600` for "expire one hour after signing", or `expires_at="2026-06-01T00:00:00Z"` for an explicit horizon. Passing both raises `ValueError` with the verbatim `expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)` message before the HTTP roundtrip. Passing neither falls back to the server-side default (`valid_seconds=86400`).
+
+### Digest format (rule 11)
+
+Every caller-supplied digest field (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. Anything else raises `ValueError` with the verbatim `digest_format_guard: <field> must match sha256:<64-hex> (rule 11)` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS / RFC 8785):
+
+```python
+from asqav.client import (
+    _compute_tool_fingerprint,
+    _compute_config_manifest_digest,
+    _compute_cve_inventory_digest,
+)
+
+fp = _compute_tool_fingerprint("search", {"args": {"q": "string"}})
+cfg = _compute_config_manifest_digest({"server": "filesystem", "tools": ["read"]})
+cve = _compute_cve_inventory_digest([{"id": "CVE-2026-0001", "severity": "high"}])
+```
+
+### Result-bound observation receipts
+
+The `protectmcp:observation:result_bound` receipt_type variant signals an observation receipt that carries `result_digest` (a `sha256:<hex>` of the tool output). Use it when the producer wants to bind the receipt to a specific tool result without claiming the policy gated the call. The cloud accepts the same vocabulary; auditors can index result-bound observations without a wider scan.
 
 ### Audit Pack export
 

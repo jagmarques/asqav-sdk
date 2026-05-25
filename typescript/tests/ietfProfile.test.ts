@@ -187,9 +187,17 @@ describe("agent.sign IETF profile fields", () => {
     );
     const agent = fakeAgent();
     for (const t of RECEIPT_TYPE_NAMESPACE) {
-      await expect(
-        agent.sign({ actionType: "api:call", context: {}, receiptType: t }),
-      ).resolves.toBeDefined();
+      const opts: Parameters<typeof agent.sign>[0] = {
+        actionType: "api:call",
+        context: {},
+        receiptType: t,
+      };
+      // Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
+      // receipts MUST carry config_manifest_digest.
+      if (t === "protectmcp:lifecycle:configuration_change") {
+        opts.configManifestDigest = `sha256:${"0".repeat(64)}`;
+      }
+      await expect(agent.sign(opts)).resolves.toBeDefined();
     }
   });
 
