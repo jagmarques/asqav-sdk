@@ -6,6 +6,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.2] - 2026-05-26
+
+### Added
+- Threat-framework taxonomy mappings on `agent.sign({...})`: seven new optional camelCase props mirroring the cloud SignRequest cross-field validator. `mitreTechniques` (wire `mitre_techniques`, MITRE ATT&CK technique ids), `mitreAtlas` (`mitre_atlas`, MITRE ATLAS ids for AI-system threats), `owaspLlmTop10` (`owasp_llm_top10`, OWASP Top 10 for LLM ids), `nistAiRmf` (`nist_ai_rmf`, NIST AI RMF function ids and subcategories), `iso42001` (`iso_42001`, ISO/IEC 42001 control ids), `euAiActArticles` (`eu_ai_act_articles`, EU AI Act article ids), and `rfc3161Timestamp` (`rfc3161_timestamp`, base64-encoded TimeStampResp DER). All seven OPTIONAL. The cloud auto-flips `framework_mappings_self_declared=true` whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones. Requires Asqav cloud 0.5.2 or higher.
+- Client-side validators emit verbatim guard tokens that round-trip through the conformance vectors: `<field>_must_be_non_empty_list` rejects an empty array; `<field>_entry_invalid` rejects non-string entries or strings >128 chars; `rfc3161_timestamp_not_base64` rejects malformed base64.
+- New tests in `typescript/tests/threatFrameworkMappings.test.ts` covering wire forwarding, validation rejection, omission, and the all-seven-together happy path.
+
+### Changed
+- CLI version string in `src/cli.ts` bumped to `"0.5.2"` to match the package version.
+
+## [Python 0.5.2] - 2026-05-26
+
+### Added
+- Threat-framework taxonomy mappings on `agent.sign(...)`: seven new optional kwargs mirroring the cloud SignRequest cross-field validator. `mitre_techniques` (MITRE ATT&CK technique ids), `mitre_atlas` (MITRE ATLAS ids for AI-system threats), `owasp_llm_top10` (OWASP Top 10 for LLM ids), `nist_ai_rmf` (NIST AI RMF function ids and subcategories), `iso_42001` (ISO/IEC 42001 control ids), `eu_ai_act_articles` (EU AI Act article ids), and `rfc3161_timestamp` (base64-encoded TimeStampResp DER). All seven are OPTIONAL; the cloud auto-flips `framework_mappings_self_declared=true` whenever any of the six list fields is populated. Requires Asqav cloud 0.5.2 or higher.
+- Client-side validators emit verbatim guard tokens that round-trip through the conformance vectors: `<field>_must_be_non_empty_list`, `<field>_entry_invalid`, `rfc3161_timestamp_not_base64`.
+- New parametric tests over the seven fields plus validation rejection (`python/tests/test_client_threat_framework_mappings.py`).
+
 ## [TypeScript 0.5.1] - 2026-05-25
 
 ### Added
