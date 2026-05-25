@@ -160,7 +160,7 @@ def test_sign_deny_without_reason_rejects(
     assert "--reason is required" in result.output
 
 
-# === sign command: previously uncovered branches ===
+# === sign command: edge-case branches ===
 
 
 @patch("asqav.init")
