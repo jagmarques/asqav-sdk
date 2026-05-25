@@ -1,6 +1,6 @@
 # asqav
 
-TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. All ML-DSA cryptography runs server-side. Zero native dependencies.
+TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. Sign every agent action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails. All cryptography runs server-side; the package has zero native dependencies.
 
 ## Install
 
@@ -8,13 +8,37 @@ TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI age
 npm install @asqav/sdk
 ```
 
+## Quick start
+
+```ts
+import { init, Agent } from "@asqav/sdk";
+
+init({ apiKey: process.env.ASQAV_API_KEY });
+const agent = await Agent.create({ name: "my-agent" });
+
+const sig = await agent.sign({
+  actionType: "payment.wire_transfer",
+  context: { amountEur: 850000, beneficiaryIban: "DE89370400440532013000" },
+  receiptType: "protectmcp:decision",
+  riskClass: "high",
+  issuerId: "legal:Acme GmbH",
+  iterationId: "task-2026-Q2-4821",
+});
+
+console.log(sig.complianceMode);        // true (default; pass complianceMode: false to opt out)
+console.log(sig.actionRef);             // "sha256:..." over the JCS-canonical action
+console.log(sig.previousReceiptHash);   // 64 hex; "0".repeat(64) on the first record per agent
+console.log(sig.verificationUrl);
+```
+
+Each signed action lands on a Compliance Receipt under IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) by default: ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL. Pass `complianceMode: false` if you want a non-Compliance receipt.
+
 ## CLI
 
 The package ships an `asqav` binary mirroring the Python CLI surface. Set `ASQAV_API_KEY` and run:
 
 ```bash
-asqav --version
-asqav verify <signature_id> [--output text|json]           # IETF axes when present
+asqav verify <signature_id> [--output json]   # IETF axes when present
 asqav sign --agent-id ID --action-type T --action-json action.json \
            --receipt-type protectmcp:decision \
            --risk-class high --issuer-id legal:Acme
@@ -24,8 +48,7 @@ asqav sessions list / end <session_id>
 asqav replay <agent_id> <session_id> [--json]              # Pro
 asqav replay-verify <agent_id> <session_id> [--strict]     # Pro: IETF chain
 asqav preflight <agent_id> <action_type> [--json]          # Pro
-asqav budget check --agent-id ID --limit 10 --estimated-cost 0.25     # Pro
-asqav budget record --agent-id ID --action api:openai --actual-cost 0.23 --limit 10  # Pro
+asqav budget check / record                                # Pro
 asqav approve <session_id> <entity_id>                     # Pro
 asqav compliance frameworks / export                       # Business
 asqav audit-pack export --start ISO --end ISO --output-file bundle.json
@@ -36,33 +59,13 @@ asqav keys generate --algorithm ed25519|es256 [--out priv.bin]
 asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key required
 ```
 
-Pro/Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; older self-hosted deployments without `/account` skip the gate.
-
-The IETF Compliance Receipts profile commands (`sign` defaults to the profile; pass `--no-compliance-mode` to opt out, `audit-pack export`, `audit-pack policy`, `payloads erase`, `replay-verify --strict`, `org set-compliance-strict`) match the SDK options on `agent.sign(...)`. Wire keys are snake_case (`compliance_mode`, `policy_decision`, `action_ref`) per the [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile; the CLI accepts the kebab-case equivalents.
-
-## Quick start
-
-```ts
-import { init, Agent } from "@asqav/sdk";
-
-init({ apiKey: process.env.ASQAV_API_KEY });
-
-const agent = await Agent.create({ name: "my-agent" });
-const sig = await agent.sign({
-  actionType: "api:call",
-  context: { model: "gpt-4" },
-});
-
-console.log(sig.verificationUrl);
-```
-
-Each signed action is recorded server-side with an ML-DSA (FIPS 204) signature, a chain hash, and a public verification URL.
+Pro and Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; self-hosted deployments without `/account` skip the gate.
 
 ## Data handling modes
 
-The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
+The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment and selects the safer default for each:
 
-- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
+- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (`action_type`, `agent_id`, `session_id`, `model_name`, `tool_name`). Raw prompts and tool arguments stay on your side.
 - **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
 
 Override anytime:
@@ -71,160 +74,20 @@ Override anytime:
 await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
 ```
 
-The fingerprint format is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
-
-## Why
-
-Without governance, an AI agent can do anything and leave no trace. With asqav, every action is signed, every policy is enforced in real time, and every audit query returns a verifiable record.
-
-## API surface
-
-```ts
-import {
-  init,
-  Agent,
-  verifySignature,
-  listSessions,
-  exportAuditJson,
-  AsqavError,
-  AuthenticationError,
-  RateLimitError,
-  APIError,
-} from "@asqav/sdk";
-```
-
-### `init({ apiKey, baseUrl })`
-
-Sets the API key for subsequent calls. Falls back to `process.env.ASQAV_API_KEY`. The default base URL is `https://api.asqav.com/api/v1`.
-
-### `Agent.create({ name, algorithm?, capabilities? })`
-
-Creates a new agent. The server generates the ML-DSA keypair; the private key never leaves the server.
-
-### `Agent.get(agentId)`
-
-Fetches an existing agent.
-
-### `agent.sign({ actionType, context? })`
-
-Signs an action. Returns a `SignatureResponse` with the signature bytes, signature ID, chain hash, and verification URL.
-
-### `agent.startSession()` / `agent.endSession({ status? })`
-
-Bracket related signings into a session for replay and compliance grouping.
-
-### `agent.revoke({ reason? })`
-
-Revokes the agent's credentials globally. Irreversible.
-
-### `agent.preflight(actionType)`
-
-Pre-flight check combining revocation/suspension status and policy. Returns `{ cleared, agentActive, policyAllowed, reasons, explanation }`. Fail-open: a sub-check that errors records a warning in `reasons` but does not block.
-
-```ts
-const decision = await agent.preflight("data:read");
-if (!decision.cleared) {
-  throw new Error(decision.explanation);
-}
-```
-
-### `BudgetTracker`
-
-Client-side spend budget. Each recorded spend is signed via the agent so the budget trail is itself tamper-evident. `check()` is a fail-closed arithmetic check; the SDK does not block actions on its own.
-
-```ts
-import { BudgetTracker } from "@asqav/sdk";
-
-const budget = new BudgetTracker({ agent, limit: 10, currency: "USD" });
-
-const decision = budget.check(0.25);
-if (!decision.allowed) throw new Error(decision.reason);
-
-await budget.record("api:openai", 0.23, { model: "gpt-4" });
-```
-
-### `verifySignature(signatureId)`
-
-Public verification endpoint. No auth required.
-
-### `listSessions({ agentId?, status?, limit? })`
-
-Lists sessions, optionally filtered.
-
-### `exportAuditJson({ startDate?, endDate?, agentId? })`
-
-Exports the audit trail as JSON for the given filters. Pro tier and above.
-
-## Integrations
-
-### Vercel AI SDK
-
-Wire Asqav signing into the [`experimental_telemetry`](https://ai-sdk.dev/docs/ai-sdk-core/telemetry) hook. Every span the AI SDK opens (text generation, tool calls, embeddings) becomes a signed Asqav action.
-
-```ts
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { Agent, init } from "@asqav/sdk";
-import { createAsqavExporter } from "@asqav/sdk/extras/vercel-ai";
-
-init({ apiKey: process.env.ASQAV_API_KEY! });
-const agent = await Agent.create({ name: "writer" });
-const tracer = createAsqavExporter({ agent });
-
-const result = await generateText({
-  model: openai("gpt-4o"),
-  prompt: "Write a haiku about audit trails.",
-  experimental_telemetry: { isEnabled: true, tracer },
-});
-```
-
-Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation; failures log a warning instead of throwing.
-
-### LangChain.js
-
-`AsqavCallbackHandler` at `@asqav/sdk/extras/langchain` plugs into LangChain.js's `callbacks` array and signs each chain, tool, and LLM lifecycle event. Construct it via the async factory: `const handler = await AsqavCallbackHandler.create({ agent });` then pass to a chain or model `callbacks: [handler]`. Requires `@langchain/core` as a peer dep.
-
-### Mastra
-
-`AsqavMastraHook` at `@asqav/sdk/extras/mastra` attaches to a Mastra agent and signs each step lifecycle event: `await new AsqavMastraHook({ agent }).attach(mastraAgent)`. Requires `@mastra/core` as a peer dep.
-
-### OpenAI Agents JS
-
-`AsqavOpenAIAgentsAdapter` at `@asqav/sdk/extras/openai-agents` wraps individual tools so each invocation signs `tool:start` / `tool:end` / `tool:error`. Use `const wrapped = new AsqavOpenAIAgentsAdapter({ agent }).wrapTool(tool)` and pass the wrapped tool into your `@openai/agents` runner. Requires `@openai/agents` as a peer dep.
+The fingerprint format is sorted JSON with no whitespace per JCS, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
 ## Compliance receipts (IETF profile)
 
-Set `complianceMode: true` on `agent.sign(...)` to opt the receipt into the IETF [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) profile. The cloud then emits a conformant chain link, content-addressed `policy_digest`, fail-closed anchoring, and the raised retention floor.
+Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `complianceMode: false` if you want the older shape.
 
-```ts
-const sig = await agent.sign({
-  actionType: "stripe:refund",
-  context: { chargeId: "ch_abc", amountCents: 1299, reason: "broken" },
-  complianceMode: true,
-  receiptType: "protectmcp:decision",
-  riskClass: "high",
-  sandboxState: "disabled",
-  iterationId: "refund-ch_abc",
-  policyDecision: "permit",
-});
+The envelope extensions most callers reach for (camelCase on the SDK, snake_case on the JSON wire):
 
-console.log(sig.previousReceiptHash); // 64 lowercase hex; "0".repeat(64) on first record
-console.log(sig.actionRef);            // sha256:<hex> of the canonical action
-```
-
-Field reference (camelCase on the SDK, snake_case on the JSON wire):
-
-- `complianceMode` -> `compliance_mode`. Default `false`.
-- `receiptType` -> `receipt_type`. One of `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:lifecycle:configuration_change`, `protectmcp:acknowledgment`, `protectmcp:observation`, or `protectmcp:observation:result_bound` (observation receipts that bind tool output via `resultDigest`). Validated client-side.
-- `actionRef` -> `action_ref`. `sha256:<hex>` of the canonical action. SDK derives it under `complianceMode` when omitted.
-- `payloadDigest` -> `payload_digest`. Wire object form `{ hash, size, preview? }`. SDK forwards `payload_size` on every hash-mode sign. Plain-string `sha256:<hex>` receipts still verify.
-- `issuerId` -> `issuer_id`. Legal entity. Resolved server-side when omitted.
-- `iterationId` -> `iteration_id`. Required for multi-step receipts.
-- `sandboxState` -> `sandbox_state`. One of `enabled`, `disabled`, `unavailable`. Required for High-Risk.
-- `riskClass` -> `risk_class`. One of `low`, `medium`, `high`, `unknown`.
-- `incidentClass` -> `incident_class`. Canonical 6-value Annex II field 3.23 list from JC 2024-33 (17 July 2024) Empty when not applicable.
-- `policyDecision` -> `policy_decision`. One of `permit`, `deny`, `rate_limit`.
-- `reason` -> `reason`. Required when `policyDecision` is `deny` or `rate_limit`.
+- `receiptType` -> `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:lifecycle:configuration_change`, `protectmcp:acknowledgment`, `protectmcp:observation`, or `protectmcp:observation:result_bound` (observation receipts that bind tool output via `resultDigest`).
+- `riskClass` -> `risk_class` - controlled vocabulary: `unacceptable | high | limited | minimal | gpai | low | medium | unknown`.
+- `iterationId` -> `iteration_id` - logical task id, distinct from session.
+- `sandboxState` -> `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
+- `incidentClass` -> `incident_class` - DORA / NYDFS / CIRCIA token (or array of tokens).
+- `issuerId` -> `issuer_id` - LEI (ISO 17442), EIN, CIK, or a W3C DID for non-LEI deployers.
 
 ### Shadow AI capture (passive_telemetry)
 
@@ -259,15 +122,13 @@ const sig = await agent.sign({
 });
 ```
 
-Five new wire fields land on `sign()` for NSA CSI alignment: `resultDigest` (tool output hash), `expiresAt` (validity horizon), `toolFingerprint` (`sha256:<hex>` over `{tool_name, schema}` - auto-derived when `toolName` + `toolSchema` are present), `configManifestDigest` and `cveInventoryDigest`. The `nonce` field is auto-generated as 12 random bytes when the caller omits one; the cloud verifier rejects duplicates inside the validity window.
-
 ### Expiry precedence (rule 10)
 
 `validSeconds` (legacy, server computes `valid_until = signed_at + valid_seconds`) and `expiresAt` (caller-supplied horizon) are mutually exclusive. Pass exactly one of the two: `validSeconds: 3600` for "expire one hour after signing", or `expiresAt: "2026-06-01T00:00:00Z"` for an explicit horizon. Passing both throws `AsqavError` with the verbatim `expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)` message before the HTTP roundtrip. Passing neither falls back to the server-side default (`valid_seconds=86400`).
 
 ### Digest format (rule 11)
 
-Every caller-supplied digest field (`toolFingerprint`, `configManifestDigest`, `cveInventoryDigest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. Anything else throws `AsqavError` with the verbatim `digest_format_guard: <field> must match sha256:<64-hex> (rule 11)` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS / RFC 8785):
+Every caller-supplied digest field (`toolFingerprint`, `configManifestDigest`, `cveInventoryDigest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. Anything else throws `AsqavError` with the verbatim `digest_format_guard: <field> must match sha256:<64-hex> (rule 11)` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
 
 ```ts
 import {
@@ -281,77 +142,98 @@ const cfg = computeConfigManifestDigest({ server: "filesystem", tools: ["read"] 
 const cve = computeCveInventoryDigest([{ id: "CVE-2026-0001", severity: "high" }]);
 ```
 
-### Result-bound observation receipts
+## NSA-aligned receipt fields
 
-The `protectmcp:observation:result_bound` receiptType variant signals an observation receipt that carries `resultDigest` (a `sha256:<hex>` of the tool output). Use it when the producer wants to bind the receipt to a specific tool result without claiming the policy gated the call. The cloud accepts the same vocabulary; auditors can index result-bound observations without a wider scan.
+Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment for MCP server lifecycle and tool output binding:
 
-### RFC 8785 canonicalization
+- `resultDigest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
+- `expiresAt` - explicit ISO-8601 validity horizon. Mutually exclusive with `validSeconds`. See <https://www.asqav.com/docs/expires-at>.
+- `nonce` - 12 random bytes auto-generated when omitted; cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
+- `toolFingerprint` - `sha256:<hex>` over `{tool_name, schema}`, auto-derived when `toolName` + `toolSchema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
+- `configManifestDigest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/config-manifest-digest>.
+- `cveInventoryDigest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
 
-The exact bytes the cloud signs (and the chain hashes over) are JCS-canonicalized JSON. The SDK exposes the canonicalizer so callers can reproduce them offline:
+The `protectmcp:observation:result_bound` `receiptType` variant carries `resultDigest` and lets observation receipts bind to a specific tool result without claiming the policy gated the call.
 
-```ts
-import { canonicalJson } from "@asqav/sdk";
+### Audit export
 
-const bytes = canonicalJson({ b: 2, a: 1 }); // -> Uint8Array of `{"a":1,"b":2}`
-```
-
-### Offline chain verification
-
-`verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previousReceiptHash` per §5.7. The first record's seed is `"0".repeat(64)`.
-
-```ts
-import { verifyChain } from "@asqav/sdk";
-
-const result = verifyChain(records);
-if (!result.chainIntegrity) {
-  for (const step of result.steps.filter((s) => !s.chainValid)) {
-    console.error(`step ${step.index}: expected ${step.expectedPreviousReceiptHash}, got ${step.actualPreviousReceiptHash}`);
-  }
-}
-```
-
-The verifier accepts no options today; passing any flag throws `TypeError`.
-
-### Algorithm agility
-
-`Agent.create({ algorithm })` accepts `ml-dsa-65` (default), `ml-dsa-44`, `ml-dsa-87`, `ed25519`, and `es256`. ML-DSA is server-side only. For Ed25519 / ES256 the SDK ships keypair, sign, and verify helpers via `node:crypto`:
+The SDK exposes the public audit-trail endpoint as `exportAuditJson` for filtered windows of receipts (Pro tier and above):
 
 ```ts
-import { generateKeypair, signMessage, verifyMessage, canonicalJson } from "@asqav/sdk";
+import { exportAuditJson } from "@asqav/sdk";
 
-const kp = generateKeypair("ed25519");
-const message = canonicalJson({ intent: "approve refund ch_abc" });
-const sig = signMessage("ed25519", kp.privateKeyPkcs8B64, message);
-const ok = verifyMessage("ed25519", kp.publicKeySpkiB64, message, sig);
+const bundle = await exportAuditJson({
+  startDate: "2026-05-01T00:00Z",
+  endDate: "2026-06-01T00:00Z",
+  agentId: "agt_abc",
+});
+console.log(bundle.records.length, bundle.bundleDigest);
 ```
 
-ES256 signatures are emitted in IEEE-P1363 (raw r||s) form so they match the cloud verifier byte-for-byte.
+For offline chain verification, `verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previous_receipt_hash`. The first record's seed is `"0".repeat(64)`. The cloud is the authoritative verifier; this helper is a convenience.
+
+Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. Pass `algorithm: "ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `generateKeypair("ed25519")` for offline scenarios. ES256 signatures emit in IEEE-P1363 (raw r||s) form so they match the cloud verifier byte-for-byte.
+
+## Integrations
+
+The SDK ships native callbacks and adapters for common agent frameworks:
+
+- **Vercel AI SDK** - import `createAsqavExporter` from `@asqav/sdk/extras/vercel-ai`, pass to `experimental_telemetry: { tracer }`. Every span (text generation, tool calls, embeddings) becomes a signed Asqav action.
+- **LangChain.js** - import `AsqavCallbackHandler` from `@asqav/sdk/extras/langchain`, construct via `await AsqavCallbackHandler.create({ agent })` then pass to `callbacks: [handler]`. Requires `@langchain/core` as a peer dep.
+- **Mastra** - import `AsqavMastraHook` from `@asqav/sdk/extras/mastra`, attach via `await new AsqavMastraHook({ agent }).attach(mastraAgent)`. Requires `@mastra/core` as a peer dep.
+- **OpenAI Agents JS** - import `AsqavOpenAIAgentsAdapter` from `@asqav/sdk/extras/openai-agents`, wrap individual tools via `new AsqavOpenAIAgentsAdapter({ agent }).wrapTool(tool)`. Each invocation signs `tool:start` / `tool:end` / `tool:error`. Requires `@openai/agents` as a peer dep.
+- **CrewAI**, **LiteLLM**, **LlamaIndex**, **Haystack** - same pattern via the Hooks API (Python SDK has the richer ecosystem; see <https://asqav.com/docs/integrations> for parity status).
+
+Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation; failures log a warning instead of throwing.
 
 ## Errors
 
-All thrown errors extend `AsqavError`. `AuthenticationError`, `RateLimitError`, and `APIError` (with `statusCode`) are exported for fine-grained handling.
+All thrown errors extend `AsqavError`. `AuthenticationError` (401), `RateLimitError` (429), and `APIError` (with `statusCode`) are exported for fine-grained handling:
+
+```ts
+import { AsqavError, AuthenticationError, RateLimitError, APIError } from "@asqav/sdk";
+
+try {
+  await agent.sign({ actionType: "api:call", context: { model: "gpt-4" } });
+} catch (err) {
+  if (err instanceof AuthenticationError) throw err;     // rotate ASQAV_API_KEY
+  if (err instanceof RateLimitError) throw err;          // err.retryAfter holds the cooldown
+  if (err instanceof APIError) throw err;                // err.statusCode holds the HTTP status
+  throw err;
+}
+```
+
+`TypeError` is thrown before the HTTP roundtrip for the verbatim rule 8 / 9 / 10 / 11 guards listed above. Catch `TypeError` separately so guard violations surface as developer errors, not API errors.
 
 ## Requirements
 
-Node 18 or newer. Uses the built-in `fetch`. No transitive runtime dependencies.
-
-## Roadmap
-
-Six-line view of what is shipped on Asqav:
-
-- Hash-only mode for cloud - Today (default for `*.asqav.com`).
-- Self-hosted signer (split-trust) - Today (compose file in the Asqav backend repo).
-- Bring-your-own KMS (AWS KMS / GCP KMS) - Today, Enterprise tier.
-- Customer-owned storage - Today (self-hosted; relay payload allowlist enforced in code).
-- SCITT / COSE_Sign1 receipt export - Today (public `GET /api/v1/signatures/{id}/cose` returns `application/cose`).
-- Air-gapped / on-prem mode - Today (offline license + zero-egress; see the backend repo `docs/airgapped-mode.md`).
-
-See the docs at <https://asqav.com/docs> for the current feature set.
+Node 20 or newer. Uses the built-in `fetch`. Zero native dependencies; ML-DSA cryptography runs server-side.
 
 ## Standards
 
-Asqav's compliance receipts are profiled in IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/), profiling the upstream [`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/) for EU AI Act Articles 12 and 26, and DORA Article 17 bindings.
+Asqav's compliance receipts are profiled in IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/), an Independent Submission that profiles [`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/) for EU AI Act Articles 12 and 26, and DORA Article 17 bindings. The SDK aligns with NIST FIPS 204 (ML-DSA), JCS canonicalization, and the NSA Cybersecurity Information Sheet U/OO/6030316-26 on MCP server lifecycle telemetry.
+
+## Roadmap
+
+What ships on Asqav today. Each item is available on `main`:
+
+- Hash-only mode for cloud - default for `*.asqav.com`.
+- Self-hosted signer (split-trust) - compose file in the Asqav backend repo.
+- Bring-your-own KMS (AWS KMS / GCP KMS) - Enterprise tier.
+- Customer-owned storage - self-hosted; relay payload allowlist enforced in code.
+- SCITT / COSE_Sign1 receipt export - public `GET /api/v1/signatures/{id}/cose` returns `application/cose`.
+- Air-gapped / on-prem mode - offline license + zero-egress; see the backend repo `docs/airgapped-mode.md`.
+
+See <https://asqav.com/docs> for the live feature set.
+
+## Documentation
+
+- Repository: <https://github.com/jagmarques/asqav-sdk>
+- Full docs: <https://asqav.com/docs>
+- SDK guide: <https://asqav.com/docs/sdk>
+- IETF profile: <https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/>
+- Discovery descriptor: <https://asqav.com/.well-known/governance.json>
 
 ## License
 
-MIT. Get an API key at [asqav.com](https://asqav.com).
+Apache-2.0. Get an API key at [asqav.com](https://asqav.com).
