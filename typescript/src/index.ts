@@ -899,46 +899,44 @@ function validateSignOptions(options: SignOptions): void {
       `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
     );
   }
+  // Rule 8 lockstep with the cloud SignRequest validator: passive_telemetry
+  // pairs only with protectmcp:observation or protectmcp:observation:result_bound.
   if (
     options.captureTopology === "passive_telemetry"
     && options.receiptType !== undefined
     && options.receiptType !== "protectmcp:observation"
+    && options.receiptType !== "protectmcp:observation:result_bound"
   ) {
     const offending = options.receiptType.split(":").slice(1).join(":") || options.receiptType;
     throw new AsqavError(
-      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :${offending} (rule 8)`,
+      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :${offending} (rule 8)`,
     );
   }
-  // Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
-  // receipts MUST carry configManifestDigest. Verbatim message kept in
-  // lockstep with the cloud SignRequest cross-field validator.
+  // Rule 9 lockstep with the cloud SignRequest cross-field validator.
   if (
     options.receiptType === "protectmcp:lifecycle:configuration_change"
     && options.configManifestDigest === undefined
   ) {
     throw new AsqavError(
-      "false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)",
+      "configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).",
     );
   }
-  // Rule 10 (NSA CSI U/OO/6030316-26 alignment): the SDK accepts both the
-  // legacy `validSeconds` knob (server computes
-  // `valid_until = signed_at + valid_seconds`) and the new caller-supplied
-  // `expiresAt` horizon. Passing both at once produces two different audit
-  // horizons on the same receipt, so the SDK rejects the pair before the
-  // HTTP roundtrip. Verbatim message in lockstep with the cloud
-  // cross-field validator.
+  if (
+    options.receiptType === "protectmcp:observation:result_bound"
+    && options.resultDigest === undefined
+  ) {
+    throw new AsqavError(
+      "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
+    );
+  }
+  // Rule 10 lockstep with the cloud SignRequest cross-field validator.
   if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
     throw new AsqavError(
       "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
     );
   }
-  // Rule 11 (NSA CSI U/OO/6030316-26 alignment): every caller-supplied
-  // digest MUST match `sha256:<64-hex>`. A free-form `sha256:abc` would
-  // otherwise reach the cloud, pass the opaque-string accept, and break
-  // tamper detection at audit time. Verbatim message in lockstep with
-  // the cloud cross-field validator.
+  // Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
   const _digestChecks: Array<[string, string | undefined]> = [
-    ["tool_fingerprint", options.toolFingerprint],
     ["config_manifest_digest", options.configManifestDigest],
     ["cve_inventory_digest", options.cveInventoryDigest],
     ["executable_hash", options.executableHash],
@@ -947,9 +945,14 @@ function validateSignOptions(options: SignOptions): void {
   for (const [name, value] of _digestChecks) {
     if (value !== undefined && !SHA256_HEX_RE.test(value)) {
       throw new AsqavError(
-        `digest_format_guard: ${name} must match sha256:<64-hex> (rule 11)`,
+        `${name}_not_sha256_wire_form: must look like 'sha256:<64 lowercase hex>'.`,
       );
     }
+  }
+  if (options.toolFingerprint !== undefined && !SHA256_HEX_RE.test(options.toolFingerprint)) {
+    throw new AsqavError(
+      "digest_format_guard: tool_fingerprint must match sha256:<64-hex> (rule 11)",
+    );
   }
   const _pointerChecks: Array<[string, string | undefined]> = [
     ["slsa_provenance_pointer", options.slsaProvenancePointer],
