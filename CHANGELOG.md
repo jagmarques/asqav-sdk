@@ -6,6 +6,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [Python 0.5.1] - 2026-05-25
+
+### Added
+- Build-provenance 4-tuple on `agent.sign(...)`: four new optional wire fields mirroring the cloud SignRequest. `executable_hash` (`sha256:<hex>` of the executable that invoked the action), `sbom_digest` (`sha256:<hex>` of the canonical CycloneDX or SPDX SBOM), `slsa_provenance_pointer` (https URL to the SLSA attestation envelope), and `supply_chain_pointer` (https URL to the in-toto, Sigstore, or Rekor entry). All four are OPTIONAL; the cloud accepts each independently. Subsumes third-party signed-build-provenance vendors by binding the same evidence into the signed receipt.
+- `digest_format_guard` extended to cover `executable_hash` and `sbom_digest`; SDK raises `ValueError` with the verbatim guard message before the HTTP roundtrip when either field is not `^sha256:[a-f0-9]{64}$`.
+- `pointer_url_guard` (new) covers `slsa_provenance_pointer` and `supply_chain_pointer`; SDK raises `ValueError` when either is not an http(s) URL.
+- New parametric tests over the four fields plus shape rejection (`python/tests/test_client_executable_hash_4tuple.py`). Requires Asqav cloud 0.5.1 or higher.
+
 ## [TypeScript 0.5.0] - 2026-05-25
 
 ### Changed

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asqav"
-version = "0.5.0"
+version = "0.5.1"
 description = "AI agent governance - audit trails, policy enforcement, compliance"
 readme = "README.md"
 license = "MIT"
