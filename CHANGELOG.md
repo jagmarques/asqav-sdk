@@ -6,6 +6,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.0] - 2026-05-25
+
+### Changed
+- Version bump from 0.4.0 to 0.5.0 to align the npm @asqav/sdk version with the Python `asqav` package and the Asqav cloud 0.5.0 release. No wire-shape changes versus TypeScript 0.4.0; all NSA CSI U/OO/6030316-26 alignment features (five new optional props on `agent.sign({...})`, rule 9 / rule 10 / rule 11 cross-field guards, `protectmcp:observation:result_bound` receipt type, and the public digest helpers) shipped in 0.4.0 and are unchanged. CLI version string in `src/cli.ts` bumped from `"0.4.0"` to `"0.5.0"` to match the package version. Requires Asqav cloud 0.5.0 or higher.
+
 ## [Python 0.5.0] - 2026-05-25
 
 ### Added
