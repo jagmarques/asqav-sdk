@@ -155,6 +155,31 @@ Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment
 
 The `protectmcp:observation:result_bound` `receiptType` variant carries `resultDigest` and lets observation receipts bind to a specific tool result without claiming the policy gated the call.
 
+### Build provenance fields (optional)
+
+Four optional wire fields bind build-side provenance into the signed receipt, subsuming standalone SBOM or SLSA verifiers in a single envelope. All four are independent and may be set together or individually:
+
+- `executableHash` - `sha256:<hex>` of the executable that invoked the action. MUST match `sha256:<64-hex>`.
+- `sbomDigest` - `sha256:<hex>` of the canonical CycloneDX or SPDX SBOM document.
+- `slsaProvenancePointer` - https URL to the SLSA attestation envelope for the executing build.
+- `supplyChainPointer` - https URL to the in-toto, Sigstore, or Rekor entry covering the build.
+
+```ts
+import { Agent } from "@asqav/sdk";
+
+const agent = await Agent.create({ apiKey: process.env.ASQAV_API_KEY! });
+const receipt = await agent.sign({
+  action: "tool.invoke",
+  toolName: "exec_query",
+  executableHash: "sha256:" + "a".repeat(64),
+  sbomDigest: "sha256:" + "b".repeat(64),
+  slsaProvenancePointer: "https://example.com/slsa/build-123.json",
+  supplyChainPointer: "https://rekor.sigstore.dev/api/v1/log/entries/abc",
+});
+```
+
+See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance> for the field semantics and a worked policy example.
+
 ### Audit export
 
 The SDK exposes the public audit-trail endpoint as `exportAuditJson` for filtered windows of receipts (Pro tier and above):
