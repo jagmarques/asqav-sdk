@@ -180,6 +180,34 @@ const receipt = await agent.sign({
 
 See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance> for the field semantics and a worked policy example.
 
+## Threat-framework mappings (optional)
+
+Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim; the cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
+
+- `mitreTechniques` - list of MITRE ATT&CK technique ids (e.g. `["T1059", "T1078"]`).
+- `mitreAtlas` - list of MITRE ATLAS ids for AI-system threats (e.g. `["AML.T0051"]`).
+- `owaspLlmTop10` - list of OWASP Top 10 for LLM ids (e.g. `["LLM01", "LLM02"]`).
+- `nistAiRmf` - list of NIST AI RMF function ids (e.g. `["GOVERN-1.1", "MEASURE-2.7"]`).
+- `iso42001` - list of ISO/IEC 42001 control ids (e.g. `["A.6.2.6"]`).
+- `euAiActArticles` - list of EU AI Act article ids (e.g. `["Article-12", "Article-15"]`).
+- `rfc3161Timestamp` - caller-supplied base64-encoded RFC 3161 TimeStampResp (DER).
+
+```ts
+const receipt = await agent.sign({
+  actionType: "api:call",
+  context: { user: "..." },
+  complianceMode: true,
+  mitreTechniques: ["T1059", "T1078"],
+  owaspLlmTop10: ["LLM01"],
+  nistAiRmf: ["GOVERN-1.1", "MEASURE-2.7"],
+  euAiActArticles: ["Article-12"],
+});
+```
+
+Each list must be a non-empty array of strings, each entry up to 128 characters; empty arrays, non-string entries, or oversize entries throw `AsqavError` with verbatim guard messages (`<field>_must_be_non_empty_list`, `<field>_entry_invalid`) and skip the HTTP roundtrip. The `rfc3161Timestamp` must be valid base64 or throws `rfc3161_timestamp_not_base64`. Camel-case props project onto snake_case wire keys via the SDK's `IETF_OPTIONAL_FIELD_MAP`.
+
+See <https://www.asqav.com/docs/threat-framework-mapping>.
+
 ### Audit export
 
 The SDK exposes the public audit-trail endpoint as `exportAuditJson` for filtered windows of receipts (Pro tier and above):
