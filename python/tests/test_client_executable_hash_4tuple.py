@@ -118,7 +118,7 @@ def test_supply_chain_pointer_forwarded_to_wire() -> None:
 
 
 def test_executable_hash_malformed_rejected_before_post() -> None:
-    with pytest.raises(ValueError, match="digest_format_guard.*executable_hash"):
+    with pytest.raises(ValueError, match="executable_hash_not_sha256_wire_form"):
         _agent().sign(
             "build:provenance",
             {"k": "v"},
@@ -128,7 +128,7 @@ def test_executable_hash_malformed_rejected_before_post() -> None:
 
 
 def test_sbom_digest_malformed_rejected_before_post() -> None:
-    with pytest.raises(ValueError, match="digest_format_guard.*sbom_digest"):
+    with pytest.raises(ValueError, match="sbom_digest_not_sha256_wire_form"):
         _agent().sign(
             "build:provenance",
             {"k": "v"},

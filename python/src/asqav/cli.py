@@ -949,7 +949,7 @@ def quickstart() -> None:
     else:
         typer.echo(
             typer.style(
-                "ASQAV_API_KEY not set. Get one at https://cloud.asqav.com",
+                "ASQAV_API_KEY not set. Get one at https://asqav.com",
                 fg=typer.colors.YELLOW,
                 bold=True,
             )
