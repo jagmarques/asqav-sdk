@@ -809,10 +809,12 @@ function validateSignOptions(options: SignOptions): void {
   }
   if (
     options.captureTopology === "passive_telemetry"
-    && options.receiptType === "protectmcp:decision"
+    && options.receiptType !== undefined
+    && options.receiptType !== "protectmcp:observation"
   ) {
+    const offending = options.receiptType.split(":").slice(1).join(":") || options.receiptType;
     throw new AsqavError(
-      "false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision",
+      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :${offending} (rule 8)`,
     );
   }
   validateIncidentClass(options.incidentClass);

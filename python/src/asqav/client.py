@@ -1270,17 +1270,17 @@ class Agent:
                 "invalid_capture_topology: must be one of "
                 f"{sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
             )
-        # Mirror cloud rule 8: passive_telemetry observes after the fact, so
-        # it cannot certify a policy evaluation; receipts MUST use
-        # protectmcp:observation rather than :decision.
+        # Rule 8: passive_telemetry pairs only with protectmcp:observation.
         if (
             capture_topology == "passive_telemetry"
-            and receipt_type == "protectmcp:decision"
+            and receipt_type is not None
+            and receipt_type != "protectmcp:observation"
         ):
+            offending = receipt_type.split(":", 1)[-1]
             raise ValueError(
                 "false_attestation_guard: capture_topology=passive_telemetry "
                 "receipts must use receipt_type=protectmcp:observation, "
-                "not :decision."
+                f"not :{offending} (rule 8)"
             )
         # Fail fast on incident_class vocabulary before the HTTP roundtrip.
         # The field accepts a JSON string or a JSON array of such strings.
