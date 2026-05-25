@@ -340,6 +340,66 @@ describe("agent.sign capture_topology + observation wire fields", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it.each([
+    "protectmcp:decision",
+    "protectmcp:restraint",
+    "protectmcp:lifecycle",
+    "protectmcp:lifecycle:configuration_change",
+    "protectmcp:acknowledgment",
+  ] as const)(
+    "rule 8 widened: passive_telemetry paired with %s rejects with false_attestation_guard",
+    async (receiptType) => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const agent = fakeAgent();
+      const offending = receiptType.split(":").slice(1).join(":") || receiptType;
+      await expect(
+        agent.sign({
+          actionType: "t.test",
+          complianceMode: true,
+          captureTopology: "passive_telemetry",
+          receiptType,
+        }),
+      ).rejects.toThrow(/false_attestation_guard:/);
+      await expect(
+        agent.sign({
+          actionType: "t.test",
+          complianceMode: true,
+          captureTopology: "passive_telemetry",
+          receiptType,
+        }),
+      ).rejects.toThrow(/\(rule 8\)/);
+      await expect(
+        agent.sign({
+          actionType: "t.test",
+          complianceMode: true,
+          captureTopology: "passive_telemetry",
+          receiptType,
+        }),
+      ).rejects.toThrow(new RegExp(`not :${offending}`));
+      expect(fetchSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rule 8 widened: passive_telemetry paired with protectmcp:observation accepts", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        signature: "sig",
+        signature_id: "sig_test",
+        action_id: "act_test",
+        timestamp: "2026-05-15T00:00:00Z",
+        verification_url: "https://verify",
+      }),
+    );
+    const agent = fakeAgent();
+    await agent.sign({
+      actionType: "t.test",
+      complianceMode: true,
+      captureTopology: "passive_telemetry",
+      receiptType: "protectmcp:observation",
+    });
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
   it("accepts passive_telemetry paired with protectmcp:observation", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({

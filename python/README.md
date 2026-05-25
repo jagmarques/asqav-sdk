@@ -97,7 +97,7 @@ The four envelope extensions most callers reach for:
 
 Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block (SIEM forwarder, browser extension in observe-only mode, NetFlow-style proxy with no enforcement hook).
 
-Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK enforces the cloud's rule 8 guard before the HTTP roundtrip: pairing `capture_topology='passive_telemetry'` with `receipt_type='protectmcp:decision'` raises `ValueError("false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision (rule 8)")` (`python/src/asqav/client.py:1270-1278`).
+Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry` (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip (`python/src/asqav/client.py:1273-1284`).
 
 ```python
 sig = agent.sign(
