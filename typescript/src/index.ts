@@ -389,6 +389,34 @@ export interface SignOptions {
    * `passive_telemetry` requires `receiptType='protectmcp:observation'`
    * (false-attestation guard). */
   captureTopology?: CaptureTopology;
+
+  // === NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0) ===
+
+  /** `sha256:<hex>` of the tool output. Caller-supplied and forwarded
+   * verbatim to the cloud. */
+  resultDigest?: string;
+
+  /** Receipt validity horizon. ISO-8601 string or POSIX number.
+   * Caller-supplied and forwarded verbatim. */
+  expiresAt?: string | number;
+
+  /** Optional JSON schema describing the tool surface. When provided
+   * alongside `toolName` and `toolFingerprint` is omitted, the SDK
+   * computes the fingerprint client-side via JCS canonicalization. */
+  toolSchema?: Record<string, unknown>;
+
+  /** Explicit `sha256:<hex>` over the canonical `{tool_name, schema}` blob.
+   * When omitted but `toolName` + `toolSchema` are present, the SDK
+   * derives it client-side. */
+  toolFingerprint?: string;
+
+  /** `sha256:<hex>` of the agent's runtime configuration manifest.
+   * REQUIRED for `receiptType='protectmcp:lifecycle:configuration_change'`
+   * (false-attestation rule 9). */
+  configManifestDigest?: string;
+
+  /** `sha256:<hex>` of the agent's CVE inventory snapshot at signing time. */
+  cveInventoryDigest?: string;
 }
 
 export interface CoSignature {
@@ -817,6 +845,17 @@ function validateSignOptions(options: SignOptions): void {
       `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :${offending} (rule 8)`,
     );
   }
+  // Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
+  // receipts MUST carry configManifestDigest. Verbatim message kept in
+  // lockstep with the cloud SignRequest cross-field validator.
+  if (
+    options.receiptType === "protectmcp:lifecycle:configuration_change"
+    && options.configManifestDigest === undefined
+  ) {
+    throw new AsqavError(
+      "false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)",
+    );
+  }
   validateIncidentClass(options.incidentClass);
 }
 
@@ -855,11 +894,33 @@ function deriveActionRef(
   return `sha256:${hex}`;
 }
 
+/** Compute a deterministic `sha256:<hex>` over `{tool_name, schema}` per
+ * NSA CSI U/OO/6030316-26. The fingerprint is byte-deterministic under
+ * JCS so the SDK and cloud agree when the cloud rehashes for tamper
+ * detection. */
+export function computeToolFingerprint(
+  toolName: string,
+  toolSchema: Record<string, unknown> | undefined,
+): string {
+  const payload = canonicalJson({ tool_name: toolName, schema: toolSchema ?? {} });
+  const hex = createHash("sha256").update(payload).digest("hex");
+  return `sha256:${hex}`;
+}
+
+/** Return a 24-hex-char (12 random bytes) nonce for replay protection.
+ * The cloud verifier rejects duplicate nonces per `(agent_id, action_ref)`
+ * inside the validity window. */
+export function generateNonce(): string {
+  const { randomBytes } = require("node:crypto") as typeof import("node:crypto");
+  return randomBytes(12).toString("hex");
+}
+
 /**
  * Tack the optional non-IETF wire fields (`co_signers`, `nonce`,
  * `valid_seconds`, `expected_executor_pubkey_b64`) onto the body when
  * the caller supplied them. Mutates `body` in place for parity with the
- * inline original.
+ * inline original. Auto-generates `nonce` for cloud-side replay
+ * protection (NSA CSI alignment) when the caller omits one.
  */
 function applyOptionalWireFields(
   body: Record<string, unknown>,
@@ -868,7 +929,7 @@ function applyOptionalWireFields(
   if (options.coSigners && options.coSigners.length > 0) {
     body.co_signers = [...options.coSigners];
   }
-  if (options.nonce !== undefined) body.nonce = options.nonce;
+  body.nonce = options.nonce ?? generateNonce();
   if (options.validSeconds !== undefined) body.valid_seconds = options.validSeconds;
   if (options.expectedExecutorPubkeyB64 !== undefined) {
     body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
@@ -890,6 +951,19 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "payload_digest", read: (o) => o.payloadDigest },
   { wire: "receipt_type", read: (o) => o.receiptType },
   { wire: "reason", read: (o) => o.reason },
+  // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0).
+  { wire: "result_digest", read: (o) => o.resultDigest },
+  { wire: "expires_at", read: (o) => o.expiresAt },
+  { wire: "config_manifest_digest", read: (o) => o.configManifestDigest },
+  { wire: "cve_inventory_digest", read: (o) => o.cveInventoryDigest },
+  {
+    wire: "tool_fingerprint",
+    read: (o) =>
+      o.toolFingerprint
+      ?? (o.toolName !== undefined && o.toolSchema !== undefined
+        ? computeToolFingerprint(o.toolName, o.toolSchema)
+        : undefined),
+  },
 ];
 
 /**

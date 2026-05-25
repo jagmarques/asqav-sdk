@@ -230,7 +230,7 @@ Field reference (camelCase on the SDK, snake_case on the JSON wire):
 
 Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block (SIEM forwarder, browser extension in observe-only mode, NetFlow-style proxy with no enforcement hook).
 
-Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry` (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip (`typescript/src/index.ts:810-818`).
+Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry` (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip (see `false_attestation_guard` in `typescript/src/index.ts`).
 
 ```ts
 const sig = await agent.sign({
@@ -243,6 +243,23 @@ const sig = await agent.sign({
 ```
 
 `captureTopology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`; only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
+
+### Configuration change receipts (rule 9)
+
+A `receiptType: "protectmcp:lifecycle:configuration_change"` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate (NSA CSI U/OO/6030316-26 alignment): the receipt MUST carry `configManifestDigest`. Omitting it throws `AsqavError` with the verbatim `false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)` message before the HTTP roundtrip.
+
+```ts
+const sig = await agent.sign({
+  actionType: "mcp:config_update",
+  context: { server: "filesystem", delta: "tool_added" },
+  receiptType: "protectmcp:lifecycle:configuration_change",
+  policyDecision: "none",
+  configManifestDigest: "sha256:<hex of manifest>",
+  cveInventoryDigest: "sha256:<hex of cve snapshot>",
+});
+```
+
+Five new wire fields land on `sign()` for NSA CSI alignment: `resultDigest` (tool output hash), `expiresAt` (validity horizon), `toolFingerprint` (`sha256:<hex>` over `{tool_name, schema}` - auto-derived when `toolName` + `toolSchema` are present), `configManifestDigest` and `cveInventoryDigest`. The `nonce` field is auto-generated as 12 random bytes when the caller omits one; the cloud verifier rejects duplicates inside the validity window.
 
 ### RFC 8785 canonicalization
 
