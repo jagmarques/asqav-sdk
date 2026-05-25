@@ -1240,6 +1240,16 @@ class Agent:
         sbom_digest: str | None = None,
         slsa_provenance_pointer: str | None = None,
         supply_chain_pointer: str | None = None,
+        # Threat-framework taxonomy mappings (cloud 0.5.1+). Caller-supplied;
+        # the cloud sets framework_mappings_self_declared=True whenever any
+        # of the six list fields is populated.
+        mitre_techniques: list[str] | None = None,
+        mitre_atlas: list[str] | None = None,
+        owasp_llm_top10: list[str] | None = None,
+        nist_ai_rmf: list[str] | None = None,
+        iso_42001: list[str] | None = None,
+        eu_ai_act_articles: list[str] | None = None,
+        rfc3161_timestamp: str | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -1327,6 +1337,24 @@ class Agent:
             supply_chain_pointer: Build-provenance 4-tuple. https URL
                 to the in-toto, Sigstore, or Rekor entry covering the
                 executing build.
+            mitre_techniques: Caller-supplied list of MITRE ATT&CK
+                technique ids (e.g. ``["T1059", "T1078"]``). Self-declared;
+                never Asqav-verified. Auto-flips
+                ``framework_mappings_self_declared`` to True on the receipt.
+            mitre_atlas: Caller-supplied list of MITRE ATLAS ids for
+                AI-system threats (e.g. ``["AML.T0051", "AML.T0043"]``).
+                Self-declared; never Asqav-verified.
+            owasp_llm_top10: Caller-supplied list of OWASP Top 10 for LLM
+                ids (e.g. ``["LLM01", "LLM02"]``). Self-declared.
+            nist_ai_rmf: Caller-supplied list of NIST AI RMF function ids
+                (e.g. ``["GOVERN-1.1", "MEASURE-2.7"]``). Self-declared.
+            iso_42001: Caller-supplied list of ISO/IEC 42001 control ids
+                (e.g. ``["A.6.2.6"]``). Self-declared.
+            eu_ai_act_articles: Caller-supplied list of EU AI Act article
+                ids (e.g. ``["Article-12", "Article-15"]``). Self-declared.
+            rfc3161_timestamp: Caller-supplied base64-encoded RFC 3161
+                TimeStampResp (DER). Preserved on the receipt for offline
+                TSA chain verification independent of cloud-issued anchors.
 
         Returns:
             SignatureResponse with the signature.
@@ -1481,6 +1509,49 @@ class Agent:
                     f"pointer_url_guard: {_name} must be an http(s) URL"
                 )
 
+        # Threat-framework taxonomy validators. Lockstep with the cloud
+        # cross-field validator: lists must be non-empty list[str], each
+        # element non-empty and <= 128 chars; rfc3161_timestamp must be
+        # non-empty valid base64. Verbatim guard tokens kept in sync with
+        # the cloud SignRequest so SDK errors round-trip through the
+        # conformance vectors.
+        for _name, _value in (
+            ("mitre_techniques", mitre_techniques),
+            ("mitre_atlas", mitre_atlas),
+            ("owasp_llm_top10", owasp_llm_top10),
+            ("nist_ai_rmf", nist_ai_rmf),
+            ("iso_42001", iso_42001),
+            ("eu_ai_act_articles", eu_ai_act_articles),
+        ):
+            if _value is None:
+                continue
+            if not isinstance(_value, list) or len(_value) == 0:
+                raise ValueError(
+                    f"{_name}_must_be_non_empty_list: pass a non-empty "
+                    "list of strings or omit the field."
+                )
+            for _item in _value:
+                if not isinstance(_item, str) or not _item or len(_item) > 128:
+                    raise ValueError(
+                        f"{_name}_entry_invalid: each entry must be a "
+                        "non-empty string of length <= 128."
+                    )
+        if rfc3161_timestamp is not None:
+            import base64 as _b64
+            import binascii as _binascii
+            if not isinstance(rfc3161_timestamp, str) or not rfc3161_timestamp:
+                raise ValueError(
+                    "rfc3161_timestamp_not_base64: must be a non-empty "
+                    "base64-encoded TimeStampResp."
+                )
+            try:
+                _b64.b64decode(rfc3161_timestamp, validate=True)
+            except (_binascii.Error, ValueError) as _exc:
+                raise ValueError(
+                    "rfc3161_timestamp_not_base64: must be valid base64 "
+                    f"(decode failed: {_exc})."
+                ) from _exc
+
         # Derive action_ref under compliance_mode when caller omits it.
         if compliance_mode and action_ref is None:
             action_ref = _compute_action_ref(action_type, context)
@@ -1527,6 +1598,14 @@ class Agent:
                 ("sbom_digest", sbom_digest),
                 ("slsa_provenance_pointer", slsa_provenance_pointer),
                 ("supply_chain_pointer", supply_chain_pointer),
+                # Threat-framework taxonomy mappings (cloud 0.5.1+).
+                ("mitre_techniques", mitre_techniques),
+                ("mitre_atlas", mitre_atlas),
+                ("owasp_llm_top10", owasp_llm_top10),
+                ("nist_ai_rmf", nist_ai_rmf),
+                ("iso_42001", iso_42001),
+                ("eu_ai_act_articles", eu_ai_act_articles),
+                ("rfc3161_timestamp", rfc3161_timestamp),
             ):
                 if v is not None:
                     compliance_fields[k] = v
