@@ -16,7 +16,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   Agent,
+  RECEIPT_TYPE_NAMESPACE,
   _resetForTests,
+  computeConfigManifestDigest,
+  computeCveInventoryDigest,
   computeToolFingerprint,
   generateNonce,
   init,
@@ -264,5 +267,221 @@ describe("Rule 9: configuration_change requires configManifestDigest", () => {
     const body = readBody(spy);
     expect(body.receipt_type).toBe("protectmcp:lifecycle");
     expect(body).not.toHaveProperty("config_manifest_digest");
+  });
+});
+
+// === Rule 10: expiry_collision_guard (validSeconds vs expiresAt) ===
+
+describe("Rule 10: expiry_collision_guard", () => {
+  beforeEach(() => {
+    _resetForTests();
+    init({ apiKey: "asq_test_key", baseUrl: "https://api.example.com/api/v1" });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("rejects passing both validSeconds and expiresAt verbatim", async () => {
+    const spy = vi.spyOn(globalThis, "fetch");
+    await expect(
+      fakeAgent().sign({
+        actionType: "api.call",
+        complianceMode: true,
+        validSeconds: 3600,
+        expiresAt: "2026-06-01T00:00:00Z",
+      }),
+    ).rejects.toThrow(
+      "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("passing neither uses the server-side default", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    await fakeAgent().sign({ actionType: "api.call", complianceMode: true });
+    const body = readBody(spy);
+    expect(body).not.toHaveProperty("valid_seconds");
+    expect(body).not.toHaveProperty("expires_at");
+  });
+
+  it("only validSeconds is forwarded verbatim", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    await fakeAgent().sign({
+      actionType: "api.call",
+      complianceMode: true,
+      validSeconds: 7200,
+    });
+    const body = readBody(spy);
+    expect(body.valid_seconds).toBe(7200);
+    expect(body).not.toHaveProperty("expires_at");
+  });
+
+  it("only expiresAt is forwarded verbatim", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    await fakeAgent().sign({
+      actionType: "api.call",
+      complianceMode: true,
+      expiresAt: "2026-06-01T00:00:00Z",
+    });
+    const body = readBody(spy);
+    expect(body.expires_at).toBe("2026-06-01T00:00:00Z");
+    expect(body).not.toHaveProperty("valid_seconds");
+  });
+});
+
+// === Rule 11: digest_format_guard (sha256:<64-hex>) ===
+
+const VALID_SHA = `sha256:${"f".repeat(64)}`;
+
+describe("Rule 11: digest_format_guard", () => {
+  beforeEach(() => {
+    _resetForTests();
+    init({ apiKey: "asq_test_key", baseUrl: "https://api.example.com/api/v1" });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const digestFields: Array<{ wire: string; opt: keyof Parameters<Agent["sign"]>[0] }> = [
+    { wire: "tool_fingerprint", opt: "toolFingerprint" },
+    { wire: "config_manifest_digest", opt: "configManifestDigest" },
+    { wire: "cve_inventory_digest", opt: "cveInventoryDigest" },
+  ];
+
+  for (const { wire, opt } of digestFields) {
+    it(`${wire}: valid format passes`, async () => {
+      const spy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(jsonResponse(okBody()));
+      const sigOpts = {
+        actionType: "api.call",
+        complianceMode: true,
+        [opt]: VALID_SHA,
+      } as unknown as Parameters<Agent["sign"]>[0];
+      await fakeAgent().sign(sigOpts);
+      const body = readBody(spy);
+      expect(body[wire]).toBe(VALID_SHA);
+    });
+
+    it(`${wire}: wrong prefix is rejected verbatim`, async () => {
+      const spy = vi.spyOn(globalThis, "fetch");
+      const sigOpts = {
+        actionType: "api.call",
+        complianceMode: true,
+        [opt]: `md5:${"0".repeat(64)}`,
+      } as unknown as Parameters<Agent["sign"]>[0];
+      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(
+        `digest_format_guard: ${wire} must match sha256:<64-hex> (rule 11)`,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it(`${wire}: wrong length is rejected verbatim`, async () => {
+      const spy = vi.spyOn(globalThis, "fetch");
+      const sigOpts = {
+        actionType: "api.call",
+        complianceMode: true,
+        [opt]: "sha256:abc123",
+      } as unknown as Parameters<Agent["sign"]>[0];
+      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(
+        `digest_format_guard: ${wire} must match sha256:<64-hex> (rule 11)`,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it(`${wire}: non-hex characters are rejected verbatim`, async () => {
+      const spy = vi.spyOn(globalThis, "fetch");
+      const sigOpts = {
+        actionType: "api.call",
+        complianceMode: true,
+        [opt]: `sha256:${"Z".repeat(64)}`,
+      } as unknown as Parameters<Agent["sign"]>[0];
+      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(
+        `digest_format_guard: ${wire} must match sha256:<64-hex> (rule 11)`,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe("digest helpers", () => {
+  it("computeToolFingerprint matches the rule-11 regex", () => {
+    const fp = computeToolFingerprint("search", { q: "string" });
+    expect(fp).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+
+  it("computeConfigManifestDigest is deterministic under key reorder", () => {
+    const d1 = computeConfigManifestDigest({ a: 1, b: [2, 3] });
+    const d2 = computeConfigManifestDigest({ b: [2, 3], a: 1 });
+    expect(d1).toBe(d2);
+    expect(d1).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+
+  it("computeCveInventoryDigest is deterministic across snapshots", () => {
+    const cves = [{ id: "CVE-2026-0001", severity: "high" }];
+    const d1 = computeCveInventoryDigest(cves);
+    const d2 = computeCveInventoryDigest([{ ...cves[0] }]);
+    expect(d1).toBe(d2);
+    expect(d1).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+});
+
+// === BLOCKER 5: protectmcp:observation:result_bound receipt type ===
+
+describe("protectmcp:observation:result_bound receipt type", () => {
+  beforeEach(() => {
+    _resetForTests();
+    init({ apiKey: "asq_test_key", baseUrl: "https://api.example.com/api/v1" });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("is a member of RECEIPT_TYPE_NAMESPACE", () => {
+    expect(RECEIPT_TYPE_NAMESPACE as readonly string[]).toContain(
+      "protectmcp:observation:result_bound",
+    );
+  });
+
+  for (const receiptType of [...RECEIPT_TYPE_NAMESPACE].sort()) {
+    it(`every namespace member round-trips: ${receiptType}`, async () => {
+      const spy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(jsonResponse(okBody()));
+      const opts: Record<string, unknown> = {
+        actionType: "api.call",
+        complianceMode: true,
+        receiptType,
+      };
+      if (receiptType === "protectmcp:lifecycle:configuration_change") {
+        opts.configManifestDigest = computeConfigManifestDigest({ mode: "test" });
+      }
+      if (
+        receiptType.startsWith("protectmcp:lifecycle")
+        || receiptType.startsWith("protectmcp:observation")
+      ) {
+        opts.policyDecision = "none";
+      }
+      await fakeAgent().sign(opts as Parameters<Agent["sign"]>[0]);
+      const body = readBody(spy);
+      expect(body.receipt_type).toBe(receiptType);
+    });
+  }
+
+  it("result_bound carries result_digest verbatim", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    const resultDigest = `sha256:${"9".repeat(64)}`;
+    await fakeAgent().sign({
+      actionType: "api.call",
+      complianceMode: true,
+      receiptType: "protectmcp:observation:result_bound",
+      policyDecision: "none",
+      resultDigest,
+    });
+    const body = readBody(spy);
+    expect(body.receipt_type).toBe("protectmcp:observation:result_bound");
+    expect(body.result_digest).toBe(resultDigest);
   });
 });

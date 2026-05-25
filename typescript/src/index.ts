@@ -30,6 +30,12 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:lifecycle:configuration_change",
   "protectmcp:acknowledgment",
   "protectmcp:observation",
+  // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): observation receipts
+  // that carry a `result_digest` use the `:result_bound` suffix so auditors
+  // can index receipts that bind tool output without a wider scan. The
+  // 4-place atomic landing (SDK / cloud / well-known / conformance) keeps
+  // the vocabulary in lockstep.
+  "protectmcp:observation:result_bound",
 ] as const;
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
 
@@ -323,7 +329,12 @@ export interface SignOptions {
   nonce?: string;
   /** Optional validity window in seconds. Sets `valid_until = signed_at + validSeconds`
    * on the server; verifying the record after expiry returns
-   * `verified=false` with `validation_label="signature_expired"`. */
+   * `verified=false` with `validation_label="signature_expired"`.
+   * Mutually exclusive with `expiresAt` (rule 10). Pass exactly one of
+   * the two: `validSeconds` for "expire N seconds after signing", or
+   * `expiresAt` for an explicit horizon. Passing both throws
+   * `expiry_collision_guard`. Passing neither falls back to the
+   * server-side default (`valid_seconds=86400`). */
   validSeconds?: number;
   /** Counterparty pin: base64 executor pubkey expected on attestation;
    * other keys -> 403 `executor_key_mismatch`. */
@@ -397,7 +408,8 @@ export interface SignOptions {
   resultDigest?: string;
 
   /** Receipt validity horizon. ISO-8601 string or POSIX number.
-   * Caller-supplied and forwarded verbatim. */
+   * Caller-supplied and forwarded verbatim. Mutually exclusive with
+   * `validSeconds` (rule 10); see `validSeconds` for precedence. */
   expiresAt?: string | number;
 
   /** Optional JSON schema describing the tool surface. When provided
@@ -407,15 +419,19 @@ export interface SignOptions {
 
   /** Explicit `sha256:<hex>` over the canonical `{tool_name, schema}` blob.
    * When omitted but `toolName` + `toolSchema` are present, the SDK
-   * derives it client-side. */
+   * derives it client-side. MUST match `sha256:<64-hex>` (rule 11); use
+   * `computeToolFingerprint` to avoid drift. */
   toolFingerprint?: string;
 
   /** `sha256:<hex>` of the agent's runtime configuration manifest.
    * REQUIRED for `receiptType='protectmcp:lifecycle:configuration_change'`
-   * (false-attestation rule 9). */
+   * (false-attestation rule 9). MUST match `sha256:<64-hex>` (rule 11);
+   * use `computeConfigManifestDigest` to avoid drift. */
   configManifestDigest?: string;
 
-  /** `sha256:<hex>` of the agent's CVE inventory snapshot at signing time. */
+  /** `sha256:<hex>` of the agent's CVE inventory snapshot at signing time.
+   * MUST match `sha256:<64-hex>` (rule 11); use
+   * `computeCveInventoryDigest` to avoid drift. */
   cveInventoryDigest?: string;
 }
 
@@ -856,6 +872,35 @@ function validateSignOptions(options: SignOptions): void {
       "false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)",
     );
   }
+  // Rule 10 (NSA CSI U/OO/6030316-26 alignment): the SDK accepts both the
+  // legacy `validSeconds` knob (server computes
+  // `valid_until = signed_at + valid_seconds`) and the new caller-supplied
+  // `expiresAt` horizon. Passing both at once produces two different audit
+  // horizons on the same receipt, so the SDK rejects the pair before the
+  // HTTP roundtrip. Verbatim message in lockstep with the cloud
+  // cross-field validator.
+  if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
+    throw new AsqavError(
+      "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
+    );
+  }
+  // Rule 11 (NSA CSI U/OO/6030316-26 alignment): every caller-supplied
+  // digest MUST match `sha256:<64-hex>`. A free-form `sha256:abc` would
+  // otherwise reach the cloud, pass the opaque-string accept, and break
+  // tamper detection at audit time. Verbatim message in lockstep with
+  // the cloud cross-field validator.
+  const _digestChecks: Array<[string, string | undefined]> = [
+    ["tool_fingerprint", options.toolFingerprint],
+    ["config_manifest_digest", options.configManifestDigest],
+    ["cve_inventory_digest", options.cveInventoryDigest],
+  ];
+  for (const [name, value] of _digestChecks) {
+    if (value !== undefined && !SHA256_HEX_RE.test(value)) {
+      throw new AsqavError(
+        `digest_format_guard: ${name} must match sha256:<64-hex> (rule 11)`,
+      );
+    }
+  }
   validateIncidentClass(options.incidentClass);
 }
 
@@ -894,16 +939,48 @@ function deriveActionRef(
   return `sha256:${hex}`;
 }
 
+/** Wire format for every caller-supplied digest field
+ * (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`,
+ * `result_digest`). The cloud accepts the same exact-match form so the
+ * SDK surfaces bad inputs before the HTTP roundtrip; the regex matches
+ * the helper outputs byte-for-byte. */
+const SHA256_HEX_RE = /^sha256:[a-f0-9]{64}$/;
+
 /** Compute a deterministic `sha256:<hex>` over `{tool_name, schema}` per
  * NSA CSI U/OO/6030316-26. The fingerprint is byte-deterministic under
- * JCS so the SDK and cloud agree when the cloud rehashes for tamper
- * detection. */
+ * JCS (RFC 8785) so the SDK and cloud agree when the cloud rehashes for
+ * tamper detection. Output matches `SHA256_HEX_RE` byte-for-byte. */
 export function computeToolFingerprint(
   toolName: string,
   toolSchema: Record<string, unknown> | undefined,
 ): string {
   const payload = canonicalJson({ tool_name: toolName, schema: toolSchema ?? {} });
   const hex = createHash("sha256").update(payload).digest("hex");
+  return `sha256:${hex}`;
+}
+
+/** Compute the canonical `sha256:<hex>` of a runtime configuration
+ * manifest. NSA CSI U/OO/6030316-26 anchors the "silent capability creep"
+ * audit on `protectmcp:lifecycle:configuration_change` receipts (rule 9).
+ * This helper produces a digest byte-deterministic under JCS (RFC 8785)
+ * so two auditors who receive the same manifest object produce identical
+ * digests regardless of insertion order. Output matches `SHA256_HEX_RE`
+ * byte-for-byte. */
+export function computeConfigManifestDigest(
+  manifest: Record<string, unknown>,
+): string {
+  const hex = createHash("sha256").update(canonicalJson(manifest)).digest("hex");
+  return `sha256:${hex}`;
+}
+
+/** Compute the canonical `sha256:<hex>` of a CVE inventory snapshot. NSA
+ * CSI U/OO/6030316-26 anchors the "known-vulnerable invocation" audit on
+ * receipts that carry `cve_inventory_digest`. The helper takes the list
+ * of CVE records (any JSON-serialisable shape) and produces a digest
+ * byte-deterministic under JCS (RFC 8785). Output matches
+ * `SHA256_HEX_RE` byte-for-byte. */
+export function computeCveInventoryDigest(cveList: unknown[]): string {
+  const hex = createHash("sha256").update(canonicalJson(cveList)).digest("hex");
   return `sha256:${hex}`;
 }
 

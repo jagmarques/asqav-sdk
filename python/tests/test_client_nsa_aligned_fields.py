@@ -23,7 +23,10 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import (
+    RECEIPT_TYPE_NAMESPACE,
     Agent,
+    _compute_config_manifest_digest,
+    _compute_cve_inventory_digest,
     _compute_tool_fingerprint,
     _generate_nonce,
 )
@@ -294,3 +297,260 @@ def test_lifecycle_without_configuration_change_does_not_require_digest() -> Non
         )
     assert captured["body"]["receipt_type"] == "protectmcp:lifecycle"
     assert "config_manifest_digest" not in captured["body"]
+
+
+# === Rule 10: expiry_collision_guard (valid_seconds vs expires_at) ===
+
+
+class TestExpiryCollisionGuard:
+    """Rule 10: ``valid_seconds`` and ``expires_at`` are mutually exclusive."""
+
+    def test_both_set_raises_verbatim(self) -> None:
+        """Passing both knobs raises ``expiry_collision_guard`` before the
+        HTTP roundtrip with a verbatim message in lockstep with the cloud."""
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError) as exc_info:
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    valid_seconds=3600,
+                    expires_at="2026-06-01T00:00:00Z",
+                )
+            assert str(exc_info.value) == (
+                "expiry_collision_guard: pass either valid_seconds or "
+                "expires_at, not both (rule 10)"
+            )
+            p.assert_not_called()
+
+    def test_neither_set_uses_server_default(self) -> None:
+        """Passing neither knob is fine; the cloud applies its default."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
+        assert "valid_seconds" not in captured["body"]
+        assert "expires_at" not in captured["body"]
+
+    def test_only_valid_seconds_set_passes(self) -> None:
+        """``valid_seconds`` alone is forwarded verbatim."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                valid_seconds=7200,
+            )
+        assert captured["body"]["valid_seconds"] == 7200
+        assert "expires_at" not in captured["body"]
+
+    def test_only_expires_at_set_passes(self) -> None:
+        """``expires_at`` alone is forwarded verbatim."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                expires_at="2026-06-01T00:00:00Z",
+            )
+        assert captured["body"]["expires_at"] == "2026-06-01T00:00:00Z"
+        assert "valid_seconds" not in captured["body"]
+
+
+# === Rule 11: digest_format_guard (sha256:<64-hex>) ===
+
+
+_VALID_SHA = "sha256:" + "f" * 64
+
+
+class TestDigestFormatGuard:
+    """Rule 11: every caller-supplied digest MUST match ``sha256:<64-hex>``."""
+
+    @pytest.mark.parametrize(
+        "field",
+        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+    )
+    def test_valid_format_passes(self, field: str) -> None:
+        """A correctly-formatted digest is forwarded verbatim. The cross-
+        field validator for configuration_change still requires the digest
+        to be present, so we send a plain decision receipt here."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                **{field: _VALID_SHA},
+            )
+        assert captured["body"][field] == _VALID_SHA
+
+    @pytest.mark.parametrize(
+        "field",
+        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+    )
+    def test_wrong_prefix_rejected(self, field: str) -> None:
+        """Anything other than the ``sha256:`` prefix raises verbatim."""
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError) as exc_info:
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    **{field: "md5:" + "0" * 64},
+                )
+            assert str(exc_info.value) == (
+                f"digest_format_guard: {field} must match "
+                "sha256:<64-hex> (rule 11)"
+            )
+            p.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "field",
+        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+    )
+    def test_wrong_length_rejected(self, field: str) -> None:
+        """A short hex tail fails the regex."""
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError) as exc_info:
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    **{field: "sha256:abc123"},
+                )
+            assert str(exc_info.value) == (
+                f"digest_format_guard: {field} must match "
+                "sha256:<64-hex> (rule 11)"
+            )
+            p.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "field",
+        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+    )
+    def test_non_hex_rejected(self, field: str) -> None:
+        """Uppercase / non-hex characters fail the regex."""
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError) as exc_info:
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    **{field: "sha256:" + "Z" * 64},
+                )
+            assert str(exc_info.value) == (
+                f"digest_format_guard: {field} must match "
+                "sha256:<64-hex> (rule 11)"
+            )
+            p.assert_not_called()
+
+
+class TestDigestHelpers:
+    """Helpers always emit a digest that passes the rule-11 regex."""
+
+    def test_compute_tool_fingerprint_matches_regex(self) -> None:
+        fp = _compute_tool_fingerprint("search", {"q": "string"})
+        assert re.fullmatch(r"sha256:[a-f0-9]{64}", fp)
+
+    def test_compute_config_manifest_digest_is_deterministic(self) -> None:
+        d1 = _compute_config_manifest_digest({"a": 1, "b": [2, 3]})
+        d2 = _compute_config_manifest_digest({"b": [2, 3], "a": 1})
+        assert d1 == d2
+        assert re.fullmatch(r"sha256:[a-f0-9]{64}", d1)
+
+    def test_compute_cve_inventory_digest_is_deterministic(self) -> None:
+        cves = [{"id": "CVE-2026-0001", "severity": "high"}]
+        d1 = _compute_cve_inventory_digest(cves)
+        d2 = _compute_cve_inventory_digest([dict(cves[0])])
+        assert d1 == d2
+        assert re.fullmatch(r"sha256:[a-f0-9]{64}", d1)
+
+
+# === BLOCKER 5: protectmcp:observation:result_bound receipt type ===
+
+
+class TestResultBoundReceiptType:
+    """The new ``:result_bound`` suffix is a first-class receipt type."""
+
+    def test_result_bound_in_namespace(self) -> None:
+        assert "protectmcp:observation:result_bound" in RECEIPT_TYPE_NAMESPACE
+
+    @pytest.mark.parametrize(
+        "receipt_type",
+        sorted(RECEIPT_TYPE_NAMESPACE),
+    )
+    def test_every_namespace_member_passes_validation(
+        self, receipt_type: str
+    ) -> None:
+        """Every receipt_type in the namespace must round-trip through
+        sign() without tripping ``invalid_receipt_type``."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        kwargs: dict = {
+            "compliance_mode": True,
+            "receipt_type": receipt_type,
+        }
+        # The rule-9 guard requires config_manifest_digest for the
+        # configuration_change receipt; supply a deterministic digest.
+        if receipt_type == "protectmcp:lifecycle:configuration_change":
+            kwargs["config_manifest_digest"] = (
+                _compute_config_manifest_digest({"mode": "test"})
+            )
+        # Lifecycle receipts use policy_decision=none.
+        if receipt_type.startswith("protectmcp:lifecycle") or (
+            receipt_type.startswith("protectmcp:observation")
+        ):
+            kwargs["policy_decision"] = "none"
+
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign("api:call", {"k": "v"}, **kwargs)
+        assert captured["body"]["receipt_type"] == receipt_type
+
+    def test_result_bound_carries_result_digest(self) -> None:
+        """The headline use case: an observation receipt that binds the
+        tool output via ``result_digest``."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        result_digest = "sha256:" + "9" * 64
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                receipt_type="protectmcp:observation:result_bound",
+                policy_decision="none",
+                result_digest=result_digest,
+            )
+        assert captured["body"]["receipt_type"] == (
+            "protectmcp:observation:result_bound"
+        )
+        assert captured["body"]["result_digest"] == result_digest

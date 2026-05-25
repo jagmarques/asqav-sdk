@@ -86,7 +86,7 @@ Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a 
 
 The four envelope extensions most callers reach for:
 
-- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:acknowledgment`, or `protectmcp:observation`.
+- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:lifecycle:configuration_change`, `protectmcp:acknowledgment`, `protectmcp:observation`, or `protectmcp:observation:result_bound` (observation receipts that bind tool output via `result_digest`).
 - `risk_class` - controlled vocabulary: `unacceptable | high | limited | minimal | gpai | low | medium | unknown`.
 - `iteration_id` - logical task id, distinct from session.
 - `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
@@ -127,6 +127,30 @@ sig = agent.sign(
 ```
 
 Five new wire fields land on `sign()` for NSA CSI alignment: `result_digest` (tool output hash), `expires_at` (validity horizon), `tool_fingerprint` (`sha256:<hex>` over `{tool_name, schema}` - auto-derived when `tool_name` + `tool_schema` are present), `config_manifest_digest` and `cve_inventory_digest`. The `nonce` field is auto-generated as 12 random bytes when the caller omits one; the cloud verifier rejects duplicates inside the validity window.
+
+### Expiry precedence (rule 10)
+
+`valid_seconds` (legacy, server computes `valid_until = signed_at + valid_seconds`) and `expires_at` (caller-supplied horizon) are mutually exclusive. Pass exactly one of the two: `valid_seconds=3600` for "expire one hour after signing", or `expires_at="2026-06-01T00:00:00Z"` for an explicit horizon. Passing both raises `ValueError` with the verbatim `expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)` message before the HTTP roundtrip. Passing neither falls back to the server-side default (`valid_seconds=86400`).
+
+### Digest format (rule 11)
+
+Every caller-supplied digest field (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. Anything else raises `ValueError` with the verbatim `digest_format_guard: <field> must match sha256:<64-hex> (rule 11)` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS / RFC 8785):
+
+```python
+from asqav.client import (
+    _compute_tool_fingerprint,
+    _compute_config_manifest_digest,
+    _compute_cve_inventory_digest,
+)
+
+fp = _compute_tool_fingerprint("search", {"args": {"q": "string"}})
+cfg = _compute_config_manifest_digest({"server": "filesystem", "tools": ["read"]})
+cve = _compute_cve_inventory_digest([{"id": "CVE-2026-0001", "severity": "high"}])
+```
+
+### Result-bound observation receipts
+
+The `protectmcp:observation:result_bound` receipt_type variant signals an observation receipt that carries `result_digest` (a `sha256:<hex>` of the tool output). Use it when the producer wants to bind the receipt to a specific tool result without claiming the policy gated the call. The cloud accepts the same vocabulary; auditors can index result-bound observations without a wider scan.
 
 ### Audit Pack export
 

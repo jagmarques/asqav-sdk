@@ -26,6 +26,7 @@ import hmac
 import json as _json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -202,6 +203,12 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:lifecycle:configuration_change",
         "protectmcp:acknowledgment",
         "protectmcp:observation",
+        # NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): observation receipts
+        # that carry a ``result_digest`` use the ``:result_bound`` suffix so
+        # auditors can index receipts that bind tool output without a wider
+        # scan. The 4-place atomic landing (SDK / cloud / well-known /
+        # conformance) keeps the vocabulary in lockstep.
+        "protectmcp:observation:result_bound",
     }
 )
 
@@ -894,23 +901,59 @@ def _compute_action_ref(
     return "sha256:" + hashlib.sha256(canonicalize_action(action_type, context)).hexdigest()
 
 
+#: Wire format for every caller-supplied digest field
+#: (``tool_fingerprint``, ``config_manifest_digest``, ``cve_inventory_digest``,
+#: ``result_digest``). The cloud accepts the same exact-match form so the SDK
+#: surfaces bad inputs before the HTTP roundtrip; the regex matches the helper
+#: outputs byte-for-byte.
+_SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
+
+
 def _compute_tool_fingerprint(
     tool_name: str, tool_schema: dict[str, Any] | None
 ) -> str:
     """Compute a deterministic ``sha256:<hex>`` over `{tool_name, schema}`.
 
     NSA CSI U/OO/6030316-26 binds receipts to the exact tool surface the
-    agent invoked. The fingerprint is byte-deterministic under JCS so the
-    SDK and cloud agree when the cloud rehashes for tamper detection.
+    agent invoked. The fingerprint is byte-deterministic under JCS (RFC
+    8785) so the SDK and cloud agree when the cloud rehashes for tamper
+    detection. Output matches ``_SHA256_HEX_RE`` byte-for-byte.
     """
-    import json as _json2
+    from .canonicalize import canonicalize
 
-    payload = _json2.dumps(
-        {"tool_name": tool_name, "schema": tool_schema or {}},
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    payload = canonicalize({"tool_name": tool_name, "schema": tool_schema or {}})
     return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
+    """Compute the canonical ``sha256:<hex>`` of a runtime configuration manifest.
+
+    NSA CSI U/OO/6030316-26 anchors the "silent capability creep" audit on
+    ``protectmcp:lifecycle:configuration_change`` receipts (rule 9). This
+    helper produces a digest byte-deterministic under JCS (RFC 8785) so two
+    auditors who receive the same manifest dict produce identical digests
+    regardless of insertion order. Output matches ``_SHA256_HEX_RE`` byte-
+    for-byte; callers that pre-compute via ``json.dumps`` will fail the
+    ``digest_format_guard`` only when the format is wrong, but the
+    semantic-drift risk is documented in the README.
+    """
+    from .canonicalize import canonicalize
+
+    return "sha256:" + hashlib.sha256(canonicalize(manifest)).hexdigest()
+
+
+def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
+    """Compute the canonical ``sha256:<hex>`` of a CVE inventory snapshot.
+
+    NSA CSI U/OO/6030316-26 anchors the "known-vulnerable invocation" audit
+    on receipts that carry ``cve_inventory_digest``. The helper takes the
+    list of CVE records (any JSON-serialisable shape) and produces a digest
+    byte-deterministic under JCS (RFC 8785). Output matches
+    ``_SHA256_HEX_RE`` byte-for-byte.
+    """
+    from .canonicalize import canonicalize
+
+    return "sha256:" + hashlib.sha256(canonicalize(cve_list)).hexdigest()
 
 
 def _generate_nonce() -> str:
@@ -1239,7 +1282,14 @@ class Agent:
                 ``sha256:<hex>`` of the tool output. Caller-supplied and
                 forwarded verbatim to the cloud.
             expires_at: Receipt validity horizon. ISO-8601 string or POSIX
-                float. Caller-supplied and forwarded verbatim.
+                float. Caller-supplied and forwarded verbatim. Mutually
+                exclusive with ``valid_seconds`` (rule 10). Pass exactly
+                one of the two: ``valid_seconds`` for "expire N seconds
+                after signing" (server computes ``valid_until``), or
+                ``expires_at`` for an explicit horizon. Passing both
+                raises ``expiry_collision_guard``. Passing neither falls
+                back to the server-side default
+                (``valid_seconds=86400``).
             tool_schema: Optional JSON schema describing the tool surface.
                 When provided alongside ``tool_name`` and
                 ``tool_fingerprint`` is omitted, the SDK computes the
@@ -1247,13 +1297,19 @@ class Agent:
             tool_fingerprint: Explicit ``sha256:<hex>`` over the canonical
                 ``{tool_name, schema}`` blob. When omitted but
                 ``tool_name`` + ``tool_schema`` are present, the SDK
-                derives it client-side.
+                derives it client-side. MUST match ``sha256:<64-hex>``
+                (rule 11); use ``_compute_tool_fingerprint`` to avoid
+                drift.
             config_manifest_digest: NSA CSI alignment. ``sha256:<hex>`` of
                 the agent's runtime configuration manifest. REQUIRED for
                 ``receipt_type=protectmcp:lifecycle:configuration_change``
-                (false-attestation rule 9).
+                (false-attestation rule 9). MUST match ``sha256:<64-hex>``
+                (rule 11); use ``_compute_config_manifest_digest`` to
+                avoid drift.
             cve_inventory_digest: NSA CSI alignment. ``sha256:<hex>`` of
-                the agent's CVE inventory snapshot at signing time.
+                the agent's CVE inventory snapshot at signing time. MUST
+                match ``sha256:<64-hex>`` (rule 11); use
+                ``_compute_cve_inventory_digest`` to avoid drift.
 
         Returns:
             SignatureResponse with the signature.
@@ -1366,6 +1422,35 @@ class Agent:
                 "protectmcp:lifecycle:configuration_change "
                 "requires config_manifest_digest (rule 9)"
             )
+
+        # Rule 10 (NSA CSI U/OO/6030316-26 alignment): the SDK accepts both
+        # the legacy ``valid_seconds`` knob (server computes
+        # ``valid_until = signed_at + valid_seconds``) and the new
+        # caller-supplied ``expires_at`` horizon. Passing both at once
+        # produces two different audit horizons on the same receipt, so the
+        # SDK rejects the pair before the HTTP roundtrip. Verbatim message
+        # in lockstep with the cloud cross-field validator.
+        if valid_seconds is not None and expires_at is not None:
+            raise ValueError(
+                "expiry_collision_guard: pass either valid_seconds or "
+                "expires_at, not both (rule 10)"
+            )
+
+        # Rule 11 (NSA CSI U/OO/6030316-26 alignment): every caller-supplied
+        # digest MUST match ``sha256:<64-hex>``. A free-form ``sha256:abc``
+        # would otherwise reach the cloud, pass the opaque-string accept,
+        # and break tamper detection at audit time. Verbatim message in
+        # lockstep with the cloud cross-field validator.
+        for _name, _value in (
+            ("tool_fingerprint", tool_fingerprint),
+            ("config_manifest_digest", config_manifest_digest),
+            ("cve_inventory_digest", cve_inventory_digest),
+        ):
+            if _value is not None and not _SHA256_HEX_RE.match(_value):
+                raise ValueError(
+                    f"digest_format_guard: {_name} must match "
+                    "sha256:<64-hex> (rule 11)"
+                )
 
         # Derive action_ref under compliance_mode when caller omits it.
         if compliance_mode and action_ref is None:
