@@ -139,7 +139,7 @@ describe("executableHash shape guards", () => {
         complianceMode: true,
         executableHash: "deadbeef",
       }),
-    ).rejects.toThrow(/digest_format_guard: executable_hash/);
+    ).rejects.toThrow(/executable_hash_not_sha256_wire_form/);
   });
 
   it("rejects malformed sbom_digest before the HTTP roundtrip", async () => {
@@ -150,7 +150,7 @@ describe("executableHash shape guards", () => {
         complianceMode: true,
         sbomDigest: "not-a-digest",
       }),
-    ).rejects.toThrow(/digest_format_guard: sbom_digest/);
+    ).rejects.toThrow(/sbom_digest_not_sha256_wire_form/);
   });
 
   it("rejects non-http slsa_provenance_pointer", async () => {

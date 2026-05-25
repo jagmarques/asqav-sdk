@@ -230,7 +230,7 @@ describe("Rule 9: configuration_change requires configManifestDigest", () => {
         policyDecision: "none",
       }),
     ).rejects.toThrow(
-      "false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)",
+      "configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).",
     );
     expect(spy).not.toHaveBeenCalled();
   });
@@ -344,13 +344,25 @@ describe("Rule 11: digest_format_guard", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  const digestFields: Array<{ wire: string; opt: keyof Parameters<Agent["sign"]>[0] }> = [
-    { wire: "tool_fingerprint", opt: "toolFingerprint" },
-    { wire: "config_manifest_digest", opt: "configManifestDigest" },
-    { wire: "cve_inventory_digest", opt: "cveInventoryDigest" },
+  const digestFields: Array<{ wire: string; opt: keyof Parameters<Agent["sign"]>[0]; token: (w: string) => string }> = [
+    {
+      wire: "tool_fingerprint",
+      opt: "toolFingerprint",
+      token: (_w) => "digest_format_guard: tool_fingerprint must match sha256:<64-hex> (rule 11)",
+    },
+    {
+      wire: "config_manifest_digest",
+      opt: "configManifestDigest",
+      token: (w) => `${w}_not_sha256_wire_form: must look like 'sha256:<64 lowercase hex>'.`,
+    },
+    {
+      wire: "cve_inventory_digest",
+      opt: "cveInventoryDigest",
+      token: (w) => `${w}_not_sha256_wire_form: must look like 'sha256:<64 lowercase hex>'.`,
+    },
   ];
 
-  for (const { wire, opt } of digestFields) {
+  for (const { wire, opt, token } of digestFields) {
     it(`${wire}: valid format passes`, async () => {
       const spy = vi
         .spyOn(globalThis, "fetch")
@@ -372,9 +384,7 @@ describe("Rule 11: digest_format_guard", () => {
         complianceMode: true,
         [opt]: `md5:${"0".repeat(64)}`,
       } as unknown as Parameters<Agent["sign"]>[0];
-      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(
-        `digest_format_guard: ${wire} must match sha256:<64-hex> (rule 11)`,
-      );
+      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(token(wire));
       expect(spy).not.toHaveBeenCalled();
     });
 
@@ -385,9 +395,7 @@ describe("Rule 11: digest_format_guard", () => {
         complianceMode: true,
         [opt]: "sha256:abc123",
       } as unknown as Parameters<Agent["sign"]>[0];
-      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(
-        `digest_format_guard: ${wire} must match sha256:<64-hex> (rule 11)`,
-      );
+      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(token(wire));
       expect(spy).not.toHaveBeenCalled();
     });
 
@@ -398,9 +406,7 @@ describe("Rule 11: digest_format_guard", () => {
         complianceMode: true,
         [opt]: `sha256:${"Z".repeat(64)}`,
       } as unknown as Parameters<Agent["sign"]>[0];
-      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(
-        `digest_format_guard: ${wire} must match sha256:<64-hex> (rule 11)`,
-      );
+      await expect(fakeAgent().sign(sigOpts)).rejects.toThrow(token(wire));
       expect(spy).not.toHaveBeenCalled();
     });
   }
@@ -455,6 +461,9 @@ describe("protectmcp:observation:result_bound receipt type", () => {
       };
       if (receiptType === "protectmcp:lifecycle:configuration_change") {
         opts.configManifestDigest = computeConfigManifestDigest({ mode: "test" });
+      }
+      if (receiptType === "protectmcp:observation:result_bound") {
+        opts.resultDigest = `sha256:${"0".repeat(64)}`;
       }
       if (
         receiptType.startsWith("protectmcp:lifecycle")
