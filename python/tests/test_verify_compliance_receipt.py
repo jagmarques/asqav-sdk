@@ -115,11 +115,10 @@ def test_all_three_namespace_values_accepted() -> None:
         assert result.receipt_type_in_namespace is True, rt
 
 
-def test_legacy_receipt_type_attribute_still_accepted_for_namespace() -> None:
-    """Callers that have not yet migrated their emitter to the wire form
-    may still ship a ``receipt_type`` attribute; the namespace check
-    falls back to it. The REQUIRED-fields check, however, demands the
-    wire ``type``."""
+def test_receipt_type_attribute_satisfies_namespace_but_not_required_fields() -> None:
+    """When the envelope ships a ``receipt_type`` attribute instead of the
+    wire ``type``, the namespace check falls back to it and passes; the
+    REQUIRED-fields check still demands the wire ``type`` and fails."""
     env = _good_envelope()
     env["receipt_type"] = env.pop("type")
     result = verify_compliance_receipt(env)
