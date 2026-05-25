@@ -75,6 +75,9 @@ describe("RECEIPT_TYPE_NAMESPACE", () => {
         "protectmcp:lifecycle",
         "protectmcp:lifecycle:configuration_change",
         "protectmcp:observation",
+        // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): result-bound
+        // observation receipts use the `:result_bound` suffix.
+        "protectmcp:observation:result_bound",
         "protectmcp:restraint",
       ],
     );
@@ -296,12 +299,18 @@ describe("agent.sign capture_topology + observation wire fields", () => {
       }),
     );
     const agent = fakeAgent();
-    await agent.sign({
+    const opts: Parameters<typeof agent.sign>[0] = {
       actionType: "t.test",
       complianceMode: true,
       receiptType: value,
       policyDecision: value.startsWith("protectmcp:lifecycle") ? "none" : "permit",
-    });
+    };
+    // Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
+    // receipts MUST carry config_manifest_digest.
+    if (value === "protectmcp:lifecycle:configuration_change") {
+      opts.configManifestDigest = `sha256:${"0".repeat(64)}`;
+    }
+    await agent.sign(opts);
     const init = fetchSpy.mock.calls[0][1];
     const body = JSON.parse((init?.body as string) ?? "{}");
     expect(body.receipt_type).toBe(value);
