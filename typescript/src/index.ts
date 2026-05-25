@@ -433,6 +433,23 @@ export interface SignOptions {
    * MUST match `sha256:<64-hex>` (rule 11); use
    * `computeCveInventoryDigest` to avoid drift. */
   cveInventoryDigest?: string;
+
+  /** Build-provenance 4-tuple. `sha256:<hex>` of the executable that
+   * invoked the action. Binds build-side provenance into the signed
+   * receipt. MUST match `sha256:<64-hex>` (rule 11). */
+  executableHash?: string;
+
+  /** Build-provenance 4-tuple. `sha256:<hex>` of the canonical CycloneDX
+   * or SPDX SBOM document. MUST match `sha256:<64-hex>` (rule 11). */
+  sbomDigest?: string;
+
+  /** Build-provenance 4-tuple. https URL to the SLSA attestation envelope
+   * for the executing build. */
+  slsaProvenancePointer?: string;
+
+  /** Build-provenance 4-tuple. https URL to the in-toto, Sigstore, or
+   * Rekor entry covering the executing build. */
+  supplyChainPointer?: string;
 }
 
 export interface CoSignature {
@@ -893,11 +910,24 @@ function validateSignOptions(options: SignOptions): void {
     ["tool_fingerprint", options.toolFingerprint],
     ["config_manifest_digest", options.configManifestDigest],
     ["cve_inventory_digest", options.cveInventoryDigest],
+    ["executable_hash", options.executableHash],
+    ["sbom_digest", options.sbomDigest],
   ];
   for (const [name, value] of _digestChecks) {
     if (value !== undefined && !SHA256_HEX_RE.test(value)) {
       throw new AsqavError(
         `digest_format_guard: ${name} must match sha256:<64-hex> (rule 11)`,
+      );
+    }
+  }
+  const _pointerChecks: Array<[string, string | undefined]> = [
+    ["slsa_provenance_pointer", options.slsaProvenancePointer],
+    ["supply_chain_pointer", options.supplyChainPointer],
+  ];
+  for (const [name, value] of _pointerChecks) {
+    if (value !== undefined && !(value.startsWith("https://") || value.startsWith("http://"))) {
+      throw new AsqavError(
+        `pointer_url_guard: ${name} must be an http(s) URL`,
       );
     }
   }
@@ -1033,6 +1063,10 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "expires_at", read: (o) => o.expiresAt },
   { wire: "config_manifest_digest", read: (o) => o.configManifestDigest },
   { wire: "cve_inventory_digest", read: (o) => o.cveInventoryDigest },
+  { wire: "executable_hash", read: (o) => o.executableHash },
+  { wire: "sbom_digest", read: (o) => o.sbomDigest },
+  { wire: "slsa_provenance_pointer", read: (o) => o.slsaProvenancePointer },
+  { wire: "supply_chain_pointer", read: (o) => o.supplyChainPointer },
   {
     wire: "tool_fingerprint",
     read: (o) =>
