@@ -63,11 +63,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - `VerificationDetail.regimesSatisfied` (Python: `regimes_satisfied`): regulator tokens the cloud derived for the receipt (e.g. `eu_ai_act`, `dora`).
 
 ### Removed
-- `VerificationResponse.verifierSignature` (Python: `verifier_signature`). The cloud no longer emits this field; it always projected as `null`, so the typed surface is dropped rather than left in as dead weight.
+- `VerificationResponse.verifierSignature` (Python: `verifier_signature`). The cloud omits this field on emit; it projects as `null` end-to-end, so the typed surface is dropped rather than left in as dead weight.
 - Inner anchor `type` rejects the `"ots"` alias. The cloud emits only `"opentimestamps"` (canonical) and `"rfc3161"`; the SDK type stubs are tightened accordingly.
 
 ### Changed
-- `generate_local_keypair` no longer accepts `"ml-dsa-65"`. ML-DSA-65 keypair generation is server-side only (cloud KMS); call `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one. `SUPPORTED_ALGORITHMS` is now `{ed25519, es256}` and the default for `generate_local_keypair()` is `ed25519`. The previous behaviour raised `NotImplementedError` at call time; this is now a `ValueError` at validation time, with the typed `Algorithm` Literal narrowed to reflect what the SDK actually mints locally.
+- `generate_local_keypair` rejects `"ml-dsa-65"`. ML-DSA-65 keypair generation is server-side only (cloud KMS); call `asqav.Agent.create(name, algorithm='ml-dsa-65')` to mint one. `SUPPORTED_ALGORITHMS` is `{ed25519, es256}` and the default for `generate_local_keypair()` is `ed25519`. ML-DSA-65 raises a `ValueError` at validation time, with the typed `Algorithm` Literal narrowed to reflect what the SDK mints locally.
 - `raiseMissingPeer` (TypeScript) signature is now `(framework, peer, install, cause?)` rather than `(peer, install)`. The optional `cause` preserves the underlying `(import error: ...)` context the inline pattern emitted. The three first-party adapters all call through it, matching the Python ImportError contract.
 
 ## [Python 0.4.4 / TypeScript 0.3.4] - 2026-05-10
@@ -98,7 +98,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ### Changed
 - **Wire shape**: under `compliance_mode`, the cloud emits the three-key Compliance Receipts envelope `{payload, signature, anchors}` plus pure metadata. The SDKs expose `payload`, `signature` (polymorphic: string in non-compliance, `{alg, kid, sig}` object form under compliance_mode), and `anchors` directly on `SignatureResponse`.
 - **Removed `signatureObject`**: the polymorphic `signature` field carries the same value. Use `response.signature_envelope()` (Python) or `signatureEnvelope(response)` (TypeScript) for the dict form.
-- **Removed flat-field projection fallbacks**: the projection helpers no longer rebuild `{alg, kid, sig}` from `algorithm` + `signature_b64`. Older receipts return None / undefined from the helpers.
+- **Removed flat-field projection fallbacks**: the projection helpers skip rebuilding `{alg, kid, sig}` from `algorithm` + `signature_b64`. Older receipts return None / undefined from the helpers.
 - **Anchor entries carry `commit_hash`** sourced from the cloud's `anchor_commit_hash` column. Field is `None` on rows that lack the column.
 
 ## [Python 0.3.13 / TypeScript 0.2.11] - 2026-05-08

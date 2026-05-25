@@ -1,0 +1,58 @@
+name: forbidden-token-sweep
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scan-pr-text:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan PR title + body + commit messages for CLAUDE.md rule-4 forbidden tokens
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No PR number; skipping (workflow_dispatch run)."
+            exit 0
+          fi
+          gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body \
+            -q '"\(.title)\n\n\(.body // "")"' > /tmp/pr-text.txt
+          gh pr view "$PR_NUMBER" --repo "$REPO" --json commits \
+            -q '.commits[] | "\(.messageHeadline)\n\(.messageBody // "")"' >> /tmp/pr-text.txt
+
+          violations=0
+          while IFS= read -r t; do
+            [ -z "$t" ] && continue
+            if grep -inF "$t" /tmp/pr-text.txt; then
+              echo "::error::Forbidden rule-4 token found in PR text: '$t'"
+              violations=$((violations + 1))
+            fi
+          done < .github/forbidden-tokens.txt
+
+          while IFS= read -r p; do
+            [ -z "$p" ] && continue
+            if grep -inE "$p" /tmp/pr-text.txt; then
+              echo "::error::Forbidden rule-4 pattern found in PR text: '$p'"
+              violations=$((violations + 1))
+            fi
+          done < .github/forbidden-patterns.txt
+
+          if [ "$violations" -gt 0 ]; then
+            echo ""
+            echo "Found $violations rule-4 token violations in PR title/body/commits."
+            echo "Rewrite the PR text to drop temporal framing, version refs, and internal milestone tags."
+            echo "Reference: CLAUDE.md rule 4 of comment hygiene."
+            exit 1
+          fi
+          echo "Rule-4 token sweep clean."
