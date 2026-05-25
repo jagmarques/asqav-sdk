@@ -178,6 +178,34 @@ sig = agent.sign(
 
 See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance>.
 
+## Threat-framework mappings (optional)
+
+Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim; the cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
+
+- `mitre_techniques` - list of MITRE ATT&CK technique ids (e.g. `["T1059", "T1078"]`).
+- `mitre_atlas` - list of MITRE ATLAS ids for AI-system threats (e.g. `["AML.T0051"]`).
+- `owasp_llm_top10` - list of OWASP Top 10 for LLM ids (e.g. `["LLM01", "LLM02"]`).
+- `nist_ai_rmf` - list of NIST AI RMF function ids (e.g. `["GOVERN-1.1", "MEASURE-2.7"]`).
+- `iso_42001` - list of ISO/IEC 42001 control ids (e.g. `["A.6.2.6"]`).
+- `eu_ai_act_articles` - list of EU AI Act article ids (e.g. `["Article-12", "Article-15"]`).
+- `rfc3161_timestamp` - caller-supplied base64-encoded RFC 3161 TimeStampResp (DER).
+
+```python
+sig = agent.sign(
+    "api:call",
+    {"user": "..."},
+    compliance_mode=True,
+    mitre_techniques=["T1059", "T1078"],
+    owasp_llm_top10=["LLM01"],
+    nist_ai_rmf=["GOVERN-1.1", "MEASURE-2.7"],
+    eu_ai_act_articles=["Article-12"],
+)
+```
+
+Each list must be a non-empty list of strings, each entry up to 128 characters; empty lists, non-string entries, or oversize entries raise `ValueError` with verbatim guard messages (`<field>_must_be_non_empty_list`, `<field>_entry_invalid`) and skip the HTTP roundtrip. The `rfc3161_timestamp` must be valid base64 or raises `rfc3161_timestamp_not_base64`.
+
+See <https://www.asqav.com/docs/threat-framework-mapping>.
+
 ### Audit Pack export
 
 The cloud signs a Compliance Audit Pack over a window of receipts. The SDK wraps the endpoint:
