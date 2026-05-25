@@ -230,7 +230,7 @@ Field reference (camelCase on the SDK, snake_case on the JSON wire):
 
 Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block (SIEM forwarder, browser extension in observe-only mode, NetFlow-style proxy with no enforcement hook).
 
-Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK enforces the cloud's rule 8 guard before the HTTP roundtrip: pairing `captureTopology: "passive_telemetry"` with `receiptType: "protectmcp:decision"` throws `AsqavError("false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :decision")` (`typescript/src/index.ts:808-815`).
+Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry` (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip (`typescript/src/index.ts:810-818`).
 
 ```ts
 const sig = await agent.sign({

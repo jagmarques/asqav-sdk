@@ -299,6 +299,67 @@ def test_passive_telemetry_with_decision_receipt_rejected() -> None:
         p.assert_not_called()
 
 
+class TestFalseAttestationGuardWidened:
+    """Rule 8: passive_telemetry pairs ONLY with protectmcp:observation.
+
+    Pins the widened guard (PR #219) against silent regression for every
+    rejected receipt_type. The single-case decision test above is retained
+    for symmetry with the original cycle-26 fix.
+    """
+
+    @pytest.mark.parametrize(
+        "receipt_type",
+        [
+            "protectmcp:decision",
+            "protectmcp:restraint",
+            "protectmcp:lifecycle",
+            "protectmcp:lifecycle:configuration_change",
+            "protectmcp:acknowledgment",
+        ],
+    )
+    def test_passive_telemetry_rejects_non_observation(
+        self, receipt_type: str
+    ) -> None:
+        """Each non-observation receipt_type raises ValueError carrying
+        the verbatim false_attestation_guard prefix and the (rule 8)
+        suffix. The HTTP layer must not be reached."""
+        offending = receipt_type.split(":", 1)[-1]
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError) as exc_info:
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    capture_topology="passive_telemetry",
+                    receipt_type=receipt_type,
+                )
+            msg = str(exc_info.value)
+            assert msg.startswith("false_attestation_guard:")
+            assert "(rule 8)" in msg
+            assert f"not :{offending}" in msg
+            p.assert_not_called()
+
+    def test_passive_telemetry_accepts_observation(self) -> None:
+        """The matched pair passes the SDK gate (no exception before
+        the HTTP roundtrip)."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                capture_topology="passive_telemetry",
+                receipt_type="protectmcp:observation",
+            )
+        assert captured["body"]["capture_topology"] == "passive_telemetry"
+        assert captured["body"]["receipt_type"] == "protectmcp:observation"
+
+
 def test_passive_telemetry_with_observation_receipt_accepted() -> None:
     """The matched pair (passive_telemetry + :observation) passes through."""
     captured: dict = {}
