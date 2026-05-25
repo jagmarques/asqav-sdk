@@ -6,6 +6,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [Python 0.4.11] - 2026-05-25
+
+### Changed
+- README rule-8 paragraph rewritten to describe the full `false_attestation_guard` scope (rejects passive_telemetry paired with any non-observation receipt_type). The 0.4.10 wheel METADATA documented only the `:decision` case which under-described the runtime check.
+
+## [TypeScript 0.3.8] - 2026-05-25
+
+### Changed
+- `false_attestation_guard` widened to mirror the Asqav cloud's full guard: `captureTopology=passive_telemetry` now requires `receiptType=protectmcp:observation`. The SDK client-side check rejects all five other receipt types (`:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, `:acknowledgment`) so callers fail fast instead of receiving HTTP 422 from the cloud. The verbatim error message preserves the `false_attestation_guard:` prefix and the `(rule 8)` suffix; the offending value is interpolated. Requires Asqav cloud 0.4.0 or higher.
+
 ## [Python 0.4.10] - 2026-05-25
 
 ### Changed
