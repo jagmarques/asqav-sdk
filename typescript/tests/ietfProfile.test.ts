@@ -192,10 +192,13 @@ describe("agent.sign IETF profile fields", () => {
         context: {},
         receiptType: t,
       };
-      // Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
-      // receipts MUST carry config_manifest_digest.
+      // Rule 9 lockstep: configuration_change carries config_manifest_digest.
       if (t === "protectmcp:lifecycle:configuration_change") {
         opts.configManifestDigest = `sha256:${"0".repeat(64)}`;
+      }
+      // Rule 9 lockstep: result_bound carries result_digest.
+      if (t === "protectmcp:observation:result_bound") {
+        opts.resultDigest = `sha256:${"0".repeat(64)}`;
       }
       await expect(agent.sign(opts)).resolves.toBeDefined();
     }
