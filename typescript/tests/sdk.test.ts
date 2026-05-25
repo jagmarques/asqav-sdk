@@ -129,7 +129,12 @@ describe("agent.sign", () => {
       createHash("sha256")
         .update(canonicalJson({ action_type: "api:call", context: { model: "gpt-4" } }))
         .digest("hex");
-    expect(JSON.parse(signInit.body as string)).toEqual({
+    const parsed = JSON.parse(signInit.body as string);
+    // SDK auto-generates a 24-hex-char nonce per call (NSA CSI alignment);
+    // assert the shape, then drop it before the deep-equality check.
+    expect(parsed.nonce).toMatch(/^[0-9a-f]{24}$/);
+    delete parsed.nonce;
+    expect(parsed).toEqual({
       action_type: "api:call",
       context: { model: "gpt-4" },
       session_id: null,
