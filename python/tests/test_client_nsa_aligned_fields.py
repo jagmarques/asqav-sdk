@@ -246,9 +246,9 @@ def test_configuration_change_requires_config_manifest_digest() -> None:
             )
         msg = str(exc_info.value)
         assert msg == (
-            "false_attestation_guard: receipt_type="
-            "protectmcp:lifecycle:configuration_change "
-            "requires config_manifest_digest (rule 9)"
+            "configuration_change_missing_config_manifest_digest: "
+            "receipt_type=protectmcp:lifecycle:configuration_change "
+            "requires config_manifest_digest (sha256:<64 hex>)."
         )
         p.assert_not_called()
 
@@ -407,10 +407,10 @@ class TestDigestFormatGuard:
 
     @pytest.mark.parametrize(
         "field",
-        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+        ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_wrong_prefix_rejected(self, field: str) -> None:
-        """Anything other than the ``sha256:`` prefix raises verbatim."""
+        """Anything other than the ``sha256:`` prefix raises the verbatim cloud token."""
         with patch("asqav.client._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
@@ -420,14 +420,14 @@ class TestDigestFormatGuard:
                     **{field: "md5:" + "0" * 64},
                 )
             assert str(exc_info.value) == (
-                f"digest_format_guard: {field} must match "
-                "sha256:<64-hex> (rule 11)"
+                f"{field}_not_sha256_wire_form: must look like "
+                "'sha256:<64 lowercase hex>'."
             )
             p.assert_not_called()
 
     @pytest.mark.parametrize(
         "field",
-        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+        ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_wrong_length_rejected(self, field: str) -> None:
         """A short hex tail fails the regex."""
@@ -440,14 +440,14 @@ class TestDigestFormatGuard:
                     **{field: "sha256:abc123"},
                 )
             assert str(exc_info.value) == (
-                f"digest_format_guard: {field} must match "
-                "sha256:<64-hex> (rule 11)"
+                f"{field}_not_sha256_wire_form: must look like "
+                "'sha256:<64 lowercase hex>'."
             )
             p.assert_not_called()
 
     @pytest.mark.parametrize(
         "field",
-        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+        ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_non_hex_rejected(self, field: str) -> None:
         """Uppercase / non-hex characters fail the regex."""
@@ -460,7 +460,25 @@ class TestDigestFormatGuard:
                     **{field: "sha256:" + "Z" * 64},
                 )
             assert str(exc_info.value) == (
-                f"digest_format_guard: {field} must match "
+                f"{field}_not_sha256_wire_form: must look like "
+                "'sha256:<64 lowercase hex>'."
+            )
+            p.assert_not_called()
+
+    def test_tool_fingerprint_wrong_prefix_keeps_legacy_guard_token(self) -> None:
+        """tool_fingerprint keeps the legacy digest_format_guard token because
+        the cloud wire-shape (32 hex, no prefix) differs from the SDK
+        helper output (sha256:<64-hex>); follow-up tracked in NEXT.md."""
+        with patch("asqav.client._post") as p:
+            with pytest.raises(ValueError) as exc_info:
+                _agent().sign(
+                    "api:call",
+                    {"k": "v"},
+                    compliance_mode=True,
+                    tool_fingerprint="md5:" + "0" * 64,
+                )
+            assert str(exc_info.value) == (
+                "digest_format_guard: tool_fingerprint must match "
                 "sha256:<64-hex> (rule 11)"
             )
             p.assert_not_called()
@@ -521,6 +539,9 @@ class TestResultBoundReceiptType:
             kwargs["config_manifest_digest"] = (
                 _compute_config_manifest_digest({"mode": "test"})
             )
+        # result_bound requires result_digest, lockstep with cloud rule 9.
+        if receipt_type == "protectmcp:observation:result_bound":
+            kwargs["result_digest"] = "sha256:" + "0" * 64
         # Lifecycle receipts use policy_decision=none.
         if receipt_type.startswith("protectmcp:lifecycle") or (
             receipt_type.startswith("protectmcp:observation")
