@@ -450,6 +450,37 @@ export interface SignOptions {
   /** Build-provenance 4-tuple. https URL to the in-toto, Sigstore, or
    * Rekor entry covering the executing build. */
   supplyChainPointer?: string;
+
+  /** Caller-supplied list of MITRE ATT&CK technique ids (e.g.
+   * `["T1059", "T1078"]`). Self-declared; never Asqav-verified. Cloud
+   * sets `framework_mappings_self_declared=true` whenever any of the six
+   * taxonomy lists is populated. */
+  mitreTechniques?: string[];
+
+  /** Caller-supplied list of MITRE ATLAS ids for AI-system threats
+   * (e.g. `["AML.T0051", "AML.T0043"]`). Self-declared. */
+  mitreAtlas?: string[];
+
+  /** Caller-supplied list of OWASP Top 10 for LLM ids
+   * (e.g. `["LLM01", "LLM02"]`). Self-declared. */
+  owaspLlmTop10?: string[];
+
+  /** Caller-supplied list of NIST AI RMF function ids and subcategories
+   * (e.g. `["GOVERN-1.1", "MEASURE-2.7"]`). Self-declared. */
+  nistAiRmf?: string[];
+
+  /** Caller-supplied list of ISO/IEC 42001 control ids (e.g.
+   * `["A.6.2.6"]`). Self-declared. */
+  iso42001?: string[];
+
+  /** Caller-supplied list of EU AI Act article ids (e.g.
+   * `["Article-12", "Article-15"]`). Self-declared. */
+  euAiActArticles?: string[];
+
+  /** Caller-supplied base64-encoded RFC 3161 TimeStampResp (DER).
+   * Preserved on the receipt for offline TSA chain verification
+   * independent of cloud-issued anchors. */
+  rfc3161Timestamp?: string;
 }
 
 export interface CoSignature {
@@ -931,6 +962,66 @@ function validateSignOptions(options: SignOptions): void {
       );
     }
   }
+  // Threat-framework taxonomy validators. Lockstep with the cloud
+  // SignRequest cross-field validator: lists must be non-empty
+  // arrays of strings (each entry up to 128 chars); rfc3161Timestamp
+  // must be valid base64. Verbatim guard tokens kept in sync with
+  // the cloud and Python SDK so SDK errors round-trip through the
+  // conformance vectors.
+  const _taxonomyChecks: Array<[string, string[] | undefined]> = [
+    ["mitre_techniques", options.mitreTechniques],
+    ["mitre_atlas", options.mitreAtlas],
+    ["owasp_llm_top10", options.owaspLlmTop10],
+    ["nist_ai_rmf", options.nistAiRmf],
+    ["iso_42001", options.iso42001],
+    ["eu_ai_act_articles", options.euAiActArticles],
+  ];
+  for (const [name, value] of _taxonomyChecks) {
+    if (value === undefined) continue;
+    if (!Array.isArray(value) || value.length === 0) {
+      throw new AsqavError(
+        `${name}_must_be_non_empty_list: pass a non-empty list of strings or omit the field.`,
+      );
+    }
+    for (const item of value) {
+      if (typeof item !== "string" || item.length === 0 || item.length > 128) {
+        throw new AsqavError(
+          `${name}_entry_invalid: each entry must be a non-empty string of length <= 128.`,
+        );
+      }
+    }
+  }
+  if (options.rfc3161Timestamp !== undefined) {
+    const t = options.rfc3161Timestamp;
+    if (typeof t !== "string" || t.length === 0) {
+      throw new AsqavError(
+        "rfc3161_timestamp_not_base64: must be a non-empty base64-encoded TimeStampResp.",
+      );
+    }
+    // Tight base64 shape check; reject any non-base64 char or bad padding.
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(t) || (t.length % 4) !== 0) {
+      throw new AsqavError(
+        "rfc3161_timestamp_not_base64: must be valid base64.",
+      );
+    }
+    try {
+      // Node Buffer round-trip catches padding errors strict mode misses.
+      const { Buffer } = require("node:buffer") as typeof import("node:buffer");
+      const decoded = Buffer.from(t, "base64");
+      const reencoded = decoded.toString("base64");
+      // Reject when re-encoded form differs (catches non-canonical padding).
+      if (reencoded !== t) {
+        throw new AsqavError(
+          "rfc3161_timestamp_not_base64: must be valid base64.",
+        );
+      }
+    } catch (err) {
+      if (err instanceof AsqavError) throw err;
+      throw new AsqavError(
+        `rfc3161_timestamp_not_base64: must be valid base64 (decode failed: ${err}).`,
+      );
+    }
+  }
   validateIncidentClass(options.incidentClass);
 }
 
@@ -1067,6 +1158,14 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "sbom_digest", read: (o) => o.sbomDigest },
   { wire: "slsa_provenance_pointer", read: (o) => o.slsaProvenancePointer },
   { wire: "supply_chain_pointer", read: (o) => o.supplyChainPointer },
+  // Threat-framework taxonomy mappings (cloud 0.5.1+).
+  { wire: "mitre_techniques", read: (o) => o.mitreTechniques },
+  { wire: "mitre_atlas", read: (o) => o.mitreAtlas },
+  { wire: "owasp_llm_top10", read: (o) => o.owaspLlmTop10 },
+  { wire: "nist_ai_rmf", read: (o) => o.nistAiRmf },
+  { wire: "iso_42001", read: (o) => o.iso42001 },
+  { wire: "eu_ai_act_articles", read: (o) => o.euAiActArticles },
+  { wire: "rfc3161_timestamp", read: (o) => o.rfc3161Timestamp },
   {
     wire: "tool_fingerprint",
     read: (o) =>
