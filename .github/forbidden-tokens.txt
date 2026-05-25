@@ -1,0 +1,34 @@
+previously
+legacy
+old version
+deprecated
+currently
+formerly
+earlier
+ever since
+up until
+before this fix
+before the fix
+after this fix
+after the fix
+was silently
+was wrongly
+was incorrectly
+did NOT
+used to
+no longer
+// removed
+# removed
+TODO
+FIXME
+XXX
+HACK
+spec §
+prior PR
+prior PRs
+subsequent PR
+follow-up PR
+before this PR
+after this PR
+before the PR
+after the PR
