@@ -203,11 +203,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:lifecycle:configuration_change",
         "protectmcp:acknowledgment",
         "protectmcp:observation",
-        # NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): observation receipts
-        # that carry a ``result_digest`` use the ``:result_bound`` suffix so
-        # auditors can index receipts that bind tool output without a wider
-        # scan. The 4-place atomic landing (SDK / cloud / well-known /
-        # conformance) keeps the vocabulary in lockstep.
+        #: observation receipts that carry a result_digest use the :result_bound suffix.
         "protectmcp:observation:result_bound",
     }
 )
@@ -901,11 +897,7 @@ def _compute_action_ref(
     return "sha256:" + hashlib.sha256(canonicalize_action(action_type, context)).hexdigest()
 
 
-#: Wire format for every caller-supplied digest field
-#: (``tool_fingerprint``, ``config_manifest_digest``, ``cve_inventory_digest``,
-#: ``result_digest``). The cloud accepts the same exact-match form so the SDK
-#: surfaces bad inputs before the HTTP roundtrip; the regex matches the helper
-#: outputs byte-for-byte.
+#: Wire format for caller-supplied sha256 digest fields; matches helper output byte-for-byte.
 _SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 
 
@@ -1229,7 +1221,7 @@ class Agent:
         reason: str | None = None,
         policy_decision: str = "permit",
         capture_topology: str | None = None,
-        # NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0).
+        # NSA CSI U/OO/6030316-26 alignment.
         result_digest: str | None = None,
         expires_at: str | float | None = None,
         tool_schema: dict[str, Any] | None = None,
@@ -1240,9 +1232,6 @@ class Agent:
         sbom_digest: str | None = None,
         slsa_provenance_pointer: str | None = None,
         supply_chain_pointer: str | None = None,
-        # Threat-framework taxonomy mappings (cloud 0.5.1+). Caller-supplied;
-        # the cloud sets framework_mappings_self_declared=True whenever any
-        # of the six list fields is populated.
         mitre_techniques: list[str] | None = None,
         mitre_atlas: list[str] | None = None,
         owasp_llm_top10: list[str] | None = None,
@@ -1427,16 +1416,21 @@ class Agent:
                 "invalid_capture_topology: must be one of "
                 f"{sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
             )
-        # Rule 8: passive_telemetry pairs only with protectmcp:observation.
+        # Rule 8 (lockstep with cloud SignRequest validator): passive_telemetry
+        # pairs only with protectmcp:observation or protectmcp:observation:result_bound.
         if (
             capture_topology == "passive_telemetry"
             and receipt_type is not None
-            and receipt_type != "protectmcp:observation"
+            and receipt_type not in {
+                "protectmcp:observation",
+                "protectmcp:observation:result_bound",
+            }
         ):
             offending = receipt_type.split(":", 1)[-1]
             raise ValueError(
                 "false_attestation_guard: capture_topology=passive_telemetry "
-                "receipts must use receipt_type=protectmcp:observation, "
+                "receipts must use receipt_type=protectmcp:observation"
+                "[:result_bound], "
                 f"not :{offending} (rule 8)"
             )
         # Fail fast on incident_class vocabulary before the HTTP roundtrip.
@@ -1455,39 +1449,35 @@ class Agent:
                         "(per DORA RTS JC 2024-33 Annex II field 3.23 "
                         "or HIPAA 45 CFR 164.304)."
                     )
-        # Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
-        # receipts MUST carry config_manifest_digest. Verbatim message kept
-        # in lockstep with the cloud SignRequest cross-field validator.
+        # Rule 9 lockstep with the cloud SignRequest cross-field validator.
         if (
             receipt_type == "protectmcp:lifecycle:configuration_change"
             and config_manifest_digest is None
         ):
             raise ValueError(
-                "false_attestation_guard: receipt_type="
-                "protectmcp:lifecycle:configuration_change "
-                "requires config_manifest_digest (rule 9)"
+                "configuration_change_missing_config_manifest_digest: "
+                "receipt_type=protectmcp:lifecycle:configuration_change "
+                "requires config_manifest_digest (sha256:<64 hex>)."
+            )
+        if (
+            receipt_type == "protectmcp:observation:result_bound"
+            and result_digest is None
+        ):
+            raise ValueError(
+                "result_bound_missing_result_digest: "
+                "receipt_type=protectmcp:observation:result_bound requires "
+                "result_digest (sha256:<64 hex>)."
             )
 
-        # Rule 10 (NSA CSI U/OO/6030316-26 alignment): the SDK accepts both
-        # the legacy ``valid_seconds`` knob (server computes
-        # ``valid_until = signed_at + valid_seconds``) and the new
-        # caller-supplied ``expires_at`` horizon. Passing both at once
-        # produces two different audit horizons on the same receipt, so the
-        # SDK rejects the pair before the HTTP roundtrip. Verbatim message
-        # in lockstep with the cloud cross-field validator.
+        # Rule 10 lockstep with the cloud cross-field validator.
         if valid_seconds is not None and expires_at is not None:
             raise ValueError(
                 "expiry_collision_guard: pass either valid_seconds or "
                 "expires_at, not both (rule 10)"
             )
 
-        # Rule 11 (NSA CSI U/OO/6030316-26 alignment): every caller-supplied
-        # digest MUST match ``sha256:<64-hex>``. A free-form ``sha256:abc``
-        # would otherwise reach the cloud, pass the opaque-string accept,
-        # and break tamper detection at audit time. Verbatim message in
-        # lockstep with the cloud cross-field validator.
+        # Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
         for _name, _value in (
-            ("tool_fingerprint", tool_fingerprint),
             ("config_manifest_digest", config_manifest_digest),
             ("cve_inventory_digest", cve_inventory_digest),
             ("executable_hash", executable_hash),
@@ -1495,9 +1485,16 @@ class Agent:
         ):
             if _value is not None and not _SHA256_HEX_RE.match(_value):
                 raise ValueError(
-                    f"digest_format_guard: {_name} must match "
-                    "sha256:<64-hex> (rule 11)"
+                    f"{_name}_not_sha256_wire_form: must look like "
+                    "'sha256:<64 lowercase hex>'."
                 )
+        if tool_fingerprint is not None and not _SHA256_HEX_RE.match(
+            tool_fingerprint
+        ):
+            raise ValueError(
+                "digest_format_guard: tool_fingerprint must match "
+                "sha256:<64-hex> (rule 11)"
+            )
         for _name, _value in (
             ("slsa_provenance_pointer", slsa_provenance_pointer),
             ("supply_chain_pointer", supply_chain_pointer),
@@ -1509,12 +1506,7 @@ class Agent:
                     f"pointer_url_guard: {_name} must be an http(s) URL"
                 )
 
-        # Threat-framework taxonomy validators. Lockstep with the cloud
-        # cross-field validator: lists must be non-empty list[str], each
-        # element non-empty and <= 128 chars; rfc3161_timestamp must be
-        # non-empty valid base64. Verbatim guard tokens kept in sync with
-        # the cloud SignRequest so SDK errors round-trip through the
-        # conformance vectors.
+        # Threat-framework taxonomy validators lockstep with cloud SignRequest.
         for _name, _value in (
             ("mitre_techniques", mitre_techniques),
             ("mitre_atlas", mitre_atlas),
@@ -1565,9 +1557,7 @@ class Agent:
         ):
             tool_fingerprint = _compute_tool_fingerprint(tool_name, tool_schema)
 
-        # Auto-generate a 24-hex-char replay-protection nonce when the
-        # caller omits one. The cloud rejects duplicate nonces inside the
-        # validity window.
+        # Auto-generate 24-hex nonce when caller omits; cloud rejects duplicates in-window.
         if nonce is None:
             nonce = _generate_nonce()
 
@@ -1588,7 +1578,7 @@ class Agent:
                 ("incident_class", incident_class),
                 ("reason", reason),
                 ("capture_topology", capture_topology),
-                # NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0).
+                # NSA CSI U/OO/6030316-26 alignment.
                 ("result_digest", result_digest),
                 ("expires_at", expires_at),
                 ("tool_fingerprint", tool_fingerprint),
@@ -1598,7 +1588,7 @@ class Agent:
                 ("sbom_digest", sbom_digest),
                 ("slsa_provenance_pointer", slsa_provenance_pointer),
                 ("supply_chain_pointer", supply_chain_pointer),
-                # Threat-framework taxonomy mappings (cloud 0.5.1+).
+                # Threat-framework taxonomy mappings.
                 ("mitre_techniques", mitre_techniques),
                 ("mitre_atlas", mitre_atlas),
                 ("owasp_llm_top10", owasp_llm_top10),
