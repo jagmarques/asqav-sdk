@@ -6,6 +6,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.1] - 2026-05-25
+
+### Added
+- Build-provenance 4-tuple on `agent.sign({...})`: four new optional wire fields mirroring the cloud SignRequest. `executableHash` (wire `executable_hash`, `sha256:<hex>` of the executable that invoked the action), `sbomDigest` (wire `sbom_digest`, `sha256:<hex>` of the CycloneDX or SPDX SBOM), `slsaProvenancePointer` (wire `slsa_provenance_pointer`, https URL to the SLSA attestation envelope), and `supplyChainPointer` (wire `supply_chain_pointer`, https URL to the in-toto, Sigstore, or Rekor entry). All four OPTIONAL. Requires Asqav cloud 0.5.1 or higher.
+- `digest_format_guard` extended to cover `executableHash` and `sbomDigest`; SDK throws `AsqavError` with the verbatim guard message before the HTTP roundtrip when either is not `^sha256:[a-f0-9]{64}$`.
+- `pointer_url_guard` (new) covers `slsaProvenancePointer` and `supplyChainPointer`; SDK throws when either is not an http(s) URL.
+- New tests in `typescript/tests/executableHash4Tuple.test.ts` covering wire forwarding plus shape rejection.
+
+### Changed
+- CLI version string in `src/cli.ts` bumped to `"0.5.1"` to match the package version.
+
 ## [Python 0.5.1] - 2026-05-25
 
 ### Added
