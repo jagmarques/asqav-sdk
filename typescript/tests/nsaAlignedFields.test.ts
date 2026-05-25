@@ -462,7 +462,7 @@ describe("protectmcp:observation:result_bound receipt type", () => {
       ) {
         opts.policyDecision = "none";
       }
-      await fakeAgent().sign(opts as Parameters<Agent["sign"]>[0]);
+      await fakeAgent().sign(opts as unknown as Parameters<Agent["sign"]>[0]);
       const body = readBody(spy);
       expect(body.receipt_type).toBe(receiptType);
     });
