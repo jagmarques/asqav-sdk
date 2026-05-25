@@ -128,7 +128,7 @@ sig = agent.sign(
 
 ### Digest format (rule 11)
 
-Every caller-supplied digest field (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. Anything else raises `ValueError` with the verbatim `digest_format_guard: <field> must match sha256:<64-hex> (rule 11)` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
+Every caller-supplied digest field (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`, `executable_hash`, `sbom_digest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. The two URL pointer fields (`slsa_provenance_pointer`, `supply_chain_pointer`) MUST start with `http://` or `https://`. Anything else raises `ValueError` with a verbatim guard message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
 
 ```python
 from asqav.client import (
@@ -154,6 +154,29 @@ Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment
 - `cve_inventory_digest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
 
 The `protectmcp:observation:result_bound` `receipt_type` variant carries `result_digest` and lets observation receipts bind to a specific tool result without claiming the policy gated the call.
+
+### Build-provenance 4-tuple
+
+Four optional wire fields bind build-side provenance into the signed receipt:
+
+- `executable_hash` - `sha256:<hex>` of the executable that invoked the action.
+- `sbom_digest` - `sha256:<hex>` of the canonical CycloneDX or SPDX SBOM document.
+- `slsa_provenance_pointer` - https URL to the SLSA attestation envelope.
+- `supply_chain_pointer` - https URL to the in-toto, Sigstore, or Rekor entry.
+
+```python
+sig = agent.sign(
+    "build:provenance",
+    {"image": "asqav/cloud:0.5.1"},
+    compliance_mode=True,
+    executable_hash="sha256:<hex of executable>",
+    sbom_digest="sha256:<hex of SBOM>",
+    slsa_provenance_pointer="https://attestations.example.com/slsa/build-1.intoto.jsonl",
+    supply_chain_pointer="https://rekor.sigstore.dev/api/v1/log/entries/abc",
+)
+```
+
+See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance>.
 
 ### Audit Pack export
 
