@@ -77,7 +77,7 @@ def pytest_configure(config: pytest.Config) -> None:
         # the run does not partially sign with a half-set-up agent.
         raise pytest.UsageError(
             "--asqav requires ASQAV_API_KEY in the environment. "
-            "Get one at https://cloud.asqav.com."
+            "Get one at https://asqav.com."
         )
 
     import asqav
