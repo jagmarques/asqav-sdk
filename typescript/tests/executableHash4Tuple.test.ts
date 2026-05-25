@@ -55,7 +55,7 @@ function readBody(spy: ReturnType<typeof vi.spyOn>): Record<string, unknown> {
 
 beforeEach(() => {
   _resetForTests();
-  init({ apiKey: "k", apiUrl: "https://api.test" });
+  init({ apiKey: "asq_test_key", baseUrl: "https://api.example.com/api/v1" });
 });
 
 afterEach(() => {
