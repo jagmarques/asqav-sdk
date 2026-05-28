@@ -102,6 +102,20 @@ export const CAPTURE_TOPOLOGY_NAMESPACE = [
 ] as const;
 export type CaptureTopology = (typeof CAPTURE_TOPOLOGY_NAMESPACE)[number];
 
+/** Durable-anchoring witnesses Asqav ships. The cloud `witness_policy`
+ * extension accepts only this set; `rekor` is explicitly rejected because
+ * it is not a shipped witness. Mirrors the live governance.json contract. */
+export const WITNESS_NAMESPACE = ["rfc3161", "opentimestamps"] as const;
+export type Witness = (typeof WITNESS_NAMESPACE)[number];
+
+/** Caller-declared N-of-M durable-anchoring quorum. `required` must be in
+ * `[1, witnesses.length]`; `witnesses` must be a non-empty subset of the
+ * two shipped witnesses. `rekor` is rejected. */
+export interface WitnessPolicy {
+  required: number;
+  witnesses: Witness[];
+}
+
 /** Risk class controlled vocabulary. */
 export type RiskClass = "low" | "medium" | "high" | "unknown";
 
@@ -481,6 +495,15 @@ export interface SignOptions {
    * Preserved on the receipt for offline TSA chain verification
    * independent of cloud-issued anchors. */
   rfc3161Timestamp?: string;
+
+  /** Caller-declared N-of-M durable-anchoring quorum. Shape
+   * `{ required, witnesses: [<subset of "rfc3161", "opentimestamps">] }`.
+   * `required` must be in `[1, witnesses.length]`; `witnesses` must be a
+   * non-empty subset of the two shipped witnesses. `rekor` is rejected
+   * (not a shipped witness). The receipt reaches `witness_quorum_met`
+   * only when `required` witnesses hold a real inclusion proof. Projected
+   * to the wire as snake_case `witness_policy`. */
+  witnessPolicy?: WitnessPolicy;
 }
 
 export interface CoSignature {
@@ -1025,7 +1048,53 @@ function validateSignOptions(options: SignOptions): void {
       );
     }
   }
+  validateWitnessPolicy(options.witnessPolicy);
   validateIncidentClass(options.incidentClass);
+}
+
+/**
+ * Reject malformed `witnessPolicy` before the HTTP roundtrip. Lockstep
+ * with the cloud witness_policy extension: `{ required, witnesses }` where
+ * `witnesses` is a non-empty subset of the two shipped witnesses and
+ * `required` is an integer in `[1, witnesses.length]`. `rekor` is rejected
+ * because it is not a shipped witness. Verbatim guard tokens match the
+ * Python SDK so SDK errors round-trip through the conformance vectors.
+ */
+function validateWitnessPolicy(value: WitnessPolicy | undefined): void {
+  if (value === undefined) return;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new AsqavError(
+      'witness_policy_invalid: must be an object { required: number, witnesses: [...] }.',
+    );
+  }
+  const { required, witnesses } = value;
+  if (!Array.isArray(witnesses) || witnesses.length === 0) {
+    throw new AsqavError(
+      `witness_policy_witnesses_must_be_non_empty_list: witnesses must be a non-empty list drawn from ${WITNESS_NAMESPACE.join(", ")}.`,
+    );
+  }
+  for (const w of witnesses) {
+    if (!(WITNESS_NAMESPACE as readonly string[]).includes(w)) {
+      throw new AsqavError(
+        `witness_policy_unknown_witness: '${w}' is not a shipped witness; witnesses must be a subset of ${WITNESS_NAMESPACE.join(", ")} (rekor is rejected).`,
+      );
+    }
+  }
+  if (new Set(witnesses).size !== witnesses.length) {
+    throw new AsqavError(
+      "witness_policy_duplicate_witness: witnesses must not contain duplicates.",
+    );
+  }
+  if (typeof required !== "number" || !Number.isInteger(required)) {
+    throw new AsqavError(
+      "witness_policy_required_must_be_int: required must be an integer in [1, witnesses.length].",
+    );
+  }
+  if (required < 1 || required > witnesses.length) {
+    throw new AsqavError(
+      `witness_policy_required_out_of_range: required must be in [1, ${witnesses.length}] (got ${required}).`,
+    );
+  }
 }
 
 /**
@@ -1169,6 +1238,8 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "iso_42001", read: (o) => o.iso42001 },
   { wire: "eu_ai_act_articles", read: (o) => o.euAiActArticles },
   { wire: "rfc3161_timestamp", read: (o) => o.rfc3161Timestamp },
+  // Durable-anchoring quorum (cloud witness_policy extension).
+  { wire: "witness_policy", read: (o) => o.witnessPolicy },
   {
     wire: "tool_fingerprint",
     read: (o) =>

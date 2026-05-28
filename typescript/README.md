@@ -208,6 +208,26 @@ Each list must be a non-empty array of strings, each entry up to 128 characters;
 
 See <https://www.asqav.com/docs/threat-framework-mapping>.
 
+## Witness policy (optional)
+
+`witnessPolicy` lets a caller declare an N-of-M durable-anchoring quorum on the receipt. The receipt reaches `witness_quorum_met` only when `required` witnesses hold a real inclusion proof. It projects onto the snake_case `witness_policy` wire key via the SDK's `IETF_OPTIONAL_FIELD_MAP`.
+
+- Shape: `{ required: number, witnesses: Array<"rfc3161" | "opentimestamps"> }`.
+- `required` must be an integer in `[1, witnesses.length]`.
+- `witnesses` must be a non-empty subset of the two shipped witnesses: `rfc3161` and `opentimestamps`.
+- `rekor` is rejected. It is not a shipped witness.
+
+```typescript
+const sig = await agent.sign({
+  actionType: "deploy:release",
+  context: { build: "..." },
+  complianceMode: true,
+  witnessPolicy: { required: 1, witnesses: ["rfc3161", "opentimestamps"] },
+});
+```
+
+Bad input throws `AsqavError` with a verbatim guard message before the HTTP roundtrip: `witness_policy_unknown_witness` (e.g. `rekor`), `witness_policy_required_out_of_range`, `witness_policy_witnesses_must_be_non_empty_list`, `witness_policy_required_must_be_int`, or `witness_policy_duplicate_witness`. Omit the field for today's behaviour.
+
 ### Audit Pack export
 
 The SDK exposes the public audit-trail endpoint as `exportAuditJson` for filtered windows of receipts (Pro tier and above):
