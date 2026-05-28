@@ -206,6 +206,26 @@ Each list must be a non-empty list of strings, each entry up to 128 characters; 
 
 See <https://www.asqav.com/docs/threat-framework-mapping>.
 
+## Witness policy (optional)
+
+`witness_policy` lets a caller declare an N-of-M durable-anchoring quorum on the receipt. The receipt reaches `witness_quorum_met` only when `required` witnesses hold a real inclusion proof.
+
+- Shape: `{"required": int, "witnesses": [<subset of "rfc3161", "opentimestamps">]}`.
+- `required` must be in `[1, len(witnesses)]`.
+- `witnesses` must be a non-empty subset of the two shipped witnesses: `rfc3161` and `opentimestamps`.
+- `rekor` is rejected. It is not a shipped witness.
+
+```python
+sig = agent.sign(
+    "deploy:release",
+    {"build": "..."},
+    compliance_mode=True,
+    witness_policy={"required": 1, "witnesses": ["rfc3161", "opentimestamps"]},
+)
+```
+
+Bad input raises `ValueError` with a verbatim guard message before the HTTP roundtrip: `witness_policy_unknown_witness` (e.g. `rekor`), `witness_policy_required_out_of_range`, `witness_policy_witnesses_must_be_non_empty_list`, `witness_policy_required_must_be_int`, or `witness_policy_duplicate_witness`. Omit the field for today's behaviour.
+
 ### Audit Pack export
 
 The cloud signs a Compliance Audit Pack over a window of receipts. The SDK wraps the endpoint:
