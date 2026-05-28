@@ -236,6 +236,11 @@ SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
     {"enabled", "disabled", "unavailable"}
 )
 
+#: Durable-anchoring witnesses Asqav ships. The cloud `witness_policy`
+#: extension accepts only this set; `rekor` is explicitly rejected because
+#: it is not a shipped witness. Mirrors the live governance.json contract.
+WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
+
 #: Producer-side `capture_topology` vocabulary mirrored from the cloud
 #: SignRequest Literal. See docs/capture-topology.md.
 CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
@@ -1239,6 +1244,7 @@ class Agent:
         iso_42001: list[str] | None = None,
         eu_ai_act_articles: list[str] | None = None,
         rfc3161_timestamp: str | None = None,
+        witness_policy: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -1344,6 +1350,15 @@ class Agent:
             rfc3161_timestamp: Caller-supplied base64-encoded RFC 3161
                 TimeStampResp (DER). Preserved on the receipt for offline
                 TSA chain verification independent of cloud-issued anchors.
+            witness_policy: Caller-declared N-of-M durable-anchoring quorum.
+                Shape ``{"required": int, "witnesses": [<subset of
+                "rfc3161", "opentimestamps">]}``. ``required`` must be in
+                ``[1, len(witnesses)]``; ``witnesses`` must be a non-empty
+                subset of the two shipped witnesses. ``rekor`` is rejected
+                (not a shipped witness). The receipt reaches
+                ``witness_quorum_met`` only when ``required`` witnesses hold
+                a real inclusion proof. Optional; omit for today's
+                behaviour.
 
         Returns:
             SignatureResponse with the signature.
@@ -1544,6 +1559,46 @@ class Agent:
                     f"(decode failed: {_exc})."
                 ) from _exc
 
+        # witness_policy lockstep with the cloud witness_policy extension:
+        # {required: int, witnesses: [<non-empty subset of rfc3161,
+        # opentimestamps>]}; required in [1, len(witnesses)]; rekor rejected.
+        if witness_policy is not None:
+            if not isinstance(witness_policy, dict):
+                raise ValueError(
+                    "witness_policy_invalid: must be a dict "
+                    '{"required": int, "witnesses": [...]}.'
+                )
+            _witnesses = witness_policy.get("witnesses")
+            _required = witness_policy.get("required")
+            if not isinstance(_witnesses, list) or len(_witnesses) == 0:
+                raise ValueError(
+                    "witness_policy_witnesses_must_be_non_empty_list: "
+                    "witnesses must be a non-empty list drawn from "
+                    f"{sorted(WITNESS_NAMESPACE)}."
+                )
+            for _w in _witnesses:
+                if _w not in WITNESS_NAMESPACE:
+                    raise ValueError(
+                        f"witness_policy_unknown_witness: '{_w}' is not a "
+                        "shipped witness; witnesses must be a subset of "
+                        f"{sorted(WITNESS_NAMESPACE)} (rekor is rejected)."
+                    )
+            if len(set(_witnesses)) != len(_witnesses):
+                raise ValueError(
+                    "witness_policy_duplicate_witness: witnesses must not "
+                    "contain duplicates."
+                )
+            if not isinstance(_required, int) or isinstance(_required, bool):
+                raise ValueError(
+                    "witness_policy_required_must_be_int: required must be "
+                    "an integer in [1, len(witnesses)]."
+                )
+            if not (1 <= _required <= len(_witnesses)):
+                raise ValueError(
+                    "witness_policy_required_out_of_range: required must be "
+                    f"in [1, {len(_witnesses)}] (got {_required})."
+                )
+
         # Derive action_ref under compliance_mode when caller omits it.
         if compliance_mode and action_ref is None:
             action_ref = _compute_action_ref(action_type, context)
@@ -1596,6 +1651,7 @@ class Agent:
                 ("iso_42001", iso_42001),
                 ("eu_ai_act_articles", eu_ai_act_articles),
                 ("rfc3161_timestamp", rfc3161_timestamp),
+                ("witness_policy", witness_policy),
             ):
                 if v is not None:
                     compliance_fields[k] = v
