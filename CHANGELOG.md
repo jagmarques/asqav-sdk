@@ -6,6 +6,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.3] - 2026-05-29
+
+### Added
+- `witnessPolicy` on `agent.sign({...})`: one new optional camelCase prop mirroring the cloud `witness_policy` extension. Shape `{ required: number, witnesses: Array<"rfc3161" | "opentimestamps"> }`, projected to the snake_case `witness_policy` wire key via `IETF_OPTIONAL_FIELD_MAP`. Declares an N-of-M durable-anchoring quorum; the receipt reaches `witness_quorum_met` only when `required` witnesses hold a real inclusion proof. OPTIONAL; absent keeps today's behaviour. Requires Asqav cloud 0.5.3 or higher.
+- Client-side validators emit verbatim guard tokens that round-trip through the conformance vectors: `witness_policy_unknown_witness` rejects any witness outside the two shipped witnesses (`rekor` is rejected because it is not shipped), `witness_policy_required_out_of_range` rejects `required` outside `[1, witnesses.length]`, `witness_policy_witnesses_must_be_non_empty_list` rejects an empty list, `witness_policy_required_must_be_int` rejects a non-integer `required`, and `witness_policy_duplicate_witness` rejects duplicates.
+- New tests in `typescript/tests/witnessPolicy.test.ts` covering wire projection, the rekor rejection, the `required` range, and the other shape guards.
+- Exported `WITNESS_NAMESPACE`, the `Witness` type, and the `WitnessPolicy` interface.
+
+### Changed
+- CLI version string in `src/cli.ts` bumped to `"0.5.3"` to match the package version.
+
+## [Python 0.5.3] - 2026-05-29
+
+### Added
+- `witness_policy` kwarg on `agent.sign(...)`: one new optional kwarg mirroring the cloud `witness_policy` extension. Shape `{"required": int, "witnesses": [<subset of "rfc3161", "opentimestamps">]}`, forwarded verbatim to the wire. Declares an N-of-M durable-anchoring quorum; the receipt reaches `witness_quorum_met` only when `required` witnesses hold a real inclusion proof. OPTIONAL; absent keeps today's behaviour. Requires Asqav cloud 0.5.3 or higher.
+- Client-side validators emit verbatim guard tokens: `witness_policy_unknown_witness` (`rekor` is rejected because it is not shipped), `witness_policy_required_out_of_range`, `witness_policy_witnesses_must_be_non_empty_list`, `witness_policy_required_must_be_int`, and `witness_policy_duplicate_witness`.
+- New tests in `python/tests/test_client_witness_policy.py` covering wire forwarding, the rekor rejection, the `required` range, and the other shape guards.
+- Exported `WITNESS_NAMESPACE` from `asqav.client`.
+
 ## [TypeScript 0.5.2] - 2026-05-26
 
 ### Added
