@@ -2531,6 +2531,11 @@ def secure(func: F) -> F:
     Wraps the function in an asqav session, signing the call as an action.
     All ML-DSA cryptography happens server-side.
 
+    Trust contract (fail-closed): the call is signed BEFORE the wrapped body runs.
+    If signing is refused (a blocked policy, a non-2xx response, or a network error),
+    the error propagates and the body never executes. Unsigned actions abort by
+    default - the caller does not need to inspect a return value to stay safe.
+
     Args:
         func: The function to secure.
 
