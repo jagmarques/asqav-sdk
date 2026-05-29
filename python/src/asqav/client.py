@@ -1494,23 +1494,14 @@ class Agent:
                 "result_digest (sha256:<64 hex>)."
             )
 
-        # Rule 10: passing both an absolute horizon and a duration is
-        # ambiguous, so the SDK still rejects it. The cloud no longer has
-        # an expires_at field; the SDK owns the absolute->duration
-        # conversion below because the cloud owns absolute time-binding and
-        # accepts only a duration on the wire.
+        # Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
         if valid_seconds is not None and expires_at is not None:
             raise ValueError(
                 "expiry_collision_guard: pass either valid_seconds or "
                 "expires_at, not both (rule 10)"
             )
 
-        # The cloud SignRequest has no expires_at field and silently
-        # ignores extras (extra=ignore). To avoid a silent-drop footgun we
-        # convert an absolute expires_at to a client-computed valid_seconds
-        # here and send only the duration. This is clock-safe: the cloud
-        # stamps the absolute moment from its own clock; the caller's clock
-        # only expresses their desired horizon.
+        # Convert absolute expires_at to client-computed valid_seconds (cloud owns time-binding).
         if expires_at is not None:
             from datetime import datetime, timezone
             from math import ceil
@@ -1599,9 +1590,7 @@ class Agent:
                     f"(decode failed: {_exc})."
                 ) from _exc
 
-        # witness_policy lockstep with the cloud witness_policy extension:
-        # {required: int, witnesses: [<non-empty subset of rfc3161,
-        # opentimestamps>]}; required in [1, len(witnesses)]; rekor rejected.
+        # witness_policy: {required, witnesses: subset of rfc3161/opentimestamps}.
         if witness_policy is not None:
             if not isinstance(witness_policy, dict):
                 raise ValueError(

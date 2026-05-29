@@ -30,11 +30,7 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:lifecycle:configuration_change",
   "protectmcp:acknowledgment",
   "protectmcp:observation",
-  // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): observation receipts
-  // that carry a `result_digest` use the `:result_bound` suffix so auditors
-  // can index receipts that bind tool output without a wider scan. The
-  // 4-place atomic landing (SDK / cloud / well-known / conformance) keeps
-  // the vocabulary in lockstep.
+  // observation receipts with a result_digest use the :result_bound suffix for auditor indexing.
   "protectmcp:observation:result_bound",
 ] as const;
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
@@ -955,11 +951,7 @@ function validateSignOptions(options: SignOptions): void {
       "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
     );
   }
-  // Rule 10: passing both an absolute horizon and a duration is ambiguous,
-  // so the SDK still rejects it. The cloud no longer has an expires_at
-  // field; the SDK owns the absolute->duration conversion (in sign) because
-  // the cloud owns absolute time-binding and accepts only a duration on the
-  // wire.
+  // Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
   if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
     throw new AsqavError(
       "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
@@ -1214,12 +1206,7 @@ function applyOptionalWireFields(
     body.co_signers = [...options.coSigners];
   }
   body.nonce = options.nonce ?? generateNonce();
-  // The cloud SignRequest has no expires_at field and silently ignores
-  // extras. To avoid a silent-drop footgun we convert an absolute expiresAt
-  // to a client-computed valid_seconds and send only the duration. This is
-  // clock-safe: the cloud stamps the absolute moment from its own clock;
-  // the caller's clock only expresses their desired horizon. The rule-10
-  // collision guard (in validateSignOptions) already rejects passing both.
+  // Convert an absolute expiresAt to a client-computed valid_seconds (cloud owns time-binding).
   if (options.validSeconds !== undefined) {
     body.valid_seconds = options.validSeconds;
   } else if (options.expiresAt !== undefined) {
