@@ -128,7 +128,7 @@ sig = agent.sign(
 
 ### Digest format (rule 11)
 
-Every caller-supplied digest field (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`, `executable_hash`, `sbom_digest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. The two URL pointer fields (`slsa_provenance_pointer`, `supply_chain_pointer`) MUST start with `http://` or `https://`. Anything else raises `ValueError` with a verbatim guard message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
+Every caller-supplied self-describing digest field (`config_manifest_digest`, `cve_inventory_digest`, `executable_hash`, `sbom_digest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. `tool_fingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars (SHA-256[:32], `^[0-9a-f]{32}$`, no `sha256:` prefix); anything else raises `ValueError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` guard. The two URL pointer fields (`slsa_provenance_pointer`, `supply_chain_pointer`) MUST start with `http://` or `https://`. Anything else raises `ValueError` with a verbatim guard message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
 
 ```python
 from asqav.client import (
@@ -147,9 +147,9 @@ cve = _compute_cve_inventory_digest([{"id": "CVE-2026-0001", "severity": "high"}
 Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment for MCP server lifecycle and tool output binding:
 
 - `result_digest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
-- `expires_at` - explicit ISO-8601 validity horizon. Mutually exclusive with `valid_seconds`. See <https://www.asqav.com/docs/expires-at>.
+- `expires_at` - explicit ISO-8601 (or POSIX) validity horizon. Converted client-side to `valid_seconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `valid_seconds`. See <https://www.asqav.com/docs/expires-at>.
 - `nonce` - 12 random bytes auto-generated when omitted; cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
-- `tool_fingerprint` - `sha256:<hex>` over `{tool_name, schema}`, auto-derived when `tool_name` + `tool_schema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
+- `tool_fingerprint` - 32 bare lowercase hex chars (SHA-256[:32]) over `{tool_name, schema}`, auto-derived when `tool_name` + `tool_schema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
 - `config_manifest_digest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/config-manifest-digest>.
 - `cve_inventory_digest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
 
