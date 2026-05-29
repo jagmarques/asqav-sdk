@@ -72,7 +72,7 @@ describe("computeToolFingerprint helper", () => {
     const fp1 = computeToolFingerprint("search", { a: 1, b: 2 });
     const fp2 = computeToolFingerprint("search", { b: 2, a: 1 });
     expect(fp1).toBe(fp2);
-    expect(fp1.startsWith("sha256:")).toBe(true);
+    expect(fp1).toMatch(/^[0-9a-f]{32}$/);
   });
 });
 
@@ -128,12 +128,11 @@ describe("toolFingerprint auto-compute + passthrough", () => {
     });
     const body = readBody(spy);
     expect(typeof body.tool_fingerprint).toBe("string");
-    expect((body.tool_fingerprint as string).startsWith("sha256:")).toBe(true);
-    expect((body.tool_fingerprint as string).length).toBe("sha256:".length + 64);
+    expect(body.tool_fingerprint as string).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it("explicit toolFingerprint overrides auto-derivation", async () => {
-    const explicit = `sha256:${"a".repeat(64)}`;
+    const explicit = "a".repeat(32);
     const spy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(jsonResponse(okBody()));
@@ -171,7 +170,6 @@ describe("caller-forwarded NSA-aligned digest fields", () => {
 
   const cases = [
     { wire: "result_digest", opt: "resultDigest", value: `sha256:${"b".repeat(64)}` },
-    { wire: "expires_at", opt: "expiresAt", value: "2026-06-01T00:00:00Z" },
     { wire: "config_manifest_digest", opt: "configManifestDigest", value: `sha256:${"c".repeat(64)}` },
     { wire: "cve_inventory_digest", opt: "cveInventoryDigest", value: `sha256:${"d".repeat(64)}` },
   ] as const;
@@ -318,18 +316,36 @@ describe("Rule 10: expiry_collision_guard", () => {
     expect(body).not.toHaveProperty("expires_at");
   });
 
-  it("only expiresAt is forwarded verbatim", async () => {
+  it("converts an ISO expiresAt to valid_seconds and drops expires_at", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    // Far-future horizon -> a large positive duration. The cloud reverted
+    // its expires_at field, so the SDK converts client-side to avoid a
+    // silent-drop footgun.
+    await fakeAgent().sign({
+      actionType: "api.call",
+      complianceMode: true,
+      expiresAt: "2099-06-01T00:00:00Z",
+    });
+    const body = readBody(spy);
+    expect(body).not.toHaveProperty("expires_at");
+    expect(body.valid_seconds as number).toBeGreaterThan(0);
+  });
+
+  it("converts a POSIX-epoch expiresAt to valid_seconds", async () => {
     const spy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(jsonResponse(okBody()));
     await fakeAgent().sign({
       actionType: "api.call",
       complianceMode: true,
-      expiresAt: "2026-06-01T00:00:00Z",
+      expiresAt: Date.now() / 1000 + 3600,
     });
     const body = readBody(spy);
-    expect(body.expires_at).toBe("2026-06-01T00:00:00Z");
-    expect(body).not.toHaveProperty("valid_seconds");
+    expect(body).not.toHaveProperty("expires_at");
+    expect(body.valid_seconds as number).toBeGreaterThanOrEqual(3590);
+    expect(body.valid_seconds as number).toBeLessThanOrEqual(3601);
   });
 });
 
@@ -345,11 +361,6 @@ describe("Rule 11: digest_format_guard", () => {
   afterEach(() => vi.restoreAllMocks());
 
   const digestFields: Array<{ wire: string; opt: keyof Parameters<Agent["sign"]>[0]; token: (w: string) => string }> = [
-    {
-      wire: "tool_fingerprint",
-      opt: "toolFingerprint",
-      token: (_w) => "digest_format_guard: tool_fingerprint must match sha256:<64-hex> (rule 11)",
-    },
     {
       wire: "config_manifest_digest",
       opt: "configManifestDigest",
@@ -410,12 +421,49 @@ describe("Rule 11: digest_format_guard", () => {
       expect(spy).not.toHaveBeenCalled();
     });
   }
+
+  // tool_fingerprint uses the bare cloud wire form (32 hex, no prefix),
+  // distinct from the self-describing sha256:<64-hex> form of the others.
+  it("tool_fingerprint: 32 bare hex passes", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    const fp = "a".repeat(32);
+    await fakeAgent().sign({
+      actionType: "api.call",
+      complianceMode: true,
+      toolFingerprint: fp,
+    });
+    const body = readBody(spy);
+    expect(body.tool_fingerprint).toBe(fp);
+  });
+
+  for (const bad of [
+    `sha256:${"a".repeat(64)}`, // self-describing form now rejected
+    "a".repeat(31), // too short
+    "a".repeat(33), // too long
+    "Z".repeat(32), // non-hex / uppercase
+  ]) {
+    it(`tool_fingerprint: '${bad.slice(0, 12)}...' rejected verbatim`, async () => {
+      const spy = vi.spyOn(globalThis, "fetch");
+      await expect(
+        fakeAgent().sign({
+          actionType: "api.call",
+          complianceMode: true,
+          toolFingerprint: bad,
+        }),
+      ).rejects.toThrow(
+        "tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).",
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+  }
 });
 
 describe("digest helpers", () => {
-  it("computeToolFingerprint matches the rule-11 regex", () => {
+  it("computeToolFingerprint emits 32 bare hex chars", () => {
     const fp = computeToolFingerprint("search", { q: "string" });
-    expect(fp).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(fp).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it("computeConfigManifestDigest is deterministic under key reorder", () => {
