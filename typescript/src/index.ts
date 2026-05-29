@@ -421,9 +421,11 @@ export interface SignOptions {
    * verbatim to the cloud. */
   resultDigest?: string;
 
-  /** Receipt validity horizon. ISO-8601 string or POSIX number.
-   * Caller-supplied and forwarded verbatim. Mutually exclusive with
-   * `validSeconds` (rule 10); see `validSeconds` for precedence. */
+  /** Receipt validity horizon. ISO-8601 string or POSIX number. The cloud
+   * owns absolute time-binding and accepts only a duration, so the SDK
+   * converts this absolute horizon to a client-computed `valid_seconds` and
+   * sends that instead. Mutually exclusive with `validSeconds` (rule 10);
+   * see `validSeconds` for precedence. */
   expiresAt?: string | number;
 
   /** Optional JSON schema describing the tool surface. When provided
@@ -431,9 +433,10 @@ export interface SignOptions {
    * computes the fingerprint client-side via JCS canonicalization. */
   toolSchema?: Record<string, unknown>;
 
-  /** Explicit `sha256:<hex>` over the canonical `{tool_name, schema}` blob.
+  /** Explicit fingerprint over the canonical `{tool_name, schema}` blob.
    * When omitted but `toolName` + `toolSchema` are present, the SDK
-   * derives it client-side. MUST match `sha256:<64-hex>` (rule 11); use
+   * derives it client-side. MUST be 32 bare lowercase hex chars
+   * (SHA-256[:32], no `sha256:` prefix), matching the cloud wire form; use
    * `computeToolFingerprint` to avoid drift. */
   toolFingerprint?: string;
 
@@ -952,7 +955,11 @@ function validateSignOptions(options: SignOptions): void {
       "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
     );
   }
-  // Rule 10 lockstep with the cloud SignRequest cross-field validator.
+  // Rule 10: passing both an absolute horizon and a duration is ambiguous,
+  // so the SDK still rejects it. The cloud no longer has an expires_at
+  // field; the SDK owns the absolute->duration conversion (in sign) because
+  // the cloud owns absolute time-binding and accepts only a duration on the
+  // wire.
   if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
     throw new AsqavError(
       "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
@@ -972,9 +979,9 @@ function validateSignOptions(options: SignOptions): void {
       );
     }
   }
-  if (options.toolFingerprint !== undefined && !SHA256_HEX_RE.test(options.toolFingerprint)) {
+  if (options.toolFingerprint !== undefined && !TOOL_FINGERPRINT_RE.test(options.toolFingerprint)) {
     throw new AsqavError(
-      "digest_format_guard: tool_fingerprint must match sha256:<64-hex> (rule 11)",
+      "tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).",
     );
   }
   const _pointerChecks: Array<[string, string | undefined]> = [
@@ -1139,17 +1146,24 @@ function deriveActionRef(
  * the helper outputs byte-for-byte. */
 const SHA256_HEX_RE = /^sha256:[a-f0-9]{64}$/;
 
-/** Compute a deterministic `sha256:<hex>` over `{tool_name, schema}` per
- * NSA CSI U/OO/6030316-26. The fingerprint is byte-deterministic under
- * JCS (RFC 8785) so the SDK and cloud agree when the cloud rehashes for
- * tamper detection. Output matches `SHA256_HEX_RE` byte-for-byte. */
+/** Wire format for `tool_fingerprint`: 32 bare lowercase hex chars
+ * (SHA-256[:32]). The cloud validates this field with the bare form, not
+ * the self-describing `sha256:<hex>` form used by the other digests. */
+const TOOL_FINGERPRINT_RE = /^[0-9a-f]{32}$/;
+
+/** Compute a deterministic 32-bare-hex fingerprint over `{tool_name,
+ * schema}` per NSA CSI U/OO/6030316-26. The fingerprint is
+ * byte-deterministic under JCS (RFC 8785) so the SDK and cloud agree when
+ * the cloud rehashes for tamper detection. The cloud requires the first 32
+ * hex chars of the SHA-256 digest, bare (no `sha256:` prefix), matching
+ * `TOOL_FINGERPRINT_RE`. */
 export function computeToolFingerprint(
   toolName: string,
   toolSchema: Record<string, unknown> | undefined,
 ): string {
   const payload = canonicalJson({ tool_name: toolName, schema: toolSchema ?? {} });
   const hex = createHash("sha256").update(payload).digest("hex");
-  return `sha256:${hex}`;
+  return hex.slice(0, 32);
 }
 
 /** Compute the canonical `sha256:<hex>` of a runtime configuration
@@ -1200,7 +1214,21 @@ function applyOptionalWireFields(
     body.co_signers = [...options.coSigners];
   }
   body.nonce = options.nonce ?? generateNonce();
-  if (options.validSeconds !== undefined) body.valid_seconds = options.validSeconds;
+  // The cloud SignRequest has no expires_at field and silently ignores
+  // extras. To avoid a silent-drop footgun we convert an absolute expiresAt
+  // to a client-computed valid_seconds and send only the duration. This is
+  // clock-safe: the cloud stamps the absolute moment from its own clock;
+  // the caller's clock only expresses their desired horizon. The rule-10
+  // collision guard (in validateSignOptions) already rejects passing both.
+  if (options.validSeconds !== undefined) {
+    body.valid_seconds = options.validSeconds;
+  } else if (options.expiresAt !== undefined) {
+    const expiresAtMs = typeof options.expiresAt === "number"
+      ? options.expiresAt * 1000
+      : Date.parse(options.expiresAt);
+    const seconds = Math.ceil((expiresAtMs - Date.now()) / 1000);
+    body.valid_seconds = Math.max(1, seconds);
+  }
   if (options.expectedExecutorPubkeyB64 !== undefined) {
     body.expected_executor_pubkey_b64 = options.expectedExecutorPubkeyB64;
   }
@@ -1223,7 +1251,6 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "reason", read: (o) => o.reason },
   // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0).
   { wire: "result_digest", read: (o) => o.resultDigest },
-  { wire: "expires_at", read: (o) => o.expiresAt },
   { wire: "config_manifest_digest", read: (o) => o.configManifestDigest },
   { wire: "cve_inventory_digest", read: (o) => o.cveInventoryDigest },
   { wire: "executable_hash", read: (o) => o.executableHash },

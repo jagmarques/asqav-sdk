@@ -906,20 +906,27 @@ def _compute_action_ref(
 _SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 
 
+#: Wire format for ``tool_fingerprint``: 32 bare lowercase hex chars
+#: (SHA-256[:32]). The cloud validates this field with the bare form, not
+#: the self-describing ``sha256:<hex>`` form used by the other digests.
+_TOOL_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
+
+
 def _compute_tool_fingerprint(
     tool_name: str, tool_schema: dict[str, Any] | None
 ) -> str:
-    """Compute a deterministic ``sha256:<hex>`` over `{tool_name, schema}`.
+    """Compute a deterministic 32-bare-hex fingerprint over `{tool_name, schema}`.
 
     NSA CSI U/OO/6030316-26 binds receipts to the exact tool surface the
     agent invoked. The fingerprint is byte-deterministic under JCS (RFC
     8785) so the SDK and cloud agree when the cloud rehashes for tamper
-    detection. Output matches ``_SHA256_HEX_RE`` byte-for-byte.
+    detection. The cloud requires the first 32 hex chars of the SHA-256
+    digest, bare (no ``sha256:`` prefix), matching ``_TOOL_FINGERPRINT_RE``.
     """
     from .canonicalize import canonicalize
 
     payload = canonicalize({"tool_name": tool_name, "schema": tool_schema or {}})
-    return "sha256:" + hashlib.sha256(payload).hexdigest()
+    return hashlib.sha256(payload).hexdigest()[:32]
 
 
 def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
@@ -1291,11 +1298,13 @@ class Agent:
                 ``sha256:<hex>`` of the tool output. Caller-supplied and
                 forwarded verbatim to the cloud.
             expires_at: Receipt validity horizon. ISO-8601 string or POSIX
-                float. Caller-supplied and forwarded verbatim. Mutually
-                exclusive with ``valid_seconds`` (rule 10). Pass exactly
-                one of the two: ``valid_seconds`` for "expire N seconds
-                after signing" (server computes ``valid_until``), or
-                ``expires_at`` for an explicit horizon. Passing both
+                float. The cloud owns absolute time-binding and accepts
+                only a duration, so the SDK converts this absolute horizon
+                to a client-computed ``valid_seconds`` and sends that
+                instead. Mutually exclusive with ``valid_seconds`` (rule
+                10). Pass exactly one of the two: ``valid_seconds`` for
+                "expire N seconds after signing", or ``expires_at`` for an
+                explicit horizon (converted client-side). Passing both
                 raises ``expiry_collision_guard``. Passing neither falls
                 back to the server-side default
                 (``valid_seconds=86400``).
@@ -1303,12 +1312,13 @@ class Agent:
                 When provided alongside ``tool_name`` and
                 ``tool_fingerprint`` is omitted, the SDK computes the
                 fingerprint client-side via JCS canonicalization.
-            tool_fingerprint: Explicit ``sha256:<hex>`` over the canonical
+            tool_fingerprint: Explicit fingerprint over the canonical
                 ``{tool_name, schema}`` blob. When omitted but
                 ``tool_name`` + ``tool_schema`` are present, the SDK
-                derives it client-side. MUST match ``sha256:<64-hex>``
-                (rule 11); use ``_compute_tool_fingerprint`` to avoid
-                drift.
+                derives it client-side. MUST be 32 bare lowercase hex
+                chars (SHA-256[:32], no ``sha256:`` prefix), matching the
+                cloud wire form; use ``_compute_tool_fingerprint`` to
+                avoid drift.
             config_manifest_digest: NSA CSI alignment. ``sha256:<hex>`` of
                 the agent's runtime configuration manifest. REQUIRED for
                 ``receipt_type=protectmcp:lifecycle:configuration_change``
@@ -1484,11 +1494,41 @@ class Agent:
                 "result_digest (sha256:<64 hex>)."
             )
 
-        # Rule 10 lockstep with the cloud cross-field validator.
+        # Rule 10: passing both an absolute horizon and a duration is
+        # ambiguous, so the SDK still rejects it. The cloud no longer has
+        # an expires_at field; the SDK owns the absolute->duration
+        # conversion below because the cloud owns absolute time-binding and
+        # accepts only a duration on the wire.
         if valid_seconds is not None and expires_at is not None:
             raise ValueError(
                 "expiry_collision_guard: pass either valid_seconds or "
                 "expires_at, not both (rule 10)"
+            )
+
+        # The cloud SignRequest has no expires_at field and silently
+        # ignores extras (extra=ignore). To avoid a silent-drop footgun we
+        # convert an absolute expires_at to a client-computed valid_seconds
+        # here and send only the duration. This is clock-safe: the cloud
+        # stamps the absolute moment from its own clock; the caller's clock
+        # only expresses their desired horizon.
+        if expires_at is not None:
+            from datetime import datetime, timezone
+            from math import ceil
+
+            if isinstance(expires_at, (int, float)):
+                expires_at_dt = datetime.fromtimestamp(
+                    float(expires_at), tz=timezone.utc
+                )
+            else:
+                _s = expires_at
+                if _s.endswith("Z"):
+                    _s = _s[:-1] + "+00:00"
+                expires_at_dt = datetime.fromisoformat(_s)
+                if expires_at_dt.tzinfo is None:
+                    expires_at_dt = expires_at_dt.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            valid_seconds = max(
+                1, ceil((expires_at_dt - now).total_seconds())
             )
 
         # Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
@@ -1503,12 +1543,12 @@ class Agent:
                     f"{_name}_not_sha256_wire_form: must look like "
                     "'sha256:<64 lowercase hex>'."
                 )
-        if tool_fingerprint is not None and not _SHA256_HEX_RE.match(
+        if tool_fingerprint is not None and not _TOOL_FINGERPRINT_RE.match(
             tool_fingerprint
         ):
             raise ValueError(
-                "digest_format_guard: tool_fingerprint must match "
-                "sha256:<64-hex> (rule 11)"
+                "tool_fingerprint_not_32_hex_chars: must be 32 lowercase "
+                "hex chars (SHA-256[:32])."
             )
         for _name, _value in (
             ("slsa_provenance_pointer", slsa_provenance_pointer),
@@ -1635,7 +1675,6 @@ class Agent:
                 ("capture_topology", capture_topology),
                 # NSA CSI U/OO/6030316-26 alignment.
                 ("result_digest", result_digest),
-                ("expires_at", expires_at),
                 ("tool_fingerprint", tool_fingerprint),
                 ("config_manifest_digest", config_manifest_digest),
                 ("cve_inventory_digest", cve_inventory_digest),
