@@ -155,6 +155,44 @@ def test_sign_decorator_with_action_type(mock_post: MagicMock, mock_patch: Magic
     assert call_args[0][1]["action_type"] == "deploy:prod"
 
 
+def _mock_post_blocks_sign(path: str, data: dict) -> dict:
+    """Agent creation succeeds; every sign is blocked with a non-2xx error."""
+    if path == "/agents/create":
+        return MOCK_AGENT_RESPONSE
+    if "/sign" in path:
+        raise asqav_client.APIError("policy blocked the action", 403)
+    return {}
+
+
+@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._post", side_effect=_mock_post_blocks_sign)
+def test_sign_decorator_fail_closed_on_blocked_sign(
+    mock_post: MagicMock, mock_patch: MagicMock
+) -> None:
+    """Trust contract: a blocked/non-2xx pre-action sign aborts the action.
+
+    The function:call sign runs BEFORE the wrapped body; if it is refused the
+    error propagates and the body never executes (unsigned = abort by default).
+    """
+    _reset_global_agent()
+    ran = {"body": False}
+
+    @sign
+    def transfer(amount: int) -> str:
+        ran["body"] = True
+        return "done"
+
+    try:
+        transfer(100)
+        assert False, "Should have raised APIError when signing is blocked"
+    except asqav_client.APIError:
+        pass
+
+    assert ran["body"] is False, (
+        "fail-closed: the wrapped body must not run when the pre-action sign is blocked"
+    )
+
+
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_reraises_exception(mock_post: MagicMock, mock_patch: MagicMock) -> None:
