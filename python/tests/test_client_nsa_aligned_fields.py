@@ -106,11 +106,11 @@ def test_generate_nonce_is_24_hex_chars() -> None:
 
 
 def test_tool_fingerprint_helper_is_deterministic() -> None:
-    """JCS-canonical input -> stable sha256:<hex>."""
+    """JCS-canonical input -> stable 32 bare hex chars."""
     fp1 = _compute_tool_fingerprint("search", {"a": 1, "b": 2})
     fp2 = _compute_tool_fingerprint("search", {"b": 2, "a": 1})
     assert fp1 == fp2
-    assert fp1.startswith("sha256:")
+    assert re.fullmatch(r"[0-9a-f]{32}", fp1)
 
 
 def test_tool_fingerprint_auto_computed_when_schema_present() -> None:
@@ -131,8 +131,7 @@ def test_tool_fingerprint_auto_computed_when_schema_present() -> None:
         )
 
     fp = captured["body"]["tool_fingerprint"]
-    assert fp.startswith("sha256:")
-    assert len(fp) == len("sha256:") + 64
+    assert re.fullmatch(r"[0-9a-f]{32}", fp)
 
 
 def test_tool_fingerprint_caller_value_wins() -> None:
@@ -143,7 +142,7 @@ def test_tool_fingerprint_caller_value_wins() -> None:
         captured["body"] = body
         return _ok_response()
 
-    explicit = "sha256:" + "a" * 64
+    explicit = "a" * 32
     with patch("asqav.client._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
@@ -181,13 +180,12 @@ def test_tool_fingerprint_absent_when_no_schema_provided() -> None:
     "field, value",
     [
         ("result_digest", "sha256:" + "b" * 64),
-        ("expires_at", "2026-06-01T00:00:00Z"),
         ("config_manifest_digest", "sha256:" + "c" * 64),
         ("cve_inventory_digest", "sha256:" + "d" * 64),
     ],
 )
 def test_caller_digest_fields_forwarded_verbatim(field: str, value: str) -> None:
-    """The SDK passes ``result_digest``, ``expires_at``,
+    """The SDK passes ``result_digest``,
     ``config_manifest_digest`` and ``cve_inventory_digest`` verbatim."""
     captured: dict = {}
 
@@ -354,8 +352,32 @@ class TestExpiryCollisionGuard:
         assert captured["body"]["valid_seconds"] == 7200
         assert "expires_at" not in captured["body"]
 
-    def test_only_expires_at_set_passes(self) -> None:
-        """``expires_at`` alone is forwarded verbatim."""
+    def test_only_expires_at_set_converts_to_valid_seconds(self) -> None:
+        """``expires_at`` alone is converted client-side to ``valid_seconds``
+        and never sent on the wire. The cloud reverted its ``expires_at``
+        field (extra=ignore), so the SDK owns the absolute->duration
+        conversion to avoid a silent-drop footgun."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        # Far-future ISO horizon -> a large positive duration.
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                expires_at="2099-06-01T00:00:00Z",
+            )
+        assert "expires_at" not in captured["body"]
+        assert captured["body"]["valid_seconds"] > 0
+
+    def test_expires_at_epoch_float_converts_to_valid_seconds(self) -> None:
+        """A POSIX-epoch ``expires_at`` converts to a duration too."""
+        import time as _time
+
         captured: dict = {}
 
         def fake_post(path: str, body: dict) -> dict:
@@ -367,10 +389,11 @@ class TestExpiryCollisionGuard:
                 "api:call",
                 {"k": "v"},
                 compliance_mode=True,
-                expires_at="2026-06-01T00:00:00Z",
+                expires_at=_time.time() + 3600,
             )
-        assert captured["body"]["expires_at"] == "2026-06-01T00:00:00Z"
-        assert "valid_seconds" not in captured["body"]
+        assert "expires_at" not in captured["body"]
+        # ~3600s horizon, allow a small clock delta.
+        assert 3590 <= captured["body"]["valid_seconds"] <= 3601
 
 
 # === Rule 11: digest_format_guard (sha256:<64-hex>) ===
@@ -384,12 +407,13 @@ class TestDigestFormatGuard:
 
     @pytest.mark.parametrize(
         "field",
-        ["tool_fingerprint", "config_manifest_digest", "cve_inventory_digest"],
+        ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_valid_format_passes(self, field: str) -> None:
-        """A correctly-formatted digest is forwarded verbatim. The cross-
-        field validator for configuration_change still requires the digest
-        to be present, so we send a plain decision receipt here."""
+        """A correctly-formatted ``sha256:<64-hex>`` digest is forwarded
+        verbatim. The cross-field validator for configuration_change still
+        requires the digest to be present, so we send a plain decision
+        receipt here."""
         captured: dict = {}
 
         def fake_post(path: str, body: dict) -> dict:
@@ -404,6 +428,26 @@ class TestDigestFormatGuard:
                 **{field: _VALID_SHA},
             )
         assert captured["body"][field] == _VALID_SHA
+
+    def test_tool_fingerprint_valid_32_hex_passes(self) -> None:
+        """A 32 bare lowercase hex ``tool_fingerprint`` is forwarded
+        verbatim. The cloud validates this field with the bare form
+        (SHA-256[:32]), not the self-describing ``sha256:<hex>`` form."""
+        captured: dict = {}
+
+        def fake_post(path: str, body: dict) -> dict:
+            captured["body"] = body
+            return _ok_response()
+
+        fp = "a" * 32
+        with patch("asqav.client._post", side_effect=fake_post):
+            _agent().sign(
+                "api:call",
+                {"k": "v"},
+                compliance_mode=True,
+                tool_fingerprint=fp,
+            )
+        assert captured["body"]["tool_fingerprint"] == fp
 
     @pytest.mark.parametrize(
         "field",
@@ -465,21 +509,30 @@ class TestDigestFormatGuard:
             )
             p.assert_not_called()
 
-    def test_tool_fingerprint_wrong_prefix_keeps_legacy_guard_token(self) -> None:
-        """tool_fingerprint keeps the legacy digest_format_guard token because
-        the cloud wire-shape (32 hex, no prefix) differs from the SDK
-        helper output (sha256:<64-hex>); follow-up tracked in NEXT.md."""
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "sha256:" + "a" * 64,  # self-describing form is now rejected
+            "a" * 31,  # too short
+            "a" * 33,  # too long
+            "Z" * 32,  # non-hex / uppercase
+        ],
+    )
+    def test_tool_fingerprint_non_32_hex_rejected(self, bad: str) -> None:
+        """tool_fingerprint must be 32 bare lowercase hex chars
+        (SHA-256[:32]) to match the cloud wire form. The verbatim token
+        mirrors the cloud message ``tool_fingerprint_not_32_hex_chars``."""
         with patch("asqav.client._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
                     "api:call",
                     {"k": "v"},
                     compliance_mode=True,
-                    tool_fingerprint="md5:" + "0" * 64,
+                    tool_fingerprint=bad,
                 )
             assert str(exc_info.value) == (
-                "digest_format_guard: tool_fingerprint must match "
-                "sha256:<64-hex> (rule 11)"
+                "tool_fingerprint_not_32_hex_chars: must be 32 lowercase "
+                "hex chars (SHA-256[:32])."
             )
             p.assert_not_called()
 
@@ -489,7 +542,7 @@ class TestDigestHelpers:
 
     def test_compute_tool_fingerprint_matches_regex(self) -> None:
         fp = _compute_tool_fingerprint("search", {"q": "string"})
-        assert re.fullmatch(r"sha256:[a-f0-9]{64}", fp)
+        assert re.fullmatch(r"[0-9a-f]{32}", fp)
 
     def test_compute_config_manifest_digest_is_deterministic(self) -> None:
         d1 = _compute_config_manifest_digest({"a": 1, "b": [2, 3]})

@@ -1,9 +1,4 @@
-"""Pin the pytest plugin's default framework key.
-
-The previous default ``soc2`` was dropped from FRAMEWORKS in 0.4.4 which
-caused ``pytest --asqav`` (no flags) to crash with ``ValueError`` at end
-of run. The current default must be a key that still exists.
-"""
+"""Pin the pytest plugin's default framework key to one that exists in FRAMEWORKS."""
 
 from __future__ import annotations
 
