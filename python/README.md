@@ -83,7 +83,7 @@ Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a 
 The envelope extensions most callers reach for:
 
 - `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:lifecycle:configuration_change`, `protectmcp:acknowledgment`, `protectmcp:observation`, or `protectmcp:observation:result_bound` (observation receipts that bind tool output via `result_digest`).
-- `risk_class` - controlled vocabulary: `unacceptable | high | limited | minimal | gpai | low | medium | unknown`.
+- `risk_class` - controlled vocabulary: `low | medium | high | unknown`.
 - `iteration_id` - logical task id, distinct from session.
 - `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
 - `incident_class` - DORA / NYDFS / CIRCIA token (or array of tokens).
