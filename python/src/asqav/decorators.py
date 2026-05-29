@@ -80,6 +80,11 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
     """Decorator that auto-signs function execution (sync + async, with or without parens).
 
     ``action_type`` overrides the default ``"function:call"``.
+
+    Trust contract (fail-closed): the ``function:call`` sign runs BEFORE the wrapped
+    body. If signing is refused (a blocked policy, a non-2xx response, or a network
+    error), the raised error propagates and the body never executes. Unsigned actions
+    abort by default - the caller does not need to check a return value to stay safe.
     """
 
     def decorator(fn: Any) -> Any:
