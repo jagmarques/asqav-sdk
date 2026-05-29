@@ -128,7 +128,7 @@ const sig = await agent.sign({
 
 ### Digest format (rule 11)
 
-Every caller-supplied digest field (`toolFingerprint`, `configManifestDigest`, `cveInventoryDigest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. Anything else throws `AsqavError` with the verbatim `digest_format_guard: <field> must match sha256:<64-hex> (rule 11)` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
+Every caller-supplied self-describing digest field (`configManifestDigest`, `cveInventoryDigest`, `executableHash`, `sbomDigest`) MUST match the regex `^sha256:[a-f0-9]{64}$`. `toolFingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars (SHA-256[:32], `^[0-9a-f]{32}$`, no `sha256:` prefix); anything else throws `AsqavError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers (each is byte-deterministic under JCS):
 
 ```ts
 import {
@@ -147,9 +147,9 @@ const cve = computeCveInventoryDigest([{ id: "CVE-2026-0001", severity: "high" }
 Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment for MCP server lifecycle and tool output binding:
 
 - `resultDigest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
-- `expiresAt` - explicit ISO-8601 validity horizon. Mutually exclusive with `validSeconds`. See <https://www.asqav.com/docs/expires-at>.
+- `expiresAt` - explicit ISO-8601 (or POSIX) validity horizon. Converted client-side to `validSeconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `validSeconds`. See <https://www.asqav.com/docs/expires-at>.
 - `nonce` - 12 random bytes auto-generated when omitted; cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
-- `toolFingerprint` - `sha256:<hex>` over `{tool_name, schema}`, auto-derived when `toolName` + `toolSchema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
+- `toolFingerprint` - 32 bare lowercase hex chars (SHA-256[:32]) over `{tool_name, schema}`, auto-derived when `toolName` + `toolSchema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
 - `configManifestDigest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/config-manifest-digest>.
 - `cveInventoryDigest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
 
