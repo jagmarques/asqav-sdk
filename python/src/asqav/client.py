@@ -905,6 +905,23 @@ def _compute_action_ref(
 #: Wire format for caller-supplied sha256 digest fields; matches helper output byte-for-byte.
 _SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 
+#: Bare 64-hex (no self-describing prefix); the controls_evaluated quorum.attestation_hash form.
+_BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+#: Server-built control keys an enumerable controls_evaluated block may carry;
+#: mirrors the cloud false_control_attestation_guard allowlist (conformance.py).
+_ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
+    {
+        "emergency_halt",
+        "delegation_scope",
+        "quorum",
+        "mandate",
+        "policy",
+        "content_scan",
+        "result",
+    }
+)
+
 
 #: Wire format for ``tool_fingerprint``: 32 bare lowercase hex chars
 #: (SHA-256[:32]). The cloud validates this field with the bare form, not
@@ -2954,6 +2971,42 @@ def verify_compliance_receipt(
             ):
                 errors.append("false_mandate_attestation_guard")
 
+    # controls_evaluated is server-built; recognise it structurally and reject a
+    # present-but-malformed block (lockstep with the cloud
+    # false_control_attestation_guard, conformance.py:_check_controls_evaluated).
+    # A populated control proves provenance: quorum.fired needs a 64-hex
+    # attestation_hash; policy.evaluated needs matched_count >= 1. An unknown key
+    # or a type mismatch is a forged attestation; an absent key is honest silence.
+    if isinstance(_payload, dict):
+        _ce = _payload.get("controls_evaluated")
+        if _ce is not None:
+            if not isinstance(_ce, dict):
+                errors.append("false_control_attestation_guard")
+            else:
+                if any(k not in _ALLOWED_CONTROL_KEYS for k in _ce):
+                    errors.append("false_control_attestation_guard")
+                _quorum = _ce.get("quorum")
+                if _quorum is not None:
+                    _ah = _quorum.get("attestation_hash") if isinstance(_quorum, dict) else None
+                    if (
+                        not isinstance(_quorum, dict)
+                        or _quorum.get("fired") is not True
+                        or not isinstance(_ah, str)
+                        or not _BARE_SHA256_RE.match(_ah)
+                    ):
+                        errors.append("false_control_attestation_guard")
+                _policy = _ce.get("policy")
+                if _policy is not None:
+                    _mc = _policy.get("matched_count") if isinstance(_policy, dict) else None
+                    if (
+                        not isinstance(_policy, dict)
+                        or _policy.get("evaluated") is not True
+                        or isinstance(_mc, bool)
+                        or not isinstance(_mc, int)
+                        or _mc < 1
+                    ):
+                        errors.append("false_control_attestation_guard")
+
     # Conditional-MUST failures surface through `errors` and `valid` only (no per-axis flag).
     _conditional_must_fail = any(
         e.startswith(
@@ -2962,6 +3015,7 @@ def verify_compliance_receipt(
                 "missing_reason_on_deny_or_rate_limit",
                 "anchor_missing_value:",
                 "false_mandate_attestation_guard",
+                "false_control_attestation_guard",
             )
         )
         for e in errors
