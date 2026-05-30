@@ -6,6 +6,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.5] - 2026-05-31
+
+### Added
+- `mandateId` on `agent.sign({...})`: one new optional camelCase prop projected to the snake_case `mandate_id` wire key. Names the resolvable `man_<token>` mandate the sign is authorised under. The cloud re-verifies the issuer signature, scope, server-clock window, and revocation, then builds the signed `authorized_under_mandate` attestation server-side. The attestation is never a request input. Requires Asqav cloud 0.5.2 or higher.
+
+### Changed
+- CLI version string in `src/cli.ts` bumped to `"0.5.5"` to match the package version.
+
+### Notes
+- `controls_evaluated` is a server-built block and never a request field; the TypeScript verify surface delegates full verification to the cloud `GET /verify/{id}` route, so the controls_evaluated structural recognition lands in the Python `verify_compliance_receipt` helper only. The TypeScript half stays at its established projection plus send-side parity level.
+
+## [Python 0.5.5] - 2026-05-31
+
+### Added
+- `mandate_id` kwarg on `agent.sign(...)`: one new optional kwarg forwarded to the `mandate_id` wire key. Names the resolvable `man_<token>` mandate the sign is authorised under. The cloud re-verifies the issuer signature, scope, server-clock window, and revocation, then builds the signed `authorized_under_mandate` attestation server-side. The attestation is never a request input. Requires Asqav cloud 0.5.2 or higher.
+- `verify_compliance_receipt` recognises `authorized_under_mandate` structurally and rejects a present-but-malformed attestation with the `false_mandate_attestation_guard` error code (lockstep with the cloud guard). A populated attestation must carry `mandate_id`, `issuer_id`, `verified=true`, and a `sha256:<64 hex>` `scope_digest`; an absent attestation is honest silence and never flagged.
+- `verify_compliance_receipt` recognises `controls_evaluated` structurally and rejects a present-but-malformed block with the `false_control_attestation_guard` error code (lockstep with the cloud guard). The block must be an object of known control keys; `quorum` requires `fired=true` and a bare 64-hex `attestation_hash`; `policy.evaluated=true` requires `matched_count >= 1`. An unknown control key or a type mismatch is a forged attestation; an absent key is honest silence. `controls_evaluated` is server-built and never a sign input.
+- New tests in `python/tests/test_verify_compliance_receipt.py` covering a valid mandate plus controls block, the verified!=true and bad scope_digest mandate rejections, and the controls_evaluated forged-key plus `policy.evaluated=true` with `matched_count=0` rejections.
+
 ## [TypeScript 0.5.4] - 2026-05-29
 
 ### Fixed
