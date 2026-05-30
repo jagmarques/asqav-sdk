@@ -332,3 +332,151 @@ def test_empty_anchors_array_does_not_trip_the_check() -> None:
     env["anchors"] = []
     result = verify_compliance_receipt(env)
     assert not any(e.startswith("anchor_missing_value:") for e in result.errors)
+
+
+# === authorized_under_mandate (server-built, recognised structurally) ===
+
+
+def _good_mandate(**overrides) -> dict:
+    """A well-formed authorized_under_mandate attestation."""
+    base = {
+        "mandate_id": "man_abc123",
+        "issuer_id": "legal:Acme GmbH",
+        "verified": True,
+        "scope_digest": "sha256:" + "d" * 64,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_valid_authorized_under_mandate_passes() -> None:
+    env = _good_envelope(authorized_under_mandate=_good_mandate())
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+    assert "false_mandate_attestation_guard" not in result.errors
+
+
+def test_authorized_under_mandate_absent_is_accepted() -> None:
+    env = _good_envelope()
+    assert "authorized_under_mandate" not in env
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+
+
+def test_mandate_verified_not_true_is_rejected() -> None:
+    """A self-declared attestation with verified!=true is a forged mandate."""
+    env = _good_envelope(authorized_under_mandate=_good_mandate(verified=False))
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_mandate_attestation_guard" in result.errors
+
+
+def test_mandate_bad_scope_digest_is_rejected() -> None:
+    """scope_digest must be the sha256:<64-hex> wire form."""
+    env = _good_envelope(
+        authorized_under_mandate=_good_mandate(scope_digest="deadbeef")
+    )
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_mandate_attestation_guard" in result.errors
+
+
+def test_mandate_missing_mandate_id_is_rejected() -> None:
+    bad = _good_mandate()
+    del bad["mandate_id"]
+    env = _good_envelope(authorized_under_mandate=bad)
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_mandate_attestation_guard" in result.errors
+
+
+# === controls_evaluated (server-built, recognised structurally) ===
+
+
+def test_valid_controls_evaluated_passes() -> None:
+    """A well-formed controls_evaluated block verifies; quorum carries a
+    64-hex attestation_hash and policy carries matched_count >= 1."""
+    env = _good_envelope(
+        controls_evaluated={
+            "quorum": {"fired": True, "attestation_hash": "e" * 64},
+            "policy": {"evaluated": True, "matched_count": 2},
+            "result": {"present": True},
+        }
+    )
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+    assert "false_control_attestation_guard" not in result.errors
+
+
+def test_controls_evaluated_absent_is_accepted() -> None:
+    env = _good_envelope()
+    assert "controls_evaluated" not in env
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+
+
+def test_controls_evaluated_not_object_is_rejected() -> None:
+    env = _good_envelope(controls_evaluated=["quorum"])
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_control_attestation_guard" in result.errors
+
+
+def test_controls_evaluated_unknown_key_is_rejected() -> None:
+    """A forged control key the server never emits is a forged attestation."""
+    env = _good_envelope(controls_evaluated={"backdoor": {"fired": True}})
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_control_attestation_guard" in result.errors
+
+
+def test_controls_evaluated_quorum_missing_hash_is_rejected() -> None:
+    env = _good_envelope(controls_evaluated={"quorum": {"fired": True}})
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_control_attestation_guard" in result.errors
+
+
+def test_controls_evaluated_quorum_bad_hash_is_rejected() -> None:
+    env = _good_envelope(
+        controls_evaluated={
+            "quorum": {"fired": True, "attestation_hash": "sha256:" + "e" * 64}
+        }
+    )
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_control_attestation_guard" in result.errors
+
+
+def test_controls_evaluated_policy_matched_count_zero_is_rejected() -> None:
+    """4.7-lesson-7 trap: policy.evaluated=true with matched_count=0 claims a
+    policy ran without a real match; a forged attestation MUST be rejected."""
+    env = _good_envelope(
+        controls_evaluated={"policy": {"evaluated": True, "matched_count": 0}}
+    )
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_control_attestation_guard" in result.errors
+
+
+def test_controls_evaluated_policy_matched_count_bool_is_rejected() -> None:
+    """matched_count must be a real int; a bool True must not satisfy >= 1."""
+    env = _good_envelope(
+        controls_evaluated={"policy": {"evaluated": True, "matched_count": True}}
+    )
+    result = verify_compliance_receipt(env)
+    assert result.valid is False
+    assert "false_control_attestation_guard" in result.errors
+
+
+def test_valid_mandate_and_controls_together_pass() -> None:
+    env = _good_envelope(
+        authorized_under_mandate=_good_mandate(),
+        controls_evaluated={
+            "quorum": {"fired": True, "attestation_hash": "e" * 64},
+            "policy": {"evaluated": True, "matched_count": 1},
+        },
+    )
+    result = verify_compliance_receipt(env)
+    assert result.valid is True
+    assert result.errors == []
