@@ -115,37 +115,7 @@ await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" 
 
 The fingerprint format is RFC 8785-style sorted JSON with no whitespace, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
-## Roadmap
-
-What ships on Asqav today. Each item is available on `main`.
-
-### Today
-
-**1. Hash-only mode for cloud**
-- WHAT: Hash-only mode on cloud. The SDK hashes `{action_type, context}` locally with RFC 8785 + SHA-256 and sends only the hash plus a small whitelisted metadata bag.
-- WHY NOW: Default for any client pointed at api.asqav.com. Raw prompts and tool arguments never leave your process. Spec is open in `docs/fingerprint-spec.md` and cross-language vectors ship in `conformance/vectors.json`.
-
-**2. Self-hosted signer (split-trust)**
-- WHAT: Self-hosted signer container. Run the Asqav signing path inside your VPC; ML-DSA-65 private keys, raw prompts, and reasoning traces never cross the container boundary.
-- WHY NOW: Compose file and env contract documented in the Asqav backend repo at `docker-compose.signer.yml` and `docs/self-hosted-signer.md`. Optional digest-only relay back to `api.asqav.com` is gated by a fixed allowlist enforced in code.
-
-**3. Bring-your-own KMS (AWS KMS / GCP KMS)** - Enterprise tier
-- WHAT: Bring-your-own KMS. Provision your agents' ML-DSA-65 keys in your own AWS KMS or GCP KMS so signing material lives in your HSM, not ours.
-- WHY NOW: AWS KMS uses the `ML_DSA_65` key spec on FIPS 140-3 Level 3 HSMs; GCP KMS uses `PQ_SIGN_ML_DSA_65` (software preview today, HSM coming). Toggle with `KMS_PROVIDER=aws|gcp`.
-
-**4. Customer-owned storage**
-- WHAT: Customer-owned storage on self-hosted. Postgres, Redis, raw payloads, and ML-DSA private keys all sit in your container. Optional upstream relay only ever sees `{hash, signature, timestamp, algorithm, agent_id, signature_id}`.
-- WHY NOW: The allowlist is enforced in code at `src/asqav_cloud/core/signer_relay.py` (Asqav backend repo) and asserted by `tests/test_self_hosted_signer.py`. Auditors can read the forbidden-keys frozenset and confirm what cannot leak.
-
-**5. SCITT / COSE_Sign1 receipt export**
-- WHAT: SCITT-compatible receipt export. Public `GET /api/v1/signatures/{id}/cose` returns `application/cose` (CBOR tag 18). The same ML-DSA-65 key signs both the JCS form and the COSE_Sign1 form, so SCITT transparency services can ingest receipts directly.
-- WHY NOW: Receipt format and canonical record are deterministic. The CBOR encoder and registration policy are live; both forms share the same key material so existing JCS verifiers keep working unchanged.
-
-**6. Air-gapped / on-prem mode**
-- WHAT: Self-hosted signer with offline license validation and zero outbound HTTP.
-- WHY NOW: Egress gate, license issuer, and operator guide live in the Asqav backend repo (`src/asqav_cloud/core/airgap.py`, `tools/issue_license.py`, `docs/airgapped-mode.md`). Targeted at regulated EU institutions with no-egress requirements.
-
-See the docs at <https://asqav.com/docs> for the current feature set.
+For self-hosted and split-trust deployments, bring-your-own KMS, SCITT and COSE receipt export, and air-gapped mode, see [asqav.com/docs](https://asqav.com/docs).
 
 ## Standards
 
@@ -280,13 +250,7 @@ The `conformance/` directory contains shared test fixtures both SDKs run against
 
 ## CI
 
-CI runs on every push to `main` and every pull request. It uses `dorny/paths-filter@v3` to only execute the matrix jobs for the language whose source actually changed:
-
-- Changes under `python/` run pytest on Python 3.10, 3.11, and 3.12.
-- Changes under `typescript/` run npm test on Node 20 and 22.
-- Changes under `conformance/` or to the workflow itself run both.
-
-A final aggregator job named `ci-ok` is the single required status check for branch protection. It passes when each matrix job either succeeded or was skipped (no relevant changes), which avoids the GitHub gotcha where a skipped required check stays pending forever.
+CI runs on every push to `main` and every pull request. It tests only the language whose source changed: pytest on Python 3.10, 3.11, and 3.12, and npm test on Node 20 and 22. A change to `conformance/` runs both. The aggregator job `ci-ok` is the single required status check for branch protection.
 
 ### Run governance checks in your own CI
 
@@ -304,34 +268,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide. The short
 
 Direct pushes to `main` are blocked. Every change lands through a PR.
 
-### Releases - dual-version, prefixed tags
+### Releases
 
-Because both SDKs live in one repo but ship to different registries on independent cadences, releases are driven by **prefixed git tags**:
-
-| Language | Tag pattern | Registry |
-|---|---|---|
-| Python | `py-vMAJOR.MINOR.PATCH` (e.g. `py-v1.2.3`) | PyPI |
-| TypeScript | `ts-vMAJOR.MINOR.PATCH` (e.g. `ts-v1.2.3`) | npm |
-
-To cut a release:
-
-1. Bump the version in the relevant package manifest (`python/pyproject.toml` or `typescript/package.json`).
-2. Update [`CHANGELOG.md`](CHANGELOG.md) with the new entry.
-3. Tag and push:
-
-   ```bash
-   # Python release
-   git tag py-v0.2.22
-   git push origin py-v0.2.22
-
-   # TypeScript release
-   git tag ts-v0.1.1
-   git push origin ts-v0.1.1
-   ```
-
-The `publish.yml` workflow inspects the tag prefix and only runs the matching publish job. Python uses PyPI's OIDC trusted publisher (no API token needed). TypeScript publishes via the `NPM_TOKEN` repo secret.
-
-Tags must match `py-v*.*.*` or `ts-v*.*.*` exactly - GitHub Actions tag filters are globs, not regex, so the three dot-segments are required to gate the publish.
+Both SDKs ship to different registries on independent cadences, driven by prefixed git tags: `py-v*` publishes the Python half to PyPI, `ts-v*` publishes the TypeScript half to npm. Bump the version in the relevant manifest, update [`CHANGELOG.md`](CHANGELOG.md), then tag and push. The `publish.yml` workflow inspects the tag prefix and runs only the matching publish job. Python uses PyPI's OIDC trusted publisher; TypeScript publishes via the `NPM_TOKEN` repo secret.
 
 ## Ecosystem
 
