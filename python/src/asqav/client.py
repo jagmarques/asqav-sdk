@@ -1217,6 +1217,7 @@ class Agent:
         model_name: str | None = None,
         *,
         co_signers: list[str] | None = None,
+        mandate_id: str | None = None,
         user_intent: dict[str, Any] | None = None,
         nonce: str | None = None,
         valid_seconds: int | None = None,
@@ -1694,6 +1695,10 @@ class Agent:
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
+        # Issuer mandate the sign is authorised under; the cloud re-verifies it
+        # and builds the signed authorized_under_mandate attestation server-side.
+        if mandate_id is not None:
+            body["mandate_id"] = mandate_id
         # Replay protection.
         if nonce is not None:
             body["nonce"] = nonce
@@ -2931,6 +2936,24 @@ def verify_compliance_receipt(
             if not outcome.valid:
                 errors.append(f"counterparty_binding_{outcome.label}")
 
+    # authorized_under_mandate is server-built; recognise it structurally and
+    # reject a present-but-malformed attestation (lockstep with the cloud
+    # false_mandate_attestation_guard). verified=true is self-declared issuer
+    # authority, never Asqav-verified third-party authorization.
+    if isinstance(_payload, dict):
+        _aum = _payload.get("authorized_under_mandate")
+        if _aum is not None:
+            _scope_digest = _aum.get("scope_digest") if isinstance(_aum, dict) else None
+            if (
+                not isinstance(_aum, dict)
+                or not _aum.get("mandate_id")
+                or not _aum.get("issuer_id")
+                or _aum.get("verified") is not True
+                or not isinstance(_scope_digest, str)
+                or not _SHA256_HEX_RE.match(_scope_digest)
+            ):
+                errors.append("false_mandate_attestation_guard")
+
     # Conditional-MUST failures surface through `errors` and `valid` only (no per-axis flag).
     _conditional_must_fail = any(
         e.startswith(
@@ -2938,6 +2961,7 @@ def verify_compliance_receipt(
                 "invalid_sandbox_state",
                 "missing_reason_on_deny_or_rate_limit",
                 "anchor_missing_value:",
+                "false_mandate_attestation_guard",
             )
         )
         for e in errors
