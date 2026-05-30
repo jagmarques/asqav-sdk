@@ -905,6 +905,23 @@ def _compute_action_ref(
 #: Wire format for caller-supplied sha256 digest fields; matches helper output byte-for-byte.
 _SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 
+#: Bare 64-hex (no self-describing prefix); the controls_evaluated quorum.attestation_hash form.
+_BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+#: Server-built control keys an enumerable controls_evaluated block may carry;
+#: mirrors the cloud false_control_attestation_guard allowlist (conformance.py).
+_ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
+    {
+        "emergency_halt",
+        "delegation_scope",
+        "quorum",
+        "mandate",
+        "policy",
+        "content_scan",
+        "result",
+    }
+)
+
 
 #: Wire format for ``tool_fingerprint``: 32 bare lowercase hex chars
 #: (SHA-256[:32]). The cloud validates this field with the bare form, not
@@ -1217,6 +1234,7 @@ class Agent:
         model_name: str | None = None,
         *,
         co_signers: list[str] | None = None,
+        mandate_id: str | None = None,
         user_intent: dict[str, Any] | None = None,
         nonce: str | None = None,
         valid_seconds: int | None = None,
@@ -1694,6 +1712,10 @@ class Agent:
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
+        # Issuer mandate the sign is authorised under; the cloud re-verifies it
+        # and builds the signed authorized_under_mandate attestation server-side.
+        if mandate_id is not None:
+            body["mandate_id"] = mandate_id
         # Replay protection.
         if nonce is not None:
             body["nonce"] = nonce
@@ -2931,6 +2953,60 @@ def verify_compliance_receipt(
             if not outcome.valid:
                 errors.append(f"counterparty_binding_{outcome.label}")
 
+    # authorized_under_mandate is server-built; recognise it structurally and
+    # reject a present-but-malformed attestation (lockstep with the cloud
+    # false_mandate_attestation_guard). verified=true is self-declared issuer
+    # authority, never Asqav-verified third-party authorization.
+    if isinstance(_payload, dict):
+        _aum = _payload.get("authorized_under_mandate")
+        if _aum is not None:
+            _scope_digest = _aum.get("scope_digest") if isinstance(_aum, dict) else None
+            if (
+                not isinstance(_aum, dict)
+                or not _aum.get("mandate_id")
+                or not _aum.get("issuer_id")
+                or _aum.get("verified") is not True
+                or not isinstance(_scope_digest, str)
+                or not _SHA256_HEX_RE.match(_scope_digest)
+            ):
+                errors.append("false_mandate_attestation_guard")
+
+    # controls_evaluated is server-built; recognise it structurally and reject a
+    # present-but-malformed block (lockstep with the cloud
+    # false_control_attestation_guard, conformance.py:_check_controls_evaluated).
+    # A populated control proves provenance: quorum.fired needs a 64-hex
+    # attestation_hash; policy.evaluated needs matched_count >= 1. An unknown key
+    # or a type mismatch is a forged attestation; an absent key is honest silence.
+    if isinstance(_payload, dict):
+        _ce = _payload.get("controls_evaluated")
+        if _ce is not None:
+            if not isinstance(_ce, dict):
+                errors.append("false_control_attestation_guard")
+            else:
+                if any(k not in _ALLOWED_CONTROL_KEYS for k in _ce):
+                    errors.append("false_control_attestation_guard")
+                _quorum = _ce.get("quorum")
+                if _quorum is not None:
+                    _ah = _quorum.get("attestation_hash") if isinstance(_quorum, dict) else None
+                    if (
+                        not isinstance(_quorum, dict)
+                        or _quorum.get("fired") is not True
+                        or not isinstance(_ah, str)
+                        or not _BARE_SHA256_RE.match(_ah)
+                    ):
+                        errors.append("false_control_attestation_guard")
+                _policy = _ce.get("policy")
+                if _policy is not None:
+                    _mc = _policy.get("matched_count") if isinstance(_policy, dict) else None
+                    if (
+                        not isinstance(_policy, dict)
+                        or _policy.get("evaluated") is not True
+                        or isinstance(_mc, bool)
+                        or not isinstance(_mc, int)
+                        or _mc < 1
+                    ):
+                        errors.append("false_control_attestation_guard")
+
     # Conditional-MUST failures surface through `errors` and `valid` only (no per-axis flag).
     _conditional_must_fail = any(
         e.startswith(
@@ -2938,6 +3014,8 @@ def verify_compliance_receipt(
                 "invalid_sandbox_state",
                 "missing_reason_on_deny_or_rate_limit",
                 "anchor_missing_value:",
+                "false_mandate_attestation_guard",
+                "false_control_attestation_guard",
             )
         )
         for e in errors

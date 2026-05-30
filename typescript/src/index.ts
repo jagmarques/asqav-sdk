@@ -332,6 +332,11 @@ export interface SignOptions {
    * this record. Each peer fetches the record and calls
    * ``agent.countersign(signatureId)``. */
   coSigners?: string[];
+  /** Optional resolvable man_<token> mandate this sign is authorised under.
+   * The cloud re-verifies the issuer signature, scope, server-clock window,
+   * and revocation, then builds the signed authorized_under_mandate
+   * attestation. The attestation is never a request input. */
+  mandateId?: string;
   /** Optional user-intent envelope. The end user signs a digest of the
    * action and the SDK passes it through to the backend verbatim. */
   userIntent?: UserIntent;
@@ -1204,6 +1209,9 @@ function applyOptionalWireFields(
 ): void {
   if (options.coSigners && options.coSigners.length > 0) {
     body.co_signers = [...options.coSigners];
+  }
+  if (options.mandateId !== undefined) {
+    body.mandate_id = options.mandateId;
   }
   body.nonce = options.nonce ?? generateNonce();
   // Convert an absolute expiresAt to a client-computed valid_seconds (cloud owns time-binding).
