@@ -6,6 +6,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.7] - 2026-06-02
+
+### Added
+- Code-authorship receipt support on `agent.sign({...})`. New `receiptType` value `protectmcp:lifecycle:code_authorship` plus eight optional camelCase props projected to snake_case wire keys: `repoRef`, `commitSha`, `baseSha`, `changeDigest`, `changeRef`, `changeApprovalRef`, `changeClass`, and `authoredBy`. The `authoredBy` object names the producer-asserted author (`humanId`, `modelId`, `modelVersion`, `attestationSource`). Every field records that a producer-asserted value existed at signing time; Asqav does not re-run the diff, resolve the refs, or attest the model.
+- Client-side validators in lockstep with the cloud SignRequest guards: `changeDigest` must be `sha256:<64 hex>`; `changeClass` must be one of `read|write|delete|execute|deploy`; a populated `authoredBy.modelId` / `modelVersion` requires `authoredBy.attestationSource`; the eight fields are fenced to `receiptType=protectmcp:lifecycle:code_authorship`; the receipt requires `repoRef` + `commitSha`, `policyDecision='none'`, and `complianceMode` (the fields project into the signed receipt only under compliance mode). Each rejection carries a `docsUrl` pointing at the code-authorship docs page.
+- New `AuthoredBy` interface, `CODE_AUTHORSHIP_DOCS_URL` and `CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE` constants. Tests in `typescript/tests/codeAuthorship.test.ts`.
+
+### Notes
+- Requires an Asqav cloud build that advertises `protectmcp:lifecycle:code_authorship` in `/.well-known/governance.json`. Mirrors the cloud guards landed in the cloud build for this receipt type.
+
+## [Python 0.5.7] - 2026-06-02
+
+### Added
+- Code-authorship receipt support on `agent.sign(...)`. New `receipt_type` value `protectmcp:lifecycle:code_authorship` plus eight optional kwargs forwarded to the wire: `repo_ref`, `commit_sha`, `base_sha`, `change_digest`, `change_ref`, `change_approval_ref`, `change_class`, and `authored_by`. The `authored_by` dict names the producer-asserted author (`human_id`, `model_id`, `model_version`, `attestation_source`). Every field records that a producer-asserted value existed at signing time; Asqav does not re-run the diff, resolve the refs, or attest the model.
+- Client-side validators in lockstep with the cloud SignRequest guards: `change_digest` must be `sha256:<64 hex>`; `change_class` must be one of `read|write|delete|execute|deploy`; a populated `authored_by.model_id` / `model_version` requires `authored_by.attestation_source`; the eight fields are fenced to `receipt_type=protectmcp:lifecycle:code_authorship`; the receipt requires `repo_ref` + `commit_sha`, `policy_decision='none'`, and `compliance_mode` (the fields project into the signed receipt only under compliance mode). Each rejection raises `AsqavValidationError` carrying a `docs_url` pointing at the code-authorship docs page.
+- New `AuthoredBy` TypedDict and `CODE_AUTHORSHIP_DOCS_URL` constant, exported from `asqav`. Tests in `python/tests/test_client_code_authorship.py`.
+
+### Fixed
+- The zero-dependency verifier (`verifier/verify_receipt.py`) added `protectmcp:lifecycle:code_authorship` to its accepted receipt-type set; without it the structure axis rejected a valid code-authorship receipt on type and downgraded the whole verdict to FAIL. Test in `verifier/test_verify_receipt.py`.
+
+### Notes
+- Requires an Asqav cloud build that advertises `protectmcp:lifecycle:code_authorship` in `/.well-known/governance.json`. Mirrors the cloud guards landed in the cloud build for this receipt type.
+
 ## [TypeScript 0.5.6] - 2026-06-01
 
 ### Added
