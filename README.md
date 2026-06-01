@@ -121,6 +121,10 @@ For self-hosted and split-trust deployments, bring-your-own KMS, SCITT and COSE 
 
 Asqav's compliance receipts are profiled in IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/), an Independent Submission that profiles [`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/) for EU AI Act Articles 12 and 26, and DORA Article 17 bindings.
 
+## Coding agents
+
+Autonomous coding agents open and merge their own pull requests, and a git author string is mutable. The `protectmcp:lifecycle:code_authorship` receipt binds a change to the agent that authored it: the repository, the commit and base SHA, a digest of the diff, the change class, and a producer-asserted `authored_by` block, signed with ML-DSA-65 and chained per agent. Asqav records that the change existed, was key-authored, and was chained at a point in time. It does not clone the repository, re-run the diff, or judge whether the code is correct. A ready-to-use GitHub Action lives in [`github-action/`](github-action/) and can also emit the receipt as an in-toto attestation. See the [code-authorship receipts docs](https://asqav.com/docs/code-authorship-receipts).
+
 ## Why governance
 
 | Without governance | With Asqav |
