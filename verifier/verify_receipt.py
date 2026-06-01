@@ -59,6 +59,8 @@ ALLOWED_TYPES = {
     "protectmcp:lifecycle:configuration_change",
     # risk-acceptance / exception receipt; no-policy lifecycle opt-out.
     "protectmcp:lifecycle:risk_acceptance",
+    # code-authorship receipt; producer-asserted record of who authored a code change.
+    "protectmcp:lifecycle:code_authorship",
     "protectmcp:acknowledgment",
     "protectmcp:observation",
     "protectmcp:observation:result_bound",
