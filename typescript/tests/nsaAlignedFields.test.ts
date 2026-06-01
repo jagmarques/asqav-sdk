@@ -517,6 +517,10 @@ describe("protectmcp:observation:result_bound receipt type", () => {
         opts.approverId = "approver:alice@example.com";
         opts.acceptanceReason = "accepted";
       }
+      if (receiptType === "protectmcp:lifecycle:code_authorship") {
+        opts.repoRef = "github.com/acme/repo";
+        opts.commitSha = "c0ffee0000000000000000000000000000000000";
+      }
       if (
         receiptType.startsWith("protectmcp:lifecycle")
         || receiptType.startsWith("protectmcp:observation")

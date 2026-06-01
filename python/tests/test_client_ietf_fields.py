@@ -79,6 +79,8 @@ def test_receipt_type_namespace_constant() -> None:
             "protectmcp:lifecycle:configuration_change",
             # risk-acceptance / exception receipt; no-policy lifecycle opt-out.
             "protectmcp:lifecycle:risk_acceptance",
+            # code-authorship receipt; producer-asserted record of who authored a code change.
+            "protectmcp:lifecycle:code_authorship",
             "protectmcp:acknowledgment",
             "protectmcp:observation",
             # NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): result-bound

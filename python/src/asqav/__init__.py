@@ -32,6 +32,7 @@ from .async_client import AsyncAgent
 from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
 from .client import (
     CAPTURE_TOPOLOGY_NAMESPACE,
+    CODE_AUTHORSHIP_DOCS_URL,
     DORA_INCIDENT_CLASS_NAMESPACE,
     RECEIPT_TYPE_NAMESPACE,
     RISK_ACCEPTANCE_DOCS_URL,
@@ -43,6 +44,7 @@ from .client import (
     AsqavError,
     AsqavValidationError,
     AuthenticationError,
+    AuthoredBy,
     BitcoinAnchorStatus,
     BudgetCheckResult,
     BudgetTracker,
@@ -143,7 +145,7 @@ from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.5.6"
+__version__ = "0.5.7"
 __all__ = [
     # Initialization
     "init",
@@ -293,6 +295,8 @@ __all__ = [
     "RECEIPT_TYPE_NAMESPACE",
     "RISK_ACCEPTANCE_DOCS_URL",
     "RiskSnapshot",
+    "CODE_AUTHORSHIP_DOCS_URL",
+    "AuthoredBy",
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",
