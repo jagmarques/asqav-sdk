@@ -30,6 +30,8 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:lifecycle:configuration_change",
   // risk-acceptance / exception receipt; no-policy lifecycle opt-out.
   "protectmcp:lifecycle:risk_acceptance",
+  // code-authorship receipt; producer-asserted record of who authored a code change.
+  "protectmcp:lifecycle:code_authorship",
   "protectmcp:acknowledgment",
   "protectmcp:observation",
   // observation receipts with a result_digest use the :result_bound suffix for auditor indexing.
@@ -39,6 +41,19 @@ export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
 
 /** Docs page anchoring the risk-acceptance validation errors (rule 3.9). */
 export const RISK_ACCEPTANCE_DOCS_URL = "https://asqav.com/docs/risk-acceptance-receipt" as const;
+
+/** Docs page anchoring the code-authorship validation errors (rule 3.9). */
+export const CODE_AUTHORSHIP_DOCS_URL = "https://asqav.com/docs/code-authorship-receipt" as const;
+
+/** Closed vocabulary for code_authorship `changeClass`. Mirrors the cloud
+ * SignRequest closed set; anything outside is rejected client-side. */
+export const CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE = [
+  "read",
+  "write",
+  "delete",
+  "execute",
+  "deploy",
+] as const;
 
 /** Receipt type emitted by an acknowledging agent (B) over an originating
  * receipt; the binding object travels on B's signed payload. */
@@ -558,6 +573,42 @@ export interface SignOptions {
    * Projected to the wire as snake_case `risk_snapshot`. A numeric without
    * `snapshotSource` is rejected so it is never read as an Asqav score. */
   riskSnapshot?: RiskSnapshot;
+
+  /** Code-authorship receipt: opaque pointer to the repository the change
+   * lives in. REQUIRED on `receiptType='protectmcp:lifecycle:code_authorship'`.
+   * Free-text; recorded, never resolved by Asqav. */
+  repoRef?: string;
+
+  /** Code-authorship receipt: commit sha of the change. REQUIRED on
+   * `receiptType='protectmcp:lifecycle:code_authorship'`. Producer-asserted;
+   * Asqav records it, never fetches or verifies the commit. */
+  commitSha?: string;
+
+  /** Code-authorship receipt: base sha the change is measured against.
+   * Producer-asserted; recorded, not verified. */
+  baseSha?: string;
+
+  /** Code-authorship receipt: `sha256:<64 hex>` of the change / diff artifact.
+   * Proves THAT diff existed unaltered; Asqav does not re-run or diff it. */
+  changeDigest?: string;
+
+  /** Code-authorship receipt: opaque pointer to the change (PR / patch id).
+   * Free-text; not resolved by Asqav. */
+  changeRef?: string;
+
+  /** Code-authorship receipt: opaque pointer to a change-approval ticket or
+   * HITL approval id. Free-text correlation anchor. */
+  changeApprovalRef?: string;
+
+  /** Code-authorship receipt: closed vocabulary class of the change,
+   * one of read|write|delete|execute|deploy. */
+  changeClass?: string;
+
+  /** Code-authorship receipt: producer-asserted author of the change.
+   * Projected to the wire as snake_case `authored_by`. A populated
+   * `modelId` / `modelVersion` requires `attestationSource` so the
+   * machine-authorship claim is never read as Asqav-verified. */
+  authoredBy?: AuthoredBy;
 }
 
 /** Producer-asserted point-in-time snapshot of third-party risk signals.
@@ -584,6 +635,26 @@ export interface RiskSnapshot {
   kevListed?: boolean;
   /** CVE ids the snapshot pertains to; non-empty array, entries <= 128 chars. */
   cveIds?: string[];
+}
+
+/** Producer-asserted author of a code change on a code-authorship receipt.
+ *
+ * Mirrors the cloud AuthoredBy model. Every value is producer-asserted;
+ * Asqav never verifies the identity, the model, or the change. `modelId` /
+ * `modelVersion` are a machine-authorship claim: if either is populated,
+ * `attestationSource` is REQUIRED so the claim is recorded as
+ * producer-asserted and is never read as an Asqav-verified attestation.
+ * Projected to the wire as snake_case keys. */
+export interface AuthoredBy {
+  /** Human author identity (free-text id / email). Producer-asserted. */
+  humanId?: string;
+  /** Model id if a model authored the change. Requires attestationSource. */
+  modelId?: string;
+  /** Model version if a model authored the change. Requires attestationSource. */
+  modelVersion?: string;
+  /** Free-text label naming where the machine-authorship claim came from.
+   * REQUIRED when modelId / modelVersion is present. */
+  attestationSource?: string;
 }
 
 export interface CoSignature {
@@ -1133,6 +1204,9 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
   // Risk-acceptance receipt: shape + namespace fence + no-policy opt-out +
   // compliance_mode requirement, lockstep with the cloud SignRequest validator.
   validateRiskAcceptance(options, complianceMode);
+  // Code-authorship receipt: shape + namespace fence + no-policy opt-out +
+  // compliance_mode requirement, lockstep with the cloud SignRequest validator.
+  validateCodeAuthorship(options, complianceMode);
 }
 
 /**
@@ -1311,6 +1385,97 @@ function validateRiskAcceptance(options: SignOptions, complianceMode: boolean): 
   }
 }
 
+/** Receipt type carrying the code-authorship extension fields. */
+const CODE_AUTHORSHIP_RECEIPT_TYPE = "protectmcp:lifecycle:code_authorship";
+
+/**
+ * Reject a malformed `authoredBy` before the HTTP roundtrip. Lockstep with the
+ * cloud AuthoredBy validator: it must be an object, and a populated `modelId` /
+ * `modelVersion` (a machine-authorship claim) requires `attestationSource` so
+ * the claim is never read as Asqav-verified. Verbatim guard tokens match the
+ * Python SDK.
+ */
+function validateAuthoredBy(ab: AuthoredBy | undefined): void {
+  if (ab === undefined) return;
+  if (typeof ab !== "object" || ab === null || Array.isArray(ab)) {
+    throw new AsqavError(
+      `authored_by_not_object: authored_by must be an object naming the producer-asserted author of the change (got: ${JSON.stringify(ab).slice(0, 64)})`,
+      CODE_AUTHORSHIP_DOCS_URL,
+    );
+  }
+  const modelPresent = Boolean(ab.modelId) || Boolean(ab.modelVersion);
+  if (modelPresent && (typeof ab.attestationSource !== "string" || ab.attestationSource.length === 0)) {
+    throw new AsqavError(
+      "authored_by_model_requires_attestation_source: a populated model_id / model_version requires authored_by.attestation_source so the machine-authorship claim is never read as Asqav-verified.",
+      CODE_AUTHORSHIP_DOCS_URL,
+    );
+  }
+}
+
+/**
+ * Reject malformed code-authorship receipts before the HTTP roundtrip.
+ * Lockstep with the cloud SignRequest `_validate_code_authorship_extensions`:
+ * changeDigest must be `sha256:<64 hex>`; changeClass is a closed
+ * read|write|delete|execute|deploy set; the extension fields are fenced to
+ * `receiptType='protectmcp:lifecycle:code_authorship'`; the receipt requires
+ * `repoRef` + `commitSha`, signs with `policyDecision='none'`, and (mirroring
+ * the cloud compliance-mode guard) requires `complianceMode` so the fields are
+ * never silently dropped from the signed bytes. Honest-scope: every field is
+ * producer-asserted / recorded-not-verified.
+ */
+function validateCodeAuthorship(options: SignOptions, complianceMode: boolean): void {
+  if (options.changeDigest !== undefined && !SHA256_HEX_RE.test(options.changeDigest)) {
+    throw new AsqavError(
+      `change_digest_not_sha256_wire_form: must look like 'sha256:<64 lowercase hex>' (got: ${options.changeDigest.slice(0, 64)}).`,
+      CODE_AUTHORSHIP_DOCS_URL,
+    );
+  }
+  if (
+    options.changeClass !== undefined
+    && !(CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE as readonly string[]).includes(options.changeClass)
+  ) {
+    throw new AsqavError(
+      `code_authorship_change_class_invalid: change_class must be one of read|write|delete|execute|deploy (got: ${options.changeClass.slice(0, 64)}).`,
+      CODE_AUTHORSHIP_DOCS_URL,
+    );
+  }
+  validateAuthoredBy(options.authoredBy);
+  const codeFieldsPresent = options.repoRef !== undefined
+    || options.commitSha !== undefined
+    || options.baseSha !== undefined
+    || options.changeDigest !== undefined
+    || options.changeRef !== undefined
+    || options.changeApprovalRef !== undefined
+    || options.changeClass !== undefined
+    || options.authoredBy !== undefined;
+  if (codeFieldsPresent && options.receiptType !== CODE_AUTHORSHIP_RECEIPT_TYPE) {
+    throw new AsqavError(
+      `code_authorship_fields_require_code_authorship_receipt: repo_ref / commit_sha / base_sha / change_digest / change_ref / change_approval_ref / change_class / authored_by are only valid on receipt_type=${CODE_AUTHORSHIP_RECEIPT_TYPE}.`,
+      CODE_AUTHORSHIP_DOCS_URL,
+    );
+  }
+  if (options.receiptType === CODE_AUTHORSHIP_RECEIPT_TYPE) {
+    if (!options.repoRef || !options.commitSha) {
+      throw new AsqavError(
+        `code_authorship_missing_required_field: receipt_type=${CODE_AUTHORSHIP_RECEIPT_TYPE} requires repo_ref and commit_sha.`,
+        CODE_AUTHORSHIP_DOCS_URL,
+      );
+    }
+    if (options.policyDecision !== "none") {
+      throw new AsqavError(
+        `code_authorship_requires_no_policy_decision: receipt_type=${CODE_AUTHORSHIP_RECEIPT_TYPE} records no policy evaluation; sign it with policy_decision='none'.`,
+        CODE_AUTHORSHIP_DOCS_URL,
+      );
+    }
+    if (!complianceMode) {
+      throw new AsqavError(
+        `code_authorship_requires_compliance_mode: receipt_type=${CODE_AUTHORSHIP_RECEIPT_TYPE} fields project into the signed receipt only under compliance_mode=true; passing compliance_mode=false would silently drop them.`,
+        CODE_AUTHORSHIP_DOCS_URL,
+      );
+    }
+  }
+}
+
 /**
  * Derive `action_ref` locally when omitted under compliance mode; matches
  * the cloud's `hash_action` shape (`sha256:<hex>` over canonical JSON of
@@ -1439,6 +1604,19 @@ function riskSnapshotToWire(rs: RiskSnapshot | undefined): Record<string, unknow
   return wire;
 }
 
+/** Convert a camelCase `AuthoredBy` to its snake_case wire object so the
+ * signed payload uses the same keys the cloud AuthoredBy model emits.
+ * Returns undefined when no author is supplied (field omitted from wire). */
+function authoredByToWire(ab: AuthoredBy | undefined): Record<string, unknown> | undefined {
+  if (ab === undefined) return undefined;
+  const wire: Record<string, unknown> = {};
+  if (ab.humanId !== undefined) wire.human_id = ab.humanId;
+  if (ab.modelId !== undefined) wire.model_id = ab.modelId;
+  if (ab.modelVersion !== undefined) wire.model_version = ab.modelVersion;
+  if (ab.attestationSource !== undefined) wire.attestation_source = ab.attestationSource;
+  return wire;
+}
+
 /** Snake_case wire-key projection of the optional IETF profile fields
  * that do not depend on `complianceMode`. Defined as a const table so
  * the `applyComplianceFields` loop stays single-pass. */
@@ -1482,6 +1660,15 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "finding_ref", read: (o) => o.findingRef },
   { wire: "approval_ref", read: (o) => o.approvalRef },
   { wire: "risk_snapshot", read: (o) => riskSnapshotToWire(o.riskSnapshot) },
+  // Code-authorship receipt extension fields (fenced to the receipt type).
+  { wire: "repo_ref", read: (o) => o.repoRef },
+  { wire: "commit_sha", read: (o) => o.commitSha },
+  { wire: "base_sha", read: (o) => o.baseSha },
+  { wire: "change_digest", read: (o) => o.changeDigest },
+  { wire: "change_ref", read: (o) => o.changeRef },
+  { wire: "change_approval_ref", read: (o) => o.changeApprovalRef },
+  { wire: "change_class", read: (o) => o.changeClass },
+  { wire: "authored_by", read: (o) => authoredByToWire(o.authoredBy) },
   {
     wire: "tool_fingerprint",
     read: (o) =>

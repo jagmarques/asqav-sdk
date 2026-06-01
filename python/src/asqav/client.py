@@ -217,6 +217,8 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:lifecycle:configuration_change",
         #: risk-acceptance / exception receipt; no-policy lifecycle opt-out.
         "protectmcp:lifecycle:risk_acceptance",
+        #: code-authorship receipt; producer-asserted record of who authored a code change.
+        "protectmcp:lifecycle:code_authorship",
         "protectmcp:acknowledgment",
         "protectmcp:observation",
         #: observation receipts that carry a result_digest use the :result_bound suffix.
@@ -226,6 +228,21 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
 
 #: Docs page anchoring the risk-acceptance validation errors (rule 3.9).
 RISK_ACCEPTANCE_DOCS_URL: str = "https://asqav.com/docs/risk-acceptance-receipt"
+
+#: Docs page anchoring the code-authorship validation errors (rule 3.9).
+CODE_AUTHORSHIP_DOCS_URL: str = "https://asqav.com/docs/code-authorship-receipt"
+
+#: Closed vocabulary for code_authorship `change_class`. Mirrors the cloud
+#: SignRequest closed set; anything outside is rejected client-side.
+_CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE: frozenset[str] = frozenset(
+    {
+        "read",
+        "write",
+        "delete",
+        "execute",
+        "deploy",
+    }
+)
 
 #: Numeric risk-snapshot signals whose presence demands a snapshot_source label.
 #: Mirrors cloud core/conformance.py _RISK_SNAPSHOT_NUMERIC_KEYS.
@@ -985,6 +1002,28 @@ class RiskSnapshot(TypedDict, total=False):
     cve_ids: list[str]
 
 
+class AuthoredBy(TypedDict, total=False):
+    """Producer-asserted author of a code change on a code-authorship receipt.
+
+    Mirrors the cloud AuthoredBy model (routes/agents.py). Every value is
+    producer-asserted; Asqav never verifies the identity, the model, or the
+    change. ``model_id`` / ``model_version`` are a machine-authorship claim: if
+    either is populated, ``attestation_source`` is REQUIRED so the claim is
+    recorded as producer-asserted and is never read as an Asqav-verified
+    attestation.
+    """
+
+    #: Human author identity (free-text id / email). Producer-asserted.
+    human_id: str
+    #: Model id if a model authored the change. Requires attestation_source.
+    model_id: str
+    #: Model version if a model authored the change. Requires attestation_source.
+    model_version: str
+    #: Free-text label naming where the machine-authorship claim came from.
+    #: REQUIRED when model_id / model_version is present.
+    attestation_source: str
+
+
 def _validate_risk_snapshot(rs: Any) -> None:
     """Mirror cloud RiskSnapshot._validate_snapshot_shape + _check_risk_snapshot.
 
@@ -1125,6 +1164,130 @@ def _validate_risk_acceptance(
                 "passing compliance_mode=False would silently drop them.",
                 docs_url=RISK_ACCEPTANCE_DOCS_URL,
             )
+
+
+#: The code-authorship signed-payload extension fields, fenced to the
+#: protectmcp:lifecycle:code_authorship receipt type (mirrors cloud SignRequest).
+_CODE_AUTHORSHIP_RECEIPT_TYPE = "protectmcp:lifecycle:code_authorship"
+
+
+def _validate_code_authorship(
+    *,
+    receipt_type: str | None,
+    compliance_mode: bool,
+    policy_decision: str,
+    repo_ref: str | None,
+    commit_sha: str | None,
+    base_sha: str | None,
+    change_digest: str | None,
+    change_ref: str | None,
+    change_approval_ref: str | None,
+    change_class: str | None,
+    authored_by: Any,
+) -> None:
+    """Mirror the cloud SignRequest._validate_code_authorship_extensions guards.
+
+    change_digest must be a sha256:<64 hex> existence proof. change_class is a
+    closed read|write|delete|execute|deploy vocabulary. authored_by is an
+    object; a populated model_id / model_version requires
+    authored_by.attestation_source so a model claim is never read as
+    Asqav-verified. The extension fields are fenced to
+    receipt_type=protectmcp:lifecycle:code_authorship; a code-authorship receipt
+    requires repo_ref + commit_sha and signs via policy_decision='none' so the
+    no-false-attestation guard stays honest. The fields project into the signed
+    bytes only on the compliance-mode path, so the SDK requires
+    compliance_mode=True (mirrors the cloud compliance-mode guard) rather than
+    silently dropping the fields. Honest-scope: every field is
+    producer-asserted / recorded-not-verified; Asqav never re-runs the diff,
+    resolves the refs, or attests the model.
+    """
+    if change_digest is not None and not _SHA256_HEX_RE.match(change_digest):
+        raise AsqavValidationError(
+            "change_digest_not_sha256_wire_form: must look like "
+            f"'sha256:<64 lowercase hex>' (got: {repr(change_digest)[:64]}).",
+            docs_url=CODE_AUTHORSHIP_DOCS_URL,
+        )
+    if (
+        change_class is not None
+        and change_class not in _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE
+    ):
+        raise AsqavValidationError(
+            "code_authorship_change_class_invalid: change_class must be one of "
+            "read|write|delete|execute|deploy "
+            f"(got: {repr(change_class)[:64]}).",
+            docs_url=CODE_AUTHORSHIP_DOCS_URL,
+        )
+    if authored_by is not None:
+        _validate_authored_by(authored_by)
+    code_fields_present = any(
+        v is not None
+        for v in (
+            repo_ref,
+            commit_sha,
+            base_sha,
+            change_digest,
+            change_ref,
+            change_approval_ref,
+            change_class,
+            authored_by,
+        )
+    )
+    if code_fields_present and receipt_type != _CODE_AUTHORSHIP_RECEIPT_TYPE:
+        raise AsqavValidationError(
+            "code_authorship_fields_require_code_authorship_receipt: "
+            "repo_ref / commit_sha / base_sha / change_digest / change_ref / "
+            "change_approval_ref / change_class / authored_by are only valid on "
+            f"receipt_type={_CODE_AUTHORSHIP_RECEIPT_TYPE}.",
+            docs_url=CODE_AUTHORSHIP_DOCS_URL,
+        )
+    if receipt_type == _CODE_AUTHORSHIP_RECEIPT_TYPE:
+        if not (repo_ref and commit_sha):
+            raise AsqavValidationError(
+                "code_authorship_missing_required_field: "
+                f"receipt_type={_CODE_AUTHORSHIP_RECEIPT_TYPE} requires "
+                "repo_ref and commit_sha.",
+                docs_url=CODE_AUTHORSHIP_DOCS_URL,
+            )
+        if policy_decision != "none":
+            raise AsqavValidationError(
+                "code_authorship_requires_no_policy_decision: "
+                f"receipt_type={_CODE_AUTHORSHIP_RECEIPT_TYPE} records no policy "
+                "evaluation; sign it with policy_decision='none'.",
+                docs_url=CODE_AUTHORSHIP_DOCS_URL,
+            )
+        if not compliance_mode:
+            raise AsqavValidationError(
+                "code_authorship_requires_compliance_mode: "
+                f"receipt_type={_CODE_AUTHORSHIP_RECEIPT_TYPE} fields project "
+                "into the signed receipt only under compliance_mode=True; "
+                "passing compliance_mode=False would silently drop them.",
+                docs_url=CODE_AUTHORSHIP_DOCS_URL,
+            )
+
+
+def _validate_authored_by(ab: Any) -> None:
+    """Mirror the cloud AuthoredBy validator (routes/agents.py).
+
+    authored_by must be an object. A populated model_id / model_version is a
+    machine-authorship claim and requires authored_by.attestation_source so the
+    model claim is recorded as producer-asserted, never read as an
+    Asqav-verified attestation.
+    """
+    if not isinstance(ab, dict):
+        raise AsqavValidationError(
+            "authored_by_not_object: authored_by must be an object naming the "
+            f"producer-asserted author of the change (got: {repr(ab)[:64]}).",
+            docs_url=CODE_AUTHORSHIP_DOCS_URL,
+        )
+    model_present = bool(ab.get("model_id")) or bool(ab.get("model_version"))
+    source = ab.get("attestation_source")
+    if model_present and (not isinstance(source, str) or not source):
+        raise AsqavValidationError(
+            "authored_by_model_requires_attestation_source: a populated "
+            "model_id / model_version requires authored_by.attestation_source "
+            "so the machine-authorship claim is never read as Asqav-verified.",
+            docs_url=CODE_AUTHORSHIP_DOCS_URL,
+        )
 
 
 def _compute_tool_fingerprint(
@@ -1479,6 +1642,16 @@ class Agent:
         finding_ref: str | None = None,
         approval_ref: str | None = None,
         risk_snapshot: "RiskSnapshot | dict[str, Any] | None" = None,
+        # Code-authorship receipt extension fields. Valid only on
+        # receipt_type=protectmcp:lifecycle:code_authorship (fenced below).
+        repo_ref: str | None = None,
+        commit_sha: str | None = None,
+        base_sha: str | None = None,
+        change_digest: str | None = None,
+        change_ref: str | None = None,
+        change_approval_ref: str | None = None,
+        change_class: str | None = None,
+        authored_by: "AuthoredBy | dict[str, Any] | None" = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -1736,6 +1909,21 @@ class Agent:
             approval_ref=approval_ref,
             risk_snapshot=risk_snapshot,
         )
+        # Code-authorship receipt: shape + namespace fence + no-policy opt-out,
+        # lockstep with the cloud SignRequest._validate_code_authorship_extensions.
+        _validate_code_authorship(
+            receipt_type=receipt_type,
+            compliance_mode=compliance_mode,
+            policy_decision=policy_decision,
+            repo_ref=repo_ref,
+            commit_sha=commit_sha,
+            base_sha=base_sha,
+            change_digest=change_digest,
+            change_ref=change_ref,
+            change_approval_ref=change_approval_ref,
+            change_class=change_class,
+            authored_by=authored_by,
+        )
 
         # Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
         if valid_seconds is not None and expires_at is not None:
@@ -1933,6 +2121,15 @@ class Agent:
                 ("finding_ref", finding_ref),
                 ("approval_ref", approval_ref),
                 ("risk_snapshot", risk_snapshot),
+                # Code-authorship extension fields (fenced to the receipt type).
+                ("repo_ref", repo_ref),
+                ("commit_sha", commit_sha),
+                ("base_sha", base_sha),
+                ("change_digest", change_digest),
+                ("change_ref", change_ref),
+                ("change_approval_ref", change_approval_ref),
+                ("change_class", change_class),
+                ("authored_by", authored_by),
             ):
                 if v is not None:
                     compliance_fields[k] = v

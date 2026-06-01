@@ -73,6 +73,7 @@ describe("RECEIPT_TYPE_NAMESPACE", () => {
         "protectmcp:acknowledgment",
         "protectmcp:decision",
         "protectmcp:lifecycle",
+        "protectmcp:lifecycle:code_authorship",
         "protectmcp:lifecycle:configuration_change",
         "protectmcp:lifecycle:risk_acceptance",
         "protectmcp:observation",
