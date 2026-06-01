@@ -33,7 +33,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar
 from urllib.parse import urljoin
 
 if TYPE_CHECKING:
@@ -142,6 +142,20 @@ class APIError(AsqavError):
         self.status_code = status_code
 
 
+class AsqavValidationError(ValueError):
+    """Client-side wire-vocabulary rejection carrying a docs pointer (rule 3.9).
+
+    Subclasses ValueError so existing callers that catch ValueError keep
+    working; the docs_url attribute points a developer at the rule's docs page
+    so they do not have to grep. Message echoes the offending value truncated to
+    64 chars to match the cloud guard-message convention.
+    """
+
+    def __init__(self, message: str, *, docs_url: str) -> None:
+        super().__init__(message)
+        self.docs_url = docs_url
+
+
 @dataclass
 class AgentResponse:
     """Response from agent creation."""
@@ -201,11 +215,25 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:restraint",
         "protectmcp:lifecycle",
         "protectmcp:lifecycle:configuration_change",
+        #: risk-acceptance / exception receipt; no-policy lifecycle opt-out.
+        "protectmcp:lifecycle:risk_acceptance",
         "protectmcp:acknowledgment",
         "protectmcp:observation",
         #: observation receipts that carry a result_digest use the :result_bound suffix.
         "protectmcp:observation:result_bound",
     }
+)
+
+#: Docs page anchoring the risk-acceptance validation errors (rule 3.9).
+RISK_ACCEPTANCE_DOCS_URL: str = "https://asqav.com/docs/risk-acceptance-receipt"
+
+#: Numeric risk-snapshot signals whose presence demands a snapshot_source label.
+#: Mirrors cloud core/conformance.py _RISK_SNAPSHOT_NUMERIC_KEYS.
+_RISK_SNAPSHOT_NUMERIC_KEYS: tuple[str, ...] = (
+    "epss",
+    "cvss",
+    "cvss_vector",
+    "kev_listed",
 )
 
 #: Canonical `incident_class` vocabulary under DORA Annex II field 3.23.
@@ -929,6 +957,176 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
 _TOOL_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
+class RiskSnapshot(TypedDict, total=False):
+    """Producer-asserted point-in-time snapshot of third-party risk signals.
+
+    Mirrors the cloud RiskSnapshot model (routes/agents.py). Every value is a
+    snapshot the producer READ at ``snapshot_at`` from ``snapshot_source``;
+    Asqav never fetches, computes, verifies, or vouches for any of them. The
+    ``snapshot_at`` + ``snapshot_source`` labels are normative: a numeric
+    (``epss`` / ``cvss`` / ``cvss_vector`` / ``kev_listed``) without
+    ``snapshot_source`` is rejected so a value can never appear unlabeled and be
+    mistaken for an Asqav-derived score. Numerics are strings on the wire.
+    """
+
+    #: RFC 3339 read-time of the signals (REQUIRED). Producer-asserted.
+    snapshot_at: str
+    #: Free-text label naming the source. REQUIRED when any numeric is present.
+    snapshot_source: str
+    #: EPSS probability as a STRING (floats rejected). Producer-asserted.
+    epss: str
+    #: CVSS base score as a STRING. Producer-asserted; not computed by Asqav.
+    cvss: str
+    #: CVSS vector string snapshot. Producer-asserted; not parsed by Asqav.
+    cvss_vector: str
+    #: Whether the CVE was in the named KEV catalog at snapshot_at, as observed.
+    kev_listed: bool
+    #: CVE ids the snapshot pertains to; non-empty list[str], entries <= 128.
+    cve_ids: list[str]
+
+
+def _validate_risk_snapshot(rs: Any) -> None:
+    """Mirror cloud RiskSnapshot._validate_snapshot_shape + _check_risk_snapshot.
+
+    Rejects a snapshot that is not an object, that is missing snapshot_at, that
+    carries a numeric without snapshot_source, that passes a non-string epss /
+    cvss, or that passes an empty / malformed cve_ids list. Verbatim guard
+    tokens match the cloud so SDK and cloud errors round-trip.
+    """
+    if not isinstance(rs, dict):
+        raise AsqavValidationError(
+            "risk_snapshot_not_object: risk_snapshot must be an object of "
+            f"producer-asserted snapshot signals (got: {repr(rs)[:64]})",
+            docs_url=RISK_ACCEPTANCE_DOCS_URL,
+        )
+    if not rs.get("snapshot_at") or not isinstance(rs.get("snapshot_at"), str):
+        raise AsqavValidationError(
+            "risk_snapshot_missing_snapshot_at: snapshot_at (RFC 3339 string) "
+            "is required on a risk_snapshot.",
+            docs_url=RISK_ACCEPTANCE_DOCS_URL,
+        )
+    source = rs.get("snapshot_source")
+    numeric_present = any(
+        rs.get(k) is not None for k in _RISK_SNAPSHOT_NUMERIC_KEYS
+    )
+    if numeric_present and (not isinstance(source, str) or not source):
+        raise AsqavValidationError(
+            "risk_snapshot_numeric_requires_snapshot_source: a populated "
+            "risk_snapshot signal requires snapshot_source so the value is "
+            "never read as an Asqav-derived score.",
+            docs_url=RISK_ACCEPTANCE_DOCS_URL,
+        )
+    for _k in ("epss", "cvss"):
+        _v = rs.get(_k)
+        if _v is not None and not isinstance(_v, str):
+            raise AsqavValidationError(
+                f"risk_snapshot_{_k}_not_string: numeric risk signals MUST be "
+                f"strings on the wire, never floats (got: {repr(_v)[:64]}).",
+                docs_url=RISK_ACCEPTANCE_DOCS_URL,
+            )
+    cve_ids = rs.get("cve_ids")
+    if cve_ids is not None:
+        if not isinstance(cve_ids, list) or len(cve_ids) == 0:
+            raise AsqavValidationError(
+                "risk_snapshot_cve_ids_must_be_non_empty_list: pass a "
+                "non-empty list of strings or omit cve_ids.",
+                docs_url=RISK_ACCEPTANCE_DOCS_URL,
+            )
+        for _entry in cve_ids:
+            if not isinstance(_entry, str) or not _entry or len(_entry) > 128:
+                raise AsqavValidationError(
+                    "risk_snapshot_cve_ids_entry_invalid: each cve id must be "
+                    f"a non-empty string of length <= 128 (got: {repr(_entry)[:64]}).",
+                    docs_url=RISK_ACCEPTANCE_DOCS_URL,
+                )
+
+
+#: The risk-acceptance signed-payload extension fields, fenced to the
+#: protectmcp:lifecycle:risk_acceptance receipt type (mirrors cloud SignRequest).
+_RISK_ACCEPTANCE_RECEIPT_TYPE = "protectmcp:lifecycle:risk_acceptance"
+
+
+def _validate_risk_acceptance(
+    *,
+    receipt_type: str | None,
+    compliance_mode: bool,
+    policy_decision: str,
+    approver_id: str | None,
+    initiator_id: str | None,
+    acceptance_reason: str | None,
+    accepted_at: str | None,
+    supersedes: str | None,
+    sarif_digest: str | None,
+    finding_ref: str | None,
+    approval_ref: str | None,
+    risk_snapshot: Any,
+) -> None:
+    """Mirror the cloud SignRequest._validate_risk_acceptance_extensions guards.
+
+    sarif_digest must be a sha256:<64 hex> existence proof. The extension fields
+    are fenced to receipt_type=protectmcp:lifecycle:risk_acceptance; a
+    risk-acceptance receipt requires approver_id + acceptance_reason and signs
+    via policy_decision='none' so the no-false-attestation guard stays honest.
+    The risk fields project into the signed bytes only on the compliance-mode
+    path, so the SDK requires compliance_mode=True (mirrors the cloud
+    compliance-mode guard) rather than silently dropping the fields.
+    """
+    if sarif_digest is not None and not _SHA256_HEX_RE.match(sarif_digest):
+        raise AsqavValidationError(
+            "sarif_digest_not_sha256_wire_form: must look like "
+            f"'sha256:<64 lowercase hex>' (got: {repr(sarif_digest)[:64]}).",
+            docs_url=RISK_ACCEPTANCE_DOCS_URL,
+        )
+    if risk_snapshot is not None:
+        _validate_risk_snapshot(risk_snapshot)
+    risk_fields_present = any(
+        v is not None
+        for v in (
+            approver_id,
+            initiator_id,
+            acceptance_reason,
+            accepted_at,
+            supersedes,
+            sarif_digest,
+            finding_ref,
+            approval_ref,
+            risk_snapshot,
+        )
+    )
+    if risk_fields_present and receipt_type != _RISK_ACCEPTANCE_RECEIPT_TYPE:
+        raise AsqavValidationError(
+            "risk_acceptance_fields_require_risk_acceptance_receipt: "
+            "approver_id / initiator_id / acceptance_reason / accepted_at / "
+            "supersedes / sarif_digest / finding_ref / approval_ref / "
+            "risk_snapshot are only valid on "
+            f"receipt_type={_RISK_ACCEPTANCE_RECEIPT_TYPE}.",
+            docs_url=RISK_ACCEPTANCE_DOCS_URL,
+        )
+    if receipt_type == _RISK_ACCEPTANCE_RECEIPT_TYPE:
+        if not (approver_id and acceptance_reason):
+            raise AsqavValidationError(
+                "risk_acceptance_missing_required_field: "
+                f"receipt_type={_RISK_ACCEPTANCE_RECEIPT_TYPE} requires "
+                "approver_id and acceptance_reason.",
+                docs_url=RISK_ACCEPTANCE_DOCS_URL,
+            )
+        if policy_decision != "none":
+            raise AsqavValidationError(
+                "risk_acceptance_requires_no_policy_decision: "
+                f"receipt_type={_RISK_ACCEPTANCE_RECEIPT_TYPE} records no policy "
+                "evaluation; sign it with policy_decision='none'.",
+                docs_url=RISK_ACCEPTANCE_DOCS_URL,
+            )
+        if not compliance_mode:
+            raise AsqavValidationError(
+                "risk_acceptance_requires_compliance_mode: "
+                f"receipt_type={_RISK_ACCEPTANCE_RECEIPT_TYPE} fields project "
+                "into the signed receipt only under compliance_mode=True; "
+                "passing compliance_mode=False would silently drop them.",
+                docs_url=RISK_ACCEPTANCE_DOCS_URL,
+            )
+
+
 def _compute_tool_fingerprint(
     tool_name: str, tool_schema: dict[str, Any] | None
 ) -> str:
@@ -1270,6 +1468,17 @@ class Agent:
         eu_ai_act_articles: list[str] | None = None,
         rfc3161_timestamp: str | None = None,
         witness_policy: dict[str, Any] | None = None,
+        # Risk-acceptance / exception receipt extension fields. Valid only on
+        # receipt_type=protectmcp:lifecycle:risk_acceptance (fenced below).
+        approver_id: str | None = None,
+        initiator_id: str | None = None,
+        acceptance_reason: str | None = None,
+        accepted_at: str | None = None,
+        supersedes: str | None = None,
+        sarif_digest: str | None = None,
+        finding_ref: str | None = None,
+        approval_ref: str | None = None,
+        risk_snapshot: "RiskSnapshot | dict[str, Any] | None" = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -1511,6 +1720,22 @@ class Agent:
                 "receipt_type=protectmcp:observation:result_bound requires "
                 "result_digest (sha256:<64 hex>)."
             )
+        # Risk-acceptance receipt: shape + namespace fence + no-policy opt-out,
+        # lockstep with the cloud SignRequest._validate_risk_acceptance_extensions.
+        _validate_risk_acceptance(
+            receipt_type=receipt_type,
+            compliance_mode=compliance_mode,
+            policy_decision=policy_decision,
+            approver_id=approver_id,
+            initiator_id=initiator_id,
+            acceptance_reason=acceptance_reason,
+            accepted_at=accepted_at,
+            supersedes=supersedes,
+            sarif_digest=sarif_digest,
+            finding_ref=finding_ref,
+            approval_ref=approval_ref,
+            risk_snapshot=risk_snapshot,
+        )
 
         # Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
         if valid_seconds is not None and expires_at is not None:
@@ -1698,6 +1923,16 @@ class Agent:
                 ("eu_ai_act_articles", eu_ai_act_articles),
                 ("rfc3161_timestamp", rfc3161_timestamp),
                 ("witness_policy", witness_policy),
+                # Risk-acceptance extension fields (fenced to the receipt type).
+                ("approver_id", approver_id),
+                ("initiator_id", initiator_id),
+                ("acceptance_reason", acceptance_reason),
+                ("accepted_at", accepted_at),
+                ("supersedes", supersedes),
+                ("sarif_digest", sarif_digest),
+                ("finding_ref", finding_ref),
+                ("approval_ref", approval_ref),
+                ("risk_snapshot", risk_snapshot),
             ):
                 if v is not None:
                     compliance_fields[k] = v
