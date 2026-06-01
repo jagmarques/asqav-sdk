@@ -34,12 +34,14 @@ from .client import (
     CAPTURE_TOPOLOGY_NAMESPACE,
     DORA_INCIDENT_CLASS_NAMESPACE,
     RECEIPT_TYPE_NAMESPACE,
+    RISK_ACCEPTANCE_DOCS_URL,
     SKEW_BOUND_SECONDS,
     Agent,
     AgentResponse,
     APIError,
     ApprovalResponse,
     AsqavError,
+    AsqavValidationError,
     AuthenticationError,
     BitcoinAnchorStatus,
     BudgetCheckResult,
@@ -53,6 +55,7 @@ from .client import (
     PreflightResult,
     RateLimitError,
     RiskRuleResponse,
+    RiskSnapshot,
     SDTokenResponse,
     SessionResponse,
     ShareRecoveryResponse,
@@ -140,7 +143,7 @@ from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 
-__version__ = "0.5.5"
+__version__ = "0.5.6"
 __all__ = [
     # Initialization
     "init",
@@ -282,11 +285,14 @@ __all__ = [
     "clear_hooks",
     # Exceptions
     "AsqavError",
+    "AsqavValidationError",
     "AuthenticationError",
     "RateLimitError",
     "APIError",
     # IETF Compliance Receipts profile
     "RECEIPT_TYPE_NAMESPACE",
+    "RISK_ACCEPTANCE_DOCS_URL",
+    "RiskSnapshot",
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",

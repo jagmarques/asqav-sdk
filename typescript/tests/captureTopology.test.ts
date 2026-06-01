@@ -74,6 +74,7 @@ describe("RECEIPT_TYPE_NAMESPACE", () => {
         "protectmcp:decision",
         "protectmcp:lifecycle",
         "protectmcp:lifecycle:configuration_change",
+        "protectmcp:lifecycle:risk_acceptance",
         "protectmcp:observation",
         // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): result-bound
         // observation receipts use the `:result_bound` suffix.
