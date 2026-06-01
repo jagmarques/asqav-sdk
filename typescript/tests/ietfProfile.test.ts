@@ -200,6 +200,13 @@ describe("agent.sign IETF profile fields", () => {
       if (t === "protectmcp:observation:result_bound") {
         opts.resultDigest = `sha256:${"0".repeat(64)}`;
       }
+      // Risk-acceptance carries approver_id + acceptance_reason and the
+      // no-policy opt-out (policy_decision='none').
+      if (t === "protectmcp:lifecycle:risk_acceptance") {
+        opts.approverId = "approver:alice@example.com";
+        opts.acceptanceReason = "accepted";
+        opts.policyDecision = "none";
+      }
       await expect(agent.sign(opts)).resolves.toBeDefined();
     }
   });

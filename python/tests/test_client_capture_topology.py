@@ -267,6 +267,10 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
     # Rule 9 lockstep: result_bound receipts MUST carry result_digest.
     if value == "protectmcp:observation:result_bound":
         kwargs["result_digest"] = "sha256:" + "0" * 64
+    # Risk-acceptance receipts MUST carry approver_id + acceptance_reason.
+    if value == "protectmcp:lifecycle:risk_acceptance":
+        kwargs["approver_id"] = "approver:alice@example.com"
+        kwargs["acceptance_reason"] = "accepted"
 
     with patch("asqav.client._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, **kwargs)
