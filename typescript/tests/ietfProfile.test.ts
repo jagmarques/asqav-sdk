@@ -207,6 +207,13 @@ describe("agent.sign IETF profile fields", () => {
         opts.acceptanceReason = "accepted";
         opts.policyDecision = "none";
       }
+      // Code-authorship carries repo_ref + commit_sha and the no-policy
+      // opt-out (policy_decision='none').
+      if (t === "protectmcp:lifecycle:code_authorship") {
+        opts.repoRef = "github.com/acme/repo";
+        opts.commitSha = "c0ffee0000000000000000000000000000000000";
+        opts.policyDecision = "none";
+      }
       await expect(agent.sign(opts)).resolves.toBeDefined();
     }
   });

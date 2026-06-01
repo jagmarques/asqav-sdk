@@ -599,6 +599,10 @@ class TestResultBoundReceiptType:
         if receipt_type == "protectmcp:lifecycle:risk_acceptance":
             kwargs["approver_id"] = "approver:alice@example.com"
             kwargs["acceptance_reason"] = "accepted"
+        # Code-authorship requires repo_ref + commit_sha.
+        if receipt_type == "protectmcp:lifecycle:code_authorship":
+            kwargs["repo_ref"] = "github.com/acme/repo"
+            kwargs["commit_sha"] = "c0ffee0000000000000000000000000000000000"
         # Lifecycle receipts use policy_decision=none.
         if receipt_type.startswith("protectmcp:lifecycle") or (
             receipt_type.startswith("protectmcp:observation")
