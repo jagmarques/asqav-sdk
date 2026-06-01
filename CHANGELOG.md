@@ -6,6 +6,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.6] - 2026-06-01
+
+### Added
+- Risk-acceptance / exception receipt support on `agent.sign({...})`. New `receiptType` value `protectmcp:lifecycle:risk_acceptance` plus nine optional camelCase props projected to snake_case wire keys: `approverId`, `initiatorId`, `acceptanceReason`, `acceptedAt`, `supersedes`, `sarifDigest`, `findingRef`, `approvalRef`, and `riskSnapshot`. The `riskSnapshot` object carries a producer-asserted point-in-time read of third-party risk signals (`snapshotAt`, `snapshotSource`, `epss`, `cvss`, `cvssVector`, `kevListed`, `cveIds`); numerics travel as strings. Every field records that a producer-asserted value existed at signing time; none is computed, scored, or verified by Asqav.
+- Client-side validators in lockstep with the cloud SignRequest guards: `sarifDigest` must be `sha256:<64 hex>`; a populated `riskSnapshot` numeric requires `snapshotSource`; the nine fields are fenced to `receiptType=protectmcp:lifecycle:risk_acceptance`; the receipt requires `approverId` + `acceptanceReason`, `policyDecision='none'`, and `complianceMode` (the fields project into the signed receipt only under compliance mode). Each rejection carries a `docsUrl` pointing at the risk-acceptance docs page.
+- New `RiskSnapshot` interface, `RISK_ACCEPTANCE_DOCS_URL` constant, and `AsqavError.docsUrl`. Tests in `typescript/tests/riskAcceptance.test.ts`.
+
+### Notes
+- Requires an Asqav cloud build that advertises `protectmcp:lifecycle:risk_acceptance` in `/.well-known/governance.json` (live as of 2026-06-01). Verified against the live build before this release.
+
+## [Python 0.5.6] - 2026-06-01
+
+### Added
+- Risk-acceptance / exception receipt support on `agent.sign(...)`. New `receipt_type` value `protectmcp:lifecycle:risk_acceptance` plus nine optional kwargs forwarded to the wire: `approver_id`, `initiator_id`, `acceptance_reason`, `accepted_at`, `supersedes`, `sarif_digest`, `finding_ref`, `approval_ref`, and `risk_snapshot`. The `risk_snapshot` dict carries a producer-asserted point-in-time read of third-party risk signals (`snapshot_at`, `snapshot_source`, `epss`, `cvss`, `cvss_vector`, `kev_listed`, `cve_ids`); numerics travel as strings. Every field records that a producer-asserted value existed at signing time; none is computed, scored, or verified by Asqav.
+- Client-side validators in lockstep with the cloud SignRequest guards: `sarif_digest` must be `sha256:<64 hex>`; a populated `risk_snapshot` numeric requires `snapshot_source`; the nine fields are fenced to `receipt_type=protectmcp:lifecycle:risk_acceptance`; the receipt requires `approver_id` + `acceptance_reason`, `policy_decision='none'`, and `compliance_mode` (the fields project into the signed receipt only under compliance mode). Each rejection raises `AsqavValidationError` carrying a `docs_url` pointing at the risk-acceptance docs page.
+- New `AsqavValidationError` exception, `RiskSnapshot` TypedDict, and `RISK_ACCEPTANCE_DOCS_URL` constant, exported from `asqav`. Tests in `python/tests/test_client_risk_acceptance.py`.
+
+### Fixed
+- The zero-dependency verifier (`verifier/verify_receipt.py`) added `protectmcp:lifecycle:risk_acceptance` to its accepted receipt-type set; without it the structure axis rejected a valid risk-acceptance receipt on type and downgraded the whole verdict to FAIL. Test in `verifier/test_verify_receipt.py`.
+
+### Notes
+- Requires an Asqav cloud build that advertises `protectmcp:lifecycle:risk_acceptance` in `/.well-known/governance.json` (live as of 2026-06-01). Verified against the live build before this release.
+
 ## [TypeScript 0.5.5] - 2026-05-31
 
 ### Added
