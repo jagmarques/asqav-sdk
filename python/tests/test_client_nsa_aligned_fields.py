@@ -595,6 +595,10 @@ class TestResultBoundReceiptType:
         # result_bound requires result_digest, lockstep with cloud rule 9.
         if receipt_type == "protectmcp:observation:result_bound":
             kwargs["result_digest"] = "sha256:" + "0" * 64
+        # Risk-acceptance requires approver_id + acceptance_reason.
+        if receipt_type == "protectmcp:lifecycle:risk_acceptance":
+            kwargs["approver_id"] = "approver:alice@example.com"
+            kwargs["acceptance_reason"] = "accepted"
         # Lifecycle receipts use policy_decision=none.
         if receipt_type.startswith("protectmcp:lifecycle") or (
             receipt_type.startswith("protectmcp:observation")
