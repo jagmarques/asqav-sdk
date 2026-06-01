@@ -1,0 +1,70 @@
+name: "Asqav Code-Authorship Receipt"
+description: >-
+  Sign an Asqav code-authorship receipt from a CI run. Records who authored a
+  code change (commit, base, diff digest, producer-asserted author) and signs
+  it with ML-DSA-65 server-side. Also emits the receipt as an in-toto Statement.
+author: "Asqav"
+branding:
+  icon: "git-commit"
+  color: "blue"
+
+inputs:
+  asqav-api-key:
+    description: "Asqav API key (sk_...). Pass via a repository secret."
+    required: true
+  asqav-agent-id:
+    description: "Asqav agent id whose key signs the receipt."
+    required: true
+  change-class:
+    description: "Change class: read | write | delete | execute | deploy."
+    required: false
+    default: "write"
+  model-id:
+    description: >-
+      Optional producer-asserted model id if a model authored the change. Always
+      recorded with attestation_source=github-actions-input, never verified.
+    required: false
+    default: ""
+  model-version:
+    description: "Optional producer-asserted model version. Never verified."
+    required: false
+    default: ""
+  tool:
+    description: "Producer-asserted authoring tool label."
+    required: false
+    default: "github-actions"
+
+outputs:
+  signature-id:
+    description: "The Asqav signature id of the signed code-authorship receipt."
+    value: ${{ steps.sign.outputs.signature-id }}
+  verification-url:
+    description: "Public URL to verify the signed receipt."
+    value: ${{ steps.sign.outputs.verification-url }}
+  intoto-statement-path:
+    description: "Path to the emitted in-toto Statement v1 file."
+    value: ${{ steps.sign.outputs.intoto-statement-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install Asqav SDK
+      shell: bash
+      run: python -m pip install --upgrade "asqav>=0.5.7"
+
+    - name: Sign code-authorship receipt
+      id: sign
+      shell: bash
+      env:
+        ASQAV_API_KEY: ${{ inputs.asqav-api-key }}
+        ASQAV_AGENT_ID: ${{ inputs.asqav-agent-id }}
+        ASQAV_CHANGE_CLASS: ${{ inputs.change-class }}
+        ASQAV_MODEL_ID: ${{ inputs.model-id }}
+        ASQAV_MODEL_VERSION: ${{ inputs.model-version }}
+        ASQAV_TOOL: ${{ inputs.tool }}
+      run: python "${{ github.action_path }}/sign_code_authorship.py"
