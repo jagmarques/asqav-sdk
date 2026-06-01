@@ -271,6 +271,10 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
     if value == "protectmcp:lifecycle:risk_acceptance":
         kwargs["approver_id"] = "approver:alice@example.com"
         kwargs["acceptance_reason"] = "accepted"
+    # Code-authorship receipts MUST carry repo_ref + commit_sha.
+    if value == "protectmcp:lifecycle:code_authorship":
+        kwargs["repo_ref"] = "github.com/acme/repo"
+        kwargs["commit_sha"] = "c0ffee0000000000000000000000000000000000"
 
     with patch("asqav.client._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, **kwargs)
