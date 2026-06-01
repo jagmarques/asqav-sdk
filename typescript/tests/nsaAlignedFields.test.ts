@@ -513,6 +513,10 @@ describe("protectmcp:observation:result_bound receipt type", () => {
       if (receiptType === "protectmcp:observation:result_bound") {
         opts.resultDigest = `sha256:${"0".repeat(64)}`;
       }
+      if (receiptType === "protectmcp:lifecycle:risk_acceptance") {
+        opts.approverId = "approver:alice@example.com";
+        opts.acceptanceReason = "accepted";
+      }
       if (
         receiptType.startsWith("protectmcp:lifecycle")
         || receiptType.startsWith("protectmcp:observation")
