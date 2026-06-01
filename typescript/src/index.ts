@@ -28,12 +28,17 @@ export const RECEIPT_TYPE_NAMESPACE = [
   "protectmcp:restraint",
   "protectmcp:lifecycle",
   "protectmcp:lifecycle:configuration_change",
+  // risk-acceptance / exception receipt; no-policy lifecycle opt-out.
+  "protectmcp:lifecycle:risk_acceptance",
   "protectmcp:acknowledgment",
   "protectmcp:observation",
   // observation receipts with a result_digest use the :result_bound suffix for auditor indexing.
   "protectmcp:observation:result_bound",
 ] as const;
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
+
+/** Docs page anchoring the risk-acceptance validation errors (rule 3.9). */
+export const RISK_ACCEPTANCE_DOCS_URL = "https://asqav.com/docs/risk-acceptance-receipt" as const;
 
 /** Receipt type emitted by an acknowledging agent (B) over an originating
  * receipt; the binding object travels on B's signed payload. */
@@ -249,9 +254,13 @@ const config: Config = {
 // === Errors ===
 
 export class AsqavError extends Error {
-  constructor(message: string) {
+  /** Docs page for the violated rule (rule 3.9). Set on wire-vocabulary
+   * validation rejections so a developer does not have to grep the docs. */
+  docsUrl?: string;
+  constructor(message: string, docsUrl?: string) {
     super(message);
     this.name = "AsqavError";
+    if (docsUrl !== undefined) this.docsUrl = docsUrl;
   }
 }
 
@@ -508,6 +517,73 @@ export interface SignOptions {
    * only when `required` witnesses hold a real inclusion proof. Projected
    * to the wire as snake_case `witness_policy`. */
   witnessPolicy?: WitnessPolicy;
+
+  /** Risk-acceptance receipt: identity that authored the acceptance.
+   * REQUIRED on `receiptType='protectmcp:lifecycle:risk_acceptance'`. Field
+   * only: bound into the signed bytes, never compared or authenticated. */
+  approverId?: string;
+
+  /** Risk-acceptance receipt: identity that requested the acceptance.
+   * Field only; never compared to `approverId`. */
+  initiatorId?: string;
+
+  /** Risk-acceptance receipt: free-text human rationale. REQUIRED on
+   * `receiptType='protectmcp:lifecycle:risk_acceptance'`. Proves the reason
+   * existed at signing time; never parsed or scored. */
+  acceptanceReason?: string;
+
+  /** Risk-acceptance receipt: RFC 3339 wall-clock the approver authored the
+   * acceptance. Producer-asserted; Asqav-attested time is the anchors. */
+  acceptedAt?: string;
+
+  /** Risk-acceptance receipt: pointer to the prior risk-acceptance receipt
+   * this one replaces. The chain stays immutable; supersession is a forward
+   * pointer only. */
+  supersedes?: string;
+
+  /** Risk-acceptance receipt: `sha256:<64 hex>` of the SARIF scan artifact
+   * the acceptance rested on. Proves THAT SARIF existed unaltered; Asqav does
+   * not re-run or validate the scan. */
+  sarifDigest?: string;
+
+  /** Risk-acceptance receipt: opaque pointer to a finding / rule id inside
+   * the SARIF. Free-text; not resolved by Asqav. */
+  findingRef?: string;
+
+  /** Risk-acceptance receipt: opaque pointer to an approval ticket or HITL
+   * approval id. Free-text correlation anchor. */
+  approvalRef?: string;
+
+  /** Risk-acceptance receipt: producer-asserted point-in-time risk snapshot.
+   * Projected to the wire as snake_case `risk_snapshot`. A numeric without
+   * `snapshotSource` is rejected so it is never read as an Asqav score. */
+  riskSnapshot?: RiskSnapshot;
+}
+
+/** Producer-asserted point-in-time snapshot of third-party risk signals.
+ *
+ * Mirrors the cloud RiskSnapshot model. Every value is a snapshot the
+ * producer READ at `snapshot_at` from `snapshot_source`; Asqav never
+ * fetches, computes, verifies, or vouches for any of them. The
+ * `snapshot_at` + `snapshot_source` labels are normative: a numeric
+ * (`epss` / `cvss` / `cvssVector` / `kevListed`) without `snapshotSource`
+ * is rejected so a value can never appear unlabeled and be mistaken for an
+ * Asqav-derived score. Numerics are strings on the wire. */
+export interface RiskSnapshot {
+  /** RFC 3339 read-time of the signals (REQUIRED). Producer-asserted. */
+  snapshotAt: string;
+  /** Free-text source label. REQUIRED when any numeric is present. */
+  snapshotSource: string;
+  /** EPSS probability as a STRING (floats rejected). Producer-asserted. */
+  epss?: string;
+  /** CVSS base score as a STRING. Producer-asserted; not computed by Asqav. */
+  cvss?: string;
+  /** CVSS vector string snapshot. Producer-asserted; not parsed by Asqav. */
+  cvssVector?: string;
+  /** Whether the CVE was in the named KEV catalog at snapshotAt, as observed. */
+  kevListed?: boolean;
+  /** CVE ids the snapshot pertains to; non-empty array, entries <= 128 chars. */
+  cveIds?: string[];
 }
 
 export interface CoSignature {
@@ -893,7 +969,7 @@ function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown>
  * obvious mistakes do not consume a network call. Throws AsqavError on
  * the first offending field.
  */
-function validateSignOptions(options: SignOptions): void {
+function validateSignOptions(options: SignOptions, complianceMode: boolean): void {
   if (
     options.receiptType !== undefined
     && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)
@@ -1054,6 +1130,9 @@ function validateSignOptions(options: SignOptions): void {
   }
   validateWitnessPolicy(options.witnessPolicy);
   validateIncidentClass(options.incidentClass);
+  // Risk-acceptance receipt: shape + namespace fence + no-policy opt-out +
+  // compliance_mode requirement, lockstep with the cloud SignRequest validator.
+  validateRiskAcceptance(options, complianceMode);
 }
 
 /**
@@ -1113,6 +1192,120 @@ function validateIncidentClass(value: string | string[] | undefined): void {
     if (!(INCIDENT_CLASS_NAMESPACE as readonly string[]).includes(ic)) {
       throw new AsqavError(
         `invalid_incident_class: '${ic}' must be one of ${INCIDENT_CLASS_NAMESPACE.join(", ")}`,
+      );
+    }
+  }
+}
+
+/** Receipt type carrying the risk-acceptance extension fields. */
+const RISK_ACCEPTANCE_RECEIPT_TYPE = "protectmcp:lifecycle:risk_acceptance";
+
+/**
+ * Reject a malformed `riskSnapshot` before the HTTP roundtrip. Lockstep with
+ * the cloud RiskSnapshot validator: `snapshotAt` is required, a numeric
+ * (`epss` / `cvss` / `cvssVector` / `kevListed`) requires `snapshotSource`,
+ * `epss` / `cvss` must be strings, and `cveIds` must be a non-empty array of
+ * strings (<= 128 chars). Verbatim guard tokens match the Python SDK.
+ */
+function validateRiskSnapshot(rs: RiskSnapshot | undefined): void {
+  if (rs === undefined) return;
+  if (typeof rs !== "object" || rs === null || Array.isArray(rs)) {
+    throw new AsqavError(
+      `risk_snapshot_not_object: risk_snapshot must be an object of producer-asserted snapshot signals (got: ${JSON.stringify(rs).slice(0, 64)})`,
+      RISK_ACCEPTANCE_DOCS_URL,
+    );
+  }
+  if (typeof rs.snapshotAt !== "string" || rs.snapshotAt.length === 0) {
+    throw new AsqavError(
+      "risk_snapshot_missing_snapshot_at: snapshotAt (RFC 3339 string) is required on a risk_snapshot.",
+      RISK_ACCEPTANCE_DOCS_URL,
+    );
+  }
+  const numericPresent = rs.epss !== undefined
+    || rs.cvss !== undefined
+    || rs.cvssVector !== undefined
+    || rs.kevListed !== undefined;
+  if (numericPresent && (typeof rs.snapshotSource !== "string" || rs.snapshotSource.length === 0)) {
+    throw new AsqavError(
+      "risk_snapshot_numeric_requires_snapshot_source: a populated risk_snapshot signal requires snapshot_source so the value is never read as an Asqav-derived score.",
+      RISK_ACCEPTANCE_DOCS_URL,
+    );
+  }
+  for (const [name, value] of [["epss", rs.epss], ["cvss", rs.cvss]] as const) {
+    if (value !== undefined && typeof value !== "string") {
+      throw new AsqavError(
+        `risk_snapshot_${name}_not_string: numeric risk signals MUST be strings on the wire, never floats.`,
+        RISK_ACCEPTANCE_DOCS_URL,
+      );
+    }
+  }
+  if (rs.cveIds !== undefined) {
+    if (!Array.isArray(rs.cveIds) || rs.cveIds.length === 0) {
+      throw new AsqavError(
+        "risk_snapshot_cve_ids_must_be_non_empty_list: pass a non-empty list of strings or omit cveIds.",
+        RISK_ACCEPTANCE_DOCS_URL,
+      );
+    }
+    for (const entry of rs.cveIds) {
+      if (typeof entry !== "string" || entry.length === 0 || entry.length > 128) {
+        throw new AsqavError(
+          "risk_snapshot_cve_ids_entry_invalid: each cve id must be a non-empty string of length <= 128.",
+          RISK_ACCEPTANCE_DOCS_URL,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Reject malformed risk-acceptance receipts before the HTTP roundtrip.
+ * Lockstep with the cloud SignRequest `_validate_risk_acceptance_extensions`:
+ * sarifDigest must be `sha256:<64 hex>`; the extension fields are fenced to
+ * `receiptType='protectmcp:lifecycle:risk_acceptance'`; the receipt requires
+ * `approverId` + `acceptanceReason`, signs with `policyDecision='none'`, and
+ * (mirroring the cloud compliance-mode guard) requires `complianceMode` so the
+ * fields are never silently dropped from the signed bytes.
+ */
+function validateRiskAcceptance(options: SignOptions, complianceMode: boolean): void {
+  if (options.sarifDigest !== undefined && !SHA256_HEX_RE.test(options.sarifDigest)) {
+    throw new AsqavError(
+      `sarif_digest_not_sha256_wire_form: must look like 'sha256:<64 lowercase hex>' (got: ${options.sarifDigest.slice(0, 64)}).`,
+      RISK_ACCEPTANCE_DOCS_URL,
+    );
+  }
+  validateRiskSnapshot(options.riskSnapshot);
+  const riskFieldsPresent = options.approverId !== undefined
+    || options.initiatorId !== undefined
+    || options.acceptanceReason !== undefined
+    || options.acceptedAt !== undefined
+    || options.supersedes !== undefined
+    || options.sarifDigest !== undefined
+    || options.findingRef !== undefined
+    || options.approvalRef !== undefined
+    || options.riskSnapshot !== undefined;
+  if (riskFieldsPresent && options.receiptType !== RISK_ACCEPTANCE_RECEIPT_TYPE) {
+    throw new AsqavError(
+      `risk_acceptance_fields_require_risk_acceptance_receipt: approver_id / initiator_id / acceptance_reason / accepted_at / supersedes / sarif_digest / finding_ref / approval_ref / risk_snapshot are only valid on receipt_type=${RISK_ACCEPTANCE_RECEIPT_TYPE}.`,
+      RISK_ACCEPTANCE_DOCS_URL,
+    );
+  }
+  if (options.receiptType === RISK_ACCEPTANCE_RECEIPT_TYPE) {
+    if (!options.approverId || !options.acceptanceReason) {
+      throw new AsqavError(
+        `risk_acceptance_missing_required_field: receipt_type=${RISK_ACCEPTANCE_RECEIPT_TYPE} requires approver_id and acceptance_reason.`,
+        RISK_ACCEPTANCE_DOCS_URL,
+      );
+    }
+    if (options.policyDecision !== "none") {
+      throw new AsqavError(
+        `risk_acceptance_requires_no_policy_decision: receipt_type=${RISK_ACCEPTANCE_RECEIPT_TYPE} records no policy evaluation; sign it with policy_decision='none'.`,
+        RISK_ACCEPTANCE_DOCS_URL,
+      );
+    }
+    if (!complianceMode) {
+      throw new AsqavError(
+        `risk_acceptance_requires_compliance_mode: receipt_type=${RISK_ACCEPTANCE_RECEIPT_TYPE} fields project into the signed receipt only under compliance_mode=true; passing compliance_mode=false would silently drop them.`,
+        RISK_ACCEPTANCE_DOCS_URL,
       );
     }
   }
@@ -1229,6 +1422,23 @@ function applyOptionalWireFields(
   }
 }
 
+/** Convert a camelCase `RiskSnapshot` to its snake_case wire object so the
+ * signed payload uses the same keys the cloud RiskSnapshot model emits.
+ * Returns undefined when no snapshot is supplied (field omitted from wire). */
+function riskSnapshotToWire(rs: RiskSnapshot | undefined): Record<string, unknown> | undefined {
+  if (rs === undefined) return undefined;
+  const wire: Record<string, unknown> = {
+    snapshot_at: rs.snapshotAt,
+    snapshot_source: rs.snapshotSource,
+  };
+  if (rs.epss !== undefined) wire.epss = rs.epss;
+  if (rs.cvss !== undefined) wire.cvss = rs.cvss;
+  if (rs.cvssVector !== undefined) wire.cvss_vector = rs.cvssVector;
+  if (rs.kevListed !== undefined) wire.kev_listed = rs.kevListed;
+  if (rs.cveIds !== undefined) wire.cve_ids = rs.cveIds;
+  return wire;
+}
+
 /** Snake_case wire-key projection of the optional IETF profile fields
  * that do not depend on `complianceMode`. Defined as a const table so
  * the `applyComplianceFields` loop stays single-pass. */
@@ -1262,6 +1472,16 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "rfc3161_timestamp", read: (o) => o.rfc3161Timestamp },
   // Durable-anchoring quorum (cloud witness_policy extension).
   { wire: "witness_policy", read: (o) => o.witnessPolicy },
+  // Risk-acceptance receipt extension fields (fenced to the receipt type).
+  { wire: "approver_id", read: (o) => o.approverId },
+  { wire: "initiator_id", read: (o) => o.initiatorId },
+  { wire: "acceptance_reason", read: (o) => o.acceptanceReason },
+  { wire: "accepted_at", read: (o) => o.acceptedAt },
+  { wire: "supersedes", read: (o) => o.supersedes },
+  { wire: "sarif_digest", read: (o) => o.sarifDigest },
+  { wire: "finding_ref", read: (o) => o.findingRef },
+  { wire: "approval_ref", read: (o) => o.approvalRef },
+  { wire: "risk_snapshot", read: (o) => riskSnapshotToWire(o.riskSnapshot) },
   {
     wire: "tool_fingerprint",
     read: (o) =>
@@ -1495,7 +1715,7 @@ export class Agent {
     const finalContext = _dispatchBefore(options.actionType, initialContext);
     const complianceMode = options.complianceMode !== false;
 
-    validateSignOptions(options);
+    validateSignOptions(options, complianceMode);
 
     const actionRef = deriveActionRef(
       complianceMode,

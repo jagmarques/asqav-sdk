@@ -77,6 +77,8 @@ def test_receipt_type_namespace_constant() -> None:
             "protectmcp:restraint",
             "protectmcp:lifecycle",
             "protectmcp:lifecycle:configuration_change",
+            # risk-acceptance / exception receipt; no-policy lifecycle opt-out.
+            "protectmcp:lifecycle:risk_acceptance",
             "protectmcp:acknowledgment",
             "protectmcp:observation",
             # NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): result-bound

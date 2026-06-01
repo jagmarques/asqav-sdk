@@ -57,6 +57,8 @@ ALLOWED_TYPES = {
     "protectmcp:restraint",
     "protectmcp:lifecycle",
     "protectmcp:lifecycle:configuration_change",
+    # risk-acceptance / exception receipt; no-policy lifecycle opt-out.
+    "protectmcp:lifecycle:risk_acceptance",
     "protectmcp:acknowledgment",
     "protectmcp:observation",
     "protectmcp:observation:result_bound",
