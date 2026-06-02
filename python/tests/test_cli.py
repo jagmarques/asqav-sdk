@@ -1156,6 +1156,315 @@ def test_keys_generate_ml_dsa_errors() -> None:
     assert "unsupported_algorithm" in result.output.lower()
 
 
+# === audit-pack verify ===
+
+
+@patch("asqav.client._post")
+@patch("asqav.init")
+def test_audit_pack_verify_valid(
+    mock_init: MagicMock, mock_post: MagicMock, tmp_path
+) -> None:
+    """audit-pack verify posts the bundle wrapped in {bundle: ...} and prints VALID."""
+    mock_post.return_value = {
+        "bundle_signature_valid": True,
+        "bundle_digest": "sha256:abc",
+        "receipt_count": 2,
+        "report_signature_algorithm": "ml-dsa-65",
+        "regimes_summary": {"eu_ai_act": 2},
+        "per_receipt": [
+            {"record_id": "r1", "signature_valid": True},
+            {"record_id": "r2", "signature_valid": True},
+        ],
+    }
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text('{"receipt_count": 2, "receipts": []}')
+    result = runner.invoke(
+        app,
+        ["audit-pack", "verify", str(bundle_path)],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "VALID" in result.output
+    assert "sha256:abc" in result.output
+    called_path = mock_post.call_args.args[0]
+    body = mock_post.call_args.args[1]
+    assert called_path == "/audit-pack/verify"
+    assert body["bundle"] == {"receipt_count": 2, "receipts": []}
+
+
+@patch("asqav.client._post")
+@patch("asqav.init")
+def test_audit_pack_verify_invalid_exits_1(
+    mock_init: MagicMock, mock_post: MagicMock, tmp_path
+) -> None:
+    """audit-pack verify exits 1 and lists failed receipts on an invalid bundle."""
+    mock_post.return_value = {
+        "bundle_signature_valid": False,
+        "bundle_digest": "sha256:def",
+        "receipt_count": 1,
+        "report_signature_algorithm": "ml-dsa-65",
+        "regimes_summary": {},
+        "per_receipt": [{"record_id": "r_bad", "signature_valid": False}],
+    }
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text("{}")
+    result = runner.invoke(
+        app,
+        ["audit-pack", "verify", str(bundle_path)],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "INVALID" in result.output
+    assert "r_bad" in result.output
+
+
+# === org halt / resume (emergency kill-switch, JWT-scoped) ===
+
+
+@patch("asqav.cli._session_request")
+def test_org_halt_calls_emergency_route(mock_session: MagicMock) -> None:
+    """org halt --yes POSTs the emergency-halt route with the reason note."""
+    mock_session.return_value = {
+        "emergency_halt": True,
+        "emergency_halt_at": "2026-06-01T00:00:00Z",
+        "emergency_halt_reason": "rogue agent",
+    }
+    result = runner.invoke(
+        app,
+        ["org", "halt", "org_x", "--reason", "rogue agent", "--yes"],
+        env={"ASQAV_SESSION_TOKEN": "jwt_x"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "RAISED" in result.output
+    method, path = mock_session.call_args.args[0], mock_session.call_args.args[1]
+    body = mock_session.call_args.args[2]
+    assert method == "POST"
+    assert path == "/orgs/org_x/emergency-halt"
+    assert body == {"reason": "rogue agent"}
+
+
+@patch("asqav.cli._session_request")
+def test_org_resume_calls_deactivate_route(mock_session: MagicMock) -> None:
+    """org resume POSTs the deactivate route."""
+    mock_session.return_value = {"emergency_halt": False}
+    result = runner.invoke(
+        app,
+        ["org", "resume", "org_x"],
+        env={"ASQAV_SESSION_TOKEN": "jwt_x"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "LIFTED" in result.output
+    path = mock_session.call_args.args[1]
+    assert path == "/orgs/org_x/emergency-halt/deactivate"
+
+
+def test_org_halt_requires_session_token() -> None:
+    """org halt fails closed with a clear message when ASQAV_SESSION_TOKEN is unset."""
+    result = runner.invoke(
+        app,
+        ["org", "halt", "org_x", "--yes"],
+        env={"ASQAV_SESSION_TOKEN": "", "ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 1
+    assert "ASQAV_SESSION_TOKEN" in result.output
+
+
+# === keys create / list / revoke (account API keys, JWT-scoped) ===
+
+
+@patch("asqav.cli._session_request")
+def test_keys_create_prints_full_key_once(mock_session: MagicMock) -> None:
+    """keys create POSTs /keys and prints the one-time full key."""
+    mock_session.return_value = {
+        "id": "key_1",
+        "name": "ci",
+        "scopes": ["agents:read"],
+        "key": "sk_live_secret",
+    }
+    result = runner.invoke(
+        app,
+        ["keys", "create", "ci", "--scope", "agents:read"],
+        env={"ASQAV_SESSION_TOKEN": "jwt_x"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "sk_live_secret" in result.output
+    method, path = mock_session.call_args.args[0], mock_session.call_args.args[1]
+    body = mock_session.call_args.args[2]
+    assert method == "POST"
+    assert path == "/keys"
+    assert body == {"name": "ci", "scopes": ["agents:read"]}
+
+
+@patch("asqav.cli._session_request")
+def test_keys_list_renders_rows(mock_session: MagicMock) -> None:
+    """keys list GETs /keys and renders id + prefix + state."""
+    mock_session.return_value = [
+        {
+            "id": "key_1",
+            "name": "ci",
+            "key_prefix": "sk_live_ab",
+            "scopes": ["*"],
+            "revoked": False,
+        }
+    ]
+    result = runner.invoke(
+        app, ["keys", "list"], env={"ASQAV_SESSION_TOKEN": "jwt_x"}
+    )
+    assert result.exit_code == 0, result.output
+    assert "key_1" in result.output
+    assert "sk_live_ab" in result.output
+    assert "active" in result.output
+    assert mock_session.call_args.args[1] == "/keys"
+
+
+@patch("asqav.cli._session_request")
+def test_keys_revoke_calls_delete(mock_session: MagicMock) -> None:
+    """keys revoke --yes DELETEs /keys/{id}."""
+    mock_session.return_value = {"message": "revoked"}
+    result = runner.invoke(
+        app,
+        ["keys", "revoke", "key_1", "--yes"],
+        env={"ASQAV_SESSION_TOKEN": "jwt_x"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "Revoked" in result.output
+    method, path = mock_session.call_args.args[0], mock_session.call_args.args[1]
+    assert method == "DELETE"
+    assert path == "/keys/key_1"
+
+
+# === compliance templates / report / reports ===
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_compliance_templates_lists(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """compliance templates GETs the templates route and renders ids."""
+    mock_get.return_value = [
+        {"template_id": "eu_ai_act", "framework": "eu_ai_act", "name": "EU AI Act"}
+    ]
+    result = runner.invoke(
+        app, ["compliance", "templates"], env={"ASQAV_API_KEY": "sk_test"}
+    )
+    assert result.exit_code == 0, result.output
+    assert "eu_ai_act" in result.output
+    assert mock_get.call_args.args[0] == "/compliance-reports/templates"
+
+
+@patch("asqav.client._post")
+@patch("asqav.init")
+def test_compliance_report_creates(
+    mock_init: MagicMock, mock_post: MagicMock
+) -> None:
+    """compliance report POSTs the create route with the report_type body."""
+    mock_post.return_value = {
+        "id": "rep_1",
+        "name": "Q2",
+        "framework": "eu_ai_act",
+        "status": "generating",
+    }
+    result = runner.invoke(
+        app,
+        ["compliance", "report", "--report-type", "eu_ai_act", "--name", "Q2"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "rep_1" in result.output
+    called_path = mock_post.call_args.args[0]
+    body = mock_post.call_args.args[1]
+    assert called_path == "/compliance-reports"
+    assert body["report_type"] == "eu_ai_act"
+    assert body["name"] == "Q2"
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_compliance_reports_lists(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """compliance reports GETs the list route and renders report rows."""
+    mock_get.return_value = {
+        "reports": [
+            {
+                "id": "rep_1",
+                "name": "Q2",
+                "framework": "eu_ai_act",
+                "status": "ready",
+                "record_count": 5,
+            }
+        ],
+        "total": 1,
+    }
+    result = runner.invoke(
+        app,
+        ["compliance", "reports", "--status", "ready"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "rep_1" in result.output
+    assert "ready" in result.output
+    assert "report_status=ready" in mock_get.call_args.args[0]
+
+
+# === observability summary / metrics ===
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_observability_summary(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """observability summary GETs the summary route and renders totals."""
+    mock_get.return_value = {
+        "total_actions": 12,
+        "total_agents_active": 3,
+        "total_tokens": 4000,
+        "total_cost_usd": 0.42,
+        "avg_latency_ms": 18.5,
+    }
+    result = runner.invoke(
+        app, ["observability", "summary"], env={"ASQAV_API_KEY": "sk_test"}
+    )
+    assert result.exit_code == 0, result.output
+    assert "12" in result.output
+    assert "18.5" in result.output
+    assert mock_get.call_args.args[0] == "/observability/summary"
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_observability_metrics_passes_window(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    """observability metrics threads --hours and --window into the query string."""
+    mock_get.return_value = {
+        "metrics": [
+            {
+                "window_start": "2026-06-01T00:00:00Z",
+                "agent_id": "agent_x",
+                "total_actions": 5,
+                "failed_actions": 0,
+                "latency": {"p95_ms": 20.0},
+            }
+        ],
+        "window_type": "1hr",
+        "hours": 24,
+        "count": 1,
+    }
+    result = runner.invoke(
+        app,
+        ["observability", "metrics", "--hours", "48", "--window", "1day"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0, result.output
+    assert "agent_x" in result.output
+    path = mock_get.call_args.args[0]
+    assert "hours=48" in path
+    assert "window_type=1day" in path
+
+
 # === replay-verify ===
 
 

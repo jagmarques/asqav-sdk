@@ -12,6 +12,8 @@
  *   asqav budget check / record
  *   asqav approve <session_id> <entity_id>
  *   asqav compliance frameworks / export
+ *   asqav audit-pack verify <bundle>
+ *   asqav org halt / resume <org_id>          (admin, ASQAV_SESSION_TOKEN)
  *
  * Pro-only commands (replay, preflight, budget, approve) and the
  * Business-only `compliance export` are gated client-side via the same
@@ -621,6 +623,66 @@ async function cmdAuditPackExport(args: string[]): Promise<void> {
   }
 }
 
+async function cmdAuditPackVerify(args: string[]): Promise<void> {
+  const [bundlePath] = positional(args);
+  if (!bundlePath) {
+    die("Usage: asqav audit-pack verify <bundle.json|-> [--output text|json]");
+  }
+  const output = parseFlag(args, "output") ?? "text";
+  let bundle: unknown;
+  try {
+    let raw: string;
+    if (bundlePath === "-") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+      raw = Buffer.concat(chunks).toString("utf8");
+    } else {
+      const fs = await import("node:fs/promises");
+      raw = await fs.readFile(bundlePath, "utf8");
+    }
+    bundle = JSON.parse(raw);
+  } catch (err) {
+    die(`Error reading bundle: ${(err as Error).message}`);
+  }
+  ensureApiKey();
+  try {
+    const report = await request<{
+      bundle_signature_valid?: boolean;
+      bundle_digest?: string;
+      receipt_count?: number;
+      report_signature_algorithm?: string;
+      regimes_summary?: Record<string, number>;
+      per_receipt?: Array<{ record_id?: string; signature_valid?: boolean }>;
+    }>("POST", "/audit-pack/verify", { bundle });
+    const sigValid = Boolean(report.bundle_signature_valid);
+    if (output === "json") {
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    } else {
+      process.stdout.write(`bundle signature: ${sigValid ? "VALID" : "INVALID"}\n`);
+      process.stdout.write(`bundle_digest:  ${report.bundle_digest ?? "?"}\n`);
+      process.stdout.write(`receipt_count:  ${report.receipt_count ?? "?"}\n`);
+      process.stdout.write(`report_signed:  ${report.report_signature_algorithm ?? "?"}\n`);
+      const regimes = report.regimes_summary ?? {};
+      const regimeKeys = Object.keys(regimes).sort();
+      if (regimeKeys.length > 0) {
+        process.stdout.write(
+          `regimes:        ${regimeKeys.map((k) => `${k}=${regimes[k]}`).join(", ")}\n`,
+        );
+      }
+      const bad = (report.per_receipt ?? []).filter((r) => r.signature_valid === false);
+      if (bad.length > 0) {
+        process.stdout.write(`failed receipts: ${bad.length}\n`);
+        for (const r of bad.slice(0, 10)) {
+          process.stdout.write(`  - ${r.record_id ?? "?"}\n`);
+        }
+      }
+    }
+    if (!sigValid) process.exit(1);
+  } catch (err) {
+    die(`Error verifying audit pack: ${(err as Error).message}`);
+  }
+}
+
 async function cmdAuditPackPolicy(args: string[]): Promise<void> {
   let [digest] = positional(args);
   if (!digest) die("Usage: asqav audit-pack policy <sha256:hex>");
@@ -698,6 +760,87 @@ async function cmdOrgSetComplianceStrict(args: string[]): Promise<void> {
     }
   } catch (err) {
     die(`Error updating organization: ${(err as Error).message}`);
+  }
+}
+
+/**
+ * Call an admin/owner route that authenticates with a dashboard JWT.
+ *
+ * The emergency-halt routes resolve the caller via the cloud's
+ * get_current_user dependency (cookie or Authorization: Bearer), not the
+ * X-API-Key an agent key carries. Reads the JWT from ASQAV_SESSION_TOKEN.
+ */
+async function sessionRequest(
+  method: string,
+  path: string,
+  body: Record<string, unknown> = {},
+): Promise<unknown> {
+  const token = process.env.ASQAV_SESSION_TOKEN;
+  if (!token) {
+    die(
+      "Error: ASQAV_SESSION_TOKEN env var is required. This route is admin/owner-scoped " +
+        "and needs a dashboard session token (JWT), not an agent API key.",
+    );
+  }
+  const baseUrl = process.env.ASQAV_API_URL ?? "https://api.asqav.com/api/v1";
+  const url = `${baseUrl.replace(/\/+$/, "")}${path}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    die(`Network error: ${(err as Error).message}`);
+  }
+  const text = await response.text();
+  if (response.status >= 400) {
+    die(`HTTP ${response.status} from ${path}: ${text}`);
+  }
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+async function cmdOrgHalt(args: string[]): Promise<void> {
+  const [orgId] = positional(args);
+  if (!orgId) die("Usage: asqav org halt <org_id> [--reason TEXT] [--yes]");
+  if (!hasFlag(args, "yes") && !hasFlag(args, "y")) {
+    die(
+      "Refusing to halt without --yes. While halted, every new sign and countersign " +
+        "fails closed with 403 until you run `asqav org resume`.",
+    );
+  }
+  const reason = parseFlag(args, "reason");
+  const body: Record<string, unknown> = {};
+  if (reason) body.reason = reason;
+  const out = (await sessionRequest("POST", `/orgs/${orgId}/emergency-halt`, body)) as {
+    emergency_halt_at?: string;
+    emergency_halt_reason?: string;
+  } | null;
+  process.stdout.write(`Emergency halt RAISED for org ${orgId}.\n`);
+  if (out?.emergency_halt_at) process.stdout.write(`halted_at: ${out.emergency_halt_at}\n`);
+  if (out?.emergency_halt_reason) process.stdout.write(`reason:    ${out.emergency_halt_reason}\n`);
+}
+
+async function cmdOrgResume(args: string[]): Promise<void> {
+  const [orgId] = positional(args);
+  if (!orgId) die("Usage: asqav org resume <org_id>");
+  const out = (await sessionRequest(
+    "POST",
+    `/orgs/${orgId}/emergency-halt/deactivate`,
+    {},
+  )) as { emergency_halt?: boolean } | null;
+  process.stdout.write(`Emergency halt LIFTED for org ${orgId}. Signing resumes.\n`);
+  if (out && out.emergency_halt === false) {
+    process.stdout.write("server confirms: emergency_halt=false\n");
   }
 }
 
@@ -858,13 +1001,17 @@ Usage:
   asqav compliance frameworks / export                     (Business)
   asqav audit-pack export --start ISO --end ISO --output-file PATH
                           [--organization-id ID] [--no-only-compliance]
+  asqav audit-pack verify <bundle.json|-> [--output text|json]
   asqav audit-pack policy <sha256:hex> [--output text|json]
   asqav payloads erase <signature_id> --yes                P4 right-to-erasure
   asqav org set-compliance-strict <org_id> --enable|--disable
+  asqav org halt <org_id> [--reason TEXT] --yes            kill-switch (ASQAV_SESSION_TOKEN)
+  asqav org resume <org_id>                                lift halt (ASQAV_SESSION_TOKEN)
   asqav keys generate --algorithm ed25519|es256 [--out priv.pem]
   asqav migrate run v3-20|v3-21|v3-22                      X-Maintenance-Key required
 
 Set ASQAV_API_KEY to authenticate. Get a key at https://asqav.com.
+Admin commands (org halt/resume) read a dashboard session token from ASQAV_SESSION_TOKEN.
 `);
 }
 
@@ -922,8 +1069,9 @@ export async function runCli(argv: string[]): Promise<void> {
     case "audit-pack": {
       const [sub, ...rest2] = rest;
       if (sub === "export") return cmdAuditPackExport(rest2);
+      if (sub === "verify") return cmdAuditPackVerify(rest2);
       if (sub === "policy") return cmdAuditPackPolicy(rest2);
-      die("Usage: asqav audit-pack (export | policy <digest>)");
+      die("Usage: asqav audit-pack (export | verify <bundle> | policy <digest>)");
     }
     case "payloads": {
       const [sub, ...rest2] = rest;
@@ -933,7 +1081,9 @@ export async function runCli(argv: string[]): Promise<void> {
     case "org": {
       const [sub, ...rest2] = rest;
       if (sub === "set-compliance-strict") return cmdOrgSetComplianceStrict(rest2);
-      die("Usage: asqav org set-compliance-strict <org_id> --enable|--disable");
+      if (sub === "halt") return cmdOrgHalt(rest2);
+      if (sub === "resume") return cmdOrgResume(rest2);
+      die("Usage: asqav org (set-compliance-strict <org_id> --enable|--disable | halt <org_id> | resume <org_id>)");
     }
     case "keys": {
       const [sub, ...rest2] = rest;
