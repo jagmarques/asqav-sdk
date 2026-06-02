@@ -18,6 +18,11 @@ Commands:
     asqav budget check / record                - Budget gate / signed spend record
     asqav approve <session_id> <entity_id>     - Sign off a multi-party session
     asqav compliance frameworks / export       - List frameworks / export bundle
+    asqav compliance templates / report / reports / download - Cloud reports (Business+)
+    asqav audit-pack verify <bundle>           - Verify a holder-supplied bundle
+    asqav org halt / resume <org_id>           - Org-wide emergency kill-switch (admin)
+    asqav keys create / list / revoke          - Account API key management (admin)
+    asqav observability summary / metrics      - Read 24h metrics
     asqav sync                                 - Sync local queue to API
     asqav queue list / count / clear           - Manage local queue
     asqav demo / quickstart / doctor           - Onboarding + diagnostics
@@ -1324,6 +1329,80 @@ def audit_pack_export(
     print(f"algorithm:     {bundle.get('bundle_signature_algorithm', '?')}")
 
 
+@audit_pack_app.command("verify")
+def audit_pack_verify(
+    bundle: str = typer.Argument(
+        help="Path to a bundle JSON file, or '-' to read it from stdin."
+    ),
+    output: str = typer.Option(
+        "text", "--output", "-o", help="Output format: text or json."
+    ),
+) -> None:
+    """Verify a holder-supplied Audit Pack bundle and print the signed report.
+
+    Calls POST `/audit-pack/verify`. The cloud re-derives the bundle digest
+    and per-receipt signatures from the bundle bytes alone, then signs the
+    verdict with the org's most-recent active agent key so a downstream
+    consumer can prove the report is an authentic Asqav verdict. Exits
+    non-zero when the bundle signature is invalid, so it works as a gate.
+    """
+    import json as json_mod
+
+    if bundle == "-":
+        try:
+            bundle_obj = json_mod.loads(sys.stdin.read())
+        except json_mod.JSONDecodeError as exc:
+            print(f"Error reading bundle from stdin: {exc}")
+            raise typer.Exit(code=1) from exc
+    else:
+        try:
+            with open(bundle) as f:
+                bundle_obj = json_mod.load(f)
+        except (OSError, json_mod.JSONDecodeError) as exc:
+            print(f"Error reading bundle: {exc}")
+            raise typer.Exit(code=1) from exc
+
+    _init_sdk()
+    from asqav.client import _post
+
+    try:
+        report = _post("/audit-pack/verify", {"bundle": bundle_obj})
+    except Exception as exc:
+        print(f"Error verifying audit pack: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    sig_valid = bool(report.get("bundle_signature_valid"))
+
+    if output == "json":
+        print(json_mod.dumps(report, indent=2, default=str))
+    else:
+        verdict = (
+            typer.style("VALID", fg=typer.colors.GREEN, bold=True)
+            if sig_valid
+            else typer.style("INVALID", fg=typer.colors.RED, bold=True)
+        )
+        typer.echo(f"bundle signature: {verdict}")
+        print(f"bundle_digest:  {report.get('bundle_digest', '?')}")
+        print(f"receipt_count:  {report.get('receipt_count', '?')}")
+        print(f"report_signed:  {report.get('report_signature_algorithm', '?')}")
+        regimes = report.get("regimes_summary") or {}
+        if regimes:
+            joined = ", ".join(f"{k}={v}" for k, v in sorted(regimes.items()))
+            print(f"regimes:        {joined}")
+        bad = [
+            r
+            for r in (report.get("per_receipt") or [])
+            if not r.get("signature_valid", True)
+        ]
+        if bad:
+            print(f"failed receipts: {len(bad)}")
+            for r in bad[:10]:
+                print(f"  - {r.get('record_id', '?')}")
+
+    if not sig_valid:
+        raise typer.Exit(code=1)
+
+
 @audit_pack_app.command("policy")
 def audit_pack_policy(
     digest: str = typer.Argument(
@@ -1417,7 +1496,72 @@ def payloads_erase(
     print("Tombstone written; signature remains cryptographically verifiable.")
 
 
-# === org settings (compliance_mode_strict) ===
+# === session-token (admin/owner) routes ===
+
+
+def _session_request(
+    method: str,
+    path: str,
+    data: dict | None = None,
+) -> Any:
+    """Call an admin/owner route that authenticates with a dashboard JWT.
+
+    The emergency-halt and account-API-key routes resolve the caller via
+    `get_current_user` (cookie or `Authorization: Bearer <jwt>`), not the
+    `X-API-Key` an agent key carries. Reads the JWT from
+    `ASQAV_SESSION_TOKEN` and sends it as a Bearer header. Exits 1 with a
+    clear message when the var is unset. Returns the parsed JSON body, or
+    None for a 204.
+    """
+    import json as json_mod
+    import os
+    import urllib.error
+    import urllib.request
+
+    token = os.environ.get("ASQAV_SESSION_TOKEN")
+    if not token:
+        print(
+            "Error: ASQAV_SESSION_TOKEN env var is required. This route is "
+            "admin/owner-scoped and needs a dashboard session token (JWT), "
+            "not an agent API key."
+        )
+        raise typer.Exit(code=1)
+
+    base = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
+    url = base.rstrip("/") + path
+    body = json_mod.dumps(data).encode("utf-8") if data is not None else b"{}"
+    req = urllib.request.Request(
+        url,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        data=body if method in {"POST", "PATCH", "PUT", "DELETE"} else None,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode("utf-8")
+        except Exception:
+            detail = str(exc)
+        print(f"HTTP {exc.code} from {path}: {detail}")
+        raise typer.Exit(code=1) from exc
+    except urllib.error.URLError as exc:
+        print(f"Network error: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if not raw:
+        return None
+    try:
+        return json_mod.loads(raw)
+    except json_mod.JSONDecodeError:
+        return raw
+
+
+# === org settings (compliance_mode_strict) + emergency halt ===
 
 
 org_app = typer.Typer(
@@ -1426,6 +1570,59 @@ org_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(org_app, name="org")
+
+
+@org_app.command("halt")
+def org_halt(
+    org_id: str = typer.Argument(help="Organization ID to halt."),
+    reason: str = typer.Option(
+        "", "--reason", help="Admin note recorded with the active halt (audit trail)."
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
+) -> None:
+    """Raise the org-wide emergency halt (kill-switch).
+
+    Calls POST `/orgs/{org_id}/emergency-halt`. While the halt is active
+    every new sign and countersign fails closed with HTTP 403 until an
+    admin lifts it via `asqav org resume`. Admin/owner-scoped, so it reads
+    a dashboard session token from `ASQAV_SESSION_TOKEN`, not an agent key.
+    """
+    if not yes:
+        ok = typer.confirm(
+            f"Halt org {org_id}? Every new sign and countersign will fail "
+            f"closed with 403 until you run `asqav org resume`."
+        )
+        if not ok:
+            print("Cancelled.")
+            raise typer.Exit()
+
+    body: dict = {}
+    if reason:
+        body["reason"] = reason
+    out = _session_request("POST", f"/orgs/{org_id}/emergency-halt", body)
+
+    print(f"Emergency halt RAISED for org {org_id}.")
+    if isinstance(out, dict):
+        if out.get("emergency_halt_at"):
+            print(f"halted_at: {out['emergency_halt_at']}")
+        if out.get("emergency_halt_reason"):
+            print(f"reason:    {out['emergency_halt_reason']}")
+
+
+@org_app.command("resume")
+def org_resume(
+    org_id: str = typer.Argument(help="Organization ID to resume."),
+) -> None:
+    """Lift the org-wide emergency halt so signing resumes.
+
+    Calls POST `/orgs/{org_id}/emergency-halt/deactivate`. This route is
+    never gated by the halt flag, so an org can always lift its own halt
+    (no self-lockout). Admin/owner-scoped via `ASQAV_SESSION_TOKEN`.
+    """
+    out = _session_request("POST", f"/orgs/{org_id}/emergency-halt/deactivate", {})
+    print(f"Emergency halt LIFTED for org {org_id}. Signing resumes.")
+    if isinstance(out, dict) and out.get("emergency_halt") is False:
+        print("server confirms: emergency_halt=False")
 
 
 @org_app.command("set-compliance-strict")
@@ -1515,6 +1712,82 @@ def keys_generate(
 
     print("--- public key ---")
     sys.stdout.write(kp.public_key_pem.decode("utf-8", errors="replace"))
+
+
+@keys_app.command("create")
+def keys_create(
+    name: str = typer.Argument(help="Human-readable name for the new key."),
+    scope: list[str] = typer.Option(
+        [],
+        "--scope",
+        help="Scope to grant; repeat for several (e.g. --scope agents:read --scope sign:write).",
+    ),
+    organization_id: str = typer.Option(
+        "",
+        "--organization-id",
+        help="Mint the key for a specific org (owner/admin only). Defaults to the caller's org.",
+    ),
+) -> None:
+    """Mint a new account API key. The full key is shown once.
+
+    Calls POST `/keys`. Admin/owner-scoped via `get_current_user`, so it
+    reads a dashboard session token from `ASQAV_SESSION_TOKEN` rather than
+    an agent API key. Copy the printed `key` immediately; it is never shown
+    again.
+    """
+    body: dict = {"name": name, "scopes": list(scope)}
+    if organization_id:
+        body["organization_id"] = organization_id
+    out = _session_request("POST", "/keys", body)
+    if not isinstance(out, dict):
+        print("Unexpected response from /keys.")
+        raise typer.Exit(code=1)
+    print(f"Created API key {out.get('id', '?')}: {out.get('name', name)}")
+    print(f"scopes: {', '.join(out.get('scopes', []) or []) or '(none)'}")
+    print(f"key:    {out.get('key', '?')}")
+    print("Store this key now; it is shown only once.")
+
+
+@keys_app.command("list")
+def keys_list() -> None:
+    """List account API keys (prefixes only, never the full secret).
+
+    Calls GET `/keys`. Admin/owner-scoped via `ASQAV_SESSION_TOKEN`.
+    """
+    out = _session_request("GET", "/keys")
+    rows = out if isinstance(out, list) else []
+    if not rows:
+        print("No API keys found.")
+        return
+    for k in rows:
+        state = "revoked" if k.get("revoked") else "active"
+        scopes = ", ".join(k.get("scopes", []) or []) or "(none)"
+        print(
+            f"  {k.get('id', '?')}  {k.get('name', '?')}  "
+            f"prefix={k.get('key_prefix', '?')}  [{state}]  scopes={scopes}"
+        )
+
+
+@keys_app.command("revoke")
+def keys_revoke(
+    key_id: str = typer.Argument(help="API key ID to revoke. Irreversible."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
+) -> None:
+    """Revoke an account API key.
+
+    Calls DELETE `/keys/{key_id}`. Admin/owner-scoped via
+    `ASQAV_SESSION_TOKEN`. Any client still presenting the key starts
+    failing closed immediately.
+    """
+    if not yes:
+        ok = typer.confirm(f"Revoke API key {key_id}? This cannot be undone.")
+        if not ok:
+            print("Cancelled.")
+            raise typer.Exit()
+    out = _session_request("DELETE", f"/keys/{key_id}")
+    print(f"Revoked API key {key_id}.")
+    if isinstance(out, dict) and out.get("message"):
+        print(out["message"])
 
 
 # === replay verify (IETF chain verification) ===
@@ -1720,6 +1993,260 @@ def compliance_export(
     bundle.to_file(output)
     typer.echo(f"wrote {bundle.receipt_count} receipts to {output}")
     typer.echo(f"merkle_root: {bundle.merkle_root}")
+
+
+@compliance_app.command("templates")
+def compliance_templates() -> None:
+    """List the report templates the cloud can generate (Business+).
+
+    Calls GET `/compliance-reports/templates`. Use a `template_id` here as
+    the `--report-type` for `asqav compliance report`.
+    """
+    _init_sdk()
+    from asqav.client import _get
+
+    try:
+        rows = _get("/compliance-reports/templates")
+    except Exception as exc:
+        print(f"Error listing templates: {exc}")
+        raise typer.Exit(code=1) from exc
+    rows = rows if isinstance(rows, list) else []
+    if not rows:
+        print("No report templates available.")
+        return
+    for t in rows:
+        print(
+            f"  {t.get('template_id', '?')}  framework={t.get('framework', '?')}  "
+            f"{t.get('name', '')}"
+        )
+
+
+@compliance_app.command("report")
+def compliance_report(
+    report_type: str = typer.Option(
+        ..., "--report-type", help="Template id (see `asqav compliance templates`)."
+    ),
+    name: str = typer.Option("", "--name", help="Optional report name."),
+    start: str = typer.Option("", "--start", help="Window start, ISO 8601."),
+    end: str = typer.Option("", "--end", help="Window end, ISO 8601."),
+    agent_id: str = typer.Option("", "--agent", help="Scope the report to one agent."),
+    schedule: str = typer.Option(
+        "", "--schedule", help="daily|weekly|monthly to recur; omit for one-off."
+    ),
+) -> None:
+    """Generate a compliance report (Business+). Generation runs server-side.
+
+    Calls POST `/compliance-reports`. Returns the report metadata including
+    its id and status; poll `asqav compliance reports` until status is
+    `ready`, then `asqav compliance download <report_id>`.
+    """
+    _init_sdk()
+    from asqav.client import _post
+
+    body: dict = {"report_type": report_type}
+    for key, value in (
+        ("name", name),
+        ("start_date", start),
+        ("end_date", end),
+        ("agent_id", agent_id),
+        ("schedule", schedule),
+    ):
+        if value:
+            body[key] = value
+
+    try:
+        out = _post("/compliance-reports", body)
+    except Exception as exc:
+        print(f"Error creating report: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if not isinstance(out, dict):
+        print("Unexpected response from /compliance-reports.")
+        raise typer.Exit(code=1)
+    print(f"Created report {out.get('id', '?')}: {out.get('name', '?')}")
+    print(f"framework: {out.get('framework', '?')}")
+    print(f"status:    {out.get('status', '?')}")
+    print("Poll `asqav compliance reports`; download once status is ready.")
+
+
+@compliance_app.command("reports")
+def compliance_reports_list(
+    report_status: str = typer.Option(
+        "", "--status", help="Filter by status (e.g. ready, generating, failed)."
+    ),
+    framework: str = typer.Option("", "--framework", help="Filter by framework key."),
+) -> None:
+    """List generated compliance reports for the org (Business+).
+
+    Calls GET `/compliance-reports`.
+    """
+    _init_sdk()
+    from asqav.client import _get
+
+    path = "/compliance-reports"
+    params = []
+    if report_status:
+        params.append(f"report_status={report_status}")
+    if framework:
+        params.append(f"framework={framework}")
+    if params:
+        path += "?" + "&".join(params)
+
+    try:
+        out = _get(path)
+    except Exception as exc:
+        print(f"Error listing reports: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    rows = out.get("reports", []) if isinstance(out, dict) else []
+    if not rows:
+        print("No compliance reports found.")
+        return
+    for r in rows:
+        print(
+            f"  {r.get('id', '?')}  {r.get('name', '?')}  "
+            f"framework={r.get('framework', '?')}  status={r.get('status', '?')}  "
+            f"records={r.get('record_count', '?')}"
+        )
+
+
+@compliance_app.command("download")
+def compliance_download(
+    report_id: str = typer.Argument(help="Report ID to download."),
+    output_file: str = typer.Option(
+        ..., "--output-file", "-o", help="Path to write the report PDF."
+    ),
+) -> None:
+    """Download a ready compliance report PDF (Business+).
+
+    Calls GET `/compliance-reports/{report_id}/download`, which streams a
+    PDF (not JSON). The cloud returns 409 when the report is not yet
+    `ready`, so generate first and poll `asqav compliance reports`.
+    """
+    import urllib.error
+    import urllib.request
+    from urllib.parse import urljoin
+
+    _init_sdk()
+    from asqav import client as _client_mod
+
+    url = urljoin(
+        _client_mod._api_base.rstrip("/") + "/",
+        f"compliance-reports/{report_id}/download",
+    )
+    req = urllib.request.Request(
+        url,
+        method="GET",
+        headers={"X-API-Key": _client_mod._api_key or ""},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = resp.read()
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode("utf-8")
+        except Exception:
+            detail = str(exc)
+        print(f"HTTP {exc.code} downloading report: {detail}")
+        raise typer.Exit(code=1) from exc
+    except urllib.error.URLError as exc:
+        print(f"Network error: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    try:
+        with open(output_file, "wb") as f:
+            f.write(data)
+    except OSError as exc:
+        print(f"Error writing report: {exc}")
+        raise typer.Exit(code=1) from exc
+    print(f"wrote {len(data)} bytes to {output_file}")
+
+
+# === observability (read metrics) ===
+
+
+observability_app = typer.Typer(
+    name="observability",
+    help="Read observability metrics (24h summary + per-window detail).",
+    no_args_is_help=True,
+)
+app.add_typer(observability_app, name="observability")
+
+
+@observability_app.command("summary")
+def observability_summary(
+    output: str = typer.Option(
+        "text", "--output", "-o", help="Output format: text or json."
+    ),
+) -> None:
+    """Show the 24h observability summary (all tiers).
+
+    Calls GET `/observability/summary`: total actions, active agents,
+    tokens, cost, and weighted-average latency over the last 24 hours.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav.client import _get
+
+    try:
+        data = _get("/observability/summary")
+    except Exception as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if output == "json":
+        print(json_mod.dumps(data, indent=2, default=str))
+        return
+    print(f"total_actions:      {data.get('total_actions', '?')}")
+    print(f"agents_active:      {data.get('total_agents_active', '?')}")
+    print(f"total_tokens:       {data.get('total_tokens', '?')}")
+    print(f"total_cost_usd:     {data.get('total_cost_usd', '?')}")
+    latency = data.get("avg_latency_ms")
+    print(f"avg_latency_ms:     {latency if latency is not None else 'n/a'}")
+
+
+@observability_app.command("metrics")
+def observability_metrics(
+    hours: int = typer.Option(24, "--hours", help="Lookback window in hours."),
+    window: str = typer.Option(
+        "1hr", "--window", help="Window granularity (e.g. 1hr, 1day)."
+    ),
+    output: str = typer.Option(
+        "text", "--output", "-o", help="Output format: text or json."
+    ),
+) -> None:
+    """Show per-window metric rows (requires the full observability feature).
+
+    Calls GET `/observability/metrics`.
+    """
+    import json as json_mod
+
+    _init_sdk()
+    from asqav.client import _get
+
+    path = f"/observability/metrics?hours={hours}&window_type={window}"
+    try:
+        data = _get(path)
+    except Exception as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if output == "json":
+        print(json_mod.dumps(data, indent=2, default=str))
+        return
+    rows = data.get("metrics", []) if isinstance(data, dict) else []
+    if not rows:
+        print("No metrics in the window.")
+        return
+    for m in rows:
+        lat = m.get("latency", {}) or {}
+        print(
+            f"  {m.get('window_start', '?')}  agent={m.get('agent_id', '?')}  "
+            f"actions={m.get('total_actions', '?')}  "
+            f"failed={m.get('failed_actions', '?')}  "
+            f"p95={lat.get('p95_ms', 'n/a')}ms"
+        )
 
 
 # === shadow-ai (egress shim scaffolding + lifecycle) ===
