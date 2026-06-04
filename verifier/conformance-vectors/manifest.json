@@ -1,0 +1,86 @@
+[
+  {
+    "dir": "asqav-01-genesis-permit",
+    "format": "asqav-native",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Valid Asqav-native genesis permit; Ed25519 over canonical payload verifies."
+  },
+  {
+    "dir": "asqav-02-genesis-deny",
+    "format": "asqav-native",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Valid Asqav-native genesis deny decision; signature verifies."
+  },
+  {
+    "dir": "asqav-03-chain-link",
+    "format": "asqav-native",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Successor receipt links to its predecessor via SHA-256 of the predecessor canonical payload."
+  },
+  {
+    "dir": "asqav-04-tamper-sig",
+    "format": "asqav-native",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "decision flipped after signing; signature no longer matches the canonical payload."
+  },
+  {
+    "dir": "aerf-01-genesis",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Valid AERF genesis; Ed25519 over JCS payload verifies; previous_receipt_hash omitted."
+  },
+  {
+    "dir": "aerf-02-chain-link",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Second AERF receipt; previous_receipt_hash rederives from the predecessor signable payload (signature excluded, per AERF spec)."
+  },
+  {
+    "dir": "aerf-03-tamper-evidence",
+    "format": "aerf",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "action field mutated after signing; signature no longer matches the canonical bytes."
+  },
+  {
+    "dir": "aerf-04-tamper-chain",
+    "format": "aerf",
+    "outcome": "FAIL",
+    "reason_code": "chain",
+    "notes": "previous_receipt_hash mutated; the link no longer rederives from the predecessor."
+  },
+  {
+    "dir": "acta-01-genesis",
+    "format": "acta",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Valid ACTA genesis; Ed25519 over JCS(payload) verifies."
+  },
+  {
+    "dir": "acta-02-chain-link",
+    "format": "acta",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "ACTA successor links via SHA-256 of the JCS of the full predecessor receipt."
+  },
+  {
+    "dir": "acta-03-tamper-sig",
+    "format": "acta",
+    "outcome": "FAIL",
+    "reason_code": "sig_mismatch",
+    "notes": "Flipped signature byte; Ed25519 verify fails."
+  },
+  {
+    "dir": "acta-05-commitment-mode-unsupported",
+    "format": "acta",
+    "outcome": "FAIL",
+    "reason_code": "sig_mismatch",
+    "notes": "Commitment-mode receipt (signs SHA-256(JCS)) fails the baseline JCS verifier - honest, never a false pass."
+  }
+]
