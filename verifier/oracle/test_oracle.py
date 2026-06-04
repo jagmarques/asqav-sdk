@@ -236,3 +236,96 @@ def test_acta_genesis_spoof_breaks_signature() -> None:
     res = verify(spoof, ADAPTERS, key_provider=_acta_keys("acta-02-chain-link"))
     assert res.verdict == "FAIL"
     assert res.axis("signature").result == crypto.FAIL
+
+
+# --- adversarial negatives on the trust path (rule 4.9 clause 3) ---
+
+import unicodedata  # noqa: E402
+
+import verify_receipt as _vr  # noqa: E402
+
+
+@requires_ed25519
+def test_wrong_key_resolution_fails_signature() -> None:
+    """A receipt verified against a different valid Ed25519 key FAILs the signature axis."""
+    doc = _load("aerf-01-genesis", "receipt.json")
+    kid = doc["key_id"]
+    other_raw = _vr._b64decode(_acta_keys("acta-01-genesis")["keys"][0]["x"])
+    swapped = dict(_provider("aerf-01-genesis", "aerf"))
+    swapped[kid] = other_raw.hex()
+    res = verify(doc, ADAPTERS, key_provider=swapped)
+    assert res.fmt == "aerf"
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_algorithm_confusion_does_not_false_pass() -> None:
+    """An Ed25519 receipt relabelled to an alg the verifier does not check never PASSes."""
+    doc = _load("acta-01-genesis", "receipt.json")
+    forged = json.loads(json.dumps(doc))
+    forged["signature"]["alg"] = "ES256"
+    res = verify(forged, ADAPTERS, key_provider=_acta_keys("acta-01-genesis"))
+    assert res.fmt == "acta"
+    assert res.verdict != "PASS"
+    assert res.axis("structure").result == crypto.FAIL
+    assert res.axis("signature").result in (crypto.FAIL, crypto.SKIPPED)
+
+
+@requires_ed25519
+def test_chain_reorder_same_format_fails_chain() -> None:
+    """A same-format predecessor that is not the true prior link FAILs the chain axis."""
+    succ = _load("acta-02-chain-link", "receipt.json")
+    wrong_pred = _load("acta-03-tamper-sig", "receipt.json")
+    assert ActaAdapter().detect(wrong_pred) is True
+    res = verify(
+        succ, ADAPTERS, key_provider=_acta_keys("acta-02-chain-link"), predecessor=wrong_pred
+    )
+    assert res.axis("chain").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_nfc_canonicalization_edge() -> None:
+    """AERF signs over NFC-normalising JCS, so NFC and NFD forms verify identically."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    nfc = unicodedata.normalize("NFC", "café-π")
+    nfd = unicodedata.normalize("NFD", "café-π")
+    assert nfc.encode() != nfd.encode()
+
+    sk = Ed25519PrivateKey.generate()
+    pk_raw = sk.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    )
+    kid = "oracle-nfc-test-key"
+    ad = AerfAdapter()
+    rec = _load("aerf-01-genesis", "receipt.json")
+    rec["agent"] = nfc
+    rec["key_id"] = kid
+    rec.pop("signature", None)
+    rec["signature"] = sk.sign(ad.signing_input(rec)).hex()
+    provider = {kid: pk_raw.hex()}
+
+    nfc_res = verify(rec, ADAPTERS, key_provider=provider)
+    assert nfc_res.axis("signature").result == crypto.PASS
+
+    nfd_doc = json.loads(json.dumps(rec))
+    nfd_doc["agent"] = nfd
+    nfd_res = verify(nfd_doc, ADAPTERS, key_provider=provider)
+    assert nfd_res.axis("signature").result == crypto.PASS
+
+    tampered = json.loads(json.dumps(rec))
+    tampered["agent"] = "different-agent"
+    assert verify(tampered, ADAPTERS, key_provider=provider).axis("signature").result == crypto.FAIL
+
+
+def test_three_way_format_exclusion() -> None:
+    """Each adapter detects only its own receipt, giving a clean 3x3 detection diagonal."""
+    native = _load("asqav-01-genesis-permit", "receipt.json")
+    aerf = _load("aerf-01-genesis", "receipt.json")
+    acta = _load("acta-01-genesis", "receipt.json")
+    a, e, c = AsqavNativeAdapter(), AerfAdapter(), ActaAdapter()
+    assert (a.detect(native), e.detect(native), c.detect(native)) == (True, False, False)
+    assert (a.detect(aerf), e.detect(aerf), c.detect(aerf)) == (False, True, False)
+    assert (a.detect(acta), e.detect(acta), c.detect(acta)) == (False, False, True)
