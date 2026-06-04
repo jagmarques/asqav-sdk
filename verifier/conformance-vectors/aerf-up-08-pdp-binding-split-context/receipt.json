@@ -1,0 +1,23 @@
+{
+  "id": "ef0f682e-6397-422e-8cad-a062fc8533bc",
+  "type": "notarised_evidence",
+  "plan_id": "da6043d4-5266-45f2-8166-4a2527bd7a81",
+  "agent": "claims-agent",
+  "action": "submit:claim:CLM-8888",
+  "in_policy": true,
+  "policy_reason": "matched scope submit:claim:*",
+  "evidence": {
+    "tool": "submit-claim",
+    "claim_id": "CLM-9920",
+    "amount": "1250.00",
+    "patient_id_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "evidence_hash_sha512": "f90aa27a8bec780e14286ebefa26efe8a0e2b8e62565c48c14db08563dce3c4202482a33fa82b97e5aebf49e4288b8d58f18ffd8745daea56f59a71d3dd0e41b",
+  "observed_at": "2026-05-11T12:00:00+00:00",
+  "key_id": "2ff7c1c638d85244",
+  "policy_hash": "73ed0764df562246545b29429e2e5186bce2102d67cc6f46dc954b4d95af8742",
+  "context_hash_sha256": "ec09c2030a2a4c671c544353513d9a2fc0488804f253154a8317c26e9291b471",
+  "pdp_signature": "7768e1c43c623d4d4cc350a37678ccea368bd8b3500edcf2d7cac9cad239cf01f476e7b888f1a04d2ab7714f4ec514efed1f87867eaf56bf309e7dc23d052f00",
+  "pdp_key_id": "dfe937603b2f3312",
+  "signature": "d4b3e165dc865b990f4bed20145574bfa7b2cb8c9c1da06dea3dbd333e9854ce068b5a221473c086f63c4f3b4c82ebcd05033776ab1cc1cd1543422fd9d68f0d"
+}

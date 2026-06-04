@@ -1,0 +1,24 @@
+{
+  "id": "12b4d5d9-b3d8-47cb-8303-081d573ceaae",
+  "type": "notarised_evidence",
+  "plan_id": "0366e5ce-aa5a-4574-86c8-7dd93578bcb4",
+  "agent": "claims-agent",
+  "action": "finance:disburse:tx-001",
+  "in_policy": true,
+  "policy_reason": "matched scope finance:disburse:*",
+  "evidence": {
+    "tool": "disburse",
+    "amount": "100.00"
+  },
+  "evidence_hash_sha512": "3ba81cd14f6dc9e9222e6a371e1778df417e0bd20d55dfa3547fdd7636085eb0ea454704c89e8087da4ea125ce6926d7b12663f9d5bd8203022cf07e835c017b",
+  "observed_at": "2026-05-11T12:00:00+00:00",
+  "key_id": "2ff7c1c638d85244",
+  "policy_hash": "73ed0764df562246545b29429e2e5186bce2102d67cc6f46dc954b4d95af8742",
+  "context_hash_sha256": "f5fe2f44d68c953e5584adba1cb8c6655f7a43a7b049b5efd521a31b3661809d",
+  "impact_tags": [
+    "FINANCE-DISBURSEMENT"
+  ],
+  "pdp_signature": "7768e1c43c623d4d4cc350a37678ccea368bd8b3500edcf2d7cac9cad239cf01f476e7b888f1a04d2ab7714f4ec514efed1f87867eaf56bf309e7dc23d052f00",
+  "pdp_key_id": "dfe937603b2f3312",
+  "signature": "c43c14b7591e0a54acf867d831a6f7f0c6a5730a1303c37b73b029d72e722998025595714727db3570c6b4f75c626863c910aa67af17d2185889622e1f92230d"
+}
