@@ -45,7 +45,7 @@ def _provider(vec: str, fmt: str):
 
 def test_adapters_registered() -> None:
     names = [a.name for a in ADAPTERS]
-    assert names == ["asqav-native", "aerf", "acta", "agentreceipts"]
+    assert names == ["asqav-native", "aerf", "acta", "agentreceipts", "authproof"]
 
 
 def test_detection_picks_the_right_adapter() -> None:
@@ -188,7 +188,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 38
+    assert len(results) == 41
     # The optional-dep ML-DSA vector returns the stronger PASS when dilithium-py is present.
     def _tol(r):
         return r.ok or (
@@ -615,3 +615,60 @@ def test_aerf_malformed_parent_pdp_signature_fails_does_not_crash() -> None:
             forged[field] = bad
             res = verify(forged, ADAPTERS, key_provider=_provider(vec, "aerf"))
             assert res.verdict != "PASS"
+
+
+# --- Authproof adapter (ES256 over insertion-order JSON.stringify) ---
+
+from oracle.adapters.authproof import AuthproofAdapter  # noqa: E402
+
+
+def _authproof_receipt() -> dict:
+    return json.loads((_CORPUS / "authproof-01-genesis-real-sdk" / "receipt.json").read_text())
+
+
+@requires_ed25519
+def test_authproof_real_sdk_receipt_verifies() -> None:
+    """A receipt minted by the real Authproof JS SDK verifies (cross-implementation interop)."""
+    res = verify(_authproof_receipt(), ADAPTERS)
+    assert res.fmt == "authproof"
+    assert res.verdict == "PASS"
+    assert res.axis("signature").result == crypto.PASS
+
+
+def test_authproof_detection_is_exclusive() -> None:
+    """The Authproof fingerprint matches only its own receipt, not the other formats."""
+    doc = _authproof_receipt()
+    assert [a.name for a in ADAPTERS if a.detect(doc)] == ["authproof"]
+    other = _load("aerf-01-genesis", "receipt.json")
+    assert AuthproofAdapter().detect(other) is False
+
+
+@requires_ed25519
+def test_authproof_tamper_and_forge_fail_closed() -> None:
+    """Tampering a signed field, forging the signature, or swapping the key all FAIL."""
+    base = _authproof_receipt()
+    tampered = json.loads(json.dumps(base))
+    tampered["scope"] = "Send all the emails."
+    assert verify(tampered, ADAPTERS).verdict == "FAIL"
+    forged = json.loads(json.dumps(base))
+    forged["signature"] = "25" + base["signature"][2:]
+    assert verify(forged, ADAPTERS).verdict == "FAIL"
+    wrong_key = json.loads(json.dumps(base))
+    wrong_key["signerPublicKey"]["x"] = "AAAAXZILz_GGg8wwWuea3gOYkTvvYwzM42bgY5k_zgM"
+    assert verify(wrong_key, ADAPTERS).verdict == "FAIL"
+
+
+def test_authproof_malformed_signature_fails_does_not_crash() -> None:
+    """A malformed Authproof signature decodes to b'' and FAILs, never raises."""
+    base = _authproof_receipt()
+    for bad in ("zz-not-hex", {"k": "v"}, 42, None, "abc"):
+        forged = json.loads(json.dumps(base))
+        forged["signature"] = bad
+        assert verify(forged, ADAPTERS).verdict != "PASS"
+
+
+def test_es256_malformed_key_and_sig_fail_closed() -> None:
+    """ES256 verify returns FAIL (never raises) on a bad point or a wrong-length signature."""
+    assert crypto.verify_es256(b"\x00" * 10, b"m", b"\x00" * 64)[0] == crypto.FAIL
+    pk = AuthproofAdapter().resolve_key(_authproof_receipt(), None)[0]
+    assert crypto.verify_es256(pk, b"m", b"\x00" * 10)[0] == crypto.FAIL

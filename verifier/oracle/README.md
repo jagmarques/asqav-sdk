@@ -46,6 +46,10 @@ AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
   `previous_receipt_hash`; the chain hash EXCLUDES the signature, per the AERF
   spec (the agentmint reference producer includes it; this adapter targets the
   spec).
+- **authproof** - ES256 (ECDSA P-256 / SHA-256) over insertion-order
+  `JSON.stringify` of the receipt minus its `signature`, hex raw r||s, signer key
+  embedded as a P-256 JWK. Targets the shipping JS SDK; the bundled draft and the
+  repo's Python SDK both diverge (see `conformance-vectors/UPSTREAM.md`).
 
 ## Use
 

@@ -1,0 +1,6 @@
+{
+  "format": "authproof",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Signature first byte flipped; ECDSA verify fails."
+}

@@ -57,6 +57,11 @@ python -m oracle.runner          # from the verifier/ directory
 - `agentreceipts-up-*` - upstream agent-receipts vectors (six malformed
   single-field mutations, a tampered chain, and two upstream-keypair PASS
   cases). See `UPSTREAM.md`.
+- `authproof-01-genesis-real-sdk` - a receipt minted by the real Authproof JS
+  SDK (ES256 over insertion-order `JSON.stringify`, embedded P-256 JWK); a
+  cross-implementation interop PASS. `authproof-02/03` are its forged-signature
+  and tampered-scope negatives. The signer key is embedded, so no key file. See
+  `UPSTREAM.md`.
 
 The keys are generated from fixed seeds so the vectors are reproducible. AERF
 public keys are derived per spec as the first 16 hex of `SHA-256(pubkey)`.

@@ -264,5 +264,26 @@
     "outcome": "PASS",
     "reason_code": "",
     "notes": "Successor signed with the upstream keypair; previous_receipt_hash rederives from sha256:hex(JCS(genesis without proof))."
+  },
+  {
+    "dir": "authproof-01-genesis-real-sdk",
+    "format": "authproof",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Receipt minted by the real Authproof JS SDK; ES256 over insertion-order JSON.stringify, hex raw r||s, embedded P-256 JWK. Cross-implementation interop proof."
+  },
+  {
+    "dir": "authproof-02-forged-sig",
+    "format": "authproof",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Signature first byte flipped; ECDSA verify fails."
+  },
+  {
+    "dir": "authproof-03-tampered-scope",
+    "format": "authproof",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Scope changed after signing; signature no longer covers the bytes."
   }
 ]
