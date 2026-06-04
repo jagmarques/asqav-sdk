@@ -6,9 +6,11 @@ The corpus uses the AERF dir-per-vector layout as a superset: a top-level
 ``predecessor.json`` for chain vectors, and optional key material (``jwks.json``
 for Asqav-native, ``keys.json`` mapping key_id->hex for AERF).
 
-``outcome`` is mapped to the oracle verdict: PASS -> verdict PASS, FAIL -> verdict
-FAIL. ``run_corpus`` returns one ``VectorOutcome`` per vector so callers (pytest
-or the CLI) can assert pass/fail counts.
+``outcome`` maps to the verdict one-for-one (PASS/FAIL/INCOMPLETE). INCOMPLETE
+lets the corpus carry a vector whose signature axis cannot be checked in CI (a
+real ML-DSA-65 prod receipt without dilithium-py), pinning that the verifier
+downgrades rather than false-PASSing. ``run_corpus`` returns one ``VectorOutcome``
+per vector so callers can assert counts.
 """
 from __future__ import annotations
 
@@ -20,7 +22,7 @@ from . import ADAPTERS
 from .core import verify
 
 #: manifest outcome token -> the VerifyResult.verdict it must produce.
-_OUTCOME_TO_VERDICT = {"PASS": "PASS", "FAIL": "FAIL"}
+_OUTCOME_TO_VERDICT = {"PASS": "PASS", "FAIL": "FAIL", "INCOMPLETE": "INCOMPLETE"}
 
 
 @dataclass(frozen=True)
@@ -29,9 +31,10 @@ class VectorOutcome:
 
     Fields:
       dir: the vector directory name.
-      expected_outcome: the manifest's PASS / FAIL outcome.
+      expected_outcome: the manifest's PASS / FAIL / INCOMPLETE outcome.
       actual_verdict: the oracle's PASS / FAIL / INCOMPLETE verdict.
       ok: True when the actual verdict matches the expected outcome.
+      reason_code: the manifest reason_code for this vector.
       detail: per-axis notes for a failing match.
     """
 
@@ -39,6 +42,7 @@ class VectorOutcome:
     expected_outcome: str
     actual_verdict: str
     ok: bool
+    reason_code: str
     detail: str
 
 
@@ -59,7 +63,7 @@ def _key_provider(vec_dir: Path, fmt: str):
     return None
 
 
-def run_one(vec_dir: Path, fmt: str, expected_outcome: str) -> VectorOutcome:
+def run_one(vec_dir: Path, fmt: str, expected_outcome: str, reason_code: str = "") -> VectorOutcome:
     """Run a single vector directory and compare against its expected outcome."""
     receipt = _load(vec_dir / "receipt.json")
     predecessor = _load(vec_dir / "predecessor.json")
@@ -69,7 +73,7 @@ def run_one(vec_dir: Path, fmt: str, expected_outcome: str) -> VectorOutcome:
     want_verdict = _OUTCOME_TO_VERDICT.get(expected_outcome)
     ok = want_verdict is not None and result.verdict == want_verdict
     detail = "; ".join(f"{a.axis}={a.result}({a.note})" for a in result.axes)
-    return VectorOutcome(vec_dir.name, expected_outcome, result.verdict, ok, detail)
+    return VectorOutcome(vec_dir.name, expected_outcome, result.verdict, ok, reason_code, detail)
 
 
 def run_corpus(corpus_root: Path) -> list[VectorOutcome]:
@@ -78,9 +82,18 @@ def run_corpus(corpus_root: Path) -> list[VectorOutcome]:
     out = []
     for entry in manifest:
         out.append(
-            run_one(corpus_root / entry["dir"], entry["format"], entry["outcome"])
+            run_one(corpus_root / entry["dir"], entry["format"], entry["outcome"], entry.get("reason_code", ""))
         )
     return out
+
+
+def _tolerated(outcome: VectorOutcome) -> bool:
+    """Accept the stronger PASS only for the optional-dep ML-DSA skip vector, never broadly."""
+    return outcome.ok or (
+        outcome.expected_outcome == "INCOMPLETE"
+        and outcome.actual_verdict == "PASS"
+        and outcome.reason_code == "signature_skipped_no_dilithium"
+    )
 
 
 def main() -> int:
@@ -88,11 +101,11 @@ def main() -> int:
     root = Path(__file__).resolve().parent.parent / "conformance-vectors"
     results = run_corpus(root)
     for r in results:
-        mark = "ok" if r.ok else "FAIL"
+        mark = "ok" if _tolerated(r) else "FAIL"
         print(f"  [{mark:>4}] {r.dir:<28} expect={r.expected_outcome:<5} got={r.actual_verdict}")
-        if not r.ok:
+        if not _tolerated(r):
             print(f"         {r.detail}")
-    passed = sum(1 for r in results if r.ok)
+    passed = sum(1 for r in results if _tolerated(r))
     print(f"\n  => {passed}/{len(results)} vectors matched expected outcome")
     return 0 if passed == len(results) else 1
 

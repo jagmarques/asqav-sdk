@@ -28,6 +28,13 @@
     "notes": "decision flipped after signing; signature no longer matches the canonical payload."
   },
   {
+    "dir": "asqav-05-hash-mode-prod",
+    "format": "asqav-native",
+    "outcome": "INCOMPLETE",
+    "reason_code": "signature_skipped_no_dilithium",
+    "notes": "Real default-mode prod /sign receipt; the reconstructed signing input byte-matches the prod-signed message and ML-DSA-65 verifies with dilithium-py. Absent that optional dep the signature axis SKIPs, so the verdict is INCOMPLETE, proving the verifier never false-PASSes the post-quantum path it cannot check."
+  },
+  {
     "dir": "aerf-01-genesis",
     "format": "aerf",
     "outcome": "PASS",
