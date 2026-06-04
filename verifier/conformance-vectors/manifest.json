@@ -152,5 +152,110 @@
     "outcome": "PASS",
     "reason_code": "",
     "notes": "Upstream documents this as a residual: all three signers (issuer, parent, PDP) saw the same poisoned upstream context and signed honestly, so every signature verifies. The receipt records what was attested, not whether the context was sound; our verifier reaches the same PASS the upstream verifier does. Mapped to PASS because every signature genuinely verifies, not a relabel."
+  },
+  {
+    "dir": "agentreceipts-01-didkey-genesis",
+    "format": "agentreceipts",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "did:key genesis; key resolves inline, signature verifies, previous_receipt_hash explicit null."
+  },
+  {
+    "dir": "agentreceipts-02-didkey-chain-link",
+    "format": "agentreceipts",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Successor links via sha256:hex(JCS(predecessor without proof)); signature verifies."
+  },
+  {
+    "dir": "agentreceipts-03-tamper-payload",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "action.type mutated after signing; canonical bytes no longer match the signature."
+  },
+  {
+    "dir": "agentreceipts-04-tamper-proofvalue",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Single proofValue byte flipped; Ed25519 verification fails."
+  },
+  {
+    "dir": "agentreceipts-05-genesis-missing-prev-hash",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "schema",
+    "notes": "previous_receipt_hash omitted; spec requires it present (null on genesis), so the receipt is malformed."
+  },
+  {
+    "dir": "agentreceipts-06-wrong-key",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "verificationMethod resolves (via the injected map) to a different valid Ed25519 key than the signer; signature fails."
+  },
+  {
+    "dir": "agentreceipts-up-00-valid-resigned",
+    "format": "agentreceipts",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream malformed-corpus base receipt re-signed cleanly with the upstream keypair; signature verifies over jcs_rfc8785 bytes."
+  },
+  {
+    "dir": "agentreceipts-up-01-wrong-proof-type",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "schema",
+    "notes": "Upstream malformed vector: proof.type is not Ed25519Signature2020."
+  },
+  {
+    "dir": "agentreceipts-up-02-mutated-action-type",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream malformed vector: action.type mutated after signing."
+  },
+  {
+    "dir": "agentreceipts-up-03-mutated-principal-id",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream malformed vector: principal.id mutated after signing."
+  },
+  {
+    "dir": "agentreceipts-up-04-truncated-proof-value",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream malformed vector: proofValue truncated to its multibase prefix; empty signature bytes."
+  },
+  {
+    "dir": "agentreceipts-up-05-wrong-multibase-prefix",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream malformed vector: proofValue uses base58 'z' not base64url 'u'; signature bytes do not decode to the real signature."
+  },
+  {
+    "dir": "agentreceipts-up-06-flipped-proof-byte",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream malformed vector: Single proofValue byte mutated; Ed25519 verification fails."
+  },
+  {
+    "dir": "agentreceipts-up-07-tampered-mid-chain",
+    "format": "agentreceipts",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream tampered-chain vector: the middle receipt was mutated after signing, so its own issuer signature no longer matches; ingested against its valid predecessor."
+  },
+  {
+    "dir": "agentreceipts-up-08-valid-chain-link",
+    "format": "agentreceipts",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Successor signed with the upstream keypair; previous_receipt_hash rederives from sha256:hex(JCS(genesis without proof))."
   }
 ]

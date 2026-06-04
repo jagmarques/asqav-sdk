@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Successor links via sha256:hex(JCS(predecessor without proof)); signature verifies."
+}
