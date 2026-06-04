@@ -182,7 +182,7 @@ def test_corpus_runs_and_every_vector_matches() -> None:
     assert not failures, f"corpus mismatches: {[(r.dir, r.actual_verdict) for r in failures]}"
 
 
-# --- ACTA adapter + cross-format-confusion gate (rule 4.9 clause 3) ---
+# --- ACTA adapter + cross-format confusion ---
 
 from oracle.adapters.acta import ActaAdapter  # noqa: E402
 
@@ -270,7 +270,7 @@ def test_acta_genesis_spoof_breaks_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-# --- adversarial negatives on the trust path (rule 4.9 clause 3) ---
+# --- adversarial negatives on the trust path ---
 
 import unicodedata  # noqa: E402
 
@@ -434,8 +434,8 @@ def test_agentreceipts_issuer_must_control_signing_key_no_impersonation() -> Non
     sig = sk.sign(AgentReceiptsAdapter().signing_input(forged))
     forged["proof"]["proofValue"] = "u" + urlsafe_b64encode(sig).decode().rstrip("=")
     res = verify(forged, ADAPTERS, key_provider={vm: pk.hex()})
-    assert res.axis("signature").result == crypto.PASS  # the attacker's signature is cryptographically valid
-    assert res.axis("structure").result == crypto.FAIL  # but the signing-key DID is not the issuer
+    assert res.axis("signature").result == crypto.PASS  # attacker's sig is cryptographically valid
+    assert res.axis("structure").result == crypto.FAIL  # but signing-key DID != issuer
     assert res.verdict == "FAIL"
 
 
@@ -503,3 +503,64 @@ def test_b58btc_decode_known_value() -> None:
     decoded = b58btc_decode("6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw")
     assert decoded[:2] == b"\xed\x01"
     assert decoded[2:].hex() == "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+
+
+# --- Asqav-native hash mode + real-prod ground truth ---
+
+from oracle.canonical import asqav_jcs  # noqa: E402
+
+_PROD_HASH = _CORPUS / "asqav-05-hash-mode-prod"
+
+
+def test_asqav_jcs_byte_matches_verify_receipt_canonical_json() -> None:
+    """Cloud-parity anchor: the native canonicaliser equals the cloud signer's bytes."""
+    samples = [
+        {"b": 2, "a": 1, "z": {"y": 3, "x": [1, 2]}},
+        {"mode": "hash", "v": 1, "metadata": {}, "policy_digest": None},
+        _ar("agentreceipts-01-didkey-genesis"),
+    ]
+    for obj in samples:
+        assert asqav_jcs(obj) == _vr.canonical_json(obj)
+
+
+def test_hash_mode_receipt_routes_to_asqav_native() -> None:
+    """A real prod hash-mode receipt detects as asqav-native and no other adapter claims it."""
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    a, e, c, g = AsqavNativeAdapter(), AerfAdapter(), ActaAdapter(), AgentReceiptsAdapter()
+    assert (a.detect(doc), e.detect(doc), c.detect(doc), g.detect(doc)) == (True, False, False, False)
+    assert verify(doc, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native")).fmt == "asqav-native"
+
+
+def test_hash_mode_signing_input_byte_matches_prod_message() -> None:
+    """The reconstructed hash-mode signing input is byte-identical to the prod-signed bytes."""
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    ground_truth = (_PROD_HASH / "signed_message.bytes").read_bytes()
+    rebuilt = AsqavNativeAdapter().signing_input(doc)
+    assert rebuilt == ground_truth
+    import hashlib
+
+    assert hashlib.sha256(rebuilt).hexdigest() == (
+        "f1011f5e493bf8f3f6fa7baa660aab6be2e0bbf925d852672e67155f08b4f0b3"
+    )
+
+
+def test_hash_mode_signature_skips_without_dilithium_never_false_pass() -> None:
+    """Without dilithium-py the ML-DSA-65 axis SKIPs; the verdict is INCOMPLETE, never PASS."""
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    res = verify(doc, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
+    assert res.fmt == "asqav-native"
+    assert res.axis("structure").result == crypto.PASS
+    assert res.axis("signature").result in (crypto.PASS, crypto.SKIPPED)
+    assert res.verdict in ("PASS", "INCOMPLETE")
+    assert res.verdict != "FAIL"
+
+
+def test_hash_mode_malformed_signature_fails_does_not_crash() -> None:
+    """A malformed hash-mode signature (non-string) verifies to a non-PASS, never raises."""
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    for bad in ({"not": "a string"}, 12345, ["x"]):
+        forged = json.loads(json.dumps(doc))
+        forged.pop("signature_b64", None)
+        forged["signature"] = bad
+        res = verify(forged, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
+        assert res.verdict != "PASS"
