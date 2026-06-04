@@ -44,6 +44,16 @@ _STRIP = ("signature", "timestamp", "parent_signature", "parent_key_id", "log_in
 _SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 
+def _safe_hex(value: Any) -> bytes:
+    """Decode a hex string; b'' on any malformed input so verify FAILs, never crashes."""
+    if not isinstance(value, str):
+        return b""
+    try:
+        return bytes.fromhex(value)
+    except ValueError:
+        return b""
+
+
 def _signable(doc: dict) -> dict:
     return {k: v for k, v in doc.items() if k not in _STRIP}
 
@@ -60,7 +70,7 @@ def _resolve_raw(key_provider: Any, kid: str) -> bytes | None:
     material = (key_provider or {}).get(kid)
     if material is None:
         return None
-    return _raw_ed25519(material if isinstance(material, bytes) else bytes.fromhex(material))
+    return _raw_ed25519(material if isinstance(material, bytes) else _safe_hex(material))
 
 
 class AerfAdapter(FormatAdapter):
@@ -73,7 +83,7 @@ class AerfAdapter(FormatAdapter):
 
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         return SignatureMaterial(
-            sig=bytes.fromhex(doc.get("signature", "")),
+            sig=_safe_hex(doc.get("signature", "")),
             alg="Ed25519",
             kid=doc.get("key_id", ""),
         )
@@ -84,7 +94,7 @@ class AerfAdapter(FormatAdapter):
         material = keys.get(kid)
         if material is None:
             return None, f"key_id {kid!r} not supplied to the key provider"
-        raw = _raw_ed25519(material if isinstance(material, bytes) else bytes.fromhex(material))
+        raw = _raw_ed25519(material if isinstance(material, bytes) else _safe_hex(material))
         return raw, f"resolved key_id {kid}"
 
     def signing_input(self, doc: dict) -> bytes:
@@ -139,7 +149,7 @@ class AerfAdapter(FormatAdapter):
         pk = _resolve_raw(key_provider, doc.get("parent_key_id", ""))
         if pk is None:
             return ("parent_signature", SKIPPED, "parent_key_id not supplied to the key provider")
-        res, why = verify_signature("Ed25519", pk, self.signing_input(doc), bytes.fromhex(sig_hex))
+        res, why = verify_signature("Ed25519", pk, self.signing_input(doc), _safe_hex(sig_hex))
         note = "parent counter-signature valid" if res == PASS else f"parent signature verification FAILED: {why}"
         return ("parent_signature", res, note)
 
@@ -159,6 +169,6 @@ class AerfAdapter(FormatAdapter):
                 "policy_hash": doc.get("policy_hash"),
             }
         )
-        res, why = verify_signature("Ed25519", pk, tuple_bytes, bytes.fromhex(sig_hex))
+        res, why = verify_signature("Ed25519", pk, tuple_bytes, _safe_hex(sig_hex))
         note = "pdp binding valid" if res == PASS else f"pdp signature verification FAILED: {why}"
         return ("pdp_signature", res, note)
