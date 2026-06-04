@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream malformed-corpus base receipt re-signed cleanly with the upstream keypair; signature verifies over jcs_rfc8785 bytes."
+}

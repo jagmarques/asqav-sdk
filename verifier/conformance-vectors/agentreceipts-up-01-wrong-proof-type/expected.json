@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "schema",
+  "notes": "Upstream malformed vector: proof.type is not Ed25519Signature2020."
+}

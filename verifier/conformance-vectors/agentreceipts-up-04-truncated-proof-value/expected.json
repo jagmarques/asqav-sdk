@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Upstream malformed vector: proofValue truncated to its multibase prefix; empty signature bytes."
+}
