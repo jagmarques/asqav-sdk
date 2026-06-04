@@ -1,0 +1,20 @@
+{
+  "id": "0c685084-fd28-4225-88c5-bb0c4e34037a",
+  "type": "notarised_evidence",
+  "plan_id": "6511d195-ba83-4d81-829a-c14c48e10294",
+  "agent": "claims-agent",
+  "action": "finance:disburse:tx-strip",
+  "in_policy": true,
+  "policy_reason": "matched scope finance:disburse:*",
+  "evidence": {
+    "tool": "disburse",
+    "amount": "300.00"
+  },
+  "evidence_hash_sha512": "ea6945118042206c1fd9afa11c8d07f5728104d37d80fa3fb196a7411c47335b88e106a0b0ba0572ec7429977528a07a21a8c32a58c18497c7866bb0e8056c0c",
+  "observed_at": "2026-05-11T12:00:00+00:00",
+  "key_id": "2ff7c1c638d85244",
+  "_stripped_tags": [
+    "FINANCE-DISBURSEMENT"
+  ],
+  "signature": "7e06ee485aeaa9905c1789718e9b478e92e94471f5e0c2bfac6e66451b5423f7cdb97594e9ef8b8bd228a2d916ee303c700bbb6c13a28199a808e6c7d6d3dd04"
+}

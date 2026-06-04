@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream documents this as a residual: all three signers (issuer, parent, PDP) saw the same poisoned upstream context and signed honestly, so every signature verifies. The receipt records what was attested, not whether the context was sound; our verifier reaches the same PASS the upstream verifier does. Mapped to PASS because every signature genuinely verifies, not a relabel."
+}

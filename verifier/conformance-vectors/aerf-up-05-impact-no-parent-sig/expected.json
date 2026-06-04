@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "FAIL",
+  "reason_code": "parent_signature",
+  "notes": "Upstream impact receipt missing its required parent counter-signature; impact_tags is non-empty so the parent_signature axis fails closed even though the issuer signature is valid."
+}

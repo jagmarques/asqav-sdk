@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Upstream tamper-in-chain vector; the middle receipt's evidence was mutated after signing, so that receipt's own issuer signature fails. Ingested as the mutated middle receipt with its valid predecessor; the chain link still rederives, the signature is what fails."
+}

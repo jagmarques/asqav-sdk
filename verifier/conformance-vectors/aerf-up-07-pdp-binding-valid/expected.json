@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream PDP-binding happy path; the PDP signature over the canonical {context_hash_sha256, in_policy, policy_hash} tuple verifies."
+}

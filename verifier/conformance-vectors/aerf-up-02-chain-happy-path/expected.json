@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream three-receipt chain; the final link verifies its signature and rederives previous_receipt_hash from its predecessor (signature excluded from the chain hash)."
+}
