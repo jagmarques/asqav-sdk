@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Valid genesis deny decision; signature verifies."
+}

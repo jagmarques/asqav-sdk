@@ -1,0 +1,23 @@
+{
+  "payload": {
+    "type": "protectmcp:decision",
+    "issued_at": "2026-05-04T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_demo_001",
+    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "payload_digest": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "deny",
+    "tool_name": "demo.action"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "asqav-oracle-vec-key",
+    "sig": "WidJSxXAYyzn6WxgYV2CkMwfbcwkF5a7SPCuRVJqcMqND/86ew7XVM080W2isSxoDKe4o1YmWCcg+Ln9rbsQAA=="
+  },
+  "anchors": []
+}
