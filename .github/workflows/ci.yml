@@ -11,6 +11,7 @@ jobs:
     outputs:
       python: ${{ steps.filter.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
+      verifier: ${{ steps.filter.outputs.verifier }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -24,6 +25,9 @@ jobs:
             typescript:
               - 'typescript/**'
               - 'conformance/**'
+              - '.github/workflows/ci.yml'
+            verifier:
+              - 'verifier/**'
               - '.github/workflows/ci.yml'
 
   python:
@@ -63,15 +67,33 @@ jobs:
       - run: npm test
         working-directory: typescript
 
+  verifier:
+    needs: changes
+    if: needs.changes.outputs.verifier == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install cryptography pytest ruff
+      - run: ruff check verifier/oracle
+      - run: pytest verifier/oracle -v --tb=short
+
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, typescript]
+    needs: [python, typescript, verifier]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
           echo "python=${{ needs.python.result }}"
           echo "typescript=${{ needs.typescript.result }}"
+          echo "verifier=${{ needs.verifier.result }}"
           [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
