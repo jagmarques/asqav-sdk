@@ -91,7 +91,23 @@ class AgentReceiptsAdapter(FormatAdapter):
         )
 
     def schema(self, doc: dict) -> tuple[str, str]:
-        required = ("@context", "id", "type", "issuer", "issuanceDate", "credentialSubject", "proof")
+        """Structural check; returns ``(result, note)``.
+
+        Issuer binding: the strict ``verificationMethod`` DID == ``issuer.id`` check is
+        intentionally stricter than the spec, which leaves controller indirection to DID
+        resolution the oracle does not perform. It is fail-closed and revisited when
+        DID-document resolution lands.
+        """
+        required = (
+            "@context",
+            "id",
+            "type",
+            "version",
+            "issuer",
+            "issuanceDate",
+            "credentialSubject",
+            "proof",
+        )
         missing = [f for f in required if f not in doc]
         if missing:
             return "FAIL", f"missing required VC fields: {','.join(missing)}"
