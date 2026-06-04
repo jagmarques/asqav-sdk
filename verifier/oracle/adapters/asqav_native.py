@@ -101,7 +101,7 @@ class AsqavNativeAdapter(FormatAdapter):
         if isinstance(sig_obj, str):
             sig_obj = {"alg": "ML-DSA-65", "kid": _payload(doc).get("issuer_id", ""), "sig": sig_obj}
         return SignatureMaterial(
-            sig=_vr._b64decode(sig_obj.get("sig", "")),
+            sig=_safe_b64(sig_obj.get("sig", "")),
             alg=sig_obj.get("alg", "ML-DSA-65"),
             kid=sig_obj.get("kid", ""),
         )
