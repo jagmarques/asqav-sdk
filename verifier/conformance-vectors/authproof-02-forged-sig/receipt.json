@@ -1,0 +1,20 @@
+{
+  "delegationId": "auth-1780609788582-vktlb",
+  "issuedAt": "2026-06-04T21:49:48.582Z",
+  "scope": "Search the web for public info.",
+  "boundaries": "Do not send emails.",
+  "timeWindow": {
+    "start": "2026-06-04T21:49:48.582Z",
+    "end": "2026-06-05T01:49:48.582Z"
+  },
+  "operatorInstructions": "Cite every claim.",
+  "instructionsHash": "be7ee51a1d624620cb2792ff1351f1a9ab411e47cfb301d9c1578faad45cff47",
+  "signerPublicKey": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "yMVhXZILz_GGg8wwWuea3gOYkTvvYwzM42bgY5k_zgM",
+    "y": "KeSjl2d1A6yOlxVhMvaiMmB07ze7DBRc16HgZU_4fE8"
+  },
+  "agentId": "agent-007",
+  "signature": "252657d7c58354549f6ec8fb9f3d467467efa97f5cb6564d8a379ad4259ea6e8c5a4bb9b376dd528a105ec70129664b868e00fd1fb40d689b7279276febdb164"
+}
