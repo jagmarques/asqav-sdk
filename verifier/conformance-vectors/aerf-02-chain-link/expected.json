@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Second receipt; signature verifies and previous_receipt_hash rederives from the predecessor signable payload (signature excluded, per spec)."
+}

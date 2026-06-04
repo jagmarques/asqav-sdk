@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Valid genesis permit; Ed25519 signature over canonical payload verifies; all-zero previousReceiptHash seed."
+}
