@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream documents this as a residual the receipt layer cannot close: an agent that controls receipt construction can strip impact_tags before signing, so no counter-sign is required and the issuer signature verifies. Our verifier reaches the same PASS the upstream verifier does; the defense is producer-side tag pinning, outside the receipt bytes. Mapped to PASS because that is the honest outcome the bytes produce, not a relabel."
+}

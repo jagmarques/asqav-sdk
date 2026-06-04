@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream impact receipt with valid parent and PDP signatures; issuer, parent, and PDP axes all verify."
+}

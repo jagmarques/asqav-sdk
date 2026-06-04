@@ -91,6 +91,37 @@ def test_aerf_tampered_chain_fails_chain() -> None:
 
 
 @requires_ed25519
+def test_aerf_impact_without_parent_sig_fails() -> None:
+    """An impact receipt missing its required parent counter-signature FAILs that axis."""
+    doc = _load("aerf-up-05-impact-no-parent-sig", "receipt.json")
+    res = verify(doc, ADAPTERS, key_provider=_provider("aerf-up-05-impact-no-parent-sig", "aerf"))
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.PASS
+    assert res.axis("parent_signature").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_aerf_pdp_split_context_fails() -> None:
+    """A PDP verdict signed for one context cannot bind a receipt claiming another."""
+    doc = _load("aerf-up-08-pdp-binding-split-context", "receipt.json")
+    res = verify(doc, ADAPTERS, key_provider=_provider("aerf-up-08-pdp-binding-split-context", "aerf"))
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.PASS
+    assert res.axis("pdp_signature").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_aerf_required_layer_without_key_is_incomplete_never_pass() -> None:
+    """A required counter-sign axis whose key is not supplied SKIPs and downgrades to INCOMPLETE, never PASS."""
+    doc = _load("aerf-up-07-pdp-binding-valid", "receipt.json")
+    keys = dict(_provider("aerf-up-07-pdp-binding-valid", "aerf"))
+    keys.pop("dfe937603b2f3312", None)  # drop the PDP key so the axis cannot be checked
+    res = verify(doc, ADAPTERS, key_provider=keys)
+    assert res.axis("pdp_signature").result == crypto.SKIPPED
+    assert res.verdict == "INCOMPLETE"
+
+
+@requires_ed25519
 def test_asqav_native_valid_receipt_passes() -> None:
     doc = _load("asqav-01-genesis-permit", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native"))
@@ -145,7 +176,7 @@ def test_signature_skips_downgrade_to_incomplete() -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 12
+    assert len(results) == 22
     failures = [r for r in results if not r.ok]
     assert not failures, f"corpus mismatches: {[(r.dir, r.actual_verdict) for r in failures]}"
 

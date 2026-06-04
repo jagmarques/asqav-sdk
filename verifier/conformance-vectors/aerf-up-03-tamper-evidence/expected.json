@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Upstream tamper vector; the action field was mutated after signing, so the issuer signature no longer matches."
+}
