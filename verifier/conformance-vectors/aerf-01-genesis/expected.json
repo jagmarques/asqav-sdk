@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Valid genesis: Ed25519 signature over JCS payload verifies; previous_receipt_hash omitted."
+}

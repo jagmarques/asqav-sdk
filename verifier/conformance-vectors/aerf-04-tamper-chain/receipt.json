@@ -1,0 +1,19 @@
+{
+  "id": "33333333-3333-4333-8333-333333333333",
+  "type": "notarised_evidence",
+  "plan_id": "22222222-2222-4222-8222-222222222222",
+  "agent": "claims-agent",
+  "action": "submit:claim:CLM-1002",
+  "in_policy": true,
+  "policy_reason": "matched scope submit:claim:*",
+  "evidence_hash_sha512": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "evidence": {
+    "tool": "submit-claim",
+    "claim_id": "CLM-1002",
+    "amount": 750.0
+  },
+  "observed_at": "2026-06-01T10:05:00+00:00",
+  "key_id": "10ba682c8ad13513",
+  "previous_receipt_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signature": "ac9fee0ccd9cf070025b1c7befa909fc7e6885613e64111550efa0eaf11859f2b86563a13eacc2f00b4e3745eec9bf46503c102c94b2a6e95a5fb3e2f1043407"
+}
