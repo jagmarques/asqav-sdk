@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "verificationMethod resolves (via the injected map) to a different valid Ed25519 key than the signer; signature fails."
+}

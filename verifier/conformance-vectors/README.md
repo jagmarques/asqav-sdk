@@ -14,6 +14,8 @@ manifest.json                  array of {dir, format, outcome, reason_code, note
   predecessor.json             (chain vectors only) the prior receipt
   jwks.json                    (asqav-native) issuer key directory
   keys.json                    (aerf) {key_id: ed25519_pubkey_hex}
+  acta-keys.json               (acta) JWKS-shaped key set
+  did_map.json                 (agentreceipts) {did: ed25519_pubkey_hex} for did:agent / did:web
 ```
 
 `outcome` is `PASS` or `FAIL`; the runner maps it to the oracle verdict and
@@ -37,6 +39,19 @@ python -m oracle.runner          # from the verifier/ directory
   spec.
 - `aerf-03-tamper-evidence` - action mutated after signing; signature fails.
 - `aerf-04-tamper-chain` - `previous_receipt_hash` mutated; chain fails.
+- `acta-01..05` - ACTA genesis, chain link, tampered signature, and an
+  unsupported commitment-mode receipt that fails the baseline verifier.
+- `aerf-up-*` - upstream-derived AERF vectors (see `UPSTREAM.md`).
+- `agentreceipts-01..06` - W3C-VC AgentReceipt: did:key genesis (key resolves
+  inline), chain link, tampered payload, tampered proofValue, a genesis missing
+  `previous_receipt_hash` (malformed), and a wrong-DID signature mismatch.
+- `agentreceipts-up-*` - upstream agent-receipts vectors (six malformed
+  single-field mutations, a tampered chain, and two upstream-keypair PASS
+  cases). See `UPSTREAM.md`.
 
 The keys are generated from fixed seeds so the vectors are reproducible. AERF
 public keys are derived per spec as the first 16 hex of `SHA-256(pubkey)`.
+AgentReceipt did:key receipts need no key file - the resolver decodes the key
+from the `did:key` identifier; did:agent / did:web vectors carry `did_map.json`.
+Vector provenance, the upstream commit SHAs, and the re-signing of the
+agent-receipts PASS vectors with the upstream keypair are recorded in `UPSTREAM.md`.
