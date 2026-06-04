@@ -1,0 +1,41 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://agentreceipts.ai/context/v1"
+  ],
+  "id": "urn:receipt:11111111-0000-4000-8000-000000000001",
+  "type": [
+    "VerifiableCredential",
+    "AgentReceipt"
+  ],
+  "version": "0.1.0",
+  "issuer": {
+    "id": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw"
+  },
+  "issuanceDate": "2026-05-04T12:00:00Z",
+  "credentialSubject": {
+    "principal": {
+      "id": "did:user:alice"
+    },
+    "action": {
+      "id": "act_00000000-0000-0000-0000-000000000001",
+      "type": "filesystem.file.read",
+      "risk_level": "low",
+      "timestamp": "2026-05-04T12:00:00Z"
+    },
+    "outcome": {
+      "status": "success"
+    },
+    "chain": {
+      "sequence": 1,
+      "chain_id": "chain_didkey_demo"
+    }
+  },
+  "proof": {
+    "type": "Ed25519Signature2020",
+    "created": "2026-05-04T12:00:00Z",
+    "verificationMethod": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw#z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "u0RGtoFwGVVgZ-t0mwsvN5ikthL-eMOswR2UnMuAbMrCO48kBPHlWrDR21sF4LWMV1Ng7VDRzOp5c3xTMFwXIDA"
+  }
+}

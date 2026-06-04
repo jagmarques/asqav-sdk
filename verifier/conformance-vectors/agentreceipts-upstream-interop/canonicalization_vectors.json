@@ -1,0 +1,523 @@
+{
+  "$comment": "Cross-SDK canonicalisation test vectors for ADR-0009. Each vector under canonicalization_vectors asserts that SDK.canonicalize(input) produces canonical byte-for-byte. Each vector under receipt_hash_vectors asserts that SDK.hashReceipt(receipt) produces expectedHash; these vectors exercise the Rule 2 null-normalisation in addition to the raw canonicaliser. NOTE: the `receipt` field on some vectors intentionally carries schema-INVALID caller input (e.g. optional fields set to null) in order to exercise the SDK's pre-serialization normalisation sweep; such vectors are marked `preNormalizationInput: true`. They are not conformant receipts and must never be emitted as-is. All strings are UTF-8.",
+  "schemaVersion": "0.2.1",
+  "adr": "docs/adr/0009-canonicalization-and-schema-consistency.md",
+
+  "canonicalization_vectors": [
+    {
+      "name": "empty_object",
+      "rule": "baseline",
+      "description": "Empty object serialises to {}.",
+      "input": {},
+      "canonical": "{}"
+    },
+    {
+      "name": "empty_array",
+      "rule": "baseline",
+      "description": "Empty array serialises to [].",
+      "input": [],
+      "canonical": "[]"
+    },
+    {
+      "name": "sort_ascii",
+      "rule": "rule1_key_sort",
+      "description": "ASCII key order — baseline.",
+      "input": { "b": 1, "a": 2, "c": 3 },
+      "canonical": "{\"a\":2,\"b\":1,\"c\":3}"
+    },
+    {
+      "name": "sort_ascii_nested",
+      "rule": "rule1_key_sort",
+      "description": "Recursive key sort at all depths.",
+      "input": { "b": { "z": 1, "a": 2 }, "a": 3 },
+      "canonical": "{\"a\":3,\"b\":{\"a\":2,\"z\":1}}"
+    },
+    {
+      "name": "sort_bmp_at_ascii_boundary",
+      "rule": "rule1_key_sort",
+      "description": "U+007F (DEL) vs U+0080 (C1 control) — both below the UTF-16-LE byte-order bug threshold; catches the Go UTF-8-byte-sort bug (#82) since the UTF-8 encoding of U+0080 is 0xC2 0x80 (two bytes, leading 0xC2), whereas 0x7F is one byte (0x7F). Sort by UTF-16 code units: 0x007F < 0x0080.",
+      "input": { "\u0080": 2, "\u007f": 1 },
+      "canonical": "{\"\u007f\":1,\"\u0080\":2}"
+    },
+    {
+      "name": "sort_bmp_above_00ff",
+      "rule": "rule1_key_sort",
+      "description": "U+00FF (ÿ) vs U+0100 (Ā) — catches the Python UTF-16-LE byte-order bug (#86). UTF-16-LE bytes: 0xFF 0x00 vs 0x00 0x01 → byte sort puts 0x00 0x01 (Ā) first, which is WRONG. UTF-16 code-unit sort: 0x00FF < 0x0100 → ÿ first, which is correct.",
+      "input": { "\u0100": 2, "\u00ff": 1 },
+      "canonical": "{\"\u00ff\":1,\"\u0100\":2}"
+    },
+    {
+      "name": "sort_supplementary_plane",
+      "rule": "rule1_key_sort",
+      "description": "🎉 (U+1F389) vs private-use U+E000. Code-point sort would put U+E000 < U+1F389 — wrong. UTF-16 sort: 🎉 encodes as surrogate pair 0xD83C 0xDF89, so the first code unit is 0xD83C which is less than 0xE000 → 🎉 sorts first.",
+      "input": { "\ue000": 1, "\ud83c\udf89": 2 },
+      "canonical": "{\"\ud83c\udf89\":2,\"\ue000\":1}"
+    },
+    {
+      "name": "parameters_disclosure_multikey_sort",
+      "rule": "rule1_key_sort",
+      "description": "Pins the canonical form of an action.parameters_disclosure map (ADR-0012 Phase A) with two keys. The field is a plain string\u2192string map and flows through the same canonicaliser as every other map, so this is a key-sort vector rather than a parameters_disclosure-specific rule. Input has insertion order user\u2192command; canonical output sorts to command\u2192user.",
+      "input": { "user": "ci", "command": "echo build" },
+      "canonical": "{\"command\":\"echo build\",\"user\":\"ci\"}",
+      "expectedHash": "sha256:c998221c9390ec1796069faaf6c8890b70ad6693bb3b01c4d01e7a84edcf5d24"
+    },
+    {
+      "name": "number_zero",
+      "rule": "rule4_numbers",
+      "description": "Positive zero.",
+      "input": 0,
+      "canonical": "0"
+    },
+    {
+      "name": "number_negative_zero",
+      "rule": "rule4_numbers",
+      "description": "-0 must serialise as 0 per RFC 8785. This vector uses JSON -0.0 (rather than -0) so standard decoders preserve IEEE 754 negative zero without requiring harness special-casing: Python json.loads, JavaScript JSON.parse, and Go json.Unmarshal into float64/interface{} all round-trip -0.0 as a float with a negative sign bit.",
+      "input": -0.0,
+      "canonical": "0"
+    },
+    {
+      "name": "number_integer_positive",
+      "rule": "rule4_numbers",
+      "description": "Integer value encoded as a number.",
+      "input": 42,
+      "canonical": "42"
+    },
+    {
+      "name": "number_integer_negative",
+      "rule": "rule4_numbers",
+      "description": "Negative integer.",
+      "input": -42,
+      "canonical": "-42"
+    },
+    {
+      "name": "number_simple_decimal",
+      "rule": "rule4_numbers",
+      "description": "Exact binary fraction — same repr across all SDKs.",
+      "input": 0.5,
+      "canonical": "0.5"
+    },
+    {
+      "name": "number_shortest_repr",
+      "rule": "rule4_numbers",
+      "description": "0.1 has no exact binary representation; ES6 Number.toString returns the shortest decimal that round-trips (0.1).",
+      "input": 0.1,
+      "canonical": "0.1"
+    },
+    {
+      "name": "number_fp_addition",
+      "rule": "rule4_numbers",
+      "description": "0.1 + 0.2 = 0.30000000000000004 under IEEE 754 double. Tests the shortest-round-trippable rule at full precision.",
+      "input": 0.30000000000000004,
+      "canonical": "0.30000000000000004"
+    },
+    {
+      "name": "number_small_exp_boundary_fixed",
+      "rule": "rule4_numbers",
+      "description": "1e-6 renders as fixed notation (0.000001) per ES6.",
+      "input": 1e-6,
+      "canonical": "0.000001"
+    },
+    {
+      "name": "number_small_exp_boundary_exp",
+      "rule": "rule4_numbers",
+      "description": "1e-7 crosses the ES6 exponential threshold (exp < -6) and renders as 1e-7 — NOT 1e-07, 0.0000001, or 1E-7. Pins sign and digit formatting.",
+      "input": 1e-7,
+      "canonical": "1e-7"
+    },
+    {
+      "name": "number_large_exp_boundary_fixed",
+      "rule": "rule4_numbers",
+      "description": "1e20 is at the boundary where ES6 still uses fixed notation (exp < 21).",
+      "input": 1e20,
+      "canonical": "100000000000000000000"
+    },
+    {
+      "name": "number_large_exp_boundary_exp",
+      "rule": "rule4_numbers",
+      "description": "1e21 crosses the ES6 exponential threshold and renders as 1e+21. The + is mandatory (not just 1e21).",
+      "input": 1e21,
+      "canonical": "1e+21"
+    },
+    {
+      "name": "number_2_to_53",
+      "rule": "rule4_numbers",
+      "description": "2^53 = 9007199254740992 is exactly representable in IEEE 754 and appears as an integer.",
+      "input": 9007199254740992,
+      "canonical": "9007199254740992"
+    },
+
+    {
+      "name": "string_empty",
+      "rule": "rule4_strings",
+      "description": "Empty string.",
+      "input": "",
+      "canonical": "\"\""
+    },
+    {
+      "name": "string_simple_ascii",
+      "rule": "rule4_strings",
+      "description": "Plain ASCII string.",
+      "input": "hello",
+      "canonical": "\"hello\""
+    },
+    {
+      "name": "string_escape_quote_and_backslash",
+      "rule": "rule4_strings",
+      "description": "Mandatory RFC 8259 escapes: \\\" and \\\\.",
+      "input": "a\"b\\c",
+      "canonical": "\"a\\\"b\\\\c\""
+    },
+    {
+      "name": "string_escape_control_chars",
+      "rule": "rule4_strings",
+      "description": "Control chars escape as per ES6 JSON.stringify: \\b, \\f, \\n, \\r, \\t for the named ones; \\u00XX for the rest. Pins specifically that U+0001 uses \\u0001 lowercase hex.",
+      "input": "\u0001\b\t\n\f\r",
+      "canonical": "\"\\u0001\\b\\t\\n\\f\\r\""
+    },
+    {
+      "name": "string_no_html_escape",
+      "rule": "rule4_strings",
+      "description": "Chars that Go's default json.Marshal HTML-escapes (<, >, &) MUST be emitted verbatim per RFC 8785. Catches the Go HTML-escape divergence (discovered during ADR-0009 review).",
+      "input": "<a href=\"x\">&amp;</a>",
+      "canonical": "\"<a href=\\\"x\\\">&amp;</a>\""
+    },
+    {
+      "name": "string_no_u2028_escape",
+      "rule": "rule4_strings",
+      "description": "U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR are valid JSON chars per RFC 8259 and RFC 8785 — emitted verbatim, NOT escaped. ES5 JSON.stringify escaped them; ES6+ does not. SDKs must track the ES6 behaviour.",
+      "input": "\u2028\u2029",
+      "canonical": "\"\u2028\u2029\""
+    },
+    {
+      "name": "string_bmp_non_ascii",
+      "rule": "rule4_strings",
+      "description": "Non-ASCII BMP chars are emitted verbatim (UTF-8 encoded in output), not escaped.",
+      "input": "ÿĀ",
+      "canonical": "\"ÿĀ\""
+    },
+    {
+      "name": "string_supplementary_plane",
+      "rule": "rule4_strings",
+      "description": "Supplementary-plane char emitted verbatim as the UTF-8 byte sequence for U+1F389 (F0 9F 8E 89).",
+      "input": "\ud83c\udf89",
+      "canonical": "\"\ud83c\udf89\""
+    },
+    {
+      "name": "bool_and_null",
+      "rule": "baseline",
+      "description": "Literals.",
+      "input": [true, false, null],
+      "canonical": "[true,false,null]"
+    },
+    {
+      "name": "deep_nesting",
+      "rule": "baseline",
+      "description": "Ten-level nesting of objects and arrays, pinning that recursion works end-to-end.",
+      "input": {
+        "a": { "b": { "c": { "d": { "e": { "f": { "g": { "h": { "i": { "j": 1 } } } } } } } } }
+      },
+      "canonical": "{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":{\"h\":{\"i\":{\"j\":1}}}}}}}}}}"
+    },
+    {
+      "name": "parameters_hash_ascii",
+      "rule": "rule4_parameters_hash",
+      "description": "mcp-proxy's parameters_hash must use RFC 8785 (#118). ASCII-only baseline: SHA-256 of the canonical bytes equals a known value. Note: ASCII cannot distinguish a conformant RFC 8785 canonicaliser from Go's `json.Marshal` shortcut — both sort ASCII keys identically. This vector only asserts parity with the known canonical bytes; the `parameters_hash_supplementary_vs_bmp` vector is what actually catches the Go bug. SDKs compute canonical bytes of `input` and assert `expectedHash` = sha256(canonical).",
+      "input": { "b": 2, "a": 1 },
+      "canonical": "{\"a\":1,\"b\":2}",
+      "expectedHash": "sha256:43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777"
+    },
+    {
+      "name": "parameters_hash_supplementary_vs_bmp",
+      "rule": "rule4_parameters_hash",
+      "description": "Supplementary-plane key (🎉, U+1F389) vs BMP key (U+E000). This pair genuinely diverges between UTF-8 byte sort and UTF-16 code-unit sort — it is the vector that catches Go's `json.Marshal` shortcut (#118). UTF-16 code-unit sort: 🎉's first code unit is 0xD83C < 0xE000, so 🎉 sorts first (RFC 8785 — correct). UTF-8 byte sort: 🎉 = F0 9F 8E 89 vs U+E000 = EE 80 80 — EE < F0, so U+E000 would sort first (Go's default — wrong). The canonical bytes and hash below commit to the RFC 8785 order.",
+      "input": { "\ue000": 1, "\ud83c\udf89": 2 },
+      "canonical": "{\"\ud83c\udf89\":2,\"\ue000\":1}",
+      "expectedHash": "sha256:772daaff8804fe0809691758cfc856914d39056ead9a8934756d84be94ddc55f"
+    }
+  ],
+
+  "receipt_hash_vectors": [
+    {
+      "name": "receipt_all_optional_absent",
+      "rule": "rule2_null_optional_absent",
+      "description": "A v0.2.1 receipt with no optional fields present. Canonical form is the minimum-size receipt; signature verifies. Serves as the baseline against which 'optional-null' vectors are compared.",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000001",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": { "id": "did:agent:test" },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000001",
+            "type": "filesystem.file.read",
+            "risk_level": "low",
+            "timestamp": "2026-04-22T00:00:00Z"
+          },
+          "outcome": { "status": "success" },
+          "chain": {
+            "sequence": 1,
+            "previous_receipt_hash": null,
+            "chain_id": "chain_test"
+          }
+        }
+      },
+      "expectedHash": "sha256:dc9a49a55e1d163b6cd72865a401fccd5af41358c2c769a27ca11fd348f51887"
+    },
+    {
+      "name": "receipt_optional_null_becomes_absent",
+      "rule": "rule2_null_optional_absent",
+      "preNormalizationInput": true,
+      "description": "INTENTIONALLY SCHEMA-INVALID caller input. The receipt below sets optional fields (action.trusted_timestamp, outcome.error) to null, which the tightened 0.2.1 schema forbids. It is never emitted on the wire — it only exists to exercise the SDK's pre-serialization normalisation sweep. The post-sweep canonicaliser MUST normalise null-valued optional fields to absent before hashing; the resulting canonical bytes MUST be identical to receipt_all_optional_absent. Pre-sweep Python does this (exclude_none); pre-sweep TS would include the null, producing a different hash — this vector catches that regression.",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000001",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": { "id": "did:agent:test" },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000001",
+            "type": "filesystem.file.read",
+            "risk_level": "low",
+            "timestamp": "2026-04-22T00:00:00Z",
+            "trusted_timestamp": null
+          },
+          "outcome": { "status": "success", "error": null },
+          "chain": {
+            "sequence": 1,
+            "previous_receipt_hash": null,
+            "chain_id": "chain_test"
+          }
+        }
+      },
+      "expectedHash": "SAME_AS_receipt_all_optional_absent"
+    },
+    {
+      "name": "receipt_parameters_disclosure_null_becomes_absent",
+      "rule": "rule2_null_optional_absent",
+      "preNormalizationInput": true,
+      "description": "INTENTIONALLY SCHEMA-INVALID caller input. action.parameters_disclosure is set to null, which the 0.2.1 schema (and ADR-0012 Phase A) forbids. The post-sweep canonicaliser MUST normalise null-valued optional fields to absent before hashing; the resulting canonical bytes MUST be identical to receipt_all_optional_absent. Mirrors receipt_optional_null_becomes_absent for the parameters_disclosure field specifically (regression test for ADR-0012 rollout).",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000001",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": { "id": "did:agent:test" },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000001",
+            "type": "filesystem.file.read",
+            "risk_level": "low",
+            "parameters_disclosure": null,
+            "timestamp": "2026-04-22T00:00:00Z"
+          },
+          "outcome": { "status": "success" },
+          "chain": {
+            "sequence": 1,
+            "previous_receipt_hash": null,
+            "chain_id": "chain_test"
+          }
+        }
+      },
+      "expectedHash": "SAME_AS_receipt_all_optional_absent"
+    },
+    {
+      "name": "receipt_required_null_preserved",
+      "rule": "rule2_null_required_preserved",
+      "description": "previous_receipt_hash is required-nullable; when null it MUST appear as \"previous_receipt_hash\":null in the canonical bytes. This vector is identical to receipt_all_optional_absent — included separately to document the required-nullable rule explicitly and pin a regression test against an SDK that accidentally drops it.",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000001",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": { "id": "did:agent:test" },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000001",
+            "type": "filesystem.file.read",
+            "risk_level": "low",
+            "timestamp": "2026-04-22T00:00:00Z"
+          },
+          "outcome": { "status": "success" },
+          "chain": {
+            "sequence": 1,
+            "previous_receipt_hash": null,
+            "chain_id": "chain_test"
+          }
+        }
+      },
+      "mustContainSubstring": "\"previous_receipt_hash\":null",
+      "expectedHash": "SAME_AS_receipt_all_optional_absent"
+    },
+    {
+      "name": "receipt_non_ascii_resource",
+      "rule": "rule1_key_sort_in_receipt",
+      "description": "credentialSubject.action.target.resource contains non-ASCII Unicode (literal UTF-8, no escaping). Exercises the key-sort rule at the receipt level — the other keys are ASCII but the SDK's canonicaliser must preserve this string verbatim and sort surrounding keys correctly.",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000002",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": { "id": "did:agent:test" },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000002",
+            "type": "filesystem.file.read",
+            "risk_level": "low",
+            "target": { "system": "local", "resource": "/tmp/αβγ-🎉.txt" },
+            "timestamp": "2026-04-22T00:00:00Z"
+          },
+          "outcome": { "status": "success" },
+          "chain": {
+            "sequence": 1,
+            "previous_receipt_hash": null,
+            "chain_id": "chain_test"
+          }
+        }
+      },
+      "expectedHash": "sha256:5cc599ef311452c60a89bb2f039ad9b66dd41655352b64f85c3a3498e35b09fd"
+    },
+    {
+      "name": "receipt_html_chars_in_resource",
+      "rule": "rule4_strings_no_html_escape",
+      "description": "credentialSubject.action.target.resource contains <, >, & — MUST NOT be HTML-escaped. Catches the Go json.Marshal HTML-escape bug (Rule 4 bonus).",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000003",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": { "id": "did:agent:test" },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000003",
+            "type": "http.request",
+            "risk_level": "low",
+            "target": { "system": "web", "resource": "https://example.com/?a=1&b=2&c=<x>" },
+            "timestamp": "2026-04-22T00:00:00Z"
+          },
+          "outcome": { "status": "success" },
+          "chain": {
+            "sequence": 1,
+            "previous_receipt_hash": null,
+            "chain_id": "chain_test"
+          }
+        }
+      },
+      "mustContainSubstring": "?a=1&b=2&c=<x>",
+      "expectedHash": "sha256:a22ce79feffb1707ea33cd67bf5e4deabedded574b7f3ed169b2e57568ca2849"
+    },
+    {
+      "name": "receipt_all_optional_present",
+      "rule": "rule2_optional_present_is_emitted",
+      "description": "A v0.2.1 receipt with every currently-defined optional field populated with a non-null value. Pins the canonical form of the 'maximal' receipt. Compare against receipt_all_optional_absent to confirm each optional field contributes a unique canonical-byte sequence.",
+      "receipt": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://agentreceipts.ai/context/v1"
+        ],
+        "id": "urn:receipt:00000000-0000-0000-0000-000000000004",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "0.2.1",
+        "issuer": {
+          "id": "did:agent:test",
+          "type": "AIAgent",
+          "name": "TestAgent",
+          "operator": { "id": "did:org:test", "name": "TestOrg" },
+          "model": "claude-opus-4-7",
+          "session_id": "sess-001"
+        },
+        "issuanceDate": "2026-04-22T00:00:00Z",
+        "credentialSubject": {
+          "principal": { "id": "did:user:test", "type": "HumanPrincipal" },
+          "action": {
+            "id": "act_00000000-0000-0000-0000-000000000004",
+            "type": "filesystem.file.read",
+            "tool_name": "Read",
+            "risk_level": "low",
+            "target": { "system": "local", "resource": "/tmp/x.txt" },
+            "parameters_hash": "sha256:43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777",
+            "parameters_disclosure": { "command": "echo build", "user": "ci" },
+            "timestamp": "2026-04-22T00:00:00Z"
+          },
+          "intent": {
+            "conversation_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "prompt_preview": "Read /tmp/x.txt",
+            "prompt_preview_truncated": false,
+            "reasoning_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "outcome": {
+            "status": "success",
+            "reversible": true,
+            "reversal_method": "fs:none",
+            "reversal_window_seconds": 0,
+            "state_change": {
+              "before_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "after_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            },
+            "response_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          "authorization": {
+            "scopes": ["fs:read:/tmp"],
+            "granted_at": "2026-04-22T00:00:00Z",
+            "expires_at": "2026-04-23T00:00:00Z",
+            "grant_ref": "grant-001"
+          },
+          "chain": {
+            "sequence": 2,
+            "previous_receipt_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "chain_id": "chain_test",
+            "terminal": true
+          }
+        }
+      },
+      "expectedHash": "sha256:9e43a72dab99b0104bfdd05cebe473281fdc84153a30841d2ea044ab991c1e29"
+    },
+    {
+      "name": "receipt_signature_preservation_legacy_0_2_0",
+      "rule": "signature_preservation",
+      "description": "The three-receipt terminalChain from cross-sdk-tests/v020_vectors.json was signed under the pre-sweep (0.2.0) canonicaliser. Running the post-sweep canonicaliser on the same unsigned bytes MUST produce identical canonical output, and the existing proof.proofValue MUST still verify. This is the signature-preservation invariant from ADR-0009 §4. Implementation: this vector reuses the v020 fixtures by reference; the test harness loads both files and asserts round-trip equality.",
+      "receiptsFrom": "cross-sdk-tests/v020_vectors.json#/terminalChain/receipts",
+      "invariant": "post-sweep canonicalize(unsigned(r)) == pre-sweep canonical bytes; verifySignature(r) == true"
+    }
+  ],
+
+  "notes_for_implementers": [
+    "All strings in this file are UTF-8. JSON unicode escapes (\\uXXXX) are equivalent to their literal characters after parsing — SDK test harnesses should parse the file with any standard JSON parser and compare bytes post-parse.",
+    "Fields marked expectedHash: 'SAME_AS_receipt_all_optional_absent' assert equality with the baseline vector; the test harness does not need a literal value, only the invariant.",
+    "Fields marked mustContainSubstring assert a substring appears in the canonical output — useful when the full canonical is verbose but one specific byte sequence is the thing being tested (e.g., that Go does not HTML-escape < and >).",
+    "Vectors marked preNormalizationInput: true carry schema-invalid caller input on purpose — they test the SDK's pre-serialization null→absent sweep. Do NOT attempt to schema-validate these `receipt` payloads; canonicalise and hash them and assert the invariant.",
+    "The number vectors rely on language-native IEEE 754 double-precision arithmetic. Each SDK should construct the test value from its numeric literal exactly as written in the input field; some JSON parsers may not round-trip -0 through JSON.parse, so implementations should hard-code -0 when the vector name is number_negative_zero rather than parsing it from this file.",
+    "The legacy 0.2.0 terminalChain in cross-sdk-tests/v020_vectors.json stays as-is (signature-preservation proof). New vectors added to v020_vectors.json (e.g. parametersDisclosureReceipt) and to this file use schemaVersion 0.2.1."
+  ]
+}

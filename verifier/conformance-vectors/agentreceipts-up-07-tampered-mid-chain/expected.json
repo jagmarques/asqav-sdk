@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Upstream tampered-chain vector: the middle receipt was mutated after signing, so its own issuer signature no longer matches; ingested against its valid predecessor."
+}
