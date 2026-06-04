@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "action field mutated after signing; Ed25519 signature no longer matches the canonical bytes."
+}

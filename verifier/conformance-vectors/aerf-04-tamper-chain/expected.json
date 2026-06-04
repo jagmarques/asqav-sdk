@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "FAIL",
+  "reason_code": "chain",
+  "notes": "previous_receipt_hash mutated; the link no longer rederives from the predecessor."
+}

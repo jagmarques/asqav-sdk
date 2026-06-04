@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Successor receipt; signature verifies and previousReceiptHash rederives from the predecessor canonical payload."
+}
