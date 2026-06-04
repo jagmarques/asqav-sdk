@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "schema",
+  "notes": "previous_receipt_hash omitted; spec requires it present (null on genesis), so the receipt is malformed."
+}

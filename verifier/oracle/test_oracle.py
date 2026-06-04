@@ -20,6 +20,7 @@ sys.path.insert(0, _VERIFIER)
 
 from oracle import ADAPTERS, crypto, verify  # noqa: E402
 from oracle.adapters.aerf import AerfAdapter  # noqa: E402
+from oracle.adapters.agentreceipts import AgentReceiptsAdapter  # noqa: E402
 from oracle.adapters.asqav_native import AsqavNativeAdapter  # noqa: E402
 from oracle.runner import run_corpus  # noqa: E402
 
@@ -43,7 +44,7 @@ def _provider(vec: str, fmt: str):
 
 def test_adapters_registered() -> None:
     names = [a.name for a in ADAPTERS]
-    assert names == ["asqav-native", "aerf", "acta"]
+    assert names == ["asqav-native", "aerf", "acta", "agentreceipts"]
 
 
 def test_detection_picks_the_right_adapter() -> None:
@@ -176,7 +177,7 @@ def test_signature_skips_downgrade_to_incomplete() -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 22
+    assert len(results) == 37
     failures = [r for r in results if not r.ok]
     assert not failures, f"corpus mismatches: {[(r.dir, r.actual_verdict) for r in failures]}"
 
@@ -351,12 +352,132 @@ def test_nfc_canonicalization_edge() -> None:
     assert verify(tampered, ADAPTERS, key_provider=provider).axis("signature").result == crypto.FAIL
 
 
-def test_three_way_format_exclusion() -> None:
-    """Each adapter detects only its own receipt, giving a clean 3x3 detection diagonal."""
+def test_four_way_format_exclusion() -> None:
+    """Each adapter detects only its own receipt, giving a clean 4x4 detection diagonal."""
     native = _load("asqav-01-genesis-permit", "receipt.json")
     aerf = _load("aerf-01-genesis", "receipt.json")
     acta = _load("acta-01-genesis", "receipt.json")
-    a, e, c = AsqavNativeAdapter(), AerfAdapter(), ActaAdapter()
-    assert (a.detect(native), e.detect(native), c.detect(native)) == (True, False, False)
-    assert (a.detect(aerf), e.detect(aerf), c.detect(aerf)) == (False, True, False)
-    assert (a.detect(acta), e.detect(acta), c.detect(acta)) == (False, False, True)
+    ar = _load("agentreceipts-01-didkey-genesis", "receipt.json")
+    a, e, c, g = AsqavNativeAdapter(), AerfAdapter(), ActaAdapter(), AgentReceiptsAdapter()
+    assert (a.detect(native), e.detect(native), c.detect(native), g.detect(native)) == (True, False, False, False)
+    assert (a.detect(aerf), e.detect(aerf), c.detect(aerf), g.detect(aerf)) == (False, True, False, False)
+    assert (a.detect(acta), e.detect(acta), c.detect(acta), g.detect(acta)) == (False, False, True, False)
+    assert (a.detect(ar), e.detect(ar), c.detect(ar), g.detect(ar)) == (False, False, False, True)
+
+
+# --- agent-receipts adapter (W3C-VC AgentReceipt) + upstream interop ---
+
+from oracle.canonical import jcs_rfc8785  # noqa: E402
+from oracle.did import b58btc_decode, resolve_ed25519_key  # noqa: E402
+
+_INTEROP = _CORPUS / "agentreceipts-upstream-interop"
+
+
+def _ar(vec: str, name: str = "receipt.json") -> dict:
+    return _load(vec, name)
+
+
+def _ar_provider(vec: str):
+    path = _CORPUS / vec / "did_map.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+@requires_ed25519
+def test_agentreceipts_didkey_genesis_passes() -> None:
+    """A did:key genesis verifies: the key resolves inline and the signature checks."""
+    doc = _ar("agentreceipts-01-didkey-genesis")
+    res = verify(doc, ADAPTERS)
+    assert res.fmt == "agentreceipts"
+    assert res.verdict == "PASS"
+    assert res.axis("signature").result == crypto.PASS
+
+
+@requires_ed25519
+def test_agentreceipts_chain_link_passes() -> None:
+    doc = _ar("agentreceipts-02-didkey-chain-link")
+    pred = _ar("agentreceipts-02-didkey-chain-link", "predecessor.json")
+    res = verify(doc, ADAPTERS, predecessor=pred)
+    assert res.verdict == "PASS"
+    assert res.axis("chain").result == crypto.PASS
+
+
+@requires_ed25519
+def test_agentreceipts_tampered_payload_fails_signature() -> None:
+    doc = _ar("agentreceipts-03-tamper-payload")
+    res = verify(doc, ADAPTERS)
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_agentreceipts_tampered_proofvalue_fails_signature() -> None:
+    doc = _ar("agentreceipts-04-tamper-proofvalue")
+    res = verify(doc, ADAPTERS)
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+def test_agentreceipts_genesis_explicit_null_is_genesis_missing_field_is_malformed() -> None:
+    """Genesis carries previous_receipt_hash present and null; omitting it is malformed."""
+    genesis = _ar("agentreceipts-01-didkey-genesis")
+    ad = AgentReceiptsAdapter()
+    assert ad.chain_step(genesis).is_genesis is True
+    assert ad.schema(genesis)[0] == crypto.PASS
+
+    missing = _ar("agentreceipts-05-genesis-missing-prev-hash")
+    assert ad.schema(missing)[0] == crypto.FAIL
+    assert verify(missing, ADAPTERS).verdict == "FAIL"
+
+
+@requires_ed25519
+def test_agentreceipts_wrong_did_fails_signature() -> None:
+    """A verificationMethod resolved to a different key cannot verify the signature."""
+    doc = _ar("agentreceipts-06-wrong-key")
+    res = verify(doc, ADAPTERS, key_provider=_ar_provider("agentreceipts-06-wrong-key"))
+    assert res.fmt == "agentreceipts"
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_agentreceipts_upstream_valid_resigned_passes() -> None:
+    """The upstream malformed-corpus base receipt, re-signed clean with the upstream key."""
+    doc = _ar("agentreceipts-up-00-valid-resigned")
+    res = verify(doc, ADAPTERS, key_provider=_ar_provider("agentreceipts-up-00-valid-resigned"))
+    assert res.verdict == "PASS"
+    assert res.axis("signature").result == crypto.PASS
+
+
+def test_jcs_rfc8785_byte_matches_upstream_canonicalization_vectors() -> None:
+    """Gold interop: our jcs_rfc8785 output must byte-equal every upstream canonical form."""
+    path = _INTEROP / "canonicalization_vectors.json"
+    if not path.exists():
+        pytest.skip("upstream canonicalization vectors not vendored")
+    data = json.loads(path.read_text())
+    mismatches = []
+    for v in data["canonicalization_vectors"]:
+        got = jcs_rfc8785(v["input"]).decode("utf-8")
+        if got != v["canonical"]:
+            mismatches.append((v["name"], v["canonical"], got))
+    assert not mismatches, f"JCS interop mismatches vs upstream: {mismatches}"
+
+
+def test_didkey_resolver_decodes_upstream_did_key_vectors() -> None:
+    """The shared DID resolver decodes each upstream did:key to its expected raw key."""
+    path = _INTEROP / "did_key_vectors.json"
+    if not path.exists():
+        pytest.skip("upstream did:key vectors not vendored")
+    data = json.loads(path.read_text())
+    for v in data["vectors"]:
+        did = v["did"]
+        raw, _note = resolve_ed25519_key(did + "#" + did.split(":")[-1])
+        assert raw is not None, f"{v['name']} did not resolve"
+        assert raw.hex() == v["public_key_hex"], f"{v['name']} key mismatch"
+
+
+def test_b58btc_decode_known_value() -> None:
+    """base58btc decodes a known multikey frame: 0xed01 prefix + 32 key bytes."""
+    # did:key vector-1 identifier without the multibase 'z' prefix.
+    decoded = b58btc_decode("6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw")
+    assert decoded[:2] == b"\xed\x01"
+    assert decoded[2:].hex() == "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"

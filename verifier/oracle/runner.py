@@ -53,6 +53,9 @@ def _key_provider(vec_dir: Path, fmt: str):
         return _load(vec_dir / "keys.json")
     if fmt == "acta":
         return _load(vec_dir / "acta-keys.json")
+    if fmt == "agentreceipts":
+        # did:key receipts self-resolve (no file); did:agent/web carry an injected map.
+        return _load(vec_dir / "did_map.json")
     return None
 
 

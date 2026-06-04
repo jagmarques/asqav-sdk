@@ -1,0 +1,42 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://agentreceipts.ai/context/v1"
+  ],
+  "id": "urn:receipt:00000000-0000-4000-8000-000000000001",
+  "type": [
+    "VerifiableCredential",
+    "AgentReceipt"
+  ],
+  "version": "0.2.0",
+  "issuer": {
+    "id": "did:agent:malformed-test"
+  },
+  "issuanceDate": "2026-04-22T00:00:00Z",
+  "credentialSubject": {
+    "principal": {
+      "id": "did:user:alice"
+    },
+    "action": {
+      "id": "act_malformed_1",
+      "type": "filesystem.file.read",
+      "risk_level": "low",
+      "timestamp": "2026-04-22T00:00:00Z"
+    },
+    "outcome": {
+      "status": "success"
+    },
+    "chain": {
+      "sequence": 1,
+      "previous_receipt_hash": null,
+      "chain_id": "chain_malformed_base"
+    }
+  },
+  "proof": {
+    "type": "Ed25519Signature2020",
+    "created": "2026-04-22T00:00:00Z",
+    "verificationMethod": "did:agent:malformed-test#key-1",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "u"
+  }
+}

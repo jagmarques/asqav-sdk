@@ -17,16 +17,23 @@ from __future__ import annotations
 from .adapter import ChainStep, FormatAdapter, SignatureMaterial
 from .adapters.acta import ActaAdapter
 from .adapters.aerf import AerfAdapter
+from .adapters.agentreceipts import AgentReceiptsAdapter
 from .adapters.asqav_native import AsqavNativeAdapter
 from .core import AxisResult, VerifyResult, verify
 
 #: Detection fingerprints are mutually exclusive, so registration order is not load-bearing.
-ADAPTERS: list[FormatAdapter] = [AsqavNativeAdapter(), AerfAdapter(), ActaAdapter()]
+ADAPTERS: list[FormatAdapter] = [
+    AsqavNativeAdapter(),
+    AerfAdapter(),
+    ActaAdapter(),
+    AgentReceiptsAdapter(),
+]
 
 __all__ = [
     "ADAPTERS",
     "ActaAdapter",
     "AerfAdapter",
+    "AgentReceiptsAdapter",
     "AsqavNativeAdapter",
     "AxisResult",
     "ChainStep",

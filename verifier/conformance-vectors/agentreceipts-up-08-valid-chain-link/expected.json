@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Successor signed with the upstream keypair; previous_receipt_hash rederives from sha256:hex(JCS(genesis without proof))."
+}
