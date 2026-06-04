@@ -40,7 +40,7 @@ from ..crypto import FAIL, PASS, SKIPPED, verify_signature
 #: Fields removed before canonicalising for both the signature and the chain hash.
 _STRIP = ("signature", "timestamp", "parent_signature", "parent_key_id", "log_inclusion_proof")
 
-#: RFC 8410 Ed25519 SPKI prefix; an SPKI key is this 12-byte header + 32 raw bytes.
+#: Ed25519 SPKI header (12-byte prefix + 32 raw key bytes).
 _SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 

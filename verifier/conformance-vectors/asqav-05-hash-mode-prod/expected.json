@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "INCOMPLETE",
+  "reason_code": "signature_skipped_no_dilithium",
+  "notes": "Real prod hash-mode receipt (default /sign). ML-DSA-65 signature axis SKIPs without dilithium-py so the verdict is INCOMPLETE, never a false PASS; detection routes to asqav-native and the reconstructed signing_input byte-matches the prod-signed message bytes."
+}
