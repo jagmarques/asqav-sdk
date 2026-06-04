@@ -22,6 +22,7 @@ from oracle import ADAPTERS, crypto, verify  # noqa: E402
 from oracle.adapters.aerf import AerfAdapter  # noqa: E402
 from oracle.adapters.agentreceipts import AgentReceiptsAdapter  # noqa: E402
 from oracle.adapters.asqav_native import AsqavNativeAdapter  # noqa: E402
+from oracle.runner import main as runner_main  # noqa: E402
 from oracle.runner import run_corpus  # noqa: E402
 
 _CORPUS = Path(_VERIFIER) / "conformance-vectors"
@@ -175,11 +176,29 @@ def test_signature_skips_downgrade_to_incomplete() -> None:
 
 
 @requires_ed25519
+def test_runner_main_reports_all_green(capsys) -> None:
+    """The CLI entrypoint runs the corpus, tolerates the optional-dep vector, exits 0."""
+    rc = runner_main()
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "vectors matched expected outcome" in out
+    assert "[FAIL]" not in out
+
+
+@requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 37
-    failures = [r for r in results if not r.ok]
-    assert not failures, f"corpus mismatches: {[(r.dir, r.actual_verdict) for r in failures]}"
+    assert len(results) == 38
+    # The optional-dep ML-DSA vector returns the stronger PASS when dilithium-py is present.
+    def _tol(r):
+        return r.ok or (
+            r.expected_outcome == "INCOMPLETE"
+            and r.actual_verdict == "PASS"
+            and r.reason_code == "signature_skipped_no_dilithium"
+        )
+
+    failures = [(r.dir, r.actual_verdict) for r in results if not _tol(r)]
+    assert not failures, f"corpus mismatches: {failures}"
 
 
 # --- ACTA adapter + cross-format confusion ---
@@ -564,3 +583,35 @@ def test_hash_mode_malformed_signature_fails_does_not_crash() -> None:
         forged["signature"] = bad
         res = verify(forged, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
         assert res.verdict != "PASS"
+
+
+def test_compliance_envelope_malformed_signature_fails_does_not_crash() -> None:
+    """A malformed Asqav compliance-envelope signature decodes to b'' and FAILs, never raises."""
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    for bad in ({"k": "v"}, 999, None, "not base64 @@@"):
+        forged = json.loads(json.dumps(doc))
+        forged["signature"]["sig"] = bad
+        res = verify(forged, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native"))
+        assert res.verdict != "PASS"
+
+
+def test_aerf_malformed_signature_fails_does_not_crash() -> None:
+    """A malformed AERF signature (non-hex or non-string) decodes to b'' and FAILs, never raises."""
+    doc = _load("aerf-01-genesis", "receipt.json")
+    for bad in ("zzzz-not-hex", {"k": "v"}, 42, None):
+        forged = json.loads(json.dumps(doc))
+        forged["signature"] = bad
+        res = verify(forged, ADAPTERS, key_provider=_provider("aerf-01-genesis", "aerf"))
+        assert res.verdict != "PASS"
+
+
+def test_aerf_malformed_parent_pdp_signature_fails_does_not_crash() -> None:
+    """Malformed AERF parent/pdp counter-signatures decode to b'' and FAIL, never raise."""
+    vec = "aerf-up-06-impact-with-parent-sig"
+    doc = _load(vec, "receipt.json")
+    for field in ("parent_signature", "pdp_signature"):
+        for bad in ("zz", "abc", "not-hex"):
+            forged = json.loads(json.dumps(doc))
+            forged[field] = bad
+            res = verify(forged, ADAPTERS, key_provider=_provider(vec, "aerf"))
+            assert res.verdict != "PASS"

@@ -18,9 +18,13 @@ manifest.json                  array of {dir, format, outcome, reason_code, note
   did_map.json                 (agentreceipts) {did: ed25519_pubkey_hex} for did:agent / did:web
 ```
 
-`outcome` is `PASS` or `FAIL`; the runner maps it to the oracle verdict and
-asserts equality. `reason_code` follows the shared taxonomy (`issuer_signature`,
-`chain`, `schema`, `key`).
+`outcome` is `PASS`, `FAIL`, or `INCOMPLETE`; the runner maps it one-for-one to
+the oracle verdict and asserts equality. `INCOMPLETE` carries a vector whose
+signature axis cannot be checked in the CI environment (for example a real
+ML-DSA-65 prod receipt when `dilithium-py` is absent), pinning that the verifier
+downgrades to INCOMPLETE rather than emitting a false PASS. `reason_code` follows
+the shared taxonomy (`issuer_signature`, `chain`, `schema`, `key`,
+`signature_skipped_no_dilithium`).
 
 ## Run
 
@@ -34,6 +38,11 @@ python -m oracle.runner          # from the verifier/ directory
   chain link), Ed25519-signed so the signature axis verifies without the
   post-quantum dependency.
 - `asqav-04-tamper-sig` - decision flipped after signing; signature fails.
+- `asqav-05-hash-mode-prod` - a real default-mode prod `/sign` receipt (ML-DSA-65).
+  The reconstructed signing input byte-matches the prod-signed message and the
+  signature verifies with `dilithium-py`; absent that optional dep the signature
+  axis SKIPs, so the outcome is `INCOMPLETE`. Guards the production hash-mode path
+  against a false PASS on the post-quantum signature the CI base cannot check.
 - `aerf-01..02` - valid AERF receipts (genesis, chain link). Genesis omits
   `previous_receipt_hash`; the chain hash excludes the signature, per the AERF
   spec.
