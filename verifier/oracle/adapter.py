@@ -91,3 +91,15 @@ class FormatAdapter(ABC):
     @abstractmethod
     def schema(self, doc: dict) -> tuple[str, str]:
         """Structural check; returns ``(result, note)`` with PASS / FAIL."""
+
+    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
+        """Format-specific axes beyond structure / issuer-signature / chain.
+
+        Returns a list of ``(axis_name, result, note)`` where result is PASS /
+        FAIL / SKIPPED. The default is none; a format whose verification procedure
+        layers additional REQUIRED checks (a multi-signer counter-signature, a
+        policy-binding signature, a transparency-log inclusion proof) returns one
+        tuple per check so a missing-but-required or invalid layer FAILs the
+        verdict rather than passing on the issuer signature alone.
+        """
+        return []

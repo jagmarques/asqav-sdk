@@ -103,9 +103,12 @@ def verify(
         _signature_axis(ad, doc, key_provider),
         _chain_axis(ad, doc, adapters, predecessor),
     ]
+    axes.extend(AxisResult(name, res, note) for name, res, note in ad.extra_axes(doc, key_provider))
 
     has_fail = any(a.result == crypto.FAIL for a in axes)
-    # A skipped chain (no predecessor) does not block PASS; a skipped signature does.
+    # Any unverifiable axis except a missing-predecessor chain blocks PASS: a skipped
+    # signature or a skipped required counter-sign / PDP axis means not-fully-verified
+    # (INCOMPLETE), never a PASS that hides an unchecked layer.
     blocking_skip = any(a.result == crypto.SKIPPED and a.axis != "chain" for a in axes)
     if has_fail:
         verdict = "FAIL"

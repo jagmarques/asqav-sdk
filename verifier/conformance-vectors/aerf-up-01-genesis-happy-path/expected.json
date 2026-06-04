@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Upstream genesis happy path; Ed25519 over JCS payload verifies, previous_receipt_hash omitted."
+}
