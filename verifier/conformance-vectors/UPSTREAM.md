@@ -52,6 +52,25 @@ translated into our `keys.json` key map as raw Ed25519 hex, keyed by the
 upstream `key_id` (the leading 16 hex characters of the SHA-256 of the
 public key).
 
+## Authproof
+
+The `authproof-*` vectors target the shipping Authproof JS SDK
+(<https://github.com/Commonguy25/authproof-sdk>, `src/authproof.js`), which is
+authoritative for the wire shape: ES256 (ECDSA P-256 / SHA-256) over
+insertion-order `JSON.stringify` of the receipt minus its `signature`, signature
+hex-encoded as raw `r||s` (64 bytes), signer key embedded as a P-256 JWK at
+`signerPublicKey`. `authproof-01-genesis-real-sdk` is a receipt minted by that
+SDK and is a one-directional interop PASS (we verify a real Authproof artifact);
+`authproof-02/03` are its self-authored negatives. No published portable vector
+corpus exists upstream, so bidirectional interop against a third-party verifier
+of our output is PENDING.
+
+Two upstream variants deliberately diverge and are NOT targeted: the bundled
+draft-nelson text specifies a base64url signature, a content-hash
+`delegationId`, and canonical JSON; the repo's separate Python SDK signs DER over
+sorted-key JSON with snake_case fields. A receipt from either would not verify
+under the JS-SDK rules, and the JS SDK is the published product.
+
 ## Outcome mapping
 
 Each upstream vector declares an outcome of `PASS`, `FAIL`, or
