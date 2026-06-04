@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Single proofValue byte flipped; Ed25519 verification fails."
+}
