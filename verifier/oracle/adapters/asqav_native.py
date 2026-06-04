@@ -61,6 +61,16 @@ def _payload(doc: dict) -> dict:
     return env.get("payload", env)
 
 
+def _safe_b64(value: Any) -> bytes:
+    """Decode signature material; b'' on any malformed input so verify FAILs, never crashes."""
+    if not isinstance(value, str):
+        return b""
+    try:
+        return _vr._b64decode(value)
+    except Exception:
+        return b""
+
+
 class AsqavNativeAdapter(FormatAdapter):
     """Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode)."""
 
@@ -82,7 +92,7 @@ class AsqavNativeAdapter(FormatAdapter):
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         if _is_hash_mode(doc):
             return SignatureMaterial(
-                sig=_vr._b64decode(doc.get("signature_b64") or doc.get("signature", "")),
+                sig=_safe_b64(doc.get("signature_b64") or doc.get("signature", "")),
                 alg=doc.get("algorithm", "ML-DSA-65"),
                 kid=doc.get("key_id", ""),
             )

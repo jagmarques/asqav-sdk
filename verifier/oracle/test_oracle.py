@@ -553,3 +553,14 @@ def test_hash_mode_signature_skips_without_dilithium_never_false_pass() -> None:
     assert res.axis("signature").result in (crypto.PASS, crypto.SKIPPED)
     assert res.verdict in ("PASS", "INCOMPLETE")
     assert res.verdict != "FAIL"
+
+
+def test_hash_mode_malformed_signature_fails_does_not_crash() -> None:
+    """A malformed hash-mode signature (non-string) verifies to a non-PASS, never raises."""
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    for bad in ({"not": "a string"}, 12345, ["x"]):
+        forged = json.loads(json.dumps(doc))
+        forged.pop("signature_b64", None)
+        forged["signature"] = bad
+        res = verify(forged, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
+        assert res.verdict != "PASS"
