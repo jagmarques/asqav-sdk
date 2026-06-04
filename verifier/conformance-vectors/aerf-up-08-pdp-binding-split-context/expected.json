@@ -1,0 +1,6 @@
+{
+  "format": "aerf",
+  "outcome": "FAIL",
+  "reason_code": "pdp_signature",
+  "notes": "Upstream split-context vector; the PDP signed a verdict for one context but the receipt claims another, so the PDP-binding axis fails."
+}

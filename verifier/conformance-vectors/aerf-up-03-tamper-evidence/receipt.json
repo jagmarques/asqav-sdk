@@ -1,0 +1,39 @@
+{
+  "id": "7473e179-001c-4d3b-94bc-d0f53dd6eec6",
+  "type": "notarised_evidence",
+  "plan_id": "bc023208-ea24-410a-a280-ff36820e18a6",
+  "agent": "claims-agent",
+  "action": "submit:claim:CLM-9921",
+  "in_policy": true,
+  "policy_reason": "matched scope submit:claim:*",
+  "evidence_hash_sha512": "b35d8ba27ad113c45d80d29c82c9f3c79308cd94ccf351623a074ed8a32c1d1325026b692f412d6e5907c78ad3afcb8edb44b492b24b499c453953ddbb39e30c",
+  "evidence": {
+    "tool": "submit-claim",
+    "claim_id": "CLM-9920",
+    "amount": 1250.0,
+    "patient_id_hash": "sha256:5f4dcc3b5aa765d61d8327deb882cf99aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "diagnosis_code": "ICD10:E11.9",
+    "service_date": "2026-04-30",
+    "provider_npi": "1234567890"
+  },
+  "observed_at": "2026-05-06T16:22:33.490443+00:00",
+  "aiuc_controls": [
+    "E015",
+    "D003",
+    "B001"
+  ],
+  "key_id": "c348d3c785c92249",
+  "agent_key_id": "",
+  "policy_hash": "260eca8ac43ae65e804c7107441acf45500d7f59a275c372d03a9a29985d6bf1",
+  "session_id": "8d07720e-337e-4b4c-b92b-b3eccbc8c2e9",
+  "session_trajectory": [
+    {
+      "action": "submit:claim:CLM-9920",
+      "agent": "claims-agent",
+      "in_policy": true,
+      "observed_at": "2026-05-06T16:22:33.490443+00:00"
+    }
+  ],
+  "plan_signature": "3e5b83e83b77bfa233c3517b4ffd55a00bf8d674c3d4cb578bb2b559849310058baa103083c3a89bf02efe0abf5fa7ba15c90132d6c7a04be359f868dea8ee01",
+  "signature": "8bd989a95ab6086379bb67b617cce983e9bbe3a580d7d458358342df6bbb0971cb46b59873879b99bb6ab9c97e8631a81926bed8ab8e5f891359176804e97208"
+}
