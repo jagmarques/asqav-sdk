@@ -82,5 +82,75 @@
     "outcome": "FAIL",
     "reason_code": "sig_mismatch",
     "notes": "Commitment-mode receipt (signs SHA-256(JCS)) fails the baseline JCS verifier - honest, never a false pass."
+  },
+  {
+    "dir": "aerf-up-01-genesis-happy-path",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream genesis happy path; Ed25519 over JCS payload verifies, previous_receipt_hash omitted."
+  },
+  {
+    "dir": "aerf-up-02-chain-happy-path",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream three-receipt chain; the final link verifies its signature and rederives previous_receipt_hash from its predecessor (signature excluded from the chain hash)."
+  },
+  {
+    "dir": "aerf-up-03-tamper-evidence",
+    "format": "aerf",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream tamper vector; the action field was mutated after signing, so the issuer signature no longer matches."
+  },
+  {
+    "dir": "aerf-up-04-tamper-chain",
+    "format": "aerf",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Upstream tamper-in-chain vector; the middle receipt's evidence was mutated after signing, so that receipt's own issuer signature fails. Ingested as the mutated middle receipt with its valid predecessor; the chain link still rederives, the signature is what fails."
+  },
+  {
+    "dir": "aerf-up-05-impact-no-parent-sig",
+    "format": "aerf",
+    "outcome": "FAIL",
+    "reason_code": "parent_signature",
+    "notes": "Upstream impact receipt missing its required parent counter-signature; impact_tags is non-empty so the parent_signature axis fails closed even though the issuer signature is valid."
+  },
+  {
+    "dir": "aerf-up-06-impact-with-parent-sig",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream impact receipt with valid parent and PDP signatures; issuer, parent, and PDP axes all verify."
+  },
+  {
+    "dir": "aerf-up-07-pdp-binding-valid",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream PDP-binding happy path; the PDP signature over the canonical {context_hash_sha256, in_policy, policy_hash} tuple verifies."
+  },
+  {
+    "dir": "aerf-up-08-pdp-binding-split-context",
+    "format": "aerf",
+    "outcome": "FAIL",
+    "reason_code": "pdp_signature",
+    "notes": "Upstream split-context vector; the PDP signed a verdict for one context but the receipt claims another, so the PDP-binding axis fails."
+  },
+  {
+    "dir": "aerf-up-11-tag-stripped-known-limit",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream documents this as a residual the receipt layer cannot close: an agent that controls receipt construction can strip impact_tags before signing, so no counter-sign is required and the issuer signature verifies. Our verifier reaches the same PASS the upstream verifier does; the defense is producer-side tag pinning, outside the receipt bytes. Mapped to PASS because that is the honest outcome the bytes produce, not a relabel."
+  },
+  {
+    "dir": "aerf-up-12-common-mode-known-limit",
+    "format": "aerf",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Upstream documents this as a residual: all three signers (issuer, parent, PDP) saw the same poisoned upstream context and signed honestly, so every signature verifies. The receipt records what was attested, not whether the context was sound; our verifier reaches the same PASS the upstream verifier does. Mapped to PASS because every signature genuinely verifies, not a relabel."
   }
 ]
