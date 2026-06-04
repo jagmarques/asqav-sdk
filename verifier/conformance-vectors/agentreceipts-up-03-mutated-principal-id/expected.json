@@ -1,0 +1,6 @@
+{
+  "format": "agentreceipts",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "Upstream malformed vector: principal.id mutated after signing."
+}
