@@ -417,6 +417,28 @@ def test_agentreceipts_tampered_proofvalue_fails_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
+@requires_ed25519
+def test_agentreceipts_issuer_must_control_signing_key_no_impersonation() -> None:
+    """An attacker's valid signature under a key the issuer does not control must not verify."""
+    from base64 import urlsafe_b64encode
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    sk = Ed25519PrivateKey.generate()
+    pk = sk.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    vm = "did:web:attacker.example#key-1"
+    forged = json.loads(json.dumps(_ar("agentreceipts-01-didkey-genesis")))
+    forged["issuer"] = {"id": "did:web:victim.example"}
+    forged["proof"]["verificationMethod"] = vm
+    sig = sk.sign(AgentReceiptsAdapter().signing_input(forged))
+    forged["proof"]["proofValue"] = "u" + urlsafe_b64encode(sig).decode().rstrip("=")
+    res = verify(forged, ADAPTERS, key_provider={vm: pk.hex()})
+    assert res.axis("signature").result == crypto.PASS  # the attacker's signature is cryptographically valid
+    assert res.axis("structure").result == crypto.FAIL  # but the signing-key DID is not the issuer
+    assert res.verdict == "FAIL"
+
+
 def test_agentreceipts_genesis_explicit_null_is_genesis_missing_field_is_malformed() -> None:
     """Genesis carries previous_receipt_hash present and null; omitting it is malformed."""
     genesis = _ar("agentreceipts-01-didkey-genesis")

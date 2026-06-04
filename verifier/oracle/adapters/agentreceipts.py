@@ -100,6 +100,12 @@ class AgentReceiptsAdapter(FormatAdapter):
             return "FAIL", "type must include VerifiableCredential and AgentReceipt"
         if doc.get("proof", {}).get("type") != "Ed25519Signature2020":
             return "FAIL", "proof.type must be Ed25519Signature2020"
+        issuer = doc.get("issuer")
+        issuer_did = issuer.get("id") if isinstance(issuer, dict) else issuer
+        vm_did = doc.get("proof", {}).get("verificationMethod", "").split("#")[0]
+        if not vm_did or vm_did != issuer_did:
+            # did:key carries its key in-receipt; bind to issuer or anyone self-signs as a victim
+            return "FAIL", "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)"
         chain = _chain(doc)
         if "previous_receipt_hash" not in chain:
             return "FAIL", "chain.previous_receipt_hash must be present (null on genesis), never omitted"
