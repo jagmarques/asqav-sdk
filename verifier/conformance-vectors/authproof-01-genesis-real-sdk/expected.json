@@ -1,0 +1,6 @@
+{
+  "format": "authproof",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Receipt minted by the real Authproof JS SDK (Commonguy25/authproof-sdk). ES256 over insertion-order JSON.stringify, hex raw r||s, embedded P-256 JWK. Cross-implementation interop proof."
+}
