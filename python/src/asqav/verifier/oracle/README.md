@@ -1,8 +1,8 @@
 # Oracle - universal neutral verifier
 
 Verify agent receipts across formats behind one seam. The oracle extends the
-standalone `../verify_receipt.py` to verify rival and sibling receipt formats,
-not only Asqav-native receipts.
+standalone `../verify_receipt.py` (package sibling `asqav.verifier.verify_receipt`)
+to verify rival and sibling receipt formats, not only Asqav-native receipts.
 
 It proves only what the bytes prove: a valid signature over the canonical bytes,
 a reproducible hash-chain link, and structural presence at time T. It never
@@ -57,28 +57,23 @@ AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
 
 ## Use
 
-From the source tree:
+From a source checkout or an installed `asqav` distribution:
 
 ```python
-from oracle import ADAPTERS, verify
+from asqav.verifier.oracle import ADAPTERS, verify
 
 result = verify(receipt, ADAPTERS, key_provider=keys, predecessor=prev)
 print(result.fmt, result.verdict)
 ```
 
-From an installed `asqav` wheel:
+The oracle ships inside the `asqav` package (`asqav.verifier.oracle`); its
+adapters import the standalone verifier as the package sibling
+`asqav.verifier.verify_receipt`. It loads only when you explicitly import the
+oracle, never from `import asqav` alone.
 
-```python
-from asqav.verifier.oracle import ADAPTERS, verify
-```
-
-Importing the oracle puts the bundled verifier directory on `sys.path` so the
-standalone `verify_receipt` resolves as a top-level module. That is the one name
-it exposes globally; it loads only when you explicitly import the oracle, never
-from `import asqav` alone.
-
-Run the bundled corpus:
+Run the bundled corpus (the conformance-vectors corpus stays at the repo root,
+so this resolves in a source checkout):
 
 ```bash
-python -m oracle.runner
+python -m asqav.verifier.oracle.runner
 ```
