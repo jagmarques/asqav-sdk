@@ -216,7 +216,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 41
+    assert len(results) == 44
     # The optional-dep ML-DSA vector returns the stronger PASS when dilithium-py is present.
     def _tol(r):
         return r.ok or (
@@ -269,6 +269,34 @@ def test_acta_commitment_mode_fails_not_false_passes() -> None:
     """A commitment-mode receipt (signs SHA-256(JCS)) must FAIL the baseline verifier."""
     doc = _load("acta-05-commitment-mode-unsupported", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-05-commitment-mode-unsupported"))
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+@requires_ed25519
+def test_acta_upstream_scopeblind_receipt_verifies() -> None:
+    """A REAL ScopeBlind/APS attestation verifies: genuine inbound interop.
+
+    The receipt under acta-up-01 is lifted verbatim from the
+    ScopeBlind/agent-governance-testvectors corpus (a2a-trust-header/happy-path.json):
+    its Ed25519 signature was produced by the upstream reference issuer over
+    JCS(payload), not by us. Its payload carries `issuer` (not the Asqav-profile
+    `issuer_id`) and omits `type`, so this asserts our adapter accepts a conformant
+    third-party producer rather than only Asqav-shaped receipts.
+    """
+    doc = _load("acta-up-01-a2a-trusted-attestation", "receipt.json")
+    assert "issuer_id" not in doc["payload"] and "type" not in doc["payload"]
+    res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-up-01-a2a-trusted-attestation"))
+    assert res.fmt == "acta"
+    assert res.verdict == "PASS"
+    assert res.axis("signature").result == crypto.PASS
+
+
+@requires_ed25519
+def test_acta_upstream_tampered_receipt_fails() -> None:
+    """The real upstream receipt with one signature nibble flipped MUST fail."""
+    doc = _load("acta-up-03-a2a-tampered-sig", "receipt.json")
+    res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-up-03-a2a-tampered-sig"))
     assert res.verdict == "FAIL"
     assert res.axis("signature").result == crypto.FAIL
 
