@@ -15,13 +15,9 @@ No crypto is hand-rolled here; every algorithm delegates to a vetted library.
 """
 from __future__ import annotations
 
-import os
-import sys
-
-# The standalone verifier lives one directory up and is import-safe (stdlib +
+# The standalone verifier is a package sibling and is import-safe (stdlib +
 # argparse only at import time); reuse its ML-DSA path instead of duplicating it.
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-import verify_receipt as _vr  # noqa: E402
+from asqav.verifier import verify_receipt as _vr
 
 #: Verdict strings shared with verify_receipt so the two surfaces report alike.
 PASS = "PASS"

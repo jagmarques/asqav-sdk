@@ -105,25 +105,13 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
 
-# The neutral verifier lives at the repo root (verifier/) for standalone use and CI;
-# force-include its runtime source into the wheel so `from asqav.verifier.oracle import
-# verify, ADAPTERS` works for installed third parties. Files are listed explicitly to keep
-# the pytest modules and conformance-vectors test data out of the wheel; the adapters/
-# directory carries no tests so it ships whole. A drift guard
-# (verifier/oracle/test_oracle.py::test_packaging_force_include_covers_every_runtime_module)
-# fails CI if a new runtime module is added without a matching entry here.
+# The neutral verifier now lives under src/asqav/verifier, so packages=["src/asqav"]
+# carries its runtime into BOTH the sdist and the wheel with no cross-root force-include.
+# The conformance-vectors corpus and the verifier tests stay outside src/asqav, so they
+# stay out of the built distributions. Only the templated .env needs a force-include
+# because hatchling's default file selector skips dotfiles.
 [tool.hatch.build.targets.wheel.force-include]
 "src/asqav/templates/shadow-ai/.env.template" = "asqav/templates/shadow-ai/.env.template"
-"../verifier/__init__.py" = "asqav/verifier/__init__.py"
-"../verifier/verify_receipt.py" = "asqav/verifier/verify_receipt.py"
-"../verifier/oracle/__init__.py" = "asqav/verifier/oracle/__init__.py"
-"../verifier/oracle/adapter.py" = "asqav/verifier/oracle/adapter.py"
-"../verifier/oracle/canonical.py" = "asqav/verifier/oracle/canonical.py"
-"../verifier/oracle/core.py" = "asqav/verifier/oracle/core.py"
-"../verifier/oracle/crypto.py" = "asqav/verifier/oracle/crypto.py"
-"../verifier/oracle/did.py" = "asqav/verifier/oracle/did.py"
-"../verifier/oracle/runner.py" = "asqav/verifier/oracle/runner.py"
-"../verifier/oracle/adapters" = "asqav/verifier/oracle/adapters"
 
 [tool.ruff]
 target-version = "py310"
@@ -135,6 +123,9 @@ select = ["E", "F", "I", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/asqav/cli.py" = ["E501"]
+# The relocated neutral verifier carries long signed-message/error strings on one
+# line so the reported note bytes stay greppable; line length is not enforced on it.
+"src/asqav/verifier/**" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"
