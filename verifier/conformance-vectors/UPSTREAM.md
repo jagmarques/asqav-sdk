@@ -71,6 +71,19 @@ draft-nelson text specifies a base64url signature, a content-hash
 sorted-key JSON with snake_case fields. A receipt from either would not verify
 under the JS-SDK rules, and the JS SDK is the published product.
 
+## ACTA
+
+The `acta-*` vectors target draft-farley-acta-signed-receipts (the draft Asqav
+profiles): Ed25519 over the JCS of the `payload`, signed directly, hex sig. The
+four `acta-*` vectors are self-authored and prove self-consistency, not interop.
+An independent draft-farley ecosystem exists - the `@veritasacta/verify` offline
+verifier on npm and the `ScopeBlind/agent-governance-testvectors` shared
+conformance corpus - so bidirectional ACTA interop is a real PENDING step (ingest
+that corpus, and cross-verify our output against that verifier), not yet wired in;
+it is not blocked on the ecosystem existing. The Commitment Mode (signing
+`SHA-256(JCS(payload))`) is intentionally not implemented: a commitment-mode
+receipt FAILs the baseline check, the honest outcome, never a false pass.
+
 ## Outcome mapping
 
 Each upstream vector declares an outcome of `PASS`, `FAIL`, or
