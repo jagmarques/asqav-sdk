@@ -91,6 +91,27 @@
     "notes": "Commitment-mode receipt (signs SHA-256(JCS)) fails the baseline JCS verifier - honest, never a false pass."
   },
   {
+    "dir": "acta-up-01-a2a-trusted-attestation",
+    "format": "acta",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Real ScopeBlind APS issuer attestation (a2a-trust-header/happy-path.json); the upstream Ed25519 signature over JCS(payload) verifies under our adapter. Inbound interop: we verify a producer we did not write."
+  },
+  {
+    "dir": "acta-up-02-a2a-trajectory-endpoint",
+    "format": "acta",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Real ScopeBlind trust-level-ascending endpoint attestation (the 'trusted' link); a second upstream payload whose Ed25519 signature verifies, confirming the interop is not a single-receipt fluke."
+  },
+  {
+    "dir": "acta-up-03-a2a-tampered-sig",
+    "format": "acta",
+    "outcome": "FAIL",
+    "reason_code": "sig_mismatch",
+    "notes": "The real happy-path attestation with its first signature nibble flipped; Ed25519 verify fails, proving the oracle rejects a mutated third-party receipt rather than waving it through."
+  },
+  {
     "dir": "aerf-up-01-genesis-happy-path",
     "format": "aerf",
     "outcome": "PASS",

@@ -119,7 +119,12 @@ export class ActaAdapter extends FormatAdapter {
     const p = payload as Record<string, unknown>;
     const s = sig as Record<string, unknown>;
     const missing: string[] = [];
-    for (const f of ["type", "issued_at", "issuer_id"]) {
+    // draft-farley conformance mandates a temporal anchor plus the signature
+    // triple; `type`/`issuer_id` are Asqav-profile fields, OPTIONAL upstream (the
+    // ScopeBlind reference producers emit `issuer`, not `issuer_id`, and omit
+    // `type`), so requiring them would reject conformant third-party receipts
+    // whose signatures genuinely verify.
+    for (const f of ["issued_at"]) {
       if (!(f in p)) missing.push(f);
     }
     for (const f of ["alg", "kid", "sig"]) {
@@ -131,12 +136,14 @@ export class ActaAdapter extends FormatAdapter {
     if ("previousReceiptHash" in p && p.previousReceiptHash === null) {
       return ["FAIL", "genesis must omit previousReceiptHash, not set it null"];
     }
-    if (p.issuer_id !== s.kid) {
+    // False-attestation guard: when the Asqav-profile `issuer_id` is present it
+    // MUST match the signing kid. Absent it, there is nothing to contradict.
+    if ("issuer_id" in p && p.issuer_id !== s.kid) {
       return ["FAIL", "issuer_id must match signature.kid"];
     }
     if (s.alg !== "EdDSA" && s.alg !== "Ed25519") {
       return ["FAIL", `unsupported ACTA alg ${JSON.stringify(s.alg)}; only EdDSA baseline is implemented`];
     }
-    return ["PASS", "required fields present; issuer_id matches kid; EdDSA baseline"];
+    return ["PASS", "issued_at + signature triple present; issuer_id (when present) matches kid; EdDSA baseline"];
   }
 }
