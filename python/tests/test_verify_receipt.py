@@ -8,12 +8,7 @@ still fails closed. These tests pin both behaviours.
 
 from __future__ import annotations
 
-import os
-import sys
-
-sys.path.insert(0, os.path.dirname(__file__))
-
-import verify_receipt as v
+from asqav.verifier import verify_receipt as v
 
 RISK_TYPE = "protectmcp:lifecycle:risk_acceptance"
 CODE_TYPE = "protectmcp:lifecycle:code_authorship"
