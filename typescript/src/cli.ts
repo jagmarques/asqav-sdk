@@ -35,7 +35,7 @@ import {
   type SignatureResponse,
 } from "./index.js";
 
-export const CLI_VERSION = "0.5.9";
+export const CLI_VERSION = "0.5.10";
 const TIER_RANK: Record<string, number> = {
   free: 0,
   pro: 1,
