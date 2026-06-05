@@ -55,6 +55,24 @@ AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
   embedded as a P-256 JWK. Targets the shipping JS SDK; the bundled draft and the
   repo's Python SDK both diverge (see `conformance-vectors/UPSTREAM.md`).
 
+## VC export shim (export-only, EU-lane presentation)
+
+`asqav.verifier.vc_export.to_vc_envelope(receipt, *, format=None)` presents an Asqav
+receipt in W3C Verifiable Credential 2.0 shape for EU-lane consumers. It is export-only:
+NOT a wire token, NOT a first-class internal type, and NOT a verification path. The
+converter is pure and offline (no signing, no network) and reuses the oracle's detection
+to map each format's action/agent fields into `credentialSubject`.
+
+The proof is Asqav-native, not a standard VC suite. An Asqav receipt is signed over the
+Asqav canonical bytes of its own payload; a registered VC proof signs the VC's own bytes.
+Relabelling the Asqav signature as `Ed25519Signature2020` (or any registered suite) would
+produce a credential a conformant VC verifier rejects, so the export instead emits an
+explicit non-standard `proof.type` of `AsqavReceiptSignature2026` that carries the
+original signature verbatim, its algorithm and key id, and a `signingInputBase64` pointer
+to the exact bytes it covers. A top-level `proofIsAsqavNative: true` marks the boundary.
+Re-checking the proof needs an Asqav-aware verifier; a generic VC verifier MUST decline it.
+This envelope is NOT a standard-suite-signed VC and cannot masquerade as one.
+
 ## Use
 
 From a source checkout or an installed `asqav` distribution:
