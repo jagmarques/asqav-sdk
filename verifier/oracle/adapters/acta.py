@@ -32,6 +32,16 @@ from ..canonical import jcs
 from ..core import sha256_hex
 
 
+def _safe_hex(value: Any) -> bytes:
+    """Decode a hex string; b'' on any malformed input so verify FAILs, never crashes."""
+    if not isinstance(value, str):
+        return b""
+    try:
+        return bytes.fromhex(value)
+    except ValueError:
+        return b""
+
+
 def _is_lower_hex(s: Any) -> bool:
     """True for a non-empty even-length lowercase-hex string (an ACTA signature).
 
@@ -63,7 +73,7 @@ class ActaAdapter(FormatAdapter):
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         sig = doc.get("signature", {})
         return SignatureMaterial(
-            sig=bytes.fromhex(sig.get("sig", "")),
+            sig=_safe_hex(sig.get("sig", "")),
             alg=sig.get("alg", "EdDSA"),
             kid=sig.get("kid", ""),
         )

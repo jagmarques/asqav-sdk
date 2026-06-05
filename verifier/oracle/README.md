@@ -39,9 +39,13 @@ AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
 
 ## Adapters this slice
 
-- **asqav-native** - the existing `verify_receipt` logic behind the seam,
-  behaviour-preserving. ML-DSA-65 over the canonical payload; chain via the
-  all-zero genesis seed.
+- **asqav-native** - the `verify_receipt` signature, chain, and structure-
+  presence axes behind the seam. ML-DSA-65 over the canonical payload; chain via
+  the all-zero genesis seed. Scope boundary: as a standalone offline verifier the
+  oracle runs only those three axes; it does NOT run the standalone
+  `verify_receipt` clock-skew (`issued_at`) or anchor-liveness axes, which need
+  wall-clock freshness and network the oracle deliberately omits. A receipt the
+  oracle PASSes can still fail those two liveness axes at ingestion time.
 - **aerf** - Ed25519 over RFC 8785 JCS, signed directly. Genesis OMITS
   `previous_receipt_hash`; the chain hash EXCLUDES the signature, per the AERF
   spec (the agentmint reference producer includes it; this adapter targets the
