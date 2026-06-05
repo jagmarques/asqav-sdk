@@ -1,0 +1,18 @@
+{
+  "payload": {
+    "agent_id": "did:aps:fd50b8e3b144ea244fbf7737f550bc8d",
+    "trust_level": "trusted",
+    "delegation_chain_root": "sha256:b48cfebe140183bae7e4414bff233b3c99f1f748fec3e5321fa0c49e155f3488",
+    "issued_at": "2026-04-18T12:10:00Z",
+    "issuer": "did:aps:4cb5abf6ad79fbf5abbccafcc269d85c",
+    "sequence": 2,
+    "evidence_tier": "infrastructure"
+  },
+  "signature": {
+    "alg": "EdDSA",
+    "kid": "did:aps:4cb5abf6ad79fbf5abbccafcc269d85c",
+    "sig": "b433a1c9490599db75b040be632ba4e81ce4b85f4036c617efbcdef1dc865b32a86e4c19009e6bf508a1ea83fc06a3c4cbe156ec02505f67df6b5c33e6366c07",
+    "pubkey": "4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29",
+    "canonicalization": "RFC8785-JCS"
+  }
+}
