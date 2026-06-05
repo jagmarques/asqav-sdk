@@ -6,6 +6,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [Python 0.5.11] - 2026-06-05
+
+### Fixed
+- The `verify` extra now installs `cryptography` alongside `dilithium-py`, so an offline `pip install asqav[verify]` can check the Ed25519 and ES256 signature axes. Without it those signatures downgraded to INCOMPLETE (a fail-safe, never a false PASS) and the common offline-verify case did not work out of the box.
+- The VC export envelope keeps its validity date for third-party ACTA receipts: `validFrom` now falls back to the source payload `issued_at` when no mapped action timestamp is present.
+
 ## [Python 0.5.10] - 2026-06-05
 
 ### Fixed
