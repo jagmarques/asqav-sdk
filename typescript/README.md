@@ -278,6 +278,19 @@ try {
 
 `TypeError` is thrown before the HTTP roundtrip for the verbatim rule 8 / 9 / 10 / 11 guards listed above. Catch `TypeError` separately so guard violations surface as developer errors, not API errors.
 
+## Neutral verifier
+
+A standalone offline verifier for agent receipts across formats ships as a subpath export:
+
+```ts
+import { verify, ADAPTERS } from "@asqav/sdk/verifier";
+
+const result = verify(receipt, ADAPTERS, { keyProvider });
+// result.verdict is "PASS", "FAIL", or "INCOMPLETE"
+```
+
+It verifies the issuer signature over the canonical bytes, the hash-chain link, and structural presence across the asqav-native, AERF, ACTA, agent-receipts, and Authproof formats. It never attests the behaviour of the recorded action, and no account is required. Ed25519 and ES256 verify in-process via `node:crypto`; ML-DSA-65 downgrades to `INCOMPLETE` rather than ever returning a false `PASS`. This is the TypeScript port of the Python `asqav.verifier.oracle`, held to verdict parity by a shared conformance corpus.
+
 ## Requirements
 
 Node 20 or newer. Uses the built-in `fetch`. Zero native dependencies; ML-DSA cryptography runs server-side.
