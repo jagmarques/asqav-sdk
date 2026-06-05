@@ -53,12 +53,25 @@ AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
 
 ## Use
 
+From the source tree:
+
 ```python
 from oracle import ADAPTERS, verify
 
 result = verify(receipt, ADAPTERS, key_provider=keys, predecessor=prev)
 print(result.fmt, result.verdict)
 ```
+
+From an installed `asqav` wheel:
+
+```python
+from asqav.verifier.oracle import ADAPTERS, verify
+```
+
+Importing the oracle puts the bundled verifier directory on `sys.path` so the
+standalone `verify_receipt` resolves as a top-level module. That is the one name
+it exposes globally; it loads only when you explicitly import the oracle, never
+from `import asqav` alone.
 
 Run the bundled corpus:
 
