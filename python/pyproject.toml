@@ -105,8 +105,25 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
 
+# The neutral verifier lives at the repo root (verifier/) for standalone use and CI;
+# force-include its runtime source into the wheel so `from asqav.verifier.oracle import
+# verify, ADAPTERS` works for installed third parties. Files are listed explicitly to keep
+# the pytest modules and conformance-vectors test data out of the wheel; the adapters/
+# directory carries no tests so it ships whole. A drift guard
+# (verifier/oracle/test_oracle.py::test_packaging_force_include_covers_every_runtime_module)
+# fails CI if a new runtime module is added without a matching entry here.
 [tool.hatch.build.targets.wheel.force-include]
 "src/asqav/templates/shadow-ai/.env.template" = "asqav/templates/shadow-ai/.env.template"
+"../verifier/__init__.py" = "asqav/verifier/__init__.py"
+"../verifier/verify_receipt.py" = "asqav/verifier/verify_receipt.py"
+"../verifier/oracle/__init__.py" = "asqav/verifier/oracle/__init__.py"
+"../verifier/oracle/adapter.py" = "asqav/verifier/oracle/adapter.py"
+"../verifier/oracle/canonical.py" = "asqav/verifier/oracle/canonical.py"
+"../verifier/oracle/core.py" = "asqav/verifier/oracle/core.py"
+"../verifier/oracle/crypto.py" = "asqav/verifier/oracle/crypto.py"
+"../verifier/oracle/did.py" = "asqav/verifier/oracle/did.py"
+"../verifier/oracle/runner.py" = "asqav/verifier/oracle/runner.py"
+"../verifier/oracle/adapters" = "asqav/verifier/oracle/adapters"
 
 [tool.ruff]
 target-version = "py310"
