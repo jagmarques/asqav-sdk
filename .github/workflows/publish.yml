@@ -22,12 +22,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install build
-        # Build the wheel directly from the source tree, not via an sdist round-trip:
-        # the wheel force-includes the verifier from ../verifier (outside python/), a
-        # path that does not exist inside an unpacked sdist. The package is pure Python,
-        # so the wheel is universal. A follow-up can relocate the verifier under
-        # src/asqav to restore the sdist.
-      - run: python -m build --wheel
+        # The verifier lives under src/asqav/verifier, so packages=["src/asqav"]
+        # ships it in both the sdist and the wheel. Build both: the wheel is built
+        # from the sdist round-trip, which proves the sdist is self-contained.
+      - run: python -m build
         working-directory: python
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
