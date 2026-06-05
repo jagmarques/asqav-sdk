@@ -179,3 +179,11 @@ def test_relabelling_export_as_standard_suite_still_cannot_verify() -> None:
     }
     res = verify(forged, ADAPTERS)
     assert res.verdict != "PASS"
+
+
+def test_upstream_acta_receipt_carries_validfrom_from_issued_at() -> None:
+    """A third-party ACTA receipt maps payload.issued_at into the VC validFrom."""
+    receipt = _load("acta-up-01-a2a-trusted-attestation")
+    vc = to_vc_envelope(receipt)
+    assert vc["validFrom"] == receipt["payload"]["issued_at"]
+    assert vc["issuanceDate"] == vc["validFrom"]
