@@ -51,6 +51,10 @@ class VerifyResult:
 
 def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
     """Return the first adapter whose structural fingerprint matches ``doc``."""
+    if not isinstance(doc, dict):
+        # A non-object receipt (array, string, number, null) matches no format;
+        # the adapters assume a dict, so guard here rather than crash in detect().
+        return None
     return next((a for a in adapters if a.detect(doc)), None)
 
 
