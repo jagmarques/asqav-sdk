@@ -6,6 +6,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.8] - 2026-06-05
+
+### Added
+- A standalone neutral verifier under `typescript/src/verifier/` that verifies receipts across five formats (Asqav-native, AERF, ACTA, agent-receipts, Authproof) to parity with the Python oracle. Three canonicalisers (`jcs`, `asqavJcs`, `jcsRfc8785`) byte-match the Python ones, Ed25519 and ES256 verify through `node:crypto`, and ML-DSA-65 reports SKIPPED (Node has no primitive), so a post-quantum receipt is INCOMPLETE rather than a false PASS. A gate test reproduces the Python verdict on all conformance vectors, byte-checks the upstream canonicalization vectors, and verifies a receipt minted by the real Authproof SDK.
+- A number-preserving JSON parser so float literals and integers beyond IEEE-754 safe range canonicalise to the exact bytes the producer signed; distinct large integers stay distinct.
+
+## [Python 0.5.8] - 2026-06-05
+
+### Added
+- An Authproof adapter in the verifier oracle (the fifth format): ES256 over the insertion-order JSON of the receipt minus its signature, with the signer key read from the embedded P-256 JWK. New `verify_es256` in `verifier/oracle/crypto.py` wraps the `cryptography` library. A conformance vector minted by the real Authproof SDK gives a cross-implementation interop check.
+- The neutral verifier now ships inside the `asqav` wheel: `from asqav.verifier.oracle import verify, ADAPTERS`. A real Asqav production hash-mode receipt is pinned as a conformance vector that reports INCOMPLETE without the optional `dilithium-py` dependency, proving the post-quantum path is never a false PASS.
+
+### Fixed
+- Malformed signature fields (non-string, non-hex, non-base64) now decode to a verification FAIL across the AERF and Asqav-native compliance paths instead of raising, restoring the never-crash contract.
+
 ## [TypeScript 0.5.7] - 2026-06-02
 
 ### Added
