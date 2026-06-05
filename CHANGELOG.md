@@ -6,6 +6,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [Python 0.5.10] - 2026-06-05
+
+### Fixed
+- The source distribution is restored. The wheel force-included the verifier from outside the build root, which the sdist build could not reach, so the package shipped wheel-only. The verifier runtime now lives under `src/asqav/verifier/`, so `python -m build` produces both a wheel and an sdist again; the conformance corpus stays at the repo root for the TypeScript parity test and the governance corpus URL.
+
+### Added
+- Real third-party ACTA interop. Three draft-farley receipts produced by the ScopeBlind reference issuer are ingested as `acta-up-*` vectors and verify (one tamper is rejected); the external `@veritasacta/verify` accepts our ACTA receipts. The ACTA `schema()` is aligned to the draft-farley conformance spec (the `type` and `issuer_id` Asqav-profile fields become optional; the issuer-binding guard stays conditional).
+- A single-file verifier CLI and binary. `python -m asqav.verifier.oracle <receipt.json>` prints a JSON verdict; a `build-verifier-binary` workflow packages it with `cryptography` and `dilithium-py` into a per-OS single-file binary so a receipt can be verified with no runtime install.
+- An export-only `to_vc_envelope()` shim mapping an Asqav receipt into a W3C Verifiable Credential 2.0 structure for EU-lane presentation. The proof is an explicit Asqav-native type, never a registered VC suite, so it cannot be mistaken for a standard-suite-signed credential.
+
+## [TypeScript 0.5.10] - 2026-06-05
+
+### Added
+- The ACTA adapter is kept at parity with the schema alignment above so the TypeScript verifier matches the 44-vector corpus.
+
 ## [TypeScript 0.5.9] - 2026-06-05
 
 ### Added
