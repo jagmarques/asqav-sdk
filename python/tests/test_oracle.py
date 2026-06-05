@@ -745,3 +745,13 @@ def test_es256_malformed_key_and_sig_fail_closed() -> None:
     assert crypto.verify_es256(b"\x00" * 10, b"m", b"\x00" * 64)[0] == crypto.FAIL
     pk = AuthproofAdapter().resolve_key(_authproof_receipt(), None)[0]
     assert crypto.verify_es256(pk, b"m", b"\x00" * 10)[0] == crypto.FAIL
+
+
+def test_non_dict_receipt_fails_closed_never_crashes() -> None:
+    """A non-object receipt (array/string/scalar) matches no format and FAILs, never crashes."""
+    from asqav.verifier.oracle.core import detect
+
+    for bad in ([1, 2, 3], "a-string", 42, None, True):
+        assert detect(bad, ADAPTERS) is None
+        res = verify(bad, ADAPTERS)
+        assert res.verdict != "PASS"

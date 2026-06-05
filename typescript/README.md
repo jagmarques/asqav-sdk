@@ -285,7 +285,7 @@ A standalone offline verifier for agent receipts across formats ships as a subpa
 ```ts
 import { verify, ADAPTERS } from "@asqav/sdk/verifier";
 
-const result = verify(receipt, ADAPTERS, { keyProvider });
+const result = verify(receipt, ADAPTERS, keyProvider);
 // result.verdict is "PASS", "FAIL", or "INCOMPLETE"
 ```
 
