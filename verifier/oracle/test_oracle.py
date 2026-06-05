@@ -43,6 +43,22 @@ def _provider(vec: str, fmt: str):
     return _load(vec, fname)
 
 
+def test_packaging_force_include_covers_every_runtime_module() -> None:
+    """Every verifier/oracle runtime module is force-included into the wheel (drift guard)."""
+    here = Path(__file__).resolve()
+    pyproject = here.parents[2] / "python" / "pyproject.toml"
+    if not pyproject.exists():
+        pytest.skip("pyproject not present (running from an installed package)")
+    text = pyproject.read_text()
+    oracle_mods = [p for p in here.parent.glob("*.py") if not p.name.startswith("test_")]
+    missing = [p.name for p in oracle_mods if f"verifier/oracle/{p.name}" not in text]
+    # Top-level verifier modules an adapter may import (e.g. verify_receipt.py) must ship too.
+    top_mods = [p for p in here.parents[1].glob("*.py") if not p.name.startswith("test_")]
+    missing += [f"../{p.name}" for p in top_mods if f"verifier/{p.name}" not in text]
+    assert not missing, f"force-include missing runtime modules: {missing}"
+    assert "verifier/oracle/adapters" in text  # adapters ship as a directory mapping
+
+
 def test_adapters_registered() -> None:
     names = [a.name for a in ADAPTERS]
     assert names == ["asqav-native", "aerf", "acta", "agentreceipts", "authproof"]
