@@ -36,7 +36,16 @@ _EXIT = {"PASS": 0, "FAIL": 1, "INCOMPLETE": 2}
 def _load(path: str | None) -> dict | None:
     if not path:
         return None
-    return json.loads(Path(path).read_text())
+    try:
+        text = Path(path).read_text()
+    except OSError as exc:
+        print(f"asqav-verify: cannot read {path}: {exc.strerror or exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        print(f"asqav-verify: {path} is not valid JSON: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
 
 
 def run(receipt_path: str, keys_path: str | None, predecessor_path: str | None) -> int:
