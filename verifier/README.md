@@ -1,9 +1,10 @@
 # Verify an Asqav receipt yourself, one dependency
 
-`verify_receipt.py` is a single standalone file that verifies an Asqav
-Compliance Receipt on your own machine, without the Asqav SDK and without
-liboqs. It is deliberately outside the `asqav` package so you can copy it into an
-audit environment and read every line.
+`verify_receipt.py` is a single readable file that verifies an Asqav
+Compliance Receipt on your own machine, without liboqs. It ships inside the
+`asqav` package at `asqav/verifier/verify_receipt.py`, so `pip install asqav`
+gives you the module and you can still copy that one file into an audit
+environment and read every line.
 
 It does the check that actually matters for third-party trust: it verifies the
 post-quantum **ML-DSA-65 (FIPS 204)** signature over the receipt's canonical
@@ -33,13 +34,13 @@ verified.
 Fetch a receipt and the key directory straight from the API and verify:
 
 ```bash
-python verify_receipt.py --id sig_abc123
+python -m asqav.verifier.verify_receipt --id sig_abc123
 ```
 
 The public worked example needs no API key:
 
 ```bash
-python verify_receipt.py --id sig_example_loan_decision_2026
+python -m asqav.verifier.verify_receipt --id sig_example_loan_decision_2026
 ```
 
 This pulls `https://api.asqav.com/api/v1/verify/<id>` and
@@ -55,13 +56,13 @@ Save the receipt and the key directory, then verify with no network at all:
 ```bash
 curl https://api.asqav.com/api/v1/verify/sig_abc123 > receipt.json
 curl https://api.asqav.com/.well-known/jwks.json    > jwks.json
-python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline
+python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json --offline
 ```
 
 To check the hash-chain link, also save the predecessor receipt and pass it:
 
 ```bash
-python verify_receipt.py --receipt receipt.json --jwks jwks.json \
+python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json \
     --predecessor previous.json --offline
 ```
 
