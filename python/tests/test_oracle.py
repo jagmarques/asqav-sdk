@@ -9,23 +9,21 @@ assertions are skipped rather than failing for the wrong reason.
 from __future__ import annotations
 
 import json
-import os
-import sys
 from pathlib import Path
 
 import pytest
 
-_VERIFIER = os.path.dirname(os.path.dirname(__file__))
-sys.path.insert(0, _VERIFIER)
+from asqav.verifier.oracle import ADAPTERS, crypto, verify
+from asqav.verifier.oracle.adapters.aerf import AerfAdapter
+from asqav.verifier.oracle.adapters.agentreceipts import AgentReceiptsAdapter
+from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
+from asqav.verifier.oracle.runner import main as runner_main
+from asqav.verifier.oracle.runner import run_corpus
 
-from oracle import ADAPTERS, crypto, verify  # noqa: E402
-from oracle.adapters.aerf import AerfAdapter  # noqa: E402
-from oracle.adapters.agentreceipts import AgentReceiptsAdapter  # noqa: E402
-from oracle.adapters.asqav_native import AsqavNativeAdapter  # noqa: E402
-from oracle.runner import main as runner_main  # noqa: E402
-from oracle.runner import run_corpus  # noqa: E402
-
-_CORPUS = Path(_VERIFIER) / "conformance-vectors"
+# The corpus stays at the repo root (verifier/conformance-vectors) so the TS
+# parity gate and the published governance URL keep one source of truth. Walk up
+# from this test file (tests -> python -> repo root) to reach it.
+_CORPUS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
 
 _ED25519_AVAILABLE = crypto.verify_ed25519(b"\x00" * 32, b"m", b"\x00" * 64)[0] != crypto.SKIPPED
 
@@ -43,20 +41,34 @@ def _provider(vec: str, fmt: str):
     return _load(vec, fname)
 
 
-def test_packaging_force_include_covers_every_runtime_module() -> None:
-    """Every verifier/oracle runtime module is force-included into the wheel (drift guard)."""
+def test_verifier_ships_inside_the_asqav_package() -> None:
+    """The verifier runtime lives under src/asqav so packages=[src/asqav] ships it in both sdist and wheel.
+
+    A standalone force-include of ``../verifier`` could only reach the wheel and broke
+    the sdist (the regression this layout fixes). Pin that the runtime modules sit on
+    disk inside the package tree and that no cross-root force-include points back out.
+    """
     here = Path(__file__).resolve()
-    pyproject = here.parents[2] / "python" / "pyproject.toml"
+    repo_root = here.parents[2]
+    verifier_pkg = repo_root / "python" / "src" / "asqav" / "verifier"
+    for rel in (
+        "__init__.py",
+        "verify_receipt.py",
+        "oracle/__init__.py",
+        "oracle/core.py",
+        "oracle/crypto.py",
+        "oracle/canonical.py",
+        "oracle/runner.py",
+        "oracle/adapters/__init__.py",
+    ):
+        assert (verifier_pkg / rel).exists(), f"missing packaged runtime module: {rel}"
+
+    pyproject = repo_root / "python" / "pyproject.toml"
     if not pyproject.exists():
         pytest.skip("pyproject not present (running from an installed package)")
     text = pyproject.read_text()
-    oracle_mods = [p for p in here.parent.glob("*.py") if not p.name.startswith("test_")]
-    missing = [p.name for p in oracle_mods if f"verifier/oracle/{p.name}" not in text]
-    # Top-level verifier modules an adapter may import (e.g. verify_receipt.py) must ship too.
-    top_mods = [p for p in here.parents[1].glob("*.py") if not p.name.startswith("test_")]
-    missing += [f"../{p.name}" for p in top_mods if f"verifier/{p.name}" not in text]
-    assert not missing, f"force-include missing runtime modules: {missing}"
-    assert "verifier/oracle/adapters" in text  # adapters ship as a directory mapping
+    assert '"src/asqav"' in text  # the package selector that carries the verifier
+    assert "../verifier" not in text  # no cross-root force-include that an sdist cannot reach
 
 
 def test_adapters_registered() -> None:
@@ -219,7 +231,7 @@ def test_corpus_runs_and_every_vector_matches() -> None:
 
 # --- ACTA adapter + cross-format confusion ---
 
-from oracle.adapters.acta import ActaAdapter  # noqa: E402
+from asqav.verifier.oracle.adapters.acta import ActaAdapter  # noqa: E402
 
 
 def _acta_keys(vec: str):
@@ -326,7 +338,7 @@ def test_acta_genesis_spoof_breaks_signature() -> None:
 
 import unicodedata  # noqa: E402
 
-import verify_receipt as _vr  # noqa: E402
+from asqav.verifier import verify_receipt as _vr  # noqa: E402
 
 
 @requires_ed25519
@@ -419,8 +431,8 @@ def test_four_way_format_exclusion() -> None:
 
 # --- agent-receipts adapter (W3C-VC AgentReceipt) + upstream interop ---
 
-from oracle.canonical import jcs_rfc8785  # noqa: E402
-from oracle.did import b58btc_decode, resolve_ed25519_key  # noqa: E402
+from asqav.verifier.oracle.canonical import jcs_rfc8785  # noqa: E402
+from asqav.verifier.oracle.did import b58btc_decode, resolve_ed25519_key  # noqa: E402
 
 _INTEROP = _CORPUS / "agentreceipts-upstream-interop"
 
@@ -559,7 +571,7 @@ def test_b58btc_decode_known_value() -> None:
 
 # --- Asqav-native hash mode + real-prod ground truth ---
 
-from oracle.canonical import asqav_jcs  # noqa: E402
+from asqav.verifier.oracle.canonical import asqav_jcs  # noqa: E402
 
 _PROD_HASH = _CORPUS / "asqav-05-hash-mode-prod"
 
@@ -652,7 +664,7 @@ def test_aerf_malformed_parent_pdp_signature_fails_does_not_crash() -> None:
 
 # --- Authproof adapter (ES256 over insertion-order JSON.stringify) ---
 
-from oracle.adapters.authproof import AuthproofAdapter  # noqa: E402
+from asqav.verifier.oracle.adapters.authproof import AuthproofAdapter  # noqa: E402
 
 
 def _authproof_receipt() -> dict:

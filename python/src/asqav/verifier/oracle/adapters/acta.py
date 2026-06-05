@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import verify_receipt as _vr
+from asqav.verifier import verify_receipt as _vr
 
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
 from ..canonical import jcs
