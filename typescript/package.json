@@ -1,6 +1,6 @@
 {
   "name": "@asqav/sdk",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "description": "AI agent governance - audit trails, policy enforcement, ML-DSA cryptographic signatures",
   "keywords": [
     "ai",
