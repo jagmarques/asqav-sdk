@@ -234,8 +234,13 @@ def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
 
 
 def _valid_from(subject: dict) -> str | None:
-    """Best-effort issuance timestamp from the mapped action, or ``None``."""
+    """Best-effort issuance timestamp from the mapped action or source payload, or ``None``."""
     action = subject.get("action")
-    if isinstance(action, dict):
+    if isinstance(action, dict) and action.get("timestamp"):
         return action.get("timestamp")
+    source = subject.get("source")
+    if isinstance(source, dict):
+        for key in ("issued_at", "issuanceDate", "timestamp", "validFrom"):
+            if source.get(key):
+                return source[key]
     return None
