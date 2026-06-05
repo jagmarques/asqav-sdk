@@ -25,6 +25,9 @@ jobs:
             typescript:
               - 'typescript/**'
               - 'conformance/**'
+              # The TS verifier parity gate reads the shared conformance corpus,
+              # so a corpus change must re-run the TS job (not just the Python one).
+              - 'verifier/conformance-vectors/**'
               - '.github/workflows/ci.yml'
             verifier:
               - 'verifier/**'
