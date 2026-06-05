@@ -1,0 +1,108 @@
+name: build-verifier-binary
+
+# Cross-platform build of the single-file `asqav-verify` binary.
+#
+# HONEST SCOPE: the macOS binary is also built + verified by hand on a developer
+# machine. The Linux and Windows binaries are produced ONLY here, by CI, on their
+# native runners. They are NOT verified on a developer machine - this workflow is
+# the build-and-prove path for them. Each job runs a smoke test that verifies the
+# real ML-DSA-65 prod vector through the freshly built binary, so a job that
+# uploads an artifact has proven that binary returns PASS on this runner.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'verifier-binary-*'
+
+jobs:
+  build:
+    name: build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: asqav-verify-linux-x86_64
+            ext: ''
+          - os: macos-latest
+            asset: asqav-verify-macos
+            ext: ''
+          - os: windows-latest
+            asset: asqav-verify-windows-x86_64.exe
+            ext: '.exe'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build deps and the verifier package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller dilithium-py cryptography
+          python -m pip install --no-deps ./python
+
+      - name: Write the build entry point
+        shell: bash
+        run: |
+          cat > entry.py <<'PY'
+          import sys
+          from asqav.verifier.oracle.__main__ import main
+          sys.exit(main())
+          PY
+
+      - name: Build the single-file binary
+        run: >
+          pyinstaller --onefile --name asqav-verify
+          --collect-submodules asqav.verifier
+          --collect-submodules dilithium_py
+          --hidden-import cryptography
+          entry.py
+
+      - name: Smoke test - ML-DSA-65 prod vector must PASS
+        shell: bash
+        run: |
+          V=verifier/conformance-vectors/asqav-05-hash-mode-prod
+          ./dist/asqav-verify${{ matrix.ext }} "$V/receipt.json" --keys "$V/jwks.json"
+          echo "ML-DSA prod vector PASSed on ${{ matrix.os }}"
+
+      - name: Smoke test - tampered Ed25519 vector must FAIL (nonzero)
+        shell: bash
+        run: |
+          V=verifier/conformance-vectors/aerf-03-tamper-evidence
+          if ./dist/asqav-verify${{ matrix.ext }} "$V/receipt.json" --keys "$V/keys.json"; then
+            echo "tampered vector unexpectedly returned 0" >&2
+            exit 1
+          fi
+          echo "tampered vector correctly returned nonzero on ${{ matrix.os }}"
+
+      - name: Rename binary for upload
+        shell: bash
+        run: |
+          mkdir -p out
+          cp "dist/asqav-verify${{ matrix.ext }}" "out/${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: out/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    name: attach binaries to the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publish binaries to the tagged release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
