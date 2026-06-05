@@ -261,6 +261,23 @@ def test_acta_commitment_mode_fails_not_false_passes() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
+def test_acta_malformed_signature_fails_does_not_crash() -> None:
+    """A malformed ACTA sig fails closed, never raises - at detection and in extract_signature.
+
+    Through the public verify(), a non-hex sig is declined at detection so the verdict
+    is FAIL with no adapter matched. The extract_signature guard is the defense in depth:
+    called directly with a non-hex or non-string sig it returns b'' rather than raising,
+    matching the other adapters.
+    """
+    doc = _load("acta-01-genesis", "receipt.json")
+    for bad in ("zzzz-not-hex", {"k": "v"}, 42, None):
+        forged = json.loads(json.dumps(doc))
+        forged["signature"] = {"sig": bad, "alg": "EdDSA", "kid": "k1"}
+        res = verify(forged, ADAPTERS, key_provider=_acta_keys("acta-01-genesis"))
+        assert res.verdict != "PASS"
+        assert ActaAdapter().extract_signature(forged).sig == b""
+
+
 def test_acta_and_asqav_native_are_mutually_exclusive() -> None:
     """Asqav-native profiles ACTA, so detection must never let both claim one receipt."""
     acta = _load("acta-01-genesis", "receipt.json")
