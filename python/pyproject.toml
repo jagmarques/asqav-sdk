@@ -51,9 +51,10 @@ dependencies = []
 [project.optional-dependencies]
 httpx = ["httpx>=0.24.0"]
 # Standalone receipt verifier (verifier/verify_receipt.py). Pure-python FIPS 204
-# ML-DSA-65 so a buyer can verify a receipt offline without liboqs. Optional:
-# the main SDK defers signature crypto to the cloud and never imports this.
-verify = ["dilithium-py>=1.0.0"]
+# ML-DSA-65 so a buyer can verify a receipt offline without liboqs. cryptography
+# carries the Ed25519 and ES256 axes; without it those signatures downgrade to
+# INCOMPLETE rather than verifying. The main SDK defers signing to the cloud.
+verify = ["dilithium-py>=1.0.0", "cryptography>=42"]
 cli = ["typer>=0.12.0", "httpx>=0.24.0"]
 langchain = ["langchain-core>=0.2.0"]
 crewai = ["crewai>=0.41.0"]
