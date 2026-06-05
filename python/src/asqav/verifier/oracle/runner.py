@@ -15,6 +15,7 @@ per vector so callers can assert counts.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -96,9 +97,25 @@ def _tolerated(outcome: VectorOutcome) -> bool:
     )
 
 
+def _default_corpus_root() -> Path:
+    """Resolve the conformance-vector corpus at the repo root for dev/CI runs.
+
+    The corpus stays at ``<repo>/verifier/conformance-vectors`` so the TypeScript
+    parity gate and the published governance URL keep pointing at one place. An
+    installed wheel does not ship the corpus, so this default only resolves in a
+    source checkout; the ``ASQAV_CONFORMANCE_VECTORS`` env var overrides it.
+    """
+    env = os.environ.get("ASQAV_CONFORMANCE_VECTORS")
+    if env:
+        return Path(env)
+    here = Path(__file__).resolve()
+    # oracle -> verifier -> asqav -> src -> python -> <repo root>
+    return here.parents[5] / "verifier" / "conformance-vectors"
+
+
 def main() -> int:
     """Run the bundled corpus and print a per-vector report; nonzero on mismatch."""
-    root = Path(__file__).resolve().parent.parent / "conformance-vectors"
+    root = _default_corpus_root()
     results = run_corpus(root)
     for r in results:
         mark = "ok" if _tolerated(r) else "FAIL"

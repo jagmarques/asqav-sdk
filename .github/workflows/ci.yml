@@ -30,7 +30,8 @@ jobs:
               - 'verifier/conformance-vectors/**'
               - '.github/workflows/ci.yml'
             verifier:
-              - 'verifier/**'
+              - 'python/src/asqav/verifier/**'
+              - 'verifier/conformance-vectors/**'
               - '.github/workflows/ci.yml'
 
   python:
@@ -83,8 +84,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install cryptography pytest ruff
-      - run: ruff check verifier/oracle
-      - run: pytest verifier/oracle -v --tb=short
+      - run: ruff check python/src/asqav/verifier
+      - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py -v --tb=short
 
   ci-ok:
     # Single required status check for branch protection.
