@@ -6,8 +6,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [TypeScript 0.5.9] - 2026-06-05
+
 ### Added
 - The neutral verifier is now a published subpath export: `import { verify, ADAPTERS } from "@asqav/sdk/verifier"`. The TypeScript port existed in the package source but was not part of the build entry list, so the published tarball omitted it; it now builds to `dist/verifier/` and ships in the npm package, matching the Python `from asqav.verifier.oracle import verify, ADAPTERS`.
+
+## [Python 0.5.9] - 2026-06-05
 
 ### Fixed
 - The oracle README states the asqav-native scope boundary (signature, chain, and structure-presence axes only; the standalone `verify_receipt` clock-skew and anchor-liveness axes are deliberately omitted by the offline verifier) instead of asserting full parity. The ACTA adapter guards its signature hex decode so a malformed sig fails closed.
