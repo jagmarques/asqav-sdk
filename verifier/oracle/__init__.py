@@ -14,13 +14,21 @@ Public surface:
 """
 from __future__ import annotations
 
-from .adapter import ChainStep, FormatAdapter, SignatureMaterial
-from .adapters.acta import ActaAdapter
-from .adapters.aerf import AerfAdapter
-from .adapters.agentreceipts import AgentReceiptsAdapter
-from .adapters.asqav_native import AsqavNativeAdapter
-from .adapters.authproof import AuthproofAdapter
-from .core import AxisResult, VerifyResult, verify
+import os
+import sys
+
+# The adapters import the standalone ``verify_receipt`` as a top-level module. Put the
+# verifier directory on the path before importing them so the oracle works both from the
+# source tree and from the installed ``asqav.verifier`` package.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from .adapter import ChainStep, FormatAdapter, SignatureMaterial  # noqa: E402
+from .adapters.acta import ActaAdapter  # noqa: E402
+from .adapters.aerf import AerfAdapter  # noqa: E402
+from .adapters.agentreceipts import AgentReceiptsAdapter  # noqa: E402
+from .adapters.asqav_native import AsqavNativeAdapter  # noqa: E402
+from .adapters.authproof import AuthproofAdapter  # noqa: E402
+from .core import AxisResult, VerifyResult, verify  # noqa: E402
 
 #: Detection fingerprints are mutually exclusive, so registration order is not load-bearing.
 ADAPTERS: list[FormatAdapter] = [
