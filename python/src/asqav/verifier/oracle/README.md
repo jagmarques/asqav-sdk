@@ -77,3 +77,84 @@ so this resolves in a source checkout):
 ```bash
 python -m asqav.verifier.oracle.runner
 ```
+
+## Command line
+
+Verify a single receipt file from the command line:
+
+```bash
+python -m asqav.verifier.oracle receipt.json --keys keys.json [--predecessor pred.json]
+```
+
+It prints the verdict and per-axis result as JSON and sets the exit status from
+the verdict: `0` on PASS, `1` on FAIL, `2` on INCOMPLETE. INCOMPLETE means an
+axis (the signature, when its library is absent) could not be checked; it is
+never reported as a PASS.
+
+`--keys` is the format-shaped key provider: a JWKS dict for asqav-native, a
+`{key_id: hex}` map for AERF, a `{key_id: pem}` map for ACTA, a `did_map` for
+agentreceipts. did:key receipts self-resolve and need no `--keys`.
+
+## Single-file binary (`asqav-verify`)
+
+For anyone who wants to verify a receipt with no Python or Node install, the same
+CLI ships as a self-contained binary built with PyInstaller. The binary embeds
+its own Python runtime plus `cryptography` and `dilithium-py`, so it can check
+ML-DSA-65 (Asqav's primary format), Ed25519 (EdDSA), and ES256 with nothing else
+installed.
+
+Download the binary for your OS, then run it on a receipt:
+
+```bash
+chmod +x asqav-verify-macos
+./asqav-verify-macos receipt.json --keys keys.json
+```
+
+It prints the same JSON verdict and uses the same exit codes (0 PASS, 1 FAIL,
+2 INCOMPLETE).
+
+### What the binary verifies (and what it never does)
+
+It proves only what a verifier can prove from the bytes:
+
+- the issuer signature over the canonical bytes (ML-DSA-65, Ed25519/EdDSA, ES256),
+- a reproducible SHA-256 hash-chain link to a predecessor receipt,
+- structural presence of the required fields at time T.
+
+It never attests the behaviour or correctness of the recorded action, and it
+omits the wall-clock and anchor-liveness axes that need network or fresh state.
+
+### Build it yourself
+
+In a throwaway build environment with the package installed:
+
+```bash
+pip install pyinstaller dilithium-py cryptography
+pip install --no-deps ./python   # the asqav package (verifier + oracle)
+
+cat > entry.py <<'PY'
+import sys
+from asqav.verifier.oracle.__main__ import main
+sys.exit(main())
+PY
+
+pyinstaller --onefile --name asqav-verify \
+  --collect-submodules asqav.verifier \
+  --collect-submodules dilithium_py \
+  --hidden-import cryptography \
+  entry.py
+# -> dist/asqav-verify
+```
+
+Installing `dilithium-py` into the build environment is what bundles ML-DSA-65
+into the binary; without it the binary would downgrade the ML-DSA signature axis
+to SKIPPED and report INCOMPLETE on Asqav's primary receipt format.
+
+### Cross-platform builds (CI)
+
+`.github/workflows/build-verifier-binary.yml` builds the same `--onefile` binary
+on Linux, macOS, and Windows runners on a `verifier-binary-*` tag or via
+`workflow_dispatch`, and uploads each as a workflow artifact (and a release asset
+on a tag). The macOS binary is also built and verified on a developer machine;
+the Linux and Windows binaries are produced and smoke-tested only by CI on their
+native runners.
