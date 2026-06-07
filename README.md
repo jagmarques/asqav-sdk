@@ -127,13 +127,13 @@ Autonomous coding agents open and merge their own pull requests, and a git autho
 
 ## Why governance
 
-| Without governance | With Asqav |
-|---|---|
-| No record of what agents did | Every action signed with ML-DSA (FIPS 204) |
-| Any agent can do anything | Policies block dangerous actions in real-time |
-| One person approves everything | Multi-party authorization for critical actions |
-| Manual compliance reports | Automated EU AI Act and DORA reports |
-| Reasoning lost after the run | Prompt, trace, and output signed and replayable |
+Without governance, there is no record of what agents did, any agent can do anything, one person approves everything by hand, compliance reports are written manually, and the reasoning is lost once the run ends. Asqav changes each of those:
+
+* Every action is signed with ML-DSA (FIPS 204).
+* Policies block dangerous actions before they run.
+* Critical actions can require multi-party authorization.
+* EU AI Act and DORA reports are generated automatically.
+* The prompt, trace, and output are signed and replayable.
 
 ## Per-language docs
 
@@ -278,12 +278,10 @@ Both SDKs ship to different registries on independent cadences, driven by prefix
 
 ## Ecosystem
 
-| Package | What it does |
-|---|---|
-| [`asqav` (PyPI)](https://pypi.org/project/asqav/) | Python SDK |
-| [`@asqav/sdk` (npm)](https://www.npmjs.com/package/@asqav/sdk) | TypeScript SDK |
-| [asqav-mcp](https://github.com/jagmarques/asqav-mcp) | MCP server for Claude Desktop, Claude Code, Cursor |
-| [asqav-compliance](https://github.com/jagmarques/asqav-compliance) | CI/CD compliance scanner |
+* [`asqav` (PyPI)](https://pypi.org/project/asqav/): the Python SDK.
+* [`@asqav/sdk` (npm)](https://www.npmjs.com/package/@asqav/sdk): the TypeScript SDK.
+* [asqav-mcp](https://github.com/jagmarques/asqav-mcp): MCP server for Claude Desktop, Claude Code, and Cursor.
+* [asqav-compliance](https://github.com/jagmarques/asqav-compliance): CI/CD compliance scanner.
 
 ## Free tier
 
