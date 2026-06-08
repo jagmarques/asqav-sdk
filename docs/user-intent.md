@@ -4,7 +4,7 @@ A receipt that says "agent X ran this action" answers half the question. The oth
 
 ## The shape
 
-When you call `agent.sign(...)`, you can attach an optional `user_intent` envelope. The user produces a signature over the bytes they're asserting (typically a digest of action_type plus context plus a fresh nonce). The SDK passes those bytes to the backend verbatim. The backend verifies the signature with the declared algorithm and stores both the agent signature and the user signature on the same record.
+When you call `agent.sign(...)`, you can attach an optional `user_intent` envelope. The user produces a signature over the bytes they're asserting, typically a digest of action_type plus context plus a fresh nonce. The SDK passes those bytes to the backend verbatim. The backend verifies the signature with the declared algorithm and stores both the agent signature and the user signature on the same record.
 
 The envelope:
 
@@ -23,7 +23,7 @@ Supported algorithms today:
 
 - `ed25519` - verified server-side via the cryptography library.
 - `ecdsa-p256` - verified server-side via the cryptography library.
-- `webauthn` - cryptographically verified server-side. `public_key` is a CBOR-encoded COSE credential key (EdDSA or ES256), `signature` is the assertion signature, `signed_message` is the bytes the authenticator signed (per WebAuthn, `authenticatorData || SHA-256(clientDataJSON)`). Higher-level checks (challenge match, RP ID, origin, user-present flag) live with the relying-party front end.
+- `webauthn` - cryptographically verified server-side. `public_key` is a CBOR-encoded COSE credential key, either EdDSA or ES256, `signature` is the assertion signature, and `signed_message` is the bytes the authenticator signed, which per WebAuthn is `authenticatorData || SHA-256(clientDataJSON)`. Higher-level checks such as challenge match, RP ID, origin, and the user-present flag live with the relying-party front end.
 
 If verification fails, the backend returns 400 with `code: USER_INTENT_INVALID` and does not sign over a bogus envelope.
 
@@ -72,7 +72,7 @@ resp = agent.sign(
 assert resp.user_intent_verified is True
 ```
 
-## Browser example with WebAuthn (sketch)
+## Browser example with WebAuthn, a sketch
 
 The actual WebAuthn flow is the customer's responsibility. The sketch below is a starting point:
 
@@ -107,6 +107,6 @@ WebAuthn assertion verification is store-only today. The bytes are persisted on 
 
 ## Roadmap
 
-- WebAuthn assertion verification (parse `authenticatorData` plus `clientDataJSON`, verify against the stored COSE key).
+- WebAuthn assertion verification: parse `authenticatorData` plus `clientDataJSON`, then verify against the stored COSE key.
 - A `verifyUserIntent(signatureId)` helper on both SDKs that re-runs verification against the stored bytes.
 - Optional policy: require `user_intent_verified=true` for specific action_type patterns.
