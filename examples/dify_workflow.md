@@ -9,18 +9,18 @@ so any pipeline is portable across runtimes.
 
 ## Install the plugin in Dify
 
-1. Open the Dify Plugin Marketplace (or import from URL).
+1. Open the Dify Plugin Marketplace, or import from URL.
 2. Add the asqav plugin.
 3. Open **Plugin Settings** and enter your credentials:
-   - **asqav API Key** (`sk_...`) - get one at <https://cloud.asqav.com>
-   - **Agent ID** (`agent_...`) - create with `asqav agents create my-agent`
+   - **asqav API Key**, in the form `sk_...` - get one at <https://cloud.asqav.com>
+   - **Agent ID**, in the form `agent_...` - create with `asqav agents create my-agent`
      or via the dashboard.
 
 ## Wire up a workflow
 
 A typical workflow puts the Sign Action tool right after the LLM step that
 decides what to do, and the Verify Signature tool wherever a downstream step
-(or auditor) needs to confirm the action ran as recorded.
+or auditor needs to confirm the action ran as recorded.
 
 ```
 [User input] -> [LLM: choose tool] -> [Sign Action] -> [Execute tool] -> [Output]
@@ -70,9 +70,9 @@ asqav verify sig_a1b2c3
 
 ## Bundle a workflow run for an auditor
 
-Group every signature from a Dify workflow run under one `session_id` (the
-plugin accepts `context.session_id`, or use the same value across all Sign
-Action calls). Then export the bundle from the SDK or CLI:
+Group every signature from a Dify workflow run under one `session_id`. The
+plugin accepts `context.session_id`, or you can use the same value across all
+Sign Action calls. Then export the bundle from the SDK or CLI:
 
 ```bash
 asqav compliance export --session sess_dify_run_42 --output run-42.json
@@ -91,7 +91,7 @@ for the programmatic equivalent.
 - Bulk batch signing is not exposed by the plugin yet. Use the SDK's
   `agent.sign_batch(...)` for high-volume runs.
 - The plugin does not yet drive the multi-party countersigning flow
-  (`co_signers`). For that, call `agent.sign(..., co_signers=[...])` from the
+  via `co_signers`. For that, call `agent.sign(..., co_signers=[...])` from the
   SDK.
 
 ## Links

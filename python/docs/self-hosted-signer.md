@@ -6,9 +6,9 @@ the container boundary. Only signature digests, signature bytes,
 timestamps, and structural metadata ever leave your network. This is
 the split-trust deployment model.
 
-For the full reference (architecture diagram, environment contract,
-upstream relay semantics, QTSP / RFC 3161 wiring), see the cloud-side
-doc: https://www.asqav.com/docs/self-hosted-signer
+For the full reference, covering the architecture diagram, environment
+contract, upstream relay semantics, and QTSP / RFC 3161 wiring, see the
+cloud-side doc: https://www.asqav.com/docs/self-hosted-signer
 
 ## When to pick this mode
 
@@ -42,8 +42,8 @@ docker compose -f docker-compose.signer.yml up -d
 ```
 
 The signer exposes the Asqav API surface on port `8000` inside the
-compose network. Front it with your own ingress (Traefik, nginx,
-Caddy, ALB) and terminate TLS there. The signer container does not
+compose network. Front it with your own ingress such as Traefik, nginx,
+Caddy, or ALB, and terminate TLS there. The signer container does not
 ship a TLS terminator.
 
 ## Point the SDK at your signer
@@ -85,9 +85,9 @@ client.configure(
 
 | Boundary | What enters | What leaves |
 | --- | --- | --- |
-| Agent host | `action_type`, full context (prompt, tool args) | nothing |
+| Agent host | `action_type`, full context such as prompt and tool args | nothing |
 | Signer container | the above | `signature_id`, signature bytes, hash chain, timestamp, structural metadata |
-| Upstream relay (optional) | digest + signature + timestamp + metadata | none of the raw context |
+| Upstream relay, optional | digest + signature + timestamp + metadata | none of the raw context |
 
 The agent's prompt and tool arguments never cross the signer
 boundary on the wire. If you also enable the optional upstream relay
@@ -123,7 +123,7 @@ asqav verify --pack ./compliance-bundle.json
 ```
 
 The same audit-pack also feeds the IETF Compliance Receipts profile
-(`draft-marques-asqav-compliance-receipts`), so third-party
+under `draft-marques-asqav-compliance-receipts`, so third-party
 verifiers can consume it without an Asqav SDK.
 
 ## Troubleshooting

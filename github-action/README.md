@@ -4,15 +4,15 @@ Sign an Asqav code-authorship receipt from a CI run. On every pull request this
 action records who authored a code change and signs that record with ML-DSA-65
 (FIPS 204) server-side, then writes it out as an in-toto Statement.
 
-## What it proves (and what it does not)
+## What it proves and what it does not
 
 This action signs a small, honest set of facts:
 
-- a change existed (the diff between a base commit and the head commit, captured
-  as a SHA-256 digest),
-- that change was key-authored (the Asqav agent key signed the record),
-- the record was chained at time T (the receipt is hash-chained and timestamped
-  by Asqav).
+- a change existed, namely the diff between a base commit and the head commit,
+  captured as a SHA-256 digest,
+- that change was key-authored, since the Asqav agent key signed the record,
+- the record was chained at time T, as the receipt is hash-chained and
+  timestamped by Asqav.
 
 It does not verify the code, does not re-run the diff, does not resolve the
 refs, and does not attest the model. The author identity, the tool, and any
@@ -63,11 +63,11 @@ base commit must be present in the checkout.
 
 | Input            | Required | Default          | Description |
 | ---------------- | -------- | ---------------- | ----------- |
-| `asqav-api-key`  | yes      |                  | Asqav API key (`sk_...`). Pass via a repository secret. |
+| `asqav-api-key`  | yes      |                  | Asqav API key in the form `sk_...`. Pass via a repository secret. |
 | `asqav-agent-id` | yes      |                  | Asqav agent id whose key signs the receipt. |
 | `change-class`   | no       | `write`          | One of `read`, `write`, `delete`, `execute`, `deploy`. |
-| `model-id`       | no       | (empty)          | Producer-asserted model id. Recorded, never verified. |
-| `model-version`  | no       | (empty)          | Producer-asserted model version. Recorded, never verified. |
+| `model-id`       | no       | empty            | Producer-asserted model id. Recorded, never verified. |
+| `model-version`  | no       | empty            | Producer-asserted model version. Recorded, never verified. |
 | `tool`           | no       | `github-actions` | Producer-asserted authoring tool label. |
 
 ## Outputs
@@ -90,8 +90,8 @@ The action reads the git context from the GitHub Actions environment:
 
 It then calls `agent.sign(...)` with
 `receipt_type="protectmcp:lifecycle:code_authorship"`, `compliance_mode=True`,
-and `policy_decision="none"` (a code-authorship receipt records no policy
-evaluation, so it signs under the no-policy opt-out).
+and `policy_decision="none"`, since a code-authorship receipt records no policy
+evaluation and signs under the no-policy opt-out.
 
 ## in-toto interop
 
