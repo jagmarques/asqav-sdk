@@ -15,10 +15,8 @@
  *   asqav audit-pack verify <bundle>
  *   asqav org halt / resume <org_id>          (admin, ASQAV_SESSION_TOKEN)
  *
- * Pro-only commands (replay, preflight, budget, approve) and the
- * Business-only `compliance export` are gated client-side via the same
- * GET /account endpoint the Python CLI uses; the server is still the
- * source of truth.
+ * Every command here works on the free tier. The server is the source of
+ * truth for what a given key may do.
  */
 
 import {
@@ -35,13 +33,7 @@ import {
   type SignatureResponse,
 } from "./index.js";
 
-export const CLI_VERSION = "0.5.11";
-const TIER_RANK: Record<string, number> = {
-  free: 0,
-  pro: 1,
-  business: 2,
-  enterprise: 3,
-};
+export const CLI_VERSION = "0.5.12";
 
 function die(msg: string, code = 1): never {
   process.stderr.write(`${msg}\n`);
@@ -53,31 +45,6 @@ function ensureApiKey(): void {
     die("Error: ASQAV_API_KEY environment variable required.");
   }
   init({ apiKey: process.env.ASQAV_API_KEY });
-}
-
-async function fetchTier(): Promise<string | null> {
-  try {
-    const data = await request<{ tier?: string }>("GET", "/account");
-    if (data && typeof data.tier === "string" && data.tier.length > 0) {
-      return data.tier.toLowerCase();
-    }
-  } catch {
-    // Older self-hosted deployments without /account; skip the gate.
-  }
-  return null;
-}
-
-async function requireTier(minTier: string): Promise<void> {
-  const tier = await fetchTier();
-  if (tier === null) return;
-  const have = TIER_RANK[tier] ?? 0;
-  const need = TIER_RANK[minTier.toLowerCase()] ?? 0;
-  if (have >= need) return;
-  const titled = minTier.charAt(0).toUpperCase() + minTier.slice(1);
-  die(
-    `Error: this command requires the ${titled} tier (current: ${tier}). Upgrade at https://asqav.com/pricing.`,
-    2,
-  );
 }
 
 function parseFlag(args: string[], name: string): string | undefined {
@@ -236,7 +203,6 @@ async function cmdReplay(args: string[]): Promise<void> {
     die("Usage: asqav replay <agent_id> <session_id> [--json]");
   }
   ensureApiKey();
-  await requireTier("pro");
   try {
     const data = await request<{ steps?: unknown[]; chain_integrity?: boolean }>(
       "GET",
@@ -261,7 +227,6 @@ async function cmdPreflight(args: string[]): Promise<void> {
     die("Usage: asqav preflight <agent_id> <action_type> [--json]");
   }
   ensureApiKey();
-  await requireTier("pro");
   try {
     const agent = await Agent.get(agentId);
     const r = await agent.preflight(actionType);
@@ -287,7 +252,6 @@ async function cmdBudgetCheck(args: string[]): Promise<void> {
     die("Usage: asqav budget check --agent-id <id> --limit N --estimated-cost N [--current-spend N] [--currency USD]");
   }
   ensureApiKey();
-  await requireTier("pro");
   const agent = await Agent.get(agentId);
   const tracker = new BudgetTracker({ agent, limit, currency });
   // Apply existing spend by recording a synthetic priming amount in memory only.
@@ -314,7 +278,6 @@ async function cmdBudgetRecord(args: string[]): Promise<void> {
     die("Usage: asqav budget record --agent-id <id> --action <type> --actual-cost N --limit N [--current-spend N] [--currency USD]");
   }
   ensureApiKey();
-  await requireTier("pro");
   try {
     const agent = await Agent.get(agentId);
     const tracker = new BudgetTracker({ agent, limit, currency });
@@ -334,7 +297,6 @@ async function cmdApprove(args: string[]): Promise<void> {
     die("Usage: asqav approve <session_id> <entity_id> [--json]");
   }
   ensureApiKey();
-  await requireTier("pro");
   try {
     const data = await request<unknown>("POST", `/sessions/${sessionId}/approve`, { entity_id: entityId });
     if (hasFlag(args, "json")) {
@@ -375,7 +337,6 @@ async function cmdComplianceExport(args: string[]): Promise<void> {
     die("Usage: asqav compliance export --session <id> --output <path> [--framework eu_ai_act]");
   }
   ensureApiKey();
-  await requireTier("business");
   try {
     const data = await request<unknown>(
       "GET",
@@ -878,7 +839,6 @@ async function cmdReplayVerify(args: string[]): Promise<void> {
   const strict = hasFlag(args, "strict");
   const output = parseFlag(args, "output") ?? "text";
   ensureApiKey();
-  await requireTier("pro");
   try {
     const data = await request<{
       steps?: Array<{
@@ -993,12 +953,12 @@ Usage:
              [--session-id ID] [--valid-seconds N] [--output text|json]
   asqav agents list / create <name> / revoke <agent_id>
   asqav sessions list / end <session_id>
-  asqav replay <agent_id> <session_id> [--json]            (Pro)
-  asqav replay-verify <agent_id> <session_id> [--strict]   (Pro)  IETF chain
-  asqav preflight <agent_id> <action_type> [--json]        (Pro)
-  asqav budget check / record                              (Pro)
-  asqav approve <session_id> <entity_id>                   (Pro)
-  asqav compliance frameworks / export                     (Business)
+  asqav replay <agent_id> <session_id> [--json]
+  asqav replay-verify <agent_id> <session_id> [--strict]          IETF chain
+  asqav preflight <agent_id> <action_type> [--json]
+  asqav budget check / record
+  asqav approve <session_id> <entity_id>
+  asqav compliance frameworks / export
   asqav audit-pack export --start ISO --end ISO --output-file PATH
                           [--organization-id ID] [--no-only-compliance]
   asqav audit-pack verify <bundle.json|-> [--output text|json]
