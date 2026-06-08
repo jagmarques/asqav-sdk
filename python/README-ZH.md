@@ -56,21 +56,21 @@ asqav sign --agent-id ID --action-type T --action-json action.json \
            --risk-class high --issuer-id legal:Acme
 asqav agents list / create / revoke
 asqav sessions list / end
-asqav replay <agent_id> <session_id>          # Pro
+asqav replay <agent_id> <session_id>
 asqav replay-verify <agent_id> <session_id> [--strict]   # IETF 链
-asqav preflight <agent_id> <action_type>      # Pro
-asqav budget check / record                   # Pro
-asqav approve <session_id> <entity_id>        # Pro
-asqav compliance frameworks / export          # Business
+asqav preflight <agent_id> <action_type>
+asqav budget check / record
+asqav approve <session_id> <entity_id>
+asqav compliance frameworks / export
 asqav audit-pack export --start ISO --end ISO --output-file bundle.json
 asqav audit-pack policy <sha256:hex>
 asqav payloads erase <signature_id>           # P4：GDPR 删除权
 asqav org set-compliance-strict <org_id> --enable|--disable
 asqav keys generate --algorithm ed25519|es256 [--out priv.pem]
-asqav policies / webhooks list / create / delete   # Pro
+asqav policies / webhooks list / create / delete
 ```
 
-Pro 和 Business 命令在客户端通过 `GET /account` 进行门控，免费套餐 Key 会得到清晰的升级提示，而不是流水线中途的 402。
+以上所有 CLI 命令在免费套餐下均可使用。Asqav 云端是判定 Key 权限的最终依据。
 
 IETF Compliance Receipts profile 相关命令（`sign --compliance-mode`、`audit-pack export`、`audit-pack policy`、`payloads erase`、`replay-verify --strict`、`org set-compliance-strict`）与 SDK 中 `Agent.sign(...)` 和 `verify_compliance_receipt(...)` 的参数一一对应。完整参数说明见 `docs/CLI.md`。
 

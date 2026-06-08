@@ -11,14 +11,14 @@ Commands:
     asqav verify <signature_id>                - Verify a signature (public)
     asqav agents list / create <name> / revoke - Manage agents
     asqav sessions list / end <session_id>     - Manage sessions
-    asqav policies list / create / delete      - Manage org policies (Pro)
-    asqav webhooks list / create / delete      - Manage webhooks (Pro)
+    asqav policies list / create / delete      - Manage org policies
+    asqav webhooks list / create / delete      - Manage webhooks
     asqav replay <agent_id> <session_id>       - Replay a session's audit trail
     asqav preflight <agent_id> <action>        - Pre-flight (revocation + policy)
     asqav budget check / record                - Budget gate / signed spend record
     asqav approve <session_id> <entity_id>     - Sign off a multi-party session
     asqav compliance frameworks / export       - List frameworks / export bundle
-    asqav compliance templates / report / reports / download - Cloud reports (Business+)
+    asqav compliance templates / report / reports / download - Cloud reports
     asqav audit-pack verify <bundle>           - Verify a holder-supplied bundle
     asqav org halt / resume <org_id>           - Org-wide emergency kill-switch (admin)
     asqav keys create / list / revoke          - Account API key management (admin)
@@ -485,7 +485,6 @@ def replay(
             raise typer.Exit(code=1)
 
         _init_sdk()
-        _require_tier("pro")
 
         from asqav import APIError
         from asqav import replay as replay_api
@@ -663,7 +662,6 @@ app.add_typer(policies_app, name="policies")
 def policies_list() -> None:
     """List all org policies."""
     _init_sdk()
-    _require_tier("pro")
     from asqav.client import _get
 
     try:
@@ -694,7 +692,6 @@ def policies_create(
 ) -> None:
     """Create a new policy."""
     _init_sdk()
-    _require_tier("pro")
     from asqav.client import _post
 
     try:
@@ -712,7 +709,6 @@ def policies_create(
 def policies_delete(policy_id: str = typer.Argument(help="Policy ID to delete.")) -> None:
     """Delete a policy."""
     _init_sdk()
-    _require_tier("pro")
     from asqav.client import _delete
 
     try:
@@ -738,7 +734,6 @@ app.add_typer(webhooks_app, name="webhooks")
 def webhooks_list() -> None:
     """List configured webhooks."""
     _init_sdk()
-    _require_tier("pro")
     from asqav.client import _get
 
     try:
@@ -764,7 +759,6 @@ def webhooks_create(
 ) -> None:
     """Create a webhook subscription."""
     _init_sdk()
-    _require_tier("pro")
     from asqav.client import _post
 
     event_list = [e.strip() for e in events.split(",") if e.strip()]
@@ -780,7 +774,6 @@ def webhooks_create(
 def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> None:
     """Delete a webhook."""
     _init_sdk()
-    _require_tier("pro")
     from asqav.client import _delete
 
     try:
@@ -805,54 +798,6 @@ def _init_sdk() -> None:
         print("Error: ASQAV_API_KEY environment variable required.")
         raise typer.Exit(code=1)
     asqav.init(api_key=api_key)
-
-
-_TIER_RANK = {"free": 0, "pro": 1, "business": 2, "enterprise": 3}
-
-
-def _fetch_account_tier() -> str | None:
-    """Best-effort lookup of the calling org's subscription tier.
-
-    Returns the lowercase tier string, or None when the server does not
-    expose the endpoint (older deployments) or the call fails. Callers
-    treat None as "skip the gate" - the server still enforces.
-    """
-    try:
-        from asqav.client import _get
-    except Exception:
-        return None
-    try:
-        data = _get("/account")
-    except Exception:
-        return None
-    if not isinstance(data, dict):
-        return None
-    tier = data.get("tier")
-    if not isinstance(tier, str) or not tier:
-        return None
-    return tier.lower()
-
-
-def _require_tier(min_tier: str) -> None:
-    """Block the command when the calling org is below ``min_tier``.
-
-    Skips the gate when the /account endpoint is unreachable so older
-    self-hosted deployments stay functional. The server is still the
-    source of truth - this only gives a clean client-side message.
-    """
-    tier = _fetch_account_tier()
-    if tier is None:
-        return
-    have = _TIER_RANK.get(tier, 0)
-    need = _TIER_RANK.get(min_tier.lower(), 0)
-    if have >= need:
-        return
-    print(
-        f"Error: this command requires the {min_tier.title()} tier "
-        f"(current: {tier}). Upgrade at https://asqav.com/pricing.",
-        file=sys.stderr,
-    )
-    raise typer.Exit(code=2)
 
 
 @app.command()
@@ -1102,7 +1047,6 @@ def preflight(
     import json as json_mod
 
     _init_sdk()
-    _require_tier("pro")
     from asqav import Agent, APIError
 
     try:
@@ -1156,7 +1100,6 @@ def budget_check(
     import json as json_mod
 
     _init_sdk()
-    _require_tier("pro")
     from asqav import Agent, BudgetTracker
 
     agent = Agent.get(agent_id)
@@ -1203,7 +1146,6 @@ def budget_record(
     cumulative spend after the record, and the configured limit.
     """
     _init_sdk()
-    _require_tier("pro")
     from asqav import Agent, APIError, BudgetTracker
 
     try:
@@ -1233,7 +1175,6 @@ def approve(
     import json as json_mod
 
     _init_sdk()
-    _require_tier("pro")
     from asqav import APIError, approve_action
 
     try:
@@ -1814,7 +1755,6 @@ def replay_verify_cmd(
     import json as json_mod
 
     _init_sdk()
-    _require_tier("pro")
     from asqav import APIError
     from asqav import replay as replay_api
 
@@ -1973,7 +1913,6 @@ def compliance_export(
     Run 'asqav compliance frameworks' to see valid framework keys.
     """
     _init_sdk()
-    _require_tier("business")
     from asqav import APIError
     from asqav.client import get_session_signatures
     from asqav.compliance import export_bundle
@@ -1997,7 +1936,7 @@ def compliance_export(
 
 @compliance_app.command("templates")
 def compliance_templates() -> None:
-    """List the report templates the cloud can generate (Business+).
+    """List the report templates the cloud can generate.
 
     Calls GET `/compliance-reports/templates`. Use a `template_id` here as
     the `--report-type` for `asqav compliance report`.
@@ -2034,7 +1973,7 @@ def compliance_report(
         "", "--schedule", help="daily|weekly|monthly to recur; omit for one-off."
     ),
 ) -> None:
-    """Generate a compliance report (Business+). Generation runs server-side.
+    """Generate a compliance report. Generation runs server-side.
 
     Calls POST `/compliance-reports`. Returns the report metadata including
     its id and status; poll `asqav compliance reports` until status is
@@ -2076,7 +2015,7 @@ def compliance_reports_list(
     ),
     framework: str = typer.Option("", "--framework", help="Filter by framework key."),
 ) -> None:
-    """List generated compliance reports for the org (Business+).
+    """List generated compliance reports for the org.
 
     Calls GET `/compliance-reports`.
     """
@@ -2117,7 +2056,7 @@ def compliance_download(
         ..., "--output-file", "-o", help="Path to write the report PDF."
     ),
 ) -> None:
-    """Download a ready compliance report PDF (Business+).
+    """Download a ready compliance report PDF.
 
     Calls GET `/compliance-reports/{report_id}/download`, which streams a
     PDF (not JSON). The cloud returns 409 when the report is not yet

@@ -813,33 +813,21 @@ def test_compliance_export_unknown_framework(
     assert "nonexistent" in result.output
 
 
-# === Tier gating ===
-
-
-@patch("asqav.client._get")
-@patch("asqav.init")
-def test_pro_command_blocked_on_free_tier(
-    mock_init: MagicMock, mock_get: MagicMock
-) -> None:
-    """A free-tier API key is blocked at the client when invoking a Pro command."""
-    mock_get.return_value = {"tier": "free", "organization_id": "o", "organization_name": "n"}
-    result = runner.invoke(
-        app,
-        ["preflight", "agt_x", "data:read"],
-        env={"ASQAV_API_KEY": "sk_test"},
-    )
-    assert result.exit_code == 2
-    assert "Pro" in result.output or "Pro" in result.stderr_bytes.decode() if hasattr(result, "stderr_bytes") else True
+# === Free-tier access (every CLI command is free) ===
 
 
 @patch("asqav.Agent.get")
 @patch("asqav.client._get")
 @patch("asqav.init")
-def test_pro_command_runs_on_pro_tier(
+def test_preflight_runs_on_free_tier_without_gate(
     mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
 ) -> None:
-    """A pro-tier API key passes the gate."""
-    mock_get_acc.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    """A free-tier key runs preflight to completion with no upgrade block.
+
+    The CLI does not gate commands by tier, so a free-tier org reaches the
+    command body. The /account endpoint must not be consulted as a gate.
+    """
+    mock_get_acc.return_value = {"tier": "free", "organization_id": "o", "organization_name": "n"}
     mock_agent = MagicMock()
     mock_agent.preflight.return_value = MagicMock(
         cleared=True, agent_active=True, policy_allowed=True,
@@ -852,45 +840,27 @@ def test_pro_command_runs_on_pro_tier(
         env={"ASQAV_API_KEY": "sk_test"},
     )
     assert result.exit_code == 0
+    assert "Upgrade" not in result.output
+    # The command must not call /account to decide access.
+    for call in mock_get_acc.call_args_list:
+        assert call.args[:1] != ("/account",)
 
 
-@patch("asqav.Agent.get")
 @patch("asqav.client._get")
 @patch("asqav.init")
-def test_business_command_blocked_on_pro_tier(
-    mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
+def test_policies_list_runs_on_free_tier_without_gate(
+    mock_init: MagicMock, mock_get: MagicMock,
 ) -> None:
-    """A pro-tier key is blocked from a business-only command."""
-    mock_get_acc.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    """policies list (a former Pro command) is reachable on the free tier."""
+    mock_get.return_value = []
     result = runner.invoke(
         app,
-        ["compliance", "export",
-         "--session", "sess_a", "--output", "/tmp/x.json"],
-        env={"ASQAV_API_KEY": "sk_test"},
-    )
-    assert result.exit_code == 2
-
-
-@patch("asqav.Agent.get")
-@patch("asqav.client._get")
-@patch("asqav.init")
-def test_unreachable_account_endpoint_does_not_block(
-    mock_init: MagicMock, mock_get_acc: MagicMock, mock_agent_get: MagicMock,
-) -> None:
-    """Older self-hosted deployments without /account stay functional."""
-    mock_get_acc.side_effect = Exception("404 Not Found")
-    mock_agent = MagicMock()
-    mock_agent.preflight.return_value = MagicMock(
-        cleared=True, agent_active=True, policy_allowed=True,
-        reasons=[], explanation="ok",
-    )
-    mock_agent_get.return_value = mock_agent
-    result = runner.invoke(
-        app,
-        ["preflight", "agt_x", "data:read"],
+        ["policies", "list"],
         env={"ASQAV_API_KEY": "sk_test"},
     )
     assert result.exit_code == 0
+    assert "Upgrade" not in result.output
+    mock_get.assert_called_once_with("/policies")
 
 
 # === CLI gap-fill (agents revoke, sessions, policies, webhooks) ===
@@ -999,16 +969,6 @@ def test_webhooks_delete_calls_delete(
     )
     assert result.exit_code == 0
     mock_delete.assert_called_once_with("/webhooks/wh_x")
-
-
-@patch("asqav.client._get")
-@patch("asqav.init")
-def test_policies_blocked_on_free_tier(
-    mock_init: MagicMock, mock_get: MagicMock
-) -> None:
-    mock_get.return_value = {"tier": "free", "organization_id": "o", "organization_name": "n"}
-    result = runner.invoke(app, ["policies", "list"], env={"ASQAV_API_KEY": "sk_test"})
-    assert result.exit_code == 2
 
 
 # === audit-pack export / policy ===
