@@ -6,6 +6,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.5.12] - 2026-06-08
+
+Applies to both the Python (`asqav`) and TypeScript (`@asqav/sdk`) packages.
+
+### Fixed
+- The CLI runs every command on the free tier. The client-side tier check that blocked free-tier keys from commands such as `replay`, `preflight`, `budget`, `approve`, `policies`, `webhooks`, and `compliance export` is removed, so a free-tier key reaches the command body and gets the real server response instead of an upgrade message. The Asqav cloud stays the source of truth for what a key may do. This drops the `_require_tier` / `requireTier` gate, the tier-rank table, and the `GET /account` tier lookup from both CLIs.
+
+### Changed
+- The docs describe Asqav's two plans, Free and Enterprise. Free covers 5,000 signatures/month, 10 agents, 10 policies, 3 team members, 30-day retention, and a generous feature set (OpenTimestamps, the MCP server, audit export, framework integrations, content scanning, OpenTelemetry, the Replay API, approvals, governance query and attestation, and 2 compliance reports/month). Enterprise adds RFC 3161 timestamps, SSO/SAML, managed and bring-your-own KMS, SD-JWT selective disclosure, IP allowlists, multi-party quorum signing, quarantine and incident management, a self-hosted signer, and dedicated support. The root, Python, TypeScript, and Chinese READMEs plus the CLI reference are updated to match, and stale tier qualifiers in client docstrings are corrected.
+
 ## [Python 0.5.11] - 2026-06-05
 
 ### Fixed

@@ -283,9 +283,13 @@ Both SDKs ship to different registries on independent cadences, driven by prefix
 * [asqav-mcp](https://github.com/jagmarques/asqav-mcp): MCP server for Claude Desktop, Claude Code, and Cursor.
 * [asqav-compliance](https://github.com/jagmarques/asqav-compliance): CI/CD compliance scanner.
 
-## Free tier
+## Plans
 
-Get started at no cost. Free includes 50K signatures/month, 20 agents, 10 policies, 3 team members, OpenTimestamps, MCP server, audit export, and framework integrations. Content scanning, OpenTelemetry, and Replay API on Pro. Quarantine, incident management, multi-party signing, compliance reports, and RFC 3161 timestamps on Business. Managed KMS, SSO, IP allowlist, and bring-your-own KMS on Enterprise. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
+Asqav has two plans: Free and Enterprise.
+
+Free covers 5,000 signatures/month, 10 agents, 10 policies, 3 team members, and 30-day log retention. Most features are included: OpenTimestamps anchoring, the MCP server, audit export, framework integrations, content scanning, OpenTelemetry export, the Replay API, approvals, governance query and attestation, and 2 compliance reports/month.
+
+Enterprise adds RFC 3161 timestamps, SSO/SAML, managed and bring-your-own KMS, SD-JWT selective disclosure, IP allowlists, multi-party quorum signing, quarantine and incident management, a self-hosted signer, and dedicated support. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 
 ## Discovery
 

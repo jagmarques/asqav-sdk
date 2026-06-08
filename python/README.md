@@ -44,22 +44,22 @@ asqav sign --agent-id ID --action-type T --action-json action.json \
            --risk-class high --issuer-id legal:Acme
 asqav agents list / create / revoke
 asqav sessions list / end <session_id>
-asqav replay <agent_id> <session_id>                       # Pro
-asqav replay-verify <agent_id> <session_id> [--strict]     # Pro: IETF chain
-asqav preflight <agent_id> <action_type>                   # Pro
-asqav budget check / record                                # Pro
-asqav approve <session_id> <entity_id>                     # Pro
-asqav compliance frameworks / export                       # Business
+asqav replay <agent_id> <session_id>
+asqav replay-verify <agent_id> <session_id> [--strict]     # IETF chain
+asqav preflight <agent_id> <action_type>
+asqav budget check / record
+asqav approve <session_id> <entity_id>
+asqav compliance frameworks / export
 asqav audit-pack export --start ISO --end ISO --output-file bundle.json
 asqav audit-pack policy <sha256:hex>
 asqav payloads erase <signature_id>                        # P4 right-to-erasure
 asqav org set-compliance-strict <org_id> --enable|--disable
 asqav keys generate --algorithm ed25519|es256 [--out priv.pem]
 asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key required
-asqav policies / webhooks list / create / delete           # Pro
+asqav policies / webhooks list / create / delete
 ```
 
-Pro and Business commands are gated client-side via `GET /account` so a free-tier key gets a clean upgrade message instead of a mid-pipeline 402. The server is the source of truth; self-hosted deployments without `/account` skip the gate.
+Every command listed here works on the free tier. The Asqav cloud is the source of truth for what your key may do.
 
 ## Data handling modes
 
