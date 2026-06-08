@@ -17,7 +17,7 @@ Public, no API key required. Prints the verification outcome plus the IETF Compl
 asqav verify sig_abc123 --output json
 ```
 
-## Compliance Receipts (IETF profile)
+## Compliance Receipts: the IETF profile
 
 ### `asqav sign`
 
@@ -41,7 +41,7 @@ Flags:
 
 | Flag | SDK kwarg | Notes |
 | --- | --- | --- |
-| `--action-id` | `_action_id` (in context) | Stable client-side action id; cloud allocates one when empty. |
+| `--action-id` | `_action_id`, in context | Stable client-side action id; cloud allocates one when empty. |
 | `--action-type` | `action_type` | Required. |
 | `--compliance-mode/--no-compliance-mode` | `compliance_mode` | Default false. |
 | `--action-ref` | `action_ref` | `sha256:<hex>`; auto-derived from `--action-json` when missing. |
@@ -49,7 +49,7 @@ Flags:
 | `--sandbox-state` | `sandbox_state` | `enabled|disabled|unavailable`. |
 | `--iteration-id` | `iteration_id` | Distinct from session_id. |
 | `--risk-class` | `risk_class` | `low|medium|high|unknown`. |
-| `--incident-class` | `incident_class` | Canonical 6-value Annex II field 3.23 list (JC 2024-33, 17 July 2024) |
+| `--incident-class` | `incident_class` | Canonical 6-value Annex II field 3.23 list, per JC 2024-33, 17 July 2024 |
 | `--issuer-id` | `issuer_id` | Overrides server resolution. |
 | `--receipt-type` | `receipt_type` | `protectmcp:decision|protectmcp:restraint|protectmcp:lifecycle`. Default `protectmcp:decision`. |
 | `--reason` | `reason` | Required when `--policy-decision` is `deny|rate_limit`. |
@@ -57,8 +57,8 @@ Flags:
 | `--algorithm` | `algorithm` | Cloud uses the agent's algorithm; CLI warns on mismatch. |
 | `--session-id` | `agent._session_id` | Bind the record to an existing session. |
 | `--valid-seconds` | `valid_seconds` | Validity window. |
-| `--policy-artefact <path|->` | `_policy_artefact` (in context) | Cloud stores; receipt's `policy_digest` is its content hash. |
-| `--output` | n/a | `text` (default) or `json`. |
+| `--policy-artefact <path|->` | `_policy_artefact`, in context | Cloud stores; receipt's `policy_digest` is its content hash. |
+| `--output` | n/a | `text` by default, or `json`. |
 
 ### `asqav audit-pack export`
 
@@ -74,7 +74,7 @@ asqav audit-pack export \
 
 ### `asqav audit-pack policy <digest>`
 
-Resolves a `policy_digest` to the retained policy artefact JSON. Accepts either `sha256:<64-hex>` or a bare 64-hex string (the prefix is added).
+Resolves a `policy_digest` to the retained policy artefact JSON. Accepts either `sha256:<64-hex>` or a bare 64-hex string, where the prefix is added for you.
 
 ```bash
 asqav audit-pack policy a3f6...c91d --output text
@@ -82,7 +82,7 @@ asqav audit-pack policy a3f6...c91d --output text
 
 ### `asqav replay-verify <agent_id> <session_id> [--strict]`
 
-Re-derives the IETF chain over `sha256(canonical_json(signed_envelope))`. With `--strict` rejects any step that lacks a cloud-emitted `signed_envelope` (synthetic fallback shape cannot prove byte-level integrity).
+Re-derives the IETF chain over `sha256(canonical_json(signed_envelope))`. With `--strict` rejects any step that lacks a cloud-emitted `signed_envelope`, since the synthetic fallback shape cannot prove byte-level integrity.
 
 ```bash
 asqav replay-verify agt_x7y8z9 sess_abc --strict --output json
@@ -90,7 +90,7 @@ asqav replay-verify agt_x7y8z9 sess_abc --strict --output json
 
 ### `asqav payloads erase <signature_id>`
 
-Right-to-erasure (P4). Calls `DELETE /signatures/payloads/{signature_id}`. Idempotent; the signature, chain hash, and anchors stay intact so the receipt remains verifiable.
+Right-to-erasure under P4. Calls `DELETE /signatures/payloads/{signature_id}`. Idempotent; the signature, chain hash, and anchors stay intact so the receipt remains verifiable.
 
 ```bash
 asqav payloads erase sig_abc123 --yes
@@ -98,7 +98,7 @@ asqav payloads erase sig_abc123 --yes
 
 ### `asqav org set-compliance-strict <org_id> --enable|--disable`
 
-Toggles per-org `compliance_mode_strict` (M-NEW-1). When enabled, the cloud rejects any sign request that is not flagged `compliance_mode=true` with HTTP 412.
+Toggles the per-org `compliance_mode_strict` flag from M-NEW-1. When enabled, the cloud rejects any sign request that is not flagged `compliance_mode=true` with HTTP 412.
 
 ```bash
 asqav org set-compliance-strict org_abc --enable
@@ -106,7 +106,7 @@ asqav org set-compliance-strict org_abc --enable
 
 ### `asqav keys generate --algorithm <ml-dsa-65|ed25519|es256>`
 
-Generates a local keypair for offline / air-gapped flows. Ed25519 and ES256 emit PKCS#8 PEM. ML-DSA-65 raises a clear error pointing at `asqav agents create` (server-side keygen).
+Generates a local keypair for offline / air-gapped flows. Ed25519 and ES256 emit PKCS#8 PEM. ML-DSA-65 raises a clear error pointing at `asqav agents create` for server-side keygen.
 
 ```bash
 asqav keys generate --algorithm ed25519 --out priv.pem
@@ -126,4 +126,4 @@ ASQAV_MAINTENANCE_KEY=mk_... asqav migrate run v3-20
 | --- | --- |
 | v3-20 | IETF profile schema additions on `signature_records` + `policy_artefacts` table. |
 | v3-21 | Partial unique index defending the IETF receipt chain against forks. |
-| v3-22 | `organizations.compliance_mode_strict` boolean (M-NEW-1). |
+| v3-22 | `organizations.compliance_mode_strict` boolean from M-NEW-1. |
