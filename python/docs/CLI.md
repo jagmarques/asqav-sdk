@@ -1,6 +1,6 @@
 # `asqav` CLI reference
 
-The `asqav` CLI ships in the `asqav[cli]` extra. Every command wraps a public Python API; the same arguments accepted on the command line work as kwargs on the corresponding SDK call. Pro and Business commands fail with a clean upgrade message when the calling org is below the required tier (gated client-side via `GET /account`; the cloud is the source of truth).
+The `asqav` CLI ships in the `asqav[cli]` extra. Every command wraps a public Python API; the same arguments accepted on the command line work as kwargs on the corresponding SDK call. Every CLI command works on the free tier; the Asqav cloud is the source of truth for what a key may do.
 
 ```bash
 pip install asqav[cli]
