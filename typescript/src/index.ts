@@ -2216,8 +2216,8 @@ export async function postAppliedAttestation(
 }
 
 /** List rejected sign / verify / replay attempts for the caller's
- * org. Pro+ tier. Public verify rejections (org NULL) are filtered out
- * by design - admins query those separately via maintenance. */
+ * org. Public verify rejections (org NULL) are filtered out by design.
+ * Admins query those separately via maintenance. */
 export async function listRejectedAttempts(
   options: ListRejectedAttemptsOptions = {},
 ): Promise<RejectedAttemptList> {

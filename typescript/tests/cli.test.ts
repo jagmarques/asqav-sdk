@@ -58,26 +58,9 @@ describe("asqav CLI (TypeScript)", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it("blocks Pro command on Free tier (gating)", async () => {
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        jsonResponse({ tier: "free", organization_id: "o", organization_name: "n" }),
-      );
-    try {
-      await runCli(["preflight", "agt_x", "data:read"]);
-    } catch (e) {
-      // exit thrown
-    }
-    expect(output()).toMatch(/Pro tier/);
-    expect(exitSpy).toHaveBeenCalledWith(2);
-  });
-
-  it("allows Pro command on Pro tier", async () => {
-    vi.spyOn(globalThis, "fetch")
-      // /account
-      .mockResolvedValueOnce(
-        jsonResponse({ tier: "pro", organization_id: "o", organization_name: "n" }),
-      )
+  it("runs preflight on the free tier without a tier gate", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
       // Agent.get
       .mockResolvedValueOnce(
         jsonResponse({
@@ -101,36 +84,11 @@ describe("asqav CLI (TypeScript)", () => {
       // CLEARED -> no exit; if BLOCKED -> exit 1. Either way swallowed.
     }
     expect(output()).toMatch(/CLEARED|BLOCKED/);
-  });
-
-  it("skips gating when /account is unreachable (fail-open)", async () => {
-    vi.spyOn(globalThis, "fetch")
-      // /account fails
-      .mockResolvedValueOnce(jsonResponse({ detail: "not found" }, 404))
-      .mockResolvedValueOnce(jsonResponse({ detail: "not found" }, 404))
-      .mockResolvedValueOnce(jsonResponse({ detail: "not found" }, 404))
-      // Agent.get
-      .mockResolvedValueOnce(
-        jsonResponse({
-          agent_id: "agt_x",
-          name: "n",
-          public_key: "pk",
-          key_id: "kid",
-          algorithm: "ml-dsa-65",
-          capabilities: [],
-          created_at: "2026-01-01T00:00:00Z",
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse({ revoked: false, suspended: false }))
-      .mockResolvedValueOnce(jsonResponse([]));
-
-    try {
-      await runCli(["preflight", "agt_x", "data:read"]);
-    } catch (e) {
-      // ignore exit
-    }
-    // No "Pro tier" gating message
     expect(output()).not.toMatch(/Pro tier/);
+    expect(output()).not.toMatch(/Upgrade/);
+    // No /account call is made as a gate; the first request is Agent.get.
+    const firstUrl = String(fetchSpy.mock.calls[0]?.[0] ?? "");
+    expect(firstUrl).not.toContain("/account");
   });
 
   it("compliance frameworks lists static set", async () => {
@@ -438,15 +396,13 @@ describe("asqav CLI (TypeScript)", () => {
   });
 
   it("replay-verify --strict rejects synthetic-shape steps", async () => {
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ tier: "pro", organization_id: "o", organization_name: "n" }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          steps: [
-            { signature_id: "sig_1" /* no signed_envelope */ },
-          ],
-        }),
-      );
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        steps: [
+          { signature_id: "sig_1" /* no signed_envelope */ },
+        ],
+      }),
+    );
     try {
       await runCli(["replay-verify", "agt_x", "sess_x", "--strict"]);
     } catch {

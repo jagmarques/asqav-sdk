@@ -461,9 +461,9 @@ class SDTokenResponse:
             SD-JWT string with only specified disclosures.
 
         Example:
-            # Full token has: tier, org, capabilities
-            # Present only tier to partner:
-            proof = sd_token.present(["tier"])
+            # Full token has: role, org, capabilities
+            # Present only role to partner:
+            proof = sd_token.present(["role"])
         """
         parts = [self.jwt]
         for claim_name in disclose:
@@ -1558,12 +1558,12 @@ class Agent:
 
         Example:
             sd_token = agent.issue_sd_token(
-                claims={"tier": "pro", "org": "acme"},
-                disclosable=["tier", "org"]
+                claims={"role": "admin", "org": "acme"},
+                disclosable=["role", "org"]
             )
 
-            # Present to partner - only show tier
-            proof = sd_token.present(["tier"])
+            # Present to partner - only show role
+            proof = sd_token.present(["role"])
         """
         data = _post(
             f"/agents/{self.agent_id}/tokens/sd",
@@ -2493,7 +2493,7 @@ class Agent:
         )
 
     def quarantine(self) -> dict[str, Any]:
-        """Block signing and token issuance, keep read + verify. Business+."""
+        """Block signing and token issuance, keep read + verify. Enterprise."""
         return _post(f"/agents/{self.agent_id}/quarantine", {})
 
     def unquarantine(self) -> dict[str, Any]:
@@ -3525,8 +3525,7 @@ def list_rejected_attempts(
 ) -> dict[str, Any]:
     """List rejected sign / verify / replay attempts for the org.
 
-    Pro+ feature. Org-scoped via the API key. Returns the most recent
-    rejections first.
+    Org-scoped via the API key. Returns the most recent rejections first.
     """
     params = [f"hours={hours}", f"limit={limit}", f"offset={offset}"]
     if failure_reason:
@@ -4233,7 +4232,7 @@ def export_audit_json(
     end_date: str | None = None,
     agent_id: str | None = None,
 ) -> dict[str, Any]:
-    """Export signed actions as JSON for audit trail export (Pro+ tier).
+    """Export signed actions as JSON for audit trail export.
 
     Args:
         start_date: Filter by start date (ISO format).
@@ -4263,7 +4262,7 @@ def export_audit_csv(
     end_date: str | None = None,
     agent_id: str | None = None,
 ) -> str:
-    """Export signed actions as CSV for audit trail export (Pro+ tier).
+    """Export signed actions as CSV for audit trail export.
 
     Args:
         start_date: Filter by start date (ISO format).
