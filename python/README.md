@@ -1,6 +1,6 @@
 # asqav
 
-Python SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. Sign every agent action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails. All cryptography runs server-side; the package has zero native dependencies.
+Python SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. Sign every agent action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails. All cryptography runs server-side, and the package has zero native dependencies.
 
 ## Install
 
@@ -91,7 +91,7 @@ The envelope extensions most callers reach for:
 
 ### Shadow AI capture with passive_telemetry
 
-Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
+Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
 Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `python/src/asqav/client.py`.
 
@@ -105,7 +105,7 @@ sig = agent.sign(
 )
 ```
 
-`capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`; only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
+`capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`. Only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
 
 ### Configuration change receipts, rule 9
 
@@ -128,7 +128,7 @@ The legacy `valid_seconds`, where the server computes `valid_until = signed_at +
 
 ### Digest format, rule 11
 
-Every caller-supplied self-describing digest field, namely `config_manifest_digest`, `cve_inventory_digest`, `executable_hash`, and `sbom_digest`, MUST match the regex `^sha256:[a-f0-9]{64}$`. `tool_fingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars, SHA-256[:32], matching `^[0-9a-f]{32}$` with no `sha256:` prefix; anything else raises `ValueError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` guard. The two URL pointer fields `slsa_provenance_pointer` and `supply_chain_pointer` MUST start with `http://` or `https://`. Anything else raises `ValueError` with a verbatim guard message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers, each byte-deterministic under JCS:
+Every caller-supplied self-describing digest field, namely `config_manifest_digest`, `cve_inventory_digest`, `executable_hash`, and `sbom_digest`, MUST match the regex `^sha256:[a-f0-9]{64}$`. `tool_fingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars, SHA-256[:32], matching `^[0-9a-f]{32}$` with no `sha256:` prefix. Anything else raises `ValueError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` guard. The two URL pointer fields `slsa_provenance_pointer` and `supply_chain_pointer` MUST start with `http://` or `https://`. Anything else raises `ValueError` with a verbatim guard message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers, each byte-deterministic under JCS:
 
 ```python
 from asqav.client import (
@@ -148,7 +148,7 @@ Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment
 
 - `result_digest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
 - `expires_at` - explicit ISO-8601 or POSIX validity horizon. Converted client-side to `valid_seconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `valid_seconds`. See <https://www.asqav.com/docs/expires-at>.
-- `nonce` - 12 random bytes auto-generated when omitted; cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
+- `nonce` - 12 random bytes auto-generated when omitted. Cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
 - `tool_fingerprint` - 32 bare lowercase hex chars, SHA-256[:32], over `{tool_name, schema}`, auto-derived when `tool_name` + `tool_schema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
 - `config_manifest_digest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/config-manifest-digest>.
 - `cve_inventory_digest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
@@ -180,7 +180,7 @@ See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance>.
 
 ## Optional threat-framework mappings
 
-Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim; the cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
+Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim. The cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
 
 - `mitre_techniques` - list of MITRE ATT&CK technique ids, for example `["T1059", "T1078"]`.
 - `mitre_atlas` - list of MITRE ATLAS ids for AI-system threats, for example `["AML.T0051"]`.
@@ -202,7 +202,7 @@ sig = agent.sign(
 )
 ```
 
-Each list must be a non-empty list of strings, each entry up to 128 characters; empty lists, non-string entries, or oversize entries raise `ValueError` with the verbatim guard messages `<field>_must_be_non_empty_list` or `<field>_entry_invalid` and skip the HTTP roundtrip. The `rfc3161_timestamp` must be valid base64 or raises `rfc3161_timestamp_not_base64`.
+Each list must be a non-empty list of strings, each entry up to 128 characters. Empty lists, non-string entries, or oversize entries raise `ValueError` with the verbatim guard messages `<field>_must_be_non_empty_list` or `<field>_entry_invalid` and skip the HTTP roundtrip. The `rfc3161_timestamp` must be valid base64 or raises `rfc3161_timestamp_not_base64`.
 
 See <https://www.asqav.com/docs/threat-framework-mapping>.
 
@@ -240,7 +240,7 @@ print(pack["algorithm_registry_version"]) # registry version pinned at issuance
 
 `asqav.export_bundle(signatures, framework="dora")` is the offline alternative for air-gapped flows: it computes a Merkle root over an in-memory list of receipts without calling the cloud. Use `fetch_audit_pack` whenever the cloud is reachable, since only the cloud signature gives the auditor a tamper-evident manifest.
 
-Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 300s skew bound, and predecessor rederivation, are available as `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)`. The cloud is the authoritative verifier; this helper is a convenience.
+Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 300s skew bound, and predecessor rederivation, are available as `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)`. The cloud is the authoritative verifier. This helper is a convenience.
 
 Algorithm agility is exposed via `asqav.SUPPORTED_ALGORITHMS`. Pass `algorithm="ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `asqav.generate_local_keypair("ed25519")` for offline scenarios.
 
@@ -252,8 +252,8 @@ The SDK ships native callbacks and adapters for common agent frameworks under `a
 - **CrewAI** - `from asqav.extras.crewai import AsqavCrewHook, AsqavGuardrailProvider`, attach the hook to the Crew so every task and agent step signs through Asqav.
 - **LiteLLM** - `from asqav.extras.litellm import AsqavGuardrail`, register on `litellm.callbacks`. Signs every completion across providers.
 - **OpenAI Agents SDK** - `from asqav.extras.openai_agents import AsqavGuardrail, AsqavTracingProcessor`, attaches to the runner and signs tool calls plus tracer spans.
-- **LlamaIndex**, **Haystack**, **smolagents**, **DSPy**, **Letta**, **Strands**, **Instructor** - same pattern via `asqav.extras.<framework>`; each exposes one `AsqavAdapter` subclass.
-- **pytest** - run `pytest --asqav --asqav-agent=test-runner` with `ASQAV_API_KEY` set; each test result signs and a Merkle-rooted compliance bundle emits on session finish.
+- **LlamaIndex**, **Haystack**, **smolagents**, **DSPy**, **Letta**, **Strands**, **Instructor** - same pattern via `asqav.extras.<framework>`, each exposing one `AsqavAdapter` subclass.
+- **pytest** - run `pytest --asqav --asqav-agent=test-runner` with `ASQAV_API_KEY` set. Each test result signs and a Merkle-rooted compliance bundle emits on session finish.
 
 Cookbooks for FastAPI middleware, AutoGen, and reasoning-trace capture live under `python/examples/`. See <https://asqav.com/docs/integrations> for the per-framework guide.
 
@@ -281,7 +281,7 @@ except APIError as exc:
 
 ## Requirements
 
-Python 3.10 or newer. Uses `httpx` for the API client. Zero native dependencies; ML-DSA cryptography runs server-side.
+Python 3.10 or newer. Uses `httpx` for the API client. Zero native dependencies. ML-DSA cryptography runs server-side.
 
 ## Standards
 
@@ -294,9 +294,9 @@ What ships on Asqav today. Each item is available on `main`:
 - Hash-only mode for cloud - default for `*.asqav.com`.
 - Self-hosted signer with split-trust - compose file in the Asqav backend repo.
 - Bring-your-own KMS for AWS KMS or GCP KMS - Enterprise tier.
-- Customer-owned storage - self-hosted; relay payload allowlist enforced in code.
+- Customer-owned storage - self-hosted, with the relay payload allowlist enforced in code.
 - SCITT / COSE_Sign1 receipt export - public `GET /api/v1/signatures/{id}/cose` returns `application/cose`.
-- Air-gapped / on-prem mode - offline license + zero-egress; see the backend repo `docs/airgapped-mode.md`.
+- Air-gapped / on-prem mode - offline license + zero-egress. See the backend repo `docs/airgapped-mode.md`.
 
 See <https://asqav.com/docs> for the live feature set.
 
