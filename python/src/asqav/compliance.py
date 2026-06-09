@@ -207,10 +207,15 @@ def fetch_audit_pack(
     if agent_id is not None:
         body["agent_id"] = agent_id
 
+    from ._useragent import USER_AGENT
+
     resp = _client.httpx.post(
         url,
         json=body,
-        headers={"Authorization": f"Bearer {_client._api_key}"},
+        headers={
+            "Authorization": f"Bearer {_client._api_key}",
+            "User-Agent": USER_AGENT,
+        },
         timeout=30.0,
     )
     resp.raise_for_status()

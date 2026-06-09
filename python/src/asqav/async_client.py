@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._useragent import USER_AGENT
 from .client import (
     APIError,
     AsqavError,
@@ -76,7 +77,7 @@ async def _async_get(path: str) -> dict[str, Any]:
 
     async with httpx.AsyncClient(
         base_url=api_base,
-        headers={"X-API-Key": api_key},
+        headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=30.0,
     ) as client:
         response = await client.get(path)
@@ -94,7 +95,7 @@ async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
 
     async with httpx.AsyncClient(
         base_url=api_base,
-        headers={"X-API-Key": api_key},
+        headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=30.0,
     ) as client:
         response = await client.post(path, json=data)
@@ -112,7 +113,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
 
     async with httpx.AsyncClient(
         base_url=api_base,
-        headers={"X-API-Key": api_key},
+        headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=30.0,
     ) as client:
         response = await client.patch(path, json=data)
@@ -337,7 +338,7 @@ class AsyncAgent:
         api_base, _ = _get_config()
         url = f"{api_base}/verify/{signature_id}"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, timeout=30.0) as client:
             response = await client.get(url)
             if response.status_code == 404:
                 raise APIError("Signature not found", 404)

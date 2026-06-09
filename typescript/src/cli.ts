@@ -32,8 +32,9 @@ import {
   type LocalSigningAlgorithm,
   type SignatureResponse,
 } from "./index.js";
+import { SDK_VERSION, userAgentHeaders } from "./userAgent.js";
 
-export const CLI_VERSION = "0.5.12";
+export const CLI_VERSION = SDK_VERSION;
 
 function die(msg: string, code = 1): never {
   process.stderr.write(`${msg}\n`);
@@ -752,6 +753,7 @@ async function sessionRequest(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        ...userAgentHeaders(),
       },
       body: JSON.stringify(body),
     });
@@ -918,6 +920,7 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
         "X-API-Key": process.env.ASQAV_API_KEY,
         "X-Maintenance-Key": maintenanceKey,
         "Content-Type": "application/json",
+        ...userAgentHeaders(),
       },
       body: "{}",
     });

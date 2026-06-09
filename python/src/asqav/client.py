@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from .phases import PhaseChain
     from .scope import ScopeToken
 
+from ._useragent import USER_AGENT
 from .patterns import resolve_pattern
 from .retry import with_retry
 
@@ -926,7 +927,7 @@ def flush_spans() -> None:
         req = urllib.request.Request(
             _otel_endpoint,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
@@ -2777,7 +2778,7 @@ def init(
     if _HTTPX_AVAILABLE:
         _client = httpx.Client(
             base_url=_api_base,
-            headers={"X-API-Key": _api_key},
+            headers={"X-API-Key": _api_key, "User-Agent": USER_AGENT},
             timeout=30.0,
         )
 
@@ -2896,6 +2897,7 @@ def _urllib_request(
     headers = {
         "X-API-Key": _api_key,
         "Content-Type": "application/json",
+        "User-Agent": USER_AGENT,
     }
 
     body = json.dumps(data).encode("utf-8") if data else None
@@ -3164,7 +3166,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
 
     # Use httpx if available (better SSL handling)
     if _HTTPX_AVAILABLE:
-        response = httpx.get(url, timeout=30.0)
+        response = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=30.0)
         if response.status_code == 404:
             raise APIError("Signature not found", 404)
         if response.status_code >= 400:
@@ -3177,7 +3179,8 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         import urllib.request
 
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=30) as response:
                 data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             if e.code == 404:
@@ -4288,6 +4291,7 @@ def export_audit_csv(
         url = urljoin(_api_base, path)
         headers = {
             "Authorization": f"Bearer {_api_key}",
+            "User-Agent": USER_AGENT,
         }
         request = urllib.request.Request(url, headers=headers, method="GET")
 
