@@ -75,7 +75,7 @@ runs:
 
     - name: Install Asqav SDK
       shell: bash
-      run: python -m pip install --upgrade "asqav>=0.5.7"
+      run: python -m pip install --upgrade "asqav>=0.5.7,<0.6"
 
     - name: Run risk-acceptance action
       id: run

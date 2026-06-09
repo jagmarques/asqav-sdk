@@ -112,13 +112,19 @@ The manifest lists the receipt ids your suppressions rely on, one per line
 (`#` comments allowed), or as a JSON array, or as `{"receipts": [...]}`.
 
 The audit fetches each receipt through the public verify endpoint and fails
-when any referenced receipt is missing, fails verification, is expired
-(evaluated server-side against the receipt's `valid_until`), carries a
-receipt type other than `protectmcp:lifecycle:risk_acceptance`, or is named
-in the `supersedes` field of another receipt in the manifest. Supersession is
-evaluated client-side across the fetched set, so keep both the old and the
-new receipt id in the manifest during a handover if you want the audit to
-flag the old one.
+when any referenced receipt is missing, fails verification, or is expired
+(evaluated server-side against the receipt's `valid_until`). Two more checks
+read the receipt payload and run only when the verify endpoint returns one:
+a receipt type other than `protectmcp:lifecycle:risk_acceptance` fails the
+audit, and a receipt named in the `supersedes` field of another receipt in
+the manifest fails as superseded (evaluated client-side across the fetched
+set, so keep both the old and the new id in the manifest during a handover).
+
+Hash-mode receipts, the SDK default against the Asqav cloud, return no
+payload on the public verify surface. For those the audit emits a prominent
+warning marking the type and supersession checks NOT EVALUABLE and does not
+fail on them; enforcement there rests on the existence, signature, and
+expiry checks alone.
 
 ## Inputs
 

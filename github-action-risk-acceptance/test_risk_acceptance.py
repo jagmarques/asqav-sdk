@@ -8,7 +8,8 @@ tests cover the load-bearing pieces of the action:
 3. approver and initiator extraction from the event payload.
 4. the mint sign call invariants (receipt type, compliance mode, field map).
 5. manifest parsing and the client-side audit filter (expired, superseded,
-   missing, wrong type).
+   missing, wrong type, and the NOT EVALUABLE warning for hash-mode
+   receipts that return payload=None).
 """
 
 import hashlib
@@ -223,18 +224,28 @@ def _ok_receipt(sig_id, **payload_extra):
     }
 
 
+def _hash_mode_receipt(sig_id, verified=True, validation_label="fully_verified"):
+    return {
+        "signature_id": sig_id,
+        "verified": verified,
+        "validation_label": validation_label,
+        "payload": None,
+    }
+
+
 def test_audit_passes_valid_receipts():
     receipts = {"sig_a": _ok_receipt("sig_a"), "sig_b": _ok_receipt("sig_b")}
-    assert mod.evaluate_audit(receipts) == []
+    assert mod.evaluate_audit(receipts) == ([], [])
 
 
 def test_audit_fails_expired_receipt():
     rec = _ok_receipt("sig_a")
     rec["validation_label"] = mod.EXPIRED_LABEL
     rec["verified"] = False
-    failures = mod.evaluate_audit({"sig_a": rec})
+    failures, warnings = mod.evaluate_audit({"sig_a": rec})
     assert len(failures) == 1
     assert "expired" in failures[0]
+    assert warnings == []
 
 
 def test_audit_fails_superseded_receipt():
@@ -242,27 +253,70 @@ def test_audit_fails_superseded_receipt():
         "sig_old": _ok_receipt("sig_old"),
         "sig_new": _ok_receipt("sig_new", supersedes="sig_old"),
     }
-    failures = mod.evaluate_audit(receipts)
+    failures, warnings = mod.evaluate_audit(receipts)
     assert failures == ["sig_old: superseded by sig_new."]
+    assert warnings == []
 
 
 def test_audit_fails_missing_receipt():
-    failures = mod.evaluate_audit({"sig_gone": None})
+    failures, warnings = mod.evaluate_audit({"sig_gone": None})
     assert failures == ["sig_gone: receipt not found."]
+    assert warnings == []
 
 
 def test_audit_fails_wrong_receipt_type():
     rec = _ok_receipt("sig_a")
     rec["payload"]["receipt_type"] = "protectmcp:lifecycle:code_authorship"
-    failures = mod.evaluate_audit({"sig_a": rec})
+    failures, warnings = mod.evaluate_audit({"sig_a": rec})
     assert len(failures) == 1
     assert "receipt_type" in failures[0]
+    assert warnings == []
 
 
 def test_audit_unverified_receipt_fails():
     rec = _ok_receipt("sig_a")
     rec["verified"] = False
     rec["validation_label"] = "signature_invalid"
-    failures = mod.evaluate_audit({"sig_a": rec})
+    failures, warnings = mod.evaluate_audit({"sig_a": rec})
     assert len(failures) == 1
     assert "failed verification" in failures[0]
+    assert warnings == []
+
+
+def test_audit_hash_mode_payload_none_warns_not_evaluable():
+    failures, warnings = mod.evaluate_audit({"sig_a": _hash_mode_receipt("sig_a")})
+    assert failures == []
+    assert len(warnings) == 1
+    assert warnings[0].startswith("sig_a: ")
+    assert "NOT EVALUABLE" in warnings[0]
+    assert "hash-mode" in warnings[0]
+
+
+def test_audit_hash_mode_warning_does_not_mask_expiry():
+    rec = _hash_mode_receipt(
+        "sig_a", verified=False, validation_label=mod.EXPIRED_LABEL
+    )
+    failures, warnings = mod.evaluate_audit({"sig_a": rec})
+    assert len(failures) == 1
+    assert "expired" in failures[0]
+    assert len(warnings) == 1
+    assert "NOT EVALUABLE" in warnings[0]
+
+
+def test_main_audit_surfaces_warning_and_exits_zero(monkeypatch, capsys, tmp_path):
+    manifest = tmp_path / "suppressions.txt"
+    manifest.write_text("sig_a\n")
+    monkeypatch.setenv("ASQAV_MODE", "audit")
+    monkeypatch.setenv("ASQAV_API_KEY", "sk_test")
+    monkeypatch.setenv("ASQAV_SUPPRESSION_MANIFEST", str(manifest))
+    monkeypatch.setattr(
+        mod, "audit", lambda **kw: ([], [f"sig_a: {mod.NOT_EVALUABLE_MSG}"])
+    )
+
+    rc = mod.main()
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "::warning::sig_a:" in captured.out
+    assert "NOT EVALUABLE" in captured.err
+    assert "NOT EVALUABLE for 1 hash-mode receipt(s)" in captured.out

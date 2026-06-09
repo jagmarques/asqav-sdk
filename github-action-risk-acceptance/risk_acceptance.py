@@ -12,11 +12,14 @@ declared expiry, nothing more.
 
 Audit mode fetches each receipt id named in a suppression manifest via the
 public verify endpoint and exits nonzero when any referenced receipt is
-missing, fails verification, is expired (server-evaluated valid_until), or is
-superseded by another receipt fetched in the same run. Supersession is
-detected client-side from the `supersedes` field on the fetched receipts, so
-the audit works against the live verify endpoint alone with no list endpoint
-required.
+missing, fails verification, or is expired (server-evaluated valid_until).
+The receipt-type and supersession checks read the receipt payload, and the
+public verify surface returns no payload for hash-mode receipts (the SDK
+default against the Asqav cloud). For those receipts the audit emits a
+prominent warning marking both checks NOT EVALUABLE instead of skipping them
+without a trace. When the payload is present, a wrong receipt_type fails the
+audit and supersession is detected client-side from the `supersedes` field
+across the fetched set, with no list endpoint required.
 """
 
 from __future__ import annotations
@@ -33,6 +36,13 @@ from typing import Any
 RECEIPT_TYPE = "protectmcp:lifecycle:risk_acceptance"
 #: validation_label the cloud verify cascade emits for a lapsed valid_until.
 EXPIRED_LABEL = "signature_expired"
+#: warning text for receipts whose payload the verify surface does not return.
+NOT_EVALUABLE_MSG = (
+    "receipt_type and supersedes are NOT EVALUABLE from the public verify "
+    "surface for hash-mode receipts (no payload returned). The signature, "
+    "expiry, and existence checks still apply; the audit cannot confirm this "
+    "receipt's type or whether another receipt supersedes it."
+)
 
 _DURATION_RE = re.compile(r"^(\d+)\s*([smhdw]?)$", re.IGNORECASE)
 _DURATION_UNITS = {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
@@ -257,16 +267,21 @@ def _fetch_receipt(signature_id: str) -> dict[str, Any] | None:
     }
 
 
-def evaluate_audit(receipts: dict[str, dict[str, Any] | None]) -> list[str]:
-    """Return the list of audit failures for the fetched manifest receipts.
+def evaluate_audit(
+    receipts: dict[str, dict[str, Any] | None]
+) -> tuple[list[str], list[str]]:
+    """Return (failures, warnings) for the fetched manifest receipts.
 
     A manifest id fails when the receipt is missing, fails verification, is
-    expired (the server-evaluated validation_label), references a receipt type
-    other than risk_acceptance, or is named in the `supersedes` field of
-    another fetched receipt. Supersession is evaluated client-side across the
-    fetched set, on the payload's `supersedes` value.
+    expired (the server-evaluated validation_label), carries a payload with a
+    receipt type other than risk_acceptance, or is named in the `supersedes`
+    field of another fetched receipt. The type and supersession checks read
+    the payload; a receipt fetched with payload=None (hash-mode receipts
+    return none) gets a warning marking those checks NOT EVALUABLE rather
+    than a quiet pass.
     """
     failures: list[str] = []
+    warnings: list[str] = []
     superseded_by: dict[str, str] = {}
     for sig_id, rec in receipts.items():
         if rec is None or not rec.get("payload"):
@@ -285,7 +300,9 @@ def evaluate_audit(receipts: dict[str, dict[str, Any] | None]) -> list[str]:
         elif not rec.get("verified"):
             failures.append(f"{sig_id}: failed verification (validation_label={label}).")
         payload = rec.get("payload")
-        if payload is not None:
+        if payload is None:
+            warnings.append(f"{sig_id}: {NOT_EVALUABLE_MSG}")
+        else:
             rtype = payload.get("receipt_type")
             if rtype != RECEIPT_TYPE:
                 failures.append(
@@ -293,11 +310,11 @@ def evaluate_audit(receipts: dict[str, dict[str, Any] | None]) -> list[str]:
                 )
         if sig_id in superseded_by:
             failures.append(f"{sig_id}: superseded by {superseded_by[sig_id]}.")
-    return failures
+    return failures, warnings
 
 
-def audit(*, api_key: str, manifest_path: str) -> list[str]:
-    """Run the audit: fetch every manifest receipt, evaluate, return failures."""
+def audit(*, api_key: str, manifest_path: str) -> tuple[list[str], list[str]]:
+    """Fetch every manifest receipt, evaluate, return (failures, warnings)."""
     import asqav
 
     asqav.init(api_key=api_key)
@@ -365,10 +382,13 @@ def _main_audit() -> int:
         )
         return 2
     try:
-        failures = audit(api_key=api_key, manifest_path=manifest_path)
+        failures, warnings = audit(api_key=api_key, manifest_path=manifest_path)
     except Exception as exc:  # noqa: BLE001 - surface any failure to the runner
         print(f"ERROR auditing suppression manifest: {exc}", file=sys.stderr)
         return 1
+    for line in warnings:
+        print(f"::warning::{line}")
+        print(f"WARNING {line}", file=sys.stderr)
     if failures:
         for line in failures:
             print(f"FAIL {line}", file=sys.stderr)
@@ -379,7 +399,14 @@ def _main_audit() -> int:
             file=sys.stderr,
         )
         return 1
-    print("All manifest receipts verified, unexpired, and unsuperseded.")
+    if warnings:
+        print(
+            "All evaluable checks passed: every manifest receipt verified "
+            f"and unexpired. receipt_type and supersedes were NOT EVALUABLE "
+            f"for {len(warnings)} hash-mode receipt(s), see warnings above."
+        )
+    else:
+        print("All manifest receipts verified, unexpired, and unsuperseded.")
     return 0
 
 
