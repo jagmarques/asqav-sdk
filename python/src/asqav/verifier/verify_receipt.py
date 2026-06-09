@@ -40,6 +40,24 @@ from datetime import datetime, timezone
 
 API_BASE = "https://api.asqav.com/api/v1"
 JWKS_URL = "https://api.asqav.com/.well-known/jwks.json"
+
+
+def _user_agent() -> str:
+    """Identify this tool; the api.asqav.com edge 403s the bare urllib default.
+
+    Self-contained (no asqav import) so the file still runs as a standalone
+    download, per the module docstring.
+    """
+    try:
+        from importlib.metadata import version
+
+        ver = version("asqav")
+    except Exception:
+        ver = "standalone"
+    return f"asqav-python/{ver} (+https://www.asqav.com)"
+
+
+USER_AGENT = _user_agent()
 SKEW_BOUND_SECONDS = 300
 FIRST_RECEIPT_SEED = "0" * 64  # mirrors core/integrity.py FIRST_RECEIPT_SEED
 REQUIRED_FIELDS = (
@@ -90,7 +108,9 @@ def envelope_minus_anchors_jcs(env: dict) -> bytes:
 
 
 def _get_json(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    req = urllib.request.Request(
+        url, headers={"Accept": "application/json", "User-Agent": USER_AGENT}
+    )
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
@@ -227,6 +247,18 @@ def check_structure(payload: dict):
 def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
+    if not isinstance(payload, dict):
+        # Hosted /verify can return ``payload: null`` (e.g. hash-only or
+        # redacted receipts). Nothing to verify; say so instead of crashing.
+        print("Asqav receipt verification")
+        print(
+            "  [FAIL] payload      receipt payload not available from this "
+            "surface (the server returned payload: null). Verify with a saved "
+            "receipt instead: --receipt FILE from your Audit Pack or SDK "
+            "capture."
+        )
+        print("\n  => INCOMPLETE (no payload to verify; never a PASS)")
+        return 2
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):  # flat-string signature, derive the object
         sig_obj = {

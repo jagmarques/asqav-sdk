@@ -540,7 +540,8 @@ def test_quickstart_without_api_key() -> None:
 # === doctor command ===
 
 
-def test_doctor_no_api_key() -> None:
+@patch("urllib.request.urlopen")
+def test_doctor_no_api_key(mock_urlopen: MagicMock) -> None:
     """doctor reports failure when API key is missing."""
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": ""})
     assert result.exit_code == 1
@@ -549,9 +550,12 @@ def test_doctor_no_api_key() -> None:
     assert "SKIP" in result.output
 
 
+@patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
-def test_doctor_all_pass(mock_init: MagicMock, mock_health: MagicMock) -> None:
+def test_doctor_all_pass(
+    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+) -> None:
     """doctor passes all checks when API key is set and API is reachable."""
     mock_health.return_value = {"status": "ok"}
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
@@ -559,18 +563,75 @@ def test_doctor_all_pass(mock_init: MagicMock, mock_health: MagicMock) -> None:
     assert "PASS" in result.output
     assert "API key set" in result.output
     assert "API reachable" in result.output
+    assert "API edge accepts this client" in result.output
     assert "All checks passed" in result.output
 
 
+@patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
-def test_doctor_api_unreachable(mock_init: MagicMock, mock_health: MagicMock) -> None:
+def test_doctor_api_unreachable(
+    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+) -> None:
     """doctor reports failure when API is unreachable."""
     mock_health.side_effect = Exception("Connection refused")
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 1
     assert "API unreachable" in result.output
     assert "Connection refused" in result.output
+
+
+@patch("urllib.request.urlopen")
+@patch("asqav.client.health_check")
+@patch("asqav.init")
+def test_doctor_edge_blocked_403(
+    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+) -> None:
+    """doctor FAILS loudly when the API edge 403-blocks this client.
+
+    Pins the stranger-funnel regression: the key-authenticated health check
+    can succeed while the edge firewall (Cloudflare error 1010) rejects the
+    client and every sign call dies. doctor must not print all-pass then.
+    """
+    import urllib.error
+
+    mock_health.return_value = {"status": "ok"}
+    mock_urlopen.side_effect = urllib.error.HTTPError(
+        "https://api.asqav.com/api/v1/health", 403, "Forbidden", None, None
+    )
+    result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 1
+    assert "BLOCKED" in result.output
+    assert "Sign calls will fail" in result.output
+    assert "All checks passed" not in result.output
+
+
+@patch("urllib.request.urlopen")
+@patch("asqav.client.health_check")
+@patch("asqav.init")
+def test_doctor_edge_unreachable(
+    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+) -> None:
+    """doctor reports a clear failure when the edge probe cannot connect."""
+    import urllib.error
+
+    mock_health.return_value = {"status": "ok"}
+    mock_urlopen.side_effect = urllib.error.URLError("no route to host")
+    result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 1
+    assert "API edge unreachable" in result.output
+    assert "All checks passed" not in result.output
+
+
+@patch("urllib.request.urlopen")
+def test_doctor_edge_probe_sends_user_agent(mock_urlopen: MagicMock) -> None:
+    """The edge probe identifies itself with the SDK User-Agent."""
+    from asqav._useragent import USER_AGENT
+
+    runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": ""})
+    assert mock_urlopen.called
+    req = mock_urlopen.call_args[0][0]
+    assert req.get_header("User-agent") == USER_AGENT
 
 
 # === replay command ===
