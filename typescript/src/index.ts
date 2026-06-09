@@ -1139,12 +1139,7 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       );
     }
   }
-  // Threat-framework taxonomy validators. Lockstep with the cloud
-  // SignRequest cross-field validator: lists must be non-empty
-  // arrays of strings (each entry up to 128 chars); rfc3161Timestamp
-  // must be valid base64. Verbatim guard tokens kept in sync with
-  // the cloud and Python SDK so SDK errors round-trip through the
-  // conformance vectors.
+  // Threat-framework taxonomy validators; verbatim guard tokens kept in lockstep with the cloud SignRequest validator.
   const _taxonomyChecks: Array<[string, string[] | undefined]> = [
     ["mitre_techniques", options.mitreTechniques],
     ["mitre_atlas", options.mitreAtlas],
