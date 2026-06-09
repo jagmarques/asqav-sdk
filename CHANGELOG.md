@@ -6,6 +6,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+- Every HTTP request from both SDK halves now sends a real `User-Agent` (`asqav-python/<version> (+https://www.asqav.com)` and `asqav-js/<version>`). The api.asqav.com edge rejects anonymous default agents with a 403 (Cloudflare error 1010), which made a fresh install's first sign call fail with a bare "HTTP Error 403: Forbidden". Covers the Python urllib and httpx transports (client, async client, CLI, compliance export, standalone verifier) and the TypeScript fetch transport; in browsers, where fetch forbids setting `User-Agent`, the header is skipped so bundles keep working.
+- The standalone receipt verifier no longer crashes with an `AttributeError` when the hosted `/verify/{id}` response carries `payload: null`. It now prints a readable "receipt payload not available from this surface" message and exits with the INCOMPLETE code (2).
+- `asqav doctor` probes the API edge with the SDK `User-Agent` and fails loudly when the edge blocks or cannot reach the client, instead of printing "All checks passed" while every sign call 403s.
+
 ## [0.5.12] - 2026-06-08
 
 Applies to both the Python (`asqav`) and TypeScript (`@asqav/sdk`) packages.

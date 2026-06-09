@@ -112,3 +112,34 @@ def test_run_structure_axis_passes_on_code_authorship(capsys) -> None:
     for line in out.splitlines():
         if "[FAIL]" in line:
             assert "structure" not in line
+
+
+# === payload: null fail-clean (stranger-funnel B2) ===
+
+
+def test_run_payload_null_fails_clean(capsys) -> None:
+    """A hosted /verify response with ``payload: null`` must not traceback.
+
+    The published verifier crashed with a raw AttributeError here; it now
+    prints a readable message and returns the INCOMPLETE exit code (2).
+    """
+    envelope = {
+        "signature_id": "sig_abc123",
+        "payload": None,
+        "signature": "AAAA",
+        "algorithm": "ML-DSA-65",
+    }
+    code = v.run(envelope, {"keys": []}, predecessor_payload=None)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "receipt payload not available from this surface" in out
+    assert "INCOMPLETE" in out
+    assert "PASS" not in out.replace("never a PASS", "")
+
+
+def test_run_payload_null_without_signature_keys(capsys) -> None:
+    """Same guard when the response carries only nulls."""
+    code = v.run({"payload": None}, {"keys": []}, predecessor_payload=None)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "INCOMPLETE" in out
