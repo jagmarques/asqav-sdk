@@ -98,7 +98,7 @@ The agent now has a cryptographic identity, a signed audit trail, and a verifiab
 
 The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
 
-- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). Raw prompts and tool arguments stay on your side.
+- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag of action_type, agent_id, session_id, model_name, and tool_name. Raw prompts and tool arguments stay on your side.
 - **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
 
 Override anytime:
@@ -146,13 +146,13 @@ The full reference lives at [asqav.com/docs](https://asqav.com/docs).
 
 ### What's in each SDK
 
-Both SDKs cover the same core surface: agent identity, signed actions, batched signing, policy enforcement, scope tokens, replay, attestations, three-phase signing, and the `user_intent` envelope on `agent.sign(...)` (Ed25519 / ECDSA P-256 / WebAuthn).
+Both SDKs cover the same core surface: agent identity, signed actions, batched signing, policy enforcement, scope tokens, replay, attestations, three-phase signing, and the `user_intent` envelope on `agent.sign(...)`, signed with Ed25519, ECDSA P-256, or WebAuthn.
 
 The Python SDK additionally ships:
 
-- The `asqav` CLI: `quickstart`, `demo`, `verify`, `doctor`, `agents`, `sync`, plus `replay`, `preflight`, `approve`, `budget` (`check`/`record`), and `compliance` (`frameworks`/`export`). See [asqav.com/docs/cli](https://asqav.com/docs/cli).
-- A pytest plugin (`pytest --asqav`) that signs every test result and emits a Merkle-rooted compliance bundle on session finish. See [asqav.com/docs/pytest-plugin](https://asqav.com/docs/pytest-plugin).
-- Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI, Letta, Strands, and Instructor (via the Hooks API).
+- The `asqav` CLI: `quickstart`, `demo`, `verify`, `doctor`, `agents`, `sync`, plus `replay`, `preflight`, `approve`, `budget` with `check` and `record`, and `compliance` with `frameworks` and `export`. See [asqav.com/docs/cli](https://asqav.com/docs/cli).
+- A pytest plugin, enabled with `pytest --asqav`, that signs every test result and emits a Merkle-rooted compliance bundle on session finish. See [asqav.com/docs/pytest-plugin](https://asqav.com/docs/pytest-plugin).
+- Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI, Letta, Strands, and Instructor through the Hooks API.
 - Cookbooks for Streamlit dashboards and Dify workflows under `python/examples/`.
 - Local-mode offline signing with deferred sync.
 
@@ -214,11 +214,11 @@ console.assert(result.verified);
 console.log(result.agentId, result.chainHash);
 ```
 
-Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 (the JSON format spec) payload, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
 ## Counterparty acknowledgment
 
-When two agents hand off a workflow (A signs an action, B acts on it), the SDK lets B emit a `protectmcp:acknowledgment` receipt that cryptographically binds B's bytes to A's. The bundle carries A's full envelope, B's acknowledgment, and a SHA-256 binding the verifier recomputes offline. A tampered intermediary cannot mutate the bytes without breaking the equality, so a regulator can verify the handoff with one digest comparison.
+When two agents hand off a workflow, where A signs an action and B acts on it, the SDK lets B emit a `protectmcp:acknowledgment` receipt that cryptographically binds B's bytes to A's. The bundle carries A's full envelope, B's acknowledgment, and a SHA-256 binding the verifier recomputes offline. A tampered intermediary cannot mutate the bytes without breaking the equality, so a regulator can verify the handoff with one digest comparison.
 
 Python:
 

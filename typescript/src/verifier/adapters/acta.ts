@@ -119,11 +119,7 @@ export class ActaAdapter extends FormatAdapter {
     const p = payload as Record<string, unknown>;
     const s = sig as Record<string, unknown>;
     const missing: string[] = [];
-    // draft-farley conformance mandates a temporal anchor plus the signature
-    // triple; `type`/`issuer_id` are Asqav-profile fields, OPTIONAL upstream (the
-    // ScopeBlind reference producers emit `issuer`, not `issuer_id`, and omit
-    // `type`), so requiring them would reject conformant third-party receipts
-    // whose signatures genuinely verify.
+    // Require only the temporal anchor + signature triple; `type`/`issuer_id` are OPTIONAL Asqav-profile fields.
     for (const f of ["issued_at"]) {
       if (!(f in p)) missing.push(f);
     }
