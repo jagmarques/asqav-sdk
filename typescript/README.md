@@ -1,6 +1,6 @@
 # asqav
 
-TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. Sign every agent action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails. All cryptography runs server-side; the package has zero native dependencies.
+TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. Sign every agent action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails. All cryptography runs server-side, and the package has zero native dependencies.
 
 ## Install
 
@@ -91,7 +91,7 @@ The envelope extensions most callers reach for, camelCase on the SDK and snake_c
 
 ### Shadow AI capture with passive_telemetry
 
-Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action; `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
+Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
 Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `typescript/src/index.ts`.
 
@@ -105,7 +105,7 @@ const sig = await agent.sign({
 });
 ```
 
-`captureTopology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`; only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
+`captureTopology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`. Only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
 
 ### Configuration change receipts, rule 9
 
@@ -128,7 +128,7 @@ The legacy `validSeconds`, where the server computes `valid_until = signed_at + 
 
 ### Digest format, rule 11
 
-Every caller-supplied self-describing digest field, namely `configManifestDigest`, `cveInventoryDigest`, `executableHash`, and `sbomDigest`, MUST match the regex `^sha256:[a-f0-9]{64}$`. `toolFingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars, SHA-256[:32], matching `^[0-9a-f]{32}$` with no `sha256:` prefix; anything else throws `AsqavError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers, each byte-deterministic under JCS:
+Every caller-supplied self-describing digest field, namely `configManifestDigest`, `cveInventoryDigest`, `executableHash`, and `sbomDigest`, MUST match the regex `^sha256:[a-f0-9]{64}$`. `toolFingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars, SHA-256[:32], matching `^[0-9a-f]{32}$` with no `sha256:` prefix. Anything else throws `AsqavError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers, each byte-deterministic under JCS:
 
 ```ts
 import {
@@ -148,7 +148,7 @@ Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment
 
 - `resultDigest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
 - `expiresAt` - explicit ISO-8601 or POSIX validity horizon. Converted client-side to `validSeconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `validSeconds`. See <https://www.asqav.com/docs/expires-at>.
-- `nonce` - 12 random bytes auto-generated when omitted; cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
+- `nonce` - 12 random bytes auto-generated when omitted. Cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
 - `toolFingerprint` - 32 bare lowercase hex chars, SHA-256[:32], over `{tool_name, schema}`, auto-derived when `toolName` + `toolSchema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
 - `configManifestDigest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/config-manifest-digest>.
 - `cveInventoryDigest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
@@ -182,7 +182,7 @@ See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance> for the fie
 
 ## Optional threat-framework mappings
 
-Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim; the cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
+Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim. The cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
 
 - `mitreTechniques` - list of MITRE ATT&CK technique ids, for example `["T1059", "T1078"]`.
 - `mitreAtlas` - list of MITRE ATLAS ids for AI-system threats, for example `["AML.T0051"]`.
@@ -204,7 +204,7 @@ const receipt = await agent.sign({
 });
 ```
 
-Each list must be a non-empty array of strings, each entry up to 128 characters; empty arrays, non-string entries, or oversize entries throw `AsqavError` with the verbatim guard messages `<field>_must_be_non_empty_list` or `<field>_entry_invalid` and skip the HTTP roundtrip. The `rfc3161Timestamp` must be valid base64 or throws `rfc3161_timestamp_not_base64`. Camel-case props project onto snake_case wire keys via the SDK's `IETF_OPTIONAL_FIELD_MAP`.
+Each list must be a non-empty array of strings, each entry up to 128 characters. Empty arrays, non-string entries, or oversize entries throw `AsqavError` with the verbatim guard messages `<field>_must_be_non_empty_list` or `<field>_entry_invalid` and skip the HTTP roundtrip. The `rfc3161Timestamp` must be valid base64 or throws `rfc3161_timestamp_not_base64`. Camel-case props project onto snake_case wire keys via the SDK's `IETF_OPTIONAL_FIELD_MAP`.
 
 See <https://www.asqav.com/docs/threat-framework-mapping>.
 
@@ -243,7 +243,7 @@ const bundle = await exportAuditJson({
 console.log(bundle.records.length, bundle.bundleDigest);
 ```
 
-For offline chain verification, `verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previous_receipt_hash`. The first record's seed is `"0".repeat(64)`. The cloud is the authoritative verifier; this helper is a convenience.
+For offline chain verification, `verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previous_receipt_hash`. The first record's seed is `"0".repeat(64)`. The cloud is the authoritative verifier. This helper is a convenience.
 
 Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. Pass `algorithm: "ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `generateKeypair("ed25519")` for offline scenarios. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
 
@@ -255,9 +255,9 @@ The SDK ships native callbacks and adapters for common agent frameworks:
 - **LangChain.js** - import `AsqavCallbackHandler` from `@asqav/sdk/extras/langchain`, construct via `await AsqavCallbackHandler.create({ agent })` then pass to `callbacks: [handler]`. Requires `@langchain/core` as a peer dep.
 - **Mastra** - import `AsqavMastraHook` from `@asqav/sdk/extras/mastra`, attach via `await new AsqavMastraHook({ agent }).attach(mastraAgent)`. Requires `@mastra/core` as a peer dep.
 - **OpenAI Agents JS** - import `AsqavOpenAIAgentsAdapter` from `@asqav/sdk/extras/openai-agents`, wrap individual tools via `new AsqavOpenAIAgentsAdapter({ agent }).wrapTool(tool)`. Each invocation signs `tool:start` / `tool:end` / `tool:error`. Requires `@openai/agents` as a peer dep.
-- **CrewAI**, **LiteLLM**, **LlamaIndex**, **Haystack** - same pattern via the Hooks API. The Python SDK has the richer ecosystem; see <https://asqav.com/docs/integrations> for parity status.
+- **CrewAI**, **LiteLLM**, **LlamaIndex**, **Haystack** - same pattern via the Hooks API. The Python SDK has the richer ecosystem, see <https://asqav.com/docs/integrations> for parity status.
 
-Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation; failures log a warning instead of throwing.
+Span names are mapped to Asqav action types: `ai.generateText` -> `ai:completion`, `ai.streamText` -> `ai:completion_stream`, `ai.toolCall` -> `ai:tool_call`, errors -> `ai:error`. Signing is fire-and-forget and never blocks generation. Failures log a warning instead of throwing.
 
 ## Errors
 
@@ -289,11 +289,11 @@ const result = verify(receipt, ADAPTERS, keyProvider);
 // result.verdict is "PASS", "FAIL", or "INCOMPLETE"
 ```
 
-It verifies the issuer signature over the canonical bytes, the hash-chain link, and structural presence across the asqav-native, AERF, ACTA, agent-receipts, and Authproof formats. It never attests the behaviour of the recorded action, and no account is required. Ed25519 and ES256 verify in-process via `node:crypto`; ML-DSA-65 downgrades to `INCOMPLETE` rather than ever returning a false `PASS`. This is the TypeScript port of the Python `asqav.verifier.oracle`, held to verdict parity by a shared conformance corpus.
+It verifies the issuer signature over the canonical bytes, the hash-chain link, and structural presence across the asqav-native, AERF, ACTA, agent-receipts, and Authproof formats. It never attests the behaviour of the recorded action, and no account is required. Ed25519 and ES256 verify in-process via `node:crypto`. ML-DSA-65 downgrades to `INCOMPLETE` rather than ever returning a false `PASS`. This is the TypeScript port of the Python `asqav.verifier.oracle`, held to verdict parity by a shared conformance corpus.
 
 ## Requirements
 
-Node 20 or newer. Uses the built-in `fetch`. Zero native dependencies; ML-DSA cryptography runs server-side.
+Node 20 or newer. Uses the built-in `fetch`. Zero native dependencies. ML-DSA cryptography runs server-side.
 
 ## Standards
 
@@ -306,9 +306,9 @@ What ships on Asqav today. Each item is available on `main`:
 - Hash-only mode for cloud - default for `*.asqav.com`.
 - Self-hosted signer with split-trust - compose file in the Asqav backend repo.
 - Bring-your-own KMS for AWS KMS or GCP KMS - Enterprise tier.
-- Customer-owned storage - self-hosted; relay payload allowlist enforced in code.
+- Customer-owned storage - self-hosted, with the relay payload allowlist enforced in code.
 - SCITT / COSE_Sign1 receipt export - public `GET /api/v1/signatures/{id}/cose` returns `application/cose`.
-- Air-gapped / on-prem mode - offline license + zero-egress; see the backend repo `docs/airgapped-mode.md`.
+- Air-gapped / on-prem mode - offline license + zero-egress. See the backend repo `docs/airgapped-mode.md`.
 
 See <https://asqav.com/docs> for the live feature set.
 
