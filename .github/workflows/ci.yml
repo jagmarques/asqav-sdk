@@ -12,6 +12,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
       verifier: ${{ steps.filter.outputs.verifier }}
+      actions: ${{ steps.filter.outputs.actions }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -32,6 +33,10 @@ jobs:
             verifier:
               - 'python/src/asqav/verifier/**'
               - 'verifier/conformance-vectors/**'
+              - '.github/workflows/ci.yml'
+            actions:
+              - 'github-action/**'
+              - 'github-action-risk-acceptance/**'
               - '.github/workflows/ci.yml'
 
   python:
@@ -87,10 +92,23 @@ jobs:
       - run: ruff check python/src/asqav/verifier
       - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py -v --tb=short
 
+  actions:
+    needs: changes
+    if: needs.changes.outputs.actions == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pytest ruff
+      - run: ruff check github-action github-action-risk-acceptance
+      - run: pytest github-action github-action-risk-acceptance -v --tb=short
+
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, typescript, verifier]
+    needs: [python, typescript, verifier, actions]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -98,6 +116,8 @@ jobs:
           echo "python=${{ needs.python.result }}"
           echo "typescript=${{ needs.typescript.result }}"
           echo "verifier=${{ needs.verifier.result }}"
+          echo "actions=${{ needs.actions.result }}"
           [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.actions.result }}"    =~ ^(success|skipped)$ ]] || exit 1
