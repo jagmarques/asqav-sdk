@@ -111,20 +111,14 @@ class ActaAdapter(FormatAdapter):
         sig = doc.get("signature")
         if not isinstance(payload, dict) or not isinstance(sig, dict):
             return "FAIL", "ACTA receipt needs object payload and signature"
-        # draft-farley conformance mandates a temporal anchor plus the signature
-        # triple; `type`/`issuer_id` are Asqav-profile fields, OPTIONAL upstream
-        # (the ScopeBlind reference producers emit `issuer`, not `issuer_id`, and
-        # omit `type`), so requiring them would reject conformant third-party
-        # receipts whose signatures genuinely verify.
+        # Require only the temporal anchor + signature triple; `type`/`issuer_id` are OPTIONAL Asqav-profile fields.
         missing = [f for f in ("issued_at",) if f not in payload]
         missing += [f"signature.{f}" for f in ("alg", "kid", "sig") if f not in sig]
         if missing:
             return "FAIL", f"missing required fields: {','.join(missing)}"
         if "previousReceiptHash" in payload and payload["previousReceiptHash"] is None:
             return "FAIL", "genesis must omit previousReceiptHash, not set it null"
-        # False-attestation guard: when the Asqav-profile `issuer_id` is present it
-        # MUST match the signing kid. Absent it, there is nothing to contradict, so
-        # the check is conditional rather than a hard requirement.
+        # False-attestation guard: when `issuer_id` is present it must match the signing kid.
         if "issuer_id" in payload and payload["issuer_id"] != sig.get("kid"):
             return "FAIL", "issuer_id must match signature.kid"
         # Bind alg to the EdDSA baseline; reject registry algs this verifier does not check.

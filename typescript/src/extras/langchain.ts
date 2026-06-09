@@ -60,9 +60,7 @@ function truncate(s: string, max = MAX_PREVIEW): string {
  */
 async function loadBase(): Promise<BaseCallbackHandlerCtor> {
   try {
-    // Dynamic specifier: the peer is optional, declared in package.json
-    // peerDependenciesMeta. ts-ignore avoids hard-failing the type-check
-    // for installs without @langchain/core.
+    // Dynamic specifier: the peer is optional (package.json peerDependenciesMeta).
     // @ts-ignore optional peer dependency
     const mod = (await import("@langchain/core/callbacks/base")) as unknown;
     const ctor = (mod as { BaseCallbackHandler?: BaseCallbackHandlerCtor })

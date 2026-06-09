@@ -2774,7 +2774,6 @@ def init(
     )
     _org_salt = org_salt
 
-    # Initialize HTTP client
     if _HTTPX_AVAILABLE:
         _client = httpx.Client(
             base_url=_api_base,
@@ -3385,10 +3384,7 @@ def verify_compliance_receipt(
             if not outcome.valid:
                 errors.append(f"counterparty_binding_{outcome.label}")
 
-    # authorized_under_mandate is server-built; recognise it structurally and
-    # reject a present-but-malformed attestation (lockstep with the cloud
-    # false_mandate_attestation_guard). verified=true is self-declared issuer
-    # authority, never Asqav-verified third-party authorization.
+    # Reject a malformed authorized_under_mandate (lockstep with false_mandate_attestation_guard).
     if isinstance(_payload, dict):
         _aum = _payload.get("authorized_under_mandate")
         if _aum is not None:
@@ -3403,12 +3399,7 @@ def verify_compliance_receipt(
             ):
                 errors.append("false_mandate_attestation_guard")
 
-    # controls_evaluated is server-built; recognise it structurally and reject a
-    # present-but-malformed block (lockstep with the cloud
-    # false_control_attestation_guard, conformance.py:_check_controls_evaluated).
-    # A populated control proves provenance: quorum.fired needs a 64-hex
-    # attestation_hash; policy.evaluated needs matched_count >= 1. An unknown key
-    # or a type mismatch is a forged attestation; an absent key is honest silence.
+    # Reject a malformed controls_evaluated (lockstep with false_control_attestation_guard).
     if isinstance(_payload, dict):
         _ce = _payload.get("controls_evaluated")
         if _ce is not None:
