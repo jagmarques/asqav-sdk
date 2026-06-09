@@ -21,6 +21,9 @@ import { canonicalizeAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
 import { canonicalJson } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
+import { userAgentHeaders } from "./userAgent.js";
+
+export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
 /** Allowed values for `receiptType` per the IETF Compliance Receipts profile. */
 export const RECEIPT_TYPE_NAMESPACE = [
@@ -946,6 +949,7 @@ export async function request<T = unknown>(
     "X-API-Key": config.apiKey as string,
     "Content-Type": "application/json",
     Accept: "application/json",
+    ...userAgentHeaders(),
   };
 
   let lastError: Error | null = null;
