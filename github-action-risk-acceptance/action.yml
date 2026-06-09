@@ -1,0 +1,94 @@
+name: "Asqav Risk-Acceptance Receipt"
+description: >-
+  Mint a signed Asqav risk-acceptance receipt from CI when an exception pull
+  request is approved (approver and initiator read from the PR event,
+  producer-asserted), or audit a suppression manifest against the receipts it
+  references. Signing is ML-DSA-65 server-side.
+author: "Asqav"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  mode:
+    description: "Action mode: mint | audit."
+    required: false
+    default: "mint"
+  asqav-api-key:
+    description: "Asqav API key (sk_...). Pass via a repository secret."
+    required: true
+  asqav-agent-id:
+    description: "Asqav agent id whose key signs the receipt. Required for mint mode."
+    required: false
+    default: ""
+  sarif-file:
+    description: "Path to the SARIF file containing the flagged finding. Digested, never uploaded."
+    required: false
+    default: ""
+  finding-id:
+    description: "The SARIF ruleId plus fingerprint the exception covers. Recorded as finding_ref."
+    required: false
+    default: ""
+  reason:
+    description: "Why the risk is accepted. Recorded as acceptance_reason."
+    required: false
+    default: ""
+  expires:
+    description: >-
+      How long the acceptance is valid: a duration like 90d, 12h, 30m, 3600s,
+      or an ISO date like 2026-09-01. Converted to valid_seconds.
+    required: false
+    default: ""
+  supersedes:
+    description: "Optional signature id of the prior risk-acceptance receipt this one replaces."
+    required: false
+    default: ""
+  risk-snapshot-json:
+    description: >-
+      Optional JSON object of producer-asserted third-party risk signals
+      (snapshot_at required, snapshot_source required with any numeric).
+      Passed through unmodified; the SDK validates the shape.
+    required: false
+    default: ""
+  suppression-manifest:
+    description: >-
+      Audit mode: path to a manifest of receipt ids the scanner suppressions
+      rely on. One id per line, or a JSON array, or {"receipts": [...]}.
+    required: false
+    default: ""
+
+outputs:
+  signature-id:
+    description: "The Asqav signature id of the signed risk-acceptance receipt."
+    value: ${{ steps.run.outputs.signature-id }}
+  verification-url:
+    description: "Public URL to verify the signed receipt."
+    value: ${{ steps.run.outputs.verification-url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install Asqav SDK
+      shell: bash
+      run: python -m pip install --upgrade "asqav>=0.5.7"
+
+    - name: Run risk-acceptance action
+      id: run
+      shell: bash
+      env:
+        ASQAV_MODE: ${{ inputs.mode }}
+        ASQAV_API_KEY: ${{ inputs.asqav-api-key }}
+        ASQAV_AGENT_ID: ${{ inputs.asqav-agent-id }}
+        ASQAV_SARIF_FILE: ${{ inputs.sarif-file }}
+        ASQAV_FINDING_ID: ${{ inputs.finding-id }}
+        ASQAV_REASON: ${{ inputs.reason }}
+        ASQAV_EXPIRES: ${{ inputs.expires }}
+        ASQAV_SUPERSEDES: ${{ inputs.supersedes }}
+        ASQAV_RISK_SNAPSHOT_JSON: ${{ inputs.risk-snapshot-json }}
+        ASQAV_SUPPRESSION_MANIFEST: ${{ inputs.suppression-manifest }}
+      run: python "${{ github.action_path }}/risk_acceptance.py"
