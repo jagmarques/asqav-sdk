@@ -274,7 +274,7 @@ Direct pushes to `main` are blocked. Every change lands through a PR.
 
 ### Releases
 
-Both SDKs ship to different registries on independent cadences, driven by prefixed git tags: `py-v*` publishes the Python half to PyPI, `ts-v*` publishes the TypeScript half to npm. Bump the version in the relevant manifest, update [`CHANGELOG.md`](CHANGELOG.md), then tag and push. The `publish.yml` workflow inspects the tag prefix and runs only the matching publish job. Python uses PyPI's OIDC trusted publisher; TypeScript publishes via the `NPM_TOKEN` repo secret.
+Both SDKs ship to different registries on independent cadences, driven by prefixed git tags: `py-v*` publishes the Python half to PyPI, `ts-v*` publishes the TypeScript half to npm. Bump the version in the relevant manifest, update [`CHANGELOG.md`](CHANGELOG.md), then tag and push. The `publish.yml` workflow inspects the tag prefix and runs only the matching publish job. Python uses PyPI's OIDC trusted publisher. TypeScript publishes via the `NPM_TOKEN` repo secret.
 
 ## Ecosystem
 
