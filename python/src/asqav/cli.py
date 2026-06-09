@@ -42,6 +42,7 @@ except ImportError:
     sys.exit(1)
 
 from asqav import __version__
+from asqav._useragent import USER_AGENT
 
 app = typer.Typer(
     name="asqav",
@@ -988,7 +989,48 @@ def doctor() -> None:
             + "  API reachable (no key)"
         )
 
-    # Check 3: SDK version
+    # Check 3: API edge accepts this client (catches the Cloudflare
+    # browser-integrity 403/1010 block that fails sign calls while the
+    # key-authenticated health check above still looks fine).
+    import urllib.error
+    import urllib.request
+
+    from asqav import client as _client_mod
+
+    edge_url = _client_mod._api_base.rstrip("/") + "/health"
+    edge_req = urllib.request.Request(
+        edge_url, headers={"User-Agent": USER_AGENT}, method="GET"
+    )
+    try:
+        with urllib.request.urlopen(edge_req, timeout=10):
+            pass
+        typer.echo(
+            typer.style("PASS", fg=typer.colors.GREEN, bold=True)
+            + "  API edge accepts this client (sign path reachable)"
+        )
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            typer.echo(
+                typer.style("FAIL", fg=typer.colors.RED, bold=True)
+                + "  API edge BLOCKED this client (HTTP 403). Sign calls will "
+                "fail. The edge firewall rejected this client; upgrade the "
+                "asqav package (older versions sent a blocked User-Agent) or "
+                "check your network/proxy."
+            )
+        else:
+            typer.echo(
+                typer.style("FAIL", fg=typer.colors.RED, bold=True)
+                + f"  API edge returned HTTP {exc.code} on {edge_url}"
+            )
+        all_ok = False
+    except Exception as exc:
+        typer.echo(
+            typer.style("FAIL", fg=typer.colors.RED, bold=True)
+            + f"  API edge unreachable: {exc}"
+        )
+        all_ok = False
+
+    # Check 4: SDK version
     typer.echo(
         typer.style("INFO", fg=typer.colors.BLUE, bold=True)
         + f"  SDK version: {__version__}"
@@ -1477,6 +1519,7 @@ def _session_request(
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "User-Agent": USER_AGENT,
         },
         data=body if method in {"POST", "PATCH", "PUT", "DELETE"} else None,
     )
@@ -1866,6 +1909,7 @@ def migrate_run(
             "X-API-Key": api_key,
             "X-Maintenance-Key": maintenance_key,
             "Content-Type": "application/json",
+            "User-Agent": USER_AGENT,
         },
         data=b"{}",
     )
@@ -2076,7 +2120,7 @@ def compliance_download(
     req = urllib.request.Request(
         url,
         method="GET",
-        headers={"X-API-Key": _client_mod._api_key or ""},
+        headers={"X-API-Key": _client_mod._api_key or "", "User-Agent": USER_AGENT},
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
@@ -2468,7 +2512,7 @@ def shadow_ai_status(
 
     def _probe(label: str, url: str) -> bool:
         try:
-            resp = httpx.get(url, timeout=5.0)
+            resp = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=5.0)
         except httpx.HTTPError as exc:
             print(f"{label}: unreachable ({exc.__class__.__name__})")
             return False
