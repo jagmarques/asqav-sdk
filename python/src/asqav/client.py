@@ -34,7 +34,6 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar
-from urllib.parse import urljoin
 
 if TYPE_CHECKING:
     from .phases import PhaseChain
@@ -107,6 +106,17 @@ except ImportError:
 # API configuration
 _api_key: str | None = None
 _api_base: str = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
+
+
+def _join_url(base: str, path: str) -> str:
+    """Join ``base`` and ``path`` preserving the base path component.
+
+    ``urllib.parse.urljoin`` resets a leading-slash path to the host root,
+    which strips the ``/api/v1`` prefix from the default base. Every
+    non-httpx call site must build URLs through this helper so the urllib
+    fallback hits the same path httpx (which merges base_url correctly) does.
+    """
+    return base.rstrip("/") + "/" + path.lstrip("/")
 _client: Any = None
 # Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
 _mode: str = "full-payload"
@@ -2893,7 +2903,7 @@ def _urllib_request(
     import urllib.error
     import urllib.request
 
-    url = urljoin(_api_base, path)
+    url = _join_url(_api_base, path)
     headers = {
         "X-API-Key": _api_key,
         "Content-Type": "application/json",
@@ -3162,7 +3172,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         if result.verified:
             print(f"Signature valid for agent {result.agent_name}")
     """
-    url = f"{_api_base}/verify/{signature_id}"
+    url = _join_url(_api_base, f"/verify/{signature_id}")
 
     # Use httpx if available (better SSL handling)
     if _HTTPX_AVAILABLE:
@@ -4288,7 +4298,7 @@ def export_audit_csv(
         import urllib.error
         import urllib.request
 
-        url = urljoin(_api_base, path)
+        url = _join_url(_api_base, path)
         headers = {
             "Authorization": f"Bearer {_api_key}",
             "User-Agent": USER_AGENT,
