@@ -52,13 +52,8 @@ async function main(): Promise<void> {
       reason: z.string().describe("Short reason for the refund"),
     }),
     execute: async ({ chargeId, amountCents, reason }) => {
-      // Sign the intent FIRST. If the side effect throws, the audit
-      // record still proves what the agent decided to do.
-      //
-      // Opt into the IETF Compliance Receipts profile so the cloud
-      // emits a §5.7-conformant chain link, content-addressed
-      // policy_digest, and applies fail-closed anchoring under the
-      // raised retention floor.
+      // Sign the intent FIRST: if the refund throws, the receipt still proves what the
+      // agent decided. complianceMode adds a conformant chain link + fail-closed anchoring.
       const sig = await agent.sign({
         actionType: "stripe:refund",
         context: { chargeId, amountCents, reason, model: "gpt-4o" },

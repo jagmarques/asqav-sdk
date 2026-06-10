@@ -20,9 +20,8 @@ from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
 from asqav.verifier.oracle.runner import main as runner_main
 from asqav.verifier.oracle.runner import run_corpus
 
-# The corpus stays at the repo root (verifier/conformance-vectors) so the TS
-# parity gate and the published governance URL keep one source of truth. Walk up
-# from this test file (tests -> python -> repo root) to reach it.
+# The corpus stays at the repo root (verifier/conformance-vectors) so the TS parity gate
+# and the published governance URL keep one source of truth; walk up from tests to it.
 _CORPUS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
 
 _ED25519_AVAILABLE = crypto.verify_ed25519(b"\x00" * 32, b"m", b"\x00" * 64)[0] != crypto.SKIPPED

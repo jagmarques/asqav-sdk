@@ -119,7 +119,8 @@ export class ActaAdapter extends FormatAdapter {
     const p = payload as Record<string, unknown>;
     const s = sig as Record<string, unknown>;
     const missing: string[] = [];
-    // Require only the temporal anchor + signature triple; `type`/`issuer_id` are OPTIONAL Asqav-profile fields.
+    // Require only the temporal anchor + signature triple; `type`/`issuer_id` are
+    // OPTIONAL Asqav-profile fields.
     for (const f of ["issued_at"]) {
       if (!(f in p)) missing.push(f);
     }
