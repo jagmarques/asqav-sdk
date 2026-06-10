@@ -1143,7 +1143,8 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       );
     }
   }
-  // Threat-framework taxonomy validators; verbatim guard tokens kept in lockstep with the cloud SignRequest validator.
+  // Threat-framework taxonomy validators; verbatim guard tokens kept in lockstep
+  // with the cloud SignRequest validator.
   const _taxonomyChecks: Array<[string, string[] | undefined]> = [
     ["mitre_techniques", options.mitreTechniques],
     ["mitre_atlas", options.mitreAtlas],

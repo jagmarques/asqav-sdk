@@ -314,7 +314,8 @@ function serialize(
   if (value === true) return "true";
   if (value === false) return "false";
   if (isRawFloat(value)) return honorFloat ? floatToString(value.value) : numberToString(value.value);
-  // A >2^53 integer: emit exact source digits in every dialect, matching Python's str(int), so distinct ints stay distinct.
+  // A >2^53 integer: emit exact source digits in every dialect (Python str(int)
+  // parity) so distinct ints stay distinct.
   if (isRawBigInt(value)) return value.source;
   if (typeof value === "number") return numberToString(value);
   if (typeof value === "string") return jsonString(value);

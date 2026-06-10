@@ -292,9 +292,8 @@ SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
     {"enabled", "disabled", "unavailable"}
 )
 
-#: Durable-anchoring witnesses Asqav ships. The cloud `witness_policy`
-#: extension accepts only this set; `rekor` is explicitly rejected because
-#: it is not a shipped witness. Mirrors the live governance.json contract.
+#: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` extension accepts
+#: only this set (`rekor` rejected, not shipped). Mirrors the governance.json contract.
 WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
 
 #: Producer-side `capture_topology` vocabulary mirrored from the cloud
@@ -979,9 +978,8 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
 )
 
 
-#: Wire format for ``tool_fingerprint``: 32 bare lowercase hex chars
-#: (SHA-256[:32]). The cloud validates this field with the bare form, not
-#: the self-describing ``sha256:<hex>`` form used by the other digests.
+#: Wire format for ``tool_fingerprint``: 32 bare lowercase hex chars (SHA-256[:32]); the
+#: cloud validates the bare form, not the ``sha256:<hex>`` form the other digests use.
 _TOOL_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
