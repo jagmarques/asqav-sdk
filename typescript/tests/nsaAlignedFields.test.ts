@@ -320,9 +320,8 @@ describe("Rule 10: expiry_collision_guard", () => {
     const spy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(jsonResponse(okBody()));
-    // Far-future horizon -> a large positive duration. The cloud reverted
-    // its expires_at field, so the SDK converts client-side to avoid a
-    // silent-drop footgun.
+    // Far-future horizon -> a large positive duration. The SDK converts ISO expiresAt
+    // to valid_seconds client-side so the field is never silently dropped.
     await fakeAgent().sign({
       actionType: "api.call",
       complianceMode: true,

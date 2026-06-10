@@ -51,13 +51,8 @@ async function main(): Promise<void> {
 
   const refund = tool(
     async (args: z.infer<typeof refundSchema>) => {
-      // Sign the intent FIRST. If the side effect throws, the audit
-      // record still proves what the agent decided to do.
-      //
-      // We opt into the IETF Compliance Receipts profile here because
-      // refunds are High-Risk and we want fail-closed anchoring +
-      // raised retention. The cloud derives `previousReceiptHash`,
-      // `policy_digest`, and `issuer_id`; the SDK fills in the rest.
+      // Sign the intent FIRST: if the refund throws, the receipt still proves what the
+      // agent decided. complianceMode adds fail-closed anchoring + raised retention.
       const sig = await agent.sign({
         actionType: "stripe:refund",
         context: {
