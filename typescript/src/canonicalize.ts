@@ -43,7 +43,7 @@ function canonicalString(value: unknown): string {
     if (!Number.isFinite(value)) {
       throw new Error("NaN / Infinity are not allowed in canonical JSON");
     }
-    // Integers serialize without trailing .0; floats use V8's shortest round-trip via Number.toString.
+    // Integers serialize without a trailing .0; floats use V8's shortest round-trip.
     return numberToCanonical(value);
   }
   if (typeof value === "string") {

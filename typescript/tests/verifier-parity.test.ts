@@ -79,9 +79,8 @@ describe("real Authproof receipt verifies PASS (ES256 path)", () => {
 });
 
 describe("canonical-bytes cross-check (TS signing_input sha256 == Python)", () => {
-  // Each TS signing_input sha256 is pinned to the digest the Python oracle's
-  // adapter.signing_input produces for the same receipt, so a canonicaliser drift
-  // on either side breaks this test.
+  // Each TS signing_input sha256 is pinned to the digest the Python oracle's adapter
+  // produces for the same receipt, so a canonicaliser drift on either side reddens here.
   const pinned: Record<string, { fmt: string; sha: string }> = {
     "aerf-01-genesis": {
       fmt: "aerf",
