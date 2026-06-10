@@ -204,3 +204,69 @@ describe("risk-acceptance rejections", () => {
     }
   });
 });
+
+describe("SoD guard: risk_acceptance_self_approval_guard", () => {
+  it.each(["user:alice@example.com", "uuid-1234", "alice"])(
+    "rejects initiator_id == approver_id ('%s')",
+    async (sameId: string) => {
+      await expect(
+        fakeAgent().sign({
+          ...goodRiskOptions(),
+          initiatorId: sameId,
+          approverId: sameId,
+        } as any),
+      ).rejects.toThrow(/risk_acceptance_self_approval_guard/);
+    },
+  );
+
+  it("guard message is byte-identical to the cloud validator prefix", async () => {
+    try {
+      await fakeAgent().sign({
+        ...goodRiskOptions(),
+        initiatorId: "x",
+        approverId: "x",
+      } as any);
+      throw new Error("expected rejection");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AsqavError);
+      const msg = (err as AsqavError).message;
+      expect(msg).toMatch(
+        /^risk_acceptance_self_approval_guard: initiator_id equals approver_id; a self-approved risk acceptance is incoherent/,
+      );
+    }
+  });
+
+  it("allows different initiator and approver", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(okBody()));
+    const body = await fakeAgent().sign({
+      ...goodRiskOptions(),
+      initiatorId: "initiator:bob@example.com",
+      approverId: "approver:alice@example.com",
+    } as any);
+    expect(spy).toHaveBeenCalled();
+    void body;
+  });
+
+  it("allows absent initiator_id (only approver set)", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(okBody()));
+    await fakeAgent().sign({
+      ...goodRiskOptions(),
+      initiatorId: undefined,
+    } as any);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("attaches the docs_url to the SoD guard error", async () => {
+    try {
+      await fakeAgent().sign({
+        ...goodRiskOptions(),
+        initiatorId: "same",
+        approverId: "same",
+      } as any);
+      throw new Error("expected rejection");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AsqavError);
+      expect((err as AsqavError).docsUrl).toBe(RISK_ACCEPTANCE_DOCS_URL);
+    }
+  });
+});
