@@ -989,6 +989,46 @@ def doctor() -> None:
             + "  API reachable (no key)"
         )
 
+    # Check 2b: urllib fallback URL join hits a real prefixed endpoint.
+    # /health exists at BOTH the host root and under /api/v1, so a broken
+    # join can pass the health check while every real call 404s. This probe
+    # forces the exact stdlib fallback path (_urllib_request + _join_url)
+    # against /agents, which only exists under the API prefix.
+    if api_key:
+        from asqav import client as _probe_mod
+        from asqav.client import APIError as _APIError
+
+        try:
+            _probe_mod._urllib_request("GET", "/agents")
+            typer.echo(
+                typer.style("PASS", fg=typer.colors.GREEN, bold=True)
+                + "  URL join preserves API base path (stdlib fallback)"
+            )
+        except _APIError as exc:
+            if exc.status_code == 404:
+                typer.echo(
+                    typer.style("FAIL", fg=typer.colors.RED, bold=True)
+                    + "  URL join drops the API base path. Real calls will "
+                    "404. Upgrade the asqav package."
+                )
+            else:
+                typer.echo(
+                    typer.style("FAIL", fg=typer.colors.RED, bold=True)
+                    + f"  stdlib fallback probe failed: {exc}"
+                )
+            all_ok = False
+        except Exception as exc:
+            typer.echo(
+                typer.style("FAIL", fg=typer.colors.RED, bold=True)
+                + f"  stdlib fallback probe failed: {exc}"
+            )
+            all_ok = False
+    else:
+        typer.echo(
+            typer.style("SKIP", fg=typer.colors.YELLOW, bold=True)
+            + "  URL join probe (no key)"
+        )
+
     # Check 3: API edge accepts this client (catches the Cloudflare
     # browser-integrity 403/1010 block that fails sign calls while the
     # key-authenticated health check above still looks fine).
@@ -997,7 +1037,7 @@ def doctor() -> None:
 
     from asqav import client as _client_mod
 
-    edge_url = _client_mod._api_base.rstrip("/") + "/health"
+    edge_url = _client_mod._join_url(_client_mod._api_base, "/health")
     edge_req = urllib.request.Request(
         edge_url, headers={"User-Agent": USER_AGENT}, method="GET"
     )
@@ -1510,8 +1550,10 @@ def _session_request(
         )
         raise typer.Exit(code=1)
 
+    from asqav.client import _join_url
+
     base = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
-    url = base.rstrip("/") + path
+    url = _join_url(base, path)
     body = json_mod.dumps(data).encode("utf-8") if data is not None else b"{}"
     req = urllib.request.Request(
         url,
@@ -1896,8 +1938,10 @@ def migrate_run(
         raise typer.Exit(code=1)
     _init(api_key=api_key)
 
+    from asqav.client import _join_url
+
     base = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
-    url = f"{base}/maintenance/run-migration-{migration}"
+    url = _join_url(base, f"/maintenance/run-migration-{migration}")
 
     import urllib.error
     import urllib.request
@@ -2108,14 +2152,13 @@ def compliance_download(
     """
     import urllib.error
     import urllib.request
-    from urllib.parse import urljoin
 
     _init_sdk()
     from asqav import client as _client_mod
 
-    url = urljoin(
-        _client_mod._api_base.rstrip("/") + "/",
-        f"compliance-reports/{report_id}/download",
+    url = _client_mod._join_url(
+        _client_mod._api_base,
+        f"/compliance-reports/{report_id}/download",
     )
     req = urllib.request.Request(
         url,
