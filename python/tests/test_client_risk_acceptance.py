@@ -198,3 +198,40 @@ def test_validation_error_is_a_valueerror() -> None:
     """AsqavValidationError subclasses ValueError for backward compat."""
     with pytest.raises(ValueError):
         _sign(sarif_digest="bad")
+
+
+# === SoD guard: risk_acceptance_self_approval_guard ===
+
+
+@pytest.mark.parametrize("same_id", ["user:alice@example.com", "uuid-1234", "alice"])
+def test_rejects_self_approval(same_id: str) -> None:
+    """risk_acceptance_self_approval_guard fires when initiator_id == approver_id."""
+    with pytest.raises(AsqavValidationError) as exc:
+        _sign(initiator_id=same_id, approver_id=same_id)
+    assert "risk_acceptance_self_approval_guard: initiator_id equals" in str(exc.value)
+    assert exc.value.docs_url == RISK_ACCEPTANCE_DOCS_URL
+
+
+def test_self_approval_guard_message_bytes() -> None:
+    """Guard message prefix is byte-identical to the cloud validator."""
+    with pytest.raises(AsqavValidationError) as exc:
+        _sign(initiator_id="x", approver_id="x")
+    msg = str(exc.value)
+    assert msg.startswith(
+        "risk_acceptance_self_approval_guard: initiator_id equals approver_id; "
+        "a self-approved risk acceptance is incoherent"
+    )
+
+
+def test_allows_different_initiator_and_approver() -> None:
+    """Different initiator and approver IDs do not trigger the SoD guard."""
+    body = _sign(initiator_id="initiator:bob@example.com", approver_id="approver:alice@example.com")
+    assert body["initiator_id"] == "initiator:bob@example.com"
+    assert body["approver_id"] == "approver:alice@example.com"
+
+
+def test_self_approval_guard_absent_initiator_allowed() -> None:
+    """Guard does not fire when initiator_id is absent (only approver_id set)."""
+    body = _sign(initiator_id=None)
+    assert body.get("initiator_id") is None
+    assert body["approver_id"] == "approver:alice@example.com"
