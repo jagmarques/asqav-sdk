@@ -1173,6 +1173,17 @@ def _validate_risk_acceptance(
                 "passing compliance_mode=False would silently drop them.",
                 docs_url=RISK_ACCEPTANCE_DOCS_URL,
             )
+        if (
+            initiator_id is not None
+            and approver_id is not None
+            and initiator_id == approver_id
+        ):
+            raise AsqavValidationError(
+                "risk_acceptance_self_approval_guard: initiator_id equals "
+                "approver_id; a self-approved risk acceptance is incoherent "
+                f"(got: {repr(approver_id)[:64]})",
+                docs_url=RISK_ACCEPTANCE_DOCS_URL,
+            )
 
 
 #: The code-authorship signed-payload extension fields, fenced to the
@@ -2720,9 +2731,13 @@ def generate_trace_id() -> str:
     return uuid.uuid4().hex
 
 
-def emergency_halt(reason: str = "emergency") -> list[dict]:
-    """Revoke all agents immediately. Use in emergencies only."""
-    return _post("/agents/emergency-halt", {"reason": reason})
+def emergency_halt(org_id: str, reason: str = "emergency") -> dict:
+    """Raise an org-wide emergency halt. Use in emergencies only.
+
+    Calls POST /orgs/{org_id}/emergency-halt. Requires an admin/owner session
+    token (ASQAV_SESSION_TOKEN), not an agent API key.
+    """
+    return _post(f"/orgs/{org_id}/emergency-halt", {"reason": reason})
 
 
 def init(
