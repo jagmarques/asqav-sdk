@@ -202,7 +202,7 @@ def fetch_audit_pack(
     if _client.httpx is None:
         raise RuntimeError("httpx is required; install with `pip install asqav[http]`.")
 
-    url = _client._api_base.rstrip("/") + "/api/v1/audit-pack/export"
+    url = _client._join_url(_client._api_base, "/audit-pack/export")
     body = {"start": start, "end": end, "only_compliance": only_compliance}
     if agent_id is not None:
         body["agent_id"] = agent_id

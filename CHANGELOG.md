@@ -4,6 +4,15 @@ All notable changes to Asqav (the SDK) will be documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [Python 0.5.14] - 2026-06-10
+
+Applies to the Python (`asqav`) package only. The TypeScript (`@asqav/sdk`) URL builder already preserves the base path, so the npm half stays at 0.5.13.
+
+### Fixed
+- A plain `pip install asqav` (no `httpx` extra) can reach the API again. The stdlib urllib fallback built request URLs with `urljoin(base, "/agents/create")`, and a leading-slash path makes `urljoin` reset to the host root, stripping the `/api/v1` prefix from the default base. Every call on that path 404ed, so the quickstart died on `Agent.create`. All non-httpx call sites (client requests, CSV export, public verify, CLI compliance download, session-token and maintenance helpers) now build URLs through one join helper that preserves the base path.
+- `fetch_audit_pack` no longer doubles the API prefix. It appended `/api/v1/audit-pack/export` to a base that already ends in `/api/v1`, producing a 404 for every audit-pack export.
+- `asqav doctor` now probes a real prefixed endpoint (`/agents`) through the exact stdlib fallback path. `/health` exists at the host root too, so the old check passed while every real call 404ed; a broken URL join now fails doctor loudly.
+
 ## [0.5.13] - 2026-06-10
 
 Applies to both the Python (`asqav`) and TypeScript (`@asqav/sdk`) packages.

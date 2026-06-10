@@ -550,28 +550,64 @@ def test_doctor_no_api_key(mock_urlopen: MagicMock) -> None:
     assert "SKIP" in result.output
 
 
+@patch("asqav.client._urllib_request")
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
 def test_doctor_all_pass(
-    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+    mock_init: MagicMock,
+    mock_health: MagicMock,
+    mock_urlopen: MagicMock,
+    mock_urllib_req: MagicMock,
 ) -> None:
     """doctor passes all checks when API key is set and API is reachable."""
     mock_health.return_value = {"status": "ok"}
+    mock_urllib_req.return_value = []
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 0
     assert "PASS" in result.output
     assert "API key set" in result.output
     assert "API reachable" in result.output
+    assert "URL join preserves API base path" in result.output
     assert "API edge accepts this client" in result.output
     assert "All checks passed" in result.output
+    mock_urllib_req.assert_called_once_with("GET", "/agents")
 
 
+@patch("asqav.client._urllib_request")
+@patch("urllib.request.urlopen")
+@patch("asqav.client.health_check")
+@patch("asqav.init")
+def test_doctor_url_join_broken_fails(
+    mock_init: MagicMock,
+    mock_health: MagicMock,
+    mock_urlopen: MagicMock,
+    mock_urllib_req: MagicMock,
+) -> None:
+    """doctor FAILS when the stdlib fallback join 404s a real endpoint.
+
+    Pins the stranger-funnel regression where /health passed (it exists at
+    the host root too) while every prefixed call died on 404.
+    """
+    from asqav.client import APIError
+
+    mock_health.return_value = {"status": "ok"}
+    mock_urllib_req.side_effect = APIError("HTTP Error 404: Not Found", 404)
+    result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
+    assert result.exit_code == 1
+    assert "URL join drops the API base path" in result.output
+    assert "All checks passed" not in result.output
+
+
+@patch("asqav.client._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
 def test_doctor_api_unreachable(
-    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+    mock_init: MagicMock,
+    mock_health: MagicMock,
+    mock_urlopen: MagicMock,
+    mock_urllib_req: MagicMock,
 ) -> None:
     """doctor reports failure when API is unreachable."""
     mock_health.side_effect = Exception("Connection refused")
@@ -581,11 +617,15 @@ def test_doctor_api_unreachable(
     assert "Connection refused" in result.output
 
 
+@patch("asqav.client._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
 def test_doctor_edge_blocked_403(
-    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+    mock_init: MagicMock,
+    mock_health: MagicMock,
+    mock_urlopen: MagicMock,
+    mock_urllib_req: MagicMock,
 ) -> None:
     """doctor FAILS loudly when the API edge 403-blocks this client.
 
@@ -606,11 +646,15 @@ def test_doctor_edge_blocked_403(
     assert "All checks passed" not in result.output
 
 
+@patch("asqav.client._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
 @patch("asqav.init")
 def test_doctor_edge_unreachable(
-    mock_init: MagicMock, mock_health: MagicMock, mock_urlopen: MagicMock
+    mock_init: MagicMock,
+    mock_health: MagicMock,
+    mock_urlopen: MagicMock,
+    mock_urllib_req: MagicMock,
 ) -> None:
     """doctor reports a clear failure when the edge probe cannot connect."""
     import urllib.error
