@@ -111,7 +111,8 @@ class ActaAdapter(FormatAdapter):
         sig = doc.get("signature")
         if not isinstance(payload, dict) or not isinstance(sig, dict):
             return "FAIL", "ACTA receipt needs object payload and signature"
-        # Require only the temporal anchor + signature triple; `type`/`issuer_id` are OPTIONAL Asqav-profile fields.
+        # Require only the temporal anchor + signature triple; `type`/`issuer_id` are
+        # OPTIONAL Asqav-profile fields.
         missing = [f for f in ("issued_at",) if f not in payload]
         missing += [f"signature.{f}" for f in ("alg", "kid", "sig") if f not in sig]
         if missing:
