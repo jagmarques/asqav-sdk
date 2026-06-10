@@ -19,7 +19,8 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
   it("§3.2.3 sorts object keys lexicographically (UTF-16 code unit order)", () => {
     const input = { peach: "This sorting order", péché: "is wrong according to French", pêche: "but ordains", sin: "ordering by code unit" };
     const out = decode(canonicalJson(input));
-    // Keys sort by JavaScript's default UTF-16 code unit order: ascii letters precede pre-composed Latin accented letters.
+    // Keys sort by JavaScript's default UTF-16 code unit order: ascii letters
+    // precede pre-composed Latin accented letters.
     expect(out).toBe(
       "{\"peach\":\"This sorting order\",\"péché\":\"is wrong according to French\",\"pêche\":\"but ordains\",\"sin\":\"ordering by code unit\"}"
     );

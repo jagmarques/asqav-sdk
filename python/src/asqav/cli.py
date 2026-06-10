@@ -989,11 +989,8 @@ def doctor() -> None:
             + "  API reachable (no key)"
         )
 
-    # Check 2b: urllib fallback URL join hits a real prefixed endpoint.
-    # /health exists at BOTH the host root and under /api/v1, so a broken
-    # join can pass the health check while every real call 404s. This probe
-    # forces the exact stdlib fallback path (_urllib_request + _join_url)
-    # against /agents, which only exists under the API prefix.
+    # Check 2b: force the stdlib fallback path (_urllib_request + _join_url) against
+    # /agents (exists only under the API prefix); /health passes even with a broken join.
     if api_key:
         from asqav import client as _probe_mod
         from asqav.client import APIError as _APIError
@@ -1029,9 +1026,8 @@ def doctor() -> None:
             + "  URL join probe (no key)"
         )
 
-    # Check 3: API edge accepts this client (catches the Cloudflare
-    # browser-integrity 403/1010 block that fails sign calls while the
-    # key-authenticated health check above still looks fine).
+    # Check 3: API edge accepts this client (catches the Cloudflare browser-integrity
+    # 403/1010 block that fails sign calls while the key-authed health check looks fine).
     import urllib.error
     import urllib.request
 
