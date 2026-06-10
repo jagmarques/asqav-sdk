@@ -25,9 +25,7 @@ except ImportError as err:
         "Install with: pip install asqav[smolagents]"
     ) from err
 
-# ---------------------------------------------------------------------------
-# Initialise asqav
-# ---------------------------------------------------------------------------
+# === Initialise asqav ===
 
 api_key = os.environ.get("ASQAV_API_KEY", "")
 if not api_key:
@@ -41,9 +39,7 @@ asqav.init(api_key=api_key)
 # Create a governance hook - one hook can wrap multiple tools.
 hook = AsqavSmolagentsHook(agent_name="smolagents-demo")
 
-# ---------------------------------------------------------------------------
-# Define tools and wrap them with asqav signing
-# ---------------------------------------------------------------------------
+# === Define tools and wrap them with asqav signing ===
 
 
 @tool
@@ -75,9 +71,7 @@ def read_file(path: str) -> str:
 signed_search = hook.wrap_tool(search_web)
 signed_read = hook.wrap_tool(read_file)
 
-# ---------------------------------------------------------------------------
-# Build and run the agent
-# ---------------------------------------------------------------------------
+# === Build and run the agent ===
 
 model = HfApiModel()  # Uses the HF Inference API; set HF_TOKEN env var.
 
