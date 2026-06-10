@@ -1382,6 +1382,16 @@ function validateRiskAcceptance(options: SignOptions, complianceMode: boolean): 
         RISK_ACCEPTANCE_DOCS_URL,
       );
     }
+    if (
+      options.initiatorId !== undefined &&
+      options.approverId !== undefined &&
+      options.initiatorId === options.approverId
+    ) {
+      throw new AsqavError(
+        `risk_acceptance_self_approval_guard: initiator_id equals approver_id; a self-approved risk acceptance is incoherent (got: ${String(options.approverId).slice(0, 64)})`,
+        RISK_ACCEPTANCE_DOCS_URL,
+      );
+    }
   }
 }
 

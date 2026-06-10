@@ -16,13 +16,13 @@ from asqav.client import emergency_halt
 
 @patch("asqav.client._post")
 def test_emergency_halt_calls_correct_endpoint(mock_post: object) -> None:
-    """emergency_halt POSTs to /agents/emergency-halt."""
-    mock_post.return_value = []  # type: ignore[attr-defined]
+    """emergency_halt POSTs to /orgs/{org_id}/emergency-halt."""
+    mock_post.return_value = {"emergency_halt": True}  # type: ignore[attr-defined]
 
-    emergency_halt()
+    emergency_halt("org-123")
 
     mock_post.assert_called_once_with(  # type: ignore[attr-defined]
-        "/agents/emergency-halt",
+        "/orgs/org-123/emergency-halt",
         {"reason": "emergency"},
     )
 
@@ -30,30 +30,30 @@ def test_emergency_halt_calls_correct_endpoint(mock_post: object) -> None:
 @patch("asqav.client._post")
 def test_emergency_halt_custom_reason(mock_post: object) -> None:
     """emergency_halt passes custom reason to the API."""
-    mock_post.return_value = []  # type: ignore[attr-defined]
+    mock_post.return_value = {"emergency_halt": True}  # type: ignore[attr-defined]
 
-    emergency_halt(reason="security breach detected")
+    emergency_halt("org-456", reason="security breach detected")
 
     mock_post.assert_called_once_with(  # type: ignore[attr-defined]
-        "/agents/emergency-halt",
+        "/orgs/org-456/emergency-halt",
         {"reason": "security breach detected"},
     )
 
 
 @patch("asqav.client._post")
-def test_emergency_halt_returns_list(mock_post: object) -> None:
-    """emergency_halt returns the API response (list of revoked agents)."""
-    mock_post.return_value = [  # type: ignore[attr-defined]
-        {"agent_id": "a1", "status": "revoked"},
-        {"agent_id": "a2", "status": "revoked"},
-    ]
+def test_emergency_halt_returns_dict(mock_post: object) -> None:
+    """emergency_halt returns the API response dict."""
+    mock_post.return_value = {  # type: ignore[attr-defined]
+        "organization_id": "org-123",
+        "emergency_halt": True,
+        "emergency_halt_reason": "test",
+    }
 
-    result = emergency_halt(reason="test")
+    result = emergency_halt("org-123", reason="test")
 
-    assert isinstance(result, list)
-    assert len(result) == 2
-    assert result[0]["agent_id"] == "a1"
-    assert result[1]["status"] == "revoked"
+    assert isinstance(result, dict)
+    assert result["emergency_halt"] is True
+    assert result["organization_id"] == "org-123"
 
 
 def test_emergency_halt_exported() -> None:
@@ -65,9 +65,21 @@ def test_emergency_halt_exported() -> None:
 @patch("asqav.client._post")
 def test_emergency_halt_default_reason(mock_post: object) -> None:
     """emergency_halt uses 'emergency' as default reason."""
-    mock_post.return_value = []  # type: ignore[attr-defined]
+    mock_post.return_value = {"emergency_halt": True}  # type: ignore[attr-defined]
 
-    emergency_halt()
+    emergency_halt("org-789")
 
     call_args = mock_post.call_args  # type: ignore[attr-defined]
     assert call_args[0][1]["reason"] == "emergency"
+
+
+@patch("asqav.client._post")
+def test_emergency_halt_path_includes_org_id(mock_post: object) -> None:
+    """emergency_halt path includes the org_id (proves /agents/ path is gone)."""
+    mock_post.return_value = {"emergency_halt": True}  # type: ignore[attr-defined]
+
+    emergency_halt("my-org")
+
+    path = mock_post.call_args[0][0]  # type: ignore[attr-defined]
+    assert "/orgs/my-org/emergency-halt" == path
+    assert "/agents/" not in path
