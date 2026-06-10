@@ -25,9 +25,7 @@ except ImportError as err:
         "Install with: pip install asqav[strands]"
     ) from err
 
-# ---------------------------------------------------------------------------
-# Initialise asqav
-# ---------------------------------------------------------------------------
+# === Initialise asqav ===
 
 api_key = os.environ.get("ASQAV_API_KEY", "")
 if not api_key:
@@ -38,24 +36,17 @@ if not api_key:
 
 asqav.init(api_key=api_key)
 
-# ---------------------------------------------------------------------------
-# Build the governance hook and attach it to a Strands Agent
-# ---------------------------------------------------------------------------
+# === Build the governance hook and attach it to a Strands Agent ===
 
-# AsqavStrandsHooks implements Strands' HookProvider protocol. It registers
-# BeforeModelCallEvent and AfterModelCallEvent callbacks, so every model call
-# made through this agent is auto-signed via asqav.
+# AsqavStrandsHooks implements Strands' HookProvider protocol: its BeforeModelCallEvent
+# and AfterModelCallEvent callbacks auto-sign every model call made through this agent.
 hooks = AsqavStrandsHooks(agent_name="strands-demo")
 
-# Construct a Strands Agent with the hook provider attached.
-# Strands picks up the model from the environment (e.g. AWS credentials for
-# Bedrock, or any configured provider). See:
-# https://strandsagents.com/latest/documentation/docs/user-guide/
+# Strands picks up the model from the environment (AWS credentials for Bedrock, or any
+# configured provider): https://strandsagents.com/latest/documentation/docs/user-guide/
 agent = Agent(hooks=[hooks])
 
-# ---------------------------------------------------------------------------
-# Run a query - every model call is signed automatically
-# ---------------------------------------------------------------------------
+# === Run a query - every model call is signed automatically ===
 
 print("Running Strands agent with asqav governance...")
 result = agent("What is the capital of France? Answer in one short sentence.")
@@ -63,9 +54,7 @@ result = agent("What is the capital of France? Answer in one short sentence.")
 print("\nAgent result:")
 print(result)
 
-# ---------------------------------------------------------------------------
-# Inspect the signed audit trail
-# ---------------------------------------------------------------------------
+# === Inspect the signed audit trail ===
 
 print(f"\nSigned {len(hooks._signatures)} model call(s) for this run:")
 for sig in hooks._signatures:
