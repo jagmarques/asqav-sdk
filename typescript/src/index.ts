@@ -1182,8 +1182,7 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       );
     }
     try {
-      // Node Buffer round-trip catches padding errors strict mode misses.
-      const { Buffer } = require("node:buffer") as typeof import("node:buffer");
+      // Buffer is a Node global; no require() needed - avoids CJS shim in .mjs bundle.
       const decoded = Buffer.from(t, "base64");
       const reencoded = decoded.toString("base64");
       // Reject when re-encoded form differs (catches non-canonical padding).
@@ -1560,8 +1559,10 @@ export function computeCveInventoryDigest(cveList: unknown[]): string {
  * The cloud verifier rejects duplicate nonces per `(agent_id, action_ref)`
  * inside the validity window. */
 export function generateNonce(): string {
-  const { randomBytes } = require("node:crypto") as typeof import("node:crypto");
-  return randomBytes(12).toString("hex");
+  // Use Web Crypto (Node >=19 + browsers); avoids require("crypto") CJS shim in the .mjs bundle.
+  const buf = new Uint8Array(12);
+  globalThis.crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
