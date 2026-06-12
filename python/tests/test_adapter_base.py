@@ -274,3 +274,78 @@ def test_sign_action_no_compliance_kwargs_unchanged(mock_agent_cls):
 
     adapter._sign_action("api:call", {"k": "v"})
     mock_agent.sign.assert_called_once_with("api:call", {"k": "v"})
+
+
+# === c3-lessons regressions: async offload, api_key override, repr ===
+
+
+@patch("asqav.extras._base.Agent")
+def test_sign_action_async_offloads_to_thread(mock_agent_cls):
+    """_sign_action_async runs the sync sign off the event loop thread."""
+    import asyncio
+    import threading
+
+    mock_agent = MagicMock()
+    sign_thread: list[str] = []
+
+    def _record_thread(*args, **kwargs):
+        sign_thread.append(threading.current_thread().name)
+        return SignatureResponse(**MOCK_SIGN_RESPONSE)
+
+    mock_agent.sign.side_effect = _record_thread
+    mock_agent_cls.create.return_value = mock_agent
+
+    with patch("asqav.client._api_key", "sk_test"):
+        adapter = _TestAdapter(agent_name="test")
+
+    async def _run():
+        loop_thread = threading.current_thread().name
+        result = await adapter._sign_action_async("llm:call", {"model": "gpt-4"})
+        return loop_thread, result
+
+    loop_thread, result = asyncio.run(_run())
+    assert result is not None
+    assert sign_thread, "Agent.sign never ran"
+    assert sign_thread[0] != loop_thread, "sync sign blocked the event loop thread"
+
+
+@patch("asqav.extras._base.Agent")
+def test_sign_action_async_observe_skips_network(mock_agent_cls):
+    """Observe mode returns None without touching Agent.sign."""
+    import asyncio
+
+    mock_agent_cls.create.return_value = MagicMock()
+    with patch("asqav.client._api_key", "sk_test"):
+        adapter = _TestAdapter(agent_name="test", observe=True)
+
+    result = asyncio.run(adapter._sign_action_async("llm:call", {}))
+    assert result is None
+    adapter._agent.sign.assert_not_called()
+
+
+@patch("asqav.extras._base._client.init")
+@patch("asqav.extras._base.Agent")
+def test_api_key_argument_initialises_client(mock_agent_cls, mock_init):
+    """An explicit api_key= actually initialises the client (was silently ignored)."""
+    mock_agent_cls.create.return_value = MagicMock()
+    with patch("asqav.client._api_key", None):
+        _TestAdapter(api_key="sk_adapter", agent_name="test")
+    mock_init.assert_called_once_with("sk_adapter")
+
+
+@patch("asqav.extras._base.Agent")
+def test_repr_reports_config_and_omits_api_key(mock_agent_cls):
+    """__repr__ surfaces agent identity and observe flag, never the key."""
+    mock_agent = MagicMock()
+    mock_agent.agent_id = "agent_123"
+    mock_agent.name = "my-agent"
+    mock_agent_cls.create.return_value = mock_agent
+
+    with patch("asqav.client._api_key", "sk_super_secret"):
+        adapter = _TestAdapter(agent_name="my-agent")
+
+    text = repr(adapter)
+    assert "agent_123" in text
+    assert "my-agent" in text
+    assert "observe=False" in text
+    assert "sk_super_secret" not in text
