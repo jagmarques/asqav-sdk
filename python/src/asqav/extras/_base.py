@@ -6,6 +6,7 @@ affect only the thin framework-facing layer.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import uuid
@@ -14,6 +15,8 @@ from .. import client as _client
 from ..client import Agent, AsqavError, SignatureResponse
 
 logger = logging.getLogger("asqav")
+
+__all__ = ["AsqavAdapter"]
 
 
 def _class_name_to_agent_name(cls_name: str) -> str:
@@ -44,6 +47,13 @@ class AsqavAdapter:
 
         if _client._api_key is None and api_key is None:
             raise AsqavError("Call asqav.init() first")
+
+        # The documented per-adapter override: an explicit key (re)initialises
+        # the client so Agent.create/get below actually authenticate with it.
+        # Without this, an adapter constructed with only api_key= passes the
+        # guard above yet fails on its first request.
+        if api_key is not None and api_key != _client._api_key:
+            _client.init(api_key)
 
         if agent_id is not None:
             self._agent: Agent = Agent.get(agent_id)
@@ -77,6 +87,38 @@ class AsqavAdapter:
         except AsqavError as exc:
             logger.warning("asqav signing failed (fail-open): %s", exc)
             return None
+
+    async def _sign_action_async(
+        self,
+        action_type: str,
+        context: dict | None = None,
+        **compliance_kwargs,
+    ) -> SignatureResponse | None:
+        """Async-context wrapper for ``_sign_action``.
+
+        ``Agent.sign`` is a synchronous HTTP round trip; calling it directly
+        from an async framework hook blocks the host's event loop for the
+        full request (seconds when the cloud anchors via an external TSA).
+        This runs it on a worker thread instead so concurrent requests keep
+        flowing. Async hooks must use this, never ``_sign_action`` directly.
+        """
+        if self._observe:
+            logger.info(
+                "OBSERVE: would sign %s with context %s", action_type, context
+            )
+            return None
+        return await asyncio.to_thread(
+            self._sign_action, action_type, context, **compliance_kwargs
+        )
+
+    def __repr__(self) -> str:
+        """Config-only repr: agent identity and mode, never the API key."""
+        return (
+            f"{type(self).__name__}("
+            f"agent_id={self._agent.agent_id!r}, "
+            f"agent_name={self._agent.name!r}, "
+            f"observe={self._observe!r})"
+        )
 
     def _start_session(self) -> None:
         """Start a session to group related signatures."""

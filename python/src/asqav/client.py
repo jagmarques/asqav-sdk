@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import uuid
 from collections.abc import Callable, Generator
@@ -2944,6 +2945,7 @@ def _urllib_request(
 
 # Global agent for decorators
 _global_agent: Agent | None = None
+_global_agent_lock = threading.Lock()
 
 
 def get_agent() -> Agent:
@@ -2957,9 +2959,13 @@ def get_agent() -> Agent:
     """
     global _global_agent
     if _global_agent is None:
-        # Auto-create an agent with default name
-        name = _auto_generate_name()
-        _global_agent = Agent.create(name)
+        # Serialise auto-creation: without the lock, two threads hitting
+        # their first decorated call can race Agent.create and register
+        # duplicate agents, splitting the receipt chain across them.
+        with _global_agent_lock:
+            if _global_agent is None:
+                name = _auto_generate_name()
+                _global_agent = Agent.create(name)
     return _global_agent
 
 
