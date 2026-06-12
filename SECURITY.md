@@ -10,8 +10,8 @@ Do not open public issues for security vulnerabilities.
 
 | Version | Supported |
 |---------|----------|
-| 0.2.x   | Yes      |
-| < 0.2   | No       |
+| 0.5.x   | Yes      |
+| < 0.5   | No       |
 
 ## Cryptographic Details
 
@@ -28,7 +28,8 @@ These advisories are surfaced by Dependabot against `python/uv.lock` but are not
 - `GHSA-54fq-v6x8-244g` (smolagents, low). Gated by the `[smolagents]` extra. Not installed by default.
 - `GHSA-w8v5-vhqr-4h9v` (diskcache, medium). Transitive of `dspy`; gated by the `[dspy]` extra. Not installed by default.
 - `GHSA-vvw2-h478-xwr3` (dspy, medium). Gated by the `[dspy]` extra. Not installed by default.
+- `GHSA-f4j7-r4q5-qw2c` (chromadb, critical). Transitive of `crewai`; gated by the `[crewai]` extra. Not installed by default. The SDK never imports chromadb and never runs a ChromaDB server, so the vulnerable server endpoint is out of reach. No patched chromadb release exists upstream; we will revisit this entry when one ships.
 
 Trivy and pip-audit against `python/uv.lock` both report 0 vulnerabilities in the default install path because their uv scanners treat marker-gated extras as not-installed-by-default. Dependabot remains stricter and flags them regardless.
 
-If you install any of the affected extras (`pip install "asqav[smolagents]"`, `pip install "asqav[dspy]"`, or `pip install "asqav[all]"`) you opt in to the upstream advisory surface for those packages. Review the GHSAs above before pinning those extras in a production deployment.
+If you install any of the affected extras (`pip install "asqav[smolagents]"`, `pip install "asqav[dspy]"`, `pip install "asqav[crewai]"`, or `pip install "asqav[all]"`) you opt in to the upstream advisory surface for those packages. Review the GHSAs above before pinning those extras in a production deployment.
