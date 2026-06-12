@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -281,3 +282,33 @@ def test_existing_secure_still_works() -> None:
     assert hasattr(asqav, "sign")
     assert hasattr(asqav, "session")
     assert hasattr(asqav, "async_session")
+
+
+@patch("asqav.client.Agent.create")
+def test_get_agent_concurrent_first_call_creates_once(mock_create: MagicMock) -> None:
+    """Concurrent first calls to get_agent create exactly one agent (no duplicate race)."""
+    import threading
+
+    _reset_global_agent()
+    barrier = threading.Barrier(8)
+    agents: list[object] = []
+
+    def _slow_create(name: str) -> MagicMock:
+        time.sleep(0.05)  # widen the race window
+        return MagicMock(name=f"agent-{name}")
+
+    mock_create.side_effect = _slow_create
+
+    def _worker() -> None:
+        barrier.wait()
+        agents.append(asqav_client.get_agent())
+
+    threads = [threading.Thread(target=_worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert mock_create.call_count == 1
+    assert len({id(a) for a in agents}) == 1
+    _reset_global_agent()

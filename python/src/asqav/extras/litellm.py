@@ -26,6 +26,8 @@ except ImportError as err:
 
 from ._base import AsqavAdapter
 
+__all__ = ["AsqavGuardrail"]
+
 
 class AsqavGuardrail(AsqavAdapter):
     """Guardrail that signs LiteLLM calls via Asqav governance.
@@ -51,7 +53,7 @@ class AsqavGuardrail(AsqavAdapter):
     ) -> None:
         """Sign before an LLM call is made."""
         messages = data.get("messages", [])
-        self._sign_action(
+        await self._sign_action_async(
             "llm:pre_call",
             {
                 "call_type": call_type,
@@ -79,7 +81,7 @@ class AsqavGuardrail(AsqavAdapter):
                 "completion_tokens": getattr(usage, "completion_tokens", None),
                 "total_tokens": getattr(usage, "total_tokens", None),
             }
-        self._sign_action("llm:post_call", context)
+        await self._sign_action_async("llm:post_call", context)
 
     async def async_post_call_failure_hook(
         self,
@@ -95,7 +97,7 @@ class AsqavGuardrail(AsqavAdapter):
         cloud only emits risk_class on the signed envelope under
         compliance_mode; outside it the value is dropped.
         """
-        self._sign_action(
+        await self._sign_action_async(
             "llm:error",
             {
                 "error_type": type(original_exception).__name__,
@@ -111,7 +113,7 @@ class AsqavGuardrail(AsqavAdapter):
         call_type: str,
     ) -> None:
         """Sign moderation events."""
-        self._sign_action(
+        await self._sign_action_async(
             "llm:moderation",
             {
                 "call_type": call_type,
