@@ -204,3 +204,16 @@ def test_cli_queue_list(tmp_path: object) -> None:
     assert result.exit_code == 0
     assert "agent_abc" in result.output
     assert "api:call" in result.output
+
+
+def test_enqueue_is_atomic_no_tmp_residue(tmp_path) -> None:
+    """enqueue writes via tmp+rename; no .tmp residue, item parses back cleanly."""
+    queue = LocalQueue(queue_dir=str(tmp_path))
+    item_id = queue.enqueue("agent_abc", "api:call", {"k": "v"})
+
+    leftovers = list(tmp_path.glob("*.tmp"))
+    assert leftovers == []
+    items = queue.list_pending()
+    assert len(items) == 1
+    assert items[0]["id"] == item_id
+    assert items[0]["context"] == {"k": "v"}
