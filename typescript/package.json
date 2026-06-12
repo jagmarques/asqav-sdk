@@ -1,6 +1,6 @@
 {
   "name": "@asqav/sdk",
-  "version": "0.5.14",
+  "version": "0.5.15",
   "description": "AI agent governance - audit trails, policy enforcement, ML-DSA cryptographic signatures",
   "keywords": [
     "ai",
@@ -79,7 +79,7 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "peerDependencies": {
     "@langchain/core": "*",
