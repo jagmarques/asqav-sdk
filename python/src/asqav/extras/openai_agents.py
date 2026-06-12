@@ -38,6 +38,8 @@ from ._base import AsqavAdapter
 
 logger = logging.getLogger("asqav")
 
+__all__ = ["AsqavGuardrail", "AsqavTracingProcessor", "GuardrailResult"]
+
 
 @dataclasses.dataclass
 class GuardrailResult:
@@ -86,14 +88,15 @@ class AsqavGuardrail(AsqavAdapter):
         try:
             agent_name = self._resolve_agent_name(agent)
             data_repr = repr(input_data)
-            if len(data_repr) > 200:
+            input_length = len(data_repr)
+            if input_length > 200:
                 data_repr = data_repr[:200]
-            self._sign_action(
+            await self._sign_action_async(
                 "agent:input",
                 {
                     "agent_name": agent_name,
                     "input_type": type(input_data).__name__,
-                    "input_length": len(data_repr),
+                    "input_length": input_length,
                     "input_preview": data_repr,
                 },
             )
@@ -113,14 +116,15 @@ class AsqavGuardrail(AsqavAdapter):
         try:
             agent_name = self._resolve_agent_name(agent)
             data_repr = repr(output_data)
-            if len(data_repr) > 200:
+            output_length = len(data_repr)
+            if output_length > 200:
                 data_repr = data_repr[:200]
-            self._sign_action(
+            await self._sign_action_async(
                 "agent:output",
                 {
                     "agent_name": agent_name,
                     "output_type": type(output_data).__name__,
-                    "output_length": len(data_repr),
+                    "output_length": output_length,
                     "output_preview": data_repr,
                 },
             )

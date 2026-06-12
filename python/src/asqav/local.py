@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
+__all__ = ["LocalQueue", "local_sign"]
+
 _DEFAULT_QUEUE_DIR = os.path.join(os.path.expanduser("~"), ".asqav", "queue")
 
 
@@ -44,8 +46,13 @@ class LocalQueue:
             "status": "pending",
         }
 
+        # Write-then-rename so a crash mid-write never leaves a truncated
+        # .json item that list_pending() would silently skip forever.
+        # The .tmp suffix keeps half-written files out of the *.json glob.
         filepath = self.queue_dir / f"{item_id}.json"
-        filepath.write_text(json.dumps(payload, indent=2))
+        tmp_path = self.queue_dir / f"{item_id}.json.tmp"
+        tmp_path.write_text(json.dumps(payload, indent=2))
+        os.replace(tmp_path, filepath)
         return item_id
 
     def list_pending(self) -> list[dict[str, Any]]:
