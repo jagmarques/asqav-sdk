@@ -93,12 +93,12 @@ Asqav 的合规凭证基于 IETF Internet-Draft [`draft-marques-asqav-compliance
 
 ## Compliance Receipts：IETF profile
 
-Compliance Receipts 是 SDK 的默认模式。每次 `agent.sign(...)` 都会生成一份符合 [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) 的凭证：ML-DSA-65 签名、RFC 3161 + OpenTimestamps 锚点、保留的 `policy_digest`、哈希链 `previousReceiptHash`。如需旧版结构，传入 `compliance_mode=False`。
+Compliance Receipts 是 SDK 的默认模式。每次 `agent.sign(...)` 都会生成一份符合 [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) 的凭证：ML-DSA-65 签名、OpenTimestamps 锚点、保留的 `policy_digest`、哈希链 `previousReceiptHash`。Enterprise 层级另加 RFC 3161 时间戳。如需旧版结构，传入 `compliance_mode=False`。
 
 调用方最常用的四个信封扩展字段：
 
 - `receipt_type` - `protectmcp:decision`、`protectmcp:restraint` 或 `protectmcp:lifecycle`。
-- `risk_class` - 受控词汇：`unacceptable | high | limited | minimal | gpai | low | medium | unknown`。
+- `risk_class` - 受控词汇：`low | medium | high | unknown`。
 - `iteration_id` - 逻辑任务 id，与 session 区分。
 - `sandbox_state` - 高风险门控用的 `enabled | disabled | unavailable`。
 - `incident_class` - DORA / NYDFS / CIRCIA token，也可为数组。
