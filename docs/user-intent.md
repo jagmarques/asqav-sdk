@@ -108,5 +108,4 @@ WebAuthn assertion verification is store-only today. The bytes are persisted on 
 ## Roadmap
 
 - WebAuthn assertion verification: parse `authenticatorData` plus `clientDataJSON`, then verify against the stored COSE key.
-- A `verifyUserIntent(signatureId)` helper on both SDKs that re-runs verification against the stored bytes.
 - Optional policy: require `user_intent_verified=true` for specific action_type patterns.
