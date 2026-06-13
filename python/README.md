@@ -216,6 +216,7 @@ See <https://www.asqav.com/docs/threat-framework-mapping>.
 - `required` must be in `[1, len(witnesses)]`.
 - `witnesses` must be a non-empty subset of the two shipped witnesses: `rfc3161` and `opentimestamps`.
 - `rekor` is rejected. It is not a shipped witness.
+- `rfc3161` confirmation is available on the Enterprise tier only. On the Free tier, `opentimestamps` is the witness that produces an inclusion proof; a policy requiring only `rfc3161` will not reach `witness_quorum_met` on Free.
 
 ```python
 sig = agent.sign(
