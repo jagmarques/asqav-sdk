@@ -37,6 +37,21 @@ explicitly per adapter: Asqav-native signs the canonical payload directly;
 AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
 `parent_signature`, `parent_key_id`, `log_inclusion_proof`.
 
+## Formats with passing real-fixture tests
+
+The oracle claims cross-format support only for the formats listed here. Each
+entry names what axes are verified (structure, signature, chain) and whether the
+signature axis has a real upstream-keypair fixture.
+
+| format | alg | structure | signature | chain | real upstream fixture |
+|---|---|---|---|---|---|
+| `asqav-native` | ML-DSA-65 / Ed25519 (test) | yes | yes | yes | yes (prod receipt for ML-DSA; Ed25519 test key for chain) |
+| `aerf` | Ed25519 | yes | yes | yes | yes (aerf-spec/aerf corpus, commit 59fce60) |
+| `acta` | Ed25519 | yes | yes | yes | yes (ScopeBlind/agent-governance-testvectors, commit 9ad0856) |
+| `agentreceipts` | Ed25519 | yes | yes | yes | yes (agent-receipts/ar corpus, commit 1677250) |
+| `authproof` | ES256 (ECDSA P-256) | yes | yes | n/a (genesis only) | yes (real JS SDK receipt) |
+| `pipelock-evidence-v2` | Ed25519 | yes | yes | yes (genesis sentinel only) | yes (pipelock-verify-python commit 9eaff72) |
+
 ## Adapters this slice
 
 - **asqav-native** - the `verify_receipt` signature, chain, and structure-
@@ -54,6 +69,37 @@ AERF signs the JCS payload directly after stripping `signature`, `timestamp`,
   `JSON.stringify` of the receipt minus its `signature`, hex raw r||s, signer key
   embedded as a P-256 JWK. Targets the shipping JS SDK; the bundled draft and the
   repo's Python SDK both diverge (see `conformance-vectors/UPSTREAM.md`).
+- **acta** - Ed25519 over JCS(payload), hex-encoded sig, chain hash covers
+  the full predecessor receipt. Verified inbound against ScopeBlind/APS reference
+  issuer receipts and outbound against the `@veritasacta/verify` npm verifier.
+- **agentreceipts** - W3C Verifiable Credential 2.0 envelope; Ed25519 over
+  strict RFC 8785 JCS with `proof` removed; `did:key` resolves inline. Chain:
+  `sha256:` prefix + hex SHA-256 of JCS(predecessor without proof); genesis
+  carries `chain.previous_receipt_hash: null` (field present, value null).
+- **pipelock-evidence-v2** - Pipelock EvidenceReceipt v2 (`record_type:
+  "evidence_receipt_v2"`, `receipt_version: 2`). Ed25519 over JCS of the full
+  envelope with the `signature` object zeroed out (all four sub-fields set to
+  `""`). Signature hex-encoded with `ed25519:` prefix. 13 `payload_kind` values
+  are recognised; the key-purpose authority matrix is enforced. The signer
+  public key is NOT embedded; caller supplies `{signer_key_id: hex}` via the key
+  provider. Chain: `sha256:` + hex(SHA-256(JCS(full predecessor including sig)));
+  genesis sentinels are `"genesis"` and `"sha256:0"`.
+
+## Researched - not yet implemented (planned)
+
+These formats were researched during the c6-verifier-xformat task but not
+implemented because no publicly accessible fixture with a verifiable signature
+was found:
+
+- **AIVS** (Agentic Integrity Verification Specification, W3C CG draft +
+  draft-stone-aivs-00) - spec defines Ed25519 over SHA-256 hash-chained JSONL
+  bundles. No public test-vector corpus with signed receipts was found at
+  research time; the swarmsync-ai/aivs-spec repo contains the spec but no
+  signed example receipts.
+- **Pipelock chain-link receipts** - chain-link vector for pipelock-evidence-v2
+  is deferred; a chain link requires a predecessor signed with the Go reference,
+  and key-generation tooling for producing additional conformance fixtures is not
+  yet in this repo.
 
 ## VC export shim (export-only, EU-lane presentation)
 

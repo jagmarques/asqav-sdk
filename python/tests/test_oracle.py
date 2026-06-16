@@ -72,7 +72,7 @@ def test_verifier_ships_inside_the_asqav_package() -> None:
 
 def test_adapters_registered() -> None:
     names = [a.name for a in ADAPTERS]
-    assert names == ["asqav-native", "aerf", "acta", "agentreceipts", "authproof"]
+    assert names == ["asqav-native", "aerf", "acta", "agentreceipts", "authproof", "pipelock-evidence-v2"]
 
 
 def test_detection_picks_the_right_adapter() -> None:
@@ -215,7 +215,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 44
+    assert len(results) == 46
     # The optional-dep ML-DSA vector returns the stronger PASS when dilithium-py is present.
     def _tol(r):
         return r.ok or (
@@ -754,3 +754,117 @@ def test_non_dict_receipt_fails_closed_never_crashes() -> None:
         assert detect(bad, ADAPTERS) is None
         res = verify(bad, ADAPTERS)
         assert res.verdict != "PASS"
+
+
+# --- Pipelock EvidenceReceipt v2 adapter ---
+#
+# Fixture: Go reference implementation output from luckyPipewrench/pipelock-verify-python
+# commit 9eaff72a87b3b412945fac6de07739bc2bef2116 (tests/conformance/valid-evidence-proxy-decision.json).
+# Signer public key: RFC 8032 section 7.1 test-1 vector key
+# d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a (no secrets).
+
+from asqav.verifier.oracle.adapters.pipelock import PipelockEvidenceAdapter  # noqa: E402
+
+#: RFC 8032 test-1 public key (hex) - the Go reference uses this for all conformance fixtures.
+_PIPELOCK_PUB_HEX = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+_PIPELOCK_KEY_PROVIDER = {"receipt-signing-test": _PIPELOCK_PUB_HEX}
+
+
+def _pipelock(vec: str, name: str = "receipt.json") -> dict:
+    return _load(vec, name)
+
+
+@requires_ed25519
+def test_pipelock_evidence_v2_valid_passes() -> None:
+    """A real Go-reference proxy_decision EvidenceReceipt v2 verifies (inbound interop).
+
+    The fixture is lifted verbatim from luckyPipewrench/pipelock-verify-python
+    tests/conformance/valid-evidence-proxy-decision.json (commit 9eaff72). It was
+    signed by the Go implementation over JCS(receipt with signature zeroed) using
+    the RFC 8032 section 7.1 test-1 private key. This confirms our JCS preimage
+    computation is byte-identical to the Go canonicaliser for this receipt shape.
+    """
+    doc = _pipelock("pipelock-ev2-01-proxy-decision")
+    res = verify(doc, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
+    assert res.fmt == "pipelock-evidence-v2"
+    assert res.verdict == "PASS"
+    assert res.axis("structure").result == crypto.PASS
+    assert res.axis("signature").result == crypto.PASS
+
+
+@requires_ed25519
+def test_pipelock_evidence_v2_tampered_payload_fails() -> None:
+    """A Go-signed receipt with payload.verdict changed from 'allow' to 'block' must FAIL.
+
+    The original signature covers JCS(receipt-with-zeroed-sig) where verdict='allow'.
+    Changing the payload shifts the preimage, so the Ed25519 signature no longer verifies.
+    This is the non-vacuous tamper test: the signature axis itself must FAIL, not SKIPPED.
+    """
+    doc = _pipelock("pipelock-ev2-02-tamper-payload")
+    res = verify(doc, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
+    assert res.fmt == "pipelock-evidence-v2"
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+def test_pipelock_detection_is_exclusive() -> None:
+    """The Pipelock fingerprint matches only its own receipts, not any other format."""
+    pipelock_doc = _pipelock("pipelock-ev2-01-proxy-decision")
+    aerf_doc = _load("aerf-01-genesis", "receipt.json")
+    acta_doc = _load("acta-01-genesis", "receipt.json")
+    native_doc = _load("asqav-01-genesis-permit", "receipt.json")
+    authproof_doc = _load("authproof-01-genesis-real-sdk", "receipt.json")
+    pl = PipelockEvidenceAdapter()
+    assert pl.detect(pipelock_doc) is True
+    assert pl.detect(aerf_doc) is False
+    assert pl.detect(acta_doc) is False
+    assert pl.detect(native_doc) is False
+    assert pl.detect(authproof_doc) is False
+    # The pipelock receipt is detected by exactly one adapter.
+    assert [a.name for a in ADAPTERS if a.detect(pipelock_doc)] == ["pipelock-evidence-v2"]
+
+
+@requires_ed25519
+def test_pipelock_wrong_key_fails_signature() -> None:
+    """A valid Pipelock receipt verified against a different Ed25519 key FAILs the signature axis."""
+    doc = _pipelock("pipelock-ev2-01-proxy-decision")
+    wrong_provider = {"receipt-signing-test": "00" * 32}
+    res = verify(doc, ADAPTERS, key_provider=wrong_provider)
+    assert res.fmt == "pipelock-evidence-v2"
+    assert res.verdict == "FAIL"
+    assert res.axis("signature").result == crypto.FAIL
+
+
+def test_pipelock_missing_key_skips_never_passes() -> None:
+    """No key for signer_key_id: signature axis SKIPs; verdict is INCOMPLETE, never PASS."""
+    doc = _pipelock("pipelock-ev2-01-proxy-decision")
+    res = verify(doc, ADAPTERS, key_provider={})
+    assert res.fmt == "pipelock-evidence-v2"
+    assert res.axis("signature").result == crypto.SKIPPED
+    assert res.verdict == "INCOMPLETE"
+
+
+def test_pipelock_schema_rejects_bad_algorithm() -> None:
+    """A Pipelock receipt carrying an unsupported algorithm token FAILs the structure axis."""
+    doc = _pipelock("pipelock-ev2-01-proxy-decision")
+    forged = json.loads(json.dumps(doc))
+    forged["signature"]["algorithm"] = "ecdsa-p256"
+    res = verify(forged, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
+    assert res.axis("structure").result == crypto.FAIL
+    assert res.verdict == "FAIL"
+
+
+def test_pipelock_chain_genesis_sentinel_accepted() -> None:
+    """Both 'genesis' and 'sha256:0' chain_prev_hash values are accepted as genesis."""
+    doc = _pipelock("pipelock-ev2-01-proxy-decision")
+    ad = PipelockEvidenceAdapter()
+    # The fixture uses sha256:0.
+    assert ad.chain_step(doc).is_genesis is True
+    # genesis string is also a valid sentinel.
+    doc2 = json.loads(json.dumps(doc))
+    doc2["chain_prev_hash"] = "genesis"
+    assert ad.chain_step(doc2).is_genesis is True
+    # A real chain link (sha256:<hex>) is not genesis.
+    doc3 = json.loads(json.dumps(doc))
+    doc3["chain_prev_hash"] = "sha256:" + "a" * 64
+    assert ad.chain_step(doc3).is_genesis is False
