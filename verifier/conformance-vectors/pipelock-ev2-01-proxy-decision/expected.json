@@ -1,0 +1,5 @@
+{
+  "verdict": "PASS",
+  "format": "pipelock-evidence-v2",
+  "notes": "Valid proxy_decision receipt from the Go reference implementation. Signed with RFC 8032 section 7.1 test-1 key. Verifies Ed25519 preimage (JCS with signature zeroed out) and chain-genesis sentinel sha256:0."
+}
