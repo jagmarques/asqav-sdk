@@ -59,6 +59,7 @@ function keyProviderFor(vecDir: string, fmt: string): KeyProvider {
   if (fmt === "aerf") return loadJson(join(vecDir, "keys.json"));
   if (fmt === "acta") return loadJson(join(vecDir, "acta-keys.json"));
   if (fmt === "agentreceipts") return loadJson(join(vecDir, "did_map.json"));
+  if (fmt === "pipelock-evidence-v2") return loadJson(join(vecDir, "keys.json"));
   return null;
 }
 
