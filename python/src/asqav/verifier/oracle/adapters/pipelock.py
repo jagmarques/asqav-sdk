@@ -43,9 +43,6 @@ WHAT IS NOT VERIFIED (the signature layer closes this):
 """
 from __future__ import annotations
 
-import hashlib
-import json
-import unicodedata
 from typing import Any
 
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
