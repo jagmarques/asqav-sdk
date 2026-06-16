@@ -306,5 +306,19 @@
     "outcome": "FAIL",
     "reason_code": "issuer_signature",
     "notes": "Scope changed after signing; signature no longer covers the bytes."
+  },
+  {
+    "dir": "pipelock-ev2-01-proxy-decision",
+    "format": "pipelock-evidence-v2",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Valid proxy_decision EvidenceReceipt v2 from Go reference implementation; signed with RFC 8032 section 7.1 test-1 key (d75a98...). Verifies Ed25519 over JCS preimage (signature zeroed out) and chain genesis sha256:0. Source: luckyPipewrench/pipelock-verify-python commit 9eaff72."
+  },
+  {
+    "dir": "pipelock-ev2-02-tamper-payload",
+    "format": "pipelock-evidence-v2",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "Same receipt with payload.verdict changed from 'allow' to 'block' after signing; JCS preimage diverges, Ed25519 verify fails."
   }
 ]
