@@ -1,0 +1,5 @@
+{
+  "verdict": "FAIL",
+  "format": "pipelock-evidence-v2",
+  "notes": "Valid proxy_decision receipt with verdict field changed from 'allow' to 'block'. The original signature was computed over the receipt with verdict='allow'; changing the payload shifts the JCS preimage and invalidates the Ed25519 signature."
+}
