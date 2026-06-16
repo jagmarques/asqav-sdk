@@ -160,3 +160,40 @@ ingested as the load-bearing receipt plus its immediate predecessor:
 - the tamper-in-chain vector ingests the mutated middle receipt against its
   valid predecessor, where the mutated receipt's own issuer signature is
   what fails.
+
+## Pipelock EvidenceReceipt v2
+
+The `pipelock-ev2-*` vectors target Pipelock EvidenceReceipt v2 as implemented
+in `luckyPipewrench/pipelock-verify-python`, cloned at commit
+`9eaff72a87b3b412945fac6de07739bc2bef2116`.
+
+`pipelock-ev2-01-proxy-decision/receipt.json` is reproduced verbatim from
+`tests/conformance/valid-evidence-proxy-decision.json` in that repo. It is
+emitted by the Go reference implementation (`pipelock/internal/contract/receipt`)
+under a deterministic test signing key: the RFC 8032 section 7.1 test-1 private
+key, whose public key is
+`d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a`
+(this is a published test vector; not a secret). The `keys.json` for each vector
+records this public key under the `signer_key_id` the receipt carries
+(`receipt-signing-test`).
+
+Signing rule (from `pipelock_verify/_evidence.py::_signable_preimage`): zero
+out the four fields of the `signature` object (replace with empty strings), then
+JCS-canonicalize the full envelope. JCS here is strict RFC 8785 (Unicode
+codepoint key sort, NFC strings, integer-only numerics, no whitespace) - the
+same dialect as the `agentreceipts` adapter; the oracle reuses `jcs_rfc8785`.
+
+Chain rule (`pipelock_verify/_evidence.py::evidence_receipt_hash`): the chain
+hash is `sha256:` + hex(SHA-256(JCS(full receipt including its signature))).
+Genesis receipts use `chain_prev_hash` of `"genesis"` or `"sha256:0"`; both are
+accepted.
+
+`pipelock-ev2-02-tamper-payload` is a copy of the valid fixture with
+`payload.verdict` changed from `"allow"` to `"block"` after signing; the
+original signature no longer verifies over the shifted preimage.
+
+INTEROP RESULT (inbound, partial): the Python verifier in this oracle agrees
+with the Go reference on the JCS preimage for the `proxy_decision` receipt shape,
+proven by the fact that the Go-signed bytes verify here. Outbound interop
+(Pipelock verifying an oracle-produced receipt) and chain-link vector coverage
+are deferred pending key-generation tooling for the conformance test suite.
