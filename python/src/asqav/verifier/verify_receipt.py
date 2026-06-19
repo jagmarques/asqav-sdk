@@ -28,6 +28,7 @@ Run:
   python verify_receipt.py --id sig_abc123
   python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline
 """
+
 from __future__ import annotations
 
 import argparse
@@ -107,12 +108,29 @@ def envelope_minus_anchors_jcs(env: dict) -> bytes:
     return canonical_json(e)
 
 
-def _get_json(url: str) -> dict:
+def _get_json(url: str, *, timeout: int = 30) -> dict:
     req = urllib.request.Request(
         url, headers={"Accept": "application/json", "User-Agent": USER_AGENT}
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def fetch_jwks(url: str = JWKS_URL, *, timeout: int = 30) -> dict:
+    """Fetch and return the Asqav public JWKS directory as a dict.
+
+    Snapshot this before going air-gapped; pass the result to
+    ``verify_receipt_offline(receipt, jwks)`` or ``run(envelope, jwks, ...)``.
+    The endpoint is public and unauthenticated.
+
+    Args:
+        url: JWKS URL (default: https://api.asqav.com/.well-known/jwks.json).
+        timeout: HTTP timeout in seconds.
+
+    Returns:
+        Parsed JWKS dict with a ``"keys"`` list.
+    """
+    return _get_json(url, timeout=timeout)
 
 
 def _b64decode(value: str) -> bytes:
@@ -189,7 +207,9 @@ def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: str):
         return "SKIPPED", "run 'pip install dilithium-py' for the post-quantum check"
     try:
         ok = ML_DSA_65.verify(pk, msg, sig)
-        return ("PASS" if ok else "FAIL"), ("signature valid" if ok else "signature mismatch")
+        return ("PASS" if ok else "FAIL"), (
+            "signature valid" if ok else "signature mismatch"
+        )
     except Exception as exc:  # malformed key or signature bytes
         return "FAIL", f"verify error: {exc}"
 
@@ -201,7 +221,10 @@ def check_skew(issued_at: str):
         return "FAIL", f"unparseable issued_at {issued_at!r}"
     skew = (ts - datetime.now(timezone.utc)).total_seconds()
     if skew > SKEW_BOUND_SECONDS:
-        return "FAIL", f"issued_at {skew:.0f}s ahead of wall clock (> {SKEW_BOUND_SECONDS}s)"
+        return (
+            "FAIL",
+            f"issued_at {skew:.0f}s ahead of wall clock (> {SKEW_BOUND_SECONDS}s)",
+        )
     return "PASS", f"skew {skew:.0f}s within bound"
 
 
@@ -307,6 +330,117 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
     return code
 
 
+def run_structured(
+    envelope: dict,
+    jwks: dict,
+    predecessor_payload: dict | None = None,
+) -> dict:
+    """Verify a receipt offline and return a structured result dict.
+
+    Same logic as ``run()`` but returns a dict instead of printing and exiting.
+    Used by ``verify_receipt_offline()`` in the public SDK API.
+
+    Returns:
+        dict with keys:
+          - ``"verdict"``: "PASS" | "FAIL" | "INCOMPLETE"
+          - ``"axes"``: list of ``{"name": str, "result": str, "note": str}``
+          - ``"canonical_sha256"``: hex SHA-256 of the canonical payload bytes
+          - ``"kid"``: the signature key id resolved
+    """
+    envelope = normalise_envelope(envelope)
+    payload = envelope.get("payload", envelope)
+    if not isinstance(payload, dict):
+        return {
+            "verdict": "INCOMPLETE",
+            "axes": [
+                {
+                    "name": "payload",
+                    "result": "FAIL",
+                    "note": (
+                        "receipt payload not available from this surface "
+                        "(the server returned payload: null). Verify with a saved "
+                        "receipt instead."
+                    ),
+                }
+            ],
+            "canonical_sha256": None,
+            "kid": None,
+        }
+
+    sig_obj = envelope.get("signature", {})
+    if isinstance(sig_obj, str):
+        sig_obj = {
+            "alg": envelope.get("algorithm", "ML-DSA-65"),
+            "kid": payload.get("issuer_id", ""),
+            "sig": sig_obj,
+        }
+    kid = sig_obj.get("kid", "")
+    alg = sig_obj.get("alg", "ML-DSA-65")
+    msg = canonical_json(payload)
+
+    axes: list[dict] = []
+    axes.append(
+        {
+            "name": "structure",
+            "result": check_structure(payload)[0],
+            "note": check_structure(payload)[1],
+        }
+    )
+
+    pk, status, jwks_alg = resolve_key(jwks, kid)
+    if pk is None:
+        axes.append(
+            {
+                "name": "issuer_key",
+                "result": "FAIL",
+                "note": f"kid {kid!r} not in jwks directory",
+            }
+        )
+        axes.append(
+            {
+                "name": "signature",
+                "result": "SKIPPED",
+                "note": "no issuer key to verify against",
+            }
+        )
+    else:
+        axes.append(
+            {
+                "name": "issuer_key",
+                "result": "PASS",
+                "note": f"resolved kid {kid} (status={status})",
+            }
+        )
+        sig_bytes = _b64decode(sig_obj.get("sig", ""))
+        sig_r, sig_n = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
+        axes.append({"name": "signature", "result": sig_r, "note": sig_n})
+
+    chain_r, chain_n = check_chain(payload, predecessor_payload)
+    axes.append({"name": "chain", "result": chain_r, "note": chain_n})
+    anch_r, anch_n = check_anchors(envelope)
+    axes.append({"name": "anchors", "result": anch_r, "note": anch_n})
+    skew_r, skew_n = check_skew(payload.get("issued_at", ""))
+    axes.append({"name": "skew", "result": skew_r, "note": skew_n})
+
+    has_fail = any(a["result"] == "FAIL" for a in axes)
+    has_blocking_skip = any(
+        a["result"] == "SKIPPED" and a["name"] != "chain" for a in axes
+    )
+    if has_fail:
+        verdict = "FAIL"
+    elif has_blocking_skip:
+        verdict = "INCOMPLETE"
+    else:
+        verdict = "PASS"
+
+    return {
+        "verdict": verdict,
+        "axes": axes,
+        "canonical_sha256": hashlib.sha256(msg).hexdigest(),
+        "kid": kid,
+    }
+
+
 def _load(path: str) -> dict:
     with open(path) as fh:
         return json.load(fh)
@@ -320,9 +454,7 @@ def main() -> int:
     p.add_argument(
         "--predecessor", help="path to predecessor receipt JSON for the chain check"
     )
-    p.add_argument(
-        "--offline", action="store_true", help="never reach the network"
-    )
+    p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
 
     if args.receipt:
