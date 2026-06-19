@@ -223,17 +223,68 @@ def test_verify_receipt_offline_mldsa65_tampered_fails():
     assert sig_axis["result"] == "FAIL"
 
 
-@pytest.mark.skip(
-    reason=(
-        "Placeholder: no real-cloud ML-DSA-65 payload-mode KAT vector yet. "
-        "Once a prod payload-mode receipt + JWKS snapshot is added to "
-        "verifier/conformance-vectors/asqav-mldsa-kat/, remove this skip "
-        "and wire it up as a known-answer conformance test."
-    )
-)
+# Real-cloud ML-DSA-65 payload-mode known-answer test (asqav-06-mldsa65-payload-prod).
+# Uses a receipt + JWKS minted from api.asqav.com with mode=full-payload.
+# The ML-DSA-65 signature axis must be PASS, not SKIPPED or INCOMPLETE.
+MLDSA_KAT_VECTOR = VECTORS / "asqav-06-mldsa65-payload-prod"
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat():
-    """Real-cloud ML-DSA-65 payload-mode known-answer conformance test (pending vector)."""
-    raise NotImplementedError("Add the KAT vector first")
+    """Real-cloud ML-DSA-65 payload-mode KAT: signature axis must be PASS."""
+    receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
+    jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
+    result = asqav.verify_receipt_offline(receipt, jwks)
+    assert (
+        result["verdict"] == "PASS"
+    ), f"Expected PASS, got {result['verdict']}; axes: {result['axes']}"
+    sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
+    # Must be PASS - SKIPPED or INCOMPLETE means the ML-DSA-65 check was bypassed.
+    assert (
+        sig_axis["result"] == "PASS"
+    ), f"ML-DSA-65 signature axis must be PASS (not SKIPPED/INCOMPLETE/FAIL); got: {sig_axis}"
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
+def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_payload():
+    """Tampered KAT payload byte must return FAIL - anti-vacuous guard."""
+    receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
+    jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
+    tampered = copy.deepcopy(receipt)
+    # Flip one payload field - the ML-DSA sig over canonical bytes must not match.
+    tampered["payload"]["decision"] = "deny"
+    result = asqav.verify_receipt_offline(tampered, jwks)
+    assert (
+        result["verdict"] == "FAIL"
+    ), f"Tampered receipt must be FAIL, got {result['verdict']}; axes: {result['axes']}"
+    sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
+    assert sig_axis is not None
+    assert (
+        sig_axis["result"] == "FAIL"
+    ), f"Signature axis on tampered receipt must be FAIL, got: {sig_axis}"
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
+def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
+    """Swapped-sig KAT receipt must return FAIL - anti-vacuous guard."""
+    receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
+    jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
+    tampered = copy.deepcopy(receipt)
+    # Zero-out the first bytes of the signature - will not verify.
+    import base64
+
+    raw_sig = base64.b64decode(
+        tampered["signature"]["sig"].replace("-", "+").replace("_", "/") + "=="
+    )
+    bad_sig = bytes([0] * 16) + raw_sig[16:]
+    tampered["signature"]["sig"] = base64.b64encode(bad_sig).decode()
+    result = asqav.verify_receipt_offline(tampered, jwks)
+    assert (
+        result["verdict"] == "FAIL"
+    ), f"Corrupted-sig receipt must be FAIL, got {result['verdict']}; axes: {result['axes']}"
+    sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
+    assert sig_axis is not None
+    assert sig_axis["result"] == "FAIL"
 
 
 # ---------------------------------------------------------------------------

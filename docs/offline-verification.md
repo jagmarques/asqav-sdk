@@ -91,4 +91,4 @@ changes to `revoked`. The verifier rejects signatures from revoked keys.
 |-----------|--------|
 | Ed25519 | Fully validated with real known-answer (tamper) vectors. |
 | ES256 | Fully validated with real known-answer (tamper) vectors. |
-| ML-DSA-65 | Wired and cross-library interop validated (dilithium-py in Python, @noble/post-quantum in TypeScript). A real-cloud payload-mode known-answer conformance vector is a documented follow-up. Treat ML-DSA-65 offline verify as functional but pending known-answer conformance. |
+| ML-DSA-65 | Fully proven. Known-answer conformance vector `asqav-06-mldsa65-payload-prod` was minted from a real api.asqav.com payload-mode receipt (2026-06-19, agent `agt_LBe47lJwgA0DfVom`, key `mxYqaLBR_T76ThNw0Kiekw`). Both Python (`test_verify_receipt_offline_mldsa65_real_cloud_kat`) and TypeScript test suites exercise the signature axis against this vector and assert PASS; tamper tests assert FAIL. |

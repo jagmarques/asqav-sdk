@@ -248,11 +248,46 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     expect(sigAxis?.result).toBe("FAIL");
   });
 
-  // Placeholder: no real-cloud ML-DSA-65 payload-mode KAT vector yet.
-  // Once a prod payload-mode receipt + JWKS snapshot is added to
-  // verifier/conformance-vectors/asqav-mldsa-kat/, add a test here that
-  // loads and verifies it as a known-answer conformance check.
-  it.todo(
-    "verifies a real-cloud ML-DSA-65 payload-mode receipt (known-answer conformance vector pending)",
-  );
+  // Real-cloud ML-DSA-65 payload-mode KAT (asqav-06-mldsa65-payload-prod).
+  // Uses a receipt + JWKS minted from api.asqav.com with mode=full-payload.
+  const KAT_DIR = join(VECTORS, "asqav-06-mldsa65-payload-prod");
+
+  it("verifies a real-cloud ML-DSA-65 payload-mode receipt (KAT - signature axis must be PASS)", () => {
+    const receipt = loadJson(KAT_DIR, "receipt.json");
+    const jwks = loadJson(KAT_DIR, "jwks.json");
+    const result = verifyReceiptOffline(receipt, jwks);
+    expect(result.verdict).toBe("PASS");
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    // Must be PASS - SKIPPED or INCOMPLETE means ML-DSA-65 check was bypassed.
+    expect(sigAxis?.result).toBe("PASS");
+  });
+
+  it("returns FAIL for a tampered real-cloud ML-DSA-65 KAT receipt (anti-vacuous)", () => {
+    const receipt = loadJson(KAT_DIR, "receipt.json");
+    const jwks = loadJson(KAT_DIR, "jwks.json");
+    const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
+    // Flip one payload field - ML-DSA sig over canonical bytes must not match.
+    (tampered.payload as Record<string, unknown>).decision = "deny";
+    const result = verifyReceiptOffline(tampered, jwks);
+    expect(result.verdict).toBe("FAIL");
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    expect(sigAxis?.result).toBe("FAIL");
+  });
+
+  it("returns FAIL for a corrupted-sig real-cloud ML-DSA-65 KAT receipt (anti-vacuous)", () => {
+    const receipt = loadJson(KAT_DIR, "receipt.json");
+    const jwks = loadJson(KAT_DIR, "jwks.json");
+    const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
+    const sig = tampered.signature as Record<string, unknown>;
+    // Zero-out first 16 bytes of the signature - will not verify.
+    const rawSig = b64decode(sig.sig as string);
+    const bad = new Uint8Array(rawSig.length);
+    bad.set(rawSig);
+    bad.fill(0, 0, 16);
+    sig.sig = Buffer.from(bad).toString("base64");
+    const result = verifyReceiptOffline(tampered, jwks);
+    expect(result.verdict).toBe("FAIL");
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    expect(sigAxis?.result).toBe("FAIL");
+  });
 });
