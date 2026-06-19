@@ -140,8 +140,11 @@ def test_verify_receipt_offline_no_key_in_jwks():
 
 # ---------------------------------------------------------------------------
 # ML-DSA-65 path: PASS when dilithium-py is present, SKIPPED otherwise.
-# The conformance vectors include an asqav-native vector with ML-DSA-65 only
-# when one exists; we generate a synthetic one for this test.
+#
+# NOTE: these are same-library interop round-trips (dilithium-py sign +
+# dilithium-py verify). They confirm the wiring works but do NOT prove
+# interop with real Asqav-cloud ML-DSA-65 signatures. A real-cloud
+# payload-mode known-answer conformance vector is a documented follow-up.
 # ---------------------------------------------------------------------------
 
 
@@ -218,6 +221,19 @@ def test_verify_receipt_offline_mldsa65_tampered_fails():
     assert result["verdict"] == "FAIL"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig_axis["result"] == "FAIL"
+
+
+@pytest.mark.skip(
+    reason=(
+        "Placeholder: no real-cloud ML-DSA-65 payload-mode KAT vector yet. "
+        "Once a prod payload-mode receipt + JWKS snapshot is added to "
+        "verifier/conformance-vectors/asqav-mldsa-kat/, remove this skip "
+        "and wire it up as a known-answer conformance test."
+    )
+)
+def test_verify_receipt_offline_mldsa65_real_cloud_kat():
+    """Real-cloud ML-DSA-65 payload-mode known-answer conformance test (pending vector)."""
+    raise NotImplementedError("Add the KAT vector first")
 
 
 # ---------------------------------------------------------------------------

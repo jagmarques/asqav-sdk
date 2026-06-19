@@ -149,45 +149,12 @@ describe("verifyReceiptOffline - missing key (no network)", () => {
 // ML-DSA-65 path: sign in Node with noble, verify with the oracle
 // ---------------------------------------------------------------------------
 
+// NOTE: ML-DSA-65 tests below are same-library interop round-trips (noble sign +
+// noble verify). They confirm the wiring works but do NOT prove interop with
+// real Asqav-cloud ML-DSA-65 signatures. A real-cloud known-answer test vector
+// (payload-mode prod receipt) is a documented follow-up.
+
 describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
-  function makeMlDsaReceiptAndJwks(): {
-    envelope: Record<string, unknown>;
-    jwks: Record<string, unknown>;
-  } {
-    const { publicKey, secretKey } = ml_dsa65.keygen();
-    const pk_b64 = Buffer.from(publicKey).toString("base64");
-    const kid = "test-mldsa-noble-01";
-
-    const payload: Record<string, unknown> = {
-      type: "protectmcp:decision",
-      issued_at: "2026-06-19T00:00:00.000000Z",
-      issuer_id: kid,
-      action_ref: "sha256:" + "a".repeat(64),
-      payload_digest: { hash: "b".repeat(64), size: 128 },
-      policy_digest: "sha256:" + "c".repeat(64),
-      previousReceiptHash: "0".repeat(64),
-      decision: "allow",
-    };
-
-    // JCS canonical bytes (sorted keys, no whitespace) - matches server signing input.
-    const msg = Buffer.from(
-      JSON.stringify(payload, Object.keys(payload).sort()),
-    );
-    // noble: sign(msg, secretKey)
-    const sig = ml_dsa65.sign(msg, secretKey);
-    const sig_b64 = Buffer.from(sig).toString("base64");
-
-    const envelope: Record<string, unknown> = {
-      payload,
-      signature: { alg: "ML-DSA-65", kid, sig: sig_b64 },
-      anchors: [],
-    };
-    const jwks: Record<string, unknown> = {
-      keys: [{ kid, issuer_id: kid, alg: "ML-DSA-65", status: "active", public_key: pk_b64 }],
-    };
-    return { envelope, jwks };
-  }
-
   it("verifies a real ML-DSA-65 receipt PASS (noble sign + noble verify)", () => {
     const { publicKey, secretKey } = ml_dsa65.keygen();
     const msg = new Uint8Array([1, 2, 3, 4, 5]);
@@ -280,4 +247,12 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("FAIL");
   });
+
+  // Placeholder: no real-cloud ML-DSA-65 payload-mode KAT vector yet.
+  // Once a prod payload-mode receipt + JWKS snapshot is added to
+  // verifier/conformance-vectors/asqav-mldsa-kat/, add a test here that
+  // loads and verifies it as a known-answer conformance check.
+  it.todo(
+    "verifies a real-cloud ML-DSA-65 payload-mode receipt (known-answer conformance vector pending)",
+  );
 });

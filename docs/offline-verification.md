@@ -84,3 +84,11 @@ GET https://api.asqav.com/.well-known/jwks.json
 
 Public, unauthenticated. Re-snapshot when you rotate keys or when a key's `status`
 changes to `revoked`. The verifier rejects signatures from revoked keys.
+
+## Verification status by algorithm
+
+| Algorithm | Status |
+|-----------|--------|
+| Ed25519 | Fully validated with real known-answer (tamper) vectors. |
+| ES256 | Fully validated with real known-answer (tamper) vectors. |
+| ML-DSA-65 | Wired and cross-library interop validated (dilithium-py in Python, @noble/post-quantum in TypeScript). A real-cloud payload-mode known-answer conformance vector is a documented follow-up. Treat ML-DSA-65 offline verify as functional but pending known-answer conformance. |
