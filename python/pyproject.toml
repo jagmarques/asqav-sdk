@@ -57,7 +57,11 @@ httpx = ["httpx>=0.24.0"]
 verify = ["dilithium-py>=1.0.0", "cryptography>=42"]
 cli = ["typer>=0.12.0", "httpx>=0.24.0"]
 langchain = ["langchain-core>=0.2.0"]
-crewai = ["crewai>=0.41.0"]
+# crewai hard-requires chromadb (CVE-2025-47947, CRITICAL, no upstream patch as of 2026-06-20).
+# Removed from extras until crewai/chromadb ships a patched release.
+# The integration module (extras/crewai.py) stays; users can install crewai
+# manually alongside asqav and it will work via the lazy-import guard.
+crewai = []
 litellm = ["litellm>=1.83.14,!=1.82.7,!=1.82.8"]
 haystack = ["haystack-ai>=2.0.0"]
 openai-agents = ["openai-agents>=0.1.0"]
@@ -66,8 +70,17 @@ openai-agents = ["openai-agents>=0.1.0"]
 # The integration module (extras/llamaindex.py) stays; users can install llama-index-core
 # manually alongside asqav and it will work via the lazy-import guard.
 llamaindex = []
-smolagents = ["smolagents>=1.0.0"]
-dspy = ["dspy>=2.5.0"]
+# smolagents has unpatched SSRF (CVE-2025-25979) and injection (CVE-2025-40616) as of 2026-06-20.
+# Removed from extras until smolagents ships patched releases.
+# The integration module (extras/smolagents.py) stays; users can install smolagents
+# manually alongside asqav and it will work via the lazy-import guard.
+smolagents = []
+# dspy hard-requires diskcache (CVE-2024-12957, MEDIUM, no upstream patch as of 2026-06-20),
+# and dspy itself has CVE-2025-1716 (file-read restriction bypass, no patch).
+# Removed from extras until dspy/diskcache ship patched releases.
+# The integration module (extras/dspy.py) stays; users can install dspy
+# manually alongside asqav and it will work via the lazy-import guard.
+dspy = []
 letta = ["letta-client>=1.10.0"]
 strands = ["strands-agents>=0.1.0"]
 instructor = ["instructor>=1.5.0"]
@@ -75,13 +88,13 @@ all = [
     "httpx>=0.24.0",
     "typer>=0.12.0",
     "langchain-core>=0.2.0",
-    "crewai>=0.41.0",
+    # crewai removed: hard-requires chromadb (CVE-2025-47947, CRITICAL, no patch).
     "litellm>=1.83.14,!=1.82.7,!=1.82.8",
     "haystack-ai>=2.0.0",
     "openai-agents>=0.1.0",
     # llama-index-core removed: hard-requires nltk (CVE-2026-54293, no patch).
-    "smolagents>=1.0.0",
-    "dspy>=2.5.0",
+    # smolagents removed: CVE-2025-25979, CVE-2025-40616, no patch.
+    # dspy removed: hard-requires diskcache (CVE-2024-12957), plus CVE-2025-1716, no patch.
     "letta-client>=1.10.0",
     "strands-agents>=0.1.0",
     "instructor>=1.5.0",
