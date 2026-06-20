@@ -35,6 +35,13 @@
     "notes": "Real default-mode prod /sign receipt; the reconstructed signing input byte-matches the prod-signed message and ML-DSA-65 verifies with dilithium-py. Absent that optional dep the signature axis SKIPs, so the verdict is INCOMPLETE, proving the verifier never false-PASSes the post-quantum path it cannot check."
   },
   {
+    "dir": "asqav-06-mldsa65-payload-prod",
+    "format": "asqav-native",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Real prod payload-mode receipt signed by ML-DSA-65 (FIPS 204). mode=payload so signing_input is canonical_json(full payload dict). ML-DSA-65 signature axis must PASS (dilithium-py available); this is the known-answer vector that proves offline ML-DSA-65 verification against a real cloud receipt."
+  },
+  {
     "dir": "aerf-01-genesis",
     "format": "aerf",
     "outcome": "PASS",
