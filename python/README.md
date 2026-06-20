@@ -247,6 +247,40 @@ Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 3
 
 Algorithm agility is exposed via `asqav.SUPPORTED_ALGORITHMS`. Pass `algorithm="ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `asqav.generate_local_keypair("ed25519")` for offline scenarios.
 
+## Offline / air-gapped verification
+
+Receipts can be verified without calling the Asqav API once you have a JWKS snapshot.
+Full guide: [`docs/offline-verification.md`](../docs/offline-verification.md).
+
+Install the `verify` extra, which adds `dilithium-py` (ML-DSA-65) and `cryptography`
+(Ed25519, ES256):
+
+```bash
+pip install "asqav[verify]"
+```
+
+Snapshot the JWKS while you have network access, then verify offline:
+
+```python
+import asqav, json
+
+# online: snapshot the keys
+jwks = asqav.fetch_jwks()
+json.dump(jwks, open("jwks.json", "w"))
+
+# offline: verify any receipt
+receipt = json.load(open("receipt.json"))
+jwks    = json.load(open("jwks.json"))
+result  = asqav.verify_receipt_offline(receipt, jwks)
+assert result["verdict"] == "PASS", result["axes"]
+```
+
+Supply a predecessor receipt to check the hash-chain link:
+
+```python
+result = asqav.verify_receipt_offline(receipt, jwks, predecessor=prev_receipt)
+```
+
 ## Integrations
 
 The SDK ships native callbacks and adapters for common agent frameworks under `asqav.extras.*`:

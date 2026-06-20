@@ -2329,6 +2329,46 @@ export async function exportAuditJson(
   return request<unknown>("GET", path);
 }
 
+// === Offline / air-gapped verification helpers ===
+
+const DEFAULT_JWKS_URL = "https://api.asqav.com/.well-known/jwks.json";
+
+/**
+ * Fetch and return the Asqav public JWKS directory as a plain object.
+ *
+ * Snapshot this before going air-gapped; pass the result to
+ * `verifyReceiptOffline(receipt, jwks)`. The endpoint is public and
+ * unauthenticated.
+ *
+ * @param url - JWKS URL (default: https://api.asqav.com/.well-known/jwks.json).
+ */
+export async function fetchJwks(url: string = DEFAULT_JWKS_URL): Promise<Record<string, unknown>> {
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`fetchJwks: HTTP ${res.status} from ${url}`);
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index.js";
+import type { VerifyResult } from "./verifier/core.js";
+
+/**
+ * Verify a receipt fully offline against an in-memory JWKS snapshot.
+ *
+ * Runs the full oracle: structure, signature (Ed25519/ES256/ML-DSA-65 via
+ * `@noble/post-quantum`), hash-chain link. No network call is made.
+ *
+ * @param receipt - Parsed receipt envelope object ({payload, signature, anchors}).
+ * @param jwks - JWKS object previously fetched via `fetchJwks()`.
+ * @param predecessor - Parsed predecessor receipt for the chain check (optional).
+ */
+export function verifyReceiptOffline(
+  receipt: Record<string, unknown>,
+  jwks: Record<string, unknown>,
+  predecessor?: Record<string, unknown> | null,
+): VerifyResult {
+  return _oracleVerify(receipt, _ADAPTERS, jwks, predecessor ?? null);
+}
+
 // === Internal config exposure for tests only ===
 
 /** @internal - reset module state. Used in tests. */
