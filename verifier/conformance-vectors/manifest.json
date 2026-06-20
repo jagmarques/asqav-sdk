@@ -37,9 +37,9 @@
   {
     "dir": "asqav-06-mldsa65-payload-prod",
     "format": "asqav-native",
-    "outcome": "PASS",
-    "reason_code": "",
-    "notes": "Real prod payload-mode receipt signed by ML-DSA-65 (FIPS 204). mode=payload so signing_input is canonical_json(full payload dict). ML-DSA-65 signature axis must PASS (dilithium-py available); this is the known-answer vector that proves offline ML-DSA-65 verification against a real cloud receipt."
+    "outcome": "INCOMPLETE",
+    "reason_code": "signature_skipped_no_dilithium",
+    "notes": "Real payload-mode prod ML-DSA-65 receipt; the signing input byte-matches and ML-DSA-65 verifies with dilithium-py (proven in test_offline_verify.py's known-answer test). Absent that optional dep the corpus SKIPs the signature axis, so the verdict is INCOMPLETE, confirming the verifier never false-PASSes the post-quantum path it cannot check."
   },
   {
     "dir": "aerf-01-genesis",
