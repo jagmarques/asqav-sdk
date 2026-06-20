@@ -144,8 +144,11 @@ from .reasoning import ReasoningReceipt, sign_reasoning
 from .replay import ReplayStep, ReplayTimeline, replay, replay_from_bundle
 from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
+from .verifier.oracle import ADAPTERS as _ADAPTERS
+from .verifier.oracle import verify as _oracle_verify
+from .verifier.verify_receipt import fetch_jwks
 
-__version__ = "0.5.16"
+__version__ = "0.6.0"
 __all__ = [
     # Initialization
     "init",
@@ -317,4 +320,53 @@ __all__ = [
     "SUPPORTED_ALGORITHMS",
     "LocalKeypair",
     "generate_local_keypair",
+    # Offline / air-gapped verification helpers
+    "fetch_jwks",
+    "verify_receipt_offline",
 ]
+
+
+def verify_receipt_offline(
+    receipt: dict,
+    jwks: dict,
+    *,
+    predecessor: dict | None = None,
+) -> dict:
+    """Verify a receipt fully offline against an in-memory JWKS snapshot.
+
+    Runs the full oracle: structure, signature (Ed25519/ES256/ML-DSA-65),
+    hash-chain link. No network call is made; all crypto happens in-process.
+    ML-DSA-65 requires ``pip install asqav[verify]``; without it the signature
+    axis is SKIPPED and the verdict is INCOMPLETE, never a false PASS.
+
+    Args:
+        receipt: Parsed receipt envelope dict (``{payload, signature, anchors}``).
+        jwks: JWKS dict previously fetched via ``fetch_jwks()``.
+        predecessor: Parsed predecessor receipt dict for the chain check
+            (optional; chain axis is SKIPPED when not supplied).
+
+    Returns:
+        dict with keys:
+
+          - ``"verdict"``: "PASS" | "FAIL" | "INCOMPLETE"
+          - ``"axes"``: list of per-axis dicts (name, result, note)
+          - ``"fmt"``: detected receipt format name
+
+    Example::
+
+        jwks = asqav.fetch_jwks()       # snapshot online
+        # ... go offline ...
+        result = asqav.verify_receipt_offline(receipt, jwks)
+        assert result["verdict"] == "PASS"
+    """
+    predecessor_payload = None
+    if predecessor is not None:
+        predecessor_payload = predecessor.get("payload", predecessor)
+    vr = _oracle_verify(
+        receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload
+    )
+    return {
+        "verdict": vr.verdict,
+        "axes": [{"name": a.axis, "result": a.result, "note": a.note} for a in vr.axes],
+        "fmt": vr.fmt,
+    }
