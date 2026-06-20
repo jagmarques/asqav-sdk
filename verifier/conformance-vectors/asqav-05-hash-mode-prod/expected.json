@@ -2,5 +2,5 @@
   "format": "asqav-native",
   "outcome": "INCOMPLETE",
   "reason_code": "signature_skipped_no_dilithium",
-  "notes": "Real prod hash-mode receipt (default /sign). ML-DSA-65 signature axis SKIPs without dilithium-py so the verdict is INCOMPLETE, never a false PASS; detection routes to asqav-native and the reconstructed signing_input byte-matches the prod-signed message bytes."
+  "notes": "Real prod hash-mode receipt (default /sign). payload is null so the signature axis is SKIPPED/INCOMPLETE here; no signing_input byte-match is asserted. This vector tests format detection and INCOMPLETE propagation only. A payload-mode prod receipt with ML-DSA-65 signature verification is a documented follow-up (real-cloud KAT vector)."
 }
