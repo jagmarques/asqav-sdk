@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Real prod payload-mode receipt signed by ML-DSA-65 (FIPS 204). Agent agt_LBe47lJwgA0DfVom created 2026-06-19; action act_6Xm9cj3AgtPVqZaY8IJnLw signed with key mxYqaLBR_T76ThNw0Kiekw (issuer_id f94f66c0-c580-432d-a041-29374f7aee07). mode=payload so signing_input is canonical_json(full payload dict). ML-DSA-65 signature axis must be PASS, not SKIPPED or INCOMPLETE. This is the known-answer vector that proves offline ML-DSA-65 verification against a real cloud receipt."
+}

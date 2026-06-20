@@ -11,15 +11,16 @@
  *   - `ES256`             : ECDSA P-256 / SHA-256 over a 65-byte uncompressed
  *                           point; signature is the 64-byte raw r||s form
  *                           (ieee-p1363), which `node:crypto` verifies directly.
- *   - `ML-DSA-65`         : SKIPPED. Node has no ML-DSA, so the verifier reports
- *                           it cannot check the post-quantum path - never a
- *                           false PASS, never a FAIL (mirrors the Python oracle
- *                           without dilithium-py).
+ *   - `ML-DSA-65`         : `@noble/post-quantum` (MIT, pure JS). API:
+ *                           `verify(sig, msg, publicKey)` -> boolean.
+ *                           Public key is 1952 raw bytes; signature is 3309 bytes.
+ *                           Byte-compatible with FIPS 204 / dilithium-py.
  *
  * Malformed key or signature bytes -> FAIL, never throw.
  */
 
 import { createPublicKey, verify } from "node:crypto";
+import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 
 export const PASS = "PASS";
 export const FAIL = "FAIL";
@@ -38,12 +39,25 @@ function base64url(buf: Buffer): string {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** ML-DSA-65: Node has no implementation, so SKIP - never a false PASS. */
-function verifyMlDsa65(): VerifyOutcome {
-  return {
-    result: SKIPPED,
-    note: "ML-DSA-65 not available in node:crypto; signature axis skipped",
-  };
+/**
+ * ML-DSA-65 verify via @noble/post-quantum (MIT, pure JS/WASM-free).
+ *
+ * Noble's API: verify(sig, msg, publicKey) -> boolean.
+ * Key is 1952 raw bytes; signature is 3309 bytes (FIPS 204 ML-DSA-65).
+ * Byte-compatible with Python dilithium-py.
+ */
+function verifyMlDsa65(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
+  if (pk.length !== 1952) {
+    return { result: FAIL, note: `bad ML-DSA-65 public key: expected 1952 bytes, got ${pk.length}` };
+  }
+  try {
+    const ok = ml_dsa65.verify(sig, msg, pk);
+    return ok
+      ? { result: PASS, note: "signature valid" }
+      : { result: FAIL, note: "signature mismatch" };
+  } catch (exc) {
+    return { result: FAIL, note: `verify error: ${(exc as Error).message}` };
+  }
 }
 
 /** Ed25519 verify over a raw 32-byte public key (RFC 8032). */
