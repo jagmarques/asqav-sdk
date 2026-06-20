@@ -35,6 +35,13 @@
     "notes": "Real default-mode prod /sign receipt; the reconstructed signing input byte-matches the prod-signed message and ML-DSA-65 verifies with dilithium-py. Absent that optional dep the signature axis SKIPs, so the verdict is INCOMPLETE, proving the verifier never false-PASSes the post-quantum path it cannot check."
   },
   {
+    "dir": "asqav-06-mldsa65-payload-prod",
+    "format": "asqav-native",
+    "outcome": "INCOMPLETE",
+    "reason_code": "signature_skipped_no_dilithium",
+    "notes": "Real payload-mode prod ML-DSA-65 receipt; the signing input byte-matches and ML-DSA-65 verifies with dilithium-py (proven in test_offline_verify.py's known-answer test). Absent that optional dep the corpus SKIPs the signature axis, so the verdict is INCOMPLETE, confirming the verifier never false-PASSes the post-quantum path it cannot check."
+  },
+  {
     "dir": "aerf-01-genesis",
     "format": "aerf",
     "outcome": "PASS",
