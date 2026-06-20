@@ -250,6 +250,37 @@ For offline chain verification, `verifyChain(records)` walks an ordered list of 
 
 Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. Pass `algorithm: "ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `generateKeypair("ed25519")` for offline scenarios. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
 
+## Offline / air-gapped verification
+
+Receipts can be verified without calling the Asqav API once you have a JWKS snapshot.
+Full guide: [`docs/offline-verification.md`](../docs/offline-verification.md).
+
+`@noble/post-quantum` ships as a runtime dependency and covers ML-DSA-65 in-process.
+Ed25519 and ES256 run via Node's built-in `crypto` module.
+
+Snapshot the JWKS while you have network access, then verify offline:
+
+```ts
+import { fetchJwks, verifyReceiptOffline } from "@asqav/sdk";
+import { readFileSync, writeFileSync } from "node:fs";
+
+// online: snapshot the keys
+const jwks = await fetchJwks();
+writeFileSync("jwks.json", JSON.stringify(jwks));
+
+// offline: verify any receipt
+const receipt = JSON.parse(readFileSync("receipt.json", "utf8"));
+const jwksSnap = JSON.parse(readFileSync("jwks.json", "utf8"));
+const result = await verifyReceiptOffline(receipt, jwksSnap);
+if (result.verdict !== "PASS") throw new Error(JSON.stringify(result.axes));
+```
+
+Supply a predecessor receipt to check the hash-chain link:
+
+```ts
+const result = await verifyReceiptOffline(receipt, jwksSnap, { predecessor: prevReceipt });
+```
+
 ## Integrations
 
 The SDK ships native callbacks and adapters for common agent frameworks:
