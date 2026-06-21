@@ -12,12 +12,33 @@ pip install asqav
 
 ## Quick start
 
+Get an API key at [asqav.com](https://asqav.com), then sign your first agent action:
+
 ```python
 import asqav
 
 asqav.init(api_key="sk_...")
 agent = asqav.Agent.create("my-agent")
 
+sig = agent.sign("api:openai:chat", {"model": "gpt-4o", "tokens": 512})
+print(sig.verification_url)
+```
+
+No API key yet? `local_sign` queues an action to a local file with no network call and no signup, ready to sync once you have a key:
+
+```python
+import asqav
+
+item_id = asqav.local_sign("my-agent", "api:openai:chat", {"model": "gpt-4o"})
+print(item_id)  # queued to a local file
+
+asqav.init(api_key="sk_...")   # later, once you have a key
+asqav.LocalQueue().sync()      # pushes the queued actions to the cloud
+```
+
+For a high-value action, pass compliance metadata:
+
+```python
 sig = agent.sign(
     "payment.wire_transfer",
     {"amount_eur": 850000, "beneficiary_iban": "DE89370400440532013000"},
