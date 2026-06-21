@@ -32,7 +32,8 @@ import asqav
 item_id = asqav.local_sign("my-agent", "api:openai:chat", {"model": "gpt-4o"})
 print(item_id)  # queued to a local file
 
-asqav.LocalQueue().sync(api_key="sk_...")  # later, with a key
+asqav.init(api_key="sk_...")   # later, once you have a key
+asqav.LocalQueue().sync()      # pushes the queued actions to the cloud
 ```
 
 For a high-value action, pass compliance metadata:
