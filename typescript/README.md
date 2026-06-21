@@ -12,12 +12,30 @@ npm install @asqav/sdk
 
 ## Quick start
 
+Get an API key at [asqav.com](https://asqav.com), then sign your first agent action:
+
 ```ts
 import { init, Agent } from "@asqav/sdk";
 
 init({ apiKey: process.env.ASQAV_API_KEY });
 const agent = await Agent.create({ name: "my-agent" });
 
+const sig = await agent.sign({ actionType: "api:openai:chat", context: { model: "gpt-4o", tokens: 512 } });
+console.log(sig.verificationUrl);
+```
+
+No API key yet? `generateKeypair` runs entirely in-process with no network call and no signup:
+
+```ts
+import { generateKeypair } from "@asqav/sdk";
+
+const kp = generateKeypair("ed25519");
+console.log(kp.publicKeySpkiB64);  // SPKI DER public key, base64
+```
+
+For a high-value action, pass compliance metadata:
+
+```ts
 const sig = await agent.sign({
   actionType: "payment.wire_transfer",
   context: { amountEur: 850000, beneficiaryIban: "DE89370400440532013000" },
