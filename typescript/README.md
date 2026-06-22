@@ -33,7 +33,9 @@ const kp = generateKeypair("ed25519");
 console.log(kp.publicKeySpkiB64);  // SPKI DER public key, base64
 ```
 
-For a high-value action, pass compliance metadata:
+### For high-value actions
+
+Pass compliance metadata for regulated or high-risk operations:
 
 ```ts
 const sig = await agent.sign({
