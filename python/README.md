@@ -123,7 +123,7 @@ Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a 
 
 Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
-Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `python/src/asqav/client.py`.
+Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `python/src/asqav/client.py`.
 
 ```python
 sig = agent.sign(
@@ -273,7 +273,7 @@ print(pack["algorithm_registry_version"]) # registry version pinned at issuance
 
 Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 300s skew bound, and predecessor rederivation, are available as `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)`. The cloud is the authoritative verifier. This helper is a convenience.
 
-Algorithm agility is exposed via `asqav.SUPPORTED_ALGORITHMS`. Pass `algorithm="ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `asqav.generate_local_keypair("ed25519")` for offline scenarios.
+Algorithm agility is exposed via `asqav.SUPPORTED_ALGORITHMS`. `Agent.create(...)` sends the algorithm to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only (`asqav.generate_local_keypair("ed25519")`); passing them to `Agent.create(...)` returns a 400 from the cloud.
 
 ## Offline / air-gapped verification
 

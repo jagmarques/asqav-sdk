@@ -115,7 +115,7 @@ Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a 
 
 Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
-Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `typescript/src/index.ts`.
+Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `typescript/src/index.ts`.
 
 ```ts
 const sig = await agent.sign({
@@ -191,7 +191,7 @@ import { Agent } from "@asqav/sdk";
 
 const agent = await Agent.create({ apiKey: process.env.ASQAV_API_KEY! });
 const receipt = await agent.sign({
-  action: "tool.invoke",
+  actionType: "tool.invoke",
   toolName: "exec_query",
   executableHash: "sha256:" + "a".repeat(64),
   sbomDigest: "sha256:" + "b".repeat(64),
@@ -268,7 +268,7 @@ console.log(bundle.records.length, bundle.bundleDigest);
 
 For offline chain verification, `verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previous_receipt_hash`. The first record's seed is `"0".repeat(64)`. The cloud is the authoritative verifier. This helper is a convenience.
 
-Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. Pass `algorithm: "ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `generateKeypair("ed25519")` for offline scenarios. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
+Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. `Agent.create(...)` sends the algorithm to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only (`generateKeypair("ed25519")`); passing them to `Agent.create(...)` returns a 400 from the cloud. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
 
 ## Offline / air-gapped verification
 
