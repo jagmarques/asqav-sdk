@@ -20,32 +20,7 @@ import { init, Agent } from "@asqav/sdk";
 init({ apiKey: process.env.ASQAV_API_KEY });
 const agent = await Agent.create({ name: "my-agent" });
 
-const sig = await agent.sign({ actionType: "api:openai:chat", context: { model: "gpt-4o", tokens: 512 } });
-console.log(sig.verificationUrl);
-```
-
-No API key yet? `generateKeypair` runs entirely in-process with no network call and no signup:
-
-```ts
-import { generateKeypair } from "@asqav/sdk";
-
-const kp = generateKeypair("ed25519");
-console.log(kp.publicKeySpkiB64);  // SPKI DER public key, base64
-```
-
-### For high-value actions
-
-Pass compliance metadata for regulated or high-risk operations:
-
-```ts
-const sig = await agent.sign({
-  actionType: "payment.wire_transfer",
-  context: { amountEur: 850000, beneficiaryIban: "DE89370400440532013000" },
-  receiptType: "protectmcp:decision",
-  riskClass: "high",
-  issuerId: "legal:Acme GmbH",
-  iterationId: "task-2026-Q2-4821",
-});
+const sig = await agent.sign({ actionType: "api:openai:chat", context: { model: "gpt-4o" } });
 
 console.log(sig.complianceMode);        // true (default; pass complianceMode: false to opt out)
 console.log(sig.actionRef);             // "sha256:..." over the JCS-canonical action
@@ -53,7 +28,17 @@ console.log(sig.previousReceiptHash);   // 64 hex; "0".repeat(64) on the first r
 console.log(sig.verificationUrl);
 ```
 
-Each signed action lands on a Compliance Receipt under IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) by default: ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL. Pass `complianceMode: false` if you want a non-Compliance receipt.
+That's it. One install, one init, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+
+### No account? Offline path
+
+TypeScript does not ship a `local_sign` queue equivalent. For offline/air-gapped scenarios use the Python SDK's `local_sign` helper, or set `mode: "hash-only"` to minimize what leaves the process while still reaching the cloud:
+
+```ts
+await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
+```
+
+Pass `complianceMode: false` on any `agent.sign(...)` call if you want a non-Compliance receipt.
 
 ## CLI
 
@@ -98,9 +83,20 @@ await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" 
 
 The fingerprint format is sorted JSON with no whitespace per JCS, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
-## Compliance receipts: the IETF profile
+## Advanced / high-value actions
 
-Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `complianceMode: false` if you want the older shape.
+Once you have the basics working, you can pass compliance envelope fields for regulated or high-risk actions. The full parameter set is useful for things like large financial transfers, healthcare decisions, or anything that needs an auditor-facing trail.
+
+```ts
+const sig = await agent.sign({
+  actionType: "payment.wire_transfer",
+  context: { amountEur: 850000, beneficiaryIban: "DE89370400440532013000" },
+  receiptType: "protectmcp:decision",
+  riskClass: "high",
+  issuerId: "legal:Acme GmbH",
+  iterationId: "task-2026-Q2-4821",
+});
+```
 
 The envelope extensions most callers reach for, camelCase on the SDK and snake_case on the JSON wire:
 
@@ -110,6 +106,10 @@ The envelope extensions most callers reach for, camelCase on the SDK and snake_c
 - `sandboxState` -> `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
 - `incidentClass` -> `incident_class` - DORA / NYDFS / CIRCIA token, or an array of tokens.
 - `issuerId` -> `issuer_id` - LEI per ISO 17442, EIN, CIK, or a W3C DID for non-LEI deployers.
+
+## Compliance receipts: the IETF profile
+
+Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `complianceMode: false` if you want the older shape.
 
 ### Shadow AI capture with passive_telemetry
 
