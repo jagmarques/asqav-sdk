@@ -36,7 +36,9 @@ asqav.init(api_key="sk_...")   # later, once you have a key
 asqav.LocalQueue().sync()      # pushes the queued actions to the cloud
 ```
 
-For a high-value action, pass compliance metadata:
+### For high-value actions
+
+Pass compliance metadata for regulated or high-risk operations:
 
 ```python
 sig = agent.sign(
