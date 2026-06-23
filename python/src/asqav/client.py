@@ -1475,9 +1475,10 @@ class Agent:
 
         Args:
             name: Human-readable name for the agent.
-            algorithm: Receipt-signing algorithm. One of `ml-dsa-65`
-                (FIPS 204; default), `ed25519`, or `es256` (ECDSA-P256).
-                The cloud also accepts `ml-dsa-44` and `ml-dsa-87`.
+            algorithm: Cloud agent-signing algorithm. The cloud accepts
+                `ml-dsa-44`, `ml-dsa-65` (FIPS 204; default), and
+                `ml-dsa-87`. `ed25519` and `es256` are local-keygen only
+                (see `generate_local_keypair`) and 400 here.
             capabilities: List of capabilities/permissions.
 
         Returns:
