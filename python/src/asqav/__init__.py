@@ -148,7 +148,7 @@ from .verifier.oracle import ADAPTERS as _ADAPTERS
 from .verifier.oracle import verify as _oracle_verify
 from .verifier.verify_receipt import fetch_jwks
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __all__ = [
     # Initialization
     "init",
