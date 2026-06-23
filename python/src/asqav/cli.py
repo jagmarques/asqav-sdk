@@ -911,19 +911,12 @@ def quickstart() -> None:
             )
         )
 
-    typer.echo("\n--- MCP config (.mcp.json) ---\n")
+    typer.echo("\n--- Claude Code hook ---\n")
     typer.echo(
-        '{\n'
-        '  "mcpServers": {\n'
-        '    "asqav": {\n'
-        '      "command": "uvx",\n'
-        '      "args": ["asqav-mcp"],\n'
-        '      "env": {\n'
-        '        "ASQAV_API_KEY": "<your-key>"\n'
-        '      }\n'
-        '    }\n'
-        '  }\n'
-        '}'
+        "Sign harness hook events with the asqav hook CLI:\n"
+        "  asqav hook posttool   # audit tool calls\n"
+        "  asqav hook pretool    # gate tool calls\n"
+        "See the hooks guide for wiring instructions."
     )
 
     typer.echo("\n--- Default policy example ---\n")
