@@ -96,6 +96,51 @@ def test_run_active_key_has_key_status_pass(capsys):
     assert "active" in out
 
 
+# --- run_structured path ---
+
+
+def test_run_structured_revoked_key_has_key_status_fail_axis():
+    """run_structured must include a key_status FAIL axis for a revoked key."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    result = v.run_structured(envelope, _jwks("revoked"), None)
+    names = [a["name"] for a in result["axes"]]
+    assert "key_status" in names, f"key_status axis missing; got axes: {names}"
+    ks = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert ks["result"] == "FAIL", f"expected FAIL, got {ks['result']!r}"
+
+
+def test_run_structured_active_key_has_key_status_pass_axis():
+    """run_structured includes a key_status PASS axis for an active key."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    result = v.run_structured(envelope, _jwks("active"), None)
+    names = [a["name"] for a in result["axes"]]
+    assert "key_status" in names, f"key_status axis missing; got axes: {names}"
+    ks = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert ks["result"] == "PASS", f"expected PASS, got {ks['result']!r}"
+
+
+def test_run_structured_revoked_at_after_issuance_passes_key_status():
+    """Key revoked after issuance: key_status PASS (historical verify ok)."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    result = v.run_structured(
+        envelope, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"), None
+    )
+    ks = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert ks["result"] == "PASS"
+
+
 # --- oracle adapter path ---
 
 
