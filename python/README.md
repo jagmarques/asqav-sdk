@@ -273,7 +273,7 @@ print(pack["algorithm_registry_version"]) # registry version pinned at issuance
 
 Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 300s skew bound, and predecessor rederivation, are available as `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)`. The cloud is the authoritative verifier. This helper is a convenience.
 
-Algorithm agility is exposed via `asqav.SUPPORTED_ALGORITHMS`. `Agent.create(...)` sends the algorithm to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only (`asqav.generate_local_keypair("ed25519")`); passing them to `Agent.create(...)` returns a 400 from the cloud.
+`asqav.SUPPORTED_ALGORITHMS` is the set `asqav.generate_local_keypair(...)` can mint locally: `{ed25519, es256}`. It does not list the cloud agent-signing algorithms. `Agent.create(...)` sends its `algorithm` to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only, so passing either to `Agent.create(...)` returns a 400 from the cloud.
 
 ## Offline / air-gapped verification
 
