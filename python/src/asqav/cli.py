@@ -184,6 +184,83 @@ def verify(
             print(f"Missing fields: {', '.join(detail.missing_fields)}")
 
 
+@app.command("verify-litellm-log")
+def verify_litellm_log(
+    path: str = typer.Argument(
+        help="Path to the JSONL index written by AsqavSigningLogger."
+    ),
+    output: str = typer.Option(
+        "text", "--output", "-o", help="Output format: text or json."
+    ),
+) -> None:
+    """Verify every receipt in a litellm signing-log index, rolling up N/N.
+
+    Reads the JSONL index that ``AsqavSigningLogger`` appends one line per
+    LLM call (each carrying a ``signature_id``) and verifies each receipt
+    via the public ``/verify`` route, reusing the same path as ``asqav
+    verify``. Prints ``verified N/N`` and exits non-zero if any receipt
+    fails or any line is unverifiable, so it works as a gate.
+    """
+    import json as json_mod
+
+    from asqav import APIError, verify_signature
+
+    try:
+        with open(path) as fh:
+            lines = [ln for ln in fh.read().splitlines() if ln.strip()]
+    except OSError as exc:
+        print(f"Error reading log: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    total = 0
+    verified = 0
+    failures: list[dict[str, Any]] = []
+    for lineno, raw in enumerate(lines, start=1):
+        try:
+            record = json_mod.loads(raw)
+        except json_mod.JSONDecodeError as exc:
+            total += 1
+            failures.append({"line": lineno, "reason": f"bad json: {exc}"})
+            continue
+
+        sig_id = record.get("signature_id")
+        if not sig_id:
+            # Lines without a signature_id are unsigned (no key at call time).
+            continue
+
+        total += 1
+        try:
+            result = verify_signature(sig_id)
+        except APIError as exc:
+            failures.append(
+                {"line": lineno, "signature_id": sig_id, "reason": str(exc)}
+            )
+            continue
+        if result.verified:
+            verified += 1
+        else:
+            failures.append(
+                {"line": lineno, "signature_id": sig_id, "reason": "not verified"}
+            )
+
+    if output == "json":
+        print(
+            json_mod.dumps(
+                {"verified": verified, "total": total, "failures": failures},
+                indent=2,
+                default=str,
+            )
+        )
+    else:
+        print(f"verified {verified}/{total}")
+        for f in failures:
+            sid = f.get("signature_id", "?")
+            print(f"  FAIL line {f['line']} {sid}: {f['reason']}")
+
+    if verified != total or failures:
+        raise typer.Exit(code=1)
+
+
 def _load_json_arg(source: str, label: str) -> dict | None:
     """Load a JSON arg from a file path, stdin (`-`), or return None when empty.
 
