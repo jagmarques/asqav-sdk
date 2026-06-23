@@ -293,9 +293,17 @@ class AsyncAgent:
         )
 
     async def preflight(self, action_type: str) -> PreflightResult:
-        """Pre-flight check (async): revocation + suspension + policy; fail-open on errors."""
+        """Pre-flight check (async): revocation + suspension + policy status.
+
+        Fail-closed on error: if a status or policy fetch errors out, the
+        check could not complete, so cleared is False and checks_complete is
+        False. A transient outage never silently clears a revoked or blocked
+        agent. Inspect checks_complete to tell a real verdict from an
+        unfinished one. Mirrors the sync Agent.preflight semantics.
+        """
         agent_active = True
         policy_allowed = True
+        checks_complete = True
         reasons: list[str] = []
 
         # Check agent status (revoked / suspended).
@@ -308,7 +316,8 @@ class AsyncAgent:
                 agent_active = False
                 reasons.append("agent is suspended")
         except Exception as exc:
-            reasons.append(f"status check failed ({exc}) - skipped")
+            checks_complete = False
+            reasons.append(f"status check failed ({exc}) - could not verify")
 
         # Check organization policies.
         try:
@@ -322,14 +331,38 @@ class AsyncAgent:
                         policy_allowed = False
                         reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
         except Exception as exc:
-            reasons.append(f"policy check failed ({exc}) - skipped")
+            checks_complete = False
+            reasons.append(f"policy check failed ({exc}) - could not verify")
 
-        cleared = agent_active and policy_allowed
+        # A failed fetch leaves the verdict unknown, so do not clear on it.
+        cleared = agent_active and policy_allowed and checks_complete
+
+        # Build human-readable explanation from check results.
+        if cleared:
+            explanation = "Allowed: agent is active and action is permitted by policy"
+        elif not checks_complete:
+            explanation = "Blocked: could not verify (" + "; ".join(reasons) + ")"
+        elif not agent_active and "agent is revoked" in reasons:
+            explanation = "Blocked: agent has been revoked"
+        elif not agent_active and "agent is suspended" in reasons:
+            suspend_reason = ""
+            for r in reasons:
+                if r.startswith("agent is suspended"):
+                    suspend_reason = r
+                    break
+            explanation = f"Blocked: agent is suspended ({suspend_reason})"
+        elif not policy_allowed:
+            explanation = "Blocked: action not permitted by current policy rules"
+        else:
+            explanation = "Blocked: " + "; ".join(reasons) if reasons else "Blocked"
+
         return PreflightResult(
             cleared=cleared,
             agent_active=agent_active,
             policy_allowed=policy_allowed,
             reasons=reasons,
+            explanation=explanation,
+            checks_complete=checks_complete,
         )
 
     async def verify(self, signature_id: str) -> VerificationResponse:
