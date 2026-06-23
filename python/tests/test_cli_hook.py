@@ -89,3 +89,62 @@ def test_pretool_dry_run_capture_topology() -> None:
     """pretool runs in-process: capture_topology=in_process_sdk."""
     body = _invoke_hook("pretool", _PRETOOL_EVENT)
     assert body["capture_topology"] == "in_process_sdk"
+
+
+# === pretool fails CLOSED (exit 2) on every gate failure ===
+# Claude Code treats PreToolUse exit 1 as a non-blocking error and proceeds, only
+# exit 2 blocks (code.claude.com/docs/en/hooks). A malformed/empty event or missing
+# identity must exit 2, else the gate fails OPEN and the tool runs unsigned.
+
+
+def test_pretool_blocks_on_empty_stdin() -> None:
+    """Empty stdin must exit 2 (block), not exit 1 (proceed unsigned)."""
+    result = runner.invoke(app, ["hook", "pretool"], input="")
+    assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
+
+
+def test_pretool_blocks_on_whitespace_stdin() -> None:
+    """Whitespace-only stdin must exit 2 (block)."""
+    result = runner.invoke(app, ["hook", "pretool"], input="   \n")
+    assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
+
+
+def test_pretool_blocks_on_invalid_json() -> None:
+    """Garbage (invalid JSON) on stdin must exit 2 (block)."""
+    result = runner.invoke(app, ["hook", "pretool"], input="{not json")
+    assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
+
+
+def test_pretool_blocks_on_non_object_json() -> None:
+    """Valid JSON that is not an object (array) must exit 2 (block)."""
+    result = runner.invoke(app, ["hook", "pretool"], input="[1, 2, 3]")
+    assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
+
+
+def test_pretool_blocks_on_non_object_scalar() -> None:
+    """Valid JSON scalar (a bare string) must exit 2 (block)."""
+    result = runner.invoke(app, ["hook", "pretool"], input='"hello"')
+    assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
+
+
+def test_pretool_blocks_on_missing_identity(monkeypatch) -> None:
+    """A well-formed event but no ASQAV_API_KEY/ASQAV_AGENT_ID must exit 2 (block)."""
+    monkeypatch.delenv("ASQAV_API_KEY", raising=False)
+    monkeypatch.delenv("ASQAV_AGENT_ID", raising=False)
+    result = runner.invoke(app, ["hook", "pretool"], input=json.dumps(_PRETOOL_EVENT))
+    assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
+
+
+# === posttool audit path stays FAIL-OPEN (exit 1 on bad input is correct) ===
+
+
+def test_posttool_fails_open_on_empty_stdin() -> None:
+    """PostToolUse is audit-only: bad input exits 1 (non-blocking), never 2."""
+    result = runner.invoke(app, ["hook", "posttool"], input="")
+    assert result.exit_code == 1, f"expected fail-open (1), got {result.exit_code}"
+
+
+def test_posttool_fails_open_on_invalid_json() -> None:
+    """PostToolUse audit fails open on garbage input: exit 1, never the gate's 2."""
+    result = runner.invoke(app, ["hook", "posttool"], input="{not json")
+    assert result.exit_code == 1, f"expected fail-open (1), got {result.exit_code}"

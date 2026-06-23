@@ -36,20 +36,24 @@ _OBSERVATION_RESULT_BOUND = "protectmcp:observation:result_bound"
 _DECISION = "protectmcp:decision"
 
 
-def _read_event() -> dict[str, Any]:
-    """Parse the hook event JSON from stdin. Exit 1 on empty or malformed input."""
+def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
+    """Parse the hook event JSON from stdin. Exit fail_code on empty or malformed input.
+
+    fail_code is 2 on the pretool gate path (a parse failure must fail CLOSED and
+    block the tool) and 1 on the posttool audit path (fail-open is correct there).
+    """
     raw = sys.stdin.read()
     if not raw.strip():
         print("Error: no hook event on stdin (expected Claude Code hook JSON).", file=sys.stderr)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=fail_code)
     try:
         event = json_mod.loads(raw)
     except json_mod.JSONDecodeError as exc:
         print(f"Error: hook event is not valid JSON: {exc}", file=sys.stderr)
-        raise typer.Exit(code=1) from exc
+        raise typer.Exit(code=fail_code) from exc
     if not isinstance(event, dict):
         print("Error: hook event must be a JSON object.", file=sys.stderr)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=fail_code)
     return event
 
 
@@ -224,9 +228,10 @@ def hook_pretool(
     The host shell decided before the tool ran, so this is a real decision:
     in_process_sdk + protectmcp:decision + policy_decision=permit. Exit 2 BLOCKS
     the tool call when the signer is unreachable or signing errors. There is no
-    tool result pre-execution, so no result_digest.
+    tool result pre-execution, so no result_digest. A malformed/empty event also
+    blocks (exit 2): the gate fails closed on every failure path, never open.
     """
-    event = _read_event()
+    event = _read_event(fail_code=2)
     action_type, context, session_id, fields = _map_event(
         event,
         receipt_type=_DECISION,
