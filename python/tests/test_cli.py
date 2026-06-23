@@ -523,8 +523,7 @@ def test_quickstart_with_api_key() -> None:
     result = runner.invoke(app, ["quickstart"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 0
     assert "API key detected" in result.output
-    assert "mcpServers" in result.output
-    assert "asqav-mcp" in result.output
+    assert "asqav hook" in result.output
     assert "Policy" in result.output
     assert "Next steps" in result.output
 
@@ -534,7 +533,7 @@ def test_quickstart_without_api_key() -> None:
     result = runner.invoke(app, ["quickstart"], env={"ASQAV_API_KEY": ""})
     assert result.exit_code == 0
     assert "ASQAV_API_KEY not set" in result.output
-    assert "mcpServers" in result.output
+    assert "asqav hook" in result.output
 
 
 # === doctor command ===
