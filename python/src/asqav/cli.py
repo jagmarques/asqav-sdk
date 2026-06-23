@@ -44,6 +44,10 @@ except ImportError:
 from asqav import __version__
 from asqav._useragent import USER_AGENT
 
+# Harness hooks (Claude Code PostToolUse/PreToolUse). Distinct from asqav/hooks.py,
+# which is in-process sign callbacks the agent opts into.
+from asqav.cli_hook import hook_app
+
 app = typer.Typer(
     name="asqav",
     help="AI agent governance - audit trails, policy enforcement, compliance.",
@@ -78,6 +82,7 @@ compliance_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(compliance_app, name="compliance")
+app.add_typer(hook_app, name="hook")
 
 
 def _version_callback(value: bool) -> None:
@@ -2605,3 +2610,8 @@ def shadow_ai_logs(
         raise typer.Exit(code=1) from exc
     if result.returncode != 0:
         raise typer.Exit(code=result.returncode)
+
+
+# Lets `python -m asqav.cli ...` dispatch the same app as the `asqav` console script.
+if __name__ == "__main__":
+    app()
