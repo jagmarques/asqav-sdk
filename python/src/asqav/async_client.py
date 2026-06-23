@@ -20,6 +20,7 @@ from .client import (
     _parse_bitcoin_anchor,
     _parse_timestamp,
 )
+from .patterns import resolve_pattern
 from .retry import with_async_retry
 
 try:
@@ -301,6 +302,7 @@ class AsyncAgent:
         agent. Inspect checks_complete to tell a real verdict from an
         unfinished one. Mirrors the sync Agent.preflight semantics.
         """
+        action_type = resolve_pattern(action_type)
         agent_active = True
         policy_allowed = True
         checks_complete = True
