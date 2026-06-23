@@ -1,20 +1,15 @@
-/**
- * Algorithm agility for receipt signing.
- *
- * The cloud accepts `ml-dsa-65` (default), `ed25519`, and `es256` on the
- * receipt-signing path. ML-DSA always runs server-side because it is not
- * available in Node's standard `crypto` module. Ed25519 and ES256 are
- * available locally via `node:crypto`, so the SDK can generate keypairs
- * and produce signatures off-cloud (handy for `user_intent` envelopes
- * and offline test fixtures).
- *
- * Public surface:
- *   SUPPORTED_ALGORITHMS   - the set the SDK accepts on `Agent.create`.
- *   isSupportedAlgorithm   - tiny type-guard.
- *   generateKeypair        - Ed25519 / ES256 keypair (raw bytes + b64).
- *   signMessage            - sign canonical bytes with the local key.
- *   verifyMessage          - verify a local signature.
- */
+// Algorithm agility for receipt signing.
+
+// SUPPORTED_ALGORITHMS is the client-side validation set (all five:
+// ml-dsa-65 default, ml-dsa-44, ml-dsa-87, ed25519, es256), so Agent.create
+// passes any of the five past local validation.
+
+// The cloud signs server-side only with ml-dsa-{44,65,87}. ed25519/es256
+// clear local validation but the cloud returns HTTP 400 on Agent.create
+// (see index.ts create comment + both READMEs).
+
+// ed25519/es256 are for LOCAL keypair generation and local sign/verify via
+// the node:crypto helpers below (LOCAL_SIGNING_ALGORITHMS), not cloud signing.
 
 import {
   createPrivateKey,
@@ -58,10 +53,8 @@ export interface LocalKeypair {
   publicKeySpkiB64: string;
 }
 
-/**
- * Generate a fresh keypair for a local-signing algorithm. ML-DSA is
- * intentionally rejected here because it is server-side only.
- */
+// Generate a fresh keypair for a local-signing algorithm.
+// ML-DSA is rejected here because it is server-side only.
 export function generateKeypair(algorithm: LocalSigningAlgorithm): LocalKeypair {
   if (algorithm === "ed25519") {
     const { publicKey, privateKey } = generateKeyPairSync("ed25519");
@@ -94,13 +87,9 @@ export function generateKeypair(algorithm: LocalSigningAlgorithm): LocalKeypair 
   throw new Error(`Unsupported local algorithm: ${exhaustive as string}`);
 }
 
-/**
- * Sign canonical bytes with a locally-generated keypair.
- *
- * Returns the raw signature as base64. For `es256`, the output is the
- * IEEE P1363 (raw r||s) form the cloud's `_verify_signature` expects;
- * Node's default for ECDSA is DER, so we convert.
- */
+// Sign canonical bytes with a locally-generated keypair, raw signature as
+// base64. es256 emits IEEE P1363 (raw r||s) to match the cloud verifier.
+// Node defaults ECDSA to DER, so we convert.
 export function signMessage(
   algorithm: LocalSigningAlgorithm,
   privateKeyPkcs8B64: string,

@@ -12,20 +12,15 @@ npm install @asqav/sdk
 
 ## Quick start
 
+Get an API key at [asqav.com](https://asqav.com), then sign your first agent action:
+
 ```ts
 import { init, Agent } from "@asqav/sdk";
 
 init({ apiKey: process.env.ASQAV_API_KEY });
 const agent = await Agent.create({ name: "my-agent" });
 
-const sig = await agent.sign({
-  actionType: "payment.wire_transfer",
-  context: { amountEur: 850000, beneficiaryIban: "DE89370400440532013000" },
-  receiptType: "protectmcp:decision",
-  riskClass: "high",
-  issuerId: "legal:Acme GmbH",
-  iterationId: "task-2026-Q2-4821",
-});
+const sig = await agent.sign({ actionType: "api:openai:chat", context: { model: "gpt-4o" } });
 
 console.log(sig.complianceMode);        // true (default; pass complianceMode: false to opt out)
 console.log(sig.actionRef);             // "sha256:..." over the JCS-canonical action
@@ -33,7 +28,17 @@ console.log(sig.previousReceiptHash);   // 64 hex; "0".repeat(64) on the first r
 console.log(sig.verificationUrl);
 ```
 
-Each signed action lands on a Compliance Receipt under IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) by default: ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL. Pass `complianceMode: false` if you want a non-Compliance receipt.
+That's it. One install, one init, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+
+### No account? Offline path
+
+TypeScript does not ship a `local_sign` queue equivalent. For offline/air-gapped scenarios use the Python SDK's `local_sign` helper, or set `mode: "hash-only"` to minimize what leaves the process while still reaching the cloud:
+
+```ts
+await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
+```
+
+Pass `complianceMode: false` on any `agent.sign(...)` call if you want a non-Compliance receipt.
 
 ## CLI
 
@@ -78,9 +83,20 @@ await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" 
 
 The fingerprint format is sorted JSON with no whitespace per JCS, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
-## Compliance receipts: the IETF profile
+## Advanced / high-value actions
 
-Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `complianceMode: false` if you want the older shape.
+Once you have the basics working, you can pass compliance envelope fields for regulated or high-risk actions. The full parameter set is useful for things like large financial transfers, healthcare decisions, or anything that needs an auditor-facing trail.
+
+```ts
+const sig = await agent.sign({
+  actionType: "payment.wire_transfer",
+  context: { amountEur: 850000, beneficiaryIban: "DE89370400440532013000" },
+  receiptType: "protectmcp:decision",
+  riskClass: "high",
+  issuerId: "legal:Acme GmbH",
+  iterationId: "task-2026-Q2-4821",
+});
+```
 
 The envelope extensions most callers reach for, camelCase on the SDK and snake_case on the JSON wire:
 
@@ -91,11 +107,15 @@ The envelope extensions most callers reach for, camelCase on the SDK and snake_c
 - `incidentClass` -> `incident_class` - DORA / NYDFS / CIRCIA token, or an array of tokens.
 - `issuerId` -> `issuer_id` - LEI per ISO 17442, EIN, CIK, or a W3C DID for non-LEI deployers.
 
+## Compliance receipts: the IETF profile
+
+Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `complianceMode: false` if you want the older shape.
+
 ### Shadow AI capture with passive_telemetry
 
 Two `receiptType` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
-Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `typescript/src/index.ts`.
+Set `captureTopology: "passive_telemetry"` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `captureTopology: "passive_telemetry"` receipt MUST use `receiptType: "protectmcp:observation"`. Any other receiptType paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, throws `AsqavError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `typescript/src/index.ts`.
 
 ```ts
 const sig = await agent.sign({
@@ -171,7 +191,7 @@ import { Agent } from "@asqav/sdk";
 
 const agent = await Agent.create({ apiKey: process.env.ASQAV_API_KEY! });
 const receipt = await agent.sign({
-  action: "tool.invoke",
+  actionType: "tool.invoke",
   toolName: "exec_query",
   executableHash: "sha256:" + "a".repeat(64),
   sbomDigest: "sha256:" + "b".repeat(64),
@@ -248,7 +268,38 @@ console.log(bundle.records.length, bundle.bundleDigest);
 
 For offline chain verification, `verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previous_receipt_hash`. The first record's seed is `"0".repeat(64)`. The cloud is the authoritative verifier. This helper is a convenience.
 
-Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. Pass `algorithm: "ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `generateKeypair("ed25519")` for offline scenarios. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
+Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. `Agent.create(...)` sends the algorithm to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only (`generateKeypair("ed25519")`); passing them to `Agent.create(...)` returns a 400 from the cloud. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
+
+## Offline / air-gapped verification
+
+Receipts can be verified without calling the Asqav API once you have a JWKS snapshot.
+Full guide: [`docs/offline-verification.md`](../docs/offline-verification.md).
+
+`@noble/post-quantum` ships as a runtime dependency and covers ML-DSA-65 in-process.
+Ed25519 and ES256 run via Node's built-in `crypto` module.
+
+Snapshot the JWKS while you have network access, then verify offline:
+
+```ts
+import { fetchJwks, verifyReceiptOffline } from "@asqav/sdk";
+import { readFileSync, writeFileSync } from "node:fs";
+
+// online: snapshot the keys
+const jwks = await fetchJwks();
+writeFileSync("jwks.json", JSON.stringify(jwks));
+
+// offline: verify any receipt
+const receipt = JSON.parse(readFileSync("receipt.json", "utf8"));
+const jwksSnap = JSON.parse(readFileSync("jwks.json", "utf8"));
+const result = await verifyReceiptOffline(receipt, jwksSnap);
+if (result.verdict !== "PASS") throw new Error(JSON.stringify(result.axes));
+```
+
+Supply a predecessor receipt to check the hash-chain link:
+
+```ts
+const result = await verifyReceiptOffline(receipt, jwksSnap, { predecessor: prevReceipt });
+```
 
 ## Integrations
 
