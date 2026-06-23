@@ -197,6 +197,48 @@ def resolve_key(jwks: dict, kid: str):
     return None, None, None
 
 
+def resolve_revoked_at(jwks: dict, kid: str):
+    """Return the JWKS revoked_at for kid if published, else None.
+
+    Optional field: the public JWKS publishes status today but not the
+    timestamp, so the key-status axis falls back to a bare status gate.
+    """
+    for k in jwks.get("keys", []):
+        if kid and kid in (k.get("issuer_id"), k.get("kid")):
+            return k.get("revoked_at")
+    return None
+
+
+#: Key statuses that revoke trust in the signing key for attestation.
+REVOKED_KEY_STATUSES = {"revoked", "suspended", "compromised"}
+
+
+def check_key_status(status, issued_at: str, revoked_at=None):
+    """Gate the verdict on the signing key's published status.
+
+    The public JWKS marks a key revoked once its agent is revoked. A receipt
+    signed by such a key must not PASS offline, mirroring the hosted /verify.
+
+    When the JWKS carries a precise revoked_at, prefer the at-or-before-issuance
+    check so a receipt signed BEFORE revocation still PASSes (historical verify).
+    The JWKS today publishes status only, so without revoked_at any revoked key
+    fails the axis.
+    """
+    s = (status or "").lower()
+    if s not in REVOKED_KEY_STATUSES:
+        return "PASS", f"signing key status {status!r} is active"
+    if revoked_at:
+        try:
+            rev = datetime.fromisoformat(str(revoked_at).replace("Z", "+00:00"))
+            iss = datetime.fromisoformat(str(issued_at).replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return "FAIL", f"signing key status {status!r}; unparseable revoked_at/issued_at"
+        if rev <= iss:
+            return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
+        return "PASS", f"signing key revoked at {revoked_at}, after issuance {issued_at}"
+    return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
+
+
 def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: str):
     """ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED."""
     if (alg or "").upper() != "ML-DSA-65":
@@ -302,6 +344,10 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         results.append(("signature", "SKIPPED", "no issuer key to verify against"))
     else:
         results.append(("issuer_key", "PASS", f"resolved kid {kid} (status={status})"))
+        revoked_at = resolve_revoked_at(jwks, kid)
+        results.append(
+            ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at))
+        )
         sig = _b64decode(sig_obj.get("sig", ""))
         results.append(("signature", *verify_signature(pk, msg, sig, alg or jwks_alg)))
 
