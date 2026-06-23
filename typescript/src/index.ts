@@ -1889,7 +1889,7 @@ export class Agent {
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
     const algorithm = options.algorithm ?? "ml-dsa-65";
-    // Cloud accepts ml-dsa-{44,65,87}, ed25519, es256.
+    // Cloud accepts ml-dsa-{44,65,87}; ed25519/es256 are local-signing only.
     if (!isSupportedAlgorithm(algorithm)) {
       throw new AsqavError(
         `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
