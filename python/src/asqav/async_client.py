@@ -20,6 +20,7 @@ from .client import (
     _parse_bitcoin_anchor,
     _parse_timestamp,
 )
+from .patterns import resolve_pattern
 from .retry import with_async_retry
 
 try:
@@ -294,6 +295,7 @@ class AsyncAgent:
 
     async def preflight(self, action_type: str) -> PreflightResult:
         """Pre-flight check (async): revocation + suspension + policy; fail-open on errors."""
+        action_type = resolve_pattern(action_type)
         agent_active = True
         policy_allowed = True
         reasons: list[str] = []

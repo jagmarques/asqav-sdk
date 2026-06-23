@@ -1,12 +1,11 @@
 /**
  * Algorithm agility for receipt signing.
  *
- * The cloud accepts `ml-dsa-65` (default), `ed25519`, and `es256` on the
- * receipt-signing path. ML-DSA always runs server-side because it is not
- * available in Node's standard `crypto` module. Ed25519 and ES256 are
- * available locally via `node:crypto`, so the SDK can generate keypairs
- * and produce signatures off-cloud (handy for `user_intent` envelopes
- * and offline test fixtures).
+ * The cloud accepts `ml-dsa-44`, `ml-dsa-65` (default), `ml-dsa-87`,
+ * `ed25519`, and `es256`. All three ML-DSA variants are server-side only
+ * (node:crypto has no ML-DSA); the local verifier returns SKIPPED for
+ * them. Ed25519 and ES256 work locally: the SDK can generate keypairs and
+ * sign off-cloud (handy for `user_intent` envelopes and test fixtures).
  *
  * Public surface:
  *   SUPPORTED_ALGORITHMS   - the set the SDK accepts on `Agent.create`.
