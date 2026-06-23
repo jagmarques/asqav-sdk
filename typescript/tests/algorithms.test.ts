@@ -1,15 +1,12 @@
-/**
- * Algorithm agility tests (AG3, AG4).
- *
- * The SDK validates algorithm names client-side and exposes Web Crypto
- * (Node `crypto`) helpers for Ed25519 + ES256 keypair generation, sign,
- * and verify.
- */
+// Algorithm agility tests (AG3, AG4). Pins client-side validation plus the
+// node:crypto Ed25519/ES256 keypair, sign, and verify helpers, and the
+// cloud 400 reject for local-only algorithms on Agent.create.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   Agent,
+  APIError,
   AsqavError,
   LOCAL_SIGNING_ALGORITHMS,
   SUPPORTED_ALGORITHMS,
@@ -69,9 +66,10 @@ describe("Agent.create algorithm validation", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  // Pins the docstring: every SUPPORTED_ALGORITHMS member is an accepted
-  // create option (none rejected), so the set is exactly the create set.
-  it("accepts every SUPPORTED_ALGORITHMS member on create", async () => {
+  // Pins CLIENT-SIDE validation passthrough only: every member clears local
+  // validation and is forwarded. Cloud acceptance is a separate matter (the
+  // cloud signs only ml-dsa-{44,65,87}; see the 400-mock test below).
+  it("passes every SUPPORTED_ALGORITHMS member past client-side validation", async () => {
     for (const alg of SUPPORTED_ALGORITHMS) {
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
         jsonResponse({
@@ -98,7 +96,10 @@ describe("Agent.create algorithm validation", () => {
     ).rejects.toThrow(SUPPORTED_ALGORITHMS.join(", "));
   });
 
-  it("forwards ed25519 to the cloud", async () => {
+  // Mocked fetch = client-side passthrough only. ed25519 clears local
+  // validation and is forwarded verbatim. This does NOT prove the live cloud
+  // accepts it (it returns 400; see the next test).
+  it("forwards ed25519 past client-side validation (mocked transport)", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         agent_id: "agt_1",
@@ -115,7 +116,8 @@ describe("Agent.create algorithm validation", () => {
     expect(JSON.parse(calledInit.body as string).algorithm).toBe("ed25519");
   });
 
-  it("forwards es256 to the cloud", async () => {
+  // Same as above for es256: client passthrough, not a cloud-acceptance claim.
+  it("forwards es256 past client-side validation (mocked transport)", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         agent_id: "agt_1",
@@ -130,6 +132,23 @@ describe("Agent.create algorithm validation", () => {
     await Agent.create({ name: "x", algorithm: "es256" });
     const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(calledInit.body as string).algorithm).toBe("es256");
+  });
+
+  // Pins the real cloud reality: ed25519 clears client validation, but the
+  // cloud signs only ml-dsa-{44,65,87} and returns 400. The SDK surfaces it
+  // as an APIError with statusCode 400 (index.ts create comment + READMEs).
+  it("surfaces the cloud 400 when ed25519 reaches the cloud", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        { error: "ed25519 is local-keygen only; cloud signs ml-dsa-{44,65,87}" },
+        400,
+      ),
+    );
+    const err = await Agent.create({ name: "x", algorithm: "ed25519" }).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(APIError);
+    expect((err as APIError).statusCode).toBe(400);
   });
 });
 
