@@ -150,7 +150,8 @@ Both SDKs cover the same core surface: agent identity, signed actions, batched s
 
 The Python SDK additionally ships:
 
-- The `asqav` CLI: `quickstart`, `demo`, `verify`, `doctor`, `agents`, `sync`, plus `replay`, `preflight`, `approve`, `budget` with `check` and `record`, and `compliance` with `frameworks` and `export`. See [asqav.com/docs/cli](https://asqav.com/docs/cli).
+- The `asqav` CLI: `quickstart`, `demo`, `verify`, `doctor`, `agents`, `sync`, `hook`, plus `replay`, `preflight`, `approve`, `budget` with `check` and `record`, and `compliance` with `frameworks` and `export`. See [asqav.com/docs/cli](https://asqav.com/docs/cli).
+- The `asqav hook` CLI signs Claude Code harness hook events for audit and gating. See [`hooks/README.md`](hooks/README.md).
 - A pytest plugin, enabled with `pytest --asqav`, that signs every test result and emits a Merkle-rooted compliance bundle on session finish. See [asqav.com/docs/pytest-plugin](https://asqav.com/docs/pytest-plugin).
 - Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI, Letta, Strands, and Instructor through the Hooks API.
 - Cookbooks for Streamlit dashboards and Dify workflows under `python/examples/`.
