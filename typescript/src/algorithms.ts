@@ -1,13 +1,15 @@
 /**
  * Algorithm agility for receipt signing.
  *
- * The cloud accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`
- * on the `Agent.create` receipt-signing path. Ed25519 and ES256 are
- * local-only via `node:crypto` - use `generateKeypair` for offline
- * keypair generation and test fixtures, not for `Agent.create`.
+ * `Agent.create` validates the requested algorithm against
+ * `SUPPORTED_ALGORITHMS` (all five: `ml-dsa-65` default, `ml-dsa-44`,
+ * `ml-dsa-87`, `ed25519`, `es256`), then sends it to the cloud, which
+ * signs server-side and honors all five. The `node:crypto` helpers below
+ * are a separate offline surface: `LOCAL_SIGNING_ALGORITHMS` (`ed25519` /
+ * `es256`) for local keypair generation and sign/verify.
  *
  * Public surface:
- *   SUPPORTED_ALGORITHMS   - the set the SDK accepts on `Agent.create`.
+ *   SUPPORTED_ALGORITHMS   - the set `Agent.create` accepts (all five).
  *   isSupportedAlgorithm   - tiny type-guard.
  *   generateKeypair        - Ed25519 / ES256 keypair (raw bytes + b64).
  *   signMessage            - sign canonical bytes with the local key.

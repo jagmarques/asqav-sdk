@@ -69,6 +69,35 @@ describe("Agent.create algorithm validation", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  // Pins the docstring: every SUPPORTED_ALGORITHMS member is an accepted
+  // create option (none rejected), so the set is exactly the create set.
+  it("accepts every SUPPORTED_ALGORITHMS member on create", async () => {
+    for (const alg of SUPPORTED_ALGORITHMS) {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          agent_id: "agt_1",
+          name: "x",
+          public_key: "pk",
+          key_id: "kid",
+          algorithm: alg,
+          capabilities: [],
+          created_at: "t",
+        }),
+      );
+      await expect(Agent.create({ name: "x", algorithm: alg })).resolves.toBeDefined();
+      const [, calledInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(calledInit.body as string).algorithm).toBe(alg);
+      fetchSpy.mockRestore();
+    }
+  });
+
+  // Pins the docstring: the rejection message enumerates all five.
+  it("rejection message lists exactly SUPPORTED_ALGORITHMS", async () => {
+    await expect(
+      Agent.create({ name: "x", algorithm: "rsa-2048" }),
+    ).rejects.toThrow(SUPPORTED_ALGORITHMS.join(", "));
+  });
+
   it("forwards ed25519 to the cloud", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
