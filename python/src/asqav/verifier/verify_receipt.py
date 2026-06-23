@@ -384,7 +384,8 @@ def run_structured(
     """Verify a receipt offline and return a structured result dict.
 
     Same logic as ``run()`` but returns a dict instead of printing and exiting.
-    Used by ``verify_receipt_offline()`` in the public SDK API.
+    Callable directly from the verifier module; the public SDK uses the oracle
+    adapter path for multi-format support.
 
     Returns:
         dict with keys:
@@ -457,6 +458,11 @@ def run_structured(
                 "note": f"resolved kid {kid} (status={status})",
             }
         )
+        revoked_at = resolve_revoked_at(jwks, kid)
+        ks_r, ks_n = check_key_status(
+            status, payload.get("issued_at", ""), revoked_at
+        )
+        axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
         sig_bytes = _b64decode(sig_obj.get("sig", ""))
         sig_r, sig_n = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
         axes.append({"name": "signature", "result": sig_r, "note": sig_n})
