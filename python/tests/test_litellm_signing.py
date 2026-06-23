@@ -177,6 +177,37 @@ class TestFailSoft:
         )
 
 
+# === init() key resolution (documented quickstart) ===
+
+
+class TestInitKeyResolution:
+    def test_init_key_resolves_adapter_and_signs(self, tmp_path, monkeypatch):
+        """The documented quickstart: key only via asqav.init(), no env var.
+
+        Pins that AsqavSigningLogger() honors the client key set by
+        asqav.init() rather than no-opping. Fails against code that resolves
+        the key from api_key/ASQAV_API_KEY only.
+        """
+        monkeypatch.delenv("ASQAV_API_KEY", raising=False)
+        log_path = str(tmp_path / "index.jsonl")
+
+        # Key set ONLY on the client (as asqav.init does), no api_key=, no env.
+        with patch("asqav.client._api_key", "sk_test_init"), patch(
+            "asqav.extras._base.Agent"
+        ) as mock_agent_cls:
+            mock_agent_cls.create.return_value = MagicMock()
+            logger = AsqavSigningLogger(agent_name="test-init", log_path=log_path)
+
+        assert logger._adapter is not None
+
+        mock_sig = SignatureResponse(**MOCK_SIGN_RESPONSE)
+        logger._adapter._sign_action = MagicMock(return_value=mock_sig)
+        logger.log_success_event(
+            {"model": "gpt-4", "messages": []}, _response_obj(), 0, 1
+        )
+        logger._adapter._sign_action.assert_called_once()
+
+
 # === Missing key -> warn + no-op ===
 
 

@@ -50,6 +50,7 @@ try:
 except ImportError:
     CustomLogger = object  # type: ignore[assignment,misc]
 
+from .. import client as _client
 from ._base import AsqavAdapter
 
 logger = logging.getLogger("asqav")
@@ -252,8 +253,17 @@ class AsqavSigningLogger(CustomLogger):
     never raise into the LLM call (fail-soft, reusing the base adapter's
     fail-open signing path).
 
+    Caveats:
+        Streamed calls expose no aggregated response object to the logger,
+        so ``response_content_digest`` is None for them (the request side
+        still signs).
+        The JSONL append lock is per-instance. Two loggers pointed at the
+        same ASQAV_LOG_PATH from different processes can still interleave
+        writes, so give separate processes separate index paths.
+
     Env:
-        ASQAV_API_KEY: required. When unset the logger warns once and no-ops.
+        ASQAV_API_KEY: must be set (or pass api_key= / call asqav.init()).
+            With no key resolvable the logger warns once and no-ops.
         ASQAV_LOG_PATH: JSONL index path. Defaults to
             ~/.litellm_asqav_audit.jsonl.
         ASQAV_REDACT_CONTENT: "false" stores raw prompt/response in the
@@ -299,9 +309,12 @@ class AsqavSigningLogger(CustomLogger):
         self._lock = threading.Lock()
         self._warned = False
 
-        # Env-gated: with no key the logger announces no-op (not enforcement)
-        # once and signs nothing, rather than half-initialising a client.
-        resolved_key = api_key or os.environ.get("ASQAV_API_KEY")
+        # Key resolution mirrors AsqavAdapter (_base.py): explicit api_key,
+        # then ASQAV_API_KEY env, then the key asqav.init() set on the client.
+        # The init() fallback keeps the documented quickstart actually signing.
+        resolved_key = (
+            api_key or os.environ.get("ASQAV_API_KEY") or _client._api_key
+        )
         self._adapter: AsqavAdapter | None = None
         if not resolved_key:
             self._warn_no_key()
