@@ -160,3 +160,23 @@ class AsqavNativeAdapter(FormatAdapter):
                 return "FAIL", f"hash-mode receipt missing fields: {','.join(missing)}"
             return "PASS", "hash-mode signature receipt; required flat fields present"
         return _vr.check_structure(_payload(doc))
+
+    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
+        """Gate the verdict on the signing key's revocation status.
+
+        A receipt signed by a revoked key must not PASS offline, matching the
+        hosted /verify. No key resolved means the signature axis already FAILs,
+        so this axis only weighs in once a key is found.
+        """
+        jwks = key_provider or {"keys": []}
+        kid = self.extract_signature(doc).kid
+        pk, status, _alg = _vr.resolve_key(jwks, kid)
+        if pk is None:
+            return []
+        if _is_hash_mode(doc):
+            issued_at = doc.get("server_timestamp", "")
+        else:
+            issued_at = _payload(doc).get("issued_at", "")
+        revoked_at = _vr.resolve_revoked_at(jwks, kid)
+        res, note = _vr.check_key_status(status, issued_at, revoked_at)
+        return [("key_status", res, note)]
