@@ -12,20 +12,15 @@ pip install asqav
 
 ## Quick start
 
+Get an API key at [asqav.com](https://asqav.com), then sign your first agent action:
+
 ```python
 import asqav
 
 asqav.init(api_key="sk_...")
 agent = asqav.Agent.create("my-agent")
 
-sig = agent.sign(
-    "payment.wire_transfer",
-    {"amount_eur": 850000, "beneficiary_iban": "DE89370400440532013000"},
-    receipt_type="protectmcp:decision",
-    risk_class="high",
-    issuer_id="legal:Acme GmbH",
-    iteration_id="task-2026-Q2-4821",
-)
+sig = agent.sign("api:openai:chat", {"model": "gpt-4o"})
 
 print(sig.compliance_mode)        # True (default; pass compliance_mode=False to opt out)
 print(sig.action_ref)             # "sha256:..." over the JCS-canonical action
@@ -33,7 +28,25 @@ print(sig.previous_receipt_hash)  # 64 hex; "0"*64 on the first record per agent
 print(sig.verification_url)
 ```
 
-Each signed action lands on a Compliance Receipt under IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/) by default: ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL. Pass `compliance_mode=False` if you want a non-Compliance receipt.
+That's it. One install, one init, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+
+### No account? Offline path
+
+If you need to record actions without a network call or an API key, use `local_sign`. Actions queue to disk and can be synced later:
+
+```python
+from asqav.local import local_sign, LocalQueue
+
+item_id = local_sign("my-agent", "api:openai:chat", {"model": "gpt-4o"})
+# Writes a pending JSON item to ~/.asqav/queue/
+
+# When back online, init with your key then sync:
+import asqav
+asqav.init(api_key="sk_...")   # or set ASQAV_API_KEY in the environment
+result = LocalQueue().sync()   # uploads queued items, returns {"synced": N, "failed": M}
+```
+
+Pass `compliance_mode=False` on any `agent.sign(...)` call if you want a non-Compliance receipt.
 
 ## CLI
 
@@ -78,9 +91,20 @@ asqav.init(api_key="...", base_url="https://api.asqav.com", mode="hash-only")
 
 The fingerprint format is sorted JSON with no whitespace per JCS, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
 
-## Compliance receipts: the IETF profile
+## Advanced / high-value actions
 
-Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `compliance_mode=False` if you want the older shape.
+Once you have the basics working, you can pass compliance envelope fields for regulated or high-risk actions. The full parameter set is useful for things like large financial transfers, healthcare decisions, or anything that needs an auditor-facing trail.
+
+```python
+sig = agent.sign(
+    "payment.wire_transfer",
+    {"amount_eur": 850000, "beneficiary_iban": "DE89370400440532013000"},
+    receipt_type="protectmcp:decision",
+    risk_class="high",
+    issuer_id="legal:Acme GmbH",
+    iteration_id="task-2026-Q2-4821",
+)
+```
 
 The envelope extensions most callers reach for:
 
@@ -91,11 +115,15 @@ The envelope extensions most callers reach for:
 - `incident_class` - DORA / NYDFS / CIRCIA token, or an array of tokens.
 - `issuer_id` - LEI per ISO 17442, EIN, CIK, or a W3C DID for non-LEI deployers.
 
+## Compliance receipts: the IETF profile
+
+Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 signature, JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `compliance_mode=False` if you want the older shape.
+
 ### Shadow AI capture with passive_telemetry
 
 Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
-Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation, not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `python/src/asqav/client.py`.
+Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `python/src/asqav/client.py`.
 
 ```python
 sig = agent.sign(
@@ -245,7 +273,41 @@ print(pack["algorithm_registry_version"]) # registry version pinned at issuance
 
 Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 300s skew bound, and predecessor rederivation, are available as `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)`. The cloud is the authoritative verifier. This helper is a convenience.
 
-Algorithm agility is exposed via `asqav.SUPPORTED_ALGORITHMS`. Pass `algorithm="ed25519"` or `"es256"` to `Agent.create(...)` for non-post-quantum identities, or `asqav.generate_local_keypair("ed25519")` for offline scenarios.
+`asqav.SUPPORTED_ALGORITHMS` is the set `asqav.generate_local_keypair(...)` can mint locally: `{ed25519, es256}`. It does not list the cloud agent-signing algorithms. `Agent.create(...)` sends its `algorithm` to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only, so passing either to `Agent.create(...)` returns a 400 from the cloud.
+
+## Offline / air-gapped verification
+
+Receipts can be verified without calling the Asqav API once you have a JWKS snapshot.
+Full guide: [`docs/offline-verification.md`](../docs/offline-verification.md).
+
+Install the `verify` extra, which adds `dilithium-py` (ML-DSA-65) and `cryptography`
+(Ed25519, ES256):
+
+```bash
+pip install "asqav[verify]"
+```
+
+Snapshot the JWKS while you have network access, then verify offline:
+
+```python
+import asqav, json
+
+# online: snapshot the keys
+jwks = asqav.fetch_jwks()
+json.dump(jwks, open("jwks.json", "w"))
+
+# offline: verify any receipt
+receipt = json.load(open("receipt.json"))
+jwks    = json.load(open("jwks.json"))
+result  = asqav.verify_receipt_offline(receipt, jwks)
+assert result["verdict"] == "PASS", result["axes"]
+```
+
+Supply a predecessor receipt to check the hash-chain link:
+
+```python
+result = asqav.verify_receipt_offline(receipt, jwks, predecessor=prev_receipt)
+```
 
 ## Integrations
 

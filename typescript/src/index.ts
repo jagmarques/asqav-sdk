@@ -1889,7 +1889,7 @@ export class Agent {
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
     const algorithm = options.algorithm ?? "ml-dsa-65";
-    // Cloud accepts ml-dsa-{44,65,87}, ed25519, es256.
+    // Cloud accepts ml-dsa-{44,65,87}; ed25519/es256 are local-signing only.
     if (!isSupportedAlgorithm(algorithm)) {
       throw new AsqavError(
         `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
@@ -2327,6 +2327,46 @@ export async function exportAuditJson(
   const query = params.toString();
   const path = query ? `/export/json?${query}` : "/export/json";
   return request<unknown>("GET", path);
+}
+
+// === Offline / air-gapped verification helpers ===
+
+const DEFAULT_JWKS_URL = "https://api.asqav.com/.well-known/jwks.json";
+
+/**
+ * Fetch and return the Asqav public JWKS directory as a plain object.
+ *
+ * Snapshot this before going air-gapped; pass the result to
+ * `verifyReceiptOffline(receipt, jwks)`. The endpoint is public and
+ * unauthenticated.
+ *
+ * @param url - JWKS URL (default: https://api.asqav.com/.well-known/jwks.json).
+ */
+export async function fetchJwks(url: string = DEFAULT_JWKS_URL): Promise<Record<string, unknown>> {
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`fetchJwks: HTTP ${res.status} from ${url}`);
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index.js";
+import type { VerifyResult } from "./verifier/core.js";
+
+/**
+ * Verify a receipt fully offline against an in-memory JWKS snapshot.
+ *
+ * Runs the full oracle: structure, signature (Ed25519/ES256/ML-DSA-65 via
+ * `@noble/post-quantum`), hash-chain link. No network call is made.
+ *
+ * @param receipt - Parsed receipt envelope object ({payload, signature, anchors}).
+ * @param jwks - JWKS object previously fetched via `fetchJwks()`.
+ * @param predecessor - Parsed predecessor receipt for the chain check (optional).
+ */
+export function verifyReceiptOffline(
+  receipt: Record<string, unknown>,
+  jwks: Record<string, unknown>,
+  predecessor?: Record<string, unknown> | null,
+): VerifyResult {
+  return _oracleVerify(receipt, _ADAPTERS, jwks, predecessor ?? null);
 }
 
 // === Internal config exposure for tests only ===
