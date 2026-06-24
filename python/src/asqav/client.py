@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from .phases import PhaseChain
     from .scope import ScopeToken
 
+from ._sql_match import matches_pattern as _matches_pattern
 from ._useragent import USER_AGENT
 from .patterns import resolve_pattern
 from .retry import with_retry
@@ -118,6 +119,8 @@ def _join_url(base: str, path: str) -> str:
     fallback hits the same path httpx (which merges base_url correctly) does.
     """
     return base.rstrip("/") + "/" + path.lstrip("/")
+
+
 _client: Any = None
 # Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
 _mode: str = "full-payload"
@@ -279,9 +282,7 @@ DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
 )
 
 #: HIPAA Security Rule incident_class vocabulary (45 CFR 164.304).
-HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
-    {"hipaa_security_incident"}
-)
+HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset({"hipaa_security_incident"})
 
 #: Union of every canonical incident_class token the SDK accepts.
 INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
@@ -289,9 +290,7 @@ INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
 )
 
 #: Sandbox-state enum: {enabled, disabled, unavailable}.
-SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset(
-    {"enabled", "disabled", "unavailable"}
-)
+SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "unavailable"})
 
 #: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` extension accepts
 #: only this set (`rekor` rejected, not shipped). Mirrors the governance.json contract.
@@ -349,6 +348,7 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     misconfigured caller never publishes an out-of-vocabulary token.
     """
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
+
 
 #: REQUIRED fields on a Compliance Receipt envelope (wire form); top-level
 #: discriminator is ``type``. Used by `verify_compliance_receipt`.
@@ -951,9 +951,7 @@ def flush_spans() -> None:
         pass  # Don't fail on export errors
 
 
-def _compute_action_ref(
-    action_type: str, context: dict[str, Any] | None
-) -> str:
+def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str:
     """Client-side ``sha256:<hex>`` of the canonical Action object.
 
     The Action shape mirrors `core/canonical.py:hash_action` on the cloud
@@ -1061,9 +1059,7 @@ def _validate_risk_snapshot(rs: Any) -> None:
             docs_url=RISK_ACCEPTANCE_DOCS_URL,
         )
     source = rs.get("snapshot_source")
-    numeric_present = any(
-        rs.get(k) is not None for k in _RISK_SNAPSHOT_NUMERIC_KEYS
-    )
+    numeric_present = any(rs.get(k) is not None for k in _RISK_SNAPSHOT_NUMERIC_KEYS)
     if numeric_present and (not isinstance(source, str) or not source):
         raise AsqavValidationError(
             "risk_snapshot_numeric_requires_snapshot_source: a populated "
@@ -1180,11 +1176,7 @@ def _validate_risk_acceptance(
                 "passing compliance_mode=False would silently drop them.",
                 docs_url=RISK_ACCEPTANCE_DOCS_URL,
             )
-        if (
-            initiator_id is not None
-            and approver_id is not None
-            and initiator_id == approver_id
-        ):
+        if initiator_id is not None and approver_id is not None and initiator_id == approver_id:
             raise AsqavValidationError(
                 "risk_acceptance_self_approval_guard: initiator_id equals "
                 "approver_id; a self-approved risk acceptance is incoherent "
@@ -1234,10 +1226,7 @@ def _validate_code_authorship(
             f"'sha256:<64 lowercase hex>' (got: {repr(change_digest)[:64]}).",
             docs_url=CODE_AUTHORSHIP_DOCS_URL,
         )
-    if (
-        change_class is not None
-        and change_class not in _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE
-    ):
+    if change_class is not None and change_class not in _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE:
         raise AsqavValidationError(
             "code_authorship_change_class_invalid: change_class must be one of "
             "read|write|delete|execute|deploy "
@@ -1317,9 +1306,7 @@ def _validate_authored_by(ab: Any) -> None:
         )
 
 
-def _compute_tool_fingerprint(
-    tool_name: str, tool_schema: dict[str, Any] | None
-) -> str:
+def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None) -> str:
     """Compute a deterministic 32-bare-hex fingerprint over `{tool_name, schema}`.
 
     NSA CSI U/OO/6030316-26 binds receipts to the exact tool surface the
@@ -1396,9 +1383,7 @@ def _build_sign_body(
         canonical_bytes = canonicalize_action(action_type, context)
         payload_size = len(canonical_bytes)
         if _org_salt is not None:
-            digest_hex = hmac.new(
-                _org_salt, canonical_bytes, hashlib.sha256
-            ).hexdigest()
+            digest_hex = hmac.new(_org_salt, canonical_bytes, hashlib.sha256).hexdigest()
         else:
             digest_hex = hashlib.sha256(canonical_bytes).hexdigest()
         digest = f"sha256:{digest_hex}"
@@ -1834,47 +1819,37 @@ class Agent:
         # Dispatch before-hooks (fail-open).
         try:
             from . import hooks as _hooks_mod
-            context = _hooks_mod._dispatch_before(
-                action_type, dict(context) if context else {}
-            )
+
+            context = _hooks_mod._dispatch_before(action_type, dict(context) if context else {})
         except Exception:
             logger.warning("asqav before-hook dispatch failed (fail-open)", exc_info=True)
 
         # Surface bad arguments client-side; the cloud re-validates.
         if receipt_type is not None and receipt_type not in RECEIPT_TYPE_NAMESPACE:
             raise ValueError(
-                "invalid_receipt_type: must be one of "
-                f"{sorted(RECEIPT_TYPE_NAMESPACE)}"
+                f"invalid_receipt_type: must be one of {sorted(RECEIPT_TYPE_NAMESPACE)}"
             )
         if policy_decision in {"deny", "rate_limit"} and not reason:
             raise ValueError(
-                "missing_reason: policy_decision=deny|rate_limit "
-                "requires a `reason` code."
+                "missing_reason: policy_decision=deny|rate_limit requires a `reason` code."
             )
         # Fail fast on sandbox_state vocabulary before the HTTP roundtrip.
-        if (
-            sandbox_state is not None
-            and sandbox_state not in SANDBOX_STATE_NAMESPACE
-        ):
+        if sandbox_state is not None and sandbox_state not in SANDBOX_STATE_NAMESPACE:
             raise ValueError(
-                "invalid_sandbox_state: must be one of "
-                f"{sorted(SANDBOX_STATE_NAMESPACE)}."
+                f"invalid_sandbox_state: must be one of {sorted(SANDBOX_STATE_NAMESPACE)}."
             )
         # Fail fast on capture_topology vocabulary before the HTTP roundtrip.
-        if (
-            capture_topology is not None
-            and capture_topology not in CAPTURE_TOPOLOGY_NAMESPACE
-        ):
+        if capture_topology is not None and capture_topology not in CAPTURE_TOPOLOGY_NAMESPACE:
             raise ValueError(
-                "invalid_capture_topology: must be one of "
-                f"{sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
+                f"invalid_capture_topology: must be one of {sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
             )
         # Rule 8 (lockstep with cloud SignRequest validator): passive_telemetry
         # pairs only with protectmcp:observation or protectmcp:observation:result_bound.
         if (
             capture_topology == "passive_telemetry"
             and receipt_type is not None
-            and receipt_type not in {
+            and receipt_type
+            not in {
                 "protectmcp:observation",
                 "protectmcp:observation:result_bound",
             }
@@ -1889,11 +1864,7 @@ class Agent:
         # Fail fast on incident_class vocabulary before the HTTP roundtrip.
         # The field accepts a JSON string or a JSON array of such strings.
         if incident_class is not None:
-            _tokens = (
-                incident_class
-                if isinstance(incident_class, list)
-                else [incident_class]
-            )
+            _tokens = incident_class if isinstance(incident_class, list) else [incident_class]
             for _t in _tokens:
                 if _t not in INCIDENT_CLASS_NAMESPACE:
                     raise ValueError(
@@ -1912,10 +1883,7 @@ class Agent:
                 "receipt_type=protectmcp:lifecycle:configuration_change "
                 "requires config_manifest_digest (sha256:<64 hex>)."
             )
-        if (
-            receipt_type == "protectmcp:observation:result_bound"
-            and result_digest is None
-        ):
+        if receipt_type == "protectmcp:observation:result_bound" and result_digest is None:
             raise ValueError(
                 "result_bound_missing_result_digest: "
                 "receipt_type=protectmcp:observation:result_bound requires "
@@ -1966,9 +1934,7 @@ class Agent:
             from math import ceil
 
             if isinstance(expires_at, (int, float)):
-                expires_at_dt = datetime.fromtimestamp(
-                    float(expires_at), tz=timezone.utc
-                )
+                expires_at_dt = datetime.fromtimestamp(float(expires_at), tz=timezone.utc)
             else:
                 _s = expires_at
                 if _s.endswith("Z"):
@@ -1977,9 +1943,7 @@ class Agent:
                 if expires_at_dt.tzinfo is None:
                     expires_at_dt = expires_at_dt.replace(tzinfo=timezone.utc)
             now = datetime.now(timezone.utc)
-            valid_seconds = max(
-                1, ceil((expires_at_dt - now).total_seconds())
-            )
+            valid_seconds = max(1, ceil((expires_at_dt - now).total_seconds()))
 
         # Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
         for _name, _value in (
@@ -1990,15 +1954,11 @@ class Agent:
         ):
             if _value is not None and not _SHA256_HEX_RE.match(_value):
                 raise ValueError(
-                    f"{_name}_not_sha256_wire_form: must look like "
-                    "'sha256:<64 lowercase hex>'."
+                    f"{_name}_not_sha256_wire_form: must look like 'sha256:<64 lowercase hex>'."
                 )
-        if tool_fingerprint is not None and not _TOOL_FINGERPRINT_RE.match(
-            tool_fingerprint
-        ):
+        if tool_fingerprint is not None and not _TOOL_FINGERPRINT_RE.match(tool_fingerprint):
             raise ValueError(
-                "tool_fingerprint_not_32_hex_chars: must be 32 lowercase "
-                "hex chars (SHA-256[:32])."
+                "tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32])."
             )
         for _name, _value in (
             ("slsa_provenance_pointer", slsa_provenance_pointer),
@@ -2007,9 +1967,7 @@ class Agent:
             if _value is not None and not (
                 _value.startswith("https://") or _value.startswith("http://")
             ):
-                raise ValueError(
-                    f"pointer_url_guard: {_name} must be an http(s) URL"
-                )
+                raise ValueError(f"pointer_url_guard: {_name} must be an http(s) URL")
 
         # Threat-framework taxonomy validators lockstep with cloud SignRequest.
         for _name, _value in (
@@ -2036,6 +1994,7 @@ class Agent:
         if rfc3161_timestamp is not None:
             import base64 as _b64
             import binascii as _binascii
+
             if not isinstance(rfc3161_timestamp, str) or not rfc3161_timestamp:
                 raise ValueError(
                     "rfc3161_timestamp_not_base64: must be a non-empty "
@@ -2045,16 +2004,14 @@ class Agent:
                 _b64.b64decode(rfc3161_timestamp, validate=True)
             except (_binascii.Error, ValueError) as _exc:
                 raise ValueError(
-                    "rfc3161_timestamp_not_base64: must be valid base64 "
-                    f"(decode failed: {_exc})."
+                    f"rfc3161_timestamp_not_base64: must be valid base64 (decode failed: {_exc})."
                 ) from _exc
 
         # witness_policy: {required, witnesses: subset of rfc3161/opentimestamps}.
         if witness_policy is not None:
             if not isinstance(witness_policy, dict):
                 raise ValueError(
-                    "witness_policy_invalid: must be a dict "
-                    '{"required": int, "witnesses": [...]}.'
+                    'witness_policy_invalid: must be a dict {"required": int, "witnesses": [...]}.'
                 )
             _witnesses = witness_policy.get("witnesses")
             _required = witness_policy.get("required")
@@ -2073,8 +2030,7 @@ class Agent:
                     )
             if len(set(_witnesses)) != len(_witnesses):
                 raise ValueError(
-                    "witness_policy_duplicate_witness: witnesses must not "
-                    "contain duplicates."
+                    "witness_policy_duplicate_witness: witnesses must not contain duplicates."
                 )
             if not isinstance(_required, int) or isinstance(_required, bool):
                 raise ValueError(
@@ -2093,11 +2049,7 @@ class Agent:
 
         # Derive tool_fingerprint client-side when the caller supplied
         # tool_name + tool_schema but no explicit fingerprint.
-        if (
-            tool_fingerprint is None
-            and tool_name is not None
-            and tool_schema is not None
-        ):
+        if tool_fingerprint is None and tool_name is not None and tool_schema is not None:
             tool_fingerprint = _compute_tool_fingerprint(tool_name, tool_schema)
 
         # Auto-generate 24-hex nonce when caller omits; cloud rejects duplicates in-window.
@@ -2107,9 +2059,7 @@ class Agent:
         compliance_fields: dict[str, Any] = {}
         if compliance_mode:
             compliance_fields["compliance_mode"] = True
-            compliance_fields["receipt_type"] = (
-                receipt_type or "protectmcp:decision"
-            )
+            compliance_fields["receipt_type"] = receipt_type or "protectmcp:decision"
             compliance_fields["policy_decision"] = policy_decision
             compliance_fields["action_ref"] = action_ref
             for k, v in (
@@ -2217,17 +2167,14 @@ class Agent:
             incident_class=data.get("incident_class"),
             reason=data.get("reason"),
             previous_receipt_hash=(
-                data.get("previousReceiptHash")
-                or data.get("previous_receipt_hash")
+                data.get("previousReceiptHash") or data.get("previous_receipt_hash")
             ),
             # Spec-shape `decision`; fall back to local translation for
             # older clouds that only emit `policy_decision`.
             decision=(
                 data.get("decision")
                 or (
-                    _map_policy_decision_to_decision(
-                        data.get("policy_decision")
-                    )
+                    _map_policy_decision_to_decision(data.get("policy_decision"))
                     if data.get("compliance_mode")
                     else None
                 )
@@ -2239,6 +2186,7 @@ class Agent:
         # Dispatch after-hooks (fail-open).
         try:
             from . import hooks as _hooks_mod
+
             _hooks_mod._dispatch_after(action_type, response)
         except Exception:
             logger.warning("asqav after-hook dispatch failed (fail-open)", exc_info=True)
@@ -2288,9 +2236,7 @@ class Agent:
             decision=(
                 data.get("decision")
                 or (
-                    _map_policy_decision_to_decision(
-                        data.get("policy_decision")
-                    )
+                    _map_policy_decision_to_decision(data.get("policy_decision"))
                     if data.get("compliance_mode")
                     else None
                 )
@@ -2364,9 +2310,7 @@ class Agent:
                         decision=(
                             sig.get("decision")
                             or (
-                                _map_policy_decision_to_decision(
-                                    sig.get("policy_decision")
-                                )
+                                _map_policy_decision_to_decision(sig.get("policy_decision"))
                                 if sig.get("compliance_mode")
                                 else None
                             )
@@ -2400,6 +2344,7 @@ class Agent:
             output_hash = _hash_value(output)
         except Exception:
             import warnings
+
             warnings.warn("asqav: failed to hash output, signing without output_hash")
             output_hash = ""
 
@@ -2625,7 +2570,7 @@ class Agent:
                 if not p.get("is_active"):
                     continue
                 pattern = p.get("action_pattern", "")
-                if pattern == "*" or action_type.startswith(pattern.rstrip("*")):
+                if _matches_pattern(pattern, action_type):
                     if p.get("action") in ("block", "block_and_alert"):
                         policy_allowed = False
                         reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
@@ -3334,9 +3279,7 @@ def verify_compliance_receipt(
     errors: list[str] = []
 
     # 1. REQUIRED fields present.
-    missing = [
-        f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in envelope
-    ]
+    missing = [f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in envelope]
     fields_present = not missing
     if missing:
         errors.append(f"missing_fields:{','.join(missing)}")
@@ -3385,9 +3328,7 @@ def verify_compliance_receipt(
             _chain_input: dict[str, Any] = _inner
         else:
             _chain_input = predecessor_envelope
-        actual_prev = hashlib.sha256(
-            canonical_json(_chain_input)
-        ).hexdigest()
+        actual_prev = hashlib.sha256(canonical_json(_chain_input)).hexdigest()
         if actual_prev != expected_prev:
             chain_link_rederives = False
             errors.append("chain_link_mismatch")
@@ -3757,6 +3698,7 @@ def _parse_signing_session(data: dict[str, Any]) -> SigningSessionResponse:
 
 # --- Signing Groups ---
 
+
 def create_signing_group(
     agent_id: str,
     min_approvals: int,
@@ -3775,11 +3717,14 @@ def create_signing_group(
     Example:
         config = asqav.create_signing_group("agt_xxx", min_approvals=2, total_shares=3)
     """
-    data = _post("/signing-groups/configs", {
-        "agent_id": agent_id,
-        "min_approvals": min_approvals,
-        "total_shares": total_shares,
-    })
+    data = _post(
+        "/signing-groups/configs",
+        {
+            "agent_id": agent_id,
+            "min_approvals": min_approvals,
+            "total_shares": total_shares,
+        },
+    )
     return _parse_signing_group(data)
 
 
@@ -3835,6 +3780,7 @@ def _parse_signing_group(data: dict[str, Any]) -> SigningGroupResponse:
 
 # --- Signing Entities ---
 
+
 def add_entity(
     config_id: str,
     entity_class: str,
@@ -3856,10 +3802,13 @@ def add_entity(
     Example:
         entity = asqav.add_entity("cfg_xxx", entity_class="B", label="operator-1")
     """
-    data = _post(f"/signing-groups/configs/{config_id}/entities", {
-        "entity_class": entity_class,
-        "label": label,
-    })
+    data = _post(
+        f"/signing-groups/configs/{config_id}/entities",
+        {
+            "entity_class": entity_class,
+            "label": label,
+        },
+    )
     return SigningEntityResponse(
         id=data["id"],
         config_id=data["config_id"],
@@ -3906,6 +3855,7 @@ def remove_entity(entity_id: str) -> dict[str, Any]:
 
 
 # --- Group Keypairs ---
+
 
 def generate_keypair(config_id: str) -> GroupKeypairResponse:
     """Generate a multi-party ML-DSA keypair with Shamir secret sharing.
@@ -3960,9 +3910,12 @@ def group_sign(
         result = asqav.group_sign("kp_xxx", message_hex="deadbeef")
         assert result.verified  # Standard ML-DSA verifier works
     """
-    data = _post(f"/signing-groups/keypairs/{keypair_id}/sign", {
-        "message_hex": message_hex,
-    })
+    data = _post(
+        f"/signing-groups/keypairs/{keypair_id}/sign",
+        {
+            "message_hex": message_hex,
+        },
+    )
     return GroupSignResponse(
         signature_hex=data["signature_hex"],
         message_hex=data["message_hex"],
@@ -4009,10 +3962,13 @@ def recover_share(
     Returns:
         ShareRecoveryResponse with recovery details.
     """
-    data = _post(f"/signing-groups/keypairs/{keypair_id}/recover", {
-        "entity_id": entity_id,
-        "contributing_entity_ids": contributing_entity_ids,
-    })
+    data = _post(
+        f"/signing-groups/keypairs/{keypair_id}/recover",
+        {
+            "entity_id": entity_id,
+            "contributing_entity_ids": contributing_entity_ids,
+        },
+    )
     return ShareRecoveryResponse(
         keypair_id=data["keypair_id"],
         recovered_entity_id=data["recovered_entity_id"],
@@ -4034,6 +3990,7 @@ def _parse_group_keypair(data: dict[str, Any]) -> GroupKeypairResponse:
 
 
 # --- Risk Rules ---
+
 
 def create_risk_rule(
     name: str,
@@ -4155,6 +4112,7 @@ def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
 
 # --- Delegations ---
 
+
 def create_delegation(
     config_id: str,
     delegator_entity_id: str,
@@ -4183,12 +4141,15 @@ def create_delegation(
             expires_in=3600,  # 1 hour
         )
     """
-    data = _post("/signing-groups/delegations", {
-        "config_id": config_id,
-        "delegator_entity_id": delegator_entity_id,
-        "delegate_entity_id": delegate_entity_id,
-        "expires_in": expires_in,
-    })
+    data = _post(
+        "/signing-groups/delegations",
+        {
+            "config_id": config_id,
+            "delegator_entity_id": delegator_entity_id,
+            "delegate_entity_id": delegate_entity_id,
+            "expires_in": expires_in,
+        },
+    )
     return _parse_delegation(data)
 
 
@@ -4241,6 +4202,7 @@ def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
 
 
 # --- List Signing Sessions ---
+
 
 def list_sessions(
     status: str | None = None,
@@ -4354,6 +4316,7 @@ def export_audit_csv(
 
 
 # --- Trust Signal Export ---
+
 
 def generate_attestation(
     agent_id: str,
