@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 from ._useragent import USER_AGENT
 from .patterns import resolve_pattern
+from ._sql_match import matches_pattern as _matches_pattern
 from .retry import with_retry
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -2625,7 +2626,7 @@ class Agent:
                 if not p.get("is_active"):
                     continue
                 pattern = p.get("action_pattern", "")
-                if pattern == "*" or action_type.startswith(pattern.rstrip("*")):
+                if _matches_pattern(pattern, action_type):
                     if p.get("action") in ("block", "block_and_alert"):
                         policy_allowed = False
                         reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")

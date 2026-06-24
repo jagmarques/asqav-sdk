@@ -21,6 +21,7 @@ from .client import (
     _parse_timestamp,
 )
 from .patterns import resolve_pattern
+from ._sql_match import matches_pattern as _matches_pattern
 from .retry import with_async_retry
 
 try:
@@ -328,7 +329,7 @@ class AsyncAgent:
                 if not p.get("is_active"):
                     continue
                 pattern = p.get("action_pattern", "")
-                if pattern == "*" or action_type.startswith(pattern.rstrip("*")):
+                if _matches_pattern(pattern, action_type):
                     if p.get("action") in ("block", "block_and_alert"):
                         policy_allowed = False
                         reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")

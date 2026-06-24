@@ -1850,6 +1850,35 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
   return fullBody;
 }
 
+// === Destructive SQL augment-match helper ===
+
+const _WRITE_SQL_PREFIX = "data:write:sql:";
+const _DELETE_SQL_PREFIX = "data:delete:sql:";
+// Matches DELETE, DROP, TRUNCATE, ALTER as whole words (non-letter boundary on each side).
+const _DESTRUCTIVE_VERB_RE = /(?<![A-Za-z])(DELETE|DROP|TRUNCATE|ALTER)(?![A-Za-z])/i;
+
+/**
+ * Returns match candidates for a given action type.
+ * For a destructive SQL write, also returns a `data:delete:sql:` candidate
+ * so delete-namespace policies fire without removing the write-namespace match.
+ */
+function _actionCandidates(actionType: string): string[] {
+  if (!actionType.startsWith(_WRITE_SQL_PREFIX)) return [actionType];
+  const suffix = actionType.slice(_WRITE_SQL_PREFIX.length);
+  if (_DESTRUCTIVE_VERB_RE.test(suffix)) {
+    return [actionType, _DELETE_SQL_PREFIX + suffix];
+  }
+  return [actionType];
+}
+
+function _matchesPattern(pattern: string, actionType: string): boolean {
+  const prefix = pattern.replace(/\*+$/, "");
+  for (const candidate of _actionCandidates(actionType)) {
+    if (pattern === "*" || candidate.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
 // === Agent ===
 
 interface AgentData {
@@ -2060,7 +2089,7 @@ export class Agent {
       for (const p of list) {
         if (!p.is_active) continue;
         const pattern = p.action_pattern ?? "";
-        const matches = pattern === "*" || actionType.startsWith(pattern.replace(/\*+$/, ""));
+        const matches = _matchesPattern(pattern, actionType);
         if (matches && (p.action === "block" || p.action === "block_and_alert")) {
           policyAllowed = false;
           reasons.push(`blocked by policy: ${p.name ?? "unknown"}`);
