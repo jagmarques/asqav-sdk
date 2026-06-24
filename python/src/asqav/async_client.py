@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._sql_match import matches_pattern as _matches_pattern
 from ._useragent import USER_AGENT
 from .client import (
     APIError,
@@ -21,7 +22,6 @@ from .client import (
     _parse_timestamp,
 )
 from .patterns import resolve_pattern
-from ._sql_match import matches_pattern as _matches_pattern
 from .retry import with_async_retry
 
 try:

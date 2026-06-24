@@ -35,7 +35,7 @@ def action_candidates(action_type: str) -> list[str]:
     """
     if not action_type.startswith(_WRITE_SQL_PREFIX):
         return [action_type]
-    suffix = action_type[len(_WRITE_SQL_PREFIX):]
+    suffix = action_type[len(_WRITE_SQL_PREFIX) :]
     if _DESTRUCTIVE_VERB_RE.search(suffix):
         return [action_type, _DELETE_SQL_PREFIX + suffix]
     return [action_type]
