@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._sql_match import matches_pattern as _matches_pattern
 from ._useragent import USER_AGENT
 from .client import (
     APIError,
@@ -328,7 +329,7 @@ class AsyncAgent:
                 if not p.get("is_active"):
                     continue
                 pattern = p.get("action_pattern", "")
-                if pattern == "*" or action_type.startswith(pattern.rstrip("*")):
+                if _matches_pattern(pattern, action_type):
                     if p.get("action") in ("block", "block_and_alert"):
                         policy_allowed = False
                         reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
