@@ -20,6 +20,7 @@ import {
   FormatAdapter,
   type AxisCheck,
   type ChainStep,
+  type ExtraAxis,
   type KeyProvider,
   type SignatureMaterial,
 } from "../adapter.js";
@@ -29,9 +30,11 @@ import { isLowerHex } from "./acta.js";
 import {
   FIRST_RECEIPT_SEED,
   b64decode,
+  checkKeyStatus,
   checkStructure,
   normaliseEnvelope,
   resolveKey,
+  resolveRevokedAt,
 } from "../vrShim.js";
 
 /** Field set the cloud's hash-mode signer canonicalises (for the structure check). */
@@ -177,5 +180,20 @@ export class AsqavNativeAdapter extends FormatAdapter {
       return ["PASS", "hash-mode signature receipt; required flat fields present"];
     }
     return checkStructure(payloadOf(doc));
+  }
+
+  // Gate on signing key revocation status (mirrors Python extra_axes).
+  // No-op when key is absent; the signature axis already handles that.
+  extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
+    const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
+    const kid = this.extractSignature(doc).kid;
+    const [pk, status] = resolveKey(jwks, kid);
+    if (pk === null) return [];
+    const issuedAt = isHashMode(doc)
+      ? String(doc.server_timestamp ?? "")
+      : String(payloadOf(doc).issued_at ?? "");
+    const revokedAt = resolveRevokedAt(jwks, kid);
+    const [res, note] = checkKeyStatus(status, issuedAt, revokedAt);
+    return [["key_status", res, note]];
   }
 }
