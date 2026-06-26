@@ -104,3 +104,47 @@ export function resolveKey(
   }
   return [null, null, null];
 }
+
+/** Return the JWKS revoked_at for kid if published, else null (mirrors `resolve_revoked_at`). */
+export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: string): string | null {
+  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const k of keys) {
+    if (kid && (kid === k.issuer_id || kid === k.kid)) {
+      return typeof k.revoked_at === "string" ? k.revoked_at : null;
+    }
+  }
+  return null;
+}
+
+// Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
+const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
+
+// Gate on the key's JWKS status (mirrors `check_key_status`).
+// With revoked_at, receipts signed before revocation still PASS.
+// Without revoked_at, any revoked-status key FAILs the axis.
+export function checkKeyStatus(
+  status: string | null,
+  issuedAt: string,
+  revokedAt: string | null,
+): readonly ["PASS" | "FAIL", string] {
+  const s = (status ?? "").toLowerCase();
+  if (!REVOKED_KEY_STATUSES.has(s)) {
+    return ["PASS", `signing key status ${JSON.stringify(status)} is active`];
+  }
+  if (revokedAt) {
+    try {
+      const rev = new Date(revokedAt).getTime();
+      const iss = new Date(issuedAt).getTime();
+      if (isNaN(rev) || isNaN(iss)) {
+        return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
+      }
+      if (rev <= iss) {
+        return ["FAIL", `signing key revoked at ${revokedAt} on/before issuance ${issuedAt}`];
+      }
+      return ["PASS", `signing key revoked at ${revokedAt}, after issuance ${issuedAt}`];
+    } catch {
+      return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
+    }
+  }
+  return ["FAIL", `signing key status ${JSON.stringify(status)}; receipt cannot be trusted`];
+}

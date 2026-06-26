@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "FAIL",
+  "reason_code": "key_revoked",
+  "notes": "Valid Ed25519 signature but signing key status is 'revoked'; key_status axis FAILs the verdict."
+}
