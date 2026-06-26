@@ -42,6 +42,13 @@
     "notes": "Real payload-mode prod ML-DSA-65 receipt; the signing input byte-matches and ML-DSA-65 verifies with dilithium-py (proven in test_offline_verify.py's known-answer test). Absent that optional dep the corpus SKIPs the signature axis, so the verdict is INCOMPLETE, confirming the verifier never false-PASSes the post-quantum path it cannot check."
   },
   {
+    "dir": "asqav-07-revoked-key",
+    "format": "asqav-native",
+    "outcome": "FAIL",
+    "reason_code": "key_revoked",
+    "notes": "Valid Ed25519 signature from a key whose JWKS status is 'revoked'; the key_status axis FAILs the verdict even though the signature itself verifies. Parity vector: both PY and TS oracles must return FAIL."
+  },
+  {
     "dir": "aerf-01-genesis",
     "format": "aerf",
     "outcome": "PASS",

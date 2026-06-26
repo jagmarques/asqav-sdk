@@ -107,6 +107,98 @@ describe("verifyReceiptOffline - Ed25519 path (no network)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// verifyReceiptOffline: revoked-key receipts (CRIT-167 fix)
+// ---------------------------------------------------------------------------
+
+describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
+  const REVOKED_DIR = join(VECTORS, "asqav-07-revoked-key");
+
+  it("returns FAIL for a receipt with a valid sig but revoked key status (corpus vector)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const jwks = loadJson(REVOKED_DIR, "jwks.json");
+    const result = verifyReceiptOffline(receipt, jwks);
+    expect(result.verdict).toBe("FAIL");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis, "key_status axis must be present").toBeDefined();
+    expect(keyAxis?.result).toBe("FAIL");
+  });
+
+  it("key_status axis note names the revoked status", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const jwks = loadJson(REVOKED_DIR, "jwks.json");
+    const result = verifyReceiptOffline(receipt, jwks);
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.note).toMatch(/revoked/i);
+  });
+
+  it("signature axis is PASS (sig is valid - only revocation triggers FAIL)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const jwks = loadJson(REVOKED_DIR, "jwks.json");
+    const result = verifyReceiptOffline(receipt, jwks);
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    expect(sigAxis?.result).toBe("PASS");
+  });
+
+  it("returns PASS for the same receipt when key status is active (anti-vacuous: revocation is what fails it)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
+    // Promote the key to active so revocation is the only difference.
+    const activeJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
+    ((activeJwks.keys as Array<Record<string, unknown>>)[0]).status = "active";
+    const result = verifyReceiptOffline(receipt, activeJwks);
+    expect(result.verdict).toBe("PASS");
+  });
+
+  it("suspended key also FAILs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
+    const suspJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
+    ((suspJwks.keys as Array<Record<string, unknown>>)[0]).status = "suspended";
+    const result = verifyReceiptOffline(receipt, suspJwks);
+    expect(result.verdict).toBe("FAIL");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("FAIL");
+  });
+
+  it("compromised key also FAILs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
+    const compJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
+    ((compJwks.keys as Array<Record<string, unknown>>)[0]).status = "compromised";
+    const result = verifyReceiptOffline(receipt, compJwks);
+    expect(result.verdict).toBe("FAIL");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("FAIL");
+  });
+
+  it("revoked key with revoked_at AFTER issuance passes (historical verify semantics)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
+    // issued_at is 2026-06-01T12:00:00+00:00; revoked_at is after that.
+    const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
+    ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
+    const result = verifyReceiptOffline(receipt, futureJwks);
+    expect(result.verdict).toBe("PASS");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("PASS");
+    expect(keyAxis?.note).toMatch(/after issuance/i);
+  });
+
+  it("revoked key with revoked_at AT issuance fails (at-or-before rule)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
+    // Same timestamp as issued_at -> rev <= iss -> FAIL
+    const atJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
+    ((atJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-06-01T12:00:00+00:00";
+    const result = verifyReceiptOffline(receipt, atJwks);
+    expect(result.verdict).toBe("FAIL");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("FAIL");
+    expect(keyAxis?.note).toMatch(/on\/before issuance/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // verifyReceiptOffline: FAIL on tampered receipts (no network)
 // ---------------------------------------------------------------------------
 
