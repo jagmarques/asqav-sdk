@@ -901,6 +901,7 @@ export interface PreflightResult {
   policyAllowed: boolean;
   reasons: string[];
   explanation: string;
+  checksComplete: boolean;
 }
 
 // === init ===
@@ -1854,27 +1855,31 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
 
 const _WRITE_SQL_PREFIX = "data:write:sql:";
 const _DELETE_SQL_PREFIX = "data:delete:sql:";
-// Matches DELETE, DROP, TRUNCATE, ALTER as whole words (non-letter boundary on each side).
-const _DESTRUCTIVE_VERB_RE = /(?<![A-Za-z])(DELETE|DROP|TRUNCATE|ALTER)(?![A-Za-z])/i;
+// Matches destructive SQL verbs as whole words (non-letter boundary on each side).
+const _DESTRUCTIVE_VERB_RE = /(?<![A-Za-z])(DELETE|DROP|TRUNCATE|ALTER|GRANT|REVOKE|REPLACE|COPY|UPSERT)(?![A-Za-z])/i;
 
 /**
  * Returns match candidates for a given action type.
- * For a destructive SQL write, also returns a `data:delete:sql:` candidate
- * so delete-namespace policies fire without removing the write-namespace match.
+ * Normalizes (trim + lowercase) so case variants and stray whitespace cannot
+ * dodge the prefix check. For a destructive SQL write, also returns a
+ * `data:delete:sql:` candidate so delete-namespace policies fire.
  */
 function _actionCandidates(actionType: string): string[] {
-  if (!actionType.startsWith(_WRITE_SQL_PREFIX)) return [actionType];
-  const suffix = actionType.slice(_WRITE_SQL_PREFIX.length);
+  const normalized = actionType.trim().toLowerCase();
+  if (!normalized.startsWith(_WRITE_SQL_PREFIX)) return [normalized];
+  const suffix = normalized.slice(_WRITE_SQL_PREFIX.length);
   if (_DESTRUCTIVE_VERB_RE.test(suffix)) {
-    return [actionType, _DELETE_SQL_PREFIX + suffix];
+    return [normalized, _DELETE_SQL_PREFIX + suffix];
   }
-  return [actionType];
+  return [normalized];
 }
 
+// Case-insensitive end to end: pattern and candidates are both lowercased.
 function _matchesPattern(pattern: string, actionType: string): boolean {
-  const prefix = pattern.replace(/\*+$/, "");
+  const normPattern = pattern.trim().toLowerCase();
+  const prefix = normPattern.replace(/\*+$/, "");
   for (const candidate of _actionCandidates(actionType)) {
-    if (pattern === "*" || candidate.startsWith(prefix)) return true;
+    if (normPattern === "*" || candidate.startsWith(prefix)) return true;
   }
   return false;
 }
@@ -2051,12 +2056,13 @@ export class Agent {
 
   /**
    * Pre-flight check combining revocation/suspension status and policy.
-   * Fail-open: if a sub-check errors, it is recorded in `reasons` but
-   * does not block. Mirrors the Python `Agent.preflight`.
+   * Fail-closed: if a sub-check cannot complete, checksComplete is false and
+   * cleared is false so a fetch error never clears. Mirrors Python preflight.
    */
   async preflight(actionType: string): Promise<PreflightResult> {
     let agentActive = true;
     let policyAllowed = true;
+    let checksComplete = true;
     const reasons: string[] = [];
 
     try {
@@ -2075,7 +2081,8 @@ export class Agent {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      reasons.push(`status check failed (${msg}) - skipped`);
+      checksComplete = false;
+      reasons.push(`status check failed (${msg}) - could not verify`);
     }
 
     try {
@@ -2085,25 +2092,34 @@ export class Agent {
         action?: string;
         name?: string;
       }>>("GET", "/policies");
-      const list = Array.isArray(policies) ? policies : [];
-      for (const p of list) {
-        if (!p.is_active) continue;
-        const pattern = p.action_pattern ?? "";
-        const matches = _matchesPattern(pattern, actionType);
-        if (matches && (p.action === "block" || p.action === "block_and_alert")) {
-          policyAllowed = false;
-          reasons.push(`blocked by policy: ${p.name ?? "unknown"}`);
+      if (!Array.isArray(policies)) {
+        // A non-list response is anomalous, so fail closed instead of
+        // silently clearing on an empty iteration.
+        checksComplete = false;
+        reasons.push("policy check failed (unexpected response) - could not verify");
+      } else {
+        for (const p of policies) {
+          if (!p.is_active) continue;
+          const pattern = p.action_pattern ?? "";
+          const matches = _matchesPattern(pattern, actionType);
+          if (matches && (p.action === "block" || p.action === "block_and_alert")) {
+            policyAllowed = false;
+            reasons.push(`blocked by policy: ${p.name ?? "unknown"}`);
+          }
         }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      reasons.push(`policy check failed (${msg}) - skipped`);
+      checksComplete = false;
+      reasons.push(`policy check failed (${msg}) - could not verify`);
     }
 
-    const cleared = agentActive && policyAllowed;
+    const cleared = agentActive && policyAllowed && checksComplete;
     let explanation: string;
     if (cleared) {
       explanation = "Allowed: agent is active and action is permitted by policy";
+    } else if (!checksComplete) {
+      explanation = `Blocked: could not verify (${reasons.join("; ")})`;
     } else if (!agentActive && reasons.includes("agent is revoked")) {
       explanation = "Blocked: agent has been revoked";
     } else if (!agentActive && reasons.some((r) => r.startsWith("agent is suspended"))) {
@@ -2115,7 +2131,7 @@ export class Agent {
       explanation = reasons.length ? `Blocked: ${reasons.join("; ")}` : "Blocked";
     }
 
-    return { cleared, agentActive, policyAllowed, reasons, explanation };
+    return { cleared, agentActive, policyAllowed, reasons, explanation, checksComplete };
   }
 }
 
