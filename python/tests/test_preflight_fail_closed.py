@@ -11,6 +11,8 @@ import os
 import sys
 from unittest.mock import patch
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import Agent, PreflightResult
@@ -92,6 +94,26 @@ def test_non_list_policies_does_not_clear(mock_post, mock_get):
     assert result.cleared is False
     assert result.checks_complete is False
     assert any("unexpected response" in r for r in result.reasons)
+
+
+@pytest.mark.parametrize("status_body", [["x"], "revoked", 5, []])
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
+def test_non_dict_status_does_not_clear(mock_post, mock_get, status_body):
+    """A non-dict /status body fails closed (parity pin for the TS fix)."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+
+    mock_get.side_effect = [
+        status_body,  # anomalous non-dict status response
+        [],  # policies check
+    ]
+
+    result = agent.preflight("llm:call")
+    assert result.cleared is False
+    assert result.checks_complete is False
+    assert "could not verify" in result.explanation.lower()
 
 
 @patch("asqav.client._get")
