@@ -2070,14 +2070,21 @@ export class Agent {
         "GET",
         `/agents/${this.agentId}/status`,
       );
-      if (status.revoked) {
-        agentActive = false;
-        reasons.push("agent is revoked");
-      }
-      if (status.suspended) {
-        agentActive = false;
-        const suffix = status.suspended_reason ? ` (${status.suspended_reason})` : "";
-        reasons.push(`agent is suspended${suffix}`);
+      if (typeof status !== "object" || status === null || Array.isArray(status)) {
+        // A non-object response is anomalous, so fail closed instead of
+        // reading revoked/suspended as undefined and clearing the agent.
+        checksComplete = false;
+        reasons.push("status check failed (unexpected response) - could not verify");
+      } else {
+        if (status.revoked) {
+          agentActive = false;
+          reasons.push("agent is revoked");
+        }
+        if (status.suspended) {
+          agentActive = false;
+          const suffix = status.suspended_reason ? ` (${status.suspended_reason})` : "";
+          reasons.push(`agent is suspended${suffix}`);
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
