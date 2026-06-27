@@ -3,6 +3,49 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [Unreleased]
+
+### Fixed
+
+- **The neutral verifier fails clean on malformed input (Python and TypeScript).**
+  A non-object receipt, a non-string `alg`, and a timezone-mismatched `revoked_at`
+  or `issued_at` return a verdict instead of raising. No forged, tampered,
+  downgraded, or cross-format receipt verifies as valid.
+- **The TypeScript verifier checks signing-key revocation, for parity with
+  Python.** A receipt signed by a revoked key fails in both verifiers.
+- **Preflight blocks destructive SQL routed under a `data:write` namespace.**
+
+### Documentation
+
+- Correct the SDK license to MIT in the Python and TypeScript READMEs.
+
+## [0.6.2] - 2026-06-23
+
+### Added
+
+- **litellm cloud-signing callback and `verify-litellm-log` CLI.** An opt-in
+  `AsqavLogger` signs each litellm record server-side, and the CLI verifies a
+  litellm log offline.
+
+## [0.6.1] - 2026-06-23
+
+### Added
+
+- **`asqav hook` CLI subcommand for Claude Code harness hooks**, with a hooks
+  guide covering fail-open and fail-closed modes.
+
+### Fixed
+
+- **`AsyncAgent.preflight` fails closed on a fetch error** and resolves semantic
+  policy pattern aliases.
+- **The verifier gates on signing-key status in `run_structured`**, so a receipt
+  signed by a revoked key fails offline.
+- **Offline verification rejects a revoked signing key.**
+
+### Removed
+
+- **Dropped the `asqav-mcp` config generation** from the SDK.
+
 ## [0.6.0] - 2026-06-20
 
 ### Added
