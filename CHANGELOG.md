@@ -7,12 +7,13 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
-- **Preflight `checksComplete` parity across Python and TypeScript.** Both halves
-  now return the full `checksComplete` map so callers can inspect which checks ran.
-  The TypeScript half was missing this field after a refactor.
+- **Preflight fails closed on a fetch error in TypeScript, matching Python.** The
+  TypeScript `PreflightResult` now carries a `checksComplete` boolean that is set
+  false when the `/status` or `/policies` fetch fails, and `cleared` folds it in, so
+  a failed check blocks the action instead of clearing.
 - **Preflight fails closed on non-list `/policies` responses.** If the policy
   endpoint returns anything other than an array, preflight blocks the action rather
-  than silently passing. The SDK preflight is a client-side advisory check; this
+  than silently passing. The SDK preflight is a client-side advisory check. This
   fix stops a malformed or empty response from acting as a bypass.
 - **Namespace normalization strips case and whitespace before policy matching.**
   `DATA:WRITE:SQL:DELETE` and `  data:write:sql:delete  ` now resolve to the same
