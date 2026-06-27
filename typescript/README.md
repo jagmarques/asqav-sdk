@@ -376,4 +376,4 @@ See <https://asqav.com/docs> for the live feature set.
 
 ## License
 
-Apache-2.0. Get an API key at [asqav.com](https://asqav.com).
+MIT. Get an API key at [asqav.com](https://asqav.com).
