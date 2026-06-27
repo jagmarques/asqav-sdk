@@ -868,3 +868,18 @@ def test_pipelock_chain_genesis_sentinel_accepted() -> None:
     doc3 = json.loads(json.dumps(doc))
     doc3["chain_prev_hash"] = "sha256:" + "a" * 64
     assert ad.chain_step(doc3).is_genesis is False
+
+
+def test_oracle_verify_signature_nonstring_alg_skips_clean() -> None:
+    """A non-string alg from a malformed receipt SKIPs, never crashes on .upper()."""
+    z = b""
+    for bad_alg in (123, None, ["x"], {}):
+        result, _ = crypto.verify_signature(bad_alg, z, z, z)
+        assert result == crypto.SKIPPED
+
+
+def test_oracle_verify_nonobject_doc_fails_clean() -> None:
+    """A non-dict top-level receipt returns a FAIL verdict, never raises in detect()."""
+    for bad_doc in (None, "a string", 123, [1, 2]):
+        res = verify(bad_doc, ADAPTERS)
+        assert res.verdict == "FAIL"
