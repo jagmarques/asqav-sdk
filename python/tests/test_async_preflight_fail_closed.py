@@ -74,6 +74,22 @@ async def test_non_list_policies_does_not_clear(mock_get: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status_body", [["x"], "revoked", 5, []])
+@patch("asqav.async_client._async_get", new_callable=AsyncMock)
+async def test_non_dict_status_does_not_clear(mock_get: AsyncMock, status_body) -> None:
+    """A non-dict /status body fails closed (parity pin for the TS fix)."""
+    mock_get.side_effect = [
+        status_body,  # anomalous non-dict status response
+        [],  # policies check
+    ]
+
+    result = await AGENT.preflight("llm:call")
+    assert result.cleared is False
+    assert result.checks_complete is False
+    assert "could not verify" in result.explanation.lower()
+
+
+@pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_happy_path_still_clears(mock_get: AsyncMock) -> None:
     """An active agent with no blocking policy clears, checks_complete True."""
