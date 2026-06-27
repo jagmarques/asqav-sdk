@@ -265,6 +265,8 @@ def check_skew(issued_at: str):
         ts = datetime.fromisoformat(issued_at.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return "FAIL", f"unparseable issued_at {issued_at!r}"
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
     skew = (ts - datetime.now(timezone.utc)).total_seconds()
     if skew > SKEW_BOUND_SECONDS:
         return (

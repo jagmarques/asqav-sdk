@@ -160,3 +160,10 @@ def test_check_key_status_tz_mismatch_fails_clean() -> None:
         "revoked", "2026-06-01T00:00:00", "2026-05-04T12:00:00+00:00"
     )
     assert result == "FAIL"
+
+
+def test_check_skew_tz_naive_issued_at_no_crash() -> None:
+    """A tz-naive issued_at must produce a verdict, never a naive-vs-aware TypeError
+    in the wall-clock subtraction."""
+    result, _ = v.check_skew("2026-05-04T00:00:00")
+    assert result in ("PASS", "FAIL")
