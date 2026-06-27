@@ -192,6 +192,118 @@ def test_negative_deleted_at_is_not_destructive(mock_post, mock_get):
     assert result.policy_allowed is True
 
 
+_UPPER_WRITE_SQL_POLICY = [
+    {
+        "is_active": True,
+        "action_pattern": "DATA:WRITE:SQL:*",
+        "action": "block",
+        "name": "no-sql-writes",
+    }
+]
+
+
+# ---------------------------------------------------------------------------
+# H3: case-variant + whitespace must not bypass matching
+# ---------------------------------------------------------------------------
+
+
+def test_action_candidates_normalize_case_and_whitespace():
+    """Uppercase and whitespace variants produce the same candidates as lowercase."""
+    from asqav._sql_match import action_candidates
+
+    base = action_candidates("data:write:sql:DELETE FROM users")
+    upper = action_candidates("DATA:WRITE:SQL:DELETE FROM users")
+    spaced = action_candidates("  data:write:sql:DELETE FROM users  ")
+
+    assert upper == base
+    assert spaced == base
+    assert "data:delete:sql:delete from users" in base
+
+
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
+def test_uppercase_action_blocked_by_lowercase_delete_policy(mock_post, mock_get):
+    """A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+    mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
+
+    result = agent.preflight("DATA:WRITE:SQL:DELETE FROM users")
+
+    assert result.cleared is False
+    assert result.policy_allowed is False
+    assert any("no-deletions" in r for r in result.reasons)
+
+
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
+def test_whitespace_action_blocked_by_delete_policy(mock_post, mock_get):
+    """Leading/trailing whitespace does not let a DELETE write dodge the policy."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+    mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
+
+    result = agent.preflight("  data:write:sql:DELETE FROM users  ")
+
+    assert result.cleared is False
+    assert result.policy_allowed is False
+
+
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
+def test_lowercase_pattern_blocks_uppercase_action(mock_post, mock_get):
+    """A lowercase data:write:sql:* pattern blocks an uppercase write action."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+    mock_get.side_effect = [{"revoked": False, "suspended": False}, _WRITE_SQL_POLICY]
+
+    result = agent.preflight("DATA:WRITE:SQL:DELETE FROM users")
+
+    assert result.cleared is False
+    assert result.policy_allowed is False
+    assert any("no-sql-writes" in r for r in result.reasons)
+
+
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
+def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
+    """An uppercase DATA:WRITE:SQL:* pattern blocks a lowercase write action."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+    mock_get.side_effect = [{"revoked": False, "suspended": False}, _UPPER_WRITE_SQL_POLICY]
+
+    result = agent.preflight("data:write:sql:INSERT INTO t VALUES (1)")
+
+    assert result.cleared is False
+    assert result.policy_allowed is False
+
+
+# ---------------------------------------------------------------------------
+# M1: extended destructive verbs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("verb", ["GRANT", "REVOKE", "REPLACE", "COPY", "UPSERT"])
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
+def test_extended_destructive_verb_blocked_by_delete_policy(mock_post, mock_get, verb):
+    """Each extended destructive verb matches the data:delete:* augment."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+    mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
+
+    result = agent.preflight(f"data:write:sql:{verb} something")
+
+    assert result.cleared is False
+    assert result.policy_allowed is False
+    assert any("no-deletions" in r for r in result.reasons)
+
+
 # ---------------------------------------------------------------------------
 # Async Agent tests
 # ---------------------------------------------------------------------------

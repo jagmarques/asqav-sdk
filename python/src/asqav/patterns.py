@@ -19,8 +19,13 @@ PATTERNS: dict[str, str] = {
 
 
 def resolve_pattern(pattern: str) -> str:
-    """Resolve a semantic pattern name to its glob string; passthrough for unknown patterns."""
-    return PATTERNS.get(pattern, pattern)
+    """Resolve a semantic pattern name to its glob string; passthrough for unknown patterns.
+
+    Normalizes input (strip + lowercase) so case variants resolve and stray
+    whitespace cannot dodge case-insensitive policy matching downstream.
+    """
+    key = pattern.strip().lower()
+    return PATTERNS.get(key, key)
 
 
 def list_patterns() -> dict[str, str]:
