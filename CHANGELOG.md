@@ -3,6 +3,25 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [0.6.4] - 2026-06-27
+
+### Fixed
+
+- **Preflight `checksComplete` parity across Python and TypeScript.** Both halves
+  now return the full `checksComplete` map so callers can inspect which checks ran.
+  The TypeScript half was missing this field after a refactor.
+- **Preflight fails closed on non-list `/policies` responses.** If the policy
+  endpoint returns anything other than an array, preflight blocks the action rather
+  than silently passing. The SDK preflight is a client-side advisory check; this
+  fix stops a malformed or empty response from acting as a bypass.
+- **Namespace normalization strips case and whitespace before policy matching.**
+  `DATA:WRITE:SQL:DELETE` and `  data:write:sql:delete  ` now resolve to the same
+  candidate, closing a bypass via case or padding variation.
+- **Extended destructive-verb set covers SQL mutation verbs beyond DELETE.**
+  `GRANT`, `REVOKE`, `REPLACE`, `COPY`, and `UPSERT` are now included alongside
+  `DELETE`, `DROP`, `TRUNCATE`, and `ALTER` when the preflight checks for
+  destructive SQL under a `data:write` namespace. Both halves carry the same list.
+
 ## [0.6.3] - 2026-06-27
 
 ### Fixed
