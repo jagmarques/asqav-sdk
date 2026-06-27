@@ -123,6 +123,25 @@ describe("Agent.preflight", () => {
     expect(r.reasons.some((s) => s.includes("unexpected response"))).toBe(true);
   });
 
+  it.each([
+    ["a list", ["x"]],
+    ["a string", "revoked"],
+    ["a number", 5],
+    ["an empty list", []],
+  ])("fail-closed: a non-object /status response (%s) does not silently clear", async (_label, body) => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(body))
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    const r = await makeAgent().preflight("data:read");
+
+    expect(r.cleared).toBe(false);
+    expect(r.checksComplete).toBe(false);
+    expect(r.agentActive).toBe(true);
+    expect(r.reasons.some((s) => s.includes("unexpected response"))).toBe(true);
+    expect(r.explanation).toMatch(/could not verify/);
+  });
+
   it("clears when both checks complete with no block (checksComplete true)", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse({ revoked: false, suspended: false }))
