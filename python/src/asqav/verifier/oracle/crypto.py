@@ -97,9 +97,9 @@ _DISPATCH = {
 }
 
 
-def verify_signature(alg: str, pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
+def verify_signature(alg: object, pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
     """Dispatch to the algorithm's verifier; SKIP an unsupported alg."""
-    fn = _DISPATCH.get((alg or "").upper())
+    fn = _DISPATCH.get((alg if isinstance(alg, str) else "").upper())
     if fn is None:
         return SKIPPED, f"unsupported alg {alg!r} (oracle checks {sorted(_DISPATCH)})"
     return fn(pk, msg, sig)
