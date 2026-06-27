@@ -10,7 +10,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 - **Preflight fails closed on a non-object `/status` response in TypeScript, matching Python.**
   If the status endpoint returns a truthy non-object body (a string, number, or any primitive),
   the TypeScript client now treats the check as failed and blocks the action. A well-formed
-  response is an object; anything else is anomalous and should not leave the advisory gate
+  response is an object. Anything else is anomalous and should not leave the advisory gate
   cleared.
 
 ## [0.6.4] - 2026-06-27
