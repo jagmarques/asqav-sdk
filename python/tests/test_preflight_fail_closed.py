@@ -78,6 +78,25 @@ def test_policy_fetch_error_does_not_clear(mock_post, mock_get):
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
+def test_non_list_policies_does_not_clear(mock_post, mock_get):
+    """A non-list /policies response fails closed instead of silently clearing."""
+    mock_post.return_value = MOCK_AGENT_DATA
+    agent = Agent.create("test-agent")
+
+    mock_get.side_effect = [
+        {"revoked": False, "suspended": False},  # status check
+        {"policies": []},  # anomalous non-list policies response
+    ]
+
+    result = agent.preflight("llm:call")
+    assert result.cleared is False
+    assert result.checks_complete is False
+    assert any("unexpected response" in r for r in result.reasons)
+
+
+@patch("asqav.client._get")
+@patch("asqav.client._post")
+@patch("asqav.client._api_key", "sk_test")
 def test_happy_path_still_clears(mock_post, mock_get):
     """An active agent with no blocking policy still clears, checks_complete True."""
     mock_post.return_value = MOCK_AGENT_DATA
