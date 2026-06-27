@@ -3,7 +3,7 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
-## [Unreleased]
+## [0.6.3] - 2026-06-27
 
 ### Fixed
 
