@@ -2566,14 +2566,20 @@ class Agent:
         # Check organization policies.
         try:
             policies = _get("/policies")
-            for p in policies if isinstance(policies, list) else []:
-                if not p.get("is_active"):
-                    continue
-                pattern = p.get("action_pattern", "")
-                if _matches_pattern(pattern, action_type):
-                    if p.get("action") in ("block", "block_and_alert"):
-                        policy_allowed = False
-                        reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
+            if not isinstance(policies, list):
+                # A non-list response is anomalous, so fail closed instead of
+                # silently clearing on an empty iteration.
+                checks_complete = False
+                reasons.append("policy check failed (unexpected response) - could not verify")
+            else:
+                for p in policies:
+                    if not p.get("is_active"):
+                        continue
+                    pattern = p.get("action_pattern", "")
+                    if _matches_pattern(pattern, action_type):
+                        if p.get("action") in ("block", "block_and_alert"):
+                            policy_allowed = False
+                            reasons.append(f"blocked by policy: {p.get('name', 'unknown')}")
         except Exception as exc:
             checks_complete = False
             reasons.append(f"policy check failed ({exc}) - could not verify")

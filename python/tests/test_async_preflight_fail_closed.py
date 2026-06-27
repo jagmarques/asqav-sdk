@@ -60,6 +60,21 @@ async def test_policy_fetch_error_does_not_clear(mock_get: AsyncMock) -> None:
 
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
+async def test_non_list_policies_does_not_clear(mock_get: AsyncMock) -> None:
+    """A non-list /policies response fails closed instead of silently clearing."""
+    mock_get.side_effect = [
+        {"revoked": False, "suspended": False},  # status check
+        {"policies": []},  # anomalous non-list policies response
+    ]
+
+    result = await AGENT.preflight("llm:call")
+    assert result.cleared is False
+    assert result.checks_complete is False
+    assert any("unexpected response" in r for r in result.reasons)
+
+
+@pytest.mark.asyncio
+@patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_happy_path_still_clears(mock_get: AsyncMock) -> None:
     """An active agent with no blocking policy clears, checks_complete True."""
     mock_get.side_effect = [

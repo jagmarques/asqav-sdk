@@ -74,7 +74,7 @@ describe("Agent.preflight", () => {
     expect(r.explanation).toMatch(/policy/);
   });
 
-  it("fail-open: status check error does not block on its own", async () => {
+  it("fail-closed: status check error blocks and marks checks incomplete", async () => {
     let call = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       call += 1;
@@ -87,9 +87,51 @@ describe("Agent.preflight", () => {
 
     const r = await makeAgent().preflight("data:read");
 
-    expect(r.cleared).toBe(true);
+    expect(r.cleared).toBe(false);
+    expect(r.checksComplete).toBe(false);
     expect(r.reasons.some((s) => s.includes("status check failed"))).toBe(true);
+    expect(r.explanation).toMatch(/could not verify/);
     expect(call).toBeGreaterThanOrEqual(2);
+  });
+
+  it("fail-closed: policy fetch error blocks and marks checks incomplete", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : (input as URL).toString();
+      if (url.includes("/policies")) {
+        return jsonResponse({ detail: "boom" }, 500);
+      }
+      return jsonResponse({ revoked: false, suspended: false });
+    });
+
+    const r = await makeAgent().preflight("data:read");
+
+    expect(r.cleared).toBe(false);
+    expect(r.checksComplete).toBe(false);
+    expect(r.reasons.some((s) => s.includes("policy check failed"))).toBe(true);
+  });
+
+  it("fail-closed: a non-list /policies response does not silently clear", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ revoked: false, suspended: false }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+
+    const r = await makeAgent().preflight("data:read");
+
+    expect(r.cleared).toBe(false);
+    expect(r.checksComplete).toBe(false);
+    expect(r.policyAllowed).toBe(true);
+    expect(r.reasons.some((s) => s.includes("unexpected response"))).toBe(true);
+  });
+
+  it("clears when both checks complete with no block (checksComplete true)", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ revoked: false, suspended: false }))
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    const r = await makeAgent().preflight("data:read");
+
+    expect(r.cleared).toBe(true);
+    expect(r.checksComplete).toBe(true);
   });
 
   it("ignores inactive policies", async () => {
