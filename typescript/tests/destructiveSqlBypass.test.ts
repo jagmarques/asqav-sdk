@@ -141,4 +141,71 @@ describe("destructive SQL write bypass fix", () => {
     expect(r.cleared).toBe(true);
     expect(r.policyAllowed).toBe(true);
   });
+
+  // H3: case-variant and whitespace must not bypass the destructive augment.
+  it("uppercase DATA:WRITE:SQL:DELETE is blocked by a lowercase data:delete:* policy", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(activeAgent))
+      .mockResolvedValueOnce(jsonResponse(deletePolicies));
+
+    const r = await makeAgent().preflight("DATA:WRITE:SQL:DELETE FROM users");
+
+    expect(r.cleared).toBe(false);
+    expect(r.policyAllowed).toBe(false);
+    expect(r.reasons.some((s) => s.includes("no-deletions"))).toBe(true);
+  });
+
+  it("leading/trailing whitespace DELETE write is blocked by data:delete:*", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(activeAgent))
+      .mockResolvedValueOnce(jsonResponse(deletePolicies));
+
+    const r = await makeAgent().preflight("  data:write:sql:DELETE FROM users  ");
+
+    expect(r.cleared).toBe(false);
+    expect(r.policyAllowed).toBe(false);
+    expect(r.reasons.some((s) => s.includes("no-deletions"))).toBe(true);
+  });
+
+  it("a lowercase block pattern blocks an uppercase write action", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(activeAgent))
+      .mockResolvedValueOnce(jsonResponse(writeSqlPolicies));
+
+    const r = await makeAgent().preflight("DATA:WRITE:SQL:DELETE FROM users");
+
+    expect(r.cleared).toBe(false);
+    expect(r.policyAllowed).toBe(false);
+    expect(r.reasons.some((s) => s.includes("no-sql-writes"))).toBe(true);
+  });
+
+  it("an uppercase block pattern blocks a lowercase write action", async () => {
+    const upperWritePolicy = [
+      { is_active: true, action_pattern: "DATA:WRITE:SQL:*", action: "block", name: "no-sql-writes" },
+    ];
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(activeAgent))
+      .mockResolvedValueOnce(jsonResponse(upperWritePolicy));
+
+    const r = await makeAgent().preflight("data:write:sql:INSERT INTO t VALUES (1)");
+
+    expect(r.cleared).toBe(false);
+    expect(r.policyAllowed).toBe(false);
+  });
+
+  // M1: extended destructive verbs each match the delete augment.
+  it.each(["GRANT", "REVOKE", "REPLACE", "COPY", "UPSERT"])(
+    "data:delete:* policy blocks data:write:sql:%s (extended destructive verb)",
+    async (verb) => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(jsonResponse(activeAgent))
+        .mockResolvedValueOnce(jsonResponse(deletePolicies));
+
+      const r = await makeAgent().preflight(`data:write:sql:${verb} something`);
+
+      expect(r.cleared).toBe(false);
+      expect(r.policyAllowed).toBe(false);
+      expect(r.reasons.some((s) => s.includes("no-deletions"))).toBe(true);
+    },
+  );
 });
