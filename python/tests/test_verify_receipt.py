@@ -143,3 +143,20 @@ def test_run_payload_null_without_signature_keys(capsys) -> None:
     out = capsys.readouterr().out
     assert code == 2
     assert "INCOMPLETE" in out
+
+
+def test_verify_signature_nonstring_alg_skips_clean() -> None:
+    """A non-string alg SKIPs cleanly instead of crashing on (alg or '').upper()."""
+    z = b""
+    for bad_alg in (123, None, ["x"], {}):
+        result, _ = v.verify_signature(z, z, z, bad_alg)
+        assert result == "SKIPPED"
+
+
+def test_check_key_status_tz_mismatch_fails_clean() -> None:
+    """Revoked-before-issuance with a tz-aware revoked_at and tz-naive issued_at FAILs
+    the axis, never raises a naive-vs-aware TypeError."""
+    result, _ = v.check_key_status(
+        "revoked", "2026-06-01T00:00:00", "2026-05-04T12:00:00+00:00"
+    )
+    assert result == "FAIL"

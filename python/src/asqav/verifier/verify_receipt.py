@@ -233,15 +233,19 @@ def check_key_status(status, issued_at: str, revoked_at=None):
             iss = datetime.fromisoformat(str(issued_at).replace("Z", "+00:00"))
         except (ValueError, AttributeError):
             return "FAIL", f"signing key status {status!r}; unparseable revoked_at/issued_at"
+        if rev.tzinfo is None:
+            rev = rev.replace(tzinfo=timezone.utc)
+        if iss.tzinfo is None:
+            iss = iss.replace(tzinfo=timezone.utc)
         if rev <= iss:
             return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
         return "PASS", f"signing key revoked at {revoked_at}, after issuance {issued_at}"
     return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
 
 
-def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: str):
+def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
     """ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED."""
-    if (alg or "").upper() != "ML-DSA-65":
+    if (alg if isinstance(alg, str) else "").upper() != "ML-DSA-65":
         return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65)"
     try:
         from dilithium_py.ml_dsa import ML_DSA_65

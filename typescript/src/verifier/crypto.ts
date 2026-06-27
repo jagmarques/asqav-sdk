@@ -130,7 +130,7 @@ export function verifySignature(
   msg: Uint8Array,
   sig: Uint8Array,
 ): VerifyOutcome {
-  const fn = DISPATCH[(alg || "").toUpperCase()];
+  const fn = DISPATCH[(typeof alg === "string" ? alg : "").toUpperCase()];
   if (fn === undefined) {
     const known = Object.keys(DISPATCH).sort().join(", ");
     return { result: SKIPPED, note: `unsupported alg '${alg}' (oracle checks ${known})` };
