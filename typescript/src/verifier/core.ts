@@ -41,6 +41,7 @@ export function detect(
   doc: Record<string, unknown>,
   adapters: FormatAdapter[],
 ): FormatAdapter | null {
+  if (typeof doc !== "object" || doc === null || Array.isArray(doc)) return null;
   return adapters.find((a) => a.detect(doc)) ?? null;
 }
 
