@@ -345,6 +345,72 @@ const result = verify(receipt, ADAPTERS, keyProvider);
 
 It verifies the issuer signature over the canonical bytes, the hash-chain link, and structural presence across the asqav-native, AERF, ACTA, agent-receipts, and Authproof formats. It never attests the behaviour of the recorded action, and no account is required. Ed25519 and ES256 verify in-process via `node:crypto`. ML-DSA-65 downgrades to `INCOMPLETE` rather than ever returning a false `PASS`. This is the TypeScript port of the Python `asqav.verifier.oracle`, held to verdict parity by a shared conformance corpus.
 
+## Structured receipts (optional schema)
+
+Pass a `contextSchema` to `agent.sign()` to validate and normalise the
+`context` object before it is signed. This keeps every receipt in your audit
+trail in a consistent, queryable shape.
+
+```typescript
+import { Agent, ValidationError, type ContextSchema, init } from "@asqav/sdk";
+
+const PAYMENT_SCHEMA: ContextSchema = {
+  userId:   { type: "string",  required: true },
+  amount:   { type: "number",  required: true },
+  currency: { type: "string",  required: true },
+};
+
+init({ apiKey: "sk_..." });
+const agent = await Agent.create({ name: "my-agent" });
+
+// Valid context: keys are sorted before signing (consistent hash order).
+const sig = await agent.sign({
+  actionType: "payment:initiate",
+  context: { userId: "u1", currency: "EUR", amount: 49.95 },
+  contextSchema: PAYMENT_SCHEMA,
+});
+
+// Missing required field: throws ValidationError BEFORE the network call.
+try {
+  await agent.sign({
+    actionType: "payment:initiate",
+    context: { amount: 100 },       // userId missing, currency missing
+    contextSchema: PAYMENT_SCHEMA,
+  });
+} catch (err) {
+  if (err instanceof ValidationError) {
+    console.error(err.message);   // context_schema_error: field 'userId' is required but missing
+    console.error(err.docsUrl);   // https://asqav.com/docs/structured-receipts
+  }
+}
+```
+
+Field descriptor keys:
+- `type` (required) - one of `"string"`, `"number"`, `"boolean"`, `"object"`, `"array"`.
+- `required` (optional, default `false`) - whether the field must be present.
+
+`"number"` rejects `boolean` values; `"array"` rejects plain objects.
+No schema means today's exact behaviour (zero behaviour change).
+
+You can also pass a callable for full JSON Schema (no new mandatory
+dependencies in the core package):
+
+```typescript
+import Ajv from "ajv";
+const ajv = new Ajv();
+const validate = ajv.compile(MY_FULL_SCHEMA);
+
+await agent.sign({
+  actionType: "action",
+  context: { ... },
+  contextSchema: (ctx) => {
+    if (!validate(ctx)) throw new Error(ajv.errorsText(validate.errors));
+  },
+});
+```
+
+See `examples/schema-receipts.ts` for a runnable demo.
+
 ## Requirements
 
 Node 20 or newer. Uses the built-in `fetch`. Zero native dependencies. ML-DSA cryptography runs server-side.
