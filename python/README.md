@@ -344,6 +344,64 @@ except APIError as exc:
 
 `ValueError` is raised before the HTTP roundtrip for the verbatim rule 8 / 9 / 10 / 11 guards listed above. Catch `ValueError` separately so guard violations surface as developer errors, not API errors.
 
+## Structured receipts (optional schema)
+
+Pass a `context_schema` to `Agent.sign()` to validate and normalise the
+`context` dict before it is signed. This keeps every receipt in your audit
+trail in a consistent, queryable shape.
+
+```python
+import asqav
+from asqav import AsqavValidationError
+
+PAYMENT_SCHEMA = {
+    "user_id":  {"type": "string", "required": True},
+    "amount":   {"type": "number", "required": True},
+    "currency": {"type": "string", "required": True},
+}
+
+asqav.init(api_key="sk_...")
+agent = asqav.Agent.create("my-agent")
+
+# Valid context: keys are sorted before signing (consistent hash order).
+sig = agent.sign(
+    "payment:initiate",
+    {"user_id": "u1", "currency": "EUR", "amount": 49.95},
+    context_schema=PAYMENT_SCHEMA,
+)
+
+# Missing required field: raises AsqavValidationError BEFORE the network call.
+try:
+    agent.sign(
+        "payment:initiate",
+        {"amount": 100},          # user_id missing, currency missing
+        context_schema=PAYMENT_SCHEMA,
+    )
+except AsqavValidationError as exc:
+    print(exc)            # context_schema_error: field 'user_id' is required but missing
+    print(exc.docs_url)   # https://asqav.com/docs/structured-receipts
+```
+
+Field descriptor keys:
+- `type` (required) - one of `"string"`, `"number"`, `"boolean"`, `"object"`, `"array"`.
+- `required` (optional, default `False`) - whether the field must be present.
+
+`"number"` rejects `bool` values; `"array"` rejects plain dicts.
+No schema means today's exact behaviour (zero behaviour change).
+
+You can also pass a callable for full JSON Schema validation (no new
+mandatory dependencies needed in the core package):
+
+```python
+def my_validator(ctx: dict) -> None:
+    import jsonschema
+    jsonschema.validate(ctx, MY_FULL_SCHEMA)
+
+agent.sign("action", context, context_schema=my_validator)
+```
+
+See `examples/schema_receipts_example.py` for a runnable demo.
+
 ## Requirements
 
 Python 3.10 or newer. Uses `httpx` for the API client. Zero native dependencies. ML-DSA cryptography runs server-side.
