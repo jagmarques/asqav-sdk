@@ -28,6 +28,7 @@ Get your API key at asqav.com
 """
 
 from ._jcs import canonical_json
+from ._schema import normalize_context, validate_context_schema
 from .async_client import AsyncAgent
 from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
 from .client import (
@@ -323,6 +324,9 @@ __all__ = [
     # Offline / air-gapped verification helpers
     "fetch_jwks",
     "verify_receipt_offline",
+    # Structured receipts (criterion 328)
+    "validate_context_schema",
+    "normalize_context",
 ]
 
 
