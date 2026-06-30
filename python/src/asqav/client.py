@@ -1607,6 +1607,7 @@ class Agent:
         tool_name: str | None = None,
         model_name: str | None = None,
         *,
+        context_schema: "dict[str, Any] | Callable[[dict[str, Any]], None] | None" = None,
         co_signers: list[str] | None = None,
         mandate_id: str | None = None,
         user_intent: dict[str, Any] | None = None,
@@ -1675,6 +1676,30 @@ class Agent:
                 Accepts semantic pattern names like "sql-read" which
                 auto-expand to their glob equivalents.
             context: Additional context for the action.
+            context_schema: Optional schema for the ``context`` dict.
+                When supplied, the context is validated and then key-sorted
+                before signing so audit trails are consistent and queryable.
+                Two forms are accepted:
+
+                Built-in descriptor (dependency-free)::
+
+                    {"user_id": {"type": "string", "required": True},
+                     "score":   {"type": "number"}}
+
+                Field types: string | number | boolean | object | array.
+                ``required`` defaults to False. Raises
+                ``AsqavValidationError`` on mismatch BEFORE the network call.
+
+                Custom callable (bring-your-own validator)::
+
+                    def my_validator(ctx: dict) -> None:
+                        import jsonschema
+                        jsonschema.validate(ctx, MY_FULL_SCHEMA)
+
+                    agent.sign("action", ctx, context_schema=my_validator)
+
+                A callable receives the (merged, hook-dispatched) context
+                and must raise on invalid input. Omit for today's behavior.
             system_prompt_hash: Optional hash of the system prompt for
                 reproducibility tracking.
             model_params: Optional dict of model parameters (temperature,
@@ -1823,6 +1848,18 @@ class Agent:
             context = _hooks_mod._dispatch_before(action_type, dict(context) if context else {})
         except Exception:
             logger.warning("asqav before-hook dispatch failed (fail-open)", exc_info=True)
+
+        # Opt-in schema validation + normalization (criterion 328).
+        # Runs after hook dispatch so the validated form is what gets signed.
+        if context_schema is not None:
+            from ._schema import normalize_context, validate_context_schema
+
+            if callable(context_schema) and not isinstance(context_schema, dict):
+                # User-supplied validator function (e.g. wrapping jsonschema).
+                context_schema(dict(context) if context else {})
+            else:
+                validate_context_schema(context, context_schema)
+            context = normalize_context(context)
 
         # Surface bad arguments client-side; the cloud re-validates.
         if receipt_type is not None and receipt_type not in RECEIPT_TYPE_NAMESPACE:
