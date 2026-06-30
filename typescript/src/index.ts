@@ -21,6 +21,14 @@ import { canonicalizeAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
 import { canonicalJson } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
+import {
+  type ContextSchema,
+  type ContextSchemaField,
+  type ContextSchemaFieldType,
+  ValidationError,
+  normalizeContext,
+  validateContextSchema,
+} from "./schema.js";
 import { userAgentHeaders } from "./userAgent.js";
 
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
@@ -199,6 +207,15 @@ export {
 } from "./algorithms.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
+// Structured receipts (criterion 328): opt-in schema validation helpers.
+export {
+  ValidationError,
+  validateContextSchema,
+  normalizeContext,
+  type ContextSchema,
+  type ContextSchemaField,
+  type ContextSchemaFieldType,
+} from "./schema.js";
 
 // Compliance Receipts wire-shape projection helpers.
 export {
@@ -612,6 +629,11 @@ export interface SignOptions {
    * `modelId` / `modelVersion` requires `attestationSource` so the
    * machine-authorship claim is never read as Asqav-verified. */
   authoredBy?: AuthoredBy;
+
+  /** Optional schema for context (criterion 328). Built-in descriptor map or
+   * custom validator function. Validates + normalises context before signing;
+   * throws ValidationError on mismatch. Omit for today's exact behavior. */
+  contextSchema?: ContextSchema | ((ctx: Record<string, unknown>) => void);
 }
 
 /** Producer-asserted point-in-time snapshot of third-party risk signals.
@@ -1984,8 +2006,21 @@ export class Agent {
 
   async sign(options: SignOptions): Promise<SignatureResponse> {
     const initialContext = surfaceKwargsIntoContext(options);
-    const finalContext = _dispatchBefore(options.actionType, initialContext);
+    const afterHookContext = _dispatchBefore(options.actionType, initialContext);
     const complianceMode = options.complianceMode !== false;
+
+    // Opt-in schema validation + normalization (criterion 328).
+    // Runs after hook dispatch so the validated form is what gets signed.
+    let finalContext = afterHookContext;
+    if (options.contextSchema !== undefined) {
+      const schema = options.contextSchema;
+      if (typeof schema === "function") {
+        schema(finalContext ?? {});
+      } else {
+        validateContextSchema(finalContext, schema);
+      }
+      finalContext = normalizeContext(finalContext) ?? finalContext;
+    }
 
     validateSignOptions(options, complianceMode);
 
