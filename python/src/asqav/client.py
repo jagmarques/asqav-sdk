@@ -2775,6 +2775,52 @@ def init(
         )
 
 
+def govern(
+    api_key: str | None = None,
+    agent_name: str = "default-agent",
+    agent_id: str | None = None,
+    *,
+    algorithm: str = "ml-dsa-65",
+    capabilities: list[str] | None = None,
+    base_url: str | None = None,
+    mode: str = "auto",
+    org_salt: bytes | None = None,
+) -> "Agent":
+    """One-call governance entrypoint: init + Agent.create (or Agent.get).
+
+    Composes init() and Agent.create() so the minimum setup is one call.
+    Pass api_key (or set ASQAV_API_KEY) and an agent name; everything else
+    is optional. Existing agents can be retrieved by passing agent_id.
+
+    Args:
+        api_key: Asqav API key. Defaults to ASQAV_API_KEY env var.
+        agent_name: Human-readable name for the new agent.
+        agent_id: If supplied, retrieves the existing agent instead of creating.
+        algorithm: Signing algorithm. Defaults to "ml-dsa-65" (FIPS 204).
+        capabilities: Capability strings for the new agent.
+        base_url: Override API base URL (for testing).
+        mode: Wire mode - "auto" (default), "hash-only", or "full-payload".
+        org_salt: Optional 32-byte HMAC salt for hash-only mode.
+
+    Returns:
+        A ready-to-use Agent instance.
+
+    Raises:
+        AuthenticationError: If no API key is provided.
+        APIError: If agent creation or retrieval fails.
+
+    Example:
+        import asqav
+
+        agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
+        sig = agent.sign("api:call", {"model": "gpt-4"})
+    """
+    init(api_key=api_key, base_url=base_url, mode=mode, org_salt=org_salt)
+    if agent_id is not None:
+        return Agent.get(agent_id)
+    return Agent.create(agent_name, algorithm=algorithm, capabilities=capabilities)
+
+
 @with_retry()
 def _get(path: str) -> dict[str, Any]:
     """Make a GET request to the API."""
