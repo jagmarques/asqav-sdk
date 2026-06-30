@@ -94,6 +94,7 @@ from .client import (
     get_risk_rule,
     get_session_signatures,
     get_signing_group,
+    govern,
     group_sign,
     health_check,
     init,
@@ -152,6 +153,7 @@ __version__ = "0.6.5"
 __all__ = [
     # Initialization
     "init",
+    "govern",
     "health_check",
     # Fingerprint helpers
     "canonicalize",
