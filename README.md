@@ -94,6 +94,76 @@ Each signed action returns a receipt like:
 
 The agent now has a cryptographic identity, a signed audit trail, and a verifiable action record.
 
+## 10-minute quickstart
+
+The fastest path from zero to a signed action.
+
+### 1. Install
+
+```bash
+# Python
+pip install asqav
+
+# TypeScript / Node.js
+npm install @asqav/sdk
+```
+
+### 2. Get an API key
+
+Sign up at [asqav.com](https://asqav.com) and copy your `sk_...` key.
+
+### 3. Call govern() — one line to init + create
+
+Python:
+
+```python
+import asqav
+
+# govern() calls init() + Agent.create() for you
+agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
+```
+
+TypeScript:
+
+```ts
+import { govern } from "@asqav/sdk";
+
+// govern() calls init() + Agent.create() for you
+const agent = await govern({ apiKey: "sk_...", agentName: "my-agent" });
+```
+
+### 4. Sign an action
+
+Python:
+
+```python
+sig = agent.sign("api:call", {"model": "gpt-4", "tokens": 512})
+print(sig.signature_id, sig.verification_url)
+```
+
+TypeScript:
+
+```ts
+const sig = await agent.sign({
+  actionType: "api:call",
+  context: { model: "gpt-4", tokens: 512 },
+});
+console.log(sig.signatureId, sig.verificationUrl);
+```
+
+### 5. Verify
+
+Paste the `verification_url` in a browser, or call the API directly:
+
+```bash
+curl https://api.asqav.com/api/v1/verify/<signature_id>
+```
+
+That's it. See `python/examples/quickstart.py` and `typescript/examples/quickstart.ts` for
+runnable versions.
+
+---
+
 ## Data handling modes
 
 The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment, and selects the safer default for each:
