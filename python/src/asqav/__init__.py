@@ -89,6 +89,7 @@ from .client import (
     get_action_status,
     get_agent,
     get_current_span,
+    govern,
     get_delegation,
     get_keypair,
     get_risk_rule,
@@ -152,6 +153,7 @@ __version__ = "0.6.5"
 __all__ = [
     # Initialization
     "init",
+    "govern",
     "health_check",
     # Fingerprint helpers
     "canonicalize",

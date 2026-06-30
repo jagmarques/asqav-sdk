@@ -929,6 +929,46 @@ function ensureInitialized(): void {
   }
 }
 
+/** Options for the one-call govern() entrypoint. */
+export interface GovernOptions {
+  /** Asqav API key. Defaults to ASQAV_API_KEY env var. */
+  apiKey?: string;
+  /** Human-readable name for the new agent (default: "default-agent"). */
+  agentName?: string;
+  /** If supplied, retrieves the existing agent instead of creating a new one. */
+  agentId?: string;
+  /** Signing algorithm (default: "ml-dsa-65"). */
+  algorithm?: string;
+  /** Capability strings for the new agent. */
+  capabilities?: string[];
+  /** Override API base URL (for testing). */
+  baseUrl?: string;
+  /** Wire mode - "auto" (default), "hash-only", or "full-payload". */
+  mode?: "auto" | "hash-only" | "full-payload";
+  /** Optional 32-byte HMAC salt for hash-only mode. */
+  orgSalt?: Uint8Array;
+}
+
+/** One-call governance entrypoint: init + Agent.create (or Agent.get).
+ * Pass apiKey (or ASQAV_API_KEY) and agentName; supply agentId to fetch existing.
+ */
+export async function govern(options: GovernOptions = {}): Promise<Agent> {
+  init({
+    apiKey: options.apiKey,
+    baseUrl: options.baseUrl,
+    mode: options.mode,
+    orgSalt: options.orgSalt,
+  });
+  if (options.agentId !== undefined) {
+    return Agent.get(options.agentId);
+  }
+  return Agent.create({
+    name: options.agentName ?? "default-agent",
+    algorithm: options.algorithm,
+    capabilities: options.capabilities,
+  });
+}
+
 // === HTTP request helper with retry ===
 
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
