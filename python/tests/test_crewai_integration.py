@@ -294,6 +294,58 @@ def test_existing_callbacks_preserved():
     assert hook._sign_action.call_count == 2
 
 
+def test_enable_crew_governance_double_enable_idempotent():
+    """Calling enable_crew_governance twice on the same crew signs exactly once per event.
+
+    The check-first guard returns the first hook on the second call, so the
+    crew callbacks are wired only once. hook1 is hook2 (same object), and
+    each event signs exactly once. Remove the check-first guard and this test
+    fails (signs == 2 per event because two hooks are wired).
+    """
+    crew = _DuckCrew()
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        hook1 = enable_crew_governance(crew, agent_name="crew1")
+        hook2 = enable_crew_governance(crew, agent_name="crew2")
+
+    # hook1 and hook2 are the same object now (check-first returns the stored hook)
+    assert hook1 is hook2
+
+    signs: list[str] = []
+    hook1._sign_action = MagicMock(side_effect=lambda *a, **k: signs.append("sign"))
+
+    crew.step_callback("a step")
+    crew.task_callback(MagicMock(spec=[]))
+
+    # Wired once: step + task each sign exactly once
+    assert len(signs) == 2
+
+
+def test_enable_crew_governance_double_enable_same_hook_no_orphan():
+    """Double enable returns the same hook and calls Agent.create exactly once.
+
+    Non-vacuous: without the check-first guard, Agent.create is called twice
+    (one per enable call) and hook1 is not hook2. Remove the existing-check
+    block in enable_crew_governance and this test fails (create_count==2,
+    hook1 is not hook2).
+    """
+    crew = _DuckCrew()
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        hook1 = enable_crew_governance(crew, agent_name="crew1")
+        hook2 = enable_crew_governance(crew, agent_name="crew2")
+        create_count = mock_agent_cls.create.call_count
+
+    assert hook1 is hook2, "second enable must return the first hook, not a new one"
+    assert create_count == 1, f"Agent.create called {create_count} times, expected 1"
+
+
 def test_module_imports_without_crewai():
     """The adapter imports with crewai absent - duck-typed, no hard import."""
     saved = sys.modules.pop("crewai", None)
