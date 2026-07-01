@@ -411,6 +411,49 @@ await agent.sign({
 
 See `examples/schema-receipts.ts` for a runnable demo.
 
+## Pluggable detectors (bring-your-own DLP/policy)
+
+asqav owns the enforce + signed-proof spine; detection is pluggable. Register a
+detector and it runs inside every `agent.sign()`, after the context is normalised
+and before the network call. Its verdict is recorded in the signed receipt (under
+`_detectors`), so the audit trail proves which detector saw the action and why. A
+deny throws `DetectorBlockedError` and no signature is created.
+
+```typescript
+import { Agent, DetectorBlockedError, init, registerDetector } from "@asqav/sdk";
+
+const ssnDetector = {
+  name: "ssn-regex",
+  inspect(_actionType: string, context: Record<string, unknown>) {
+    if (/\b\d{3}-\d{2}-\d{4}\b/.test(JSON.stringify(context))) {
+      return { allow: false, confidence: 1, labels: ["US_SSN"], detector: "", reason: "SSN" };
+    }
+    return { allow: true, confidence: 1, labels: [], detector: "", reason: "" };
+  },
+};
+
+init({ apiKey: "sk_..." });
+const agent = await Agent.create({ name: "my-agent" });
+registerDetector(ssnDetector);            // failOpen defaults to false
+
+try {
+  await agent.sign({ actionType: "email:send", context: { body: "ssn 123-45-6789" } });
+} catch (err) {
+  if (err instanceof DetectorBlockedError) console.error(err.detectorName, err.result.labels);
+}
+```
+
+- **Fail-closed by default**: if `inspect()` throws, sign blocks. Opt out per
+  detector with `registerDetector(d, { failOpen: true })`.
+- **Additive**: with no detector registered, the signed body is byte-identical
+  to today (zero behaviour change).
+- **Reference detectors** ship in `@asqav/sdk/extras`: `PresidioDetector` (PII,
+  via the Presidio REST analyzer) and `OpaDetector` (Open Policy Agent
+  policy-as-code). Any classifier or policy engine can feed the signed preflight
+  decision this way.
+
+See `examples/detector-plugin.ts` for a runnable demo.
+
 ## Requirements
 
 Node 20 or newer. Uses the built-in `fetch`. Zero native dependencies. ML-DSA cryptography runs server-side.
