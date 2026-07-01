@@ -8,7 +8,7 @@
  */
 
 export { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
-export { AsqavCallbackHandler } from "./langchain.js";
+export { AsqavCallbackHandler, enableLangchainGovernance } from "./langchain.js";
 export type { AsqavCallbackHandlerOptions } from "./langchain.js";
 export { AsqavMcpAdapter, enableMcpGovernance } from "./mcp.js";
 export type { AsqavMcpAdapterOptions, McpServerLike } from "./mcp.js";
