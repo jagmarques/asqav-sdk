@@ -196,4 +196,12 @@ export class AsqavNativeAdapter extends FormatAdapter {
     const [res, note] = checkKeyStatus(status, issuedAt, revokedAt);
     return [["key_status", res, note]];
   }
+
+  // Surface the v:2 in-body signer. null for v:1 and hash-mode. Read only from
+  // the signed payload, so a signer appended as loose metadata is never surfaced.
+  attestation(doc: Record<string, unknown>): Record<string, unknown> {
+    if (isHashMode(doc)) return {};
+    const signer = payloadOf(doc).signer;
+    return signer !== undefined && signer !== null ? { signer } : {};
+  }
 }

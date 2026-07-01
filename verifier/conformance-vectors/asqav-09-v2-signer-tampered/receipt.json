@@ -1,0 +1,32 @@
+{
+  "payload": {
+    "type": "protectmcp:decision",
+    "v": 2,
+    "issued_at": "2026-05-04T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_demo_001",
+    "action_id": "act_v2_demo_0001",
+    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "payload_digest": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "allow",
+    "tool_name": "demo.action",
+    "mode": "hash",
+    "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "hash_algo": "sha256",
+    "org_id": "org_demo_canary",
+    "server_timestamp": "2026-05-04T12:00:00+00:00",
+    "signer": "https://attacker.example.com",
+    "_asqav_tid": "4d9a220e3f0b7c35c932d1e85bd4e081fb702c0a47caa046fb18b88bc9246a7f"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "asqav-oracle-v2-key",
+    "sig": "csRi1sPm4SBl1ggcyzoCLZep0SYOwF02RJOuIzyiAxfyNeZDatvphygPQHW+ZeMdfqhlrhNjf60gQNYx4wxzBw=="
+  },
+  "anchors": []
+}

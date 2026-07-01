@@ -103,3 +103,11 @@ class FormatAdapter(ABC):
         verdict rather than passing on the issuer signature alone.
         """
         return []
+
+    def attestation(self, doc: dict) -> dict[str, Any]:
+        """In-body attestation fields surfaced in the verdict (e.g. ``signer``).
+
+        Not a check. A format carrying an in-signed-body origin attestation
+        returns it here so the verdict exposes it. Default is none.
+        """
+        return {}
