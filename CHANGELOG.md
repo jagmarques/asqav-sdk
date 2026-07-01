@@ -3,6 +3,17 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [Unreleased] - License change
+
+### Changed
+
+- Relicensed asqav-sdk from MIT to Elastic License 2.0 (ELv2) for versions
+  released after 0.7.0. ELv2 permits free use and modification but restricts
+  offering the SDK as a hosted or managed service to third parties.
+  Version 0.7.0 and all earlier published releases remain MIT-licensed
+  irrevocably. The conformance test vectors in `conformance/` remain
+  Apache-2.0 licensed.
+
 ## [0.7.0] - 2026-07-01
 
 ### Added

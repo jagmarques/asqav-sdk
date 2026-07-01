@@ -10,7 +10,7 @@
   <a href="https://pypi.org/project/asqav/"><img src="https://img.shields.io/pypi/v/asqav?style=flat-square&logo=pypi&logoColor=white&label=pypi" alt="PyPI version"></a>
   <a href="https://www.npmjs.com/package/@asqav/sdk"><img src="https://img.shields.io/npm/v/%40asqav%2Fsdk?style=flat-square&logo=npm&logoColor=white&label=npm" alt="npm version"></a>
   <a href="https://github.com/jagmarques/asqav-sdk/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jagmarques/asqav-sdk/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Elastic%202.0-blue.svg?style=flat-square" alt="License: Elastic 2.0"></a>
   <a href="https://github.com/jagmarques/asqav-sdk"><img src="https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social" alt="GitHub stars"></a>
 </p>
 <p align="center">
@@ -375,7 +375,13 @@ Machine-readable service descriptor at [`https://asqav.com/.well-known/governanc
 
 ## License
 
-MIT - see [LICENSE](LICENSE) for details.
+Starting with versions released after 0.7.0, the asqav SDK is licensed under the
+[Elastic License 2.0](LICENSE) (ELv2). ELv2 allows free use, modification, and
+distribution but restricts offering the SDK as a hosted or managed service.
+
+Version 0.7.0 and all earlier published releases remain under the MIT license
+irrevocably. The conformance test vectors in `conformance/` are Apache-2.0
+licensed; see [conformance/LICENSE](conformance/LICENSE) for details.
 
 ---
 
