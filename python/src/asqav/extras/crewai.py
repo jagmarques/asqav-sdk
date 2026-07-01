@@ -252,7 +252,16 @@ def enable_crew_governance(
     manual per-crew callback config. Any callbacks the crew already has are kept
     and run first (additive). ``crew`` is duck-typed, so no crewai import is
     needed. Signing stays fail-open and the returned hook holds the signatures.
+
+    Idempotent: the first call stores the hook on the crew as
+    ``_asqav_crew_hook``; a later call returns that same hook and does not wire
+    a second callback layer or create another agent.
     """
+    # Check before construct: avoid creating an orphan agent on a second call.
+    existing = getattr(crew, "_asqav_crew_hook", None)
+    if existing is not None:
+        return existing
+
     hook = AsqavCrewHook(
         api_key=api_key,
         agent_name=agent_name,
@@ -261,4 +270,5 @@ def enable_crew_governance(
     )
     crew.step_callback = _compose(getattr(crew, "step_callback", None), hook.step_callback)
     crew.task_callback = _compose(getattr(crew, "task_callback", None), hook.task_callback)
+    crew._asqav_crew_hook = hook  # type: ignore[attr-defined]
     return hook
