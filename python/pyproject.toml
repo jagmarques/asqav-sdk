@@ -84,6 +84,9 @@ dspy = []
 letta = ["letta-client>=1.10.0"]
 strands = ["strands-agents>=0.1.0"]
 instructor = ["instructor>=1.5.0"]
+# Pluggable detector extras (criterion 331): optional, lazy-imported.
+presidio = ["presidio-analyzer>=2.2.0"]
+opa = []
 all = [
     "httpx>=0.24.0",
     "typer>=0.12.0",

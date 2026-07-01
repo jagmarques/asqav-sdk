@@ -402,6 +402,46 @@ agent.sign("action", context, context_schema=my_validator)
 
 See `examples/schema_receipts_example.py` for a runnable demo.
 
+## Pluggable detectors (bring-your-own DLP/policy)
+
+asqav owns the enforce + signed-proof spine; detection is pluggable. Register a
+detector and it runs inside every `Agent.sign()`, after the context is normalised
+and before the network call. Its verdict is recorded in the signed receipt (under
+`_detectors`), so the audit trail proves which detector saw the action and why. A
+deny raises `DetectorBlockedError` and no signature is created.
+
+```python
+import asqav
+from asqav import DetectorBlockedError, DetectorResult, register_detector
+
+class SsnDetector:
+    name = "ssn-regex"
+    def inspect(self, action_type: str, context: dict) -> DetectorResult:
+        if "123-45-6789" in str(context):
+            return DetectorResult(allow=False, labels=["US_SSN"], reason="SSN in context")
+        return DetectorResult(allow=True)
+
+asqav.init(api_key="sk_...")
+agent = asqav.Agent.create("my-agent")
+register_detector(SsnDetector())            # fail_open defaults to False
+
+try:
+    agent.sign("email:send", {"body": "ssn 123-45-6789"})
+except DetectorBlockedError as exc:
+    print(exc.detector_name, exc.result.labels)   # ssn-regex ['US_SSN']
+```
+
+- **Fail-closed by default**: if `inspect()` raises, sign blocks. Opt out per
+  detector with `register_detector(d, fail_open=True)`.
+- **Additive**: with no detector registered, the signed body is byte-identical
+  to today (zero behaviour change).
+- **Reference detectors** ship in `asqav.extras` behind optional extras:
+  `PresidioDetector` (PII, `pip install asqav[presidio]`) and `OpaDetector`
+  (Open Policy Agent policy-as-code, no extra deps). Any classifier or policy
+  engine can feed the signed preflight decision this way.
+
+See `examples/detector_plugin_example.py` for a runnable demo.
+
 ## Requirements
 
 Python 3.10 or newer. Uses `httpx` for the API client. Zero native dependencies. ML-DSA cryptography runs server-side.
