@@ -3,6 +3,28 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [0.7.0] - 2026-07-01
+
+### Added
+
+- **One-call `govern()` entrypoint (Python and TypeScript).** Composes
+  `init()` + `Agent.create()` (and hook registration) for the common case, so a
+  new integration is a single call. Strictly additive; `init`/`Agent.create`/
+  `Agent.sign` are unchanged.
+- **Schema-driven structured receipts (opt-in).** Pass `context_schema`
+  (Python) / `contextSchema` (TypeScript) to `Agent.sign()` to validate and
+  normalise the `context` before signing, so audit trails are structured and
+  queryable. Invalid context raises a clear error before any network call. No
+  schema means today's exact behaviour (byte-identical signed body). A callable
+  validator is also accepted for full JSON Schema.
+- **Pluggable detectors (bring-your-own DLP/policy).** `register_detector` /
+  `registerDetector` runs a detector inside `Agent.sign()`; its verdict is
+  recorded into the signed receipt under `_detectors`, and a deny raises
+  `DetectorBlockedError` before signing. Fail-closed on detector error by
+  default (`fail_open` / `failOpen` opts out). Ships two reference detectors
+  behind optional extras: `PresidioDetector` (PII) and `OpaDetector` (Open
+  Policy Agent policy-as-code). No new hard runtime dependency; additive.
+
 ## [0.6.5] - 2026-06-27
 
 ### Fixed
