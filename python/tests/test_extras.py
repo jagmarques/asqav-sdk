@@ -112,12 +112,17 @@ def test_langchain_stub_import_error():
         import asqav.extras.langchain  # noqa: F401
 
 
-@pytest.mark.skipif(_module_installed("crewai"), reason="crewai installed; stub error path is unreachable in this env")
 def test_crewai_stub_import_error():
-    """Importing crewai stub raises ImportError when crewai is not installed."""
+    """asqav.extras.crewai imports cleanly even when crewai is absent.
+
+    The adapter duck-types the crew object (no hard crewai import), so import
+    succeeds regardless of whether crewai is installed. Governance is only
+    applied when enable_crew_governance(crew) is called at runtime.
+    """
     _purge("asqav.extras.crewai", "crewai")
-    with pytest.raises(ImportError, match="pip install asqav"):
-        import asqav.extras.crewai  # noqa: F401
+    import asqav.extras.crewai as _mod  # noqa: F401
+    assert hasattr(_mod, "enable_crew_governance")
+    assert "crewai" not in sys.modules
 
 
 @pytest.mark.skipif(_module_installed("litellm"), reason="litellm installed; stub error path is unreachable in this env")
