@@ -29,6 +29,7 @@ import {
   normalizeContext,
   validateContextSchema,
 } from "./schema.js";
+import { runDetectors } from "./detectors.js";
 import { userAgentHeaders } from "./userAgent.js";
 
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
@@ -216,6 +217,16 @@ export {
   type ContextSchemaField,
   type ContextSchemaFieldType,
 } from "./schema.js";
+
+// Detector plugins (criterion 331): pluggable DLP/policy gate.
+export {
+  DetectorBlockedError,
+  registerDetector,
+  clearDetectors,
+  runDetectors,
+  type DetectorPlugin,
+  type DetectorResult,
+} from "./detectors.js";
 
 // Compliance Receipts wire-shape projection helpers.
 export {
@@ -2020,6 +2031,14 @@ export class Agent {
         validateContextSchema(finalContext, schema);
       }
       finalContext = normalizeContext(finalContext) ?? finalContext;
+    }
+
+    // Pluggable detector gate (criterion 331).
+    // Runs after schema normalize; DetectorBlockedError is thrown on deny.
+    const _detectorRecords = await runDetectors(options.actionType, finalContext);
+    if (_detectorRecords.length > 0) {
+      // Stamp verdicts into context so they travel inside the signed body.
+      finalContext = { ...(finalContext ?? {}), _detectors: _detectorRecords };
     }
 
     validateSignOptions(options, complianceMode);

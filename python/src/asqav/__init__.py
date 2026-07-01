@@ -27,6 +27,13 @@ With Decorators:
 Get your API key at asqav.com
 """
 
+from ._detectors import (
+    DetectorBlockedError,
+    DetectorPlugin,
+    DetectorResult,
+    clear_detectors,
+    register_detector,
+)
 from ._jcs import canonical_json
 from ._schema import normalize_context, validate_context_schema
 from .async_client import AsyncAgent
@@ -329,6 +336,12 @@ __all__ = [
     # Structured receipts (criterion 328)
     "validate_context_schema",
     "normalize_context",
+    # Detector plugins (criterion 331)
+    "DetectorPlugin",
+    "DetectorResult",
+    "DetectorBlockedError",
+    "register_detector",
+    "clear_detectors",
 ]
 
 

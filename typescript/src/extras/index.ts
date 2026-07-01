@@ -18,3 +18,6 @@ export type {
   OpenAIAgentsToolLike,
 } from "./openai-agents.js";
 export { createAsqavExporter, mapSpanNameToActionType } from "./vercel-ai.js";
+// Reference detector extras (criterion 331).
+export { PresidioDetector } from "./presidio.js";
+export { OpaDetector } from "./opa.js";

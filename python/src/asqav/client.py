@@ -1861,6 +1861,17 @@ class Agent:
                 validate_context_schema(context, context_schema)
             context = normalize_context(context)
 
+        # Pluggable detector gate (criterion 331).
+        # Runs after schema normalize so detectors see the final context.
+        # Fail-closed by default; raises DetectorBlockedError when denied.
+        from ._detectors import run_detectors
+
+        _detector_records = run_detectors(action_type, context)
+        if _detector_records:
+            # Stamp verdicts into context so they travel inside the signed body.
+            context = dict(context) if context else {}
+            context["_detectors"] = _detector_records
+
         # Surface bad arguments client-side; the cloud re-validates.
         if receipt_type is not None and receipt_type not in RECEIPT_TYPE_NAMESPACE:
             raise ValueError(
