@@ -442,6 +442,38 @@
       "counterparty_binding_member_missing": "envelope_hash",
       "expected_verify": false,
       "reason": "envelope_hash is REQUIRED on counterparty_binding; absence breaks the cross-agent byte-equality guarantee and MUST cause the acknowledging receipt to be reported non-conformant."
+    },
+    {
+      "name": "receipt_v2_signer_canary",
+      "description": "v:2 Asqav compliance receipt carrying the in-body signer and per-org _asqav_tid canary; byte-pinned to the backend PR #995 signed body.",
+      "input": {
+        "type": "protectmcp:decision",
+        "v": 2,
+        "issued_at": "2026-05-04T12:00:00+00:00",
+        "issuer_id": "Asqav Ltd",
+        "agent_id": "agt_demo_001",
+        "action_id": "act_v2_demo_0001",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "decision": "allow",
+        "tool_name": "demo.action",
+        "mode": "hash",
+        "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "hash_algo": "sha256",
+        "org_id": "org_demo_canary",
+        "server_timestamp": "2026-05-04T12:00:00+00:00",
+        "signer": "https://api.asqav.com",
+        "_asqav_tid": "4d9a220e3f0b7c35c932d1e85bd4e081fb702c0a47caa046fb18b88bc9246a7f"
+      },
+      "canonical": "{\"_asqav_tid\":\"4d9a220e3f0b7c35c932d1e85bd4e081fb702c0a47caa046fb18b88bc9246a7f\",\"action_id\":\"act_v2_demo_0001\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_demo_001\",\"decision\":\"allow\",\"hash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"hash_algo\":\"sha256\",\"issued_at\":\"2026-05-04T12:00:00+00:00\",\"issuer_id\":\"Asqav Ltd\",\"mode\":\"hash\",\"org_id\":\"org_demo_canary\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"server_timestamp\":\"2026-05-04T12:00:00+00:00\",\"signer\":\"https://api.asqav.com\",\"tool_name\":\"demo.action\",\"type\":\"protectmcp:decision\",\"v\":2}",
+      "sha256": "dbb9fa8b319830814d2e6cc5b9c6a33f9c8f45e3223f75096d9c520aa9be55d4",
+      "expected_verify": true,
+      "reason": "signer and _asqav_tid are ordinary keys in the signed payload; JCS sorts them into place and the canonical form plus SHA-256 reproduce byte-for-byte."
     }
   ]
 }

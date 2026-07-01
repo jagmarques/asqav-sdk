@@ -79,4 +79,10 @@ export abstract class FormatAdapter {
   extraAxes(_doc: Record<string, unknown>, _keyProvider: KeyProvider): ExtraAxis[] {
     return [];
   }
+
+  // In-body attestation surfaced in the verdict (e.g. signer). Not a check.
+  // Default none; a format with an in-signed-body attestation returns it.
+  attestation(_doc: Record<string, unknown>): Record<string, unknown> {
+    return {};
+  }
 }

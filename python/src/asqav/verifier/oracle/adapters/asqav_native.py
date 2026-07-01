@@ -180,3 +180,15 @@ class AsqavNativeAdapter(FormatAdapter):
         revoked_at = _vr.resolve_revoked_at(jwks, kid)
         res, note = _vr.check_key_status(status, issued_at, revoked_at)
         return [("key_status", res, note)]
+
+    def attestation(self, doc: dict) -> dict[str, Any]:
+        """Surface the v:2 in-body ``signer``. None for v:1 and hash-mode.
+
+        Read only from the signed payload, so a signer appended as loose
+        metadata outside the canonical body is never surfaced (and would also
+        break the signature).
+        """
+        if _is_hash_mode(doc):
+            return {}
+        signer = _payload(doc).get("signer")
+        return {"signer": signer} if signer is not None else {}
