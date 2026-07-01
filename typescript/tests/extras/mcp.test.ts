@@ -1,0 +1,134 @@
+import { describe, expect, it, vi } from "vitest";
+import type { Agent } from "../../src/index.js";
+import { AsqavMcpAdapter, enableMcpGovernance } from "../../src/extras/mcp.js";
+
+// Fake Asqav agent: hermetic, no init() / network.
+function makeFakeAgent() {
+  const calls: Array<{ actionType: string; context: Record<string, unknown> }> = [];
+  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown> }) => {
+    calls.push({ actionType: opts.actionType, context: opts.context ?? {} });
+    return {
+      signature: "sig",
+      signatureId: "sig_1",
+      actionId: "act_1",
+      timestamp: "2026-01-01T00:00:00Z",
+      verificationUrl: "https://asqav.com/verify/sig_1",
+    };
+  });
+  return { agent: { agentId: "agt_fake", sign } as unknown as Agent, calls, sign };
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+// Fake McpServer that captures registered tool callbacks so a test can invoke them.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyFn = (...a: any[]) => any;
+
+class FakeMcpServer {
+  public tools: Record<string, AnyFn> = {};
+
+  registerTool(name: string, _config: unknown, cb: AnyFn): { name: string } {
+    this.tools[name] = cb;
+    return { name };
+  }
+
+  tool(name: string, ...rest: unknown[]): { name: string } {
+    this.tools[name] = rest[rest.length - 1] as AnyFn;
+    return { name };
+  }
+}
+
+describe("enableMcpGovernance", () => {
+  it("throws when the server exposes neither registerTool nor tool", () => {
+    const { agent } = makeFakeAgent();
+    expect(() => enableMcpGovernance({} as never, { agent })).toThrow(/registerTool or tool/);
+  });
+
+  it("signs tool:call by default on every registered tool call", async () => {
+    const { agent, calls, sign } = makeFakeAgent();
+    const server = new FakeMcpServer();
+    enableMcpGovernance(server, { agent });
+
+    const impl = vi.fn(async () => ({ content: [{ type: "text", text: "9" }] }));
+    server.registerTool("add", { description: "add" }, impl);
+    const out = await server.tools.add({ a: 4, b: 5 });
+    await tick();
+
+    expect(sign).toHaveBeenCalledTimes(1);
+    expect(calls[0].actionType).toBe("tool:call");
+    expect(calls[0].context.tool).toBe("add");
+    expect(calls[0].context.arg_keys).toEqual(["a", "b"]);
+    expect(impl).toHaveBeenCalledOnce();
+    expect(out).toEqual({ content: [{ type: "text", text: "9" }] });
+  });
+
+  it("is non-vacuous: an un-enabled server signs nothing (mutation control)", async () => {
+    const { sign } = makeFakeAgent();
+    const server = new FakeMcpServer();
+    // No enableMcpGovernance call - the wrap is what drives signing.
+    const impl = vi.fn(async () => "ok");
+    server.registerTool("noop", {}, impl);
+    await server.tools.noop({});
+    await tick();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it("wraps the deprecated tool() registrar too", async () => {
+    const { agent, calls } = makeFakeAgent();
+    const server = new FakeMcpServer();
+    enableMcpGovernance(server, { agent });
+
+    server.tool("echo", async (args: { msg: string }) => args.msg);
+    await server.tools.echo({ msg: "hi" });
+    await tick();
+
+    expect(calls[0].actionType).toBe("tool:call");
+    expect(calls[0].context.tool).toBe("echo");
+    expect(calls[0].context.arg_keys).toEqual(["msg"]);
+  });
+
+  it("is fail-open: a signing error never blocks the tool call", async () => {
+    const { agent, sign } = makeFakeAgent();
+    (sign as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("sign down"));
+    const server = new FakeMcpServer();
+    enableMcpGovernance(server, { agent });
+
+    const impl = vi.fn(async () => "done");
+    server.registerTool("run", {}, impl);
+    const out = await server.tools.run({ x: 1 });
+    await tick();
+    expect(out).toBe("done");
+  });
+
+  it("is idempotent: enabling twice signs once per tool call", async () => {
+    const { agent, sign } = makeFakeAgent();
+    const server = new FakeMcpServer();
+    enableMcpGovernance(server, { agent });
+    enableMcpGovernance(server, { agent });
+
+    server.registerTool("t", {}, async () => "r");
+    await server.tools.t({ a: 1 });
+    await tick();
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the tool's return value through the wrap", async () => {
+    const { agent } = makeFakeAgent();
+    const server = new FakeMcpServer();
+    const adapter = enableMcpGovernance(server, { agent });
+    expect(adapter).toBeInstanceOf(FakeMcpServer);
+
+    server.registerTool("mul", {}, async (args: { a: number; b: number }) => args.a * args.b);
+    const out = await server.tools.mul({ a: 6, b: 7 });
+    expect(out).toBe(42);
+  });
+});
+
+describe("AsqavMcpAdapter", () => {
+  it("instrument returns the same server instance", () => {
+    const { agent } = makeFakeAgent();
+    const adapter = new AsqavMcpAdapter({ agent });
+    const server = new FakeMcpServer();
+    expect(adapter.instrument(server)).toBe(server);
+  });
+});
