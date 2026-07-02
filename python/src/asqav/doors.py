@@ -10,8 +10,17 @@ ERC-8004 ``receipt``) or, for the flat OTel attribute map, carried as its JCS st
 under ``asqav.receipt``. Every door has an inverse that returns the exact same receipt.
 
 All functions are pure and offline: no signing, no network, no mutation of the input,
-no wall-clock reads. Timestamps and ids come only from the receipt itself, so the same
-input always yields the same envelope in both the Python and TypeScript SDKs.
+no wall-clock reads. Timestamps and ids come only from the receipt itself.
+
+Cross-SDK parity scope: for inputs inside the JSON-canonicalization-safe domain the
+Python and TypeScript SDKs emit byte-identical envelope bytes for the same receipt. That
+domain is object keys within the Basic Multilingual Plane (code points up to U+FFFF) and
+integers whose magnitude stays within the IEEE-754 safe range (up to 2**53). Outside it
+the shared JCS core diverges: keys with astral-plane characters (above U+FFFF) sort by
+Python code point vs TypeScript UTF-16 code unit, and integers above 2**53 round in the
+TypeScript number path, so the two SDKs yield different bytes. This is a known limitation
+of the JSON Canonicalization Scheme core, tracked for a versioned migration and not a
+doors bug. The doors parity tests pin both the safe-domain agreement and the divergence.
 
 This is presentation only. A door does NOT re-sign; the authoritative Asqav signature
 stays inside the embedded receipt. A generic VC / C2PA verifier reads the shape but must

@@ -23,7 +23,8 @@ export const OTEL_SIGNATURE_ATTR = "asqav.signature";
 
 export const ERC8004_ZERO_ADDRESS = "0x" + "00".repeat(20);
 
-/** JCS canonical string of the receipt; the same bytes both SDKs hash. */
+/** JCS canonical string. Byte-identical across SDKs for JCS-safe inputs (BMP keys,
+ * ints up to 2**53). Astral keys and bigger ints diverge, see doors.py for the limit. */
 function canonicalString(receipt: Receipt): string {
   return new TextDecoder().decode(canonicalJson(receipt));
 }

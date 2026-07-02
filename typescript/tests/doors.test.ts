@@ -145,4 +145,33 @@ describe("cross-language parity", () => {
       expect(jcs(doors.wrapAll(receipt))).toBe(golden);
     }
   });
+
+  // Non-vacuous parity: BMP non-ASCII keys and a safe-range integer. Matching the
+  // same shared golden the Python test asserts proves both SDKs agree on this domain.
+  it("safe-domain input matches the shared golden both SDKs check", () => {
+    const fixture = JSON.parse(readFileSync(resolve(PARITY, "parity-safe-input.json"), "utf-8"));
+    const golden = readFileSync(resolve(PARITY, "parity-safe.jcs"), "utf-8");
+    expect(jcs(fixture)).toBe(golden);
+    expect(fixture.big).toBe(9007199254740991);
+    expect(Object.keys(fixture).some((k) => [...k].some((c) => c.charCodeAt(0) > 0x7f))).toBe(true);
+  });
+
+  // Documented limit: astral-plane keys and integers above 2**53 make the two SDK
+  // canonicalizers emit different bytes. Pin TS bytes and assert they differ from Python.
+  it("records the known divergence outside the safe domain", () => {
+    const fixture = JSON.parse(readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8"));
+    const tsBytes = jcs(fixture);
+    const tsGolden = readFileSync(resolve(PARITY, "divergence-typescript.jcs"), "utf-8");
+    const pyGolden = readFileSync(resolve(PARITY, "divergence-python.jcs"), "utf-8");
+
+    expect(tsBytes).toBe(tsGolden); // TS output pinned
+    expect(tsGolden).not.toBe(pyGolden); // the two SDKs diverge here
+
+    // integer above 2**53 rounds in the TS number path, stays exact in Python
+    expect(tsGolden).toContain("9007199254740992");
+    expect(pyGolden).toContain("9007199254740993");
+    // astral key (U+10000) sorts before U+FFFF in TS, after it in Python
+    expect(tsGolden.indexOf("\u{10000}")).toBeLessThan(tsGolden.indexOf("￿"));
+    expect(pyGolden.indexOf("\u{10000}")).toBeGreaterThan(pyGolden.indexOf("￿"));
+  });
 });

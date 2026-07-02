@@ -3,7 +3,9 @@
 Pins three properties per door:
   1. each wrapper yields a valid schema-shaped envelope containing the exact receipt,
   2. the round-trip inverse extracts the identical inner receipt,
-  3. Python and TypeScript emit the same JCS structure for the same input (parity golden).
+  3. Python and TypeScript emit the same JCS bytes for the same input across the
+     JSON-canonicalization-safe domain (BMP keys, integers up to 2**53), with the
+     known astral-plane / big-integer divergence pinned as a documented limit.
 """
 from __future__ import annotations
 
@@ -153,3 +155,47 @@ def test_parity_golden_matches_python_output() -> None:
     for name, receipt in (("compliance", COMPLIANCE), ("hashmode", HASHMODE)):
         golden = (_PARITY / f"golden-{name}.jcs").read_bytes()
         assert doors.canonical_json(doors.wrap_all(receipt)) == golden
+
+
+# --- honest parity boundary of the shared JCS canonicalizer doors serialize with ---
+
+
+def test_parity_safe_domain_matches_shared_golden() -> None:
+    """Non-vacuous parity across the JSON-canonicalization-safe domain.
+
+    Input carries non-ASCII BMP object keys and an integer at the safe-range
+    boundary. Both SDK suites assert their canonical bytes equal this same shared
+    golden, so matching it proves Python and TS agree on the safe domain, unlike
+    the ASCII-only receipt goldens which only exercised the trivial case.
+    """
+    fixture = json.loads((_PARITY / "parity-safe-input.json").read_text(encoding="utf-8"))
+    golden = (_PARITY / "parity-safe.jcs").read_bytes()
+    assert doors.canonical_json(fixture) == golden
+    assert any(ord(c) > 0x7F for key in fixture for c in key)  # non-ASCII BMP keys
+    assert fixture["big"] == 9007199254740991  # integer inside the safe range
+
+
+def test_known_canonicalization_divergence_outside_safe_domain() -> None:
+    """Guard the known pre-existing JCS-core limitation as a documented fact.
+
+    Astral-plane object keys and integers above 2**53 make the Python and TS
+    canonicalizers emit different bytes. This pins Python's bytes and asserts they
+    differ from the committed TS bytes, so the boundary is visible and regression
+    guarded rather than silently claimed equal. It needs a versioned migration to
+    close, out of scope for the doors layer.
+    """
+    fixture = json.loads((_PARITY / "divergence-input.json").read_text(encoding="utf-8"))
+    py_bytes = doors.canonical_json(fixture)
+    py_golden = (_PARITY / "divergence-python.jcs").read_bytes()
+    ts_golden = (_PARITY / "divergence-typescript.jcs").read_bytes()
+
+    assert py_bytes == py_golden  # Python output pinned
+    assert py_golden != ts_golden  # the two SDKs diverge here
+
+    # cause 1: integer above 2**53 stays exact in Python, rounds in the TS number path
+    assert b"9007199254740993" in py_golden
+    assert b"9007199254740992" in ts_golden
+    # cause 2: astral key (U+10000) sorts after U+FFFF in Python, before it in TS
+    astral, bmp_max = "\U00010000".encode("utf-8"), "￿".encode("utf-8")
+    assert py_golden.index(astral) > py_golden.index(bmp_max)
+    assert ts_golden.index(astral) < ts_golden.index(bmp_max)
