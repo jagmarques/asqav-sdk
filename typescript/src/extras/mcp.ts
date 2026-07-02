@@ -24,7 +24,7 @@
  * so the peer stays optional and importing without calling changes nothing.
  */
 
-import { AsqavAdapter, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, defaultOnError, type AsqavAdapterOptions } from "./_base.js";
 
 // Boundary type for the duck-typed server. ``any`` rest params let a
 // concretely-typed McpServer.registerTool/tool satisfy this shape.
@@ -170,18 +170,30 @@ export class AsqavMcpAdapter extends AsqavAdapter {
 
   /** Sign tool:error when a wrapped tool throws (fail-open). */
   emitToolError(name: string, err: unknown): void {
-    const errorType = err instanceof Error
-      ? err.constructor.name
-      : typeof err;
-    const message = err instanceof Error ? err.message : String(err);
-    this.signAction({
-      actionType: "tool:error",
-      context: {
-        tool: name,
-        error_type: errorType,
-        error: message.slice(0, MAX_ERROR_LEN),
-      },
-    });
+    // String(err) can itself throw (e.g. Object.create(null)). Keep the
+    // stringification inside the fail-open boundary so it can never mask
+    // the tool's own error.
+    try {
+      const errorType = err instanceof Error
+        ? err.constructor.name
+        : typeof err;
+      const message = err instanceof Error ? err.message : String(err);
+      this.signAction({
+        actionType: "tool:error",
+        context: {
+          tool: name,
+          error_type: errorType,
+          error: message.slice(0, MAX_ERROR_LEN),
+        },
+      });
+    } catch (emitErr) {
+      const onError = this.options.onError ?? defaultOnError;
+      try {
+        onError(emitErr, { actionType: "tool:error" });
+      } catch {
+        // Swallow secondary errors from the user-supplied handler.
+      }
+    }
   }
 }
 
