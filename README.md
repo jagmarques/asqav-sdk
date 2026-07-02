@@ -57,7 +57,7 @@ import asqav
 agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
 sig = agent.sign("api:call", {"model": "gpt-4"})
 
-print(sig.signature_id, sig.verify_url)
+print(sig.signature_id, sig.verification_url)
 ```
 
 TypeScript:
@@ -84,7 +84,7 @@ Each signed action returns a receipt like:
   "algorithm": "ML-DSA-65",
   "timestamp": "2026-04-27T18:30:00Z",
   "chain_hash": "b94d27b9934d3e08...",
-  "verify_url": "https://asqav.com/verify/sig_a1b2c3"
+  "verification_url": "https://asqav.com/verify/sig_a1b2c3"
 }
 ```
 
@@ -281,7 +281,7 @@ console.assert(result.verified);
 console.log(result.agentId, result.chainHash);
 ```
 
-Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+Or open the receipt's `verification_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
 ## Counterparty acknowledgment
 
