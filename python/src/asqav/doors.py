@@ -239,8 +239,12 @@ def to_erc8004_validation_request(
 ) -> dict:
     """Wrap the receipt as an ERC-8004 ``validationRequest`` call shape.
 
-    ``requestHash`` is a bytes32 sha256 over the canonical receipt bytes. The full receipt
-    rides under ``receipt`` so the inner object stays byte-identical to the other doors.
+    ``receiptCommitment`` is a bytes32 asqav commitment: sha256 over the canonical receipt
+    bytes. It is NOT the native ERC-8004 ``requestHash``, which the ERC-8004 ecosystem
+    recomputes with keccak256. A keccak256 variant that fills the on-chain ``requestHash``
+    slot is the interop follow-up (keccak256 is not in the Python stdlib, so it would add a
+    runtime dependency the base SDK install does not carry). The full receipt rides under
+    ``receipt`` so the inner object stays byte-identical to the other doors.
     """
     _require_dict(receipt)
     resolved_agent = agent_id if agent_id is not None else _agent_id(receipt)
@@ -251,9 +255,9 @@ def to_erc8004_validation_request(
             "validator": validator if validator is not None else ERC8004_ZERO_ADDRESS,
             "agentId": resolved_agent,
             "requestURI": _verify_urn(receipt),
-            "requestHash": "0x" + digest_hex,
+            "receiptCommitment": "0x" + digest_hex,
         },
-        "hashAlgorithm": "sha256",
+        "hashAlgorithm": "asqav-commitment-sha256",
         "receipt": receipt,
     }
 

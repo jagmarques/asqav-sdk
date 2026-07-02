@@ -116,7 +116,8 @@ describe("ERC-8004 door", () => {
     const args = req.args as doors.Receipt;
     expect(args.validator).toBe("0xabc");
     expect(args.agentId).toBe((COMPLIANCE.payload as doors.Receipt).agent_id);
-    expect((args.requestHash as string).length).toBe(66);
+    expect((args.receiptCommitment as string).length).toBe(66);
+    expect(req.hashAlgorithm).toBe("asqav-commitment-sha256");
     expect(doors.receiptFromErc8004ValidationRequest(req)).toEqual(COMPLIANCE);
   });
 });

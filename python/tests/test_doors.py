@@ -121,8 +121,9 @@ def test_erc8004_validation_request_and_roundtrip() -> None:
     assert req["function"] == "validationRequest"
     assert req["args"]["validator"] == "0xabc"
     assert req["args"]["agentId"] == COMPLIANCE["payload"]["agent_id"]
-    assert req["args"]["requestHash"].startswith("0x")
-    assert len(req["args"]["requestHash"]) == 66  # 0x + 32-byte sha256
+    assert req["args"]["receiptCommitment"].startswith("0x")
+    assert len(req["args"]["receiptCommitment"]) == 66  # 0x + 32-byte sha256
+    assert req["hashAlgorithm"] == "asqav-commitment-sha256"
     assert doors.receipt_from_erc8004_validation_request(req) == COMPLIANCE
 
 

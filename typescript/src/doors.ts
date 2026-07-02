@@ -169,7 +169,9 @@ export function toC2paAssertion(receipt: Receipt): Receipt {
   };
 }
 
-/** Wrap the receipt as an ERC-8004 `validationRequest` call shape. */
+/**
+ * asqav sha256 `receiptCommitment`, not the ERC-8004 keccak256 `requestHash`. See doors.py.
+ */
 export function toErc8004ValidationRequest(
   receipt: Receipt,
   opts: { validator?: string; agentId?: string } = {},
@@ -182,9 +184,9 @@ export function toErc8004ValidationRequest(
       validator: opts.validator !== undefined ? opts.validator : ERC8004_ZERO_ADDRESS,
       agentId: resolvedAgent ?? null,
       requestURI: verifyUrn(receipt),
-      requestHash: "0x" + sha256Hex(receipt),
+      receiptCommitment: "0x" + sha256Hex(receipt),
     },
-    hashAlgorithm: "sha256",
+    hashAlgorithm: "asqav-commitment-sha256",
     receipt,
   };
 }
