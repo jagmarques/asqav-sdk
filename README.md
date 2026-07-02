@@ -54,9 +54,7 @@ Python:
 ```python
 import asqav
 
-asqav.init(api_key="sk_...")
-
-agent = asqav.Agent.create("my-agent")
+agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
 sig = agent.sign("api:call", {"model": "gpt-4"})
 
 print(sig.signature_id, sig.verify_url)
@@ -65,11 +63,9 @@ print(sig.signature_id, sig.verify_url)
 TypeScript:
 
 ```ts
-import { init, Agent } from "@asqav/sdk";
+import { govern } from "@asqav/sdk";
 
-init({ apiKey: "sk_..." });
-
-const agent = await Agent.create({ name: "my-agent" });
+const agent = await govern({ apiKey: "sk_...", agentName: "my-agent" });
 const sig = await agent.sign({
   actionType: "api:call",
   context: { model: "gpt-4" },

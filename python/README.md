@@ -17,8 +17,8 @@ Get an API key at [asqav.com](https://asqav.com), then sign your first agent act
 ```python
 import asqav
 
-asqav.init(api_key="sk_...")
-agent = asqav.Agent.create("my-agent")
+# govern() is a one-call setup: init() + Agent.create() in one line
+agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
 
 sig = agent.sign("api:openai:chat", {"model": "gpt-4o"})
 
@@ -28,7 +28,9 @@ print(sig.previous_receipt_hash)  # 64 hex; "0"*64 on the first record per agent
 print(sig.verification_url)
 ```
 
-That's it. One install, one init, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+That's it. One install, one govern call, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+
+Prefer the lower-level building blocks? `asqav.init(api_key=...)` followed by `asqav.Agent.create("my-agent")` still works and gives more control over `algorithm`, `capabilities`, and other agent options.
 
 ### No account? Offline path
 
