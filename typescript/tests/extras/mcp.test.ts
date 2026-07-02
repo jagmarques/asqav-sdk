@@ -130,6 +130,23 @@ describe("enableMcpGovernance", () => {
     expect((calls[1].context.error as string).length).toBe(200);
   });
 
+  it("stays fail-open when a tool throws a non-stringifiable value", async () => {
+    const { agent } = makeFakeAgent();
+    const server = new FakeMcpServer();
+    enableMcpGovernance(server, { agent });
+
+    // Object.create(null) has no toString/Symbol.toPrimitive: String(err)
+    // throws TypeError. The adapter must not let that mask the tool's own
+    // thrown value.
+    const bare = Object.create(null);
+    server.registerTool("bare-boom", {}, () => {
+      throw bare;
+    });
+
+    await expect(server.callTool("bare-boom", {})).rejects.toBe(bare);
+    await tick();
+  });
+
   it("is non-vacuous: an un-enabled server signs nothing (mutation control)", async () => {
     const { sign } = makeFakeAgent();
     const server = new FakeMcpServer();
