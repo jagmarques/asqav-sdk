@@ -463,6 +463,16 @@ What ships on Asqav today. Each item is available on `main`:
 
 See <https://asqav.com/docs> for the live feature set.
 
+## Verified by Asqav
+
+Paste any `record_id` into [asqav.com/badge.html](https://www.asqav.com/badge.html) to get a badge snippet for your README or product page. It links to the public verifier at `https://www.asqav.com/verify/<record_id>` so your users can independently check the signature without an API key.
+
+The badge image is hosted at https://www.asqav.com/badge.svg and renders on GitHub, PyPI, and npm. The Markdown form looks like:
+
+```
+[![Verified by Asqav](https://www.asqav.com/badge.svg)](https://www.asqav.com/verify/<record_id>)
+```
+
 ## Documentation
 
 - Repository: <https://github.com/jagmarques/asqav-sdk>
