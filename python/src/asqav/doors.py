@@ -314,7 +314,9 @@ def extract_receipt(envelope: dict) -> dict:
         raise TypeError("envelope must be a dict")
     if "credentialSubject" in envelope:
         return receipt_from_vc(envelope)
-    if envelope.get("type") == CLOUDEVENT_TYPE or ("specversion" in envelope and "data" in envelope):
+    if envelope.get("type") == CLOUDEVENT_TYPE or (
+        "specversion" in envelope and "data" in envelope
+    ):
         return receipt_from_cloudevent(envelope)
     if OTEL_RECEIPT_ATTR in envelope:
         return receipt_from_otel_genai_attributes(envelope)
