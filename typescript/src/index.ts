@@ -185,6 +185,7 @@ export {
   hashAction,
 } from "./canonicalize.js";
 export { canonicalJson } from "./jcs.js";
+export * as doors from "./doors.js";
 export {
   verifyChain,
   deriveChainHash,
