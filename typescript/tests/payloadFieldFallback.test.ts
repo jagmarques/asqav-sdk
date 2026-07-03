@@ -1,8 +1,5 @@
-/**
- * Prod nests actionRef / previousReceiptHash under `payload` rather
- * than at the top level. These cover the payload fallback so the
- * response fields resolve, and check that a top-level value still wins.
- */
+// Prod nests actionRef / previousReceiptHash under `payload`.
+// These cover the payload fallback and top-level precedence.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
