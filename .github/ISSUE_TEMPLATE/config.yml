@@ -6,6 +6,3 @@ contact_links:
   - name: PyPI Package
     url: https://pypi.org/project/asqav/
     about: Install the latest version from PyPI
-  - name: MCP Server
-    url: https://github.com/jagmarques/asqav-mcp
-    about: For MCP-specific issues, use the asqav-mcp repo
