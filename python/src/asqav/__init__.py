@@ -27,6 +27,7 @@ With Decorators:
 Get your API key at asqav.com
 """
 
+from . import doors
 from ._detectors import (
     DetectorBlockedError,
     DetectorPlugin,
@@ -342,6 +343,8 @@ __all__ = [
     "DetectorBlockedError",
     "register_detector",
     "clear_detectors",
+    # Standards-interop doors (one receipt, N native envelopes)
+    "doors",
 ]
 
 
