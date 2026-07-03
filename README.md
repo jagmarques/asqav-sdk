@@ -287,6 +287,26 @@ console.log(result.agentId, result.chainHash);
 
 Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
 
+## Verified by Asqav badge
+
+Drop this badge into a README, doc, or status page to link a signed record to its public verifier. Swap `<record_id>` for a real `signature_id`.
+
+Markdown:
+
+```markdown
+[![Verified by Asqav](https://www.asqav.com/badge.svg)](https://www.asqav.com/verify/<record_id>)
+```
+
+HTML:
+
+```html
+<a href="https://www.asqav.com/verify/<record_id>" rel="noopener" target="_blank">
+  <img src="https://www.asqav.com/badge.svg" alt="Verified by Asqav" height="20" loading="lazy">
+</a>
+```
+
+Anyone who clicks it lands on the public verifier and can check the signature independently.
+
 ## Counterparty acknowledgment
 
 When two agents hand off a workflow, where A signs an action and B acts on it, the SDK lets B emit a `protectmcp:acknowledgment` receipt that cryptographically binds B's bytes to A's. The bundle carries A's full envelope, B's acknowledgment, and a SHA-256 binding the verifier recomputes offline. A tampered intermediary cannot mutate the bytes without breaking the equality, so a regulator can verify the handoff with one digest comparison.
