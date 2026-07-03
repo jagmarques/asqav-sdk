@@ -3,6 +3,24 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [0.8.0] - 2026-07-03
+
+### Added
+
+- **Standards-interop doors (Python and TypeScript).** Additive utilities that
+  take one Asqav receipt and return it wrapped as the envelopes agent builders
+  already consume, with one byte-identical inner receipt inside each. Envelopes:
+  W3C Verifiable Credential 2.0, CloudEvents 1.0, an OpenTelemetry GenAI
+  attribute map, a C2PA third-party assertion, and an ERC-8004 validation
+  request shape. Every door has an inverse, and `extract_receipt` /
+  `extractReceipt` recovers the inner receipt from any envelope. Pure and
+  offline: no signing, no network, no input mutation. Presentation only; the
+  authoritative signature stays inside the embedded receipt.
+- Cross-SDK parity holds on the JSON Canonicalization Scheme safe input domain
+  (object keys in the Basic Multilingual Plane, integers within the IEEE-754
+  safe range), pinned by a shared golden both suites assert against. Outside
+  that domain the two halves can diverge, which the doors docs state plainly.
+
 ## [0.7.0] - 2026-07-01
 
 ### Added
