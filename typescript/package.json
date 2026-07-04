@@ -11,7 +11,7 @@
     "ml-dsa",
     "policy-enforcement"
   ],
-  "license": "MIT",
+  "license": "LicenseRef-Elastic-License-2.0",
   "author": "Asqav <info@asqav.com>",
   "homepage": "https://asqav.com",
   "repository": {
