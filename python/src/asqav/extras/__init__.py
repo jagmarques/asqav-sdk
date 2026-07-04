@@ -2,6 +2,7 @@
 
 Install specific extras:
     pip install asqav[langchain]
+    pip install asqav[mcp]
     pip install asqav[crewai]
     pip install asqav[litellm]
     pip install asqav[haystack]
