@@ -45,6 +45,53 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
     vi.doUnmock("@langchain/core/callbacks/base");
   });
 
+  it("signs handleChainStart with null serialized (LCEL/RunnableLambda path)", async () => {
+    // Non-vacuous: without the null guard handleChainStart(null) throws on .id
+    // and LangChain drops the receipt fail-open, so removing the guard fails this.
+    const { AsqavCallbackHandler } = await import("../../src/extras/langchain.js");
+    const { agent, calls, sign } = makeFakeAgent();
+    const handler = await AsqavCallbackHandler.create({ agent });
+
+    interface InnerHandler {
+      handleChainStart(s: unknown, inputs: Record<string, unknown>): void;
+    }
+    (handler as unknown as InnerHandler).handleChainStart(null, { text: "hello" });
+
+    await tick();
+    expect(sign).toHaveBeenCalledTimes(1);
+    expect(calls[0].actionType).toBe("chain:start");
+    expect(calls[0].context.chain).toBe("chain");
+    expect(calls[0].context.input_keys).toEqual(["text"]);
+  });
+
+  it("signs handleChainStart with non-dict inputs (bare string) yields input_keys=[]", async () => {
+    // Non-vacuous: without the non-dict guard, Object.keys("hello") returns
+    // ["0","1","2","3","4"] (string index keys). Revert the guard and this
+    // assertion fails (input_keys would be ["0","1","2","3","4"]).
+    const { AsqavCallbackHandler } = await import("../../src/extras/langchain.js");
+    const { agent, calls, sign } = makeFakeAgent();
+    const handler = await AsqavCallbackHandler.create({ agent });
+
+    interface InnerHandler {
+      handleChainStart(s: unknown, inputs: unknown): void;
+    }
+    // null serialized + bare string input (LCEL RunnableLambda path)
+    (handler as unknown as InnerHandler).handleChainStart(null, "hello");
+
+    await tick();
+    expect(sign).toHaveBeenCalledTimes(1);
+    expect(calls[0].context.input_keys).toEqual([]);
+
+    // dict serialized + bare string input
+    const { agent: agent2, calls: calls2, sign: sign2 } = makeFakeAgent();
+    const handler2 = await AsqavCallbackHandler.create({ agent: agent2 });
+    (handler2 as unknown as InnerHandler).handleChainStart({ name: "MyChain" }, "hello");
+
+    await tick();
+    expect(sign2).toHaveBeenCalledTimes(1);
+    expect(calls2[0].context.input_keys).toEqual([]);
+  });
+
   it("signs handleLLMStart, handleLLMEnd, and tool events into the agent", async () => {
     const { AsqavCallbackHandler } = await import("../../src/extras/langchain.js");
     const { agent, calls, sign } = makeFakeAgent();
