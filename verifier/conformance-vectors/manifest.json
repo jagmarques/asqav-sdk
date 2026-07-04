@@ -334,5 +334,19 @@
     "outcome": "FAIL",
     "reason_code": "issuer_signature",
     "notes": "Same receipt with payload.verdict changed from 'allow' to 'block' after signing; JCS preimage diverges, Ed25519 verify fails."
+  },
+  {
+    "dir": "asqav-08-v2-signer-canary",
+    "format": "asqav-native",
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Valid v:2 Asqav receipt; signer and _asqav_tid are ordinary keys inside the signed payload, so JCS sorts them into place and Ed25519 over the canonical body verifies. The neutral verifier surfaces signer and does not require the canary. Parity vector: both PY and TS must PASS and expose signer."
+  },
+  {
+    "dir": "asqav-09-v2-signer-tampered",
+    "format": "asqav-native",
+    "outcome": "FAIL",
+    "reason_code": "issuer_signature",
+    "notes": "The v:2 receipt with signer flipped after signing; because signer sits inside the signed body the canonical bytes diverge and Ed25519 verify FAILs. Parity vector: both PY and TS must FAIL, proving signer is inside the signed coverage, not loose metadata."
   }
 ]

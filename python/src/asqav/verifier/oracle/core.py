@@ -43,6 +43,9 @@ class VerifyResult:
     fmt: str
     axes: list[AxisResult] = field(default_factory=list)
     verdict: str = "INCOMPLETE"
+    #: In-body origin attestation (v:2 ``signer``), surfaced from the signed
+    #: payload. None when the receipt carries none (v:1). Never gates the verdict.
+    signer: str | None = None
 
     def axis(self, name: str) -> AxisResult | None:
         """Return the result for one axis, or None if it was not run."""
@@ -119,7 +122,8 @@ def verify(
         verdict = "INCOMPLETE"
     else:
         verdict = "PASS"
-    return VerifyResult(fmt=ad.name, axes=axes, verdict=verdict)
+    signer = ad.attestation(doc).get("signer")
+    return VerifyResult(fmt=ad.name, axes=axes, verdict=verdict, signer=signer)
 
 
 def sha256_hex(data: bytes) -> str:
