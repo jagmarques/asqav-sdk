@@ -22,7 +22,6 @@ const agent = await govern({ apiKey: process.env.ASQAV_API_KEY, agentName: "my-a
 
 const sig = await agent.sign({ actionType: "api:openai:chat", context: { model: "gpt-4o" } });
 
-console.log(sig.complianceMode);        // true (default; pass complianceMode: false to opt out)
 console.log(sig.actionRef);             // "sha256:..." over the JCS-canonical action
 console.log(sig.previousReceiptHash);   // 64 hex; "0".repeat(64) on the first record per agent
 console.log(sig.verificationUrl);
