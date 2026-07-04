@@ -134,7 +134,8 @@ export class AsqavAdapter {
   }
 }
 
-function defaultOnError(err: unknown, ctx: { actionType: string }): void {
+/** Default onError sink, exported so adapters can reuse it outside signAction. */
+export function defaultOnError(err: unknown, ctx: { actionType: string }): void {
   // eslint-disable-next-line no-console
   console.warn(`[asqav] sign failed for ${ctx.actionType}:`, err);
 }
