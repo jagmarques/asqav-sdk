@@ -25,6 +25,13 @@ _original_modules: dict[str, ModuleType | None] = {}
 _MISSING = object()
 
 
+# Fake registry mirroring langchain_core's private _configure_hooks list.
+# Each entry is (context_var, inheritable, handle_class, env_var), the exact
+# tuple langchain_core.tracers.context.register_configure_hook appends and the
+# _configure loop iterates. Populated by the mocked register_configure_hook.
+_FAKE_CONFIGURE_HOOKS: list = []
+
+
 def _install_langchain_mocks() -> type:
     """Inject fake langchain_core modules and return the BaseCallbackHandler class."""
     # Save originals so we can restore later
@@ -32,6 +39,8 @@ def _install_langchain_mocks() -> type:
         "langchain_core",
         "langchain_core.callbacks",
         "langchain_core.outputs",
+        "langchain_core.tracers",
+        "langchain_core.tracers.context",
     ):
         _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)  # type: ignore[arg-type]
 
@@ -54,19 +63,34 @@ def _install_langchain_mocks() -> type:
             self.generations = generations or []
             self.llm_output = llm_output
 
+    def register_configure_hook(
+        context_var, inheritable, handle_class=None, env_var=None
+    ) -> None:
+        """Mock of langchain_core.tracers.context.register_configure_hook."""
+        _FAKE_CONFIGURE_HOOKS.append(
+            (context_var, inheritable, handle_class, env_var)
+        )
+
     # Wire up the module tree
     langchain_core = ModuleType("langchain_core")
     langchain_core_callbacks = ModuleType("langchain_core.callbacks")
     langchain_core_outputs = ModuleType("langchain_core.outputs")
+    langchain_core_tracers = ModuleType("langchain_core.tracers")
+    langchain_core_tracers_context = ModuleType("langchain_core.tracers.context")
 
     langchain_core_callbacks.BaseCallbackHandler = BaseCallbackHandler  # type: ignore[attr-defined]
     langchain_core_outputs.LLMResult = LLMResult  # type: ignore[attr-defined]
+    langchain_core_tracers_context.register_configure_hook = register_configure_hook  # type: ignore[attr-defined]
     langchain_core.callbacks = langchain_core_callbacks  # type: ignore[attr-defined]
     langchain_core.outputs = langchain_core_outputs  # type: ignore[attr-defined]
+    langchain_core.tracers = langchain_core_tracers  # type: ignore[attr-defined]
+    langchain_core_tracers.context = langchain_core_tracers_context  # type: ignore[attr-defined]
 
     sys.modules["langchain_core"] = langchain_core
     sys.modules["langchain_core.callbacks"] = langchain_core_callbacks
     sys.modules["langchain_core.outputs"] = langchain_core_outputs
+    sys.modules["langchain_core.tracers"] = langchain_core_tracers
+    sys.modules["langchain_core.tracers.context"] = langchain_core_tracers_context
 
     return LLMResult
 
@@ -286,6 +310,95 @@ def test_fail_open_on_sign_error():
     # All 9 calls attempted, none succeeded (all returned None)
     assert mock_agent.sign.call_count == 9
     assert len(h._signatures) == 0
+
+
+# === Default-on entrypoint tests ===
+
+from asqav.extras import langchain as _lc_mod  # noqa: E402
+
+
+def _collect_default_handlers() -> list:
+    """Replicate langchain_core's _configure loop over the configure hooks.
+
+    Reads each registered hook's ContextVar and collects the bound handler,
+    exactly as langchain attaches inheritable handlers to a run without the
+    caller passing config={"callbacks": [...]}.
+    """
+    handlers = []
+    for context_var, _inheritable, _handle_class, _env_var in _FAKE_CONFIGURE_HOOKS:
+        h = context_var.get()
+        if h is not None:
+            handlers.append(h)
+    return handlers
+
+
+@pytest.fixture()
+def clean_hook_state():
+    """Reset the configure-hook registry and the one-time registration flag."""
+    _FAKE_CONFIGURE_HOOKS.clear()
+    _lc_mod._hook_registered = False
+    _lc_mod._ASQAV_LC_HANDLER.set(None)
+    yield
+    _FAKE_CONFIGURE_HOOKS.clear()
+    _lc_mod._hook_registered = False
+    _lc_mod._ASQAV_LC_HANDLER.set(None)
+
+
+def test_enable_registers_configure_hook(clean_hook_state):
+    """One call registers exactly one langchain configure hook."""
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        _lc_mod.enable_langchain_governance(agent_name="default-on")
+
+    assert len(_FAKE_CONFIGURE_HOOKS) == 1
+    context_var, inheritable, _hc, _ev = _FAKE_CONFIGURE_HOOKS[0]
+    assert context_var is _lc_mod._ASQAV_LC_HANDLER
+    assert inheritable is True
+
+
+def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
+    """A run that passes NO callbacks still signs, via the auto-attached handler.
+
+    Non-vacuous: if enable_langchain_governance did not register the hook and
+    bind the ContextVar (the auto-attach), _collect_default_handlers finds no
+    handler, no signing happens, and this assertion fails.
+    """
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        handler = _lc_mod.enable_langchain_governance(agent_name="default-on")
+    handler._sign_action = MagicMock(return_value=None)
+
+    # Simulate LangChain configuring a run with no explicit callbacks.
+    default_handlers = _collect_default_handlers()
+    assert handler in default_handlers, "handler was not auto-attached"
+
+    for h in default_handlers:
+        h.on_tool_start(serialized={"name": "Search"}, input_str="q")
+
+    handler._sign_action.assert_called_once_with(
+        "tool:start",
+        {"tool": "Search", "input": "q"},
+    )
+
+
+def test_enable_hook_registered_once_across_calls(clean_hook_state):
+    """Repeated enable calls register the hook once and rebind the ContextVar."""
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        _lc_mod.enable_langchain_governance(agent_name="first")
+        second = _lc_mod.enable_langchain_governance(agent_name="second")
+
+    assert len(_FAKE_CONFIGURE_HOOKS) == 1
+    assert _lc_mod._ASQAV_LC_HANDLER.get() is second
 
 
 # === Cleanup: restore sys.modules ===

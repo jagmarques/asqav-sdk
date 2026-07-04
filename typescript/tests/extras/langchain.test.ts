@@ -82,3 +82,74 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
     expect(calls[4].context.error).toBe("boom");
   });
 });
+
+describe("enableLangchainGovernance default-on", () => {
+  // Fake @langchain/core/context: mirrors registerConfigureHook + the
+  // context-variable store the real _configure loop reads from.
+  const store = new Map<string, unknown>();
+  const hooks: Array<{ contextVar?: string; inheritable?: boolean }> = [];
+
+  beforeEach(() => {
+    vi.resetModules();
+    store.clear();
+    hooks.length = 0;
+    vi.doMock("@langchain/core/callbacks/base", () => {
+      class BaseCallbackHandler {}
+      return { BaseCallbackHandler };
+    });
+    vi.doMock("@langchain/core/context", () => ({
+      registerConfigureHook: (config: { contextVar?: string; inheritable?: boolean }) => {
+        hooks.push(config);
+      },
+      setContextVariable: (name: string, value: unknown) => {
+        store.set(name, value);
+      },
+      getContextVariable: (name: string) => store.get(name),
+    }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@langchain/core/callbacks/base");
+    vi.doUnmock("@langchain/core/context");
+  });
+
+  // Replicate langchain's _configure loop: collect handlers whose hook
+  // context variable is set, exactly how a run with no explicit callbacks
+  // picks up an inheritable handler.
+  function collectDefaultHandlers(): unknown[] {
+    return hooks
+      .map((h) => (h.contextVar ? store.get(h.contextVar) : undefined))
+      .filter((h) => h !== undefined);
+  }
+
+  it("registers one hook and auto-attaches the handler", async () => {
+    const { enableLangchainGovernance } = await import("../../src/extras/langchain.js");
+    const { agent } = makeFakeAgent();
+    const handler = await enableLangchainGovernance({ agent });
+
+    expect(hooks.length).toBe(1);
+    expect(hooks[0].inheritable).toBe(true);
+    expect(collectDefaultHandlers()).toContain(handler);
+  });
+
+  it("signs a tool run with NO explicit callbacks passed", async () => {
+    const { enableLangchainGovernance } = await import("../../src/extras/langchain.js");
+    const { agent, calls, sign } = makeFakeAgent();
+    await enableLangchainGovernance({ agent });
+
+    // Non-vacuous: without the auto-attach, collectDefaultHandlers is empty,
+    // nothing signs, and these assertions fail.
+    const attached = collectDefaultHandlers();
+    expect(attached.length).toBe(1);
+
+    interface InnerHandler {
+      handleToolStart(s: Record<string, unknown>, input: string): void;
+    }
+    (attached[0] as unknown as InnerHandler).handleToolStart({ name: "weather" }, "lisbon");
+
+    await tick();
+    expect(sign).toHaveBeenCalledTimes(1);
+    expect(calls[0].actionType).toBe("tool:start");
+    expect(calls[0].context.tool).toBe("weather");
+  });
+});
