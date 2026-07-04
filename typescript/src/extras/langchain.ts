@@ -1,24 +1,6 @@
-/**
- * LangChain.js integration for Asqav.
- *
- * Install (peer dependency):
- *   npm install @langchain/core
- *
- * Default-on (one call, no per-invoke callbacks):
- *   import { init } from "@asqav/sdk";
- *   import { enableLangchainGovernance } from "@asqav/sdk/extras/langchain";
- *   init({ apiKey: process.env.ASQAV_API_KEY! });
- *   await enableLangchainGovernance({ agentName: "my-chain" });
- *   await chain.invoke(input); // signs receipts, no { callbacks: [...] }
- *
- * Manual attach (unchanged, still supported):
- *   const handler = await AsqavCallbackHandler.create({ agentName: "my-chain" });
- *   await chain.invoke(input, { callbacks: [handler] });
- *
- * Mirrors the Python ``asqav.extras.langchain.AsqavCallbackHandler``
- * (chain/tool/LLM lifecycle signing) using the LangChain.js
- * ``BaseCallbackHandler`` from ``@langchain/core/callbacks/base``.
- */
+// LangChain.js integration for Asqav. Install: npm install @langchain/core.
+// Default-on: await enableLangchainGovernance({ agentName: "my-chain" }) then chain.invoke.
+// Manual: const h = await AsqavCallbackHandler.create({...}); chain.invoke(i, {callbacks:[h]}).
 
 import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 
@@ -55,13 +37,8 @@ function truncate(s: string, max = MAX_PREVIEW): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
-/**
- * Lazily import ``BaseCallbackHandler`` from ``@langchain/core``.
- *
- * The Python ImportError contract is preserved by re-throwing a clear
- * error when the peer is missing. Callers normally invoke
- * ``AsqavCallbackHandler.create`` which forwards through this.
- */
+// Lazily import BaseCallbackHandler from @langchain/core.
+// Re-throws a clear error when the optional peer is missing.
 async function loadBase(): Promise<BaseCallbackHandlerCtor> {
   try {
     // Dynamic specifier: the peer is optional (package.json peerDependenciesMeta).
@@ -88,22 +65,13 @@ export interface AsqavCallbackHandlerOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-/**
- * LangChain.js callback handler that signs chain, tool, and LLM events
- * via the Asqav governance pipeline. Use
- * ``AsqavCallbackHandler.create()`` since the parent class is loaded
- * asynchronously.
- */
+// Signs chain, tool, and LLM events via the Asqav governance pipeline.
+// Use AsqavCallbackHandler.create() since the peer is loaded asynchronously.
 export class AsqavCallbackHandler extends AsqavAdapter {
   /** Friendly name surfaced to LangChain's tracing UI. */
   public readonly name: string = "asqav-callback-handler";
 
-  /**
-   * Build the handler. The factory is async because LangChain.js's
-   * ``BaseCallbackHandler`` is the constructor we extend at runtime via
-   * a returned subclass (so this class itself stays usable without the
-   * peer installed).
-   */
+  // Async factory: loads BaseCallbackHandler from the optional peer at runtime.
   static async create(
     opts: AsqavCallbackHandlerOptions,
   ): Promise<AsqavCallbackHandler & BaseCallbackHandlerLike> {
@@ -120,13 +88,30 @@ export class AsqavCallbackHandler extends AsqavAdapter {
       }
 
       handleChainStart(
-        serialized: LCSerialized,
+        serialized: LCSerialized | null | undefined,
         inputs: Record<string, unknown>,
       ): void {
+        // Guard: LCEL/RunnableLambda passes non-object inputs (str/arr/num).
+        // Object.keys on a string yields index keys ["0","1",...], so guard first.
+        const input_keys =
+          inputs !== null &&
+          typeof inputs === "object" &&
+          !Array.isArray(inputs)
+            ? Object.keys(inputs)
+            : [];
+        // serialized may be null on the LCEL/RunnableLambda path; fall back
+        // to a stable "chain" label so the receipt is always signed.
+        if (!serialized) {
+          this._asqav._emit("chain:start", {
+            chain: "chain",
+            input_keys,
+          });
+          return;
+        }
         const fallbackName = (serialized.id ?? ["unknown"]).slice(-1)[0];
         this._asqav._emit("chain:start", {
           chain: String(serialized.name ?? fallbackName),
-          input_keys: Object.keys(inputs ?? {}),
+          input_keys,
         });
       }
 
@@ -221,10 +206,7 @@ interface LangchainContextModule {
   setContextVariable: (name: string, value: unknown) => void;
 }
 
-/**
- * Lazily import the global-callback helpers from ``@langchain/core/context``.
- * Same optional-peer contract as ``loadBase``.
- */
+// Lazily import registerConfigureHook/setContextVariable from @langchain/core/context.
 async function loadContext(): Promise<LangchainContextModule> {
   try {
     // @ts-ignore optional peer dependency
@@ -247,20 +229,16 @@ async function loadContext(): Promise<LangchainContextModule> {
 const ASQAV_LC_CONTEXT_VAR = "asqav_langchain_handler";
 let hookRegistered = false;
 
-/**
- * Turn on default-on Asqav governance for LangChain.js in one call.
- *
- * After this every chain, tool, and LLM run in the current async context
- * signs an Asqav receipt with no per-invoke ``{ callbacks: [...] }``. It
- * registers a ``@langchain/core`` configure hook once and binds the handler
- * to a context variable; LangChain's run configuration then attaches it to
- * every run. Signing stays fail-open. Returns the handler.
- */
+// Turn on default-on Asqav governance for LangChain.js. Registers a configure
+// hook once and binds the handler to a context variable so every run signs
+// automatically. Signing stays fail-open. Returns the handler.
 export async function enableLangchainGovernance(
   opts: AsqavCallbackHandlerOptions,
 ): Promise<AsqavCallbackHandler & BaseCallbackHandlerLike> {
   const handler = await AsqavCallbackHandler.create(opts);
   const { registerConfigureHook, setContextVariable } = await loadContext();
+  // Register the hook once so a second call cannot add a duplicate entry to
+  // langchain-core's hook list and double-sign every action.
   if (!hookRegistered) {
     registerConfigureHook({ contextVar: ASQAV_LC_CONTEXT_VAR, inheritable: true });
     hookRegistered = true;
