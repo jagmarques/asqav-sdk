@@ -2,7 +2,13 @@
 
 Install: pip install asqav[langchain]
 
-Usage::
+Default-on (one call, no per-invoke config)::
+
+    from asqav.extras.langchain import enable_langchain_governance
+    enable_langchain_governance(agent_name="my-langchain-agent")
+    chain.invoke(input)  # signs receipts, no config={"callbacks": [...]}
+
+Manual attach (unchanged, still supported)::
 
     from asqav.extras.langchain import AsqavCallbackHandler
     handler = AsqavCallbackHandler(agent_name="my-langchain-agent")
@@ -11,6 +17,7 @@ Usage::
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import Any
 
 try:
@@ -23,6 +30,8 @@ except ImportError as err:
     ) from err
 
 from ._base import AsqavAdapter
+
+__all__ = ["AsqavCallbackHandler", "enable_langchain_governance"]
 
 
 class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[misc]
@@ -44,10 +53,15 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
         api_key: str | None = None,
         agent_name: str | None = None,
         agent_id: str | None = None,
+        observe: bool = False,
         **kwargs: Any,
     ) -> None:
         AsqavAdapter.__init__(
-            self, api_key=api_key, agent_name=agent_name, agent_id=agent_id
+            self,
+            api_key=api_key,
+            agent_name=agent_name,
+            agent_id=agent_id,
+            observe=observe,
         )
         BaseCallbackHandler.__init__(self)
 
@@ -143,3 +157,44 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
             "llm:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},
         )
+
+
+# -- Default-on entrypoint -----------------------------------------------------
+
+# LangChain auto-attaches a handler to every run when its ContextVar is set and
+# the paired configure hook is registered (langchain_core _configure loop).
+_ASQAV_LC_HANDLER: ContextVar[AsqavCallbackHandler | None] = ContextVar(
+    "asqav_langchain_handler", default=None
+)
+_hook_registered = False
+
+
+def enable_langchain_governance(
+    *,
+    api_key: str | None = None,
+    agent_name: str | None = None,
+    agent_id: str | None = None,
+    observe: bool = False,
+) -> AsqavCallbackHandler:
+    """Turn on default-on asqav governance for LangChain in one call.
+
+    After this call every chain, tool, and LLM run in the current context
+    signs an asqav receipt with no per-invoke ``config={"callbacks": [...]}``.
+    It registers a langchain_core configure hook once and binds the handler to
+    a ContextVar; LangChain's run configuration then attaches it to every run.
+    Signing stays fail-open and the returned handler holds the signatures.
+    """
+    global _hook_registered
+    from langchain_core.tracers.context import register_configure_hook
+
+    handler = AsqavCallbackHandler(
+        api_key=api_key,
+        agent_name=agent_name,
+        agent_id=agent_id,
+        observe=observe,
+    )
+    if not _hook_registered:
+        register_configure_hook(_ASQAV_LC_HANDLER, True)
+        _hook_registered = True
+    _ASQAV_LC_HANDLER.set(handler)
+    return handler
