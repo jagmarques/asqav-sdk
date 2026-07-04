@@ -3,6 +3,17 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [Unreleased] - License change
+
+### Changed
+
+- Relicensed asqav-sdk from MIT to Elastic License 2.0 (ELv2) for versions
+  released after 0.8.0. ELv2 permits free use and modification but restricts
+  offering the SDK as a hosted or managed service to third parties.
+  Version 0.8.0 and all versions published before it remain MIT-licensed
+  irrevocably. The conformance test vectors in `conformance/` remain
+  Apache-2.0 licensed.
+
 ## [0.8.0] - 2026-07-03
 
 ### Added
@@ -20,7 +31,6 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   (object keys in the Basic Multilingual Plane, integers within the IEEE-754
   safe range), pinned by a shared golden both suites assert against. Outside
   that domain the two halves can diverge, which the doors docs state plainly.
-
 ## [0.7.0] - 2026-07-01
 
 ### Added
