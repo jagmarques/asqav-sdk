@@ -403,6 +403,63 @@ agent.sign("action", context, context_schema=my_validator)
 
 See `examples/schema_receipts_example.py` for a runnable demo.
 
+## Bind your agent's declared configuration into the receipt
+
+A signed action is more useful when the receipt also proves *which declared
+configuration* the agent was running when it acted. You can bind that today
+with the sign context, no extra API surface:
+
+1. Hash whatever declares the agent: an agent manifest, an `AGENTS.md`, a
+   container image digest, or an SBOM. Any bytes on disk work.
+2. Put the digest in the `context` under your own keys (for example
+   `config_digest` plus `config_kind`).
+3. Optionally pin those keys with a `context_schema` so a receipt that claims a
+   config always carries both fields.
+
+```python
+import hashlib
+from pathlib import Path
+
+import asqav
+
+def config_digest(path: Path) -> str:
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+CONFIG_BINDING_SCHEMA = {
+    "config_digest": {"type": "string", "required": True},
+    "config_kind":   {"type": "string", "required": True},
+}
+
+asqav.init(api_key="sk_...")
+agent = asqav.Agent.create("my-agent")
+
+digest = config_digest(Path("AGENTS.md"))
+
+sig = agent.sign(
+    "payment:refund",
+    {
+        "amount": 49.95,
+        "currency": "EUR",
+        "config_digest": digest,        # sha256:<hex> of your declaration
+        "config_kind": "agents-md",     # name the artifact you hashed
+    },
+    context_schema=CONFIG_BINDING_SCHEMA,
+)
+print(sig.verification_url)             # digest is inside the signed receipt
+```
+
+The digest is part of the signed body, so anyone can fetch the receipt at the
+public verify endpoint and confirm the action ran under that exact declaration.
+The key names and the artifact kind are yours to choose, which keeps the pattern
+generic across any declaration format.
+
+For a couple of common cases there are dedicated wire fields instead of context
+keys (`config_manifest_digest` for a runtime config snapshot, `sbom_digest` for
+an SBOM). The context recipe above is the general form for any other declaration
+you want to bind.
+
+See `examples/bind_config_digest.py` for a runnable demo.
+
 ## Pluggable detectors (bring-your-own DLP/policy)
 
 asqav owns the enforce + signed-proof spine; detection is pluggable. Register a
