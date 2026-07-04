@@ -49,6 +49,18 @@ Install:
 npm install @asqav/sdk @langchain/core @langchain/openai zod
 ```
 
+### bind-config-digest.mjs
+
+Hashes a local agent declaration (`agent-manifest.example.json`) with SHA-256 and
+binds the digest into the signed receipt through the schema-pinned sign context,
+so a verifier can confirm which declared configuration produced the action. Plain
+ESM, no framework deps. Run it with `node`:
+
+```bash
+npm install @asqav/sdk
+ASQAV_API_KEY=sk_... node examples/bind-config-digest.mjs
+```
+
 ## Pattern
 
 Both recipes follow the same rule: call `agent.sign({ actionType, context })`
