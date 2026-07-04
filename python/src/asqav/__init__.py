@@ -27,6 +27,7 @@ With Decorators:
 Get your API key at asqav.com
 """
 
+from . import doors
 from ._detectors import (
     DetectorBlockedError,
     DetectorPlugin,
@@ -157,7 +158,7 @@ from .verifier.oracle import ADAPTERS as _ADAPTERS
 from .verifier.oracle import verify as _oracle_verify
 from .verifier.verify_receipt import fetch_jwks
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 __all__ = [
     # Initialization
     "init",
@@ -342,6 +343,8 @@ __all__ = [
     "DetectorBlockedError",
     "register_detector",
     "clear_detectors",
+    # Standards-interop doors (one receipt, N native envelopes)
+    "doors",
 ]
 
 

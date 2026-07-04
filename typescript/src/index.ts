@@ -185,6 +185,7 @@ export {
   hashAction,
 } from "./canonicalize.js";
 export { canonicalJson } from "./jcs.js";
+export * as doors from "./doors.js";
 export {
   verifyChain,
   deriveChainHash,
@@ -1841,6 +1842,13 @@ interface SignWireResponse {
  * compliance_mode. Accepts either casing on `previous_receipt_hash`.
  */
 function mapSignWireToResponse(data: SignWireResponse): SignatureResponse {
+  // Some clouds nest these under `payload` instead of top level.
+  // Read top level first, then fall back to the payload copy.
+  const payload = data.payload ?? {};
+  const fromPayload = (key: string): string | undefined => {
+    const v = payload[key];
+    return typeof v === "string" ? v : undefined;
+  };
   return {
     signature: data.signature,
     signatureId: data.signature_id,
@@ -1858,8 +1866,12 @@ function mapSignWireToResponse(data: SignWireResponse): SignatureResponse {
     countersignUrl: data.countersign_url,
     userIntentVerified: data.user_intent_verified,
     complianceMode: data.compliance_mode,
-    previousReceiptHash: data.previousReceiptHash ?? data.previous_receipt_hash,
-    actionRef: data.action_ref,
+    previousReceiptHash:
+      data.previousReceiptHash ??
+      data.previous_receipt_hash ??
+      fromPayload("previousReceiptHash") ??
+      fromPayload("previous_receipt_hash"),
+    actionRef: data.action_ref ?? fromPayload("action_ref"),
     policyDigest: data.policy_digest,
     receiptType: data.receipt_type,
     issuerId: data.issuer_id,

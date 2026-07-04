@@ -15,20 +15,21 @@ npm install @asqav/sdk
 Get an API key at [asqav.com](https://asqav.com), then sign your first agent action:
 
 ```ts
-import { init, Agent } from "@asqav/sdk";
+import { govern } from "@asqav/sdk";
 
-init({ apiKey: process.env.ASQAV_API_KEY });
-const agent = await Agent.create({ name: "my-agent" });
+// govern() is a one-call setup: init() + Agent.create() in one line
+const agent = await govern({ apiKey: process.env.ASQAV_API_KEY, agentName: "my-agent" });
 
 const sig = await agent.sign({ actionType: "api:openai:chat", context: { model: "gpt-4o" } });
 
-console.log(sig.complianceMode);        // true (default; pass complianceMode: false to opt out)
 console.log(sig.actionRef);             // "sha256:..." over the JCS-canonical action
 console.log(sig.previousReceiptHash);   // 64 hex; "0".repeat(64) on the first record per agent
 console.log(sig.verificationUrl);
 ```
 
-That's it. One install, one init, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+That's it. One install, one govern call, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+
+Prefer the lower-level building blocks? `init({ apiKey })` followed by `Agent.create({ name })` still works and gives more control over `algorithm`, `capabilities`, and other agent options.
 
 ### No account? Offline path
 

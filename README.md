@@ -54,22 +54,18 @@ Python:
 ```python
 import asqav
 
-asqav.init(api_key="sk_...")
-
-agent = asqav.Agent.create("my-agent")
+agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
 sig = agent.sign("api:call", {"model": "gpt-4"})
 
-print(sig.signature_id, sig.verify_url)
+print(sig.signature_id, sig.verification_url)
 ```
 
 TypeScript:
 
 ```ts
-import { init, Agent } from "@asqav/sdk";
+import { govern } from "@asqav/sdk";
 
-init({ apiKey: "sk_..." });
-
-const agent = await Agent.create({ name: "my-agent" });
+const agent = await govern({ apiKey: "sk_...", agentName: "my-agent" });
 const sig = await agent.sign({
   actionType: "api:call",
   context: { model: "gpt-4" },
@@ -88,7 +84,7 @@ Each signed action returns a receipt like:
   "algorithm": "ML-DSA-65",
   "timestamp": "2026-04-27T18:30:00Z",
   "chain_hash": "b94d27b9934d3e08...",
-  "verify_url": "https://asqav.com/verify/sig_a1b2c3"
+  "verification_url": "https://asqav.com/verify/sig_a1b2c3"
 }
 ```
 
@@ -285,7 +281,27 @@ console.assert(result.verified);
 console.log(result.agentId, result.chainHash);
 ```
 
-Or open the receipt's `verify_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+Or open the receipt's `verification_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+
+## Verified by Asqav badge
+
+Drop this badge into a README, doc, or status page to link a signed record to its public verifier. Swap `<record_id>` for a real `signature_id`.
+
+Markdown:
+
+```markdown
+[![Verified by Asqav](https://www.asqav.com/badge.svg)](https://www.asqav.com/verify/<record_id>)
+```
+
+HTML:
+
+```html
+<a href="https://www.asqav.com/verify/<record_id>" rel="noopener" target="_blank">
+  <img src="https://www.asqav.com/badge.svg" alt="Verified by Asqav" height="20" loading="lazy">
+</a>
+```
+
+Anyone who clicks it lands on the public verifier and can check the signature independently.
 
 ## Counterparty acknowledgment
 
@@ -351,14 +367,13 @@ Both SDKs ship to different registries on independent cadences, driven by prefix
 
 * [`asqav` (PyPI)](https://pypi.org/project/asqav/): the Python SDK.
 * [`@asqav/sdk` (npm)](https://www.npmjs.com/package/@asqav/sdk): the TypeScript SDK.
-* [asqav-mcp](https://github.com/jagmarques/asqav-mcp): MCP server for Claude Desktop, Claude Code, and Cursor.
 * [asqav-compliance](https://github.com/jagmarques/asqav-compliance): CI/CD compliance scanner.
 
 ## Plans
 
 Asqav has two plans: Free and Enterprise.
 
-Free covers 5,000 signatures/month, 10 agents, 10 policies, 3 team members, and 30-day log retention. Most features are included: OpenTimestamps anchoring, the MCP server, audit export, framework integrations, content scanning, OpenTelemetry export, the Replay API, approvals, governance query and attestation, and 2 compliance reports/month.
+Free covers 5,000 signatures/month, 10 agents, 10 policies, 3 team members, and 30-day log retention. Most features are included: OpenTimestamps anchoring, audit export, framework integrations, content scanning, OpenTelemetry export, the Replay API, approvals, governance query and attestation, and 2 compliance reports/month.
 
 Enterprise adds RFC 3161 timestamps, SSO/SAML, managed and bring-your-own KMS, SD-JWT selective disclosure, IP allowlists, multi-party quorum signing, quarantine and incident management, a self-hosted signer, and dedicated support. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 
