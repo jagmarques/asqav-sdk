@@ -1,22 +1,18 @@
-"""Tests for CrewAI integration hook."""
+"""Tests for CrewAI integration hook and default-on entrypoint.
+
+The adapter duck-types the crew object and does not import crewai, so these
+tests run with crewai absent (it is CVE-blocked from the extra).
+"""
 
 from __future__ import annotations
 
+import importlib
 import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Inject a fake crewai module so the real import succeeds without crewai installed.
-_fake_crewai = types.ModuleType("crewai")
-sys.modules["crewai"] = _fake_crewai
-
-# Now we can import the hook (module-level ImportError is satisfied).
-# Remove any cached version first so the fresh fake module is used.
-sys.modules.pop("asqav.extras.crewai", None)
-
-from asqav.extras.crewai import AsqavCrewHook  # noqa: E402
+from asqav.extras.crewai import AsqavCrewHook, enable_crew_governance
 
 # === Fixtures ===
 
@@ -31,6 +27,14 @@ def hook():
         mock_agent_cls.create.return_value = MagicMock()
         h = AsqavCrewHook(agent_name="test-crew")
     return h
+
+
+class _DuckCrew:
+    """Minimal duck-typed stand-in for a crewai ``Crew`` (no crewai import)."""
+
+    def __init__(self) -> None:
+        self.step_callback = None
+        self.task_callback = None
 
 
 # === on_task_start ===
@@ -208,12 +212,97 @@ def test_fail_open_on_sign_error(hook):
     hook.task_callback(MagicMock(spec=[]))
 
 
-# === Cleanup ===
+# === Default-on: enable_crew_governance ===
 
 
-@pytest.fixture(autouse=True, scope="module")
-def _cleanup_crewai_module():
-    """Remove fake crewai from sys.modules after all tests."""
-    yield
-    sys.modules.pop("crewai", None)
+def test_enable_wires_both_callbacks():
+    """enable_crew_governance sets step_callback and task_callback on the crew."""
+    crew = _DuckCrew()
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        hook = enable_crew_governance(crew, agent_name="crew")
+    assert callable(crew.step_callback)
+    assert callable(crew.task_callback)
+    assert isinstance(hook, AsqavCrewHook)
+
+
+def test_default_on_step_signs_by_default():
+    """A crew step signs a receipt by default after one enable call.
+
+    Non-vacuous: if enable_crew_governance did not set crew.step_callback (the
+    auto-wire), crew.step_callback stays None and calling it raises TypeError,
+    so this assertion fails. Break the ``crew.step_callback = ...`` line in
+    enable_crew_governance and this test fails; restore it and it passes.
+    """
+    crew = _DuckCrew()
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        hook = enable_crew_governance(crew, agent_name="crew")
+    hook._sign_action = MagicMock()
+
+    # crewai calls crew.step_callback(step_output) after each agent step.
+    crew.step_callback("a search step")
+
+    hook._sign_action.assert_called_once()
+    assert hook._sign_action.call_args[0][0] == "step:execute"
+
+
+def test_default_on_task_signs_by_default():
+    """A crew task signs a task:complete receipt by default after enable."""
+    crew = _DuckCrew()
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        hook = enable_crew_governance(crew, agent_name="crew")
+    hook._sign_action = MagicMock()
+
+    crew.task_callback(MagicMock(spec=[]))
+
+    hook._sign_action.assert_called_once()
+    assert hook._sign_action.call_args[0][0] == "task:complete"
+
+
+def test_existing_callbacks_preserved():
+    """Existing step/task callbacks still run (additive), plus asqav signs."""
+    crew = _DuckCrew()
+    seen_steps: list[object] = []
+    seen_tasks: list[object] = []
+    crew.step_callback = lambda x: seen_steps.append(x)
+    crew.task_callback = lambda x: seen_tasks.append(x)
+
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.extras._base.Agent") as mock_agent_cls,
+    ):
+        mock_agent_cls.create.return_value = MagicMock()
+        hook = enable_crew_governance(crew, agent_name="crew")
+    hook._sign_action = MagicMock()
+
+    crew.step_callback("step-x")
+    crew.task_callback(MagicMock(spec=[]))
+
+    assert seen_steps == ["step-x"]
+    assert len(seen_tasks) == 1
+    assert hook._sign_action.call_count == 2
+
+
+def test_module_imports_without_crewai():
+    """The adapter imports with crewai absent - duck-typed, no hard import."""
+    saved = sys.modules.pop("crewai", None)
     sys.modules.pop("asqav.extras.crewai", None)
+    try:
+        assert "crewai" not in sys.modules
+        mod = importlib.import_module("asqav.extras.crewai")
+        assert hasattr(mod, "enable_crew_governance")
+        assert "crewai" not in sys.modules
+    finally:
+        if saved is not None:
+            sys.modules["crewai"] = saved

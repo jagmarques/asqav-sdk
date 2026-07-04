@@ -1,11 +1,16 @@
 """CrewAI integration example for asqav.
 
-Demonstrates how to wire AsqavCrewHook into a CrewAI ``Crew`` so every step
-and task is signed and recorded in the audit trail. Context is hashed
-client-side when ``base_url`` points at *.asqav.com.
+Demonstrates the one-call default-on entrypoint: after
+``enable_crew_governance(crew)`` every step and task is signed and recorded in
+the audit trail with no manual step_callback/task_callback wiring. Context is
+hashed client-side when ``base_url`` points at *.asqav.com.
+
+crewai is not part of the asqav[crewai] extra (it pulls chromadb,
+CVE-2025-47947), so install it yourself.
 
 Requirements:
-    pip install asqav crewai python-dotenv
+    pip install asqav python-dotenv
+    pip install crewai   # separate; see docs/integrations-crewai.md
 
 Usage:
     ASQAV_API_KEY=sk_... python examples/crewai_example.py
@@ -15,7 +20,7 @@ from __future__ import annotations
 
 import os
 
-from asqav.extras.crewai import AsqavCrewHook
+from asqav.extras.crewai import enable_crew_governance
 
 try:
     from crewai import Agent, Crew, Process, Task
@@ -38,8 +43,6 @@ if not api_key:
         "Set the ASQAV_API_KEY environment variable before running this example.\n"
         "Get your key at https://asqav.com"
     )
-
-hook = AsqavCrewHook(agent_name="crewai-demo")
 
 researcher = Agent(
     role="Researcher",
@@ -78,9 +81,10 @@ crew = Crew(
     tasks=[research_task, summary_task],
     process=Process.sequential,
     verbose=True,
-    step_callback=hook.step_callback,
-    task_callback=hook.task_callback,
 )
+
+# One call turns on governance: every step and task now signs a receipt.
+enable_crew_governance(crew, agent_name="crewai-demo")
 
 result = crew.kickoff()
 
