@@ -26,9 +26,8 @@ _MISSING = object()
 
 
 # Fake registry mirroring langchain_core's private _configure_hooks list.
-# Each entry is (context_var, inheritable, handle_class, env_var), the exact
-# tuple langchain_core.tracers.context.register_configure_hook appends and the
-# _configure loop iterates. Populated by the mocked register_configure_hook.
+# Each entry is the (context_var, inheritable, handle_class, env_var) tuple
+# register_configure_hook appends and the _configure loop iterates.
 _FAKE_CONFIGURE_HOOKS: list = []
 
 
@@ -384,6 +383,71 @@ def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
     handler._sign_action.assert_called_once_with(
         "tool:start",
         {"tool": "Search", "input": "q"},
+    )
+
+
+def test_on_chain_start_none_serialized_signs_receipt(handler):
+    """on_chain_start with serialized=None still signs a chain:start receipt.
+
+    Non-vacuous: without the isinstance(serialized, dict) guard, calling
+    serialized.get(...) on None raises AttributeError; LangChain swallows the
+    callback exception so the receipt is silently dropped. Revert the guard
+    in on_chain_start and this assertion fails (no sign call).
+    """
+    handler.on_chain_start(
+        serialized=None,
+        inputs={"text": "hello"},
+    )
+    handler._sign_action.assert_called_once_with(
+        "chain:start",
+        {"chain": "chain", "input_keys": ["text"]},
+    )
+
+
+def test_on_chain_start_non_dict_serialized_signs_receipt(handler):
+    """on_chain_start with a non-dict serialized still signs a receipt."""
+    handler.on_chain_start(
+        serialized="some-string",  # type: ignore[arg-type]
+        inputs={"q": "x"},
+    )
+    handler._sign_action.assert_called_once_with(
+        "chain:start",
+        {"chain": "chain", "input_keys": ["q"]},
+    )
+
+
+def test_on_chain_start_none_serialized_non_dict_inputs_signs_receipt(handler):
+    """on_chain_start(None, 'hello') yields input_keys=[] - never crashes.
+
+    Non-vacuous: without the isinstance(inputs, dict) guard, calling
+    list('hello'.keys()) raises AttributeError; LangChain swallows the exception
+    so the receipt is silently dropped. Revert the guard and this test fails
+    (sign not called, AttributeError swallowed).
+    """
+    handler.on_chain_start(
+        serialized=None,
+        inputs="hello",  # type: ignore[arg-type]
+    )
+    handler._sign_action.assert_called_once_with(
+        "chain:start",
+        {"chain": "chain", "input_keys": []},
+    )
+
+
+def test_on_chain_start_dict_serialized_non_dict_inputs_signs_receipt(handler):
+    """on_chain_start({'name':'X'}, 'hello') still signs with input_keys=[].
+
+    Non-vacuous: without the guard the dict-serialized branch also calls
+    list(inputs.keys()) on the raw string, raising AttributeError and causing
+    a silent receipt drop. Revert the guard and this test fails.
+    """
+    handler.on_chain_start(
+        serialized={"name": "MyChain"},
+        inputs="hello",  # type: ignore[arg-type]
+    )
+    handler._sign_action.assert_called_once_with(
+        "chain:start",
+        {"chain": "MyChain", "input_keys": []},
     )
 
 
