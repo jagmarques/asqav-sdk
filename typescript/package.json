@@ -51,6 +51,11 @@
       "import": "./dist/extras/langchain.mjs",
       "require": "./dist/extras/langchain.js"
     },
+    "./extras/mcp": {
+      "types": "./dist/extras/mcp.d.ts",
+      "import": "./dist/extras/mcp.mjs",
+      "require": "./dist/extras/mcp.js"
+    },
     "./extras/mastra": {
       "types": "./dist/extras/mastra.d.ts",
       "import": "./dist/extras/mastra.mjs",
@@ -78,7 +83,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/cli.ts src/doors.ts src/extras/index.ts src/extras/vercel-ai.ts src/extras/langchain.ts src/extras/mastra.ts src/extras/openai-agents.ts src/verifier/index.ts --format cjs,esm --dts --clean",
+    "build": "tsup src/index.ts src/cli.ts src/doors.ts src/extras/index.ts src/extras/vercel-ai.ts src/extras/langchain.ts src/extras/mcp.ts src/extras/mastra.ts src/extras/openai-agents.ts src/verifier/index.ts --format cjs,esm --dts --clean",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
@@ -88,11 +93,15 @@
   },
   "peerDependencies": {
     "@langchain/core": "*",
+    "@modelcontextprotocol/sdk": "*",
     "@mastra/core": "*",
     "@openai/agents": "*"
   },
   "peerDependenciesMeta": {
     "@langchain/core": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
       "optional": true
     },
     "@mastra/core": {

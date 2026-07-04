@@ -10,6 +10,8 @@
 export { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 export { AsqavCallbackHandler } from "./langchain.js";
 export type { AsqavCallbackHandlerOptions } from "./langchain.js";
+export { AsqavMcpAdapter, enableMcpGovernance } from "./mcp.js";
+export type { AsqavMcpAdapterOptions, McpServerLike } from "./mcp.js";
 export { AsqavMastraHook } from "./mastra.js";
 export type { AsqavMastraHookOptions } from "./mastra.js";
 export { AsqavOpenAIAgentsAdapter } from "./openai-agents.js";
