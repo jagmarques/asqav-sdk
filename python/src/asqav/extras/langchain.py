@@ -69,16 +69,28 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
     def on_chain_start(
         self,
-        serialized: dict[str, Any],
+        serialized: dict[str, Any] | None,
         inputs: dict[str, Any],
         **kwargs: Any,
     ) -> None:
-        """Sign chain:start with chain name and input keys."""
+        """Sign chain:start with chain name and input keys.
+
+        serialized may be None on the LCEL/RunnableLambda path; fall back
+        to a stable "chain" label so the receipt is always signed.
+        """
+        # Guard: LCEL/RunnableLambda passes raw str/list/number as inputs.
+        input_keys = list(inputs.keys()) if isinstance(inputs, dict) else []
+        if not isinstance(serialized, dict):
+            self._sign_action(
+                "chain:start",
+                {"chain": "chain", "input_keys": input_keys},
+            )
+            return
         chain_id = serialized.get("id", ["unknown"])
         name = serialized.get("name") or chain_id[-1]
         self._sign_action(
             "chain:start",
-            {"chain": str(name), "input_keys": list(inputs.keys())},
+            {"chain": str(name), "input_keys": input_keys},
         )
 
     def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
@@ -193,6 +205,8 @@ def enable_langchain_governance(
         agent_id=agent_id,
         observe=observe,
     )
+    # Register the configure hook at most once so a second call cannot
+    # attach the ContextVar handler twice per run (double-sign).
     if not _hook_registered:
         register_configure_hook(_ASQAV_LC_HANDLER, True)
         _hook_registered = True
