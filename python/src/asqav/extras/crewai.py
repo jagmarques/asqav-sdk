@@ -1,8 +1,16 @@
 """CrewAI integration for asqav.
 
-Install: ``pip install asqav[crewai]``
+Default-on (one call, no per-crew callback wiring)::
 
-Usage::
+    import asqav
+    from asqav.extras.crewai import enable_crew_governance
+
+    asqav.init("sk_...")
+    crew = Crew(agents=[...], tasks=[...])
+    enable_crew_governance(crew, agent_name="my-crew")
+    crew.kickoff()  # every step and task now signs a receipt
+
+Manual attach (unchanged, still supported)::
 
     from asqav.extras.crewai import AsqavCrewHook
     hook = AsqavCrewHook(agent_name="my-crew")
@@ -12,21 +20,21 @@ Usage::
         step_callback=hook.step_callback,
         task_callback=hook.task_callback,
     )
+
+crewai is duck-typed, not imported: this module has no hard crewai dependency,
+so it imports cleanly even where the crewai extra is unavailable. The crewai
+extra is intentionally empty because crewai pulls chromadb (CVE-2025-47947);
+install crewai yourself. See ``docs/integrations-crewai.md``.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
-try:
-    import crewai  # noqa: F401
-except ImportError as err:
-    raise ImportError(
-        "CrewAI integration requires crewai. "
-        "Install with: pip install asqav[crewai]"
-    ) from err
-
 from ._base import AsqavAdapter
+
+__all__ = ["AsqavCrewHook", "AsqavGuardrailProvider", "enable_crew_governance"]
 
 _MAX_DESC = 200
 
@@ -206,3 +214,51 @@ class AsqavGuardrailProvider(AsqavAdapter):
             "reason": result.explanation,
             "metadata": {"signature_id": sig.signature_id if sig else None},
         }
+
+
+# -- Default-on entrypoint -----------------------------------------------------
+
+
+def _compose(
+    existing: Callable[[Any], Any] | None,
+    added: Callable[[Any], Any],
+) -> Callable[[Any], Any]:
+    """Chain an existing callback with the asqav one, preserving existing behavior."""
+    if existing is None:
+        return added
+
+    def _chained(arg: Any) -> Any:
+        # Run the user's callback first and keep its return value (crewai awaits
+        # it when it is a coroutine); the asqav sign is fire-and-forget.
+        result = existing(arg)
+        added(arg)
+        return result
+
+    return _chained
+
+
+def enable_crew_governance(
+    crew: Any,
+    *,
+    api_key: str | None = None,
+    agent_name: str | None = None,
+    agent_id: str | None = None,
+    observe: bool = False,
+) -> AsqavCrewHook:
+    """Turn on default-on asqav governance for a CrewAI crew in one call.
+
+    Wires the crew's ``step_callback`` and ``task_callback`` to an
+    ``AsqavCrewHook`` so every step and task signs an asqav receipt without any
+    manual per-crew callback config. Any callbacks the crew already has are kept
+    and run first (additive). ``crew`` is duck-typed, so no crewai import is
+    needed. Signing stays fail-open and the returned hook holds the signatures.
+    """
+    hook = AsqavCrewHook(
+        api_key=api_key,
+        agent_name=agent_name,
+        agent_id=agent_id,
+        observe=observe,
+    )
+    crew.step_callback = _compose(getattr(crew, "step_callback", None), hook.step_callback)
+    crew.task_callback = _compose(getattr(crew, "task_callback", None), hook.task_callback)
+    return hook
