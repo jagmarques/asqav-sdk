@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "FAIL",
+  "reason_code": "issuer_signature",
+  "notes": "signer flipped after signing; because signer is inside the signed body the Ed25519 signature over the canonical payload no longer matches and the verdict FAILs."
+}
