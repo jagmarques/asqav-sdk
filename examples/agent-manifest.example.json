@@ -1,0 +1,7 @@
+{
+  "name": "invoice-refund-agent",
+  "model": "gpt-4o",
+  "tools": ["stripe.refund", "ledger.read"],
+  "allowed_actions": ["payment:refund", "data:read"],
+  "version": "1.0.0"
+}
