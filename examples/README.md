@@ -26,6 +26,7 @@ export ASQAV_API_KEY=sk_...
 | [`human_approval.py`](human_approval.py) | Request signing session for a high-risk action, wait for human approval, then sign | #64 |
 | [`dify_workflow.md`](dify_workflow.md) | Dify plugin: sign actions in a workflow, bundle the run for an auditor | #50 |
 | [`streamlit_dashboard.py`](streamlit_dashboard.py) | Streamlit dashboard: list agents, replay timelines, verify chain, export bundle | #56 |
+| [`bind_config_digest.py`](bind_config_digest.py) | Hash an agent declaration and bind its SHA-256 digest into the signed receipt via the schema-pinned context | - |
 
 ## CLI parity
 
