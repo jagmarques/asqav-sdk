@@ -412,6 +412,63 @@ await agent.sign({
 
 See `examples/schema-receipts.ts` for a runnable demo.
 
+## Bind your agent's declared configuration into the receipt
+
+A signed action is more useful when the receipt also proves *which declared
+configuration* the agent was running when it acted. You can bind that today
+with the sign context, no extra API surface:
+
+1. Hash whatever declares the agent: an agent manifest, an `AGENTS.md`, a
+   container image digest, or an SBOM. Any bytes on disk work.
+2. Put the digest in the `context` under your own keys (for example
+   `config_digest` plus `config_kind`).
+3. Optionally pin those keys with a `contextSchema` so a receipt that claims a
+   config always carries both fields.
+
+```typescript
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { Agent, init } from "@asqav/sdk";
+
+function configDigest(path: string): string {
+  return "sha256:" + createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+const CONFIG_BINDING_SCHEMA = {
+  config_digest: { type: "string", required: true },
+  config_kind:   { type: "string", required: true },
+} as const;
+
+init({ apiKey: "sk_..." });
+const agent = await Agent.create({ name: "my-agent" });
+
+const digest = configDigest("AGENTS.md");
+
+const sig = await agent.sign({
+  actionType: "payment:refund",
+  context: {
+    amount: 49.95,
+    currency: "EUR",
+    config_digest: digest,        // sha256:<hex> of your declaration
+    config_kind: "agents-md",     // name the artifact you hashed
+  },
+  contextSchema: CONFIG_BINDING_SCHEMA,
+});
+console.log(sig.verificationUrl); // digest is inside the signed receipt
+```
+
+The digest is part of the signed body, so anyone can fetch the receipt at the
+public verify endpoint and confirm the action ran under that exact declaration.
+The key names and the artifact kind are yours to choose, which keeps the pattern
+generic across any declaration format.
+
+For a couple of common cases there are dedicated wire fields instead of context
+keys (`config_manifest_digest` for a runtime config snapshot, `sbom_digest` for
+an SBOM). The context recipe above is the general form for any other declaration
+you want to bind.
+
+See `examples/bind-config-digest.mjs` for a runnable demo.
+
 ## Pluggable detectors (bring-your-own DLP/policy)
 
 asqav owns the enforce + signed-proof spine; detection is pluggable. Register a
