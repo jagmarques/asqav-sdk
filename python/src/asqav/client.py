@@ -350,6 +350,33 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
 
+def _payload_field(data: dict[str, Any], key: str) -> str | None:
+    """Read a string ``key`` from the sign response ``payload`` object, else None."""
+    payload = data.get("payload")
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get(key)
+    return value if isinstance(value, str) else None
+
+
+def _resolve_action_ref(data: dict[str, Any]) -> str | None:
+    """Top-level ``action_ref`` wins; compliance-mode clouds nest it under payload."""
+    top = data.get("action_ref")
+    if top is not None:
+        return top
+    return _payload_field(data, "action_ref")
+
+
+def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
+    """Either casing at top level wins; fall back to the copy nested under payload."""
+    return (
+        data.get("previousReceiptHash")
+        or data.get("previous_receipt_hash")
+        or _payload_field(data, "previousReceiptHash")
+        or _payload_field(data, "previous_receipt_hash")
+    )
+
+
 #: REQUIRED fields on a Compliance Receipt envelope (wire form); top-level
 #: discriminator is ``type``. Used by `verify_compliance_receipt`.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
@@ -2206,7 +2233,7 @@ class Agent:
             # Accept both camelCase `previousReceiptHash` and snake_case alias on the wire.
             compliance_mode=bool(data.get("compliance_mode", False)),
             receipt_type=data.get("receipt_type"),
-            action_ref=data.get("action_ref"),
+            action_ref=_resolve_action_ref(data),
             payload_digest=data.get("payload_digest"),
             issuer_id=data.get("issuer_id"),
             iteration_id=data.get("iteration_id"),
@@ -2214,9 +2241,7 @@ class Agent:
             risk_class=data.get("risk_class"),
             incident_class=data.get("incident_class"),
             reason=data.get("reason"),
-            previous_receipt_hash=(
-                data.get("previousReceiptHash") or data.get("previous_receipt_hash")
-            ),
+            previous_receipt_hash=_resolve_previous_receipt_hash(data),
             # Spec-shape `decision`; fall back to local translation for
             # older clouds that only emit `policy_decision`.
             decision=(
