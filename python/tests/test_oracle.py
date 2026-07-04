@@ -215,7 +215,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 48
+    assert len(results) == 50
     # asqav-05 (INCOMPLETE) upgrades to PASS when dilithium-py is present.
     def _tol(r):
         return r.ok or (

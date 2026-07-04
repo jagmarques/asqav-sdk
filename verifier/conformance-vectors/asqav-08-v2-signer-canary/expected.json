@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Valid v:2 receipt; signer and _asqav_tid sit inside the signed body, Ed25519 over the canonical payload verifies, signer is surfaced in the verdict."
+}
