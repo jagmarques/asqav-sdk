@@ -20,6 +20,7 @@ import { tool } from "@langchain/core/tools";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import { init, Agent } from "@asqav/sdk";
+import { enableLangchainGovernance } from "@asqav/sdk/extras/langchain";
 
 // Stripe stub. Replace with the real Stripe call in production.
 async function stripeRefundStub(args: {
@@ -35,6 +36,11 @@ async function stripeRefundStub(args: {
 
 async function main(): Promise<void> {
   init({ apiKey: process.env.ASQAV_API_KEY });
+
+  // Default-on: sign chain/tool/LLM lifecycle receipts for every run below
+  // with no per-invoke { callbacks: [...] }. The explicit agent.sign inside
+  // the refund tool still records the high-value intent receipt.
+  await enableLangchainGovernance({ agentName: "support-bot-governance" });
 
   const agent = await Agent.create({
     name: "support-bot",
