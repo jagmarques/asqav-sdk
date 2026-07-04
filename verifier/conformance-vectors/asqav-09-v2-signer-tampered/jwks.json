@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-oracle-v2-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "IVL40Zt5HSRFMkLhXy6rbLfP+ntqXtMAl5YOBpiB2xI="
+    }
+  ]
+}
