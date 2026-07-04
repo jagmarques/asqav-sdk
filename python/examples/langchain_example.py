@@ -1,8 +1,8 @@
 """LangChain integration example for asqav.
 
-Demonstrates how to attach AsqavCallbackHandler to a LangChain agent so every
-LLM call, tool invocation, and chain step is signed and recorded in the audit
-trail.
+Demonstrates the one-call default-on entrypoint: after
+``enable_langchain_governance`` every LLM call, tool invocation, and chain step
+is signed and recorded in the audit trail with no per-invoke callback config.
 
 Requirements:
     pip install asqav langchain langchain-openai langchain-community python-dotenv
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from asqav.extras.langchain import AsqavCallbackHandler
+from asqav.extras.langchain import enable_langchain_governance
 
 try:
     from langchain.agents import AgentExecutor, create_react_agent
@@ -43,7 +43,8 @@ if not api_key:
         "Get your key at https://asqav.com"
     )
 
-handler = AsqavCallbackHandler(agent_name="langchain-demo")
+# One call turns governance on for every run below, no config={"callbacks": [...]}.
+enable_langchain_governance(agent_name="langchain-demo")
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 tools = [WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper(top_k_results=1))]
@@ -63,7 +64,6 @@ executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 result = executor.invoke(
     {"input": "What is Python and who created it?"},
-    config={"callbacks": [handler]},
 )
 
 print("\nResult:")
