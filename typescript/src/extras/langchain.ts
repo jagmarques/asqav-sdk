@@ -4,10 +4,14 @@
  * Install (peer dependency):
  *   npm install @langchain/core
  *
- * Usage:
+ * Default-on (one call, no per-invoke callbacks):
  *   import { init } from "@asqav/sdk";
- *   import { AsqavCallbackHandler } from "@asqav/sdk/extras/langchain";
+ *   import { enableLangchainGovernance } from "@asqav/sdk/extras/langchain";
  *   init({ apiKey: process.env.ASQAV_API_KEY! });
+ *   await enableLangchainGovernance({ agentName: "my-chain" });
+ *   await chain.invoke(input); // signs receipts, no { callbacks: [...] }
+ *
+ * Manual attach (unchanged, still supported):
  *   const handler = await AsqavCallbackHandler.create({ agentName: "my-chain" });
  *   await chain.invoke(input, { callbacks: [handler] });
  *
@@ -208,4 +212,59 @@ export class AsqavCallbackHandler extends AsqavAdapter {
   public _emit(actionType: string, context: Record<string, unknown>): void {
     this.signAction({ actionType, context });
   }
+}
+
+// -- Default-on entrypoint ---------------------------------------------------
+
+interface LangchainContextModule {
+  registerConfigureHook: (config: { contextVar?: string; inheritable?: boolean }) => void;
+  setContextVariable: (name: string, value: unknown) => void;
+}
+
+/**
+ * Lazily import the global-callback helpers from ``@langchain/core/context``.
+ * Same optional-peer contract as ``loadBase``.
+ */
+async function loadContext(): Promise<LangchainContextModule> {
+  try {
+    // @ts-ignore optional peer dependency
+    const mod = (await import("@langchain/core/context")) as unknown;
+    const m = mod as Partial<LangchainContextModule>;
+    if (!m.registerConfigureHook || !m.setContextVariable) {
+      throw new Error("registerConfigureHook/setContextVariable not exported from @langchain/core/context");
+    }
+    return m as LangchainContextModule;
+  } catch (err) {
+    raiseMissingPeer(
+      "LangChain.js",
+      "@langchain/core",
+      "npm install @langchain/core",
+      err,
+    );
+  }
+}
+
+const ASQAV_LC_CONTEXT_VAR = "asqav_langchain_handler";
+let hookRegistered = false;
+
+/**
+ * Turn on default-on Asqav governance for LangChain.js in one call.
+ *
+ * After this every chain, tool, and LLM run in the current async context
+ * signs an Asqav receipt with no per-invoke ``{ callbacks: [...] }``. It
+ * registers a ``@langchain/core`` configure hook once and binds the handler
+ * to a context variable; LangChain's run configuration then attaches it to
+ * every run. Signing stays fail-open. Returns the handler.
+ */
+export async function enableLangchainGovernance(
+  opts: AsqavCallbackHandlerOptions,
+): Promise<AsqavCallbackHandler & BaseCallbackHandlerLike> {
+  const handler = await AsqavCallbackHandler.create(opts);
+  const { registerConfigureHook, setContextVariable } = await loadContext();
+  if (!hookRegistered) {
+    registerConfigureHook({ contextVar: ASQAV_LC_CONTEXT_VAR, inheritable: true });
+    hookRegistered = true;
+  }
+  setContextVariable(ASQAV_LC_CONTEXT_VAR, handler);
+  return handler;
 }
