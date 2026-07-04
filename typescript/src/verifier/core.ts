@@ -34,6 +34,9 @@ export interface VerifyResult {
    * checked; a skipped signature downgrades to INCOMPLETE, never a PASS.
    */
   verdict: Verdict;
+  // In-body origin attestation (v:2 signer) from the signed payload.
+  // null for v:1. Never gates the verdict.
+  signer: string | null;
 }
 
 /** Return the first adapter whose structural fingerprint matches `doc`. */
@@ -99,6 +102,7 @@ export function verify(
       fmt: "unknown",
       axes: [{ axis: "structure", result: FAIL, note: "no adapter recognises this receipt" }],
       verdict: "FAIL",
+      signer: null,
     };
   }
 
@@ -124,5 +128,7 @@ export function verify(
   } else {
     verdict = "PASS";
   }
-  return { fmt: ad.name, axes, verdict };
+  const signerVal = ad.attestation(doc).signer;
+  const signer = typeof signerVal === "string" ? signerVal : null;
+  return { fmt: ad.name, axes, verdict, signer };
 }
