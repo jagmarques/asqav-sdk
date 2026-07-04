@@ -22,7 +22,6 @@ agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
 
 sig = agent.sign("api:openai:chat", {"model": "gpt-4o"})
 
-print(sig.compliance_mode)        # True (default; pass compliance_mode=False to opt out)
 print(sig.action_ref)             # "sha256:..." over the JCS-canonical action
 print(sig.previous_receipt_hash)  # 64 hex; "0"*64 on the first record per agent
 print(sig.verification_url)
