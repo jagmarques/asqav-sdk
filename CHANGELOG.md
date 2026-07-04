@@ -5,6 +5,17 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased] - License change
 
+### Removed
+
+- Dropped the in-SDK MCP governance adapter (`enable_mcp_governance` /
+  `enableMcpGovernance`) from both language halves, along with its `mcp`
+  Python extra, its `@modelcontextprotocol/sdk` optional peer and
+  `./extras/mcp` subpath export, its runnable examples, its tests, and
+  `docs/integrations-mcp.md`. Governance integration moves to a hook-based
+  approach, so the MCP-specific wrapping path leaves the SDK. This does not
+  touch the `protectmcp:*` receipt vocabulary or the `mcp_proxy`
+  capture-topology token, which stay as part of the wire contract.
+
 ### Changed
 
 - Relicensed asqav-sdk from MIT to Elastic License 2.0 (ELv2) for versions
