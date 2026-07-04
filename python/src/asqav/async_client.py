@@ -20,6 +20,8 @@ from .client import (
     _api_key,
     _parse_bitcoin_anchor,
     _parse_timestamp,
+    _resolve_action_ref,
+    _resolve_previous_receipt_hash,
 )
 from .patterns import resolve_pattern
 from .retry import with_async_retry
@@ -232,6 +234,8 @@ class AsyncAgent:
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
             user_intent_verified=data.get("user_intent_verified"),
+            action_ref=_resolve_action_ref(data),
+            previous_receipt_hash=_resolve_previous_receipt_hash(data),
         )
 
     async def countersign(self, signature_id: str) -> SignatureResponse:
