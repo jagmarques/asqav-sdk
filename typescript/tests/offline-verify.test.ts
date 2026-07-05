@@ -171,17 +171,51 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     expect(keyAxis?.result).toBe("FAIL");
   });
 
-  it("revoked key with revoked_at AFTER issuance passes (historical verify semantics)", () => {
+  it("revoked key with revoked_at AFTER issuance INCOMPLETE without anchor (c386 backdating fix)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
     // issued_at is 2026-06-01T12:00:00+00:00; revoked_at is after that.
+    // The vector receipt ships anchors:[] so issued_at is self-attested.
+    // Without an anchor a holder of the compromised key can backdate, so the
+    // verdict must be INCOMPLETE, never a hiding PASS.
     const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
     const result = verifyReceiptOffline(receipt, futureJwks);
+    expect(result.verdict).toBe("INCOMPLETE");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("SKIPPED");
+    expect(keyAxis?.note).toMatch(/no anchor/i);
+  });
+
+  it("revoked key with revoked_at AFTER issuance PASSes WITH a trusted anchor (c386)", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
+    const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
+    ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
+    // Attach a TSA anchor. Anchors are NOT part of the signed payload, so the
+    // original signature still validates and the timing is now corroborated.
+    const anchored = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
+    anchored.anchors = [{ type: "rfc3161", value: "dGVzdC10c3ItY29va2ll", tsa_url: "https://tsa.example/timestamp" }];
+    const result = verifyReceiptOffline(anchored, futureJwks);
     expect(result.verdict).toBe("PASS");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("PASS");
     expect(keyAxis?.note).toMatch(/after issuance/i);
+  });
+
+  it("c386: compromised-key backdated receipt, offline, no anchor, must NOT PASS", () => {
+    // A receipt whose key is now compromised (status=compromised) but whose
+    // signed issued_at is BEFORE revoked_at. Offline with no anchor the
+    // self-attested issued_at is forgeable, so PASS is forbidden.
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const compromisedJwks = JSON.parse(JSON.stringify(loadJson(REVOKED_DIR, "jwks.json"))) as Record<string, unknown>;
+    ((compromisedJwks.keys as Array<Record<string, unknown>>)[0]).status = "compromised";
+    ((compromisedJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
+    const result = verifyReceiptOffline(receipt, compromisedJwks);
+    expect(result.verdict).not.toBe("PASS");
+    expect(result.verdict).toBe("INCOMPLETE");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("SKIPPED");
   });
 
   it("revoked key with revoked_at AT issuance fails (at-or-before rule)", () => {

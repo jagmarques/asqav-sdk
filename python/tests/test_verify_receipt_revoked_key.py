@@ -58,10 +58,20 @@ def test_check_key_status_revoked_before_issuance_fails():
     assert res == "FAIL"
 
 
-def test_check_key_status_revoked_after_issuance_passes():
-    """A receipt signed before the key was revoked still verifies (historical)."""
-    res, _ = v.check_key_status(
+def test_check_key_status_revoked_after_issuance_skipped_without_anchor():
+    """No anchor means issued_at is self-attested; backdating is undetectable."""
+    res, note = v.check_key_status(
         "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z"
+    )
+    assert res == "SKIPPED"
+    assert "anchor" in note.lower()
+
+
+def test_check_key_status_revoked_after_issuance_passes_with_anchor():
+    """A pre-revocation receipt with a trusted anchor still verifies."""
+    res, _ = v.check_key_status(
+        "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        has_trusted_anchor=True,
     )
     assert res == "PASS"
 
@@ -127,12 +137,29 @@ def test_run_structured_active_key_has_key_status_pass_axis():
     assert ks["result"] == "PASS", f"expected PASS, got {ks['result']!r}"
 
 
-def test_run_structured_revoked_at_after_issuance_passes_key_status():
-    """Key revoked after issuance: key_status PASS (historical verify ok)."""
+def test_run_structured_revoked_at_after_issuance_skipped_without_anchor():
+    """No anchor: key_status SKIPPED (issued_at self-attested, backdating risk).
+    The placeholder sig FAILs so the verdict is FAIL (or INCOMPLETE); the point
+    is key_status is never PASS and the verdict is never PASS."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
         "anchors": [],
+    }
+    result = v.run_structured(
+        envelope, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"), None
+    )
+    ks = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert ks["result"] == "SKIPPED"
+    assert result["verdict"] != "PASS"
+
+
+def test_run_structured_revoked_at_after_issuance_passes_with_anchor():
+    """With a trusted anchor, pre-revocation receipts still PASS."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],
     }
     result = v.run_structured(
         envelope, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"), None
