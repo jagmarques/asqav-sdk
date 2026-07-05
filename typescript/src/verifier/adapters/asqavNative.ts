@@ -193,7 +193,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
       ? String(doc.server_timestamp ?? "")
       : String(payloadOf(doc).issued_at ?? "");
     const revokedAt = resolveRevokedAt(jwks, kid);
-    const [res, note] = checkKeyStatus(status, issuedAt, revokedAt);
+    const env = normaliseEnvelope(doc);
+    const anchors = Array.isArray(env.anchors) ? (env.anchors as unknown[]) : [];
+    const [res, note] = checkKeyStatus(status, issuedAt, revokedAt, anchors.length > 0);
     return [["key_status", res, note]];
   }
 
