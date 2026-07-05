@@ -3,7 +3,23 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
-## [Unreleased] - License change
+## [Unreleased]
+
+### Added
+
+- **Default-on LangChain governance (Python + TypeScript).**
+  `enable_langchain_governance()` / `enableLangchainGovernance()` registers a
+  configure hook and binds an `AsqavCallbackHandler` to the run context, so
+  every chain, tool, and LLM run signs an Asqav receipt with no per-invoke
+  callback config. The manual `AsqavCallbackHandler` path is unchanged. (#346)
+- **Default-on crewAI governance (Python).** `enable_crew_governance(crew)`
+  wires a crew's `step_callback` and `task_callback` to an `AsqavCrewHook`, so
+  every step and task signs a receipt with no manual per-crew callback config.
+  Duck-types the crew, so `crewai` need not be installed to import the function. (#347)
+- Hardened the default-on LangChain and crewAI adapters: the LCEL/RunnableLambda
+  path where `serialized` arrives as None falls back to a stable chain label,
+  the LangChain configure hook registers at most once so a repeat call cannot
+  double-sign, and `enable_crew_governance` is idempotent. (#361)
 
 ### Removed
 
@@ -24,6 +40,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   Version 0.8.0 and all versions published before it remain MIT-licensed
   irrevocably. The conformance test vectors in `conformance/` remain
   Apache-2.0 licensed.
+
+### Security
+
+- Offline receipt verification blocks backdating on revoked keys. A revoked
+  key with a `revoked_at` timestamp returns INCOMPLETE instead of PASS for
+  any receipt whose self-attested `issued_at` predates the revocation, unless
+  a trusted time anchor corroborates the timing. An attacker holding the
+  compromised key cannot re-sign with a backdated timestamp and read PASS
+  offline. (#362)
 
 ## [0.8.0] - 2026-07-03
 
