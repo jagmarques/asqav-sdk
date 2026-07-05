@@ -178,7 +178,9 @@ class AsqavNativeAdapter(FormatAdapter):
         else:
             issued_at = _payload(doc).get("issued_at", "")
         revoked_at = _vr.resolve_revoked_at(jwks, kid)
-        res, note = _vr.check_key_status(status, issued_at, revoked_at)
+        _env = _vr.normalise_envelope(doc)
+        _has_anchor = bool(_env.get("anchors"))
+        res, note = _vr.check_key_status(status, issued_at, revoked_at, _has_anchor)
         return [("key_status", res, note)]
 
     def attestation(self, doc: dict) -> dict[str, Any]:

@@ -8,6 +8,8 @@
  * first-receipt seed constant.
  */
 
+import type { VerifyState } from "./crypto.js";
+
 /** Mirrors `core/integrity.py` FIRST_RECEIPT_SEED (64 zeros). */
 export const FIRST_RECEIPT_SEED = "0".repeat(64);
 
@@ -120,13 +122,17 @@ export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: stri
 const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 
 // Gate on the key's JWKS status (mirrors `check_key_status`).
-// With revoked_at, receipts signed before revocation still PASS.
+// With revoked_at and a trusted anchor, receipts signed before revocation PASS.
 // Without revoked_at, any revoked-status key FAILs the axis.
+// Without an anchor, a pre-revocation issued_at is self-attested and cannot be
+// trusted: a holder of the compromised key can backdate. Downgrade to SKIPPED so
+// the verdict is INCOMPLETE, never a hiding PASS.
 export function checkKeyStatus(
   status: string | null,
   issuedAt: string,
   revokedAt: string | null,
-): readonly ["PASS" | "FAIL", string] {
+  hasTrustedAnchor: boolean,
+): readonly [VerifyState, string] {
   const s = (status ?? "").toLowerCase();
   if (!REVOKED_KEY_STATUSES.has(s)) {
     return ["PASS", `signing key status ${JSON.stringify(status)} is active`];
@@ -140,6 +146,9 @@ export function checkKeyStatus(
       }
       if (rev <= iss) {
         return ["FAIL", `signing key revoked at ${revokedAt} on/before issuance ${issuedAt}`];
+      }
+      if (!hasTrustedAnchor) {
+        return ["SKIPPED", `signing key revoked at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`];
       }
       return ["PASS", `signing key revoked at ${revokedAt}, after issuance ${issuedAt}`];
     } catch {
