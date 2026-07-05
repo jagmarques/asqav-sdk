@@ -213,7 +213,7 @@ def resolve_revoked_at(jwks: dict, kid: str):
 REVOKED_KEY_STATUSES = {"revoked", "suspended", "compromised"}
 
 
-def check_key_status(status, issued_at: str, revoked_at=None):
+def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False):
     """Gate the verdict on the signing key's published status.
 
     The public JWKS marks a key revoked once its agent is revoked. A receipt
@@ -223,6 +223,11 @@ def check_key_status(status, issued_at: str, revoked_at=None):
     check so a receipt signed BEFORE revocation still PASSes (historical verify).
     The JWKS today publishes status only, so without revoked_at any revoked key
     fails the axis.
+
+    Without a trusted time anchor the signed issued_at is self-attested: a holder
+    of the compromised key can backdate. Downgrade that exact case to SKIPPED so
+    the verdict is INCOMPLETE, never a hiding PASS. Default False so callers that
+    ignore the parameter never hide behind a self-attested timestamp.
     """
     s = (status or "").lower()
     if s not in REVOKED_KEY_STATUSES:
@@ -239,6 +244,12 @@ def check_key_status(status, issued_at: str, revoked_at=None):
             iss = iss.replace(tzinfo=timezone.utc)
         if rev <= iss:
             return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
+        if not has_trusted_anchor:
+            return (
+                "SKIPPED",
+                f"signing key revoked at {revoked_at}; issued_at {issued_at} is "
+                f"self-attested, no anchor proves pre-revocation timing",
+            )
         return "PASS", f"signing key revoked at {revoked_at}, after issuance {issued_at}"
     return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
 
@@ -351,8 +362,9 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
     else:
         results.append(("issuer_key", "PASS", f"resolved kid {kid} (status={status})"))
         revoked_at = resolve_revoked_at(jwks, kid)
+        _has_anchor = bool(envelope.get("anchors"))
         results.append(
-            ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at))
+            ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at, _has_anchor))
         )
         sig = _b64decode(sig_obj.get("sig", ""))
         results.append(("signature", *verify_signature(pk, msg, sig, alg or jwks_alg)))
@@ -465,8 +477,9 @@ def run_structured(
             }
         )
         revoked_at = resolve_revoked_at(jwks, kid)
+        _has_anchor = bool(envelope.get("anchors"))
         ks_r, ks_n = check_key_status(
-            status, payload.get("issued_at", ""), revoked_at
+            status, payload.get("issued_at", ""), revoked_at, _has_anchor
         )
         axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
         sig_bytes = _b64decode(sig_obj.get("sig", ""))
