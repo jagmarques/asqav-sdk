@@ -583,6 +583,23 @@ class BitcoinAnchorStatus:
 
 
 @dataclass
+class ExecutionEvidence:
+    """Execution-evidence projection on the public verify view.
+
+    `present` and `result_digest` report the bound output digest,
+    `result_bound` marks the `protectmcp:observation:result_bound` type, and
+    `label` (result_bound | digest_present | none_by_design | absent) rolls the
+    state up. A decision receipt carries none by design. Projection only; it
+    never changes `verified`.
+    """
+
+    present: bool
+    result_bound: bool
+    label: str
+    result_digest: str | None = None
+
+
+@dataclass
 class VerificationResponse:
     """Public verification response.
 
@@ -613,6 +630,7 @@ class VerificationResponse:
     signature_envelope: dict[str, str] | None = None
     anchors: list[dict[str, Any]] | None = None
     algorithm_registry_version: str | None = None
+    execution_evidence: ExecutionEvidence | None = None
 
 
 @dataclass
@@ -3335,6 +3353,17 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         if isinstance(anchor_raw, dict)
         else None
     )
+    ev_raw = data.get("execution_evidence")
+    execution_evidence = (
+        ExecutionEvidence(
+            present=ev_raw["present"],
+            result_bound=ev_raw["result_bound"],
+            label=ev_raw["label"],
+            result_digest=ev_raw.get("result_digest"),
+        )
+        if isinstance(ev_raw, dict)
+        else None
+    )
     return VerificationResponse(
         signature_id=data["signature_id"],
         agent_id=data["agent_id"],
@@ -3353,6 +3382,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         signature_envelope=data.get("signature_envelope"),
         anchors=data.get("anchors"),
         algorithm_registry_version=data.get("algorithm_registry_version"),
+        execution_evidence=execution_evidence,
     )
 
 

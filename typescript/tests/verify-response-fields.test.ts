@@ -69,6 +69,12 @@ function fullCloudPayload() {
       { type: "opentimestamps", value: "b3RzZmFrZQ==" },
     ],
     algorithm_registry_version: "2026-05",
+    execution_evidence: {
+      present: true,
+      result_bound: true,
+      result_digest: "sha256:" + "a".repeat(64),
+      label: "result_bound",
+    },
   };
 }
 
@@ -106,6 +112,21 @@ describe("verifySignature response fields", () => {
     });
     expect(response.anchors?.[1]?.type).toBe("opentimestamps");
     expect(response.algorithmRegistryVersion).toBe("2026-05");
+  });
+
+  it("exposes the execution_evidence projection on the parsed response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(fullCloudPayload()),
+    );
+
+    const response = await verifySignature("sig_test_full");
+
+    expect(response.executionEvidence).toEqual({
+      present: true,
+      resultBound: true,
+      resultDigest: "sha256:" + "a".repeat(64),
+      label: "result_bound",
+    });
   });
 
   it("exposes the four extra VerificationDetail sub-axes", async () => {
@@ -147,6 +168,7 @@ describe("verifySignature response fields", () => {
     expect(response.anchors).toBeUndefined();
     expect(response.algorithmRegistryVersion).toBeUndefined();
     expect(response.verificationDetail).toBeUndefined();
+    expect(response.executionEvidence).toBeUndefined();
   });
 
   it("test_regimes_satisfied_present", async () => {

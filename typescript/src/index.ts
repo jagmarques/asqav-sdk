@@ -829,6 +829,25 @@ export interface BitcoinAnchorStatus {
   anchorBlockHeight?: number | null;
 }
 
+/** Execution-evidence projection on the public verify view: whether the stored
+ * receipt captured what the tool did (a `resultDigest`) and a `none_by_design`
+ * signal for decision receipts. Projection only; it never changes `verified`. */
+export interface ExecutionEvidence {
+  /** True when the receipt carries a `resultDigest`. */
+  present: boolean;
+  /** True when the receipt type is `protectmcp:observation:result_bound`. */
+  resultBound: boolean;
+  /** State summary; `none_by_design` marks a decision receipt. */
+  label:
+    | "result_bound"
+    | "digest_present"
+    | "none_by_design"
+    | "absent"
+    | string;
+  /** Bound output digest (`sha256:<64 hex>`) when present, else null. */
+  resultDigest?: string | null;
+}
+
 export interface VerificationResponse {
   signatureId: string;
   agentId: string;
@@ -861,6 +880,8 @@ export interface VerificationResponse {
   /** Algorithm registry version in force at issuance. Undefined on
    * rows lacking the column. */
   algorithmRegistryVersion?: string;
+  /** Execution-evidence projection; undefined on corrupted responses. */
+  executionEvidence?: ExecutionEvidence;
 }
 
 export interface AppliedAttestationOptions {
@@ -2294,6 +2315,12 @@ export async function verifySignature(signatureId: string): Promise<Verification
       } & Record<string, unknown>
     >;
     algorithm_registry_version?: string;
+    execution_evidence?: {
+      present: boolean;
+      result_bound: boolean;
+      label: string;
+      result_digest?: string | null;
+    };
   }>("GET", `/verify/${signatureId}`);
 
   return {
@@ -2338,6 +2365,14 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signatureEnvelope: data.signature_envelope,
     anchors: data.anchors,
     algorithmRegistryVersion: data.algorithm_registry_version,
+    executionEvidence: data.execution_evidence
+      ? {
+          present: data.execution_evidence.present,
+          resultBound: data.execution_evidence.result_bound,
+          label: data.execution_evidence.label,
+          resultDigest: data.execution_evidence.result_digest,
+        }
+      : undefined,
   };
 }
 
