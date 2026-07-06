@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.client import (
     BitcoinAnchorStatus,
+    ExecutionEvidence,
     VerificationDetail,
     VerificationResponse,
     verify_signature,
@@ -68,6 +69,12 @@ def _full_cloud_payload() -> dict:
             {"type": "opentimestamps", "value": "b3RzZmFrZQ=="},
         ],
         "algorithm_registry_version": "2026-05",
+        "execution_evidence": {
+            "present": True,
+            "result_digest": "sha256:" + "b" * 64,
+            "result_bound_receipt": True,
+            "disposition": "bound",
+        },
     }
 
 
@@ -139,6 +146,7 @@ def test_minimal_response_leaves_new_fields_none() -> None:
     assert response.anchors is None
     assert response.algorithm_registry_version is None
     assert response.verification_detail is None
+    assert response.execution_evidence is None
 
 
 def test_regimes_satisfied_present() -> None:
@@ -152,6 +160,21 @@ def test_regimes_satisfied_present() -> None:
     detail = response.verification_detail
     assert isinstance(detail, VerificationDetail)
     assert detail.regimes_satisfied == ["eu_ai_act", "dora"]
+
+
+def test_execution_evidence_parses_bound() -> None:
+    """`execution_evidence` parses into the dataclass with the bound digest
+    and its disposition, mirroring the cloud projection."""
+    payload = _full_cloud_payload()
+    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+        response = verify_signature("sig_test_full")
+
+    ev = response.execution_evidence
+    assert isinstance(ev, ExecutionEvidence)
+    assert ev.present is True
+    assert ev.result_digest == "sha256:" + "b" * 64
+    assert ev.result_bound_receipt is True
+    assert ev.disposition == "bound"
 
 
 def test_anchor_type_accepts_opentimestamps_and_rfc3161() -> None:
@@ -205,3 +228,4 @@ def test_dataclass_defaults_construct_without_new_fields() -> None:
     assert response.signature_envelope is None
     assert response.anchors is None
     assert response.algorithm_registry_version is None
+    assert response.execution_evidence is None

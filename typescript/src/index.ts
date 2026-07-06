@@ -818,6 +818,19 @@ export interface VerificationDetail {
   regimesSatisfied?: string[];
 }
 
+/** Execution-outcome evidence bound into the stored receipt. `present` is
+ * true when the receipt binds a `resultDigest` (the SHA-256 of the canonical
+ * tool-response bytes). `disposition` vocabulary: `bound` (a digest is
+ * carried), `noneByDesign` wire value `none_by_design` (a protectmcp:decision
+ * receipt, which the decision/outcome boundary forbids from carrying an
+ * outcome), `absent` (no digest and not a decision receipt). */
+export interface ExecutionEvidence {
+  present: boolean;
+  resultDigest?: string | null;
+  resultBoundReceipt: boolean;
+  disposition: "bound" | "none_by_design" | "absent" | string;
+}
+
 /** Anchor attestation state on a verification response. `status`
  * vocabulary: none | pending | confirmed | failed. `anchorTxRef` and
  * `anchorBlockHeight` populate once the OpenTimestamps proof upgrades
@@ -861,6 +874,10 @@ export interface VerificationResponse {
   /** Algorithm registry version in force at issuance. Undefined on
    * rows lacking the column. */
   algorithmRegistryVersion?: string;
+  /** Whether the stored receipt bound execution-outcome evidence, and for a
+   * decision receipt that none is carried by design. Undefined on clouds
+   * that predate the projection. */
+  executionEvidence?: ExecutionEvidence;
 }
 
 export interface AppliedAttestationOptions {
@@ -2294,6 +2311,12 @@ export async function verifySignature(signatureId: string): Promise<Verification
       } & Record<string, unknown>
     >;
     algorithm_registry_version?: string;
+    execution_evidence?: {
+      present: boolean;
+      result_digest?: string | null;
+      result_bound_receipt: boolean;
+      disposition: "bound" | "none_by_design" | "absent" | string;
+    };
   }>("GET", `/verify/${signatureId}`);
 
   return {
@@ -2338,6 +2361,14 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signatureEnvelope: data.signature_envelope,
     anchors: data.anchors,
     algorithmRegistryVersion: data.algorithm_registry_version,
+    executionEvidence: data.execution_evidence
+      ? {
+          present: data.execution_evidence.present,
+          resultDigest: data.execution_evidence.result_digest,
+          resultBoundReceipt: data.execution_evidence.result_bound_receipt,
+          disposition: data.execution_evidence.disposition,
+        }
+      : undefined,
   };
 }
 

@@ -567,6 +567,24 @@ class VerificationDetail:
 
 
 @dataclass
+class ExecutionEvidence:
+    """Execution-outcome evidence bound into the stored receipt.
+
+    `present` is True when the receipt binds a `result_digest` (the SHA-256 of
+    the canonical tool-response bytes). `disposition` vocabulary: `bound` (a
+    digest is carried), `none_by_design` (a protectmcp:decision receipt, which
+    the decision/outcome boundary forbids from carrying an outcome), `absent`
+    (no digest and not a decision receipt). None on the response for clouds
+    that predate the projection.
+    """
+
+    present: bool
+    result_digest: str | None
+    result_bound_receipt: bool
+    disposition: str
+
+
+@dataclass
 class BitcoinAnchorStatus:
     """Anchor attestation state on a verification response.
 
@@ -613,6 +631,7 @@ class VerificationResponse:
     signature_envelope: dict[str, str] | None = None
     anchors: list[dict[str, Any]] | None = None
     algorithm_registry_version: str | None = None
+    execution_evidence: ExecutionEvidence | None = None
 
 
 @dataclass
@@ -3335,6 +3354,17 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         if isinstance(anchor_raw, dict)
         else None
     )
+    exec_ev_raw = data.get("execution_evidence")
+    execution_evidence = (
+        ExecutionEvidence(
+            present=exec_ev_raw["present"],
+            result_digest=exec_ev_raw.get("result_digest"),
+            result_bound_receipt=exec_ev_raw.get("result_bound_receipt", False),
+            disposition=exec_ev_raw["disposition"],
+        )
+        if isinstance(exec_ev_raw, dict)
+        else None
+    )
     return VerificationResponse(
         signature_id=data["signature_id"],
         agent_id=data["agent_id"],
@@ -3353,6 +3383,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         signature_envelope=data.get("signature_envelope"),
         anchors=data.get("anchors"),
         algorithm_registry_version=data.get("algorithm_registry_version"),
+        execution_evidence=execution_evidence,
     )
 
 

@@ -7,6 +7,12 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Added
 
+- **Execution-evidence projection on `verifySignature` / `verify_signature`.**
+  `VerificationResponse` now carries an `executionEvidence` (`execution_evidence`)
+  object mirroring the cloud `/verify` projection: whether the stored receipt
+  bound a `result_digest` and, for a `protectmcp:decision` receipt, that none is
+  carried by design (the decision/outcome boundary). `disposition` vocabulary:
+  `bound`, `none_by_design`, `absent`. New exported type `ExecutionEvidence`.
 - **Default-on LangChain governance (Python + TypeScript).**
   `enable_langchain_governance()` / `enableLangchainGovernance()` registers a
   configure hook and binds an `AsqavCallbackHandler` to the run context, so
