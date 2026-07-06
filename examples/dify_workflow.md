@@ -1,7 +1,5 @@
 # Dify workflow with asqav signing
 
-Closes #50.
-
 The [asqav Dify plugin](https://github.com/jagmarques/dify-plugin-asqav) wraps
 the same backend API as this SDK. A Dify workflow can sign agent actions and
 later verify them; the SDK and CLI produce and read the exact same receipts,
