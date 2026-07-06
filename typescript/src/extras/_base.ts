@@ -48,7 +48,7 @@ export interface AsqavAdapterOptions {
   observe?: boolean;
 }
 
-export interface SignActionInput {
+interface SignActionInput {
   actionType: string;
   context?: Record<string, unknown>;
 }
