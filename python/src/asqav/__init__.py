@@ -60,6 +60,7 @@ from .client import (
     CertificateResponse,
     ComplianceReceiptVerification,
     DelegationResponse,
+    ExecutionEvidence,
     GroupKeypairResponse,
     GroupSignResponse,
     KeyRefreshResponse,
@@ -230,6 +231,7 @@ __all__ = [
     "verify_signature",
     "verify_output",
     "VerificationDetail",
+    "ExecutionEvidence",
     "BitcoinAnchorStatus",
     # May 2026 release helpers
     "post_applied_attestation",
