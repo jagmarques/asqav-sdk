@@ -818,6 +818,17 @@ export interface VerificationDetail {
   regimesSatisfied?: string[];
 }
 
+/** Execution-evidence projection on a verification response. `label`
+ * vocabulary: result_bound | digest_present | none_by_design | absent.
+ * `present` is the top-line boolean; `resultDigest` echoes the bound hash. */
+export interface ExecutionEvidence {
+  present: boolean;
+  label: "result_bound" | "digest_present" | "none_by_design" | "absent" | string;
+  resultDigest?: string | null;
+  resultBound?: boolean;
+  noneByDesign?: boolean;
+}
+
 /** Anchor attestation state on a verification response. `status`
  * vocabulary: none | pending | confirmed | failed. `anchorTxRef` and
  * `anchorBlockHeight` populate once the OpenTimestamps proof upgrades
@@ -842,6 +853,9 @@ export interface VerificationResponse {
   verified: boolean;
   verificationUrl?: string;
   verificationDetail?: VerificationDetail;
+  /** Execution-evidence projection: whether the receipt captured
+   * execution output, or none by design on a decision receipt. */
+  executionEvidence?: ExecutionEvidence;
   /** Receipt kind. Always `"signature"` for this response shape. */
   type?: string;
   /** Bitcoin anchor state; `status: "none"` when the receipt has no anchor. */
@@ -2280,6 +2294,13 @@ export async function verifySignature(signatureId: string): Promise<Verification
       duplicate_emission_candidate?: boolean | string;
       regimes_satisfied?: string[];
     };
+    execution_evidence?: {
+      present: boolean;
+      label: string;
+      result_digest?: string | null;
+      result_bound?: boolean;
+      none_by_design?: boolean;
+    };
     type?: string;
     bitcoin_anchor?: {
       status: string;
@@ -2325,6 +2346,15 @@ export async function verifySignature(signatureId: string): Promise<Verification
           policyDigestResolved: data.verification_detail.policy_digest_resolved,
           duplicateEmissionCandidate: data.verification_detail.duplicate_emission_candidate,
           regimesSatisfied: data.verification_detail.regimes_satisfied,
+        }
+      : undefined,
+    executionEvidence: data.execution_evidence
+      ? {
+          present: data.execution_evidence.present,
+          label: data.execution_evidence.label,
+          resultDigest: data.execution_evidence.result_digest,
+          resultBound: data.execution_evidence.result_bound,
+          noneByDesign: data.execution_evidence.none_by_design,
         }
       : undefined,
     type: data.type,

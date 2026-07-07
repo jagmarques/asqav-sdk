@@ -69,6 +69,13 @@ function fullCloudPayload() {
       { type: "opentimestamps", value: "b3RzZmFrZQ==" },
     ],
     algorithm_registry_version: "2026-05",
+    execution_evidence: {
+      present: true,
+      label: "result_bound",
+      result_digest: "sha256:" + "a".repeat(64),
+      result_bound: true,
+      none_by_design: false,
+    },
   };
 }
 
@@ -122,6 +129,21 @@ describe("verifySignature response fields", () => {
     expect(detail?.duplicateEmissionCandidate).toBe(false);
   });
 
+  it("exposes executionEvidence parsed from the cloud payload", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(fullCloudPayload()),
+    );
+
+    const response = await verifySignature("sig_test_full");
+    const evidence = response.executionEvidence;
+
+    expect(evidence?.present).toBe(true);
+    expect(evidence?.label).toBe("result_bound");
+    expect(evidence?.resultDigest).toBe("sha256:" + "a".repeat(64));
+    expect(evidence?.resultBound).toBe(true);
+    expect(evidence?.noneByDesign).toBe(false);
+  });
+
   it("leaves new fields undefined when the server omits them", async () => {
     const minimalPayload = {
       signature_id: "sig_minimal",
@@ -147,6 +169,7 @@ describe("verifySignature response fields", () => {
     expect(response.anchors).toBeUndefined();
     expect(response.algorithmRegistryVersion).toBeUndefined();
     expect(response.verificationDetail).toBeUndefined();
+    expect(response.executionEvidence).toBeUndefined();
   });
 
   it("test_regimes_satisfied_present", async () => {
