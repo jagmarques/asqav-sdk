@@ -567,6 +567,24 @@ class VerificationDetail:
 
 
 @dataclass
+class ExecutionEvidence:
+    """Execution-evidence projection on a verification response.
+
+    `present` answers whether the receipt bound execution output.
+    `label` vocabulary: result_bound, digest_present, none_by_design,
+    absent. `result_digest` echoes the bound `sha256:<hex>` for offline
+    re-check. `none_by_design` marks a decision receipt, which records
+    the decision and no execution outcome per the boundary.
+    """
+
+    present: bool
+    label: str
+    result_digest: str | None = None
+    result_bound: bool = False
+    none_by_design: bool = False
+
+
+@dataclass
 class BitcoinAnchorStatus:
     """Anchor attestation state on a verification response.
 
@@ -608,6 +626,7 @@ class VerificationResponse:
     verified: bool
     verification_url: str
     verification_detail: VerificationDetail | None = None
+    execution_evidence: ExecutionEvidence | None = None
     type: str = "signature"
     bitcoin_anchor: BitcoinAnchorStatus | None = None
     signature_envelope: dict[str, str] | None = None
@@ -3325,6 +3344,18 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         if isinstance(detail_raw, dict)
         else None
     )
+    evidence_raw = data.get("execution_evidence")
+    execution_evidence = (
+        ExecutionEvidence(
+            present=evidence_raw["present"],
+            label=evidence_raw["label"],
+            result_digest=evidence_raw.get("result_digest"),
+            result_bound=evidence_raw.get("result_bound", False),
+            none_by_design=evidence_raw.get("none_by_design", False),
+        )
+        if isinstance(evidence_raw, dict)
+        else None
+    )
     anchor_raw = data.get("bitcoin_anchor")
     bitcoin_anchor = (
         BitcoinAnchorStatus(
@@ -3348,6 +3379,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         verified=data["verified"],
         verification_url=data["verification_url"],
         verification_detail=detail,
+        execution_evidence=execution_evidence,
         type=data.get("type", "signature"),
         bitcoin_anchor=bitcoin_anchor,
         signature_envelope=data.get("signature_envelope"),
