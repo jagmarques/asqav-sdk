@@ -334,6 +334,34 @@ export class APIError extends AsqavError {
   }
 }
 
+/** Thrown when a cloud response omits a field the SDK requires (rule 3.9).
+ * Replaces a silent `undefined` read so a caller gets a typed, catchable
+ * error naming the missing field instead of an unexplained runtime bug. */
+export class AsqavResponseError extends AsqavError {
+  constructor(message: string, docsUrl?: string) {
+    super(message, docsUrl);
+    this.name = "AsqavResponseError";
+  }
+}
+
+/** Docs page anchoring missing-required-field response errors (rule 3.9). */
+export const RESPONSE_ERROR_DOCS_URL = "https://asqav.com/docs/sdk-errors" as const;
+
+/** Return `obj[key]` or throw `AsqavResponseError` if the field is absent.
+ * Centralizes required-field response parsing so a cloud response missing
+ * e.g. `signature_id` throws one typed error instead of leaving a
+ * TS-typed-as-required field silently `undefined` at runtime. */
+function requireField<T = unknown>(obj: object, key: string): T {
+  const rec = obj as Record<string, unknown>;
+  if (!(key in rec) || rec[key] === undefined) {
+    throw new AsqavResponseError(
+      `response missing required field '${key}'`,
+      RESPONSE_ERROR_DOCS_URL,
+    );
+  }
+  return rec[key] as T;
+}
+
 // === Public types ===
 
 export interface InitOptions {
@@ -1864,11 +1892,11 @@ function mapSignWireToResponse(data: SignWireResponse): SignatureResponse {
     return typeof v === "string" ? v : undefined;
   };
   return {
-    signature: data.signature,
-    signatureId: data.signature_id,
-    actionId: data.action_id,
-    timestamp: data.timestamp,
-    verificationUrl: data.verification_url,
+    signature: requireField<string>(data, "signature"),
+    signatureId: requireField<string>(data, "signature_id"),
+    actionId: requireField<string>(data, "action_id"),
+    timestamp: requireField<string>(data, "timestamp"),
+    verificationUrl: requireField<string>(data, "verification_url"),
     algorithm: data.algorithm,
     chainHash: data.chain_hash ?? data.record_hash,
     requiredCoSigners: data.required_co_signers,
@@ -2006,13 +2034,13 @@ export class Agent {
   private sessionId: string | null = null;
 
   private constructor(data: AgentData) {
-    this.agentId = data.agent_id;
-    this.name = data.name;
-    this.publicKey = data.public_key;
-    this.keyId = data.key_id;
-    this.algorithm = data.algorithm;
+    this.agentId = requireField<string>(data, "agent_id");
+    this.name = requireField<string>(data, "name");
+    this.publicKey = requireField<string>(data, "public_key");
+    this.keyId = requireField<string>(data, "key_id");
+    this.algorithm = requireField<string>(data, "algorithm");
     this.capabilities = data.capabilities ?? [];
-    this.createdAt = data.created_at;
+    this.createdAt = requireField<string | number>(data, "created_at");
   }
 
   /** Internal: rebuild an Agent from a server payload. */
@@ -2113,11 +2141,11 @@ export class Agent {
     }>("POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
 
     return {
-      signature: data.signature,
-      signatureId: data.signature_id,
-      actionId: data.action_id,
-      timestamp: data.timestamp,
-      verificationUrl: data.verification_url,
+      signature: requireField<string>(data, "signature"),
+      signatureId: requireField<string>(data, "signature_id"),
+      actionId: requireField<string>(data, "action_id"),
+      timestamp: requireField<string>(data, "timestamp"),
+      verificationUrl: requireField<string>(data, "verification_url"),
       algorithm: data.algorithm,
       chainHash: data.chain_hash ?? data.record_hash,
       requiredCoSigners: data.required_co_signers,
@@ -2318,16 +2346,16 @@ export async function verifySignature(signatureId: string): Promise<Verification
   }>("GET", `/verify/${signatureId}`);
 
   return {
-    signatureId: data.signature_id,
-    agentId: data.agent_id,
+    signatureId: requireField<string>(data, "signature_id"),
+    agentId: requireField<string>(data, "agent_id"),
     agentName: data.agent_name,
     actionId: data.action_id,
     actionType: data.action_type,
     payload: data.payload,
     signature: data.signature,
-    algorithm: data.algorithm,
-    signedAt: data.signed_at,
-    verified: data.verified,
+    algorithm: requireField<string>(data, "algorithm"),
+    signedAt: requireField<string>(data, "signed_at"),
+    verified: requireField<boolean>(data, "verified"),
     verificationUrl: data.verification_url,
     verificationDetail: data.verification_detail
       ? {
@@ -2401,15 +2429,18 @@ export async function postAppliedAttestation(
     executor_algorithm: options.executorAlgorithm,
     signature_b64: options.signatureB64,
   });
+  const attestation = requireField<typeof data.applied_attestation>(data, "applied_attestation");
   return {
-    signatureId: data.signature_id,
+    signatureId: requireField<string>(data, "signature_id"),
     appliedAttestation: {
-      appliedAt: data.applied_attestation.applied_at,
-      outcome: data.applied_attestation.outcome,
-      errorCode: data.applied_attestation.error_code,
-      executorPubkeyB64: data.applied_attestation.executor_pubkey_b64,
-      executorAlgorithm: data.applied_attestation.executor_algorithm,
-      signatureB64: data.applied_attestation.signature_b64,
+      appliedAt: requireField<string>(attestation, "applied_at"),
+      outcome: requireField<string>(attestation, "outcome"),
+      // error_code's value is nullable by design (null = no error); only
+      // an entirely absent key is the missing-field bug.
+      errorCode: requireField<string | null>(attestation, "error_code"),
+      executorPubkeyB64: requireField<string>(attestation, "executor_pubkey_b64"),
+      executorAlgorithm: requireField<string>(attestation, "executor_algorithm"),
+      signatureB64: requireField<string>(attestation, "signature_b64"),
     },
   };
 }
