@@ -50,6 +50,23 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   compromised key cannot re-sign with a backdated timestamp and read PASS
   offline. (#362)
 
+## [0.8.1] - 2026-07-08
+
+### Fixed
+
+- Required-field deserializer guards (Python + TypeScript). `Agent.sign()`,
+  `Agent.countersign()`, `verify_signature()` / `verifySignature()`, and
+  `Agent.create()` / `Agent.get()` (plus their async, batch, and
+  session-listing counterparts) now raise a typed `AsqavResponseError` when
+  the cloud response omits a required field, instead of a raw `KeyError`
+  (Python) or a silently `undefined` value (TypeScript). Both languages
+  route through one shared guard, `require_field()` / `requireField()`.
+
+### Added
+
+- Added `tsx` as a TypeScript devDependency. It is the runner the
+  quickstart example already documents (`npx tsx quickstart.ts`).
+
 ## [0.8.0] - 2026-07-03
 
 ### Added
