@@ -171,6 +171,38 @@ class AsqavValidationError(ValueError):
         self.docs_url = docs_url
 
 
+class AsqavResponseError(AsqavError):
+    """Raised when a cloud response omits a field the SDK requires (rule 3.9).
+
+    Replaces a raw ``KeyError`` so callers can catch one asqav-owned type
+    with a clear message naming the missing field, instead of a bare
+    traceback pointing at an internal dict index.
+    """
+
+    def __init__(self, message: str, *, docs_url: str) -> None:
+        super().__init__(message)
+        self.docs_url = docs_url
+
+
+#: Docs page anchoring missing-required-field response errors (rule 3.9).
+RESPONSE_ERROR_DOCS_URL: str = "https://asqav.com/docs/sdk-errors"
+
+
+def require_field(data: dict[str, Any], name: str) -> Any:
+    """Return ``data[name]`` or raise ``AsqavResponseError`` if absent.
+
+    Centralizes required-field response parsing so a cloud response
+    missing e.g. ``action_id`` raises one typed, catchable error instead
+    of a raw ``KeyError`` at a random dict index.
+    """
+    if name not in data:
+        raise AsqavResponseError(
+            f"response missing required field '{name}'",
+            docs_url=RESPONSE_ERROR_DOCS_URL,
+        )
+    return data[name]
+
+
 @dataclass
 class AgentResponse:
     """Response from agent creation."""
@@ -1535,13 +1567,13 @@ class Agent:
         )
 
         return cls(
-            agent_id=data["agent_id"],
-            name=data["name"],
-            public_key=data["public_key"],
-            key_id=data["key_id"],
-            algorithm=data["algorithm"],
-            capabilities=data["capabilities"],
-            created_at=_parse_timestamp(data["created_at"]),
+            agent_id=require_field(data, "agent_id"),
+            name=require_field(data, "name"),
+            public_key=require_field(data, "public_key"),
+            key_id=require_field(data, "key_id"),
+            algorithm=require_field(data, "algorithm"),
+            capabilities=require_field(data, "capabilities"),
+            created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
     @classmethod
@@ -1557,13 +1589,13 @@ class Agent:
         data = _get(f"/agents/{agent_id}")
 
         return cls(
-            agent_id=data["agent_id"],
-            name=data["name"],
-            public_key=data["public_key"],
-            key_id=data["key_id"],
-            algorithm=data["algorithm"],
-            capabilities=data["capabilities"],
-            created_at=_parse_timestamp(data["created_at"]),
+            agent_id=require_field(data, "agent_id"),
+            name=require_field(data, "name"),
+            public_key=require_field(data, "public_key"),
+            key_id=require_field(data, "key_id"),
+            algorithm=require_field(data, "algorithm"),
+            capabilities=require_field(data, "capabilities"),
+            created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
     def issue_token(
@@ -2231,11 +2263,11 @@ class Agent:
         data = _post(f"/agents/{self.agent_id}/sign", body)
 
         response = SignatureResponse(
-            signature=data["signature"],
-            signature_id=data["signature_id"],
-            action_id=data["action_id"],
-            timestamp=data["timestamp"],
-            verification_url=data["verification_url"],
+            signature=require_field(data, "signature"),
+            signature_id=require_field(data, "signature_id"),
+            action_id=require_field(data, "action_id"),
+            timestamp=require_field(data, "timestamp"),
+            verification_url=require_field(data, "verification_url"),
             algorithm=data.get("algorithm"),
             chain_hash=data.get("chain_hash") or data.get("record_hash"),
             rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
@@ -2308,11 +2340,11 @@ class Agent:
             {},
         )
         return SignatureResponse(
-            signature=data["signature"],
-            signature_id=data["signature_id"],
-            action_id=data["action_id"],
-            timestamp=data["timestamp"],
-            verification_url=data["verification_url"],
+            signature=require_field(data, "signature"),
+            signature_id=require_field(data, "signature_id"),
+            action_id=require_field(data, "action_id"),
+            timestamp=require_field(data, "timestamp"),
+            verification_url=require_field(data, "verification_url"),
             algorithm=data.get("algorithm"),
             chain_hash=data.get("chain_hash") or data.get("record_hash"),
             rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
@@ -2385,11 +2417,11 @@ class Agent:
             else:
                 results.append(
                     SignatureResponse(
-                        signature=sig["signature"],
-                        signature_id=sig["signature_id"],
-                        action_id=sig["action_id"],
-                        timestamp=sig["timestamp"],
-                        verification_url=sig["verification_url"],
+                        signature=require_field(sig, "signature"),
+                        signature_id=require_field(sig, "signature_id"),
+                        action_id=require_field(sig, "action_id"),
+                        timestamp=require_field(sig, "timestamp"),
+                        verification_url=require_field(sig, "verification_url"),
                         algorithm=sig.get("algorithm"),
                         chain_hash=sig.get("chain_hash") or sig.get("record_hash"),
                         rfc3161_tsa=(sig.get("rfc3161_timestamp") or {}).get("tsa"),
@@ -3266,15 +3298,15 @@ def get_session_signatures(session_id: str) -> list[SignedActionResponse]:
 
     return [
         SignedActionResponse(
-            signature_id=sig["signature_id"],
-            agent_id=sig["agent_id"],
-            action_id=sig["action_id"],
-            action_type=sig["action_type"],
+            signature_id=require_field(sig, "signature_id"),
+            agent_id=require_field(sig, "agent_id"),
+            action_id=require_field(sig, "action_id"),
+            action_type=require_field(sig, "action_type"),
             payload=sig.get("payload"),
-            algorithm=sig["algorithm"],
-            signed_at=_parse_timestamp(sig["signed_at"]),
-            signature_preview=sig["signature_preview"],
-            verification_url=sig["verification_url"],
+            algorithm=require_field(sig, "algorithm"),
+            signed_at=_parse_timestamp(require_field(sig, "signed_at")),
+            signature_preview=require_field(sig, "signature_preview"),
+            verification_url=require_field(sig, "verification_url"),
         )
         for sig in data
     ]
@@ -3367,17 +3399,17 @@ def verify_signature(signature_id: str) -> VerificationResponse:
         else None
     )
     return VerificationResponse(
-        signature_id=data["signature_id"],
-        agent_id=data["agent_id"],
-        agent_name=data["agent_name"],
-        action_id=data["action_id"],
-        action_type=data["action_type"],
+        signature_id=require_field(data, "signature_id"),
+        agent_id=require_field(data, "agent_id"),
+        agent_name=require_field(data, "agent_name"),
+        action_id=require_field(data, "action_id"),
+        action_type=require_field(data, "action_type"),
         payload=data.get("payload"),
-        signature=data["signature"],
-        algorithm=data["algorithm"],
-        signed_at=_parse_timestamp(data["signed_at"]),
-        verified=data["verified"],
-        verification_url=data["verification_url"],
+        signature=require_field(data, "signature"),
+        algorithm=require_field(data, "algorithm"),
+        signed_at=_parse_timestamp(require_field(data, "signed_at")),
+        verified=require_field(data, "verified"),
+        verification_url=require_field(data, "verification_url"),
         verification_detail=detail,
         execution_evidence=execution_evidence,
         type=data.get("type", "signature"),
