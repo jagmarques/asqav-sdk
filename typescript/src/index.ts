@@ -351,14 +351,15 @@ export const RESPONSE_ERROR_DOCS_URL = "https://asqav.com/docs/sdk-errors" as co
  * Centralizes required-field response parsing so a cloud response missing
  * e.g. `signature_id` throws one typed error instead of leaving a
  * TS-typed-as-required field silently `undefined` at runtime. */
-function requireField<T = unknown>(obj: Record<string, unknown>, key: string): T {
-  if (!(key in obj) || obj[key] === undefined) {
+function requireField<T = unknown>(obj: object, key: string): T {
+  const rec = obj as Record<string, unknown>;
+  if (!(key in rec) || rec[key] === undefined) {
     throw new AsqavResponseError(
       `response missing required field '${key}'`,
       RESPONSE_ERROR_DOCS_URL,
     );
   }
-  return obj[key] as T;
+  return rec[key] as T;
 }
 
 // === Public types ===
