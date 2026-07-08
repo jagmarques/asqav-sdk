@@ -7,7 +7,7 @@
  * name), so the helper only adds it when running under Node.
  */
 
-export const SDK_VERSION = "0.8.0";
+export const SDK_VERSION = "0.8.1";
 
 export const USER_AGENT = `asqav-js/${SDK_VERSION} (+https://www.asqav.com)`;
 

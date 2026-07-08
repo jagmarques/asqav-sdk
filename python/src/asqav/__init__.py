@@ -51,6 +51,7 @@ from .client import (
     APIError,
     ApprovalResponse,
     AsqavError,
+    AsqavResponseError,
     AsqavValidationError,
     AuthenticationError,
     AuthoredBy,
@@ -159,7 +160,7 @@ from .verifier.oracle import ADAPTERS as _ADAPTERS
 from .verifier.oracle import verify as _oracle_verify
 from .verifier.verify_receipt import fetch_jwks
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 __all__ = [
     # Initialization
     "init",
@@ -304,6 +305,7 @@ __all__ = [
     # Exceptions
     "AsqavError",
     "AsqavValidationError",
+    "AsqavResponseError",
     "AuthenticationError",
     "RateLimitError",
     "APIError",
