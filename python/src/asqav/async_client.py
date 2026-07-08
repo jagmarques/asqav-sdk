@@ -22,6 +22,7 @@ from .client import (
     _parse_timestamp,
     _resolve_action_ref,
     _resolve_previous_receipt_hash,
+    require_field,
 )
 from .patterns import resolve_pattern
 from .retry import with_async_retry
@@ -157,13 +158,13 @@ class AsyncAgent:
         )
 
         return cls(
-            agent_id=data["agent_id"],
-            name=data["name"],
-            public_key=data["public_key"],
-            key_id=data["key_id"],
-            algorithm=data["algorithm"],
-            capabilities=data["capabilities"],
-            created_at=_parse_timestamp(data["created_at"]),
+            agent_id=require_field(data, "agent_id"),
+            name=require_field(data, "name"),
+            public_key=require_field(data, "public_key"),
+            key_id=require_field(data, "key_id"),
+            algorithm=require_field(data, "algorithm"),
+            capabilities=require_field(data, "capabilities"),
+            created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
     @classmethod
@@ -172,13 +173,13 @@ class AsyncAgent:
         data = await _async_get(f"/agents/{agent_id}")
 
         return cls(
-            agent_id=data["agent_id"],
-            name=data["name"],
-            public_key=data["public_key"],
-            key_id=data["key_id"],
-            algorithm=data["algorithm"],
-            capabilities=data["capabilities"],
-            created_at=_parse_timestamp(data["created_at"]),
+            agent_id=require_field(data, "agent_id"),
+            name=require_field(data, "name"),
+            public_key=require_field(data, "public_key"),
+            key_id=require_field(data, "key_id"),
+            algorithm=require_field(data, "algorithm"),
+            capabilities=require_field(data, "capabilities"),
+            created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
     async def sign(
@@ -216,11 +217,11 @@ class AsyncAgent:
         data = await _async_post(f"/agents/{self.agent_id}/sign", body)
 
         return SignatureResponse(
-            signature=data["signature"],
-            signature_id=data["signature_id"],
-            action_id=data["action_id"],
-            timestamp=data["timestamp"],
-            verification_url=data["verification_url"],
+            signature=require_field(data, "signature"),
+            signature_id=require_field(data, "signature_id"),
+            action_id=require_field(data, "action_id"),
+            timestamp=require_field(data, "timestamp"),
+            verification_url=require_field(data, "verification_url"),
             algorithm=data.get("algorithm"),
             chain_hash=data.get("chain_hash") or data.get("record_hash"),
             rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
@@ -245,11 +246,11 @@ class AsyncAgent:
             {},
         )
         return SignatureResponse(
-            signature=data["signature"],
-            signature_id=data["signature_id"],
-            action_id=data["action_id"],
-            timestamp=data["timestamp"],
-            verification_url=data["verification_url"],
+            signature=require_field(data, "signature"),
+            signature_id=require_field(data, "signature_id"),
+            action_id=require_field(data, "action_id"),
+            timestamp=require_field(data, "timestamp"),
+            verification_url=require_field(data, "verification_url"),
             algorithm=data.get("algorithm"),
             chain_hash=data.get("chain_hash") or data.get("record_hash"),
             rfc3161_tsa=(data.get("rfc3161_timestamp") or {}).get("tsa"),
@@ -393,15 +394,15 @@ class AsyncAgent:
             data: dict[str, Any] = response.json()
 
         return VerificationResponse(
-            signature_id=data["signature_id"],
-            agent_id=data["agent_id"],
-            agent_name=data["agent_name"],
-            action_id=data["action_id"],
-            action_type=data["action_type"],
+            signature_id=require_field(data, "signature_id"),
+            agent_id=require_field(data, "agent_id"),
+            agent_name=require_field(data, "agent_name"),
+            action_id=require_field(data, "action_id"),
+            action_type=require_field(data, "action_type"),
             payload=data.get("payload"),
-            signature=data["signature"],
-            algorithm=data["algorithm"],
-            signed_at=_parse_timestamp(data["signed_at"]),
-            verified=data["verified"],
-            verification_url=data["verification_url"],
+            signature=require_field(data, "signature"),
+            algorithm=require_field(data, "algorithm"),
+            signed_at=_parse_timestamp(require_field(data, "signed_at")),
+            verified=require_field(data, "verified"),
+            verification_url=require_field(data, "verification_url"),
         )
