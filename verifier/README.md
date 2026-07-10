@@ -40,14 +40,16 @@ python -m asqav.verifier.verify_receipt --id sig_abc123
 The public worked example needs no API key:
 
 ```bash
-python -m asqav.verifier.verify_receipt --id sig_example_loan_decision_2026
+python -m asqav.verifier.verify_receipt --id sig_example_regulator_cold_verify_2026
 ```
 
 This pulls `https://api.asqav.com/api/v1/verify/<id>` and
 `https://api.asqav.com/.well-known/jwks.json`, then prints a per-axis report.
-(The public `/verify/example` fixture ships a placeholder signature to document
-the receipt shape; point `--id` at one of your own signed receipts to exercise
-the full cryptographic path against a real signature.)
+This is a public documentation fixture. Its signing key is a reserved example
+identity that is not published in the public JWKS, so the offline verdict is a
+FAIL on issuer-key resolution rather than a green PASS. Point `--id` at one of
+your own signed receipts, whose agent key is in the JWKS, to run the full
+cryptographic path through to a PASS.
 
 ## Verify fully offline
 

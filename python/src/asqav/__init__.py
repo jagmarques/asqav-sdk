@@ -126,6 +126,7 @@ from .client import (
     span,
     update_risk_rule,
     update_signing_group,
+    verify,
     verify_attestation,
     verify_compliance_receipt,
     verify_output,
@@ -229,6 +230,7 @@ __all__ = [
     # Session Listing
     "list_sessions",
     # Verification
+    "verify",
     "verify_signature",
     "verify_output",
     "VerificationDetail",
