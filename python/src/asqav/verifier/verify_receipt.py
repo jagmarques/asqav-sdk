@@ -88,6 +88,11 @@ ALLOWED_TYPES = {
 }
 
 
+#: Nesting depth above which a receipt is malformed input, not a crash; the
+#: stdlib json encoder recurses per level and crashes past ~1000 on Python <= 3.12.
+MAX_NESTING_DEPTH = 200
+
+
 def canonical_json(obj) -> bytes:
     """JCS canonical bytes - byte-identical to the server's canonical_json.
 
@@ -104,11 +109,15 @@ def canonical_json(obj) -> bytes:
 
 
 def _describe_value(value) -> str:
-    """Short, safe description of a value's actual shape for an error message."""
+    """Short, safe description of a value's actual shape for an error message.
+
+    Truncated so a huge string payload cannot blow up the error line itself.
+    """
     if value is None:
         return "null"
     if isinstance(value, (bool, int, float, str)):
-        return f"{type(value).__name__} {value!r}"
+        text = f"{type(value).__name__} {value!r}"
+        return text if len(text) <= 80 else text[:77] + "..."
     if isinstance(value, list):
         return f"list ({len(value)} item{'s' if len(value) != 1 else ''})"
     return type(value).__name__
@@ -121,27 +130,45 @@ def envelope_minus_anchors_jcs(env: dict) -> bytes:
     return canonical_json(e)
 
 
+def _scan_shape(obj, max_depth: int | None = None) -> str | None:
+    """Iteratively walk ``obj``; returns "non_finite", "too_deep", or None (ok).
+
+    Explicit stack, no recursion: depth alone cannot crash this walk. With
+    ``max_depth`` set, nesting past it stops the walk and reports "too_deep"
+    before the caller can hand the structure to the recursive stdlib json
+    encoder (canonical_json), which crashes past ~1000 levels on Python's C
+    encoder for versions <= 3.12.
+    """
+    stack = [(obj, 0)]
+    while stack:
+        cur, depth = stack.pop()
+        if max_depth is not None and depth > max_depth:
+            return "too_deep"
+        if isinstance(cur, float):
+            if not math.isfinite(cur):
+                return "non_finite"
+        elif isinstance(cur, dict):
+            stack.extend((v, depth + 1) for v in cur.values())
+        elif isinstance(cur, list):
+            stack.extend((v, depth + 1) for v in cur)
+    return None
+
+
 def _contains_non_finite(obj) -> bool:
     """True if any float inside ``obj`` is NaN or Infinity.
 
     ``canonical_json`` rejects those (allow_nan=False) and the server never
     emits one, so a receipt carrying one is reported as a readable input error
     rather than leaking the json ValueError from a canonicalisation call.
-
-    Iterative (explicit stack, no recursion): an arbitrarily deep receipt
-    must not blow the interpreter's recursion limit here.
     """
-    stack = [obj]
-    while stack:
-        cur = stack.pop()
-        if isinstance(cur, float):
-            if not math.isfinite(cur):
-                return True
-        elif isinstance(cur, dict):
-            stack.extend(cur.values())
-        elif isinstance(cur, list):
-            stack.extend(cur)
-    return False
+    return _scan_shape(obj) == "non_finite"
+
+
+#: Shape-check outcome -> the readable message run()/run_structured() print.
+_SHAPE_MESSAGES = {
+    "non_finite": "receipt carries a non-finite number (NaN/Infinity); it cannot be canonicalised",
+    "too_deep": f"receipt nesting exceeds the supported depth (> {MAX_NESTING_DEPTH} levels)",
+}
 
 
 class VerifierInputError(Exception):
@@ -388,7 +415,12 @@ def check_chain(payload: dict, predecessor_payload: dict | None):
         return "PASS", "first receipt on chain (all-zero seed)"
     if predecessor_payload is None:
         return "SKIPPED", "no predecessor supplied (pass --predecessor to check)"
-    actual = hashlib.sha256(canonical_json(predecessor_payload)).hexdigest()
+    try:
+        actual = hashlib.sha256(canonical_json(predecessor_payload)).hexdigest()
+    except RecursionError:
+        # Defense in depth: the caller's depth-cap gate should already have
+        # rejected this; this stops a bypassing call from crashing here too.
+        return "FAIL", "predecessor payload too deeply nested to canonicalise"
     if actual == prev:
         return "PASS", "chain link rederives from predecessor"
     return "FAIL", f"chain break: expected {str(prev)[:16]}.. got {actual[:16]}.."
@@ -404,7 +436,11 @@ def check_anchors(envelope: dict):
         return "FAIL", f"anchors field is not a list (got {type(anchors).__name__})"
     if not anchors:
         return "SKIPPED", "no anchors on this receipt"
-    bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
+    try:
+        bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
+    except RecursionError:
+        # Defense in depth, same rationale as check_chain's guard above.
+        return "FAIL", "envelope too deeply nested to canonicalise for anchor binding"
     lines = [f"anchors bind envelope digest sha256:{bound[:16]}.."]
     all_ok = True
     for a in anchors:
@@ -454,12 +490,12 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         )
         print("\n  => INCOMPLETE (no payload to verify; never a PASS)")
         return 2
-    if _contains_non_finite(envelope) or _contains_non_finite(predecessor_payload):
+    shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
+    if shape is None:
+        shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
+    if shape is not None:
         print("Asqav receipt verification")
-        print(
-            "  [FAIL] input       receipt carries a non-finite number "
-            "(NaN/Infinity); it cannot be canonicalised"
-        )
+        print(f"  [FAIL] input       {_SHAPE_MESSAGES[shape]}")
         print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
         return 2
     sig_obj = envelope.get("signature", {})
@@ -475,7 +511,15 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         sig_obj = {}
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
-    msg = canonical_json(payload)
+    try:
+        msg = canonical_json(payload)
+    except RecursionError:
+        # Defense in depth: the shape gate above should already have caught
+        # this; this stops a bypassing caller from crashing here too.
+        print("Asqav receipt verification")
+        print(f"  [FAIL] input       {_SHAPE_MESSAGES['too_deep']}")
+        print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
+        return 2
 
     results = []
     results.append(("structure", *check_structure(payload)))
@@ -573,16 +617,13 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
         }
-    if _contains_non_finite(envelope) or _contains_non_finite(predecessor_payload):
+    shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
+    if shape is None:
+        shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
+    if shape is not None:
         return {
             "verdict": "INCOMPLETE",
-            "axes": [
-                {
-                    "name": "input",
-                    "result": "FAIL",
-                    "note": "receipt carries a non-finite number (NaN/Infinity); it cannot be canonicalised",
-                }
-            ],
+            "axes": [{"name": "input", "result": "FAIL", "note": _SHAPE_MESSAGES[shape]}],
             "canonical_sha256": None,
             "kid": None,
         }
@@ -598,7 +639,16 @@ def run_structured(
         sig_obj = {}  # non-object signature: no usable kid/sig, key resolution FAILs cleanly
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
-    msg = canonical_json(payload)
+    try:
+        msg = canonical_json(payload)
+    except RecursionError:
+        # Defense in depth; the shape gate above should already have caught this.
+        return {
+            "verdict": "INCOMPLETE",
+            "axes": [{"name": "input", "result": "FAIL", "note": _SHAPE_MESSAGES["too_deep"]}],
+            "canonical_sha256": None,
+            "kid": None,
+        }
 
     axes: list[dict] = []
     axes.append(

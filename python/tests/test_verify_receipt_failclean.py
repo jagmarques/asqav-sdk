@@ -306,17 +306,41 @@ def test_contains_non_finite_survives_very_deep_nesting() -> None:
     assert vr._contains_non_finite(_deep_dict(4000)) is False
 
 
+def test_scan_shape_flags_too_deep() -> None:
+    # The depth-capped walk must reject nesting past MAX_NESTING_DEPTH before
+    # any caller can hand the structure to the recursive json encoder.
+    deep = _deep_dict(vr.MAX_NESTING_DEPTH + 50)
+    assert vr._scan_shape(deep, max_depth=vr.MAX_NESTING_DEPTH) == "too_deep"
+
+
+def test_scan_shape_ok_under_the_cap() -> None:
+    shallow = _deep_dict(vr.MAX_NESTING_DEPTH - 50)
+    assert vr._scan_shape(shallow, max_depth=vr.MAX_NESTING_DEPTH) is None
+
+
 def test_run_deep_nesting_no_recursion_error(capsys) -> None:
-    # End-to-end: a deeply nested receipt must reach a verdict, never crash.
+    # Version-independent: rejected as malformed input before canonical_json
+    # (json.dumps) ever sees it, so no dependence on the encoder's own limits.
     env = {"payload": {"a": _deep_dict(1500)}, "signature": _sig(), "anchors": []}
     code = vr.run(env, {"keys": []}, None)
-    assert code in (1, 2)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "nesting exceeds" in out
 
 
 def test_run_structured_deep_nesting_no_recursion_error() -> None:
     env = {"payload": {"a": _deep_dict(1500)}, "signature": _sig(), "anchors": []}
     out = vr.run_structured(env, {"keys": []})
-    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+    assert out["verdict"] == "INCOMPLETE"
+    assert "nesting exceeds" in out["axes"][0]["note"]
+
+
+def test_run_deep_predecessor_no_recursion_error() -> None:
+    # The predecessor argument is a separate object from envelope; it must be
+    # depth-checked too, since check_chain canonicalises it independently.
+    env = {"payload": _payload(), "signature": _sig(), "anchors": []}
+    code = vr.run(env, {"keys": []}, {"a": _deep_dict(1500)})
+    assert code == 2
 
 
 def test_parse_object_recursion_error_becomes_input_error(monkeypatch) -> None:
@@ -328,6 +352,28 @@ def test_parse_object_recursion_error_becomes_input_error(monkeypatch) -> None:
     monkeypatch.setattr(vr.json, "loads", _boom)
     with pytest.raises(vr.VerifierInputError):
         vr._parse_object('{"a": 1}', "stdin")
+
+
+def test_canonical_json_recursion_error_becomes_incomplete(monkeypatch, capsys) -> None:
+    # Defense-in-depth: even if canonical_json itself raises RecursionError
+    # (a bypassed or future call path), run() must still report cleanly.
+    def _boom(*a, **kw):
+        raise RecursionError("maximum recursion depth exceeded while encoding a JSON object")
+
+    monkeypatch.setattr(vr.json, "dumps", _boom)
+    env = {"payload": _payload(), "signature": _sig(), "anchors": []}
+    code = vr.run(env, {"keys": []}, None)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "nesting exceeds" in out
+
+
+def test_describe_value_truncates_huge_string() -> None:
+    # A multi-megabyte string payload must not blow up the error line itself.
+    huge = "x" * (2 * 1024 * 1024)
+    text = vr._describe_value(huge)
+    assert len(text) <= 85
+    assert "..." in text
 
 
 # === advisory: the payload-not-an-object message names the actual type ===
