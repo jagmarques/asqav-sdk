@@ -31,6 +31,7 @@ import {
 } from "./schema.js";
 import { runDetectors } from "./detectors.js";
 import { userAgentHeaders } from "./userAgent.js";
+import { deriveChainHash } from "./replay.js";
 
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
@@ -2396,6 +2397,53 @@ export async function verifySignature(signatureId: string): Promise<Verification
     signatureEnvelope: data.signature_envelope,
     anchors: data.anchors,
     algorithmRegistryVersion: data.algorithm_registry_version,
+  };
+}
+
+/**
+ * Publicly verify a receipt by id. No API key or `init()` required. Recomputes
+ * `chainHash` locally (sha256 of the RFC 8785 canonical payload) so the chain
+ * link stays reproducible offline.
+ */
+export async function verify(signatureId: string): Promise<{
+  verified: boolean;
+  agentId: string;
+  agentName?: string;
+  signatureId: string;
+  algorithm: string;
+  verificationUrl?: string;
+  chainHash: string | null;
+}> {
+  const url = `${DEFAULT_BASE_URL}/verify/${signatureId}`;
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", ...userAgentHeaders() },
+  });
+  if (response.status === 404) throw new APIError("Signature not found", 404);
+  if (response.status >= 400) {
+    throw new APIError(await response.text(), response.status);
+  }
+  const data = (await response.json()) as {
+    signature_id: string;
+    agent_id: string;
+    agent_name?: string;
+    algorithm: string;
+    verified: boolean;
+    verification_url?: string;
+    payload?: unknown;
+  };
+  const payload = data.payload;
+  const chainHash =
+    payload !== null && typeof payload === "object" && !Array.isArray(payload)
+      ? deriveChainHash(payload as Record<string, unknown>)
+      : null;
+  return {
+    verified: requireField<boolean>(data, "verified"),
+    agentId: requireField<string>(data, "agent_id"),
+    agentName: data.agent_name,
+    signatureId: requireField<string>(data, "signature_id"),
+    algorithm: requireField<string>(data, "algorithm"),
+    verificationUrl: data.verification_url,
+    chainHash,
   };
 }
 
