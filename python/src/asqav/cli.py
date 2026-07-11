@@ -120,6 +120,9 @@ def verify(
     when the cloud emitted them.
     """
     import json as json_mod
+    import urllib.error
+
+    import httpx
 
     from asqav import APIError, verify_signature
 
@@ -130,6 +133,10 @@ def verify(
             print(f"Signature not found: {signature_id}")
             raise typer.Exit(code=1) from exc
         print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+    except (httpx.RequestError, urllib.error.URLError) as exc:
+        # Connection refused / DNS / timeout: one readable line, not a raw traceback.
+        print(f"Error: could not reach the Asqav API ({exc})")
         raise typer.Exit(code=1) from exc
 
     if output == "json":
