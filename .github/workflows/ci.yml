@@ -75,6 +75,10 @@ jobs:
         working-directory: typescript
       - run: npm test
         working-directory: typescript
+      # Run the release build in CI so a green run guarantees
+      # npm run build (dts included) compiles. Publish runs the same command.
+      - run: npm run build
+        working-directory: typescript
 
   verifier:
     needs: changes
