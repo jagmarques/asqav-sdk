@@ -283,3 +283,74 @@ def test_end_to_end_reconstruct_path_falsy_anchors(tmp_path, monkeypatch, capsys
     vr.main()
     out = capsys.readouterr().out
     assert "[FAIL] anchors" in out
+
+
+# === regression: _contains_non_finite must not blow the recursion limit ===
+
+
+def _deep_dict(depth: int) -> dict:
+    d: dict = {"a": 1.0}
+    for _ in range(depth):
+        d = {"a": d}
+    return d
+
+
+def test_contains_non_finite_survives_deep_nesting() -> None:
+    # A ~1500-deep payload used to raise RecursionError out of the (recursive)
+    # guard itself; the iterative walk must return a plain bool instead.
+    deep = _deep_dict(1500)
+    assert vr._contains_non_finite(deep) is False
+
+
+def test_contains_non_finite_survives_very_deep_nesting() -> None:
+    assert vr._contains_non_finite(_deep_dict(4000)) is False
+
+
+def test_run_deep_nesting_no_recursion_error(capsys) -> None:
+    # End-to-end: a deeply nested receipt must reach a verdict, never crash.
+    env = {"payload": {"a": _deep_dict(1500)}, "signature": _sig(), "anchors": []}
+    code = vr.run(env, {"keys": []}, None)
+    assert code in (1, 2)
+
+
+def test_run_structured_deep_nesting_no_recursion_error() -> None:
+    env = {"payload": {"a": _deep_dict(1500)}, "signature": _sig(), "anchors": []}
+    out = vr.run_structured(env, {"keys": []})
+    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+
+
+def test_parse_object_recursion_error_becomes_input_error(monkeypatch) -> None:
+    # Defense-in-depth: json.loads itself raising RecursionError (a pure-Python
+    # decoder fallback) must surface as VerifierInputError, not crash the CLI.
+    def _boom(text):
+        raise RecursionError("maximum recursion depth exceeded")
+
+    monkeypatch.setattr(vr.json, "loads", _boom)
+    with pytest.raises(vr.VerifierInputError):
+        vr._parse_object('{"a": 1}', "stdin")
+
+
+# === advisory: the payload-not-an-object message names the actual type ===
+
+
+def test_run_payload_int_names_actual_type(capsys) -> None:
+    code = vr.run({"payload": 42, "signature": "x"}, {"keys": []}, None)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "int" in out
+    assert "42" in out
+
+
+def test_run_payload_string_names_actual_type(capsys) -> None:
+    code = vr.run({"payload": "hello", "signature": "x"}, {"keys": []}, None)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "str" in out
+    assert "hello" in out
+
+
+def test_run_structured_payload_list_names_actual_type() -> None:
+    out = vr.run_structured({"payload": [1, 2, 3], "signature": "x"}, {"keys": []})
+    assert out["verdict"] == "INCOMPLETE"
+    note = out["axes"][0]["note"]
+    assert "list" in note

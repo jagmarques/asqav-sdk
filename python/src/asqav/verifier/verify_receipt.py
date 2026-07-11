@@ -103,6 +103,17 @@ def canonical_json(obj) -> bytes:
     ).encode("utf-8")
 
 
+def _describe_value(value) -> str:
+    """Short, safe description of a value's actual shape for an error message."""
+    if value is None:
+        return "null"
+    if isinstance(value, (bool, int, float, str)):
+        return f"{type(value).__name__} {value!r}"
+    if isinstance(value, list):
+        return f"list ({len(value)} item{'s' if len(value) != 1 else ''})"
+    return type(value).__name__
+
+
 def envelope_minus_anchors_jcs(env: dict) -> bytes:
     """JCS bytes of the envelope with ``anchors`` removed (the anchored bytes)."""
     e = dict(env)
@@ -116,13 +127,20 @@ def _contains_non_finite(obj) -> bool:
     ``canonical_json`` rejects those (allow_nan=False) and the server never
     emits one, so a receipt carrying one is reported as a readable input error
     rather than leaking the json ValueError from a canonicalisation call.
+
+    Iterative (explicit stack, no recursion): an arbitrarily deep receipt
+    must not blow the interpreter's recursion limit here.
     """
-    if isinstance(obj, float):
-        return not math.isfinite(obj)
-    if isinstance(obj, dict):
-        return any(_contains_non_finite(v) for v in obj.values())
-    if isinstance(obj, list):
-        return any(_contains_non_finite(v) for v in obj)
+    stack = [obj]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, float):
+            if not math.isfinite(cur):
+                return True
+        elif isinstance(cur, dict):
+            stack.extend(cur.values())
+        elif isinstance(cur, list):
+            stack.extend(cur)
     return False
 
 
@@ -146,6 +164,10 @@ def _parse_object(text: str, source: str) -> dict:
         value = json.loads(text)
     except json.JSONDecodeError as exc:
         raise VerifierInputError(f"{source}: not valid JSON ({exc})") from exc
+    except RecursionError as exc:
+        # Some json decoder flavors (a pure-Python fallback) recurse per nesting
+        # level; a too-deep input is an input error, never a raw crash.
+        raise VerifierInputError(f"{source}: too deeply nested to parse ({exc})") from exc
     if not isinstance(value, dict):
         raise VerifierInputError(
             f"{source}: expected a JSON object, got {type(value).__name__}"
@@ -425,10 +447,10 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         # redacted receipts). Nothing to verify; say so instead of crashing.
         print("Asqav receipt verification")
         print(
-            "  [FAIL] payload      receipt payload not available from this "
-            "surface (the server returned payload: null). Verify with a saved "
-            "receipt instead: --receipt FILE from your Audit Pack or SDK "
-            "capture."
+            f"  [FAIL] payload      receipt payload not available from this "
+            f"surface (got {_describe_value(payload)} instead of an object). "
+            f"Verify with a saved receipt instead: --receipt FILE from your "
+            f"Audit Pack or SDK capture."
         )
         print("\n  => INCOMPLETE (no payload to verify; never a PASS)")
         return 2
@@ -543,8 +565,8 @@ def run_structured(
                     "result": "FAIL",
                     "note": (
                         "receipt payload not available from this surface "
-                        "(the server returned payload: null). Verify with a saved "
-                        "receipt instead."
+                        f"(got {_describe_value(payload)} instead of an object). "
+                        "Verify with a saved receipt instead."
                     ),
                 }
             ],
