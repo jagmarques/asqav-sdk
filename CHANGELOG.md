@@ -20,6 +20,12 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   path where `serialized` arrives as None falls back to a stable chain label,
   the LangChain configure hook registers at most once so a repeat call cannot
   double-sign, and `enable_crew_governance` is idempotent. (#361)
+- **Public no-key `verify()` (Python + TypeScript).** `asqav.verify(signature_id)`
+  and the top-level `verify()` export fetch the public verify verdict with no API
+  key, then recompute the receipt's `chain_hash` locally (the SHA-256 over the RFC
+  8785 canonical payload, the value a successor carries as `previousReceiptHash`)
+  so the chain link is reproducible offline. The flagship README "Verifying a
+  receipt" example now runs as written.
 
 ### Removed
 
@@ -40,6 +46,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   Version 0.8.0 and all versions published before it remain MIT-licensed
   irrevocably. The conformance test vectors in `conformance/` remain
   Apache-2.0 licensed.
+
+### Fixed
+
+- The standalone receipt verifier (`python -m asqav.verifier.verify_receipt`)
+  now fails clean on missing, empty, or non-object input: it prints one readable
+  line and exits nonzero instead of leaking a urllib/json traceback, and it reads
+  a receipt from stdin via `--receipt -`. The verifier README worked example
+  points at the live public fixture `sig_example_regulator_cold_verify_2026`
+  (the previous example id returned 404).
 
 ### Security
 

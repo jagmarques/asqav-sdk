@@ -36,6 +36,7 @@ import base64
 import hashlib
 import json
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
@@ -108,12 +109,49 @@ def envelope_minus_anchors_jcs(env: dict) -> bytes:
     return canonical_json(e)
 
 
+class VerifierInputError(Exception):
+    """A receipt or JWKS input was missing, empty, or not a JSON object.
+
+    Raised so the CLI prints one readable line and exits nonzero rather than
+    leaking a urllib/json traceback on bad input.
+    """
+
+
+def _parse_object(text: str, source: str) -> dict:
+    """Parse ``text`` as a JSON object, or raise VerifierInputError.
+
+    Rejects empty input and any non-object (array/string/number/null) so a
+    later ``.get`` never lands on a non-dict.
+    """
+    if not text or not text.strip():
+        raise VerifierInputError(f"{source}: empty input, expected a JSON object")
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise VerifierInputError(f"{source}: not valid JSON ({exc})") from exc
+    if not isinstance(value, dict):
+        raise VerifierInputError(
+            f"{source}: expected a JSON object, got {type(value).__name__}"
+        )
+    return value
+
+
 def _get_json(url: str, *, timeout: int = 30) -> dict:
     req = urllib.request.Request(
         url, headers={"Accept": "application/json", "User-Agent": USER_AGENT}
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raise VerifierInputError(
+            f"{url}: server returned HTTP {exc.code} {exc.reason}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise VerifierInputError(
+            f"{url}: could not reach the server ({exc.reason})"
+        ) from exc
+    return _parse_object(body, url)
 
 
 def fetch_jwks(url: str = JWKS_URL, *, timeout: int = 30) -> dict:
@@ -303,10 +341,16 @@ def check_anchors(envelope: dict):
     anchors = envelope.get("anchors") or []
     if not anchors:
         return "SKIPPED", "no anchors on this receipt"
+    if not isinstance(anchors, list):
+        return "FAIL", f"anchors field is not a list (got {type(anchors).__name__})"
     bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
     lines = [f"anchors bind envelope digest sha256:{bound[:16]}.."]
     all_ok = True
     for a in anchors:
+        if not isinstance(a, dict):
+            all_ok = False
+            lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
+            continue
         atype = a.get("type", "?")
         val = a.get("value")
         ok = bool(val) and _safe_b64(val)
@@ -327,6 +371,14 @@ def check_structure(payload: dict):
 
 
 def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
+    if not isinstance(envelope, dict):
+        print("Asqav receipt verification")
+        print(
+            f"  [FAIL] input       expected a JSON object receipt, got "
+            f"{type(envelope).__name__}"
+        )
+        print("\n  => INCOMPLETE (no receipt object to verify; never a PASS)")
+        return 2
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -412,6 +464,22 @@ def run_structured(
           - ``"canonical_sha256"``: hex SHA-256 of the canonical payload bytes
           - ``"kid"``: the signature key id resolved
     """
+    if not isinstance(envelope, dict):
+        return {
+            "verdict": "INCOMPLETE",
+            "axes": [
+                {
+                    "name": "input",
+                    "result": "FAIL",
+                    "note": (
+                        "expected a JSON object receipt, got "
+                        f"{type(envelope).__name__}"
+                    ),
+                }
+            ],
+            "canonical_sha256": None,
+            "kid": None,
+        }
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -513,41 +581,51 @@ def run_structured(
 
 
 def _load(path: str) -> dict:
-    with open(path) as fh:
-        return json.load(fh)
+    if path == "-":
+        return _parse_object(sys.stdin.read(), "stdin")
+    try:
+        with open(path) as fh:
+            text = fh.read()
+    except OSError as exc:
+        raise VerifierInputError(f"{path}: {exc.strerror or exc}") from exc
+    return _parse_object(text, path)
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Standalone Asqav receipt verifier.")
     p.add_argument("--id", help="signature id to fetch from api.asqav.com")
-    p.add_argument("--receipt", help="path to a saved receipt JSON")
-    p.add_argument("--jwks", help="path to a saved jwks.json (offline)")
+    p.add_argument("--receipt", help="path to a saved receipt JSON, or - for stdin")
+    p.add_argument("--jwks", help="path to a saved jwks.json, or - for stdin (offline)")
     p.add_argument(
         "--predecessor", help="path to predecessor receipt JSON for the chain check"
     )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
 
-    if args.receipt:
-        envelope = _load(args.receipt)
-    elif args.id and not args.offline:
-        envelope = _get_json(f"{API_BASE}/verify/{args.id}")
-    else:
-        p.error("supply --receipt FILE, or --id ID without --offline")
-        return 2
+    try:
+        if args.receipt:
+            envelope = _load(args.receipt)
+        elif args.id and not args.offline:
+            envelope = _get_json(f"{API_BASE}/verify/{args.id}")
+        else:
+            p.error("supply --receipt FILE (or -), or --id ID without --offline")
+            return 2
 
-    if args.jwks:
-        jwks = _load(args.jwks)
-    elif not args.offline:
-        jwks = _get_json(JWKS_URL)
-    else:
-        p.error("offline mode needs --jwks FILE")
-        return 2
+        if args.jwks:
+            jwks = _load(args.jwks)
+        elif not args.offline:
+            jwks = _get_json(JWKS_URL)
+        else:
+            p.error("offline mode needs --jwks FILE")
+            return 2
 
-    predecessor_payload = None
-    if args.predecessor:
-        pred = _load(args.predecessor)
-        predecessor_payload = pred.get("payload", pred)
+        predecessor_payload = None
+        if args.predecessor:
+            pred = _load(args.predecessor)
+            predecessor_payload = pred.get("payload", pred)
+    except VerifierInputError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     return run(envelope, jwks, predecessor_payload)
 
