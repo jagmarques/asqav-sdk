@@ -3420,6 +3420,45 @@ def verify_signature(signature_id: str) -> VerificationResponse:
     )
 
 
+def verify(signature_id: str) -> dict[str, Any]:
+    """Publicly verify a receipt by id and return a plain dict. No API key.
+
+    Fetches the public ``/verify/{id}`` verdict, then recomputes the receipt's
+    ``chain_hash`` locally: the SHA-256 over the RFC 8785 canonical payload,
+    the exact value a successor receipt carries as its ``previousReceiptHash``,
+    so the chain linkage is reproducible offline.
+
+    Args:
+        signature_id: The signature id to verify.
+
+    Returns:
+        dict with ``verified``, ``agent_id``, ``agent_name``, ``signature_id``,
+        ``algorithm``, ``verification_url``, and ``chain_hash`` (None when the
+        server does not expose the payload).
+
+    Example:
+        result = asqav.verify("sig_abc123")
+        assert result["verified"]
+        print(result["agent_id"], result["chain_hash"])
+    """
+    from ._jcs import canonical_json
+
+    resp = verify_signature(signature_id)
+    payload = resp.payload if isinstance(resp.payload, dict) else None
+    chain_hash = (
+        hashlib.sha256(canonical_json(payload)).hexdigest() if payload else None
+    )
+    return {
+        "verified": resp.verified,
+        "agent_id": resp.agent_id,
+        "agent_name": resp.agent_name,
+        "signature_id": resp.signature_id,
+        "algorithm": resp.algorithm,
+        "verification_url": resp.verification_url,
+        "chain_hash": chain_hash,
+    }
+
+
 @dataclass
 class ComplianceReceiptVerification:
     """Outcome of the SDK-side Compliance Receipt sanity check.
