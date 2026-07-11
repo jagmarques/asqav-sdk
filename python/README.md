@@ -531,4 +531,4 @@ See <https://asqav.com/docs> for the live feature set.
 
 ## License
 
-MIT. Get an API key at [asqav.com](https://asqav.com).
+Elastic License 2.0. Get an API key at [asqav.com](https://asqav.com).
