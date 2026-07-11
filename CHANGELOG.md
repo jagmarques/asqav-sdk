@@ -5,6 +5,23 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-11
+
+Republish of the 0.8.1 change set from `main`, with no new API. The released
+0.8.1 artifacts were built from a commit behind `main`, so 0.8.2 realigns the
+published packages with what the 0.8.1 notes below describe.
+
+### Fixed
+
+- **Release integrity.** The `asqav` 0.8.1 artifacts on PyPI were built from
+  commit `828bb820`, which predates the public no-key `verify()` convenience
+  wrapper and the fail-clean verification behavior the 0.8.1 notes below
+  describe. 0.8.2 is built from `main` and contains them, so the published
+  package matches its changelog. On npm, `@asqav/sdk` has no 0.8.1 release
+  because that publish run failed at the build step, so the npm package moves
+  from 0.8.0 to 0.8.2 directly. The Python and TypeScript halves realign on
+  0.8.2.
+
 ## [0.8.1] - 2026-07-08
 
 Everything on `main` ships in this patch, so the entries below are consolidated
