@@ -259,14 +259,15 @@ The two SDKs are versioned and released independently.
 
 ## Verifying a receipt
 
-Receipts are portable. Anyone with a `signature_id` can verify it without an API key:
+Receipts are portable. Anyone with a `signature_id` can verify one without an API key. `verify()` returns the public verdict and recomputes the receipt's `chain_hash` on your machine (the SHA-256 over the RFC 8785 canonical payload), so the chain link is reproducible locally.
 
 Python:
 
 ```python
 import asqav
 
-result = asqav.verify("sig_a1b2c3")
+# The public fixture below needs no API key. Swap in your own signature_id.
+result = asqav.verify("sig_example_regulator_cold_verify_2026")
 assert result["verified"]
 print(result["agent_id"], result["chain_hash"])
 ```
@@ -276,12 +277,18 @@ TypeScript:
 ```ts
 import { verify } from "@asqav/sdk";
 
-const result = await verify("sig_a1b2c3");
+const result = await verify("sig_example_regulator_cold_verify_2026");
 console.assert(result.verified);
 console.log(result.agentId, result.chainHash);
 ```
 
-Or open the receipt's `verification_url` in a browser. Hashes are reproducible offline from the RFC 8785 payload, the JSON canonicalization format, so auditors do not need to trust Asqav's servers - the signature speaks for itself.
+From the command line, install the optional CLI extra (`pip install "asqav[cli]"`) and run:
+
+```bash
+asqav verify sig_example_regulator_cold_verify_2026
+```
+
+Or open the receipt's `verification_url` in a browser. For a fully offline, zero-trust check that reproduces the ML-DSA-65 signature itself, use `asqav.verify_receipt_offline(receipt, jwks)` in Python or `verifyReceiptOffline()` in TypeScript, or run the standalone `python -m asqav.verifier.verify_receipt --offline`. Every hash rederives from the RFC 8785 canonical payload, so auditors do not need to trust Asqav's servers.
 
 ## Verified by Asqav badge
 
