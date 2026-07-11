@@ -5,6 +5,22 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-11
+
+Release-hygiene patch that re-ships the 0.8.1 feature set from `main`. The `asqav`
+0.8.1 artifacts on PyPI were built from commit 828bb820, which predates the public
+no-key `verify()` wrapper and the fail-clean verification surface the 0.8.1 notes
+below describe. 0.8.2 builds those notes from `main`, so the published package
+matches its changelog. The npm package `@asqav/sdk` had no 0.8.1 release (that
+publish run failed at the build step), so npm moves from 0.8.0 straight to 0.8.2.
+
+### Fixed
+
+- Rebuild the 0.8.1 feature set from `main` for both language halves. The `asqav`
+  PyPI 0.8.1 build sits at commit 828bb820, which predates the top-level `verify()`
+  export and the fail-clean verify surface, so 0.8.2 rebuilds from `main` where both
+  are present. `@asqav/sdk` ships 0.8.2 as its first release after 0.8.0.
+
 ## [0.8.1] - 2026-07-08
 
 Everything on `main` ships in this patch, so the entries below are consolidated
