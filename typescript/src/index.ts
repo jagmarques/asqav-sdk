@@ -294,7 +294,9 @@ interface Config {
 
 const config: Config = {
   apiKey: null,
-  baseUrl: DEFAULT_BASE_URL,
+  // Seed the base URL from ASQAV_API_URL, matching the Python half's module-level
+  // _api_base, so keyless verify() honors the env without an init() call.
+  baseUrl: process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL,
   mode: "full-payload",
   orgSalt: null,
 };
@@ -2414,7 +2416,7 @@ export async function verify(signatureId: string): Promise<{
   verificationUrl?: string;
   chainHash: string | null;
 }> {
-  const url = `${DEFAULT_BASE_URL}/verify/${signatureId}`;
+  const url = `${config.baseUrl.replace(/\/+$/, "")}/verify/${signatureId}`;
   const response = await fetch(url, {
     headers: { Accept: "application/json", ...userAgentHeaders() },
   });
@@ -2641,7 +2643,7 @@ export function verifyReceiptOffline(
 /** @internal - reset module state. Used in tests. */
 export function _resetForTests(): void {
   config.apiKey = null;
-  config.baseUrl = DEFAULT_BASE_URL;
+  config.baseUrl = process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL;
   config.mode = "full-payload";
   config.orgSalt = null;
 }

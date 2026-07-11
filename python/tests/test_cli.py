@@ -76,6 +76,18 @@ def test_verify_not_found(mock_verify: MagicMock) -> None:
     assert "not found" in result.output.lower()
 
 
+@patch("asqav.verify_signature")
+def test_verify_network_failure_readable(mock_verify: MagicMock) -> None:
+    """A transport failure prints one readable line and exits nonzero, never a
+    raw httpx traceback (the command caught only APIError before)."""
+    import httpx
+
+    mock_verify.side_effect = httpx.ConnectError("Connection refused")
+    result = runner.invoke(app, ["verify", "sig_x"])
+    assert result.exit_code == 1
+    assert "could not reach" in result.output.lower()
+
+
 # === sign command (IETF Compliance Receipts profile) ===
 
 

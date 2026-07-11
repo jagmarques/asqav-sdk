@@ -5,6 +5,11 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-07-08
+
+Everything on `main` ships in this patch, so the entries below are consolidated
+here from the working set. The date refreshes at publish.
+
 ### Added
 
 - **Default-on LangChain governance (Python + TypeScript).**
@@ -26,6 +31,17 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   8785 canonical payload, the value a successor carries as `previousReceiptHash`)
   so the chain link is reproducible offline. The flagship README "Verifying a
   receipt" example now runs as written.
+- Added `tsx` as a TypeScript devDependency. It is the runner the
+  quickstart example already documents (`npx tsx quickstart.ts`).
+
+### Changed
+
+- Relicensed asqav-sdk from MIT to Elastic License 2.0 (ELv2) for versions
+  released after 0.8.0. ELv2 permits free use and modification but restricts
+  offering the SDK as a hosted or managed service to third parties.
+  Version 0.8.0 and all versions published before it remain MIT-licensed
+  irrevocably. The conformance test vectors in `conformance/` remain
+  Apache-2.0 licensed.
 
 ### Removed
 
@@ -38,35 +54,6 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   touch the `protectmcp:*` receipt vocabulary or the `mcp_proxy`
   capture-topology token, which stay as part of the wire contract.
 
-### Changed
-
-- Relicensed asqav-sdk from MIT to Elastic License 2.0 (ELv2) for versions
-  released after 0.8.0. ELv2 permits free use and modification but restricts
-  offering the SDK as a hosted or managed service to third parties.
-  Version 0.8.0 and all versions published before it remain MIT-licensed
-  irrevocably. The conformance test vectors in `conformance/` remain
-  Apache-2.0 licensed.
-
-### Fixed
-
-- The standalone receipt verifier (`python -m asqav.verifier.verify_receipt`)
-  now fails clean on missing, empty, or non-object input: it prints one readable
-  line and exits nonzero instead of leaking a urllib/json traceback, and it reads
-  a receipt from stdin via `--receipt -`. The verifier README worked example
-  points at the live public fixture `sig_example_regulator_cold_verify_2026`
-  (the previous example id returned 404).
-
-### Security
-
-- Offline receipt verification blocks backdating on revoked keys. A revoked
-  key with a `revoked_at` timestamp returns INCOMPLETE instead of PASS for
-  any receipt whose self-attested `issued_at` predates the revocation, unless
-  a trusted time anchor corroborates the timing. An attacker holding the
-  compromised key cannot re-sign with a backdated timestamp and read PASS
-  offline. (#362)
-
-## [0.8.1] - 2026-07-08
-
 ### Fixed
 
 - Required-field deserializer guards (Python + TypeScript). `Agent.sign()`,
@@ -76,11 +63,32 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   the cloud response omits a required field, instead of a raw `KeyError`
   (Python) or a silently `undefined` value (TypeScript). Both languages
   route through one shared guard, `require_field()` / `requireField()`.
+- The standalone receipt verifier (`python -m asqav.verifier.verify_receipt`)
+  now fails clean on missing, empty, or non-object input: it prints one readable
+  line and exits nonzero instead of leaking a urllib/json traceback, and it reads
+  a receipt from stdin via `--receipt -`. The verifier README worked example
+  points at the live public fixture `sig_example_regulator_cold_verify_2026`.
+- The standalone verifier and the offline `verify_receipt_offline` API now fail
+  clean on every remaining malformed-input shape: a NaN/Infinity receipt, a
+  non-object `signature` block, a malformed or `public_key`-less JWKS, a
+  non-string `sig`, a binary / non-UTF8 `--receipt` file, and a falsy non-list
+  `anchors` value (`{}`, `""`, `0`). Each prints one readable line with the
+  input-error exit code, and the offline API returns INCOMPLETE rather than
+  raising on a malformed JWKS.
+- The `asqav verify` CLI reports a connection or timeout failure as one readable
+  line and a nonzero exit, instead of a raw httpx traceback.
+- The public no-key `verify()` (TypeScript) targets the base URL configured via
+  `init()` and reads `ASQAV_API_URL` when no key is set, so it honors a custom
+  endpoint the same way the Python half does.
 
-### Added
+### Security
 
-- Added `tsx` as a TypeScript devDependency. It is the runner the
-  quickstart example already documents (`npx tsx quickstart.ts`).
+- Offline receipt verification blocks backdating on revoked keys. A revoked
+  key with a `revoked_at` timestamp returns INCOMPLETE instead of PASS for
+  any receipt whose self-attested `issued_at` predates the revocation, unless
+  a trusted time anchor corroborates the timing. An attacker holding the
+  compromised key cannot re-sign with a backdated timestamp and read PASS
+  offline. (#362)
 
 ## [0.8.0] - 2026-07-03
 
