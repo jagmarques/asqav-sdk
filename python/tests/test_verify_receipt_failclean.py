@@ -63,3 +63,33 @@ def test_load_missing_file_raises_input_error() -> None:
     # A missing file surfaces as VerifierInputError, not a raw OSError traceback.
     with pytest.raises(vr.VerifierInputError):
         vr._load("/no/such/receipt/file.json")
+
+
+def test_check_anchors_rejects_non_list_string() -> None:
+    # A string "anchors" value must not crash check_anchors; it FAILs the axis.
+    result, note = vr.check_anchors({"anchors": "str"})
+    assert result == "FAIL"
+
+
+def test_check_anchors_rejects_non_dict_entries() -> None:
+    # A list of bare strings must not crash on a.get(); each entry FAILs the axis.
+    result, note = vr.check_anchors({"anchors": ["x"]})
+    assert result == "FAIL"
+
+
+def test_check_anchors_rejects_non_dict_entries_int() -> None:
+    result, note = vr.check_anchors({"anchors": [1]})
+    assert result == "FAIL"
+
+
+def test_run_structured_handles_malformed_anchors_string() -> None:
+    # printf '{"anchors":"str"}' | verify_receipt --receipt - must not raise.
+    envelope = {"payload": {"type": "x"}, "anchors": "str"}
+    out = vr.run_structured(envelope, {"keys": []})
+    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+
+
+def test_run_structured_handles_malformed_anchor_entries() -> None:
+    envelope = {"payload": {"type": "x"}, "anchors": ["x"]}
+    out = vr.run_structured(envelope, {"keys": []})
+    assert out["verdict"] in ("FAIL", "INCOMPLETE")

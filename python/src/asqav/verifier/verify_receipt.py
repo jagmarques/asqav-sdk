@@ -341,10 +341,16 @@ def check_anchors(envelope: dict):
     anchors = envelope.get("anchors") or []
     if not anchors:
         return "SKIPPED", "no anchors on this receipt"
+    if not isinstance(anchors, list):
+        return "FAIL", f"anchors field is not a list (got {type(anchors).__name__})"
     bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
     lines = [f"anchors bind envelope digest sha256:{bound[:16]}.."]
     all_ok = True
     for a in anchors:
+        if not isinstance(a, dict):
+            all_ok = False
+            lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
+            continue
         atype = a.get("type", "?")
         val = a.get("value")
         ok = bool(val) and _safe_b64(val)
