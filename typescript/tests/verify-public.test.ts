@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { canonicalJson, verify } from "../src/index.js";
+import { _resetForTests, canonicalJson, init, verify } from "../src/index.js";
 
 const PAYLOAD = {
   type: "protectmcp:decision",
@@ -31,7 +31,11 @@ function mockFetch(status: number, body: unknown) {
   });
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  _resetForTests();
+});
 
 describe("verify (public, no key)", () => {
   it("returns a plain object with verified / agentId / verificationUrl", async () => {
@@ -63,5 +67,28 @@ describe("verify (public, no key)", () => {
   it("throws on a 404 (unknown signature id)", async () => {
     vi.stubGlobal("fetch", mockFetch(404, { detail: "Signature not found" }));
     await expect(verify("sig_missing")).rejects.toThrow();
+  });
+});
+
+describe("verify (public) base URL resolution", () => {
+  it("targets the baseUrl configured through init(), not the hardcoded default", async () => {
+    const fetchMock = mockFetch(200, cloudResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    // init() throws without an apiKey, so pass a dummy one to redirect keyless verify.
+    init({ apiKey: "dummy_key", baseUrl: "https://custom.example/api/v1" });
+    await verify("sig_test_dict");
+    const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toBe("https://custom.example/api/v1/verify/sig_test_dict");
+  });
+
+  it("honors ASQAV_API_URL keylessly, matching the Python half", async () => {
+    vi.stubEnv("ASQAV_API_URL", "https://envbase.example/api/v1");
+    vi.resetModules();
+    const mod = await import("../src/index.js");
+    const fetchMock = mockFetch(200, cloudResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    await mod.verify("sig_test_dict");
+    const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toBe("https://envbase.example/api/v1/verify/sig_test_dict");
   });
 });

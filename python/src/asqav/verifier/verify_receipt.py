@@ -35,6 +35,7 @@ import argparse
 import base64
 import hashlib
 import json
+import math
 import sys
 import urllib.error
 import urllib.request
@@ -107,6 +108,22 @@ def envelope_minus_anchors_jcs(env: dict) -> bytes:
     e = dict(env)
     e.pop("anchors", None)
     return canonical_json(e)
+
+
+def _contains_non_finite(obj) -> bool:
+    """True if any float inside ``obj`` is NaN or Infinity.
+
+    ``canonical_json`` rejects those (allow_nan=False) and the server never
+    emits one, so a receipt carrying one is reported as a readable input error
+    rather than leaking the json ValueError from a canonicalisation call.
+    """
+    if isinstance(obj, float):
+        return not math.isfinite(obj)
+    if isinstance(obj, dict):
+        return any(_contains_non_finite(v) for v in obj.values())
+    if isinstance(obj, list):
+        return any(_contains_non_finite(v) for v in obj)
+    return False
 
 
 class VerifierInputError(Exception):
@@ -219,7 +236,9 @@ def normalise_envelope(raw: dict) -> dict:
     return {
         "payload": payload,
         "signature": sig_obj,
-        "anchors": raw.get("anchors") or [],
+        # Preserve the raw anchors value (even a malformed {} / "" / 0) so
+        # check_anchors sees it and can FAIL it, rather than laundering to [].
+        "anchors": raw.get("anchors"),
     }
 
 
@@ -227,11 +246,21 @@ def resolve_key(jwks: dict, kid: str):
     """Return (public_key_bytes, status, alg) for the receipt's signature.kid.
 
     The public jwks directory lists each key under both its bare issuer id and
-    its crypto key id; match either so the bare-kid wire form resolves.
+    its crypto key id; match either so the bare-kid wire form resolves. A
+    non-list ``keys``, a non-dict entry, or a matched key with no usable
+    ``public_key`` is a resolution failure (returns None), never a crash.
     """
-    for k in jwks.get("keys", []):
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None, None, None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
         if kid and kid in (k.get("issuer_id"), k.get("kid")):
-            return _b64decode(k["public_key"]), k.get("status"), k.get("alg")
+            pub = k.get("public_key")
+            if not isinstance(pub, str):
+                continue
+            return _b64decode(pub), k.get("status"), k.get("alg")
     return None, None, None
 
 
@@ -239,9 +268,15 @@ def resolve_revoked_at(jwks: dict, kid: str):
     """Return the JWKS revoked_at for kid if published, else None.
 
     Optional field: the public JWKS publishes status today but not the
-    timestamp, so the key-status axis falls back to a bare status gate.
+    timestamp, so the key-status axis falls back to a bare status gate. Shares
+    resolve_key's defensive shape so a malformed JWKS never crashes a direct call.
     """
-    for k in jwks.get("keys", []):
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
         if kid and kid in (k.get("issuer_id"), k.get("kid")):
             return k.get("revoked_at")
     return None
@@ -338,11 +373,15 @@ def check_chain(payload: dict, predecessor_payload: dict | None):
 
 
 def check_anchors(envelope: dict):
-    anchors = envelope.get("anchors") or []
-    if not anchors:
+    anchors = envelope.get("anchors")
+    # Absent/null is a legitimate no-anchors receipt (SKIPPED); a present
+    # non-list value ({} / "" / 0) is malformed and FAILs, never laundered to [].
+    if anchors is None:
         return "SKIPPED", "no anchors on this receipt"
     if not isinstance(anchors, list):
         return "FAIL", f"anchors field is not a list (got {type(anchors).__name__})"
+    if not anchors:
+        return "SKIPPED", "no anchors on this receipt"
     bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
     lines = [f"anchors bind envelope digest sha256:{bound[:16]}.."]
     all_ok = True
@@ -393,6 +432,14 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         )
         print("\n  => INCOMPLETE (no payload to verify; never a PASS)")
         return 2
+    if _contains_non_finite(envelope) or _contains_non_finite(predecessor_payload):
+        print("Asqav receipt verification")
+        print(
+            "  [FAIL] input       receipt carries a non-finite number "
+            "(NaN/Infinity); it cannot be canonicalised"
+        )
+        print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
+        return 2
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):  # flat-string signature, derive the object
         sig_obj = {
@@ -400,6 +447,10 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
             "kid": payload.get("issuer_id", ""),
             "sig": sig_obj,
         }
+    elif not isinstance(sig_obj, dict):
+        # A non-object signature (list, number, ...) carries no kid/sig; key
+        # resolution then FAILs cleanly instead of .get on a non-dict.
+        sig_obj = {}
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
     msg = canonical_json(payload)
@@ -418,7 +469,8 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         results.append(
             ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at, _has_anchor))
         )
-        sig = _b64decode(sig_obj.get("sig", ""))
+        _raw_sig = sig_obj.get("sig", "")
+        sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         results.append(("signature", *verify_signature(pk, msg, sig, alg or jwks_alg)))
 
     results.append(("chain", *check_chain(payload, predecessor_payload)))
@@ -499,6 +551,19 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
         }
+    if _contains_non_finite(envelope) or _contains_non_finite(predecessor_payload):
+        return {
+            "verdict": "INCOMPLETE",
+            "axes": [
+                {
+                    "name": "input",
+                    "result": "FAIL",
+                    "note": "receipt carries a non-finite number (NaN/Infinity); it cannot be canonicalised",
+                }
+            ],
+            "canonical_sha256": None,
+            "kid": None,
+        }
 
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):
@@ -507,6 +572,8 @@ def run_structured(
             "kid": payload.get("issuer_id", ""),
             "sig": sig_obj,
         }
+    elif not isinstance(sig_obj, dict):
+        sig_obj = {}  # non-object signature: no usable kid/sig, key resolution FAILs cleanly
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
     msg = canonical_json(payload)
@@ -550,7 +617,8 @@ def run_structured(
             status, payload.get("issued_at", ""), revoked_at, _has_anchor
         )
         axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
-        sig_bytes = _b64decode(sig_obj.get("sig", ""))
+        _raw_sig = sig_obj.get("sig", "")
+        sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         sig_r, sig_n = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
         axes.append({"name": "signature", "result": sig_r, "note": sig_n})
 
@@ -584,10 +652,12 @@ def _load(path: str) -> dict:
     if path == "-":
         return _parse_object(sys.stdin.read(), "stdin")
     try:
-        with open(path) as fh:
+        with open(path, encoding="utf-8") as fh:
             text = fh.read()
     except OSError as exc:
         raise VerifierInputError(f"{path}: {exc.strerror or exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise VerifierInputError(f"{path}: not valid UTF-8 text ({exc})") from exc
     return _parse_object(text, path)
 
 

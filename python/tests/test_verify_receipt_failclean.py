@@ -93,3 +93,193 @@ def test_run_structured_handles_malformed_anchor_entries() -> None:
     envelope = {"payload": {"type": "x"}, "anchors": ["x"]}
     out = vr.run_structured(envelope, {"keys": []})
     assert out["verdict"] in ("FAIL", "INCOMPLETE")
+
+
+# === criterion 446: complete the fail-clean surface ===
+
+# S1: NaN / Infinity inside the receipt (canonical_json rejects them, allow_nan=False)
+
+
+def _payload() -> dict:
+    return {
+        "type": "protectmcp:decision",
+        "issued_at": "2026-05-04T09:14:22.000000Z",
+        "issuer_id": "kid-x",
+        "action_ref": "sha256:" + "8" * 64,
+        "payload_digest": {"hash": "8" * 64, "size": 512},
+        "policy_digest": "sha256:" + "3" * 64,
+        "previousReceiptHash": "0" * 64,
+        "decision": "observation",
+    }
+
+
+def _sig() -> dict:
+    return {"alg": "ML-DSA-65", "kid": "kid-x", "sig": "AAAA"}
+
+
+def test_run_nan_in_payload_fails_clean(capsys) -> None:
+    # A non-finite float in the payload must not raise ValueError out of run().
+    env = {"payload": {**_payload(), "score": float("nan")}, "signature": _sig(), "anchors": []}
+    code = vr.run(env, {"keys": []}, None)
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "non-finite" in out.lower()
+    assert "PASS" not in out.replace("never a PASS", "")
+
+
+def test_run_infinity_in_payload_fails_clean(capsys) -> None:
+    env = {"payload": {**_payload(), "score": float("inf")}, "signature": _sig(), "anchors": []}
+    code = vr.run(env, {"keys": []}, None)
+    assert code == 2
+
+
+def test_run_structured_nan_fails_clean() -> None:
+    env = {"payload": {**_payload(), "score": float("nan")}, "signature": _sig(), "anchors": []}
+    out = vr.run_structured(env, {"keys": []})
+    assert out["verdict"] == "INCOMPLETE"
+
+
+# S2: non-dict "signature" on a flat receipt (no payload wrapper) -> kid = sig_obj.get(...)
+
+
+def test_run_non_dict_signature_fails_clean(capsys) -> None:
+    env = {**_payload(), "signature": [1, 2, 3]}
+    code = vr.run(env, {"keys": []}, None)
+    assert code != 0  # never a PASS, never an AttributeError
+
+
+def test_run_structured_non_dict_signature_fails_clean() -> None:
+    env = {**_payload(), "signature": [1, 2, 3]}
+    out = vr.run_structured(env, {"keys": []})
+    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+
+
+# S3: malformed JWKS "keys" (string / list of non-dicts) -> resolve_key must not crash
+
+
+def test_resolve_key_keys_is_string() -> None:
+    assert vr.resolve_key({"keys": "abc"}, "kid-x") == (None, None, None)
+
+
+def test_resolve_key_keys_is_list_of_ints() -> None:
+    assert vr.resolve_key({"keys": [123]}, "kid-x") == (None, None, None)
+
+
+def test_resolve_revoked_at_malformed_keys_no_crash() -> None:
+    # The revoked_at helper shares the loop shape; guard it too so a direct call is safe.
+    assert vr.resolve_revoked_at({"keys": "abc"}, "kid-x") is None
+    assert vr.resolve_revoked_at({"keys": [123]}, "kid-x") is None
+
+
+# S4: a JWK whose matching key lacks "public_key" -> resolution failure, not KeyError
+
+
+def test_resolve_key_missing_public_key_no_crash() -> None:
+    jwks = {"keys": [{"kid": "kid-x", "kty": "OKP", "crv": "Ed25519", "x": "abc"}]}
+    assert vr.resolve_key(jwks, "kid-x") == (None, None, None)
+
+
+# S5: non-string "sig" with a resolvable kid -> _b64decode must not hit .replace on a non-str
+
+
+def _resolvable_jwks() -> dict:
+    return {"keys": [{"kid": "kid-x", "public_key": "AAAA", "alg": "ML-DSA-65", "status": "active"}]}
+
+
+def test_run_non_string_sig_fails_clean(capsys) -> None:
+    env = {"payload": _payload(), "signature": {"alg": "ML-DSA-65", "kid": "kid-x", "sig": 123}, "anchors": []}
+    code = vr.run(env, _resolvable_jwks(), None)
+    out = capsys.readouterr().out
+    assert code != 0
+    assert "[  ok] issuer_key" in out  # the kid DID resolve; only the sig bytes are bad
+
+
+def test_run_structured_non_string_sig_fails_clean() -> None:
+    env = {"payload": _payload(), "signature": {"alg": "ML-DSA-65", "kid": "kid-x", "sig": 123}, "anchors": []}
+    out = vr.run_structured(env, _resolvable_jwks())
+    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+
+
+# S6: binary / non-UTF8 --receipt file -> VerifierInputError, not a raw UnicodeDecodeError
+
+
+def test_load_binary_file_raises_input_error(tmp_path) -> None:
+    p = tmp_path / "binary.receipt"
+    p.write_bytes(b"\xff\xfe\x00\x01\x80\x81receipt")
+    with pytest.raises(vr.VerifierInputError):
+        vr._load(str(p))
+
+
+# Falsy-anchors laundering: {} / "" / 0 are malformed, not "no anchors"
+
+
+def test_check_anchors_empty_dict_is_malformed() -> None:
+    result, _ = vr.check_anchors({"anchors": {}})
+    assert result == "FAIL"
+
+
+def test_check_anchors_empty_string_is_malformed() -> None:
+    result, _ = vr.check_anchors({"anchors": ""})
+    assert result == "FAIL"
+
+
+def test_check_anchors_zero_is_malformed() -> None:
+    result, _ = vr.check_anchors({"anchors": 0})
+    assert result == "FAIL"
+
+
+def test_check_anchors_absent_is_skipped() -> None:
+    assert vr.check_anchors({})[0] == "SKIPPED"
+
+
+def test_check_anchors_null_is_skipped() -> None:
+    assert vr.check_anchors({"anchors": None})[0] == "SKIPPED"
+
+
+def test_check_anchors_empty_list_is_skipped() -> None:
+    assert vr.check_anchors({"anchors": []})[0] == "SKIPPED"
+
+
+def test_normalise_envelope_preserves_falsy_anchors() -> None:
+    # The reconstruct path must hand the malformed anchors value to check_anchors,
+    # not launder it to [] before the guard runs.
+    env = vr.normalise_envelope({"payload": _payload(), "anchors": {}})
+    assert env["anchors"] == {}
+
+
+def _write_receipt(tmp_path, anchors) -> tuple[str, str]:
+    import json
+
+    rp = tmp_path / "receipt.json"
+    jp = tmp_path / "jwks.json"
+    rp.write_text(json.dumps({"payload": _payload(), "signature": _sig(), "anchors": anchors}))
+    jp.write_text('{"keys": []}')
+    return str(rp), str(jp)
+
+
+@pytest.mark.parametrize("anchors", [{}, "", 0])
+def test_end_to_end_falsy_anchors_fail_malformed(tmp_path, monkeypatch, capsys, anchors) -> None:
+    # The contract's end-to-end proof: a --receipt file with a falsy non-list
+    # anchors value must reach check_anchors as malformed, through the whole tool.
+    rp, jp = _write_receipt(tmp_path, anchors)
+    monkeypatch.setattr(sys, "argv", ["verify_receipt.py", "--receipt", rp, "--jwks", jp, "--offline"])
+    vr.main()
+    out = capsys.readouterr().out
+    assert "[FAIL] anchors" in out
+    assert "not a list" in out
+
+
+def test_end_to_end_reconstruct_path_falsy_anchors(tmp_path, monkeypatch, capsys) -> None:
+    # No signature dict -> normalise_envelope reconstruct path -> proves the :222 fix.
+    import json
+
+    rp = tmp_path / "receipt.json"
+    jp = tmp_path / "jwks.json"
+    rp.write_text(json.dumps({"payload": _payload(), "anchors": {}}))
+    jp.write_text('{"keys": []}')
+    monkeypatch.setattr(
+        sys, "argv", ["verify_receipt.py", "--receipt", str(rp), "--jwks", str(jp), "--offline"]
+    )
+    vr.main()
+    out = capsys.readouterr().out
+    assert "[FAIL] anchors" in out

@@ -304,3 +304,31 @@ def test_run_structured_directly():
     assert result["verdict"] in ("PASS", "INCOMPLETE")
     assert isinstance(result["axes"], list)
     assert result["canonical_sha256"] is not None
+
+
+# criterion 446: a malformed JWKS must not crash the public offline API. Each
+# reached verify_receipt.resolve_key via asqav_native.py and raised before the guard.
+
+
+def test_offline_api_missing_public_key_no_crash():
+    """A JWK with a matching kid but no public_key field resolves as a failure,
+    not a KeyError out of the public API."""
+    receipt = _load(PASS_VECTOR / "receipt.json")
+    kid = receipt["signature"]["kid"]
+    jwks = {"keys": [{"kid": kid, "kty": "OKP", "crv": "Ed25519", "x": "abc"}]}
+    result = asqav.verify_receipt_offline(receipt, jwks)
+    assert result["verdict"] in ("FAIL", "INCOMPLETE")
+    sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
+    assert sig_axis["result"] in ("FAIL", "SKIPPED")
+
+
+def test_offline_api_keys_is_string_no_crash():
+    receipt = _load(PASS_VECTOR / "receipt.json")
+    result = asqav.verify_receipt_offline(receipt, {"keys": "abc"})
+    assert isinstance(result["verdict"], str)
+
+
+def test_offline_api_keys_is_list_of_ints_no_crash():
+    receipt = _load(PASS_VECTOR / "receipt.json")
+    result = asqav.verify_receipt_offline(receipt, {"keys": [123]})
+    assert isinstance(result["verdict"], str)
