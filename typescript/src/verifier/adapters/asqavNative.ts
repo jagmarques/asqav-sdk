@@ -193,9 +193,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
       ? String(doc.server_timestamp ?? "")
       : String(payloadOf(doc).issued_at ?? "");
     const revokedAt = resolveRevokedAt(jwks, kid);
-    const env = normaliseEnvelope(doc);
-    const anchors = Array.isArray(env.anchors) ? (env.anchors as unknown[]) : [];
-    const [res, note] = checkKeyStatus(status, issuedAt, revokedAt, anchors.length > 0);
+    // Offline anchor presence is unverifiable (anchors unsigned); pass false
+    // so a forged anchor never rides a revoked key to PASS.
+    const [res, note] = checkKeyStatus(status, issuedAt, revokedAt, false);
     return [["key_status", res, note]];
   }
 
