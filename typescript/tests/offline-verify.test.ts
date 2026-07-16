@@ -187,20 +187,21 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     expect(keyAxis?.note).toMatch(/no anchor/i);
   });
 
-  it("revoked key with revoked_at AFTER issuance PASSes WITH a trusted anchor (c386)", () => {
+  it("forged anchor does not upgrade a revoked key offline (revocation-bypass guard)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
     const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
-    // Attach a TSA anchor. Anchors are NOT part of the signed payload, so the
-    // original signature still validates and the timing is now corroborated.
+    // Anchors sit outside the signed payload and are only shape-checked, so a
+    // revoked-key holder can append one. Offline it is not verifiable timing.
     const anchored = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
     anchored.anchors = [{ type: "rfc3161", value: "dGVzdC10c3ItY29va2ll", tsa_url: "https://tsa.example/timestamp" }];
     const result = verifyReceiptOffline(anchored, futureJwks);
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).not.toBe("PASS");
+    expect(result.verdict).toBe("INCOMPLETE");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
-    expect(keyAxis?.result).toBe("PASS");
-    expect(keyAxis?.note).toMatch(/after issuance/i);
+    expect(keyAxis?.result).toBe("SKIPPED");
+    expect(keyAxis?.note).toMatch(/no anchor|self-attested/i);
   });
 
   it("c386: compromised-key backdated receipt, offline, no anchor, must NOT PASS", () => {
