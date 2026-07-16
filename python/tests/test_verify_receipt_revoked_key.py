@@ -1,11 +1,14 @@
 """Offline verifier gates the verdict on the signing key's revocation status.
 
 A receipt signed by a key the JWKS marks revoked must not PASS offline, matching
-the hosted /verify. The public JWKS publishes status today (no revoked_at), so a
-revoked key fails the key_status axis and the verdict is FAIL, not PASS.
+the hosted /verify. Offline the verifier cannot verify a timestamp anchor, so a
+revoked key never rides a forgeable anchor to PASS: the key_status axis is FAIL or
+SKIPPED and the verdict is never PASS.
 """
 
 from __future__ import annotations
+
+import pytest
 
 from asqav.verifier import verify_receipt as v
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
@@ -154,8 +157,8 @@ def test_run_structured_revoked_at_after_issuance_skipped_without_anchor():
     assert result["verdict"] != "PASS"
 
 
-def test_run_structured_revoked_at_after_issuance_passes_with_anchor():
-    """With a trusted anchor, pre-revocation receipts still PASS."""
+def test_run_structured_forged_anchor_stays_skipped_offline():
+    """Offline a present anchor is not trusted, so key_status stays SKIPPED."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -165,7 +168,48 @@ def test_run_structured_revoked_at_after_issuance_passes_with_anchor():
         envelope, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"), None
     )
     ks = next(a for a in result["axes"] if a["name"] == "key_status")
-    assert ks["result"] == "PASS"
+    assert ks["result"] == "SKIPPED"
+    assert "anchor" in ks["note"].lower()
+
+
+def test_run_structured_forged_anchor_does_not_upgrade_revoked_key():
+    """A forgeable anchor must not upgrade a revoked key to PASS offline.
+    Anchors sit outside the signed payload and are only shape-checked, so a
+    revoked-key holder can append one; offline it is not trustworthy timing."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],  # base64('test'), not a token
+    }
+    result = v.run_structured(
+        envelope, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"), None
+    )
+    ks = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert ks["result"] == "SKIPPED", f"forged anchor upgraded key_status to {ks['result']!r}"
+    assert result["verdict"] != "PASS"
+
+
+def test_offline_forged_anchor_revoked_key_verdict_not_pass():
+    """End-to-end: a revoked key cannot mint a PASS by appending a forged anchor.
+    A real ML-DSA-65 signature over a backdated payload verifies (the holder keeps
+    the key), but the forged anchor must not upgrade it, so verdict is INCOMPLETE."""
+    import base64
+
+    pytest.importorskip("dilithium_py")
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    pk, sk = ML_DSA_65.keygen()
+    payload = _payload()  # issued_at precedes the revoked_at below
+    sig = base64.b64encode(ML_DSA_65.sign(sk, v.canonical_json(payload))).decode()
+    jwks = _jwks("revoked", revoked_at="2026-07-11T14:57:49Z")
+    jwks["keys"][0]["public_key"] = base64.b64encode(pk).decode()
+    envelope = {
+        "payload": payload,
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": sig},
+        "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],
+    }
+    result = v.run_structured(envelope, jwks, None)
+    assert result["verdict"] == "INCOMPLETE", f"revoked key produced verdict {result['verdict']!r}"
 
 
 # --- oracle adapter path ---
@@ -192,3 +236,15 @@ def test_oracle_active_key_axis_passes():
     ad = AsqavNativeAdapter()
     axes = ad.extra_axes(doc, _jwks("active"))
     assert axes[0][1] == "PASS"
+
+
+def test_oracle_forged_anchor_revoked_key_axis_skipped():
+    """The adapter must not let a forged anchor upgrade a revoked key's axis."""
+    doc = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],
+    }
+    ad = AsqavNativeAdapter()
+    axes = ad.extra_axes(doc, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"))
+    assert axes[0][1] == "SKIPPED", f"forged anchor upgraded axis to {axes[0][1]!r}"

@@ -343,13 +343,14 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
 
     When the JWKS carries a precise revoked_at, prefer the at-or-before-issuance
     check so a receipt signed BEFORE revocation still PASSes (historical verify).
-    The JWKS today publishes status only, so without revoked_at any revoked key
-    fails the axis.
+    Without a revoked_at the axis cannot place issuance, so any revoked key fails.
 
-    Without a trusted time anchor the signed issued_at is self-attested: a holder
-    of the compromised key can backdate. Downgrade that exact case to SKIPPED so
-    the verdict is INCOMPLETE, never a hiding PASS. Default False so callers that
-    ignore the parameter never hide behind a self-attested timestamp.
+    has_trusted_anchor must be an anchor the caller CRYPTOGRAPHICALLY verified as
+    pre-revocation timing; mere presence is not enough (anchors are unsigned and
+    attacker-addable). Without one the self-attested issued_at is backdateable, so
+    that case downgrades to SKIPPED (INCOMPLETE), never a hiding PASS. The offline
+    verifier cannot do that walk and passes False; default False so a caller that
+    ignores the parameter never hides behind a bare timestamp.
     """
     s = (status or "").lower()
     if s not in REVOKED_KEY_STATUSES:
@@ -531,9 +532,10 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
     else:
         results.append(("issuer_key", "PASS", f"resolved kid {kid} (status={status})"))
         revoked_at = resolve_revoked_at(jwks, kid)
-        _has_anchor = bool(envelope.get("anchors"))
+        # Offline anchor presence is unverifiable (anchors are unsigned); pass
+        # False so a forged anchor never rides a revoked key to PASS.
         results.append(
-            ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at, _has_anchor))
+            ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at, False))
         )
         _raw_sig = sig_obj.get("sig", "")
         sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
@@ -684,9 +686,10 @@ def run_structured(
             }
         )
         revoked_at = resolve_revoked_at(jwks, kid)
-        _has_anchor = bool(envelope.get("anchors"))
+        # Offline anchor presence is not trusted timing; pass False so a forged
+        # anchor never upgrades a revoked key to PASS (hosted /verify does).
         ks_r, ks_n = check_key_status(
-            status, payload.get("issued_at", ""), revoked_at, _has_anchor
+            status, payload.get("issued_at", ""), revoked_at, False
         )
         axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
         _raw_sig = sig_obj.get("sig", "")
