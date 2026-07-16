@@ -178,9 +178,9 @@ class AsqavNativeAdapter(FormatAdapter):
         else:
             issued_at = _payload(doc).get("issued_at", "")
         revoked_at = _vr.resolve_revoked_at(jwks, kid)
-        _env = _vr.normalise_envelope(doc)
-        _has_anchor = bool(_env.get("anchors"))
-        res, note = _vr.check_key_status(status, issued_at, revoked_at, _has_anchor)
+        # Offline anchor presence is unverifiable (anchors are unsigned); pass
+        # False so a forged anchor never rides a revoked key to PASS.
+        res, note = _vr.check_key_status(status, issued_at, revoked_at, False)
         return [("key_status", res, note)]
 
     def attestation(self, doc: dict) -> dict[str, Any]:
