@@ -30,6 +30,7 @@ keywords = [
     "smolagents",
     "dspy",
     "strands-agents",
+    "openai",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -64,6 +65,8 @@ crewai = []
 litellm = ["litellm>=1.83.14,!=1.82.7,!=1.82.8"]
 haystack = ["haystack-ai>=2.0.0"]
 openai-agents = ["openai-agents>=0.1.0"]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.18.0"]
 # llama-index-core hard-requires nltk (CVE-2026-54293, no upstream patch as of 2026-06-20).
 # Removed from extras until llama-index-core drops/patches nltk.
 # The integration module (extras/llamaindex.py) stays; users can install llama-index-core
