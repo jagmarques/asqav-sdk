@@ -5,6 +5,23 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-07-20
+
+Patch release with a verifier correctness fix and a docs alignment.
+
+### Fixed
+
+- **Offline verify must not treat anchor presence as trusted timing.** The
+  neutral verifier client returned an `anchored` verdict when an anchor was
+  present on the receipt, even if the anchor was not independently verified.
+  The client reports anchor presence as metadata only, and the verdict
+  reflects the cryptographic verification state alone. (#376)
+
+### Changed
+
+- Aligned the README license sections with the actual LICENSE file (ELv2 for
+  the SDK code, Apache-2.0 for the conformance vectors). (#374)
+
 ## [0.8.2] - 2026-07-11
 
 Release-hygiene patch that re-ships the 0.8.1 feature set from `main`. The `asqav`
