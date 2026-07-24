@@ -107,7 +107,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pytest ruff
+      # Pinned: an unpinned ruff turns this job red on a linter release with no
+      # code change. ruff 0.16 flags 10 findings here that 0.15 does not.
+      - run: pip install pytest "ruff==0.15.20"
       - run: ruff check github-action github-action-risk-acceptance
       - run: pytest github-action github-action-risk-acceptance -v --tb=short
 
