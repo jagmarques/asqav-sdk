@@ -92,9 +92,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install cryptography pytest ruff
+      # dilithium-py is required, not optional: the ML-DSA-65 forgery and
+      # issuer-binding tests skip without it, so the job would prove nothing.
+      - run: pip install cryptography dilithium-py pytest ruff
       - run: ruff check python/src/asqav/verifier
-      - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py -v --tb=short
+      - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py python/tests/test_verify_receipt_revoked_key.py python/tests/test_verify_receipt_failclean.py -v --tb=short
 
   actions:
     needs: changes

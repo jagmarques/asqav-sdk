@@ -48,9 +48,21 @@ _HASH_MODE_FIELDS = (
 )
 
 
+#: Fields that mark a doc as a compliance claim; their presence rules out hash mode.
+_COMPLIANCE_MARKERS = ("previousReceiptHash", "issuer_id")
+
+
 def _is_hash_mode(doc: dict) -> bool:
-    """True for a flat hash-mode signature receipt (mode=hash, null payload, a sig)."""
+    """True for a flat hash-mode signature receipt (mode=hash, null payload, a sig).
+
+    ``mode`` sits outside the signed bytes, so any compliance marker or a missing
+    ``hash`` vetoes hash mode. Without that veto, adding one unsigned field to a
+    compliance receipt selects the weaker hash-mode axis set (no chain, no issuer
+    bind against issuer_id), which is a downgrade an attacker controls.
+    """
     if doc.get("mode") != "hash" or doc.get("payload") is not None:
+        return False
+    if doc.get("hash") is None or any(f in doc for f in _COMPLIANCE_MARKERS):
         return False
     return bool(doc.get("signature_b64") or doc.get("signature"))
 
@@ -167,31 +179,27 @@ class AsqavNativeAdapter(FormatAdapter):
         A receipt signed by a revoked key, or by a key the directory publishes
         under a different issuer, must not PASS offline, matching the hosted
         /verify. No key resolved means the signature axis already FAILs, so these
-        axes only weigh in once a key is found. A hash-mode receipt carries no
-        issuer_id claim, so only the revocation axis applies to it.
+        axes only weigh in once a key is found. Both wire shapes name their issuer
+        inside the signed bytes: issuer_id in compliance mode, org_id in hash mode.
         """
         jwks = key_provider or {"keys": []}
         kid = self.extract_signature(doc).kid
         pk, status, _alg = _vr.resolve_key(jwks, kid)
         if pk is None:
             return []
-        payload = None if _is_hash_mode(doc) else _payload(doc)
-        issued_at = (
-            doc.get("server_timestamp", "") if payload is None else payload.get("issued_at", "")
-        )
+        if _is_hash_mode(doc):
+            issued_at, claimed_issuer = doc.get("server_timestamp", ""), doc.get("org_id")
+        else:
+            payload = _payload(doc)
+            issued_at, claimed_issuer = payload.get("issued_at", ""), payload.get("issuer_id")
         revoked_at = _vr.resolve_revoked_at(jwks, kid)
         # Offline anchor presence is unverifiable (anchors are unsigned); pass
         # False so a forged anchor never rides a revoked key to PASS.
         res, note = _vr.check_key_status(status, issued_at, revoked_at, False)
-        axes = [("key_status", res, note)]
-        if payload is not None:
-            # kid selects the key and the receipt selects the kid, so bind the
-            # resolved key back to the issuer the payload claims.
-            bind = _vr.check_issuer_binding(
-                _vr.resolve_key_issuer(jwks, kid), payload.get("issuer_id")
-            )
-            axes.append(("issuer_bind", *bind))
-        return axes
+        # kid selects the key and the receipt selects the kid, so bind the
+        # resolved key back to the issuer the signed bytes claim.
+        bind = _vr.check_issuer_binding(_vr.resolve_key_issuer(jwks, kid), claimed_issuer)
+        return [("key_status", res, note), ("issuer_bind", *bind)]
 
     def attestation(self, doc: dict) -> dict[str, Any]:
         """Surface the v:2 in-body ``signer``. None for v:1 and hash-mode.

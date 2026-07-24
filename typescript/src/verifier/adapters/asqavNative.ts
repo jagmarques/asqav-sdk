@@ -30,10 +30,12 @@ import { isLowerHex } from "./acta.js";
 import {
   FIRST_RECEIPT_SEED,
   b64decode,
+  checkIssuerBinding,
   checkKeyStatus,
   checkStructure,
   normaliseEnvelope,
   resolveKey,
+  resolveKeyIssuer,
   resolveRevokedAt,
 } from "../vrShim.js";
 
@@ -62,6 +64,10 @@ function isHashMode(doc: Record<string, unknown>): boolean {
   if (doc.mode !== "hash" || (doc.payload !== null && doc.payload !== undefined)) {
     return false;
   }
+  // mode sits outside the signed bytes, so a compliance marker or a missing hash
+  // vetoes hash mode; otherwise one unsigned field picks the weaker axis set.
+  if (doc.hash === null || doc.hash === undefined) return false;
+  if ("previousReceiptHash" in doc || "issuer_id" in doc) return false;
   return Boolean(doc.signature_b64 || doc.signature);
 }
 
@@ -182,21 +188,31 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return checkStructure(payloadOf(doc));
   }
 
-  // Gate on signing key revocation status (mirrors Python extra_axes).
+  // Gate on signing key revocation status and its issuer (mirrors Python extra_axes).
   // No-op when key is absent; the signature axis already handles that.
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const kid = this.extractSignature(doc).kid;
     const [pk, status] = resolveKey(jwks, kid);
     if (pk === null) return [];
-    const issuedAt = isHashMode(doc)
+    const hashMode = isHashMode(doc);
+    // Both wire shapes name their issuer inside the signed bytes: issuer_id in
+    // compliance mode, org_id in hash mode.
+    const issuedAt = hashMode
       ? String(doc.server_timestamp ?? "")
       : String(payloadOf(doc).issued_at ?? "");
+    const claimedIssuer = hashMode ? doc.org_id : payloadOf(doc).issuer_id;
     const revokedAt = resolveRevokedAt(jwks, kid);
     // Offline anchor presence is unverifiable (anchors unsigned); pass false
     // so a forged anchor never rides a revoked key to PASS.
     const [res, note] = checkKeyStatus(status, issuedAt, revokedAt, false);
-    return [["key_status", res, note]];
+    // kid selects the key and the receipt selects the kid, so bind the resolved
+    // key back to the issuer the signed bytes claim.
+    const [bindRes, bindNote] = checkIssuerBinding(resolveKeyIssuer(jwks, kid), claimedIssuer);
+    return [
+      ["key_status", res, note],
+      ["issuer_bind", bindRes, bindNote],
+    ];
   }
 
   // Surface the v:2 in-body signer. null for v:1 and hash-mode. Read only from

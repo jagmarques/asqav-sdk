@@ -393,18 +393,11 @@ def resolve_revoked_at(jwks: dict, kid: str):
     """Return the JWKS revoked_at for kid if published, else None.
 
     Optional field: the public JWKS publishes status today but not the
-    timestamp, so the key-status axis falls back to a bare status gate. Shares
-    resolve_key's defensive shape so a malformed JWKS never crashes a direct call.
+    timestamp, so the key-status axis falls back to a bare status gate. Reads the
+    same entry resolve_key returns, so every axis weighs one key, not two.
     """
-    keys = jwks.get("keys") if isinstance(jwks, dict) else None
-    if not isinstance(keys, list):
-        return None
-    for k in keys:
-        if not isinstance(k, dict):
-            continue
-        if kid and kid in (k.get("issuer_id"), k.get("kid")):
-            return k.get("revoked_at")
-    return None
+    k = _match_key(jwks, kid)
+    return k.get("revoked_at") if k else None
 
 
 def check_issuer_binding(key_issuer_id, claimed_issuer_id):

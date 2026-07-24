@@ -93,29 +93,61 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
   return ["PASS", `required fields present; type ${rt}`];
 }
 
+// One matcher (mirrors `_match_key`), so key bytes and the key's published
+// issuer always come from the same JWKS entry.
+function matchKey(
+  jwks: Record<string, unknown> | null,
+  kid: string,
+): Record<string, unknown> | null {
+  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const k of keys) {
+    if (kid && (kid === k.issuer_id || kid === k.kid)) {
+      if (typeof k.public_key !== "string") continue;
+      return k;
+    }
+  }
+  return null;
+}
+
 /** Return `[publicKeyBytes, status, alg]` for `kid` from a JWKS dict (mirrors `resolve_key`). */
 export function resolveKey(
   jwks: Record<string, unknown> | null,
   kid: string,
 ): readonly [Uint8Array | null, string | null, string | null] {
-  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
-  for (const k of keys) {
-    if (kid && (kid === k.issuer_id || kid === k.kid)) {
-      return [b64decode(k.public_key as string), (k.status as string) ?? null, (k.alg as string) ?? null];
-    }
+  const k = matchKey(jwks, kid);
+  if (k === null) return [null, null, null];
+  return [b64decode(k.public_key as string), (k.status as string) ?? null, (k.alg as string) ?? null];
+}
+
+/** Return the issuer id the JWKS publishes for `kid` (mirrors `resolve_key_issuer`). */
+export function resolveKeyIssuer(jwks: Record<string, unknown> | null, kid: string): string | null {
+  const k = matchKey(jwks, kid);
+  return k !== null && typeof k.issuer_id === "string" ? k.issuer_id : null;
+}
+
+/** PASS only when the JWKS publishes the verifying key under the claimed
+ *  issuer, so a signature alone never proves authorship (`check_issuer_binding`). */
+export function checkIssuerBinding(
+  keyIssuerId: string | null,
+  claimedIssuerId: unknown,
+): readonly [VerifyState, string] {
+  if (
+    typeof claimedIssuerId === "string" &&
+    claimedIssuerId !== "" &&
+    keyIssuerId === claimedIssuerId
+  ) {
+    return ["PASS", `signing key is published under the claimed issuer ${claimedIssuerId}`];
   }
-  return [null, null, null];
+  return [
+    "FAIL",
+    `signing key is published under issuer ${JSON.stringify(keyIssuerId)}, not the claimed issuer ${JSON.stringify(claimedIssuerId ?? null)}`,
+  ];
 }
 
 /** Return the JWKS revoked_at for kid if published, else null (mirrors `resolve_revoked_at`). */
 export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: string): string | null {
-  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
-  for (const k of keys) {
-    if (kid && (kid === k.issuer_id || kid === k.kid)) {
-      return typeof k.revoked_at === "string" ? k.revoked_at : null;
-    }
-  }
-  return null;
+  const k = matchKey(jwks, kid);
+  return k !== null && typeof k.revoked_at === "string" ? k.revoked_at : null;
 }
 
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.

@@ -274,6 +274,123 @@ def _cross_issuer_forgery_and_jwks():
     return envelope, jwks
 
 
+_HASH_SIGNED_FIELDS = (
+    "v",
+    "mode",
+    "hash",
+    "hash_algo",
+    "metadata",
+    "server_timestamp",
+    "action_id",
+    "agent_id",
+    "org_id",
+    "policy_digest",
+    "policy_decision",
+)
+
+
+def _hash_mode_receipt(org_id: str, key_id: str, secret_key):
+    """A real hash-mode /sign receipt: the flat 11 signed fields plus the wire fields.
+
+    The attacker signs the same bytes the cloud signs, so the signature axis PASSes
+    and only the issuer bind can weigh the org the receipt names."""
+    import base64
+
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    from asqav.verifier.oracle.canonical import asqav_jcs
+
+    doc = {
+        "v": 1,
+        "mode": "hash",
+        "hash": "sha256:" + "a" * 64,
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-19T00:00:00.000000Z",
+        "action_id": "act_probe",
+        "agent_id": "agt_attacker",
+        "org_id": org_id,
+        "policy_digest": "sha256:" + "c" * 64,
+        "policy_decision": "allow",
+    }
+    signed = {f: doc[f] for f in _HASH_SIGNED_FIELDS}
+    doc["key_id"] = key_id
+    doc["algorithm"] = "ML-DSA-65"
+    doc["signature_b64"] = base64.b64encode(
+        ML_DSA_65.sign(secret_key, asqav_jcs(signed))
+    ).decode()
+    return doc
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
+def test_verify_receipt_offline_rejects_hash_mode_claiming_another_org():
+    """FORGERY in hash mode, the cloud's default /sign shape. org_id is a required
+    signed field naming the org, so a receipt claiming the victim's org_id and
+    signed by a key published under another issuer must be refused."""
+    _envelope_unused, jwks = _cross_issuer_forgery_and_jwks()
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    import base64
+
+    attacker_pk, attacker_sk = ML_DSA_65.keygen()
+    jwks = {
+        "keys": [
+            {
+                "kid": "attacker-key",
+                "agent_id": "agt_attacker",
+                "issuer_id": "org-attacker",
+                "alg": "ML-DSA-65",
+                "status": "active",
+                "public_key": base64.b64encode(attacker_pk).decode(),
+            }
+        ]
+    }
+    doc = _hash_mode_receipt("org-victim", "attacker-key", attacker_sk)
+    result = asqav.verify_receipt_offline(doc, jwks)
+    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    bind = next(a for a in result["axes"] if a["name"] == "issuer_bind")
+    assert bind["result"] == "FAIL", f"issuer_bind axis: {bind}"
+    sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
+    assert sig_axis["result"] == "PASS", "the hash-mode signature verifies; the bind refuses it"
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
+def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields():
+    """An unsigned field must never select a weaker axis set. A hash-mode receipt
+    that also displays issuer_id and previousReceiptHash is read as a compliance
+    claim, so the issuer bind and the chain axis both apply and it is refused."""
+    import base64
+
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    attacker_pk, attacker_sk = ML_DSA_65.keygen()
+    jwks = {
+        "keys": [
+            {
+                "kid": "attacker-key",
+                "agent_id": "agt_attacker",
+                "issuer_id": "org-attacker",
+                "alg": "ML-DSA-65",
+                "status": "active",
+                "public_key": base64.b64encode(attacker_pk).decode(),
+            }
+        ]
+    }
+    clean = _hash_mode_receipt("org-attacker", "attacker-key", attacker_sk)
+    # Control: the honest hash-mode receipt still verifies.
+    assert asqav.verify_receipt_offline(clean, jwks)["verdict"] == "PASS"
+
+    doc = dict(clean)
+    # Unsigned in hash mode, so a consumer reading these fields sees a victim claim.
+    doc["issuer_id"] = "org-victim"
+    doc["previousReceiptHash"] = "0" * 64
+    result = asqav.verify_receipt_offline(doc, jwks)
+    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    # The compliance rule set applied, so the doc is judged on the claim it displays.
+    structure = next(a for a in result["axes"] if a["name"] == "structure")
+    assert structure["result"] == "FAIL", f"structure axis: {structure}"
+
+
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
     """FORGERY through the public offline API: the attacker signs with their own

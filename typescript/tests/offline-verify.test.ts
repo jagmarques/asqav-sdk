@@ -418,3 +418,93 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     expect(sigAxis?.result).toBe("FAIL");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Cross-issuer forgery: a real key from the shared JWKS, another org's claim
+// ---------------------------------------------------------------------------
+
+describe("verifyReceiptOffline - issuer binding (no network)", () => {
+  function crossIssuerForgery(): [Record<string, unknown>, Record<string, unknown>] {
+    const attacker = ml_dsa65.keygen();
+    const victim = ml_dsa65.keygen();
+    const payload: Record<string, unknown> = {
+      type: "protectmcp:decision",
+      issued_at: "2026-06-19T00:00:00.000000Z",
+      issuer_id: "org-victim",
+      agent_id: "agt_attacker",
+      action_ref: "sha256:" + "a".repeat(64),
+      payload_digest: { hash: "b".repeat(64), size: 128 },
+      policy_digest: "sha256:" + "c".repeat(64),
+      previousReceiptHash: "0".repeat(64),
+      decision: "allow",
+    };
+    // kid points at the attacker's OWN published key, not the victim's.
+    const envelope: Record<string, unknown> = {
+      payload,
+      signature: { alg: "ML-DSA-65", kid: "attacker-key", sig: "" },
+      anchors: [],
+    };
+    const ad = ADAPTERS.find((a) => a.detect(envelope))!;
+    const sig = ml_dsa65.sign(Buffer.from(ad.signingInput(envelope)), attacker.secretKey);
+    (envelope.signature as Record<string, unknown>).sig = Buffer.from(sig).toString("base64");
+    const key = (kid: string, issuerId: string, pub: Uint8Array) => ({
+      kid,
+      issuer_id: issuerId,
+      alg: "ML-DSA-65",
+      status: "active",
+      public_key: Buffer.from(pub).toString("base64"),
+    });
+    const jwks: Record<string, unknown> = {
+      keys: [
+        key("victim-key", "org-victim", victim.publicKey),
+        key("attacker-key", "org-attacker", attacker.publicKey),
+      ],
+    };
+    return [envelope, jwks];
+  }
+
+  it("refuses a receipt signed by a key published under another issuer", () => {
+    const [envelope, jwks] = crossIssuerForgery();
+    const result = verifyReceiptOffline(envelope, jwks);
+    expect(result.verdict).toBe("FAIL");
+    const bind = result.axes.find((a) => a.axis === "issuer_bind");
+    expect(bind?.result).toBe("FAIL");
+    // The forged signature itself verifies; the bind is what refuses it.
+    expect(result.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
+  });
+
+  it("still PASSes a receipt signed by the claimed issuer's own key", () => {
+    const { publicKey, secretKey } = ml_dsa65.keygen();
+    const kid = "agent-one";
+    const payload: Record<string, unknown> = {
+      type: "protectmcp:decision",
+      issued_at: "2026-06-19T00:00:00.000000Z",
+      issuer_id: "org-legit",
+      action_ref: "sha256:" + "a".repeat(64),
+      payload_digest: { hash: "b".repeat(64), size: 128 },
+      policy_digest: "sha256:" + "c".repeat(64),
+      previousReceiptHash: "0".repeat(64),
+      decision: "allow",
+    };
+    const envelope: Record<string, unknown> = {
+      payload,
+      signature: { alg: "ML-DSA-65", kid, sig: "" },
+      anchors: [],
+    };
+    const ad = ADAPTERS.find((a) => a.detect(envelope))!;
+    const sig = ml_dsa65.sign(Buffer.from(ad.signingInput(envelope)), secretKey);
+    (envelope.signature as Record<string, unknown>).sig = Buffer.from(sig).toString("base64");
+    const jwks: Record<string, unknown> = {
+      keys: [
+        {
+          kid,
+          issuer_id: "org-legit",
+          alg: "ML-DSA-65",
+          status: "active",
+          public_key: Buffer.from(publicKey).toString("base64"),
+        },
+      ],
+    };
+    expect(verifyReceiptOffline(envelope, jwks).verdict).toBe("PASS");
+  });
+});

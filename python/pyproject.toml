@@ -91,6 +91,10 @@ opa = []
 all = [
     "httpx>=0.24.0",
     "typer>=0.12.0",
+    # The verify extra belongs in all: without dilithium-py every ML-DSA-65 test
+    # skips, so a CI run on this extra never executes the signature-path tests.
+    "dilithium-py>=1.0.0",
+    "cryptography>=42",
     "langchain-core>=0.2.0",
     # crewai removed: hard-requires chromadb (CVE-2025-47947, CRITICAL, no patch).
     "litellm>=1.83.14,!=1.82.7,!=1.82.8",
