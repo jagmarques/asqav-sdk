@@ -546,6 +546,14 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     return { keys: [key] };
   }
 
+  it("builds a fixture carrying the prod receipt's field set", () => {
+    // Fixture practice: a hand-built receipt must carry every field production
+    // emits, so a test can never pass on a shape the cloud does not send.
+    const real = Object.keys(loadJson(join(VECTORS, "asqav-05-hash-mode-prod"), "receipt.json"));
+    const built = new Set(Object.keys(hashModeReceipt(ATTACKER_ORG, ml_dsa65.keygen().secretKey)));
+    expect(real.filter((f) => !built.has(f))).toEqual([]);
+  });
+
   it("refuses a hash-mode receipt claiming another org", () => {
     const { publicKey, secretKey } = ml_dsa65.keygen();
     const doc = hashModeReceipt(VICTIM_ORG, secretKey);

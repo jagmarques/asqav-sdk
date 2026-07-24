@@ -57,10 +57,10 @@ import base64
 import hashlib
 import json
 import math
+import re
 import sys
 import urllib.error
 import urllib.request
-import uuid
 from datetime import datetime, timezone
 
 API_BASE = "https://api.asqav.com/api/v1"
@@ -348,10 +348,11 @@ def resolve_key_issuer(jwks: dict, kid: str):
     """Return the issuer id the jwks publishes for the key kid resolves to.
 
     Reads the same entry resolve_key returns, so the bind weighs the key that
-    actually verified. None when kid resolves nothing.
+    actually verified. None when kid resolves nothing or publishes no string issuer.
     """
     k = _match_key(jwks, kid)
-    return k.get("issuer_id") if k else None
+    issuer = k.get("issuer_id") if k else None
+    return issuer if isinstance(issuer, str) else None
 
 
 def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str):
@@ -416,18 +417,30 @@ def check_issuer_binding(key_issuer_id, claimed_issuer_id):
 
 
 def resolve_key_org(jwks: dict, kid: str):
-    """Return the org id the jwks publishes for the key kid resolves to, if any."""
+    """Return the org id the jwks publishes for the key kid resolves to, if any.
+
+    A non-string org_id is not an org id, so it reads as unpublished.
+    """
     k = _match_key(jwks, kid)
-    return k.get("org_id") if k else None
+    org = k.get("org_id") if k else None
+    return org if isinstance(org, str) else None
+
+
+#: An organization id on the wire is Organization.id, a canonical dashed UUID.
+#: Kept character for character identical to the TypeScript ORG_ID_RE.
+_ORG_ID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
 
 
 def _is_org_id(value) -> bool:
-    """True when value parses as an organization UUID, the form org_id takes."""
-    try:
-        uuid.UUID(str(value))
-        return True
-    except (ValueError, AttributeError, TypeError):
-        return False
+    """True for a canonical dashed UUID, the only form an org id takes on the wire.
+
+    Strict on purpose. A permissive parse would read urn:uuid: or undashed text as
+    an org id and then FAIL the bind against the canonical org_id beside it, which
+    false-FAILs an honest receipt. Anything else is a label: SKIP, never PASS.
+    """
+    return isinstance(value, str) and bool(_ORG_ID_RE.match(value))
 
 
 def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):

@@ -94,7 +94,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       # dilithium-py is required, not optional: the ML-DSA-65 forgery and
       # issuer-binding tests skip without it, so the job would prove nothing.
-      - run: pip install cryptography dilithium-py pytest "ruff==0.15.20"
+      - run: pip install cryptography "dilithium-py==1.4.0" pytest "ruff==0.15.20"
       - run: ruff check python/src/asqav/verifier
       - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py python/tests/test_verify_receipt_revoked_key.py python/tests/test_verify_receipt_failclean.py python/tests/test_offline_verify.py -v --tb=short
 

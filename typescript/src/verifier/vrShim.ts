@@ -99,8 +99,10 @@ function matchKey(
   jwks: Record<string, unknown> | null,
   kid: string,
 ): Record<string, unknown> | null {
-  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
-  for (const k of keys) {
+  const keys = jwks?.keys;
+  if (!Array.isArray(keys)) return null;
+  for (const k of keys as Array<Record<string, unknown>>) {
+    if (k === null || typeof k !== "object") continue;
     if (kid && (kid === k.issuer_id || kid === k.kid)) {
       if (typeof k.public_key !== "string") continue;
       return k;
@@ -156,9 +158,14 @@ export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string)
   return k !== null && typeof k.org_id === "string" ? k.org_id : null;
 }
 
-// org.id is a UUID, so a published issuer that does not parse as one is a
-// legal-entity label the verifier cannot resolve to an org offline.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// An organization id on the wire is Organization.id, a canonical dashed UUID.
+// Kept character for character identical to the Python _ORG_ID_RE.
+const ORG_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True for a canonical dashed UUID, the only form an org id takes on the wire. */
+function isOrgId(value: unknown): boolean {
+  return typeof value === "string" && ORG_ID_RE.test(value);
+}
 
 /** Bind a hash-mode receipt's org_id to the org the JWKS names (mirrors `check_org_binding`). */
 export function checkOrgBinding(
@@ -172,7 +179,7 @@ export function checkOrgBinding(
   if (claimedOrgId === keyOrgId || claimedOrgId === keyIssuerId) {
     return ["PASS", `signing key is published under the claimed org ${claimedOrgId}`];
   }
-  if (keyOrgId === null && !(typeof keyIssuerId === "string" && UUID_RE.test(keyIssuerId))) {
+  if (keyOrgId === null && !isOrgId(keyIssuerId)) {
     return [
       "SKIPPED",
       `jwks names issuer ${JSON.stringify(keyIssuerId)} for this key, a label rather than an org id, so org ${claimedOrgId} cannot be confirmed offline; publish org_id per key to close this`,
