@@ -93,29 +93,110 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
   return ["PASS", `required fields present; type ${rt}`];
 }
 
+// One matcher (mirrors `_match_key`), so key bytes and the key's published
+// issuer always come from the same JWKS entry.
+function matchKey(
+  jwks: Record<string, unknown> | null,
+  kid: string,
+): Record<string, unknown> | null {
+  const keys = jwks?.keys;
+  if (!Array.isArray(keys)) return null;
+  for (const k of keys as Array<Record<string, unknown>>) {
+    if (k === null || typeof k !== "object") continue;
+    if (kid && (kid === k.issuer_id || kid === k.kid)) {
+      if (typeof k.public_key !== "string") continue;
+      return k;
+    }
+  }
+  return null;
+}
+
 /** Return `[publicKeyBytes, status, alg]` for `kid` from a JWKS dict (mirrors `resolve_key`). */
 export function resolveKey(
   jwks: Record<string, unknown> | null,
   kid: string,
 ): readonly [Uint8Array | null, string | null, string | null] {
-  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
-  for (const k of keys) {
-    if (kid && (kid === k.issuer_id || kid === k.kid)) {
-      return [b64decode(k.public_key as string), (k.status as string) ?? null, (k.alg as string) ?? null];
-    }
+  const k = matchKey(jwks, kid);
+  if (k === null) return [null, null, null];
+  return [b64decode(k.public_key as string), (k.status as string) ?? null, (k.alg as string) ?? null];
+}
+
+/** Return the issuer id the JWKS publishes for `kid` (mirrors `resolve_key_issuer`). */
+export function resolveKeyIssuer(jwks: Record<string, unknown> | null, kid: string): string | null {
+  const k = matchKey(jwks, kid);
+  return k !== null && typeof k.issuer_id === "string" ? k.issuer_id : null;
+}
+
+/** PASS only when the JWKS publishes the verifying key under the claimed
+ *  issuer, so a signature alone never proves authorship (`check_issuer_binding`). */
+export function checkIssuerBinding(
+  keyIssuerId: string | null,
+  claimedIssuerId: unknown,
+): readonly [VerifyState, string] {
+  if (
+    typeof claimedIssuerId === "string" &&
+    claimedIssuerId !== "" &&
+    keyIssuerId === claimedIssuerId
+  ) {
+    return ["PASS", `signing key is published under the claimed issuer ${claimedIssuerId}`];
   }
-  return [null, null, null];
+  return [
+    "FAIL",
+    `signing key is published under issuer ${JSON.stringify(keyIssuerId)}, not the claimed issuer ${JSON.stringify(claimedIssuerId ?? null)}`,
+  ];
 }
 
 /** Return the JWKS revoked_at for kid if published, else null (mirrors `resolve_revoked_at`). */
 export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: string): string | null {
-  const keys = (jwks?.keys as Array<Record<string, unknown>> | undefined) ?? [];
-  for (const k of keys) {
-    if (kid && (kid === k.issuer_id || kid === k.kid)) {
-      return typeof k.revoked_at === "string" ? k.revoked_at : null;
-    }
+  const k = matchKey(jwks, kid);
+  return k !== null && typeof k.revoked_at === "string" ? k.revoked_at : null;
+}
+
+/** Return the org id the JWKS publishes for `kid` (mirrors `resolve_key_org`). */
+export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string): string | null {
+  const k = matchKey(jwks, kid);
+  // A value that is not an org id cannot serve as one, so it reads as unpublished.
+  return k !== null && isOrgId(k.org_id) ? (k.org_id as string) : null;
+}
+
+// Same body text as the Python _ORG_ID_RE, which anchors with fullmatch instead,
+// since python's $ also matches before a trailing newline and this one does not.
+const ORG_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True for a canonical dashed UUID, the only form an org id takes on the wire. */
+function isOrgId(value: unknown): boolean {
+  return typeof value === "string" && ORG_ID_RE.test(value);
+}
+
+// Hex case carries no meaning in a UUID, so two spellings name one org. Folding
+// is limited to org ids, which are ASCII, so both languages fold identically.
+function orgKey(value: unknown): unknown {
+  return isOrgId(value) ? (value as string).toLowerCase() : value;
+}
+
+/** Bind a hash-mode receipt's org_id to the org the JWKS names (mirrors `check_org_binding`). */
+export function checkOrgBinding(
+  keyIssuerId: string | null,
+  keyOrgId: string | null,
+  claimedOrgId: unknown,
+): readonly [VerifyState, string] {
+  if (typeof claimedOrgId !== "string" || claimedOrgId === "") {
+    return ["FAIL", `receipt org_id is ${JSON.stringify(claimedOrgId ?? null)}, so there is no org to bind`];
   }
-  return null;
+  const claimKey = orgKey(claimedOrgId);
+  if (claimKey === orgKey(keyOrgId) || claimKey === orgKey(keyIssuerId)) {
+    return ["PASS", `signing key is published under the claimed org ${claimedOrgId}`];
+  }
+  if (keyOrgId === null && !isOrgId(keyIssuerId)) {
+    return [
+      "SKIPPED",
+      `jwks names issuer ${JSON.stringify(keyIssuerId)} for this key, a label rather than an org id, so org ${claimedOrgId} cannot be confirmed offline; publish org_id per key to close this`,
+    ];
+  }
+  return [
+    "FAIL",
+    `signing key is published under org ${JSON.stringify(keyOrgId ?? keyIssuerId)}, not the claimed ${JSON.stringify(claimedOrgId)}`,
+  ];
 }
 
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
