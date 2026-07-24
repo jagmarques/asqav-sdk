@@ -167,3 +167,64 @@ def test_check_skew_tz_naive_issued_at_no_crash() -> None:
     in the wall-clock subtraction."""
     result, _ = v.check_skew("2026-05-04T00:00:00")
     assert result in ("PASS", "FAIL")
+
+
+def test_resolve_key_by_agent_id_matches_agent_id() -> None:
+    """The signing key is resolvable by the receipt's agent_id (cloud receipts set
+    kid to the issuer/org id but sign with the agent's own key)."""
+    jwks = {
+        "keys": [
+            {
+                "kid": "agent-key-1",
+                "agent_id": "agt_probe",
+                "issuer_id": "org-1",
+                "alg": "Ed25519",
+                "public_key": "AAAA",
+                "status": "active",
+            }
+        ]
+    }
+    pk, status, alg, kid = v.resolve_key_by_agent_id(jwks, "agt_probe")
+    assert pk == v._b64decode("AAAA")
+    assert (status, alg, kid) == ("active", "Ed25519", "agent-key-1")
+    # Unknown agent_id resolves nothing.
+    assert v.resolve_key_by_agent_id(jwks, "agt_other") == (None, None, None, None)
+
+
+def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
+    """The agent_id fallback only trusts an agent key that actually verifies the
+    signature; a signature made by a different key still FAILs (no false pass)."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import (
+        Encoding,
+        PublicFormat,
+    )
+
+    import base64
+
+    signing_key = Ed25519PrivateKey.generate()
+    other_key = Ed25519PrivateKey.generate()
+    msg = v.canonical_json({"type": "protectmcp:decision", "agent_id": "agt_probe"})
+    # Signature made by `other_key`, but the JWKS ties agent_id to `signing_key`.
+    wrong_sig = base64.b64encode(other_key.sign(msg)).decode()
+    jwks = {
+        "keys": [
+            {
+                "kid": "agent-key-1",
+                "agent_id": "agt_probe",
+                "issuer_id": "org-1",
+                "alg": "Ed25519",
+                "public_key": base64.b64encode(
+                    signing_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+                ).decode(),
+                "status": "active",
+            }
+        ]
+    }
+    envelope = {
+        "payload": {"type": "protectmcp:decision", "agent_id": "agt_probe", "issuer_id": "org-1"},
+        "signature": {"alg": "Ed25519", "kid": "org-1", "sig": wrong_sig},
+        "anchors": [],
+    }
+    code = v.run(envelope, jwks, None)
+    assert code == 1  # FAIL: the agent key does not verify the forged signature
