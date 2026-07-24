@@ -15,6 +15,7 @@ import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 import { fetchJwks, verifyReceiptOffline } from "../src/index.js";
 import { ADAPTERS } from "../src/verifier/index.js";
 import { verify as oracleVerify } from "../src/verifier/core.js";
+import { asqavJcs } from "../src/verifier/canonical.js";
 import { b64decode } from "../src/verifier/vrShim.js";
 
 const VECTORS = resolve(__dirname, "..", "..", "verifier", "conformance-vectors");
@@ -416,5 +417,185 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     expect(result.verdict).toBe("FAIL");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("FAIL");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cross-issuer forgery: a real key from the shared JWKS, another org's claim
+// ---------------------------------------------------------------------------
+
+describe("verifyReceiptOffline - issuer binding (no network)", () => {
+  function crossIssuerForgery(): [Record<string, unknown>, Record<string, unknown>] {
+    const attacker = ml_dsa65.keygen();
+    const victim = ml_dsa65.keygen();
+    const payload: Record<string, unknown> = {
+      type: "protectmcp:decision",
+      issued_at: "2026-06-19T00:00:00.000000Z",
+      issuer_id: "org-victim",
+      agent_id: "agt_attacker",
+      action_ref: "sha256:" + "a".repeat(64),
+      payload_digest: { hash: "b".repeat(64), size: 128 },
+      policy_digest: "sha256:" + "c".repeat(64),
+      previousReceiptHash: "0".repeat(64),
+      decision: "allow",
+    };
+    // kid points at the attacker's OWN published key, not the victim's.
+    const envelope: Record<string, unknown> = {
+      payload,
+      signature: { alg: "ML-DSA-65", kid: "attacker-key", sig: "" },
+      anchors: [],
+    };
+    const ad = ADAPTERS.find((a) => a.detect(envelope))!;
+    const sig = ml_dsa65.sign(Buffer.from(ad.signingInput(envelope)), attacker.secretKey);
+    (envelope.signature as Record<string, unknown>).sig = Buffer.from(sig).toString("base64");
+    const key = (kid: string, issuerId: string, pub: Uint8Array) => ({
+      kid,
+      issuer_id: issuerId,
+      alg: "ML-DSA-65",
+      status: "active",
+      public_key: Buffer.from(pub).toString("base64"),
+    });
+    const jwks: Record<string, unknown> = {
+      keys: [
+        key("victim-key", "org-victim", victim.publicKey),
+        key("attacker-key", "org-attacker", attacker.publicKey),
+      ],
+    };
+    return [envelope, jwks];
+  }
+
+  it("refuses a receipt signed by a key published under another issuer", () => {
+    const [envelope, jwks] = crossIssuerForgery();
+    const result = verifyReceiptOffline(envelope, jwks);
+    expect(result.verdict).toBe("FAIL");
+    const bind = result.axes.find((a) => a.axis === "issuer_bind");
+    expect(bind?.result).toBe("FAIL");
+    // The forged signature itself verifies; the bind is what refuses it.
+    expect(result.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
+  });
+
+  it("still PASSes a receipt signed by the claimed issuer's own key", () => {
+    const { publicKey, secretKey } = ml_dsa65.keygen();
+    const kid = "agent-one";
+    const payload: Record<string, unknown> = {
+      type: "protectmcp:decision",
+      issued_at: "2026-06-19T00:00:00.000000Z",
+      issuer_id: "org-legit",
+      action_ref: "sha256:" + "a".repeat(64),
+      payload_digest: { hash: "b".repeat(64), size: 128 },
+      policy_digest: "sha256:" + "c".repeat(64),
+      previousReceiptHash: "0".repeat(64),
+      decision: "allow",
+    };
+    const envelope: Record<string, unknown> = {
+      payload,
+      signature: { alg: "ML-DSA-65", kid, sig: "" },
+      anchors: [],
+    };
+    const ad = ADAPTERS.find((a) => a.detect(envelope))!;
+    const sig = ml_dsa65.sign(Buffer.from(ad.signingInput(envelope)), secretKey);
+    (envelope.signature as Record<string, unknown>).sig = Buffer.from(sig).toString("base64");
+    const jwks: Record<string, unknown> = {
+      keys: [
+        {
+          kid,
+          issuer_id: "org-legit",
+          alg: "ML-DSA-65",
+          status: "active",
+          public_key: Buffer.from(publicKey).toString("base64"),
+        },
+      ],
+    };
+    expect(verifyReceiptOffline(envelope, jwks).verdict).toBe("PASS");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Hash mode: org binding, the unsigned-claim rule, and the crash guard.
+// Mirrors the Python tests one for one so the two languages stay in step.
+// ---------------------------------------------------------------------------
+
+describe("verifyReceiptOffline - hash mode (no network)", () => {
+  const VICTIM_ORG = "f94f66c0-c580-432d-a041-29374f7aee07";
+  const ATTACKER_ORG = "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38";
+  const HASH_SIGNED_FIELDS = ["v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id", "agent_id", "org_id", "policy_digest", "policy_decision"];
+
+  function hashModeReceipt(orgId: string, secretKey: Uint8Array): Record<string, unknown> {
+    const doc: Record<string, unknown> = {
+      v: 1, mode: "hash", hash: "sha256:" + "a".repeat(64), hash_algo: "sha256",
+      metadata: {}, server_timestamp: "2026-06-19T00:00:00.000000Z", action_id: "act_probe",
+      agent_id: "agt_attacker", org_id: orgId, policy_digest: "sha256:" + "c".repeat(64),
+      policy_decision: "allow",
+    };
+    const signed: Record<string, unknown> = {};
+    for (const f of HASH_SIGNED_FIELDS) signed[f] = doc[f];
+    doc.key_id = "attacker-key";
+    doc.algorithm = "ML-DSA-65";
+    // Real /sign output carries both, so the fixture carries both.
+    doc.payload = null;
+    doc.anchors = [];
+    doc.signature_b64 = Buffer.from(
+      ml_dsa65.sign(Buffer.from(asqavJcs(signed)), secretKey),
+    ).toString("base64");
+    return doc;
+  }
+
+  function hashModeJwks(issuerId: string, pub: Uint8Array, orgId?: string): Record<string, unknown> {
+    const key: Record<string, unknown> = { kid: "attacker-key", agent_id: "agt_attacker", issuer_id: issuerId, alg: "ML-DSA-65", status: "active", public_key: Buffer.from(pub).toString("base64") };
+    if (orgId !== undefined) key.org_id = orgId;
+    return { keys: [key] };
+  }
+
+  it("builds a fixture carrying the prod receipt's field set", () => {
+    // Fixture practice: a hand-built receipt must carry every field production
+    // emits, so a test can never pass on a shape the cloud does not send.
+    const real = Object.keys(loadJson(join(VECTORS, "asqav-05-hash-mode-prod"), "receipt.json"));
+    const built = new Set(Object.keys(hashModeReceipt(ATTACKER_ORG, ml_dsa65.keygen().secretKey)));
+    expect(real.filter((f) => !built.has(f))).toEqual([]);
+  });
+
+  it("refuses a hash-mode receipt claiming another org", () => {
+    const { publicKey, secretKey } = ml_dsa65.keygen();
+    const doc = hashModeReceipt(VICTIM_ORG, secretKey);
+    const result = verifyReceiptOffline(doc, hashModeJwks(ATTACKER_ORG, publicKey));
+    expect(result.verdict).toBe("FAIL");
+    expect(result.axes.find((a) => a.axis === "issuer_bind")?.result).toBe("FAIL");
+    // The signature itself verifies; the bind is what refuses it.
+    expect(result.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
+  });
+
+  it("refuses claim fields the hash-mode signature does not cover", () => {
+    const { publicKey, secretKey } = ml_dsa65.keygen();
+    const clean = hashModeReceipt(ATTACKER_ORG, secretKey);
+    const jwks = hashModeJwks(ATTACKER_ORG, publicKey);
+    expect(verifyReceiptOffline(clean, jwks).verdict).toBe("PASS");
+
+    const doc = { ...clean, issuer_id: "org-victim", previousReceiptHash: "0".repeat(64) };
+    const result = verifyReceiptOffline(doc, jwks);
+    expect(result.verdict).toBe("FAIL");
+    expect(result.axes.find((a) => a.axis === "structure")?.note).toContain("does not cover");
+  });
+
+  it("does not false-FAIL an org whose directory entry carries a legal entity", () => {
+    const { publicKey, secretKey } = ml_dsa65.keygen();
+    const doc = hashModeReceipt(ATTACKER_ORG, secretKey);
+    const aliased = verifyReceiptOffline(doc, hashModeJwks("Acme Compliance Ltd", publicKey));
+    expect(aliased.axes.find((a) => a.axis === "issuer_bind")?.result).toBe("SKIPPED");
+    expect(aliased.verdict).toBe("INCOMPLETE");
+    const published = verifyReceiptOffline(
+      doc,
+      hashModeJwks("Acme Compliance Ltd", publicKey, ATTACKER_ORG),
+    );
+    expect(published.verdict).toBe("PASS");
+  });
+
+  it("gives a clean FAIL, not a crash, on the prod vector plus unsigned claims", () => {
+    const dir = join(VECTORS, "asqav-05-hash-mode-prod");
+    const doc = loadJson(dir, "receipt.json");
+    doc.issuer_id = "org-victim";
+    doc.previousReceiptHash = "0".repeat(64);
+    const result = verifyReceiptOffline(doc, loadJson(dir, "jwks.json"));
+    expect(result.verdict).toBe("FAIL");
+    expect(result.axes.find((a) => a.axis === "structure")?.note).toContain("does not cover");
   });
 });
