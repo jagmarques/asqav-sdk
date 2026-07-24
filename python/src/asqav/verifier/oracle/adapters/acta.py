@@ -1,12 +1,20 @@
 """ACTA adapter - Ed25519 over the JCS of the payload, signed directly.
 
-Targets draft-farley-acta-signed-receipts-01 (the draft Asqav profiles). The
+Targets draft-farley-acta-signed-receipts-02 (the draft Asqav profiles). The
 envelope is {payload, signature:{alg, kid, sig}}; the signature is Ed25519 over
 the JCS canonical bytes of the `payload` object, signed DIRECTLY (no pre-hash),
-with the sig as a lowercase hex string. The OPTIONAL Commitment Mode (signing
-SHA-256(JCS(payload))) is NOT implemented: a commitment-mode receipt fails the
-baseline signature check, which is the honest outcome - never a false pass, and
-the adapter never tries both signing inputs.
+with the sig as a lowercase hex string.
+
+Rev-02 conformance (asqav profile): `type`, `issued_at` and `issuer_id` are
+REQUIRED and `issuer_id` must equal `signature.kid`; `type` must be a non-empty
+namespaced string. Deliberate deviations: (1) the OPTIONAL Commitment Mode
+(signing SHA-256(JCS(payload))) is NOT implemented - a commitment-mode receipt
+fails the baseline signature check, the honest outcome, never a false pass, and
+the adapter never tries both signing inputs; (2) upstream A2A receipts (no `type`
+field) are verified with a relaxed schema (issued_at + signature triple only),
+since they are not rev-02 receipts; (3) only the mandatory EdDSA (Ed25519) alg is
+checked - the SHOULD-support ES256 is not implemented and is rejected, again
+never a false pass.
 
 Asqav-native is a PROFILE of ACTA, so the payloads look identical; the formats are
 kept disjoint by the signature encoding (ACTA hex, Asqav-native base64) plus the
@@ -111,18 +119,23 @@ class ActaAdapter(FormatAdapter):
         sig = doc.get("signature")
         if not isinstance(payload, dict) or not isinstance(sig, dict):
             return "FAIL", "ACTA receipt needs object payload and signature"
-        # Require only the temporal anchor + signature triple; `type`/`issuer_id` are
-        # OPTIONAL Asqav-profile fields.
         missing = [f for f in ("issued_at",) if f not in payload]
         missing += [f"signature.{f}" for f in ("alg", "kid", "sig") if f not in sig]
+        # Rev-02 asqav profile: `type` marks the profile; when present, `type` and
+        # `issuer_id` are REQUIRED too. Upstream A2A receipts carry neither and stay
+        # relaxed (documented deviation - they are not rev-02 receipts).
+        if "type" in payload:
+            if not isinstance(payload["type"], str) or not payload["type"]:
+                return "FAIL", "type must be a non-empty namespaced string"
+            missing += [f for f in ("issuer_id",) if f not in payload]
         if missing:
             return "FAIL", f"missing required fields: {','.join(missing)}"
         if "previousReceiptHash" in payload and payload["previousReceiptHash"] is None:
             return "FAIL", "genesis must omit previousReceiptHash, not set it null"
-        # False-attestation guard: when `issuer_id` is present it must match the signing kid.
+        # False-attestation guard: issuer_id must match the signing kid.
         if "issuer_id" in payload and payload["issuer_id"] != sig.get("kid"):
             return "FAIL", "issuer_id must match signature.kid"
         # Bind alg to the EdDSA baseline; reject registry algs this verifier does not check.
         if sig.get("alg") not in ("EdDSA", "Ed25519"):
             return "FAIL", f"unsupported ACTA alg {sig.get('alg')!r}; only EdDSA baseline is implemented"
-        return "PASS", "issued_at + signature triple present; issuer_id (when present) matches kid; EdDSA baseline"
+        return "PASS", "rev-02 required fields present; issuer_id matches kid; EdDSA baseline"
