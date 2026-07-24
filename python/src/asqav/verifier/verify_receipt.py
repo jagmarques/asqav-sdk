@@ -333,6 +333,27 @@ def resolve_key(jwks: dict, kid: str):
     return None, None, None
 
 
+def resolve_key_by_agent_id(jwks: dict, agent_id: str):
+    """Return (public_key_bytes, status, alg, kid) for a key by its agent_id.
+
+    Cloud receipts set signature.kid to the issuer (org) id but sign with the
+    agent's own key; the JWKS publishes agent_id per key, so the signing key is
+    resolvable by the receipt's agent_id. Same defensive shape as resolve_key.
+    """
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None, None, None, None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
+        if agent_id and agent_id == k.get("agent_id"):
+            pub = k.get("public_key")
+            if not isinstance(pub, str):
+                continue
+            return _b64decode(pub), k.get("status"), k.get("alg"), k.get("kid")
+    return None, None, None, None
+
+
 def resolve_revoked_at(jwks: dict, kid: str):
     """Return the JWKS revoked_at for kid if published, else None.
 
@@ -550,16 +571,30 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         results.append(("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
         results.append(("signature", "SKIPPED", "no issuer key to verify against"))
     else:
-        results.append(("issuer_key", "PASS", f"resolved kid {kid} (status={status})"))
-        revoked_at = resolve_revoked_at(jwks, kid)
+        _raw_sig = sig_obj.get("sig", "")
+        sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
+        sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
+        eff_status, eff_kid = status, kid
+        eff_revoked_at = resolve_revoked_at(jwks, kid)
+        # Cloud receipts set kid to the issuer (org) id but sign with the agent's
+        # own key. If the issuer key does not verify, fall back to the signing
+        # agent's key resolved by agent_id; only a verifying agent key is trusted.
+        if sig_res[0] != "PASS":
+            agent_id = payload.get("agent_id") or envelope.get("agent_id")
+            pk_a, status_a, alg_a, kid_a = resolve_key_by_agent_id(jwks, agent_id)
+            if pk_a is not None:
+                sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
+                if sig_res_a[0] == "PASS":
+                    sig_res = sig_res_a
+                    eff_status, eff_kid = status_a, kid_a
+                    eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+        results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
         # Offline anchor presence is unverifiable (anchors are unsigned); pass
         # False so a forged anchor never rides a revoked key to PASS.
         results.append(
-            ("key_status", *check_key_status(status, payload.get("issued_at", ""), revoked_at, False))
+            ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False))
         )
-        _raw_sig = sig_obj.get("sig", "")
-        sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
-        results.append(("signature", *verify_signature(pk, msg, sig, alg or jwks_alg)))
+        results.append(("signature", *sig_res))
 
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", *check_anchors(envelope)))
