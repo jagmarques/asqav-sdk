@@ -28,6 +28,7 @@ WHAT THIS CHECKS (independently, on your machine):
   - hash-chain link to a predecessor receipt
   - anchor binding (which envelope each anchor commits to) plus anchor presence
   - issuer public-key resolution from the public /.well-known/jwks.json
+  - issuer binding (the verifying key is published under the claimed issuer_id)
 
 WHAT THIS DOES NOT CHECK (needs server state or ASN.1; use the hosted /verify):
   - full RFC3161 certificate-chain walk
@@ -56,6 +57,7 @@ import base64
 import hashlib
 import json
 import math
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -311,55 +313,11 @@ def normalise_envelope(raw: dict) -> dict:
     }
 
 
-def resolve_key(jwks: dict, kid: str):
-    """Return (public_key_bytes, status, alg) for the receipt's signature.kid.
+def _match_key(jwks: dict, kid: str):
+    """Return the first usable jwks entry whose issuer id or key id is kid.
 
-    The public jwks directory lists each key under both its bare issuer id and
-    its crypto key id; match either so the bare-kid wire form resolves. A
-    non-list ``keys``, a non-dict entry, or a matched key with no usable
-    ``public_key`` is a resolution failure (returns None), never a crash.
-    """
-    keys = jwks.get("keys") if isinstance(jwks, dict) else None
-    if not isinstance(keys, list):
-        return None, None, None
-    for k in keys:
-        if not isinstance(k, dict):
-            continue
-        if kid and kid in (k.get("issuer_id"), k.get("kid")):
-            pub = k.get("public_key")
-            if not isinstance(pub, str):
-                continue
-            return _b64decode(pub), k.get("status"), k.get("alg")
-    return None, None, None
-
-
-def resolve_key_by_agent_id(jwks: dict, agent_id: str):
-    """Return (public_key_bytes, status, alg, kid) for a key by its agent_id.
-
-    Cloud receipts set signature.kid to the issuer (org) id but sign with the
-    agent's own key; the JWKS publishes agent_id per key, so the signing key is
-    resolvable by the receipt's agent_id. Same defensive shape as resolve_key.
-    """
-    keys = jwks.get("keys") if isinstance(jwks, dict) else None
-    if not isinstance(keys, list):
-        return None, None, None, None
-    for k in keys:
-        if not isinstance(k, dict):
-            continue
-        if agent_id and agent_id == k.get("agent_id"):
-            pub = k.get("public_key")
-            if not isinstance(pub, str):
-                continue
-            return _b64decode(pub), k.get("status"), k.get("alg"), k.get("kid")
-    return None, None, None, None
-
-
-def resolve_revoked_at(jwks: dict, kid: str):
-    """Return the JWKS revoked_at for kid if published, else None.
-
-    Optional field: the public JWKS publishes status today but not the
-    timestamp, so the key-status axis falls back to a bare status gate. Shares
-    resolve_key's defensive shape so a malformed JWKS never crashes a direct call.
+    One matcher, so key material and the key's published fields always come from
+    the same entry. A malformed jwks is a miss (returns None), never a crash.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -368,8 +326,158 @@ def resolve_revoked_at(jwks: dict, kid: str):
         if not isinstance(k, dict):
             continue
         if kid and kid in (k.get("issuer_id"), k.get("kid")):
-            return k.get("revoked_at")
+            if not isinstance(k.get("public_key"), str):
+                continue
+            return k
     return None
+
+
+def resolve_key(jwks: dict, kid: str):
+    """Return (public_key_bytes, status, alg) for the receipt's signature.kid.
+
+    The public jwks directory lists each key under both its bare issuer id and
+    its crypto key id; match either so the bare-kid wire form resolves.
+    """
+    k = _match_key(jwks, kid)
+    if k is None:
+        return None, None, None
+    return _b64decode(k["public_key"]), k.get("status"), k.get("alg")
+
+
+def resolve_key_issuer(jwks: dict, kid: str):
+    """Return the issuer id the jwks publishes for the key kid resolves to.
+
+    Reads the same entry resolve_key returns, so the bind weighs the key that
+    actually verified. None when kid resolves nothing or publishes no string issuer.
+    """
+    k = _match_key(jwks, kid)
+    issuer = k.get("issuer_id") if k else None
+    return issuer if isinstance(issuer, str) else None
+
+
+def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str):
+    """Return (public_key_bytes, status, alg, kid, key_issuer_id) for an agent key.
+
+    Cloud receipts set signature.kid to the issuer (org) id but sign with the
+    agent's own key; the JWKS publishes agent_id per key, so the signing key is
+    resolvable by the receipt's agent_id. agent_id is attacker-controlled, so a
+    match also requires the key's published issuer_id to equal the receipt's
+    claimed issuer_id: without that bind a valid key from any org would verify a
+    receipt claiming a different issuer. Same defensive shape as resolve_key.
+    """
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None, None, None, None, None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
+        if (
+            agent_id
+            and agent_id == k.get("agent_id")
+            and issuer_id
+            and issuer_id == k.get("issuer_id")
+        ):
+            pub = k.get("public_key")
+            if not isinstance(pub, str):
+                continue
+            return (
+                _b64decode(pub),
+                k.get("status"),
+                k.get("alg"),
+                k.get("kid"),
+                k.get("issuer_id"),
+            )
+    return None, None, None, None, None
+
+
+def resolve_revoked_at(jwks: dict, kid: str):
+    """Return the JWKS revoked_at for kid if published, else None.
+
+    Optional field: the public JWKS publishes status today but not the
+    timestamp, so the key-status axis falls back to a bare status gate. Reads the
+    same entry resolve_key returns, so every axis weighs one key, not two.
+    """
+    k = _match_key(jwks, kid)
+    return k.get("revoked_at") if k else None
+
+
+def check_issuer_binding(key_issuer_id, claimed_issuer_id):
+    """Gate the verdict on the verifying key belonging to the claimed issuer.
+
+    One jwks serves every org, so a valid signature proves only that the signer
+    holds some published key. The receipt is the claimed issuer's only when the
+    directory publishes that key under the receipt's server-assigned issuer_id.
+    """
+    if isinstance(claimed_issuer_id, str) and claimed_issuer_id and key_issuer_id == claimed_issuer_id:
+        return "PASS", f"signing key is published under the claimed issuer {claimed_issuer_id}"
+    return "FAIL", (
+        f"signing key is published under issuer {key_issuer_id!r}, not the "
+        f"claimed issuer {claimed_issuer_id!r}"
+    )
+
+
+def resolve_key_org(jwks: dict, kid: str):
+    """Return the org id the jwks publishes for the key kid resolves to, if any.
+
+    A value that is not an org id cannot serve as one, so it reads as unpublished
+    and the issuer branch decides, rather than counting as a mismatch.
+    """
+    k = _match_key(jwks, kid)
+    org = k.get("org_id") if k else None
+    return org if _is_org_id(org) else None
+
+
+#: Same body text as the TypeScript ORG_ID_RE. Anchored by fullmatch, not by $,
+#: since python's $ also matches before a trailing newline and ECMAScript's does not.
+_ORG_ID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE
+)
+
+
+def _is_org_id(value) -> bool:
+    """True for a canonical dashed UUID, the only form an org id takes on the wire.
+
+    Strict on purpose. A permissive parse would read urn:uuid: or undashed text as
+    an org id and then FAIL the bind against the canonical org_id beside it, which
+    false-FAILs an honest receipt. Anything else is a label: SKIP, never PASS.
+    """
+    return isinstance(value, str) and _ORG_ID_RE.fullmatch(value) is not None
+
+
+def _org_key(value):
+    """Case-folded form of an org id, other values unchanged.
+
+    Hex case carries no meaning in a UUID, so two spellings name one org and
+    comparing them case-sensitively false-FAILs an honest receipt. Folding is
+    limited to values that are org ids, which are ASCII, so the two languages
+    fold identically. A label keeps its case, since a label is not hex.
+    """
+    return value.lower() if _is_org_id(value) else value
+
+
+def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
+    """Bind a hash-mode receipt's org_id to the org the directory names for its key.
+
+    issuer_id is the org's legal entity or its id, so it equals org_id only while
+    no org sets a legal entity. Prefer a published per-key org_id, the field the
+    server can guarantee equal. With neither an org_id nor an org-id-shaped
+    issuer the claim is not comparable offline: SKIP rather than FAIL an honest
+    receipt.
+    """
+    if not isinstance(claimed_org_id, str) or not claimed_org_id:
+        return "FAIL", f"receipt org_id is {claimed_org_id!r}, so there is no org to bind"
+    if _org_key(claimed_org_id) in (_org_key(key_org_id), _org_key(key_issuer_id)):
+        return "PASS", f"signing key is published under the claimed org {claimed_org_id}"
+    if key_org_id is None and not _is_org_id(key_issuer_id):
+        return "SKIPPED", (
+            f"jwks names issuer {key_issuer_id!r} for this key, a label rather than an "
+            f"org id, so org {claimed_org_id} cannot be confirmed offline; publish "
+            f"org_id per key to close this"
+        )
+    return "FAIL", (
+        f"signing key is published under org {key_org_id or key_issuer_id!r}, not the "
+        f"claimed {claimed_org_id!r}"
+    )
 
 
 #: Key statuses that revoke trust in the signing key for attestation.
@@ -575,20 +683,29 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
         eff_status, eff_kid = status, kid
+        eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
-        # Cloud receipts set kid to the issuer (org) id but sign with the agent's
-        # own key. If the issuer key does not verify, fall back to the signing
-        # agent's key resolved by agent_id; only a verifying agent key is trusted.
+        # Cloud receipts set kid to the issuer id but sign with the agent's own
+        # key, so fall back to the agent key. agent_id is attacker-controlled, so
+        # bind it: only a key whose issuer_id equals the claimed one is trusted.
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
-            pk_a, status_a, alg_a, kid_a = resolve_key_by_agent_id(jwks, agent_id)
+            pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
+                jwks, agent_id, payload.get("issuer_id")
+            )
             if pk_a is not None:
                 sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
                 if sig_res_a[0] == "PASS":
                     sig_res = sig_res_a
                     eff_status, eff_kid = status_a, kid_a
+                    eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
         results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
+        # kid picks the key and the attacker picks the kid, so bind the key that
+        # actually verified back to the issuer the receipt claims.
+        results.append(
+            ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id")))
+        )
         # Offline anchor presence is unverifiable (anchors are unsigned); pass
         # False so a forged anchor never rides a revoked key to PASS.
         results.append(
@@ -740,6 +857,12 @@ def run_structured(
                 "note": f"resolved kid {kid} (status={status})",
             }
         )
+        # kid picks the key and the attacker picks the kid, so bind the key that
+        # actually verified back to the issuer the receipt claims.
+        bind_r, bind_n = check_issuer_binding(
+            resolve_key_issuer(jwks, kid), payload.get("issuer_id")
+        )
+        axes.append({"name": "issuer_bind", "result": bind_r, "note": bind_n})
         revoked_at = resolve_revoked_at(jwks, kid)
         # Offline anchor presence is not trusted timing; pass False so a forged
         # anchor never upgrades a revoked key to PASS (hosted /verify does).
