@@ -150,6 +150,40 @@ export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: stri
   return k !== null && typeof k.revoked_at === "string" ? k.revoked_at : null;
 }
 
+/** Return the org id the JWKS publishes for `kid` (mirrors `resolve_key_org`). */
+export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string): string | null {
+  const k = matchKey(jwks, kid);
+  return k !== null && typeof k.org_id === "string" ? k.org_id : null;
+}
+
+// org.id is a UUID, so a published issuer that does not parse as one is a
+// legal-entity label the verifier cannot resolve to an org offline.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Bind a hash-mode receipt's org_id to the org the JWKS names (mirrors `check_org_binding`). */
+export function checkOrgBinding(
+  keyIssuerId: string | null,
+  keyOrgId: string | null,
+  claimedOrgId: unknown,
+): readonly [VerifyState, string] {
+  if (typeof claimedOrgId !== "string" || claimedOrgId === "") {
+    return ["FAIL", `receipt org_id is ${JSON.stringify(claimedOrgId ?? null)}, so there is no org to bind`];
+  }
+  if (claimedOrgId === keyOrgId || claimedOrgId === keyIssuerId) {
+    return ["PASS", `signing key is published under the claimed org ${claimedOrgId}`];
+  }
+  if (keyOrgId === null && !(typeof keyIssuerId === "string" && UUID_RE.test(keyIssuerId))) {
+    return [
+      "SKIPPED",
+      `jwks names issuer ${JSON.stringify(keyIssuerId)} for this key, a label rather than an org id, so org ${claimedOrgId} cannot be confirmed offline; publish org_id per key to close this`,
+    ];
+  }
+  return [
+    "FAIL",
+    `signing key is published under org ${JSON.stringify(keyOrgId ?? keyIssuerId)}, not the claimed ${JSON.stringify(claimedOrgId)}`,
+  ];
+}
+
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
 const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 

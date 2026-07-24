@@ -32,10 +32,12 @@ import {
   b64decode,
   checkIssuerBinding,
   checkKeyStatus,
+  checkOrgBinding,
   checkStructure,
   normaliseEnvelope,
   resolveKey,
   resolveKeyIssuer,
+  resolveKeyOrg,
   resolveRevokedAt,
 } from "../vrShim.js";
 
@@ -59,15 +61,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** True for a flat hash-mode signature receipt (mode=hash, null payload, a sig). */
+// Claim fields that live inside the signed compliance payload. A hash-mode
+// receipt carrying one is presenting a claim its signature does not cover.
+const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash"];
+
 function isHashMode(doc: Record<string, unknown>): boolean {
-  // Python: mode must be "hash" and payload must be None (null or absent).
-  if (doc.mode !== "hash" || (doc.payload !== null && doc.payload !== undefined)) {
-    return false;
-  }
-  // mode sits outside the signed bytes, so a compliance marker or a missing hash
-  // vetoes hash mode; otherwise one unsigned field picks the weaker axis set.
-  if (doc.hash === null || doc.hash === undefined) return false;
-  if ("previousReceiptHash" in doc || "issuer_id" in doc) return false;
+  // Routing reads the shape of the signed unit only: a record payload is the
+  // compliance signed unit, any other shape routes here (mirrors _is_hash_mode).
+  if (doc.mode !== "hash" || isRecord(doc.payload)) return false;
   return Boolean(doc.signature_b64 || doc.signature);
 }
 
@@ -183,6 +184,14 @@ export class AsqavNativeAdapter extends FormatAdapter {
       if (missing.length > 0) {
         return ["FAIL", `hash-mode receipt missing fields: ${missing.join(",")}`];
       }
+      // A claim outside the signed field set is unauthenticated whatever it says.
+      const unsigned = UNSIGNED_CLAIM_FIELDS.filter((f) => f in doc);
+      if (unsigned.length > 0) {
+        return [
+          "FAIL",
+          `hash-mode receipt carries claim fields its signature does not cover: ${unsigned.join(",")}`,
+        ];
+      }
       return ["PASS", "hash-mode signature receipt; required flat fields present"];
     }
     return checkStructure(payloadOf(doc));
@@ -201,14 +210,16 @@ export class AsqavNativeAdapter extends FormatAdapter {
     const issuedAt = hashMode
       ? String(doc.server_timestamp ?? "")
       : String(payloadOf(doc).issued_at ?? "");
-    const claimedIssuer = hashMode ? doc.org_id : payloadOf(doc).issuer_id;
     const revokedAt = resolveRevokedAt(jwks, kid);
     // Offline anchor presence is unverifiable (anchors unsigned); pass false
     // so a forged anchor never rides a revoked key to PASS.
     const [res, note] = checkKeyStatus(status, issuedAt, revokedAt, false);
     // kid selects the key and the receipt selects the kid, so bind the resolved
-    // key back to the issuer the signed bytes claim.
-    const [bindRes, bindNote] = checkIssuerBinding(resolveKeyIssuer(jwks, kid), claimedIssuer);
+    // key back to the issuer the signed bytes name.
+    const keyIssuer = resolveKeyIssuer(jwks, kid);
+    const [bindRes, bindNote] = hashMode
+      ? checkOrgBinding(keyIssuer, resolveKeyOrg(jwks, kid), doc.org_id)
+      : checkIssuerBinding(keyIssuer, payloadOf(doc).issuer_id);
     return [
       ["key_status", res, note],
       ["issuer_bind", bindRes, bindNote],

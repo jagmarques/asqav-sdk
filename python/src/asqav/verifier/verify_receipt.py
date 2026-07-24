@@ -60,6 +60,7 @@ import math
 import sys
 import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 
 API_BASE = "https://api.asqav.com/api/v1"
@@ -315,9 +316,8 @@ def normalise_envelope(raw: dict) -> dict:
 def _match_key(jwks: dict, kid: str):
     """Return the first usable jwks entry whose issuer id or key id is kid.
 
-    One matcher, so the key material and the key's published issuer always come
-    from the same entry. A non-list ``keys``, a non-dict entry, or a matched key
-    with no usable ``public_key`` is a miss (returns None), never a crash.
+    One matcher, so key material and the key's published fields always come from
+    the same entry. A malformed jwks is a miss (returns None), never a crash.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -347,8 +347,8 @@ def resolve_key(jwks: dict, kid: str):
 def resolve_key_issuer(jwks: dict, kid: str):
     """Return the issuer id the jwks publishes for the key kid resolves to.
 
-    Reads the same entry resolve_key returns, so the issuer-binding check
-    weighs the key that actually verified. None when kid resolves nothing.
+    Reads the same entry resolve_key returns, so the bind weighs the key that
+    actually verified. None when kid resolves nothing.
     """
     k = _match_key(jwks, kid)
     return k.get("issuer_id") if k else None
@@ -407,11 +407,51 @@ def check_issuer_binding(key_issuer_id, claimed_issuer_id):
     holds some published key. The receipt is the claimed issuer's only when the
     directory publishes that key under the receipt's server-assigned issuer_id.
     """
-    if claimed_issuer_id and key_issuer_id == claimed_issuer_id:
+    if isinstance(claimed_issuer_id, str) and claimed_issuer_id and key_issuer_id == claimed_issuer_id:
         return "PASS", f"signing key is published under the claimed issuer {claimed_issuer_id}"
     return "FAIL", (
         f"signing key is published under issuer {key_issuer_id!r}, not the "
         f"claimed issuer {claimed_issuer_id!r}"
+    )
+
+
+def resolve_key_org(jwks: dict, kid: str):
+    """Return the org id the jwks publishes for the key kid resolves to, if any."""
+    k = _match_key(jwks, kid)
+    return k.get("org_id") if k else None
+
+
+def _is_org_id(value) -> bool:
+    """True when value parses as an organization UUID, the form org_id takes."""
+    try:
+        uuid.UUID(str(value))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
+    """Bind a hash-mode receipt's org_id to the org the directory names for its key.
+
+    issuer_id is the org's legal entity or its id, so it equals org_id only while
+    no org sets a legal entity. Prefer a published per-key org_id, the field the
+    server can guarantee equal. With neither an org_id nor an org-id-shaped
+    issuer the claim is not comparable offline: SKIP rather than FAIL an honest
+    receipt.
+    """
+    if not isinstance(claimed_org_id, str) or not claimed_org_id:
+        return "FAIL", f"receipt org_id is {claimed_org_id!r}, so there is no org to bind"
+    if claimed_org_id in (key_org_id, key_issuer_id):
+        return "PASS", f"signing key is published under the claimed org {claimed_org_id}"
+    if key_org_id is None and not _is_org_id(key_issuer_id):
+        return "SKIPPED", (
+            f"jwks names issuer {key_issuer_id!r} for this key, a label rather than an "
+            f"org id, so org {claimed_org_id} cannot be confirmed offline; publish "
+            f"org_id per key to close this"
+        )
+    return "FAIL", (
+        f"signing key is published under org {key_org_id or key_issuer_id!r}, not the "
+        f"claimed {claimed_org_id!r}"
     )
 
 

@@ -363,8 +363,7 @@ def test_run_tampered_payload_fails() -> None:
 
 
 def test_check_issuer_binding_gate() -> None:
-    """The gate PASSes only on an exact match, and fails closed on a key the
-    directory publishes no issuer for."""
+    """PASSes only on an exact match; fails closed on an unpublished issuer."""
     assert v.check_issuer_binding("org-victim", "org-victim")[0] == "PASS"
     assert v.check_issuer_binding("org-attacker", "org-victim")[0] == "FAIL"
     assert v.check_issuer_binding(None, "org-victim")[0] == "FAIL"
@@ -372,8 +371,7 @@ def test_check_issuer_binding_gate() -> None:
 
 
 def test_resolve_key_issuer_reads_the_matched_entry() -> None:
-    """The issuer lookup reads the entry resolve_key returns, by key id or by
-    issuer id, and is None when nothing matches."""
+    """Reads the entry resolve_key returns, by key id or issuer id."""
     jwks = {"keys": [_jwks_key("agent-one", "agt_one", "org-legit", b"\x00")]}
     assert v.resolve_key_issuer(jwks, "agent-one") == "org-legit"
     assert v.resolve_key_issuer(jwks, "org-legit") == "org-legit"
@@ -381,8 +379,7 @@ def test_resolve_key_issuer_reads_the_matched_entry() -> None:
 
 
 def _cross_issuer_forgery():
-    """Attacker-signed receipt claiming the victim's issuer, plus the shared jwks
-    that publishes both orgs' keys. Returns (payload, sig, jwks)."""
+    """Attacker-signed receipt claiming the victim, plus the shared jwks."""
     ml = _ml_dsa_65()
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _victim_sk = ml.keygen()
@@ -399,8 +396,7 @@ def _cross_issuer_forgery():
 
 def test_run_rejects_attacker_kid_claiming_another_issuer() -> None:
     """FORGERY via signature.kid: the attacker points kid at their OWN published
-    key and signs with it, while claiming issuer_id=org-victim. The signature is
-    genuine, so only the issuer bind can reject the receipt."""
+    key and signs with it, claiming org-victim. Only the bind can reject it."""
     payload, sig, jwks = _cross_issuer_forgery()
     by_key_id = v.run(_envelope(payload, sig, kid="attacker-key"), jwks, None)
     assert by_key_id == 1, f"attacker key id verified a receipt claiming org-victim (exit {by_key_id})"
@@ -409,8 +405,7 @@ def test_run_rejects_attacker_kid_claiming_another_issuer() -> None:
 
 
 def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
-    """Same forgery through run_structured: verdict FAIL on a failing issuer_bind
-    axis while the signature axis still PASSes, which is what makes it a forgery."""
+    """Same forgery through run_structured: FAIL on issuer_bind, signature PASS."""
     payload, sig, jwks = _cross_issuer_forgery()
     result = v.run_structured(_envelope(payload, sig, kid="attacker-key"), jwks, None)
     assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
@@ -421,8 +416,7 @@ def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
 
 
 def test_run_structured_passes_a_receipt_signed_by_the_claimed_issuer() -> None:
-    """LEGIT: a receipt whose kid resolves the claimed issuer's own key still
-    PASSes, so the bind rejects cross-issuer keys without breaking real verifies."""
+    """LEGIT: the claimed issuer's own key still PASSes, so real verifies work."""
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _valid_payload("org-legit", "agt_one")
