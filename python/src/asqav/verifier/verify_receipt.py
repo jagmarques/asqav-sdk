@@ -419,17 +419,18 @@ def check_issuer_binding(key_issuer_id, claimed_issuer_id):
 def resolve_key_org(jwks: dict, kid: str):
     """Return the org id the jwks publishes for the key kid resolves to, if any.
 
-    A non-string org_id is not an org id, so it reads as unpublished.
+    A value that is not an org id cannot serve as one, so it reads as unpublished
+    and the issuer branch decides, rather than counting as a mismatch.
     """
     k = _match_key(jwks, kid)
     org = k.get("org_id") if k else None
-    return org if isinstance(org, str) else None
+    return org if _is_org_id(org) else None
 
 
-#: An organization id on the wire is Organization.id, a canonical dashed UUID.
-#: Kept character for character identical to the TypeScript ORG_ID_RE.
+#: Same body text as the TypeScript ORG_ID_RE. Anchored by fullmatch, not by $,
+#: since python's $ also matches before a trailing newline and ECMAScript's does not.
 _ORG_ID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE
 )
 
 
@@ -440,7 +441,18 @@ def _is_org_id(value) -> bool:
     an org id and then FAIL the bind against the canonical org_id beside it, which
     false-FAILs an honest receipt. Anything else is a label: SKIP, never PASS.
     """
-    return isinstance(value, str) and bool(_ORG_ID_RE.match(value))
+    return isinstance(value, str) and _ORG_ID_RE.fullmatch(value) is not None
+
+
+def _org_key(value):
+    """Case-folded form of an org id, other values unchanged.
+
+    Hex case carries no meaning in a UUID, so two spellings name one org and
+    comparing them case-sensitively false-FAILs an honest receipt. Folding is
+    limited to values that are org ids, which are ASCII, so the two languages
+    fold identically. A label keeps its case, since a label is not hex.
+    """
+    return value.lower() if _is_org_id(value) else value
 
 
 def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
@@ -454,7 +466,7 @@ def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
     """
     if not isinstance(claimed_org_id, str) or not claimed_org_id:
         return "FAIL", f"receipt org_id is {claimed_org_id!r}, so there is no org to bind"
-    if claimed_org_id in (key_org_id, key_issuer_id):
+    if _org_key(claimed_org_id) in (_org_key(key_org_id), _org_key(key_issuer_id)):
         return "PASS", f"signing key is published under the claimed org {claimed_org_id}"
     if key_org_id is None and not _is_org_id(key_issuer_id):
         return "SKIPPED", (

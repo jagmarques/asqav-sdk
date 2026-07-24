@@ -22,6 +22,9 @@ jobs:
             python:
               - 'python/**'
               - 'conformance/**'
+              # The shared case table gates both verifiers, so editing it must run
+              # the jobs that consume it or the gate could be weakened unseen.
+              - 'verifier/cross-language-cases.json'
               - '.github/workflows/ci.yml'
             typescript:
               - 'typescript/**'
@@ -29,10 +32,12 @@ jobs:
               # The TS verifier parity gate reads the shared conformance corpus,
               # so a corpus change must re-run the TS job (not just the Python one).
               - 'verifier/conformance-vectors/**'
+              - 'verifier/cross-language-cases.json'
               - '.github/workflows/ci.yml'
             verifier:
               - 'python/src/asqav/verifier/**'
               - 'verifier/conformance-vectors/**'
+              - 'verifier/cross-language-cases.json'
               - '.github/workflows/ci.yml'
             actions:
               - 'github-action/**'

@@ -155,16 +155,23 @@ export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: stri
 /** Return the org id the JWKS publishes for `kid` (mirrors `resolve_key_org`). */
 export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string): string | null {
   const k = matchKey(jwks, kid);
-  return k !== null && typeof k.org_id === "string" ? k.org_id : null;
+  // A value that is not an org id cannot serve as one, so it reads as unpublished.
+  return k !== null && isOrgId(k.org_id) ? (k.org_id as string) : null;
 }
 
-// An organization id on the wire is Organization.id, a canonical dashed UUID.
-// Kept character for character identical to the Python _ORG_ID_RE.
+// Same body text as the Python _ORG_ID_RE, which anchors with fullmatch instead,
+// since python's $ also matches before a trailing newline and this one does not.
 const ORG_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** True for a canonical dashed UUID, the only form an org id takes on the wire. */
 function isOrgId(value: unknown): boolean {
   return typeof value === "string" && ORG_ID_RE.test(value);
+}
+
+// Hex case carries no meaning in a UUID, so two spellings name one org. Folding
+// is limited to org ids, which are ASCII, so both languages fold identically.
+function orgKey(value: unknown): unknown {
+  return isOrgId(value) ? (value as string).toLowerCase() : value;
 }
 
 /** Bind a hash-mode receipt's org_id to the org the JWKS names (mirrors `check_org_binding`). */
@@ -176,7 +183,8 @@ export function checkOrgBinding(
   if (typeof claimedOrgId !== "string" || claimedOrgId === "") {
     return ["FAIL", `receipt org_id is ${JSON.stringify(claimedOrgId ?? null)}, so there is no org to bind`];
   }
-  if (claimedOrgId === keyOrgId || claimedOrgId === keyIssuerId) {
+  const claimKey = orgKey(claimedOrgId);
+  if (claimKey === orgKey(keyOrgId) || claimKey === orgKey(keyIssuerId)) {
     return ["PASS", `signing key is published under the claimed org ${claimedOrgId}`];
   }
   if (keyOrgId === null && !isOrgId(keyIssuerId)) {
