@@ -90,6 +90,30 @@ def _chain_axis(
     return AxisResult("chain", crypto.FAIL, f"chain break: expected {exp}.. got {actual[:16]}..")
 
 
+#: Max nesting the recursive JCS encoder tolerates, mirrors the standalone verifier cap.
+MAX_NESTING_DEPTH = 200
+
+_TOO_DEEP_NOTE = f"receipt nesting exceeds the supported depth (> {MAX_NESTING_DEPTH} levels)"
+
+
+def _exceeds_depth(obj: Any, max_depth: int) -> bool:
+    """True when ``obj`` nests deeper than ``max_depth``, walked with an explicit stack.
+
+    No recursion here, so the check itself never overflows before it can cap a
+    receipt the JCS canonicaliser (signing_input, chain recompute) would crash on.
+    """
+    stack: list[tuple[Any, int]] = [(obj, 0)]
+    while stack:
+        cur, depth = stack.pop()
+        if depth > max_depth:
+            return True
+        if isinstance(cur, dict):
+            stack.extend((v, depth + 1) for v in cur.values())
+        elif isinstance(cur, list):
+            stack.extend((v, depth + 1) for v in cur)
+    return False
+
+
 def verify(
     doc: dict,
     adapters: list[FormatAdapter],
@@ -103,6 +127,16 @@ def verify(
             fmt="unknown",
             axes=[AxisResult("structure", crypto.FAIL, "no adapter recognises this receipt")],
             verdict="FAIL",
+        )
+    # An over-nested receipt would crash the recursive JCS encoder. Cap it here and
+    # report INCOMPLETE, never a PASS, matching the standalone verifier shape gate.
+    if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
+        predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
+    ):
+        return VerifyResult(
+            fmt=ad.name,
+            axes=[AxisResult("structure", crypto.FAIL, _TOO_DEEP_NOTE)],
+            verdict="INCOMPLETE",
         )
 
     axes = [
