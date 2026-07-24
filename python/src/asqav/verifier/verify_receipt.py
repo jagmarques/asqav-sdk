@@ -333,12 +333,15 @@ def resolve_key(jwks: dict, kid: str):
     return None, None, None
 
 
-def resolve_key_by_agent_id(jwks: dict, agent_id: str):
-    """Return (public_key_bytes, status, alg, kid) for a key by its agent_id.
+def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str):
+    """Return (public_key_bytes, status, alg, kid) for an agent key bound to issuer_id.
 
     Cloud receipts set signature.kid to the issuer (org) id but sign with the
     agent's own key; the JWKS publishes agent_id per key, so the signing key is
-    resolvable by the receipt's agent_id. Same defensive shape as resolve_key.
+    resolvable by the receipt's agent_id. agent_id is attacker-controlled, so a
+    match also requires the key's published issuer_id to equal the receipt's
+    claimed issuer_id: without that bind a valid key from any org would verify a
+    receipt claiming a different issuer. Same defensive shape as resolve_key.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -346,7 +349,12 @@ def resolve_key_by_agent_id(jwks: dict, agent_id: str):
     for k in keys:
         if not isinstance(k, dict):
             continue
-        if agent_id and agent_id == k.get("agent_id"):
+        if (
+            agent_id
+            and agent_id == k.get("agent_id")
+            and issuer_id
+            and issuer_id == k.get("issuer_id")
+        ):
             pub = k.get("public_key")
             if not isinstance(pub, str):
                 continue
@@ -576,12 +584,14 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
         eff_status, eff_kid = status, kid
         eff_revoked_at = resolve_revoked_at(jwks, kid)
-        # Cloud receipts set kid to the issuer (org) id but sign with the agent's
-        # own key. If the issuer key does not verify, fall back to the signing
-        # agent's key resolved by agent_id; only a verifying agent key is trusted.
+        # Cloud receipts set kid to the issuer id but sign with the agent's own
+        # key, so fall back to the agent key. agent_id is attacker-controlled, so
+        # bind it: only a key whose issuer_id equals the claimed one is trusted.
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
-            pk_a, status_a, alg_a, kid_a = resolve_key_by_agent_id(jwks, agent_id)
+            pk_a, status_a, alg_a, kid_a = resolve_key_by_agent_id(
+                jwks, agent_id, payload.get("issuer_id")
+            )
             if pk_a is not None:
                 sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
                 if sig_res_a[0] == "PASS":

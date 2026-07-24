@@ -171,7 +171,8 @@ def test_check_skew_tz_naive_issued_at_no_crash() -> None:
 
 def test_resolve_key_by_agent_id_matches_agent_id() -> None:
     """The signing key is resolvable by the receipt's agent_id (cloud receipts set
-    kid to the issuer/org id but sign with the agent's own key)."""
+    kid to the issuer/org id but sign with the agent's own key), but only when the
+    key's issuer_id equals the receipt's claimed issuer."""
     jwks = {
         "keys": [
             {
@@ -184,11 +185,13 @@ def test_resolve_key_by_agent_id_matches_agent_id() -> None:
             }
         ]
     }
-    pk, status, alg, kid = v.resolve_key_by_agent_id(jwks, "agt_probe")
+    pk, status, alg, kid = v.resolve_key_by_agent_id(jwks, "agt_probe", "org-1")
     assert pk == v._b64decode("AAAA")
     assert (status, alg, kid) == ("active", "Ed25519", "agent-key-1")
     # Unknown agent_id resolves nothing.
-    assert v.resolve_key_by_agent_id(jwks, "agt_other") == (None, None, None, None)
+    assert v.resolve_key_by_agent_id(jwks, "agt_other", "org-1") == (None, None, None, None)
+    # Right agent_id but a different claimed issuer resolves nothing (the bind).
+    assert v.resolve_key_by_agent_id(jwks, "agt_probe", "org-evil") == (None, None, None, None)
 
 
 def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
@@ -228,3 +231,125 @@ def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
     }
     code = v.run(envelope, jwks, None)
     assert code == 1  # FAIL: the agent key does not verify the forged signature
+
+
+# === agent_id fallback must bind the resolved key to the claimed issuer ===
+
+
+def _ml_dsa_65():
+    import pytest
+
+    return pytest.importorskip("dilithium_py.ml_dsa").ML_DSA_65
+
+
+def _valid_payload(issuer_id: str, agent_id: str) -> dict:
+    from datetime import datetime, timezone
+
+    return {
+        "type": "protectmcp:decision",
+        "issued_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "issuer_id": issuer_id,
+        "agent_id": agent_id,
+        "action_ref": "sha256:" + "8" * 64,
+        "payload_digest": {"hash": "8" * 64, "size": 512},
+        "policy_digest": "sha256:" + "3" * 64,
+        "previousReceiptHash": "0" * 64,
+        "decision": "allow",
+    }
+
+
+def _jwks_key(kid: str, agent_id: str, issuer_id: str, pub: bytes) -> dict:
+    import base64
+
+    return {
+        "kid": kid,
+        "agent_id": agent_id,
+        "issuer_id": issuer_id,
+        "alg": "ML-DSA-65",
+        "public_key": base64.b64encode(pub).decode(),
+        "status": "active",
+    }
+
+
+def _envelope(payload: dict, sig: bytes) -> dict:
+    import base64
+
+    return {
+        "payload": payload,
+        "signature": {
+            "alg": "ML-DSA-65",
+            "kid": payload["issuer_id"],
+            "sig": base64.b64encode(sig).decode(),
+        },
+        "anchors": [{"type": "test", "value": "AAAA"}],
+    }
+
+
+def test_run_agent_id_fallback_rejects_forged_issuer() -> None:
+    """FORGERY: a receipt signed by org-attacker's real ML-DSA-65 agent key but
+    claiming issuer_id=org-victim must FAIL. The fallback only trusts a key whose
+    issuer_id equals the claimed issuer, so the cross-issuer key never PASSes."""
+    ml = _ml_dsa_65()
+    attacker_pk, attacker_sk = ml.keygen()
+    victim_pk, _victim_sk = ml.keygen()
+    payload = _valid_payload("org-victim", "agt_attacker")
+    sig = ml.sign(attacker_sk, v.canonical_json(payload))  # signed with attacker key
+    jwks = {
+        "keys": [
+            _jwks_key("victim-key", "agt_victim", "org-victim", victim_pk),
+            _jwks_key("attacker-key", "agt_attacker", "org-attacker", attacker_pk),
+        ]
+    }
+    assert v.run(_envelope(payload, sig), jwks, None) == 1  # bound: attacker key rejected
+
+
+def test_run_agent_id_fallback_passes_legit_multi_agent() -> None:
+    """LEGIT offline PASS: an org with two agents. The receipt is signed by the
+    second agent; the issuer-kid resolves the first (wrong) sibling, and the
+    agent_id fallback resolves the real signer whose issuer_id matches -> PASS."""
+    ml = _ml_dsa_65()
+    a1_pk, _a1_sk = ml.keygen()
+    a2_pk, a2_sk = ml.keygen()
+    payload = _valid_payload("org-legit", "agt_two")
+    sig = ml.sign(a2_sk, v.canonical_json(payload))  # signed by agent two
+    jwks = {
+        "keys": [
+            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),  # issuer-kid hits this
+            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),  # real signer via agent_id
+        ]
+    }
+    assert v.run(_envelope(payload, sig), jwks, None) == 0  # fallback resolves the bound signer
+
+
+def test_run_tampered_signature_fails() -> None:
+    """A flipped signature byte on the legit multi-agent receipt FAILs."""
+    ml = _ml_dsa_65()
+    a1_pk, _a1_sk = ml.keygen()
+    a2_pk, a2_sk = ml.keygen()
+    payload = _valid_payload("org-legit", "agt_two")
+    sig = bytearray(ml.sign(a2_sk, v.canonical_json(payload)))
+    sig[0] ^= 0xFF  # tamper one byte
+    jwks = {
+        "keys": [
+            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),
+            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),
+        ]
+    }
+    assert v.run(_envelope(payload, bytes(sig)), jwks, None) == 1
+
+
+def test_run_tampered_payload_fails() -> None:
+    """Mutating a payload field after signing FAILs; the signature no longer binds."""
+    ml = _ml_dsa_65()
+    a1_pk, _a1_sk = ml.keygen()
+    a2_pk, a2_sk = ml.keygen()
+    payload = _valid_payload("org-legit", "agt_two")
+    sig = ml.sign(a2_sk, v.canonical_json(payload))
+    payload["decision"] = "deny"  # tamper after signing
+    jwks = {
+        "keys": [
+            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),
+            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),
+        ]
+    }
+    assert v.run(_envelope(payload, sig), jwks, None) == 1
