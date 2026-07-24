@@ -933,3 +933,64 @@ def test_oracle_verify_nonobject_doc_fails_clean() -> None:
     for bad_doc in (None, "a string", 123, [1, 2]):
         res = verify(bad_doc, ADAPTERS)
         assert res.verdict == "FAIL"
+
+
+# A did:web signer resolved from an injected map, so the signature axis reaches the
+# JCS canonicaliser without a high-entropy did:key literal in the fixture.
+_ISSUER_DID = "did:web:asqav.example"
+_SIGNER = {_ISSUER_DID + "#key-1": "00" * 32}
+
+
+def _nested(depth: int) -> object:
+    """A dict nested ``depth`` levels deep, built iteratively so the fixture never overflows."""
+    node: object = 1
+    for _ in range(depth):
+        node = {"a": node}
+    return node
+
+
+def _deep_agentreceipt(depth: int, *, genesis: bool = True) -> dict:
+    """A well-formed agentreceipts envelope whose credentialSubject nests ``depth`` deep."""
+    return {
+        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "id": "urn:uuid:00000000-0000-0000-0000-000000000000",
+        "type": ["VerifiableCredential", "AgentReceipt"],
+        "version": "1.0",
+        "issuer": {"id": _ISSUER_DID},
+        "issuanceDate": "2026-01-01T00:00:00Z",
+        "credentialSubject": {
+            "chain": {"previous_receipt_hash": None if genesis else "sha256:" + "a" * 64},
+            "data": _nested(depth),
+        },
+        "proof": {
+            "type": "Ed25519Signature2020",
+            "verificationMethod": _ISSUER_DID + "#key-1",
+            "proofValue": "uAAAA",
+        },
+    }
+
+
+def test_oracle_over_nested_receipt_is_incomplete_not_recursionerror() -> None:
+    """A receipt nested past the cap returns INCOMPLETE, never an unhandled RecursionError.
+
+    The signer resolves so the signature axis reaches the recursive JCS
+    canonicaliser, which overflows the stack without the depth gate in verify().
+    """
+    res = verify(_deep_agentreceipt(3000), ADAPTERS, key_provider=_SIGNER)
+    assert res.verdict == "INCOMPLETE"
+    assert res.fmt == "agentreceipts"
+    assert "depth" in (res.axis("structure").note or "")
+
+
+def test_oracle_over_nested_predecessor_is_incomplete_not_recursionerror() -> None:
+    """A deeply nested predecessor is capped on the chain axis, never a RecursionError."""
+    doc = _deep_agentreceipt(1, genesis=False)
+    res = verify(doc, ADAPTERS, key_provider=_SIGNER, predecessor=_deep_agentreceipt(3000))
+    assert res.verdict == "INCOMPLETE"
+    assert "depth" in (res.axis("structure").note or "")
+
+
+def test_oracle_receipt_within_depth_is_not_flagged_too_deep() -> None:
+    """A receipt nested under the cap verifies normally and is not reported too-deep."""
+    res = verify(_deep_agentreceipt(50), ADAPTERS, key_provider=_SIGNER)
+    assert "depth" not in (res.axis("structure").note or "")
