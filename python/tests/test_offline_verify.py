@@ -223,6 +223,71 @@ def test_verify_receipt_offline_mldsa65_tampered_fails():
     assert sig_axis["result"] == "FAIL"
 
 
+def _cross_issuer_forgery_and_jwks():
+    """Attacker-signed receipt claiming the victim's issuer_id, plus the shared
+    JWKS that publishes both orgs' keys. Returns (envelope, jwks)."""
+    import base64
+
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    attacker_pk, attacker_sk = ML_DSA_65.keygen()
+    victim_pk, _victim_sk = ML_DSA_65.keygen()
+    payload = {
+        "type": "protectmcp:decision",
+        "issued_at": "2026-06-19T00:00:00.000000Z",
+        "issuer_id": "org-victim",
+        "agent_id": "agt_attacker",
+        "action_ref": "sha256:" + "a" * 64,
+        "payload_digest": {"hash": "b" * 64, "size": 128},
+        "policy_digest": "sha256:" + "c" * 64,
+        "previousReceiptHash": "0" * 64,
+        "decision": "allow",
+    }
+    sig = ML_DSA_65.sign(attacker_sk, vr.canonical_json(payload))
+
+    def _key(kid, agent_id, issuer_id, pub):
+        return {
+            "kid": kid,
+            "agent_id": agent_id,
+            "issuer_id": issuer_id,
+            "alg": "ML-DSA-65",
+            "status": "active",
+            "public_key": base64.b64encode(pub).decode(),
+        }
+
+    envelope = {
+        "payload": payload,
+        # kid points at the attacker's OWN published key, not the victim's.
+        "signature": {
+            "alg": "ML-DSA-65",
+            "kid": "attacker-key",
+            "sig": base64.b64encode(sig).decode(),
+        },
+        "anchors": [],
+    }
+    jwks = {
+        "keys": [
+            _key("victim-key", "agt_victim", "org-victim", victim_pk),
+            _key("attacker-key", "agt_attacker", "org-attacker", attacker_pk),
+        ]
+    }
+    return envelope, jwks
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
+def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
+    """FORGERY through the public offline API: the attacker signs with their own
+    published ML-DSA-65 key, points signature.kid at it, and claims the victim's
+    issuer_id. The signature is genuine, so only the issuer bind can refuse it."""
+    envelope, jwks = _cross_issuer_forgery_and_jwks()
+    result = asqav.verify_receipt_offline(envelope, jwks)
+    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    bind = next(a for a in result["axes"] if a["name"] == "issuer_bind")
+    assert bind["result"] == "FAIL", f"issuer_bind axis: {bind}"
+    sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
+    assert sig_axis["result"] == "PASS", "the forged signature verifies; the bind is what refuses it"
+
+
 # Real-cloud ML-DSA-65 payload-mode known-answer test (asqav-06-mldsa65-payload-prod).
 # Uses a receipt + JWKS minted from api.asqav.com with mode=full-payload.
 # The ML-DSA-65 signature axis must be PASS, not SKIPPED or INCOMPLETE.

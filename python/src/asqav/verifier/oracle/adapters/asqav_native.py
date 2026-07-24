@@ -162,26 +162,36 @@ class AsqavNativeAdapter(FormatAdapter):
         return _vr.check_structure(_payload(doc))
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
-        """Gate the verdict on the signing key's revocation status.
+        """Gate the verdict on the signing key's revocation status and its issuer.
 
-        A receipt signed by a revoked key must not PASS offline, matching the
-        hosted /verify. No key resolved means the signature axis already FAILs,
-        so this axis only weighs in once a key is found.
+        A receipt signed by a revoked key, or by a key the directory publishes
+        under a different issuer, must not PASS offline, matching the hosted
+        /verify. No key resolved means the signature axis already FAILs, so these
+        axes only weigh in once a key is found. A hash-mode receipt carries no
+        issuer_id claim, so only the revocation axis applies to it.
         """
         jwks = key_provider or {"keys": []}
         kid = self.extract_signature(doc).kid
         pk, status, _alg = _vr.resolve_key(jwks, kid)
         if pk is None:
             return []
-        if _is_hash_mode(doc):
-            issued_at = doc.get("server_timestamp", "")
-        else:
-            issued_at = _payload(doc).get("issued_at", "")
+        payload = None if _is_hash_mode(doc) else _payload(doc)
+        issued_at = (
+            doc.get("server_timestamp", "") if payload is None else payload.get("issued_at", "")
+        )
         revoked_at = _vr.resolve_revoked_at(jwks, kid)
         # Offline anchor presence is unverifiable (anchors are unsigned); pass
         # False so a forged anchor never rides a revoked key to PASS.
         res, note = _vr.check_key_status(status, issued_at, revoked_at, False)
-        return [("key_status", res, note)]
+        axes = [("key_status", res, note)]
+        if payload is not None:
+            # kid selects the key and the receipt selects the kid, so bind the
+            # resolved key back to the issuer the payload claims.
+            bind = _vr.check_issuer_binding(
+                _vr.resolve_key_issuer(jwks, kid), payload.get("issuer_id")
+            )
+            axes.append(("issuer_bind", *bind))
+        return axes
 
     def attestation(self, doc: dict) -> dict[str, Any]:
         """Surface the v:2 in-body ``signer``. None for v:1 and hash-mode.
