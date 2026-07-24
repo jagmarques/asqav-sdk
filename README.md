@@ -380,7 +380,7 @@ Both SDKs ship to different registries on independent cadences, driven by prefix
 
 Asqav has two plans: Free and Enterprise.
 
-Free covers 5,000 signatures/month, 10 agents, 10 policies, 3 team members, and 30-day log retention. Most features are included: OpenTimestamps anchoring, audit export, framework integrations, content scanning, OpenTelemetry export, the Replay API, approvals, governance query and attestation, and 2 compliance reports/month.
+Free covers 25,000 signatures/month, 10 agents, 10 policies, 3 team members, and 30-day log retention. Most features are included: OpenTimestamps anchoring, audit export, framework integrations, content scanning, OpenTelemetry export, the Replay API, approvals, governance query and attestation, and 2 compliance reports/month.
 
 Enterprise adds RFC 3161 timestamps, SSO/SAML, managed and bring-your-own KMS, SD-JWT selective disclosure, IP allowlists, multi-party quorum signing, quarantine and incident management, a self-hosted signer, and dedicated support. See [asqav.com/pricing](https://asqav.com/pricing.html) for the full breakdown.
 

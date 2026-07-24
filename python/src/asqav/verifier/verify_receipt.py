@@ -1,3 +1,23 @@
+# Copyright 2026 Asqav
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# This standalone verifier is deliberately licensed Apache-2.0 (a file-level
+# exception to the Elastic-License-2.0 SDK) so it can ship in the exit artifact
+# as a permanently free, dependency-light tool a customer runs offline forever.
+
 """Standalone Asqav receipt verifier - one dependency, mostly stdlib.
 
 Verify an Asqav Compliance Receipt yourself, without the Asqav SDK or liboqs.

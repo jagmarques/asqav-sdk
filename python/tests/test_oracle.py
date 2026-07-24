@@ -272,6 +272,56 @@ def test_acta_commitment_mode_fails_not_false_passes() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
+def _acta_profile_doc(**payload_overrides) -> dict:
+    payload = {
+        "type": "acta.access_decision",
+        "issued_at": "2026-01-01T00:00:00Z",
+        "issuer_id": "did:example:issuer#k1",
+    }
+    payload.update(payload_overrides)
+    return {
+        "payload": payload,
+        "signature": {"alg": "EdDSA", "kid": "did:example:issuer#k1", "sig": "ab" * 32},
+    }
+
+
+def test_acta_rev02_required_fields_enforced() -> None:
+    """Rev-02 asqav profile: type/issued_at/issuer_id required, issuer_id == kid."""
+    adapter = ActaAdapter()
+    assert adapter.schema(_acta_profile_doc())[0] == "PASS"
+    # issuer_id is REQUIRED once the asqav profile (type present) is in play.
+    doc = _acta_profile_doc()
+    del doc["payload"]["issuer_id"]
+    assert adapter.schema(doc)[0] == "FAIL"
+    # issued_at is REQUIRED.
+    doc = _acta_profile_doc()
+    del doc["payload"]["issued_at"]
+    assert adapter.schema(doc)[0] == "FAIL"
+    # issuer_id must match signature.kid.
+    assert adapter.schema(_acta_profile_doc(issuer_id="did:example:other#k9"))[0] == "FAIL"
+    # type must be a non-empty namespaced string.
+    assert adapter.schema(_acta_profile_doc(type=""))[0] == "FAIL"
+
+
+def test_acta_rev02_upstream_a2a_relaxed_deviation() -> None:
+    """Upstream A2A receipts carry no type/issuer_id and verify under the relaxed schema."""
+    adapter = ActaAdapter()
+    upstream = {
+        "payload": {"issued_at": "2026-01-01T00:00:00Z"},
+        "signature": {"alg": "EdDSA", "kid": "did:example:up#k1", "sig": "cd" * 32},
+    }
+    assert adapter.schema(upstream)[0] == "PASS"
+
+
+@requires_ed25519
+def test_acta_rev02_vectors_still_verify() -> None:
+    """The rev-02 tightening must not break the existing asqav-profile vectors."""
+    for vec in ("acta-01-genesis",):
+        doc = _load(vec, "receipt.json")
+        res = verify(doc, ADAPTERS, key_provider=_acta_keys(vec))
+        assert res.verdict == "PASS", vec
+
+
 @requires_ed25519
 def test_acta_upstream_scopeblind_receipt_verifies() -> None:
     """A REAL ScopeBlind/APS attestation verifies: genuine inbound interop.
