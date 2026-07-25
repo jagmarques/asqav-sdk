@@ -378,8 +378,13 @@ export interface InitOptions {
    */
   mode?: "auto" | "hash-only" | "full-payload";
   /**
-   * Optional 32-byte per-organization salt. When set, hash-only mode
-   * uses HMAC-SHA-256 instead of plain SHA-256.
+   * Optional 32-byte salt that you generate and hold. When set, hash-only
+   * mode uses HMAC-SHA-256 keyed by it instead of plain SHA-256. Asqav
+   * never receives it and cannot recover it for you. Unset means an
+   * unsalted SHA-256 digest, which can be guessed for a predictable
+   * context. Salted digests still travel labelled `sha256`, so a third
+   * party recomputing per `docs/fingerprint-spec.md` sees a mismatch even
+   * though the signature verifies.
    */
   orgSalt?: Uint8Array;
 }
@@ -1024,7 +1029,10 @@ export interface GovernOptions {
   baseUrl?: string;
   /** Wire mode - "auto" (default), "hash-only", or "full-payload". */
   mode?: "auto" | "hash-only" | "full-payload";
-  /** Optional 32-byte HMAC salt for hash-only mode. */
+  /**
+   * Optional 32-byte HMAC salt for hash-only mode, generated and held by
+   * you. Unset means an unsalted SHA-256 digest. See InitOptions.orgSalt.
+   */
   orgSalt?: Uint8Array;
 }
 
