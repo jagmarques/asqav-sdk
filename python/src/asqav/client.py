@@ -2850,9 +2850,14 @@ def init(
             ``hash-only`` for the Asqav cloud (``*.asqav.com``) and
             ``full-payload`` for self-hosted deployments. The
             ``ASQAV_MODE`` env var is consulted when ``mode="auto"``.
-        org_salt: Optional 32-byte per-organization salt. When set, the
-            SDK uses HMAC-SHA-256 instead of plain SHA-256 for hash-only
-            requests. Fetch yours from the Asqav dashboard.
+        org_salt: Optional 32-byte salt that you generate and hold. When
+            set, hash-only requests use HMAC-SHA-256 keyed by it instead
+            of plain SHA-256. Asqav never receives it and cannot recover
+            it for you. Leave it unset and the digest is an unsalted
+            SHA-256, which can be guessed for a predictable context.
+            Salted digests still travel labelled ``sha256``, so a third
+            party recomputing per ``docs/fingerprint-spec.md`` sees a
+            mismatch even though the signature verifies.
 
     Raises:
         AuthenticationError: If no API key is provided.
@@ -2924,7 +2929,9 @@ def govern(
         capabilities: Capability strings for the new agent.
         base_url: Override API base URL (for testing).
         mode: Wire mode - "auto" (default), "hash-only", or "full-payload".
-        org_salt: Optional 32-byte HMAC salt for hash-only mode.
+        org_salt: Optional 32-byte HMAC salt for hash-only mode, generated
+            and held by you. Unset means an unsalted SHA-256 digest. See
+            init() for the full caveats.
 
     Returns:
         A ready-to-use Agent instance.
