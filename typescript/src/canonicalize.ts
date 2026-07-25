@@ -175,7 +175,9 @@ export function canonicalizeToolArgs(args: unknown): Uint8Array {
 
 /**
  * Self-describing hash for an action: `sha256:<hex>`.
- * With `salt` set, uses HMAC-SHA-256.
+ * With `salt` set, uses HMAC-SHA-256 keyed by that caller-held salt. The prefix
+ * reads `sha256` either way, so a verifier recomputing per the fingerprint spec
+ * cannot tell a salted digest from a plain one.
  */
 export async function hashAction(
   actionType: string,
