@@ -80,7 +80,9 @@ def hash_action(
     salt: bytes | None = None,
 ) -> str:
     """Return ``"sha256:<hex>"`` of canonicalized ``{action_type, context}``; with
-    ``salt`` set, uses HMAC-SHA-256 (per-org keyed hash) instead of plain SHA-256.
+    ``salt`` set, uses HMAC-SHA-256 keyed by that caller-held salt instead of plain
+    SHA-256. The prefix reads ``sha256`` either way, so a verifier that recomputes
+    per ``docs/fingerprint-spec.md`` cannot tell a salted digest from a plain one.
     """
     canonical = canonicalize_action(action_type, context)
     if salt is not None:
