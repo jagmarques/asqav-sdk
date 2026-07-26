@@ -1939,9 +1939,7 @@ class Agent:
                 validate_context_schema(context, context_schema)
             context = normalize_context(context)
 
-        # Pluggable detector gate (criterion 331).
-        # Runs after schema normalize so detectors see the final context.
-        # Fail-closed by default; raises DetectorBlockedError when denied.
+        # Pluggable detector gate (criterion 331), fail-closed; runs after normalize.
         from ._detectors import run_detectors
 
         _detector_records = run_detectors(action_type, context)
@@ -3104,9 +3102,7 @@ def get_agent() -> Agent:
     """
     global _global_agent
     if _global_agent is None:
-        # Serialise auto-creation: without the lock, two threads hitting
-        # their first decorated call can race Agent.create and register
-        # duplicate agents, splitting the receipt chain across them.
+        # Serialise auto-creation: racing first calls would register duplicate agents.
         with _global_agent_lock:
             if _global_agent is None:
                 name = _auto_generate_name()

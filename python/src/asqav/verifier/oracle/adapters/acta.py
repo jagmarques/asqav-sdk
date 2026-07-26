@@ -121,9 +121,8 @@ class ActaAdapter(FormatAdapter):
             return "FAIL", "ACTA receipt needs object payload and signature"
         missing = [f for f in ("issued_at",) if f not in payload]
         missing += [f"signature.{f}" for f in ("alg", "kid", "sig") if f not in sig]
-        # Rev-02 asqav profile: `type` marks the profile; when present, `type` and
-        # `issuer_id` are REQUIRED too. Upstream A2A receipts carry neither and stay
-        # relaxed (documented deviation - they are not rev-02 receipts).
+        # Rev-02 asqav profile: with `type` present, `issuer_id` is required too.
+        # Upstream A2A receipts carry neither and stay relaxed (not rev-02).
         if "type" in payload:
             if not isinstance(payload["type"], str) or not payload["type"]:
                 return "FAIL", "type must be a non-empty namespaced string"
