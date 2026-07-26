@@ -470,8 +470,7 @@ class SignatureResponse:
     incident_class: str | list[str] | None = None
     reason: str | None = None
     previous_receipt_hash: str | None = None
-    # Spec `decision` token (allow | deny | rate_limit). None on
-    # non-compliance receipts.
+    # Spec `decision` token (allow | deny | rate_limit). None on non-compliance receipts.
     decision: str | None = None
     # Three-key Compliance Receipts envelope (payload + anchors); None on non-compliance.
     payload: dict[str, Any] | None = None
