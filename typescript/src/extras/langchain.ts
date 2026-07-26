@@ -229,9 +229,8 @@ async function loadContext(): Promise<LangchainContextModule> {
 const ASQAV_LC_CONTEXT_VAR = "asqav_langchain_handler";
 let hookRegistered = false;
 
-// Turn on default-on Asqav governance for LangChain.js. Registers a configure
-// hook once and binds the handler to a context variable so every run signs
-// automatically. Signing stays fail-open. Returns the handler.
+// Enable default-on governance: register a configure hook once and bind the
+// handler to a context variable so every run signs (fail-open). Returns it.
 export async function enableLangchainGovernance(
   opts: AsqavCallbackHandlerOptions,
 ): Promise<AsqavCallbackHandler & BaseCallbackHandlerLike> {
