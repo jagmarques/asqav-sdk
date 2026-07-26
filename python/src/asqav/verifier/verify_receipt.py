@@ -685,9 +685,8 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         eff_status, eff_kid = status, kid
         eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
-        # Cloud receipts set kid to the issuer id but sign with the agent's own
-        # key, so fall back to the agent key. agent_id is attacker-controlled, so
-        # bind it: only a key whose issuer_id equals the claimed one is trusted.
+        # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
+        # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
