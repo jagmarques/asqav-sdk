@@ -202,10 +202,9 @@ export function checkOrgBinding(
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
 const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 
-// Gate on the key's JWKS status (mirrors `check_key_status`).
-// With revoked_at and a trusted anchor, pre-revocation receipts PASS; without
-// revoked_at, any revoked-status key FAILs. Without an anchor, issued_at is
-// self-attested (a compromised-key holder can backdate), so downgrade to SKIPPED.
+// Gate on the key's JWKS status (mirrors `check_key_status`). With revoked_at and a trusted
+// anchor, pre-revocation receipts PASS, and without revoked_at any revoked-status key FAILs.
+// Without an anchor, issued_at is self-attested (backdateable), so downgrade to SKIPPED.
 export function checkKeyStatus(
   status: string | null,
   issuedAt: string,
