@@ -1,15 +1,8 @@
 // Algorithm agility for receipt signing.
 
-// SUPPORTED_ALGORITHMS is the client-side validation set (all five:
-// ml-dsa-65 default, ml-dsa-44, ml-dsa-87, ed25519, es256), so Agent.create
-// passes any of the five past local validation.
-
-// The cloud signs server-side only with ml-dsa-{44,65,87}. ed25519/es256
-// clear local validation but the cloud returns HTTP 400 on Agent.create
-// (see index.ts create comment + both READMEs).
-
-// ed25519/es256 are for LOCAL keypair generation and local sign/verify via
-// the node:crypto helpers below (LOCAL_SIGNING_ALGORITHMS), not cloud signing.
+// SUPPORTED_ALGORITHMS is the client-side validation set (all five). The cloud
+// signs only with ml-dsa-{44,65,87}; ed25519/es256 pass local validation but
+// the cloud returns HTTP 400. Those two are for local sign/verify only.
 
 import {
   createPrivateKey,
@@ -87,9 +80,8 @@ export function generateKeypair(algorithm: LocalSigningAlgorithm): LocalKeypair 
   throw new Error(`Unsupported local algorithm: ${exhaustive as string}`);
 }
 
-// Sign canonical bytes with a locally-generated keypair, raw signature as
-// base64. es256 emits IEEE P1363 (raw r||s) to match the cloud verifier.
-// Node defaults ECDSA to DER, so we convert.
+// Sign canonical bytes with a local keypair. es256 emits IEEE P1363 (raw r||s)
+// to match the cloud verifier; Node defaults ECDSA to DER, so we convert.
 export function signMessage(
   algorithm: LocalSigningAlgorithm,
   privateKeyPkcs8B64: string,
