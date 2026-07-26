@@ -173,8 +173,7 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
 # -- Default-on entrypoint -----------------------------------------------------
 
-# LangChain auto-attaches a handler to every run when its ContextVar is set and
-# the paired configure hook is registered (langchain_core _configure loop).
+# LangChain auto-attaches the handler once its ContextVar is set and the hook is registered.
 _ASQAV_LC_HANDLER: ContextVar[AsqavCallbackHandler | None] = ContextVar(
     "asqav_langchain_handler", default=None
 )

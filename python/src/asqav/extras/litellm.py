@@ -42,10 +42,7 @@ except ImportError as err:
     ) from err
 
 try:
-    # Optional at import time: the CustomLogger base may not be present in
-    # every litellm build. AsqavSigningLogger is duck-typed by litellm's
-    # callback dispatch, so falling back to object keeps the module importable
-    # (and AsqavGuardrail usable) when the base is unavailable.
+    # Optional base: litellm duck-types the logger, so fall back to object.
     from litellm.integrations.custom_logger import CustomLogger
 except ImportError:
     CustomLogger = object  # type: ignore[assignment,misc]
@@ -309,9 +306,7 @@ class AsqavSigningLogger(CustomLogger):
         self._lock = threading.Lock()
         self._warned = False
 
-        # Key resolution mirrors AsqavAdapter (_base.py): explicit api_key,
-        # then ASQAV_API_KEY env, then the key asqav.init() set on the client.
-        # The init() fallback keeps the documented quickstart actually signing.
+        # Key resolution mirrors AsqavAdapter: explicit key, then env, then init() key.
         resolved_key = (
             api_key or os.environ.get("ASQAV_API_KEY") or _client._api_key
         )
