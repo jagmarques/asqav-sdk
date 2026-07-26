@@ -38,6 +38,14 @@ from ._detectors import (
 from ._jcs import canonical_json
 from ._schema import normalize_context, validate_context_schema
 from .async_client import AsyncAgent
+from .attestation import (
+    ATTESTATION_STATEMENT_SCHEMA,
+    VERDICT_VERIFIED_NOT_REDERIVABLE,
+    compute_statement_hash,
+    reconstruct_signed_message,
+    verify_attestation_offline,
+    verify_merkle_inclusion,
+)
 from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
 from .client import (
     CAPTURE_TOPOLOGY_NAMESPACE,
@@ -132,6 +140,7 @@ from .client import (
     verify_output,
     verify_signature,
 )
+from .commitment import commit, new_opening
 from .compliance import ComplianceBundle, export_bundle, fetch_audit_pack
 from .counterparty import (
     ACKNOWLEDGMENT_RECEIPT_TYPE,
@@ -340,6 +349,15 @@ __all__ = [
     # Offline / air-gapped verification helpers
     "fetch_jwks",
     "verify_receipt_offline",
+    # Opaque-claim attestation commitments and offline verification (criterion 281)
+    "new_opening",
+    "commit",
+    "compute_statement_hash",
+    "reconstruct_signed_message",
+    "verify_attestation_offline",
+    "verify_merkle_inclusion",
+    "ATTESTATION_STATEMENT_SCHEMA",
+    "VERDICT_VERIFIED_NOT_REDERIVABLE",
     # Structured receipts (criterion 328)
     "validate_context_schema",
     "normalize_context",
