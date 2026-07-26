@@ -48,10 +48,7 @@ class AsqavAdapter:
         if _client._api_key is None and api_key is None:
             raise AsqavError("Call asqav.init() first")
 
-        # The documented per-adapter override: an explicit key (re)initialises
-        # the client so Agent.create/get below actually authenticate with it.
-        # Without this, an adapter constructed with only api_key= passes the
-        # guard above yet fails on its first request.
+        # Explicit key re-inits the client so Agent calls authenticate with it.
         if api_key is not None and api_key != _client._api_key:
             _client.init(api_key)
 
