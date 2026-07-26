@@ -46,9 +46,7 @@ class LocalQueue:
             "status": "pending",
         }
 
-        # Write-then-rename so a crash mid-write never leaves a truncated
-        # .json item that list_pending() would silently skip forever.
-        # The .tmp suffix keeps half-written files out of the *.json glob.
+        # Write-then-rename: a crash never leaves a truncated .json list_pending skips.
         filepath = self.queue_dir / f"{item_id}.json"
         tmp_path = self.queue_dir / f"{item_id}.json.tmp"
         tmp_path.write_text(json.dumps(payload, indent=2))

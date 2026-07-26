@@ -203,11 +203,9 @@ export function checkOrgBinding(
 const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 
 // Gate on the key's JWKS status (mirrors `check_key_status`).
-// With revoked_at and a trusted anchor, receipts signed before revocation PASS.
-// Without revoked_at, any revoked-status key FAILs the axis.
-// Without an anchor, a pre-revocation issued_at is self-attested and cannot be
-// trusted: a holder of the compromised key can backdate. Downgrade to SKIPPED so
-// the verdict is INCOMPLETE, never a hiding PASS.
+// With revoked_at and a trusted anchor, pre-revocation receipts PASS; without
+// revoked_at, any revoked-status key FAILs. Without an anchor, issued_at is
+// self-attested (a compromised-key holder can backdate), so downgrade to SKIPPED.
 export function checkKeyStatus(
   status: string | null,
   issuedAt: string,
