@@ -849,30 +849,45 @@ def run_structured(
             }
         )
     else:
+        _raw_sig = sig_obj.get("sig", "")
+        sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
+        sig_res = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
+        eff_status, eff_kid = status, kid
+        eff_issuer = resolve_key_issuer(jwks, kid)
+        eff_revoked_at = resolve_revoked_at(jwks, kid)
+        # Cloud receipts sign with the agent key though kid is the issuer id; fall
+        # back, mirroring run(). agent_id is attacker-controlled, so trust only a
+        # key whose published issuer_id matches the claimed issuer.
+        if sig_res[0] != "PASS":
+            agent_id = payload.get("agent_id") or envelope.get("agent_id")
+            pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
+                jwks, agent_id, payload.get("issuer_id")
+            )
+            if pk_a is not None:
+                sig_res_a = verify_signature(pk_a, msg, sig_bytes, alg_a or alg or jwks_alg)
+                if sig_res_a[0] == "PASS":
+                    sig_res = sig_res_a
+                    eff_status, eff_kid = status_a, kid_a
+                    eff_issuer = issuer_a
+                    eff_revoked_at = resolve_revoked_at(jwks, kid_a)
         axes.append(
             {
                 "name": "issuer_key",
                 "result": "PASS",
-                "note": f"resolved kid {kid} (status={status})",
+                "note": f"resolved signing key {eff_kid} (status={eff_status})",
             }
         )
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
-        bind_r, bind_n = check_issuer_binding(
-            resolve_key_issuer(jwks, kid), payload.get("issuer_id")
-        )
+        bind_r, bind_n = check_issuer_binding(eff_issuer, payload.get("issuer_id"))
         axes.append({"name": "issuer_bind", "result": bind_r, "note": bind_n})
-        revoked_at = resolve_revoked_at(jwks, kid)
         # Offline anchor presence is not trusted timing; pass False so a forged
         # anchor never upgrades a revoked key to PASS (hosted /verify does).
         ks_r, ks_n = check_key_status(
-            status, payload.get("issued_at", ""), revoked_at, False
+            eff_status, payload.get("issued_at", ""), eff_revoked_at, False
         )
         axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
-        _raw_sig = sig_obj.get("sig", "")
-        sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
-        sig_r, sig_n = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
-        axes.append({"name": "signature", "result": sig_r, "note": sig_n})
+        axes.append({"name": "signature", "result": sig_res[0], "note": sig_res[1]})
 
     chain_r, chain_n = check_chain(payload, predecessor_payload)
     axes.append({"name": "chain", "result": chain_r, "note": chain_n})
