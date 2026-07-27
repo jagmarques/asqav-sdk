@@ -128,8 +128,26 @@ class AsqavNativeAdapter(FormatAdapter):
         kid = self.extract_signature(doc).kid
         pk, status, _alg = _vr.resolve_key(jwks, kid)
         if pk is None:
+            # Cloud receipts set kid to the issuer id; when that resolves nothing,
+            # fall back to the agent's own key, mirroring run(). agent_id is
+            # attacker-controlled, so resolve_key_by_agent_id trusts only a key
+            # whose published issuer_id matches the one the receipt claims.
+            fallback = self._resolve_key_by_agent(doc, jwks)
+            if fallback is not None:
+                return fallback
             return None, f"kid {kid!r} not in jwks directory"
         return pk, f"resolved kid {kid} (status={status})"
+
+    def _resolve_key_by_agent(self, doc: dict, jwks: dict) -> tuple[bytes, str] | None:
+        """Resolve the signing key by the receipt's agent_id when the kid is absent."""
+        payload = _payload(doc)
+        agent_id = payload.get("agent_id") or doc.get("agent_id")
+        pk, status, _alg, kid, _issuer = _vr.resolve_key_by_agent_id(
+            jwks, agent_id, payload.get("issuer_id")
+        )
+        if pk is None:
+            return None
+        return pk, f"resolved agent key {kid} (status={status})"
 
     def signing_input(self, doc: dict) -> bytes:
         if _is_hash_mode(doc):

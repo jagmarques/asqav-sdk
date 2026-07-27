@@ -419,6 +419,106 @@ from asqav.verifier import verify_receipt as _vr  # noqa: E402
 
 
 @requires_ed25519
+def test_asqav_native_agent_id_fallback_resolves_absent_kid() -> None:
+    """When signature.kid resolves nothing, the adapter falls back to the agent's
+    own key (bound to the claimed issuer), mirroring run(): the receipt verifies."""
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    sk = Ed25519PrivateKey.generate()
+    pk_raw = sk.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    )
+    payload = {
+        "type": "protectmcp:decision",
+        "issued_at": "2026-06-19T00:00:00.000000Z",
+        "issuer_id": "org-1",
+        "agent_id": "agt_probe",
+        "action_ref": "sha256:" + "8" * 64,
+        "payload_digest": {"hash": "8" * 64, "size": 512},
+        "policy_digest": "sha256:" + "3" * 64,
+        "previousReceiptHash": "0" * 64,
+        "decision": "allow",
+    }
+    ad = AsqavNativeAdapter()
+    doc = {
+        "payload": payload,
+        "signature": {"alg": "Ed25519", "kid": "absent-kid", "sig": ""},
+        "anchors": [],
+    }
+    doc["signature"]["sig"] = base64.b64encode(sk.sign(ad.signing_input(doc))).decode()
+    # The key publishes agent_id + issuer_id but a kid the receipt never names, so
+    # the direct kid lookup misses and only the agent_id fallback resolves it.
+    jwks = {
+        "keys": [
+            {
+                "kid": "agent-key-1",
+                "agent_id": "agt_probe",
+                "issuer_id": "org-1",
+                "alg": "Ed25519",
+                "public_key": base64.b64encode(pk_raw).decode(),
+                "status": "active",
+            }
+        ]
+    }
+    res = verify(doc, ADAPTERS, key_provider=jwks)
+    assert res.fmt == "asqav-native"
+    assert res.axis("signature").result == crypto.PASS
+    assert res.verdict == "PASS"
+
+
+@requires_ed25519
+def test_asqav_native_agent_id_fallback_binds_issuer() -> None:
+    """The agent_id fallback trusts only a key whose issuer_id matches the claim: a
+    key bound to a different issuer never resolves, so the signature stays SKIPPED."""
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    sk = Ed25519PrivateKey.generate()
+    pk_raw = sk.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    )
+    payload = {
+        "type": "protectmcp:decision",
+        "issued_at": "2026-06-19T00:00:00.000000Z",
+        "issuer_id": "org-victim",
+        "agent_id": "agt_probe",
+        "action_ref": "sha256:" + "8" * 64,
+        "payload_digest": {"hash": "8" * 64, "size": 512},
+        "policy_digest": "sha256:" + "3" * 64,
+        "previousReceiptHash": "0" * 64,
+        "decision": "allow",
+    }
+    ad = AsqavNativeAdapter()
+    doc = {
+        "payload": payload,
+        "signature": {"alg": "Ed25519", "kid": "absent-kid", "sig": ""},
+        "anchors": [],
+    }
+    doc["signature"]["sig"] = base64.b64encode(sk.sign(ad.signing_input(doc))).decode()
+    jwks = {
+        "keys": [
+            {
+                "kid": "agent-key-1",
+                "agent_id": "agt_probe",
+                "issuer_id": "org-attacker",  # right agent_id, wrong issuer
+                "alg": "Ed25519",
+                "public_key": base64.b64encode(pk_raw).decode(),
+                "status": "active",
+            }
+        ]
+    }
+    res = verify(doc, ADAPTERS, key_provider=jwks)
+    assert res.fmt == "asqav-native"
+    assert res.verdict != "PASS"
+    assert res.axis("signature").result in (crypto.FAIL, crypto.SKIPPED)
+
+
+@requires_ed25519
 def test_wrong_key_resolution_fails_signature() -> None:
     """A receipt verified against a different valid Ed25519 key FAILs the signature axis."""
     doc = _load("aerf-01-genesis", "receipt.json")
