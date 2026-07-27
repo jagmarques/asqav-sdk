@@ -23,6 +23,8 @@ except ImportError:
     print("CLI requires typer. Install with: pip install asqav[cli]")
     sys.exit(1)
 
+from asqav.credentials import resolve_api_key
+
 hook_app = typer.Typer(
     name="hook",
     help="Sign Claude Code harness hook events (PostToolUse audit, PreToolUse gate).",
@@ -118,8 +120,8 @@ def _map_event(
 
 
 def _require_identity() -> tuple[str, str]:
-    """Return (api_key, agent_id) from env, or error clearly. No silent no-op."""
-    api_key = os.environ.get("ASQAV_API_KEY")
+    """Return (api_key, agent_id) from the credential chain + env, or error clearly."""
+    api_key = resolve_api_key()
     agent_id = os.environ.get("ASQAV_AGENT_ID")
     missing = [
         name
@@ -128,7 +130,8 @@ def _require_identity() -> tuple[str, str]:
     ]
     if missing:
         print(
-            "Error: " + " and ".join(missing) + " must be set to sign hook events.",
+            "Error: " + " and ".join(missing) + " must be set to sign hook events "
+            "(run `asqav login` for the API key).",
             file=sys.stderr,
         )
         raise typer.Exit(code=1)
@@ -186,7 +189,7 @@ def hook_posttool(
     )
 
     if dry_run:
-        api_key = os.environ.get("ASQAV_API_KEY", "")
+        api_key = resolve_api_key() or ""
         agent_id = os.environ.get("ASQAV_AGENT_ID", "")
         body = _build_body(
             action_type=action_type,
@@ -241,7 +244,7 @@ def hook_pretool(
     )
 
     if dry_run:
-        api_key = os.environ.get("ASQAV_API_KEY", "")
+        api_key = resolve_api_key() or ""
         agent_id = os.environ.get("ASQAV_AGENT_ID", "")
         body = _build_body(
             action_type=action_type,
@@ -254,11 +257,12 @@ def hook_pretool(
         return
 
     # Fail-closed: any failure to reach the signer or sign blocks the tool (exit 2).
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     agent_id = os.environ.get("ASQAV_AGENT_ID")
     if not api_key or not agent_id:
         print(
-            "asqav hook: ASQAV_API_KEY and ASQAV_AGENT_ID required to gate; blocking.",
+            "asqav hook: ASQAV_API_KEY (or `asqav login`) and ASQAV_AGENT_ID required "
+            "to gate; blocking.",
             file=sys.stderr,
         )
         raise typer.Exit(code=2)
