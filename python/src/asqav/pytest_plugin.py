@@ -70,14 +70,14 @@ def pytest_configure(config: pytest.Config) -> None:
     if not config.getoption("--asqav"):
         return
 
-    import os
+    from asqav.credentials import resolve_api_key
 
-    if not os.environ.get("ASQAV_API_KEY"):
+    if not resolve_api_key():
         # Configuration error, not a test failure. Exit early so the rest of
         # the run does not partially sign with a half-set-up agent.
         raise pytest.UsageError(
-            "--asqav requires ASQAV_API_KEY in the environment. "
-            "Get one at https://asqav.com."
+            "--asqav requires an API key. Run `asqav login`, set ASQAV_API_KEY, "
+            "or save ~/.asqav/credentials. Get one at https://asqav.com."
         )
 
     import asqav
