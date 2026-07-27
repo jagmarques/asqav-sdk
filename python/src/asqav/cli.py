@@ -47,6 +47,7 @@ from asqav._useragent import USER_AGENT
 # Harness hooks (Claude Code PostToolUse/PreToolUse). Distinct from asqav/hooks.py,
 # which is in-process sign callbacks the agent opts into.
 from asqav.cli_hook import hook_app
+from asqav.credentials import resolve_api_key
 
 app = typer.Typer(
     name="asqav",
@@ -604,11 +605,9 @@ def replay(
 @agents_app.command("list")
 def agents_list() -> None:
     """List all agents for your organization."""
-    import os
-
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     if not api_key:
-        print("Error: ASQAV_API_KEY environment variable required.")
+        print("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.")
         raise typer.Exit(code=1)
 
     import asqav
@@ -638,11 +637,9 @@ def agents_list() -> None:
 @agents_app.command("create")
 def agents_create(name: str = typer.Argument(help="Name for the new agent.")) -> None:
     """Create a new agent."""
-    import os
-
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     if not api_key:
-        print("Error: ASQAV_API_KEY environment variable required.")
+        print("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.")
         raise typer.Exit(code=1)
 
     import asqav
@@ -878,14 +875,12 @@ def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> Non
 
 
 def _init_sdk() -> None:
-    """Initialize SDK with API key from environment."""
-    import os
-
+    """Initialize SDK with an API key from the credential chain."""
     import asqav
 
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     if not api_key:
-        print("Error: ASQAV_API_KEY environment variable required.")
+        print("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.")
         raise typer.Exit(code=1)
     asqav.init(api_key=api_key)
 
@@ -979,9 +974,7 @@ def demo(
 @app.command()
 def quickstart() -> None:
     """Get started with asqav in 60 seconds."""
-    import os
-
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     if api_key:
         typer.echo(
             typer.style("API key detected.", fg=typer.colors.GREEN, bold=True)
@@ -989,7 +982,7 @@ def quickstart() -> None:
     else:
         typer.echo(
             typer.style(
-                "ASQAV_API_KEY not set. Get one at https://asqav.com",
+                "ASQAV_API_KEY not set. Run `asqav login` or get one at https://asqav.com",
                 fg=typer.colors.YELLOW,
                 bold=True,
             )
@@ -1023,18 +1016,197 @@ def quickstart() -> None:
     typer.echo("4. Run diagnostics:  asqav doctor")
 
 
+# === onboarding commands (login / whoami / status / init) ===
+
+
+def _detect_framework() -> str:
+    """Detect the project framework from dependency manifests in the cwd."""
+    from pathlib import Path
+
+    for fname in ("requirements.txt", "pyproject.toml"):
+        try:
+            text = Path(fname).read_text(encoding="utf-8").lower()
+        except OSError:
+            continue
+        for fw in ("litellm", "langchain", "openai", "anthropic"):
+            if fw in text:
+                return fw
+    return "python"
+
+
+def _onboarding_snippet(framework: str) -> str:
+    """Return a short govern() + @asqav.secure snippet flavoured for the framework."""
+    action = {
+        "openai": "api:openai:chat",
+        "anthropic": "api:anthropic:messages",
+        "litellm": "api:litellm:completion",
+        "langchain": "api:langchain:invoke",
+    }.get(framework, "api:call")
+    return (
+        "import asqav\n"
+        "\n"
+        "# Key resolves from `asqav login` (or ASQAV_API_KEY)\n"
+        'agent = asqav.govern(agent_name="my-agent")\n'
+        "\n"
+        "@asqav.secure\n"
+        "def call_model(prompt: str) -> str:\n"
+        '    return "..."  # your model call\n'
+        "\n"
+        f'sig = agent.sign("{action}", {{"model": "gpt-4o"}})\n'
+        "print(sig.verification_url)\n"
+    )
+
+
+def _resolve_key_source(explicit: str | None) -> tuple[str | None, str]:
+    """Resolve an API key and report which source supplied it (arg/env/file/none)."""
+    import os
+
+    from asqav.credentials import load_credentials
+
+    if explicit:
+        return explicit, "arg"
+    env_key = os.environ.get("ASQAV_API_KEY")
+    if env_key:
+        return env_key, "env"
+    file_key = load_credentials().get("api_key")
+    if isinstance(file_key, str) and file_key:
+        return file_key, "file"
+    return None, "none"
+
+
+@app.command("login")
+def login(
+    api_key: str = typer.Option("", "--api-key", help="Asqav API key (prompted if omitted)."),
+    api_base: str = typer.Option("", "--api-base", help="Override the API base URL."),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing credentials file."),
+) -> None:
+    """Validate an API key and save it to ~/.asqav/credentials."""
+    from asqav.credentials import credentials_path, save_credentials
+
+    if not api_key:
+        api_key = typer.prompt("Asqav API key", hide_input=True)
+
+    path = credentials_path()
+    if path.exists() and not force:
+        typer.echo(f"Error: {path} already exists. Re-run with --force to overwrite.")
+        raise typer.Exit(code=1)
+
+    import asqav
+    from asqav.client import _get
+
+    base = api_base or None
+    try:
+        asqav.init(api_key=api_key, base_url=base)
+        _get("/agents")
+    except Exception as exc:
+        typer.echo(f"Error: key validation failed: {exc}")
+        typer.echo("Nothing was saved.")
+        raise typer.Exit(code=1)
+
+    written = save_credentials(api_key, base)
+    typer.echo(f"Saved API key to {written}")
+    typer.echo("The SDK and CLI now pick it up automatically (no ASQAV_API_KEY needed).")
+
+
+def _whoami_impl(api_key: str) -> None:
+    from asqav.credentials import resolve_api_base
+
+    key, source = _resolve_key_source(api_key or None)
+    if key is None:
+        typer.echo("No API key found (checked --api-key, ASQAV_API_KEY, ~/.asqav/credentials).")
+        typer.echo("Run `asqav login` to save one.")
+        raise typer.Exit(code=1)
+
+    base = resolve_api_base()
+    typer.echo(f"Key source: {source}")
+    typer.echo(f"API base:   {base}")
+
+    import asqav
+    from asqav.client import _get
+
+    try:
+        asqav.init(api_key=key, base_url=base)
+        data = _get("/agents")
+    except Exception as exc:
+        typer.echo(f"Key rejected by API: {exc}")
+        raise typer.Exit(code=1)
+
+    agents = data if isinstance(data, list) else data.get("agents", [])
+    typer.echo(f"Key valid. {len(agents)} agent(s) accessible.")
+
+
+@app.command("whoami")
+def whoami(
+    api_key: str = typer.Option(
+        "", "--api-key", help="API key (else ASQAV_API_KEY env, else ~/.asqav/credentials)."
+    ),
+) -> None:
+    """Show which API key source is active and validate it against the API."""
+    _whoami_impl(api_key)
+
+
+@app.command("status")
+def status(
+    api_key: str = typer.Option(
+        "", "--api-key", help="API key (else ASQAV_API_KEY env, else ~/.asqav/credentials)."
+    ),
+) -> None:
+    """Alias for `asqav whoami`."""
+    _whoami_impl(api_key)
+
+
+@app.command("init")
+def init_cmd(
+    write: bool = typer.Option(False, "--write", help="Write the snippet to asqav_governance.py."),
+    demo: bool = typer.Option(False, "--demo", help="Run one labelled demo sign."),
+) -> None:
+    """Print a ready-to-paste governance snippet for this project (non-invasive)."""
+    from pathlib import Path
+
+    framework = _detect_framework()
+    typer.echo(f"Detected framework: {framework}")
+    typer.echo("")
+    snippet = _onboarding_snippet(framework)
+    typer.echo(snippet)
+    typer.echo("Hook wiring (Claude Code): asqav hook posttool   # audit tool calls")
+
+    if write:
+        target = Path("asqav_governance.py")
+        if target.exists():
+            typer.echo(f"\n{target} already exists; leaving it untouched.")
+        else:
+            target.write_text(snippet, encoding="utf-8")
+            typer.echo(f"\nWrote {target}")
+
+    if demo:
+        from asqav.credentials import resolve_api_key
+
+        key = resolve_api_key()
+        if not key:
+            typer.echo("\nNo API key resolved; skipping demo. Run `asqav login` first.")
+            return
+        import asqav
+
+        try:
+            agent = asqav.govern(api_key=key, agent_name="asqav-init-demo")
+            sig = agent.sign("asqav:init-demo", {"label": "asqav init demo", "demo": True})
+        except Exception as exc:
+            typer.echo(f"\nDemo sign failed: {exc}")
+            raise typer.Exit(code=1)
+        typer.echo(f"\nDemo signature: {sig.signature_id}")
+        typer.echo(f"Verify it: asqav verify {sig.signature_id}")
+
+
 # === doctor command ===
 
 
 @app.command()
 def doctor() -> None:
     """Validate your governance setup."""
-    import os
-
     all_ok = True
 
     # Check 1: API key
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     if api_key:
         typer.echo(
             typer.style("PASS", fg=typer.colors.GREEN, bold=True) + "  API key set"
@@ -1042,7 +1214,7 @@ def doctor() -> None:
     else:
         typer.echo(
             typer.style("FAIL", fg=typer.colors.RED, bold=True)
-            + "  ASQAV_API_KEY not set"
+            + "  ASQAV_API_KEY not set (run `asqav login`)"
         )
         all_ok = False
 
@@ -2010,9 +2182,9 @@ def migrate_run(
     # `_post` cannot inject headers, so build a one-off urllib request with X-Maintenance-Key.
     from asqav import init as _init
 
-    api_key = os.environ.get("ASQAV_API_KEY")
+    api_key = resolve_api_key()
     if not api_key:
-        print("Error: ASQAV_API_KEY env var is required.")
+        print("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.")
         raise typer.Exit(code=1)
     _init(api_key=api_key)
 
@@ -2469,13 +2641,13 @@ def shadow_ai_init(
     for path in written:
         print(f"  wrote {path}")
 
-    import os as _os
-    if _os.environ.get("ASQAV_API_KEY"):
+    if resolve_api_key():
         _ensure_shadow_ai_policy()
     else:
         print(
-            "Hint: set ASQAV_API_KEY then run `asqav shadow-ai ensure-policy` to "
-            "register the monitor policy required by the no-false-attestation gate."
+            "Hint: run `asqav login` (or set ASQAV_API_KEY) then run "
+            "`asqav shadow-ai ensure-policy` to register the monitor policy "
+            "required by the no-false-attestation gate."
         )
 
     print("Next: copy .env.template to .env, fill in the values, then `asqav shadow-ai up`.")
