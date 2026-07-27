@@ -1,0 +1,23 @@
+{
+  "note": "Cross-language authproof delegationId format table. Both the Python and the TypeScript authproof adapters feed every value through their own delegationId validator (the format-detection regex) and assert the same boolean. The two divergence cases that pin the agreement are 'timestamp uses non-ASCII digits' (Python \\d would admit them, ECMAScript and [0-9] reject) and 'trailing newline' (Python $ would accept it, ECMAScript and \\Z reject).",
+  "cases": [
+    {"name": "canonical id", "value": "auth-1719000000000-ab1de", "expected": true},
+    {"name": "zero timestamp and suffix", "value": "auth-0-00000", "expected": true},
+    {"name": "high base36 suffix", "value": "auth-999-zzzzz", "expected": true},
+    {"name": "digits in the suffix", "value": "auth-123-9a8b7", "expected": true},
+    {"name": "trailing newline", "value": "auth-1719000000000-ab1de\n", "expected": false},
+    {"name": "trailing carriage return", "value": "auth-1719000000000-ab1de\r", "expected": false},
+    {"name": "leading newline", "value": "\nauth-1719000000000-ab1de", "expected": false},
+    {"name": "timestamp uses non-ASCII digits", "value": "auth-\u0661\u0662\u0663-ab1de", "expected": false},
+    {"name": "suffix a single non-ASCII digit", "value": "auth-1719000000000-\u0661\u0662\u0663\u0664\u0665", "expected": false},
+    {"name": "suffix too short", "value": "auth-1719000000000-ab1d", "expected": false},
+    {"name": "suffix too long", "value": "auth-1719000000000-ab1def", "expected": false},
+    {"name": "uppercase suffix", "value": "auth-1719000000000-AB1DE", "expected": false},
+    {"name": "empty timestamp", "value": "auth--ab1de", "expected": false},
+    {"name": "punctuation in the suffix", "value": "auth-1719000000000-ab1d!", "expected": false},
+    {"name": "leading junk", "value": "xauth-1719000000000-ab1de", "expected": false},
+    {"name": "trailing junk", "value": "auth-1719000000000-ab1de-x", "expected": false},
+    {"name": "uppercase prefix", "value": "AUTH-1719000000000-ab1de", "expected": false},
+    {"name": "empty string", "value": "", "expected": false}
+  ]
+}

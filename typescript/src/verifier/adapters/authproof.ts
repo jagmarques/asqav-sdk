@@ -21,8 +21,13 @@ import {
   type SignatureMaterial,
 } from "../adapter.js";
 
-/** A shipping-SDK delegationId is `auth-<epoch_ms>-<5 base36 chars>`. */
-const DELEGATION_ID = /^auth-\d+-[a-z0-9]{5}$/;
+/**
+ * A shipping-SDK delegationId is `auth-<epoch_ms>-<5 base36 chars>`.
+ * `[0-9]` (not `\d`) spells out the ASCII digit class so the pattern reads
+ * identical to the Python validator's; ECMAScript `^`/`$` are already strict
+ * (no trailing newline) and `\d` is already ASCII here, so this is the anchor.
+ */
+const DELEGATION_ID = /^auth-[0-9]+-[a-z0-9]{5}$/;
 
 /** Fields the SDK always writes, used for the structural check. */
 const REQUIRED = [
