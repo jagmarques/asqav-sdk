@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { runCli } from "../src/cli.js";
+import { PassThrough } from "node:stream";
+import { promptHidden, runCli } from "../src/cli.js";
 import { _resetForTests } from "../src/index.js";
 import {
   credentialsPath,
@@ -344,5 +346,74 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
       expect(output()).toContain("sig_demo");
       expect(output()).toContain("asqav verify sig_demo");
     });
+  });
+
+  // === promptHidden ===
+
+  it("promptHidden non-TTY reads a line from piped stdin", async () => {
+    const stream = new PassThrough();
+    const origStdin = process.stdin;
+    Object.defineProperty(process, "stdin", { value: stream, configurable: true });
+    try {
+      const p = promptHidden("Key: ");
+      stream.write("sk_piped_123\n");
+      stream.end();
+      await expect(p).resolves.toBe("sk_piped_123");
+    } finally {
+      Object.defineProperty(process, "stdin", { value: origStdin, configurable: true });
+    }
+  });
+
+  it("promptHidden TTY uses raw mode and suppresses echo", async () => {
+    const fake = new EventEmitter() as EventEmitter & {
+      isTTY: boolean;
+      setRawMode: ReturnType<typeof vi.fn>;
+      resume: ReturnType<typeof vi.fn>;
+      pause: ReturnType<typeof vi.fn>;
+    };
+    fake.isTTY = true;
+    fake.setRawMode = vi.fn();
+    fake.resume = vi.fn();
+    fake.pause = vi.fn();
+
+    const origStdin = process.stdin;
+    Object.defineProperty(process, "stdin", { value: fake, configurable: true });
+    try {
+      const p = promptHidden("Key: ");
+      fake.emit("data", Buffer.from("a"));
+      fake.emit("data", Buffer.from("b"));
+      fake.emit("data", Buffer.from("\r"));
+      await expect(p).resolves.toBe("ab");
+      expect(fake.setRawMode).toHaveBeenCalledWith(true);
+      expect(fake.setRawMode).toHaveBeenCalledWith(false);
+      expect(fake.pause).toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process, "stdin", { value: origStdin, configurable: true });
+    }
+  });
+
+  it("promptHidden TTY handles backspace", async () => {
+    const fake = new EventEmitter() as EventEmitter & {
+      isTTY: boolean;
+      setRawMode: ReturnType<typeof vi.fn>;
+      resume: ReturnType<typeof vi.fn>;
+      pause: ReturnType<typeof vi.fn>;
+    };
+    fake.isTTY = true;
+    fake.setRawMode = vi.fn();
+    fake.resume = vi.fn();
+    fake.pause = vi.fn();
+
+    const origStdin = process.stdin;
+    Object.defineProperty(process, "stdin", { value: fake, configurable: true });
+    try {
+      const p = promptHidden("Key: ");
+      fake.emit("data", Buffer.from("abc"));
+      fake.emit("data", Buffer.from("\x7f"));
+      fake.emit("data", Buffer.from("\r"));
+      await expect(p).resolves.toBe("ab");
+    } finally {
+      Object.defineProperty(process, "stdin", { value: origStdin, configurable: true });
+    }
   });
 });

@@ -1018,19 +1018,53 @@ function resolveKeySource(explicit?: string): [string | null, string] {
   return [null, "none"];
 }
 
-function promptHidden(query: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false,
-  });
+// Reads a line without echoing keystrokes. On a TTY, raw mode
+// suppresses echo; on a pipe, readline is safe (nothing is echoed).
+export function promptHidden(query: string): Promise<string> {
   process.stdout.write(query);
-  return new Promise((resolve) => {
-    rl.question("", (answer) => {
-      process.stdout.write("\n");
-      rl.close();
-      resolve(answer.trim());
+
+  if (!process.stdin.isTTY) {
+    const rl = readline.createInterface({ input: process.stdin, terminal: false });
+    return new Promise((resolve) => {
+      rl.question("", (answer) => {
+        rl.close();
+        resolve(answer.trim());
+      });
     });
+  }
+
+  return new Promise((resolve) => {
+    const stdin = process.stdin;
+    let buf = "";
+
+    const cleanup = () => {
+      stdin.removeListener("data", onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+    };
+
+    const onData = (chunk: Buffer) => {
+      for (const ch of chunk.toString("utf8")) {
+        if (ch === "\u0003") {
+          cleanup();
+          process.stdout.write("\n");
+          process.exit(130);
+        } else if (ch === "\r" || ch === "\n") {
+          cleanup();
+          process.stdout.write("\n");
+          resolve(buf);
+          return;
+        } else if (ch === "\x7f" || ch === "\b") {
+          buf = buf.slice(0, -1);
+        } else {
+          buf += ch;
+        }
+      }
+    };
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", onData);
   });
 }
 
