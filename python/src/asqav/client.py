@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 from ._sql_match import matches_pattern as _matches_pattern
 from ._useragent import USER_AGENT
+from .credentials import resolve_api_key
 from .patterns import resolve_pattern
 from .retry import with_retry
 
@@ -2874,11 +2875,12 @@ def init(
     """
     global _api_key, _api_base, _client, _mode, _org_salt
 
-    _api_key = api_key or os.environ.get("ASQAV_API_KEY")
+    _api_key = resolve_api_key(api_key)
 
     if not _api_key:
         raise AuthenticationError(
-            "API key required. Set ASQAV_API_KEY or pass api_key to init(). Get yours at asqav.com"
+            "API key required. Run `asqav login`, set ASQAV_API_KEY, or pass api_key "
+            "to init(). A saved key is read from ~/.asqav/credentials. Get yours at asqav.com"
         )
 
     if base_url:
