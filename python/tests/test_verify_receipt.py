@@ -359,6 +359,49 @@ def test_run_tampered_payload_fails() -> None:
     assert v.run(_envelope(payload, sig), jwks, None) == 1
 
 
+# === run_structured mirrors run()'s agent_id fallback ===
+
+
+def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
+    """run_structured mirrors run(): the issuer-kid resolves the wrong sibling, the
+    signature fails, and the agent_id fallback resolves the real signer -> PASS."""
+    ml = _ml_dsa_65()
+    a1_pk, _a1_sk = ml.keygen()
+    a2_pk, a2_sk = ml.keygen()
+    payload = _valid_payload("org-legit", "agt_two")
+    sig = ml.sign(a2_sk, v.canonical_json(payload))  # signed by agent two
+    jwks = {
+        "keys": [
+            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),  # issuer-kid hits this
+            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),  # real signer via agent_id
+        ]
+    }
+    out = v.run_structured(_envelope(payload, sig), jwks, None)
+    axes = {a["name"]: a["result"] for a in out["axes"]}
+    assert out["verdict"] == "PASS"
+    assert axes["signature"] == "PASS"
+    assert axes["issuer_bind"] == "PASS"
+
+
+def test_run_structured_agent_id_fallback_rejects_forged_issuer() -> None:
+    """run_structured inherits run()'s bind: a receipt signed by org-attacker's key
+    but claiming issuer_id=org-victim FAILs, since the fallback trusts only a key
+    whose issuer_id equals the claimed issuer."""
+    ml = _ml_dsa_65()
+    attacker_pk, attacker_sk = ml.keygen()
+    victim_pk, _victim_sk = ml.keygen()
+    payload = _valid_payload("org-victim", "agt_attacker")
+    sig = ml.sign(attacker_sk, v.canonical_json(payload))  # signed with attacker key
+    jwks = {
+        "keys": [
+            _jwks_key("victim-key", "agt_victim", "org-victim", victim_pk),
+            _jwks_key("attacker-key", "agt_attacker", "org-attacker", attacker_pk),
+        ]
+    }
+    out = v.run_structured(_envelope(payload, sig), jwks, None)
+    assert out["verdict"] == "FAIL"
+
+
 # === the kid path must bind the verifying key to the claimed issuer too ===
 
 
