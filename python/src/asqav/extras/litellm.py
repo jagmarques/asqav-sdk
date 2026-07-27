@@ -48,6 +48,7 @@ except ImportError:
     CustomLogger = object  # type: ignore[assignment,misc]
 
 from .. import client as _client
+from ..credentials import resolve_api_key
 from ._base import AsqavAdapter
 
 logger = logging.getLogger("asqav")
@@ -306,10 +307,8 @@ class AsqavSigningLogger(CustomLogger):
         self._lock = threading.Lock()
         self._warned = False
 
-        # Key resolution mirrors AsqavAdapter: explicit key, then env, then init() key.
-        resolved_key = (
-            api_key or os.environ.get("ASQAV_API_KEY") or _client._api_key
-        )
+        # Key resolution mirrors AsqavAdapter: explicit key, env, file, then init() key.
+        resolved_key = resolve_api_key(api_key) or _client._api_key
         self._adapter: AsqavAdapter | None = None
         if not resolved_key:
             self._warn_no_key()
