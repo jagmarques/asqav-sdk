@@ -29,7 +29,10 @@ from typing import Any
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
 
 #: A shipping-SDK delegationId is ``auth-<epoch_ms>-<5 base36 chars>``.
-_DELEGATION_ID = re.compile(r"^auth-\d+-[a-z0-9]{5}$")
+#: ``[0-9]`` (not ``\d``) and ``\A``/``\Z`` (not ``^``/``$``) keep this byte-for-byte
+#: with the ECMAScript regex: ``\d`` would admit non-ASCII digits and ``$`` would
+#: accept a trailing newline, both of which the TypeScript validator rejects.
+_DELEGATION_ID = re.compile(r"\Aauth-[0-9]+-[a-z0-9]{5}\Z")
 
 #: Fields the SDK always writes, used for the structural check.
 _REQUIRED = (
