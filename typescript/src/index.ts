@@ -32,6 +32,7 @@ import {
 import { runDetectors } from "./detectors.js";
 import { userAgentHeaders } from "./userAgent.js";
 import { deriveChainHash } from "./replay.js";
+import { resolveApiKey } from "./credentials.js";
 
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
@@ -991,10 +992,11 @@ export interface PreflightResult {
 // === init ===
 
 export function init(options: InitOptions = {}): void {
-  const apiKey = options.apiKey ?? process.env.ASQAV_API_KEY ?? null;
+  const apiKey = resolveApiKey(options.apiKey);
   if (!apiKey) {
     throw new AuthenticationError(
-      "API key required. Set ASQAV_API_KEY or pass apiKey to init(). Get yours at asqav.com",
+      "API key required. Run `asqav login`, set ASQAV_API_KEY, or pass apiKey " +
+        "to init(). A saved key is read from ~/.asqav/credentials. Get yours at asqav.com",
     );
   }
   config.apiKey = apiKey;
