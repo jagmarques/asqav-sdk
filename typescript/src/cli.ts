@@ -19,11 +19,14 @@
  * truth for what a given key may do.
  */
 
+import fs from "node:fs";
+import readline from "node:readline";
 import {
   Agent,
   APIError,
   BudgetTracker,
   generateKeypair,
+  govern,
   init,
   listSessions,
   request,
@@ -32,6 +35,13 @@ import {
   type LocalSigningAlgorithm,
   type SignatureResponse,
 } from "./index.js";
+import {
+  credentialsPath,
+  loadCredentials,
+  resolveApiBase,
+  resolveApiKey,
+  saveCredentials,
+} from "./credentials.js";
 import { SDK_VERSION, userAgentHeaders } from "./userAgent.js";
 
 export const CLI_VERSION = SDK_VERSION;
@@ -42,10 +52,11 @@ function die(msg: string, code = 1): never {
 }
 
 function ensureApiKey(): void {
-  if (!process.env.ASQAV_API_KEY) {
-    die("Error: ASQAV_API_KEY environment variable required.");
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
+    die("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.");
   }
-  init({ apiKey: process.env.ASQAV_API_KEY });
+  init({ apiKey });
 }
 
 function parseFlag(args: string[], name: string): string | undefined {
@@ -83,7 +94,7 @@ async function cmdVerify(args: string[]): Promise<void> {
   if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
   const output = parseFlag(args, "output") ?? "text";
   // Verify is public, but `request` short-circuits on missing config; init with any key.
-  init({ apiKey: process.env.ASQAV_API_KEY ?? "anon" });
+  init({ apiKey: resolveApiKey() ?? "anon" });
   try {
     const r = await verifySignature(sigId);
     if (output === "json") {
@@ -908,8 +919,9 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
   if (!maintenanceKey) {
     die("Error: ASQAV_MAINTENANCE_KEY env var is required for migration commands.");
   }
-  if (!process.env.ASQAV_API_KEY) {
-    die("Error: ASQAV_API_KEY env var is required.");
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
+    die("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.");
   }
   const baseUrl = process.env.ASQAV_API_URL ?? "https://api.asqav.com/api/v1";
   const url = `${baseUrl.replace(/\/+$/, "")}/maintenance/run-migration-${migration}`;
@@ -917,7 +929,7 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "X-API-Key": process.env.ASQAV_API_KEY,
+        "X-API-Key": apiKey,
         "X-Maintenance-Key": maintenanceKey,
         "Content-Type": "application/json",
         ...userAgentHeaders(),
@@ -939,6 +951,228 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
   }
 }
 
+// === onboarding commands (login / whoami / status / init) ===
+
+function detectFramework(): string {
+  let raw: string;
+  try {
+    raw = fs.readFileSync("package.json", "utf-8");
+  } catch {
+    return "typescript";
+  }
+  let names: string[] = [];
+  try {
+    const pkg = JSON.parse(raw) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    names = [
+      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.devDependencies ?? {}),
+    ];
+  } catch {
+    return "typescript";
+  }
+  const has = (needle: string) =>
+    names.some((n) => n === needle || n.startsWith(`${needle}/`));
+  if (has("langchain") || has("@langchain/core")) return "langchain";
+  if (has("@openai/agents")) return "openai-agents";
+  if (has("openai")) return "openai";
+  if (has("@anthropic-ai/sdk") || has("anthropic")) return "anthropic";
+  if (has("ai")) return "vercel-ai";
+  if (has("@mastra/core") || has("mastra")) return "mastra";
+  return "typescript";
+}
+
+function onboardingSnippet(framework: string): string {
+  const action =
+    {
+      openai: "api:openai:chat",
+      anthropic: "api:anthropic:messages",
+      langchain: "api:langchain:invoke",
+      "vercel-ai": "api:vercel-ai:generateText",
+      mastra: "api:mastra:generate",
+      "openai-agents": "api:openai-agents:run",
+    }[framework] ?? "api:call";
+  return (
+    'import { govern } from "@asqav/sdk";\n' +
+    "\n" +
+    "// Key resolves from `asqav login` (or ASQAV_API_KEY)\n" +
+    'const agent = await govern({ agentName: "my-agent" });\n' +
+    "\n" +
+    "const sig = await agent.sign({\n" +
+    `  actionType: "${action}",\n` +
+    '  context: { model: "gpt-4o" },\n' +
+    "});\n" +
+    "\n" +
+    "console.log(sig.verificationUrl);\n"
+  );
+}
+
+function resolveKeySource(explicit?: string): [string | null, string] {
+  if (explicit) return [explicit, "arg"];
+  const envKey = process.env.ASQAV_API_KEY;
+  if (envKey) return [envKey, "env"];
+  const fileKey = loadCredentials().api_key;
+  if (typeof fileKey === "string" && fileKey) return [fileKey, "file"];
+  return [null, "none"];
+}
+
+// Reads a line without echoing keystrokes. On a TTY, raw mode
+// suppresses echo; on a pipe, readline is safe (nothing is echoed).
+export function promptHidden(query: string): Promise<string> {
+  process.stdout.write(query);
+
+  if (!process.stdin.isTTY) {
+    const rl = readline.createInterface({ input: process.stdin, terminal: false });
+    return new Promise((resolve) => {
+      rl.question("", (answer) => {
+        rl.close();
+        resolve(answer.trim());
+      });
+    });
+  }
+
+  return new Promise((resolve) => {
+    const stdin = process.stdin;
+    let buf = "";
+
+    const cleanup = () => {
+      stdin.removeListener("data", onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+    };
+
+    const onData = (chunk: Buffer) => {
+      for (const ch of chunk.toString("utf8")) {
+        if (ch === "\u0003") {
+          cleanup();
+          process.stdout.write("\n");
+          process.exit(130);
+        } else if (ch === "\r" || ch === "\n") {
+          cleanup();
+          process.stdout.write("\n");
+          resolve(buf);
+          return;
+        } else if (ch === "\x7f" || ch === "\b") {
+          buf = buf.slice(0, -1);
+        } else {
+          buf += ch;
+        }
+      }
+    };
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", onData);
+  });
+}
+
+async function cmdLogin(args: string[]): Promise<void> {
+  let apiKey = parseFlag(args, "api-key");
+  const apiBase = parseFlag(args, "api-base");
+  const force = hasFlag(args, "force");
+
+  if (!apiKey) {
+    apiKey = await promptHidden("Asqav API key: ");
+  }
+  if (!apiKey) {
+    die("Error: an API key is required.");
+  }
+
+  const target = credentialsPath();
+  if (fs.existsSync(target) && !force) {
+    die(`Error: ${target} already exists. Re-run with --force to overwrite.`);
+  }
+
+  const base = apiBase || undefined;
+  try {
+    init({ apiKey, baseUrl: base });
+    await request<unknown>("GET", "/agents");
+  } catch (err) {
+    die(`Error: key validation failed: ${(err as Error).message}\nNothing was saved.`);
+  }
+
+  const written = saveCredentials(apiKey, base);
+  process.stdout.write(`Saved API key to ${written}\n`);
+  process.stdout.write(
+    "The SDK and CLI now pick it up automatically (no ASQAV_API_KEY needed).\n",
+  );
+}
+
+async function whoamiImpl(explicitKey?: string): Promise<void> {
+  const [key, source] = resolveKeySource(explicitKey);
+  if (key === null) {
+    process.stdout.write(
+      "No API key found (checked --api-key, ASQAV_API_KEY, ~/.asqav/credentials).\n",
+    );
+    process.stdout.write("Run `asqav login` to save one.\n");
+    process.exit(1);
+  }
+
+  const base = resolveApiBase();
+  process.stdout.write(`Key source: ${source}\n`);
+  process.stdout.write(`API base:   ${base}\n`);
+
+  let data: unknown;
+  try {
+    init({ apiKey: key, baseUrl: base });
+    data = await request<unknown>("GET", "/agents");
+  } catch (err) {
+    die(`Key rejected by API: ${(err as Error).message}`);
+  }
+
+  const list = Array.isArray(data) ? data : ((data as { agents?: unknown[] })?.agents ?? []);
+  process.stdout.write(`Key valid. ${list.length} agent(s) accessible.\n`);
+}
+
+async function cmdWhoami(args: string[]): Promise<void> {
+  return whoamiImpl(parseFlag(args, "api-key"));
+}
+
+async function cmdStatus(args: string[]): Promise<void> {
+  return whoamiImpl(parseFlag(args, "api-key"));
+}
+
+async function cmdInit(args: string[]): Promise<void> {
+  const write = hasFlag(args, "write");
+  const demo = hasFlag(args, "demo");
+
+  const framework = detectFramework();
+  process.stdout.write(`Detected framework: ${framework}\n\n`);
+  const snippet = onboardingSnippet(framework);
+  process.stdout.write(snippet);
+
+  if (write) {
+    const target = "asqav_governance.ts";
+    if (fs.existsSync(target)) {
+      process.stdout.write(`\n${target} already exists; leaving it untouched.\n`);
+    } else {
+      fs.writeFileSync(target, snippet, "utf-8");
+      process.stdout.write(`\nWrote ${target}\n`);
+    }
+  }
+
+  if (demo) {
+    const key = resolveApiKey();
+    if (!key) {
+      process.stdout.write("\nNo API key resolved; skipping demo. Run `asqav login` first.\n");
+      return;
+    }
+    try {
+      const agent = await govern({ apiKey: key, agentName: "asqav-init-demo" });
+      const sig = await agent.sign({
+        actionType: "asqav:init-demo",
+        context: { label: "asqav init demo", demo: true },
+      });
+      process.stdout.write(`\nDemo signature: ${sig.signatureId}\n`);
+      process.stdout.write(`Verify it: asqav verify ${sig.signatureId}\n`);
+    } catch (err) {
+      die(`Demo sign failed: ${(err as Error).message}`);
+    }
+  }
+}
+
 // === Help / usage ===
 
 function printHelp(): void {
@@ -946,6 +1180,10 @@ function printHelp(): void {
 
 Usage:
   asqav --version
+  asqav login [--api-key KEY] [--api-base URL] [--force]    save key to ~/.asqav/credentials
+  asqav whoami [--api-key KEY]                               show active key source + validate
+  asqav status [--api-key KEY]                               alias for whoami
+  asqav init [--write] [--demo]                              print a ready-to-paste snippet
   asqav verify <signature_id> [--output text|json]
   asqav sign --agent-id ID --action-type T [--no-compliance-mode] [--action-json PATH|-]
              [--receipt-type protectmcp:decision|...] [--risk-class low|medium|high|unknown]
@@ -973,7 +1211,7 @@ Usage:
   asqav keys generate --algorithm ed25519|es256 [--out priv.pem]
   asqav migrate run v3-20|v3-21|v3-22                      X-Maintenance-Key required
 
-Set ASQAV_API_KEY to authenticate. Get a key at https://asqav.com.
+Run \`asqav login\` (or set ASQAV_API_KEY) to authenticate. Get a key at https://asqav.com.
 Admin commands (org halt/resume) read a dashboard session token from ASQAV_SESSION_TOKEN.
 `);
 }
@@ -992,6 +1230,14 @@ export async function runCli(argv: string[]): Promise<void> {
   }
 
   switch (first) {
+    case "login":
+      return cmdLogin(rest);
+    case "whoami":
+      return cmdWhoami(rest);
+    case "status":
+      return cmdStatus(rest);
+    case "init":
+      return cmdInit(rest);
     case "verify":
       return cmdVerify(rest);
     case "sign":

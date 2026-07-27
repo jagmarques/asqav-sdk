@@ -12,7 +12,15 @@ npm install @asqav/sdk
 
 ## Quick start
 
-Get an API key at [asqav.com](https://asqav.com), then sign your first agent action:
+Get an API key at [asqav.com](https://asqav.com). The fastest path is the CLI:
+
+```bash
+npm install -g @asqav/sdk
+asqav login        # validates your key, saves it to ~/.asqav/credentials
+asqav init         # prints a ready-to-paste snippet for your project
+```
+
+`asqav login` saves your key so the SDK and CLI resolve it automatically (no `ASQAV_API_KEY` needed). Then sign your first agent action:
 
 ```ts
 import { govern } from "@asqav/sdk";
@@ -43,9 +51,12 @@ Pass `complianceMode: false` on any `agent.sign(...)` call if you want a non-Com
 
 ## CLI
 
-The package ships an `asqav` binary mirroring the Python CLI surface. Set `ASQAV_API_KEY` and run:
+The package ships an `asqav` binary mirroring the Python CLI surface. Start with `asqav login` (or set `ASQAV_API_KEY`) and run:
 
 ```bash
+asqav login                                   # save your key to ~/.asqav/credentials
+asqav whoami                                  # show the active key source + validate it
+asqav init                                    # print a ready-to-paste snippet
 asqav verify <signature_id> [--output json]   # IETF axes when present
 asqav sign --agent-id ID --action-type T --action-json action.json \
            --receipt-type protectmcp:decision \
