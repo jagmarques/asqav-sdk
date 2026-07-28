@@ -3,8 +3,8 @@
 Install: pip install asqav[openai]
 
 Wraps ``openai.OpenAI`` so every ``chat.completions.create`` call produces a
-signed asqav receipt automatically. The OpenAI response is returned unchanged;
-the receipt metadata is attached as ``response._asqav_receipt``.
+signed asqav receipt automatically. The OpenAI response is returned unchanged.
+The receipt metadata is attached as ``response._asqav_receipt``.
 
 Usage::
 
