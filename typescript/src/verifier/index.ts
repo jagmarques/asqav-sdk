@@ -60,6 +60,17 @@ export {
 } from "./crypto.js";
 export { resolveEd25519Key } from "./did.js";
 export {
+  buildPae,
+  extractSubjectDigest,
+  IN_TOTO_PAYLOAD_TYPE,
+  IN_TOTO_STATEMENT_TYPE,
+  verifyAttestation,
+  type AttestationAxis,
+  type AttestationAxes,
+  type AttestationVerdict,
+  type VerifyAttestationOptions,
+} from "./dsse.js";
+export {
   runCorpus,
   runOne,
   type VectorOutcome,

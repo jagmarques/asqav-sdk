@@ -1,0 +1,13 @@
+{
+  "dir": "dsse-attestation-ml-dsa-65",
+  "format": "dsse-attestation",
+  "entry": "verifyAttestation",
+  "outcome": "PASS",
+  "reason_code": "",
+  "files": {
+    "envelope": "receipt.json",
+    "jwks": "jwks.json",
+    "expected": "expected.json"
+  },
+  "notes": "Self-contained DSSE attestation vector. Consumed by typescript/tests/dsse-attestation.test.ts via verifyAttestation, not the universal oracle runner: the oracle runner drives verify() over a top-level manifest and its gate hardcodes the existing vector count, while verifyAttestation is a separate offline entry point with its own verdict shape. Negative fixtures (tampered digest, tampered signature, revoked key, unknown kid) are derived in that test by mutation, matching the offline-verify.test.ts style."
+}
