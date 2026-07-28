@@ -56,13 +56,18 @@ describe("CAPTURE_TOPOLOGY_NAMESPACE", () => {
     expect([...CAPTURE_TOPOLOGY_NAMESPACE].sort()).toEqual(
       [
         "browser_extension",
-        "ebpf_observer",
+        "github_sha_pull",
         "in_process_sdk",
         "mcp_proxy",
         "network_proxy",
         "passive_telemetry",
       ],
     );
+  });
+
+  it("drops ebpf_observer and adds the github_sha_pull code-authorship layer", () => {
+    expect(CAPTURE_TOPOLOGY_NAMESPACE).not.toContain("ebpf_observer");
+    expect(CAPTURE_TOPOLOGY_NAMESPACE).toContain("github_sha_pull");
   });
 });
 
@@ -178,9 +183,9 @@ describe("agent.sign capture_topology + observation wire fields", () => {
     "in_process_sdk",
     "network_proxy",
     "browser_extension",
-    "ebpf_observer",
     "mcp_proxy",
     "passive_telemetry",
+    "github_sha_pull",
   ] as const)("passes captureTopology=%s through on the outgoing body", async (value) => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({

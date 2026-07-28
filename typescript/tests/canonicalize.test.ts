@@ -26,12 +26,14 @@ const { vectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {
 };
 
 // Closed Literal mirrored from the cloud SignRequest and IETF draft -04 appendix.
+// passive_telemetry is observation-only and tested separately. github_sha_pull is
+// the server-stamped authoritative code-authorship capture layer.
 const CAPTURE_TOPOLOGY_VOCABULARY = new Set([
   "in_process_sdk",
   "network_proxy",
   "browser_extension",
-  "ebpf_observer",
   "mcp_proxy",
+  "github_sha_pull",
 ]);
 
 describe("canonicalize() against conformance vectors", () => {

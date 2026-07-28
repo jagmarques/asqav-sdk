@@ -122,11 +122,21 @@ def test_capture_topology_namespace_matches_cloud_literal() -> None:
             "in_process_sdk",
             "network_proxy",
             "browser_extension",
-            "ebpf_observer",
             "mcp_proxy",
             "passive_telemetry",
+            "github_sha_pull",
         }
     )
+
+
+def test_capture_topology_ebpf_observer_removed() -> None:
+    """The capture_topology vocabulary excludes ebpf_observer."""
+    assert "ebpf_observer" not in CAPTURE_TOPOLOGY_NAMESPACE
+
+
+def test_capture_topology_github_sha_pull_accepted() -> None:
+    """github_sha_pull (the server-stamped code-authorship layer) is accepted."""
+    assert "github_sha_pull" in CAPTURE_TOPOLOGY_NAMESPACE
 
 
 def test_capture_topology_is_re_exported_at_top_level() -> None:

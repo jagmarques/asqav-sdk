@@ -16,13 +16,15 @@ import pytest
 VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.json"
 
 # Closed Literal mirrored from the cloud SignRequest and IETF draft -04 appendix.
+# passive_telemetry is observation-only and tested separately. github_sha_pull is
+# the server-stamped authoritative code-authorship capture layer.
 CAPTURE_TOPOLOGY_VOCABULARY: frozenset[str] = frozenset(
     {
         "in_process_sdk",
         "network_proxy",
         "browser_extension",
-        "ebpf_observer",
         "mcp_proxy",
+        "github_sha_pull",
     }
 )
 
