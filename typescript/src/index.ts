@@ -215,6 +215,26 @@ export {
 } from "./algorithms.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
+// Authoritative code-authorship path (POST /v1/code-authorship).
+export {
+  AUTHORITATIVE_CAPTURE_LAYER,
+  CODE_AUTHORSHIP_ASSET_CLASS,
+  CODE_AUTHORSHIP_PATH,
+  CODE_AUTHORSHIP_PREDICATE_TYPE,
+  CODE_AUTHORSHIP_WRITE_SCOPE,
+  INTOTO_STATEMENT_TYPE,
+  OBSERVATION_ONLY_CAPTURE_LAYERS,
+  VERDICT_PASS,
+  VERDICT_REJECT,
+  computeAdvisoryDigest,
+  parseCodeAuthorshipResponse,
+  submitCodeAuthorship,
+  subjectMatchesServer,
+  verifyCodeAuthorshipEnvelope,
+  type CodeAuthorshipOptions,
+  type CodeAuthorshipResult,
+  type CodeAuthorshipVerification,
+} from "./codeAuthorship.js";
 // Structured receipts (criterion 328): opt-in schema validation helpers.
 export {
   ValidationError,
