@@ -21,6 +21,7 @@ Usage::
     print(response.content[0].text)
     print(response._asqav_receipt.verification_url)
 """
+
 from __future__ import annotations
 
 import logging
@@ -76,6 +77,7 @@ class AsqavAnthropic:
         **kwargs: Any,
     ) -> None:
         from anthropic import Anthropic
+
         self._client = Anthropic(api_key=anthropic_api_key, **kwargs)
         asqav.init(asqav_api_key)
         self._agent = asqav.Agent.create(name=agent_name)
