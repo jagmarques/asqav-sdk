@@ -12,6 +12,7 @@ import {
   resolveApiBase,
   resolveApiKey,
   saveCredentials,
+  validatedPath,
 } from "../src/credentials.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -189,6 +190,43 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
     saveCredentials("sk_override");
     expect(fs.existsSync(override)).toBe(true);
     expect(resolveApiKey()).toBe("sk_override");
+  });
+
+  // === path-injection regression (Trustabl #375) ===
+
+  it("rejects a traversal ASQAV_CREDENTIALS_PATH and writes nothing outside", () => {
+    const home = useDefaultPath();
+    // String concat (not path.join) so the literal ".." survives into the env value.
+    const traversal = `${home}/../escaped_creds.json`;
+    process.env.ASQAV_CREDENTIALS_PATH = traversal;
+    expect(() => credentialsPath()).toThrow(/path traversal/);
+    expect(() => saveCredentials("sk_evil")).toThrow(/path traversal/);
+    expect(fs.existsSync(path.resolve(traversal))).toBe(false);
+  });
+
+  it("load on a traversal path returns {} and leaks nothing", () => {
+    const home = useDefaultPath();
+    const secret = path.resolve(`${home}/../secret.json`);
+    fs.writeFileSync(secret, JSON.stringify({ api_key: "sk_leaked" }));
+    process.env.ASQAV_CREDENTIALS_PATH = `${home}/../secret.json`;
+    expect(loadCredentials()).toEqual({});
+    expect(resolveApiKey()).toBeNull();
+  });
+
+  it("validatedPath rejects null bytes", () => {
+    expect(() => validatedPath("creds\x00.json", "X")).toThrow(/null bytes/);
+  });
+
+  it("validatedPath rejects traversal components", () => {
+    expect(() => validatedPath("/a/../b", "X")).toThrow(/path traversal/);
+    expect(() => validatedPath("../creds", "X")).toThrow(/path traversal/);
+  });
+
+  it("validatedPath expands ~ and allows legit absolute paths", () => {
+    const home = useDefaultPath();
+    expect(validatedPath("~/creds.json", "X")).toBe(path.join(home, "creds.json"));
+    const abs = path.join(home, "custom", "creds.json");
+    expect(validatedPath(abs, "X")).toBe(abs);
   });
 
   // === login command ===

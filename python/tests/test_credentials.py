@@ -103,6 +103,47 @@ def test_credentials_path_env_override(home, monkeypatch) -> None:
     assert creds.resolve_api_key() == "sk_override"
 
 
+# === path-injection regression (Trustabl #375) ===
+
+
+def test_credentials_path_rejects_traversal(home, monkeypatch) -> None:
+    monkeypatch.setenv("ASQAV_CREDENTIALS_PATH", str(home / ".." / "escaped.json"))
+    with pytest.raises(ValueError, match="path traversal"):
+        creds.credentials_path()
+
+
+def test_save_credentials_traversal_does_not_write_outside(home, monkeypatch) -> None:
+    target = home.parent / "escaped_creds.json"
+    monkeypatch.setenv("ASQAV_CREDENTIALS_PATH", str(home / ".." / "escaped_creds.json"))
+    with pytest.raises(ValueError):
+        creds.save_credentials("sk_evil")
+    assert not target.exists()
+
+
+def test_load_credentials_traversal_does_not_leak(home, monkeypatch) -> None:
+    secret = home.parent / "secret.json"
+    secret.write_text(json.dumps({"api_key": "sk_leaked"}), encoding="utf-8")
+    monkeypatch.setenv("ASQAV_CREDENTIALS_PATH", str(home / ".." / "secret.json"))
+    assert creds.load_credentials() == {}
+    assert creds.resolve_api_key() is None
+
+
+def test_validated_fs_path_rejects_null_byte(home) -> None:
+    with pytest.raises(ValueError, match="null bytes"):
+        creds._validated_fs_path(str(home / "creds") + "\x00.json", "ASQAV_CREDENTIALS_PATH")
+
+
+def test_validated_fs_path_rejects_traversal(home) -> None:
+    with pytest.raises(ValueError, match="path traversal"):
+        creds._validated_fs_path(str(home / ".." / "x"), "ASQAV_CREDENTIALS_PATH")
+
+
+def test_validated_fs_path_expands_user_and_allows_legit(home) -> None:
+    assert creds._validated_fs_path("~/creds.json", "X") == home / "creds.json"
+    legit = home / "custom" / "creds.json"
+    assert creds._validated_fs_path(str(legit), "X") == legit
+
+
 # === login command ===
 
 
