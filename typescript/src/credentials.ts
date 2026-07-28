@@ -14,10 +14,39 @@ const DEFAULT_API_BASE = "https://api.asqav.com/api/v1";
 
 export const CREDENTIALS_PATH = path.join(os.homedir(), ".asqav", "credentials");
 
-/** Resolve the credentials file location (env override, else ~/.asqav/credentials). */
+function expandHome(raw: string): string {
+  if (raw === "~") return os.homedir();
+  if (raw.startsWith("~/") || raw.startsWith("~\\")) {
+    return path.join(os.homedir(), raw.slice(2));
+  }
+  return raw;
+}
+
+/**
+ * Sanitize a caller-supplied path before any file I/O. Expands a leading "~"
+ * and rejects the two classic path-injection vectors, null bytes and traversal
+ * ("..") components, so an attacker-influenced value cannot redirect a read,
+ * write, or chmod to an arbitrary location. Throws on a rejected path.
+ */
+export function validatedPath(raw: string, source: string): string {
+  if (raw.includes("\0")) {
+    throw new Error(`${source} must not contain null bytes`);
+  }
+  const expanded = expandHome(raw);
+  if (expanded.split(/[\\/]+/).includes("..")) {
+    throw new Error(`${source} must not contain path traversal ('..')`);
+  }
+  return expanded;
+}
+
+/**
+ * Resolve the credentials file location (env override, else ~/.asqav/credentials).
+ * The ASQAV_CREDENTIALS_PATH override is validated before it is used for I/O, so
+ * a traversal value such as ../../etc/passwd is rejected rather than read or written.
+ */
 export function credentialsPath(): string {
   const override = process.env.ASQAV_CREDENTIALS_PATH;
-  if (override) return override;
+  if (override) return validatedPath(override, "ASQAV_CREDENTIALS_PATH");
   return path.join(os.homedir(), ".asqav", "credentials");
 }
 
