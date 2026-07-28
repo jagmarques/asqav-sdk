@@ -1,0 +1,6 @@
+{
+  "format": "dsse-attestation",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Real DSSE envelope wrapping an in-toto Statement v1, signed with ML-DSA-65 (FIPS 204) over the DSSEv1 PAE. Generated with @noble/post-quantum: 1952-byte raw public key, 3309-byte signature. payload is standard base64 of the canonical Statement bytes; the signature covers PAE(payloadType, decoded payload). The signature axis must be PASS, not SKIPPED. JWKS carries the matching key in the resolveKey shape (kid/issuer_id/agent_id/alg/public_key/status). This is the offline known-answer vector for POST /v1/attest verification with no server round-trip."
+}
