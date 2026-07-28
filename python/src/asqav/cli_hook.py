@@ -288,9 +288,13 @@ def hook_pretool(
 @hook_app.command("code-authorship")
 def hook_code_authorship(
     repo: str = typer.Option(..., "--repo", help="Repository as owner/name."),
-    commit_sha: str = typer.Option(..., "--commit-sha", help="Head commit sha the change is bound to."),
+    commit_sha: str = typer.Option(
+        ..., "--commit-sha", help="Head commit sha the change is bound to."
+    ),
     base_sha: str = typer.Option("", "--base-sha", help="Base commit sha for the advisory diff."),
-    change_class: str = typer.Option("write", "--change-class", help="read | write | delete | execute | deploy."),
+    change_class: str = typer.Option(
+        "write", "--change-class", help="read | write | delete | execute | deploy."
+    ),
     author: str = typer.Option("", "--author", help="Producer-asserted author identity."),
     anchor: str = typer.Option("", "--anchor", help="Optional anchor reference (PR url, ticket)."),
     dry_run: bool = typer.Option(
@@ -354,6 +358,9 @@ def hook_code_authorship(
         print(f"asqav hook: code-authorship recording failed: {exc}", file=sys.stderr)
         raise typer.Exit(code=1) from exc
 
-    print(f"capture_layer={result.capture_layer} digest_match={result.digest_match}", file=sys.stderr)
+    print(
+        f"capture_layer={result.capture_layer} digest_match={result.digest_match}",
+        file=sys.stderr,
+    )
     if result.subject_digest:
         print(f"server subject digest: {result.subject_digest}", file=sys.stderr)

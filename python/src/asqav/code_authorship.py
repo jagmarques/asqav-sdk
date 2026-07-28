@@ -131,7 +131,9 @@ class CodeAuthorshipResult:
             receipt=receipt,
             kid=data.get("kid") if isinstance(data.get("kid"), str) else None,
             jwks_url=data.get("jwks_url") if isinstance(data.get("jwks_url"), str) else None,
-            server_digest=data.get("server_digest") if isinstance(data.get("server_digest"), str) else None,
+            server_digest=(
+                data.get("server_digest") if isinstance(data.get("server_digest"), str) else None
+            ),
             digest_match=bool(data.get("digest_match")),
             subject_digest=subject_digest,
             capture_layer=capture_layer if isinstance(capture_layer, str) else None,

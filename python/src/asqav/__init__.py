@@ -47,19 +47,6 @@ from .attestation import (
     verify_merkle_inclusion,
 )
 from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
-from .code_authorship import (
-    AUTHORITATIVE_CAPTURE_LAYER,
-    CODE_AUTHORSHIP_ASSET_CLASS,
-    CODE_AUTHORSHIP_PATH,
-    CODE_AUTHORSHIP_PREDICATE_TYPE,
-    CODE_AUTHORSHIP_WRITE_SCOPE,
-    OBSERVATION_ONLY_CAPTURE_LAYERS,
-    CodeAuthorshipResult,
-    CodeAuthorshipVerification,
-    compute_advisory_digest,
-    submit_code_authorship,
-    verify_code_authorship_envelope,
-)
 from .client import (
     CAPTURE_TOPOLOGY_NAMESPACE,
     CODE_AUTHORSHIP_DOCS_URL,
@@ -152,6 +139,19 @@ from .client import (
     verify_compliance_receipt,
     verify_output,
     verify_signature,
+)
+from .code_authorship import (
+    AUTHORITATIVE_CAPTURE_LAYER,
+    CODE_AUTHORSHIP_ASSET_CLASS,
+    CODE_AUTHORSHIP_PATH,
+    CODE_AUTHORSHIP_PREDICATE_TYPE,
+    CODE_AUTHORSHIP_WRITE_SCOPE,
+    OBSERVATION_ONLY_CAPTURE_LAYERS,
+    CodeAuthorshipResult,
+    CodeAuthorshipVerification,
+    compute_advisory_digest,
+    submit_code_authorship,
+    verify_code_authorship_envelope,
 )
 from .commitment import commit, new_opening
 from .compliance import ComplianceBundle, export_bundle, fetch_audit_pack
