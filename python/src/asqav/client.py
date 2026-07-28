@@ -330,15 +330,18 @@ SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "una
 WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
 
 #: Producer-side `capture_topology` vocabulary mirrored from the cloud
-#: SignRequest Literal. See docs/capture-topology.md.
+#: SignRequest Literal. See docs/capture-topology.md. A client-supplied
+#: capture_topology is ADVISORY: the server stamps the authoritative value
+#: from the ingress route (for code-authorship that is `github_sha_pull`,
+#: set only after the server re-fetches the commit and recomputes the diff).
 CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
     {
         "in_process_sdk",
         "network_proxy",
         "browser_extension",
-        "ebpf_observer",
         "mcp_proxy",
         "passive_telemetry",
+        "github_sha_pull",
     }
 )
 
@@ -355,9 +358,9 @@ CaptureTopology = Literal[
     "in_process_sdk",
     "network_proxy",
     "browser_extension",
-    "ebpf_observer",
     "mcp_proxy",
     "passive_telemetry",
+    "github_sha_pull",
 ]
 
 # Verifier rejects receipts further than this from the wall clock.
@@ -1806,9 +1809,11 @@ class Agent:
                 Only the name string travels; the prompt does not.
             capture_topology: Producer-side topology. One of
                 ``in_process_sdk``, ``network_proxy``, ``browser_extension``,
-                ``ebpf_observer``, ``mcp_proxy``, ``passive_telemetry``.
+                ``mcp_proxy``, ``passive_telemetry``, ``github_sha_pull``.
                 Stamped on the audit-pack manifest entry; never on the
-                signed payload. ``passive_telemetry`` requires
+                signed payload. Client-supplied capture_topology is ADVISORY:
+                the server stamps the authoritative value from the ingress
+                route. ``passive_telemetry`` requires
                 ``receipt_type='protectmcp:observation'`` (false-attestation guard).
             result_digest: NSA CSI U/OO/6030316-26 alignment.
                 ``sha256:<hex>`` of the tool output. Caller-supplied and

@@ -182,16 +182,16 @@
       "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
     },
     {
-      "name": "capture_topology_ebpf_observer",
-      "description": "Audit Pack manifest entry stamped with capture_topology=ebpf_observer. Producer-side metadata; lives in `manifest`, never in the signed payload.",
+      "name": "capture_topology_github_sha_pull",
+      "description": "Audit Pack manifest entry stamped with capture_topology=github_sha_pull, the server-stamped authoritative code-authorship capture layer. Lives in `manifest`, never in the signed payload.",
       "input": {
         "action_type": "api:call",
         "context": {"tool": "database.query"},
-        "manifest": {"capture_topology": "ebpf_observer"}
+        "manifest": {"capture_topology": "github_sha_pull"}
       },
-      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"ebpf_observer\"}}",
-      "sha256": "57d912d39dd720ea6ceb3bfbf7103c45f74519e5a4e9583211cf24fda0d33491",
-      "capture_topology": "ebpf_observer",
+      "canonical": "{\"action_type\":\"api:call\",\"context\":{\"tool\":\"database.query\"},\"manifest\":{\"capture_topology\":\"github_sha_pull\"}}",
+      "sha256": "1a242ac2766e99b3e9bf00d7bb25ff251fdc1a1b59d77bbbe537723755fef4b6",
+      "capture_topology": "github_sha_pull",
       "expected_verify": true,
       "reason": "Closed-vocabulary value; manifest-only placement preserves signed-payload bytes."
     },
@@ -221,7 +221,7 @@
       "sha256": "d2a306e1c437b467c431b7d1b4a70c1190aec10642e43ac002c55bb84dd3e617",
       "capture_topology": "rootkit",
       "expected_verify": false,
-      "reason": "capture_topology is a closed Literal of {in_process_sdk, network_proxy, browser_extension, ebpf_observer, mcp_proxy}; any other value is rejected client-side."
+      "reason": "capture_topology is a closed Literal of {in_process_sdk, network_proxy, browser_extension, mcp_proxy, passive_telemetry, github_sha_pull}; any other value is rejected client-side."
     },
     {
       "name": "counterparty_binding_happy_path",
