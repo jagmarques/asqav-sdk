@@ -14,6 +14,21 @@ __all__ = ["LocalQueue", "local_sign"]
 _DEFAULT_QUEUE_DIR = os.path.join(os.path.expanduser("~"), ".asqav", "queue")
 
 
+def _validated_queue_dir(raw: str) -> Path:
+    """Sanitize the queue directory before mkdir/write I/O.
+
+    Expands a leading ``~`` and rejects null bytes and traversal (``..``)
+    components so an attacker-influenced ``ASQAV_QUEUE_DIR`` (or ``queue_dir``)
+    cannot point the queue's mkdir and item writes at an arbitrary location.
+    """
+    if "\x00" in raw:
+        raise ValueError("queue dir must not contain null bytes")
+    expanded = os.path.expanduser(raw)
+    if ".." in Path(expanded).parts:
+        raise ValueError("queue dir must not contain path traversal ('..')")
+    return Path(expanded)
+
+
 class LocalQueue:
     """Queue for offline action signing with later sync to the Asqav API."""
 
@@ -23,7 +38,7 @@ class LocalQueue:
             or os.environ.get("ASQAV_QUEUE_DIR")
             or _DEFAULT_QUEUE_DIR
         )
-        self.queue_dir = Path(resolved)
+        self.queue_dir = _validated_queue_dir(resolved)
         self.queue_dir.mkdir(parents=True, exist_ok=True)
 
     def enqueue(

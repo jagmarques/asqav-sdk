@@ -8,6 +8,8 @@ import sys
 import time
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
@@ -217,3 +219,26 @@ def test_enqueue_is_atomic_no_tmp_residue(tmp_path) -> None:
     assert len(items) == 1
     assert items[0]["id"] == item_id
     assert items[0]["context"] == {"k": "v"}
+
+
+# === path-injection regression (Trustabl #375) ===
+
+
+def test_queue_dir_arg_traversal_rejected(tmp_path) -> None:
+    """A traversal queue_dir is rejected before any mkdir/write escapes."""
+    target = tmp_path.parent / "escaped_queue"
+    with pytest.raises(ValueError, match="path traversal"):
+        LocalQueue(queue_dir=str(tmp_path / ".." / "escaped_queue"))
+    assert not target.exists()
+
+
+def test_queue_dir_env_traversal_rejected(tmp_path, monkeypatch) -> None:
+    """ASQAV_QUEUE_DIR with '..' is rejected, mirroring the credentials fix."""
+    monkeypatch.setenv("ASQAV_QUEUE_DIR", str(tmp_path / ".." / "evil_queue"))
+    with pytest.raises(ValueError, match="path traversal"):
+        LocalQueue()
+
+
+def test_queue_dir_null_byte_rejected(tmp_path) -> None:
+    with pytest.raises(ValueError, match="null bytes"):
+        LocalQueue(queue_dir=str(tmp_path) + "\x00sub")
