@@ -121,14 +121,18 @@ export const SANDBOX_STATE_NAMESPACE = ["enabled", "disabled", "unavailable"] as
 export type SandboxState = (typeof SANDBOX_STATE_NAMESPACE)[number];
 
 /** Producer-side `capture_topology` vocabulary; mirrors the cloud
- * SignRequest Literal and the IETF -04 capture-topologies appendix. */
+ * SignRequest Literal and the IETF -04 capture-topologies appendix.
+ * A client-supplied captureTopology is ADVISORY: the server stamps the
+ * authoritative value from the ingress route (for code-authorship that is
+ * `github_sha_pull`, set only after the server re-fetches the commit and
+ * recomputes the diff). */
 export const CAPTURE_TOPOLOGY_NAMESPACE = [
   "in_process_sdk",
   "network_proxy",
   "browser_extension",
-  "ebpf_observer",
   "mcp_proxy",
   "passive_telemetry",
+  "github_sha_pull",
 ] as const;
 export type CaptureTopology = (typeof CAPTURE_TOPOLOGY_NAMESPACE)[number];
 
@@ -211,6 +215,26 @@ export {
 } from "./algorithms.js";
 export { resolveMode, isAsqavCloudHost, type Mode } from "./mode.js";
 export { BudgetTracker, type BudgetCheckResult, type BudgetTrackerOptions } from "./budget.js";
+// Authoritative code-authorship path (POST /v1/code-authorship).
+export {
+  AUTHORITATIVE_CAPTURE_LAYER,
+  CODE_AUTHORSHIP_ASSET_CLASS,
+  CODE_AUTHORSHIP_PATH,
+  CODE_AUTHORSHIP_PREDICATE_TYPE,
+  CODE_AUTHORSHIP_WRITE_SCOPE,
+  INTOTO_STATEMENT_TYPE,
+  OBSERVATION_ONLY_CAPTURE_LAYERS,
+  VERDICT_PASS,
+  VERDICT_REJECT,
+  computeAdvisoryDigest,
+  parseCodeAuthorshipResponse,
+  submitCodeAuthorship,
+  subjectMatchesServer,
+  verifyCodeAuthorshipEnvelope,
+  type CodeAuthorshipOptions,
+  type CodeAuthorshipResult,
+  type CodeAuthorshipVerification,
+} from "./codeAuthorship.js";
 // Structured receipts (criterion 328): opt-in schema validation helpers.
 export {
   ValidationError,
@@ -503,8 +527,10 @@ export interface SignOptions {
   policyDecision?: PolicyDecision;
 
   /** Producer-side topology. One of `in_process_sdk`, `network_proxy`,
-   * `browser_extension`, `ebpf_observer`, `mcp_proxy`, `passive_telemetry`.
+   * `browser_extension`, `mcp_proxy`, `passive_telemetry`, `github_sha_pull`.
    * Stamped on the audit-pack manifest entry; never on the signed payload.
+   * Client-supplied captureTopology is advisory: the server stamps the
+   * authoritative value from the ingress route.
    * `passive_telemetry` requires `receiptType='protectmcp:observation'`
    * (false-attestation guard). */
   captureTopology?: CaptureTopology;
