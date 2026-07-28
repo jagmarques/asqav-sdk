@@ -47,6 +47,19 @@ from .attestation import (
     verify_merkle_inclusion,
 )
 from .canonicalize import canonicalize, canonicalize_tool_args, hash_action
+from .code_authorship import (
+    AUTHORITATIVE_CAPTURE_LAYER,
+    CODE_AUTHORSHIP_ASSET_CLASS,
+    CODE_AUTHORSHIP_PATH,
+    CODE_AUTHORSHIP_PREDICATE_TYPE,
+    CODE_AUTHORSHIP_WRITE_SCOPE,
+    OBSERVATION_ONLY_CAPTURE_LAYERS,
+    CodeAuthorshipResult,
+    CodeAuthorshipVerification,
+    compute_advisory_digest,
+    submit_code_authorship,
+    verify_code_authorship_envelope,
+)
 from .client import (
     CAPTURE_TOPOLOGY_NAMESPACE,
     CODE_AUTHORSHIP_DOCS_URL,
@@ -326,6 +339,18 @@ __all__ = [
     "RiskSnapshot",
     "CODE_AUTHORSHIP_DOCS_URL",
     "AuthoredBy",
+    # Authoritative code-authorship path (POST /v1/code-authorship)
+    "AUTHORITATIVE_CAPTURE_LAYER",
+    "CODE_AUTHORSHIP_ASSET_CLASS",
+    "CODE_AUTHORSHIP_PATH",
+    "CODE_AUTHORSHIP_PREDICATE_TYPE",
+    "CODE_AUTHORSHIP_WRITE_SCOPE",
+    "OBSERVATION_ONLY_CAPTURE_LAYERS",
+    "CodeAuthorshipResult",
+    "CodeAuthorshipVerification",
+    "compute_advisory_digest",
+    "submit_code_authorship",
+    "verify_code_authorship_envelope",
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",

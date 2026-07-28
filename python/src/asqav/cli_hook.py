@@ -23,6 +23,7 @@ except ImportError:
     print("CLI requires typer. Install with: pip install asqav[cli]")
     sys.exit(1)
 
+from asqav.code_authorship import CODE_AUTHORSHIP_WRITE_SCOPE
 from asqav.credentials import resolve_api_key
 
 hook_app = typer.Typer(
@@ -30,6 +31,9 @@ hook_app = typer.Typer(
     help="Sign Claude Code harness hook events (PostToolUse audit, PreToolUse gate).",
     no_args_is_help=True,
 )
+
+#: API-key scope the code-authorship command requires on the configured key.
+REQUIRED_SCOPE = CODE_AUTHORSHIP_WRITE_SCOPE
 
 # rule 8 accepts only these two receipt_types under passive_telemetry. A posttool
 # receipt is structurally pinned to this set so it cannot claim a decision.
@@ -279,3 +283,77 @@ def hook_pretool(
         print(f"asqav hook: signer unreachable, blocking tool call: {exc}", file=sys.stderr)
         raise typer.Exit(code=2) from exc
     print(f"permit {sig.signature_id}", file=sys.stderr)
+
+
+@hook_app.command("code-authorship")
+def hook_code_authorship(
+    repo: str = typer.Option(..., "--repo", help="Repository as owner/name."),
+    commit_sha: str = typer.Option(..., "--commit-sha", help="Head commit sha the change is bound to."),
+    base_sha: str = typer.Option("", "--base-sha", help="Base commit sha for the advisory diff."),
+    change_class: str = typer.Option("write", "--change-class", help="read | write | delete | execute | deploy."),
+    author: str = typer.Option("", "--author", help="Producer-asserted author identity."),
+    anchor: str = typer.Option("", "--anchor", help="Optional anchor reference (PR url, ticket)."),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Compute the advisory digest and print the request body. No network call.",
+    ),
+) -> None:
+    """Record code authorship via POST /v1/code-authorship.
+
+    Computes an ADVISORY change digest (sha256 of ``git diff base..head``) and
+    posts it with the repo and commit. The server re-fetches the commit,
+    recomputes the canonical diff, and signs the authoritative in-toto
+    Statement. ``subject[0].digest.sha256`` is the server digest, and
+    ``digest_match`` reports whether the advisory value agreed. Requires a key
+    with the ``code_authorship:write`` scope.
+    """
+    from asqav.code_authorship import compute_advisory_digest, submit_code_authorship
+
+    advisory = compute_advisory_digest(base_sha or None, commit_sha)
+
+    if dry_run:
+        body = {
+            "repo": repo,
+            "commit_sha": commit_sha,
+            "change_digest": advisory,
+            "change_class": change_class,
+        }
+        if base_sha:
+            body["base_sha"] = base_sha
+        if author:
+            body["author"] = author
+        if anchor:
+            body["anchor"] = anchor
+        print(json_mod.dumps(body, indent=2, default=str))
+        return
+
+    api_key = resolve_api_key()
+    if not api_key:
+        print(
+            "Error: ASQAV_API_KEY (or `asqav login`) must be set, with the "
+            f"{REQUIRED_SCOPE} scope, to record code authorship.",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=1)
+
+    import asqav
+
+    asqav.init(api_key=api_key)
+    try:
+        result = submit_code_authorship(
+            repo=repo,
+            commit_sha=commit_sha,
+            base_sha=base_sha or None,
+            change_digest=advisory,
+            change_class=change_class,
+            author=author or None,
+            anchor=anchor or None,
+        )
+    except Exception as exc:
+        print(f"asqav hook: code-authorship recording failed: {exc}", file=sys.stderr)
+        raise typer.Exit(code=1) from exc
+
+    print(f"capture_layer={result.capture_layer} digest_match={result.digest_match}", file=sys.stderr)
+    if result.subject_digest:
+        print(f"server subject digest: {result.subject_digest}", file=sys.stderr)
