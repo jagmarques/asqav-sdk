@@ -147,7 +147,7 @@ sig = agent.sign(
 )
 ```
 
-`capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `ebpf_observer`, and `mcp_proxy`. Only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
+`capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `mcp_proxy`, and `github_sha_pull`. A client-supplied `capture_topology` is advisory: the server stamps the authoritative value from the ingress route, and for code-authorship that authoritative value is `github_sha_pull`, set only after the server re-fetches the commit and recomputes the diff. Only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
 
 ### Configuration change receipts, rule 9
 
