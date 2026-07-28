@@ -1,25 +1,29 @@
 # Asqav Code-Authorship Receipt Action
 
-Sign an Asqav code-authorship receipt from a CI run. On every pull request this
-action records who authored a code change and signs that record with ML-DSA-65
-(FIPS 204) server-side, then writes it out as an in-toto Statement.
+Record an Asqav code-authorship receipt from a CI run. On every pull request the
+action computes an advisory digest of the change and asks the Asqav server to
+sign an authoritative record of who authored it. The server signs with ML-DSA-65
+(FIPS 204) and writes the record out as an in-toto Statement.
 
 ## What it proves and what it does not
 
-This action signs a small, honest set of facts:
+The action does two honest things: it computes an advisory change digest (the
+SHA-256 of `git diff <base>..<head>`), and it calls the Asqav server. The
+server then does the authoritative work:
 
-- a change existed, namely the diff between a base commit and the head commit,
-  captured as a SHA-256 digest,
-- that change was key-authored, since the Asqav agent key signed the record,
-- the record was chained at time T, as the receipt is hash-chained and
-  timestamped by Asqav.
+- it re-fetches the commit by sha from the repository,
+- it recomputes the canonical diff itself,
+- it signs an in-toto Statement whose `subject[0].digest.sha256` is the
+  SERVER-recomputed diff hash, not the action's advisory value.
 
-It does not verify the code, does not re-run the diff, does not resolve the
-refs, and does not attest the model. The author identity, the tool, and any
-model fields are producer-asserted. Model fields are always recorded with
-`attestation_source=github-actions-input` so they can never be read as
-Asqav-verified. In short: the receipt proves a change with a given digest was
-recorded and key-signed at a point in time, nothing more.
+The action's digest is advisory. The server reports `digest_match` to say
+whether the advisory value agreed with its own recomputation, and that flag is
+informational: the binding subject is always the server digest. The author
+identity is producer-asserted and recorded, never verified by Asqav.
+
+So the receipt proves a server-verified change to a given commit was recorded
+and key-signed at a point in time. The server independently re-derived the diff,
+and the binding digest rests on that recomputation rather than on the action.
 
 ## Usage
 
@@ -32,71 +36,92 @@ permissions:
   contents: read
 
 jobs:
-  sign:
+  record:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # full history so the base..head diff is available
 
-      - name: Sign Asqav code-authorship receipt
+      - name: Record Asqav code-authorship receipt
         id: asqav
         uses: jagmarques/asqav-sdk/github-action@main
         with:
           asqav-api-key: ${{ secrets.ASQAV_API_KEY }}
-          asqav-agent-id: ${{ secrets.ASQAV_AGENT_ID }}
           change-class: write
-          model-id: claude-opus-4-8
-          model-version: "2026-05"
+          author: model:claude-opus-4-8
 
       - name: Show receipt
         run: |
-          echo "signature: ${{ steps.asqav.outputs.signature-id }}"
-          echo "verify:    ${{ steps.asqav.outputs.verification-url }}"
-          echo "in-toto:   ${{ steps.asqav.outputs.intoto-statement-path }}"
+          echo "signature:    ${{ steps.asqav.outputs.signature-id }}"
+          echo "digest-match: ${{ steps.asqav.outputs.digest-match }}"
+          echo "server-digest:${{ steps.asqav.outputs.server-digest }}"
+          echo "in-toto:      ${{ steps.asqav.outputs.intoto-statement-path }}"
 ```
 
-`fetch-depth: 0` matters: the action digests `git diff <base>..<head>`, so the
-base commit must be present in the checkout.
+`fetch-depth: 0` matters: the action digests `git diff <base>..<head>` for its
+advisory value, so the base commit must be present in the checkout.
 
 ## Inputs
 
 | Input            | Required | Default          | Description |
 | ---------------- | -------- | ---------------- | ----------- |
-| `asqav-api-key`  | yes      |                  | Asqav API key in the form `sk_...`. Pass via a repository secret. |
-| `asqav-agent-id` | yes      |                  | Asqav agent id whose key signs the receipt. |
+| `asqav-api-key`  | yes      |                  | Asqav API key (`sk_...`) with the `code_authorship:write` scope. Pass via a repository secret. |
 | `change-class`   | no       | `write`          | One of `read`, `write`, `delete`, `execute`, `deploy`. |
-| `model-id`       | no       | empty            | Producer-asserted model id. Recorded, never verified. |
-| `model-version`  | no       | empty            | Producer-asserted model version. Recorded, never verified. |
-| `tool`           | no       | `github-actions` | Producer-asserted authoring tool label. |
+| `author`         | no       | empty            | Producer-asserted author identity (for example `human:alice@example.com` or `model:claude-opus-4-8`). Recorded, never verified. |
+| `anchor`         | no       | PR URL           | Anchor reference. Defaults to the pull request URL (or the run URL). |
 
 ## Outputs
 
 | Output                  | Description |
 | ----------------------- | ----------- |
-| `signature-id`          | Asqav signature id of the signed receipt. |
-| `verification-url`      | Public URL to verify the signed receipt. |
+| `signature-id`          | Asqav signature id of the recorded receipt. |
+| `digest-match`          | `true` when the advisory digest agreed with the server digest, else `false`. |
+| `server-digest`         | The server-recomputed diff digest bound into the Statement subject. |
+| `capture-layer`         | The authoritative capture layer stamped by the server (`github_sha_pull`). |
 | `intoto-statement-path` | Path to the emitted in-toto Statement v1 file. |
 
 ## How the receipt is derived
 
 The action reads the git context from the GitHub Actions environment:
 
-- `repo_ref` from `GITHUB_REPOSITORY`,
+- `repo` from `GITHUB_REPOSITORY`,
 - `commit_sha` from `GITHUB_SHA`,
 - `base_sha` from the pull request base in the event payload,
-- `change_ref` from the pull request URL,
-- `change_digest` = `sha256:` + SHA-256 of `git diff <base>..<head>`.
+- `change_digest` (advisory) = `sha256:` + SHA-256 of `git diff <base>..<head>`.
 
-It then calls `agent.sign(...)` with
-`receipt_type="protectmcp:lifecycle:code_authorship"`, `compliance_mode=True`,
-and `policy_decision="none"`, since a code-authorship receipt records no policy
-evaluation and signs under the no-policy opt-out.
+It then calls `POST /v1/code-authorship` with
+`{repo, commit_sha, base_sha, change_digest}` plus the optional `change_class`,
+`author`, and `anchor`. The server re-fetches the commit, recomputes the
+canonical diff, and returns the signed in-toto Statement, the receipt, the
+signing key id, the JWKS url, the `server_digest`, and `digest_match`. The
+action writes the server's Statement to disk verbatim.
+
+## How a third party verifies it
+
+The receipt is independently checkable without trusting the action or the
+producer:
+
+1. re-fetch the `commit_sha` from the repository,
+2. recompute the canonical diff: the sorted changed-files list, each entry
+   `{path, status, additions, deletions, patch}`, canonicalized with JCS
+   (the JSON Canonicalization Scheme),
+3. SHA-256 those canonical bytes and confirm the result equals
+   `subject[0].digest.sha256` in the Statement,
+4. verify the ML-DSA-65 signature over the Statement using the key published at
+   the `jwks_url`, resolved by the `kid`.
+
+A match on step 3 proves the server bound the receipt to a diff anyone can
+re-derive from the public commit. The `capture_layer` is `github_sha_pull`,
+which is the authoritative layer: the server pulled the commit by sha and
+recomputed the diff itself. A receipt carrying `in_process_sdk` or
+`passive_telemetry` is a client self-report and is observation only, never an
+authoritative decision receipt.
 
 ## in-toto interop
 
-The signed receipt is also wrapped as an
-[in-toto Statement v1](https://github.com/in-toto/attestation) and written to a
+The server's signed receipt is an
+[in-toto Statement v1](https://github.com/in-toto/attestation) written to a
 file. The shape is:
 
 ```json
@@ -105,18 +130,21 @@ file. The shape is:
   "subject": [
     {
       "name": "<owner/repo>@<commit_sha>",
-      "digest": { "sha256": "<commit_sha>" }
+      "digest": { "sha256": "<server-recomputed diff hash>" }
     }
   ],
-  "predicateType": "https://asqav.com/CodeAuthorship/v1",
-  "predicate": { "...the signed receipt payload, signature alg ML-DSA-65..." }
+  "predicateType": "https://asqav.com/attestation/code-authorship/v1",
+  "predicate": {
+    "capture_layer": "github_sha_pull",
+    "asset_class": "code",
+    "advisory_client_digest": "sha256:<the action's advisory digest>",
+    "digest_match": true
+  }
 }
 ```
 
-Because the receipt is emitted as a standard in-toto Statement, it slots into
-the same attestation workflows that already consume in-toto, including Sigstore
-Rekor transparency-log entries and GitHub Artifact Attestations. Upload the file
-as a build artifact, push it to a transparency log, or attach it to a release
-the same way you would any other in-toto predicate. The Asqav predicate carries
-the ML-DSA-65 signature envelope, so a consumer can re-verify the Asqav receipt
-independently of the surrounding attestation envelope.
+Because the receipt is a standard in-toto Statement, it slots into the same
+attestation workflows that already consume in-toto, including Sigstore Rekor
+transparency-log entries and GitHub Artifact Attestations. Upload the file as a
+build artifact, push it to a transparency log, or attach it to a release the
+same way you would any other in-toto predicate.
