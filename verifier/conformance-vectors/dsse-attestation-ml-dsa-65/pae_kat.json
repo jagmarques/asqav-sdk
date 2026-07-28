@@ -1,0 +1,18 @@
+{
+  "source": "core/dsse.py pae() (verbatim lines 65-67): b' '.join([b'DSSEv1', str(len(type)).encode(), type, str(len(body)).encode(), body])",
+  "vectors": [
+    {
+      "name": "trivial",
+      "payloadType": "a",
+      "body": "b",
+      "pae_ascii": "DSSEv1 1 a 1 b",
+      "pae_hex": "4453534576312031206120312062"
+    },
+    {
+      "name": "in-toto",
+      "payloadType": "application/vnd.in-toto+json",
+      "body": "{\"_type\":\"https://in-toto.io/Statement/v1\",\"subject\":[{\"name\":\"act_demo\",\"digest\":{\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}],\"predicateType\":\"https://asqav.com/receipt/action/v1\",\"predicate\":{}}",
+      "pae_hex": "445353457631203238206170706c69636174696f6e2f766e642e696e2d746f746f2b6a736f6e20323331207b225f74797065223a2268747470733a2f2f696e2d746f746f2e696f2f53746174656d656e742f7631222c227375626a656374223a5b7b226e616d65223a226163745f64656d6f222c22646967657374223a7b22736861323536223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161227d7d5d2c2270726564696361746554797065223a2268747470733a2f2f61737161762e636f6d2f726563656970742f616374696f6e2f7631222c22707265646963617465223a7b7d7d"
+    }
+  ]
+}
