@@ -25,11 +25,32 @@ _DEFAULT_API_BASE = "https://api.asqav.com/api/v1"
 CREDENTIALS_PATH = Path(os.path.expanduser("~")) / ".asqav" / "credentials"
 
 
+def _validated_fs_path(raw: str, source: str) -> Path:
+    """Sanitize a caller-supplied path before any file I/O.
+
+    Expands a leading ``~`` and rejects the two classic path-injection vectors,
+    null bytes and traversal (``..``) components, so an attacker-influenced
+    value cannot redirect a read, write, or chmod to an arbitrary location.
+    Raises ``ValueError`` on a rejected path.
+    """
+    if "\x00" in raw:
+        raise ValueError(f"{source} must not contain null bytes")
+    expanded = os.path.expanduser(raw)
+    if ".." in Path(expanded).parts:
+        raise ValueError(f"{source} must not contain path traversal ('..')")
+    return Path(expanded)
+
+
 def credentials_path() -> Path:
-    """Resolve the credentials file location (env override, else ~/.asqav/credentials)."""
+    """Resolve the credentials file location (env override, else ~/.asqav/credentials).
+
+    The ``ASQAV_CREDENTIALS_PATH`` override is validated (see
+    :func:`_validated_fs_path`) before it is used for I/O, so a traversal value
+    such as ``../../etc/passwd`` is rejected rather than read or written.
+    """
     override = os.environ.get("ASQAV_CREDENTIALS_PATH")
     if override:
-        return Path(override)
+        return _validated_fs_path(override, "ASQAV_CREDENTIALS_PATH")
     return Path(os.path.expanduser("~")) / ".asqav" / "credentials"
 
 
