@@ -123,31 +123,40 @@ class AsqavNativeAdapter(FormatAdapter):
             kid=sig_obj.get("kid", ""),
         )
 
+    def _signing_key_entry(self, doc: dict, jwks: dict) -> dict | None:
+        """The one jwks entry this receipt's signature is checked against.
+
+        Cloud receipts set kid to the issuer id; when that resolves nothing, the
+        agent's own key answers, mirroring run(). agent_id is attacker-controlled,
+        so the agent match trusts only a key whose published issuer_id equals the
+        one the receipt claims inside its signed bytes.
+
+        Every axis resolves through here. kid lives OUTSIDE the signed bytes, so a
+        second independent lookup on it is attacker-steerable: a receipt could
+        verify against a key found by the agent route while the revocation and
+        issuer axes read a kid that resolves nothing and emit no axis at all. An
+        axis that never exists cannot be blocked on, unlike one that reports
+        SKIPPED, so the verdict would read PASS for a key the directory revoked.
+        """
+        payload = _payload(doc)
+        return _vr.match_signing_key(
+            jwks,
+            self.extract_signature(doc).kid,
+            payload.get("agent_id") or doc.get("agent_id"),
+            payload.get("issuer_id"),
+        )
+
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
         jwks = key_provider or {"keys": []}
         kid = self.extract_signature(doc).kid
-        pk, status, _alg = _vr.resolve_key(jwks, kid)
-        if pk is None:
-            # Cloud receipts set kid to the issuer id; when that resolves nothing,
-            # fall back to the agent's own key, mirroring run(). agent_id is
-            # attacker-controlled, so resolve_key_by_agent_id trusts only a key
-            # whose published issuer_id matches the one the receipt claims.
-            fallback = self._resolve_key_by_agent(doc, jwks)
-            if fallback is not None:
-                return fallback
+        entry = self._signing_key_entry(doc, jwks)
+        if entry is None:
             return None, f"kid {kid!r} not in jwks directory"
-        return pk, f"resolved kid {kid} (status={status})"
-
-    def _resolve_key_by_agent(self, doc: dict, jwks: dict) -> tuple[bytes, str] | None:
-        """Resolve the signing key by the receipt's agent_id when the kid is absent."""
-        payload = _payload(doc)
-        agent_id = payload.get("agent_id") or doc.get("agent_id")
-        pk, status, _alg, kid, _issuer = _vr.resolve_key_by_agent_id(
-            jwks, agent_id, payload.get("issuer_id")
-        )
-        if pk is None:
-            return None
-        return pk, f"resolved agent key {kid} (status={status})"
+        pk = _vr._b64decode(entry["public_key"])
+        status = entry.get("status")
+        if kid and kid in (entry.get("issuer_id"), entry.get("kid")):
+            return pk, f"resolved kid {kid} (status={status})"
+        return pk, f"resolved agent key {entry.get('kid')} (status={status})"
 
     def signing_input(self, doc: dict) -> bytes:
         if _is_hash_mode(doc):
@@ -209,29 +218,33 @@ class AsqavNativeAdapter(FormatAdapter):
 
         A receipt signed by a revoked key, or by a key the directory publishes
         under a different issuer, must not PASS offline, matching the hosted
-        /verify. No key resolved means the signature axis already FAILs, so these
-        axes only weigh in once a key is found. Both wire shapes name their issuer
-        inside the signed bytes: issuer_id in compliance mode, org_id in hash mode.
+        /verify. No key resolved at all means the signature axis already reports no
+        key, so these axes only weigh in once a key is found. Both wire shapes name
+        their issuer inside the signed bytes: issuer_id in compliance mode, org_id
+        in hash mode.
+
+        Resolution goes through the same entry the signature axis verifies
+        against, so these axes weigh the key that actually signed rather than
+        whatever the unsigned kid happens to name.
         """
         jwks = key_provider or {"keys": []}
-        kid = self.extract_signature(doc).kid
-        pk, status, _alg = _vr.resolve_key(jwks, kid)
-        if pk is None:
+        entry = self._signing_key_entry(doc, jwks)
+        if entry is None:
             return []
-        key_issuer = _vr.resolve_key_issuer(jwks, kid)
-        # kid selects the key and the receipt selects the kid, so bind the
-        # resolved key back to the issuer the signed bytes name.
+        key_issuer = _vr.key_issuer_of(entry)
+        # The resolved key is bound back to the issuer the signed bytes name.
         if _is_hash_mode(doc):
             issued_at = doc.get("server_timestamp", "")
-            bind = _vr.check_org_binding(key_issuer, _vr.resolve_key_org(jwks, kid), doc.get("org_id"))
+            bind = _vr.check_org_binding(key_issuer, _vr.key_org_of(entry), doc.get("org_id"))
         else:
             payload = _payload(doc)
             issued_at = payload.get("issued_at", "")
             bind = _vr.check_issuer_binding(key_issuer, payload.get("issuer_id"))
-        revoked_at = _vr.resolve_revoked_at(jwks, kid)
         # Offline anchor presence is unverifiable (anchors are unsigned); pass
         # False so a forged anchor never rides a revoked key to PASS.
-        res, note = _vr.check_key_status(status, issued_at, revoked_at, False)
+        res, note = _vr.check_key_status(
+            entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
+        )
         return [("key_status", res, note), ("issuer_bind", *bind)]
 
     def attestation(self, doc: dict) -> dict[str, Any]:
