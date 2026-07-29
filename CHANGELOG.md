@@ -5,6 +5,19 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A rewritten `signature.kid` cannot buy a PASS for a revoked key.** `kid` sits
+  outside the signed payload bytes, so a receipt holder can change it without
+  disturbing the signature. The signature axis resolved its key through an
+  agent-id fallback that the `key_status` and `issuer_bind` axes did not share, so
+  a kid the directory answers for nothing left those two axes emitting nothing at
+  all. The verdict aggregate can block on an axis reporting SKIPPED but not on one
+  that was never emitted, so a receipt signed by a REVOKED key read PASS offline.
+  Both surfaces now resolve through one shared entry, so every axis weighs the key
+  that actually signed. A revoked-key receipt reports FAIL whichever route
+  resolves it.
+
 ## [0.8.3] - 2026-07-20
 
 Patch release with a verifier correctness fix and a docs alignment.
