@@ -332,6 +332,64 @@ def _match_key(jwks: dict, kid: str):
     return None
 
 
+def _match_key_by_agent(jwks: dict, agent_id, issuer_id):
+    """Return the first usable jwks entry for an agent key bound to a claimed issuer.
+
+    The single agent-side matcher, so the entry a signature verifies against is the
+    same entry every published field is read from. agent_id is attacker-controlled,
+    so a match also requires the key's published issuer_id to equal the issuer the
+    receipt claims inside its signed bytes.
+    """
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
+        if (
+            agent_id
+            and agent_id == k.get("agent_id")
+            and issuer_id
+            and issuer_id == k.get("issuer_id")
+        ):
+            if not isinstance(k.get("public_key"), str):
+                continue
+            return k
+    return None
+
+
+def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None):
+    """Return the one jwks entry a receipt's signature is checked against.
+
+    kid first, then the agent-id bind. Every caller resolves through here, so the
+    key that verifies a signature and the key whose status and issuer the axes weigh
+    are one entry rather than two independent lookups. Resolving them separately lets
+    a receipt verify against a key found one way while the revocation and issuer axes
+    read a key found the other way, or vanish because the second lookup missed.
+    """
+    entry = _match_key(jwks, kid)
+    if entry is not None:
+        return entry
+    return _match_key_by_agent(jwks, agent_id, issuer_id)
+
+
+def key_issuer_of(entry):
+    """Return the issuer id a jwks entry publishes, or None when it names no string."""
+    issuer = entry.get("issuer_id") if entry else None
+    return issuer if isinstance(issuer, str) else None
+
+
+def key_org_of(entry):
+    """Return the org id a jwks entry publishes, or None when the value is not one."""
+    org = entry.get("org_id") if entry else None
+    return org if _is_org_id(org) else None
+
+
+def revoked_at_of(entry):
+    """Return the revoked_at a jwks entry publishes, if any."""
+    return entry.get("revoked_at") if entry else None
+
+
 def resolve_key(jwks: dict, kid: str):
     """Return (public_key_bytes, status, alg) for the receipt's signature.kid.
 
@@ -350,9 +408,7 @@ def resolve_key_issuer(jwks: dict, kid: str):
     Reads the same entry resolve_key returns, so the bind weighs the key that
     actually verified. None when kid resolves nothing or publishes no string issuer.
     """
-    k = _match_key(jwks, kid)
-    issuer = k.get("issuer_id") if k else None
-    return issuer if isinstance(issuer, str) else None
+    return key_issuer_of(_match_key(jwks, kid))
 
 
 def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str):
@@ -365,29 +421,16 @@ def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str):
     claimed issuer_id: without that bind a valid key from any org would verify a
     receipt claiming a different issuer. Same defensive shape as resolve_key.
     """
-    keys = jwks.get("keys") if isinstance(jwks, dict) else None
-    if not isinstance(keys, list):
+    k = _match_key_by_agent(jwks, agent_id, issuer_id)
+    if k is None:
         return None, None, None, None, None
-    for k in keys:
-        if not isinstance(k, dict):
-            continue
-        if (
-            agent_id
-            and agent_id == k.get("agent_id")
-            and issuer_id
-            and issuer_id == k.get("issuer_id")
-        ):
-            pub = k.get("public_key")
-            if not isinstance(pub, str):
-                continue
-            return (
-                _b64decode(pub),
-                k.get("status"),
-                k.get("alg"),
-                k.get("kid"),
-                k.get("issuer_id"),
-            )
-    return None, None, None, None, None
+    return (
+        _b64decode(k["public_key"]),
+        k.get("status"),
+        k.get("alg"),
+        k.get("kid"),
+        k.get("issuer_id"),
+    )
 
 
 def resolve_revoked_at(jwks: dict, kid: str):
@@ -397,8 +440,7 @@ def resolve_revoked_at(jwks: dict, kid: str):
     timestamp, so the key-status axis falls back to a bare status gate. Reads the
     same entry resolve_key returns, so every axis weighs one key, not two.
     """
-    k = _match_key(jwks, kid)
-    return k.get("revoked_at") if k else None
+    return revoked_at_of(_match_key(jwks, kid))
 
 
 def check_issuer_binding(key_issuer_id, claimed_issuer_id):
@@ -422,9 +464,7 @@ def resolve_key_org(jwks: dict, kid: str):
     A value that is not an org id cannot serve as one, so it reads as unpublished
     and the issuer branch decides, rather than counting as a mismatch.
     """
-    k = _match_key(jwks, kid)
-    org = k.get("org_id") if k else None
-    return org if _is_org_id(org) else None
+    return key_org_of(_match_key(jwks, kid))
 
 
 #: Same body text as the TypeScript ORG_ID_RE. Anchored by fullmatch, not by $,
