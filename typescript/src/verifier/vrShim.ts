@@ -8,10 +8,14 @@
  * first-receipt seed constant.
  */
 
-import type { VerifyState } from "./crypto.js";
+import { asqavJcs } from "./canonical.js";
+import { sha256Hex, type VerifyState } from "./crypto.js";
 
 /** Mirrors `core/integrity.py` FIRST_RECEIPT_SEED (64 zeros). */
 export const FIRST_RECEIPT_SEED = "0".repeat(64);
+
+/** Wall-clock bound on `issued_at`, mirrors Python `SKEW_BOUND_SECONDS`. */
+export const SKEW_BOUND_SECONDS = 300;
 
 const REQUIRED_FIELDS = [
   "type",
@@ -197,6 +201,139 @@ export function checkOrgBinding(
     "FAIL",
     `signing key is published under org ${JSON.stringify(keyOrgId ?? keyIssuerId)}, not the claimed ${JSON.stringify(claimedOrgId)}`,
   ];
+}
+
+// Python spells these three differently and the note text is read side by side.
+function pyStr(v: unknown): string {
+  if (v === null || v === undefined) return "None";
+  if (v === true) return "True";
+  if (v === false) return "False";
+  return String(v);
+}
+
+// Python names the type in the malformed-value notes, so mirror those names.
+function pyTypeName(v: unknown): string {
+  if (v === null || v === undefined) return "NoneType";
+  if (Array.isArray(v)) return "list";
+  if (typeof v === "boolean") return "bool";
+  if (typeof v === "number") return Number.isInteger(v) ? "int" : "float";
+  if (typeof v === "string") return "str";
+  return "dict";
+}
+
+// Python truthiness, which differs from JavaScript's for [] and {}.
+function pyTruthy(v: unknown): boolean {
+  if (v === null || v === undefined || v === false) return false;
+  if (typeof v === "number") return v !== 0 && !Number.isNaN(v);
+  if (typeof v === "string") return v.length > 0;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "object") return Object.keys(v as object).length > 0;
+  return true;
+}
+
+const B64_ALPHABET = /[A-Za-z0-9+/]/g;
+
+/**
+ * True when Python's `_safe_b64` decodes `value`, false otherwise.
+ *
+ * Python pads by the raw length, then drops non-alphabet characters and rejects a
+ * group it cannot complete. Counting alphabet characters plus trailing padding
+ * reproduces that decision, agreeing on 2690 differentially tested strings.
+ */
+function safeB64(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const s = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = s + "=".repeat(((-s.length % 4) + 4) % 4);
+  const alpha = (padded.match(B64_ALPHABET) ?? []).length;
+  const pad = (/(=*)$/.exec(padded) ?? ["", ""])[1].length;
+  const rem = alpha % 4;
+  if (rem === 0) return true;
+  if (rem === 1) return false;
+  return rem === 2 ? pad >= 2 : pad >= 1;
+}
+
+/** JCS bytes of the envelope with `anchors` removed (mirrors `envelope_minus_anchors_jcs`). */
+export function envelopeMinusAnchorsJcs(env: Record<string, unknown>): Uint8Array {
+  const e = { ...env };
+  delete e.anchors;
+  return asqavJcs(e);
+}
+
+// ISO 8601 shapes Python's fromisoformat accepts, spelled out so a lenient JS date
+// string Python rejects also FAILs. Only an uppercase Z is a zone designator.
+const ISO_STAMP =
+  /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?))?(Z|[+-]\d{2}(?::?\d{2})?)?$/;
+
+// Python treats a stamp with no zone as UTC, where JS would read it as local time.
+function parseIsoMs(issuedAt: unknown): number | null {
+  if (typeof issuedAt !== "string") return null;
+  const m = ISO_STAMP.exec(issuedAt);
+  if (m === null) return null;
+  const [, date, time, zone] = m;
+  let tz = zone ?? "Z";
+  if (tz !== "Z") {
+    const digits = tz.replace(":", "");
+    tz = digits.length === 3 ? `${digits}:00` : `${digits.slice(0, 3)}:${digits.slice(3)}`;
+  }
+  const ms = Date.parse(`${date}T${time ?? "00:00:00"}${tz}`);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/** `issued_at` within the wall-clock bound; returns `[result, note]` (mirrors `check_skew`). */
+export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
+  const ms = parseIsoMs(issuedAt);
+  if (ms === null) {
+    return ["FAIL", `unparseable issued_at ${JSON.stringify(issuedAt ?? null)}`];
+  }
+  const skew = (ms - Date.now()) / 1000;
+  if (skew > SKEW_BOUND_SECONDS) {
+    return ["FAIL", `issued_at ${skew.toFixed(0)}s ahead of wall clock (> ${SKEW_BOUND_SECONDS}s)`];
+  }
+  return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
+}
+
+/**
+ * Report which envelope each anchor binds (mirrors `check_anchors`).
+ *
+ * Absent or null anchors is a legitimate no-anchors receipt (SKIPPED). A present
+ * non-list value is malformed and FAILs, never laundered to an empty list.
+ * `anchors` sits outside the signed bytes, so a forged envelope can move it.
+ */
+export function checkAnchors(envelope: Record<string, unknown>): readonly [VerifyState, string] {
+  const anchors = envelope.anchors;
+  if (anchors === null || anchors === undefined) {
+    return ["SKIPPED", "no anchors on this receipt"];
+  }
+  if (!Array.isArray(anchors)) {
+    return ["FAIL", `anchors field is not a list (got ${pyTypeName(anchors)})`];
+  }
+  if (anchors.length === 0) {
+    return ["SKIPPED", "no anchors on this receipt"];
+  }
+  let bound: string;
+  try {
+    bound = sha256Hex(envelopeMinusAnchorsJcs(envelope));
+  } catch {
+    // Defense in depth: core's depth gate should already have rejected this.
+    return ["FAIL", "envelope too deeply nested to canonicalise for anchor binding"];
+  }
+  const lines = [`anchors bind envelope digest sha256:${bound.slice(0, 16)}..`];
+  let allOk = true;
+  for (const a of anchors as unknown[]) {
+    if (a === null || typeof a !== "object" || Array.isArray(a)) {
+      allOk = false;
+      lines.push(`    - malformed anchor entry (got ${pyTypeName(a)}, expected an object)`);
+      continue;
+    }
+    const entry = a as Record<string, unknown>;
+    const atype = "type" in entry ? entry.type : "?";
+    const val = entry.value;
+    const ok = pyTruthy(val) && safeB64(val);
+    allOk = allOk && ok;
+    const state = ok ? "present, base64-ok" : "MISSING or malformed";
+    lines.push(`    - ${pyStr(atype)}: value ${state}`);
+  }
+  return [allOk ? "PASS" : "FAIL", lines.join("; ")];
 }
 
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.

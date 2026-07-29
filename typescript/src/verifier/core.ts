@@ -89,6 +89,32 @@ function chainAxis(
   return { axis: "chain", result: FAIL, note: `chain break: expected ${exp}.. got ${actual.slice(0, 16)}..` };
 }
 
+/** Max nesting the recursive JCS encoder tolerates, mirrors the Python core cap. */
+export const MAX_NESTING_DEPTH = 200;
+
+const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NESTING_DEPTH} levels)`;
+
+/**
+ * True when `obj` nests deeper than `maxDepth`, walked with an explicit stack.
+ *
+ * No recursion here, so the check never overflows before it can cap a receipt the
+ * JCS canonicaliser would crash on. `JSON.parse` applies no depth limit, so this
+ * gate is the only cap an already-parsed object meets.
+ */
+function exceedsDepth(obj: unknown, maxDepth: number): boolean {
+  const stack: Array<[unknown, number]> = [[obj, 0]];
+  while (stack.length > 0) {
+    const [cur, depth] = stack.pop() as [unknown, number];
+    if (depth > maxDepth) return true;
+    if (Array.isArray(cur)) {
+      for (const v of cur) stack.push([v, depth + 1]);
+    } else if (cur !== null && typeof cur === "object") {
+      for (const v of Object.values(cur as Record<string, unknown>)) stack.push([v, depth + 1]);
+    }
+  }
+  return false;
+}
+
 /** Verify one parsed receipt and return a structured `VerifyResult`. */
 export function verify(
   doc: Record<string, unknown>,
@@ -102,6 +128,19 @@ export function verify(
       fmt: "unknown",
       axes: [{ axis: "structure", result: FAIL, note: "no adapter recognises this receipt" }],
       verdict: "FAIL",
+      signer: null,
+    };
+  }
+  // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
+  // report INCOMPLETE, never a PASS, matching the Python core's shape gate.
+  if (
+    exceedsDepth(doc, MAX_NESTING_DEPTH) ||
+    (predecessor !== null && exceedsDepth(predecessor, MAX_NESTING_DEPTH))
+  ) {
+    return {
+      fmt: ad.name,
+      axes: [{ axis: "structure", result: FAIL, note: TOO_DEEP_NOTE }],
+      verdict: "INCOMPLETE",
       signer: null,
     };
   }

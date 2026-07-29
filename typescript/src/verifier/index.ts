@@ -11,6 +11,7 @@
  *   - `FormatAdapter` : the 6-method per-format seam.
  *   - `ADAPTERS`      : ordered registry the dispatcher walks for detection.
  *   - `verify`        : verify one parsed receipt; returns a `VerifyResult`.
+ *   - `checkAnchors` / `checkSkew` : the two axes the oracle leaves out.
  *   - canonicalisers, crypto, and the conformance runner.
  */
 
@@ -46,8 +47,16 @@ export { AgentReceiptsAdapter } from "./adapters/agentreceipts.js";
 export { AsqavNativeAdapter } from "./adapters/asqavNative.js";
 export { AuthproofAdapter } from "./adapters/authproof.js";
 export { PipelockEvidenceAdapter } from "./adapters/pipelock.js";
-export { detect, verify } from "./core.js";
+export { detect, MAX_NESTING_DEPTH, verify } from "./core.js";
 export type { AxisResult, Verdict, VerifyResult } from "./core.js";
+// The anchor-binding and clock-skew axes the oracle leaves out by design, so a
+// TypeScript caller can run them as a Python caller runs check_anchors/check_skew.
+export {
+  checkAnchors,
+  checkSkew,
+  envelopeMinusAnchorsJcs,
+  SKEW_BOUND_SECONDS,
+} from "./vrShim.js";
 export { asqavJcs, jcs, jcsRfc8785, parseJsonPreservingFloats, RawFloat } from "./canonical.js";
 export {
   FAIL,

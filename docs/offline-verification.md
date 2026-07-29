@@ -76,6 +76,36 @@ if (result.verdict !== "PASS") {
 }
 ```
 
+## Anchor binding and clock skew
+
+`verify_receipt_offline` / `verifyReceiptOffline` cover structure, signature and the
+hash chain. Two further axes are checked on request in both languages, with the same
+limits and the same notes: anchor binding, and `issued_at` within 300 seconds of the
+wall clock. `anchors` sits outside the signed bytes, so that axis is the one an
+altered envelope can move without breaking the signature.
+
+Python:
+
+```python
+from asqav.verifier.verify_receipt import check_anchors, check_skew
+
+print(check_anchors(receipt))                     # ("PASS"|"FAIL"|"SKIPPED", note)
+print(check_skew(receipt["payload"]["issued_at"]))
+```
+
+TypeScript:
+
+```typescript
+import { checkAnchors, checkSkew } from "@asqav/sdk/verifier";
+
+console.log(checkAnchors(receipt));               // ["PASS"|"FAIL"|"SKIPPED", note]
+console.log(checkSkew(receipt.payload.issued_at));
+```
+
+An absent or empty `anchors` reports SKIPPED, a present non-list value FAILs, and an
+anchor whose `value` is missing or not decodable FAILs. `verifier/axis-parity-cases.json`
+pins every case both languages must answer alike.
+
 ## JWKS endpoint
 
 ```
