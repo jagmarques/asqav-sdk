@@ -266,12 +266,28 @@ def _b64decode(value: str) -> bytes:
     return base64.b64decode(s, validate=False)
 
 
-def _safe_b64(v: str) -> bool:
-    try:
-        _b64decode(v)
-        return True
-    except Exception:
+# Anchor values only, and strict on purpose: anchors sit outside the signed
+# bytes, so a forged value is attacker steerable
+_ANCHOR_B64_RE = re.compile(r"[A-Za-z0-9+/]+={0,2}")
+
+
+def _safe_b64(v: object) -> bool:
+    """True only when ``v`` is real base64 carrying at least one byte.
+
+    Kept separate from ``_b64decode``, which stays lenient for keys and
+    signatures. Anchors are unsigned, so this half refuses junk instead.
+    """
+    if not isinstance(v, str) or not v:
         return False
+    s = v.replace("-", "+").replace("_", "/")
+    s += "=" * ((-len(s)) % 4)
+    # The alphabet and padding decision lives here, not in b64decode, because
+    # b64decode(validate=True) accepts excess padding on 3.11 and raises on 3.12
+    if not _ANCHOR_B64_RE.fullmatch(s):
+        return False
+    # fullmatch leaves only alphabet characters and a length that is a multiple
+    # of 4 with at most two pads, so a strict decode cannot raise here
+    return len(base64.b64decode(s, validate=True)) > 0
 
 
 def normalise_envelope(raw: dict) -> dict:
