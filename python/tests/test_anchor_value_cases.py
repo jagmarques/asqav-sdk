@@ -9,6 +9,7 @@ typescript/tests/verifier-anchor-value-parity.test.ts and reads the same file.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -26,9 +27,30 @@ ENVELOPE = {
 
 def test_corpus_is_populated() -> None:
     """A corpus that silently empties would make every case below vacuous."""
-    assert len(VALUES) >= 150, f"corpus has only {len(VALUES)} values"
+    assert len(VALUES) >= 900, f"corpus has only {len(VALUES)} values"
     wide = [c for c in VALUES if any(ord(ch) > 127 for ch in c["value"])]
-    assert len(wide) >= 40, f"only {len(wide)} values carry a non-ASCII codepoint"
+    assert len(wide) >= 350, f"only {len(wide)} values carry a non-ASCII codepoint"
+    passing = [c for c in VALUES if c["expect"]["axis"] == "PASS"]
+    assert len(passing) >= 100, f"only {len(passing)} values are expected to pass"
+
+
+def _surplus_padding(value: str) -> bool:
+    """Alphabet characters then more padding than base64 can carry.
+
+    base64.b64decode(validate=True) accepts this shape on 3.11 and raises on
+    3.12, so a corpus without it cannot tell a version-stable rule from a
+    delegated one.
+    """
+    s = value.replace("-", "+").replace("_", "/")
+    s += "=" * ((-len(s)) % 4)
+    return bool(re.fullmatch(r"[A-Za-z0-9+/]+={3,}", s))
+
+
+def test_corpus_covers_the_excess_padding_class() -> None:
+    excess = [c for c in VALUES if _surplus_padding(c["value"])]
+    assert len(excess) >= 20, f"only {len(excess)} surplus-padding values"
+    passing = [c["value"] for c in excess if c["expect"]["axis"] != "FAIL"]
+    assert passing == [], f"surplus padding must not pass: {passing[:4]}"
 
 
 @pytest.mark.parametrize("case", VALUES, ids=[repr(c["value"]) for c in VALUES])
