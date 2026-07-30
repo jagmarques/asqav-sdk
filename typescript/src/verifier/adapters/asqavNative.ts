@@ -34,11 +34,11 @@ import {
   checkKeyStatus,
   checkOrgBinding,
   checkStructure,
+  keyIssuerOf,
+  keyOrgOf,
+  matchSigningKey,
   normaliseEnvelope,
-  resolveKey,
-  resolveKeyIssuer,
-  resolveKeyOrg,
-  resolveRevokedAt,
+  revokedAtOf,
 } from "../vrShim.js";
 
 /** Field set the cloud's hash-mode signer canonicalises (for the structure check). */
@@ -124,17 +124,45 @@ export class AsqavNativeAdapter extends FormatAdapter {
     };
   }
 
+  /**
+   * The one JWKS entry this receipt's signature is checked against.
+   *
+   * Mirrors the Python adapter's `_signing_key_entry`. Every axis resolves through
+   * here, so the entry that verifies the signature is the entry each published field
+   * is read from. kid lives OUTSIDE the signed bytes, so a second independent lookup
+   * on it is attacker-steerable: a receipt could verify against a key found one way
+   * while the revocation and issuer axes read a key found another way, or emit no
+   * axis at all. An axis that never exists cannot be blocked on.
+   */
+  private signingKeyEntry(
+    doc: Record<string, unknown>,
+    jwks: Record<string, unknown>,
+  ): Record<string, unknown> | null {
+    const payload = payloadOf(doc);
+    return matchSigningKey(
+      jwks,
+      this.extractSignature(doc).kid,
+      payload.agent_id ?? doc.agent_id,
+      payload.issuer_id,
+    );
+  }
+
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
   ): readonly [Uint8Array | null, string] {
-    const jwks = keyProvider ?? { keys: [] };
+    const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const kid = this.extractSignature(doc).kid;
-    const [pk, status] = resolveKey(jwks, kid);
-    if (pk === null) {
+    const entry = this.signingKeyEntry(doc, jwks);
+    if (entry === null) {
       return [null, `kid '${kid}' not in jwks directory`];
     }
-    return [pk, `resolved kid ${kid} (status=${status})`];
+    const pk = b64decode(entry.public_key as string);
+    const status = (entry.status as string) ?? null;
+    if (kid && (kid === entry.issuer_id || kid === entry.kid)) {
+      return [pk, `resolved kid ${kid} (status=${status})`];
+    }
+    return [pk, `resolved agent key ${entry.kid} (status=${status})`];
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
@@ -201,24 +229,22 @@ export class AsqavNativeAdapter extends FormatAdapter {
   // No-op when key is absent; the signature axis already handles that.
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
-    const kid = this.extractSignature(doc).kid;
-    const [pk, status] = resolveKey(jwks, kid);
-    if (pk === null) return [];
+    const entry = this.signingKeyEntry(doc, jwks);
+    if (entry === null) return [];
     const hashMode = isHashMode(doc);
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.
     const issuedAt = hashMode
       ? String(doc.server_timestamp ?? "")
       : String(payloadOf(doc).issued_at ?? "");
-    const revokedAt = resolveRevokedAt(jwks, kid);
     // Offline anchor presence is unverifiable (anchors unsigned); pass false
     // so a forged anchor never rides a revoked key to PASS.
-    const [res, note] = checkKeyStatus(status, issuedAt, revokedAt, false);
-    // kid selects the key and the receipt selects the kid, so bind the resolved
-    // key back to the issuer the signed bytes name.
-    const keyIssuer = resolveKeyIssuer(jwks, kid);
+    const status = (entry.status as string) ?? null;
+    const [res, note] = checkKeyStatus(status, issuedAt, revokedAtOf(entry), false);
+    // The key that verified is bound back to the issuer the signed bytes name.
+    const keyIssuer = keyIssuerOf(entry);
     const [bindRes, bindNote] = hashMode
-      ? checkOrgBinding(keyIssuer, resolveKeyOrg(jwks, kid), doc.org_id)
+      ? checkOrgBinding(keyIssuer, keyOrgOf(entry), doc.org_id)
       : checkIssuerBinding(keyIssuer, payloadOf(doc).issuer_id);
     return [
       ["key_status", res, note],
