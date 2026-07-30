@@ -74,6 +74,32 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   `cve_inventory_digest` to the CVE inventory digest page, and the air-gapped
   signer pointer to offline and air-gapped verification.
 
+### Security
+
+- **Corrected security claim: the `nonce` wire field carries no replay
+  protection.** The shipped docstrings and both README wire-field tables told
+  readers that the cloud verifier rejects a duplicate nonce per
+  `(agent_id, action_ref)` inside the validity window. No such control exists.
+  The caller-supplied nonce is written to the signature record and read back by
+  nothing: no unique index covers it, no query looks a value up to decide whether
+  it was seen, and it reaches the signed bytes in none of the three signing modes.
+  Re-sending a sign request with the same nonce produces a second accepted
+  signature.
+
+  Anyone who read that sentence and treated the field as a replay control had no
+  such protection, which is why this lands as a corrected security claim rather
+  than a wording tidy. The enforced half of the pair is real and unchanged:
+  `valid_seconds` and `expires_at` set the record's validity horizon, and verify
+  answers `signature_expired` past it. That is the control to bound replay with.
+
+  The nonce bullet also drops its time-bound-receipts pointer. That page repeats
+  the same claim, and a corrected sentence sitting next to a link that asserts the
+  opposite still misleads. The `expires_at` bullet keeps the link.
+
+  The 0.8.3 package descriptions on PyPI and npm are immutable, so a reader
+  landing on either registry page keeps seeing the old sentence until the next
+  release republishes the README.
+
 ## [0.8.3] - 2026-07-20
 
 Patch release with a verifier correctness fix and a docs alignment.
