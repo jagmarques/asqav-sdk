@@ -230,9 +230,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
   // The key axes are a no-op when the key is absent; the signature axis handles that.
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
     const hashMode = isHashMode(doc);
-    // Expiry reads only the signed bytes, so it stands whether a key resolves or
-    // not. The hash-mode signed field set carries no expires_at, and reading the
-    // flat doc would gate on a field the signature does not cover.
+    // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
+    // expires_at, and reading the flat doc would gate on an uncovered field.
     const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc))]];
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);

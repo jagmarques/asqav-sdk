@@ -237,9 +237,8 @@ describe("envelope normalisation parity", () => {
 });
 
 describe("the verifier entry point publishes every axis helper", () => {
-  // A caller following the offline docs reaches these through `@asqav/sdk/verifier`.
-  // Without the subpath in the exports map the imports above still resolve in-repo
-  // while an installed package cannot see them at all.
+  // Callers reach these through `@asqav/sdk/verifier`. Drop the subpath and the
+  // in-repo imports still resolve while an installed package sees nothing.
   it("keeps the ./verifier subpath in the exports map", () => {
     const pkg = JSON.parse(
       readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"),

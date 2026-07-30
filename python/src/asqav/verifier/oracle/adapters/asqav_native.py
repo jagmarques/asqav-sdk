@@ -227,9 +227,8 @@ class AsqavNativeAdapter(FormatAdapter):
         against, so these axes weigh the key that actually signed rather than
         whatever the unsigned kid happens to name.
         """
-        # Expiry reads only the signed bytes, so it stands whether a key resolves
-        # or not. The hash-mode signed field set carries no expires_at, and reading
-        # the flat doc would gate on a field the signature does not cover.
+        # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
+        # expires_at, and reading the flat doc would gate on an uncovered field.
         signed = {} if _is_hash_mode(doc) else _payload(doc)
         axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
         jwks = key_provider or {"keys": []}

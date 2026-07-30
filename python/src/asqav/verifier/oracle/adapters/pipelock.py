@@ -192,9 +192,8 @@ class PipelockEvidenceAdapter(FormatAdapter):
 
     def chain_step(self, doc: dict) -> ChainStep:
         prev = doc.get("chain_prev_hash")
-        # Genesis: field absent OR one of the sentinel values. The isinstance guard
-        # keeps an unhashable value (list, dict) from raising out of the verifier;
-        # a non-string is a value the producer set, never an absent link.
+        # Genesis is an absent field or a sentinel. The isinstance guard keeps an
+        # unhashable value from raising, and a non-string is never an absent link.
         is_genesis = prev is None or (isinstance(prev, str) and prev in _GENESIS_SENTINELS)
         # Chain hash covers the full predecessor receipt including its signature.
         return ChainStep(
