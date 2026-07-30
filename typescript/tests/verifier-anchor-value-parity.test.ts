@@ -32,9 +32,22 @@ function axisFor(value: string): string {
 
 describe("anchor value base64 parity", () => {
   it("corpus is populated and covers non-ASCII", () => {
-    expect(VALUES.length).toBeGreaterThanOrEqual(150);
+    expect(VALUES.length).toBeGreaterThanOrEqual(900);
     const wide = VALUES.filter((c) => [...c.value].some((ch) => ch.codePointAt(0)! > 127));
-    expect(wide.length).toBeGreaterThanOrEqual(40);
+    expect(wide.length).toBeGreaterThanOrEqual(350);
+    expect(VALUES.filter((c) => c.expect.axis === "PASS").length).toBeGreaterThanOrEqual(100);
+  });
+
+  // Python's b64decode(validate=True) accepts this shape on 3.11 and raises on
+  // 3.12, so a corpus without it cannot separate the two rules
+  it("covers the surplus-padding class", () => {
+    const excess = VALUES.filter((c) => {
+      const s = c.value.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = s + "=".repeat(((-s.length % 4) + 4) % 4);
+      return /^[A-Za-z0-9+/]+={3,}$/.test(padded);
+    });
+    expect(excess.length).toBeGreaterThanOrEqual(20);
+    expect(excess.filter((c) => c.expect.axis !== "FAIL").map((c) => c.value)).toEqual([]);
   });
 
   it("has zero permissive disagreements with Python", () => {

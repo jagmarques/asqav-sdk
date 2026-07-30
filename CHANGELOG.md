@@ -5,7 +5,42 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING for hand-assembled receipts: an anchor `value` must be one unwrapped
+  base64 token.** A value carrying whitespace, including a trailing newline or MIME
+  line wrapping, reported PASS on the anchors axis and now reports FAIL. Both language
+  halves change together. This bites exactly one workflow: piping a shell base64 tool
+  into an anchor field. `openssl base64` wraps at 64 characters, GNU `base64` wraps at
+  76, and BSD `base64` appends a trailing newline, so all three produced a value that
+  the axis accepted and now refuses.
+
+  Migration is one flag: `openssl base64 -A`, or `base64 -w0` on GNU. Any value already
+  produced by the Asqav signer or the SDK is unaffected, because those encode through
+  `base64.b64encode` and its TypeScript equivalent, neither of which wraps.
+
+  The trade is deliberate. Whitespace is dropped by the same lenient decode that let a
+  forged value launder junk into real bytes, so tolerating an embedded newline in the
+  anchors axis means tolerating `MTIz NA==` and, on the same path, `QU!JD`. Anchors sit
+  outside the signed bytes, so the axis prefers a canonical value over a permissive one.
+  A `value` is a JSON string and JSON has no line-length limit, so wrapping carries no
+  benefit inside a receipt.
+
 ### Fixed
+
+- **A forged anchor value cannot report as a present anchor.** The anchors axis
+  decoded the value leniently, and a lenient base64 decode drops every character
+  outside the alphabet, so an all-punctuation value such as `!!!!` decoded to zero
+  bytes and still read as an anchor. `anchors` sits outside the signed bytes, so a
+  receipt holder picks that value freely. The axis now requires the real alphabet and
+  at least one decoded byte, in the Python verifier and in its TypeScript mirror.
+- **The anchor verdict is the same on every supported interpreter.** The alphabet and
+  padding decision lives in an explicit regex rather than in
+  `base64.b64decode(validate=True)`, whose strictness changed between CPython 3.11 and
+  3.12. Delegating to it made surplus padding such as `AAAA====` decode to real bytes
+  on 3.11 and raise on 3.12, which read as a PASS on one supported interpreter and a
+  FAIL on another. Measured across Python 3.11, 3.12 and 3.14 and the TypeScript half,
+  the 971-value corpus now answers identically in all four.
 
 - **A rewritten `signature.kid` cannot buy a PASS for a revoked key.** `kid` sits
   outside the signed payload bytes, so a receipt holder can change it without
