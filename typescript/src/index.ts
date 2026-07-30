@@ -457,7 +457,8 @@ export interface SignOptions {
   /** Optional user-intent envelope. The end user signs a digest of the
    * action and the SDK passes it through to the backend verbatim. */
   userIntent?: UserIntent;
-  /** Optional opaque nonce for replay protection. Unique per agent. */
+  /** Optional opaque per-call token. The cloud stores it and checks no re-use, so
+   * it gates no replay. Bound replay with `validSeconds` or `expiresAt`. */
   nonce?: string;
   /** Optional validity window in seconds. Sets `valid_until = signed_at + validSeconds`
    * on the server; verifying the record after expiry returns
@@ -1711,9 +1712,9 @@ export function computeCveInventoryDigest(cveList: unknown[]): string {
   return `sha256:${hex}`;
 }
 
-/** Return a 24-hex-char (12 random bytes) nonce for replay protection.
- * The cloud verifier rejects duplicate nonces per `(agent_id, action_ref)`
- * inside the validity window. */
+/** Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
+ * The cloud stores it verbatim and runs no uniqueness check, so re-sending one
+ * produces a second accepted signature. Bound replay with `validSeconds`. */
 export function generateNonce(): string {
   // Use Web Crypto (Node >=19 + browsers); avoids require("crypto") CJS shim in the .mjs bundle.
   const buf = new Uint8Array(12);
@@ -1725,8 +1726,8 @@ export function generateNonce(): string {
  * Tack the optional non-IETF wire fields (`co_signers`, `nonce`,
  * `valid_seconds`, `expected_executor_pubkey_b64`) onto the body when
  * the caller supplied them. Mutates `body` in place for parity with the
- * inline original. Auto-generates `nonce` for cloud-side replay
- * protection (NSA CSI alignment) when the caller omits one.
+ * inline original. Fills `nonce` (NSA CSI alignment) when the caller omits
+ * one. The cloud stores that value and checks no re-use.
  */
 function applyOptionalWireFields(
   body: Record<string, unknown>,
