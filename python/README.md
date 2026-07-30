@@ -189,11 +189,11 @@ cve = _compute_cve_inventory_digest([{"id": "CVE-2026-0001", "severity": "high"}
 Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment for MCP server lifecycle and tool output binding:
 
 - `result_digest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
-- `expires_at` - explicit ISO-8601 or POSIX validity horizon. Converted client-side to `valid_seconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `valid_seconds`. See <https://www.asqav.com/docs/expires-at>.
-- `nonce` - 12 random bytes auto-generated when omitted. Cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/nonce>.
+- `expires_at` - explicit ISO-8601 or POSIX validity horizon. Converted client-side to `valid_seconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `valid_seconds`. See <https://www.asqav.com/docs/time-bound-receipts>.
+- `nonce` - 12 random bytes auto-generated when omitted. Cloud rejects duplicates inside the validity window. See <https://www.asqav.com/docs/time-bound-receipts>.
 - `tool_fingerprint` - 32 bare lowercase hex chars, SHA-256[:32], over `{tool_name, schema}`, auto-derived when `tool_name` + `tool_schema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
-- `config_manifest_digest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/config-manifest-digest>.
-- `cve_inventory_digest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory-digest>.
+- `config_manifest_digest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/configuration-change-receipts>.
+- `cve_inventory_digest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory>.
 
 The `protectmcp:observation:result_bound` `receipt_type` variant carries `result_digest` and lets observation receipts bind to a specific tool result without claiming the policy gated the call.
 
