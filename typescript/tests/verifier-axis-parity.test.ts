@@ -236,6 +236,30 @@ describe("envelope normalisation parity", () => {
   });
 });
 
+describe("the verifier entry point publishes every axis helper", () => {
+  // A caller following the offline docs reaches these through `@asqav/sdk/verifier`.
+  // Without the subpath in the exports map the imports above still resolve in-repo
+  // while an installed package cannot see them at all.
+  it("keeps the ./verifier subpath in the exports map", () => {
+    const pkg = JSON.parse(
+      readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"),
+    ) as { exports: Record<string, Record<string, string>> };
+    const sub = pkg.exports["./verifier"];
+    expect(sub, "exports map dropped ./verifier").toBeDefined();
+    expect(sub.types).toBe("./dist/verifier/index.d.ts");
+    expect(sub.import).toBe("./dist/verifier/index.mjs");
+    expect(sub.require).toBe("./dist/verifier/index.js");
+  });
+
+  it("re-exports the helpers the Python standalone surface runs", async () => {
+    const entry = (await import("../src/verifier/index.js")) as Record<string, unknown>;
+    for (const name of ["normaliseEnvelope", "checkAnchors", "checkSkew", "checkExpiry"]) {
+      expect(typeof entry[name], `${name} missing from the verifier entry`).toBe("function");
+    }
+    expect(entry.SKEW_BOUND_SECONDS).toBe(300);
+  });
+});
+
 describe("nesting-depth gate parity", () => {
   it("keeps the Python cap", () => {
     expect(MAX_NESTING_DEPTH).toBe(200);
