@@ -76,6 +76,57 @@ if (result.verdict !== "PASS") {
 }
 ```
 
+## Anchor binding and clock skew
+
+`verify_receipt_offline` / `verifyReceiptOffline` cover structure, signature and the
+hash chain. Two further axes are checked on request in both languages: anchor binding,
+and `issued_at` within 300 seconds of the wall clock. `anchors` sits outside the signed
+bytes, so that axis is the one an altered envelope can move without breaking the
+signature.
+
+Normalise the envelope first. The Python standalone verifier does it before any axis
+runs, and an envelope that skips it digests different bytes.
+
+Python:
+
+```python
+from asqav.verifier.verify_receipt import check_anchors, check_skew, normalise_envelope
+
+env = normalise_envelope(receipt)
+print(check_anchors(env))                         # ("PASS"|"FAIL"|"SKIPPED", note)
+print(check_skew(env["payload"]["issued_at"]))
+```
+
+TypeScript:
+
+```typescript
+import { checkAnchors, checkSkew, normaliseEnvelope } from "@asqav/sdk/verifier";
+
+const env = normaliseEnvelope(receipt);
+console.log(checkAnchors(env));                   // ["PASS"|"FAIL"|"SKIPPED", note]
+console.log(checkSkew(env.payload.issued_at));
+```
+
+An absent or empty `anchors` reports SKIPPED, a present non-list value FAILs, and an
+anchor whose `value` is missing or not decodable FAILs. `verifier/axis-parity-cases.json`
+and `verifier/anchor-value-cases.json` pin the cases both languages answer alike, and
+both suites assert them.
+
+### Where the two halves are not identical
+
+Measured rather than asserted, over a 198-value anchor corpus and a 134-stamp corpus:
+
+| Axis | Agreement | Residual |
+|---|---|---|
+| anchors, per value | 198 of 198 | none |
+| skew, per stamp | 121 of 134 | 13 stamps, all ones TypeScript refuses and Python accepts |
+
+Every residual runs in the direction where TypeScript is the stricter half, so a value
+one language treats as valid is never read as valid by the other and then trusted. The
+13 are the ISO 8601 basic forms (`20200101T000000`), the week date (`2020-W01-1`), and
+the comma decimal separator, which `datetime.fromisoformat` reads from CPython 3.11 on.
+Emit the extended form (`2026-06-19T00:00:00+00:00`) and both halves agree exactly.
+
 ## JWKS endpoint
 
 ```
