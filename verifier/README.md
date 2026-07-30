@@ -84,6 +84,14 @@ It does **not** perform the full RFC3161 certificate-chain walk or
 `policy_digest` artefact resolution; both need server state or ASN.1. For those,
 use the hosted `/verify` endpoint or the full Asqav SDK.
 
+## The same axes from TypeScript
+
+This file is Python. The TypeScript SDK reaches the same axes through
+`@asqav/sdk/verifier`, which exports `normaliseEnvelope`, `checkAnchors` and
+`checkSkew` alongside `verify`. `docs/offline-verification.md` carries the paired
+snippets and the measured list of stamp spellings the two halves read differently.
+There is no single-file TypeScript download equivalent to this script.
+
 ## Exit codes
 
 - `0` - PASS (every non-skipped axis passed, signature verified)
