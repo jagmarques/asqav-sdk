@@ -215,6 +215,11 @@ def test_offline_forged_anchor_revoked_key_verdict_not_pass():
 # --- oracle adapter path ---
 
 
+def _axis(axes, name):
+    """Read one axis by name; position shifts as the adapter grows axes."""
+    return next(a for a in axes if a[0] == name)
+
+
 def test_oracle_revoked_key_axis_fails():
     """The asqav-native adapter surfaces a failing key_status axis for a revoked key."""
     doc = {
@@ -223,8 +228,8 @@ def test_oracle_revoked_key_axis_fails():
         "anchors": [],
     }
     ad = AsqavNativeAdapter()
-    axes = ad.extra_axes(doc, _jwks("revoked"))
-    assert ("key_status", "FAIL", axes[0][2]) == axes[0]
+    status = _axis(ad.extra_axes(doc, _jwks("revoked")), "key_status")
+    assert status[1] == "FAIL", status
 
 
 def test_oracle_active_key_axis_passes():
@@ -234,8 +239,8 @@ def test_oracle_active_key_axis_passes():
         "anchors": [],
     }
     ad = AsqavNativeAdapter()
-    axes = ad.extra_axes(doc, _jwks("active"))
-    assert axes[0][1] == "PASS"
+    status = _axis(ad.extra_axes(doc, _jwks("active")), "key_status")
+    assert status[1] == "PASS", status
 
 
 def test_oracle_forged_anchor_revoked_key_axis_skipped():
@@ -247,4 +252,5 @@ def test_oracle_forged_anchor_revoked_key_axis_skipped():
     }
     ad = AsqavNativeAdapter()
     axes = ad.extra_axes(doc, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"))
-    assert axes[0][1] == "SKIPPED", f"forged anchor upgraded axis to {axes[0][1]!r}"
+    status = _axis(axes, "key_status")
+    assert status[1] == "SKIPPED", f"forged anchor upgraded axis to {status[1]!r}"

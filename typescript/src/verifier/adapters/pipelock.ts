@@ -160,11 +160,12 @@ export class PipelockEvidenceAdapter extends FormatAdapter {
   }
 
   chainStep(doc: Record<string, unknown>): ChainStep {
-    const prev = doc["chain_prev_hash"];
-    const prevStr = typeof prev === "string" ? prev : null;
-    const isGenesis = prevStr === null || GENESIS_SENTINELS.has(prevStr);
+    const prev = doc["chain_prev_hash"] ?? null;
+    // A non-string chain_prev_hash is a value the producer set, not an absent
+    // link, so it is carried through and never laundered into a genesis PASS.
+    const isGenesis = prev === null || (typeof prev === "string" && GENESIS_SENTINELS.has(prev));
     return {
-      prevField: prevStr,
+      prevField: prev,
       isGenesis,
       recompute: (pred) => "sha256:" + fullReceiptHash(pred),
     };

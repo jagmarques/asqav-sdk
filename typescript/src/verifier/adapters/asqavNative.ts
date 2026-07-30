@@ -30,6 +30,7 @@ import { isLowerHex } from "./acta.js";
 import {
   FIRST_RECEIPT_SEED,
   b64decode,
+  checkExpiry,
   checkIssuerBinding,
   checkKeyStatus,
   checkOrgBinding,
@@ -225,13 +226,16 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return checkStructure(payloadOf(doc));
   }
 
-  // Gate on signing key revocation status and its issuer (mirrors Python extra_axes).
-  // No-op when key is absent; the signature axis already handles that.
+  // Gate on expiry, signing key revocation status, and its issuer (mirrors Python extra_axes).
+  // The key axes are a no-op when the key is absent; the signature axis handles that.
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
+    const hashMode = isHashMode(doc);
+    // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
+    // expires_at, and reading the flat doc would gate on an uncovered field.
+    const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc))]];
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);
-    if (entry === null) return [];
-    const hashMode = isHashMode(doc);
+    if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.
     const issuedAt = hashMode
@@ -247,6 +251,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
       ? checkOrgBinding(keyIssuer, keyOrgOf(entry), doc.org_id)
       : checkIssuerBinding(keyIssuer, payloadOf(doc).issuer_id);
     return [
+      ...axes,
       ["key_status", res, note],
       ["issuer_bind", bindRes, bindNote],
     ];

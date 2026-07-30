@@ -286,6 +286,16 @@ function pyStr(v: unknown): string {
   return String(v);
 }
 
+// Python's repr, for notes read side by side with the Python half's output.
+// Strings carry single quotes there, so JSON.stringify would print a different note.
+function pyRepr(v: unknown): string {
+  if (typeof v !== "string") return pyStr(v);
+  const body = v.replace(/\\/g, "\\\\");
+  // Python switches to double quotes when the text holds a single quote and no double.
+  if (body.includes("'") && !body.includes('"')) return `"${body}"`;
+  return `'${body.replace(/'/g, "\\'")}'`;
+}
+
 // Python names the type in the malformed-value notes, so mirror those names.
 function pyTypeName(v: unknown): string {
   if (v === null || v === undefined) return "NoneType";
@@ -371,6 +381,29 @@ export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
     return ["FAIL", `issued_at ${skew.toFixed(0)}s ahead of wall clock (> ${SKEW_BOUND_SECONDS}s)`];
   }
   return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
+}
+
+/**
+ * Refuse a receipt past the expiry its own signer committed to (mirrors `check_expiry`).
+ *
+ * Mirrors the hosted signature_expired verdict. The window is read from inside
+ * the signed bytes, so an unsigned envelope field can never move it, and an
+ * unreadable value fails closed instead of reading as no window at all.
+ */
+export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
+  if (!isRecord(payload) || !("expires_at" in payload)) {
+    return ["PASS", "receipt declares no expiry"];
+  }
+  const raw = payload.expires_at;
+  const ms = parseIsoMs(raw);
+  if (ms === null) {
+    return ["FAIL", `unreadable expires_at ${pyRepr(raw)}; refused rather than read as no expiry`];
+  }
+  const delta = (ms - Date.now()) / 1000;
+  if (delta < 0) {
+    return ["FAIL", `expires_at ${pyStr(raw)} lapsed ${(-delta).toFixed(0)}s ago`];
+  }
+  return ["PASS", `expires_at ${pyStr(raw)} is ${delta.toFixed(0)}s ahead`];
 }
 
 /**
