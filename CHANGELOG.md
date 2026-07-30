@@ -7,13 +7,24 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Changed
 
-- **An anchor `value` must be one unwrapped base64 token.** The anchors axis reads a
-  value as present only when it matches the base64 alphabet and carries at least one
-  byte. Surrounding and embedded whitespace is refused, so MIME line-wrapped base64,
-  which `base64` and `openssl base64` emit by default, does not read as an anchor.
-  Emit the unwrapped form (`base64 -w0`, or `openssl base64 -A`). Tolerating an
-  embedded newline is the same laundering channel that lets `MTIz NA==` through, so
-  the two cannot be separated. Both language halves refuse it alike.
+- **BREAKING for hand-assembled receipts: an anchor `value` must be one unwrapped
+  base64 token.** A value carrying whitespace, including a trailing newline or MIME
+  line wrapping, reported PASS on the anchors axis and now reports FAIL. Both language
+  halves change together. This bites exactly one workflow: piping a shell base64 tool
+  into an anchor field. `openssl base64` wraps at 64 characters, GNU `base64` wraps at
+  76, and BSD `base64` appends a trailing newline, so all three produced a value that
+  the axis accepted and now refuses.
+
+  Migration is one flag: `openssl base64 -A`, or `base64 -w0` on GNU. Any value already
+  produced by the Asqav signer or the SDK is unaffected, because those encode through
+  `base64.b64encode` and its TypeScript equivalent, neither of which wraps.
+
+  The trade is deliberate. Whitespace is dropped by the same lenient decode that let a
+  forged value launder junk into real bytes, so tolerating an embedded newline in the
+  anchors axis means tolerating `MTIz NA==` and, on the same path, `QU!JD`. Anchors sit
+  outside the signed bytes, so the axis prefers a canonical value over a permissive one.
+  A `value` is a JSON string and JSON has no line-length limit, so wrapping carries no
+  benefit inside a receipt.
 
 ### Fixed
 

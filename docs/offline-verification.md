@@ -114,10 +114,12 @@ value carrying no bytes never reads as an anchor. `verifier/axis-parity-cases.js
 and `verifier/anchor-value-cases.json` pin the cases both languages answer alike, and
 both suites assert them.
 
-An anchor value is one unwrapped base64 token. Surrounding or embedded whitespace is
-refused, so MIME line-wrapped base64 of the kind `base64` and `openssl base64` emit by
-default does not read as an anchor. Pass the unwrapped form (`base64 -w0`, or
-`openssl base64 -A`).
+An anchor value is one unwrapped base64 token. Whitespace is refused, including a
+trailing newline and MIME line wrapping, so a value piped from a shell base64 tool
+reports FAIL. `openssl base64` wraps at 64 characters, GNU `base64` wraps at 76, and
+BSD `base64` appends a trailing newline. Pass the unwrapped form instead
+(`openssl base64 -A`, or `base64 -w0` on GNU). Values the Asqav signer and the SDK
+produce are unaffected, since neither wraps.
 
 ### Where the two halves are not identical
 
