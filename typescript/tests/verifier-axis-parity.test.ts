@@ -1,8 +1,8 @@
 /**
- * Anchor-binding, clock-skew, and nesting-depth parity, TypeScript half.
+ * Anchor-binding, clock-skew, signed-expiry, and nesting-depth parity, TypeScript half.
  *
  * One JSON table drives both verifiers, pinned to the output of the Python
- * `check_anchors` / `check_skew`. The Python half lives in
+ * `check_anchors` / `check_skew` / `check_expiry`. The Python half lives in
  * python/tests/test_axis_parity_cases.py and reads the same file.
  */
 
@@ -15,6 +15,7 @@ import { verifyReceiptOffline } from "../src/index.js";
 // a caller following the docs reaches every piece the Python surface exposes.
 import {
   checkAnchors,
+  checkExpiry,
   checkSkew,
   envelopeMinusAnchorsJcs,
   MAX_NESTING_DEPTH,
@@ -41,12 +42,35 @@ interface NormaliseCase {
   expect: { digest: string; anchors_axis: string };
 }
 
+interface ExpiryCase {
+  name: string;
+  payload: Record<string, unknown>;
+  expect: { result: string; note_contains: string };
+}
+
+interface ChainPrevCase {
+  name: string;
+  value?: unknown;
+  omit?: boolean;
+  expect: { verdict: string; chain: string; signature: string };
+}
+
 const CASES_FILE = resolve(__dirname, "..", "..", "verifier", "axis-parity-cases.json");
 const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf-8")) as {
   anchors: AnchorCase[];
   skew: SkewCase[];
   normalise: NormaliseCase[];
+  expiry: ExpiryCase[];
+  chain_prev_hash: ChainPrevCase[];
 };
+
+const PIPELOCK_VECTOR = resolve(
+  __dirname, "..", "..", "verifier", "conformance-vectors", "pipelock-ev2-01-proxy-decision",
+);
+
+function loadVector(file: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(resolve(PIPELOCK_VECTOR, file), "utf-8")) as Record<string, unknown>;
+}
 
 /** A receipt whose only defect is `depth` levels of nesting outside the signed payload. */
 function nestedReceipt(depth: number): Record<string, unknown> {
@@ -116,6 +140,76 @@ describe("clock-skew axis parity", () => {
   it("rejects a non-string stamp", () => {
     expect(checkSkew(undefined)[0]).toBe("FAIL");
     expect(checkSkew(1700000000)[0]).toBe("FAIL");
+  });
+});
+
+describe("signed-expiry axis parity", () => {
+  it("is populated in both directions", () => {
+    expect(TABLE.expiry.length).toBeGreaterThanOrEqual(15);
+    // A table of only-PASS or only-FAIL cases cannot tell a working axis from a
+    // stuck one, so both directions have to be present.
+    expect(new Set(TABLE.expiry.map((c) => c.expect.result))).toEqual(new Set(["PASS", "FAIL"]));
+  });
+
+  for (const c of TABLE.expiry) {
+    it(c.name, () => {
+      const [result, note] = checkExpiry(c.payload);
+      expect(result, `${c.name}: note ${note}`).toBe(c.expect.result);
+      expect(note, c.name).toContain(c.expect.note_contains);
+    });
+  }
+
+  it("never PASSes a stamp the Python table refuses", () => {
+    const permissive = TABLE.expiry
+      .filter((c) => c.expect.result === "FAIL" && checkExpiry(c.payload)[0] === "PASS")
+      .map((c) => c.name);
+    expect(permissive, `TS accepts these where Python refuses: ${permissive.join(", ")}`).toEqual([]);
+  });
+
+  it("reads only the signed bytes", () => {
+    // anchors and the envelope keys are unsigned, so an expires_at beside the
+    // payload must not move a lapsed receipt's window.
+    const signed = { expires_at: "2020-01-01T00:00:00Z" };
+    expect(checkExpiry(signed)[0]).toBe("FAIL");
+    const raw = { payload: { ...signed }, signature: "AAAA", expires_at: "2099-01-01T00:00:00Z" };
+    const env = normaliseEnvelope(raw);
+    expect(checkExpiry(env.payload)[0]).toBe("FAIL");
+    expect(checkExpiry(env)[0]).toBe("PASS");
+  });
+});
+
+describe("pipelock chain_prev_hash parity", () => {
+  it("carries both a genesis PASS and a non-genesis SKIPPED", () => {
+    const chains = new Set(TABLE.chain_prev_hash.map((c) => c.expect.chain));
+    expect(chains).toEqual(new Set(["PASS", "SKIPPED"]));
+  });
+
+  for (const c of TABLE.chain_prev_hash) {
+    it(c.name, () => {
+      const doc = loadVector("receipt.json");
+      if (c.omit) delete doc.chain_prev_hash;
+      else if ("value" in c) doc.chain_prev_hash = c.value;
+      const result = verifyReceiptOffline(doc, loadVector("keys.json"));
+      const axes = Object.fromEntries(result.axes.map((a) => [a.axis, a.result]));
+      expect(result.verdict, `${c.name}: ${JSON.stringify(axes)}`).toBe(c.expect.verdict);
+      expect(axes.chain, c.name).toBe(c.expect.chain);
+      expect(axes.signature, c.name).toBe(c.expect.signature);
+    });
+  }
+
+  it("never reads a producer-set value as an absent link", () => {
+    // A non-string chain_prev_hash narrowed to null would read as genesis and
+    // PASS the chain axis on a receipt Python leaves unchecked.
+    const laundered = TABLE.chain_prev_hash
+      .filter((c) => c.expect.chain === "SKIPPED")
+      .filter((c) => {
+        const doc = loadVector("receipt.json");
+        doc.chain_prev_hash = c.value;
+        const r = verifyReceiptOffline(doc, loadVector("keys.json"));
+        return r.axes.find((a) => a.axis === "chain")?.result === "PASS";
+      })
+      .map((c) => c.name);
+    expect(laundered, `TS reads these as genesis where Python does not: ${laundered.join(", ")}`).toEqual([]);
   });
 });
 

@@ -12,6 +12,7 @@
  *   - `ADAPTERS`      : ordered registry the dispatcher walks for detection.
  *   - `verify`        : verify one parsed receipt; returns a `VerifyResult`.
  *   - `checkAnchors` / `checkSkew` : the two axes the oracle leaves out.
+ *   - `checkExpiry`   : the signed expires_at window, mirroring the hosted verdict.
  *   - canonicalisers, crypto, and the conformance runner.
  */
 
@@ -55,6 +56,7 @@ export type { AxisResult, Verdict, VerifyResult } from "./core.js";
 // first, and a caller who skips it digests different bytes.
 export {
   checkAnchors,
+  checkExpiry,
   checkSkew,
   envelopeMinusAnchorsJcs,
   normaliseEnvelope,

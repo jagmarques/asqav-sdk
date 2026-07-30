@@ -108,16 +108,22 @@ def test_active_key_passes_the_status_axis_through_the_agent_route() -> None:
     assert axes["issuer_bind"] == "PASS"
 
 
-def test_no_key_at_all_emits_no_axis() -> None:
+#: Axes that only exist once a key resolves; expiry reads the signed bytes alone.
+KEY_AXES = {"key_status", "issuer_bind"}
+
+
+def test_no_key_at_all_emits_no_key_axis() -> None:
     """With nothing resolvable the signature axis carries the verdict on its own."""
-    assert _axes(_receipt(ABSENT_KID), {"keys": []}) == {}
+    axes = _axes(_receipt(ABSENT_KID), {"keys": []})
+    assert KEY_AXES.isdisjoint(axes), axes
 
 
 def test_agent_route_needs_the_claimed_issuer_to_match() -> None:
     """agent_id is attacker-controlled, so the issuer bind still gates the match."""
     jwks = _jwks()
     jwks["keys"][0]["issuer_id"] = "some-other-entity"
-    assert _axes(_receipt(ABSENT_KID), jwks) == {}
+    axes = _axes(_receipt(ABSENT_KID), jwks)
+    assert KEY_AXES.isdisjoint(axes), axes
 
 
 # --- the shared entry is the one the signature verifies against ---
@@ -129,7 +135,8 @@ def test_resolve_key_and_extra_axes_resolve_the_same_entry() -> None:
     doc, jwks = _receipt(ABSENT_KID), _jwks()
     pk, note = ad.resolve_key(doc, jwks)
     assert pk is not None, note
-    assert ad.extra_axes(doc, jwks) != []
+    emitted = {name for name, _, _ in ad.extra_axes(doc, jwks)}
+    assert KEY_AXES <= emitted, emitted
 
 
 def test_match_signing_key_prefers_the_kid_entry() -> None:

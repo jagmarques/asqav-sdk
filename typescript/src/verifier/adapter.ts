@@ -22,9 +22,11 @@ export interface SignatureMaterial {
 export interface ChainStep {
   /**
    * The value of the format's previous-hash field, or null when the format omits
-   * it on genesis (AERF) - distinct from an explicit-null genesis.
+   * it on genesis (AERF) - distinct from an explicit-null genesis. Typed unknown
+   * because the wire value is producer-set: a non-string must reach the chain
+   * axis as-is rather than be narrowed into an absent link.
    */
-  prevField: string | null;
+  prevField: unknown;
   /** True when this receipt declares itself first on its chain. */
   isGenesis: boolean;
   /** Recompute the predecessor's chain digest (encodes which bytes the format hashes). */
