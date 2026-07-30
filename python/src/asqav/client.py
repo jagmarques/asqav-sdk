@@ -1434,10 +1434,12 @@ def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
 
 
 def _generate_nonce() -> str:
-    """Return a 24-hex-char (12 random bytes) nonce for replay protection.
+    """Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
 
-    The cloud verifier rejects duplicate nonces per `(agent_id, action_ref)`
-    inside the validity window.
+    The cloud stores the value verbatim and runs no uniqueness check, so
+    re-sending one produces a second accepted signature. The enforced
+    control is the validity window (`valid_seconds` / `expires_at`), which
+    makes verify return `signature_expired` once it passes.
     """
     import secrets as _secrets
 
@@ -1829,6 +1831,13 @@ class Agent:
                 raises ``expiry_collision_guard``. Passing neither falls
                 back to the server-side default
                 (``valid_seconds=86400``).
+            nonce: Opaque per-call token, 24 hex chars auto-generated when
+                omitted. The cloud stores it verbatim and runs no
+                uniqueness check, so re-sending the same value produces a
+                second accepted signature and a caller leaning on it for
+                replay protection has none. The enforced control is the
+                validity window: pass ``valid_seconds`` or ``expires_at``
+                and verify returns ``signature_expired`` once it passes.
             tool_schema: Optional JSON schema describing the tool surface.
                 When provided alongside ``tool_name`` and
                 ``tool_fingerprint`` is omitted, the SDK computes the
@@ -2181,7 +2190,7 @@ class Agent:
         if tool_fingerprint is None and tool_name is not None and tool_schema is not None:
             tool_fingerprint = _compute_tool_fingerprint(tool_name, tool_schema)
 
-        # Auto-generate 24-hex nonce when caller omits; cloud rejects duplicates in-window.
+        # Fill the nonce wire field when omitted. The cloud stores it with no re-use check.
         if nonce is None:
             nonce = _generate_nonce()
 
@@ -2255,7 +2264,7 @@ class Agent:
         # and builds the signed authorized_under_mandate attestation server-side.
         if mandate_id is not None:
             body["mandate_id"] = mandate_id
-        # Replay protection.
+        # Opaque caller token. The cloud stores it and checks no re-use.
         if nonce is not None:
             body["nonce"] = nonce
         if valid_seconds is not None:
