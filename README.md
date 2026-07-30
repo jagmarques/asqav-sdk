@@ -402,8 +402,17 @@ the [Elastic License 2.0](LICENSE) (ELv2). ELv2 allows free use, modification, a
 distribution but restricts offering the SDK as a hosted or managed service.
 
 Version 0.8.0 and all versions published before it remain under the MIT license
-irrevocably. The conformance test vectors in `conformance/` are Apache-2.0
-licensed; see [conformance/LICENSE](conformance/LICENSE) for details.
+irrevocably.
+
+Two parts of this repo carry an Apache-2.0 exception to that default:
+
+- The conformance test vectors in `conformance/`. See
+  [conformance/LICENSE](conformance/LICENSE).
+- The standalone offline verifier,
+  [`python/src/asqav/verifier/verify_receipt.py`](python/src/asqav/verifier/verify_receipt.py),
+  which carries an `SPDX-License-Identifier: Apache-2.0` header. It ships inside the
+  exit artifact, so a customer keeps a permanently free, dependency-light tool for
+  checking their receipts offline after Asqav is gone.
 
 ---
 
