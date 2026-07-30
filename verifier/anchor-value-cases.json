@@ -1,203 +1,6018 @@
 {
- "note": "Anchor value corpus for the base64 tolerance inside the anchors axis. Expectations are the output of the Python _safe_b64 in python/src/asqav/verifier/verify_receipt.py. Both suites assert every value, and the TypeScript half additionally asserts that no disagreement is permissive: a value Python refuses must never read as base64-ok, since the anchors field is unsigned and attacker-steerable.",
- "values": [
-  {"value":"","expect":{"safe_b64":true,"axis":"FAIL"}},
-  {"value":"a","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"ab","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"abc","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"abcd","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"abcde","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"!!!!","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"  ","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\n","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\t","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"=","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"==","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"===","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"====","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"MTIzNA==","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"MTIzNA=","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"MTIzNA","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"YWJjZA==","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"-_-_","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"+/+/","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"a=bc","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"ab=c","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"a!bc","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"a\nb","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"sha256:abc","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"A","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"AA","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"AAA","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"AAAA","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"AAAAA","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"xxxxxxxxx","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u4e2d\u6587","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\ud83d\ude00","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u00a0","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u00e1bc","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MTIzNA==\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u00e9MTIzNA==","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MTI\u200bzNA==","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"e\u0301","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MTIzNA==\u2014","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u0416","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u65e5\u672c\u8a9e\u30c6\u30b9\u30c8","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MTIzNA==\n","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\u00a0MTIzNA==","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MTIzNA\u00a0==","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"caf\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"na\u00efve","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MT\u0301IzNA==","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\ud83d\udd12\ud83d\udd12\ud83d\udd12\ud83d\udd12","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"MTIzNA==\ud83d\ude00","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"a\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u00e9a","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"aa\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"aaa\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Lkc:N2W!Tq\\yI4","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"%6d","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"k","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"/1c_^\"3ThAe","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"V[w%B'U.V","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"K[O,k8w|9","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"5{(uxw@P{","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"=z;okm2e.J,J:","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"nVK N","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"6\nBHtn%p?/EQ s","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"`:mXv5eh^1YcuC","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"bC'h@4`lSc","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"W+yejH7\nz~6L","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"ln\t","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":")v< \tEGm","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"vb4R[1","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"v$<0i<&`E L20","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\t$\ng","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Knd^rQ\t\"3Fv[k","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\t< oE","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\t85|IaRWds`ZA}","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":")5","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"2k1>J9*< \\\t","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"!@","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"HlCh","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"/Wc{6#0L}O0SM","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"RuXf","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"]9~\nG@","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"<lXB","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Hs-Vo%7pJ.4aeH","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"oF.&8f0kJzU.","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"%l","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"'_","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"${ULk%","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":">)#vfp`xcr$}r\"","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"8?L.","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"gf#:nPdrSluB","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"2O~","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"C@:3[U@)C","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\t'N6[&qTWNf","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"YS\\A)@u","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"O02","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"'28u:","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"1UFOe]L5wZV,/c","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"%^2#x4y[","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"3i6aY&WGh'e1","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"S']?]I","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"vs#i~:_7 ~p","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"i28}s(Np%c~=#A","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"(zSNI?K3","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"  LR'cC","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"].\tti<r]o>NG","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":";","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"e\\9^e_HI ,1&","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"az'[\"{j[qw","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"B+h'[sHa*Xf.,","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"f&crsb","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"(;_\t1","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"/k6PK]|$evANo","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"ur","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":";]o$2~-zv={@(","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"*AiI[*m;|","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"~qo_3TiA{-WQ","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"m|FsV^26Bu\t\n","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"FQe.:mq'ti\tV","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"ee5guHS'A7","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"{RMl29nZ@]W","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"(\"cw.)","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"d","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Q<sn\"])^QY&>s","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"Mq!J= ","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"&%.%^_Z{'","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"*I","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\\R\"tbR","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"M\nk+9S|g0]~k","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"woc$","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"DU2F#l^!<","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"GzB}","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"@s","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\"P`\"0RV","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"C:2`g`WO","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"'oihqoxo3","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"qTvm","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"]:\u0416\u00fc0\u0301","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":".\u0416jPj\u00f1\u672c","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"lG\u8a9ed\\\u04166","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Xj\t","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"C$\ud83d\udd12a","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"_\ud83d\udd12\u00fc\ud83d\ude00S","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\ud83d\udd12ZD0\u00fca\u672c","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":" U","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"539b:","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\ud83d\ude00vT\u8a9e","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Yk\u672c2","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"fa","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"`j\u0416","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":")\u0419\ud83d\ude00u5 p","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"byp","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"Bv/J","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\u0416\u4e2d","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u0301\ud83d\udd12\u0419ll","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"b(\u0416","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"a\u0416\u65879^i[\u00fc","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\ud83d\udd12\"w","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":",^%:","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\ud83d\udd129io","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":")\u4e2d","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u672c4x\u00e9O5Z","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"C\u672cx\u00e9\u2014n\u8a9e","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"t\u00fcy\u00f15","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"}","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"\u6587\u00e0p","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Q0}NJ","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"`\u8a9eO","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"glX\u65e5\u200b7\u0416","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"|L\u00f1h","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"W5\u8a9e\u00e0\u672c\u00e0tz","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":">\u00a0\ud83d\udd12{v6&P","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"[Xe?\u2014","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":";+ZxQjm`","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"5s","expect":{"safe_b64":true,"axis":"PASS"}},
-  {"value":"Y\u00e9","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"}7","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"D/\"[G\u0301","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u4e2dM$ ","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"^\ud83d\udd12","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"U\u0301\u65e5\u0416","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u2014XT\u6587\u00f1","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"$T\u00f1d\u672cFx","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"a*","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"f\u0301G","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"}\u00fc%\u2014<\u00e9_>","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u00f1M\ud83d\udd12&","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"7HD\u672cK?e","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\u8a9e\u00e0tPf\u00fc ","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"8\u0301","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"M","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"\\D\u04167\u672c","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"D\u03018\ud83d\ude00\u00a0","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"bW\u4e2d\\\u0301tu6","expect":{"safe_b64":false,"axis":"FAIL"}},
-  {"value":"Ks?\ud83d\ude00lD@","expect":{"safe_b64":false,"axis":"FAIL"}}
- ]
+  "note": "Anchor value corpus for the base64 tolerance inside the anchors axis. Expectations are the output of the Python _safe_b64 in python/src/asqav/verifier/verify_receipt.py, which accepts a value only when it is genuinely base64 and decodes to at least one byte. Both suites assert every value, and the TypeScript half additionally asserts that no disagreement is permissive: a value Python refuses must never read as base64-ok, since the anchors field is unsigned and attacker-steerable. A JSON string admits every codepoint, so the corpus sweeps Unicode rather than ASCII alone.",
+  "values": [
+    {
+      "value": "",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "ab",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "abc",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "abcd",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "abcde",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!!!!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "  ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "===",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "====",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "MTIzNA=",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "MTIzNA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "YWJjZA==",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "-_-_",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "+/+/",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "a=bc",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "ab=c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a!bc",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a\nb",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "sha256:abc",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "A",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "xxxxxxxxx",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u4e2d\u6587",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\ude00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00a0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00e1bc",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00e9MTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTI\u200bzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "e\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\u2014",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u65e5\u672c\u8a9e\u30c6\u30b9\u30c8",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00a0MTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA\u00a0==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "caf\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "na\u00efve",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MT\u0301IzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\udd12\ud83d\udd12\ud83d\udd12\ud83d\udd12",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\ud83d\ude00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00e9a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "aa\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "aaa\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Lkc:N2W!Tq\\yI4",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%6d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "k",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "/1c_^\"3ThAe",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "V[w%B'U.V",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "K[O,k8w|9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "5{(uxw@P{",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=z;okm2e.J,J:",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "nVK N",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "6\nBHtn%p?/EQ s",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "`:mXv5eh^1YcuC",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "bC'h@4`lSc",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "W+yejH7\nz~6L",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "ln\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ")v< \tEGm",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "vb4R[1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "v$<0i<&`E L20",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\t$\ng",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Knd^rQ\t\"3Fv[k",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\t< oE",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\t85|IaRWds`ZA}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ")5",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "2k1>J9*< \\\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "HlCh",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "/Wc{6#0L}O0SM",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "RuXf",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "]9~\nG@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<lXB",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Hs-Vo%7pJ.4aeH",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "oF.&8f0kJzU.",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%l",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "'_",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "${ULk%",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">)#vfp`xcr$}r\"",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "8?L.",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "gf#:nPdrSluB",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "2O~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "C@:3[U@)C",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\t'N6[&qTWNf",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YS\\A)@u",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "O02",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "'28u:",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "1UFOe]L5wZV,/c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%^2#x4y[",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "3i6aY&WGh'e1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "S']?]I",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "vs#i~:_7 ~p",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "i28}s(Np%c~=#A",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "(zSNI?K3",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "  LR'cC",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "].\tti<r]o>NG",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "e\\9^e_HI ,1&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "az'[\"{j[qw",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "B+h'[sHa*Xf.,",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "f&crsb",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "(;_\t1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "/k6PK]|$evANo",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "ur",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": ";]o$2~-zv={@(",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "*AiI[*m;|",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~qo_3TiA{-WQ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "m|FsV^26Bu\t\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "FQe.:mq'ti\tV",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "ee5guHS'A7",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "{RMl29nZ@]W",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "(\"cw.)",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Q<sn\"])^QY&>s",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Mq!J= ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "&%.%^_Z{'",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "*I",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\R\"tbR",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "M\nk+9S|g0]~k",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "woc$",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "DU2F#l^!<",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "GzB}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@s",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\"P`\"0RV",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "C:2`g`WO",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "'oihqoxo3",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "qTvm",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "]:\u0416\u00fc0\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ".\u0416jPj\u00f1\u672c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "lG\u8a9ed\\\u04166",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Xj\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "C$\ud83d\udd12a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "_\ud83d\udd12\u00fc\ud83d\ude00S",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\udd12ZD0\u00fca\u672c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": " U",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "539b:",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\ude00vT\u8a9e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Yk\u672c2",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "fa",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "`j\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ")\u0419\ud83d\ude00u5 p",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "byp",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "Bv/J",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\u0416\u4e2d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0301\ud83d\udd12\u0419ll",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "b(\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a\u0416\u65879^i[\u00fc",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\udd12\"w",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ",^%:",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\udd129io",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ")\u4e2d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u672c4x\u00e9O5Z",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "C\u672cx\u00e9\u2014n\u8a9e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "t\u00fcy\u00f15",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u6587\u00e0p",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Q0}NJ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "`\u8a9eO",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "glX\u65e5\u200b7\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "|L\u00f1h",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "W5\u8a9e\u00e0\u672c\u00e0tz",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">\u00a0\ud83d\udd12{v6&P",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[Xe?\u2014",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";+ZxQjm`",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "5s",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "Y\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}7",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "D/\"[G\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u4e2dM$ ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "^\ud83d\udd12",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "U\u0301\u65e5\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2014XT\u6587\u00f1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "$T\u00f1d\u672cFx",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a*",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "f\u0301G",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}\u00fc%\u2014<\u00e9_>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00f1M\ud83d\udd12&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "7HD\u672cK?e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u8a9e\u00e0tPf\u00fc ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "8\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "M",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\D\u04167\u672c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "D\u03018\ud83d\ude00\u00a0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "bW\u4e2d\\\u0301tu6",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Ks?\ud83d\ude00lD@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!!!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!!!!!!!!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\"",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\"\"",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\"\"\"",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\"\"\"\"",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\"\"\"\"\"\"\"\"",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "#",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "##",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "###",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "####",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "########",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "$",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "$$",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "$$$",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "$$$$",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "$$$$$$$$",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%%",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%%%",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%%%%",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%%%%%%%%",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "&&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "&&&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "&&&&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "&&&&&&&&",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "'",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "''",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "'''",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "''''",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "''''''''",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "(",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "((",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "(((",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "((((",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "((((((((",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ")",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "))",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ")))",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "))))",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "))))))))",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "*",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "**",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "***",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "****",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "********",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ",",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ",,",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ",,,",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ",,,,",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ",,,,,,,,",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "-",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "--",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "---",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "----",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "--------",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": ".",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "..",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "...",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "....",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "........",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ":",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "::",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ":::",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "::::",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "::::::::",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";;",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";;;",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";;;;",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";;;;;;;;",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<<",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<<<",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<<<<",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<<<<<<<<",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">>>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">>>>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ">>>>>>>>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "?",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "??",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "???",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "????",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "????????",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@@@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@@@@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@@@@@@@@",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[[",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[[[",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[[[[",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[[[[[[[[",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\\\",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\\\\\",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\\\\\\\",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\\\\\\\\\\\\\\\",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "]",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "]]",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "]]]",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "]]]]",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "]]]]]]]]",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "^",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "^^",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "^^^",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "^^^^",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "^^^^^^^^",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "_",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "__",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "___",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "____",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "________",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "`",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "``",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "```",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "````",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "````````",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "{",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "{{",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "{{{",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "{{{{",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "{{{{{{{{",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "|",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "||",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "|||",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "||||",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "||||||||",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}}}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}}}}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}}}}}}}}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~~~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~~~~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~~~~~~~~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=====",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "======",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=======",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "========",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=A",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "A=A",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA=A",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAA=A",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "=YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "YQ==!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ!==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA!AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==!!!!",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!!!!YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ!!!!==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA!!!!AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ== ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": " YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\nYQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ\n==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\nAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\tYQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ\t==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\tAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==<script>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "<script>YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ<script>==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA<script>AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==\u0000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0000YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ\u0000==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0000AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==\u007f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u007fYQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ\u007f==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u007fAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ==%00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%00YQ==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YQ%00==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA%00AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": " ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "    ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA== ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": " MTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz NA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\t\t\t\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\t",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\tMTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz\tNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\n\n\n\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\nMTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz\nNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\r",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\r\r\r\r",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\r",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\rMTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz\rNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u000b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u000b\u000b\u000b\u000b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\u000b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u000bMTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz\u000bNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\f\f\f\f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\fMTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz\fNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\r\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\r\n\r\n\r\n\r\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIzNA==\r\n",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\r\nMTIzNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "MTIz\r\nNA==",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "E",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AY",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "Nyc",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "mjsg",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "CO4Su",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "0rmj+3",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "xzVnw/+",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "LNDP5eha",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "VdHkbf/c2",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "yz8/pobb7B",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "rh+DdfcSFwe",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "NKZ76EEz6vuL",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "NYKam43D7/Lv/",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Ppjp4oaSPbK7VQ",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "zA4IJuWwCm64f8Q",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "CuItZUMxcO493y+E",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "xgIQxYlWw0Wr7myaA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YCUSTjb2bSX0uQdbNk",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "duS7Szpgo76Onkg94hi",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "ORUm2HGlbO+08cIaGAkE",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "LARxjaHHjv1PFfDd3R7u3",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "BRuvDP+lD1MzTmjMe8d87T",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "i8n9sh0qhNGUoJ/hjXvMiFq",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "CZdSWJJVSMBSx96KTNjYimKK",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAAAAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "AAAA_synthetic_tsr_base64_placeholder_AAAA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "XngedBv0",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "HvNhUPYrLCxrwcUN",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "i+tI",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "zHTuDpFY5zp1K5Jd",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "j/MUitruRQd9M9U5",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "udi2hiFS2eCnm561ovAdkL2uzOPmybfjsoWRbAStZ16ReP5nkpClDnWJcIFxYCoD",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "0b8z9fL4NGjnRfpX",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "oe+F0J91swRxj9NZ",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "8Vl4EzmgEZuX4m7WwbYtSGZcyMeWu38T",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "/jpKDFYWGa1u2Gds",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "YQWDsMZGZjHKSXIQ",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "JRc0EuyCB6VidOrR4ZdIol8Y",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "v8oRWNAufzHfTeMU7Ci15uXJROjtXBG4",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "3XgRhktdj3iaRh2CjE86iN1Ak2IsvLu8uwQN3b/NdHyuB7andcIwTbsg/WCv6z8O",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "J3aj5ioaMocjnyXBjdtZ2RMl",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "N6ED",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "YzzHatAzERKNY4fCvBxnfY/8",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "siCo2pMGypW0XwSkbfOz0g+fTzsXN7OoRWphe1px6uhD5H9yM7iHVWsdWeOMuNlQ",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "J9e1",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "y1fNGRlFJUHD",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "JR+IK81ZC59KDMNKLNr9OPtCLPDx7+wtEH08PMoQyquq2/oJtWtL4znFe9jnaQv8",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "mTZ1afwRiG6GdCU33OkFW3kXydDKBVoraAjKyNAWjYiJtCYN1aZkcBnk8s/J5+SK",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "BZ5WNYTiLhYgW1f/0mj8y+vxnemAqLh4",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "JdEjKGwV0KTnuFY9hxhER8mhg7svd9+iuJT9ibN6O+bySX5HHsAEI9W6b3d8XRXo",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "0T/7gc7GITnmpkOJagmMTN9c",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "iTJLMPkLXXluacJG9mcz/HEx",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "c6HlMM0Pw1jN",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "Xplmmn6KYwgzQjgzDYf7vEfc80ITWxHf",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "CoomZCGZ8soaVUhtiEO4ZelAJzxE6N+0De1O2528cdK1ggZiLZ0PRQgZa3++xwUj",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "hv45OTHlwNXu",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "o_3D",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "ZnhgqwPkOROh33TAz0OM1GbW8doCVnFf",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "k5LMgPtR_OlpFft3",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "DLbD",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "ufVDRO8H",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "qvlg",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "CNTFyEkWrxEtCHrsoEn4XRh9pq71N1Ai",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "eEdOEgzh58sMkZds",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "3VrLAme_QKpNfRLFOKCTZlzJNDZ9uudG",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "RpIdp5D4Pph0iO-N",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "hhyn-bq1UiWYA2Gc",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "lZYsIxJw4yiYVcf-",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "Ot7P",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "gKcgWqHq_f4fnw4C",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "XcNk5wvOn4vQtLCazwp4uasCtCRkx087",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "Qt8xhyCrJ7gNK42C",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "hO4iNFhj7AcnligTaiZqIszbbjWwzQz7",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "q18i8sYliNf6Aq-gv_2fhnTZO7vggqNl",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "0eiG",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "5aSrs-kkT55xNbkbGIfjR34y37QrJtIv",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\u00a0\u00a0\u00a0\u00a0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u00a0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00a0AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u00a0AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0085",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0085\u0085\u0085\u0085",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0085",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0085AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0085AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u1680",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u1680\u1680\u1680\u1680",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u1680",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u1680AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u1680AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2000\u2000\u2000\u2000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u2000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2000AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u2000AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2007",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2007\u2007\u2007\u2007",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u2007",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2007AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u2007AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2028",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2028\u2028\u2028\u2028",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u2028",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2028AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u2028AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2029",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2029\u2029\u2029\u2029",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u2029",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2029AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u2029AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u202f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u202f\u202f\u202f\u202f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u202f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u202fAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u202fAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u205f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u205f\u205f\u205f\u205f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u205f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u205fAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u205fAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u3000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u3000\u3000\u3000\u3000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u3000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u3000AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u3000AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200b\u200b\u200b\u200b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u200b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200bAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u200bAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200c\u200c\u200c\u200c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u200c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200cAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u200cAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200d\u200d\u200d\u200d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u200d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200dAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u200dAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ufeff",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ufeff\ufeff\ufeff\ufeff",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\ufeff",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ufeffAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\ufeffAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200e\u200e\u200e\u200e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u200e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u200eAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u200eAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u202e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u202e\u202e\u202e\u202e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u202e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u202eAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u202eAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00e9\u00e9\u00e9\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u00e9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00e9AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u00e9AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00c0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00c0\u00c0\u00c0\u00c0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u00c0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00c0AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u00c0AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0141",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0141\u0141\u0141\u0141",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0141",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0141AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0141AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0301\u0301\u0301\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0301",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0301AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0301AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0416\u0416\u0416\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0416",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0416AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0416AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u05d0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u05d0\u05d0\u05d0\u05d0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u05d0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u05d0AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u05d0AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0627",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0627\u0627\u0627\u0627",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0627",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0627AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0627AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u4e2d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u4e2d\u4e2d\u4e2d\u4e2d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u4e2d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u4e2dAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u4e2dAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u3042",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u3042\u3042\u3042\u3042",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u3042",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u3042AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u3042AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uac00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uac00\uac00\uac00\uac00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\uac00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uac00AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\uac00AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff21",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff21\uff21\uff21\uff21",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\uff21",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff21AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\uff21AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff10",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff10\uff10\uff10\uff10",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\uff10",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff10AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\uff10AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff0b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff0b\uff0b\uff0b\uff0b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\uff0b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff0bAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\uff0bAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff0f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff0f\uff0f\uff0f\uff0f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\uff0f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff0fAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\uff0fAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff1d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff1d\uff1d\uff1d\uff1d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\uff1d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uff1dAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\uff1dAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2044",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2044\u2044\u2044\u2044",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u2044",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2044AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u2044AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2215",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2215\u2215\u2215\u2215",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u2215",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2215AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u2215AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u02d0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u02d0\u02d0\u02d0\u02d0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u02d0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u02d0AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u02d0AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0130",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0130\u0130\u0130\u0130",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0130",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0130AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0130AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u212a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u212a\u212a\u212a\u212a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u212a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u212aAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u212aAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\ud83d\ude00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud83d\ude00AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\ud83d\ude00AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud835\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud835\udc00\ud835\udc00\ud835\udc00\ud835\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\ud835\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud835\udc00AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\ud835\udc00AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud835\udfce",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud835\udfce\ud835\udfce\ud835\udfce\ud835\udfce",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\ud835\udfce",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud835\udfceAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\ud835\udfceAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud801\udc37",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud801\udc37\ud801\udc37\ud801\udc37\ud801\udc37",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\ud801\udc37",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud801\udc37AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\ud801\udc37AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud87e\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud87e\udc00\ud87e\udc00\ud87e\udc00\ud87e\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\ud87e\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud87e\udc00AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\ud87e\udc00AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udb40\udc01",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udb40\udc01\udb40\udc01\udb40\udc01\udb40\udc01",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\udb40\udc01",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udb40\udc01AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\udb40\udc01AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udbc0\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udbc0\udc00\udbc0\udc00\udbc0\udc00\udbc0\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\udbc0\udc00",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udbc0\udc00AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\udbc0\udc00AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0000\u0000\u0000\u0000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0000",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0000AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0000AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0007",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0007\u0007\u0007\u0007",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0007",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0007AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0007AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u001b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u001b\u001b\u001b\u001b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u001b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u001bAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u001bAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u007f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u007f\u007f\u007f\u007f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u007f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u007fAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u007fAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0080",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0080\u0080\u0080\u0080",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u0080",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0080AAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u0080AA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u009f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u009f\u009f\u009f\u009f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AAAA\u009f",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u009fAAAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "AA\u009fAA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "j,\u0c5e6+1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "s\u1703C\u085b\u08a3e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udbb7\udd7d\ub359K\ubcc1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@\u045aP1\u1184\u6e83Fu\ud992\uddec`",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uaa0f\u1d5e\u2117@8\ud95a\udf0dK\u9d22DA",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udb6d\udf16P",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "sG\u4e90\u47f3>\u53ef\udaf5\ude86?",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2adb]\ud9b3\udf12WG",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u5ffa9L{\u1426",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udaa4\udc435z\ud52b,3+RxM",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2f9e8`7\ud9f9\udd8eMd",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "_<P/xKf;s\u6239W",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "9\u15c5N",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "6nX\uf055\u2fecw\uf320\ud8b3\udc1e\udbae\udc0f;",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "9\u1c33;`Yr\u2495\u18cdb\ud94d\udfcb",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "V\u2357U",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "i/\u9750g\u6045\u15347\uc02c\ud949\udeba\uda84\udf74\u28e4",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u407d\ua5bb\u4cecd8h\ued79",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Y*O\udbb1\uddf6*F\u54fe0\u10cdp\u6d2bo",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u60c9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u6c7bv\udb0b\udcdb\u1831\u6b5d.B",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "}cx\udbb7\uddec\uf4fb\ud8e8\uddd95:R\ud8f5\udf17*",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uee6d)\u99b25MI\u394b",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "akA\u1099\u2af6\uda7f\udee82`-\uda4d\udff9",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "F+y",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "q\ub808\ud971\udf54T\uba8b\u2c06\uda25\udde8V|n\u4655",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud897\udf7a\u2a7cl1\ufb5aB\u60bb\u7b19/HD/",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "x\uda51\udfd4sJ",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "CQ'\u08b5I",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "a\u05ae!&\u017d\uacfd\ud404\u6665",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uaff7AWB",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uad17\u410e#\udb32\ude095k",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0b17~$y\"-\ud971\udd97\u299a\u0244R\u29fb\ub1fb",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "vq\u62dd",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud950\udf42\ud47f\u1983\ubdc4",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "e&Q\u3bd8\u0cf4}+~\u0952\u57dd",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "~h",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u05eb\uf369RiR",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%\u0af7vj7\ud80f\ude72\uda0f\udf44@\u17d5\ud100\u1b84\u1fc8",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "g'S\uda03\udc31;",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "io(zQ_\"vXMj",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udae2\uddf7",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "o4",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\u1c23\u0578.",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "jB\udbe5\udc4e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@\u2e21th\udb30\ude11\udafd\ude0b\u7980",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udb66\ude4f5\u9ae7\u09bak}W\u1660m\u9f27\u2a1d",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0d3c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u9398.sIH8<eW",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "%yj\uf414",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "k<W:\u1f73",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "PFf\udbfb\udd88HTt\uda7b\udf1e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "u\u50d8E\"\ud880\udec3R",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "]\ud91e\udf80\ud99d\udc1c?\u16b3\ucbfa<\u1582",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u190eVKl",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\udb36\udce9\u2919lG'b*A\u0e52c\uaed4a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ufc72j!\u2284\u01f9\u1b96\u25c9\u282d\ud8bb\udcd0g|5",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "D+\u4b15\u1f83\u0f05|W",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Vag",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\ud9c5\ude49\udbd8\udd83\uc053\u612a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "I(\ud93d\udc3a$nm\udb43\udd72\u7926z\u3d72",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@\ua1b69dH\u85dd\u186b\udbb1\uddb3",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "m\u1991\ua516\u0f1axo}}\uda7a\uddb8",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u00ce(\u2781Q\uce9a\u215a\ucdfdsqS",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "J\u272b\u234b\u25c8",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u5b62\udafd\udce1",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "NO\u1fb4c\u2c5exj<7",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "O\\\u3a02^+\u2481\ub9e0\ud9a4\udf94}",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "L",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "?5RQ\ud9d4\udcba\u1b7c:4\u2566\u5c01",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "j2\udaf4\ude3dfo\u6d6f-?Q\u0aaa",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "-:\u2fe6A\u1884\uda09\udd2b\u0db9T",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\uda5b\udce2\ue3ffcUV4R\ud9b3\udf4dC",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "7\ud870\udff7OaW+Ac(T\ud978\udf2e\u20a5",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\\8\uc064G",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2c1d\uaa94",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "'\u09a7E\udb46\udee8N\ud93d\uddedk\ud846\udf20h@y0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "YZQW\u1293|",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "!\u06f6\ud8d9\udd98b\u7f78\u1684HLQc\u38aa",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "LF2",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": ")\u05c1\ud83a\udcef\ud836\ude64R\u299cv~",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2ea2Q\u1a84\u0e05\u3e58H",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "J\u2172\u27d3TP",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";Q>",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u1088\u21d2",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "(86",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "05Z&3\udbf2\udfd4/\u951clE'U",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "O",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": ";4\u95c3n:\u7596/c\ud7dbR\u0c54",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "UFc)",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "I\ud9d4\udf23\"\u12e9g^R.\ud8b0\uddba\u0c6dB",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "e\udbb8\udd82\u0128\u24e6S",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "3\u0a86\u25d7e\u08af\ua26c?96",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u1b92\udaec\udca2\u270a\udb7e\udf38|1Zd!\u0d82\u284fS",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "pcZ\u2a87#",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u2c7d8\u2eea\u23d1qx",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud8a9\uddcd\u5c208j",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "c\uadd0-(\ud890\udf71+\ud966\udc5b\u2142\uf08e",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "n8v\u7720D\udacc\udfa7\u0b0f\udab3\udf35",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "FiA",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\u2d81Ia\ub3eea;gIzSH",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Hob\udade\udf0a",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "H3",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "\ud8cf\udd31p\ub865nGzwz\udb57\udc6c",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u08a3t\u42a1\u0d8aq",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "[I\uac22\u1666\u1203\u33eaL)*\u0306",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u0a95\ud9b1\udd92",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "u\uef96<2iF\u7348\uda47\udd1e\u9c23+\\",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\ud9ef\udd32\u3a0eVv\uee25+Xu",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "\u9665\ud8da\udcf4Bs\ud887\udfc9\uf587",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "Ff",
+      "expect": {
+        "safe_b64": true,
+        "axis": "PASS"
+      }
+    },
+    {
+      "value": "T\u2d25\ud5badh\udac9\udcce9\ufef0",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "@\uda0c\udeb1\u2341",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "O}\u0c12umpZ\u1dcaye\u2e23",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    },
+    {
+      "value": "c\ue795YFs3h\u5ad7\udade\udd82\u9edf\u20d27",
+      "expect": {
+        "safe_b64": false,
+        "axis": "FAIL"
+      }
+    }
+  ]
 }

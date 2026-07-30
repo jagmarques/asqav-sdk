@@ -267,9 +267,19 @@ def _b64decode(value: str) -> bytes:
 
 
 def _safe_b64(v: str) -> bool:
+    """True only when ``v`` is real base64 carrying at least one byte.
+
+    Kept separate from ``_b64decode``, which stays lenient for keys and
+    signatures. Anchors are unsigned, so this half refuses junk instead.
+    """
+    if not isinstance(v, str):
+        return False
+    s = v.replace("-", "+").replace("_", "/")
+    s += "=" * ((-len(s)) % 4)
     try:
-        _b64decode(v)
-        return True
+        # validate=True refuses an out-of-alphabet character rather than
+        # dropping it, so zero decoded bytes means this is not an anchor
+        return len(base64.b64decode(s, validate=True)) > 0
     except Exception:
         return False
 

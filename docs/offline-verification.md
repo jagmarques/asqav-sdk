@@ -107,18 +107,20 @@ console.log(checkAnchors(env));                   // ["PASS"|"FAIL"|"SKIPPED", n
 console.log(checkSkew(env.payload.issued_at));
 ```
 
-An absent or empty `anchors` reports SKIPPED, a present non-list value FAILs, and an
-anchor whose `value` is missing or not decodable FAILs. `verifier/axis-parity-cases.json`
+An absent or empty `anchors` reports SKIPPED, and a present non-list value FAILs. An
+anchor `value` is read as present only when it is genuinely base64 and decodes to at
+least one byte, so an out-of-alphabet character is refused rather than dropped and a
+value carrying no bytes never reads as an anchor. `verifier/axis-parity-cases.json`
 and `verifier/anchor-value-cases.json` pin the cases both languages answer alike, and
 both suites assert them.
 
 ### Where the two halves are not identical
 
-Measured rather than asserted, over a 198-value anchor corpus and a 134-stamp corpus:
+Measured rather than asserted, over an 859-value anchor corpus and a 134-stamp corpus:
 
 | Axis | Agreement | Residual |
 |---|---|---|
-| anchors, per value | 198 of 198 | none |
+| anchors, per value | 859 of 859 | none |
 | skew, per stamp | 121 of 134 | 13 stamps, all ones TypeScript refuses and Python accepts |
 
 Every residual runs in the direction where TypeScript is the stricter half, so a value
