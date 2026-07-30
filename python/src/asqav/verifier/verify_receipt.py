@@ -583,9 +583,28 @@ def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
         return "FAIL", f"verify error: {exc}"
 
 
+#: Basic-format UTC offset (+0200, +02), which ISO 8601 allows and fromisoformat
+#: reads only from CPython 3.11 on. Matched on the part after the 10-char date so
+#: a bare "2020-01-01" is never mistaken for an offset.
+_BASIC_OFFSET_RE = re.compile(r"([+-])(\d{2}):?(\d{2})?$")
+
+
+def _extended_offset(issued_at: str) -> str:
+    """Rewrite a basic-format UTC offset to the extended form, else pass through.
+
+    One receipt has to draw one verdict on every supported Python. Without this,
+    a validly signed receipt carrying "+0200" reads FAIL on 3.10 and PASS on 3.11.
+    """
+    date, tail = issued_at[:10], issued_at[10:]
+    m = _BASIC_OFFSET_RE.search(tail)
+    if m is None:
+        return issued_at
+    return f"{date}{tail[: m.start()]}{m.group(1)}{m.group(2)}:{m.group(3) or '00'}"
+
+
 def check_skew(issued_at: str):
     try:
-        ts = datetime.fromisoformat(issued_at.replace("Z", "+00:00"))
+        ts = datetime.fromisoformat(_extended_offset(issued_at.replace("Z", "+00:00")))
     except (ValueError, AttributeError):
         return "FAIL", f"unparseable issued_at {issued_at!r}"
     if ts.tzinfo is None:

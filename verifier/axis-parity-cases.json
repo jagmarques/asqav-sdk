@@ -53,6 +53,8 @@
   {"name":"2020-13-01T00:00:00Z","issued_at":"2020-13-01T00:00:00Z","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
   {"name":"May 4 2026","issued_at":"May 4 2026","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
   {"name":"1700000000","issued_at":"1700000000","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
-  {"name":"2020-01-01T00:00:00+99:00","issued_at":"2020-01-01T00:00:00+99:00","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}}
+  {"name":"2020-01-01T00:00:00+99:00","issued_at":"2020-01-01T00:00:00+99:00","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T00:00:00+02","issued_at":"2020-01-01T00:00:00+02","expect":{"result":"PASS","note_contains":"within bound"}},
+  {"name":"2020-01-01T00:00:00-0500","issued_at":"2020-01-01T00:00:00-0500","expect":{"result":"PASS","note_contains":"within bound"}}
  ]
 }
