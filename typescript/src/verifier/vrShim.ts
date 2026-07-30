@@ -115,6 +115,81 @@ function matchKey(
   return null;
 }
 
+// Exact key id (mirrors `_match_key_by_id`). A key id names one key, while the
+// issuer match above answers for every key an org publishes, which is a set.
+function matchKeyById(
+  jwks: Record<string, unknown> | null,
+  kid: string,
+): Record<string, unknown> | null {
+  const keys = jwks?.keys;
+  if (!Array.isArray(keys)) return null;
+  for (const k of keys as Array<Record<string, unknown>>) {
+    if (k === null || typeof k !== "object") continue;
+    if (kid && kid === k.kid) {
+      if (typeof k.public_key !== "string") continue;
+      return k;
+    }
+  }
+  return null;
+}
+
+// An agent key bound to the issuer the receipt claims (mirrors `_match_key_by_agent`).
+// agent_id is attacker-controlled, so the key's published issuer must equal the one
+// the receipt names inside its signed bytes.
+function matchKeyByAgent(
+  jwks: Record<string, unknown> | null,
+  agentId: unknown,
+  issuerId: unknown,
+): Record<string, unknown> | null {
+  const keys = jwks?.keys;
+  if (!Array.isArray(keys)) return null;
+  for (const k of keys as Array<Record<string, unknown>>) {
+    if (k === null || typeof k !== "object") continue;
+    if (agentId && agentId === k.agent_id && issuerId && issuerId === k.issuer_id) {
+      if (typeof k.public_key !== "string") continue;
+      return k;
+    }
+  }
+  return null;
+}
+
+/**
+ * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
+ *
+ * Exact key id, then the agent bind, then the bare-kid issuer match. A cloud receipt
+ * puts the org id in kid and signs with the agent's own key, and the directory
+ * publishes issuer_id on every key that org owns, so an org-shaped kid matches each
+ * sibling alike and list position picks one. Position binds nothing: agent_id and
+ * issuer_id both sit inside the signed bytes, so the pair names the signer, while the
+ * sibling it lands on holds other key bytes and another revocation status.
+ */
+export function matchSigningKey(
+  jwks: Record<string, unknown> | null,
+  kid: string,
+  agentId?: unknown,
+  issuerId?: unknown,
+): Record<string, unknown> | null {
+  return (
+    matchKeyById(jwks, kid) ?? matchKeyByAgent(jwks, agentId, issuerId) ?? matchKey(jwks, kid)
+  );
+}
+
+/** Return the issuer id a JWKS entry publishes (mirrors `key_issuer_of`). */
+export function keyIssuerOf(entry: Record<string, unknown> | null): string | null {
+  return entry !== null && typeof entry.issuer_id === "string" ? entry.issuer_id : null;
+}
+
+/** Return the org id a JWKS entry publishes (mirrors `key_org_of`). */
+export function keyOrgOf(entry: Record<string, unknown> | null): string | null {
+  // A value that is not an org id cannot serve as one, so it reads as unpublished.
+  return entry !== null && isOrgId(entry.org_id) ? (entry.org_id as string) : null;
+}
+
+/** Return the revoked_at a JWKS entry publishes (mirrors `revoked_at_of`). */
+export function revokedAtOf(entry: Record<string, unknown> | null): string | null {
+  return entry !== null && typeof entry.revoked_at === "string" ? entry.revoked_at : null;
+}
+
 /** Return `[publicKeyBytes, status, alg]` for `kid` from a JWKS dict (mirrors `resolve_key`). */
 export function resolveKey(
   jwks: Record<string, unknown> | null,

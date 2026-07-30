@@ -18,6 +18,18 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   that actually signed. A revoked-key receipt reports FAIL whichever route
   resolves it.
 
+- **An org with two agent keys can verify its own receipts.** A cloud receipt puts
+  the org id in `signature.kid` and signs with the agent's own key, and the public
+  directory publishes `issuer_id` on every key the org owns, so an org-shaped kid
+  matched each sibling alike and list position decided which one answered. A
+  receipt from the second agent was checked against the first agent's public key,
+  so a sound signature read as a mismatch and the `key_status` and `issuer_bind`
+  axes reported a key that never signed. Signing-key resolution takes an exact key
+  id first, then the `agent_id` plus `issuer_id` pair the signed bytes carry, and
+  only then the bare-kid issuer match. The TypeScript verifier gains the same
+  three-step resolution and reads every axis off the one resolved entry, so both
+  halves answer identically.
+
 ## [0.8.3] - 2026-07-20
 
 Patch release with a verifier correctness fix and a docs alignment.
