@@ -214,12 +214,12 @@ class AsqavNativeAdapter(FormatAdapter):
         return _vr.check_structure(_payload(doc))
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
-        """Gate the verdict on the signing key's revocation status and its issuer.
+        """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
         A receipt signed by a revoked key, or by a key the directory publishes
         under a different issuer, must not PASS offline, matching the hosted
         /verify. No key resolved at all means the signature axis already reports no
-        key, so these axes only weigh in once a key is found. Both wire shapes name
+        key, so those two axes only weigh in once a key is found. Both wire shapes name
         their issuer inside the signed bytes: issuer_id in compliance mode, org_id
         in hash mode.
 
@@ -227,10 +227,14 @@ class AsqavNativeAdapter(FormatAdapter):
         against, so these axes weigh the key that actually signed rather than
         whatever the unsigned kid happens to name.
         """
+        # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
+        # expires_at, and reading the flat doc would gate on an uncovered field.
+        signed = {} if _is_hash_mode(doc) else _payload(doc)
+        axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
         if entry is None:
-            return []
+            return axes
         key_issuer = _vr.key_issuer_of(entry)
         # The resolved key is bound back to the issuer the signed bytes name.
         if _is_hash_mode(doc):
@@ -245,7 +249,7 @@ class AsqavNativeAdapter(FormatAdapter):
         res, note = _vr.check_key_status(
             entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
         )
-        return [("key_status", res, note), ("issuer_bind", *bind)]
+        return axes + [("key_status", res, note), ("issuer_bind", *bind)]
 
     def attestation(self, doc: dict) -> dict[str, Any]:
         """Surface the v:2 in-body ``signer``. None for v:1 and hash-mode.
