@@ -332,6 +332,25 @@ def _match_key(jwks: dict, kid: str):
     return None
 
 
+def _match_key_by_id(jwks: dict, kid: str):
+    """Return the first usable jwks entry whose crypto key id is exactly kid.
+
+    A key id names one key, so it decides on its own. The looser issuer-id match in
+    ``_match_key`` answers for every key an org publishes, which is a set, not a key.
+    """
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
+        if kid and kid == k.get("kid"):
+            if not isinstance(k.get("public_key"), str):
+                continue
+            return k
+    return None
+
+
 def _match_key_by_agent(jwks: dict, agent_id, issuer_id):
     """Return the first usable jwks entry for an agent key bound to a claimed issuer.
 
@@ -361,16 +380,26 @@ def _match_key_by_agent(jwks: dict, agent_id, issuer_id):
 def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None):
     """Return the one jwks entry a receipt's signature is checked against.
 
-    kid first, then the agent-id bind. Every caller resolves through here, so the
-    key that verifies a signature and the key whose status and issuer the axes weigh
-    are one entry rather than two independent lookups. Resolving them separately lets
-    a receipt verify against a key found one way while the revocation and issuer axes
-    read a key found the other way, or vanish because the second lookup missed.
+    Exact key id, then the agent bind, then the bare-kid issuer match. Every caller
+    resolves through here, so the key that verifies a signature and the key whose
+    status and issuer the axes weigh are one entry rather than two independent
+    lookups. Resolving them separately lets a receipt verify against a key found one
+    way while the revocation and issuer axes read a key found the other way.
+
+    Order carries the security. A cloud receipt puts the org id in kid and signs with
+    the agent's own key, and the directory publishes issuer_id on every key that org
+    owns, so an org-shaped kid matches each sibling alike and list position picks one.
+    Position binds nothing: agent_id and issuer_id both sit inside the signed bytes,
+    so the pair names the signer, while the sibling it lands on holds other key bytes,
+    another revocation status and another agent.
     """
-    entry = _match_key(jwks, kid)
+    entry = _match_key_by_id(jwks, kid)
     if entry is not None:
         return entry
-    return _match_key_by_agent(jwks, agent_id, issuer_id)
+    entry = _match_key_by_agent(jwks, agent_id, issuer_id)
+    if entry is not None:
+        return entry
+    return _match_key(jwks, kid)
 
 
 def key_issuer_of(entry):
