@@ -232,23 +232,30 @@ function pyTruthy(v: unknown): boolean {
 }
 
 const B64_ALPHABET = /[A-Za-z0-9+/]/g;
+const B64_CHAR = /[A-Za-z0-9+/]/;
 
 /**
  * True when Python's `_safe_b64` decodes `value`, false otherwise.
  *
- * Python pads by the raw length, then drops non-alphabet characters and rejects a
- * group it cannot complete. Counting alphabet characters plus trailing padding
- * reproduces that decision, agreeing on 2690 differentially tested strings.
+ * Python ascii-encodes first, so ANY non-ASCII codepoint raises and refuses the
+ * value. It then pads by the raw length, drops non-alphabet ASCII, and rejects a
+ * group it cannot complete. Never read a value as decodable that Python refuses.
  */
 function safeB64(value: unknown): boolean {
   if (typeof value !== "string") return false;
+  // base64.b64decode raises "string argument should contain only ASCII characters".
+  if (/[^\x00-\x7f]/.test(value)) return false;
   const s = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = s + "=".repeat(((-s.length % 4) + 4) % 4);
   const alpha = (padded.match(B64_ALPHABET) ?? []).length;
-  const pad = (/(=*)$/.exec(padded) ?? ["", ""])[1].length;
   const rem = alpha % 4;
   if (rem === 0) return true;
   if (rem === 1) return false;
+  // Only an "=" past the last alphabet character pads, so a leading one is junk.
+  let last = -1;
+  for (let i = 0; i < padded.length; i++) if (B64_CHAR.test(padded[i])) last = i;
+  let pad = 0;
+  for (const ch of padded.slice(last + 1)) if (ch === "=") pad++;
   return rem === 2 ? pad >= 2 : pad >= 1;
 }
 
@@ -265,15 +272,23 @@ const ISO_STAMP =
   /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?))?(Z|[+-]\d{2}(?::?\d{2})?)?$/;
 
 // Python treats a stamp with no zone as UTC, where JS would read it as local time.
+// Ranges are checked here because Date.parse accepts hour 24 and Python does not.
 function parseIsoMs(issuedAt: unknown): number | null {
   if (typeof issuedAt !== "string") return null;
   const m = ISO_STAMP.exec(issuedAt);
   if (m === null) return null;
   const [, date, time, zone] = m;
+  if (time !== undefined) {
+    const [hh, mm, ss] = time.split(":");
+    if (Number(hh) > 23 || Number(mm) > 59 || Number(ss ?? "0") > 59) return null;
+  }
   let tz = zone ?? "Z";
   if (tz !== "Z") {
     const digits = tz.replace(":", "");
-    tz = digits.length === 3 ? `${digits}:00` : `${digits.slice(0, 3)}:${digits.slice(3)}`;
+    const oh = Number(digits.slice(1, 3));
+    const om = digits.length > 3 ? Number(digits.slice(3)) : 0;
+    if (oh > 23 || om > 59) return null;
+    tz = `${digits[0]}${String(oh).padStart(2, "0")}:${String(om).padStart(2, "0")}`;
   }
   const ms = Date.parse(`${date}T${time ?? "00:00:00"}${tz}`);
   return Number.isNaN(ms) ? null : ms;

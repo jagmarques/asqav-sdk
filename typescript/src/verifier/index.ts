@@ -51,10 +51,13 @@ export { detect, MAX_NESTING_DEPTH, verify } from "./core.js";
 export type { AxisResult, Verdict, VerifyResult } from "./core.js";
 // The anchor-binding and clock-skew axes the oracle leaves out by design, so a
 // TypeScript caller can run them as a Python caller runs check_anchors/check_skew.
+// normaliseEnvelope ships with them because Python's standalone surface runs it
+// first, and a caller who skips it digests different bytes.
 export {
   checkAnchors,
   checkSkew,
   envelopeMinusAnchorsJcs,
+  normaliseEnvelope,
   SKEW_BOUND_SECONDS,
 } from "./vrShim.js";
 export { asqavJcs, jcs, jcsRfc8785, parseJsonPreservingFloats, RawFloat } from "./canonical.js";

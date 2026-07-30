@@ -11,8 +11,17 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { verifyReceiptOffline } from "../src/index.js";
-import { MAX_NESTING_DEPTH } from "../src/verifier/core.js";
-import { checkAnchors, checkSkew, SKEW_BOUND_SECONDS } from "../src/verifier/vrShim.js";
+// Imported from the published `@asqav/sdk/verifier` entry, not the inner module, so
+// a caller following the docs reaches every piece the Python surface exposes.
+import {
+  checkAnchors,
+  checkSkew,
+  envelopeMinusAnchorsJcs,
+  MAX_NESTING_DEPTH,
+  normaliseEnvelope,
+  sha256Hex,
+  SKEW_BOUND_SECONDS,
+} from "../src/verifier/index.js";
 
 interface AnchorCase {
   name: string;
@@ -26,10 +35,17 @@ interface SkewCase {
   expect: { result: string; note_contains: string };
 }
 
+interface NormaliseCase {
+  name: string;
+  raw: Record<string, unknown>;
+  expect: { digest: string; anchors_axis: string };
+}
+
 const CASES_FILE = resolve(__dirname, "..", "..", "verifier", "axis-parity-cases.json");
 const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf-8")) as {
   anchors: AnchorCase[];
   skew: SkewCase[];
+  normalise: NormaliseCase[];
 };
 
 /** A receipt whose only defect is `depth` levels of nesting outside the signed payload. */
@@ -100,6 +116,29 @@ describe("clock-skew axis parity", () => {
   it("rejects a non-string stamp", () => {
     expect(checkSkew(undefined)[0]).toBe("FAIL");
     expect(checkSkew(1700000000)[0]).toBe("FAIL");
+  });
+});
+
+describe("envelope normalisation parity", () => {
+  it("is populated", () => {
+    expect(TABLE.normalise.length).toBeGreaterThanOrEqual(5);
+  });
+
+  for (const c of TABLE.normalise) {
+    it(c.name, () => {
+      const env = normaliseEnvelope(c.raw);
+      // The digest is the bytes the anchors axis binds, so an exact match proves
+      // both halves normalise and canonicalise the same envelope.
+      expect(sha256Hex(envelopeMinusAnchorsJcs(env)), c.name).toBe(c.expect.digest);
+      expect(checkAnchors(env)[0], c.name).toBe(c.expect.anchors_axis);
+    });
+  }
+
+  it("never launders a malformed anchors value into an empty list", () => {
+    for (const anchors of [{}, "rfc3161", 0]) {
+      const raw = { payload: { type: "protectmcp:decision" }, signature: "AAAA", anchors };
+      expect(checkAnchors(normaliseEnvelope(raw))[0], JSON.stringify(anchors)).toBe("FAIL");
+    }
   });
 });
 

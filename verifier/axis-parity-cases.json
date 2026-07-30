@@ -55,6 +55,22 @@
   {"name":"1700000000","issued_at":"1700000000","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
   {"name":"2020-01-01T00:00:00+99:00","issued_at":"2020-01-01T00:00:00+99:00","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
   {"name":"2020-01-01T00:00:00+02","issued_at":"2020-01-01T00:00:00+02","expect":{"result":"PASS","note_contains":"within bound"}},
-  {"name":"2020-01-01T00:00:00-0500","issued_at":"2020-01-01T00:00:00-0500","expect":{"result":"PASS","note_contains":"within bound"}}
+  {"name":"2020-01-01T00:00:00-0500","issued_at":"2020-01-01T00:00:00-0500","expect":{"result":"PASS","note_contains":"within bound"}},
+  {"name":"2020-01-01T00:00:00+0260","issued_at":"2020-01-01T00:00:00+0260","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T00:00:00+02:60","issued_at":"2020-01-01T00:00:00+02:60","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T00:00:00-0060","issued_at":"2020-01-01T00:00:00-0060","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T00:00:00+9999","issued_at":"2020-01-01T00:00:00+9999","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T24:00:00Z","issued_at":"2020-01-01T24:00:00Z","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T00:60:00Z","issued_at":"2020-01-01T00:60:00Z","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"2020-01-01T00:00:60Z","issued_at":"2020-01-01T00:00:60Z","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}}
+ ],
+ "normalise": [
+  {"name":"canonical envelope","raw":{"payload":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"signature":{"alg":"ML-DSA-65","kid":"k1","sig":"AAAA"},"anchors":[]},"expect":{"digest":"fefda3fe6acef8e83c8910f5b351843d2e005c82938495ddee6179ed89d354a0","anchors_axis":"SKIPPED"}},
+  {"name":"hosted response, flat signature","raw":{"payload":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"signature":"AAAA","algorithm":"ML-DSA-65","anchors":[{"type":"rfc3161","value":"MTIzNA=="}]},"expect":{"digest":"39a39f4279c02b1e6e38e35f16238c6da0d14d42ad44377b60056d318f4727af","anchors_axis":"PASS"}},
+  {"name":"hosted response, signature_envelope","raw":{"payload":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"signature_envelope":{"alg":"ML-DSA-65","kid":"k1","sig":"AAAA"},"signature":"AAAA"},"expect":{"digest":"fefda3fe6acef8e83c8910f5b351843d2e005c82938495ddee6179ed89d354a0","anchors_axis":"SKIPPED"}},
+  {"name":"hosted response, malformed anchors object","raw":{"payload":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"signature":"AAAA","algorithm":"ML-DSA-65","anchors":{}},"expect":{"digest":"39a39f4279c02b1e6e38e35f16238c6da0d14d42ad44377b60056d318f4727af","anchors_axis":"FAIL"}},
+  {"name":"hosted response, anchors as a string","raw":{"payload":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"signature":"AAAA","algorithm":"ML-DSA-65","anchors":"rfc3161"},"expect":{"digest":"39a39f4279c02b1e6e38e35f16238c6da0d14d42ad44377b60056d318f4727af","anchors_axis":"FAIL"}},
+  {"name":"hosted response, anchors absent","raw":{"payload":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"signature":"AAAA","algorithm":"ML-DSA-65"},"expect":{"digest":"39a39f4279c02b1e6e38e35f16238c6da0d14d42ad44377b60056d318f4727af","anchors_axis":"SKIPPED"}},
+  {"name":"bare payload, no envelope","raw":{"type":"protectmcp:decision","issued_at":"2026-06-19T00:00:00+00:00","issuer_id":"Asqav Ltd","previousReceiptHash":"0000000000000000000000000000000000000000000000000000000000000000","decision":"allow"},"expect":{"digest":"6e9ea8a909f02ad89fc51aa3bbacc9052c6e9bc87dcb402fc4faedf7185482c0","anchors_axis":"SKIPPED"}}
  ]
 }

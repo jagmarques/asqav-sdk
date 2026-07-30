@@ -7,13 +7,20 @@ typescript/tests/verifier-axis-parity.test.ts and reads the same file.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
 from asqav.verifier.oracle.core import MAX_NESTING_DEPTH as ORACLE_MAX_NESTING_DEPTH
-from asqav.verifier.verify_receipt import SKEW_BOUND_SECONDS, check_anchors, check_skew
+from asqav.verifier.verify_receipt import (
+    SKEW_BOUND_SECONDS,
+    check_anchors,
+    check_skew,
+    envelope_minus_anchors_jcs,
+    normalise_envelope,
+)
 
 CASES_FILE = Path(__file__).parent.parent.parent / "verifier" / "axis-parity-cases.json"
 TABLE = json.loads(CASES_FILE.read_text())
@@ -45,3 +52,13 @@ def test_skew_case(case: dict) -> None:
     result, note = check_skew(case["issued_at"])
     assert result == case["expect"]["result"], f"{case['name']}: note {note}"
     assert case["expect"]["note_contains"] in note, case["name"]
+
+
+@pytest.mark.parametrize("case", TABLE["normalise"], ids=[c["name"] for c in TABLE["normalise"]])
+def test_normalise_case(case: dict) -> None:
+    env = normalise_envelope(case["raw"])
+    digest = hashlib.sha256(envelope_minus_anchors_jcs(env)).hexdigest()
+    # The digest is the bytes the anchors axis binds, so an exact match proves both
+    # halves normalise and canonicalise the same envelope.
+    assert digest == case["expect"]["digest"], case["name"]
+    assert check_anchors(env)[0] == case["expect"]["anchors_axis"], case["name"]
