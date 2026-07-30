@@ -1,0 +1,61 @@
+/**
+ * Anchor value base64 tolerance, differential against the Python corpus.
+ *
+ * The anchors field is unsigned and attacker-steerable, so a value Python
+ * refuses must never read as base64-ok here. The permissive direction is the
+ * one that produces a false PASS, so it is asserted at zero separately.
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { checkAnchors } from "../src/verifier/vrShim.js";
+
+interface ValueCase {
+  value: string;
+  expect: { safe_b64: boolean; axis: string };
+}
+
+const CASES_FILE = resolve(__dirname, "..", "..", "verifier", "anchor-value-cases.json");
+const VALUES = (JSON.parse(readFileSync(CASES_FILE, "utf-8")) as { values: ValueCase[] }).values;
+
+const ENVELOPE = {
+  payload: { type: "protectmcp:decision", issued_at: "2026-06-19T00:00:00+00:00" },
+  signature: { alg: "ML-DSA-65", kid: "k1", sig: "AAAA" },
+};
+
+/** The axis result for one anchor value, which is PASS exactly when the value decodes. */
+function axisFor(value: string): string {
+  return checkAnchors({ ...ENVELOPE, anchors: [{ type: "rfc3161", value }] })[0];
+}
+
+describe("anchor value base64 parity", () => {
+  it("corpus is populated and covers non-ASCII", () => {
+    expect(VALUES.length).toBeGreaterThanOrEqual(150);
+    const wide = VALUES.filter((c) => [...c.value].some((ch) => ch.codePointAt(0)! > 127));
+    expect(wide.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it("has zero permissive disagreements with Python", () => {
+    const permissive: string[] = [];
+    for (const c of VALUES) {
+      if (c.expect.axis === "FAIL" && axisFor(c.value) === "PASS") permissive.push(c.value);
+    }
+    expect(permissive, `TS reads these as base64-ok where Python refuses: ${JSON.stringify(permissive.slice(0, 8))}`).toEqual([]);
+  });
+
+  it("agrees with Python on every value", () => {
+    const disagree: string[] = [];
+    for (const c of VALUES) {
+      if (axisFor(c.value) !== c.expect.axis) disagree.push(c.value);
+    }
+    expect(disagree, `disagreements: ${JSON.stringify(disagree.slice(0, 8))}`).toEqual([]);
+  });
+
+  it("refuses a value carrying any non-ASCII codepoint", () => {
+    for (const value of ["é", "中文", "😀", "MTIzNA==é", " "]) {
+      expect(axisFor(value), value).toBe("FAIL");
+    }
+  });
+});

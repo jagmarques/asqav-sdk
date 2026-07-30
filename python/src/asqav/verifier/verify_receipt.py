@@ -583,9 +583,50 @@ def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
         return "FAIL", f"verify error: {exc}"
 
 
+#: Basic-format UTC offset (+0200, +02), which ISO 8601 allows and fromisoformat
+#: reads only from CPython 3.11 on. Matched on the part after the 10-char date so
+#: a bare "2020-01-01" is never mistaken for an offset.
+_BASIC_OFFSET_RE = re.compile(r"([+-])(\d{2}):?(\d{2})?$")
+
+#: Colon-separated clock time, the spelling every supported version reads alike.
+_CLOCK_RE = re.compile(r"^[T ](\d{2}):(\d{2})(?::(\d{2}))?")
+
+
+def _check_clock_range(tail: str) -> None:
+    """Raise for an out-of-range clock field, so one stamp draws one verdict.
+
+    CPython reads hour 24 as the next midnight from 3.14 on and refuses it on
+    every version this package claims, so the range is checked here instead.
+    """
+    m = _CLOCK_RE.match(tail)
+    if m is None:
+        return
+    hh, mm, ss = int(m.group(1)), int(m.group(2)), int(m.group(3) or 0)
+    if hh > 23 or mm > 59 or ss > 59:
+        raise ValueError(f"clock field out of range: {m.group(0)[1:]!r}")
+
+
+def _extended_offset(issued_at: str) -> str:
+    """Rewrite a basic-format UTC offset to the extended form, else pass through.
+
+    One receipt has to draw one verdict on every supported Python: "+0200" reads
+    FAIL on 3.10 and PASS on 3.11 without this. An out-of-range field raises,
+    since CPython 3.11+ reads "+0260" as a 3-hour offset and shifts the instant.
+    """
+    date, tail = issued_at[:10], issued_at[10:]
+    _check_clock_range(tail)
+    m = _BASIC_OFFSET_RE.search(tail)
+    if m is None:
+        return issued_at
+    hours, minutes = int(m.group(2)), int(m.group(3) or 0)
+    if hours > 23 or minutes > 59:
+        raise ValueError(f"utc offset out of range: {m.group(0)!r}")
+    return f"{date}{tail[: m.start()]}{m.group(1)}{hours:02d}:{minutes:02d}"
+
+
 def check_skew(issued_at: str):
     try:
-        ts = datetime.fromisoformat(issued_at.replace("Z", "+00:00"))
+        ts = datetime.fromisoformat(_extended_offset(issued_at.replace("Z", "+00:00")))
     except (ValueError, AttributeError):
         return "FAIL", f"unparseable issued_at {issued_at!r}"
     if ts.tzinfo is None:
