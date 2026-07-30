@@ -408,18 +408,28 @@ MLDSA_KAT_VECTOR = VECTORS / "asqav-06-mldsa65-payload-prod"
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat():
-    """Real-cloud ML-DSA-65 payload-mode KAT: signature axis must be PASS."""
+    """Real-cloud ML-DSA-65 payload-mode KAT: signature axis must be PASS.
+
+    The receipt's signed expires_at lapsed on 2026-06-20, so the verdict is FAIL
+    on expiry alone. That split is the point: the post-quantum signature still
+    verifies, and the offline verdict now matches the hosted signature_expired.
+    """
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
     jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
-    assert (
-        result["verdict"] == "PASS"
-    ), f"Expected PASS, got {result['verdict']}; axes: {result['axes']}"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     # Must be PASS - SKIPPED or INCOMPLETE means the ML-DSA-65 check was bypassed.
     assert (
         sig_axis["result"] == "PASS"
     ), f"ML-DSA-65 signature axis must be PASS (not SKIPPED/INCOMPLETE/FAIL); got: {sig_axis}"
+    non_expiry = [a for a in result["axes"] if a["name"] != "expiry"]
+    assert all(a["result"] == "PASS" for a in non_expiry), f"axes: {non_expiry}"
+    expiry_axis = next(a for a in result["axes"] if a["name"] == "expiry")
+    assert expiry_axis["result"] == "FAIL", f"expiry axis: {expiry_axis}"
+    assert "lapsed" in expiry_axis["note"], expiry_axis["note"]
+    assert (
+        result["verdict"] == "FAIL"
+    ), f"Expected FAIL on the lapsed window, got {result['verdict']}; axes: {result['axes']}"
 
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")

@@ -380,14 +380,23 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
   // Uses a receipt + JWKS minted from api.asqav.com with mode=full-payload.
   const KAT_DIR = join(VECTORS, "asqav-06-mldsa65-payload-prod");
 
+  // The receipt's signed expires_at lapsed on 2026-06-20, so the verdict is FAIL on
+  // expiry alone. That split is the point: the post-quantum signature still verifies,
+  // and the offline verdict now matches the hosted signature_expired.
   it("verifies a real-cloud ML-DSA-65 payload-mode receipt (KAT - signature axis must be PASS)", () => {
     const receipt = loadJson(KAT_DIR, "receipt.json");
     const jwks = loadJson(KAT_DIR, "jwks.json");
     const result = verifyReceiptOffline(receipt, jwks);
-    expect(result.verdict).toBe("PASS");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     // Must be PASS - SKIPPED or INCOMPLETE means ML-DSA-65 check was bypassed.
     expect(sigAxis?.result).toBe("PASS");
+    const expiryAxis = result.axes.find((a) => a.axis === "expiry");
+    expect(expiryAxis?.result).toBe("FAIL");
+    expect(expiryAxis?.note).toContain("lapsed");
+    expect(result.axes.filter((a) => a.axis !== "expiry").map((a) => a.result)).toEqual(
+      result.axes.filter((a) => a.axis !== "expiry").map(() => "PASS"),
+    );
+    expect(result.verdict).toBe("FAIL");
   });
 
   it("returns FAIL for a tampered real-cloud ML-DSA-65 KAT receipt (anti-vacuous)", () => {
