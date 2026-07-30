@@ -5,7 +5,31 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Changed
+
+- **An anchor `value` must be one unwrapped base64 token.** The anchors axis reads a
+  value as present only when it matches the base64 alphabet and carries at least one
+  byte. Surrounding and embedded whitespace is refused, so MIME line-wrapped base64,
+  which `base64` and `openssl base64` emit by default, does not read as an anchor.
+  Emit the unwrapped form (`base64 -w0`, or `openssl base64 -A`). Tolerating an
+  embedded newline is the same laundering channel that lets `MTIz NA==` through, so
+  the two cannot be separated. Both language halves refuse it alike.
+
 ### Fixed
+
+- **A forged anchor value cannot report as a present anchor.** The anchors axis
+  decoded the value leniently, and a lenient base64 decode drops every character
+  outside the alphabet, so an all-punctuation value such as `!!!!` decoded to zero
+  bytes and still read as an anchor. `anchors` sits outside the signed bytes, so a
+  receipt holder picks that value freely. The axis now requires the real alphabet and
+  at least one decoded byte, in the Python verifier and in its TypeScript mirror.
+- **The anchor verdict is the same on every supported interpreter.** The alphabet and
+  padding decision lives in an explicit regex rather than in
+  `base64.b64decode(validate=True)`, whose strictness changed between CPython 3.11 and
+  3.12. Delegating to it made surplus padding such as `AAAA====` decode to real bytes
+  on 3.11 and raise on 3.12, which read as a PASS on one supported interpreter and a
+  FAIL on another. Measured across Python 3.11, 3.12 and 3.14 and the TypeScript half,
+  the 971-value corpus now answers identically in all four.
 
 - **A rewritten `signature.kid` cannot buy a PASS for a revoked key.** `kid` sits
   outside the signed payload bytes, so a receipt holder can change it without

@@ -114,14 +114,23 @@ value carrying no bytes never reads as an anchor. `verifier/axis-parity-cases.js
 and `verifier/anchor-value-cases.json` pin the cases both languages answer alike, and
 both suites assert them.
 
+An anchor value is one unwrapped base64 token. Surrounding or embedded whitespace is
+refused, so MIME line-wrapped base64 of the kind `base64` and `openssl base64` emit by
+default does not read as an anchor. Pass the unwrapped form (`base64 -w0`, or
+`openssl base64 -A`).
+
 ### Where the two halves are not identical
 
-Measured rather than asserted, over an 859-value anchor corpus and a 134-stamp corpus:
+Measured rather than asserted, over a 971-value anchor corpus and a 134-stamp corpus:
 
 | Axis | Agreement | Residual |
 |---|---|---|
-| anchors, per value | 859 of 859 | none |
+| anchors, per value | 971 of 971 | none |
 | skew, per stamp | 121 of 134 | 13 stamps, all ones TypeScript refuses and Python accepts |
+
+The anchors row is measured on Python 3.11, 3.12 and 3.14, and all three answer alike.
+The alphabet and padding rule lives in an explicit regex rather than in
+`base64.b64decode(validate=True)`, whose strictness changed between 3.11 and 3.12.
 
 Every residual runs in the direction where TypeScript is the stricter half, so a value
 one language treats as valid is never read as valid by the other and then trusted. The
