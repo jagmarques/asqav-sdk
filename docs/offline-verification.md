@@ -107,19 +107,32 @@ console.log(checkAnchors(env));                   // ["PASS"|"FAIL"|"SKIPPED", n
 console.log(checkSkew(env.payload.issued_at));
 ```
 
-An absent or empty `anchors` reports SKIPPED, a present non-list value FAILs, and an
-anchor whose `value` is missing or not decodable FAILs. `verifier/axis-parity-cases.json`
+An absent or empty `anchors` reports SKIPPED, and a present non-list value FAILs. An
+anchor `value` is read as present only when it is genuinely base64 and decodes to at
+least one byte, so an out-of-alphabet character is refused rather than dropped and a
+value carrying no bytes never reads as an anchor. `verifier/axis-parity-cases.json`
 and `verifier/anchor-value-cases.json` pin the cases both languages answer alike, and
 both suites assert them.
 
+An anchor value is one unwrapped base64 token. Whitespace is refused, including a
+trailing newline and MIME line wrapping, so a value piped from a shell base64 tool
+reports FAIL. `openssl base64` wraps at 64 characters, GNU `base64` wraps at 76, and
+BSD `base64` appends a trailing newline. Pass the unwrapped form instead
+(`openssl base64 -A`, or `base64 -w0` on GNU). Values the Asqav signer and the SDK
+produce are unaffected, since neither wraps.
+
 ### Where the two halves are not identical
 
-Measured rather than asserted, over a 198-value anchor corpus and a 134-stamp corpus:
+Measured rather than asserted, over a 971-value anchor corpus and a 134-stamp corpus:
 
 | Axis | Agreement | Residual |
 |---|---|---|
-| anchors, per value | 198 of 198 | none |
+| anchors, per value | 971 of 971 | none |
 | skew, per stamp | 121 of 134 | 13 stamps, all ones TypeScript refuses and Python accepts |
+
+The anchors row is measured on Python 3.11, 3.12 and 3.14, and all three answer alike.
+The alphabet and padding rule lives in an explicit regex rather than in
+`base64.b64decode(validate=True)`, whose strictness changed between 3.11 and 3.12.
 
 Every residual runs in the direction where TypeScript is the stricter half, so a value
 one language treats as valid is never read as valid by the other and then trusted. The
