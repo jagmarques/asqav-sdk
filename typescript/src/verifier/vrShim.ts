@@ -306,32 +306,23 @@ function pyTruthy(v: unknown): boolean {
   return true;
 }
 
-const B64_ALPHABET = /[A-Za-z0-9+/]/g;
-const B64_CHAR = /[A-Za-z0-9+/]/;
+// Mirrors base64.b64decode(validate=True): alphabet characters, then at most two pads
+const B64_STRICT = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /**
- * True when Python's `_safe_b64` decodes `value`, false otherwise.
+ * True when Python's `_safe_b64` accepts `value`, false otherwise.
  *
- * Python ascii-encodes first, so ANY non-ASCII codepoint raises and refuses the
- * value. It then pads by the raw length, drops non-alphabet ASCII, and rejects a
- * group it cannot complete. Never read a value as decodable that Python refuses.
+ * Strict on purpose: an out-of-alphabet character is refused, not dropped, so a
+ * forged all-punctuation anchor cannot read as present. A non-ASCII codepoint
+ * falls outside the alphabet here, matching the ascii encode Python raises on.
  */
 function safeB64(value: unknown): boolean {
   if (typeof value !== "string") return false;
-  // base64.b64decode raises "string argument should contain only ASCII characters".
-  if (/[^\x00-\x7f]/.test(value)) return false;
   const s = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = s + "=".repeat(((-s.length % 4) + 4) % 4);
-  const alpha = (padded.match(B64_ALPHABET) ?? []).length;
-  const rem = alpha % 4;
-  if (rem === 0) return true;
-  if (rem === 1) return false;
-  // Only an "=" past the last alphabet character pads, so a leading one is junk.
-  let last = -1;
-  for (let i = 0; i < padded.length; i++) if (B64_CHAR.test(padded[i])) last = i;
-  let pad = 0;
-  for (const ch of padded.slice(last + 1)) if (ch === "=") pad++;
-  return rem === 2 ? pad >= 2 : pad >= 1;
+  if (!B64_STRICT.test(padded)) return false;
+  // Padding carries no byte, so an all-pad value is not an anchor
+  return padded.replace(/=+$/, "").length > 0;
 }
 
 /** JCS bytes of the envelope with `anchors` removed (mirrors `envelope_minus_anchors_jcs`). */
