@@ -30,6 +30,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   three-step resolution and reads every axis off the one resolved entry, so both
   halves answer identically.
 
+- **Every docs link in the README reaches a real page.** The wire-field
+  reference and the self-hosted signer guide named five docs slugs the site
+  serves no page for, so a reader following one out of the published package
+  description landed on a 404. Each link moves to the live page that documents
+  the field: `expires_at` and `nonce` to time-bound receipts,
+  `config_manifest_digest` to configuration change receipts,
+  `cve_inventory_digest` to the CVE inventory digest page, and the air-gapped
+  signer pointer to offline and air-gapped verification.
+
 ## [0.8.3] - 2026-07-20
 
 Patch release with a verifier correctness fix and a docs alignment.
