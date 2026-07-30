@@ -29,6 +29,7 @@ WHAT THIS CHECKS (independently, on your machine):
   - anchor binding (which envelope each anchor commits to) plus anchor presence
   - issuer public-key resolution from the public /.well-known/jwks.json
   - issuer binding (the verifying key is published under the claimed issuer_id)
+  - expiry (the expires_at the signer committed to inside the signed bytes)
 
 WHAT THIS DOES NOT CHECK (needs server state or ASN.1; use the hosted /verify):
   - full RFC3161 certificate-chain walk
@@ -669,13 +670,23 @@ def _extended_offset(issued_at: str) -> str:
     return f"{date}{tail[: m.start()]}{m.group(1)}{hours:02d}:{minutes:02d}"
 
 
-def check_skew(issued_at: str):
+def _parse_stamp(value: object):
+    """Parse an ISO-8601 stamp, or None when it is unreadable.
+
+    One parser for every time axis, so a stamp the skew axis refuses is not
+    quietly accepted by the expiry axis. A stamp with no zone reads as UTC.
+    """
     try:
-        ts = datetime.fromisoformat(_extended_offset(issued_at.replace("Z", "+00:00")))
-    except (ValueError, AttributeError):
+        ts = datetime.fromisoformat(_extended_offset(str(value).replace("Z", "+00:00")))
+    except (ValueError, AttributeError, TypeError):
+        return None
+    return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+
+
+def check_skew(issued_at: str):
+    ts = _parse_stamp(issued_at)
+    if ts is None:
         return "FAIL", f"unparseable issued_at {issued_at!r}"
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
     skew = (ts - datetime.now(timezone.utc)).total_seconds()
     if skew > SKEW_BOUND_SECONDS:
         return (
@@ -683,6 +694,25 @@ def check_skew(issued_at: str):
             f"issued_at {skew:.0f}s ahead of wall clock (> {SKEW_BOUND_SECONDS}s)",
         )
     return "PASS", f"skew {skew:.0f}s within bound"
+
+
+def check_expiry(payload: dict):
+    """Refuse a receipt past the expiry its own signer committed to.
+
+    Mirrors the hosted signature_expired verdict. The window is read from inside
+    the signed bytes, so an unsigned envelope field can never move it, and an
+    unreadable value fails closed instead of reading as no window at all.
+    """
+    if not isinstance(payload, dict) or "expires_at" not in payload:
+        return "PASS", "receipt declares no expiry"
+    raw = payload["expires_at"]
+    ts = _parse_stamp(raw)
+    if ts is None:
+        return "FAIL", f"unreadable expires_at {raw!r}; refused rather than read as no expiry"
+    delta = (ts - datetime.now(timezone.utc)).total_seconds()
+    if delta < 0:
+        return "FAIL", f"expires_at {raw} lapsed {-delta:.0f}s ago"
+    return "PASS", f"expires_at {raw} is {delta:.0f}s ahead"
 
 
 def check_chain(payload: dict, predecessor_payload: dict | None):
@@ -841,6 +871,7 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", *check_anchors(envelope)))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
+    results.append(("expiry", *check_expiry(payload)))
 
     print("Asqav receipt verification")
     print(f"  canonical bytes: sha256:{hashlib.sha256(msg).hexdigest()}")
@@ -1021,6 +1052,8 @@ def run_structured(
     axes.append({"name": "anchors", "result": anch_r, "note": anch_n})
     skew_r, skew_n = check_skew(payload.get("issued_at", ""))
     axes.append({"name": "skew", "result": skew_r, "note": skew_n})
+    exp_r, exp_n = check_expiry(payload)
+    axes.append({"name": "expiry", "result": exp_r, "note": exp_n})
 
     has_fail = any(a["result"] == "FAIL" for a in axes)
     has_blocking_skip = any(
