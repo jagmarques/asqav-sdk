@@ -16,7 +16,7 @@ cloud-side doc: https://www.asqav.com/docs/self-hosted-signer
 - Regulated institutions where ML-DSA private keys cannot cross an
   organizational trust boundary.
 - Air-gapped operators who must refuse all outbound HTTP. See
-  https://www.asqav.com/docs/airgapped-mode for the air-gapped
+  https://www.asqav.com/docs/offline-air-gapped-verification for the air-gapped
   variant.
 
 ## Stand up the signer
@@ -109,7 +109,7 @@ For deployments that must refuse all outbound HTTP, set
 `docker-compose.signer.yml` comments. Bitcoin anchoring, the upstream
 relay, and update checks are disabled in this mode; signing, replay,
 and compliance bundle export still work locally. See
-https://www.asqav.com/docs/airgapped-mode.
+https://www.asqav.com/docs/offline-air-gapped-verification.
 
 ## Verifying a signed receipt
 
