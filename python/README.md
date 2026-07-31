@@ -151,7 +151,7 @@ sig = agent.sign(
 
 ### Configuration change receipts, rule 9
 
-A `receipt_type='protectmcp:lifecycle:configuration_change'` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate for NSA CSI U/OO/6030316-26 alignment: the receipt MUST carry `config_manifest_digest`. Omitting it raises `ValueError` with the verbatim `false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)` message before the HTTP roundtrip.
+A `receipt_type='protectmcp:lifecycle:configuration_change'` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate for NSA CSI U/OO/6030316-26 alignment: the receipt MUST carry `config_manifest_digest`. Omitting it raises `ValueError` with the verbatim `configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).` message before the HTTP roundtrip.
 
 ```python
 sig = agent.sign(
