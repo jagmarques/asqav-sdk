@@ -28,6 +28,18 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- **The published `@asqav/sdk` LICENSE file did not match the license
+  `package.json` declares.** The relicense to Elastic License 2.0 (#344)
+  updated the root `LICENSE`, `package.json`, and `pyproject.toml`, but left
+  `typescript/LICENSE` on its pre-relicense MIT text. `@asqav/sdk@0.8.2` and
+  `0.8.3` on npm both shipped declaring `LicenseRef-Elastic-License-2.0`
+  while bundling an MIT-worded LICENSE file inside the tarball. Those two
+  published versions are immutable and keep shipping that text.
+  `typescript/LICENSE` now matches the repo's canonical Elastic License 2.0
+  text, so the next publish carries the correct grant. A test
+  (`tests/license-consistency.test.ts`) pins the packaged LICENSE file
+  against the declared license going forward.
+
 - **A forged anchor value cannot report as a present anchor.** The anchors axis
   decoded the value leniently, and a lenient base64 decode drops every character
   outside the alphabet, so an all-punctuation value such as `!!!!` decoded to zero
