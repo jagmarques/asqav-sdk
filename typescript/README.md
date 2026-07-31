@@ -143,7 +143,7 @@ const sig = await agent.sign({
 
 ### Configuration change receipts, rule 9
 
-A `receiptType: "protectmcp:lifecycle:configuration_change"` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate for NSA CSI U/OO/6030316-26 alignment: the receipt MUST carry `configManifestDigest`. Omitting it throws `AsqavError` with the verbatim `false_attestation_guard: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (rule 9)` message before the HTTP roundtrip.
+A `receiptType: "protectmcp:lifecycle:configuration_change"` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate for NSA CSI U/OO/6030316-26 alignment: the receipt MUST carry `configManifestDigest`. Omitting it throws `AsqavError` with the verbatim `configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).` message before the HTTP roundtrip.
 
 ```ts
 const sig = await agent.sign({
@@ -280,7 +280,7 @@ console.log(bundle.records.length, bundle.bundleDigest);
 
 For offline chain verification, `verifyChain(records)` walks an ordered list of signed envelopes for one agent and re-derives each `previous_receipt_hash`. The first record's seed is `"0".repeat(64)`. The cloud is the authoritative verifier. This helper is a convenience.
 
-Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`. `Agent.create(...)` sends the algorithm to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only (`generateKeypair("ed25519")`); passing them to `Agent.create(...)` returns a 400 from the cloud. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
+Algorithm agility is exposed via `SUPPORTED_ALGORITHMS`, the five-element client-side validation set (`ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87`, `ed25519`, `es256`) - unlike the Python SDK's `SUPPORTED_ALGORITHMS`, which lists only the two local-keygen algorithms. `Agent.create(...)` sends the algorithm to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only (`generateKeypair("ed25519")`); passing them to `Agent.create(...)` returns a 400 from the cloud. ES256 signatures emit in IEEE-P1363 raw r||s form so they match the cloud verifier byte-for-byte.
 
 ## Offline / air-gapped verification
 

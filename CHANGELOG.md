@@ -100,6 +100,36 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   landing on either registry page keeps seeing the old sentence until the next
   release republishes the README.
 
+### Documentation
+
+- **The rule-9 guard message both READMEs quoted as verbatim was never the
+  real one.** `python/README.md` and `typescript/README.md` claimed a missing
+  `config_manifest_digest` on a `configuration_change` receipt raises
+  `false_attestation_guard: ...`. The real prefix, in both language
+  implementations, is `configuration_change_missing_config_manifest_digest:
+  ...`; `false_attestation_guard` is the real prefix for the separate rule-8
+  guard only. A reader who pattern-matched the documented string would never
+  catch the real exception. Corrected in both READMEs.
+- **`python/README-ZH.md` still stated the pre-0.8.1 MIT license and a false
+  `Agent.create()` capability.** The license line was never updated past the
+  MIT-to-Elastic-License-2.0 relicense below. Separately, the ZH doc claimed
+  `Agent.create(algorithm="ed25519"|"es256")` is accepted for "classical
+  identity"; the client's own docstring says the cloud returns 400 for either,
+  matching the (correct) EN docs. Also repointed a dead `asqav.com/roadmap`
+  link (404) to `asqav.com/docs`.
+- **`CONTRIBUTING.md`'s setup steps never accounted for the `python/` +
+  `typescript/` split.** Every documented command (`uv sync`, `pip install -e
+  ".[httpx]"`, `pytest tests/`, `ruff`, `mypy`) was written as if run from the
+  repo root, which has no `pyproject.toml` or `tests/` of its own; each one
+  fails immediately as written. Added the missing `cd python` / `cd
+  typescript` steps, a TypeScript setup path (previously absent), and fixed
+  the plain-venv extra (`.[httpx]` alone never installs `pytest`/`ruff`/`mypy`;
+  needs `.[dev,httpx]`).
+- **`SECURITY.md`'s Supported Versions table was frozen at `0.5.x`, not the
+  published `0.8.3`.** Replaced the version-number table with a policy
+  statement (latest published version only) so it cannot go stale the same
+  way again.
+
 ## [0.8.3] - 2026-07-20
 
 Patch release with a verifier correctness fix and a docs alignment.

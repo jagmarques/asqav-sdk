@@ -8,10 +8,10 @@ Do not open public issues for security vulnerabilities.
 
 ## Supported Versions
 
-| Version | Supported |
-|---------|----------|
-| 0.5.x   | Yes      |
-| < 0.5   | No       |
+Only the latest published version of each package is supported:
+[`asqav` on PyPI](https://pypi.org/project/asqav/) and
+[`@asqav/sdk` on npm](https://www.npmjs.com/package/@asqav/sdk). Security
+fixes ship in the next patch release rather than being backported.
 
 ## Cryptographic Details
 
