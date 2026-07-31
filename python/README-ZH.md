@@ -120,14 +120,14 @@ print(pack["algorithm_registry_version"]) # 签发时锚定的算法注册表版
 
 本地侧的基础校验通过 `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)` 提供，涵盖必填字段是否存在、命名空间、300 秒时钟偏差边界以及前驱重派生。权威验证方仍是云端，该 helper 仅作便利。
 
-按 profile 第 10.8 节的算法敏捷性，可用算法通过 `asqav.SUPPORTED_ALGORITHMS` 暴露。`Agent.create(...)` 可传入 `algorithm="ed25519"` 或 `"es256"` 用于经典身份，即非 ML-DSA 身份，或用 `asqav.generate_local_keypair("ed25519")` 进行离线场景。
+`asqav.SUPPORTED_ALGORITHMS` 是 `asqav.generate_local_keypair(...)` 可在本地生成的算法集合：`{ed25519, es256}`，它不包含云端的 Agent 签名算法。`Agent.create(...)` 会把 `algorithm` 发送到 Asqav 云端，云端接受 `ml-dsa-44`、`ml-dsa-65`（默认）和 `ml-dsa-87`。`ed25519` 和 `es256` 仅用于本地密钥生成，传给 `Agent.create(...)` 会被云端拒绝并返回 400。
 
 ## 文档
 
 - 仓库：<https://github.com/jagmarques/asqav-sdk>
 - 完整文档：<https://asqav.com/docs>
-- 路线图：<https://asqav.com/roadmap>
+- 路线图：<https://asqav.com/docs>
 
 ## License
 
-MIT。在 [asqav.com](https://asqav.com) 申请 API Key。
+Elastic License 2.0（0.8.1 及以后版本；0.8.0 及更早版本永久保留 MIT）。在 [asqav.com](https://asqav.com) 申请 API Key。

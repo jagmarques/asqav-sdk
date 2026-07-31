@@ -51,7 +51,9 @@ Unsure where to begin? You can start by looking through [`good-first-issue`](htt
 
 ## Development Environment Setup
 
-To start contributing code, you will need a Python development environment (Python 3.10+).
+This repository is a monorepo with two independently-versioned SDKs: `python/`
+(Python 3.10+) and `typescript/` (Node 20+). Pick the track that matches your
+change; both start the same way.
 
 1. **Fork the repository** on GitHub.
 
@@ -61,21 +63,40 @@ To start contributing code, you will need a Python development environment (Pyth
    cd asqav-sdk
    ```
 
-3. **Install [uv](https://docs.astral.sh/uv/)** (recommended) and sync dependencies:
+### Python
+
+3. **`cd python`, then install [uv](https://docs.astral.sh/uv/)** (recommended) and sync dependencies:
    ```bash
+   cd python
    uv sync --all-extras
    ```
 
-   Or use a plain virtual environment:
+   Or use a plain virtual environment. Include the `dev` extra (not just
+   `httpx`) or `pytest`/`ruff`/`mypy` will not be installed:
    ```bash
+   cd python
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -e ".[httpx]"
+   pip install -e ".[dev,httpx]"
    ```
 
-4. **Run tests** to ensure everything is working:
+4. **Run tests** (from `python/`) to ensure everything is working:
    ```bash
-   uv run python -m pytest tests/
+   uv run python -m pytest tests/    # uv path
+   pytest tests/                     # plain-venv path (venv already active)
+   ```
+
+### TypeScript
+
+3. **`cd typescript`, then install dependencies:**
+   ```bash
+   cd typescript
+   npm ci
+   ```
+
+4. **Run tests** (from `typescript/`) to ensure everything is working:
+   ```bash
+   npm test
    ```
 
 ## Styleguides
@@ -116,11 +137,18 @@ To start contributing code, you will need a Python development environment (Pyth
 
 2. **Make your changes** and add tests if applicable.
 
-3. **Ensure all checks pass:**
+3. **Ensure all checks pass**, from the `python/` or `typescript/` subdirectory
+   your change touches:
    ```bash
+   # Python (from python/)
    uv run python -m pytest tests/
    uv run ruff check src/ tests/
    uv run mypy src/
+   ```
+   ```bash
+   # TypeScript (from typescript/)
+   npm test
+   npm run lint
    ```
 
 4. **Commit your changes:**
