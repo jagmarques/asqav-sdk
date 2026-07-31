@@ -360,7 +360,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide. The short
 
 1. Fork the repo and create a feature branch.
 2. Run the relevant test suite locally.
-   - Python: `cd python && pip install -e ".[all]" pytest && pytest tests -v`
+   - Python: `cd python && pip install -e ".[all,dev]" && pytest tests -v`
    - TypeScript: `cd typescript && npm ci && npm test`
 3. Open a pull request against `main`. CI must go green for the PR to land.
 
