@@ -1,0 +1,31 @@
+{
+  "keys": [
+    {
+      "kid": "vec_kid_0",
+      "agent_id": "agt_0",
+      "issuer_id": "org_multikey_vec",
+      "org_id": "org_multikey_vec",
+      "alg": "Ed25519",
+      "public_key": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=",
+      "status": "active"
+    },
+    {
+      "kid": "vec_kid_1",
+      "agent_id": "agt_1",
+      "issuer_id": "org_multikey_vec",
+      "org_id": "org_multikey_vec",
+      "alg": "Ed25519",
+      "public_key": "gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=",
+      "status": "active"
+    },
+    {
+      "kid": "vec_kid_2",
+      "agent_id": "agt_2",
+      "issuer_id": "org_multikey_vec",
+      "org_id": "org_multikey_vec",
+      "alg": "Ed25519",
+      "public_key": "7UkoxijRwsbq6QM4kFmVYSlZJzpcY/k2NsFGFKyHN9E=",
+      "status": "active"
+    }
+  ]
+}

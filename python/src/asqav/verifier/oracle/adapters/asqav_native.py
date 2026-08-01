@@ -144,6 +144,7 @@ class AsqavNativeAdapter(FormatAdapter):
             self.extract_signature(doc).kid,
             payload.get("agent_id") or doc.get("agent_id"),
             payload.get("issuer_id"),
+            payload.get("org_id") or doc.get("org_id"),
         )
 
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:

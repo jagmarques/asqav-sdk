@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "mode": "hash",
+  "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "hash_algo": "sha256",
+  "metadata": {},
+  "server_timestamp": "2026-01-01T00:00:00Z",
+  "action_id": "act_vec",
+  "agent_id": "agt_2",
+  "org_id": "org_multikey_vec",
+  "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "policy_decision": "allow",
+  "payload": null,
+  "algorithm": "Ed25519",
+  "key_id": "org_multikey_vec",
+  "signature_b64": "E7mmk0lw7mzAjFkdfMfLg04BAnnIybu60r/AaCGtm/imVyZINRtvjyCQXXFT6Rmqb+hrQszXMpuVHDZGDo5FAA==",
+  "anchors": null
+}
