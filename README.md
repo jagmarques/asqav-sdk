@@ -94,7 +94,7 @@ The agent now has a cryptographic identity, a signed audit trail, and a verifiab
 
 The fastest path from zero to a signed action.
 
-### 1. Install
+### Install
 
 ```bash
 # Python
@@ -104,11 +104,11 @@ pip install asqav
 npm install @asqav/sdk
 ```
 
-### 2. Get an API key
+### Get an API key
 
 Sign up at [asqav.com](https://asqav.com) and copy your `sk_...` key.
 
-### 3. Call govern() — one line to init + create
+### Call govern() - one line to init + create
 
 Python:
 
@@ -128,7 +128,7 @@ import { govern } from "@asqav/sdk";
 const agent = await govern({ apiKey: "sk_...", agentName: "my-agent" });
 ```
 
-### 4. Sign an action
+### Sign an action
 
 Python:
 
@@ -147,7 +147,7 @@ const sig = await agent.sign({
 console.log(sig.signatureId, sig.verificationUrl);
 ```
 
-### 5. Verify
+### Verify
 
 Paste the `verification_url` in a browser, or call the API directly:
 
