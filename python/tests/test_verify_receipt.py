@@ -467,3 +467,20 @@ def test_run_structured_passes_a_receipt_signed_by_the_claimed_issuer() -> None:
     jwks = {"keys": [_jwks_key("agent-one", "agt_one", "org-legit", pk)]}
     result = v.run_structured(_envelope(payload, sig, kid="agent-one"), jwks, None)
     assert result["verdict"] == "PASS", f"axes: {result['axes']}"
+
+
+def test_extended_offset_rejects_out_of_range_minute() -> None:
+    # Criterion 342: a minute field of 60+ is refused, not rewritten parseable
+    import pytest
+
+    with pytest.raises(ValueError):
+        v._extended_offset("2026-05-04T12:00:00+0260")
+    # A valid basic-format offset still rewrites to the extended form
+    assert v._extended_offset("2026-05-04T12:00:00+0200") == "2026-05-04T12:00:00+02:00"
+
+
+def test_out_of_range_offset_fails_closed_on_the_skew_axis() -> None:
+    # Criterion 342: an out-of-range offset reads unparseable, so skew refuses it
+    result, note = v.check_skew("2026-05-04T12:00:00+0260")
+    assert result == "FAIL"
+    assert "unparseable" in note
