@@ -134,18 +134,23 @@ function matchKeyById(
 }
 
 // An agent key bound to the issuer the receipt claims (mirrors `_match_key_by_agent`).
-// agent_id is attacker-controlled, so the key's published issuer must equal the one
-// the receipt names inside its signed bytes.
+// agent_id is attacker-controlled, so the key's published issuer (or org) must equal
+// the one the receipt names inside its signed bytes; a hash-mode receipt signs the raw
+// org_id, so the org binding answers for that shape and names exactly one sibling.
 function matchKeyByAgent(
   jwks: Record<string, unknown> | null,
   agentId: unknown,
   issuerId: unknown,
+  orgId?: unknown,
 ): Record<string, unknown> | null {
   const keys = jwks?.keys;
   if (!Array.isArray(keys)) return null;
   for (const k of keys as Array<Record<string, unknown>>) {
     if (k === null || typeof k !== "object") continue;
-    if (agentId && agentId === k.agent_id && issuerId && issuerId === k.issuer_id) {
+    if (!(agentId && agentId === k.agent_id)) continue;
+    const issuerBound = issuerId && issuerId === k.issuer_id;
+    const orgBound = orgId && orgId === k.org_id;
+    if (issuerBound || orgBound) {
       if (typeof k.public_key !== "string") continue;
       return k;
     }
@@ -161,16 +166,20 @@ function matchKeyByAgent(
  * publishes issuer_id on every key that org owns, so an org-shaped kid matches each
  * sibling alike and list position picks one. Position binds nothing: agent_id and
  * issuer_id both sit inside the signed bytes, so the pair names the signer, while the
- * sibling it lands on holds other key bytes and another revocation status.
+ * sibling it lands on holds other key bytes and another revocation status. The agent
+ * bind carries the org_id a hash-mode receipt signs, so the right sibling resolves.
  */
 export function matchSigningKey(
   jwks: Record<string, unknown> | null,
   kid: string,
   agentId?: unknown,
   issuerId?: unknown,
+  orgId?: unknown,
 ): Record<string, unknown> | null {
   return (
-    matchKeyById(jwks, kid) ?? matchKeyByAgent(jwks, agentId, issuerId) ?? matchKey(jwks, kid)
+    matchKeyById(jwks, kid) ??
+    matchKeyByAgent(jwks, agentId, issuerId, orgId) ??
+    matchKey(jwks, kid)
   );
 }
 
