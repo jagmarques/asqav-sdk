@@ -368,13 +368,16 @@ def _match_key_by_id(jwks: dict, kid: str):
     return None
 
 
-def _match_key_by_agent(jwks: dict, agent_id, issuer_id):
+def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
     """Return the first usable jwks entry for an agent key bound to a claimed issuer.
 
     The single agent-side matcher, so the entry a signature verifies against is the
     same entry every published field is read from. agent_id is attacker-controlled,
-    so a match also requires the key's published issuer_id to equal the issuer the
-    receipt claims inside its signed bytes.
+    so a match also requires the key's published issuer_id (or org_id) to equal the
+    issuer the receipt claims inside its signed bytes. A hash-mode receipt signs the
+    raw org_id rather than issuer_id, so the org binding answers for that shape: an
+    org publishes issuer_id == org_id on every key it owns, and agent_id is unique
+    per key, so agent_id plus the org binding names exactly one signer.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -382,19 +385,18 @@ def _match_key_by_agent(jwks: dict, agent_id, issuer_id):
     for k in keys:
         if not isinstance(k, dict):
             continue
-        if (
-            agent_id
-            and agent_id == k.get("agent_id")
-            and issuer_id
-            and issuer_id == k.get("issuer_id")
-        ):
+        if not (agent_id and agent_id == k.get("agent_id")):
+            continue
+        issuer_bound = issuer_id and issuer_id == k.get("issuer_id")
+        org_bound = org_id and org_id == k.get("org_id")
+        if issuer_bound or org_bound:
             if not isinstance(k.get("public_key"), str):
                 continue
             return k
     return None
 
 
-def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None):
+def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None):
     """Return the one jwks entry a receipt's signature is checked against.
 
     Exact key id, then the agent bind, then the bare-kid issuer match. Every caller
@@ -408,12 +410,13 @@ def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None):
     owns, so an org-shaped kid matches each sibling alike and list position picks one.
     Position binds nothing: agent_id and issuer_id both sit inside the signed bytes,
     so the pair names the signer, while the sibling it lands on holds other key bytes,
-    another revocation status and another agent.
+    another revocation status and another agent. The agent bind carries the org_id a
+    hash-mode receipt signs, so the correct sibling resolves before the loose match.
     """
     entry = _match_key_by_id(jwks, kid)
     if entry is not None:
         return entry
-    entry = _match_key_by_agent(jwks, agent_id, issuer_id)
+    entry = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
     if entry is not None:
         return entry
     return _match_key(jwks, kid)
@@ -457,17 +460,17 @@ def resolve_key_issuer(jwks: dict, kid: str):
     return key_issuer_of(_match_key(jwks, kid))
 
 
-def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str):
+def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str, org_id: str | None = None):
     """Return (public_key_bytes, status, alg, kid, key_issuer_id) for an agent key.
 
     Cloud receipts set signature.kid to the issuer (org) id but sign with the
     agent's own key; the JWKS publishes agent_id per key, so the signing key is
     resolvable by the receipt's agent_id. agent_id is attacker-controlled, so a
-    match also requires the key's published issuer_id to equal the receipt's
-    claimed issuer_id: without that bind a valid key from any org would verify a
-    receipt claiming a different issuer. Same defensive shape as resolve_key.
+    match also requires the key's published issuer_id (or org_id) to equal the
+    receipt's claimed issuer: without that bind a valid key from any org would
+    verify a receipt claiming a different issuer. Same defensive shape as resolve_key.
     """
-    k = _match_key_by_agent(jwks, agent_id, issuer_id)
+    k = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
     if k is None:
         return None, None, None, None, None
     return (
@@ -845,8 +848,9 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
         # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
+            org_bind = payload.get("org_id") or envelope.get("org_id")
             pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
-                jwks, agent_id, payload.get("issuer_id")
+                jwks, agent_id, payload.get("issuer_id"), org_bind
             )
             if pk_a is not None:
                 sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
@@ -1017,8 +1021,9 @@ def run_structured(
         # key whose published issuer_id matches the claimed issuer.
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
+            org_bind = payload.get("org_id") or envelope.get("org_id")
             pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
-                jwks, agent_id, payload.get("issuer_id")
+                jwks, agent_id, payload.get("issuer_id"), org_bind
             )
             if pk_a is not None:
                 sig_res_a = verify_signature(pk_a, msg, sig_bytes, alg_a or alg or jwks_alg)
