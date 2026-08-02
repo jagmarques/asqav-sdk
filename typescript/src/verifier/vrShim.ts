@@ -398,6 +398,13 @@ export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
   return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
 }
 
+// True once the signed expiry sits in the past (mirrors the hosted signature_expired
+// verdict). The window is a negative delta from the wall clock, so the verdict does
+// not depend on which verifier the reader runs
+function expiryLapsed(deltaSeconds: number): boolean {
+  return deltaSeconds < 0;
+}
+
 /**
  * Refuse a receipt past the expiry its own signer committed to (mirrors `check_expiry`).
  *
@@ -415,7 +422,7 @@ export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
     return ["FAIL", `unreadable expires_at ${pyRepr(raw)}; refused rather than read as no expiry`];
   }
   const delta = (ms - Date.now()) / 1000;
-  if (delta < 0) {
+  if (expiryLapsed(delta)) {
     return ["FAIL", `expires_at ${pyStr(raw)} lapsed ${(-delta).toFixed(0)}s ago`];
   }
   return ["PASS", `expires_at ${pyStr(raw)} is ${delta.toFixed(0)}s ahead`];
