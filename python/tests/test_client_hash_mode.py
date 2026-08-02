@@ -235,20 +235,27 @@ def test_hash_only_uses_hmac_when_org_salt_set() -> None:
     agent = _make_agent()
     plain_hash = None
     salted_hash = None
+    plain_algo = None
+    salted_algo = None
 
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"k": 3})
         plain_hash = mock_post.call_args[0][1]["hash"]
+        plain_algo = mock_post.call_args[0][1]["hash_algo"]
 
     client_mod._org_salt = b"\x01" * 32
     with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"k": 3})
         salted_hash = mock_post.call_args[0][1]["hash"]
+        salted_algo = mock_post.call_args[0][1]["hash_algo"]
 
     assert plain_hash != salted_hash
     assert plain_hash.startswith("sha256:") and salted_hash.startswith("sha256:")
+    # The keyed digest must not be labelled plain sha256 on the wire
+    assert plain_algo == "sha256"
+    assert salted_algo == "hmac-sha256"
 
 
 def test_init_resolves_mode_from_url() -> None:
