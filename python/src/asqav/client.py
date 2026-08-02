@@ -1467,8 +1467,11 @@ def _build_sign_body(
         payload_size = len(canonical_bytes)
         if _org_salt is not None:
             digest_hex = hmac.new(_org_salt, canonical_bytes, hashlib.sha256).hexdigest()
+            hash_algo = "hmac-sha256"
         else:
             digest_hex = hashlib.sha256(canonical_bytes).hexdigest()
+            hash_algo = "sha256"
+        # Wire digest keeps the sha256:<32-byte hex> shape; hash_algo names the keyedness
         digest = f"sha256:{digest_hex}"
         metadata: dict[str, Any] = {
             "agent_id": agent_id,
@@ -1490,7 +1493,7 @@ def _build_sign_body(
         body: dict[str, Any] = {
             "action_type": action_type,
             "hash": digest,
-            "hash_algo": "sha256",
+            "hash_algo": hash_algo,
             "payload_size": payload_size,
             "metadata": metadata,
             "session_id": session_id,
