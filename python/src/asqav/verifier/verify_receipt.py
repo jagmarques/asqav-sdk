@@ -368,16 +368,26 @@ def _match_key_by_id(jwks: dict, kid: str):
     return None
 
 
+def _key_bound_to_claimant(k: dict, issuer_id, org_id=None):
+    """Return True when a key's published issuer or org equals the claimed one.
+
+    agent_id is attacker-controlled, so this claim bind, not the agent match alone,
+    decides which sibling a receipt verifies against. A hash-mode receipt signs the
+    raw org_id rather than issuer_id, so the org binding answers for that shape and
+    names exactly one signer.
+    """
+    issuer_bound = issuer_id and issuer_id == k.get("issuer_id")
+    org_bound = org_id and org_id == k.get("org_id")
+    return bool(issuer_bound or org_bound)
+
+
 def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
     """Return the first usable jwks entry for an agent key bound to a claimed issuer.
 
     The single agent-side matcher, so the entry a signature verifies against is the
-    same entry every published field is read from. agent_id is attacker-controlled,
-    so a match also requires the key's published issuer_id (or org_id) to equal the
-    issuer the receipt claims inside its signed bytes. A hash-mode receipt signs the
-    raw org_id rather than issuer_id, so the org binding answers for that shape: an
-    org publishes issuer_id == org_id on every key it owns, and agent_id is unique
-    per key, so agent_id plus the org binding names exactly one signer.
+    same entry every published field is read from. An org publishes issuer_id ==
+    org_id on every key it owns, and agent_id is unique per key, so agent_id plus
+    the claim bind names exactly one signer.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -387,9 +397,7 @@ def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
             continue
         if not (agent_id and agent_id == k.get("agent_id")):
             continue
-        issuer_bound = issuer_id and issuer_id == k.get("issuer_id")
-        org_bound = org_id and org_id == k.get("org_id")
-        if issuer_bound or org_bound:
+        if _key_bound_to_claimant(k, issuer_id, org_id):
             if not isinstance(k.get("public_key"), str):
                 continue
             return k
