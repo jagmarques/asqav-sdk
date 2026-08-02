@@ -122,6 +122,29 @@ def test_org_kid_answers_for_an_agent_the_directory_omits() -> None:
     assert entry["kid"] == "key-agent-one"
 
 
+def test_three_key_org_resolves_its_middle_signer() -> None:
+    """A directory of three siblings answers for the middle one, not the first."""
+    jwks = {"keys": [_key("key-agent-one", "agt_one"), _key("key-agent-two", "agt_two"),
+                     _key("key-agent-three", "agt_three")]}
+    entry = v.match_signing_key(jwks, ORG, "agt_two", ORG)
+    assert entry is not None
+    assert entry["kid"] == "key-agent-two"
+    last = v.match_signing_key(jwks, ORG, "agt_three", ORG)
+    assert last is not None
+    assert last["kid"] == "key-agent-three"
+
+
+def test_three_key_org_binds_the_middle_signer_by_org() -> None:
+    """A hash-mode receipt signs the raw org_id, so the org bind names the signer."""
+    def org_key(kid: str, agent_id: str) -> dict:
+        return {**_key(kid, agent_id), "org_id": ORG}
+    jwks = {"keys": [org_key("key-agent-one", "agt_one"), org_key("key-agent-two", "agt_two"),
+                     org_key("key-agent-three", "agt_three")]}
+    entry = v.match_signing_key(jwks, "kid-absent", "agt_two", None, ORG)
+    assert entry is not None
+    assert entry["kid"] == "key-agent-two"
+
+
 # --- adversarial: agent_id is attacker-controlled ---
 
 
