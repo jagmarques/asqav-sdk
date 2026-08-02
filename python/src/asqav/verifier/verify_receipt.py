@@ -681,14 +681,27 @@ def _extended_offset(issued_at: str) -> str:
     return f"{date}{tail[: m.start()]}{m.group(1)}{hours:02d}:{minutes:02d}"
 
 
+#: Extended ISO-8601 form pinned so the basic form draws one verdict on every parser.
+_EXTENDED_STAMP_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}"
+    r"(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?"
+    r"(?:Z|[+-]\d{2}(?::?\d{2})?)?$"
+)
+
+
 def _parse_stamp(value: object):
     """Parse an ISO-8601 stamp, or None when it is unreadable.
 
     One parser for every time axis, so a stamp the skew axis refuses is not
     quietly accepted by the expiry axis. A stamp with no zone reads as UTC.
+    The grammar is matched explicitly before fromisoformat, whose acceptance of
+    the basic form differs by version; one stamp must draw one verdict on all.
     """
+    text = str(value)
+    if _EXTENDED_STAMP_RE.match(text) is None:
+        return None
     try:
-        ts = datetime.fromisoformat(_extended_offset(str(value).replace("Z", "+00:00")))
+        ts = datetime.fromisoformat(_extended_offset(text.replace("Z", "+00:00")))
     except (ValueError, AttributeError, TypeError):
         return None
     return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
