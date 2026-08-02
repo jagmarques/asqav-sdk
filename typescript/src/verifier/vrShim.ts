@@ -379,6 +379,12 @@ function parseIsoMs(issuedAt: unknown): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
+// The skew bound is one-sided: only a stamp too far ahead of the wall clock fails,
+// since a backdated issued_at harms nothing the wall clock can detect (mirrors Python)
+function skewWithinBound(skewSeconds: number): boolean {
+  return skewSeconds <= SKEW_BOUND_SECONDS;
+}
+
 /** `issued_at` within the wall-clock bound; returns `[result, note]` (mirrors `check_skew`). */
 export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
   const ms = parseIsoMs(issuedAt);
@@ -386,7 +392,7 @@ export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
     return ["FAIL", `unparseable issued_at ${JSON.stringify(issuedAt ?? null)}`];
   }
   const skew = (ms - Date.now()) / 1000;
-  if (skew > SKEW_BOUND_SECONDS) {
+  if (!skewWithinBound(skew)) {
     return ["FAIL", `issued_at ${skew.toFixed(0)}s ahead of wall clock (> ${SKEW_BOUND_SECONDS}s)`];
   }
   return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
