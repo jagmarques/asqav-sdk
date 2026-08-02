@@ -51,6 +51,7 @@
   {"name":"2020-01-01T00:00:00+00:00","issued_at":"2020-01-01T00:00:00+00:00","expect":{"result":"PASS","note_contains":"within bound"}},
   {"name":"2020-01-01T00:00:00Z","issued_at":"2020-01-01T00:00:00Z","expect":{"result":"PASS","note_contains":"within bound"}},
   {"name":"2020-01-01T00:00:00z","issued_at":"2020-01-01T00:00:00z","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
+  {"name":"20200101T000000Z basic form","issued_at":"20200101T000000Z","expect":{"result":"FAIL","note_contains":"unparseable issued_at"}},
   {"name":"2020-01-01T00:00:00.123456Z","issued_at":"2020-01-01T00:00:00.123456Z","expect":{"result":"PASS","note_contains":"within bound"}},
   {"name":"2020-01-01T00:00:00.123456+00:00","issued_at":"2020-01-01T00:00:00.123456+00:00","expect":{"result":"PASS","note_contains":"within bound"}},
   {"name":"2020-01-01T00:00","issued_at":"2020-01-01T00:00","expect":{"result":"PASS","note_contains":"within bound"}},
