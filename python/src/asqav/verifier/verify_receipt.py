@@ -111,6 +111,22 @@ ALLOWED_TYPES = {
 }
 
 
+#: Closed controls_evaluated key set; mirrors the client false-attestation guard.
+ALLOWED_CONTROL_KEYS = frozenset(
+    {
+        "emergency_halt",
+        "delegation_scope",
+        "quorum",
+        "mandate",
+        "policy",
+        "content_scan",
+        "result",
+    }
+)
+
+#: Bare 64-hex (no prefix); the quorum attestation_hash form.
+_BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
 #: Nesting depth above which a receipt is malformed input, not a crash; the
 #: stdlib json encoder recurses per level and crashes past ~1000 on Python <= 3.12.
 MAX_NESTING_DEPTH = 200
@@ -787,6 +803,82 @@ def check_anchors(envelope: dict):
     return ("PASS" if all_ok else "FAIL"), "; ".join(lines)
 
 
+def check_controls_evaluated(payload: dict):
+    """Closed-key-set and false-attestation rules for controls_evaluated."""
+    ce = payload.get("controls_evaluated")
+    if ce is None:
+        return "PASS", "receipt declares no controls_evaluated block"
+    if not isinstance(ce, dict):
+        return "FAIL", "controls_evaluated must be an object (false_control_attestation_guard)"
+    unknown = sorted(k for k in ce if k not in ALLOWED_CONTROL_KEYS)
+    if unknown:
+        return "FAIL", (
+            f"controls_evaluated keys outside the closed set: {','.join(unknown)} "
+            f"(false_control_attestation_guard)"
+        )
+    quorum = ce.get("quorum")
+    if quorum is not None:
+        ah = quorum.get("attestation_hash") if isinstance(quorum, dict) else None
+        if (
+            not isinstance(quorum, dict)
+            or quorum.get("fired") is not True
+            or not isinstance(ah, str)
+            or not _BARE_SHA256_RE.match(ah)
+        ):
+            return "FAIL", (
+                "quorum member requires fired=true and a bare 64-hex "
+                "attestation_hash (false_control_attestation_guard)"
+            )
+    policy = ce.get("policy")
+    if policy is not None:
+        mc = policy.get("matched_count") if isinstance(policy, dict) else None
+        if (
+            not isinstance(policy, dict)
+            or policy.get("evaluated") is not True
+            or isinstance(mc, bool)
+            or not isinstance(mc, int)
+            or mc < 1
+        ):
+            return "FAIL", (
+                "policy member requires evaluated=true and a real matched_count "
+                ">= 1 (false_control_attestation_guard)"
+            )
+    return "PASS", "controls_evaluated block conforms to the closed key set"
+
+
+def check_nonce(payload: dict, seen_nonces: set | None = None):
+    """Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
+    (issuer_id, nonce) pair fails, re-verifying the identical receipt does not."""
+    nonce = payload.get("nonce")
+    if nonce is None or nonce == "":
+        return "PASS", "receipt declares no nonce; nothing to flag"
+    issuer = payload.get("issuer_id", "")
+    if seen_nonces is None:
+        return "PASS", (
+            "nonce present; this surface holds no seen-nonce index, so "
+            "duplicate_emission_candidate stays false (cloud passthrough axis, "
+            "draft 10.3)"
+        )
+    try:
+        identity = hashlib.sha256(canonical_json(payload)).hexdigest()
+    except (ValueError, TypeError, RecursionError):
+        identity = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+    pair = f"{issuer}\x00{nonce}"
+    entry = f"{pair}\x00{identity}"
+    if entry in seen_nonces:
+        return "PASS", "identical receipt re-verified; not a duplicate emission"
+    if pair in seen_nonces:
+        return "FAIL", (
+            f"duplicate nonce {nonce!r} under issuer_id {issuer!r}: replay "
+            f"candidate (draft 5.7)"
+        )
+    seen_nonces.add(pair)
+    seen_nonces.add(entry)
+    return "PASS", "nonce recorded in the seen-nonce index; no duplicate observed"
+
+
 def check_structure(payload: dict):
     missing = [f for f in REQUIRED_FIELDS if f not in payload]
     if missing:
@@ -794,10 +886,18 @@ def check_structure(payload: dict):
     rt = payload.get("type")
     if rt not in ALLOWED_TYPES:
         return "FAIL", f"type {rt!r} outside the allowed namespace"
+    ce_res, ce_note = check_controls_evaluated(payload)
+    if ce_res == "FAIL":
+        return "FAIL", ce_note
     return "PASS", f"required fields present; type {rt}"
 
 
-def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
+def run(
+    envelope: dict,
+    jwks: dict,
+    predecessor_payload: dict | None,
+    seen_nonces: set | None = None,
+) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
         print(
@@ -853,6 +953,7 @@ def run(envelope: dict, jwks: dict, predecessor_payload: dict | None) -> int:
 
     results = []
     results.append(("structure", *check_structure(payload)))
+    results.append(("nonce", *check_nonce(payload, seen_nonces)))
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
     if pk is None:
