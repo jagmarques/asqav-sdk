@@ -12,13 +12,13 @@ These vectors intentionally do NOT pin ML-DSA-65 signature bytes. FIPS 204 suppo
 
 ## Fingerprint format
 
-Asqav uses RFC 8785 (the JSON format spec, also known as JCS):
+Asqav canonicalizes with the Python `json.dumps` dialect, which matches the RFC 8785 (JCS) rules on the domain the corpus exercises:
 
 - UTF-8 encoded.
 - Object keys sorted lexicographically by Unicode code point.
 - No insignificant whitespace between tokens.
-- Numbers serialized per ECMAScript `ToString(ToNumber(x))`.
 - Strings escaped per JSON RFC 8259.
+- Integers serialized bare; floats follow Python's shortest-repr, so float forms outside the corpus domain are out of scope (NaN/Infinity are rejected).
 
 Before signing, the server formats `{"action_type": ..., "context": ...}` (plus server-side metadata) into the standard form and hashes with SHA-256. The hash is what ML-DSA-65 signs.
 
