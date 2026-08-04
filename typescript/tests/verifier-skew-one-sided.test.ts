@@ -2,7 +2,7 @@
 // fails, while a backdated stamp passes, because the wall clock cannot detect a lie
 // about the past. The TypeScript half of the Python skew table pins the same bound
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { checkSkew, SKEW_BOUND_SECONDS } from "../src/verifier/index.js";
 
@@ -11,6 +11,16 @@ function stampAt(offsetSeconds: number): string {
 }
 
 describe("the skew bound is one-sided", () => {
+  // A frozen clock keeps the boundary cases exact under slow CI workers.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse("2026-08-04T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("keeps the Python bound", () => {
     expect(SKEW_BOUND_SECONDS).toBe(300);
   });
