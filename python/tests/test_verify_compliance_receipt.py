@@ -24,8 +24,9 @@ from asqav.replay import FIRST_RECEIPT_SEED
 def _good_envelope(**overrides) -> dict:
     """A receipt envelope that passes every check by default.
 
-    Uses the spec wire form ``type`` (draft-marques-asqav-compliance-receipts
-    Section 2.1) rather than the SDK-internal ``receipt_type`` attribute.
+    Uses the spec wire forms ``type`` and ``decision``
+    (draft-marques-asqav-compliance-receipts) rather than the SDK-internal
+    ``receipt_type`` / ``policy_decision`` attributes.
     """
     base = {
         "type": "protectmcp:decision",
@@ -36,7 +37,7 @@ def _good_envelope(**overrides) -> dict:
         "payload_digest": "sha256:" + "b" * 64,
         "policy_digest": "sha256:" + "c" * 64,
         "previousReceiptHash": FIRST_RECEIPT_SEED,
-        "policy_decision": "permit",
+        "decision": "allow",
     }
     base.update(overrides)
     return base
@@ -478,5 +479,61 @@ def test_valid_mandate_and_controls_together_pass() -> None:
         },
     )
     result = verify_compliance_receipt(env)
+    assert result.valid is True
+    assert result.errors == []
+
+
+# === Canonical {payload, signature, anchors} wire envelope (criterion 434) ===
+
+
+def _canonical_envelope(**payload_overrides) -> dict:
+    """The canonical wire shape: signed fields nested under ``payload``."""
+    return {
+        "payload": _good_envelope(**payload_overrides),
+        "signature": {"alg": "Ed25519", "kid": "k", "sig": "s"},
+        "anchors": [],
+    }
+
+
+def test_canonical_envelope_passes_required_field_check() -> None:
+    result = verify_compliance_receipt(_canonical_envelope())
+    assert result.fields_present is True
+    assert result.valid is True
+    assert result.errors == []
+
+
+def test_canonical_envelope_flags_payload_field_missing() -> None:
+    env = _canonical_envelope()
+    del env["payload"]["issuer_id"]
+    result = verify_compliance_receipt(env)
+    assert result.fields_present is False
+    assert "issuer_id" in next(
+        e for e in result.errors if e.startswith("missing_fields:")
+    )
+
+
+def test_canonical_envelope_reason_conditional_on_payload_decision() -> None:
+    result = verify_compliance_receipt(_canonical_envelope(decision="deny"))
+    assert "missing_reason_on_deny_or_rate_limit" in result.errors
+
+
+def test_asqav_01_genesis_permit_vector_passes() -> None:
+    """The published asqav-01 conformance vector passes this surface."""
+    import json as _json
+
+    vector_path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "verifier",
+        "conformance-vectors",
+        "asqav-01-genesis-permit",
+        "receipt.json",
+    )
+    with open(vector_path, encoding="utf-8") as f:
+        envelope = _json.load(f)
+    fixed_now = datetime(2026, 5, 4, 12, 5, 0, tzinfo=timezone.utc).timestamp()
+    result = verify_compliance_receipt(envelope, now=fixed_now)
+    assert result.fields_present is True
     assert result.valid is True
     assert result.errors == []

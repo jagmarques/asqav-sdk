@@ -413,8 +413,10 @@ def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
     )
 
 
-#: REQUIRED fields on a Compliance Receipt envelope (wire form); top-level
-#: discriminator is ``type``. Used by `verify_compliance_receipt`.
+#: REQUIRED fields on a Compliance Receipt envelope (wire form); the wire
+#: discriminator is ``type`` and the wire verdict field is ``decision``
+#: (matches the standalone verifier's REQUIRED_FIELDS). Used by
+#: `verify_compliance_receipt`.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "type",
     "issuer_id",
@@ -423,7 +425,7 @@ _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "payload_digest",
     "policy_digest",
     "previousReceiptHash",
-    "policy_decision",
+    "decision",
     "issued_at",
 )
 
@@ -3527,20 +3529,28 @@ def verify_compliance_receipt(
 
     errors: list[str] = []
 
+    # Canonical wire envelope {payload, signature, anchors}: the signed fields
+    # live inside the payload member; flat bundles keep them top-level.
+    _inner = envelope.get("payload")
+    if isinstance(_inner, dict) and ("signature" in envelope or "anchors" in envelope):
+        signed = _inner
+    else:
+        signed = envelope
+
     # 1. REQUIRED fields present.
-    missing = [f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in envelope]
+    missing = [f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in signed]
     fields_present = not missing
     if missing:
         errors.append(f"missing_fields:{','.join(missing)}")
 
     # 2. ``type`` namespace. Wire field is ``type``; ``receipt_type`` accepted too.
-    rt = envelope.get("type") or envelope.get("receipt_type")
+    rt = signed.get("type") or signed.get("receipt_type")
     receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
     if not receipt_type_in_namespace:
         errors.append("invalid_receipt_type")
 
     # 3. 300-second skew bound.
-    issued_at = envelope.get("issued_at") or envelope.get("signed_at")
+    issued_at = signed.get("issued_at") or signed.get("signed_at")
     skew_within_bound = False
     if issued_at is None:
         errors.append("missing_issued_at")
@@ -3564,7 +3574,7 @@ def verify_compliance_receipt(
     # 4. Chain link rederives. Only checked when caller supplies the
     # predecessor envelope; first-record seeds skip this.
     chain_link_rederives = True
-    expected_prev = envelope.get("previousReceiptHash")
+    expected_prev = _resolve_previous_receipt_hash(envelope)
     if expected_prev == FIRST_RECEIPT_SEED:
         # First record on the chain; nothing to rederive.
         pass
@@ -3584,7 +3594,7 @@ def verify_compliance_receipt(
     # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
 
     # 5. Conditional MUSTs: sandbox_state, reason on deny/rate_limit, anchors[].value.
-    _payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
+    _payload = signed
     if isinstance(_payload, dict):
         _sandbox = _payload.get("sandbox_state")
         if _sandbox is not None and _sandbox not in SANDBOX_STATE_NAMESPACE:
