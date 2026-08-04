@@ -1,3 +1,6 @@
 {
-  "verdict": "FAIL"
+  "format": "acta",
+  "outcome": "FAIL",
+  "reason_code": "sig_mismatch",
+  "notes": "The real happy-path attestation with its first signature nibble flipped; Ed25519 verify fails, proving the oracle rejects a mutated third-party receipt rather than waving it through."
 }
