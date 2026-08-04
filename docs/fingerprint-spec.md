@@ -33,7 +33,7 @@ def hash_action(action_type: str, context: dict) -> str:
     return "sha256:" + hashlib.sha256(body).hexdigest()
 ```
 
-This is RFC 8785, the JCS standard, applied to the `{action_type, context}` pair, then SHA-256 over the resulting bytes. Stdlib only, no third-party packages. The output is `sha256:<64 hex chars>`.
+This is the `json.dumps` canonicalization dialect (matching the RFC 8785 JCS rules on the supported value domain) applied to the `{action_type, context}` pair, then SHA-256 over the resulting bytes. Stdlib only, no third-party packages. The output is `sha256:<64 hex chars>`.
 
 ## Inputs
 

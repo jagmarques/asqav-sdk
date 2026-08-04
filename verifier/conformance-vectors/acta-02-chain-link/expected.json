@@ -1,3 +1,6 @@
 {
-  "verdict": "PASS"
+  "format": "acta",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "ACTA successor links via SHA-256 of the JCS of the full predecessor receipt."
 }

@@ -1,3 +1,6 @@
 {
-  "verdict": "FAIL"
+  "format": "acta",
+  "outcome": "FAIL",
+  "reason_code": "sig_mismatch",
+  "notes": "Commitment-mode receipt (signs SHA-256(JCS)) fails the baseline JCS verifier - honest, never a false pass."
 }
