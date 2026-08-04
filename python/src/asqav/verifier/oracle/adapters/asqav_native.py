@@ -214,6 +214,10 @@ class AsqavNativeAdapter(FormatAdapter):
             return "PASS", "hash-mode signature receipt; required flat fields present"
         return _vr.check_structure(_payload(doc))
 
+    def __init__(self) -> None:
+        # Shared per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7).
+        self._seen_nonces: set[str] = set()
+
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
@@ -232,6 +236,7 @@ class AsqavNativeAdapter(FormatAdapter):
         # expires_at, and reading the flat doc would gate on an uncovered field.
         signed = {} if _is_hash_mode(doc) else _payload(doc)
         axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
+        axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
         if entry is None:
