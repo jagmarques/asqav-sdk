@@ -33,6 +33,7 @@ import {
   checkExpiry,
   checkIssuerBinding,
   checkKeyStatus,
+  checkNonce,
   checkOrgBinding,
   checkStructure,
   keyIssuerOf,
@@ -92,6 +93,9 @@ function safeB64(value: unknown): Uint8Array {
 
 export class AsqavNativeAdapter extends FormatAdapter {
   readonly name = "asqav-native";
+
+  /** Shared per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7). */
+  private readonly seenNonces = new Set<string>();
 
   detect(doc: Record<string, unknown>): boolean {
     if (isHashMode(doc)) return true;
@@ -234,6 +238,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
     // expires_at, and reading the flat doc would gate on an uncovered field.
     const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc))]];
+    axes.push(["nonce", ...checkNonce(hashMode ? {} : payloadOf(doc), this.seenNonces)]);
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);
     if (entry === null) return axes;
