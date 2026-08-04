@@ -28,12 +28,22 @@ def _axis_results(adapter: AsqavNativeAdapter, doc: dict) -> dict:
     return {name: res for name, res, _note in adapter.extra_axes(doc, {"keys": []})}
 
 
-def test_adapter_flags_duplicate_nonce_across_receipts() -> None:
+def test_adapter_flags_duplicate_nonce_across_different_receipts() -> None:
+    adapter = AsqavNativeAdapter()
+    first = _axis_results(adapter, _doc("ab" * 12))
+    other = _doc("ab" * 12)
+    other["payload"]["action_ref"] = "sha256:" + "9" * 64
+    second = _axis_results(adapter, other)
+    assert first["nonce"] == "PASS"
+    assert second["nonce"] == "FAIL"
+
+
+def test_adapter_reverifying_the_identical_receipt_is_not_a_duplicate() -> None:
     adapter = AsqavNativeAdapter()
     first = _axis_results(adapter, _doc("ab" * 12))
     second = _axis_results(adapter, _doc("ab" * 12))
     assert first["nonce"] == "PASS"
-    assert second["nonce"] == "FAIL"
+    assert second["nonce"] == "PASS"
 
 
 def test_adapter_same_nonce_other_issuer_is_not_duplicate() -> None:

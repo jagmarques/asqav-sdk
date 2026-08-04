@@ -152,7 +152,8 @@ export function checkControlsEvaluated(
   return ["PASS", "controls_evaluated block conforms to the closed key set"];
 }
 
-/** Replay-candidate axis over the draft 5.7 nonce; duplicate (issuer_id, nonce) fails. */
+/** Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
+ * (issuer_id, nonce) pair fails, re-verifying the identical receipt does not. */
 export function checkNonce(
   payload: Record<string, unknown>,
   seenNonces?: Set<string>,
@@ -168,14 +169,26 @@ export function checkNonce(
       "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false (cloud passthrough axis, draft 10.3)",
     ];
   }
-  const key = `${String(issuer)}\u0000${String(nonce)}`;
-  if (seenNonces.has(key)) {
+  let identity: string;
+  try {
+    identity = sha256Hex(asqavJcs(payload));
+  } catch {
+    const stable = JSON.stringify(payload, Object.keys(payload).sort());
+    identity = sha256Hex(new TextEncoder().encode(stable));
+  }
+  const pair = `${String(issuer)}\u0000${String(nonce)}`;
+  const entry = `${pair}\u0000${identity}`;
+  if (seenNonces.has(entry)) {
+    return ["PASS", "identical receipt re-verified; not a duplicate emission"];
+  }
+  if (seenNonces.has(pair)) {
     return [
       "FAIL",
       `duplicate nonce ${JSON.stringify(nonce)} under issuer_id ${JSON.stringify(issuer)}: replay candidate (draft 5.7)`,
     ];
   }
-  seenNonces.add(key);
+  seenNonces.add(pair);
+  seenNonces.add(entry);
   return ["PASS", "nonce recorded in the seen-nonce index; no duplicate observed"];
 }
 

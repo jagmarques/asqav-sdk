@@ -847,7 +847,8 @@ def check_controls_evaluated(payload: dict):
 
 
 def check_nonce(payload: dict, seen_nonces: set | None = None):
-    """Replay-candidate axis over the draft 5.7 nonce; duplicate (issuer_id, nonce) fails."""
+    """Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
+    (issuer_id, nonce) pair fails, re-verifying the identical receipt does not."""
     nonce = payload.get("nonce")
     if nonce is None or nonce == "":
         return "PASS", "receipt declares no nonce; nothing to flag"
@@ -858,13 +859,23 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
             "duplicate_emission_candidate stays false (cloud passthrough axis, "
             "draft 10.3)"
         )
-    key = f"{issuer}\x00{nonce}"
-    if key in seen_nonces:
+    try:
+        identity = hashlib.sha256(canonical_json(payload)).hexdigest()
+    except (ValueError, TypeError, RecursionError):
+        identity = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+    pair = f"{issuer}\x00{nonce}"
+    entry = f"{pair}\x00{identity}"
+    if entry in seen_nonces:
+        return "PASS", "identical receipt re-verified; not a duplicate emission"
+    if pair in seen_nonces:
         return "FAIL", (
             f"duplicate nonce {nonce!r} under issuer_id {issuer!r}: replay "
             f"candidate (draft 5.7)"
         )
-    seen_nonces.add(key)
+    seen_nonces.add(pair)
+    seen_nonces.add(entry)
     return "PASS", "nonce recorded in the seen-nonce index; no duplicate observed"
 
 

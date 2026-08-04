@@ -539,9 +539,22 @@ def test_nonce_axis_flags_duplicate_under_same_issuer() -> None:
     payload = _risk_payload()
     payload["nonce"] = "ab" * 12
     assert v.check_nonce(payload, seen)[0] == "PASS"
-    res, note = v.check_nonce(payload, seen)
+    other = _risk_payload()
+    other["nonce"] = "ab" * 12
+    other["action_ref"] = "sha256:" + "9" * 64
+    res, note = v.check_nonce(other, seen)
     assert res == "FAIL"
     assert "replay candidate" in note
+
+
+def test_nonce_axis_reverifying_identical_receipt_is_not_a_duplicate() -> None:
+    seen: set = set()
+    payload = _risk_payload()
+    payload["nonce"] = "ab" * 12
+    assert v.check_nonce(payload, seen)[0] == "PASS"
+    res, note = v.check_nonce(payload, seen)
+    assert res == "PASS"
+    assert "not a duplicate emission" in note
 
 
 def test_nonce_axis_same_nonce_other_issuer_is_not_duplicate() -> None:

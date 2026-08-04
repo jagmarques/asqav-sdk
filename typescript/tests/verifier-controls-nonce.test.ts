@@ -90,9 +90,19 @@ describe("checkNonce replay-candidate axis", () => {
     const seen = new Set<string>();
     const payload = { ...basePayload(), nonce: "ab".repeat(12) };
     expect(checkNonce(payload, seen)[0]).toBe("PASS");
-    const [res, note] = checkNonce(payload, seen);
+    const other = { ...basePayload(), nonce: "ab".repeat(12), action_ref: "sha256:" + "9".repeat(64) };
+    const [res, note] = checkNonce(other, seen);
     expect(res).toBe("FAIL");
     expect(note).toContain("replay candidate");
+  });
+
+  it("re-verifying the identical receipt is not a duplicate", () => {
+    const seen = new Set<string>();
+    const payload = { ...basePayload(), nonce: "ab".repeat(12) };
+    expect(checkNonce(payload, seen)[0]).toBe("PASS");
+    const [res, note] = checkNonce(payload, seen);
+    expect(res).toBe("PASS");
+    expect(note).toContain("not a duplicate emission");
   });
 
   it("same nonce under another issuer is not a duplicate", () => {
@@ -110,12 +120,22 @@ describe("AsqavNativeAdapter carries the nonce axis", () => {
       adapter.extraAxes(d, { keys: [] } as never).map(([name, res]) => [name, res]),
     );
 
-  it("flags a duplicate nonce across receipts through its shared index", () => {
+  it("flags a duplicate nonce across different receipts through its shared index", () => {
+    const adapter = new AsqavNativeAdapter();
+    const first = axisResults(adapter, doc("ab".repeat(12)));
+    const other = doc("ab".repeat(12));
+    (other.payload as Record<string, unknown>).action_ref = "sha256:" + "9".repeat(64);
+    const second = axisResults(adapter, other);
+    expect(first.nonce).toBe("PASS");
+    expect(second.nonce).toBe("FAIL");
+  });
+
+  it("re-verifying the identical receipt is not a duplicate", () => {
     const adapter = new AsqavNativeAdapter();
     const first = axisResults(adapter, doc("ab".repeat(12)));
     const second = axisResults(adapter, doc("ab".repeat(12)));
     expect(first.nonce).toBe("PASS");
-    expect(second.nonce).toBe("FAIL");
+    expect(second.nonce).toBe("PASS");
   });
 
   it("rejects an unknown controls_evaluated key in the schema axis", () => {
