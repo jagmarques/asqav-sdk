@@ -292,6 +292,34 @@ describe("Agent.sign body shape across modes", () => {
     expect(plain.startsWith("sha256:")).toBe(true);
     expect(salted.startsWith("sha256:")).toBe(true);
   });
+
+  it("hash-only labels a keyed digest hmac-sha256, not sha256", async () => {
+    const agent = await makeAgent();
+
+    _setModeForTests("hash-only");
+    let fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+    await agent.sign({ actionType: "api:call", context: { k: 3 } });
+    const plainBody = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    fetchSpy.mockRestore();
+
+    _setModeForTests("hash-only", new Uint8Array(32).fill(1));
+    fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
+    await agent.sign({ actionType: "api:call", context: { k: 3 } });
+    const saltedBody = JSON.parse(
+      (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
+    );
+
+    // A keyed digest must never be labelled plain sha256 on the wire.
+    expect(plainBody.hash_algo).toBe("sha256");
+    expect(saltedBody.hash_algo).toBe("hmac-sha256");
+    expect(saltedBody.hash.startsWith("sha256:")).toBe(true);
+  });
 });
 
 describe("init() resolves mode from baseUrl", () => {
