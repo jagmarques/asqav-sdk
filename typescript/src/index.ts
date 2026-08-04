@@ -1984,6 +1984,8 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
     const hex = salt
       ? createHmac("sha256", Buffer.from(salt)).update(canonical).digest("hex")
       : createHash("sha256").update(canonical).digest("hex");
+    // Wire digest keeps the sha256:<32-byte hex> shape; hash_algo names the keyedness
+    const hashAlgo = salt ? "hmac-sha256" : "sha256";
     const digest = `sha256:${hex}`;
     const metadata: Record<string, unknown> = {
       agent_id: args.agentId,
@@ -2001,7 +2003,7 @@ async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, un
     const hashBody: Record<string, unknown> = {
       action_type: args.actionType,
       hash: digest,
-      hash_algo: "sha256",
+      hash_algo: hashAlgo,
       payload_size: payloadSize,
       metadata,
       session_id: args.sessionId,
