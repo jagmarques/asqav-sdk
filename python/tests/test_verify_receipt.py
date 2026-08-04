@@ -484,3 +484,83 @@ def test_out_of_range_offset_fails_closed_on_the_skew_axis() -> None:
     result, note = v.check_skew("2026-05-04T12:00:00+0260")
     assert result == "FAIL"
     assert "unparseable" in note
+
+
+# === Criterion 435: controls_evaluated closed set + nonce replay axis ===
+
+
+def _payload_with_controls(ce) -> dict:
+    p = _risk_payload()
+    p["controls_evaluated"] = ce
+    return p
+
+
+def test_controls_unknown_key_fails_structure() -> None:
+    res, note = v.check_structure(_payload_with_controls({"bogus_control": {"fired": True}}))
+    assert res == "FAIL"
+    assert "bogus_control" in note
+    assert "false_control_attestation_guard" in note
+
+
+def test_controls_quorum_requires_fired_and_bare_hash() -> None:
+    ok = {"quorum": {"fired": True, "attestation_hash": "e" * 64}}
+    assert v.check_structure(_payload_with_controls(ok))[0] == "PASS"
+    prefixed = {"quorum": {"fired": True, "attestation_hash": "sha256:" + "e" * 64}}
+    assert v.check_structure(_payload_with_controls(prefixed))[0] == "FAIL"
+    not_fired = {"quorum": {"fired": False, "attestation_hash": "e" * 64}}
+    assert v.check_structure(_payload_with_controls(not_fired))[0] == "FAIL"
+
+
+def test_controls_policy_requires_real_matched_count() -> None:
+    ok = {"policy": {"evaluated": True, "matched_count": 1}}
+    assert v.check_structure(_payload_with_controls(ok))[0] == "PASS"
+    zero = {"policy": {"evaluated": True, "matched_count": 0}}
+    assert v.check_structure(_payload_with_controls(zero))[0] == "FAIL"
+    bool_mc = {"policy": {"evaluated": True, "matched_count": True}}
+    assert v.check_structure(_payload_with_controls(bool_mc))[0] == "FAIL"
+
+
+def test_nonce_axis_no_nonce_passes() -> None:
+    res, note = v.check_nonce(_risk_payload())
+    assert res == "PASS"
+    assert "no nonce" in note
+
+
+def test_nonce_axis_without_index_documents_passthrough() -> None:
+    payload = _risk_payload()
+    payload["nonce"] = "ab" * 12
+    res, note = v.check_nonce(payload)
+    assert res == "PASS"
+    assert "duplicate_emission_candidate" in note
+
+
+def test_nonce_axis_flags_duplicate_under_same_issuer() -> None:
+    seen: set = set()
+    payload = _risk_payload()
+    payload["nonce"] = "ab" * 12
+    assert v.check_nonce(payload, seen)[0] == "PASS"
+    res, note = v.check_nonce(payload, seen)
+    assert res == "FAIL"
+    assert "replay candidate" in note
+
+
+def test_nonce_axis_same_nonce_other_issuer_is_not_duplicate() -> None:
+    seen: set = set()
+    a = _risk_payload()
+    a["nonce"] = "cd" * 12
+    b = _risk_payload()
+    b["nonce"] = "cd" * 12
+    b["issuer_id"] = "other-org"
+    assert v.check_nonce(a, seen)[0] == "PASS"
+    assert v.check_nonce(b, seen)[0] == "PASS"
+
+
+def test_run_prints_nonce_axis(capsys) -> None:
+    envelope = {
+        "payload": _risk_payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "c37probe-org-00001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    v.run(envelope, {"keys": []}, predecessor_payload=None)
+    out = capsys.readouterr().out
+    assert "nonce" in out
