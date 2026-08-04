@@ -2082,10 +2082,11 @@ def replay_verify_cmd(
     ),
     output: str = typer.Option("text", "--output", "-o", help="Output format: text or json."),
 ) -> None:
-    """Re-derive a session's IETF chain (`sha256(canonical_json(signed_envelope))`).
+    """Re-derive a session's IETF chain over `sha256(canonical_json(payload))`.
 
-    Wraps :func:`asqav.replay`. With ``--strict`` the command fails
-    when any step lacks the cloud-emitted ``signed_envelope``.
+    The chain hashes the payload member, not the whole envelope. Wraps
+    :func:`asqav.replay`. With ``--strict`` the command fails when any step
+    lacks the cloud-emitted ``signed_envelope``.
     """
     import json as json_mod
 

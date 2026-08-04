@@ -1,3 +1,6 @@
 {
-  "verdict": "FAIL"
+  "format": "acta",
+  "outcome": "FAIL",
+  "reason_code": "sig_mismatch",
+  "notes": "Flipped signature byte; Ed25519 verify fails."
 }
