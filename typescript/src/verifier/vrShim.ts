@@ -40,6 +40,20 @@ const ALLOWED_TYPES = new Set([
   "protectmcp:observation:result_bound",
 ]);
 
+/** Closed controls_evaluated key set; mirrors the client false-attestation guard. */
+const ALLOWED_CONTROL_KEYS = new Set([
+  "emergency_halt",
+  "delegation_scope",
+  "quorum",
+  "mandate",
+  "policy",
+  "content_scan",
+  "result",
+]);
+
+/** Bare 64-hex (no prefix); the quorum attestation_hash form. */
+const BARE_SHA256_RE = /^[0-9a-f]{64}$/;
+
 /** Decode standard or url-safe base64, padding-tolerant (mirrors `_b64decode`). */
 export function b64decode(value: string): Uint8Array {
   let s = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -84,6 +98,100 @@ export function normaliseEnvelope(raw: Record<string, unknown>): Record<string, 
   };
 }
 
+/** False-attestation rules for controls_evaluated (mirrors `check_controls_evaluated`). */
+export function checkControlsEvaluated(
+  payload: Record<string, unknown>,
+): readonly ["PASS" | "FAIL", string] {
+  const ce = payload.controls_evaluated;
+  if (ce === undefined || ce === null) {
+    return ["PASS", "receipt declares no controls_evaluated block"];
+  }
+  if (!isRecord(ce)) {
+    return ["FAIL", "controls_evaluated must be an object (false_control_attestation_guard)"];
+  }
+  const unknown = Object.keys(ce)
+    .filter((k) => !ALLOWED_CONTROL_KEYS.has(k))
+    .sort();
+  if (unknown.length > 0) {
+    return [
+      "FAIL",
+      `controls_evaluated keys outside the closed set: ${unknown.join(",")} (false_control_attestation_guard)`,
+    ];
+  }
+  const quorum = ce.quorum;
+  if (quorum !== undefined && quorum !== null) {
+    const ah = isRecord(quorum) ? quorum.attestation_hash : undefined;
+    if (
+      !isRecord(quorum) ||
+      quorum.fired !== true ||
+      typeof ah !== "string" ||
+      !BARE_SHA256_RE.test(ah)
+    ) {
+      return [
+        "FAIL",
+        "quorum member requires fired=true and a bare 64-hex attestation_hash (false_control_attestation_guard)",
+      ];
+    }
+  }
+  const policy = ce.policy;
+  if (policy !== undefined && policy !== null) {
+    const mc = isRecord(policy) ? policy.matched_count : undefined;
+    if (
+      !isRecord(policy) ||
+      policy.evaluated !== true ||
+      typeof mc !== "number" ||
+      !Number.isInteger(mc) ||
+      mc < 1
+    ) {
+      return [
+        "FAIL",
+        "policy member requires evaluated=true and a real matched_count >= 1 (false_control_attestation_guard)",
+      ];
+    }
+  }
+  return ["PASS", "controls_evaluated block conforms to the closed key set"];
+}
+
+/** Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
+ * (issuer_id, nonce) pair fails, re-verifying the identical receipt does not. */
+export function checkNonce(
+  payload: Record<string, unknown>,
+  seenNonces?: Set<string>,
+): readonly ["PASS" | "FAIL", string] {
+  const nonce = payload.nonce;
+  if (nonce === undefined || nonce === null || nonce === "") {
+    return ["PASS", "receipt declares no nonce; nothing to flag"];
+  }
+  const issuer = payload.issuer_id ?? "";
+  if (seenNonces === undefined) {
+    return [
+      "PASS",
+      "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false (cloud passthrough axis, draft 10.3)",
+    ];
+  }
+  let identity: string;
+  try {
+    identity = sha256Hex(asqavJcs(payload));
+  } catch {
+    const stable = JSON.stringify(payload, Object.keys(payload).sort());
+    identity = sha256Hex(new TextEncoder().encode(stable));
+  }
+  const pair = `${String(issuer)}\u0000${String(nonce)}`;
+  const entry = `${pair}\u0000${identity}`;
+  if (seenNonces.has(entry)) {
+    return ["PASS", "identical receipt re-verified; not a duplicate emission"];
+  }
+  if (seenNonces.has(pair)) {
+    return [
+      "FAIL",
+      `duplicate nonce ${JSON.stringify(nonce)} under issuer_id ${JSON.stringify(issuer)}: replay candidate (draft 5.7)`,
+    ];
+  }
+  seenNonces.add(pair);
+  seenNonces.add(entry);
+  return ["PASS", "nonce recorded in the seen-nonce index; no duplicate observed"];
+}
+
 /** Asqav-native structure check; returns `[result, note]` (mirrors `check_structure`). */
 export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL", string] {
   const missing = REQUIRED_FIELDS.filter((f) => !(f in payload));
@@ -93,6 +201,10 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
   const rt = payload.type;
   if (typeof rt !== "string" || !ALLOWED_TYPES.has(rt)) {
     return ["FAIL", `type ${JSON.stringify(rt)} outside the allowed namespace`];
+  }
+  const [ceRes, ceNote] = checkControlsEvaluated(payload);
+  if (ceRes === "FAIL") {
+    return ["FAIL", ceNote];
   }
   return ["PASS", `required fields present; type ${rt}`];
 }
