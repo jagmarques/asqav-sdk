@@ -21,9 +21,9 @@ from asqav.extras.crewai import AsqavGuardrailProvider  # noqa: E402
 # === Fixtures ===
 
 
+    # Create an AsqavGuardrailProvider with mocked Agent.
 @pytest.fixture()
 def provider():
-    """Create an AsqavGuardrailProvider with mocked Agent."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -34,8 +34,8 @@ def provider():
     return p
 
 
+    # Create a mock tool call request.
 def _make_request(tool_name: str = "search", tool_input: dict | None = None):
-    """Create a mock tool call request."""
     req = MagicMock()
     req.tool_name = tool_name
     req.tool_input = tool_input if tool_input is not None else {"query": "test"}
@@ -45,8 +45,8 @@ def _make_request(tool_name: str = "search", tool_input: dict | None = None):
 # === Evaluate - allow ===
 
 
+    # evaluate returns allow when preflight clears.
 def test_evaluate_allow(provider):
-    """evaluate returns allow when preflight clears."""
     provider._agent.preflight.return_value = PreflightResult(
         cleared=True,
         agent_active=True,
@@ -76,8 +76,8 @@ def test_evaluate_allow(provider):
 # === Evaluate - deny ===
 
 
+    # evaluate returns deny when preflight blocks.
 def test_evaluate_deny(provider):
-    """evaluate returns deny when preflight blocks."""
     provider._agent.preflight.return_value = PreflightResult(
         cleared=False,
         agent_active=True,
@@ -101,8 +101,8 @@ def test_evaluate_deny(provider):
 # === Edge cases ===
 
 
+    # evaluate handles request without tool_name attribute.
 def test_evaluate_unknown_tool(provider):
-    """evaluate handles request without tool_name attribute."""
     provider._agent.preflight.return_value = PreflightResult(
         cleared=True,
         agent_active=True,
@@ -127,8 +127,8 @@ def test_evaluate_unknown_tool(provider):
     provider._agent.preflight.assert_called_once_with("tool:unknown")
 
 
+    # evaluate passes sorted input keys in signing context.
 def test_evaluate_input_keys_sorted(provider):
-    """evaluate passes sorted input keys in signing context."""
     provider._agent.preflight.return_value = PreflightResult(
         cleared=True,
         agent_active=True,
@@ -154,8 +154,8 @@ def test_evaluate_input_keys_sorted(provider):
     assert ctx["input_keys"] == ["a_param", "m_param", "z_param"]
 
 
+    # evaluate returns None signature_id when signing fails (fail-open).
 def test_evaluate_sign_failure_returns_none_signature(provider):
-    """evaluate returns None signature_id when signing fails (fail-open)."""
     from asqav.client import AsqavError
 
     provider._agent.preflight.return_value = PreflightResult(
@@ -177,9 +177,9 @@ def test_evaluate_sign_failure_returns_none_signature(provider):
 # === Cleanup ===
 
 
+    # Remove fake crewai from sys.modules after all tests.
 @pytest.fixture(autouse=True, scope="module")
 def _cleanup_crewai_module():
-    """Remove fake crewai from sys.modules after all tests."""
     yield
     sys.modules.pop("crewai", None)
     sys.modules.pop("asqav.extras.crewai", None)

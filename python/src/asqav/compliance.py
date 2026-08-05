@@ -63,8 +63,8 @@ FRAMEWORKS = {
     },
 }
 
+    # Compute Merkle root from hex hashes (binary tree, odd levels duplicate the tail).
 def _compute_merkle_root(hashes: list[str]) -> str:
-    """Compute Merkle root from hex hashes (binary tree, odd levels duplicate the tail)."""
     if not hashes:
         return hashlib.sha256(b"").hexdigest()
 
@@ -83,14 +83,14 @@ def _compute_merkle_root(hashes: list[str]) -> str:
     return level[0]
 
 
+    # Deterministic hash for a single receipt.
 def _receipt_hash(receipt: dict) -> str:
-    """Deterministic hash for a single receipt."""
     canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
+    # Convert a SignatureResponse, SignedActionResponse, or dict to a receipt dict.
 def _normalize_signature(sig: Any) -> dict:
-    """Convert a SignatureResponse, SignedActionResponse, or dict to a receipt dict."""
     if isinstance(sig, dict):
         return sig
 
@@ -114,9 +114,9 @@ def _normalize_signature(sig: Any) -> dict:
     return result
 
 
+    # Self-contained compliance bundle for offline audit verification.
 @dataclass
 class ComplianceBundle:
-    """Self-contained compliance bundle for offline audit verification."""
 
     framework: str
     framework_metadata: dict = field(default_factory=dict)
@@ -126,8 +126,8 @@ class ComplianceBundle:
     receipts: list[dict] = field(default_factory=list)
     verification: dict = field(default_factory=dict)
 
+        # Serialize bundle to a plain dictionary.
     def to_dict(self) -> dict[str, Any]:
-        """Serialize bundle to a plain dictionary."""
         return {
             "framework": self.framework,
             "framework_metadata": self.framework_metadata,
@@ -138,12 +138,12 @@ class ComplianceBundle:
             "verification": self.verification,
         }
 
+        # Serialize bundle to a JSON string.
     def to_json(self) -> str:
-        """Serialize bundle to a JSON string."""
         return json.dumps(self.to_dict(), indent=2)
 
+        # Write bundle JSON to a file.
     def to_file(self, path: str) -> None:
-        """Write bundle JSON to a file."""
         with open(path, "w") as f:
             f.write(self.to_json())
 

@@ -29,8 +29,8 @@ except ImportError as err:
 from ._base import AsqavAdapter
 
 
+    # Best-effort class name extraction for audit context.
 def _safe_class_name(instance: Any) -> str:
-    """Best-effort class name extraction for audit context."""
     try:
         return type(instance).__name__
     except Exception:
@@ -74,13 +74,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
 
     # === Module handlers ===
 
+        # Sign a dspy.module.start event.
     def on_module_start(
         self,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
     ) -> None:
-        """Sign a dspy.module.start event."""
         self._sign_action(
             "dspy.module.start",
             {
@@ -90,13 +90,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
+        # Sign a dspy.module.end event.
     def on_module_end(
         self,
         call_id: str,
         outputs: Any | None,
         exception: Exception | None = None,
     ) -> None:
-        """Sign a dspy.module.end event."""
         self._sign_action(
             "dspy.module.end",
             {
@@ -108,13 +108,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
 
     # === LM handlers ===
 
+        # Sign a dspy.lm.start event with model name if available.
     def on_lm_start(
         self,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
     ) -> None:
-        """Sign a dspy.lm.start event with model name if available."""
         self._sign_action(
             "dspy.lm.start",
             {
@@ -125,13 +125,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
+        # Sign a dspy.lm.end event.
     def on_lm_end(
         self,
         call_id: str,
         outputs: dict[str, Any] | None,
         exception: Exception | None = None,
     ) -> None:
-        """Sign a dspy.lm.end event."""
         self._sign_action(
             "dspy.lm.end",
             {
@@ -143,13 +143,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
 
     # === Tool handlers ===
 
+        # Sign a dspy.tool.start event.
     def on_tool_start(
         self,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
     ) -> None:
-        """Sign a dspy.tool.start event."""
         tool_name = getattr(instance, "name", None) or _safe_class_name(instance)
         self._sign_action(
             "dspy.tool.start",
@@ -160,13 +160,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
+        # Sign a dspy.tool.end event.
     def on_tool_end(
         self,
         call_id: str,
         outputs: dict[str, Any] | None,
         exception: Exception | None = None,
     ) -> None:
-        """Sign a dspy.tool.end event."""
         self._sign_action(
             "dspy.tool.end",
             {
@@ -178,13 +178,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
 
     # === Evaluate handlers ===
 
+        # Sign a dspy.evaluate.start event.
     def on_evaluate_start(
         self,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
     ) -> None:
-        """Sign a dspy.evaluate.start event."""
         self._sign_action(
             "dspy.evaluate.start",
             {
@@ -194,13 +194,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
+        # Sign a dspy.evaluate.end event.
     def on_evaluate_end(
         self,
         call_id: str,
         outputs: Any | None,
         exception: Exception | None = None,
     ) -> None:
-        """Sign a dspy.evaluate.end event."""
         self._sign_action(
             "dspy.evaluate.end",
             {
@@ -212,13 +212,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
 
     # === Adapter format handlers ===
 
+        # Sign a dspy.adapter.format.start event.
     def on_adapter_format_start(
         self,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
     ) -> None:
-        """Sign a dspy.adapter.format.start event."""
         self._sign_action(
             "dspy.adapter.format.start",
             {
@@ -228,13 +228,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
+        # Sign a dspy.adapter.format.end event.
     def on_adapter_format_end(
         self,
         call_id: str,
         outputs: dict[str, Any] | None,
         exception: Exception | None = None,
     ) -> None:
-        """Sign a dspy.adapter.format.end event."""
         self._sign_action(
             "dspy.adapter.format.end",
             {
@@ -246,13 +246,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
 
     # === Adapter parse handlers ===
 
+        # Sign a dspy.adapter.parse.start event.
     def on_adapter_parse_start(
         self,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
     ) -> None:
-        """Sign a dspy.adapter.parse.start event."""
         self._sign_action(
             "dspy.adapter.parse.start",
             {
@@ -262,13 +262,13 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
             },
         )
 
+        # Sign a dspy.adapter.parse.end event.
     def on_adapter_parse_end(
         self,
         call_id: str,
         outputs: dict[str, Any] | None,
         exception: Exception | None = None,
     ) -> None:
-        """Sign a dspy.adapter.parse.end event."""
         self._sign_action(
             "dspy.adapter.parse.end",
             {

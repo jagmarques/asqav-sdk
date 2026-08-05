@@ -38,8 +38,8 @@ class _FakeResponse(io.BytesIO):
         return False
 
 
+    # The stdlib fallback transport (no httpx) sends the SDK User-Agent.
 def test_urllib_request_sends_user_agent() -> None:
-    """The stdlib fallback transport (no httpx) sends the SDK User-Agent."""
     from asqav import client
 
     captured: dict = {}
@@ -58,8 +58,8 @@ def test_urllib_request_sends_user_agent() -> None:
     assert captured["ua"] == USER_AGENT
 
 
+    # init() builds the persistent httpx client with the SDK User-Agent.
 def test_httpx_client_sends_user_agent() -> None:
-    """init() builds the persistent httpx client with the SDK User-Agent."""
     from asqav import client
 
     if not client._HTTPX_AVAILABLE:
@@ -74,8 +74,8 @@ def test_httpx_client_sends_user_agent() -> None:
     assert client._client.headers["user-agent"] == USER_AGENT
 
 
+    # The standalone verifier's network fetch sends a real User-Agent.
 def test_verifier_get_json_sends_user_agent() -> None:
-    """The standalone verifier's network fetch sends a real User-Agent."""
     captured: dict = {}
 
     def fake_urlopen(req, timeout=None):
@@ -89,8 +89,8 @@ def test_verifier_get_json_sends_user_agent() -> None:
     assert captured["ua"].startswith("asqav-python/")
 
 
+    # The async transport builds its httpx clients with the SDK User-Agent.
 def test_async_client_headers_include_user_agent() -> None:
-    """The async transport builds its httpx clients with the SDK User-Agent."""
     import inspect
 
     from asqav import async_client

@@ -64,8 +64,8 @@ class OpaDetector:
     def _endpoint(self) -> str:
         return f"{self._opa_url}/v1/data/{self._policy_path}"
 
+        # POST payload as JSON; return parsed JSON response dict.
     def _post_json(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """POST payload as JSON; return parsed JSON response dict."""
         endpoint = self._endpoint()
         body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -92,8 +92,8 @@ class OpaDetector:
         with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310
             return json.loads(resp.read().decode("utf-8"))
 
+        # POST to OPA; map the boolean result to allow/deny.
     def inspect(self, action_type: str, context: dict[str, Any]) -> DetectorResult:
-        """POST to OPA; map the boolean result to allow/deny."""
         payload = {"input": {"action_type": action_type, "context": context}}
         try:
             data = self._post_json(payload)

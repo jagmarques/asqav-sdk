@@ -16,8 +16,8 @@ F = TypeVar("F")
 # === Session context manager ===
 
 
+    # Groups sign calls under a single session; created by :func:`session`.
 class Session:
-    """Groups sign calls under a single session; created by :func:`session`."""
 
     def __init__(self, agent: Agent, session_response: SessionResponse) -> None:
         self._agent = agent
@@ -27,14 +27,14 @@ class Session:
     def session_id(self) -> str:
         return self._session_response.session_id
 
+        # Sign an action within this session.
     def sign(self, action_type: str, context: dict[str, Any] | None = None) -> SignatureResponse:
-        """Sign an action within this session."""
         return self._agent.sign(action_type, context)
 
 
+    # Context manager that groups sign calls; signs ``session:error`` on exception.
 @contextmanager
 def session() -> Generator[Session, None, None]:
-    """Context manager that groups sign calls; signs ``session:error`` on exception."""
     agent = get_agent()
     session_resp = agent.start_session()
     sess = Session(agent, session_resp)
@@ -53,9 +53,9 @@ def session() -> Generator[Session, None, None]:
         agent.end_session(status="completed")
 
 
+    # Async counterpart of :func:`session`; signs ``session:error`` on exception.
 @asynccontextmanager
 async def async_session() -> AsyncGenerator[Session, None]:
-    """Async counterpart of :func:`session`; signs ``session:error`` on exception."""
     agent = get_agent()
     session_resp = agent.start_session()
     sess = Session(agent, session_resp)

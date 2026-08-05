@@ -20,9 +20,9 @@ from asqav.cli import app  # noqa: E402
 runner = CliRunner()
 
 
+    # Use the default ~/.asqav path under a temp HOME (drop the env override).
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    """Use the default ~/.asqav path under a temp HOME (drop the env override)."""
     monkeypatch.delenv("ASQAV_CREDENTIALS_PATH", raising=False)
     monkeypatch.delenv("ASQAV_API_KEY", raising=False)
     monkeypatch.delenv("ASQAV_API_BASE", raising=False)

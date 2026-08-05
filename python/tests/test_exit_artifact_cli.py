@@ -9,10 +9,8 @@ This runs the real command in a subprocess, in a directory holding nothing but t
 three exit-artifact files, with outbound network blocked, over an anchored ML-DSA-65
 receipt. Intact PASSes, tampered FAILs.
 
-The receipt is minted here rather than taken from the corpus: the anchored ML-DSA-65
-production vector (asqav-06-mldsa65-payload-prod) has a signed expires_at that lapsed
-on 2026-06-20, so it can no longer produce the PASS half. This fixture proves the CLI
-path, not wire-format conformance, which the corpus vectors carry.
+The receipt is minted here so the PASS/FAIL halves stay time-independent; this fixture
+proves the CLI path, not wire-format conformance, which the corpus vectors carry.
 """
 
 from __future__ import annotations
@@ -66,8 +64,8 @@ except ImportError:  # pragma: no cover - optional dep
     _DILITHIUM_AVAILABLE = False
 
 
+    # An anchored ML-DSA-65 receipt plus the JWKS an export would archive for it.
 def _anchored_mldsa_pair() -> tuple[dict, dict]:
-    """An anchored ML-DSA-65 receipt plus the JWKS an export would archive for it."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
     pk, sk = ML_DSA_65.keygen()
@@ -104,8 +102,8 @@ def _anchored_mldsa_pair() -> tuple[dict, dict]:
     return envelope, jwks
 
 
+    # Write the three files an exit artifact carries, and nothing else.
 def _lay_out_exit_artifact(root: Path, receipt: dict, jwks: dict) -> None:
-    """Write the three files an exit artifact carries, and nothing else."""
     shutil.copy(VERIFIER_SOURCE, root / "verify_receipt.py")
     (root / "receipt.json").write_text(json.dumps(receipt))
     (root / "jwks.json").write_text(json.dumps(jwks))
@@ -122,8 +120,8 @@ def _child_env(root: Path) -> dict[str, str]:
     return {**os.environ, "PYTHONPATH": str(root)}
 
 
+    # Run the exit-manifest command verbatim, with the network refused.
 def _run_documented_command(root: Path) -> subprocess.CompletedProcess:
-    """Run the exit-manifest command verbatim, with the network refused."""
     argv = EXIT_MANIFEST_COMMAND.replace("<receipt.json>", "receipt.json").replace(
         "<jwks.json>", "jwks.json"
     ).split()
@@ -137,8 +135,8 @@ def _run_documented_command(root: Path) -> subprocess.CompletedProcess:
     )
 
 
+    # Without this control, a passing offline run proves nothing about the network.
 def test_the_network_block_actually_blocks(tmp_path: Path) -> None:
-    """Without this control, a passing offline run proves nothing about the network."""
     (tmp_path / "sitecustomize.py").write_text(SITECUSTOMIZE)
     probe = "import urllib.request; urllib.request.urlopen('https://api.asqav.com/', timeout=5)"
     proc = subprocess.run(
@@ -176,9 +174,9 @@ def test_exit_artifact_command_fails_a_tampered_receipt(tmp_path: Path) -> None:
     assert "[FAIL] signature" in proc.stdout, proc.stdout
 
 
+    # A swapped verification key must not verify the receipt it did not sign.
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_exit_artifact_command_fails_a_tampered_jwks(tmp_path: Path) -> None:
-    """A swapped verification key must not verify the receipt it did not sign."""
     receipt, jwks = _anchored_mldsa_pair()
     _, other_jwks = _anchored_mldsa_pair()
     jwks["keys"][0]["public_key"] = other_jwks["keys"][0]["public_key"]
@@ -188,8 +186,8 @@ def test_exit_artifact_command_fails_a_tampered_jwks(tmp_path: Path) -> None:
     assert "=> FAIL" in proc.stdout, proc.stdout
 
 
+    # The exit artifact ships one file, so it must not import the rest of the SDK.
 def test_the_verifier_file_stands_alone() -> None:
-    """The exit artifact ships one file, so it must not import the rest of the SDK."""
     source = VERIFIER_SOURCE.read_text()
     assert "SPDX-License-Identifier: Apache-2.0" in source
     intra_package = [

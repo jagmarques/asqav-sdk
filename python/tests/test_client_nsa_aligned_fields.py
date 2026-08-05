@@ -62,8 +62,8 @@ def _ok_response(extra: dict | None = None) -> dict:
 # === nonce auto-generation ===
 
 
+    # The SDK supplies a 24-hex-char nonce when the caller omits one.
 def test_nonce_auto_generated_when_omitted() -> None:
-    """The SDK supplies a 24-hex-char nonce when the caller omits one."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -78,8 +78,8 @@ def test_nonce_auto_generated_when_omitted() -> None:
     assert re.fullmatch(r"[0-9a-f]{24}", nonce)
 
 
+    # An explicit nonce is forwarded verbatim instead of regenerated.
 def test_nonce_caller_supplied_value_wins() -> None:
-    """An explicit nonce is forwarded verbatim instead of regenerated."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -96,8 +96,8 @@ def test_nonce_caller_supplied_value_wins() -> None:
     assert captured["body"]["nonce"] == "0123456789abcdef01234567"
 
 
+    # The helper returns a stable 24-hex-char string.
 def test_generate_nonce_is_24_hex_chars() -> None:
-    """The helper returns a stable 24-hex-char string."""
     nonce = _generate_nonce()
     assert re.fullmatch(r"[0-9a-f]{24}", nonce)
 
@@ -105,16 +105,16 @@ def test_generate_nonce_is_24_hex_chars() -> None:
 # === tool_fingerprint compute + passthrough ===
 
 
+    # JCS-canonical input -> stable 32 bare hex chars.
 def test_tool_fingerprint_helper_is_deterministic() -> None:
-    """JCS-canonical input -> stable 32 bare hex chars."""
     fp1 = _compute_tool_fingerprint("search", {"a": 1, "b": 2})
     fp2 = _compute_tool_fingerprint("search", {"b": 2, "a": 1})
     assert fp1 == fp2
     assert re.fullmatch(r"[0-9a-f]{32}", fp1)
 
 
+    # The SDK derives ``tool_fingerprint`` from ``tool_name`` + schema.
 def test_tool_fingerprint_auto_computed_when_schema_present() -> None:
-    """The SDK derives ``tool_fingerprint`` from ``tool_name`` + schema."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -134,8 +134,8 @@ def test_tool_fingerprint_auto_computed_when_schema_present() -> None:
     assert re.fullmatch(r"[0-9a-f]{32}", fp)
 
 
+    # Explicit ``tool_fingerprint`` overrides auto-derivation.
 def test_tool_fingerprint_caller_value_wins() -> None:
-    """Explicit ``tool_fingerprint`` overrides auto-derivation."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -155,8 +155,8 @@ def test_tool_fingerprint_caller_value_wins() -> None:
     assert captured["body"]["tool_fingerprint"] == explicit
 
 
+    # No auto-fingerprint when ``tool_schema`` is omitted.
 def test_tool_fingerprint_absent_when_no_schema_provided() -> None:
-    """No auto-fingerprint when ``tool_schema`` is omitted."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -203,6 +203,7 @@ def test_caller_digest_fields_forwarded_verbatim(field: str, value: str) -> None
     assert captured["body"][field] == value
 
 
+    # No body key when the caller does not pass the kwarg.
 @pytest.mark.parametrize(
     "field",
     [
@@ -214,7 +215,6 @@ def test_caller_digest_fields_forwarded_verbatim(field: str, value: str) -> None
     ],
 )
 def test_nsa_aligned_fields_absent_when_not_set(field: str) -> None:
-    """No body key when the caller does not pass the kwarg."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -300,8 +300,8 @@ def test_lifecycle_without_configuration_change_does_not_require_digest() -> Non
 # === Rule 10: expiry_collision_guard (valid_seconds vs expires_at) ===
 
 
+    # Rule 10: ``valid_seconds`` and ``expires_at`` are mutually exclusive.
 class TestExpiryCollisionGuard:
-    """Rule 10: ``valid_seconds`` and ``expires_at`` are mutually exclusive."""
 
     def test_both_set_raises_verbatim(self) -> None:
         """Passing both knobs raises ``expiry_collision_guard`` before the
@@ -321,8 +321,8 @@ class TestExpiryCollisionGuard:
             )
             p.assert_not_called()
 
+        # Passing neither knob is fine; the cloud applies its default.
     def test_neither_set_uses_server_default(self) -> None:
-        """Passing neither knob is fine; the cloud applies its default."""
         captured: dict = {}
 
         def fake_post(path: str, body: dict) -> dict:
@@ -334,8 +334,8 @@ class TestExpiryCollisionGuard:
         assert "valid_seconds" not in captured["body"]
         assert "expires_at" not in captured["body"]
 
+        # ``valid_seconds`` alone is forwarded verbatim.
     def test_only_valid_seconds_set_passes(self) -> None:
-        """``valid_seconds`` alone is forwarded verbatim."""
         captured: dict = {}
 
         def fake_post(path: str, body: dict) -> dict:
@@ -374,8 +374,8 @@ class TestExpiryCollisionGuard:
         assert "expires_at" not in captured["body"]
         assert captured["body"]["valid_seconds"] > 0
 
+        # A POSIX-epoch ``expires_at`` converts to a duration too.
     def test_expires_at_epoch_float_converts_to_valid_seconds(self) -> None:
-        """A POSIX-epoch ``expires_at`` converts to a duration too."""
         import time as _time
 
         captured: dict = {}
@@ -402,8 +402,8 @@ class TestExpiryCollisionGuard:
 _VALID_SHA = "sha256:" + "f" * 64
 
 
+    # Rule 11: every caller-supplied digest MUST match ``sha256:<64-hex>``.
 class TestDigestFormatGuard:
-    """Rule 11: every caller-supplied digest MUST match ``sha256:<64-hex>``."""
 
     @pytest.mark.parametrize(
         "field",
@@ -449,12 +449,12 @@ class TestDigestFormatGuard:
             )
         assert captured["body"]["tool_fingerprint"] == fp
 
+        # Anything other than the ``sha256:`` prefix raises the verbatim cloud token.
     @pytest.mark.parametrize(
         "field",
         ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_wrong_prefix_rejected(self, field: str) -> None:
-        """Anything other than the ``sha256:`` prefix raises the verbatim cloud token."""
         with patch("asqav.client._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
@@ -469,12 +469,12 @@ class TestDigestFormatGuard:
             )
             p.assert_not_called()
 
+        # A short hex tail fails the regex.
     @pytest.mark.parametrize(
         "field",
         ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_wrong_length_rejected(self, field: str) -> None:
-        """A short hex tail fails the regex."""
         with patch("asqav.client._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
@@ -489,12 +489,12 @@ class TestDigestFormatGuard:
             )
             p.assert_not_called()
 
+        # Uppercase / non-hex characters fail the regex.
     @pytest.mark.parametrize(
         "field",
         ["config_manifest_digest", "cve_inventory_digest"],
     )
     def test_non_hex_rejected(self, field: str) -> None:
-        """Uppercase / non-hex characters fail the regex."""
         with patch("asqav.client._post") as p:
             with pytest.raises(ValueError) as exc_info:
                 _agent().sign(
@@ -537,8 +537,8 @@ class TestDigestFormatGuard:
             p.assert_not_called()
 
 
+    # Helpers always emit a digest that passes the rule-11 regex.
 class TestDigestHelpers:
-    """Helpers always emit a digest that passes the rule-11 regex."""
 
     def test_compute_tool_fingerprint_matches_regex(self) -> None:
         fp = _compute_tool_fingerprint("search", {"q": "string"})
@@ -561,8 +561,8 @@ class TestDigestHelpers:
 # === BLOCKER 5: protectmcp:observation:result_bound receipt type ===
 
 
+    # The new ``:result_bound`` suffix is a first-class receipt type.
 class TestResultBoundReceiptType:
-    """The new ``:result_bound`` suffix is a first-class receipt type."""
 
     def test_result_bound_in_namespace(self) -> None:
         assert "protectmcp:observation:result_bound" in RECEIPT_TYPE_NAMESPACE

@@ -48,8 +48,8 @@ _REQUIRED = (
 )
 
 
+    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
-    """Decode a hex string; b'' on any malformed input so verify FAILs, never crashes."""
     if not isinstance(value, str):
         return b""
     try:
@@ -58,8 +58,8 @@ def _safe_hex(value: Any) -> bytes:
         return b""
 
 
+    # Decode a base64url JWK coordinate; b'' on malformed input.
 def _b64url(value: Any) -> bytes:
-    """Decode a base64url JWK coordinate; b'' on malformed input."""
     if not isinstance(value, str):
         return b""
     try:
@@ -72,8 +72,8 @@ def _is_p256_jwk(jwk: Any) -> bool:
     return isinstance(jwk, dict) and jwk.get("kty") == "EC" and jwk.get("crv") == "P-256"
 
 
+    # Authproof delegation receipt - ES256 over insertion-order JSON.stringify.
 class AuthproofAdapter(FormatAdapter):
-    """Authproof delegation receipt - ES256 over insertion-order JSON.stringify."""
 
     name = "authproof"
 
@@ -91,8 +91,8 @@ class AuthproofAdapter(FormatAdapter):
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         return SignatureMaterial(sig=_safe_hex(doc.get("signature", "")), alg="ES256", kid="")
 
+        # Return the 65-byte uncompressed P-256 point from the embedded JWK (key is in-band).
     def resolve_key(self, doc: dict, _key_provider: Any) -> tuple[bytes | None, str]:
-        """Return the 65-byte uncompressed P-256 point from the embedded JWK (key is in-band)."""
         jwk = doc.get("signerPublicKey")
         if not _is_p256_jwk(jwk):
             return None, "signerPublicKey is not a P-256 JWK"

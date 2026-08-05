@@ -29,8 +29,8 @@ def test_supported_algorithms_set() -> None:
     )
 
 
+    # Identifier strings match the cloud's SignatureRecord.algorithm column.
 def test_constants_match_spec_strings() -> None:
-    """Identifier strings match the cloud's SignatureRecord.algorithm column."""
     assert ALGORITHM_ML_DSA_65 == "ml-dsa-65"
     assert ALGORITHM_ED25519 == "ed25519"
     assert ALGORITHM_ES256 == "es256"
@@ -58,8 +58,8 @@ def test_check_algorithm_rejects_unknown() -> None:
         _check_algorithm("rsa")
 
 
+    # ml-dsa-65 keypair generation is server-side only.
 def test_check_algorithm_rejects_ml_dsa_65() -> None:
-    """ml-dsa-65 keypair generation is server-side only."""
     with pytest.raises(ValueError, match="unsupported_algorithm"):
         _check_algorithm("ml-dsa-65")
 
@@ -75,8 +75,8 @@ def test_ed25519_keypair_generates_pem() -> None:
     assert kp.public_key_pem.startswith(b"-----BEGIN PUBLIC KEY-----")
 
 
+    # The PEM-encoded public key parses back to a valid Ed25519 key.
 def test_ed25519_public_key_round_trips() -> None:
-    """The PEM-encoded public key parses back to a valid Ed25519 key."""
     pytest.importorskip("cryptography")
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -86,8 +86,8 @@ def test_ed25519_public_key_round_trips() -> None:
     assert isinstance(pub, ed25519.Ed25519PublicKey)
 
 
+    # End-to-end: generate, sign with private, verify with public.
 def test_ed25519_signs_and_verifies() -> None:
-    """End-to-end: generate, sign with private, verify with public."""
     pytest.importorskip("cryptography")
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -115,8 +115,8 @@ def test_es256_keypair_generates_pem() -> None:
     assert kp.public_key_pem.startswith(b"-----BEGIN PUBLIC KEY-----")
 
 
+    # ES256 means ECDSA over the P-256 curve.
 def test_es256_curve_is_p256() -> None:
-    """ES256 means ECDSA over the P-256 curve."""
     pytest.importorskip("cryptography")
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec
@@ -154,8 +154,8 @@ def test_ml_dsa_65_local_generation_rejected() -> None:
         generate_local_keypair("ml-dsa-65")  # type: ignore[arg-type]
 
 
+    # `generate_local_keypair()` with no args defaults to ed25519.
 def test_default_algorithm_is_ed25519() -> None:
-    """`generate_local_keypair()` with no args defaults to ed25519."""
     pytest.importorskip("cryptography")
     kp = generate_local_keypair()
     assert kp.algorithm == "ed25519"
@@ -169,8 +169,8 @@ def test_unsupported_algorithm_raises_value_error() -> None:
         generate_local_keypair("rsa")  # type: ignore[arg-type]
 
 
+    # LocalKeypair is a plain dataclass; no extra state survives.
 def test_local_keypair_carries_only_pem_bytes() -> None:
-    """LocalKeypair is a plain dataclass; no extra state survives."""
     pytest.importorskip("cryptography")
     kp = generate_local_keypair("ed25519")
     assert isinstance(kp.private_key_pem, bytes)

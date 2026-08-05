@@ -29,8 +29,8 @@ MOCK_SIGN_RESPONSE: dict = {
 }
 
 
+    # Create a guardrail with mocked Agent.
 def _make_guardrail() -> AsqavGuardrail:
-    """Create a guardrail with mocked Agent."""
     with patch("asqav.client._api_key", "sk_test"), \
          patch("asqav.extras._base.Agent") as mock_agent_cls:
         mock_agent_cls.create.return_value = MagicMock()
@@ -175,8 +175,8 @@ class TestModerationHook:
 
 
 class TestFailOpen:
+        # Async methods do not raise when signing fails (fail-open via base).
     def test_fail_open_on_sign_error(self):
-        """Async methods do not raise when signing fails (fail-open via base)."""
         guardrail = _make_guardrail()
         # Mock the agent's sign method to raise, exercising the real
         # _sign_action fail-open path in AsqavAdapter.

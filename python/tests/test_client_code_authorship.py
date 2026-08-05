@@ -81,8 +81,8 @@ def _good_kwargs() -> dict:
     )
 
 
+    # Sign with the good kwargs (plus overrides) and return the wire body.
 def _sign(**overrides) -> dict:
-    """Sign with the good kwargs (plus overrides) and return the wire body."""
     kwargs = _good_kwargs()
     kwargs.update(overrides)
     captured: dict = {}
@@ -121,8 +121,8 @@ def test_all_code_fields_project_to_wire() -> None:
     assert body["receipt_type"] == CODE_TYPE
 
 
+    # A human-only author needs no attestation_source (no model claim).
 def test_valid_human_only_author_without_attestation_source() -> None:
-    """A human-only author needs no attestation_source (no model claim)."""
     body = _sign(authored_by={"human_id": "human:alice@example.com"})
     assert body["authored_by"]["human_id"] == "human:alice@example.com"
 
@@ -188,7 +188,7 @@ def test_rejects_non_none_policy_decision() -> None:
     assert "code_authorship_requires_no_policy_decision" in str(exc.value)
 
 
+    # AsqavValidationError subclasses ValueError for backward compat.
 def test_validation_error_is_a_valueerror() -> None:
-    """AsqavValidationError subclasses ValueError for backward compat."""
     with pytest.raises(ValueError):
         _sign(change_digest="bad")

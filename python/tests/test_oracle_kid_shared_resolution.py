@@ -38,8 +38,8 @@ REAL_KID = "key-shared-resolution"
 ABSENT_KID = "kid-that-resolves-nothing"
 
 
+    # A compliance payload naming its issuer and agent inside the signed bytes.
 def _payload() -> dict:
-    """A compliance payload naming its issuer and agent inside the signed bytes."""
     return {
         "type": "protectmcp:decision",
         "issued_at": "2026-06-01T19:26:44.289388Z",
@@ -53,8 +53,8 @@ def _payload() -> dict:
     }
 
 
+    # A directory publishing one key, resolvable by kid AND by agent_id.
 def _jwks(status: str = "revoked", public_key: str = "QUFBQQ==") -> dict:
-    """A directory publishing one key, resolvable by kid AND by agent_id."""
     return {
         "keys": [
             {
@@ -84,25 +84,25 @@ def _axes(doc: dict, jwks: dict) -> dict[str, str]:
 # --- the axes must exist whichever route resolved the key ---
 
 
+    # A kid the directory does not answer for still yields both gating axes.
 def test_absent_kid_still_emits_the_gating_axes() -> None:
-    """A kid the directory does not answer for still yields both gating axes."""
     axes = _axes(_receipt(ABSENT_KID), _jwks())
     assert "key_status" in axes, "a rewritten kid must not make the axis vanish"
     assert "issuer_bind" in axes
 
 
+    # The status read is the one published for the key the agent route resolves.
 def test_absent_kid_reports_the_revoked_status_of_the_signing_key() -> None:
-    """The status read is the one published for the key the agent route resolves."""
     assert _axes(_receipt(ABSENT_KID), _jwks(status="revoked"))["key_status"] == "FAIL"
 
 
+    # Rewriting the kid changes no axis outcome, since one entry answers both.
 def test_absent_kid_agrees_with_the_real_kid_on_every_axis() -> None:
-    """Rewriting the kid changes no axis outcome, since one entry answers both."""
     assert _axes(_receipt(ABSENT_KID), _jwks()) == _axes(_receipt(REAL_KID), _jwks())
 
 
+    # The shared resolution does not turn an active key into a failure.
 def test_active_key_passes_the_status_axis_through_the_agent_route() -> None:
-    """The shared resolution does not turn an active key into a failure."""
     axes = _axes(_receipt(ABSENT_KID), _jwks(status="active"))
     assert axes["key_status"] == "PASS"
     assert axes["issuer_bind"] == "PASS"
@@ -112,14 +112,14 @@ def test_active_key_passes_the_status_axis_through_the_agent_route() -> None:
 KEY_AXES = {"key_status", "issuer_bind"}
 
 
+    # With nothing resolvable the signature axis carries the verdict on its own.
 def test_no_key_at_all_emits_no_key_axis() -> None:
-    """With nothing resolvable the signature axis carries the verdict on its own."""
     axes = _axes(_receipt(ABSENT_KID), {"keys": []})
     assert KEY_AXES.isdisjoint(axes), axes
 
 
+    # agent_id is attacker-controlled, so the issuer bind still gates the match.
 def test_agent_route_needs_the_claimed_issuer_to_match() -> None:
-    """agent_id is attacker-controlled, so the issuer bind still gates the match."""
     jwks = _jwks()
     jwks["keys"][0]["issuer_id"] = "some-other-entity"
     axes = _axes(_receipt(ABSENT_KID), jwks)
@@ -129,8 +129,8 @@ def test_agent_route_needs_the_claimed_issuer_to_match() -> None:
 # --- the shared entry is the one the signature verifies against ---
 
 
+    # Both surfaces answer for the absent kid, rather than one answering alone.
 def test_resolve_key_and_extra_axes_resolve_the_same_entry() -> None:
-    """Both surfaces answer for the absent kid, rather than one answering alone."""
     ad = AsqavNativeAdapter()
     doc, jwks = _receipt(ABSENT_KID), _jwks()
     pk, note = ad.resolve_key(doc, jwks)
@@ -139,8 +139,8 @@ def test_resolve_key_and_extra_axes_resolve_the_same_entry() -> None:
     assert KEY_AXES <= emitted, emitted
 
 
+    # kid wins when it resolves, so the agent route only fills a genuine gap.
 def test_match_signing_key_prefers_the_kid_entry() -> None:
-    """kid wins when it resolves, so the agent route only fills a genuine gap."""
     jwks = {
         "keys": [
             {"kid": REAL_KID, "issuer_id": ISSUER, "public_key": "QUFBQQ==", "status": "active"},

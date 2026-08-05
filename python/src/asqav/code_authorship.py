@@ -79,8 +79,8 @@ def compute_advisory_digest(
     return "sha256:" + hashlib.sha256(diff_text.encode("utf-8")).hexdigest()
 
 
+    # Strip a ``sha256:`` prefix to the bare hex, or None when absent.
 def _bare_hex(digest: str | None) -> str | None:
-    """Strip a ``sha256:`` prefix to the bare hex, or None when absent."""
     if not isinstance(digest, str) or not digest:
         return None
     return digest.split(":", 1)[-1]
@@ -107,9 +107,9 @@ class CodeAuthorshipResult:
     advisory_client_digest: str | None
     raw: dict[str, Any] = field(default_factory=dict)
 
+        # Project the wire response into a result, reading the Statement fields.
     @classmethod
     def from_response(cls, data: dict[str, Any]) -> "CodeAuthorshipResult":
-        """Project the wire response into a result, reading the Statement fields."""
         envelope = data.get("envelope") if isinstance(data.get("envelope"), dict) else {}
         receipt = data.get("receipt") if isinstance(data.get("receipt"), dict) else {}
 
@@ -142,9 +142,9 @@ class CodeAuthorshipResult:
             raw=data,
         )
 
+        # True when the bound subject digest equals the server-recomputed digest.
     @property
     def subject_matches_server(self) -> bool:
-        """True when the bound subject digest equals the server-recomputed digest."""
         if self.subject_digest is None or self.server_digest is None:
             return False
         return self.subject_digest == _bare_hex(self.server_digest)

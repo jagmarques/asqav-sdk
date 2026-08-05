@@ -84,9 +84,9 @@ MOCK_APPROVE_APPROVED: dict = {
 # === request_action tests ===
 
 
+    # request_action calls POST /signing-groups/sessions with correct body.
 @patch("asqav.client._post")
 def test_request_action(mock_post: object) -> None:
-    """request_action calls POST /signing-groups/sessions with correct body."""
     mock_post.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
     result = asqav.request_action(
@@ -109,9 +109,9 @@ def test_request_action(mock_post: object) -> None:
     assert result.action_params is None
 
 
+    # request_action includes params in the request body when provided.
 @patch("asqav.client._post")
 def test_request_action_with_params(mock_post: object) -> None:
-    """request_action includes params in the request body when provided."""
     mock_post.return_value = MOCK_SESSION_WITH_PARAMS  # type: ignore[attr-defined]
 
     params = {"target": "us-east-1", "version": "2.0"}
@@ -132,9 +132,9 @@ def test_request_action_with_params(mock_post: object) -> None:
     assert result.action_params == {"target": "us-east-1", "version": "2.0"}
 
 
+    # request_action does not send 'params' key when params is None.
 @patch("asqav.client._post")
 def test_request_action_without_params_omits_key(mock_post: object) -> None:
-    """request_action does not send 'params' key when params is None."""
     mock_post.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
     asqav.request_action(agent_id="agent_001", action_type="read:data")
@@ -146,9 +146,9 @@ def test_request_action_without_params_omits_key(mock_post: object) -> None:
 # === approve_action tests ===
 
 
+    # approve_action calls POST /signing-groups/sessions/{id}/approve.
 @patch("asqav.client._post")
 def test_approve_action(mock_post: object) -> None:
-    """approve_action calls POST /signing-groups/sessions/{id}/approve."""
     mock_post.return_value = MOCK_APPROVE_RESPONSE  # type: ignore[attr-defined]
 
     result = asqav.approve_action(
@@ -169,9 +169,9 @@ def test_approve_action(mock_post: object) -> None:
     assert result.approved is False
 
 
+    # approve_action returns approved=True when approvals are met.
 @patch("asqav.client._post")
 def test_approve_action_approved(mock_post: object) -> None:
-    """approve_action returns approved=True when approvals are met."""
     mock_post.return_value = MOCK_APPROVE_APPROVED  # type: ignore[attr-defined]
 
     result = asqav.approve_action(
@@ -187,9 +187,9 @@ def test_approve_action_approved(mock_post: object) -> None:
 # === get_action_status tests ===
 
 
+    # get_action_status calls GET /signing-groups/sessions/{id}.
 @patch("asqav.client._get")
 def test_get_action_status(mock_get: object) -> None:
-    """get_action_status calls GET /signing-groups/sessions/{id}."""
     mock_get.return_value = MOCK_SESSION_RESPONSE  # type: ignore[attr-defined]
 
     result = asqav.get_action_status("thr_abc123")
@@ -202,9 +202,9 @@ def test_get_action_status(mock_get: object) -> None:
     assert result.status == "pending"
 
 
+    # get_action_status returns full details for approved session.
 @patch("asqav.client._get")
 def test_get_action_status_approved(mock_get: object) -> None:
-    """get_action_status returns full details for approved session."""
     mock_get.return_value = MOCK_SESSION_APPROVED  # type: ignore[attr-defined]
 
     result = asqav.get_action_status("thr_abc123")
@@ -229,8 +229,8 @@ def test_get_action_status_approved(mock_get: object) -> None:
 # === Regression: sign() method unchanged ===
 
 
+    # sign() method is still present on Agent with the core required params.
 def test_sign_method_exists_on_agent() -> None:
-    """sign() method is still present on Agent with the core required params."""
     import inspect
 
     sig = inspect.signature(asqav.Agent.sign)
@@ -240,8 +240,8 @@ def test_sign_method_exists_on_agent() -> None:
     assert "context" in params
 
 
+    # sign() is annotated to return SignatureResponse.
 def test_sign_method_returns_signature_response_annotation() -> None:
-    """sign() is annotated to return SignatureResponse."""
     import inspect
 
     sig = inspect.signature(asqav.Agent.sign)
@@ -249,8 +249,8 @@ def test_sign_method_returns_signature_response_annotation() -> None:
     assert "SignatureResponse" in str(sig.return_annotation)
 
 
+    # sign() exposes a counterparty kwarg for endpoint-identity binding.
 def test_sign_accepts_counterparty_kwarg() -> None:
-    """sign() exposes a counterparty kwarg for endpoint-identity binding."""
     import inspect
 
     sig = inspect.signature(asqav.Agent.sign)
@@ -258,9 +258,9 @@ def test_sign_accepts_counterparty_kwarg() -> None:
     assert sig.parameters["counterparty"].default is None
 
 
+    # counterparty kwarg lands in context under _counterparty.
 @patch("asqav.client._post")
 def test_sign_passes_counterparty_into_context(mock_post: object) -> None:
-    """counterparty kwarg lands in context under _counterparty."""
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signature": "sig_bytes",
         "signature_id": "sig_01",
@@ -280,8 +280,8 @@ def test_sign_passes_counterparty_into_context(mock_post: object) -> None:
 # === Agent.sign_batch ===
 
 
+    # Construct an Agent without hitting the API.
 def _make_agent() -> "asqav.Agent":
-    """Construct an Agent without hitting the API."""
     return asqav.Agent(
         agent_id="agent_test",
         name="test",
@@ -293,9 +293,9 @@ def _make_agent() -> "asqav.Agent":
     )
 
 
+    # sign_batch returns one SignatureResponse per input action.
 @patch("asqav.client._post")
 def test_sign_batch_returns_n_signatures(mock_post: object) -> None:
-    """sign_batch returns one SignatureResponse per input action."""
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signatures": [
             {
@@ -318,9 +318,9 @@ def test_sign_batch_returns_n_signatures(mock_post: object) -> None:
     assert out[9].signature_id == "sid_9"
 
 
+    # sign_batch returns None for items the server failed to sign.
 @patch("asqav.client._post")
 def test_sign_batch_handles_partial_failure(mock_post: object) -> None:
-    """sign_batch returns None for items the server failed to sign."""
     mock_post.return_value = {  # type: ignore[attr-defined]
         "signatures": [
             {
@@ -343,8 +343,8 @@ def test_sign_batch_handles_partial_failure(mock_post: object) -> None:
     assert out[1] is None
 
 
+    # sign_batch raises ValueError on empty list.
 def test_sign_batch_rejects_empty_input() -> None:
-    """sign_batch raises ValueError on empty list."""
     import pytest
 
     agent = _make_agent()
@@ -352,8 +352,8 @@ def test_sign_batch_rejects_empty_input() -> None:
         agent.sign_batch([])
 
 
+    # sign_batch raises ValueError when over 100 actions.
 def test_sign_batch_rejects_oversize_input() -> None:
-    """sign_batch raises ValueError when over 100 actions."""
     import pytest
 
     agent = _make_agent()
@@ -361,8 +361,8 @@ def test_sign_batch_rejects_oversize_input() -> None:
         agent.sign_batch([{"action_type": "x"}] * 101)
 
 
+    # sign_batch raises ValueError when an action lacks 'action_type'.
 def test_sign_batch_rejects_missing_action_type() -> None:
-    """sign_batch raises ValueError when an action lacks 'action_type'."""
     import pytest
 
     agent = _make_agent()
@@ -373,16 +373,16 @@ def test_sign_batch_rejects_missing_action_type() -> None:
 # === _parse_signing_session helper ===
 
 
+    # _parse_signing_session handles response with empty signatures.
 def test_parse_signing_session_minimal() -> None:
-    """_parse_signing_session handles response with empty signatures."""
     result = _parse_signing_session(MOCK_SESSION_RESPONSE)
     assert result.session_id == "thr_abc123"
     assert result.signatures == []
     assert result.resolved_at is None
 
 
+    # _parse_signing_session correctly parses signature details.
 def test_parse_signing_session_with_signatures() -> None:
-    """_parse_signing_session correctly parses signature details."""
     result = _parse_signing_session(MOCK_SESSION_APPROVED)
     assert len(result.signatures) == 2
     assert result.signatures[0].entity_name == "Agent Key"

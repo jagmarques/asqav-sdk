@@ -27,8 +27,8 @@ from asqav.extras.smolagents import AsqavSmolagentsHook  # noqa: E402
 # === Helpers ===
 
 
+    # Create a minimal mock smolagents Tool.
 def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
-    """Create a minimal mock smolagents Tool."""
     tool = MagicMock()
     tool.name = name
     tool.forward = MagicMock(return_value=forward_result)
@@ -38,9 +38,9 @@ def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
 # === Fixtures ===
 
 
+    # Create an AsqavSmolagentsHook with mocked Agent internals.
 @pytest.fixture()
 def hook() -> AsqavSmolagentsHook:
-    """Create an AsqavSmolagentsHook with mocked Agent internals."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -54,8 +54,8 @@ def hook() -> AsqavSmolagentsHook:
 # === wrap_tool: tool:start ===
 
 
+    # wrap_tool signs tool:start with tool name and input preview.
 def test_wrap_tool_signs_tool_start(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool signs tool:start with tool name and input preview."""
     tool = _make_tool("web_search", forward_result="some result")
     hook.wrap_tool(tool)
     tool.forward("python tutorials")
@@ -67,8 +67,8 @@ def test_wrap_tool_signs_tool_start(hook: AsqavSmolagentsHook) -> None:
     assert ctx["input"] == "python tutorials"
 
 
+    # wrap_tool signs tool:start using the first kwarg value as input preview.
 def test_wrap_tool_signs_tool_start_with_kwargs(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool signs tool:start using the first kwarg value as input preview."""
     tool = _make_tool("named_tool")
     hook.wrap_tool(tool)
     tool.forward(query="hello world")
@@ -77,8 +77,8 @@ def test_wrap_tool_signs_tool_start_with_kwargs(hook: AsqavSmolagentsHook) -> No
     assert start_ctx["input"] == "hello world"
 
 
+    # wrap_tool signs tool:start with empty input when called with no args.
 def test_wrap_tool_signs_tool_start_no_args(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool signs tool:start with empty input when called with no args."""
     tool = _make_tool("no_args_tool")
     hook.wrap_tool(tool)
     tool.forward()
@@ -90,8 +90,8 @@ def test_wrap_tool_signs_tool_start_no_args(hook: AsqavSmolagentsHook) -> None:
 # === wrap_tool: tool:end ===
 
 
+    # wrap_tool signs tool:end with output type and length.
 def test_wrap_tool_signs_tool_end(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool signs tool:end with output type and length."""
     tool = _make_tool("calculator", forward_result="42")
     hook.wrap_tool(tool)
     tool.forward("6 * 7")
@@ -104,18 +104,18 @@ def test_wrap_tool_signs_tool_end(hook: AsqavSmolagentsHook) -> None:
     assert ctx["output_length"] == 2
 
 
+    # wrap_tool does not alter the tool's return value.
 def test_wrap_tool_returns_original_result(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool does not alter the tool's return value."""
     tool = _make_tool("fetch", forward_result={"key": "value"})
     hook.wrap_tool(tool)
     result = tool.forward("url")
     assert result == {"key": "value"}
 
 
+    # A successful tool call produces exactly tool:start + tool:end.
 def test_wrap_tool_signs_two_actions_per_successful_call(
     hook: AsqavSmolagentsHook,
 ) -> None:
-    """A successful tool call produces exactly tool:start + tool:end."""
     tool = _make_tool("search")
     hook.wrap_tool(tool)
     tool.forward("query")
@@ -127,8 +127,8 @@ def test_wrap_tool_signs_two_actions_per_successful_call(
 # === wrap_tool: tool:error ===
 
 
+    # wrap_tool signs tool:error when forward raises.
 def test_wrap_tool_signs_tool_error_on_exception(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool signs tool:error when forward raises."""
     tool = _make_tool("unstable_tool")
     tool.forward.side_effect = RuntimeError("connection failed")
     hook.wrap_tool(tool)
@@ -144,8 +144,8 @@ def test_wrap_tool_signs_tool_error_on_exception(hook: AsqavSmolagentsHook) -> N
     assert ctx["error"] == "connection failed"
 
 
+    # wrap_tool re-raises the original exception unchanged.
 def test_wrap_tool_reraises_original_exception(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool re-raises the original exception unchanged."""
     tool = _make_tool("crasher")
     tool.forward.side_effect = ValueError("bad input")
     hook.wrap_tool(tool)
@@ -154,10 +154,10 @@ def test_wrap_tool_reraises_original_exception(hook: AsqavSmolagentsHook) -> Non
         tool.forward("x")
 
 
+    # A failed tool call produces exactly tool:start + tool:error.
 def test_wrap_tool_signs_start_and_error_on_failure(
     hook: AsqavSmolagentsHook,
 ) -> None:
-    """A failed tool call produces exactly tool:start + tool:error."""
     tool = _make_tool("failing_tool")
     tool.forward.side_effect = RuntimeError("boom")
     hook.wrap_tool(tool)
@@ -173,8 +173,8 @@ def test_wrap_tool_signs_start_and_error_on_failure(
 # === Truncation ===
 
 
+    # Inputs longer than 200 chars are truncated in the audit record.
 def test_input_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None:
-    """Inputs longer than 200 chars are truncated in the audit record."""
     tool = _make_tool("search")
     hook.wrap_tool(tool)
     tool.forward("q" * 500)
@@ -183,8 +183,8 @@ def test_input_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None:
     assert len(start_ctx["input"]) == 200
 
 
+    # Error messages longer than 200 chars are truncated in the audit record.
 def test_error_message_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None:
-    """Error messages longer than 200 chars are truncated in the audit record."""
     tool = _make_tool("erroring")
     tool.forward.side_effect = RuntimeError("e" * 500)
     hook.wrap_tool(tool)
@@ -199,10 +199,10 @@ def test_error_message_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None
 # === Fail-open: signing must never block tool execution ===
 
 
+    # If tool:start signing raises, the tool still executes and returns its result.
 def test_fail_open_tool_start_does_not_block_execution(
     hook: AsqavSmolagentsHook,
 ) -> None:
-    """If tool:start signing raises, the tool still executes and returns its result."""
     tool = _make_tool("important_tool", forward_result="success")
     hook._sign_action.side_effect = Exception("service unavailable")
     hook.wrap_tool(tool)
@@ -211,10 +211,10 @@ def test_fail_open_tool_start_does_not_block_execution(
     assert result == "success"
 
 
+    # If tool:end signing raises, the result is still returned to the caller.
 def test_fail_open_tool_end_does_not_suppress_result(
     hook: AsqavSmolagentsHook,
 ) -> None:
-    """If tool:end signing raises, the result is still returned to the caller."""
     tool = _make_tool("end_failing_tool", forward_result="the result")
     call_count = 0
 
@@ -231,10 +231,10 @@ def test_fail_open_tool_end_does_not_suppress_result(
     assert result == "the result"
 
 
+    # If tool:error signing raises, the original tool exception is still re-raised.
 def test_fail_open_tool_error_does_not_swallow_exception(
     hook: AsqavSmolagentsHook,
 ) -> None:
-    """If tool:error signing raises, the original tool exception is still re-raised."""
     tool = _make_tool("double_failing_tool")
     tool.forward.side_effect = ValueError("tool broke")
     hook._sign_action.side_effect = Exception("signing also broke")
@@ -247,8 +247,8 @@ def test_fail_open_tool_error_does_not_swallow_exception(
 # === Multiple tools tracked independently ===
 
 
+    # Each wrapped tool is signed independently under its own name.
 def test_multiple_tools_tracked_independently(hook: AsqavSmolagentsHook) -> None:
-    """Each wrapped tool is signed independently under its own name."""
     tool_a = _make_tool("tool_a", forward_result="a_result")
     tool_b = _make_tool("tool_b", forward_result="b_result")
 
@@ -269,8 +269,8 @@ def test_multiple_tools_tracked_independently(hook: AsqavSmolagentsHook) -> None
 # === Tool name fallback ===
 
 
+    # wrap_tool uses the class name when the tool has no .name attribute.
 def test_tool_name_falls_back_to_class_name(hook: AsqavSmolagentsHook) -> None:
-    """wrap_tool uses the class name when the tool has no .name attribute."""
     tool = MagicMock(spec=["forward"])  # no .name attribute
     tool.forward = MagicMock(return_value="ok")
     type(tool).__name__ = "MyCustomTool"
@@ -285,9 +285,9 @@ def test_tool_name_falls_back_to_class_name(hook: AsqavSmolagentsHook) -> None:
 # === Cleanup ===
 
 
+    # Remove fake smolagents from sys.modules after all tests.
 @pytest.fixture(autouse=True, scope="module")
 def _cleanup_smolagents_module() -> Any:
-    """Remove fake smolagents from sys.modules after all tests."""
     yield
     sys.modules.pop("smolagents", None)
     sys.modules.pop("asqav.extras.smolagents", None)

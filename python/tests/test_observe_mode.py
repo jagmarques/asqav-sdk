@@ -14,8 +14,8 @@ from asqav.client import SignatureResponse
 from asqav.extras._base import AsqavAdapter
 
 
+    # Concrete subclass for testing observe mode.
 class _ObserveAdapter(AsqavAdapter):
-    """Concrete subclass for testing observe mode."""
 
     pass
 
@@ -29,9 +29,9 @@ MOCK_SIGN_RESPONSE: dict = {
 }
 
 
+    # In observe mode, _sign_action returns None without calling the server.
 @patch("asqav.extras._base.Agent")
 def test_observe_mode_returns_none(mock_agent_cls):
-    """In observe mode, _sign_action returns None without calling the server."""
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
@@ -43,9 +43,9 @@ def test_observe_mode_returns_none(mock_agent_cls):
     mock_agent.sign.assert_not_called()
 
 
+    # In observe mode, no signatures are accumulated.
 @patch("asqav.extras._base.Agent")
 def test_observe_mode_does_not_accumulate_signatures(mock_agent_cls):
-    """In observe mode, no signatures are accumulated."""
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
@@ -58,9 +58,9 @@ def test_observe_mode_does_not_accumulate_signatures(mock_agent_cls):
     mock_agent.sign.assert_not_called()
 
 
+    # In observe mode, _sign_action logs the action that would be signed.
 @patch("asqav.extras._base.Agent")
 def test_observe_mode_logs_action(mock_agent_cls, caplog):
-    """In observe mode, _sign_action logs the action that would be signed."""
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
@@ -76,9 +76,9 @@ def test_observe_mode_logs_action(mock_agent_cls, caplog):
     assert "gpt-4" in caplog.records[0].message
 
 
+    # Observe mode works when context is None.
 @patch("asqav.extras._base.Agent")
 def test_observe_mode_logs_none_context(mock_agent_cls, caplog):
-    """Observe mode works when context is None."""
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
@@ -92,9 +92,9 @@ def test_observe_mode_logs_none_context(mock_agent_cls, caplog):
     assert "tool:execute" in caplog.records[0].message
 
 
+    # With observe=False (default), _sign_action calls the server normally.
 @patch("asqav.extras._base.Agent")
 def test_observe_false_calls_server(mock_agent_cls):
-    """With observe=False (default), _sign_action calls the server normally."""
     mock_agent = MagicMock()
     mock_sig = SignatureResponse(**MOCK_SIGN_RESPONSE)
     mock_agent.sign.return_value = mock_sig
@@ -108,9 +108,9 @@ def test_observe_false_calls_server(mock_agent_cls):
     mock_agent.sign.assert_called_once_with("llm:call", {"model": "gpt-4"})
 
 
+    # By default, observe mode is disabled.
 @patch("asqav.extras._base.Agent")
 def test_default_observe_is_false(mock_agent_cls):
-    """By default, observe mode is disabled."""
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 

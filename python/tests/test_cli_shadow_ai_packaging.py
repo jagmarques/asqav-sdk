@@ -20,8 +20,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from asqav.cli import _SHADOW_AI_TEMPLATE_FILES
 
 
+    # Every name in `_SHADOW_AI_TEMPLATE_FILES` resolves from the package.
 def test_all_shadow_ai_template_files_are_packaged() -> None:
-    """Every name in `_SHADOW_AI_TEMPLATE_FILES` resolves from the package."""
     template_dir = files("asqav").joinpath("templates", "shadow-ai")
     for name in _SHADOW_AI_TEMPLATE_FILES:
         resource = template_dir.joinpath(name)
@@ -31,8 +31,8 @@ def test_all_shadow_ai_template_files_are_packaged() -> None:
         )
 
 
+    # The packaged `.env.template` carries the keys the CLI validator checks.
 def test_env_template_carries_required_keys() -> None:
-    """The packaged `.env.template` carries the keys the CLI validator checks."""
     template_dir = files("asqav").joinpath("templates", "shadow-ai")
     body = template_dir.joinpath(".env.template").read_text(encoding="utf-8")
     for key in ("ASQAV_API_KEY", "ASQAV_AGENT_ID", "POSTGRES_PASSWORD"):

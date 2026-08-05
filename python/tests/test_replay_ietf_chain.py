@@ -44,8 +44,8 @@ def _make_signed_action(
 # === FIRST_RECEIPT_SEED matches the spec ===
 
 
+    # `FIRST_RECEIPT_SEED == "0" * 64` is the chain seed.
 def test_first_receipt_seed_is_64_zero_hex() -> None:
-    """`FIRST_RECEIPT_SEED == "0" * 64` is the chain seed."""
     assert FIRST_RECEIPT_SEED == "0" * 64
     assert len(FIRST_RECEIPT_SEED) == 64
     assert all(c == "0" for c in FIRST_RECEIPT_SEED)
@@ -54,8 +54,8 @@ def test_first_receipt_seed_is_64_zero_hex() -> None:
 # === IETF v2 default behaviour ===
 
 
+    # Each link is `sha256(JCS(envelope_with_prev_link))`.
 def test_v2_chain_hash_matches_jcs_of_envelope() -> None:
-    """Each link is `sha256(JCS(envelope_with_prev_link))`."""
     sigs = [_make_signed_action(idx=0), _make_signed_action(idx=1)]
     sig_dicts = [
         {
@@ -86,8 +86,8 @@ def test_v2_chain_hash_matches_jcs_of_envelope() -> None:
     assert timeline.steps[1].prev_chain_hash == expected_first_hash
 
 
+    # The first envelope hashes against the all-zero seed, not empty.
 def test_v2_seed_is_used_under_default() -> None:
-    """The first envelope hashes against the all-zero seed, not empty."""
     sigs = [_make_signed_action(idx=0)]
     timeline = _build_timeline("agent_001", "sess_1", sigs)
     # First step has no predecessor -> prev_chain_hash is None.
@@ -122,8 +122,8 @@ def test_v2_verify_chain_succeeds_on_freshly_built_timeline() -> None:
         assert step.chain_valid is True
 
 
+    # If a step's stored prev_chain_hash is altered, verify_chain fails.
 def test_v2_verify_chain_detects_tamper() -> None:
-    """If a step's stored prev_chain_hash is altered, verify_chain fails."""
     sigs = [_make_signed_action(idx=i) for i in range(3)]
     timeline = _build_timeline("agent_001", "sess_1", sigs)
     # Tamper: corrupt the link on step 1.
@@ -157,13 +157,13 @@ def test_empty_timeline_verifies() -> None:
 # === H-NEW-1: signed_envelope path verifies byte-for-byte against the cloud ===
 
 
+    # Build the cloud-shape envelope the SDK records under compliance_mode.
 def _compliance_envelope(
     *,
     idx: int,
     prev_hash: str,
     policy_decision: str = "allow",
 ) -> dict:
-    """Build the cloud-shape envelope the SDK records under compliance_mode."""
     return {
         "action_id": f"act_{idx:03d}",
         "agent_id": "agent_001",
@@ -252,8 +252,8 @@ def test_mixed_envelope_steps_drop_compliance_chain_valid() -> None:
     assert timeline.compliance_chain_valid is False
 
 
+    # Round-trip metadata so audit-pack consumers see envelope + flag.
 def test_to_dict_includes_signed_envelope_and_compliance_flag() -> None:
-    """Round-trip metadata so audit-pack consumers see envelope + flag."""
     env0 = _compliance_envelope(idx=0, prev_hash=FIRST_RECEIPT_SEED)
     sigs = [_make_signed_action(idx=0)]
     timeline = _build_timeline(
@@ -321,8 +321,8 @@ def test_three_receipt_chain_matches_cloud_byte_for_byte() -> None:
     assert all(s.chain_valid for s in timeline.steps)
 
 
+    # A forged `previousReceiptHash` on one receipt fails only that link.
 def test_three_receipt_chain_detects_single_link_tamper() -> None:
-    """A forged `previousReceiptHash` on one receipt fails only that link."""
     p0 = _cloud_payload(0, FIRST_RECEIPT_SEED)
     h0 = hashlib.sha256(canonical_json(p0)).hexdigest()
     p1 = _cloud_payload(1, h0)

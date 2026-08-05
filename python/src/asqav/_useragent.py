@@ -8,8 +8,8 @@ so every request must identify itself with a real product token.
 from __future__ import annotations
 
 
+    # Resolve the installed package version without importing the package.
 def _sdk_version() -> str:
-    """Resolve the installed package version without importing the package."""
     try:
         from importlib.metadata import version
 

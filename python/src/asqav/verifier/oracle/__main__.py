@@ -48,8 +48,8 @@ def _load(path: str | None) -> dict | None:
         raise SystemExit(2) from None
 
 
+    # Verify one receipt file and print the verdict + per-axis result as JSON.
 def run(receipt_path: str, keys_path: str | None, predecessor_path: str | None) -> int:
-    """Verify one receipt file and print the verdict + per-axis result as JSON."""
     receipt = _load(receipt_path)
     key_provider = _load(keys_path)
     predecessor = _load(predecessor_path)

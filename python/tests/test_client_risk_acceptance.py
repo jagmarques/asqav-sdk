@@ -84,8 +84,8 @@ def _good_kwargs() -> dict:
     )
 
 
+    # Sign with the good kwargs (plus overrides) and return the wire body.
 def _sign(**overrides) -> dict:
-    """Sign with the good kwargs (plus overrides) and return the wire body."""
     kwargs = _good_kwargs()
     kwargs.update(overrides)
     captured: dict = {}
@@ -194,8 +194,8 @@ def test_rejects_cve_ids_empty_list() -> None:
     assert "risk_snapshot_cve_ids_must_be_non_empty_list" in str(exc.value)
 
 
+    # AsqavValidationError subclasses ValueError for backward compat.
 def test_validation_error_is_a_valueerror() -> None:
-    """AsqavValidationError subclasses ValueError for backward compat."""
     with pytest.raises(ValueError):
         _sign(sarif_digest="bad")
 
@@ -203,17 +203,17 @@ def test_validation_error_is_a_valueerror() -> None:
 # === SoD guard: risk_acceptance_self_approval_guard ===
 
 
+    # risk_acceptance_self_approval_guard fires when initiator_id == approver_id.
 @pytest.mark.parametrize("same_id", ["user:alice@example.com", "uuid-1234", "alice"])
 def test_rejects_self_approval(same_id: str) -> None:
-    """risk_acceptance_self_approval_guard fires when initiator_id == approver_id."""
     with pytest.raises(AsqavValidationError) as exc:
         _sign(initiator_id=same_id, approver_id=same_id)
     assert "risk_acceptance_self_approval_guard: initiator_id equals" in str(exc.value)
     assert exc.value.docs_url == RISK_ACCEPTANCE_DOCS_URL
 
 
+    # Guard message prefix is byte-identical to the cloud validator.
 def test_self_approval_guard_message_bytes() -> None:
-    """Guard message prefix is byte-identical to the cloud validator."""
     with pytest.raises(AsqavValidationError) as exc:
         _sign(initiator_id="x", approver_id="x")
     msg = str(exc.value)
@@ -223,15 +223,15 @@ def test_self_approval_guard_message_bytes() -> None:
     )
 
 
+    # Different initiator and approver IDs do not trigger the SoD guard.
 def test_allows_different_initiator_and_approver() -> None:
-    """Different initiator and approver IDs do not trigger the SoD guard."""
     body = _sign(initiator_id="initiator:bob@example.com", approver_id="approver:alice@example.com")
     assert body["initiator_id"] == "initiator:bob@example.com"
     assert body["approver_id"] == "approver:alice@example.com"
 
 
+    # Guard does not fire when initiator_id is absent (only approver_id set).
 def test_self_approval_guard_absent_initiator_allowed() -> None:
-    """Guard does not fire when initiator_id is absent (only approver_id set)."""
     body = _sign(initiator_id=None)
     assert body.get("initiator_id") is None
     assert body["approver_id"] == "approver:alice@example.com"

@@ -25,8 +25,8 @@ from asqav.extras.anthropic import AsqavAnthropic  # noqa: E402
 from asqav.extras.openai import AsqavOpenAI  # noqa: E402
 
 
+    # Stand-in for a vendor response that allows attribute assignment.
 class _FakeResponse:
-    """Stand-in for a vendor response that allows attribute assignment."""
 
     def __init__(self, model: str, response_id: str, usage) -> None:
         self.model = model
@@ -41,8 +41,8 @@ def _receipt() -> SimpleNamespace:
     )
 
 
+    # Stub asqav.init and asqav.Agent.create so no network call happens.
 def _patch_asqav(monkeypatch, agent: MagicMock) -> MagicMock:
-    """Stub asqav.init and asqav.Agent.create so no network call happens."""
     init_mock = MagicMock()
     monkeypatch.setattr(asqav, "init", init_mock)
     create_mock = MagicMock(return_value=agent)
@@ -50,8 +50,8 @@ def _patch_asqav(monkeypatch, agent: MagicMock) -> MagicMock:
     return init_mock
 
 
+    # Inject a fake openai module whose client returns ``response``.
 def _install_fake_openai(monkeypatch, response: _FakeResponse):
-    """Inject a fake openai module whose client returns ``response``."""
     completions = MagicMock()
     completions.create.return_value = response
     client_instance = SimpleNamespace(chat=SimpleNamespace(completions=completions))
@@ -62,8 +62,8 @@ def _install_fake_openai(monkeypatch, response: _FakeResponse):
     return openai_cls, completions
 
 
+    # Inject a fake anthropic module whose client returns ``response``.
 def _install_fake_anthropic(monkeypatch, response: _FakeResponse):
-    """Inject a fake anthropic module whose client returns ``response``."""
     messages = MagicMock()
     messages.create.return_value = response
     client_instance = SimpleNamespace(messages=messages)

@@ -44,16 +44,16 @@ def _config(**opts) -> MagicMock:  # type: ignore[no-untyped-def]
 # === Configuration ===
 
 
+    # The plugin is a no-op unless --asqav is passed.
 def test_disabled_by_default() -> None:
-    """The plugin is a no-op unless --asqav is passed."""
     pytest_configure(_config(**{"--asqav": False}))
     assert _get_state_for_tests().enabled is False
 
 
+    # --asqav with an API key initializes the agent and enables the plugin.
 @patch("asqav.Agent.create")
 @patch("asqav.init")
 def test_configure_enables_plugin(mock_init: MagicMock, mock_create: MagicMock) -> None:
-    """--asqav with an API key initializes the agent and enables the plugin."""
     mock_create.return_value = MagicMock(agent_id="agt_test")
     with patch.dict(os.environ, {"ASQAV_API_KEY": "sk_test"}, clear=False):
         pytest_configure(_config(**{
@@ -71,8 +71,8 @@ def test_configure_enables_plugin(mock_init: MagicMock, mock_create: MagicMock) 
     mock_create.assert_called_once_with("ci-runner")
 
 
+    # --asqav without ASQAV_API_KEY exits with a usage error.
 def test_configure_without_api_key_raises() -> None:
-    """--asqav without ASQAV_API_KEY exits with a usage error."""
     with patch.dict(os.environ, {"ASQAV_API_KEY": ""}, clear=False):
         with pytest.raises(pytest.UsageError):
             pytest_configure(_config(**{"--asqav": True}))
@@ -81,8 +81,8 @@ def test_configure_without_api_key_raises() -> None:
 # === Result capture ===
 
 
+    # Only the 'call' phase produces a TestResult; setup/teardown are ignored.
 def test_makereport_captures_call_phase() -> None:
-    """Only the 'call' phase produces a TestResult; setup/teardown are ignored."""
     state = _get_state_for_tests()
     state.enabled = True
     state.agent = MagicMock()
@@ -106,8 +106,8 @@ def test_makereport_captures_call_phase() -> None:
     assert len(state.signatures) == 1
 
 
+    # Setup and teardown phases are ignored.
 def test_makereport_skips_non_call_phases() -> None:
-    """Setup and teardown phases are ignored."""
     state = _get_state_for_tests()
     state.enabled = True
     state.agent = MagicMock()
@@ -126,8 +126,8 @@ def test_makereport_skips_non_call_phases() -> None:
     assert len(state.results) == 0
 
 
+    # When the plugin is disabled the hook is a pass-through.
 def test_makereport_disabled_does_nothing() -> None:
-    """When the plugin is disabled the hook is a pass-through."""
     state = _get_state_for_tests()
     state.enabled = False
 
@@ -145,8 +145,8 @@ def test_makereport_disabled_does_nothing() -> None:
     assert len(state.signatures) == 0
 
 
+    # If sign() raises, the report.sections records the error but no exception bubbles.
 def test_sign_failure_does_not_mask_test() -> None:
-    """If sign() raises, the report.sections records the error but no exception bubbles."""
     state = _get_state_for_tests()
     state.enabled = True
     state.agent = MagicMock()
@@ -171,9 +171,9 @@ def test_sign_failure_does_not_mask_test() -> None:
 # === Session finish ===
 
 
+    # At end of run, a ComplianceBundle is exported to the configured path.
 @patch("asqav.compliance.export_bundle")
 def test_sessionfinish_writes_bundle(mock_export: MagicMock, tmp_path) -> None:
-    """At end of run, a ComplianceBundle is exported to the configured path."""
     mock_bundle = MagicMock(receipt_count=2, merkle_root="root123")
     mock_export.return_value = mock_bundle
 
@@ -189,8 +189,8 @@ def test_sessionfinish_writes_bundle(mock_export: MagicMock, tmp_path) -> None:
     mock_bundle.to_file.assert_called_once_with(state.output_path)
 
 
+    # Empty signature list is a no-op so the runner does not write garbage.
 def test_sessionfinish_noop_when_no_signatures() -> None:
-    """Empty signature list is a no-op so the runner does not write garbage."""
     state = _get_state_for_tests()
     state.enabled = True
     state.signatures = []
@@ -202,9 +202,9 @@ def test_sessionfinish_noop_when_no_signatures() -> None:
 # === Programmatic API ===
 
 
+    # make_bundle_from_report wraps export_bundle and forwards the framework.
 @patch("asqav.compliance.export_bundle")
 def test_make_bundle_from_report(mock_export: MagicMock) -> None:
-    """make_bundle_from_report wraps export_bundle and forwards the framework."""
     mock_export.return_value = MagicMock(receipt_count=3)
     sigs = [MagicMock(), MagicMock(), MagicMock()]
     bundle = make_bundle_from_report(sigs, framework="dora")
