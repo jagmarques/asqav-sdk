@@ -69,8 +69,8 @@ def _ok_response(extra: dict | None = None) -> dict:
 # === Namespace + validation ===
 
 
+    # Namespace matches the cloud's pydantic validator exactly.
 def test_receipt_type_namespace_constant() -> None:
-    """Namespace matches the cloud's pydantic validator exactly."""
     assert RECEIPT_TYPE_NAMESPACE == frozenset(
         {
             "protectmcp:decision",
@@ -90,8 +90,8 @@ def test_receipt_type_namespace_constant() -> None:
     )
 
 
+    # SDK rejects bad receipt_type without making a network call.
 def test_invalid_receipt_type_raises_before_http() -> None:
-    """SDK rejects bad receipt_type without making a network call."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="invalid_receipt_type"):
             _agent().sign(
@@ -103,8 +103,8 @@ def test_invalid_receipt_type_raises_before_http() -> None:
         p.assert_not_called()
 
 
+    # `policy_decision=deny` without `reason` is rejected client-side.
 def test_deny_without_reason_raises_before_http() -> None:
-    """`policy_decision=deny` without `reason` is rejected client-side."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="missing_reason"):
             _agent().sign(
@@ -119,8 +119,8 @@ def test_deny_without_reason_raises_before_http() -> None:
 # === action_ref auto-compute ===
 
 
+    # Helper hash matches the JCS-canonical sha256 over the action object.
 def test_compute_action_ref_matches_canonical_sha256() -> None:
-    """Helper hash matches the JCS-canonical sha256 over the action object."""
     action_type = "api:call"
     context = {"model": "gpt-4", "params": {"temp": 0.0}}
     expected = "sha256:" + hashlib.sha256(
@@ -154,8 +154,8 @@ def test_compliance_mode_auto_computes_action_ref() -> None:
     assert body["action_ref"] == expected
 
 
+    # A caller-supplied action_ref is forwarded verbatim, no recompute.
 def test_compliance_mode_caller_supplied_action_ref_wins() -> None:
-    """A caller-supplied action_ref is forwarded verbatim, no recompute."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -208,8 +208,8 @@ def test_no_compliance_mode_means_no_extra_fields_on_body() -> None:
 # === Pass-through of all profile fields ===
 
 
+    # Every profile field the caller sets reaches the cloud body verbatim.
 def test_all_profile_fields_passthrough_in_body() -> None:
-    """Every profile field the caller sets reaches the cloud body verbatim."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -241,8 +241,8 @@ def test_all_profile_fields_passthrough_in_body() -> None:
     assert body["payload_digest"] == "sha256:" + "b" * 64
 
 
+    # `policy_decision=deny` plus `reason` reaches the body without raising.
 def test_deny_with_reason_passes_through() -> None:
-    """`policy_decision=deny` plus `reason` reaches the body without raising."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -264,8 +264,8 @@ def test_deny_with_reason_passes_through() -> None:
 # === Response parsing ===
 
 
+    # SignatureResponse exposes IETF fields when the cloud returns them.
 def test_signature_response_surfaces_new_fields() -> None:
-    """SignatureResponse exposes IETF fields when the cloud returns them."""
     extra = {
         "compliance_mode": True,
         "receipt_type": "protectmcp:decision",
@@ -297,8 +297,8 @@ def test_signature_response_surfaces_new_fields() -> None:
     assert resp.previous_receipt_hash == "0" * 64
 
 
+    # Older or self-hosted servers may emit `previous_receipt_hash`.
 def test_response_accepts_snake_case_previous_receipt_hash() -> None:
-    """Older or self-hosted servers may emit `previous_receipt_hash`."""
     extra = {
         "compliance_mode": True,
         "receipt_type": "protectmcp:decision",
@@ -312,8 +312,8 @@ def test_response_accepts_snake_case_previous_receipt_hash() -> None:
 # === Re-export ===
 
 
+    # `asqav.RECEIPT_TYPE_NAMESPACE` is part of the public surface.
 def test_constant_is_re_exported_at_top_level() -> None:
-    """`asqav.RECEIPT_TYPE_NAMESPACE` is part of the public surface."""
     assert asqav.RECEIPT_TYPE_NAMESPACE == RECEIPT_TYPE_NAMESPACE
 
 
@@ -350,8 +350,8 @@ def test_build_sign_body_omits_compliance_when_no_fields() -> None:
 # === DORA RTS JC 2024-33 Annex II vocabulary ===
 
 
+    # Namespace matches Annex II of JC 2024-33 (RTS published 17 July 2024).
 def test_dora_incident_class_namespace_is_canonical_six() -> None:
-    """Namespace matches Annex II of JC 2024-33 (RTS published 17 July 2024)."""
     assert DORA_INCIDENT_CLASS_NAMESPACE == frozenset(
         {
             "cybersecurity_related",
@@ -364,9 +364,9 @@ def test_dora_incident_class_namespace_is_canonical_six() -> None:
     )
 
 
+    # All six canonical values are accepted and forwarded verbatim.
 @pytest.mark.parametrize("value", sorted(DORA_INCIDENT_CLASS_NAMESPACE))
 def test_canonical_incident_class_passes_validation(value: str) -> None:
-    """All six canonical values are accepted and forwarded verbatim."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -383,8 +383,8 @@ def test_canonical_incident_class_passes_validation(value: str) -> None:
     assert captured["body"]["incident_class"] == value
 
 
+    # A token outside the canonical six is rejected before the HTTP call.
 def test_invalid_incident_class_raises_before_http() -> None:
-    """A token outside the canonical six is rejected before the HTTP call."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="invalid_incident_class"):
             _agent().sign(
@@ -396,8 +396,8 @@ def test_invalid_incident_class_raises_before_http() -> None:
         p.assert_not_called()
 
 
+    # The cloud purged the alias map; the SDK rejects the same tokens.
 def test_pre_alignment_token_now_rejected() -> None:
-    """The cloud purged the alias map; the SDK rejects the same tokens."""
     for token in (
         "cyberattack",
         "payment_fraud",
@@ -492,9 +492,9 @@ def test_sandbox_state_namespace_matches_upstream_enum() -> None:
     )
 
 
+    # All three canonical values are accepted and forwarded verbatim.
 @pytest.mark.parametrize("value", ["enabled", "disabled", "unavailable"])
 def test_canonical_sandbox_state_passes_preflight(value: str) -> None:
-    """All three canonical values are accepted and forwarded verbatim."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:

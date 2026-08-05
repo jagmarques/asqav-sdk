@@ -155,7 +155,8 @@ export function verify(
     axes.push({ axis: name, result: res, note });
   }
 
-  const hasFail = axes.some((a) => a.result === FAIL);
+  // Expiry reports on its own axis and never folds the verdict (criterion 426)
+  const hasFail = axes.some((a) => a.result === FAIL && a.axis !== "expiry");
   // Any skipped axis except a missing-predecessor chain blocks PASS: an unchecked
   // signature / counter-sign / PDP layer means INCOMPLETE, never a hiding PASS.
   const blockingSkip = axes.some((a) => a.result === SKIPPED && a.axis !== "chain");

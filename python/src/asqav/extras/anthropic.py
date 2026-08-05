@@ -66,8 +66,8 @@ class _SignedClient:
         return getattr(self._real, name)
 
 
+    # Drop-in replacement for anthropic.Anthropic that signs every call.
 class AsqavAnthropic:
-    """Drop-in replacement for anthropic.Anthropic that signs every call."""
 
     def __init__(
         self,

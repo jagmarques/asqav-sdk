@@ -12,9 +12,9 @@ from typing import Any
 import pytest
 
 
+    # One test outcome captured for the bundle.
 @dataclass
 class CapturedOutcome:
-    """One test outcome captured for the bundle."""
 
     nodeid: str
     outcome: str  # "passed" | "failed" | "skipped"
@@ -22,9 +22,9 @@ class CapturedOutcome:
     longrepr: str | None = None
 
 
+    # In-memory state for one pytest invocation.
 @dataclass
 class _PluginState:
-    """In-memory state for one pytest invocation."""
 
     enabled: bool = False
     agent_name: str = "test-runner"
@@ -93,9 +93,9 @@ def pytest_configure(config: pytest.Config) -> None:
     _state.signatures = []
 
 
+    # Capture each test phase outcome. We only sign the 'call' phase.
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):  # type: ignore[no-untyped-def]
-    """Capture each test phase outcome. We only sign the 'call' phase."""
     outcome = yield
     if not _state.enabled:
         return
@@ -152,10 +152,10 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 # === Programmatic API ===
 
 
+    # Build a :class:`ComplianceBundle` from pre-signed test results.
 def make_bundle_from_report(
     signatures: list[Any], *, framework: str = "eu_ai_act"
 ) -> Any:
-    """Build a :class:`ComplianceBundle` from pre-signed test results."""
     from asqav.compliance import export_bundle
 
     return export_bundle(signatures, framework=framework)

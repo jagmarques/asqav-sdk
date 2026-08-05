@@ -25,8 +25,8 @@ ENVELOPE = {
 }
 
 
+    # A corpus that silently empties would make every case below vacuous.
 def test_corpus_is_populated() -> None:
-    """A corpus that silently empties would make every case below vacuous."""
     assert len(VALUES) >= 900, f"corpus has only {len(VALUES)} values"
     wide = [c for c in VALUES if any(ord(ch) > 127 for ch in c["value"])]
     assert len(wide) >= 350, f"only {len(wide)} values carry a non-ASCII codepoint"

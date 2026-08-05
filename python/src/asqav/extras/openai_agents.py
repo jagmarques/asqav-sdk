@@ -66,8 +66,8 @@ class AsqavGuardrail(AsqavAdapter):
         agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
     """
 
+        # Extract agent name from the OpenAI Agent object.
     def _resolve_agent_name(self, agent: Any) -> str:
-        """Extract agent name from the OpenAI Agent object."""
         name = getattr(agent, "name", None)
         if name:
             return str(name)
@@ -149,8 +149,8 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
         agent_id: ID of an existing Asqav agent (calls ``Agent.get``).
     """
 
+        # Sign a trace:start governance event.
     def on_trace_start(self, trace: Trace) -> None:
-        """Sign a trace:start governance event."""
         try:
             self._sign_action(
                 "trace:start",
@@ -162,8 +162,8 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
         except Exception as exc:
             logger.warning("asqav trace:start signing failed (fail-open): %s", exc)
 
+        # Sign a trace:end governance event.
     def on_trace_end(self, trace: Trace) -> None:
-        """Sign a trace:end governance event."""
         try:
             self._sign_action(
                 "trace:end",
@@ -175,8 +175,8 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
         except Exception as exc:
             logger.warning("asqav trace:end signing failed (fail-open): %s", exc)
 
+        # Sign a span:start governance event.
     def on_span_start(self, span: Span[Any]) -> None:
-        """Sign a span:start governance event."""
         try:
             span_data = span.span_data
             self._sign_action(
@@ -190,8 +190,8 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
         except Exception as exc:
             logger.warning("asqav span:start signing failed (fail-open): %s", exc)
 
+        # Sign a span:end governance event.
     def on_span_end(self, span: Span[Any]) -> None:
-        """Sign a span:end governance event."""
         try:
             span_data = span.span_data
             exported = span.export() if hasattr(span, "export") else None
@@ -212,10 +212,10 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
         except Exception as exc:
             logger.warning("asqav span:end signing failed (fail-open): %s", exc)
 
+        # End the Asqav session on processor shutdown.
     def shutdown(self) -> None:
-        """End the Asqav session on processor shutdown."""
         self._end_session(status="completed")
 
+        # No-op - Asqav signs events synchronously.
     def force_flush(self) -> None:
-        """No-op - Asqav signs events synchronously."""
         pass

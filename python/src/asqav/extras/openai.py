@@ -33,8 +33,8 @@ import asqav
 logger = logging.getLogger("asqav.extras.openai")
 
 
+    # Wraps openai.Chat.Completions to sign every create() call.
 class _SignedCompletions:
-    """Wraps openai.Chat.Completions to sign every create() call."""
 
     def __init__(self, real_completions: Any, agent: Any, agent_name: str) -> None:
         self._real = real_completions
@@ -65,8 +65,8 @@ class _SignedCompletions:
         return response
 
 
+    # Wraps openai.Chat to inject signed completions.
 class _SignedChat:
-    """Wraps openai.Chat to inject signed completions."""
 
     def __init__(self, real_chat: Any, agent: Any, agent_name: str) -> None:
         self._real = real_chat

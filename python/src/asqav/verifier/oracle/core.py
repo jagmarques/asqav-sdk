@@ -37,7 +37,7 @@ class VerifyResult:
 
     ``verdict`` is PASS only when every non-skipped axis passed AND the signature
     was actually checked; a skipped signature downgrades to INCOMPLETE, never a
-    PASS, mirroring the standalone verifier.
+    PASS, mirroring the standalone verifier. The expiry axis never folds it (426).
     """
 
     fmt: str
@@ -47,13 +47,13 @@ class VerifyResult:
     #: payload. None when the receipt carries none (v:1). Never gates the verdict.
     signer: str | None = None
 
+        # Return the result for one axis, or None if it was not run.
     def axis(self, name: str) -> AxisResult | None:
-        """Return the result for one axis, or None if it was not run."""
         return next((a for a in self.axes if a.axis == name), None)
 
 
+    # Return the first adapter whose structural fingerprint matches ``doc``.
 def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
-    """Return the first adapter whose structural fingerprint matches ``doc``."""
     if not isinstance(doc, dict):
         # A non-object receipt (array, string, number, null) matches no format;
         # the adapters assume a dict, so guard here rather than crash in detect().
@@ -114,13 +114,13 @@ def _exceeds_depth(obj: Any, max_depth: int) -> bool:
     return False
 
 
+    # Verify one parsed receipt and return a structured ``VerifyResult``.
 def verify(
     doc: dict,
     adapters: list[FormatAdapter],
     key_provider: Any = None,
     predecessor: dict | None = None,
 ) -> VerifyResult:
-    """Verify one parsed receipt and return a structured ``VerifyResult``."""
     ad = detect(doc, adapters)
     if ad is None:
         return VerifyResult(
@@ -146,7 +146,8 @@ def verify(
     ]
     axes.extend(AxisResult(name, res, note) for name, res, note in ad.extra_axes(doc, key_provider))
 
-    has_fail = any(a.result == crypto.FAIL for a in axes)
+    # Expiry reports on its own axis and never folds the verdict (criterion 426)
+    has_fail = any(a.result == crypto.FAIL and a.axis != "expiry" for a in axes)
     # Any skipped axis except a missing-predecessor chain blocks PASS: an unchecked
     # signature / counter-sign / PDP layer means INCOMPLETE, never a hiding PASS.
     blocking_skip = any(a.result == crypto.SKIPPED and a.axis != "chain" for a in axes)
@@ -160,6 +161,6 @@ def verify(
     return VerifyResult(fmt=ad.name, axes=axes, verdict=verdict, signer=signer)
 
 
+    # Lowercase hex SHA-256 - the chain primitive every format shares.
 def sha256_hex(data: bytes) -> str:
-    """Lowercase hex SHA-256 - the chain primitive every format shares."""
     return hashlib.sha256(data).hexdigest()

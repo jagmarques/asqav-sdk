@@ -19,16 +19,16 @@ __all__ = [
 ]
 
 
+    # Canonical bytes of ``{action_type, context}`` for hashing or signing.
 def canonicalize_action(
     action_type: str,
     context: "dict[str, Any] | None" = None,
 ) -> bytes:
-    """Canonical bytes of ``{action_type, context}`` for hashing or signing."""
     return canonicalize({"action_type": action_type, "context": context or {}})
 
 
+    # Return JCS-subset JSON bytes for ``obj``; matches the conformance vectors byte-for-byte.
 def canonicalize(obj: Any) -> bytes:
-    """Return JCS-subset JSON bytes for ``obj``; matches the conformance vectors byte-for-byte."""
     return json.dumps(
         obj,
         sort_keys=True,
@@ -38,8 +38,8 @@ def canonicalize(obj: Any) -> bytes:
     ).encode("utf-8")
 
 
+    # Return JSON pointer to the first float in ``value`` (depth-first); ``bool`` is JCS-safe.
 def _find_float_pointer(value: Any, pointer: str) -> str | None:
-    """Return JSON pointer to the first float in ``value`` (depth-first); ``bool`` is JCS-safe."""
     if isinstance(value, bool):
         return None
     if isinstance(value, float):

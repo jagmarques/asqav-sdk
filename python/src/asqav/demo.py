@@ -134,9 +134,9 @@ SCENARIOS: list[dict[str, Any]] = [
 
 # === Local HMAC-signed receipt (no ML-DSA dep, keeps demo zero-install) ===
 
+    # In-memory demo state: approvals + secret key.
 @dataclass
 class DemoState:
-    """In-memory demo state: approvals + secret key."""
 
     secret: bytes = field(default_factory=lambda: secrets.token_bytes(32))
     approvals: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -425,8 +425,8 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
         self._json(404, {"error": "not found"})
 
 
+    # Return `preferred` if free, otherwise scan upward for an open port.
 def _find_free_port(preferred: int = 3030) -> int:
-    """Return `preferred` if free, otherwise scan upward for an open port."""
     import socket
     for port in range(preferred, preferred + 20):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -438,8 +438,8 @@ def _find_free_port(preferred: int = 3030) -> int:
     return preferred
 
 
+    # Start the demo server. Blocks until Ctrl-C.
 def serve(port: int = 3030, open_browser: bool = True) -> None:
-    """Start the demo server. Blocks until Ctrl-C."""
     state = DemoState()
     DemoHandler.state = state
     port = _find_free_port(port)

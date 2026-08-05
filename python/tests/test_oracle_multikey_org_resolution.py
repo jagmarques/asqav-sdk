@@ -33,8 +33,8 @@ requires_ed25519 = pytest.mark.skipif(
 ORG = "org_multikey_shared"
 
 
+    # A hash-mode signing payload naming its agent and org inside the signed bytes.
 def _flat(agent_id: str) -> dict:
-    """A hash-mode signing payload naming its agent and org inside the signed bytes."""
     return {
         "v": 1,
         "mode": "hash",
@@ -50,8 +50,8 @@ def _flat(agent_id: str) -> dict:
     }
 
 
+    # Build the hash-mode receipt envelope signed by sk over the canonical flat bytes.
 def _sign(flat: dict, sk) -> dict:
-    """Build the hash-mode receipt envelope signed by sk over the canonical flat bytes."""
     sig = base64.b64encode(sk.sign(asqav_jcs(flat))).decode()
     doc = dict(flat)
     doc["payload"] = None
@@ -61,8 +61,8 @@ def _sign(flat: dict, sk) -> dict:
     return doc
 
 
+    # Three sibling keys sharing issuer_id/org_id; agent_id uniquely names each.
 def _sibling_jwks(signer_index: int, public_keys: list[bytes]) -> dict:
-    """Three sibling keys sharing issuer_id/org_id; agent_id uniquely names each."""
     keys = []
     for i, pk in enumerate(public_keys):
         keys.append(
@@ -79,9 +79,9 @@ def _sibling_jwks(signer_index: int, public_keys: list[bytes]) -> dict:
     return {"keys": keys}
 
 
+    # A receipt signed by the last of three siblings verifies to PASS, not a false FAIL.
 @requires_ed25519
 def test_last_sibling_receipt_resolves_the_actual_signer() -> None:
-    """A receipt signed by the last of three siblings verifies to PASS, not a false FAIL."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
     sks = [Ed25519PrivateKey.generate() for _ in range(3)]
@@ -95,9 +95,9 @@ def test_last_sibling_receipt_resolves_the_actual_signer() -> None:
     assert result.verdict == "PASS", result.axes
 
 
+    # Whichever sibling signs, the agent bind resolves that sibling's key, never another.
 @requires_ed25519
 def test_each_sibling_resolves_to_its_own_key() -> None:
-    """Whichever sibling signs, the agent bind resolves that sibling's key, never another."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
     sks = [Ed25519PrivateKey.generate() for _ in range(3)]
@@ -111,9 +111,9 @@ def test_each_sibling_resolves_to_its_own_key() -> None:
         assert verify(receipt, [ad], key_provider=jwks).verdict == "PASS"
 
 
+    # A signature from a key the directory does not publish fails, never a false PASS.
 @requires_ed25519
 def test_forged_signature_against_the_org_still_fails() -> None:
-    """A signature from a key the directory does not publish fails, never a false PASS."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
     sks = [Ed25519PrivateKey.generate() for _ in range(3)]
@@ -126,9 +126,9 @@ def test_forged_signature_against_the_org_still_fails() -> None:
     assert result.verdict != "PASS", result.axes
 
 
+    # agent_id is attacker-controlled: a key from another org never resolves the claim.
 @requires_ed25519
 def test_cross_org_agent_bind_does_not_match() -> None:
-    """agent_id is attacker-controlled: a key from another org never resolves the claim."""
     entry = v._match_key_by_agent(
         {
             "keys": [

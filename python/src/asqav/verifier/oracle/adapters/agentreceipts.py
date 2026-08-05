@@ -33,13 +33,13 @@ from ..did import resolve_ed25519_key
 _SHA256_PREFIX = "sha256:"
 
 
+    # The receipt with ``proof`` removed - the exact object the signature covers.
 def _signable(doc: dict) -> dict:
-    """The receipt with ``proof`` removed - the exact object the signature covers."""
     return {k: v for k, v in doc.items() if k != "proof"}
 
 
+    # Decode a multibase ``u`` (base64url, no padding) proofValue to raw bytes.
 def _multibase_u_decode(value: str) -> bytes:
-    """Decode a multibase ``u`` (base64url, no padding) proofValue to raw bytes."""
     if not value or value[0] != "u":
         raise ValueError("proofValue is not multibase 'u' (base64url) encoded")
     body = value[1:]
@@ -51,8 +51,8 @@ def _chain(doc: dict) -> dict:
     return sub.get("chain", {}) if isinstance(sub, dict) else {}
 
 
+    # agent-receipts AgentReceipt - Ed25519 over strict RFC 8785 JCS, proof excluded.
 class AgentReceiptsAdapter(FormatAdapter):
-    """agent-receipts AgentReceipt - Ed25519 over strict RFC 8785 JCS, proof excluded."""
 
     name = "agentreceipts"
 

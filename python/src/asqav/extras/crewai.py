@@ -219,11 +219,11 @@ class AsqavGuardrailProvider(AsqavAdapter):
 # -- Default-on entrypoint -----------------------------------------------------
 
 
+    # Chain an existing callback with the asqav one, preserving existing behavior.
 def _compose(
     existing: Callable[[Any], Any] | None,
     added: Callable[[Any], Any],
 ) -> Callable[[Any], Any]:
-    """Chain an existing callback with the asqav one, preserving existing behavior."""
     if existing is None:
         return added
 

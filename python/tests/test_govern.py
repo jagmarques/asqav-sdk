@@ -39,8 +39,8 @@ def _make_agent() -> Agent:
 # === Tests ===
 
 
+    # govern() calls init() then Agent.create() with the right args.
 def test_govern_calls_init_and_create() -> None:
-    """govern() calls init() then Agent.create() with the right args."""
     agent = _make_agent()
 
     with patch("asqav.client.init") as mock_init, patch.object(
@@ -61,8 +61,8 @@ def test_govern_calls_init_and_create() -> None:
     assert result.agent_id == "agt_govern_01"
 
 
+    # When agent_id is supplied govern() calls Agent.get, not Agent.create.
 def test_govern_retrieves_existing_agent_by_id() -> None:
-    """When agent_id is supplied govern() calls Agent.get, not Agent.create."""
     agent = _make_agent()
 
     with patch("asqav.client.init"), patch.object(
@@ -75,8 +75,8 @@ def test_govern_retrieves_existing_agent_by_id() -> None:
     assert result is agent
 
 
+    # govern() forwards algorithm and capabilities to Agent.create.
 def test_govern_passes_capabilities_and_algorithm() -> None:
-    """govern() forwards algorithm and capabilities to Agent.create."""
     agent = _make_agent()
 
     with patch("asqav.client.init"), patch.object(
@@ -94,13 +94,13 @@ def test_govern_passes_capabilities_and_algorithm() -> None:
     )
 
 
+    # asqav.govern is importable directly from the package.
 def test_govern_exported_from_package() -> None:
-    """asqav.govern is importable directly from the package."""
     assert callable(asqav.govern)
 
 
+    # govern() uses 'default-agent' when agent_name is omitted.
 def test_govern_default_agent_name() -> None:
-    """govern() uses 'default-agent' when agent_name is omitted."""
     agent = _make_agent()
 
     with patch("asqav.client.init"), patch.object(

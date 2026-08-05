@@ -40,8 +40,8 @@ from ..canonical import jcs
 from ..core import sha256_hex
 
 
+    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
-    """Decode a hex string; b'' on any malformed input so verify FAILs, never crashes."""
     if not isinstance(value, str):
         return b""
     try:
@@ -64,8 +64,8 @@ def _is_lower_hex(s: Any) -> bool:
     )
 
 
+    # ACTA signed receipt - Ed25519 over JCS(payload), hex sig, chain incl sig.
 class ActaAdapter(FormatAdapter):
-    """ACTA signed receipt - Ed25519 over JCS(payload), hex sig, chain incl sig."""
 
     name = "acta"
 

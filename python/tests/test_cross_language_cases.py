@@ -20,8 +20,8 @@ CASES_FILE = Path(__file__).parent.parent.parent / "verifier" / "cross-language-
 CASES = json.loads(CASES_FILE.read_text())["cases"]
 
 
+    # A table that silently empties would make every case below vacuous.
 def test_case_table_is_populated() -> None:
-    """A table that silently empties would make every case below vacuous."""
     assert len(CASES) >= 20, f"case table has only {len(CASES)} cases"
 
 

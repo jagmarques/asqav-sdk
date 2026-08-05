@@ -28,6 +28,6 @@ def resolve_pattern(pattern: str) -> str:
     return PATTERNS.get(key, key)
 
 
+    # Return all available semantic action patterns.
 def list_patterns() -> dict[str, str]:
-    """Return all available semantic action patterns."""
     return dict(PATTERNS)

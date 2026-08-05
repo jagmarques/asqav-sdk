@@ -28,8 +28,8 @@ MOCK_AGENT_DATA = {
 }
 
 
+    # checks_complete defaults to True so existing constructions stay valid.
 def test_checks_complete_defaults_true():
-    """checks_complete defaults to True so existing constructions stay valid."""
     result = PreflightResult(
         cleared=True,
         agent_active=True,
@@ -39,11 +39,11 @@ def test_checks_complete_defaults_true():
     assert result.checks_complete is True
 
 
+    # A status fetch error blocks rather than silently clearing the agent.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_status_fetch_error_does_not_clear(mock_post, mock_get):
-    """A status fetch error blocks rather than silently clearing the agent."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -59,11 +59,11 @@ def test_status_fetch_error_does_not_clear(mock_post, mock_get):
     assert "could not verify" in result.explanation.lower()
 
 
+    # A policy fetch error blocks rather than silently clearing the agent.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_policy_fetch_error_does_not_clear(mock_post, mock_get):
-    """A policy fetch error blocks rather than silently clearing the agent."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -77,11 +77,11 @@ def test_policy_fetch_error_does_not_clear(mock_post, mock_get):
     assert result.checks_complete is False
 
 
+    # A non-list /policies response fails closed instead of silently clearing.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_non_list_policies_does_not_clear(mock_post, mock_get):
-    """A non-list /policies response fails closed instead of silently clearing."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -96,12 +96,12 @@ def test_non_list_policies_does_not_clear(mock_post, mock_get):
     assert any("unexpected response" in r for r in result.reasons)
 
 
+    # A non-dict /status body fails closed (parity pin for the TS fix).
 @pytest.mark.parametrize("status_body", [["x"], "revoked", 5, []])
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_non_dict_status_does_not_clear(mock_post, mock_get, status_body):
-    """A non-dict /status body fails closed (parity pin for the TS fix)."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -116,11 +116,11 @@ def test_non_dict_status_does_not_clear(mock_post, mock_get, status_body):
     assert "could not verify" in result.explanation.lower()
 
 
+    # An active agent with no blocking policy still clears, checks_complete True.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_happy_path_still_clears(mock_post, mock_get):
-    """An active agent with no blocking policy still clears, checks_complete True."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -134,11 +134,11 @@ def test_happy_path_still_clears(mock_post, mock_get):
     assert result.checks_complete is True
 
 
+    # A revoked agent blocks with checks_complete True, distinct from an error.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_revoked_agent_is_a_real_verdict(mock_post, mock_get):
-    """A revoked agent blocks with checks_complete True, distinct from an error."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 

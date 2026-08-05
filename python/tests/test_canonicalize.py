@@ -28,24 +28,24 @@ def _load_vectors() -> list[dict]:
     return json.loads(VECTORS_PATH.read_text())["vectors"]
 
 
+    # The SDK's canonicalize() must produce the same bytes as vectors.json.
 @pytest.mark.parametrize("vector", _load_vectors(), ids=lambda v: v["name"])
 def test_canonicalize_matches_vector(vector: dict) -> None:
-    """The SDK's canonicalize() must produce the same bytes as vectors.json."""
     expected = vector["canonical"]
     actual = canonicalize(vector["input"]).decode("utf-8")
     assert actual == expected, f"{vector['name']}: canonical drift"
 
 
+    # SHA-256 of the SDK's canonical bytes must match vectors.json.
 @pytest.mark.parametrize("vector", _load_vectors(), ids=lambda v: v["name"])
 def test_sha256_matches_vector(vector: dict) -> None:
-    """SHA-256 of the SDK's canonical bytes must match vectors.json."""
     canonical_bytes = canonicalize(vector["input"])
     actual = hashlib.sha256(canonical_bytes).hexdigest()
     assert actual == vector["sha256"], f"{vector['name']}: sha256 drift"
 
 
+    # For vectors shaped {action_type, context}, hash_action() must agree.
 def test_hash_action_no_salt_matches_action_context_vector() -> None:
-    """For vectors shaped {action_type, context}, hash_action() must agree."""
     vectors = _load_vectors()
     happy = [
         v for v in vectors
@@ -57,8 +57,8 @@ def test_hash_action_no_salt_matches_action_context_vector() -> None:
         assert result == f"sha256:{v['sha256']}", f"{v['name']}: hash_action drift"
 
 
+    # With a salt, hash_action returns HMAC-SHA-256 not plain SHA-256.
 def test_hash_action_with_salt_uses_hmac() -> None:
-    """With a salt, hash_action returns HMAC-SHA-256 not plain SHA-256."""
     salt = bytes.fromhex(
         "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
     )
@@ -70,21 +70,21 @@ def test_hash_action_with_salt_uses_hmac() -> None:
     assert len(keyed) == len("sha256:") + 64
 
 
+    # Inserting keys in a different order yields the same canonical bytes.
 def test_canonicalize_is_deterministic_across_key_order() -> None:
-    """Inserting keys in a different order yields the same canonical bytes."""
     a = {"b": 1, "a": 2, "c": [{"y": 1, "x": 2}]}
     b = {"a": 2, "c": [{"x": 2, "y": 1}], "b": 1}
     assert canonicalize(a) == canonicalize(b)
 
 
+    # Non-ASCII chars are emitted as raw UTF-8, not \uXXXX escapes.
 def test_canonicalize_preserves_unicode_raw() -> None:
-    """Non-ASCII chars are emitted as raw UTF-8, not \\uXXXX escapes."""
     out = canonicalize({"name": "café"})
     assert "café".encode("utf-8") in out
     assert b"\\u" not in out
 
 
+    # NaN/Infinity are not valid JSON and must raise.
 def test_canonicalize_rejects_nan() -> None:
-    """NaN/Infinity are not valid JSON and must raise."""
     with pytest.raises(ValueError):
         canonicalize({"x": float("nan")})
