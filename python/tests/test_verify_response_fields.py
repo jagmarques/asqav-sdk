@@ -26,8 +26,8 @@ from asqav.client import (
 )
 
 
+    # Mirror the cloud's `VerificationResponse` shape with every field set.
 def _full_cloud_payload() -> dict:
-    """Mirror the cloud's `VerificationResponse` shape with every field set."""
     return {
         "type": "signature",
         "signature_id": "sig_test_full",

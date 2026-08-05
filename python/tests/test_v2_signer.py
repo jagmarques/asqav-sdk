@@ -65,9 +65,9 @@ def test_v2_tampered_in_body_signer_fails() -> None:
     assert res.verdict == "FAIL"
 
 
+    # signer as loose metadata outside the signed payload is neither surfaced nor trusted.
 @requires_ed25519
 def test_v2_signer_moved_outside_signed_body_not_surfaced_and_fails() -> None:
-    """signer as loose metadata outside the signed payload is neither surfaced nor trusted."""
     receipt, jwks = _v2()
     del receipt["payload"]["signer"]
     receipt["signer"] = _SIGNER  # loose, outside the canonical body
@@ -85,9 +85,9 @@ def test_v2_tampered_canary_corpus_vector_fails() -> None:
     assert res.verdict == "FAIL"
 
 
+    # A v:2 receipt without _asqav_tid still verifies; the neutral verifier never requires it.
 @requires_ed25519
 def test_missing_canary_is_not_a_failure() -> None:
-    """A v:2 receipt without _asqav_tid still verifies; the neutral verifier never requires it."""
     receipt, jwks = _v2()
     del receipt["payload"]["_asqav_tid"]
     # Re-sign is out of scope for the neutral verifier; dropping the field breaks
@@ -106,8 +106,8 @@ def test_v1_vector_still_verifies_and_exposes_no_signer() -> None:
     assert res.signer is None
 
 
+    # attestation() surfaces signer from the payload, ignoring loose envelope metadata.
 def test_adapter_attestation_reads_only_signed_payload() -> None:
-    """attestation() surfaces signer from the payload, ignoring loose envelope metadata."""
     ad = AsqavNativeAdapter()
     receipt, _ = _v2()
     assert ad.attestation(receipt) == {"signer": _SIGNER}

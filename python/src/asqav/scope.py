@@ -17,9 +17,9 @@ if TYPE_CHECKING:
     from .client import Agent, SDTokenResponse
 
 
+    # A portable proof of agent permissions; wraps an SDTokenResponse.
 @dataclass
 class ScopeToken:
-    """A portable proof of agent permissions; wraps an SDTokenResponse."""
 
     token: str
     jwt: str
@@ -32,8 +32,8 @@ class ScopeToken:
 
     # -- helpers --------------------------------------------------------------
 
+        # Return an ``Authorization`` header dict; ``disclose=None`` includes all disclosures.
     def to_header(self, disclose: list[str] | None = None) -> dict[str, str]:
-        """Return an ``Authorization`` header dict; ``disclose=None`` includes all disclosures."""
         if disclose is not None:
             parts = [self.jwt]
             for name in disclose:
@@ -44,20 +44,20 @@ class ScopeToken:
             value = self.token
         return {"Authorization": f"Bearer {value}"}
 
+        # Return an SD-JWT string with only the listed disclosures revealed.
     def present(self, disclose: list[str]) -> str:
-        """Return an SD-JWT string with only the listed disclosures revealed."""
         parts = [self.jwt]
         for name in disclose:
             if name in self.disclosures:
                 parts.append(self.disclosures[name])
         return "~".join(parts) + "~"
 
+        # Check if the token has expired.
     def is_expired(self) -> bool:
-        """Check if the token has expired."""
         return time.time() >= self.expires_at
 
+        # Serialize to a plain dict for storage or transport.
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to a plain dict for storage or transport."""
         return {
             "token": self.token,
             "jwt": self.jwt,
@@ -69,9 +69,9 @@ class ScopeToken:
             "metadata": self.metadata,
         }
 
+        # Reconstruct a :class:`ScopeToken` from a dict.
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ScopeToken:
-        """Reconstruct a :class:`ScopeToken` from a dict."""
         return cls(
             token=data["token"],
             jwt=data["jwt"],
@@ -87,13 +87,13 @@ class ScopeToken:
 # -- factory ----------------------------------------------------------------
 
 
+    # Issue a portable :class:`ScopeToken` for an agent over the given action patterns.
 def create_scope_token(
     agent: Agent,
     actions: list[str],
     ttl: int = 3600,
     metadata: dict[str, Any] | None = None,
 ) -> ScopeToken:
-    """Issue a portable :class:`ScopeToken` for an agent over the given action patterns."""
     resolved = [resolve_pattern(a) for a in actions]
     nonce = uuid.uuid4().hex
 
@@ -128,8 +128,8 @@ def create_scope_token(
     )
 
 
+    # Verify a scope token via :func:`verify_signature`; returns a result dict.
 def verify_scope_token(signature_id: str) -> dict[str, Any]:
-    """Verify a scope token via :func:`verify_signature`; returns a result dict."""
     from .client import verify_signature
 
     resp = verify_signature(signature_id)
@@ -143,6 +143,6 @@ def verify_scope_token(signature_id: str) -> dict[str, Any]:
     }
 
 
+    # Check if a nonce was already used. Returns True if replay detected.
 def is_replay(nonce: str, seen_nonces: set[str]) -> bool:
-    """Check if a nonce was already used. Returns True if replay detected."""
     return nonce in seen_nonces

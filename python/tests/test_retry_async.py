@@ -17,9 +17,9 @@ from asqav.retry import with_async_retry, with_retry
 # === Retry: rate limit error is retried ===
 
 
+    # RateLimitError triggers retry with backoff, succeeds on second attempt.
 @patch("asqav.retry.time.sleep")
 def test_retry_on_rate_limit(mock_sleep: MagicMock) -> None:
-    """RateLimitError triggers retry with backoff, succeeds on second attempt."""
     call_count = 0
 
     @with_retry(max_retries=3, base_delay=1.0, jitter=False)
@@ -39,9 +39,9 @@ def test_retry_on_rate_limit(mock_sleep: MagicMock) -> None:
 # === Retry: server error (5xx) is retried ===
 
 
+    # APIError with 500 status triggers retry.
 @patch("asqav.retry.time.sleep")
 def test_retry_on_server_error(mock_sleep: MagicMock) -> None:
-    """APIError with 500 status triggers retry."""
     call_count = 0
 
     @with_retry(max_retries=3, base_delay=0.5, jitter=False)
@@ -65,8 +65,8 @@ def test_retry_on_server_error(mock_sleep: MagicMock) -> None:
 # === Retry: auth error is NOT retried ===
 
 
+    # AuthenticationError is raised immediately without retry.
 def test_no_retry_on_auth_error() -> None:
-    """AuthenticationError is raised immediately without retry."""
     call_count = 0
 
     @with_retry(max_retries=3, base_delay=0.5)
@@ -83,8 +83,8 @@ def test_no_retry_on_auth_error() -> None:
 # === Retry: client error (4xx, not 429) is NOT retried ===
 
 
+    # APIError with 400 status is raised immediately without retry.
 def test_no_retry_on_client_error() -> None:
-    """APIError with 400 status is raised immediately without retry."""
     call_count = 0
 
     @with_retry(max_retries=3, base_delay=0.5)
@@ -101,9 +101,9 @@ def test_no_retry_on_client_error() -> None:
 # === Retry: exhaustion raises last error ===
 
 
+    # After max_retries attempts, the last error is raised.
 @patch("asqav.retry.time.sleep")
 def test_retry_exhaustion(mock_sleep: MagicMock) -> None:
-    """After max_retries attempts, the last error is raised."""
     call_count = 0
 
     @with_retry(max_retries=2, base_delay=0.5, jitter=False)
@@ -121,9 +121,9 @@ def test_retry_exhaustion(mock_sleep: MagicMock) -> None:
 # === Retry: connection error is retried ===
 
 
+    # ConnectionError triggers retry.
 @patch("asqav.retry.time.sleep")
 def test_retry_on_connection_error(mock_sleep: MagicMock) -> None:
-    """ConnectionError triggers retry."""
     call_count = 0
 
     @with_retry(max_retries=3, base_delay=0.5, jitter=False)
@@ -143,10 +143,10 @@ def test_retry_on_connection_error(mock_sleep: MagicMock) -> None:
 # === Async: create agent ===
 
 
+    # AsyncAgent.create calls _async_post and returns AsyncAgent.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_post")
 async def test_async_create_agent(mock_post: AsyncMock) -> None:
-    """AsyncAgent.create calls _async_post and returns AsyncAgent."""
     from asqav.async_client import AsyncAgent
 
     mock_post.return_value = {
@@ -177,10 +177,10 @@ async def test_async_create_agent(mock_post: AsyncMock) -> None:
 # === Async: sign action ===
 
 
+    # AsyncAgent.sign calls _async_post and returns SignatureResponse.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_post")
 async def test_async_sign(mock_post: AsyncMock) -> None:
-    """AsyncAgent.sign calls _async_post and returns SignatureResponse."""
     from asqav.async_client import AsyncAgent
     from asqav.client import SignatureResponse
 
@@ -220,9 +220,9 @@ async def test_async_sign(mock_post: AsyncMock) -> None:
 # === Async: verify signature ===
 
 
+    # AsyncAgent.verify calls httpx.AsyncClient.get and returns VerificationResponse.
 @pytest.mark.asyncio
 async def test_async_verify() -> None:
-    """AsyncAgent.verify calls httpx.AsyncClient.get and returns VerificationResponse."""
     from unittest.mock import patch as sync_patch
 
     from asqav.async_client import AsyncAgent
@@ -274,10 +274,10 @@ async def test_async_verify() -> None:
 # === Async: retry works with async functions ===
 
 
+    # with_async_retry retries RateLimitError with backoff.
 @pytest.mark.asyncio
 @patch("asqav.retry.asyncio.sleep", new_callable=AsyncMock)
 async def test_async_retry_on_rate_limit(mock_sleep: AsyncMock) -> None:
-    """with_async_retry retries RateLimitError with backoff."""
     call_count = 0
 
     @with_async_retry(max_retries=3, base_delay=1.0, jitter=False)

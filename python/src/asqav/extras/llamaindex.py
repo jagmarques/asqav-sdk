@@ -52,8 +52,8 @@ _SIGNED_EVENT_TYPES = frozenset(
 _MAX_LEN = 200
 
 
+    # Extract sorted payload keys, or empty list if payload is not a dict.
 def _safe_payload_keys(payload: Optional[Dict[str, Any]]) -> list[str]:
-    """Extract sorted payload keys, or empty list if payload is not a dict."""
     if isinstance(payload, dict):
         return sorted(payload.keys())
     return []
@@ -97,6 +97,7 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
 
     # === BaseCallbackHandler interface ===
 
+        # Sign a llamaindex.<event_type>.start governance event.
     def on_event_start(
         self,
         event_type: CBEventType,
@@ -105,7 +106,6 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
         parent_id: str = "",
         **kwargs: Any,
     ) -> str:
-        """Sign a llamaindex.<event_type>.start governance event."""
         if event_type not in self.event_starts_to_ignore and event_type in _SIGNED_EVENT_TYPES:
             context: dict[str, Any] = {
                 "event_id": event_id,
@@ -117,6 +117,7 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
             self._sign_action(f"llamaindex.{event_type.value}.start", context)
         return event_id
 
+        # Sign a llamaindex.<event_type>.end governance event.
     def on_event_end(
         self,
         event_type: CBEventType,
@@ -124,7 +125,6 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
         event_id: str = "",
         **kwargs: Any,
     ) -> None:
-        """Sign a llamaindex.<event_type>.end governance event."""
         if event_type not in self.event_ends_to_ignore and event_type in _SIGNED_EVENT_TYPES:
             context: dict[str, Any] = {
                 "event_id": event_id,
@@ -133,16 +133,16 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
             }
             self._sign_action(f"llamaindex.{event_type.value}.end", context)
 
+        # Start a trace - begins an Asqav session for grouped signing.
     def start_trace(self, trace_id: Optional[str] = None) -> None:
-        """Start a trace - begins an Asqav session for grouped signing."""
         if trace_id:
             self._start_session()
 
+        # End a trace - closes the Asqav session.
     def end_trace(
         self,
         trace_id: Optional[str] = None,
         trace_map: Optional[Dict[str, List[str]]] = None,
     ) -> None:
-        """End a trace - closes the Asqav session."""
         if self._session_id is not None:
             self._end_session("completed")

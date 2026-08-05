@@ -107,8 +107,8 @@ GOLDEN_VECTORS = [
 ]
 
 
+    # Sorted-keys serialization of the IETF envelope vector.
 def _expected_envelope() -> str:
-    """Sorted-keys serialization of the IETF envelope vector."""
     import json
 
     return json.dumps(
@@ -138,24 +138,24 @@ GOLDEN_VECTORS[-1] = (
 )
 
 
+    # Each golden vector serializes to its expected canonical string.
 @pytest.mark.parametrize(
     "name,obj,expected",
     GOLDEN_VECTORS,
     ids=[name for name, _, _ in GOLDEN_VECTORS],
 )
 def test_golden_vector_matches(name: str, obj, expected: str) -> None:
-    """Each golden vector serializes to its expected canonical string."""
     actual = canonical_json(obj).decode("utf-8")
     assert actual == expected, f"{name}: drift\n  expected: {expected!r}\n  actual:   {actual!r}"
 
 
+    # `_jcs.canonical_json` and `canonicalize.canonicalize` agree byte-for-byte.
 @pytest.mark.parametrize(
     "name,obj,expected",
     GOLDEN_VECTORS,
     ids=[name for name, _, _ in GOLDEN_VECTORS],
 )
 def test_byte_equality_with_canonicalize_alias(name: str, obj, expected: str) -> None:
-    """`_jcs.canonical_json` and `canonicalize.canonicalize` agree byte-for-byte."""
     assert canonical_json(obj) == canonicalize(obj), f"{name}: drift"
 
 
@@ -177,8 +177,8 @@ def test_negative_infinity_is_rejected() -> None:
         canonical_json({"x": float("-inf")})
 
 
+    # Same logical object -> same bytes regardless of dict insertion order.
 def test_insertion_order_does_not_change_bytes() -> None:
-    """Same logical object -> same bytes regardless of dict insertion order."""
     a = {"z": 1, "y": 2, "x": 3}
     b = {"x": 3, "y": 2, "z": 1}
     assert canonical_json(a) == canonical_json(b)
@@ -188,8 +188,8 @@ def test_no_insignificant_whitespace() -> None:
     assert canonical_json({"a": 1, "b": [1, 2]}) == b'{"a":1,"b":[1,2]}'
 
 
+    # `asqav.canonical_json` is part of the public surface.
 def test_re_export_at_package_root() -> None:
-    """`asqav.canonical_json` is part of the public surface."""
     import asqav
 
     assert asqav.canonical_json is canonical_json

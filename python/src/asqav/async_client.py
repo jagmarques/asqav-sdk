@@ -36,31 +36,31 @@ except ImportError:
     httpx = None  # type: ignore
 
 
+    # Ensure httpx is available for async operations.
 def _ensure_httpx() -> None:
-    """Ensure httpx is available for async operations."""
     if not _HTTPX_AVAILABLE:
         raise AsqavError(
             "httpx is required for async operations. Install with: pip install asqav[httpx]"
         )
 
 
+    # Ensure the SDK is initialized.
 def _ensure_initialized() -> None:
-    """Ensure the SDK is initialized."""
 
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
 
 
+    # Get the current ``(api_base, api_key)`` tuple from the client module.
 def _get_config() -> tuple[str, str]:
-    """Get the current ``(api_base, api_key)`` tuple from the client module."""
 
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
     return _api_base, _api_key
 
 
+    # Handle API response errors (async version).
 async def _handle_response(response: Any) -> None:
-    """Handle API response errors (async version)."""
     if response.status_code == 401:
         raise AuthenticationError("Invalid API key")
     elif response.status_code == 429:
@@ -73,9 +73,9 @@ async def _handle_response(response: Any) -> None:
         raise APIError(error, response.status_code)
 
 
+    # Make an async GET request to the API.
 @with_async_retry()
 async def _async_get(path: str) -> dict[str, Any]:
-    """Make an async GET request to the API."""
     _ensure_httpx()
     _ensure_initialized()
     api_base, api_key = _get_config()
@@ -91,9 +91,9 @@ async def _async_get(path: str) -> dict[str, Any]:
         return result
 
 
+    # Make an async POST request to the API.
 @with_async_retry()
 async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    """Make an async POST request to the API."""
     _ensure_httpx()
     _ensure_initialized()
     api_base, api_key = _get_config()
@@ -109,9 +109,9 @@ async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return result
 
 
+    # Make an async PATCH request to the API.
 @with_async_retry()
 async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    """Make an async PATCH request to the API."""
     _ensure_httpx()
     _ensure_initialized()
     api_base, api_key = _get_config()
@@ -127,9 +127,9 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return result
 
 
+    # Async agent representation; mirrors the sync :class:`Agent` over async HTTP.
 @dataclass
 class AsyncAgent:
-    """Async agent representation; mirrors the sync :class:`Agent` over async HTTP."""
 
     agent_id: str
     name: str
@@ -140,6 +140,7 @@ class AsyncAgent:
     created_at: float
     _session_id: str | None = field(default=None, repr=False)
 
+        # Create a new agent via Asqav Cloud; ``algorithm`` is ml-dsa-44/65/87.
     @classmethod
     async def create(
         cls,
@@ -147,7 +148,6 @@ class AsyncAgent:
         algorithm: str = "ml-dsa-65",
         capabilities: list[str] | None = None,
     ) -> AsyncAgent:
-        """Create a new agent via Asqav Cloud; ``algorithm`` is ml-dsa-44/65/87."""
         data = await _async_post(
             "/agents/create",
             {
@@ -167,9 +167,9 @@ class AsyncAgent:
             created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
+        # Get an existing agent by ID.
     @classmethod
     async def get(cls, agent_id: str) -> AsyncAgent:
-        """Get an existing agent by ID."""
         data = await _async_get(f"/agents/{agent_id}")
 
         return cls(
@@ -182,6 +182,7 @@ class AsyncAgent:
             created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
+        # Sign an action cryptographically (async); ``co_signers`` lists countersigner agents.
     async def sign(
         self,
         action_type: str,
@@ -193,7 +194,6 @@ class AsyncAgent:
         co_signers: list[str] | None = None,
         user_intent: dict[str, Any] | None = None,
     ) -> SignatureResponse:
-        """Sign an action cryptographically (async); ``co_signers`` lists countersigner agents."""
         from .client import _build_sign_body
 
         if tool_name or model_name or parent_id:
@@ -239,8 +239,8 @@ class AsyncAgent:
             previous_receipt_hash=_resolve_previous_receipt_hash(data),
         )
 
+        # Countersign an existing signature record (async); appends to ``co_signatures``.
     async def countersign(self, signature_id: str) -> SignatureResponse:
-        """Countersign an existing signature record (async); appends to ``co_signatures``."""
         data = await _async_post(
             f"/agents/{self.agent_id}/countersign/{signature_id}",
             {},
@@ -265,8 +265,8 @@ class AsyncAgent:
             user_intent_verified=data.get("user_intent_verified"),
         )
 
+        # Start a new session (async).
     async def start_session(self) -> SessionResponse:
-        """Start a new session (async)."""
         data = await _async_post("/sessions/", {"agent_id": self.agent_id})
 
         self._session_id = data["session_id"]
@@ -278,8 +278,8 @@ class AsyncAgent:
             started_at=data["started_at"],
         )
 
+        # End the current session (async); ``status`` is completed/error/timeout.
     async def end_session(self, status: str = "completed") -> SessionResponse:
-        """End the current session (async); ``status`` is completed/error/timeout."""
         if not self._session_id:
             raise AsqavError("No active session")
 
@@ -379,8 +379,8 @@ class AsyncAgent:
             checks_complete=checks_complete,
         )
 
+        # Publicly verify a signature by ID (async).
     async def verify(self, signature_id: str) -> VerificationResponse:
-        """Publicly verify a signature by ID (async)."""
         _ensure_httpx()
         api_base, _ = _get_config()
         url = f"{api_base}/verify/{signature_id}"

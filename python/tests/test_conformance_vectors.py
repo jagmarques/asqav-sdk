@@ -64,8 +64,8 @@ def test_each_vector_sha256_matches_canonical() -> None:
         )
 
 
+    # Every vector must declare whether verification should succeed or fail.
 def test_each_vector_declares_expected_verify() -> None:
-    """Every vector must declare whether verification should succeed or fail."""
     d = json.loads(VECTORS_PATH.read_text())
     for v in d["vectors"]:
         assert "expected_verify" in v, f"{v['name']} missing expected_verify"
@@ -73,8 +73,8 @@ def test_each_vector_declares_expected_verify() -> None:
         assert "reason" in v and v["reason"], f"{v['name']} missing reason"
 
 
+    # vectors.json must cover at least 5 distinct adversarial failure modes.
 def test_coverage_includes_adversarial_cases() -> None:
-    """vectors.json must cover at least 5 distinct adversarial failure modes."""
     d = json.loads(VECTORS_PATH.read_text())
     fail_names = {v["name"] for v in d["vectors"] if v.get("expected_verify") is False}
     required = {
@@ -88,8 +88,8 @@ def test_coverage_includes_adversarial_cases() -> None:
     assert not missing, f"missing adversarial vectors: {missing}"
 
 
+    # The nonce-mismatch vector must declare what the peer sent vs what was echoed.
 def test_nonce_mismatch_vector_has_peer_sent_nonce() -> None:
-    """The nonce-mismatch vector must declare what the peer sent vs what was echoed."""
     d = json.loads(VECTORS_PATH.read_text())
     v = next(x for x in d["vectors"] if x["name"] == "nonce_mismatch")
     assert "peer_sent_nonce" in v
@@ -99,14 +99,14 @@ def test_nonce_mismatch_vector_has_peer_sent_nonce() -> None:
 # === capture_topology vocabulary parity (IETF -04 appendix + cloud SignRequest) ===
 
 
+    # Return all conformance vectors that exercise the capture_topology field.
 def _capture_vectors() -> list[dict]:
-    """Return all conformance vectors that exercise the capture_topology field."""
     d = json.loads(VECTORS_PATH.read_text())
     return [v for v in d["vectors"] if v["name"].startswith("capture_topology_")]
 
 
+    # All five IETF -04 capture topologies must appear as accepted vectors.
 def test_capture_topology_covers_full_closed_vocabulary() -> None:
-    """All five IETF -04 capture topologies must appear as accepted vectors."""
     accepted = {
         v["capture_topology"]
         for v in _capture_vectors()
@@ -137,8 +137,8 @@ def test_capture_topology_value_round_trips_via_manifest(value: str) -> None:
     )
 
 
+    # An out-of-vocabulary capture_topology token is a rejected conformance vector.
 def test_capture_topology_unknown_value_is_a_failure_vector() -> None:
-    """An out-of-vocabulary capture_topology token is a rejected conformance vector."""
     rejected = [
         v
         for v in _capture_vectors()
