@@ -37,22 +37,22 @@ def _make_agent() -> Agent:
 # === generate_trace_id tests ===
 
 
+    # generate_trace_id returns a 32-char hex string (uuid4 without hyphens).
 def test_generate_trace_id_returns_hex_string() -> None:
-    """generate_trace_id returns a 32-char hex string (uuid4 without hyphens)."""
     tid = generate_trace_id()
     assert isinstance(tid, str)
     assert len(tid) == 32
     int(tid, 16)  # should not raise
 
 
+    # Each call produces a different trace ID.
 def test_generate_trace_id_is_unique() -> None:
-    """Each call produces a different trace ID."""
     ids = {generate_trace_id() for _ in range(100)}
     assert len(ids) == 100
 
 
+    # generate_trace_id is accessible from the top-level asqav module.
 def test_generate_trace_id_exported() -> None:
-    """generate_trace_id is accessible from the top-level asqav module."""
     assert hasattr(asqav, "generate_trace_id")
     assert callable(asqav.generate_trace_id)
 
@@ -60,9 +60,9 @@ def test_generate_trace_id_exported() -> None:
 # === sign() with trace_id and parent_id ===
 
 
+    # sign() includes _trace_id in context when trace_id is provided.
 @patch("asqav.client._post")
 def test_sign_with_trace_id(mock_post: object) -> None:
-    """sign() includes _trace_id in context when trace_id is provided."""
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
 
@@ -73,9 +73,9 @@ def test_sign_with_trace_id(mock_post: object) -> None:
     assert body["context"]["_trace_id"] == "abc123"
 
 
+    # sign() includes _parent_id in context when parent_id is provided.
 @patch("asqav.client._post")
 def test_sign_with_parent_id(mock_post: object) -> None:
-    """sign() includes _parent_id in context when parent_id is provided."""
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
 
@@ -86,9 +86,9 @@ def test_sign_with_parent_id(mock_post: object) -> None:
     assert body["context"]["_parent_id"] == "parent_xyz"
 
 
+    # sign() includes both _trace_id and _parent_id when both provided.
 @patch("asqav.client._post")
 def test_sign_with_both_trace_and_parent(mock_post: object) -> None:
-    """sign() includes both _trace_id and _parent_id when both provided."""
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
 
@@ -100,9 +100,9 @@ def test_sign_with_both_trace_and_parent(mock_post: object) -> None:
     assert body["context"]["_parent_id"] == "p1"
 
 
+    # Trace fields merge into user-provided context without overwriting.
 @patch("asqav.client._post")
 def test_sign_trace_merges_with_existing_context(mock_post: object) -> None:
-    """Trace fields merge into user-provided context without overwriting."""
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
 
@@ -114,9 +114,9 @@ def test_sign_trace_merges_with_existing_context(mock_post: object) -> None:
     assert body["context"]["_trace_id"] == "t1"
 
 
+    # When no trace_id/parent_id given, context has no _trace_id/_parent_id.
 @patch("asqav.client._post")
 def test_sign_without_trace_no_trace_keys(mock_post: object) -> None:
-    """When no trace_id/parent_id given, context has no _trace_id/_parent_id."""
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
 
@@ -128,9 +128,9 @@ def test_sign_without_trace_no_trace_keys(mock_post: object) -> None:
     assert "_parent_id" not in body["context"]
 
 
+    # sign() still returns a proper SignatureResponse with trace params.
 @patch("asqav.client._post")
 def test_sign_returns_signature_response(mock_post: object) -> None:
-    """sign() still returns a proper SignatureResponse with trace params."""
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]
     agent = _make_agent()
 

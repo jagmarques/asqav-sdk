@@ -48,8 +48,8 @@ class CounterpartyBinding:
         metadata={"description": "Operational transport hint (mcp|bus|http)."},
     )
 
+        # Return the wire-shape dict; drops ``None`` keys to match cloud JCS.
     def to_wire(self) -> dict[str, Any]:
-        """Return the wire-shape dict; drops ``None`` keys to match cloud JCS."""
         out: dict[str, Any] = {
             "envelope_hash": self.envelope_hash,
             "receipt_ref": self.receipt_ref,
@@ -61,8 +61,8 @@ class CounterpartyBinding:
         return out
 
 
+    # Base64 SHA-256 over the envelope's JCS bytes.
 def compute_envelope_hash(envelope: dict[str, Any]) -> str:
-    """Base64 SHA-256 over the envelope's JCS bytes."""
     return base64.b64encode(hashlib.sha256(canonical_json(envelope)).digest()).decode()
 
 
@@ -97,9 +97,9 @@ def compute_counterparty_binding(
     )
 
 
+    # Outcome of the counterparty-binding sanity check; ``valid`` ANDs all populated booleans.
 @dataclass
 class CounterpartyBindingVerification:
-    """Outcome of the counterparty-binding sanity check; ``valid`` ANDs all populated booleans."""
 
     valid: bool
     envelope_hash_matches: bool

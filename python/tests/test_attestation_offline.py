@@ -45,8 +45,8 @@ _AGENT_ID = "agt_test"
 _ORG_ID = "org_test"
 
 
+    # Return (sign(message) -> bytes, verify(message, sig) -> bool) for a fresh key.
 def _ed25519_signer():
-    """Return (sign(message) -> bytes, verify(message, sig) -> bool) for a fresh key."""
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives.asymmetric import ed25519
 
@@ -78,8 +78,8 @@ def _signed_message(claim: dict = _CLAIM) -> bytes:
     )
 
 
+    # Build a small Merkle tree and return (root, inclusionProof dict) for index.
 def _tree_head_and_proof(index: int = 2, size: int = 4):
-    """Build a small Merkle tree and return (root, inclusionProof dict) for index."""
     leaves = [merkle_leaf_hash(f"entry-{i}".encode()) for i in range(size)]
     proof = merkle_inclusion_proof(leaves, index)
     return merkle_root(leaves), {
@@ -112,14 +112,14 @@ def _good_receipt():
     return receipt, message, verify, tree_head
 
 
+    # (b) The SDK re-derives the exact statementHash the backend returned.
 def test_compute_statement_hash_matches_cloud_fixture() -> None:
-    """(b) The SDK re-derives the exact statementHash the backend returned."""
     got = compute_statement_hash(_CLAIM, _COMMITMENT, _KEY_ID, _TIMESTAMP)
     assert got == _GOLDEN_HASH
 
 
+    # The signed message carries the exact 11 fields the cloud signs.
 def test_reconstruct_signed_message_mirrors_cloud_shape() -> None:
-    """The signed message carries the exact 11 fields the cloud signs."""
     message = json.loads(_signed_message())
     assert message.keys() == {
         "v", "mode", "statement_hash", "commitment", "commitment_alg",
@@ -131,8 +131,8 @@ def test_reconstruct_signed_message_mirrors_cloud_shape() -> None:
     assert message["statement_hash"] == _GOLDEN_HASH
 
 
+    # (c) A tampered claim re-derives a different hash and fails verification.
 def test_tampered_claim_changes_hash_and_does_not_pass() -> None:
-    """(c) A tampered claim re-derives a different hash and fails verification."""
     tampered = dict(_CLAIM)
     tampered["subject"] = "agt-EVIL"
     assert compute_statement_hash(tampered, _COMMITMENT, _KEY_ID, _TIMESTAMP) != _GOLDEN_HASH
@@ -151,8 +151,8 @@ def test_tampered_claim_changes_hash_and_does_not_pass() -> None:
     assert by_name["statement_hash"] == "FAIL"
 
 
+    # (d) A good receipt yields the distinct outcome, never a plain PASS.
 def test_good_receipt_is_not_rederivable_never_plain_pass() -> None:
-    """(d) A good receipt yields the distinct outcome, never a plain PASS."""
     receipt, message, verify, tree_head = _good_receipt()
     result = verify_attestation_offline(
         _CLAIM,
@@ -170,8 +170,8 @@ def test_good_receipt_is_not_rederivable_never_plain_pass() -> None:
     assert by_name["commitment"] == "NOT_REDERIVABLE"
 
 
+    # Flipping the signature bytes fails the signature axis and the verdict.
 def test_tampered_signature_fails() -> None:
-    """Flipping the signature bytes fails the signature axis and the verdict."""
     receipt, message, verify, tree_head = _good_receipt()
     raw = base64.b64decode(receipt["signature"])
     flipped = bytes([raw[0] ^ 0xFF]) + raw[1:]
@@ -190,8 +190,8 @@ def test_tampered_signature_fails() -> None:
     assert by_name["statement_hash"] == "PASS"
 
 
+    # A proof cut against the wrong tree head fails the inclusion axis.
 def test_tampered_inclusion_proof_fails() -> None:
-    """A proof cut against the wrong tree head fails the inclusion axis."""
     receipt, message, verify, _ = _good_receipt()
     wrong_head = merkle_root([merkle_leaf_hash(b"other-leaf")])
     result = verify_attestation_offline(
@@ -207,8 +207,8 @@ def test_tampered_inclusion_proof_fails() -> None:
     assert by_name["signature"] == "PASS"
 
 
+    # Without a key or tree head the verdict is INCOMPLETE, still never PASS.
 def test_missing_optional_inputs_is_incomplete_not_pass() -> None:
-    """Without a key or tree head the verdict is INCOMPLETE, still never PASS."""
     receipt, _message, _verify, _tree_head = _good_receipt()
     result = verify_attestation_offline(_CLAIM, receipt)
     assert result["verdict"] == "INCOMPLETE"

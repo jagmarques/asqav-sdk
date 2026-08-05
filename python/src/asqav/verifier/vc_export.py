@@ -55,8 +55,8 @@ STANDARD_VC_PROOF_TYPES = frozenset(
 )
 
 
+    # Reuse the oracle's detection to label the source format, or ``unknown``.
 def _detect_format(receipt: dict) -> str:
-    """Reuse the oracle's detection to label the source format, or ``unknown``."""
     for adapter in ADAPTERS:
         try:
             if adapter.detect(receipt):
@@ -233,8 +233,8 @@ def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
     return envelope
 
 
+    # Best-effort issuance timestamp from the mapped action or source payload, or ``None``.
 def _valid_from(subject: dict) -> str | None:
-    """Best-effort issuance timestamp from the mapped action or source payload, or ``None``."""
     action = subject.get("action")
     if isinstance(action, dict) and action.get("timestamp"):
         return action.get("timestamp")

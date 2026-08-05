@@ -71,8 +71,8 @@ def _hash_repr(value: Any) -> str:
     return hashlib.sha256(data).hexdigest()[:16]
 
 
+    # Best-effort extraction of the model identifier from a hook event.
 def _extract_model_name(event: Any) -> str:
-    """Best-effort extraction of the model identifier from a hook event."""
     agent = getattr(event, "agent", None)
     if agent is None:
         return "unknown"
@@ -86,8 +86,8 @@ def _extract_model_name(event: Any) -> str:
     return type(model).__name__
 
 
+    # Pull the current message list from the agent if available.
 def _extract_messages(event: Any) -> Any:
-    """Pull the current message list from the agent if available."""
     agent = getattr(event, "agent", None)
     if agent is None:
         return None
@@ -108,8 +108,8 @@ def _strands_before_hook(action_type: str, context: dict) -> dict:
     return context
 
 
+    # Register the strands before-hook exactly once per process.
 def _ensure_hook_registered() -> None:
-    """Register the strands before-hook exactly once per process."""
     global _HOOK_REGISTERED
     if _HOOK_REGISTERED:
         return
@@ -155,13 +155,13 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
         self._model_name: str = "unknown"
         _ensure_hook_registered()
 
+        # Register Before/AfterModelCall callbacks with the Strands registry.
     def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
-        """Register Before/AfterModelCall callbacks with the Strands registry."""
         registry.add_callback(BeforeModelCallEvent, self._on_before_model_call)
         registry.add_callback(AfterModelCallEvent, self._on_after_model_call)
 
+        # Capture pre-call state used by the after-call signature.
     def _on_before_model_call(self, event: BeforeModelCallEvent) -> None:
-        """Capture pre-call state used by the after-call signature."""
         try:
             self._call_start = time.perf_counter()
             self._model_name = _extract_model_name(event)
@@ -171,8 +171,8 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
                 "asqav strands before-model-call capture failed (fail-open): %s", exc
             )
 
+        # Sign the strands:model_call governance event.
     def _on_after_model_call(self, event: AfterModelCallEvent) -> None:
-        """Sign the strands:model_call governance event."""
         try:
             latency_ms: float | None = None
             if self._call_start is not None:

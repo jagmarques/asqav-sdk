@@ -32,9 +32,9 @@ def _load(p: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 
+    # Raise if anything tries to open a network connection.
 @pytest.fixture(autouse=True)
 def _forbid_network(monkeypatch):
-    """Raise if anything tries to open a network connection."""
 
     def _no_network(*args, **kwargs):
         raise RuntimeError(f"Network access forbidden in offline tests: args={args!r}")
@@ -49,13 +49,13 @@ def _forbid_network(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+    # fetch_jwks must be importable from the top-level asqav namespace.
 def test_fetch_jwks_exported():
-    """fetch_jwks must be importable from the top-level asqav namespace."""
     assert callable(asqav.fetch_jwks)
 
 
+    # fetch_jwks() must invoke urllib.request.urlopen (not silently bypass it).
 def test_fetch_jwks_hits_network(monkeypatch):
-    """fetch_jwks() must invoke urllib.request.urlopen (not silently bypass it)."""
     called = []
 
     def _capture(req, **kw):
@@ -74,8 +74,8 @@ def test_fetch_jwks_hits_network(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+    # A valid Ed25519-signed receipt verifies PASS against the vector JWKS.
 def test_verify_receipt_offline_pass():
-    """A valid Ed25519-signed receipt verifies PASS against the vector JWKS."""
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
@@ -84,8 +84,8 @@ def test_verify_receipt_offline_pass():
     assert sig_axis["result"] == "PASS"
 
 
+    # Result dict must have the documented shape.
 def test_verify_receipt_offline_axes_structure():
-    """Result dict must have the documented shape."""
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
@@ -100,8 +100,8 @@ def test_verify_receipt_offline_axes_structure():
 # ---------------------------------------------------------------------------
 
 
+    # A receipt with a flipped decision field must come back FAIL.
 def test_verify_receipt_offline_tampered_receipt_fails():
-    """A receipt with a flipped decision field must come back FAIL."""
     receipt = _load(TAMPER_VECTOR / "receipt.json")
     jwks = _load(TAMPER_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
@@ -111,8 +111,8 @@ def test_verify_receipt_offline_tampered_receipt_fails():
     assert sig_axis["result"] == "FAIL"
 
 
+    # Mutating the payload after signing must also produce FAIL.
 def test_verify_receipt_offline_tampered_payload_directly():
-    """Mutating the payload after signing must also produce FAIL."""
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     tampered = copy.deepcopy(receipt)
@@ -126,8 +126,8 @@ def test_verify_receipt_offline_tampered_payload_directly():
 # ---------------------------------------------------------------------------
 
 
+    # Missing key in JWKS -> signature SKIPPED -> INCOMPLETE (never a PASS).
 def test_verify_receipt_offline_no_key_in_jwks():
-    """Missing key in JWKS -> signature SKIPPED -> INCOMPLETE (never a PASS)."""
     receipt = _load(PASS_VECTOR / "receipt.json")
     result = asqav.verify_receipt_offline(receipt, {"keys": []})
     # Oracle SKIPs the signature when the key is absent; verdict is INCOMPLETE.
@@ -148,8 +148,8 @@ def test_verify_receipt_offline_no_key_in_jwks():
 # ---------------------------------------------------------------------------
 
 
+    # Generate a real ML-DSA-65 receipt + JWKS using dilithium-py.
 def _make_mldsa_receipt_and_jwks():
-    """Generate a real ML-DSA-65 receipt + JWKS using dilithium-py."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
     pk, sk = ML_DSA_65.keygen()
@@ -199,12 +199,12 @@ except ImportError:
     _DILITHIUM_AVAILABLE = False
 
 
+    # ML-DSA-65 signed receipt verifies PASS when dilithium-py is present.
 @pytest.mark.skipif(
     not _DILITHIUM_AVAILABLE,
     reason="dilithium-py not installed (pip install asqav[verify])",
 )
 def test_verify_receipt_offline_mldsa65_pass():
-    """ML-DSA-65 signed receipt verifies PASS when dilithium-py is present."""
     envelope, jwks = _make_mldsa_receipt_and_jwks()
     result = asqav.verify_receipt_offline(envelope, jwks)
     assert result["verdict"] == "PASS", f"axes: {result['axes']}"
@@ -212,9 +212,9 @@ def test_verify_receipt_offline_mldsa65_pass():
     assert sig_axis["result"] == "PASS"
 
 
+    # A tampered ML-DSA-65 receipt must return FAIL, never PASS.
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_tampered_fails():
-    """A tampered ML-DSA-65 receipt must return FAIL, never PASS."""
     envelope, jwks = _make_mldsa_receipt_and_jwks()
     envelope["payload"]["decision"] = "deny"
     result = asqav.verify_receipt_offline(envelope, jwks)
@@ -406,14 +406,9 @@ def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
 MLDSA_KAT_VECTOR = VECTORS / "asqav-06-mldsa65-payload-prod"
 
 
+    # Real-cloud ML-DSA-65 KAT: signature PASS; lapsed expiry stays on its own axis (426).
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat():
-    """Real-cloud ML-DSA-65 payload-mode KAT: signature axis must be PASS.
-
-    The receipt's signed expires_at lapsed on 2026-06-20, so the verdict is FAIL
-    on expiry alone. That split is the point: the post-quantum signature still
-    verifies, and the offline verdict now matches the hosted signature_expired.
-    """
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
     jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
@@ -427,14 +422,15 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat():
     expiry_axis = next(a for a in result["axes"] if a["name"] == "expiry")
     assert expiry_axis["result"] == "FAIL", f"expiry axis: {expiry_axis}"
     assert "lapsed" in expiry_axis["note"], expiry_axis["note"]
+    # Expiry never folds the verdict; the crypto axes decide it (criterion 426)
     assert (
-        result["verdict"] == "FAIL"
-    ), f"Expected FAIL on the lapsed window, got {result['verdict']}; axes: {result['axes']}"
+        result["verdict"] == "PASS"
+    ), f"Expected PASS with the lapsed window on its own axis, got {result['verdict']}; axes: {result['axes']}"
 
 
+    # Tampered KAT payload byte must return FAIL - anti-vacuous guard.
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_payload():
-    """Tampered KAT payload byte must return FAIL - anti-vacuous guard."""
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
     jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
     tampered = copy.deepcopy(receipt)
@@ -451,9 +447,9 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_payload():
     ), f"Signature axis on tampered receipt must be FAIL, got: {sig_axis}"
 
 
+    # Swapped-sig KAT receipt must return FAIL - anti-vacuous guard.
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
-    """Swapped-sig KAT receipt must return FAIL - anti-vacuous guard."""
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
     jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
     tampered = copy.deepcopy(receipt)
@@ -482,8 +478,8 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
 # ---------------------------------------------------------------------------
 
 
+    # run_structured() is callable from the verifier module and returns a dict.
 def test_run_structured_directly():
-    """run_structured() is callable from the verifier module and returns a dict."""
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = vr.run_structured(receipt, jwks)

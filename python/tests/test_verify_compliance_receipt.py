@@ -135,8 +135,8 @@ def test_receipt_type_attribute_satisfies_namespace_but_not_required_fields() ->
 # === 300-second skew bound ===
 
 
+    # A receipt 250s old (well inside the 300s bound) is accepted.
 def test_skew_well_within_boundary_is_accepted() -> None:
-    """A receipt 250s old (well inside the 300s bound) is accepted."""
     now = time.time()
     issued = datetime.fromtimestamp(
         now - (SKEW_BOUND_SECONDS - 50), tz=timezone.utc
@@ -177,8 +177,8 @@ def test_skew_in_future_is_rejected() -> None:
     assert "signed_at_skew" in result.errors
 
 
+    # M4 audit fix: an hour-old receipt (skew = -3600s) MUST verify.
 def test_skew_one_hour_in_past_is_accepted() -> None:
-    """M4 audit fix: an hour-old receipt (skew = -3600s) MUST verify."""
     now = time.time()
     issued = datetime.fromtimestamp(now - 3600, tz=timezone.utc).isoformat()
     env = _good_envelope(issued_at=issued)
@@ -228,8 +228,8 @@ def test_chain_link_mismatch_detected() -> None:
     assert "chain_link_mismatch" in result.errors
 
 
+    # A receipt seeded with FIRST_RECEIPT_SEED never needs a predecessor.
 def test_first_record_skips_predecessor_check() -> None:
-    """A receipt seeded with FIRST_RECEIPT_SEED never needs a predecessor."""
     env = _good_envelope(previousReceiptHash=FIRST_RECEIPT_SEED)
     result = verify_compliance_receipt(env)  # no predecessor passed
     assert result.chain_link_rederives is True
@@ -271,8 +271,8 @@ def test_sandbox_state_absent_is_accepted() -> None:
     assert result.valid is True
 
 
+    # `reason` is REQUIRED whenever `decision` is `deny` or `rate_limit`.
 def test_deny_decision_without_reason_is_rejected() -> None:
-    """`reason` is REQUIRED whenever `decision` is `deny` or `rate_limit`."""
     env = _good_envelope(decision="deny")
     result = verify_compliance_receipt(env)
     assert result.valid is False
@@ -338,8 +338,8 @@ def test_empty_anchors_array_does_not_trip_the_check() -> None:
 # === authorized_under_mandate (server-built, recognised structurally) ===
 
 
+    # A well-formed authorized_under_mandate attestation.
 def _good_mandate(**overrides) -> dict:
-    """A well-formed authorized_under_mandate attestation."""
     base = {
         "mandate_id": "man_abc123",
         "issuer_id": "legal:Acme GmbH",
@@ -364,16 +364,16 @@ def test_authorized_under_mandate_absent_is_accepted() -> None:
     assert result.valid is True
 
 
+    # A self-declared attestation with verified!=true is a forged mandate.
 def test_mandate_verified_not_true_is_rejected() -> None:
-    """A self-declared attestation with verified!=true is a forged mandate."""
     env = _good_envelope(authorized_under_mandate=_good_mandate(verified=False))
     result = verify_compliance_receipt(env)
     assert result.valid is False
     assert "false_mandate_attestation_guard" in result.errors
 
 
+    # scope_digest must be the sha256:<64-hex> wire form.
 def test_mandate_bad_scope_digest_is_rejected() -> None:
-    """scope_digest must be the sha256:<64-hex> wire form."""
     env = _good_envelope(
         authorized_under_mandate=_good_mandate(scope_digest="deadbeef")
     )
@@ -423,8 +423,8 @@ def test_controls_evaluated_not_object_is_rejected() -> None:
     assert "false_control_attestation_guard" in result.errors
 
 
+    # A forged control key the server never emits is a forged attestation.
 def test_controls_evaluated_unknown_key_is_rejected() -> None:
-    """A forged control key the server never emits is a forged attestation."""
     env = _good_envelope(controls_evaluated={"backdoor": {"fired": True}})
     result = verify_compliance_receipt(env)
     assert result.valid is False
@@ -460,8 +460,8 @@ def test_controls_evaluated_policy_matched_count_zero_is_rejected() -> None:
     assert "false_control_attestation_guard" in result.errors
 
 
+    # matched_count must be a real int; a bool True must not satisfy >= 1.
 def test_controls_evaluated_policy_matched_count_bool_is_rejected() -> None:
-    """matched_count must be a real int; a bool True must not satisfy >= 1."""
     env = _good_envelope(
         controls_evaluated={"policy": {"evaluated": True, "matched_count": True}}
     )
@@ -486,8 +486,8 @@ def test_valid_mandate_and_controls_together_pass() -> None:
 # === Canonical {payload, signature, anchors} wire envelope (criterion 434) ===
 
 
+    # The canonical wire shape: signed fields nested under ``payload``.
 def _canonical_envelope(**payload_overrides) -> dict:
-    """The canonical wire shape: signed fields nested under ``payload``."""
     return {
         "payload": _good_envelope(**payload_overrides),
         "signature": {"alg": "Ed25519", "kid": "k", "sig": "s"},
@@ -517,8 +517,8 @@ def test_canonical_envelope_reason_conditional_on_payload_decision() -> None:
     assert "missing_reason_on_deny_or_rate_limit" in result.errors
 
 
+    # The published asqav-01 conformance vector passes this surface.
 def test_asqav_01_genesis_permit_vector_passes() -> None:
-    """The published asqav-01 conformance vector passes this surface."""
     import json as _json
 
     vector_path = os.path.join(

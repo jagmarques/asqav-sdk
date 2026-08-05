@@ -108,8 +108,8 @@ _PAYLOAD_AUTHORITY: dict[str, str] = {
 _SIGNATURE_FIELDS = frozenset({"signer_key_id", "key_purpose", "algorithm", "signature"})
 
 
+    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
-    """Decode a hex string; b'' on any malformed input so verify FAILs, never crashes."""
     if not isinstance(value, str):
         return b""
     try:
@@ -135,18 +135,18 @@ def _signable_preimage(doc: dict) -> bytes:
     return jcs_rfc8785(clone)
 
 
+    # SHA-256 of JCS(full receipt including its signature) - the chain primitive.
 def _full_receipt_hash(doc: dict) -> str:
-    """SHA-256 of JCS(full receipt including its signature) - the chain primitive."""
     return sha256_hex(jcs_rfc8785(doc))
 
 
+    # Pipelock EvidenceReceipt v2 - Ed25519 over JCS, chain covers full receipt.
 class PipelockEvidenceAdapter(FormatAdapter):
-    """Pipelock EvidenceReceipt v2 - Ed25519 over JCS, chain covers full receipt."""
 
     name = "pipelock-evidence-v2"
 
+        # Cheap structural fingerprint: record_type + receipt_version, no crypto.
     def detect(self, doc: dict) -> bool:
-        """Cheap structural fingerprint: record_type + receipt_version, no crypto."""
         return (
             doc.get("record_type") == _RECORD_TYPE
             and doc.get("receipt_version") == _RECEIPT_VERSION
@@ -186,8 +186,8 @@ class PipelockEvidenceAdapter(FormatAdapter):
             return None, f"signer_key_id {kid!r} key is {len(raw)} bytes, expected 32"
         return raw, f"resolved signer_key_id {kid!r}"
 
+        # JCS preimage: full receipt with signature object zeroed out.
     def signing_input(self, doc: dict) -> bytes:
-        """JCS preimage: full receipt with signature object zeroed out."""
         return _signable_preimage(doc)
 
     def chain_step(self, doc: dict) -> ChainStep:

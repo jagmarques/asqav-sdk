@@ -32,8 +32,8 @@ PIPELOCK_VECTOR = (
 )
 
 
+    # A table that silently empties would make every case below vacuous.
 def test_table_is_populated() -> None:
-    """A table that silently empties would make every case below vacuous."""
     assert len(TABLE["anchors"]) >= 25, f"only {len(TABLE['anchors'])} anchor cases"
     assert len(TABLE["skew"]) >= 15, f"only {len(TABLE['skew'])} skew cases"
     assert len(TABLE["expiry"]) >= 15, f"only {len(TABLE['expiry'])} expiry cases"
@@ -43,8 +43,8 @@ def test_table_is_populated() -> None:
     assert outcomes == {"PASS", "FAIL"}, outcomes
 
 
+    # The limits are part of the contract the other language mirrors.
 def test_bounds_match_the_table() -> None:
-    """The limits are part of the contract the other language mirrors."""
     assert SKEW_BOUND_SECONDS == 300
     assert ORACLE_MAX_NESTING_DEPTH == 200
 
@@ -90,8 +90,8 @@ def test_expiry_reads_only_the_signed_bytes() -> None:
     assert axes["expiry"]["result"] == "FAIL", axes["expiry"]
 
 
+    # The reference pipelock receipt with this case's chain_prev_hash substituted.
 def _pipelock_receipt(case: dict) -> dict:
-    """The reference pipelock receipt with this case's chain_prev_hash substituted."""
     doc = json.loads((PIPELOCK_VECTOR / "receipt.json").read_text())
     if case.get("omit"):
         doc.pop("chain_prev_hash", None)

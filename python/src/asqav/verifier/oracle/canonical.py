@@ -36,8 +36,8 @@ import unicodedata
 from typing import Any
 
 
+    # Recursively NFC-normalise every string key and value.
 def _nfc(obj: Any) -> Any:
-    """Recursively NFC-normalise every string key and value."""
     if isinstance(obj, str):
         return unicodedata.normalize("NFC", obj)
     if isinstance(obj, dict):
@@ -47,33 +47,33 @@ def _nfc(obj: Any) -> Any:
     return obj
 
 
+    # AERF/ACTA-dialect JCS: NFC, code-point key sort, numbers as Python emits them.
 def jcs(obj: Any) -> bytes:
-    """AERF/ACTA-dialect JCS: NFC, code-point key sort, numbers as Python emits them."""
     return json.dumps(
         _nfc(obj), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     ).encode("utf-8")
 
 
+    # Asqav cloud JCS bytes (no NFC); byte-identical to the cloud signer.
 def asqav_jcs(obj: Any) -> bytes:
-    """Asqav cloud JCS bytes (no NFC); byte-identical to the cloud signer."""
     return json.dumps(
         obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     ).encode("utf-8")
 
 
+    # Strict RFC 8785 JCS bytes (UTF-16 key sort, ECMAScript numbers) with NFC.
 def jcs_rfc8785(obj: Any) -> bytes:
-    """Strict RFC 8785 JCS bytes (UTF-16 key sort, ECMAScript numbers) with NFC."""
     return _serialize_8785(_nfc(obj)).encode("utf-8")
 
 
+    # UTF-16 BE code-unit sequence for ``key`` - the RFC 8785 key-ordering key.
 def _utf16_key(key: str) -> tuple[int, ...]:
-    """UTF-16 BE code-unit sequence for ``key`` - the RFC 8785 key-ordering key."""
     raw = key.encode("utf-16-be")
     return tuple(int.from_bytes(raw[i : i + 2], "big") for i in range(0, len(raw), 2))
 
 
+    # ECMAScript ``Number.prototype.toString`` form of a JSON number (RFC 8785).
 def _number_8785(value: float) -> str:
-    """ECMAScript ``Number.prototype.toString`` form of a JSON number (RFC 8785)."""
     if value != value or value in (float("inf"), float("-inf")):
         raise ValueError(f"non-finite number not allowed in JCS: {value!r}")
     if isinstance(value, int):
@@ -83,8 +83,8 @@ def _number_8785(value: float) -> str:
     return _ecma_float(float(value))
 
 
+    # Non-integral float as ECMA-262 6.1.6.1.20 Number-to-String (shortest round-trip).
 def _ecma_float(value: float) -> str:
-    """Non-integral float as ECMA-262 6.1.6.1.20 Number-to-String (shortest round-trip)."""
     sign = "-" if value < 0 else ""
     s, exp = _shortest_digits(abs(value))
     k = len(s)
@@ -99,8 +99,8 @@ def _ecma_float(value: float) -> str:
     return f"{sign}{tail}e{'+' if n - 1 >= 0 else '-'}{abs(n - 1)}"
 
 
+    # Return (digit string with no trailing zeros, base-10 exponent) for a positive float.
 def _shortest_digits(value: float) -> tuple[str, int]:
-    """Return (digit string with no trailing zeros, base-10 exponent) for a positive float."""
     mantissa, _, exp = repr(value).partition("e")
     exponent = int(exp) if exp else 0
     if "." in mantissa:
@@ -115,8 +115,8 @@ def _shortest_digits(value: float) -> tuple[str, int]:
     return digits, exponent
 
 
+    # RFC 8785 serialisation: UTF-16 sorted keys, ECMAScript numbers, minimal strings.
 def _serialize_8785(obj: Any) -> str:
-    """RFC 8785 serialisation: UTF-16 sorted keys, ECMAScript numbers, minimal strings."""
     if obj is None or isinstance(obj, bool):
         return json.dumps(obj)
     if isinstance(obj, (int, float)):

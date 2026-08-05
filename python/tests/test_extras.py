@@ -30,8 +30,8 @@ def _module_installed(name: str) -> bool:
 # -- Packaging tests (no framework deps needed) --
 
 
+    # Parse pyproject.toml and return optional-dependencies.
 def _read_pyproject() -> dict:
-    """Parse pyproject.toml and return optional-dependencies."""
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
     assert pyproject_path.exists(), "pyproject.toml not found"
 
@@ -44,8 +44,8 @@ def _read_pyproject() -> dict:
         return tomllib.load(f)
 
 
+    # All 6 framework extras are defined in pyproject.toml optional-dependencies.
 def test_extras_defined_in_pyproject():
-    """All 6 framework extras are defined in pyproject.toml optional-dependencies."""
     data = _read_pyproject()
     opt_deps = data["project"]["optional-dependencies"]
 
@@ -54,8 +54,8 @@ def test_extras_defined_in_pyproject():
         assert extra in opt_deps, f"Missing extra: {extra}"
 
 
+    # The 'all' extra includes deps from all framework extras.
 def test_all_extra_includes_everything():
-    """The 'all' extra includes deps from all framework extras."""
     data = _read_pyproject()
     opt_deps = data["project"]["optional-dependencies"]
 
@@ -73,16 +73,16 @@ def test_all_extra_includes_everything():
             )
 
 
+    # Base asqav import works without any extras installed.
 def test_base_import_no_extras():
-    """Base asqav import works without any extras installed."""
     import asqav
 
     assert hasattr(asqav, "__version__")
     assert hasattr(asqav, "init")
 
 
+    # The extras package itself is importable.
 def test_extras_package_importable():
-    """The extras package itself is importable."""
     from asqav import extras
 
     assert extras.__doc__ is not None
@@ -104,9 +104,9 @@ def _purge(*module_names: str) -> None:
         sys.modules.pop(name, None)
 
 
+    # Importing langchain stub raises ImportError when langchain-core is not installed.
 @pytest.mark.skipif(_module_installed("langchain_core"), reason="langchain-core installed; stub error path is unreachable in this env")
 def test_langchain_stub_import_error():
-    """Importing langchain stub raises ImportError when langchain-core is not installed."""
     _purge("asqav.extras.langchain", "langchain_core", "langchain_core.callbacks")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.langchain  # noqa: F401
@@ -125,25 +125,25 @@ def test_crewai_stub_import_error():
     assert "crewai" not in sys.modules
 
 
+    # Importing litellm stub raises ImportError when litellm is not installed.
 @pytest.mark.skipif(_module_installed("litellm"), reason="litellm installed; stub error path is unreachable in this env")
 def test_litellm_stub_import_error():
-    """Importing litellm stub raises ImportError when litellm is not installed."""
     _purge("asqav.extras.litellm", "litellm")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.litellm  # noqa: F401
 
 
+    # Importing haystack stub raises ImportError when haystack-ai is not installed.
 @pytest.mark.skipif(_module_installed("haystack"), reason="haystack-ai installed; stub error path is unreachable in this env")
 def test_haystack_stub_import_error():
-    """Importing haystack stub raises ImportError when haystack-ai is not installed."""
     _purge("asqav.extras.haystack", "haystack", "haystack.dataclasses")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.haystack  # noqa: F401
 
 
+    # Importing openai_agents stub raises ImportError when openai-agents is not installed.
 @pytest.mark.skipif(_module_installed("agents"), reason="openai-agents installed; stub error path is unreachable in this env")
 def test_openai_agents_stub_import_error():
-    """Importing openai_agents stub raises ImportError when openai-agents is not installed."""
     _purge("asqav.extras.openai_agents", "agents", "agents.tracing")
     with pytest.raises(ImportError, match="pip install asqav"):
         import asqav.extras.openai_agents  # noqa: F401

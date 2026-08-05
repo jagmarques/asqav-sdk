@@ -23,8 +23,8 @@ _before_hooks: list[tuple[PatternType, BeforeHook]] = []
 _after_hooks: list[tuple[PatternType, AfterHook]] = []
 
 
+    # Return True if ``pattern`` matches ``action_type``.
 def _matches(pattern: PatternType, action_type: str) -> bool:
-    """Return True if ``pattern`` matches ``action_type``."""
     if isinstance(pattern, re.Pattern):
         return pattern.search(action_type) is not None
     if pattern == "*":
@@ -44,21 +44,21 @@ def register_before(pattern: PatternType, fn: BeforeHook) -> None:
         _before_hooks.append((pattern, fn))
 
 
+    # Register ``fn(response)`` to observe signing for matching actions.
 def register_after(pattern: PatternType, fn: AfterHook) -> None:
-    """Register ``fn(response)`` to observe signing for matching actions."""
     with _lock:
         _after_hooks.append((pattern, fn))
 
 
+    # Remove every registered before/after hook. Intended for tests.
 def clear_hooks() -> None:
-    """Remove every registered before/after hook. Intended for tests."""
     with _lock:
         _before_hooks.clear()
         _after_hooks.clear()
 
 
+    # Invoke matching before-hooks. Returns the (possibly mutated) context.
 def _dispatch_before(action_type: str, context: dict) -> dict:
-    """Invoke matching before-hooks. Returns the (possibly mutated) context."""
     with _lock:
         snapshot = list(_before_hooks)
     current = context if context is not None else {}
@@ -76,8 +76,8 @@ def _dispatch_before(action_type: str, context: dict) -> dict:
     return current
 
 
+    # Invoke matching after-hooks. Failures are logged and swallowed.
 def _dispatch_after(action_type: str, response: Any) -> None:
-    """Invoke matching after-hooks. Failures are logged and swallowed."""
     with _lock:
         snapshot = list(_after_hooks)
     for pattern, fn in snapshot:

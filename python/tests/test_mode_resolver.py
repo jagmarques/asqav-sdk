@@ -35,8 +35,8 @@ def test_is_asqav_cloud_host(host: str | None, expected: bool) -> None:
 # === Resolution precedence ===
 
 
+    # Explicit always wins.
 def test_explicit_overrides_env_and_url() -> None:
-    """Explicit always wins."""
     assert _resolve_mode(
         api_base_url="https://api.asqav.com/api/v1",
         env="full-payload",
@@ -49,8 +49,8 @@ def test_explicit_overrides_env_and_url() -> None:
     ) == "full-payload"
 
 
+    # When explicit is auto, env wins over URL.
 def test_env_overrides_auto_detection() -> None:
-    """When explicit is auto, env wins over URL."""
     assert _resolve_mode(
         api_base_url="https://localhost:8000",
         env="hash-only",
@@ -63,8 +63,8 @@ def test_env_overrides_auto_detection() -> None:
     ) == "full-payload"
 
 
+    # Unknown env values are silently ignored.
 def test_garbage_env_falls_through_to_auto() -> None:
-    """Unknown env values are silently ignored."""
     assert _resolve_mode(
         api_base_url="https://api.asqav.com/api/v1",
         env="banana",

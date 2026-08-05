@@ -17,9 +17,9 @@ from asqav.extras.crewai import AsqavCrewHook, enable_crew_governance
 # === Fixtures ===
 
 
+    # Create an AsqavCrewHook with mocked Agent.
 @pytest.fixture()
 def hook():
-    """Create an AsqavCrewHook with mocked Agent."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -29,8 +29,8 @@ def hook():
     return h
 
 
+    # Minimal duck-typed stand-in for a crewai ``Crew`` (no crewai import).
 class _DuckCrew:
-    """Minimal duck-typed stand-in for a crewai ``Crew`` (no crewai import)."""
 
     def __init__(self) -> None:
         self.step_callback = None
@@ -40,8 +40,8 @@ class _DuckCrew:
 # === on_task_start ===
 
 
+    # on_task_start signs task:start with description and agent role.
 def test_on_task_start_signs_action(hook):
-    """on_task_start signs task:start with description and agent role."""
     with patch.object(hook, "_sign_action") as mock_sign:
         hook.on_task_start("Analyze market data", agent_role="Researcher")
     mock_sign.assert_called_once_with("task:start", {
@@ -50,8 +50,8 @@ def test_on_task_start_signs_action(hook):
     })
 
 
+    # on_task_start omits agent_role when not provided.
 def test_on_task_start_without_role(hook):
-    """on_task_start omits agent_role when not provided."""
     with patch.object(hook, "_sign_action") as mock_sign:
         hook.on_task_start("Analyze data")
     ctx = mock_sign.call_args[0][1]
@@ -62,8 +62,8 @@ def test_on_task_start_without_role(hook):
 # === on_task_complete ===
 
 
+    # on_task_complete signs task:complete with output length.
 def test_on_task_complete_signs_action(hook):
-    """on_task_complete signs task:complete with output length."""
     with patch.object(hook, "_sign_action") as mock_sign:
         hook.on_task_complete(
             "Write report",
@@ -77,8 +77,8 @@ def test_on_task_complete_signs_action(hook):
     })
 
 
+    # on_task_complete omits output_length when output is None.
 def test_on_task_complete_without_output(hook):
-    """on_task_complete omits output_length when output is None."""
     with patch.object(hook, "_sign_action") as mock_sign:
         hook.on_task_complete("Write report")
     ctx = mock_sign.call_args[0][1]
@@ -88,8 +88,8 @@ def test_on_task_complete_without_output(hook):
 # === on_task_fail ===
 
 
+    # on_task_fail signs task:fail with error message.
 def test_on_task_fail_signs_action(hook):
-    """on_task_fail signs task:fail with error message."""
     with patch.object(hook, "_sign_action") as mock_sign:
         hook.on_task_fail(
             "Fetch data",
@@ -103,8 +103,8 @@ def test_on_task_fail_signs_action(hook):
     })
 
 
+    # on_task_fail omits error when not provided.
 def test_on_task_fail_without_error(hook):
-    """on_task_fail omits error when not provided."""
     with patch.object(hook, "_sign_action") as mock_sign:
         hook.on_task_fail("Fetch data")
     ctx = mock_sign.call_args[0][1]
@@ -114,8 +114,8 @@ def test_on_task_fail_without_error(hook):
 # === step_callback ===
 
 
+    # step_callback signs step:execute with type and truncated output.
 def test_step_callback_signs_action(hook):
-    """step_callback signs step:execute with type and truncated output."""
     step = MagicMock()
     step.__class__.__name__ = "AgentAction"
     step.__str__ = lambda self: "Tool call: search('query')"
@@ -132,8 +132,8 @@ def test_step_callback_signs_action(hook):
 # === task_callback ===
 
 
+    # task_callback signs task:complete from TaskOutput attributes.
 def test_task_callback_signs_action(hook):
-    """task_callback signs task:complete from TaskOutput attributes."""
     task_output = MagicMock()
     task_output.description = "Summarize findings"
     task_output.raw = "The key findings are..."
@@ -147,8 +147,8 @@ def test_task_callback_signs_action(hook):
     assert ctx["output_length"] == len("The key findings are...")
 
 
+    # task_callback falls back to str() when attributes are missing.
 def test_task_callback_handles_missing_attributes(hook):
-    """task_callback falls back to str() when attributes are missing."""
 
     class _PlainOutput:
         def __str__(self) -> str:
@@ -168,8 +168,8 @@ def test_task_callback_handles_missing_attributes(hook):
 # === Truncation ===
 
 
+    # Long descriptions are truncated to 200 chars.
 def test_description_truncated(hook):
-    """Long descriptions are truncated to 200 chars."""
     long_desc = "x" * 500
 
     with patch.object(hook, "_sign_action") as mock_sign:
@@ -178,8 +178,8 @@ def test_description_truncated(hook):
     assert len(ctx["task_description"]) == 200
 
 
+    # Long step output is truncated to 200 chars.
 def test_step_output_truncated(hook):
-    """Long step output is truncated to 200 chars."""
     step = MagicMock()
     step.__str__ = lambda self: "y" * 500
 
@@ -192,8 +192,8 @@ def test_step_output_truncated(hook):
 # === Fail-open ===
 
 
+    # Signing errors do not propagate - fail-open behavior.
 def test_fail_open_on_sign_error(hook):
-    """Signing errors do not propagate - fail-open behavior."""
     with patch.object(hook, "_sign_action", side_effect=Exception("boom")):
         # None of these should raise
         with pytest.raises(Exception):
@@ -215,8 +215,8 @@ def test_fail_open_on_sign_error(hook):
 # === Default-on: enable_crew_governance ===
 
 
+    # enable_crew_governance sets step_callback and task_callback on the crew.
 def test_enable_wires_both_callbacks():
-    """enable_crew_governance sets step_callback and task_callback on the crew."""
     crew = _DuckCrew()
     with (
         patch("asqav.client._api_key", "sk_test"),
@@ -253,8 +253,8 @@ def test_default_on_step_signs_by_default():
     assert hook._sign_action.call_args[0][0] == "step:execute"
 
 
+    # A crew task signs a task:complete receipt by default after enable.
 def test_default_on_task_signs_by_default():
-    """A crew task signs a task:complete receipt by default after enable."""
     crew = _DuckCrew()
     with (
         patch("asqav.client._api_key", "sk_test"),
@@ -270,8 +270,8 @@ def test_default_on_task_signs_by_default():
     assert hook._sign_action.call_args[0][0] == "task:complete"
 
 
+    # Existing step/task callbacks still run (additive), plus asqav signs.
 def test_existing_callbacks_preserved():
-    """Existing step/task callbacks still run (additive), plus asqav signs."""
     crew = _DuckCrew()
     seen_steps: list[object] = []
     seen_tasks: list[object] = []
@@ -346,8 +346,8 @@ def test_enable_crew_governance_double_enable_same_hook_no_orphan():
     assert create_count == 1, f"Agent.create called {create_count} times, expected 1"
 
 
+    # The adapter imports with crewai absent - duck-typed, no hard import.
 def test_module_imports_without_crewai():
-    """The adapter imports with crewai absent - duck-typed, no hard import."""
     saved = sys.modules.pop("crewai", None)
     sys.modules.pop("asqav.extras.crewai", None)
     try:

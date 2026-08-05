@@ -24,8 +24,8 @@ _mock_integrations = ModuleType("litellm.integrations")
 _mock_custom_logger = ModuleType("litellm.integrations.custom_logger")
 
 
+    # Stand-in for litellm.integrations.custom_logger.CustomLogger.
 class _StubCustomLogger:
-    """Stand-in for litellm.integrations.custom_logger.CustomLogger."""
 
     def __init__(self, *args, **kwargs) -> None:
         pass
@@ -52,8 +52,8 @@ MOCK_SIGN_RESPONSE: dict = {
 }
 
 
+    # Build a logger with a mocked Agent and a temp index path.
 def _make_logger(tmp_path, **kwargs) -> AsqavSigningLogger:
-    """Build a logger with a mocked Agent and a temp index path."""
     log_path = str(tmp_path / "index.jsonl")
     with patch("asqav.client._api_key", "sk_test"), patch(
         "asqav.extras._base.Agent"

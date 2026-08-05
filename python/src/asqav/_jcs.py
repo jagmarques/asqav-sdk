@@ -13,8 +13,8 @@ from typing import Any
 __all__ = ["canonical_json"]
 
 
+    # Return canonical JCS bytes for ``obj``, byte-identical to the cloud.
 def canonical_json(obj: Any) -> bytes:
-    """Return canonical JCS bytes for ``obj``, byte-identical to the cloud."""
     return json.dumps(
         obj,
         sort_keys=True,

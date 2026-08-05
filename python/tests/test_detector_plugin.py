@@ -88,9 +88,9 @@ class RaisingDetector:
         raise RuntimeError("detector_internal_error")
 
 
+    # Ensure each test starts with a clean detector registry.
 @pytest.fixture(autouse=True)
 def _reset_detectors():
-    """Ensure each test starts with a clean detector registry."""
     clear_detectors()
     yield
     clear_detectors()
@@ -147,8 +147,8 @@ def test_multiple_detectors_all_run_on_allow() -> None:
     assert len(records) == 2
 
 
+    # Second detector must NOT run after first returns deny.
 def test_deny_stops_after_first_deny() -> None:
-    """Second detector must NOT run after first returns deny."""
     called: list[str] = []
 
     class TrackingAllow:
@@ -183,8 +183,8 @@ def test_none_context_is_treated_as_empty() -> None:
 # ─── Integration: Agent.sign path ─────────────────────────────────────────────
 
 
+    # Allow detector: sign POST is made AND _detectors appears in context.
 def test_allow_detector_lets_sign_proceed() -> None:
-    """Allow detector: sign POST is made AND _detectors appears in context."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -206,8 +206,8 @@ def test_allow_detector_lets_sign_proceed() -> None:
     assert records[0]["detector"] == "allow-detector"
 
 
+    # Deny detector: sign raises DetectorBlockedError; no POST is made.
 def test_deny_detector_blocks_sign_no_post() -> None:
-    """Deny detector: sign raises DetectorBlockedError; no POST is made."""
     post_called = False
 
     def fake_post(path: str, body: dict) -> dict:
@@ -224,8 +224,8 @@ def test_deny_detector_blocks_sign_no_post() -> None:
     assert exc_info.value.detector_name == "deny-detector"
 
 
+    # A detector that raises blocks sign by default (fail-closed).
 def test_fail_closed_detector_error_blocks_sign() -> None:
-    """A detector that raises blocks sign by default (fail-closed)."""
     post_called = False
 
     def fake_post(path: str, body: dict) -> dict:
@@ -241,8 +241,8 @@ def test_fail_closed_detector_error_blocks_sign() -> None:
     assert not post_called
 
 
+    # A detector that raises with fail_open=True lets sign proceed.
 def test_fail_open_detector_error_allows_sign() -> None:
-    """A detector that raises with fail_open=True lets sign proceed."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -261,8 +261,8 @@ def test_fail_open_detector_error_allows_sign() -> None:
     assert ctx["_detectors"][0]["labels"] == ["error"]
 
 
+    # With no detectors, the signed body must NOT contain _detectors key.
 def test_additive_no_detector_body_unchanged() -> None:
-    """With no detectors, the signed body must NOT contain _detectors key."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -283,8 +283,8 @@ def test_additive_no_detector_body_unchanged() -> None:
 # ─── Unit: DetectorPlugin protocol ────────────────────────────────────────────
 
 
+    # Any object with name + inspect satisfies DetectorPlugin (structural).
 def test_detector_plugin_protocol_structural() -> None:
-    """Any object with name + inspect satisfies DetectorPlugin (structural)."""
     assert isinstance(AllowDetector(), DetectorPlugin)
 
 
@@ -301,8 +301,8 @@ def test_detector_blocked_error_attributes() -> None:
 # ─── Reference detector: PresidioDetector ────────────────────────────────────
 
 
+    # PresidioDetector returns deny + labels when Presidio finds PII.
 def test_presidio_detector_labels_on_deny() -> None:
-    """PresidioDetector returns deny + labels when Presidio finds PII."""
     from asqav.extras.presidio_detector import PresidioDetector
 
     class FakeResult:
@@ -337,8 +337,8 @@ def test_presidio_detector_allow_when_no_pii() -> None:
     assert result.allow is True
 
 
+    # Without presidio-analyzer installed, PresidioDetector raises ImportError.
 def test_presidio_detector_import_error_without_extra() -> None:
-    """Without presidio-analyzer installed, PresidioDetector raises ImportError."""
     from asqav.extras.presidio_detector import PresidioDetector, _load_analyzer
 
     with patch.dict("sys.modules", {"presidio_analyzer": None}):
@@ -376,8 +376,8 @@ def test_opa_detector_deny_on_false_result() -> None:
     assert "opa_deny" in result.labels
 
 
+    # Missing 'result' key in OPA response → fail-closed deny.
 def test_opa_detector_deny_on_missing_result() -> None:
-    """Missing 'result' key in OPA response → fail-closed deny."""
     from asqav.extras.opa_detector import OpaDetector
 
     det = OpaDetector()
@@ -390,8 +390,8 @@ def test_opa_detector_deny_on_missing_result() -> None:
     assert result.allow is False
 
 
+    # HTTP failure from OPA propagates as RuntimeError (caller handles).
 def test_opa_detector_raises_on_http_error() -> None:
-    """HTTP failure from OPA propagates as RuntimeError (caller handles)."""
     from asqav.extras.opa_detector import OpaDetector
 
     det = OpaDetector()
@@ -404,8 +404,8 @@ def test_opa_detector_raises_on_http_error() -> None:
         det.inspect("api:call", {})
 
 
+    # OpaDetector sends {input: {action_type, context}} to OPA.
 def test_opa_sends_correct_payload() -> None:
-    """OpaDetector sends {input: {action_type, context}} to OPA."""
     from asqav.extras.opa_detector import OpaDetector
 
     sent: dict[str, Any] = {}

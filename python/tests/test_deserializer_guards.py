@@ -28,8 +28,8 @@ def _mock_httpx(payload: dict) -> MagicMock:
     return response
 
 
+    # A complete `/verify` response; each test deletes one required key.
 def _full_payload() -> dict:
-    """A complete `/verify` response; each test deletes one required key."""
     return {
         "signature_id": "sig_test",
         "agent_id": "agent_test",

@@ -15,26 +15,26 @@ from asqav.pytest_plugin import _PluginState, make_bundle_from_report
 EXPECTED_DEFAULT = "eu_ai_act"
 
 
+    # The dataclass default applies before any pytest_configure hook fires.
 def test_plugin_state_default_framework_is_eu_ai_act() -> None:
-    """The dataclass default applies before any pytest_configure hook fires."""
     state = _PluginState()
     assert state.framework == EXPECTED_DEFAULT
 
 
+    # Whatever the default is, it must resolve in FRAMEWORKS.
 def test_plugin_state_default_is_a_known_framework() -> None:
-    """Whatever the default is, it must resolve in FRAMEWORKS."""
     state = _PluginState()
     assert state.framework in FRAMEWORKS
 
 
+    # The programmatic helper mirrors the plugin's default.
 def test_make_bundle_from_report_default_framework() -> None:
-    """The programmatic helper mirrors the plugin's default."""
     sig = inspect.signature(make_bundle_from_report)
     assert sig.parameters["framework"].default == EXPECTED_DEFAULT
 
 
+    # `pytest --asqav` with no --asqav-framework gets the same key.
 def test_addoption_default_matches_state_default() -> None:
-    """`pytest --asqav` with no --asqav-framework gets the same key."""
 
     captured: dict[str, str] = {}
 

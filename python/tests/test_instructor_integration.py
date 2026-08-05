@@ -62,9 +62,9 @@ HookName = _install_instructor_mocks()
 from asqav.extras.instructor import AsqavInstructorHook  # noqa: E402
 
 
+    # Build a hook with _sign_action mocked so we can assert calls.
 @pytest.fixture
 def hook() -> AsqavInstructorHook:
-    """Build a hook with _sign_action mocked so we can assert calls."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -123,8 +123,8 @@ def test_on_kwargs_signs_start(hook: AsqavInstructorHook) -> None:
     )
 
 
+    # Missing model and response_model still produce a clean signed payload.
 def test_on_kwargs_handles_missing_fields(hook: AsqavInstructorHook) -> None:
-    """Missing model and response_model still produce a clean signed payload."""
     hook._on_kwargs()
     args, _ = hook._sign_action.call_args
     assert args[0] == "instructor.completion.start"

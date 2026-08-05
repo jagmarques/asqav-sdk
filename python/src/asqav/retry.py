@@ -16,8 +16,8 @@ from typing import Any, TypeVar
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+    # Return True for retryable exceptions: rate-limit, 5xx, connection, timeout.
 def _is_retryable(exc: Exception) -> bool:
-    """Return True for retryable exceptions: rate-limit, 5xx, connection, timeout."""
     from .client import APIError, AuthenticationError, RateLimitError
 
     if isinstance(exc, AuthenticationError):
@@ -37,26 +37,26 @@ def _is_retryable(exc: Exception) -> bool:
     return False
 
 
+    # Exponential backoff delay in seconds for ``attempt`` (zero-based).
 def _calculate_delay(
     attempt: int,
     base_delay: float,
     max_delay: float,
     jitter: bool,
 ) -> float:
-    """Exponential backoff delay in seconds for ``attempt`` (zero-based)."""
     delay = min(base_delay * (2 ** attempt), max_delay)
     if jitter:
         delay = random.uniform(0, delay)
     return delay
 
 
+    # Decorator that retries sync functions with exponential backoff + optional jitter.
 def with_retry(
     max_retries: int = 3,
     base_delay: float = 0.5,
     max_delay: float = 30.0,
     jitter: bool = True,
 ) -> Callable[[F], F]:
-    """Decorator that retries sync functions with exponential backoff + optional jitter."""
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
@@ -78,13 +78,13 @@ def with_retry(
     return decorator
 
 
+    # Decorator that retries async functions with exponential backoff + optional jitter.
 def with_async_retry(
     max_retries: int = 3,
     base_delay: float = 0.5,
     max_delay: float = 30.0,
     jitter: bool = True,
 ) -> Callable[[F], F]:
-    """Decorator that retries async functions with exponential backoff + optional jitter."""
 
     def decorator(func: F) -> F:
         @functools.wraps(func)

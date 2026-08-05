@@ -19,8 +19,8 @@ logger = logging.getLogger("asqav")
 __all__ = ["AsqavAdapter"]
 
 
+    # Convert CamelCase class name to kebab-case (e.g. AsqavCrewHook -> asqav-crew-hook).
 def _class_name_to_agent_name(cls_name: str) -> str:
-    """Convert CamelCase class name to kebab-case (e.g. AsqavCrewHook -> asqav-crew-hook)."""
     # Insert hyphen before uppercase letters, then lowercase
     s = re.sub(r"(?<=[a-z0-9])([A-Z])", r"-\1", cls_name)
     s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1-\2", s)
@@ -108,8 +108,8 @@ class AsqavAdapter:
             self._sign_action, action_type, context, **compliance_kwargs
         )
 
+        # Config-only repr: agent identity and mode, never the API key.
     def __repr__(self) -> str:
-        """Config-only repr: agent identity and mode, never the API key."""
         return (
             f"{type(self).__name__}("
             f"agent_id={self._agent.agent_id!r}, "
@@ -117,13 +117,13 @@ class AsqavAdapter:
             f"observe={self._observe!r})"
         )
 
+        # Start a session to group related signatures.
     def _start_session(self) -> None:
-        """Start a session to group related signatures."""
         self._session_id = uuid.uuid4().hex
         self._agent.start_session()
 
+        # End the current session.
     def _end_session(self, status: str = "completed") -> None:
-        """End the current session."""
         if self._agent._session_id is not None:
             try:
                 self._agent.end_session(status)

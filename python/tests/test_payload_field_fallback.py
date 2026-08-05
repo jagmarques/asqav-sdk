@@ -48,8 +48,8 @@ def _async_agent() -> AsyncAgent:
     )
 
 
+    # Compliance-mode sign response: the two fields live only inside payload.
 def _wire_with_payload_only() -> dict:
-    """Compliance-mode sign response: the two fields live only inside payload."""
     return {
         "signature": "sig_b64",
         "signature_id": "sig_abc",
@@ -73,8 +73,8 @@ def test_sync_sign_resolves_action_ref_and_prev_hash_from_payload() -> None:
     assert resp.previous_receipt_hash == _PREV_HASH
 
 
+    # A top-level value is authoritative; the payload copy is only a fallback.
 def test_sync_top_level_wins_over_payload() -> None:
-    """A top-level value is authoritative; the payload copy is only a fallback."""
     wire = _wire_with_payload_only()
     wire["action_ref"] = "sha256:" + "b" * 64
     wire["previous_receipt_hash"] = "1" * 64

@@ -151,8 +151,8 @@ class TestExportBundle:
         assert len(bundle.verification["receipt_hashes"]) == 1
         assert bundle.verification["merkle_root"] == bundle.merkle_root
 
+        # Verify an auditor can recompute the Merkle root from receipts.
     def test_merkle_root_matches_receipts(self):
-        """Verify an auditor can recompute the Merkle root from receipts."""
         sigs = [_make_sig_response(signature_id=f"sid_{i}") for i in range(5)]
         bundle = export_bundle(sigs)
 

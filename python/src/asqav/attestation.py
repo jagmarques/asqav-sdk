@@ -120,26 +120,26 @@ def reconstruct_signed_message(
 # === Pure Merkle helpers (certificate-transparency 6962-style) ===
 
 
+    # SHA256(0x00 || entry). Mirrors the cloud's leaf domain separation.
 def merkle_leaf_hash(entry: bytes) -> bytes:
-    """SHA256(0x00 || entry). Mirrors the cloud's leaf domain separation."""
     return hashlib.sha256(_LEAF_PREFIX + entry).digest()
 
 
+    # SHA256(0x01 || left || right). Mirrors the cloud's internal node hash.
 def merkle_node_hash(left: bytes, right: bytes) -> bytes:
-    """SHA256(0x01 || left || right). Mirrors the cloud's internal node hash."""
     return hashlib.sha256(_NODE_PREFIX + left + right).digest()
 
 
+    # Largest power of two strictly less than n (n > 1). The 6962 split point.
 def _largest_power_of_two_below(n: int) -> int:
-    """Largest power of two strictly less than n (n > 1). The 6962 split point."""
     k = 1
     while k << 1 < n:
         k <<= 1
     return k
 
 
+    # Merkle tree hash over already-hashed leaves. Empty tree hashes SHA256(b"").
 def merkle_root(leaves: list[bytes]) -> bytes:
-    """Merkle tree hash over already-hashed leaves. Empty tree hashes SHA256(b"")."""
     n = len(leaves)
     if n == 0:
         return hashlib.sha256(b"").digest()
@@ -149,8 +149,8 @@ def merkle_root(leaves: list[bytes]) -> bytes:
     return merkle_node_hash(merkle_root(leaves[:k]), merkle_root(leaves[k:]))
 
 
+    # Audit path (sibling hashes, leaf-up) for the leaf at ``index``.
 def merkle_inclusion_proof(leaves: list[bytes], index: int) -> list[bytes]:
-    """Audit path (sibling hashes, leaf-up) for the leaf at ``index``."""
     n = len(leaves)
     if index < 0 or index >= n:
         raise IndexError(f"index {index} out of range for tree size {n}")
@@ -162,6 +162,7 @@ def merkle_inclusion_proof(leaves: list[bytes], index: int) -> list[bytes]:
     return merkle_inclusion_proof(leaves[k:], index - k) + [merkle_root(leaves[:k])]
 
 
+    # Verify an inclusion proof offline (6962 algorithm). False on any mismatch.
 def verify_merkle_inclusion(
     leaf: bytes,
     index: int,
@@ -169,7 +170,6 @@ def verify_merkle_inclusion(
     proof: list[bytes],
     root: bytes,
 ) -> bool:
-    """Verify an inclusion proof offline (6962 algorithm). False on any mismatch."""
     if index < 0 or index >= tree_size or tree_size <= 0:
         return False
     if tree_size == 1:
@@ -291,13 +291,13 @@ def verify_attestation_offline(
     }
 
 
+    # Verify the receipt signature over the signed message and bind it to the claim.
 def _check_signature(
     signed_message: bytes,
     receipt: dict[str, Any],
     recomputed_hash: str,
     verify_signature: Callable[[bytes, bytes], bool],
 ) -> tuple[str, str]:
-    """Verify the receipt signature over the signed message and bind it to the claim."""
     try:
         message_obj = json.loads(signed_message)
     except (ValueError, TypeError):
@@ -313,8 +313,8 @@ def _check_signature(
     return _AXIS_FAIL, "signature does not verify over the signed message"
 
 
+    # Map per-axis results to a verdict. A good receipt is never a plain PASS.
 def _verdict(axes: list[dict[str, str]]) -> str:
-    """Map per-axis results to a verdict. A good receipt is never a plain PASS."""
     results = {a["name"]: a["result"] for a in axes}
     if any(r == _AXIS_FAIL for r in results.values()):
         return VERDICT_FAIL

@@ -17,16 +17,16 @@ from asqav.client import SignatureResponse
 _mock_haystack = ModuleType("haystack")
 
 
+    # Mock for haystack.component decorator.
 class _MockComponent:
-    """Mock for haystack.component decorator."""
 
+        # Decorator: return the class unchanged.
     def __call__(self, cls):
-        """Decorator: return the class unchanged."""
         return cls
 
+        # Return a no-op decorator for output type declarations.
     @staticmethod
     def output_types(**kwargs):
-        """Return a no-op decorator for output type declarations."""
         def decorator(func):
             return func
         return decorator
@@ -46,8 +46,8 @@ MOCK_SIGN_RESPONSE: dict = {
 }
 
 
+    # Create a component with mocked Agent.
 def _make_component() -> AsqavComponent:
-    """Create a component with mocked Agent."""
     with patch("asqav.client._api_key", "sk_test"), \
          patch("asqav.extras._base.Agent") as mock_agent_cls:
         mock_agent_cls.create.return_value = MagicMock()
@@ -106,8 +106,8 @@ class TestRun:
 
         assert result["signature_id"] is None
 
+        # run() still returns data even when signing raises.
     def test_fail_open_on_sign_error(self):
-        """run() still returns data even when signing raises."""
         comp = _make_component()
         comp._sign_action = MagicMock(return_value=None)
 

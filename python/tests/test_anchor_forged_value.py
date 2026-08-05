@@ -100,8 +100,8 @@ def _axis(value: object) -> tuple[str, str]:
     return check_anchors(env)
 
 
+    # The reported case: an all-punctuation value decoded to nothing and passed.
 def test_reported_forged_punctuation_anchor_fails() -> None:
-    """The reported case: an all-punctuation value decoded to nothing and passed."""
     state, note = _axis("!!!!")
     assert state == "FAIL"
     assert "base64-ok" not in note
@@ -155,15 +155,15 @@ def test_surplus_padding_is_refused_on_every_interpreter(value: str) -> None:
     assert _axis(value)[0] == "FAIL", repr(value)
 
 
+    # Documented behaviour change: an anchor value is one unwrapped token.
 @pytest.mark.parametrize("value", MIME_WRAPPED, ids=repr)
 def test_mime_line_wrapped_base64_is_refused(value: str) -> None:
-    """Documented behaviour change: an anchor value is one unwrapped token."""
     assert _safe_b64(value) is False, repr(value)
     assert _axis(value)[0] == "FAIL", repr(value)
 
 
+    # Every encoding a real signer emits keeps passing, padded or not.
 def test_legitimate_anchor_values_still_pass() -> None:
-    """Every encoding a real signer emits keeps passing, padded or not."""
     rng = random.Random(358)
     for n in range(1, 129):
         raw = bytes(rng.randrange(256) for _ in range(n))

@@ -103,7 +103,8 @@ def main(
         is_eager=True,
     ),
 ) -> None:
-    """AI agent governance - audit trails, policy enforcement, compliance."""
+    # AI agent governance - audit trails, policy enforcement, compliance.
+    pass
 
 
 @app.command()
@@ -351,7 +352,7 @@ def _build_sign_context(
 
 
 def _print_sign_result_json(sig: Any) -> None:
-    """Render the Signature as the documented JSON payload."""
+    # Render the Signature as the documented JSON payload.
     import json as json_mod
 
     payload = {
@@ -377,7 +378,7 @@ def _print_sign_result_json(sig: Any) -> None:
 
 
 def _print_sign_result_text(sig: Any) -> None:
-    """Render the Signature as human-readable text lines."""
+    # Render the Signature as human-readable text lines.
     print(f"signature_id: {sig.signature_id}")
     print(f"action_id:    {sig.action_id}")
     print(f"algorithm:    {sig.algorithm}")
@@ -604,7 +605,7 @@ def replay(
 
 @agents_app.command("list")
 def agents_list() -> None:
-    """List all agents for your organization."""
+    # List all agents for your organization.
     api_key = resolve_api_key()
     if not api_key:
         print("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.")
@@ -636,7 +637,7 @@ def agents_list() -> None:
 
 @agents_app.command("create")
 def agents_create(name: str = typer.Argument(help="Name for the new agent.")) -> None:
-    """Create a new agent."""
+    # Create a new agent.
     api_key = resolve_api_key()
     if not api_key:
         print("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.")
@@ -662,7 +663,7 @@ def agents_revoke(
     agent_id: str = typer.Argument(help="Agent ID to revoke."),
     reason: str = typer.Option("manual", "--reason", help="Reason recorded in the audit trail."),
 ) -> None:
-    """Revoke an agent's credentials. Irreversible."""
+    # Revoke an agent's credentials. Irreversible.
     _init_sdk()
     from asqav import Agent, APIError
 
@@ -692,7 +693,7 @@ def sessions_list(
     status: str = typer.Option("", "--status", help="Filter by session status."),
     agent_id: str = typer.Option("", "--agent", help="Filter by agent_id."),
 ) -> None:
-    """List sessions for the current org."""
+    # List sessions for the current org.
     _init_sdk()
     from asqav import APIError, list_sessions
 
@@ -722,7 +723,7 @@ def sessions_end(
     session_id: str = typer.Argument(help="Session to end."),
     status: str = typer.Option("completed", "--status", help="Final status."),
 ) -> None:
-    """End a session by setting its status."""
+    # End a session by setting its status.
     _init_sdk()
     from asqav.client import _patch
 
@@ -747,7 +748,7 @@ app.add_typer(policies_app, name="policies")
 
 @policies_app.command("list")
 def policies_list() -> None:
-    """List all org policies."""
+    # List all org policies.
     _init_sdk()
     from asqav.client import _get
 
@@ -777,7 +778,7 @@ def policies_create(
         "block", "--action", help="One of: log, block, block_and_alert."
     ),
 ) -> None:
-    """Create a new policy."""
+    # Create a new policy.
     _init_sdk()
     from asqav.client import _post
 
@@ -794,7 +795,7 @@ def policies_create(
 
 @policies_app.command("delete")
 def policies_delete(policy_id: str = typer.Argument(help="Policy ID to delete.")) -> None:
-    """Delete a policy."""
+    # Delete a policy.
     _init_sdk()
     from asqav.client import _delete
 
@@ -819,7 +820,7 @@ app.add_typer(webhooks_app, name="webhooks")
 
 @webhooks_app.command("list")
 def webhooks_list() -> None:
-    """List configured webhooks."""
+    # List configured webhooks.
     _init_sdk()
     from asqav.client import _get
 
@@ -844,7 +845,7 @@ def webhooks_create(
         "signature.created", "--events", help="Comma-separated event names."
     ),
 ) -> None:
-    """Create a webhook subscription."""
+    # Create a webhook subscription.
     _init_sdk()
     from asqav.client import _post
 
@@ -859,7 +860,7 @@ def webhooks_create(
 
 @webhooks_app.command("delete")
 def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> None:
-    """Delete a webhook."""
+    # Delete a webhook.
     _init_sdk()
     from asqav.client import _delete
 
@@ -875,7 +876,7 @@ def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> Non
 
 
 def _init_sdk() -> None:
-    """Initialize SDK with an API key from the credential chain."""
+    # Initialize SDK with an API key from the credential chain.
     import asqav
 
     api_key = resolve_api_key()
@@ -887,7 +888,7 @@ def _init_sdk() -> None:
 
 @app.command()
 def sync() -> None:
-    """Sync local queue to the Asqav API."""
+    # Sync local queue to the Asqav API.
     _init_sdk()
 
     from asqav.local import LocalQueue
@@ -924,7 +925,7 @@ def sync() -> None:
 
 @queue_app.command("list")
 def queue_list() -> None:
-    """List pending items in the local queue."""
+    # List pending items in the local queue.
     from asqav.local import LocalQueue
 
     queue = LocalQueue()
@@ -944,7 +945,7 @@ def queue_list() -> None:
 
 @queue_app.command("count")
 def queue_count() -> None:
-    """Show number of pending items in the local queue."""
+    # Show number of pending items in the local queue.
     from asqav.local import LocalQueue
 
     queue = LocalQueue()
@@ -973,7 +974,7 @@ def demo(
 
 @app.command()
 def quickstart() -> None:
-    """Get started with asqav in 60 seconds."""
+    # Get started with asqav in 60 seconds.
     api_key = resolve_api_key()
     if api_key:
         typer.echo(
@@ -1020,7 +1021,7 @@ def quickstart() -> None:
 
 
 def _detect_framework() -> str:
-    """Detect the project framework from dependency manifests in the cwd."""
+    # Detect the project framework from dependency manifests in the cwd.
     from pathlib import Path
 
     for fname in ("requirements.txt", "pyproject.toml"):
@@ -1035,7 +1036,7 @@ def _detect_framework() -> str:
 
 
 def _onboarding_snippet(framework: str) -> str:
-    """Return a short govern() + @asqav.secure snippet flavoured for the framework."""
+    # Return a short govern() + @asqav.secure snippet flavoured for the framework.
     action = {
         "openai": "api:openai:chat",
         "anthropic": "api:anthropic:messages",
@@ -1058,7 +1059,7 @@ def _onboarding_snippet(framework: str) -> str:
 
 
 def _resolve_key_source(explicit: str | None) -> tuple[str | None, str]:
-    """Resolve an API key and report which source supplied it (arg/env/file/none)."""
+    # Resolve an API key and report which source supplied it (arg/env/file/none).
     import os
 
     from asqav.credentials import load_credentials
@@ -1080,7 +1081,7 @@ def login(
     api_base: str = typer.Option("", "--api-base", help="Override the API base URL."),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing credentials file."),
 ) -> None:
-    """Validate an API key and save it to ~/.asqav/credentials."""
+    # Validate an API key and save it to ~/.asqav/credentials.
     from asqav.credentials import credentials_path, save_credentials
 
     if not api_key:
@@ -1141,7 +1142,7 @@ def whoami(
         "", "--api-key", help="API key (else ASQAV_API_KEY env, else ~/.asqav/credentials)."
     ),
 ) -> None:
-    """Show which API key source is active and validate it against the API."""
+    # Show which API key source is active and validate it against the API.
     _whoami_impl(api_key)
 
 
@@ -1151,7 +1152,7 @@ def status(
         "", "--api-key", help="API key (else ASQAV_API_KEY env, else ~/.asqav/credentials)."
     ),
 ) -> None:
-    """Alias for `asqav whoami`."""
+    # Alias for `asqav whoami`.
     _whoami_impl(api_key)
 
 
@@ -1160,7 +1161,7 @@ def init_cmd(
     write: bool = typer.Option(False, "--write", help="Write the snippet to asqav_governance.py."),
     demo: bool = typer.Option(False, "--demo", help="Run one labelled demo sign."),
 ) -> None:
-    """Print a ready-to-paste governance snippet for this project (non-invasive)."""
+    # Print a ready-to-paste governance snippet for this project (non-invasive).
     from pathlib import Path
 
     framework = _detect_framework()
@@ -1202,7 +1203,7 @@ def init_cmd(
 
 @app.command()
 def doctor() -> None:
-    """Validate your governance setup."""
+    # Validate your governance setup.
     all_ok = True
 
     # Check 1: API key
@@ -1342,7 +1343,7 @@ def doctor() -> None:
 def queue_clear(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation."),
 ) -> None:
-    """Clear all pending items from the local queue."""
+    # Clear all pending items from the local queue.
     from asqav.local import LocalQueue
 
     queue = LocalQueue()
@@ -1503,7 +1504,7 @@ def approve(
     entity_id: str = typer.Argument(help="Entity providing approval."),
     json_out: bool = typer.Option(False, "--json", help="Print result as JSON."),
 ) -> None:
-    """Approve a pending signing-action session. Wraps asqav.approve_action()."""
+    # Approve a pending signing-action session. Wraps asqav.approve_action().
     import json as json_mod
 
     _init_sdk()
@@ -2231,7 +2232,7 @@ def migrate_run(
 
 @compliance_app.command("frameworks")
 def compliance_frameworks() -> None:
-    """List the compliance frameworks the bundle exporter recognizes."""
+    # List the compliance frameworks the bundle exporter recognizes.
     from asqav.compliance import FRAMEWORKS
 
     for key, meta in sorted(FRAMEWORKS.items()):
@@ -2542,14 +2543,14 @@ _SHADOW_AI_REQUIRED_ENV_VARS = ("ASQAV_API_KEY", "ASQAV_AGENT_ID", "POSTGRES_PAS
 
 
 def _shadow_ai_template_dir() -> "object":
-    """Resolve the shipped templates directory as an importlib.resources Traversable."""
+    # Resolve the shipped templates directory as an importlib.resources Traversable.
     from importlib.resources import files
 
     return files("asqav").joinpath("templates", "shadow-ai")
 
 
 def _shadow_ai_copy_templates(dest: "object", force: bool) -> list[str]:
-    """Copy the three template files into dest, returning the written paths."""
+    # Copy the three template files into dest, returning the written paths.
     from pathlib import Path
 
     dest_path = Path(str(dest))
@@ -2567,7 +2568,7 @@ def _shadow_ai_copy_templates(dest: "object", force: bool) -> list[str]:
 
 
 def _shadow_ai_parse_env(env_path: "object") -> dict[str, str]:
-    """Return a dict of KEY=VALUE pairs from a dotenv-style file."""
+    # Return a dict of KEY=VALUE pairs from a dotenv-style file.
     from pathlib import Path
 
     out: dict[str, str] = {}
@@ -2581,7 +2582,7 @@ def _shadow_ai_parse_env(env_path: "object") -> dict[str, str]:
 
 
 def _shadow_ai_validate_env(dir_path: "object") -> "object":
-    """Return the .env path if present and required vars are non-empty, else raise."""
+    # Return the .env path if present and required vars are non-empty, else raise.
     from pathlib import Path
 
     base = Path(str(dir_path))
@@ -2617,7 +2618,7 @@ def shadow_ai_init(
         help="Overwrite existing files in the target directory.",
     ),
 ) -> None:
-    """Scaffold docker-compose.yml, .env.template, and README.md into the target directory."""
+    # Scaffold docker-compose.yml, .env.template, and README.md into the target directory.
     from pathlib import Path
 
     target = Path(dir)
@@ -2714,7 +2715,7 @@ def shadow_ai_up(
         help="Directory holding docker-compose.yml and .env.",
     ),
 ) -> None:
-    """Start the shim + signer stack via docker compose up -d --build."""
+    # Start the shim + signer stack via docker compose up -d --build.
     import subprocess
     from pathlib import Path
 
@@ -2748,7 +2749,7 @@ def shadow_ai_down(
         help="Directory holding docker-compose.yml.",
     ),
 ) -> None:
-    """Stop the shim + signer stack via docker compose down."""
+    # Stop the shim + signer stack via docker compose down.
     import subprocess
     from pathlib import Path
 
@@ -2785,7 +2786,7 @@ def shadow_ai_status(
         help="Base URL of the local signer.",
     ),
 ) -> None:
-    """Probe shim /_healthz and signer /api/v1/health/; exit 0 only if both are healthy."""
+    # Probe shim /_healthz and signer /api/v1/health/; exit 0 only if both are healthy.
     from pathlib import Path
 
     compose = Path(dir) / "docker-compose.yml"
@@ -2839,7 +2840,7 @@ def shadow_ai_logs(
         help="Show only the last N log lines (0 = all).",
     ),
 ) -> None:
-    """Tail docker compose logs for the shim + signer stack."""
+    # Tail docker compose logs for the shim + signer stack.
     import subprocess
     from pathlib import Path
 

@@ -55,8 +55,8 @@ _MAX_RETRIES = 5
 _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
 
 
+    # Execute function with exponential backoff retry on rate limit/network errors.
 def _with_retry(func: Callable[[], Any]) -> Any:
-    """Execute function with exponential backoff retry on rate limit/network errors."""
     last_error: Exception | None = None
     for attempt, delay in enumerate(_RETRY_DELAYS):
         try:
@@ -68,8 +68,8 @@ def _with_retry(func: Callable[[], Any]) -> Any:
     raise last_error
 
 
+    # Hash an arbitrary value with SHA-256 for output verification.
 def _hash_value(value: Any) -> str:
-    """Hash an arbitrary value with SHA-256 for output verification."""
     if isinstance(value, str):
         raw = value.encode("utf-8")
     elif isinstance(value, bytes):
@@ -79,8 +79,8 @@ def _hash_value(value: Any) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+    # Parse a timestamp from API response (ISO string or float).
 def _parse_timestamp(value: Any) -> float:
-    """Parse a timestamp from API response (ISO string or float)."""
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):
@@ -132,26 +132,26 @@ _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
 )
 
 
+    # Base exception for asqav errors.
 class AsqavError(Exception):
-    """Base exception for asqav errors."""
 
     pass
 
 
+    # Raised when API key is missing or invalid.
 class AuthenticationError(AsqavError):
-    """Raised when API key is missing or invalid."""
 
     pass
 
 
+    # Raised when rate limit is exceeded.
 class RateLimitError(AsqavError):
-    """Raised when rate limit is exceeded."""
 
     pass
 
 
+    # Raised for general API errors.
 class APIError(AsqavError):
-    """Raised for general API errors."""
 
     def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
@@ -204,9 +204,9 @@ def require_field(data: dict[str, Any], name: str) -> Any:
     return data[name]
 
 
+    # Response from agent creation.
 @dataclass
 class AgentResponse:
-    """Response from agent creation."""
 
     agent_id: str
     name: str
@@ -217,17 +217,17 @@ class AgentResponse:
     created_at: float
 
 
+    # Response from token issuance.
 @dataclass
 class TokenResponse:
-    """Response from token issuance."""
 
     token: str
     expires_at: float
     algorithm: str
 
 
+    # Turn the JSON bitcoin_anchor block from the API into a typed value.
 def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
-    """Turn the JSON bitcoin_anchor block from the API into a typed value."""
     if not raw:
         return None
     return BitcoinAnchor(
@@ -386,8 +386,8 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
 
+    # Read a string ``key`` from the sign response ``payload`` object, else None.
 def _payload_field(data: dict[str, Any], key: str) -> str | None:
-    """Read a string ``key`` from the sign response ``payload`` object, else None."""
     payload = data.get("payload")
     if not isinstance(payload, dict):
         return None
@@ -395,16 +395,16 @@ def _payload_field(data: dict[str, Any], key: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+    # Top-level ``action_ref`` wins; compliance-mode clouds nest it under payload.
 def _resolve_action_ref(data: dict[str, Any]) -> str | None:
-    """Top-level ``action_ref`` wins; compliance-mode clouds nest it under payload."""
     top = data.get("action_ref")
     if top is not None:
         return top
     return _payload_field(data, "action_ref")
 
 
+    # Either casing at top level wins; fall back to the copy nested under payload.
 def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
-    """Either casing at top level wins; fall back to the copy nested under payload."""
     return (
         data.get("previousReceiptHash")
         or data.get("previous_receipt_hash")
@@ -502,9 +502,9 @@ class SignatureResponse:
         return self.anchors
 
 
+    # Response from session operations.
 @dataclass
 class SessionResponse:
-    """Response from session operations."""
 
     session_id: str
     agent_id: str
@@ -546,14 +546,14 @@ class SDTokenResponse:
                 parts.append(self.disclosures[claim_name])
         return "~".join(parts) + "~"
 
+        # Return full SD-JWT with all disclosures.
     def full(self) -> str:
-        """Return full SD-JWT with all disclosures."""
         return self.token
 
 
+    # Agent identity certificate.
 @dataclass
 class CertificateResponse:
-    """Agent identity certificate."""
 
     agent_id: str
     agent_name: str
@@ -671,9 +671,9 @@ class VerificationResponse:
     algorithm_registry_version: str | None = None
 
 
+    # Signed action from a session.
 @dataclass
 class SignedActionResponse:
-    """Signed action from a session."""
 
     signature_id: str
     agent_id: str
@@ -686,9 +686,9 @@ class SignedActionResponse:
     verification_url: str
 
 
+    # Details of a single entity signature within a signing session.
 @dataclass
 class SignatureDetail:
-    """Details of a single entity signature within a signing session."""
 
     entity_id: str
     entity_name: str
@@ -696,9 +696,9 @@ class SignatureDetail:
     signed_at: str
 
 
+    # Response from signing session operations.
 @dataclass
 class SigningSessionResponse:
-    """Response from signing session operations."""
 
     session_id: str
     config_id: str
@@ -715,9 +715,9 @@ class SigningSessionResponse:
     resolved_at: str | None = None
 
 
+    # Response from signing approval operation.
 @dataclass
 class ApprovalResponse:
-    """Response from signing approval operation."""
 
     session_id: str
     entity_id: str
@@ -727,9 +727,9 @@ class ApprovalResponse:
     approved: bool
 
 
+    # Response from signing group operations.
 @dataclass
 class SigningGroupResponse:
-    """Response from signing group operations."""
 
     id: str
     agent_id: str
@@ -740,9 +740,9 @@ class SigningGroupResponse:
     updated_at: str | None = None
 
 
+    # Response from signing entity operations.
 @dataclass
 class SigningEntityResponse:
-    """Response from signing entity operations."""
 
     id: str
     config_id: str
@@ -752,9 +752,9 @@ class SigningEntityResponse:
     created_at: str
 
 
+    # Response from group keypair operations.
 @dataclass
 class GroupKeypairResponse:
-    """Response from group keypair operations."""
 
     id: str
     config_id: str
@@ -765,9 +765,9 @@ class GroupKeypairResponse:
     status: str = "active"
 
 
+    # Response from group signing operation.
 @dataclass
 class GroupSignResponse:
-    """Response from group signing operation."""
 
     signature_hex: str
     message_hex: str
@@ -776,9 +776,9 @@ class GroupSignResponse:
     audit_record_id: str | None = None
 
 
+    # Response from risk rule operations.
 @dataclass
 class RiskRuleResponse:
-    """Response from risk rule operations."""
 
     id: str
     name: str
@@ -791,9 +791,9 @@ class RiskRuleResponse:
     created_at: str = ""
 
 
+    # Response from delegation operations.
 @dataclass
 class DelegationResponse:
-    """Response from delegation operations."""
 
     id: str
     config_id: str
@@ -804,18 +804,18 @@ class DelegationResponse:
     created_at: str
 
 
+    # Response from key share refresh operation.
 @dataclass
 class KeyRefreshResponse:
-    """Response from key share refresh operation."""
 
     keypair_id: str
     refreshed_at: str
     delegations_invalidated: int
 
 
+    # Response from key share recovery operation.
 @dataclass
 class ShareRecoveryResponse:
-    """Response from key share recovery operation."""
 
     keypair_id: str
     recovered_entity_id: str
@@ -861,12 +861,12 @@ class Span:
     status: str = "ok"
     signature: str | None = None
 
+        # Add an attribute to the span.
     def set_attribute(self, key: str, value: Any) -> None:
-        """Add an attribute to the span."""
         self.attributes[key] = value
 
+        # Set span status (ok, error).
     def set_status(self, status: str) -> None:
-        """Set span status (ok, error)."""
         self.status = status
 
 
@@ -938,8 +938,8 @@ def span(
         _completed_spans.append(span_obj)
 
 
+    # Get the active span, if any.
 def get_current_span() -> Span | None:
-    """Get the active span, if any."""
     return _current_span
 
 
@@ -957,8 +957,8 @@ def configure_otel(endpoint: str | None = None) -> None:
     _otel_endpoint = endpoint
 
 
+    # Convert a Span to OTEL format.
 def span_to_otel(s: Span) -> dict[str, Any]:
-    """Convert a Span to OTEL format."""
     return {
         "traceId": s.span_id.replace("-", "")[:32].ljust(32, "0"),
         "spanId": s.span_id.replace("-", "")[:16],
@@ -991,8 +991,8 @@ def export_spans() -> list[dict[str, Any]]:
     return spans
 
 
+    # Flush spans to configured OTEL endpoint.
 def flush_spans() -> None:
-    """Flush spans to configured OTEL endpoint."""
     global _otel_endpoint, _completed_spans
 
     if not _otel_endpoint or not _completed_spans:
@@ -2595,23 +2595,23 @@ class Agent:
             payload["note"] = note
         return _post(f"/agents/{self.agent_id}/suspend", payload)
 
+        # Remove suspension from this agent.
     def unsuspend(self) -> dict[str, Any]:
-        """Remove suspension from this agent."""
         return _post(f"/agents/{self.agent_id}/unsuspend", {})
 
+        # Permanently retire this agent (keys archived, no further activity).
     def decommission(self, reason: str = "manual") -> dict[str, Any]:
-        """Permanently retire this agent (keys archived, no further activity)."""
         return _post(
             f"/agents/{self.agent_id}/decommission",
             {"reason": reason},
         )
 
+        # Block signing and token issuance, keep read + verify. Enterprise.
     def quarantine(self) -> dict[str, Any]:
-        """Block signing and token issuance, keep read + verify. Enterprise."""
         return _post(f"/agents/{self.agent_id}/quarantine", {})
 
+        # Restore normal signing and token issuance after quarantine.
     def unquarantine(self) -> dict[str, Any]:
-        """Restore normal signing and token issuance after quarantine."""
         return _post(f"/agents/{self.agent_id}/unquarantine", {})
 
     def delegate(
@@ -2649,15 +2649,15 @@ class Agent:
             created_at=_parse_timestamp(data["created_at"]),
         )
 
+        # Check if this agent is revoked.
     @property
     def is_revoked(self) -> bool:
-        """Check if this agent is revoked."""
         data = _get(f"/agents/{self.agent_id}/status")
         return bool(data.get("revoked", False))
 
+        # Check if this agent is suspended.
     @property
     def is_suspended(self) -> bool:
-        """Check if this agent is suspended."""
         data = _get(f"/agents/{self.agent_id}/status")
         return bool(data.get("suspended", False))
 
@@ -2836,8 +2836,8 @@ def health_check() -> dict[str, Any]:
     return _get("/health")
 
 
+    # Generate a unique trace ID for correlating actions across a workflow.
 def generate_trace_id() -> str:
-    """Generate a unique trace ID for correlating actions across a workflow."""
     return uuid.uuid4().hex
 
 
@@ -2970,9 +2970,9 @@ def govern(
     return Agent.create(agent_name, algorithm=algorithm, capabilities=capabilities)
 
 
+    # Make a GET request to the API.
 @with_retry()
 def _get(path: str) -> dict[str, Any]:
-    """Make a GET request to the API."""
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
@@ -2985,9 +2985,9 @@ def _get(path: str) -> dict[str, Any]:
         return _urllib_request("GET", path)
 
 
+    # Make a POST request to the API.
 @with_retry()
 def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    """Make a POST request to the API."""
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
@@ -2999,9 +2999,9 @@ def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("POST", path, data)
 
 
+    # Make a PATCH request to the API.
 @with_retry()
 def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    """Make a PATCH request to the API."""
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
@@ -3013,9 +3013,9 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("PATCH", path, data)
 
 
+    # Make a PUT request to the API.
 @with_retry()
 def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    """Make a PUT request to the API."""
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
@@ -3027,9 +3027,9 @@ def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return _urllib_request("PUT", path, data)
 
 
+    # Make a DELETE request to the API.
 @with_retry()
 def _delete(path: str) -> dict[str, Any]:
-    """Make a DELETE request to the API."""
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
@@ -3041,14 +3041,14 @@ def _delete(path: str) -> dict[str, Any]:
         return _urllib_request("DELETE", path)
 
 
+    # Ensure the SDK is initialized.
 def _ensure_initialized() -> None:
-    """Ensure the SDK is initialized."""
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
 
 
+    # Handle API response errors.
 def _handle_response(response: Any) -> None:
-    """Handle API response errors."""
     if response.status_code == 401:
         raise AuthenticationError("Invalid API key")
     elif response.status_code == 429:
@@ -3070,12 +3070,12 @@ def _handle_response(response: Any) -> None:
         raise APIError(error, response.status_code)
 
 
+    # HTTP client using stdlib urllib (used when httpx not installed).
 def _urllib_request(
     method: str,
     path: str,
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """HTTP client using stdlib urllib (used when httpx not installed)."""
     import json
     import urllib.error
     import urllib.request
@@ -3155,8 +3155,8 @@ def list_agents() -> list[Agent]:
     return out
 
 
+    # Generate an agent name from environment.
 def _auto_generate_name() -> str:
-    """Generate an agent name from environment."""
     env_name = os.environ.get("ASQAV_AGENT_NAME")
     if env_name:
         return env_name
@@ -3927,8 +3927,8 @@ def get_action_status(session_id: str) -> SigningSessionResponse:
     return _parse_signing_session(data)
 
 
+    # Parse API response into a SigningSessionResponse.
 def _parse_signing_session(data: dict[str, Any]) -> SigningSessionResponse:
-    """Parse API response into a SigningSessionResponse."""
     signatures = [
         SignatureDetail(
             entity_id=s["entity_id"],
@@ -4024,8 +4024,8 @@ def update_signing_group(
     return _parse_signing_group(data)
 
 
+    # Parse API response into a SigningGroupResponse.
 def _parse_signing_group(data: dict[str, Any]) -> SigningGroupResponse:
-    """Parse API response into a SigningGroupResponse."""
     return SigningGroupResponse(
         id=data["id"],
         agent_id=data["agent_id"],
@@ -4235,8 +4235,8 @@ def recover_share(
     )
 
 
+    # Parse API response into a GroupKeypairResponse.
 def _parse_group_keypair(data: dict[str, Any]) -> GroupKeypairResponse:
-    """Parse API response into a GroupKeypairResponse."""
     return GroupKeypairResponse(
         id=data["id"],
         config_id=data["config_id"],
@@ -4354,8 +4354,8 @@ def delete_risk_rule(rule_id: str) -> dict[str, Any]:
     return _delete(f"/risk-rules/{rule_id}")
 
 
+    # Parse API response into RiskRuleResponse.
 def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
-    """Parse API response into RiskRuleResponse."""
     return RiskRuleResponse(
         id=data["id"],
         name=data["name"],
@@ -4447,8 +4447,8 @@ def revoke_delegation(delegation_id: str) -> dict[str, Any]:
     return _delete(f"/signing-groups/delegations/{delegation_id}")
 
 
+    # Parse API response into a DelegationResponse.
 def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
-    """Parse API response into a DelegationResponse."""
     return DelegationResponse(
         id=data["id"],
         config_id=data["config_id"],
@@ -4741,9 +4741,9 @@ def verify_attestation(attestation: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+    # Result of a budget pre-check for an agent action.
 @dataclass
 class BudgetCheckResult:
-    """Result of a budget pre-check for an agent action."""
 
     allowed: bool
     current_spend: float
@@ -4878,8 +4878,8 @@ class BudgetTracker:
         self._records.append(sig.signature_id)
         return sig
 
+        # Get current budget status.
     def status(self) -> dict[str, Any]:
-        """Get current budget status."""
         return {
             "limit": self.limit,
             "currency": self.currency,

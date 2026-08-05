@@ -56,13 +56,13 @@ def _ok_response(extra: dict | None = None) -> dict:
 # === observation decision + policy_decision="none" ===
 
 
+    # The lifecycle opt-out token maps to the wire `observation` decision.
 def test_decision_map_includes_none_to_observation() -> None:
-    """The lifecycle opt-out token maps to the wire `observation` decision."""
     assert DECISION_MAP["none"] == "observation"
 
 
+    # `_map_policy_decision_to_decision('none')` returns `observation`.
 def test_map_policy_decision_translates_none() -> None:
-    """`_map_policy_decision_to_decision('none')` returns `observation`."""
     assert _map_policy_decision_to_decision("none") == "observation"
 
 
@@ -94,8 +94,8 @@ def test_decision_vocabulary_includes_observation() -> None:
     assert resp.decision == "observation"
 
 
+    # An older cloud may omit `decision`; the SDK maps `none` locally.
 def test_observation_round_trips_on_response_without_cloud_field() -> None:
-    """An older cloud may omit `decision`; the SDK maps `none` locally."""
     extra = {
         "compliance_mode": True,
         "policy_decision": "none",
@@ -115,8 +115,8 @@ def test_observation_round_trips_on_response_without_cloud_field() -> None:
 # === capture_topology vocabulary ===
 
 
+    # SDK namespace mirrors the cloud SignRequest Literal exactly.
 def test_capture_topology_namespace_matches_cloud_literal() -> None:
-    """SDK namespace mirrors the cloud SignRequest Literal exactly."""
     assert CAPTURE_TOPOLOGY_NAMESPACE == frozenset(
         {
             "in_process_sdk",
@@ -129,24 +129,24 @@ def test_capture_topology_namespace_matches_cloud_literal() -> None:
     )
 
 
+    # The capture_topology vocabulary excludes ebpf_observer.
 def test_capture_topology_ebpf_observer_removed() -> None:
-    """The capture_topology vocabulary excludes ebpf_observer."""
     assert "ebpf_observer" not in CAPTURE_TOPOLOGY_NAMESPACE
 
 
+    # github_sha_pull (the server-stamped code-authorship layer) is accepted.
 def test_capture_topology_github_sha_pull_accepted() -> None:
-    """github_sha_pull (the server-stamped code-authorship layer) is accepted."""
     assert "github_sha_pull" in CAPTURE_TOPOLOGY_NAMESPACE
 
 
+    # `asqav.CAPTURE_TOPOLOGY_NAMESPACE` is part of the public surface.
 def test_capture_topology_is_re_exported_at_top_level() -> None:
-    """`asqav.CAPTURE_TOPOLOGY_NAMESPACE` is part of the public surface."""
     assert asqav.CAPTURE_TOPOLOGY_NAMESPACE == CAPTURE_TOPOLOGY_NAMESPACE
 
 
+    # All five canonical values are forwarded verbatim on the body.
 @pytest.mark.parametrize("value", sorted(CAPTURE_TOPOLOGY_NAMESPACE))
 def test_capture_topology_passes_through(value: str) -> None:
-    """All five canonical values are forwarded verbatim on the body."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -163,8 +163,8 @@ def test_capture_topology_passes_through(value: str) -> None:
     assert captured["body"]["capture_topology"] == value
 
 
+    # A value outside the closed Literal is rejected before the HTTP call.
 def test_capture_topology_invalid_value_rejected() -> None:
-    """A value outside the closed Literal is rejected before the HTTP call."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="invalid_capture_topology"):
             _agent().sign(
@@ -176,8 +176,8 @@ def test_capture_topology_invalid_value_rejected() -> None:
         p.assert_not_called()
 
 
+    # No body key when the caller does not pass the kwarg.
 def test_capture_topology_absent_when_not_set() -> None:
-    """No body key when the caller does not pass the kwarg."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -215,9 +215,9 @@ def test_capture_topology_dropped_outside_compliance_mode() -> None:
 # === parametrised vocabulary parity (capture_topology + receipt_type) ===
 
 
+    # Every value in the 6-token vocabulary is forwarded on the body.
 @pytest.mark.parametrize("value", sorted(CAPTURE_TOPOLOGY_NAMESPACE))
 def test_capture_topology_parametrised_accepts_all_values(value: str) -> None:
-    """Every value in the 6-token vocabulary is forwarded on the body."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -239,11 +239,11 @@ def test_capture_topology_parametrised_accepts_all_values(value: str) -> None:
     assert captured["body"]["capture_topology"] == value
 
 
+    # Any value outside the closed vocabulary is rejected client-side.
 @pytest.mark.parametrize(
     "bad_value", ["bogus", "in-process-sdk", "PASSIVE_TELEMETRY", " "]
 )
 def test_capture_topology_parametrised_rejects_unknown(bad_value: str) -> None:
-    """Any value outside the closed vocabulary is rejected client-side."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="invalid_capture_topology"):
             _agent().sign(
@@ -255,9 +255,9 @@ def test_capture_topology_parametrised_rejects_unknown(bad_value: str) -> None:
         p.assert_not_called()
 
 
+    # Every token in the receipt_type vocabulary is accepted client-side.
 @pytest.mark.parametrize("value", sorted(RECEIPT_TYPE_NAMESPACE))
 def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
-    """Every token in the receipt_type vocabulary is accepted client-side."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -291,12 +291,12 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
     assert captured["body"]["receipt_type"] == value
 
 
+    # Any token outside the closed receipt-type vocabulary is rejected.
 @pytest.mark.parametrize(
     "bad_value",
     ["protectmcp:bogus", "protectmcp:Observation", "decision", "observation"],
 )
 def test_receipt_type_parametrised_rejects_unknown(bad_value: str) -> None:
-    """Any token outside the closed receipt-type vocabulary is rejected."""
     with patch("asqav.client._post") as p:
         with pytest.raises(ValueError, match="invalid_receipt_type"):
             _agent().sign(
@@ -384,8 +384,8 @@ class TestFalseAttestationGuardWidened:
         assert captured["body"]["receipt_type"] == "protectmcp:observation"
 
 
+    # The matched pair (passive_telemetry + :observation) passes through.
 def test_passive_telemetry_with_observation_receipt_accepted() -> None:
-    """The matched pair (passive_telemetry + :observation) passes through."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:

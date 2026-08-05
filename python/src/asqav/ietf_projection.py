@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 
+    # Return ``{alg, kid, sig}`` for compliance-mode receipts, else ``None`` (flat shape).
 def signature_envelope_from_response(response: Any) -> dict[str, str] | None:
-    """Return ``{alg, kid, sig}`` for compliance-mode receipts, else ``None`` (flat shape)."""
     sig = _get(response, "signature")
     if isinstance(sig, dict):
         keys = set(sig.keys())
@@ -15,16 +15,16 @@ def signature_envelope_from_response(response: Any) -> dict[str, str] | None:
     return None
 
 
+    # Return the ``anchors[]`` array when present, else ``None``.
 def anchors_from_response(response: Any) -> list[dict[str, Any]] | None:
-    """Return the ``anchors[]`` array when present, else ``None``."""
     anchors = _get(response, "anchors")
     if isinstance(anchors, list):
         return [dict(e) for e in anchors]
     return None
 
 
+    # Helper for callers that hold raw anchor bytes locally.
 def encode_anchor_value(raw: bytes) -> str:
-    """Helper for callers that hold raw anchor bytes locally."""
     import base64
 
     return base64.b64encode(raw).decode()
