@@ -29,10 +29,10 @@ AGENT = AsyncAgent(
 )
 
 
+    # A status fetch error blocks rather than silently clearing the agent.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_status_fetch_error_does_not_clear(mock_get: AsyncMock) -> None:
-    """A status fetch error blocks rather than silently clearing the agent."""
     mock_get.side_effect = [
         ConnectionError("network down"),  # status check
         [],  # policies check
@@ -44,10 +44,10 @@ async def test_status_fetch_error_does_not_clear(mock_get: AsyncMock) -> None:
     assert "could not verify" in result.explanation.lower()
 
 
+    # A policy fetch error blocks rather than silently clearing the agent.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_policy_fetch_error_does_not_clear(mock_get: AsyncMock) -> None:
-    """A policy fetch error blocks rather than silently clearing the agent."""
     mock_get.side_effect = [
         {"revoked": False, "suspended": False},  # status check
         ConnectionError("network down"),  # policies check
@@ -58,10 +58,10 @@ async def test_policy_fetch_error_does_not_clear(mock_get: AsyncMock) -> None:
     assert result.checks_complete is False
 
 
+    # A non-list /policies response fails closed instead of silently clearing.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_non_list_policies_does_not_clear(mock_get: AsyncMock) -> None:
-    """A non-list /policies response fails closed instead of silently clearing."""
     mock_get.side_effect = [
         {"revoked": False, "suspended": False},  # status check
         {"policies": []},  # anomalous non-list policies response
@@ -73,11 +73,11 @@ async def test_non_list_policies_does_not_clear(mock_get: AsyncMock) -> None:
     assert any("unexpected response" in r for r in result.reasons)
 
 
+    # A non-dict /status body fails closed (parity pin for the TS fix).
 @pytest.mark.asyncio
 @pytest.mark.parametrize("status_body", [["x"], "revoked", 5, []])
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_non_dict_status_does_not_clear(mock_get: AsyncMock, status_body) -> None:
-    """A non-dict /status body fails closed (parity pin for the TS fix)."""
     mock_get.side_effect = [
         status_body,  # anomalous non-dict status response
         [],  # policies check
@@ -89,10 +89,10 @@ async def test_non_dict_status_does_not_clear(mock_get: AsyncMock, status_body) 
     assert "could not verify" in result.explanation.lower()
 
 
+    # An active agent with no blocking policy clears, checks_complete True.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_happy_path_still_clears(mock_get: AsyncMock) -> None:
-    """An active agent with no blocking policy clears, checks_complete True."""
     mock_get.side_effect = [
         {"revoked": False, "suspended": False},  # status check
         [],  # policies check
@@ -103,10 +103,10 @@ async def test_happy_path_still_clears(mock_get: AsyncMock) -> None:
     assert result.checks_complete is True
 
 
+    # A revoked agent blocks with checks_complete True, distinct from an error.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_revoked_agent_is_a_real_verdict(mock_get: AsyncMock) -> None:
-    """A revoked agent blocks with checks_complete True, distinct from an error."""
     mock_get.side_effect = [
         {"revoked": True, "suspended": False},  # status check
         [],  # policies check

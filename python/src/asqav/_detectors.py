@@ -129,8 +129,8 @@ def register_detector(detector: DetectorPlugin, *, fail_open: bool = False) -> N
     _registry.append((detector, fail_open))
 
 
+    # Remove all registered detectors (useful in tests).
 def clear_detectors() -> None:
-    """Remove all registered detectors (useful in tests)."""
     _registry.clear()
 
 

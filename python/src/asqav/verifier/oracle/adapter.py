@@ -62,11 +62,13 @@ class FormatAdapter(ABC):
 
     @abstractmethod
     def detect(self, doc: dict) -> bool:
-        """Cheap structural test: does this adapter own ``doc``? No crypto."""
+        # Cheap structural test: does this adapter own ``doc``? No crypto.
+        pass
 
     @abstractmethod
     def extract_signature(self, doc: dict) -> SignatureMaterial:
-        """Pull the issuer signature bytes plus alg and kid out of ``doc``."""
+        # Pull the issuer signature bytes plus alg and kid out of ``doc``.
+        pass
 
     @abstractmethod
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
@@ -86,11 +88,13 @@ class FormatAdapter(ABC):
 
     @abstractmethod
     def chain_step(self, doc: dict) -> ChainStep:
-        """Describe how this receipt links to its predecessor."""
+        # Describe how this receipt links to its predecessor.
+        pass
 
     @abstractmethod
     def schema(self, doc: dict) -> tuple[str, str]:
-        """Structural check; returns ``(result, note)`` with PASS / FAIL."""
+        # Structural check; returns ``(result, note)`` with PASS / FAIL.
+        pass
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         """Format-specific axes beyond structure / issuer-signature / chain.

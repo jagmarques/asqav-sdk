@@ -69,11 +69,11 @@ _WRITE_SQL_POLICY = [
 # ---------------------------------------------------------------------------
 
 
+    # data:delete:* policy blocks data:write:sql:DELETE FROM users.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_delete_from(mock_post, mock_get):
-    """data:delete:* policy blocks data:write:sql:DELETE FROM users."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -85,11 +85,11 @@ def test_delete_policy_blocks_write_sql_delete_from(mock_post, mock_get):
     assert any("no-deletions" in r for r in result.reasons)
 
 
+    # data:delete:* policy blocks data:write:sql:DELETE_FROM_users (underscore form).
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_delete_from_underscore(mock_post, mock_get):
-    """data:delete:* policy blocks data:write:sql:DELETE_FROM_users (underscore form)."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -101,11 +101,11 @@ def test_delete_policy_blocks_write_sql_delete_from_underscore(mock_post, mock_g
     assert any("no-deletions" in r for r in result.reasons)
 
 
+    # data:delete:* policy blocks data:write:sql:DROP TABLE t.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_drop(mock_post, mock_get):
-    """data:delete:* policy blocks data:write:sql:DROP TABLE t."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -116,11 +116,11 @@ def test_delete_policy_blocks_write_sql_drop(mock_post, mock_get):
     assert result.policy_allowed is False
 
 
+    # data:delete:* policy blocks data:write:sql:TRUNCATE TABLE t.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_truncate(mock_post, mock_get):
-    """data:delete:* policy blocks data:write:sql:TRUNCATE TABLE t."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -131,11 +131,11 @@ def test_delete_policy_blocks_write_sql_truncate(mock_post, mock_get):
     assert result.policy_allowed is False
 
 
+    # Regression guard: data:write:sql:* policy still blocks a DELETE write action.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_regression_write_policy_still_blocks_destructive_write(mock_post, mock_get):
-    """Regression guard: data:write:sql:* policy still blocks a DELETE write action."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _WRITE_SQL_POLICY]
@@ -147,11 +147,11 @@ def test_regression_write_policy_still_blocks_destructive_write(mock_post, mock_
     assert any("no-sql-writes" in r for r in result.reasons)
 
 
+    # data:delete:* policy must not block data:write:sql:INSERT INTO t.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_negative_delete_policy_does_not_block_benign_write(mock_post, mock_get):
-    """data:delete:* policy must not block data:write:sql:INSERT INTO t."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -162,11 +162,11 @@ def test_negative_delete_policy_does_not_block_benign_write(mock_post, mock_get)
     assert result.policy_allowed is True
 
 
+    # data:delete:* policy must not block data:read:sql:SELECT delete_flag FROM t.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_negative_delete_policy_does_not_block_read_mentioning_delete(mock_post, mock_get):
-    """data:delete:* policy must not block data:read:sql:SELECT delete_flag FROM t."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -177,11 +177,11 @@ def test_negative_delete_policy_does_not_block_read_mentioning_delete(mock_post,
     assert result.policy_allowed is True
 
 
+    # deleted_at in a write action does not trigger the destructive verb detection.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_negative_deleted_at_is_not_destructive(mock_post, mock_get):
-    """deleted_at in a write action does not trigger the destructive verb detection."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -207,8 +207,8 @@ _UPPER_WRITE_SQL_POLICY = [
 # ---------------------------------------------------------------------------
 
 
+    # Uppercase and whitespace variants produce the same candidates as lowercase.
 def test_action_candidates_normalize_case_and_whitespace():
-    """Uppercase and whitespace variants produce the same candidates as lowercase."""
     from asqav._sql_match import action_candidates
 
     base = action_candidates("data:write:sql:DELETE FROM users")
@@ -220,11 +220,11 @@ def test_action_candidates_normalize_case_and_whitespace():
     assert "data:delete:sql:delete from users" in base
 
 
+    # A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_uppercase_action_blocked_by_lowercase_delete_policy(mock_post, mock_get):
-    """A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -236,11 +236,11 @@ def test_uppercase_action_blocked_by_lowercase_delete_policy(mock_post, mock_get
     assert any("no-deletions" in r for r in result.reasons)
 
 
+    # Leading/trailing whitespace does not let a DELETE write dodge the policy.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_whitespace_action_blocked_by_delete_policy(mock_post, mock_get):
-    """Leading/trailing whitespace does not let a DELETE write dodge the policy."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -251,11 +251,11 @@ def test_whitespace_action_blocked_by_delete_policy(mock_post, mock_get):
     assert result.policy_allowed is False
 
 
+    # A lowercase data:write:sql:* pattern blocks an uppercase write action.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_lowercase_pattern_blocks_uppercase_action(mock_post, mock_get):
-    """A lowercase data:write:sql:* pattern blocks an uppercase write action."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _WRITE_SQL_POLICY]
@@ -267,11 +267,11 @@ def test_lowercase_pattern_blocks_uppercase_action(mock_post, mock_get):
     assert any("no-sql-writes" in r for r in result.reasons)
 
 
+    # An uppercase DATA:WRITE:SQL:* pattern blocks a lowercase write action.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
-    """An uppercase DATA:WRITE:SQL:* pattern blocks a lowercase write action."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _UPPER_WRITE_SQL_POLICY]
@@ -287,12 +287,12 @@ def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
 # ---------------------------------------------------------------------------
 
 
+    # Each extended destructive verb matches the data:delete:* augment.
 @pytest.mark.parametrize("verb", ["GRANT", "REVOKE", "REPLACE", "COPY", "UPSERT"])
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_extended_destructive_verb_blocked_by_delete_policy(mock_post, mock_get, verb):
-    """Each extended destructive verb matches the data:delete:* augment."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
@@ -309,10 +309,10 @@ def test_extended_destructive_verb_blocked_by_delete_policy(mock_post, mock_get,
 # ---------------------------------------------------------------------------
 
 
+    # Async: data:delete:* policy blocks data:write:sql:DELETE FROM users.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_async_delete_policy_blocks_write_sql_delete(mock_get):
-    """Async: data:delete:* policy blocks data:write:sql:DELETE FROM users."""
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
 
     result = await ASYNC_AGENT.preflight("data:write:sql:DELETE FROM users")
@@ -322,10 +322,10 @@ async def test_async_delete_policy_blocks_write_sql_delete(mock_get):
     assert any("no-deletions" in r for r in result.reasons)
 
 
+    # Async: data:delete:* policy blocks data:write:sql:DROP TABLE t.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_async_delete_policy_blocks_write_sql_drop(mock_get):
-    """Async: data:delete:* policy blocks data:write:sql:DROP TABLE t."""
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
 
     result = await ASYNC_AGENT.preflight("data:write:sql:DROP TABLE t")
@@ -334,10 +334,10 @@ async def test_async_delete_policy_blocks_write_sql_drop(mock_get):
     assert result.policy_allowed is False
 
 
+    # Async regression guard: data:write:sql:* still blocks a destructive write.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_async_regression_write_policy_still_fires(mock_get):
-    """Async regression guard: data:write:sql:* still blocks a destructive write."""
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _WRITE_SQL_POLICY]
 
     result = await ASYNC_AGENT.preflight("data:write:sql:DELETE FROM users")
@@ -347,10 +347,10 @@ async def test_async_regression_write_policy_still_fires(mock_get):
     assert any("no-sql-writes" in r for r in result.reasons)
 
 
+    # Async: data:delete:* policy must not block a benign INSERT.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_async_negative_delete_policy_does_not_block_insert(mock_get):
-    """Async: data:delete:* policy must not block a benign INSERT."""
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
 
     result = await ASYNC_AGENT.preflight("data:write:sql:INSERT INTO t VALUES (1)")
@@ -359,10 +359,10 @@ async def test_async_negative_delete_policy_does_not_block_insert(mock_get):
     assert result.policy_allowed is True
 
 
+    # Async: data:delete:* does not block data:read:sql:SELECT delete_flag FROM t.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_async_negative_delete_policy_does_not_block_read(mock_get):
-    """Async: data:delete:* does not block data:read:sql:SELECT delete_flag FROM t."""
     mock_get.side_effect = [{"revoked": False, "suspended": False}, _DELETE_POLICY]
 
     result = await ASYNC_AGENT.preflight("data:read:sql:SELECT delete_flag FROM t")

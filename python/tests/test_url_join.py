@@ -74,11 +74,11 @@ class _FakeResponse:
         return self._body
 
 
+    # The stdlib fallback must hit the exact URL the httpx client would.
 @pytest.mark.parametrize("base", [BASE_WITH_PATH, BASE_NO_PATH])
 def test_urllib_fallback_requests_same_url_as_httpx(
     monkeypatch: pytest.MonkeyPatch, base: str
 ) -> None:
-    """The stdlib fallback must hit the exact URL the httpx client would."""
     httpx = pytest.importorskip("httpx")
     expected = str(
         httpx.Client(base_url=base).build_request("POST", "/agents/create").url
@@ -101,10 +101,10 @@ def test_urllib_fallback_requests_same_url_as_httpx(
         assert captured["url"] == "https://api.asqav.com/api/v1/agents/create"
 
 
+    # Direct pin of the funnel bug: prefix survives for the quickstart call.
 def test_urllib_fallback_never_strips_api_prefix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Direct pin of the funnel bug: prefix survives for the quickstart call."""
     captured: dict[str, str] = {}
 
     def fake_urlopen(request: urllib.request.Request, timeout: float = 0) -> _FakeResponse:

@@ -25,8 +25,8 @@ FAIL = "FAIL"
 SKIPPED = "SKIPPED"
 
 
+    # ML-DSA-65 verify via the standalone tool's dilithium-py path.
 def verify_ml_dsa_65(pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
-    """ML-DSA-65 verify via the standalone tool's dilithium-py path."""
     return _vr.verify_signature(pk, msg, sig, "ML-DSA-65")
 
 
@@ -97,8 +97,8 @@ _DISPATCH = {
 }
 
 
+    # Dispatch to the algorithm's verifier; SKIP an unsupported alg.
 def verify_signature(alg: object, pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
-    """Dispatch to the algorithm's verifier; SKIP an unsupported alg."""
     fn = _DISPATCH.get((alg if isinstance(alg, str) else "").upper())
     if fn is None:
         return SKIPPED, f"unsupported alg {alg!r} (oracle checks {sorted(_DISPATCH)})"

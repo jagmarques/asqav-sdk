@@ -70,8 +70,8 @@ _BASIC_SCHEMA: dict[str, Any] = {
 # === (a) Valid context passes and sign is called with the normalized context ===
 
 
+    # A context that matches the schema reaches the network call.
 def test_valid_context_passes_schema_and_sign_is_called() -> None:
-    """A context that matches the schema reaches the network call."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -91,8 +91,8 @@ def test_valid_context_passes_schema_and_sign_is_called() -> None:
     assert captured["body"] is not None
 
 
+    # After schema validation the context keys are sorted.
 def test_valid_context_is_key_sorted_before_signing() -> None:
-    """After schema validation the context keys are sorted."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -121,8 +121,8 @@ def test_valid_context_is_key_sorted_before_signing() -> None:
         )
 
 
+    # Each supported type passes with a matching Python value.
 def test_all_schema_types_pass_correct_values() -> None:
-    """Each supported type passes with a matching Python value."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -146,8 +146,8 @@ def test_all_schema_types_pass_correct_values() -> None:
     assert captured, "sign() was not called"
 
 
+    # An optional field (required=False) may be absent with no error.
 def test_optional_field_absent_passes() -> None:
-    """An optional field (required=False) may be absent with no error."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -186,8 +186,8 @@ def test_missing_required_field_raises_before_network() -> None:
         mock_post.assert_not_called()
 
 
+    # Wrong-type field raises AsqavValidationError; HTTP is never called.
 def test_wrong_type_raises_before_network() -> None:
-    """Wrong-type field raises AsqavValidationError; HTTP is never called."""
     with patch("asqav.client._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="score"):
             _agent().sign(
@@ -199,8 +199,8 @@ def test_wrong_type_raises_before_network() -> None:
         mock_post.assert_not_called()
 
 
+    # bool is a subclass of int; it must be rejected for type=number.
 def test_bool_rejected_for_number_type() -> None:
-    """bool is a subclass of int; it must be rejected for type=number."""
     with patch("asqav.client._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="score"):
             _agent().sign(
@@ -212,8 +212,8 @@ def test_bool_rejected_for_number_type() -> None:
         mock_post.assert_not_called()
 
 
+    # A string where object is expected raises the validation error.
 def test_wrong_type_object_raises_before_network() -> None:
-    """A string where object is expected raises the validation error."""
     with patch("asqav.client._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="meta"):
             _agent().sign(
@@ -225,8 +225,8 @@ def test_wrong_type_object_raises_before_network() -> None:
         mock_post.assert_not_called()
 
 
+    # A dict where array is expected raises the validation error.
 def test_wrong_type_array_raises_before_network() -> None:
-    """A dict where array is expected raises the validation error."""
     with patch("asqav.client._post") as mock_post:
         with pytest.raises(AsqavValidationError, match="tags"):
             _agent().sign(
@@ -238,8 +238,8 @@ def test_wrong_type_array_raises_before_network() -> None:
         mock_post.assert_not_called()
 
 
+    # AsqavValidationError.docs_url points to structured-receipts docs.
 def test_validation_error_carries_docs_url() -> None:
-    """AsqavValidationError.docs_url points to structured-receipts docs."""
     with patch("asqav.client._post"):
         with pytest.raises(AsqavValidationError) as exc_info:
             _agent().sign(
@@ -254,8 +254,8 @@ def test_validation_error_carries_docs_url() -> None:
 # === (c) No schema supplied => unchanged behavior ===
 
 
+    # When context_schema is omitted, sign() behavior is unchanged.
 def test_no_schema_sign_called_as_before() -> None:
-    """When context_schema is omitted, sign() behavior is unchanged."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -272,8 +272,8 @@ def test_no_schema_sign_called_as_before() -> None:
     assert captured, "sign() must be called when no schema is provided"
 
 
+    # None context + no schema is unchanged (no normalization applied).
 def test_no_schema_none_context_unchanged() -> None:
-    """None context + no schema is unchanged (no normalization applied)."""
     captured: dict[str, Any] = {}
 
     def fake_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -293,8 +293,8 @@ def test_no_schema_none_context_unchanged() -> None:
 # === Custom callable validator ===
 
 
+    # A callable context_schema that returns None passes through.
 def test_custom_callable_validator_passes() -> None:
-    """A callable context_schema that returns None passes through."""
     captured: dict[str, Any] = {}
     calls: list[Any] = []
 
@@ -317,8 +317,8 @@ def test_custom_callable_validator_passes() -> None:
     assert captured, "sign() was not called"
 
 
+    # A callable that raises propagates; sign() must not be called.
 def test_custom_callable_validator_raises_propagates() -> None:
-    """A callable that raises propagates; sign() must not be called."""
 
     def strict_validator(ctx: dict[str, Any]) -> None:
         raise ValueError("custom_schema_error: x must be positive")
@@ -412,8 +412,8 @@ class TestNormalizeContext:
 # === Top-level re-export ===
 
 
+    # validate_context_schema and normalize_context are public symbols.
 def test_schema_helpers_exported_at_top_level() -> None:
-    """validate_context_schema and normalize_context are public symbols."""
     assert hasattr(asqav, "validate_context_schema")
     assert hasattr(asqav, "normalize_context")
     assert asqav.validate_context_schema is validate_context_schema

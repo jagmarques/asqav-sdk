@@ -68,13 +68,13 @@ OTEL_SIGNATURE_ATTR = "asqav.signature"
 ERC8004_ZERO_ADDRESS = "0x" + "00" * 20
 
 
+    # Return the JCS canonical bytes of ``receipt``; the same bytes both SDKs hash.
 def canonical_receipt_bytes(receipt: dict) -> bytes:
-    """Return the JCS canonical bytes of ``receipt``; the same bytes both SDKs hash."""
     return canonical_json(receipt)
 
 
+    # ``sha256:<hex>`` over the raw canonical receipt bytes (the C2PA raw-bytes rule).
 def receipt_digest(receipt: dict) -> str:
-    """``sha256:<hex>`` over the raw canonical receipt bytes (the C2PA raw-bytes rule)."""
     return "sha256:" + hashlib.sha256(canonical_receipt_bytes(receipt)).hexdigest()
 
 
@@ -89,8 +89,8 @@ def _payload(receipt: dict) -> dict:
     return payload if isinstance(payload, dict) else receipt
 
 
+    # Return ``(sig, alg, kid)`` for compliance-mode or flat hash-mode receipts.
 def _signature_bits(receipt: dict) -> tuple[Any, Any, Any]:
-    """Return ``(sig, alg, kid)`` for compliance-mode or flat hash-mode receipts."""
     sig = receipt.get("signature")
     if isinstance(sig, dict):
         return sig.get("sig"), sig.get("alg"), sig.get("kid")
@@ -129,8 +129,8 @@ def _timestamp(receipt: dict) -> Any:
     return _field(receipt, "issued_at", "server_timestamp")
 
 
+    # A deterministic offline pointer to the receipt by digest. Not a live endpoint.
 def _verify_urn(receipt: dict) -> str:
-    """A deterministic offline pointer to the receipt by digest. Not a live endpoint."""
     return "urn:asqav:receipt:" + receipt_digest(receipt).split(":", 1)[1]
 
 
@@ -271,8 +271,8 @@ def to_erc8004_validation_request(
     }
 
 
+    # Return every door for ``receipt`` keyed by standard name; one inner object, N skins.
 def wrap_all(receipt: dict) -> dict:
-    """Return every door for ``receipt`` keyed by standard name; one inner object, N skins."""
     _require_dict(receipt)
     return {
         "w3c_vc": to_w3c_vc(receipt),
@@ -283,33 +283,33 @@ def wrap_all(receipt: dict) -> dict:
     }
 
 
+    # Recover the inner receipt from a VC door.
 def receipt_from_vc(vc: dict) -> dict:
-    """Recover the inner receipt from a VC door."""
     return vc["credentialSubject"]
 
 
+    # Recover the inner receipt from a CloudEvents door.
 def receipt_from_cloudevent(event: dict) -> dict:
-    """Recover the inner receipt from a CloudEvents door."""
     return event["data"]
 
 
+    # Recover the inner receipt from an OTel GenAI attribute map.
 def receipt_from_otel_genai_attributes(attrs: dict) -> dict:
-    """Recover the inner receipt from an OTel GenAI attribute map."""
     return json.loads(attrs[OTEL_RECEIPT_ATTR])
 
 
+    # Recover the inner receipt from a C2PA door.
 def receipt_from_c2pa_assertion(assertion: dict) -> dict:
-    """Recover the inner receipt from a C2PA door."""
     return assertion["data"]["receipt"]
 
 
+    # Recover the inner receipt from an ERC-8004 door.
 def receipt_from_erc8004_validation_request(request: dict) -> dict:
-    """Recover the inner receipt from an ERC-8004 door."""
     return request["receipt"]
 
 
+    # Recover the inner receipt from any door envelope, detected by shape.
 def extract_receipt(envelope: dict) -> dict:
-    """Recover the inner receipt from any door envelope, detected by shape."""
     if not isinstance(envelope, dict):
         raise TypeError("envelope must be a dict")
     if "credentialSubject" in envelope:

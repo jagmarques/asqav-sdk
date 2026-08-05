@@ -26,8 +26,8 @@ _B58_INDEX = {ch: i for i, ch in enumerate(_B58_ALPHABET)}
 _ED25519_MULTICODEC = b"\xed\x01"
 
 
+    # Decode a base58btc string to bytes, preserving leading-zero bytes as '1's.
 def b58btc_decode(text: str) -> bytes:
-    """Decode a base58btc string to bytes, preserving leading-zero bytes as '1's."""
     num = 0
     for ch in text:
         if ch not in _B58_INDEX:
@@ -38,8 +38,8 @@ def b58btc_decode(text: str) -> bytes:
     return b"\x00" * pad + body
 
 
+    # Return the raw 32-byte Ed25519 key from a ``did:key`` 'z...' identifier.
 def _decode_did_key(identifier: str) -> bytes | None:
-    """Return the raw 32-byte Ed25519 key from a ``did:key`` 'z...' identifier."""
     if not identifier.startswith("z"):
         return None  # multibase base58btc is the only did:key form this resolver decodes
     try:
@@ -52,8 +52,8 @@ def _decode_did_key(identifier: str) -> bytes | None:
     return key if len(key) == 32 else None
 
 
+    # Coerce injected key material (raw bytes or hex string) to raw 32-byte form.
 def _coerce_raw(material: object) -> bytes | None:
-    """Coerce injected key material (raw bytes or hex string) to raw 32-byte form."""
     if isinstance(material, bytes):
         raw = material
     elif isinstance(material, str):

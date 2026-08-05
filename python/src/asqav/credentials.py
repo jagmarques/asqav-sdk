@@ -54,8 +54,8 @@ def credentials_path() -> Path:
     return Path(os.path.expanduser("~")) / ".asqav" / "credentials"
 
 
+    # Read the credentials file. Missing or corrupt file returns {} (never raises).
 def load_credentials() -> dict[str, object]:
-    """Read the credentials file. Missing or corrupt file returns {} (never raises)."""
     try:
         data = json.loads(credentials_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -63,8 +63,8 @@ def load_credentials() -> dict[str, object]:
     return data if isinstance(data, dict) else {}
 
 
+    # Write the credentials file with mode 0600 under a mode 0700 ~/.asqav dir.
 def save_credentials(api_key: str, api_base: str | None = None) -> Path:
-    """Write the credentials file with mode 0600 under a mode 0700 ~/.asqav dir."""
     path = credentials_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.parent.chmod(0o700)
@@ -80,8 +80,8 @@ def save_credentials(api_key: str, api_base: str | None = None) -> Path:
     return path
 
 
+    # Resolve an API key: explicit arg, then ASQAV_API_KEY env, then credentials file.
 def resolve_api_key(explicit: str | None = None) -> str | None:
-    """Resolve an API key: explicit arg, then ASQAV_API_KEY env, then credentials file."""
     if explicit:
         return explicit
     env_key = os.environ.get("ASQAV_API_KEY")
@@ -93,8 +93,8 @@ def resolve_api_key(explicit: str | None = None) -> str | None:
     return None
 
 
+    # Resolve an API base: explicit arg, then ASQAV_API_BASE env, then file, then default.
 def resolve_api_base(explicit: str | None = None) -> str:
-    """Resolve an API base: explicit arg, then ASQAV_API_BASE env, then file, then default."""
     if explicit:
         return explicit
     env_base = os.environ.get("ASQAV_API_BASE")

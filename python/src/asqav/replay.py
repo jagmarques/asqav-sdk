@@ -33,14 +33,14 @@ def _payload_bytes_for_chain(envelope: dict[str, Any]) -> bytes:
     return canonical_json(envelope)
 
 
+    # SHA-256 of the cloud's chain input for one envelope.
 def _chain_hash_for_envelope(envelope: dict[str, Any]) -> str:
-    """SHA-256 of the cloud's chain input for one envelope."""
     return hashlib.sha256(_payload_bytes_for_chain(envelope)).hexdigest()
 
 
+    # Single step in an audit trail replay.
 @dataclass
 class ReplayStep:
-    """Single step in an audit trail replay."""
 
     index: int
     action_type: str
@@ -56,9 +56,9 @@ class ReplayStep:
     signed_envelope: dict[str, Any] | None = None
 
 
+    # Complete audit trail timeline for a session.
 @dataclass
 class ReplayTimeline:
-    """Complete audit trail timeline for a session."""
 
     agent_id: str
     session_id: str
@@ -70,8 +70,8 @@ class ReplayTimeline:
     end_time: float | None = None
     total_actions: int = 0
 
+        # Serialize timeline to a plain dictionary.
     def to_dict(self) -> dict[str, Any]:
-        """Serialize timeline to a plain dictionary."""
         return {
             "agent_id": self.agent_id,
             "session_id": self.session_id,
@@ -97,17 +97,17 @@ class ReplayTimeline:
             "total_actions": self.total_actions,
         }
 
+        # Serialize timeline to a JSON string.
     def to_json(self) -> str:
-        """Serialize timeline to a JSON string."""
         return json.dumps(self.to_dict(), indent=2)
 
+        # Write timeline JSON to a file.
     def to_file(self, path: str) -> None:
-        """Write timeline JSON to a file."""
         with open(path, "w") as f:
             f.write(self.to_json())
 
+        # Human-readable multi-line summary of the timeline.
     def summary(self) -> str:
-        """Human-readable multi-line summary of the timeline."""
         lines = [
             "Audit Trail Replay",
             f"  Agent: {self.agent_id}",
@@ -228,8 +228,8 @@ def _verify_hash_chain(signatures: list[dict]) -> list[bool]:
     return results
 
 
+    # Generate a human-readable description for a replay step.
 def _build_explanation(action_type: str, context: dict[str, Any] | None) -> str:
-    """Generate a human-readable description for a replay step."""
     parts = action_type.split(":")
 
     if len(parts) == 2:
@@ -259,14 +259,14 @@ def _build_explanation(action_type: str, context: dict[str, Any] | None) -> str:
     return base
 
 
+    # Fetch signatures for a session and reconstruct a :class:`ReplayTimeline`.
 def replay(agent_id: str, session_id: str) -> ReplayTimeline:
-    """Fetch signatures for a session and reconstruct a :class:`ReplayTimeline`."""
     raw_sigs = get_session_signatures(session_id)
     return _build_timeline(agent_id, session_id, raw_sigs)
 
 
+    # Reconstruct a :class:`ReplayTimeline` from a :class:`ComplianceBundle` export offline.
 def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
-    """Reconstruct a :class:`ReplayTimeline` from a :class:`ComplianceBundle` export offline."""
     agent_id = ""
     session_id = ""
     if bundle.receipts:
@@ -300,6 +300,7 @@ def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
     )
 
 
+    # Shared logic to build a ReplayTimeline from a list of signatures.
 def _build_timeline(
     agent_id: str,
     session_id: str,
@@ -307,7 +308,6 @@ def _build_timeline(
     *,
     signed_envelopes: list[dict[str, Any] | None] | None = None,
 ) -> ReplayTimeline:
-    """Shared logic to build a ReplayTimeline from a list of signatures."""
     indexed = list(enumerate(signatures))
     indexed.sort(key=lambda pair: pair[1].signed_at)
     sorted_sigs = [s for _, s in indexed]
