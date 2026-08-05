@@ -78,8 +78,8 @@ def _payload(doc: dict) -> dict:
     return payload if isinstance(payload, dict) else env
 
 
+    # Decode signature material; b'' on any malformed input so verify FAILs, never crashes.
 def _safe_b64(value: Any) -> bytes:
-    """Decode signature material; b'' on any malformed input so verify FAILs, never crashes."""
     if not isinstance(value, str):
         return b""
     try:
@@ -88,8 +88,8 @@ def _safe_b64(value: Any) -> bytes:
         return b""
 
 
+    # Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode).
 class AsqavNativeAdapter(FormatAdapter):
-    """Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode)."""
 
     name = "asqav-native"
 

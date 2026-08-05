@@ -19,8 +19,8 @@ _original_modules: dict[str, Any] = {}
 _MISSING = object()
 
 
+    # Inject fake fastapi/starlette modules.
 def _install_fastapi_mocks() -> None:
-    """Inject fake fastapi/starlette modules."""
     for mod_name in (
         "fastapi",
         "fastapi.middleware",
@@ -86,8 +86,8 @@ def _install_fastapi_mocks() -> None:
     sys.modules["uvicorn"] = ModuleType("uvicorn")
 
 
+    # Restore sys.modules to pre-mock state.
 def _remove_fastapi_mocks() -> None:
-    """Restore sys.modules to pre-mock state."""
     for mod_name, original in _original_modules.items():
         if original is _MISSING:
             sys.modules.pop(mod_name, None)
@@ -102,9 +102,9 @@ _install_fastapi_mocks()
 # === Fixtures ===
 
 
+    # Create a mock asqav agent.
 @pytest.fixture()
 def mock_agent():
-    """Create a mock asqav agent."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -121,15 +121,15 @@ def mock_agent():
 # === Basic Tests ===
 
 
+    # Verify the FastAPI middleware example file exists.
 def test_fastapi_middleware_file_exists():
-    """Verify the FastAPI middleware example file exists."""
     import os
     file_path = os.path.join(os.path.dirname(__file__), "..", "examples", "fastapi_middleware.py")
     assert os.path.exists(file_path), f"FastAPI middleware example not found at {file_path}"
 
 
+    # Verify the FastAPI middleware example has required functions.
 def test_fastapi_middleware_has_required_functions():
-    """Verify the FastAPI middleware example has required functions."""
     import os
     file_path = os.path.join(os.path.dirname(__file__), "..", "examples", "fastapi_middleware.py")
     with open(file_path, "r") as f:
@@ -145,8 +145,8 @@ def test_fastapi_middleware_has_required_functions():
     assert "@app.get(\"/api/compliance/report\")" in content
 
 
+    # Verify the FastAPI middleware has fail-open behavior.
 def test_fastapi_middleware_has_fail_open():
-    """Verify the FastAPI middleware has fail-open behavior."""
     import os
     file_path = os.path.join(os.path.dirname(__file__), "..", "examples", "fastapi_middleware.py")
     with open(file_path, "r") as f:
@@ -155,8 +155,8 @@ def test_fastapi_middleware_has_fail_open():
     assert "fail-open" in content.lower() or "AsqavError" in content
 
 
+    # Verify the FastAPI middleware has rate limiting.
 def test_fastapi_middleware_has_rate_limiting():
-    """Verify the FastAPI middleware has rate limiting."""
     import os
     file_path = os.path.join(os.path.dirname(__file__), "..", "examples", "fastapi_middleware.py")
     with open(file_path, "r") as f:
@@ -166,8 +166,8 @@ def test_fastapi_middleware_has_rate_limiting():
     assert "429" in content
 
 
+    # Verify the FastAPI middleware has content policy enforcement.
 def test_fastapi_middleware_has_content_policy():
-    """Verify the FastAPI middleware has content policy enforcement."""
     import os
     file_path = os.path.join(os.path.dirname(__file__), "..", "examples", "fastapi_middleware.py")
     with open(file_path, "r") as f:
@@ -177,8 +177,8 @@ def test_fastapi_middleware_has_content_policy():
     assert "413" in content
 
 
+    # Verify the FastAPI middleware signs AI events.
 def test_fastapi_middleware_signs_events():
-    """Verify the FastAPI middleware signs AI events."""
     import os
     file_path = os.path.join(os.path.dirname(__file__), "..", "examples", "fastapi_middleware.py")
     with open(file_path, "r") as f:
@@ -192,6 +192,6 @@ def test_fastapi_middleware_signs_events():
 # === Cleanup ===
 
 
+    # Remove mock fastapi/starlette from sys.modules.
 def teardown_module() -> None:
-    """Remove mock fastapi/starlette from sys.modules."""
     _remove_fastapi_mocks()

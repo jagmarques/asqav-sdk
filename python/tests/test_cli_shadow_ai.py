@@ -15,8 +15,8 @@ from asqav.cli import app
 runner = CliRunner()
 
 
+    # `shadow-ai init --dir X` writes the three template files into X.
 def test_init_creates_files_in_target_dir(tmp_path: Path) -> None:
-    """`shadow-ai init --dir X` writes the three template files into X."""
     target = tmp_path / "stack"
     result = runner.invoke(app, ["shadow-ai", "init", "--dir", str(target)])
     assert result.exit_code == 0, result.output
@@ -29,8 +29,8 @@ def test_init_creates_files_in_target_dir(tmp_path: Path) -> None:
     assert "POSTGRES_PASSWORD" in body
 
 
+    # A second `init` against the same dir exits non-zero unless --force is passed.
 def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
-    """A second `init` against the same dir exits non-zero unless --force is passed."""
     target = tmp_path / "stack"
     first = runner.invoke(app, ["shadow-ai", "init", "--dir", str(target)])
     assert first.exit_code == 0, first.output
@@ -43,8 +43,8 @@ def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
     assert forced.exit_code == 0, forced.output
 
 
+    # `shadow-ai status` against a directory with no docker-compose.yml fails clearly.
 def test_status_handles_missing_compose_gracefully(tmp_path: Path) -> None:
-    """`shadow-ai status` against a directory with no docker-compose.yml fails clearly."""
     missing = tmp_path / "does-not-exist"
     result = runner.invoke(app, ["shadow-ai", "status", "--dir", str(missing)])
     assert result.exit_code != 0
@@ -52,8 +52,8 @@ def test_status_handles_missing_compose_gracefully(tmp_path: Path) -> None:
     assert "asqav shadow-ai init" in result.output
 
 
+    # `shadow-ai up` without a .env file errors with a clear message.
 def test_up_validates_env_present(tmp_path: Path) -> None:
-    """`shadow-ai up` without a .env file errors with a clear message."""
     target = tmp_path / "stack"
     init = runner.invoke(app, ["shadow-ai", "init", "--dir", str(target)])
     assert init.exit_code == 0, init.output
@@ -63,8 +63,8 @@ def test_up_validates_env_present(tmp_path: Path) -> None:
     assert ".env" in result.output
 
 
+    # `shadow-ai up` rejects a .env that is missing required variables.
 def test_up_validates_required_env_vars(tmp_path: Path) -> None:
-    """`shadow-ai up` rejects a .env that is missing required variables."""
     target = tmp_path / "stack"
     init = runner.invoke(app, ["shadow-ai", "init", "--dir", str(target)])
     assert init.exit_code == 0, init.output
@@ -78,8 +78,8 @@ def test_up_validates_required_env_vars(tmp_path: Path) -> None:
     assert "ASQAV_API_KEY" in result.output
 
 
+    # `--upstream` rewrites OPENAI_UPSTREAM in the generated .env.template.
 def test_init_with_upstream_override(tmp_path: Path) -> None:
-    """`--upstream` rewrites OPENAI_UPSTREAM in the generated .env.template."""
     target = tmp_path / "stack"
     result = runner.invoke(
         app,
@@ -90,10 +90,10 @@ def test_init_with_upstream_override(tmp_path: Path) -> None:
     assert "OPENAI_UPSTREAM=https://proxy.example.com" in body
 
 
+    # `init` triggers _ensure_shadow_ai_policy when ASQAV_API_KEY is in env.
 def test_init_calls_ensure_policy_when_api_key_set(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """`init` triggers _ensure_shadow_ai_policy when ASQAV_API_KEY is in env."""
     from asqav import cli as cli_mod
 
     calls: list[bool] = []
@@ -106,8 +106,8 @@ def test_init_calls_ensure_policy_when_api_key_set(
     assert calls == [True]
 
 
+    # `init` skips ensure_policy and prints the hint when ASQAV_API_KEY is unset.
 def test_init_prints_hint_when_api_key_absent(tmp_path: Path, monkeypatch) -> None:
-    """`init` skips ensure_policy and prints the hint when ASQAV_API_KEY is unset."""
     from asqav import cli as cli_mod
 
     calls: list[bool] = []
@@ -121,8 +121,8 @@ def test_init_prints_hint_when_api_key_absent(tmp_path: Path, monkeypatch) -> No
     assert "ensure-policy" in result.output
 
 
+    # `ensure-policy` exits 0 with an 'already present' line when a matching policy exists.
 def test_ensure_policy_noop_when_present(monkeypatch) -> None:
-    """`ensure-policy` exits 0 with an 'already present' line when a matching policy exists."""
     from asqav import cli as cli_mod
     from asqav import client as client_mod
 
@@ -146,8 +146,8 @@ def test_ensure_policy_noop_when_present(monkeypatch) -> None:
     assert "pol_existing_abc" in result.output
 
 
+    # `ensure-policy` POSTs a new monitor policy when none matches.
 def test_ensure_policy_creates_when_absent(monkeypatch) -> None:
-    """`ensure-policy` POSTs a new monitor policy when none matches."""
     from asqav import cli as cli_mod
     from asqav import client as client_mod
 
@@ -173,8 +173,8 @@ def test_ensure_policy_creates_when_absent(monkeypatch) -> None:
     assert posted[0]["data"]["is_active"] is True
 
 
+    # `ensure-policy` exits 1 with a diagnostic when listing policies raises.
 def test_ensure_policy_exits_nonzero_when_list_fails(monkeypatch) -> None:
-    """`ensure-policy` exits 1 with a diagnostic when listing policies raises."""
     from asqav import cli as cli_mod
     from asqav import client as client_mod
 
@@ -190,8 +190,8 @@ def test_ensure_policy_exits_nonzero_when_list_fails(monkeypatch) -> None:
     assert "Could not list policies" in result.output
 
 
+    # `ensure-policy` exits 1 with a diagnostic when POSTing the new policy raises.
 def test_ensure_policy_exits_nonzero_when_create_fails(monkeypatch) -> None:
-    """`ensure-policy` exits 1 with a diagnostic when POSTing the new policy raises."""
     from asqav import cli as cli_mod
     from asqav import client as client_mod
 

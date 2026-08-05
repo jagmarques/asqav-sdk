@@ -31,8 +31,8 @@ _MISSING = object()
 _FAKE_CONFIGURE_HOOKS: list = []
 
 
+    # Inject fake langchain_core modules and return the BaseCallbackHandler class.
 def _install_langchain_mocks() -> type:
-    """Inject fake langchain_core modules and return the BaseCallbackHandler class."""
     # Save originals so we can restore later
     for mod_name in (
         "langchain_core",
@@ -44,15 +44,15 @@ def _install_langchain_mocks() -> type:
         _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)  # type: ignore[arg-type]
 
     # Create BaseCallbackHandler as a real class (not MagicMock) so MRO works
+        # Mock LangChain BaseCallbackHandler.
     class BaseCallbackHandler:
-        """Mock LangChain BaseCallbackHandler."""
 
         def __init__(self) -> None:
             pass
 
     # Create LLMResult as a simple data class
+        # Mock LangChain LLMResult.
     class LLMResult:
-        """Mock LangChain LLMResult."""
 
         def __init__(
             self,
@@ -62,10 +62,10 @@ def _install_langchain_mocks() -> type:
             self.generations = generations or []
             self.llm_output = llm_output
 
+        # Mock of langchain_core.tracers.context.register_configure_hook.
     def register_configure_hook(
         context_var, inheritable, handle_class=None, env_var=None
     ) -> None:
-        """Mock of langchain_core.tracers.context.register_configure_hook."""
         _FAKE_CONFIGURE_HOOKS.append(
             (context_var, inheritable, handle_class, env_var)
         )
@@ -94,8 +94,8 @@ def _install_langchain_mocks() -> type:
     return LLMResult
 
 
+    # Restore sys.modules to pre-mock state.
 def _remove_langchain_mocks() -> None:
-    """Restore sys.modules to pre-mock state."""
     for mod_name, original in _original_modules.items():
         if original is _MISSING:
             sys.modules.pop(mod_name, None)
@@ -116,9 +116,9 @@ from asqav.extras.langchain import AsqavCallbackHandler  # noqa: E402, I001
 # === Fixtures ===
 
 
+    # Create an AsqavCallbackHandler with mocked Agent internals.
 @pytest.fixture()
 def handler():
-    """Create an AsqavCallbackHandler with mocked Agent internals."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -133,8 +133,8 @@ def handler():
 # === Chain callback tests ===
 
 
+    # on_chain_start signs chain:start with chain name and input keys.
 def test_on_chain_start_signs_action(handler):
-    """on_chain_start signs chain:start with chain name and input keys."""
     handler.on_chain_start(
         serialized={"name": "RetrievalQA", "id": ["langchain", "chains", "RetrievalQA"]},
         inputs={"query": "what is asqav?"},
@@ -145,8 +145,8 @@ def test_on_chain_start_signs_action(handler):
     )
 
 
+    # on_chain_start uses last element of id when name is missing.
 def test_on_chain_start_falls_back_to_id(handler):
-    """on_chain_start uses last element of id when name is missing."""
     handler.on_chain_start(
         serialized={"id": ["langchain", "chains", "LLMChain"]},
         inputs={"prompt": "hello"},
@@ -157,8 +157,8 @@ def test_on_chain_start_falls_back_to_id(handler):
     )
 
 
+    # on_chain_end signs chain:end with output keys.
 def test_on_chain_end_signs_action(handler):
-    """on_chain_end signs chain:end with output keys."""
     handler.on_chain_end(outputs={"result": "answer", "source_documents": []})
     handler._sign_action.assert_called_once_with(
         "chain:end",
@@ -166,8 +166,8 @@ def test_on_chain_end_signs_action(handler):
     )
 
 
+    # on_chain_error signs chain:error with error type and message.
 def test_on_chain_error_signs_action(handler):
-    """on_chain_error signs chain:error with error type and message."""
     handler.on_chain_error(error=ValueError("bad input"))
     handler._sign_action.assert_called_once_with(
         "chain:error",
@@ -178,8 +178,8 @@ def test_on_chain_error_signs_action(handler):
 # === Tool callback tests ===
 
 
+    # on_tool_start signs tool:start with tool name and input.
 def test_on_tool_start_signs_action(handler):
-    """on_tool_start signs tool:start with tool name and input."""
     handler.on_tool_start(
         serialized={"name": "Calculator"},
         input_str="2 + 2",
@@ -190,8 +190,8 @@ def test_on_tool_start_signs_action(handler):
     )
 
 
+    # on_tool_end signs tool:end with output type and length.
 def test_on_tool_end_signs_action(handler):
-    """on_tool_end signs tool:end with output type and length."""
     handler.on_tool_end(output="4")
     handler._sign_action.assert_called_once_with(
         "tool:end",
@@ -199,8 +199,8 @@ def test_on_tool_end_signs_action(handler):
     )
 
 
+    # on_tool_error signs tool:error with error details.
 def test_on_tool_error_signs_action(handler):
-    """on_tool_error signs tool:error with error details."""
     handler.on_tool_error(error=RuntimeError("tool broke"))
     handler._sign_action.assert_called_once_with(
         "tool:error",
@@ -211,8 +211,8 @@ def test_on_tool_error_signs_action(handler):
 # === LLM callback tests ===
 
 
+    # on_llm_start signs llm:start with model name and prompt count.
 def test_on_llm_start_signs_action(handler):
-    """on_llm_start signs llm:start with model name and prompt count."""
     handler.on_llm_start(
         serialized={"name": "gpt-4", "id": ["langchain", "llms", "openai"]},
         prompts=["Hello", "World"],
@@ -223,8 +223,8 @@ def test_on_llm_start_signs_action(handler):
     )
 
 
+    # on_llm_end signs llm:end with generation count and token usage.
 def test_on_llm_end_signs_action(handler):
-    """on_llm_end signs llm:end with generation count and token usage."""
     response = LLMResult(
         generations=[["gen1", "gen2"]],
         llm_output={"token_usage": {"prompt_tokens": 10, "completion_tokens": 20}},
@@ -239,8 +239,8 @@ def test_on_llm_end_signs_action(handler):
     )
 
 
+    # on_llm_end works when llm_output has no token_usage.
 def test_on_llm_end_no_token_usage(handler):
-    """on_llm_end works when llm_output has no token_usage."""
     response = LLMResult(generations=[["gen1"]], llm_output={})
     handler.on_llm_end(response=response)
     handler._sign_action.assert_called_once_with(
@@ -249,8 +249,8 @@ def test_on_llm_end_no_token_usage(handler):
     )
 
 
+    # on_llm_end works when llm_output is None.
 def test_on_llm_end_no_llm_output(handler):
-    """on_llm_end works when llm_output is None."""
     response = LLMResult(generations=[[]], llm_output=None)
     handler.on_llm_end(response=response)
     handler._sign_action.assert_called_once_with(
@@ -259,8 +259,8 @@ def test_on_llm_end_no_llm_output(handler):
     )
 
 
+    # on_llm_error signs llm:error with error details.
 def test_on_llm_error_signs_action(handler):
-    """on_llm_error signs llm:error with error details."""
     handler.on_llm_error(error=TimeoutError("model timeout"))
     handler._sign_action.assert_called_once_with(
         "llm:error",
@@ -271,8 +271,8 @@ def test_on_llm_error_signs_action(handler):
 # === Edge cases and fail-open ===
 
 
+    # Long tool inputs are truncated to 200 chars.
 def test_tool_input_truncated(handler):
-    """Long tool inputs are truncated to 200 chars."""
     long_input = "x" * 500
     handler.on_tool_start(serialized={"name": "Search"}, input_str=long_input)
 
@@ -331,9 +331,9 @@ def _collect_default_handlers() -> list:
     return handlers
 
 
+    # Reset the configure-hook registry and the one-time registration flag.
 @pytest.fixture()
 def clean_hook_state():
-    """Reset the configure-hook registry and the one-time registration flag."""
     _FAKE_CONFIGURE_HOOKS.clear()
     _lc_mod._hook_registered = False
     _lc_mod._ASQAV_LC_HANDLER.set(None)
@@ -343,8 +343,8 @@ def clean_hook_state():
     _lc_mod._ASQAV_LC_HANDLER.set(None)
 
 
+    # One call registers exactly one langchain configure hook.
 def test_enable_registers_configure_hook(clean_hook_state):
-    """One call registers exactly one langchain configure hook."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -404,8 +404,8 @@ def test_on_chain_start_none_serialized_signs_receipt(handler):
     )
 
 
+    # on_chain_start with a non-dict serialized still signs a receipt.
 def test_on_chain_start_non_dict_serialized_signs_receipt(handler):
-    """on_chain_start with a non-dict serialized still signs a receipt."""
     handler.on_chain_start(
         serialized="some-string",  # type: ignore[arg-type]
         inputs={"q": "x"},
@@ -451,8 +451,8 @@ def test_on_chain_start_dict_serialized_non_dict_inputs_signs_receipt(handler):
     )
 
 
+    # Repeated enable calls register the hook once and rebind the ContextVar.
 def test_enable_hook_registered_once_across_calls(clean_hook_state):
-    """Repeated enable calls register the hook once and rebind the ContextVar."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -468,6 +468,6 @@ def test_enable_hook_registered_once_across_calls(clean_hook_state):
 # === Cleanup: restore sys.modules ===
 
 
+    # Remove mock langchain_core from sys.modules.
 def teardown_module() -> None:
-    """Remove mock langchain_core from sys.modules."""
     _remove_langchain_mocks()

@@ -517,13 +517,7 @@ function expiryLapsed(deltaSeconds: number): boolean {
   return deltaSeconds < 0;
 }
 
-/**
- * Refuse a receipt past the expiry its own signer committed to (mirrors `check_expiry`).
- *
- * Mirrors the hosted signature_expired verdict. The window is read from inside
- * the signed bytes, so an unsigned envelope field can never move it, and an
- * unreadable value fails closed instead of reading as no window at all.
- */
+/** Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426). */
 export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
   if (!isRecord(payload) || !("expires_at" in payload)) {
     return ["PASS", "receipt declares no expiry"];

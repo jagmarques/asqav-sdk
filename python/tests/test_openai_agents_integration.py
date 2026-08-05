@@ -30,16 +30,16 @@ from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa: 
 # === Helpers ===
 
 
+    # Create a guardrail with mocked asqav internals.
 def _make_guardrail() -> AsqavGuardrail:
-    """Create a guardrail with mocked asqav internals."""
     with patch("asqav.client._api_key", "sk_test"):
         with patch("asqav.extras._base.Agent") as mock_agent_cls:
             mock_agent_cls.create.return_value = MagicMock()
             return AsqavGuardrail(agent_name="test-openai-agent")
 
 
+    # Create a mock OpenAI Agent object with a name attribute.
 def _mock_agent(name: str = "my-agent") -> MagicMock:
-    """Create a mock OpenAI Agent object with a name attribute."""
     agent = MagicMock()
     agent.name = name
     return agent
@@ -48,8 +48,8 @@ def _mock_agent(name: str = "my-agent") -> MagicMock:
 # === Input guardrail tests ===
 
 
+    # run_input_guardrail signs an agent:input action with agent name and input info.
 def test_input_guardrail_signs_action():
-    """run_input_guardrail signs an agent:input action with agent name and input info."""
     guardrail = _make_guardrail()
     agent = _mock_agent("summarizer")
     guardrail._sign_action = MagicMock()
@@ -66,8 +66,8 @@ def test_input_guardrail_signs_action():
     assert "input_preview" in context
 
 
+    # run_input_guardrail always returns GuardrailResult with passed=True.
 def test_input_guardrail_returns_passed():
-    """run_input_guardrail always returns GuardrailResult with passed=True."""
     guardrail = _make_guardrail()
     guardrail._sign_action = MagicMock()
 
@@ -78,8 +78,8 @@ def test_input_guardrail_returns_passed():
     assert result.output is None
 
 
+    # Gracefully handles agent objects without a name attribute.
 def test_input_guardrail_handles_missing_agent_name():
-    """Gracefully handles agent objects without a name attribute."""
     guardrail = _make_guardrail()
     guardrail._sign_action = MagicMock()
 
@@ -95,8 +95,8 @@ def test_input_guardrail_handles_missing_agent_name():
     assert len(context["agent_name"]) > 0
 
 
+    # Long input data representation is truncated to 200 chars.
 def test_input_truncation():
-    """Long input data representation is truncated to 200 chars."""
     guardrail = _make_guardrail()
     guardrail._sign_action = MagicMock()
 
@@ -111,8 +111,8 @@ def test_input_truncation():
 # === Output guardrail tests ===
 
 
+    # run_output_guardrail signs an agent:output action with agent name and output info.
 def test_output_guardrail_signs_action():
-    """run_output_guardrail signs an agent:output action with agent name and output info."""
     guardrail = _make_guardrail()
     agent = _mock_agent("writer")
     guardrail._sign_action = MagicMock()
@@ -129,8 +129,8 @@ def test_output_guardrail_signs_action():
     assert "output_preview" in context
 
 
+    # run_output_guardrail always returns GuardrailResult with passed=True.
 def test_output_guardrail_returns_passed():
-    """run_output_guardrail always returns GuardrailResult with passed=True."""
     guardrail = _make_guardrail()
     guardrail._sign_action = MagicMock()
 
@@ -144,8 +144,8 @@ def test_output_guardrail_returns_passed():
 # === Fail-open behavior ===
 
 
+    # Guardrail returns passed=True even when signing fails.
 def test_fail_open_on_sign_error():
-    """Guardrail returns passed=True even when signing fails."""
     guardrail = _make_guardrail()
     guardrail._sign_action = MagicMock(side_effect=RuntimeError("network error"))
 
@@ -156,8 +156,8 @@ def test_fail_open_on_sign_error():
     assert result.output is None
 
 
+    # Output guardrail also returns passed=True when signing fails.
 def test_fail_open_output_on_sign_error():
-    """Output guardrail also returns passed=True when signing fails."""
     guardrail = _make_guardrail()
     guardrail._sign_action = MagicMock(side_effect=RuntimeError("timeout"))
 
@@ -171,15 +171,15 @@ def test_fail_open_output_on_sign_error():
 # === GuardrailResult dataclass ===
 
 
+    # GuardrailResult defaults output to None.
 def test_guardrail_result_defaults():
-    """GuardrailResult defaults output to None."""
     result = GuardrailResult(passed=True)
     assert result.passed is True
     assert result.output is None
 
 
+    # GuardrailResult can hold arbitrary output.
 def test_guardrail_result_with_output():
-    """GuardrailResult can hold arbitrary output."""
     result = GuardrailResult(passed=False, output={"reason": "blocked"})
     assert result.passed is False
     assert result.output == {"reason": "blocked"}

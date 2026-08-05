@@ -39,13 +39,13 @@ from asqav.code_authorship import (
 # === constants + scope ===
 
 
+    # The required API-key scope is code_authorship:write.
 def test_scope_constant_matches_backend_contract() -> None:
-    """The required API-key scope is code_authorship:write."""
     assert CODE_AUTHORSHIP_WRITE_SCOPE == "code_authorship:write"
 
 
+    # cli_hook exposes the same scope as REQUIRED_SCOPE.
 def test_scope_constant_reexported_on_cli_hook() -> None:
-    """cli_hook exposes the same scope as REQUIRED_SCOPE."""
     from asqav import cli_hook
 
     assert cli_hook.REQUIRED_SCOPE == CODE_AUTHORSHIP_WRITE_SCOPE
@@ -182,8 +182,8 @@ def test_submit_omits_absent_optional_fields() -> None:
     assert body == {"repo": "owner/repo", "commit_sha": "c" * 40}
 
 
+    # digest_match reports advisory-vs-server agreement. The subject is the server's.
 def test_result_exposes_digest_match_semantics() -> None:
-    """digest_match reports advisory-vs-server agreement. The subject is the server's."""
     advisory = "sha256:" + "1" * 64
     server_hex = "2" * 64
     envelope = _server_envelope(
@@ -223,9 +223,9 @@ def test_github_sha_pull_envelope_is_authoritative_and_passes() -> None:
     assert verification.subject_digest == "a" * 64
 
 
+    # in_process_sdk and passive_telemetry are observation only, never a decision.
 @pytest.mark.parametrize("layer", sorted(OBSERVATION_ONLY_CAPTURE_LAYERS))
 def test_observation_capture_layer_is_never_authoritative(layer: str) -> None:
-    """in_process_sdk and passive_telemetry are observation only, never a decision."""
     envelope = _server_envelope(server_digest_hex="a" * 64, capture_layer=layer)
     verification = verify_code_authorship_envelope(envelope)
     assert verification.passed is False

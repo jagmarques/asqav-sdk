@@ -12,8 +12,8 @@ from asqav.patterns import PATTERNS, list_patterns, resolve_pattern
 # === resolve_pattern tests ===
 
 
+    # resolve_pattern expands 'sql-read' to its glob.
 def test_resolve_known_sql_read() -> None:
-    """resolve_pattern expands 'sql-read' to its glob."""
     assert resolve_pattern("sql-read") == "data:read:sql:*"
 
 
@@ -64,8 +64,8 @@ def test_resolve_known_admin_action() -> None:
 # === Passthrough for unknown patterns ===
 
 
+    # Unknown patterns are returned as-is.
 def test_resolve_unknown_passthrough() -> None:
-    """Unknown patterns are returned as-is."""
     assert resolve_pattern("custom:my:action") == "custom:my:action"
 
 
@@ -80,8 +80,8 @@ def test_resolve_arbitrary_string_passthrough() -> None:
 # === list_patterns tests ===
 
 
+    # list_patterns returns all 12 entries.
 def test_list_patterns_returns_all() -> None:
-    """list_patterns returns all 12 entries."""
     result = list_patterns()
     assert len(result) == 12
 
@@ -110,8 +110,8 @@ def test_list_patterns_contains_expected_keys() -> None:
     assert set(result.keys()) == expected_keys
 
 
+    # list_patterns returns a copy, not the original dict.
 def test_list_patterns_is_copy() -> None:
-    """list_patterns returns a copy, not the original dict."""
     result = list_patterns()
     result["new-key"] = "new-value"
     assert "new-key" not in PATTERNS

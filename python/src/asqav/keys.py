@@ -36,8 +36,8 @@ class LocalKeypair:
     public_key_pem: bytes
 
 
+    # Normalise + validate the requested algorithm string.
 def _check_algorithm(algorithm: str) -> str:
-    """Normalise + validate the requested algorithm string."""
     norm = algorithm.lower()
     if norm not in SUPPORTED_ALGORITHMS:
         raise ValueError(
@@ -89,8 +89,8 @@ def _generate_ed25519() -> LocalKeypair:
     )
 
 
+    # Generate an ECDSA P-256 keypair (alg=ES256 in JOSE).
 def _generate_es256() -> LocalKeypair:
-    """Generate an ECDSA P-256 keypair (alg=ES256 in JOSE)."""
     try:
         from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric import ec

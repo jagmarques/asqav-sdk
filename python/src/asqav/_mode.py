@@ -14,8 +14,8 @@ _VALID_EXPLICIT = {"auto", "hash-only", "full-payload"}
 _VALID_ENV = {"hash-only", "full-payload"}
 
 
+    # True if ``hostname`` is ``api.asqav.com`` or any ``*.asqav.com`` subdomain.
 def _is_asqav_cloud_host(hostname: str | None) -> bool:
-    """True if ``hostname`` is ``api.asqav.com`` or any ``*.asqav.com`` subdomain."""
     if not hostname:
         return False
     h = hostname.lower().strip().rstrip(".")
@@ -24,12 +24,12 @@ def _is_asqav_cloud_host(hostname: str | None) -> bool:
     return h == "api.asqav.com" or h.endswith(".asqav.com")
 
 
+    # Resolve the wire mode; ``explicit`` wins, then ``env``, then host auto-detection.
 def _resolve_mode(
     api_base_url: str | None,
     env: str | None,
     explicit: str | None = "auto",
 ) -> Mode:
-    """Resolve the wire mode; ``explicit`` wins, then ``env``, then host auto-detection."""
     if explicit is None:
         explicit = "auto"
     if explicit not in _VALID_EXPLICIT:

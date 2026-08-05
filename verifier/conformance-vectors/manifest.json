@@ -37,9 +37,9 @@
   {
     "dir": "asqav-06-mldsa65-payload-prod",
     "format": "asqav-native",
-    "outcome": "FAIL",
-    "reason_code": "signature_expired",
-    "notes": "Real payload-mode prod ML-DSA-65 receipt; the signing input byte-matches and ML-DSA-65 verifies with dilithium-py (proven in test_offline_verify.py's known-answer test). Its signed expires_at is 2026-06-20T22:23:57.045786Z, so the expiry axis FAILs the verdict while the signature axis still PASSes - the same split the hosted /verify reports as signature_expired. The verdict is FAIL with or without the optional dep, so this vector no longer carries the SKIP case; asqav-05-hash-mode-prod does."
+    "outcome": "PASS",
+    "reason_code": "",
+    "notes": "Real payload-mode prod ML-DSA-65 receipt; the signing input byte-matches and ML-DSA-65 verifies with dilithium-py (proven in test_offline_verify.py's known-answer test). Its signed expires_at lapsed 2026-06-20: the expiry axis FAILs alone while the verdict stays PASS, matching hosted parity (criterion 426). asqav-05-hash-mode-prod carries the SKIP case."
   },
   {
     "dir": "asqav-07-revoked-key",

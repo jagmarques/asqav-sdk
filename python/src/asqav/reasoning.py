@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 
 
+    # Return hex SHA-256 of ``data`` (dicts/lists JSON-serialized; bytes pass through).
 def _sha256(data: Any) -> str:
-    """Return hex SHA-256 of ``data`` (dicts/lists JSON-serialized; bytes pass through)."""
     if isinstance(data, bytes):
         payload = data
     elif isinstance(data, str):
@@ -24,9 +24,9 @@ def _sha256(data: Any) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+    # Wrapper around ``SignatureResponse`` plus the three captured hashes.
 @dataclass
 class ReasoningReceipt:
-    """Wrapper around ``SignatureResponse`` plus the three captured hashes."""
 
     signature: Any  # SignatureResponse
     prompt_hash: str

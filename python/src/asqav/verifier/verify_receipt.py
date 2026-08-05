@@ -162,8 +162,8 @@ def _describe_value(value) -> str:
     return type(value).__name__
 
 
+    # JCS bytes of the envelope with ``anchors`` removed (the anchored bytes).
 def envelope_minus_anchors_jcs(env: dict) -> bytes:
-    """JCS bytes of the envelope with ``anchors`` removed (the anchored bytes)."""
     e = dict(env)
     e.pop("anchors", None)
     return canonical_json(e)
@@ -276,8 +276,8 @@ def fetch_jwks(url: str = JWKS_URL, *, timeout: int = 30) -> dict:
     return _get_json(url, timeout=timeout)
 
 
+    # Decode standard or url-safe base64, padding-tolerant.
 def _b64decode(value: str) -> bytes:
-    """Decode standard or url-safe base64, padding-tolerant."""
     s = value.replace("-", "+").replace("_", "/")
     s += "=" * ((-len(s)) % 4)
     return base64.b64decode(s, validate=False)
@@ -446,20 +446,20 @@ def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None, org_i
     return _match_key(jwks, kid)
 
 
+    # Return the issuer id a jwks entry publishes, or None when it names no string.
 def key_issuer_of(entry):
-    """Return the issuer id a jwks entry publishes, or None when it names no string."""
     issuer = entry.get("issuer_id") if entry else None
     return issuer if isinstance(issuer, str) else None
 
 
+    # Return the org id a jwks entry publishes, or None when the value is not one.
 def key_org_of(entry):
-    """Return the org id a jwks entry publishes, or None when the value is not one."""
     org = entry.get("org_id") if entry else None
     return org if _is_org_id(org) else None
 
 
+    # Return the revoked_at a jwks entry publishes, if any.
 def revoked_at_of(entry):
-    """Return the revoked_at a jwks entry publishes, if any."""
     return entry.get("revoked_at") if entry else None
 
 
@@ -639,8 +639,8 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
 
 
+    # ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.
 def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
-    """ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED."""
     if (alg if isinstance(alg, str) else "").upper() != "ML-DSA-65":
         return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65)"
     try:
@@ -736,13 +736,8 @@ def check_skew(issued_at: str):
     return "PASS", f"skew {skew:.0f}s within bound"
 
 
+    # Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426).
 def check_expiry(payload: dict):
-    """Refuse a receipt past the expiry its own signer committed to.
-
-    Mirrors the hosted signature_expired verdict. The window is read from inside
-    the signed bytes, so an unsigned envelope field can never move it, and an
-    unreadable value fails closed instead of reading as no window at all.
-    """
     if not isinstance(payload, dict) or "expires_at" not in payload:
         return "PASS", "receipt declares no expiry"
     raw = payload["expires_at"]
@@ -803,8 +798,8 @@ def check_anchors(envelope: dict):
     return ("PASS" if all_ok else "FAIL"), "; ".join(lines)
 
 
+    # Closed-key-set and false-attestation rules for controls_evaluated.
 def check_controls_evaluated(payload: dict):
-    """Closed-key-set and false-attestation rules for controls_evaluated."""
     ce = payload.get("controls_evaluated")
     if ce is None:
         return "PASS", "receipt declares no controls_evaluated block"
@@ -1006,7 +1001,8 @@ def run(
         mark = {"PASS": "ok", "FAIL": "FAIL", "SKIPPED": "skip"}[res]
         print(f"  [{mark:>4}] {name:<11} {note}")
 
-    has_fail = any(r == "FAIL" for _, r, _ in results)
+    # Expiry reports on its own axis and never folds the verdict (criterion 426)
+    has_fail = any(r == "FAIL" for n, r, _ in results if n != "expiry")
     # A skipped chain (no predecessor supplied) is expected and does not block a
     # PASS; any other skip - notably the signature - downgrades to INCOMPLETE.
     has_blocking_skip = any(r == "SKIPPED" and n != "chain" for n, r, _ in results)
@@ -1182,7 +1178,8 @@ def run_structured(
     exp_r, exp_n = check_expiry(payload)
     axes.append({"name": "expiry", "result": exp_r, "note": exp_n})
 
-    has_fail = any(a["result"] == "FAIL" for a in axes)
+    # Expiry reports on its own axis and never folds the verdict (criterion 426)
+    has_fail = any(a["result"] == "FAIL" and a["name"] != "expiry" for a in axes)
     has_blocking_skip = any(
         a["result"] == "SKIPPED" and a["name"] != "chain" for a in axes
     )

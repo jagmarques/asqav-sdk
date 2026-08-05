@@ -63,14 +63,15 @@ def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
     return event
 
 
+    # sha256:<hex> over the JCS-canonical bytes of the tool response.
 def _result_digest(tool_response: Any) -> str:
-    """sha256:<hex> over the JCS-canonical bytes of the tool response."""
     from asqav.canonicalize import canonicalize
 
     digest = hashlib.sha256(canonicalize(tool_response)).hexdigest()
     return f"sha256:{digest}"
 
 
+    # Build the same body sign() POSTs, reusing the SDK builder (no re-impl).
 def _build_body(
     *,
     action_type: str,
@@ -79,7 +80,6 @@ def _build_body(
     agent_id: str,
     compliance_fields: dict[str, Any],
 ) -> dict[str, Any]:
-    """Build the same body sign() POSTs, reusing the SDK builder (no re-impl)."""
     from asqav.client import _build_sign_body
 
     return _build_sign_body(
@@ -123,8 +123,8 @@ def _map_event(
     return action_type, context, session_id, compliance_fields
 
 
+    # Return (api_key, agent_id) from the credential chain + env, or error clearly.
 def _require_identity() -> tuple[str, str]:
-    """Return (api_key, agent_id) from the credential chain + env, or error clearly."""
     api_key = resolve_api_key()
     agent_id = os.environ.get("ASQAV_AGENT_ID")
     missing = [
@@ -142,6 +142,7 @@ def _require_identity() -> tuple[str, str]:
     return api_key, agent_id  # type: ignore[return-value]
 
 
+    # Init the SDK, fetch the agent, and sign. Raises on any failure.
 def _sign_event(
     *,
     action_type: str,
@@ -151,7 +152,6 @@ def _sign_event(
     api_key: str,
     agent_id: str,
 ) -> Any:
-    """Init the SDK, fetch the agent, and sign. Raises on any failure."""
     import asqav
 
     asqav.init(api_key=api_key)

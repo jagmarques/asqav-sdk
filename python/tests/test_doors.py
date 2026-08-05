@@ -29,8 +29,8 @@ HASHMODE = _load("hashmode")
 # --- byte-identical inner: the exact receipt is embedded in every door ---
 
 
+    # All five doors carry the same receipt with an identical JCS byte string.
 def test_same_bytes_inner_across_all_doors() -> None:
-    """All five doors carry the same receipt with an identical JCS byte string."""
     for receipt in (COMPLIANCE, HASHMODE):
         inners = [
             doors.receipt_from_vc(doors.to_w3c_vc(receipt)),
@@ -150,8 +150,8 @@ def test_generic_extract_recovers_receipt_from_every_door() -> None:
 # --- cross-language parity: same JCS structure as the TS SDK ---
 
 
+    # Python wrap_all JCS equals the committed golden the TS test also checks.
 def test_parity_golden_matches_python_output() -> None:
-    """Python wrap_all JCS equals the committed golden the TS test also checks."""
     for name, receipt in (("compliance", COMPLIANCE), ("hashmode", HASHMODE)):
         golden = (_PARITY / f"golden-{name}.jcs").read_bytes()
         assert doors.canonical_json(doors.wrap_all(receipt)) == golden

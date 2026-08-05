@@ -22,8 +22,8 @@ def _mock_agent() -> MagicMock:
     return agent
 
 
+    # Default mode posts only hashes, never raw prompt/trace/output.
 def test_sign_reasoning_stores_hashes_only():
-    """Default mode posts only hashes, never raw prompt/trace/output."""
     agent = _mock_agent()
 
     prompt = "classify this ticket as urgent"
@@ -61,8 +61,8 @@ def test_sign_reasoning_stores_hashes_only():
     assert "Let me think" not in serialized
 
 
+    # store_raw=True adds raw payloads under _raw_* keys.
 def test_sign_reasoning_raw_optional():
-    """store_raw=True adds raw payloads under _raw_* keys."""
     agent = _mock_agent()
 
     receipt = sign_reasoning(
@@ -84,8 +84,8 @@ def test_sign_reasoning_raw_optional():
     assert ctx["_prompt_hash"] == hashlib.sha256(b"hello").hexdigest()
 
 
+    # retention_days flows to context and ReasoningReceipt when raw is on.
 def test_sign_reasoning_retention_param():
-    """retention_days flows to context and ReasoningReceipt when raw is on."""
     agent = _mock_agent()
 
     receipt = sign_reasoning(
@@ -102,8 +102,8 @@ def test_sign_reasoning_retention_param():
     assert ctx["_raw_retention_days"] == 30
 
 
+    # retention_days without store_raw does not leak raw payloads.
 def test_sign_reasoning_retention_ignored_without_store_raw():
-    """retention_days without store_raw does not leak raw payloads."""
     agent = _mock_agent()
 
     sign_reasoning(
@@ -119,15 +119,15 @@ def test_sign_reasoning_retention_ignored_without_store_raw():
     assert "_raw_retention_days" not in ctx
 
 
+    # Equivalent dicts in different key order produce equal hashes.
 def test_sha256_canonicalizes_dict_key_order():
-    """Equivalent dicts in different key order produce equal hashes."""
     a = {"x": 1, "y": 2}
     b = {"y": 2, "x": 1}
     assert _sha256(a) == _sha256(b)
 
 
+    # Caller-supplied context is preserved alongside injected hashes.
 def test_sign_reasoning_merges_user_context():
-    """Caller-supplied context is preserved alongside injected hashes."""
     agent = _mock_agent()
 
     sign_reasoning(
@@ -144,8 +144,8 @@ def test_sign_reasoning_merges_user_context():
     assert "_prompt_hash" in ctx
 
 
+    # trace_id and parent_id reach the underlying sign() call.
 def test_sign_reasoning_passes_trace_and_parent_ids():
-    """trace_id and parent_id reach the underlying sign() call."""
     agent = _mock_agent()
 
     sign_reasoning(

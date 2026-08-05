@@ -18,8 +18,8 @@ from asqav.local import LocalQueue, local_sign
 # === LocalQueue unit tests ===
 
 
+    # enqueue writes a JSON file in the queue directory.
 def test_enqueue_creates_file(tmp_path: object) -> None:
-    """enqueue writes a JSON file in the queue directory."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     item_id = queue.enqueue("agent_abc", "api:call", {"model": "gpt-4"})
 
@@ -34,8 +34,8 @@ def test_enqueue_creates_file(tmp_path: object) -> None:
     assert "queued_at" in data
 
 
+    # enqueue returns a string ID matching the filename.
 def test_enqueue_returns_id(tmp_path: object) -> None:
-    """enqueue returns a string ID matching the filename."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     item_id = queue.enqueue("agent_1", "read:data")
 
@@ -47,8 +47,8 @@ def test_enqueue_returns_id(tmp_path: object) -> None:
     assert files[0].stem == item_id
 
 
+    # list_pending returns items sorted by queued_at ascending.
 def test_list_pending_sorted(tmp_path: object) -> None:
-    """list_pending returns items sorted by queued_at ascending."""
     queue = LocalQueue(queue_dir=str(tmp_path))
 
     id1 = queue.enqueue("agent_1", "action_a")
@@ -64,8 +64,8 @@ def test_list_pending_sorted(tmp_path: object) -> None:
     assert items[2]["id"] == id3
 
 
+    # count returns the number of pending items.
 def test_count(tmp_path: object) -> None:
-    """count returns the number of pending items."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     assert queue.count() == 0
 
@@ -74,8 +74,8 @@ def test_count(tmp_path: object) -> None:
     assert queue.count() == 2
 
 
+    # sync deletes all items on success and returns correct counts.
 def test_sync_success(tmp_path: object) -> None:
-    """sync deletes all items on success and returns correct counts."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     queue.enqueue("agent_1", "action_a")
     queue.enqueue("agent_2", "action_b")
@@ -90,8 +90,8 @@ def test_sync_success(tmp_path: object) -> None:
     assert queue.count() == 0
 
 
+    # sync keeps failed items in queue and reports errors.
 def test_sync_partial_failure(tmp_path: object) -> None:
-    """sync keeps failed items in queue and reports errors."""
     call_count = 0
 
     def mock_post(path: str, data: dict) -> dict:
@@ -117,8 +117,8 @@ def test_sync_partial_failure(tmp_path: object) -> None:
     assert queue.count() == 1
 
 
+    # sync with empty queue returns zeroes.
 def test_sync_empty_queue(tmp_path: object) -> None:
-    """sync with empty queue returns zeroes."""
     queue = LocalQueue(queue_dir=str(tmp_path))
 
     with patch("asqav.client._post") as mock_post:
@@ -130,8 +130,8 @@ def test_sync_empty_queue(tmp_path: object) -> None:
     mock_post.assert_not_called()
 
 
+    # clear removes all items and returns count deleted.
 def test_clear(tmp_path: object) -> None:
-    """clear removes all items and returns count deleted."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     queue.enqueue("agent_1", "action_a")
     queue.enqueue("agent_2", "action_b")
@@ -142,8 +142,8 @@ def test_clear(tmp_path: object) -> None:
     assert queue.count() == 0
 
 
+    # local_sign creates a file in the specified queue directory.
 def test_local_sign_convenience(tmp_path: object) -> None:
-    """local_sign creates a file in the specified queue directory."""
     item_id = local_sign("agent_x", "deploy:model", {"version": "2"}, queue_dir=str(tmp_path))
 
     assert isinstance(item_id, str)
@@ -165,9 +165,9 @@ from asqav.cli import app  # noqa: E402
 runner = CliRunner()
 
 
+    # asqav sync with empty queue prints 'nothing to sync'.
 @patch("asqav.init")
 def test_cli_sync_empty(mock_init: MagicMock, tmp_path: object) -> None:
-    """asqav sync with empty queue prints 'nothing to sync'."""
     result = runner.invoke(
         app,
         ["sync"],
@@ -177,8 +177,8 @@ def test_cli_sync_empty(mock_init: MagicMock, tmp_path: object) -> None:
     assert "nothing to sync" in result.output.lower()
 
 
+    # asqav queue count shows correct count.
 def test_cli_queue_count(tmp_path: object) -> None:
-    """asqav queue count shows correct count."""
     # Pre-populate queue
     queue = LocalQueue(queue_dir=str(tmp_path))
     queue.enqueue("agent_1", "action_a")
@@ -193,8 +193,8 @@ def test_cli_queue_count(tmp_path: object) -> None:
     assert "2" in result.output
 
 
+    # asqav queue list shows pending items.
 def test_cli_queue_list(tmp_path: object) -> None:
-    """asqav queue list shows pending items."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     queue.enqueue("agent_abc", "api:call")
 
@@ -208,8 +208,8 @@ def test_cli_queue_list(tmp_path: object) -> None:
     assert "api:call" in result.output
 
 
+    # enqueue writes via tmp+rename; no .tmp residue, item parses back cleanly.
 def test_enqueue_is_atomic_no_tmp_residue(tmp_path) -> None:
-    """enqueue writes via tmp+rename; no .tmp residue, item parses back cleanly."""
     queue = LocalQueue(queue_dir=str(tmp_path))
     item_id = queue.enqueue("agent_abc", "api:call", {"k": "v"})
 
@@ -224,16 +224,16 @@ def test_enqueue_is_atomic_no_tmp_residue(tmp_path) -> None:
 # === path-injection regression (Trustabl #375) ===
 
 
+    # A traversal queue_dir is rejected before any mkdir/write escapes.
 def test_queue_dir_arg_traversal_rejected(tmp_path) -> None:
-    """A traversal queue_dir is rejected before any mkdir/write escapes."""
     target = tmp_path.parent / "escaped_queue"
     with pytest.raises(ValueError, match="path traversal"):
         LocalQueue(queue_dir=str(tmp_path / ".." / "escaped_queue"))
     assert not target.exists()
 
 
+    # ASQAV_QUEUE_DIR with '..' is rejected, mirroring the credentials fix.
 def test_queue_dir_env_traversal_rejected(tmp_path, monkeypatch) -> None:
-    """ASQAV_QUEUE_DIR with '..' is rejected, mirroring the credentials fix."""
     monkeypatch.setenv("ASQAV_QUEUE_DIR", str(tmp_path / ".." / "evil_queue"))
     with pytest.raises(ValueError, match="path traversal"):
         LocalQueue()

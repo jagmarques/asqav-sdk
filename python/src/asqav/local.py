@@ -29,8 +29,8 @@ def _validated_queue_dir(raw: str) -> Path:
     return Path(expanded)
 
 
+    # Queue for offline action signing with later sync to the Asqav API.
 class LocalQueue:
-    """Queue for offline action signing with later sync to the Asqav API."""
 
     def __init__(self, queue_dir: str | None = None) -> None:
         resolved = (
@@ -41,13 +41,13 @@ class LocalQueue:
         self.queue_dir = _validated_queue_dir(resolved)
         self.queue_dir.mkdir(parents=True, exist_ok=True)
 
+        # Queue an action for later sync. Returns the queue item ID.
     def enqueue(
         self,
         agent_id: str,
         action_type: str,
         context: dict[str, Any] | None = None,
     ) -> str:
-        """Queue an action for later sync. Returns the queue item ID."""
         now = datetime.now(timezone.utc)
         timestamp = now.strftime("%Y%m%d%H%M%S")
         short_id = uuid4().hex[:8]
@@ -68,8 +68,8 @@ class LocalQueue:
         os.replace(tmp_path, filepath)
         return item_id
 
+        # List all pending queue items, sorted oldest first.
     def list_pending(self) -> list[dict[str, Any]]:
-        """List all pending queue items, sorted oldest first."""
         items: list[dict[str, Any]] = []
         for filepath in self.queue_dir.glob("*.json"):
             try:
@@ -81,10 +81,10 @@ class LocalQueue:
         items.sort(key=lambda x: x.get("queued_at", ""))
         return items
 
+        # Sync pending items to API. Returns summary with synced/failed counts.
     def sync(
         self, on_progress: Callable[[str, bool, str | None], Any] | None = None
     ) -> dict[str, Any]:
-        """Sync pending items to API. Returns summary with synced/failed counts."""
         from .client import _post
 
         items = self.list_pending()
@@ -123,12 +123,12 @@ class LocalQueue:
             "errors": errors,
         }
 
+        # Return number of pending items in the queue.
     def count(self) -> int:
-        """Return number of pending items in the queue."""
         return len(list(self.queue_dir.glob("*.json")))
 
+        # Delete all pending items. Returns number deleted.
     def clear(self) -> int:
-        """Delete all pending items. Returns number deleted."""
         files = list(self.queue_dir.glob("*.json"))
         for filepath in files:
             filepath.unlink(missing_ok=True)
