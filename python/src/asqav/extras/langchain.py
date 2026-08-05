@@ -93,12 +93,12 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
             {"chain": str(name), "input_keys": input_keys},
         )
 
+        # Sign chain:end with output keys.
     def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
-        """Sign chain:end with output keys."""
         self._sign_action("chain:end", {"output_keys": list(outputs.keys())})
 
+        # Sign chain:error with error type and message.
     def on_chain_error(self, error: BaseException, **kwargs: Any) -> None:
-        """Sign chain:error with error type and message."""
         self._sign_action(
             "chain:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},
@@ -106,29 +106,29 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
     # -- Tool callbacks --------------------------------------------------------
 
+        # Sign tool:start with tool name and truncated input.
     def on_tool_start(
         self,
         serialized: dict[str, Any],
         input_str: str,
         **kwargs: Any,
     ) -> None:
-        """Sign tool:start with tool name and truncated input."""
         name = serialized.get("name") or serialized.get("id", ["unknown"])[-1]
         self._sign_action(
             "tool:start",
             {"tool": str(name), "input": str(input_str)[:200]},
         )
 
+        # Sign tool:end with output type and length.
     def on_tool_end(self, output: Any, **kwargs: Any) -> None:
-        """Sign tool:end with output type and length."""
         output_str = str(output)
         self._sign_action(
             "tool:end",
             {"output_type": type(output).__name__, "output_length": len(output_str)},
         )
 
+        # Sign tool:error with error details.
     def on_tool_error(self, error: BaseException, **kwargs: Any) -> None:
-        """Sign tool:error with error details."""
         self._sign_action(
             "tool:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},
@@ -136,21 +136,21 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
     # -- LLM callbacks ---------------------------------------------------------
 
+        # Sign llm:start with model name and prompt count.
     def on_llm_start(
         self,
         serialized: dict[str, Any],
         prompts: list[str],
         **kwargs: Any,
     ) -> None:
-        """Sign llm:start with model name and prompt count."""
         model = serialized.get("name") or serialized.get("id", ["unknown"])[-1]
         self._sign_action(
             "llm:start",
             {"model": str(model), "prompt_count": len(prompts)},
         )
 
+        # Sign llm:end with generation count and token usage if available.
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
-        """Sign llm:end with generation count and token usage if available."""
         generation_count = sum(len(g) for g in response.generations)
         context: dict[str, Any] = {"generation_count": generation_count}
 
@@ -163,8 +163,8 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
         self._sign_action("llm:end", context)
 
+        # Sign llm:error with error details.
     def on_llm_error(self, error: BaseException, **kwargs: Any) -> None:
-        """Sign llm:error with error details."""
         self._sign_action(
             "llm:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},

@@ -50,9 +50,9 @@ def _make_agent() -> Agent:
     )
 
 
+    # Reset SDK module state between tests.
 @pytest.fixture(autouse=True)
 def _isolate_module_state() -> None:
-    """Reset SDK module state between tests."""
     saved = (client_mod._mode, client_mod._org_salt, client_mod._api_key)
     client_mod._api_key = "sk_test"
     yield
@@ -96,8 +96,8 @@ def test_hash_only_mode_sends_hash_not_context() -> None:
     assert isinstance(body["payload_size"], int) and body["payload_size"] > 0
 
 
+    # payload_size MUST equal the byte length of the canonical fingerprint.
 def test_hash_only_payload_size_matches_canonical_bytes_length() -> None:
-    """payload_size MUST equal the byte length of the canonical fingerprint."""
     from asqav.canonicalize import canonicalize
 
     client_mod._mode = "hash-only"
@@ -114,8 +114,8 @@ def test_hash_only_payload_size_matches_canonical_bytes_length() -> None:
     assert body["payload_size"] == len(expected_bytes)
 
 
+    # user_id, ip, prompt, etc. in context must NOT appear in metadata.
 def test_hash_only_metadata_does_not_leak_user_fields() -> None:
-    """user_id, ip, prompt, etc. in context must NOT appear in metadata."""
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     agent = _make_agent()
@@ -137,8 +137,8 @@ def test_hash_only_metadata_does_not_leak_user_fields() -> None:
     assert metadata["action_type"] == "api:call"
 
 
+    # If caller adds ``_model_name`` sentinel to context, surface in metadata.
 def test_hash_only_includes_optional_model_name_when_opted_in() -> None:
-    """If caller adds ``_model_name`` sentinel to context, surface in metadata."""
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     agent = _make_agent()
@@ -154,8 +154,8 @@ def test_hash_only_includes_optional_model_name_when_opted_in() -> None:
     assert body["metadata"]["tool_name"] == "search"
 
 
+    # ``_parent_id`` in context auto-surfaces to metadata bag.
 def test_hash_only_surfaces_parent_id_from_context_sentinel() -> None:
-    """``_parent_id`` in context auto-surfaces to metadata bag."""
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     agent = _make_agent()
@@ -167,8 +167,8 @@ def test_hash_only_surfaces_parent_id_from_context_sentinel() -> None:
     assert body["metadata"]["parent_id"] == "act_parent_42"
 
 
+    # Passing tool_name=... to sign() surfaces it in the wire metadata bag.
 def test_hash_only_explicit_tool_name_kwarg_appears_in_metadata() -> None:
-    """Passing tool_name=... to sign() surfaces it in the wire metadata bag."""
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     agent = _make_agent()
@@ -180,8 +180,8 @@ def test_hash_only_explicit_tool_name_kwarg_appears_in_metadata() -> None:
     assert body["metadata"]["tool_name"] == "web_search"
 
 
+    # Passing model_name=... to sign() surfaces it in the wire metadata bag.
 def test_hash_only_explicit_model_name_kwarg_appears_in_metadata() -> None:
-    """Passing model_name=... to sign() surfaces it in the wire metadata bag."""
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     agent = _make_agent()
@@ -193,8 +193,8 @@ def test_hash_only_explicit_model_name_kwarg_appears_in_metadata() -> None:
     assert body["metadata"]["model_name"] == "claude-opus-4-7"
 
 
+    # Passing parent_id=... to sign() surfaces it in the wire metadata bag.
 def test_hash_only_explicit_parent_id_kwarg_appears_in_metadata() -> None:
-    """Passing parent_id=... to sign() surfaces it in the wire metadata bag."""
     client_mod._mode = "hash-only"
     client_mod._org_salt = None
     agent = _make_agent()
@@ -230,8 +230,8 @@ def test_full_payload_keeps_telemetry_in_context_only_not_duplicated() -> None:
     assert body["context"]["_parent_id"] == "act_parent_1"
 
 
+    # A non-None org_salt swaps SHA-256 for HMAC-SHA-256 with the same shape.
 def test_hash_only_uses_hmac_when_org_salt_set() -> None:
-    """A non-None org_salt swaps SHA-256 for HMAC-SHA-256 with the same shape."""
     agent = _make_agent()
     plain_hash = None
     salted_hash = None
@@ -258,8 +258,8 @@ def test_hash_only_uses_hmac_when_org_salt_set() -> None:
     assert salted_algo == "hmac-sha256"
 
 
+    # asqav.init() should set _mode from the api_base_url when mode=auto.
 def test_init_resolves_mode_from_url() -> None:
-    """asqav.init() should set _mode from the api_base_url when mode=auto."""
     saved_base = client_mod._api_base
     try:
         # Cloud URL -> hash-only

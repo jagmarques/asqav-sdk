@@ -9,28 +9,28 @@ from asqav.client import (
 )
 
 
+    # Every aliased `policy_decision` token resolves to a spec token.
 def test_decision_map_covers_full_alias_vocabulary():
-    """Every aliased `policy_decision` token resolves to a spec token."""
     assert DECISION_MAP["permit"] == "allow"
     assert DECISION_MAP["deny"] == "deny"
     assert DECISION_MAP["rate_limit"] == "rate_limit"
 
 
+    # Spec-shape `allow` round-trips.
 def test_decision_map_idempotent_for_already_normalised_input():
-    """Spec-shape `allow` round-trips."""
     assert DECISION_MAP["allow"] == "allow"
     assert _map_policy_decision_to_decision("allow") == "allow"
 
 
+    # Closed-by-default keeps misconfigured callers safe.
 def test_unknown_token_falls_back_to_deny():
-    """Closed-by-default keeps misconfigured callers safe."""
     assert _map_policy_decision_to_decision("yolo") == "deny"
     assert _map_policy_decision_to_decision(None) == "deny"
     assert _map_policy_decision_to_decision("") == "deny"
 
 
+    # Non-compliance receipts MUST NOT carry a `decision` token.
 def test_signature_response_decision_default_none():
-    """Non-compliance receipts MUST NOT carry a `decision` token."""
     resp = SignatureResponse(
         signature="ZmFrZQ==",
         signature_id="sig_test",
@@ -43,8 +43,8 @@ def test_signature_response_decision_default_none():
     assert resp.policy_decision == "permit"
 
 
+    # Compliance receipts surface BOTH fields.
 def test_signature_response_decision_alongside_policy_decision():
-    """Compliance receipts surface BOTH fields."""
     resp = SignatureResponse(
         signature="ZmFrZQ==",
         signature_id="sig_test",

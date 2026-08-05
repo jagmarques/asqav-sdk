@@ -20,16 +20,16 @@ except ImportError as exc:  # pragma: no cover - import guard
 from ._base import AsqavAdapter
 
 
+    # Best-effort extraction of the model id from completion kwargs.
 def _model_name(kwargs: dict[str, Any]) -> str:
-    """Best-effort extraction of the model id from completion kwargs."""
     model = kwargs.get("model")
     if isinstance(model, str):
         return model
     return "unknown"
 
 
+    # Best-effort name of the Pydantic schema instructor is targeting.
 def _response_model_name(kwargs: dict[str, Any]) -> str | None:
-    """Best-effort name of the Pydantic schema instructor is targeting."""
     rm = kwargs.get("response_model")
     if rm is None:
         return None
@@ -51,8 +51,8 @@ def _exception_name(exc: BaseException | None) -> str | None:
         return "Exception"
 
 
+    # Asqav adapter for instructor clients; fail-open (extraction runs even if Asqav is down).
 class AsqavInstructorHook(AsqavAdapter):
-    """Asqav adapter for instructor clients; fail-open (extraction runs even if Asqav is down)."""
 
     def __init__(
         self,
@@ -65,8 +65,8 @@ class AsqavInstructorHook(AsqavAdapter):
 
     # === Public attachment surface ===
 
+        # Register this hook on an instructor client (sync or async; both expose ``.on()``).
     def attach(self, client: Any) -> None:
-        """Register this hook on an instructor client (sync or async; both expose ``.on()``)."""
         if not hasattr(client, "on"):
             raise TypeError(
                 "client does not look like an instructor client; "
@@ -80,8 +80,8 @@ class AsqavInstructorHook(AsqavAdapter):
 
     # === Event handlers ===
 
+        # instructor emits the LLM kwargs right before the call.
     def _on_kwargs(self, *args: Any, **kwargs: Any) -> None:
-        """instructor emits the LLM kwargs right before the call."""
         self._sign_action(
             "instructor.completion.start",
             {
@@ -91,8 +91,8 @@ class AsqavInstructorHook(AsqavAdapter):
             },
         )
 
+        # Successful completion. We only persist hashable, low-PII fields.
     def _on_response(self, response: Any) -> None:
-        """Successful completion. We only persist hashable, low-PII fields."""
         usage = getattr(response, "usage", None)
         ctx: dict[str, Any] = {"id": getattr(response, "id", None)}
         if usage is not None:
@@ -113,8 +113,8 @@ class AsqavInstructorHook(AsqavAdapter):
             {"error_type": _exception_name(error), "message": str(error)[:500]},
         )
 
+        # Pydantic validation failed against response_model.
     def _on_parse_error(self, error: Exception) -> None:
-        """Pydantic validation failed against response_model."""
         self._sign_action(
             "instructor.parse.error",
             {"error_type": _exception_name(error), "message": str(error)[:500]},

@@ -27,8 +27,8 @@ logger = logging.getLogger("asqav")
 _PRESIDIO_DOCS = "https://microsoft.github.io/presidio/"
 
 
+    # Lazy-load presidio_analyzer.AnalyzerEngine; raise ImportError if missing.
 def _load_analyzer() -> Any:
-    """Lazy-load presidio_analyzer.AnalyzerEngine; raise ImportError if missing."""
     try:
         from presidio_analyzer import AnalyzerEngine  # type: ignore[import]
 

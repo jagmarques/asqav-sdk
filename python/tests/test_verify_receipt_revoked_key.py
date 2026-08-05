@@ -61,8 +61,8 @@ def test_check_key_status_revoked_before_issuance_fails():
     assert res == "FAIL"
 
 
+    # No anchor means issued_at is self-attested; backdating is undetectable.
 def test_check_key_status_revoked_after_issuance_skipped_without_anchor():
-    """No anchor means issued_at is self-attested; backdating is undetectable."""
     res, note = v.check_key_status(
         "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z"
     )
@@ -70,8 +70,8 @@ def test_check_key_status_revoked_after_issuance_skipped_without_anchor():
     assert "anchor" in note.lower()
 
 
+    # A pre-revocation receipt with a trusted anchor still verifies.
 def test_check_key_status_revoked_after_issuance_passes_with_anchor():
-    """A pre-revocation receipt with a trusted anchor still verifies."""
     res, _ = v.check_key_status(
         "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
         has_trusted_anchor=True,
@@ -82,8 +82,8 @@ def test_check_key_status_revoked_after_issuance_passes_with_anchor():
 # --- standalone verify_receipt.run ---
 
 
+    # A revoked-key receipt yields a FAIL verdict, never PASS, from run().
 def test_run_revoked_key_does_not_pass(capsys):
-    """A revoked-key receipt yields a FAIL verdict, never PASS, from run()."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -96,8 +96,8 @@ def test_run_revoked_key_does_not_pass(capsys):
     assert code == 1  # FAIL dominates; never 0 (PASS)
 
 
+    # An active key contributes a key_status PASS line.
 def test_run_active_key_has_key_status_pass(capsys):
-    """An active key contributes a key_status PASS line."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -112,8 +112,8 @@ def test_run_active_key_has_key_status_pass(capsys):
 # --- run_structured path ---
 
 
+    # run_structured must include a key_status FAIL axis for a revoked key.
 def test_run_structured_revoked_key_has_key_status_fail_axis():
-    """run_structured must include a key_status FAIL axis for a revoked key."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -126,8 +126,8 @@ def test_run_structured_revoked_key_has_key_status_fail_axis():
     assert ks["result"] == "FAIL", f"expected FAIL, got {ks['result']!r}"
 
 
+    # run_structured includes a key_status PASS axis for an active key.
 def test_run_structured_active_key_has_key_status_pass_axis():
-    """run_structured includes a key_status PASS axis for an active key."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -157,8 +157,8 @@ def test_run_structured_revoked_at_after_issuance_skipped_without_anchor():
     assert result["verdict"] != "PASS"
 
 
+    # Offline a present anchor is not trusted, so key_status stays SKIPPED.
 def test_run_structured_forged_anchor_stays_skipped_offline():
-    """Offline a present anchor is not trusted, so key_status stays SKIPPED."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -215,13 +215,13 @@ def test_offline_forged_anchor_revoked_key_verdict_not_pass():
 # --- oracle adapter path ---
 
 
+    # Read one axis by name; position shifts as the adapter grows axes.
 def _axis(axes, name):
-    """Read one axis by name; position shifts as the adapter grows axes."""
     return next(a for a in axes if a[0] == name)
 
 
+    # The asqav-native adapter surfaces a failing key_status axis for a revoked key.
 def test_oracle_revoked_key_axis_fails():
-    """The asqav-native adapter surfaces a failing key_status axis for a revoked key."""
     doc = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -243,8 +243,8 @@ def test_oracle_active_key_axis_passes():
     assert status[1] == "PASS", status
 
 
+    # The adapter must not let a forged anchor upgrade a revoked key's axis.
 def test_oracle_forged_anchor_revoked_key_axis_skipped():
-    """The adapter must not let a forged anchor upgrade a revoked key's axis."""
     doc = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},

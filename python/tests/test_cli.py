@@ -19,8 +19,8 @@ runner = CliRunner()
 # === Version ===
 
 
+    # --version prints the SDK version.
 def test_version() -> None:
-    """--version prints the SDK version."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "asqav" in result.output
@@ -30,9 +30,9 @@ def test_version() -> None:
 # === verify command ===
 
 
+    # verify prints details for a valid signature.
 @patch("asqav.verify_signature")
 def test_verify_valid(mock_verify: MagicMock) -> None:
-    """verify prints details for a valid signature."""
     mock_verify.return_value = MagicMock(
         verified=True,
         agent_name="test-agent",
@@ -49,9 +49,9 @@ def test_verify_valid(mock_verify: MagicMock) -> None:
     mock_verify.assert_called_once_with("sig_abc")
 
 
+    # verify prints 'invalid' when signature is not verified.
 @patch("asqav.verify_signature")
 def test_verify_invalid(mock_verify: MagicMock) -> None:
-    """verify prints 'invalid' when signature is not verified."""
     mock_verify.return_value = MagicMock(
         verified=False,
         agent_name="bad-agent",
@@ -65,9 +65,9 @@ def test_verify_invalid(mock_verify: MagicMock) -> None:
     assert "bad-agent" in result.output
 
 
+    # verify exits with code 1 for non-existent signature.
 @patch("asqav.verify_signature")
 def test_verify_not_found(mock_verify: MagicMock) -> None:
-    """verify exits with code 1 for non-existent signature."""
     from asqav import APIError
 
     mock_verify.side_effect = APIError("Signature not found", 404)
@@ -91,12 +91,12 @@ def test_verify_network_failure_readable(mock_verify: MagicMock) -> None:
 # === sign command (IETF Compliance Receipts profile) ===
 
 
+    # sign --compliance-mode threads every IETF flag into Agent.sign().
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_sign_compliance_mode_calls_sdk(
     mock_init: MagicMock, mock_get: MagicMock, tmp_path
 ) -> None:
-    """sign --compliance-mode threads every IETF flag into Agent.sign()."""
     fake_agent = MagicMock()
     fake_agent.agent_id = "agent_x"
     fake_agent.algorithm = "ml-dsa-65"
@@ -152,12 +152,12 @@ def test_sign_compliance_mode_calls_sdk(
     assert call_kwargs["sandbox_state"] == "enabled"
 
 
+    # sign --policy-decision deny without --reason exits non-zero.
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_sign_deny_without_reason_rejects(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """sign --policy-decision deny without --reason exits non-zero."""
     result = runner.invoke(
         app,
         [
@@ -175,11 +175,11 @@ def test_sign_deny_without_reason_rejects(
 # === sign command: edge-case branches ===
 
 
+    # A malformed --action-json file is reported with a clear error.
 @patch("asqav.init")
 def test_sign_action_json_invalid_exits_1(
     mock_init: MagicMock, tmp_path
 ) -> None:
-    """A malformed --action-json file is reported with a clear error."""
     bad = tmp_path / "bad.json"
     bad.write_text("{not json")
     result = runner.invoke(
@@ -196,12 +196,12 @@ def test_sign_action_json_invalid_exits_1(
     assert "Error reading action JSON" in result.output
 
 
+    # Agent.get APIError surfaces as 'Error fetching agent' and exit 1.
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_sign_agent_get_api_error_exits_1(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """Agent.get APIError surfaces as 'Error fetching agent' and exit 1."""
     from asqav import APIError
 
     mock_get.side_effect = APIError("agent revoked", 404)
@@ -358,16 +358,16 @@ def test_build_sign_context_returns_none_when_empty() -> None:
     assert _build_sign_context({}, "", None) is None
 
 
+    # `--action-id` without --action-json produces a context with just the id.
 def test_build_sign_context_only_action_id() -> None:
-    """`--action-id` without --action-json produces a context with just the id."""
     from asqav.cli import _build_sign_context
 
     assert _build_sign_context({}, "act_only", None) == {"_action_id": "act_only"}
 
 
+    # verify --output text surfaces IETF profile sub-axes when present.
 @patch("asqav.verify_signature")
 def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
-    """verify --output text surfaces IETF profile sub-axes when present."""
     from asqav import VerificationDetail
 
     mock_verify.return_value = MagicMock(
@@ -397,9 +397,9 @@ def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
     assert "skew: 1.234" in result.output
 
 
+    # verify --output json returns the full VerificationResponse.
 @patch("asqav.verify_signature")
 def test_verify_json_emits_full_detail(mock_verify: MagicMock) -> None:
-    """verify --output json returns the full VerificationResponse."""
     import json
 
     from asqav import VerificationDetail
@@ -439,10 +439,10 @@ def test_verify_json_emits_full_detail(mock_verify: MagicMock) -> None:
 # === agents list command ===
 
 
+    # agents list prints agents when present.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_agents_list(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """agents list prints agents when present."""
     mock_get.return_value = {
         "agents": [
             {"name": "alpha", "agent_id": "agent_001", "algorithm": "ml-dsa-65"},
@@ -457,22 +457,22 @@ def test_agents_list(mock_init: MagicMock, mock_get: MagicMock) -> None:
     mock_init.assert_called_once_with(api_key="sk_test")
 
 
+    # agents list prints message when no agents exist.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_agents_list_empty(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """agents list prints message when no agents exist."""
     mock_get.return_value = {"agents": []}
     result = runner.invoke(app, ["agents", "list"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 0
     assert "No agents found" in result.output
 
 
+    # The cloud returns a bare JSON array; the CLI must render it directly.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_agents_list_handles_array_response(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """The cloud returns a bare JSON array; the CLI must render it directly."""
     mock_get.return_value = [
         {"name": "alpha", "agent_id": "agent_001", "algorithm": "ml-dsa-65"},
         {"name": "beta", "agent_id": "agent_002", "algorithm": "ed25519"},
@@ -485,18 +485,18 @@ def test_agents_list_handles_array_response(
     assert "agent_002" in result.output
 
 
+    # An empty array response must produce the friendly empty message.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_agents_list_empty_array(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """An empty array response must produce the friendly empty message."""
     mock_get.return_value = []
     result = runner.invoke(app, ["agents", "list"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 0
     assert "No agents found" in result.output
 
 
+    # agents list exits with error when ASQAV_API_KEY is not set.
 def test_agents_list_no_api_key() -> None:
-    """agents list exits with error when ASQAV_API_KEY is not set."""
     result = runner.invoke(app, ["agents", "list"], env={"ASQAV_API_KEY": ""})
     assert result.exit_code == 1
     assert "ASQAV_API_KEY" in result.output
@@ -505,10 +505,10 @@ def test_agents_list_no_api_key() -> None:
 # === agents create command ===
 
 
+    # agents create prints the new agent details.
 @patch("asqav.Agent.create")
 @patch("asqav.init")
 def test_agents_create(mock_init: MagicMock, mock_create: MagicMock) -> None:
-    """agents create prints the new agent details."""
     mock_agent = MagicMock(
         name="my-agent",
         agent_id="agent_new",
@@ -530,8 +530,8 @@ def test_agents_create(mock_init: MagicMock, mock_create: MagicMock) -> None:
 # === quickstart command ===
 
 
+    # quickstart shows success when API key is set.
 def test_quickstart_with_api_key() -> None:
-    """quickstart shows success when API key is set."""
     result = runner.invoke(app, ["quickstart"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 0
     assert "API key detected" in result.output
@@ -540,8 +540,8 @@ def test_quickstart_with_api_key() -> None:
     assert "Next steps" in result.output
 
 
+    # quickstart warns when API key is missing.
 def test_quickstart_without_api_key() -> None:
-    """quickstart warns when API key is missing."""
     result = runner.invoke(app, ["quickstart"], env={"ASQAV_API_KEY": ""})
     assert result.exit_code == 0
     assert "ASQAV_API_KEY not set" in result.output
@@ -551,9 +551,9 @@ def test_quickstart_without_api_key() -> None:
 # === doctor command ===
 
 
+    # doctor reports failure when API key is missing.
 @patch("urllib.request.urlopen")
 def test_doctor_no_api_key(mock_urlopen: MagicMock) -> None:
-    """doctor reports failure when API key is missing."""
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": ""})
     assert result.exit_code == 1
     assert "FAIL" in result.output
@@ -561,6 +561,7 @@ def test_doctor_no_api_key(mock_urlopen: MagicMock) -> None:
     assert "SKIP" in result.output
 
 
+    # doctor passes all checks when API key is set and API is reachable.
 @patch("asqav.client._urllib_request")
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
@@ -571,7 +572,6 @@ def test_doctor_all_pass(
     mock_urlopen: MagicMock,
     mock_urllib_req: MagicMock,
 ) -> None:
-    """doctor passes all checks when API key is set and API is reachable."""
     mock_health.return_value = {"status": "ok"}
     mock_urllib_req.return_value = []
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
@@ -610,6 +610,7 @@ def test_doctor_url_join_broken_fails(
     assert "All checks passed" not in result.output
 
 
+    # doctor reports failure when API is unreachable.
 @patch("asqav.client._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
@@ -620,7 +621,6 @@ def test_doctor_api_unreachable(
     mock_urlopen: MagicMock,
     mock_urllib_req: MagicMock,
 ) -> None:
-    """doctor reports failure when API is unreachable."""
     mock_health.side_effect = Exception("Connection refused")
     result = runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 1
@@ -657,6 +657,7 @@ def test_doctor_edge_blocked_403(
     assert "All checks passed" not in result.output
 
 
+    # doctor reports a clear failure when the edge probe cannot connect.
 @patch("asqav.client._urllib_request", return_value=[])
 @patch("urllib.request.urlopen")
 @patch("asqav.client.health_check")
@@ -667,7 +668,6 @@ def test_doctor_edge_unreachable(
     mock_urlopen: MagicMock,
     mock_urllib_req: MagicMock,
 ) -> None:
-    """doctor reports a clear failure when the edge probe cannot connect."""
     import urllib.error
 
     mock_health.return_value = {"status": "ok"}
@@ -678,9 +678,9 @@ def test_doctor_edge_unreachable(
     assert "All checks passed" not in result.output
 
 
+    # The edge probe identifies itself with the SDK User-Agent.
 @patch("urllib.request.urlopen")
 def test_doctor_edge_probe_sends_user_agent(mock_urlopen: MagicMock) -> None:
-    """The edge probe identifies itself with the SDK User-Agent."""
     from asqav._useragent import USER_AGENT
 
     runner.invoke(app, ["doctor"], env={"ASQAV_API_KEY": ""})
@@ -692,8 +692,8 @@ def test_doctor_edge_probe_sends_user_agent(mock_urlopen: MagicMock) -> None:
 # === replay command ===
 
 
+    # Build a ReplayTimeline-like double for CLI tests.
 def _fake_timeline(*, chain_integrity: bool = True) -> MagicMock:
-    """Build a ReplayTimeline-like double for CLI tests."""
     tl = MagicMock()
     tl.agent_id = "agt_test"
     tl.session_id = "sess_test"
@@ -703,17 +703,17 @@ def _fake_timeline(*, chain_integrity: bool = True) -> MagicMock:
     return tl
 
 
+    # replay without agent_id+session_id and without --bundle exits 1.
 def test_replay_requires_agent_and_session() -> None:
-    """replay without agent_id+session_id and without --bundle exits 1."""
     result = runner.invoke(app, ["replay"], env={"ASQAV_API_KEY": "sk_test"})
     assert result.exit_code == 1
     assert "agent_id and session_id are required" in result.output
 
 
+    # replay <agent> <session> calls asqav.replay and prints the summary.
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_online_passes_chain(mock_init: MagicMock, mock_replay: MagicMock) -> None:
-    """replay <agent> <session> calls asqav.replay and prints the summary."""
     mock_replay.return_value = _fake_timeline(chain_integrity=True)
     result = runner.invoke(
         app,
@@ -725,10 +725,10 @@ def test_replay_online_passes_chain(mock_init: MagicMock, mock_replay: MagicMock
     mock_replay.assert_called_once_with("agt_test", "sess_test")
 
 
+    # replay exits non-zero when the chain failed verification.
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_chain_broken_exits_1(mock_init: MagicMock, mock_replay: MagicMock) -> None:
-    """replay exits non-zero when the chain failed verification."""
     mock_replay.return_value = _fake_timeline(chain_integrity=False)
     result = runner.invoke(
         app,
@@ -738,10 +738,10 @@ def test_replay_chain_broken_exits_1(mock_init: MagicMock, mock_replay: MagicMoc
     assert result.exit_code == 1
 
 
+    # --json prints to_json output.
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_json_flag(mock_init: MagicMock, mock_replay: MagicMock) -> None:
-    """--json prints to_json output."""
     mock_replay.return_value = _fake_timeline()
     result = runner.invoke(
         app,
@@ -752,8 +752,8 @@ def test_replay_json_flag(mock_init: MagicMock, mock_replay: MagicMock) -> None:
     assert "agt_test" in result.output
 
 
+    # --bundle pointing to a nonexistent file exits 1.
 def test_replay_bundle_missing_file() -> None:
-    """--bundle pointing to a nonexistent file exits 1."""
     result = runner.invoke(app, ["replay", "--bundle", "/nonexistent/path.json"])
     assert result.exit_code == 1
     assert "Error reading bundle" in result.output
@@ -762,10 +762,10 @@ def test_replay_bundle_missing_file() -> None:
 # === preflight command ===
 
 
+    # preflight prints CLEARED and exits 0 when the action is allowed.
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_preflight_cleared(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """preflight prints CLEARED and exits 0 when the action is allowed."""
     mock_agent = MagicMock()
     mock_agent.preflight.return_value = MagicMock(
         cleared=True, agent_active=True, policy_allowed=True,
@@ -780,10 +780,10 @@ def test_preflight_cleared(mock_init: MagicMock, mock_get: MagicMock) -> None:
     assert "CLEARED" in result.output
 
 
+    # preflight exits 1 and prints reasons when blocked.
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_preflight_blocked(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """preflight exits 1 and prints reasons when blocked."""
     mock_agent = MagicMock()
     mock_agent.preflight.return_value = MagicMock(
         cleared=False, agent_active=False, policy_allowed=True,
@@ -802,10 +802,10 @@ def test_preflight_blocked(mock_init: MagicMock, mock_get: MagicMock) -> None:
 # === budget commands ===
 
 
+    # budget check exits 0 when within limit.
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_budget_check_allowed(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """budget check exits 0 when within limit."""
     mock_get.return_value = MagicMock()
     result = runner.invoke(
         app,
@@ -817,10 +817,10 @@ def test_budget_check_allowed(mock_init: MagicMock, mock_get: MagicMock) -> None
     assert "ALLOWED" in result.output
 
 
+    # budget check exits 1 when estimated_cost would exceed limit.
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_budget_check_exhausted(mock_init: MagicMock, mock_get: MagicMock) -> None:
-    """budget check exits 1 when estimated_cost would exceed limit."""
     mock_get.return_value = MagicMock()
     result = runner.invoke(
         app,
@@ -833,13 +833,13 @@ def test_budget_check_exhausted(mock_init: MagicMock, mock_get: MagicMock) -> No
     assert "budget_exhausted" in result.output
 
 
+    # budget record signs a spend record and prints the signature_id.
 @patch("asqav.BudgetTracker.record")
 @patch("asqav.Agent.get")
 @patch("asqav.init")
 def test_budget_record(
     mock_init: MagicMock, mock_get: MagicMock, mock_record: MagicMock,
 ) -> None:
-    """budget record signs a spend record and prints the signature_id."""
     mock_get.return_value = MagicMock()
     mock_record.return_value = MagicMock(
         signature_id="sig_b1", action_id="act_b1",
@@ -859,10 +859,10 @@ def test_budget_record(
 # === approve command ===
 
 
+    # approve prints APPROVED when the session is fully approved.
 @patch("asqav.approve_action")
 @patch("asqav.init")
 def test_approve_approved(mock_init: MagicMock, mock_approve: MagicMock) -> None:
-    """approve prints APPROVED when the session is fully approved."""
     mock_approve.return_value = MagicMock(
         session_id="thr_a", entity_id="ent_a",
         signatures_collected=2, approvals_required=2,
@@ -879,8 +879,8 @@ def test_approve_approved(mock_init: MagicMock, mock_approve: MagicMock) -> None
 # === compliance commands ===
 
 
+    # compliance frameworks lists known framework keys.
 def test_compliance_frameworks_lists_known() -> None:
-    """compliance frameworks lists known framework keys."""
     result = runner.invoke(app, ["compliance", "frameworks"])
     assert result.exit_code == 0
     # FRAMEWORKS dict from compliance.py contains at least these.
@@ -888,6 +888,7 @@ def test_compliance_frameworks_lists_known() -> None:
     assert "dora" in result.output
 
 
+    # compliance export pulls signatures and writes a bundle file.
 @patch("asqav.compliance.export_bundle")
 @patch("asqav.client.get_session_signatures")
 @patch("asqav.init")
@@ -895,7 +896,6 @@ def test_compliance_export_writes_bundle(
     mock_init: MagicMock, mock_get_sigs: MagicMock, mock_export: MagicMock,
     tmp_path,
 ) -> None:
-    """compliance export pulls signatures and writes a bundle file."""
     mock_get_sigs.return_value = [{"signature_id": "s1"}]
     mock_bundle = MagicMock(receipt_count=1, merkle_root="abc123")
     mock_export.return_value = mock_bundle
@@ -912,12 +912,12 @@ def test_compliance_export_writes_bundle(
     mock_bundle.to_file.assert_called_once_with(str(out))
 
 
+    # compliance export exits 1 when the framework key is not known.
 @patch("asqav.client.get_session_signatures")
 @patch("asqav.init")
 def test_compliance_export_unknown_framework(
     mock_init: MagicMock, mock_get_sigs: MagicMock,
 ) -> None:
-    """compliance export exits 1 when the framework key is not known."""
     mock_get_sigs.return_value = []
     result = runner.invoke(
         app,
@@ -962,12 +962,12 @@ def test_preflight_runs_on_free_tier_without_gate(
         assert call.args[:1] != ("/account",)
 
 
+    # policies list (a former Pro command) is reachable on the free tier.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_policies_list_runs_on_free_tier_without_gate(
     mock_init: MagicMock, mock_get: MagicMock,
 ) -> None:
-    """policies list (a former Pro command) is reachable on the free tier."""
     mock_get.return_value = []
     result = runner.invoke(
         app,
@@ -1090,12 +1090,12 @@ def test_webhooks_delete_calls_delete(
 # === audit-pack export / policy ===
 
 
+    # audit-pack export writes the cloud-signed bundle to disk.
 @patch("asqav.client._post")
 @patch("asqav.init")
 def test_audit_pack_export_writes_bundle(
     mock_init: MagicMock, mock_post: MagicMock, tmp_path
 ) -> None:
-    """audit-pack export writes the cloud-signed bundle to disk."""
     mock_post.return_value = {
         "bundle_digest": "sha256:abc",
         "bundle_signature": "BASE64SIG==",
@@ -1126,12 +1126,12 @@ def test_audit_pack_export_writes_bundle(
     assert body["only_compliance"] is True
 
 
+    # audit-pack policy returns the artefact JSON. 64-hex prefixes sha256:.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_audit_pack_policy_resolves_digest(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """audit-pack policy returns the artefact JSON. 64-hex prefixes sha256:."""
     mock_get.return_value = {
         "digest": "sha256:" + "a" * 64,
         "organization_id": "org_x",
@@ -1154,12 +1154,12 @@ def test_audit_pack_policy_resolves_digest(
 # === payloads erase ===
 
 
+    # payloads erase --yes calls DELETE /signatures/payloads/{id}.
 @patch("asqav.client._delete")
 @patch("asqav.init")
 def test_payloads_erase_calls_delete(
     mock_init: MagicMock, mock_delete: MagicMock
 ) -> None:
-    """payloads erase --yes calls DELETE /signatures/payloads/{id}."""
     mock_delete.return_value = {}
     result = runner.invoke(
         app,
@@ -1203,8 +1203,8 @@ def test_org_set_compliance_strict_requires_one_flag() -> None:
 # === keys generate ===
 
 
+    # keys generate --algorithm ed25519 emits a PKCS#8 PEM private key.
 def test_keys_generate_ed25519(tmp_path) -> None:
-    """keys generate --algorithm ed25519 emits a PKCS#8 PEM private key."""
     pytest_skipif_no_crypto = False
     try:
         from cryptography.hazmat.primitives.asymmetric import ed25519  # noqa: F401
@@ -1235,12 +1235,12 @@ def test_keys_generate_ml_dsa_errors() -> None:
 # === audit-pack verify ===
 
 
+    # audit-pack verify posts the bundle wrapped in {bundle: ...} and prints VALID.
 @patch("asqav.client._post")
 @patch("asqav.init")
 def test_audit_pack_verify_valid(
     mock_init: MagicMock, mock_post: MagicMock, tmp_path
 ) -> None:
-    """audit-pack verify posts the bundle wrapped in {bundle: ...} and prints VALID."""
     mock_post.return_value = {
         "bundle_signature_valid": True,
         "bundle_digest": "sha256:abc",
@@ -1268,12 +1268,12 @@ def test_audit_pack_verify_valid(
     assert body["bundle"] == {"receipt_count": 2, "receipts": []}
 
 
+    # audit-pack verify exits 1 and lists failed receipts on an invalid bundle.
 @patch("asqav.client._post")
 @patch("asqav.init")
 def test_audit_pack_verify_invalid_exits_1(
     mock_init: MagicMock, mock_post: MagicMock, tmp_path
 ) -> None:
-    """audit-pack verify exits 1 and lists failed receipts on an invalid bundle."""
     mock_post.return_value = {
         "bundle_signature_valid": False,
         "bundle_digest": "sha256:def",
@@ -1297,9 +1297,9 @@ def test_audit_pack_verify_invalid_exits_1(
 # === org halt / resume (emergency kill-switch, JWT-scoped) ===
 
 
+    # org halt --yes POSTs the emergency-halt route with the reason note.
 @patch("asqav.cli._session_request")
 def test_org_halt_calls_emergency_route(mock_session: MagicMock) -> None:
-    """org halt --yes POSTs the emergency-halt route with the reason note."""
     mock_session.return_value = {
         "emergency_halt": True,
         "emergency_halt_at": "2026-06-01T00:00:00Z",
@@ -1319,9 +1319,9 @@ def test_org_halt_calls_emergency_route(mock_session: MagicMock) -> None:
     assert body == {"reason": "rogue agent"}
 
 
+    # org resume POSTs the deactivate route.
 @patch("asqav.cli._session_request")
 def test_org_resume_calls_deactivate_route(mock_session: MagicMock) -> None:
-    """org resume POSTs the deactivate route."""
     mock_session.return_value = {"emergency_halt": False}
     result = runner.invoke(
         app,
@@ -1334,8 +1334,8 @@ def test_org_resume_calls_deactivate_route(mock_session: MagicMock) -> None:
     assert path == "/orgs/org_x/emergency-halt/deactivate"
 
 
+    # org halt fails closed with a clear message when ASQAV_SESSION_TOKEN is unset.
 def test_org_halt_requires_session_token() -> None:
-    """org halt fails closed with a clear message when ASQAV_SESSION_TOKEN is unset."""
     result = runner.invoke(
         app,
         ["org", "halt", "org_x", "--yes"],
@@ -1348,9 +1348,9 @@ def test_org_halt_requires_session_token() -> None:
 # === keys create / list / revoke (account API keys, JWT-scoped) ===
 
 
+    # keys create POSTs /keys and prints the one-time full key.
 @patch("asqav.cli._session_request")
 def test_keys_create_prints_full_key_once(mock_session: MagicMock) -> None:
-    """keys create POSTs /keys and prints the one-time full key."""
     mock_session.return_value = {
         "id": "key_1",
         "name": "ci",
@@ -1371,9 +1371,9 @@ def test_keys_create_prints_full_key_once(mock_session: MagicMock) -> None:
     assert body == {"name": "ci", "scopes": ["agents:read"]}
 
 
+    # keys list GETs /keys and renders id + prefix + state.
 @patch("asqav.cli._session_request")
 def test_keys_list_renders_rows(mock_session: MagicMock) -> None:
-    """keys list GETs /keys and renders id + prefix + state."""
     mock_session.return_value = [
         {
             "id": "key_1",
@@ -1393,9 +1393,9 @@ def test_keys_list_renders_rows(mock_session: MagicMock) -> None:
     assert mock_session.call_args.args[1] == "/keys"
 
 
+    # keys revoke --yes DELETEs /keys/{id}.
 @patch("asqav.cli._session_request")
 def test_keys_revoke_calls_delete(mock_session: MagicMock) -> None:
-    """keys revoke --yes DELETEs /keys/{id}."""
     mock_session.return_value = {"message": "revoked"}
     result = runner.invoke(
         app,
@@ -1412,12 +1412,12 @@ def test_keys_revoke_calls_delete(mock_session: MagicMock) -> None:
 # === compliance templates / report / reports ===
 
 
+    # compliance templates GETs the templates route and renders ids.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_compliance_templates_lists(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """compliance templates GETs the templates route and renders ids."""
     mock_get.return_value = [
         {"template_id": "eu_ai_act", "framework": "eu_ai_act", "name": "EU AI Act"}
     ]
@@ -1429,12 +1429,12 @@ def test_compliance_templates_lists(
     assert mock_get.call_args.args[0] == "/compliance-reports/templates"
 
 
+    # compliance report POSTs the create route with the report_type body.
 @patch("asqav.client._post")
 @patch("asqav.init")
 def test_compliance_report_creates(
     mock_init: MagicMock, mock_post: MagicMock
 ) -> None:
-    """compliance report POSTs the create route with the report_type body."""
     mock_post.return_value = {
         "id": "rep_1",
         "name": "Q2",
@@ -1455,12 +1455,12 @@ def test_compliance_report_creates(
     assert body["name"] == "Q2"
 
 
+    # compliance reports GETs the list route and renders report rows.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_compliance_reports_lists(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """compliance reports GETs the list route and renders report rows."""
     mock_get.return_value = {
         "reports": [
             {
@@ -1487,12 +1487,12 @@ def test_compliance_reports_lists(
 # === observability summary / metrics ===
 
 
+    # observability summary GETs the summary route and renders totals.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_observability_summary(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """observability summary GETs the summary route and renders totals."""
     mock_get.return_value = {
         "total_actions": 12,
         "total_agents_active": 3,
@@ -1509,12 +1509,12 @@ def test_observability_summary(
     assert mock_get.call_args.args[0] == "/observability/summary"
 
 
+    # observability metrics threads --hours and --window into the query string.
 @patch("asqav.client._get")
 @patch("asqav.init")
 def test_observability_metrics_passes_window(
     mock_init: MagicMock, mock_get: MagicMock
 ) -> None:
-    """observability metrics threads --hours and --window into the query string."""
     mock_get.return_value = {
         "metrics": [
             {
@@ -1544,13 +1544,13 @@ def test_observability_metrics_passes_window(
 # === replay-verify ===
 
 
+    # replay-verify wraps replay() and prints the IETF outcome.
 @patch("asqav.client._get")
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_verify_chain_valid(
     mock_init: MagicMock, mock_replay: MagicMock, mock_account: MagicMock
 ) -> None:
-    """replay-verify wraps replay() and prints the IETF outcome."""
     mock_account.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
     timeline = MagicMock()
     timeline.compliance_chain_valid = True
@@ -1576,13 +1576,13 @@ def test_replay_verify_chain_valid(
     assert "compliance_chain_valid: True" in result.output
 
 
+    # replay-verify --strict fails when any step lacks signed_envelope.
 @patch("asqav.client._get")
 @patch("asqav.replay")
 @patch("asqav.init")
 def test_replay_verify_strict_rejects_steps_without_envelope(
     mock_init: MagicMock, mock_replay: MagicMock, mock_account: MagicMock
 ) -> None:
-    """replay-verify --strict fails when any step lacks signed_envelope."""
     mock_account.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
     timeline = MagicMock()
     timeline.compliance_chain_valid = True
@@ -1607,8 +1607,8 @@ def test_replay_verify_strict_rejects_steps_without_envelope(
 # === migrate run ===
 
 
+    # migrate run refuses without ASQAV_MAINTENANCE_KEY.
 def test_migrate_run_requires_maintenance_key(monkeypatch) -> None:
-    """migrate run refuses without ASQAV_MAINTENANCE_KEY."""
     monkeypatch.delenv("ASQAV_MAINTENANCE_KEY", raising=False)
     result = runner.invoke(
         app,
@@ -1619,8 +1619,8 @@ def test_migrate_run_requires_maintenance_key(monkeypatch) -> None:
     assert "ASQAV_MAINTENANCE_KEY" in result.output
 
 
+    # migrate run rejects unsupported migration names.
 def test_migrate_run_rejects_unknown(monkeypatch) -> None:
-    """migrate run rejects unsupported migration names."""
     monkeypatch.setenv("ASQAV_MAINTENANCE_KEY", "mk")
     result = runner.invoke(
         app,
@@ -1631,12 +1631,12 @@ def test_migrate_run_rejects_unknown(monkeypatch) -> None:
     assert "unsupported migration" in result.output
 
 
+    # migrate run v3-22 POSTs to the correct path with X-Maintenance-Key.
 @patch("urllib.request.urlopen")
 @patch("asqav.init")
 def test_migrate_run_v3_22_calls_endpoint(
     mock_init: MagicMock, mock_urlopen: MagicMock, monkeypatch
 ) -> None:
-    """migrate run v3-22 POSTs to the correct path with X-Maintenance-Key."""
     response = MagicMock()
     response.read.return_value = b'{"status": "ok", "applied": 1, "migration": "v3-22"}'
     response.__enter__ = lambda self: response

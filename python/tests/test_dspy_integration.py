@@ -21,13 +21,13 @@ _MISSING = object()
 _original_modules: dict[str, ModuleType | object] = {}
 
 
+    # Inject fake dspy module tree and return the BaseCallback class.
 def _install_dspy_mocks() -> type:
-    """Inject fake dspy module tree and return the BaseCallback class."""
     for mod_name in ("dspy", "dspy.utils", "dspy.utils.callback"):
         _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)
 
+        # Mock dspy BaseCallback.
     class BaseCallback:
-        """Mock dspy BaseCallback."""
 
         def __init__(self) -> None:
             pass
@@ -63,9 +63,9 @@ from asqav.extras.dspy import AsqavDSPyCallback  # noqa: E402
 # === Fixtures ===
 
 
+    # Create an AsqavDSPyCallback with mocked Agent internals.
 @pytest.fixture()
 def cb() -> AsqavDSPyCallback:
-    """Create an AsqavDSPyCallback with mocked Agent internals."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -79,16 +79,16 @@ def cb() -> AsqavDSPyCallback:
 # === Subclass check ===
 
 
+    # AsqavDSPyCallback must be a subclass of dspy's BaseCallback.
 def test_is_base_callback_subclass() -> None:
-    """AsqavDSPyCallback must be a subclass of dspy's BaseCallback."""
     assert issubclass(AsqavDSPyCallback, BaseCallback)
 
 
 # === Module handlers ===
 
 
+    # on_module_start signs dspy.module.start with module name and input keys.
 def test_on_module_start_signs_action(cb: AsqavDSPyCallback) -> None:
-    """on_module_start signs dspy.module.start with module name and input keys."""
 
     class MyModule:
         pass
@@ -100,8 +100,8 @@ def test_on_module_start_signs_action(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_module_end signs dspy.module.end with ok=True on success.
 def test_on_module_end_signs_ok(cb: AsqavDSPyCallback) -> None:
-    """on_module_end signs dspy.module.end with ok=True on success."""
     cb.on_module_end("call-1", {"answer": "hello"}, None)
     cb._sign_action.assert_called_once_with(
         "dspy.module.end",
@@ -109,8 +109,8 @@ def test_on_module_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_module_end signs dspy.module.end with ok=False and exception name on error.
 def test_on_module_end_signs_exception(cb: AsqavDSPyCallback) -> None:
-    """on_module_end signs dspy.module.end with ok=False and exception name on error."""
     cb.on_module_end("call-2", None, ValueError("bad input"))
     cb._sign_action.assert_called_once_with(
         "dspy.module.end",
@@ -118,15 +118,15 @@ def test_on_module_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_module_start handles empty inputs dict gracefully.
 def test_on_module_start_empty_inputs(cb: AsqavDSPyCallback) -> None:
-    """on_module_start handles empty inputs dict gracefully."""
     cb.on_module_start("call-x", object(), {})
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["input_keys"] == []
 
 
+    # on_module_start handles non-dict inputs without raising.
 def test_on_module_start_non_dict_inputs(cb: AsqavDSPyCallback) -> None:
-    """on_module_start handles non-dict inputs without raising."""
     cb.on_module_start("call-x", object(), None)  # type: ignore[arg-type]
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["input_keys"] == []
@@ -135,8 +135,8 @@ def test_on_module_start_non_dict_inputs(cb: AsqavDSPyCallback) -> None:
 # === LM handlers ===
 
 
+    # on_lm_start signs dspy.lm.start with model name and input keys.
 def test_on_lm_start_signs_action(cb: AsqavDSPyCallback) -> None:
-    """on_lm_start signs dspy.lm.start with model name and input keys."""
 
     class OpenAI:
         model = "gpt-4o"
@@ -153,15 +153,15 @@ def test_on_lm_start_signs_action(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_lm_start uses None for model when instance has no .model attribute.
 def test_on_lm_start_no_model_attr(cb: AsqavDSPyCallback) -> None:
-    """on_lm_start uses None for model when instance has no .model attribute."""
     cb.on_lm_start("call-x", object(), {})
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["model"] is None
 
 
+    # on_lm_end signs dspy.lm.end with ok=True on success.
 def test_on_lm_end_signs_ok(cb: AsqavDSPyCallback) -> None:
-    """on_lm_end signs dspy.lm.end with ok=True on success."""
     cb.on_lm_end("call-2", {"text": "result"}, None)
     cb._sign_action.assert_called_once_with(
         "dspy.lm.end",
@@ -169,8 +169,8 @@ def test_on_lm_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_lm_end signs dspy.lm.end with ok=False on error.
 def test_on_lm_end_signs_exception(cb: AsqavDSPyCallback) -> None:
-    """on_lm_end signs dspy.lm.end with ok=False on error."""
     cb.on_lm_end("call-2", None, TimeoutError("rate limit"))
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["ok"] is False
@@ -180,8 +180,8 @@ def test_on_lm_end_signs_exception(cb: AsqavDSPyCallback) -> None:
 # === Tool handlers ===
 
 
+    # on_tool_start signs dspy.tool.start with tool name and input keys.
 def test_on_tool_start_signs_action(cb: AsqavDSPyCallback) -> None:
-    """on_tool_start signs dspy.tool.start with tool name and input keys."""
 
     class SearchTool:
         name = "web_search"
@@ -193,8 +193,8 @@ def test_on_tool_start_signs_action(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_tool_start uses class name when instance has no .name attribute.
 def test_on_tool_start_falls_back_to_class_name(cb: AsqavDSPyCallback) -> None:
-    """on_tool_start uses class name when instance has no .name attribute."""
 
     class CalculatorTool:
         pass
@@ -204,8 +204,8 @@ def test_on_tool_start_falls_back_to_class_name(cb: AsqavDSPyCallback) -> None:
     assert ctx["tool"] == "CalculatorTool"
 
 
+    # on_tool_end signs dspy.tool.end with ok=True on success.
 def test_on_tool_end_signs_ok(cb: AsqavDSPyCallback) -> None:
-    """on_tool_end signs dspy.tool.end with ok=True on success."""
     cb.on_tool_end("call-3", {"results": ["a", "b"]}, None)
     cb._sign_action.assert_called_once_with(
         "dspy.tool.end",
@@ -213,8 +213,8 @@ def test_on_tool_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_tool_end signs dspy.tool.end with ok=False on error.
 def test_on_tool_end_signs_exception(cb: AsqavDSPyCallback) -> None:
-    """on_tool_end signs dspy.tool.end with ok=False on error."""
     cb.on_tool_end("call-3", None, RuntimeError("tool failed"))
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["ok"] is False
@@ -224,8 +224,8 @@ def test_on_tool_end_signs_exception(cb: AsqavDSPyCallback) -> None:
 # === Input keys are sorted ===
 
 
+    # Input keys are always sorted alphabetically in audit records.
 def test_input_keys_are_sorted(cb: AsqavDSPyCallback) -> None:
-    """Input keys are always sorted alphabetically in audit records."""
     cb.on_module_start("call-s", object(), {"z": 1, "a": 2, "m": 3})
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["input_keys"] == ["a", "m", "z"]
@@ -234,8 +234,8 @@ def test_input_keys_are_sorted(cb: AsqavDSPyCallback) -> None:
 # === Evaluate handlers ===
 
 
+    # on_evaluate_start signs dspy.evaluate.start with evaluator name.
 def test_on_evaluate_start_signs_action(cb: AsqavDSPyCallback) -> None:
-    """on_evaluate_start signs dspy.evaluate.start with evaluator name."""
 
     class MyEval:
         pass
@@ -247,8 +247,8 @@ def test_on_evaluate_start_signs_action(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_evaluate_end signs dspy.evaluate.end with ok=True on success.
 def test_on_evaluate_end_signs_ok(cb: AsqavDSPyCallback) -> None:
-    """on_evaluate_end signs dspy.evaluate.end with ok=True on success."""
     cb.on_evaluate_end("call-e1", {"score": 0.87}, None)
     cb._sign_action.assert_called_once_with(
         "dspy.evaluate.end",
@@ -256,8 +256,8 @@ def test_on_evaluate_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_evaluate_end signs dspy.evaluate.end with ok=False on error.
 def test_on_evaluate_end_signs_exception(cb: AsqavDSPyCallback) -> None:
-    """on_evaluate_end signs dspy.evaluate.end with ok=False on error."""
     cb.on_evaluate_end("call-e2", None, RuntimeError("dataset missing"))
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["ok"] is False
@@ -267,8 +267,8 @@ def test_on_evaluate_end_signs_exception(cb: AsqavDSPyCallback) -> None:
 # === Adapter format handlers ===
 
 
+    # on_adapter_format_start signs dspy.adapter.format.start with adapter name.
 def test_on_adapter_format_start_signs_action(cb: AsqavDSPyCallback) -> None:
-    """on_adapter_format_start signs dspy.adapter.format.start with adapter name."""
 
     class ChatAdapter:
         pass
@@ -280,8 +280,8 @@ def test_on_adapter_format_start_signs_action(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_adapter_format_end signs dspy.adapter.format.end with ok=True.
 def test_on_adapter_format_end_signs_ok(cb: AsqavDSPyCallback) -> None:
-    """on_adapter_format_end signs dspy.adapter.format.end with ok=True."""
     cb.on_adapter_format_end("call-f1", {"messages": []}, None)
     cb._sign_action.assert_called_once_with(
         "dspy.adapter.format.end",
@@ -292,8 +292,8 @@ def test_on_adapter_format_end_signs_ok(cb: AsqavDSPyCallback) -> None:
 # === Adapter parse handlers ===
 
 
+    # on_adapter_parse_start signs dspy.adapter.parse.start with adapter name.
 def test_on_adapter_parse_start_signs_action(cb: AsqavDSPyCallback) -> None:
-    """on_adapter_parse_start signs dspy.adapter.parse.start with adapter name."""
 
     class JSONAdapter:
         pass
@@ -305,8 +305,8 @@ def test_on_adapter_parse_start_signs_action(cb: AsqavDSPyCallback) -> None:
     )
 
 
+    # on_adapter_parse_end signs dspy.adapter.parse.end with ok=False on error.
 def test_on_adapter_parse_end_signs_exception(cb: AsqavDSPyCallback) -> None:
-    """on_adapter_parse_end signs dspy.adapter.parse.end with ok=False on error."""
     cb.on_adapter_parse_end("call-p1", None, ValueError("bad json"))
     ctx = cb._sign_action.call_args[0][1]
     assert ctx["ok"] is False
@@ -316,8 +316,8 @@ def test_on_adapter_parse_end_signs_exception(cb: AsqavDSPyCallback) -> None:
 # === Fail-open: signing must never block DSPy execution ===
 
 
+    # AsqavError from the real _sign_action is swallowed (fail-open).
 def test_fail_open_on_asqav_error(cb: AsqavDSPyCallback) -> None:
-    """AsqavError from the real _sign_action is swallowed (fail-open)."""
     from asqav.client import AsqavError
 
     with (

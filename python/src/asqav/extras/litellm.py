@@ -77,6 +77,7 @@ class AsqavGuardrail(AsqavAdapter):
 
     # -- LiteLLM guardrail callback interface --
 
+        # Sign before an LLM call is made.
     async def async_pre_call_hook(
         self,
         user_api_key_dict: dict,
@@ -84,7 +85,6 @@ class AsqavGuardrail(AsqavAdapter):
         data: dict,
         call_type: str,
     ) -> None:
-        """Sign before an LLM call is made."""
         messages = data.get("messages", [])
         await self._sign_action_async(
             "llm:pre_call",
@@ -95,13 +95,13 @@ class AsqavGuardrail(AsqavAdapter):
             },
         )
 
+        # Sign after a successful LLM call.
     async def async_post_call_success_hook(
         self,
         data: dict,
         user_api_key_dict: dict,
         response: Any,
     ) -> None:
-        """Sign after a successful LLM call."""
         context: dict[str, Any] = {
             "model": data.get("model"),
             "response_type": type(response).__name__,
@@ -139,13 +139,13 @@ class AsqavGuardrail(AsqavAdapter):
             risk_class="medium",
         )
 
+        # Sign moderation events.
     async def async_moderation_hook(
         self,
         data: dict,
         user_api_key_dict: dict,
         call_type: str,
     ) -> None:
-        """Sign moderation events."""
         await self._sign_action_async(
             "llm:moderation",
             {
@@ -166,8 +166,8 @@ def _content_digest(value: Any) -> str | None:
     return hashlib.sha256(raw).hexdigest()
 
 
+    # Read the ASQAV_REDACT_CONTENT env default (digest-only unless 'false').
 def _redact_content_default() -> bool:
-    """Read the ASQAV_REDACT_CONTENT env default (digest-only unless 'false')."""
     return os.environ.get("ASQAV_REDACT_CONTENT", "true").lower() != "false"
 
 
@@ -327,8 +327,8 @@ class AsqavSigningLogger(CustomLogger):
             )
             self._adapter = None
 
+        # Warn once that signing is off so the logger never looks like enforcement.
     def _warn_no_key(self) -> None:
-        """Warn once that signing is off so the logger never looks like enforcement."""
         if not self._warned:
             logger.warning(
                 "AsqavSigningLogger: ASQAV_API_KEY not set. No receipts are "
@@ -337,8 +337,8 @@ class AsqavSigningLogger(CustomLogger):
             )
             self._warned = True
 
+        # Map a call to an action_type like ``llm:gpt-4``.
     def _action_type(self, model: str) -> str:
-        """Map a call to an action_type like ``llm:gpt-4``."""
         return f"llm:{model}" if model else "llm:call"
 
     def _sign_and_index(
@@ -369,8 +369,8 @@ class AsqavSigningLogger(CustomLogger):
                 "AsqavSigningLogger sign/index failed (fail-soft): %s", exc
             )
 
+        # Append one JSONL index line stitching local digests to the cloud receipt.
     def _append_index(self, fields: dict[str, Any], sig: Any) -> None:
-        """Append one JSONL index line stitching local digests to the cloud receipt."""
         record = {
             "ts": time.time(),
             "model": fields.get("model"),
@@ -391,14 +391,14 @@ class AsqavSigningLogger(CustomLogger):
 
     # -- LiteLLM CustomLogger interface --
 
+        # Sync success hook: sign + index the completed call.
     def log_success_event(self, kwargs, response_obj, start_time, end_time):
-        """Sync success hook: sign + index the completed call."""
         self._sign_and_index(kwargs, response_obj, start_time, end_time)
 
+        # Async success hook: sign off the event loop so calls keep flowing.
     async def async_log_success_event(
         self, kwargs, response_obj, start_time, end_time
     ):
-        """Async success hook: sign off the event loop so calls keep flowing."""
         import asyncio
 
         await asyncio.to_thread(
