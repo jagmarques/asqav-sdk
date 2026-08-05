@@ -137,16 +137,16 @@ def test_run_payload_null_fails_clean(capsys) -> None:
     assert "PASS" not in out.replace("never a PASS", "")
 
 
+    # Same guard when the response carries only nulls.
 def test_run_payload_null_without_signature_keys(capsys) -> None:
-    """Same guard when the response carries only nulls."""
     code = v.run({"payload": None}, {"keys": []}, predecessor_payload=None)
     out = capsys.readouterr().out
     assert code == 2
     assert "INCOMPLETE" in out
 
 
+    # A non-string alg SKIPs cleanly instead of crashing on (alg or '').upper().
 def test_verify_signature_nonstring_alg_skips_clean() -> None:
-    """A non-string alg SKIPs cleanly instead of crashing on (alg or '').upper()."""
     z = b""
     for bad_alg in (123, None, ["x"], {}):
         result, _ = v.verify_signature(z, z, z, bad_alg)
@@ -325,8 +325,8 @@ def test_run_agent_id_fallback_passes_legit_multi_agent() -> None:
     assert v.run(_envelope(payload, sig), jwks, None) == 0  # fallback resolves the bound signer
 
 
+    # A flipped signature byte on the legit multi-agent receipt FAILs.
 def test_run_tampered_signature_fails() -> None:
-    """A flipped signature byte on the legit multi-agent receipt FAILs."""
     ml = _ml_dsa_65()
     a1_pk, _a1_sk = ml.keygen()
     a2_pk, a2_sk = ml.keygen()
@@ -342,8 +342,8 @@ def test_run_tampered_signature_fails() -> None:
     assert v.run(_envelope(payload, bytes(sig)), jwks, None) == 1
 
 
+    # Mutating a payload field after signing FAILs; the signature no longer binds.
 def test_run_tampered_payload_fails() -> None:
-    """Mutating a payload field after signing FAILs; the signature no longer binds."""
     ml = _ml_dsa_65()
     a1_pk, _a1_sk = ml.keygen()
     a2_pk, a2_sk = ml.keygen()
@@ -405,24 +405,24 @@ def test_run_structured_agent_id_fallback_rejects_forged_issuer() -> None:
 # === the kid path must bind the verifying key to the claimed issuer too ===
 
 
+    # PASSes only on an exact match; fails closed on an unpublished issuer.
 def test_check_issuer_binding_gate() -> None:
-    """PASSes only on an exact match; fails closed on an unpublished issuer."""
     assert v.check_issuer_binding("org-victim", "org-victim")[0] == "PASS"
     assert v.check_issuer_binding("org-attacker", "org-victim")[0] == "FAIL"
     assert v.check_issuer_binding(None, "org-victim")[0] == "FAIL"
     assert v.check_issuer_binding("org-victim", None)[0] == "FAIL"
 
 
+    # Reads the entry resolve_key returns, by key id or issuer id.
 def test_resolve_key_issuer_reads_the_matched_entry() -> None:
-    """Reads the entry resolve_key returns, by key id or issuer id."""
     jwks = {"keys": [_jwks_key("agent-one", "agt_one", "org-legit", b"\x00")]}
     assert v.resolve_key_issuer(jwks, "agent-one") == "org-legit"
     assert v.resolve_key_issuer(jwks, "org-legit") == "org-legit"
     assert v.resolve_key_issuer(jwks, "nothing-here") is None
 
 
+    # Attacker-signed receipt claiming the victim, plus the shared jwks.
 def _cross_issuer_forgery():
-    """Attacker-signed receipt claiming the victim, plus the shared jwks."""
     ml = _ml_dsa_65()
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _victim_sk = ml.keygen()
@@ -447,8 +447,8 @@ def test_run_rejects_attacker_kid_claiming_another_issuer() -> None:
     assert by_org_id == 1, f"attacker org id verified a receipt claiming org-victim (exit {by_org_id})"
 
 
+    # Same forgery through run_structured: FAIL on issuer_bind, signature PASS.
 def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
-    """Same forgery through run_structured: FAIL on issuer_bind, signature PASS."""
     payload, sig, jwks = _cross_issuer_forgery()
     result = v.run_structured(_envelope(payload, sig, kid="attacker-key"), jwks, None)
     assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
@@ -458,8 +458,8 @@ def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
     assert sig_axis["result"] == "PASS", "the forged signature itself verifies; the bind rejects it"
 
 
+    # LEGIT: the claimed issuer's own key still PASSes, so real verifies work.
 def test_run_structured_passes_a_receipt_signed_by_the_claimed_issuer() -> None:
-    """LEGIT: the claimed issuer's own key still PASSes, so real verifies work."""
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _valid_payload("org-legit", "agt_one")

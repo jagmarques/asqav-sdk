@@ -38,10 +38,10 @@ _SQL_READ_BLOCK_POLICY = [
 ]
 
 
+    # Passing the semantic alias 'sql-read' triggers a glob policy on the resolved form.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_preflight_resolves_pattern_before_policy_check(mock_get: AsyncMock) -> None:
-    """Passing the semantic alias 'sql-read' triggers a glob policy on the resolved form."""
     mock_get.side_effect = [
         {"revoked": False, "suspended": False},
         _SQL_READ_BLOCK_POLICY,
@@ -55,10 +55,10 @@ async def test_preflight_resolves_pattern_before_policy_check(mock_get: AsyncMoc
     assert any("no-sql-reads" in r for r in result.reasons)
 
 
+    # Already-expanded glob bypasses resolve_pattern transparently.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_preflight_glob_passthrough_still_matches(mock_get: AsyncMock) -> None:
-    """Already-expanded glob bypasses resolve_pattern transparently."""
     mock_get.side_effect = [
         {"revoked": False, "suspended": False},
         _SQL_READ_BLOCK_POLICY,

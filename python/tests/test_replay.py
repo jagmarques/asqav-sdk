@@ -91,8 +91,8 @@ def _make_timeline(n: int = 3) -> ReplayTimeline:
 # === Timeline ordering ===
 
 class TestTimelineOrdering:
+        # replay_from_bundle should sort steps by timestamp.
     def test_steps_ordered_by_timestamp(self):
-        """replay_from_bundle should sort steps by timestamp."""
         sigs = [
             _make_signed_action(
                 signature_id=f"sid_{i}",
@@ -108,8 +108,8 @@ class TestTimelineOrdering:
         timestamps = [s.timestamp for s in timeline.steps]
         assert timestamps == sorted(timestamps)
 
+        # Step indices should be 0, 1, 2... after sorting.
     def test_indices_sequential(self):
-        """Step indices should be 0, 1, 2... after sorting."""
         sigs = [
             _make_signed_action(
                 signature_id=f"sid_{i}",
@@ -128,8 +128,8 @@ class TestTimelineOrdering:
 # === Chain verification ===
 
 class TestChainVerification:
+        # A correctly chained sig list verifies link-by-link.
     def test_valid_chain(self):
-        """A correctly chained sig list verifies link-by-link."""
         import hashlib
 
         from asqav._jcs import canonical_json
@@ -157,8 +157,8 @@ class TestChainVerification:
         results = _verify_hash_chain(sig_dicts)
         assert results == [True, True, True, True]
 
+        # A wrong stored previousReceiptHash returns False for that link.
     def test_invalid_chain_link_is_flagged(self):
-        """A wrong stored previousReceiptHash returns False for that link."""
         import hashlib
 
         from asqav._jcs import canonical_json
@@ -203,15 +203,15 @@ class TestChainVerification:
         timeline.chain_integrity = all(s.chain_valid for s in timeline.steps)
         assert not timeline.chain_integrity
 
+        # ReplayTimeline.verify_chain() should re-verify all steps.
     def test_verify_chain_method(self):
-        """ReplayTimeline.verify_chain() should re-verify all steps."""
         timeline = _make_timeline(4)
         result = timeline.verify_chain()
         assert result is True
         assert timeline.chain_integrity is True
 
+        # Tamper with a step's prev_chain_hash; verify_chain must catch it.
     def test_verify_chain_detects_tampered_prev_hash(self):
-        """Tamper with a step's prev_chain_hash; verify_chain must catch it."""
         timeline = _make_timeline(4)
         # Sanity: clean timeline passes.
         assert timeline.verify_chain() is True
@@ -221,8 +221,8 @@ class TestChainVerification:
         assert timeline.steps[2].chain_valid is False
         assert timeline.chain_integrity is False
 
+        # Swap two steps; the predecessor hash on the moved step diverges.
     def test_verify_chain_detects_reordered_steps(self):
-        """Swap two steps; the predecessor hash on the moved step diverges."""
         timeline = _make_timeline(4)
         assert timeline.verify_chain() is True
         timeline.steps[1], timeline.steps[2] = timeline.steps[2], timeline.steps[1]
@@ -232,8 +232,8 @@ class TestChainVerification:
         assert timeline.verify_chain() is False
         assert timeline.chain_integrity is False
 
+        # A step with no prev_chain_hash on a non-first index = unverifiable.
     def test_verify_chain_flags_missing_prev_hash(self):
-        """A step with no prev_chain_hash on a non-first index = unverifiable."""
         timeline = _make_timeline(3)
         assert timeline.verify_chain() is True
         timeline.steps[1].prev_chain_hash = None

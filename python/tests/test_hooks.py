@@ -15,8 +15,8 @@ import asqav  # noqa: E402
 from asqav import hooks as hooks_module  # noqa: E402
 
 
+    # Construct an Agent without hitting the API.
 def _make_agent() -> "asqav.Agent":
-    """Construct an Agent without hitting the API."""
     return asqav.Agent(
         agent_id="agent_test",
         name="test",
@@ -38,17 +38,17 @@ def _ok_response() -> dict:
     }
 
 
+    # Clear hook registry before and after each test.
 @pytest.fixture(autouse=True)
 def _clean_hooks():
-    """Clear hook registry before and after each test."""
     asqav.clear_hooks()
     yield
     asqav.clear_hooks()
 
 
+    # A before-hook can add fields that land in the body sent to the API.
 @patch("asqav.client._post")
 def test_register_before_mutates_context_reaching_sign(mock_post: object) -> None:
-    """A before-hook can add fields that land in the body sent to the API."""
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
     def add_field(action_type: str, context: dict) -> dict:
@@ -65,9 +65,9 @@ def test_register_before_mutates_context_reaching_sign(mock_post: object) -> Non
     assert sent_body["context"]["orig"] == "yes"
 
 
+    # After-hooks receive the SignatureResponse object.
 @patch("asqav.client._post")
 def test_register_after_fires_with_signature_response(mock_post: object) -> None:
-    """After-hooks receive the SignatureResponse object."""
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
     seen: list[object] = []
@@ -81,9 +81,9 @@ def test_register_after_fires_with_signature_response(mock_post: object) -> None
     assert seen[0].signature_id == "sig_01"  # type: ignore[attr-defined]
 
 
+    # A raising hook is logged and signing still returns a response.
 @patch("asqav.client._post")
 def test_failing_hook_does_not_crash_sign(mock_post: object) -> None:
-    """A raising hook is logged and signing still returns a response."""
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
     def boom_before(action_type: str, context: dict) -> dict:
@@ -101,9 +101,9 @@ def test_failing_hook_does_not_crash_sign(mock_post: object) -> None:
     assert response.signature_id == "sig_01"
 
 
+    # ``strands:*`` matches strands:model_call but not langchain:tool_call.
 @patch("asqav.client._post")
 def test_pattern_matching_strands_glob(mock_post: object) -> None:
-    """``strands:*`` matches strands:model_call but not langchain:tool_call."""
     mock_post.return_value = _ok_response()  # type: ignore[attr-defined]
 
     matched: list[str] = []
@@ -121,8 +121,8 @@ def test_pattern_matching_strands_glob(mock_post: object) -> None:
     assert matched == ["strands:model_call"]
 
 
+    # clear_hooks removes both before and after registrations.
 def test_clear_hooks_empties_registry() -> None:
-    """clear_hooks removes both before and after registrations."""
     asqav.register_before("*", lambda a, c: c)
     asqav.register_after("*", lambda r: None)
 

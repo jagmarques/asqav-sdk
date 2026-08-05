@@ -195,8 +195,8 @@ def test_rfc3161_timestamp_invalid_base64_rejected() -> None:
         )
 
 
+    # The cloud must not see the new fields at all when caller omits them.
 def test_no_taxonomy_fields_omitted_from_wire() -> None:
-    """The cloud must not see the new fields at all when caller omits them."""
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:

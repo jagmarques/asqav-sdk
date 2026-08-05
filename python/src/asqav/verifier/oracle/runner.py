@@ -67,8 +67,8 @@ def _key_provider(vec_dir: Path, fmt: str):
     return None
 
 
+    # Run a single vector directory and compare against its expected outcome.
 def run_one(vec_dir: Path, fmt: str, expected_outcome: str, reason_code: str = "") -> VectorOutcome:
-    """Run a single vector directory and compare against its expected outcome."""
     receipt = _load(vec_dir / "receipt.json")
     predecessor = _load(vec_dir / "predecessor.json")
     key_provider = _key_provider(vec_dir, fmt)
@@ -80,8 +80,8 @@ def run_one(vec_dir: Path, fmt: str, expected_outcome: str, reason_code: str = "
     return VectorOutcome(vec_dir.name, expected_outcome, result.verdict, ok, reason_code, detail)
 
 
+    # Run every vector named in ``corpus_root/manifest.json``.
 def run_corpus(corpus_root: Path) -> list[VectorOutcome]:
-    """Run every vector named in ``corpus_root/manifest.json``."""
     manifest = json.loads((corpus_root / "manifest.json").read_text())
     out = []
     for entry in manifest:
@@ -91,8 +91,8 @@ def run_corpus(corpus_root: Path) -> list[VectorOutcome]:
     return out
 
 
+    # Accept the stronger PASS only for the optional-dep ML-DSA skip vector, never broadly.
 def _tolerated(outcome: VectorOutcome) -> bool:
-    """Accept the stronger PASS only for the optional-dep ML-DSA skip vector, never broadly."""
     return outcome.ok or (
         outcome.expected_outcome == "INCOMPLETE"
         and outcome.actual_verdict == "PASS"
@@ -116,8 +116,8 @@ def _default_corpus_root() -> Path:
     return here.parents[5] / "verifier" / "conformance-vectors"
 
 
+    # Run the bundled corpus and print a per-vector report; nonzero on mismatch.
 def main() -> int:
-    """Run the bundled corpus and print a per-vector report; nonzero on mismatch."""
     root = _default_corpus_root()
     results = run_corpus(root)
     for r in results:

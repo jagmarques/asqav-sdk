@@ -14,8 +14,8 @@ from asqav.client import Agent, PreflightResult
 # === Direct PreflightResult construction tests ===
 
 
+    # PreflightResult has an explanation field.
 def test_explanation_field_exists():
-    """PreflightResult has an explanation field."""
     result = PreflightResult(
         cleared=True,
         agent_active=True,
@@ -26,8 +26,8 @@ def test_explanation_field_exists():
     assert result.explanation == "test"
 
 
+    # explanation defaults to empty string if not provided.
 def test_explanation_defaults_to_empty():
-    """explanation defaults to empty string if not provided."""
     result = PreflightResult(
         cleared=True,
         agent_active=True,
@@ -51,11 +51,11 @@ MOCK_AGENT_DATA = {
 }
 
 
+    # When cleared, explanation says action is allowed.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_explanation_when_cleared(mock_post, mock_get):
-    """When cleared, explanation says action is allowed."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -72,11 +72,11 @@ def test_explanation_when_cleared(mock_post, mock_get):
     assert "permitted by policy" in result.explanation
 
 
+    # When agent is revoked, explanation says agent has been revoked.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_explanation_when_revoked(mock_post, mock_get):
-    """When agent is revoked, explanation says agent has been revoked."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -90,11 +90,11 @@ def test_explanation_when_revoked(mock_post, mock_get):
     assert "revoked" in result.explanation.lower()
 
 
+    # When agent is suspended, explanation mentions suspension.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_explanation_when_suspended(mock_post, mock_get):
-    """When agent is suspended, explanation mentions suspension."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -108,11 +108,11 @@ def test_explanation_when_suspended(mock_post, mock_get):
     assert "suspended" in result.explanation.lower()
 
 
+    # When blocked by policy, explanation mentions policy rules.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_explanation_when_policy_blocked(mock_post, mock_get):
-    """When blocked by policy, explanation mentions policy rules."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 
@@ -126,11 +126,11 @@ def test_explanation_when_policy_blocked(mock_post, mock_get):
     assert "policy" in result.explanation.lower()
 
 
+    # When both revoked and policy-blocked, revocation is the explanation.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
 def test_explanation_revoked_takes_priority_over_policy(mock_post, mock_get):
-    """When both revoked and policy-blocked, revocation is the explanation."""
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
 

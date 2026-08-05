@@ -27,11 +27,11 @@ from asqav.extras.letta import AsqavLettaHook  # noqa: E402
 # === Helpers ===
 
 
+    # Create a minimal mock letta Letta client with strict keyword-only blocks API.
 def _make_client(
     retrieve_result: Any = None,
     update_result: Any = None,
 ) -> MagicMock:
-    """Create a minimal mock letta Letta client with strict keyword-only blocks API."""
     client = MagicMock()
     block_obj = MagicMock()
     block_obj.value = "stored memory content"
@@ -51,9 +51,9 @@ def _make_client(
 # === Fixtures ===
 
 
+    # Create an AsqavLettaHook with mocked Agent internals.
 @pytest.fixture()
 def hook() -> AsqavLettaHook:
-    """Create an AsqavLettaHook with mocked Agent internals."""
     with (
         patch("asqav.client._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
@@ -67,8 +67,8 @@ def hook() -> AsqavLettaHook:
 # === Canonical API: positional block_label, keyword-only agent_id ===
 
 
+    # retrieve('human', agent_id='agent-123') matches the real letta-client signature.
 def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
-    """retrieve('human', agent_id='agent-123') matches the real letta-client signature."""
     client = _make_client()
     hook.wrap_client(client)
     # This is the canonical call form - must not raise TypeError.
@@ -79,8 +79,8 @@ def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
     assert ctx["agent_id"] == "agent-123"
 
 
+    # update('persona', agent_id='a', value='v') matches the real letta-client signature.
 def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
-    """update('persona', agent_id='a', value='v') matches the real letta-client signature."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.update("persona", agent_id="agent-456", value="hi")
@@ -90,8 +90,8 @@ def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
     assert ctx["agent_id"] == "agent-456"
 
 
+    # Partial update omitting value (e.g. updating limit) produces no memory:write events.
 def test_update_without_value_does_not_sign_memory_write(hook: AsqavLettaHook) -> None:
-    """Partial update omitting value (e.g. updating limit) produces no memory:write events."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.update("human", agent_id="a", limit=2000)
@@ -99,8 +99,8 @@ def test_update_without_value_does_not_sign_memory_write(hook: AsqavLettaHook) -
     assert hook._sign_action.call_count == 0
 
 
+    # Partial update is forwarded to the original update without value kwarg.
 def test_update_without_value_still_calls_original(hook: AsqavLettaHook) -> None:
-    """Partial update is forwarded to the original update without value kwarg."""
     client = _make_client()
     original_update = client.agents.blocks.update  # capture before wrap replaces it
     hook.wrap_client(client)
@@ -113,8 +113,8 @@ def test_update_without_value_still_calls_original(hook: AsqavLettaHook) -> None
 # === wrap_client: memory:read ===
 
 
+    # wrap_client signs memory:read with agent_id and block_label.
 def test_wrap_client_signs_memory_read(hook: AsqavLettaHook) -> None:
-    """wrap_client signs memory:read with agent_id and block_label."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.retrieve("human", agent_id="agent-123")
@@ -126,8 +126,8 @@ def test_wrap_client_signs_memory_read(hook: AsqavLettaHook) -> None:
     assert ctx["block_label"] == "human"
 
 
+    # wrap_client signs memory:read.end with value_length after retrieve.
 def test_wrap_client_signs_memory_read_end(hook: AsqavLettaHook) -> None:
-    """wrap_client signs memory:read.end with value_length after retrieve."""
     block = MagicMock()
     block.value = "hello world"
     client = _make_client(retrieve_result=block)
@@ -140,8 +140,8 @@ def test_wrap_client_signs_memory_read_end(hook: AsqavLettaHook) -> None:
     assert ctx["value_length"] == len("hello world")
 
 
+    # A successful retrieve produces exactly memory:read + memory:read.end.
 def test_wrap_client_signs_two_events_on_successful_read(hook: AsqavLettaHook) -> None:
-    """A successful retrieve produces exactly memory:read + memory:read.end."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.retrieve("persona", agent_id="a")
@@ -151,8 +151,8 @@ def test_wrap_client_signs_two_events_on_successful_read(hook: AsqavLettaHook) -
     assert hook._sign_action.call_args_list[1][0][0] == "memory:read.end"
 
 
+    # wrap_client does not alter the retrieve return value.
 def test_wrap_client_retrieve_returns_original_result(hook: AsqavLettaHook) -> None:
-    """wrap_client does not alter the retrieve return value."""
     sentinel = object()
     client = _make_client(retrieve_result=sentinel)
     hook.wrap_client(client)
@@ -163,8 +163,8 @@ def test_wrap_client_retrieve_returns_original_result(hook: AsqavLettaHook) -> N
 # === wrap_client: memory:write ===
 
 
+    # wrap_client signs memory:write with agent_id, block_label, value_length, value_preview.
 def test_wrap_client_signs_memory_write(hook: AsqavLettaHook) -> None:
-    """wrap_client signs memory:write with agent_id, block_label, value_length, value_preview."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.update("persona", agent_id="agent-456", value="I am a helpful assistant.")
@@ -178,8 +178,8 @@ def test_wrap_client_signs_memory_write(hook: AsqavLettaHook) -> None:
     assert ctx["value_preview"] == "I am a helpful assistant."
 
 
+    # wrap_client signs memory:write.end after a successful update.
 def test_wrap_client_signs_memory_write_end(hook: AsqavLettaHook) -> None:
-    """wrap_client signs memory:write.end after a successful update."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.update("human", agent_id="a", value="new")
@@ -191,8 +191,8 @@ def test_wrap_client_signs_memory_write_end(hook: AsqavLettaHook) -> None:
     assert ctx["block_label"] == "human"
 
 
+    # A successful update produces exactly memory:write + memory:write.end.
 def test_wrap_client_signs_two_events_on_successful_write(hook: AsqavLettaHook) -> None:
-    """A successful update produces exactly memory:write + memory:write.end."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.update("b", agent_id="a", value="v")
@@ -202,8 +202,8 @@ def test_wrap_client_signs_two_events_on_successful_write(hook: AsqavLettaHook) 
     assert hook._sign_action.call_args_list[1][0][0] == "memory:write.end"
 
 
+    # wrap_client does not alter the update return value.
 def test_wrap_client_update_returns_original_result(hook: AsqavLettaHook) -> None:
-    """wrap_client does not alter the update return value."""
     sentinel = object()
     client = _make_client(update_result=sentinel)
     hook.wrap_client(client)
@@ -214,8 +214,8 @@ def test_wrap_client_update_returns_original_result(hook: AsqavLettaHook) -> Non
 # === Error paths ===
 
 
+    # wrap_client signs memory:read.error when retrieve raises.
 def test_wrap_client_signs_read_error_on_exception(hook: AsqavLettaHook) -> None:
-    """wrap_client signs memory:read.error when retrieve raises."""
     client = _make_client()
     client.agents.blocks.retrieve.side_effect = RuntimeError("network error")
     hook.wrap_client(client)
@@ -230,8 +230,8 @@ def test_wrap_client_signs_read_error_on_exception(hook: AsqavLettaHook) -> None
     assert ctx["error"] == "network error"
 
 
+    # wrap_client re-raises the original retrieve exception unchanged.
 def test_wrap_client_reraises_retrieve_exception(hook: AsqavLettaHook) -> None:
-    """wrap_client re-raises the original retrieve exception unchanged."""
     client = _make_client()
     client.agents.blocks.retrieve.side_effect = ValueError("bad agent id")
     hook.wrap_client(client)
@@ -240,8 +240,8 @@ def test_wrap_client_reraises_retrieve_exception(hook: AsqavLettaHook) -> None:
         client.agents.blocks.retrieve("b", agent_id="a")
 
 
+    # wrap_client signs memory:write.error when update raises.
 def test_wrap_client_signs_write_error_on_exception(hook: AsqavLettaHook) -> None:
-    """wrap_client signs memory:write.error when update raises."""
     client = _make_client()
     client.agents.blocks.update.side_effect = RuntimeError("write failed")
     hook.wrap_client(client)
@@ -256,8 +256,8 @@ def test_wrap_client_signs_write_error_on_exception(hook: AsqavLettaHook) -> Non
     assert ctx["error"] == "write failed"
 
 
+    # wrap_client re-raises the original update exception unchanged.
 def test_wrap_client_reraises_update_exception(hook: AsqavLettaHook) -> None:
-    """wrap_client re-raises the original update exception unchanged."""
     client = _make_client()
     client.agents.blocks.update.side_effect = PermissionError("read only")
     hook.wrap_client(client)
@@ -266,8 +266,8 @@ def test_wrap_client_reraises_update_exception(hook: AsqavLettaHook) -> None:
         client.agents.blocks.update("b", agent_id="a", value="v")
 
 
+    # A failed retrieve produces exactly memory:read + memory:read.error.
 def test_wrap_client_signs_read_start_and_error_on_failure(hook: AsqavLettaHook) -> None:
-    """A failed retrieve produces exactly memory:read + memory:read.error."""
     client = _make_client()
     client.agents.blocks.retrieve.side_effect = RuntimeError("boom")
     hook.wrap_client(client)
@@ -280,8 +280,8 @@ def test_wrap_client_signs_read_start_and_error_on_failure(hook: AsqavLettaHook)
     assert hook._sign_action.call_args_list[1][0][0] == "memory:read.error"
 
 
+    # A failed update produces exactly memory:write + memory:write.error.
 def test_wrap_client_signs_write_start_and_error_on_failure(hook: AsqavLettaHook) -> None:
-    """A failed update produces exactly memory:write + memory:write.error."""
     client = _make_client()
     client.agents.blocks.update.side_effect = RuntimeError("boom")
     hook.wrap_client(client)
@@ -297,8 +297,8 @@ def test_wrap_client_signs_write_start_and_error_on_failure(hook: AsqavLettaHook
 # === Truncation ===
 
 
+    # agent_id longer than 200 chars is truncated in the audit record.
 def test_agent_id_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
-    """agent_id longer than 200 chars is truncated in the audit record."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.retrieve("human", agent_id="a" * 500)
@@ -307,8 +307,8 @@ def test_agent_id_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
     assert len(ctx["agent_id"]) == 200
 
 
+    # value_preview longer than 200 chars is truncated in the audit record.
 def test_value_preview_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
-    """value_preview longer than 200 chars is truncated in the audit record."""
     client = _make_client()
     hook.wrap_client(client)
     client.agents.blocks.update("b", agent_id="a", value="x" * 500)
@@ -318,8 +318,8 @@ def test_value_preview_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
     assert ctx["value_length"] == 500
 
 
+    # Error messages longer than 200 chars are truncated in the audit record.
 def test_error_message_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
-    """Error messages longer than 200 chars are truncated in the audit record."""
     client = _make_client()
     client.agents.blocks.retrieve.side_effect = RuntimeError("e" * 500)
     hook.wrap_client(client)
@@ -334,8 +334,8 @@ def test_error_message_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
 # === Fail-open: signing must never block memory operations ===
 
 
+    # If memory:read signing raises, retrieve still executes and returns its result.
 def test_fail_open_memory_read_does_not_block_retrieve(hook: AsqavLettaHook) -> None:
-    """If memory:read signing raises, retrieve still executes and returns its result."""
     sentinel = object()
     client = _make_client(retrieve_result=sentinel)
     hook._sign_action.side_effect = Exception("service unavailable")
@@ -345,8 +345,8 @@ def test_fail_open_memory_read_does_not_block_retrieve(hook: AsqavLettaHook) -> 
     assert result is sentinel
 
 
+    # If memory:write signing raises, update still executes and returns its result.
 def test_fail_open_memory_write_does_not_block_update(hook: AsqavLettaHook) -> None:
-    """If memory:write signing raises, update still executes and returns its result."""
     sentinel = object()
     client = _make_client(update_result=sentinel)
     hook._sign_action.side_effect = Exception("service unavailable")
@@ -356,10 +356,10 @@ def test_fail_open_memory_write_does_not_block_update(hook: AsqavLettaHook) -> N
     assert result is sentinel
 
 
+    # If memory:write.end signing raises, the update result is still returned.
 def test_fail_open_memory_write_end_does_not_suppress_result(
     hook: AsqavLettaHook,
 ) -> None:
-    """If memory:write.end signing raises, the update result is still returned."""
     sentinel = object()
     client = _make_client(update_result=sentinel)
     call_count = 0
@@ -377,10 +377,10 @@ def test_fail_open_memory_write_end_does_not_suppress_result(
     assert result is sentinel
 
 
+    # If memory:read.error signing raises, the original retrieve exception is still re-raised.
 def test_fail_open_read_error_signing_does_not_swallow_exception(
     hook: AsqavLettaHook,
 ) -> None:
-    """If memory:read.error signing raises, the original retrieve exception is still re-raised."""
     client = _make_client()
     client.agents.blocks.retrieve.side_effect = ValueError("retrieve failed")
     hook._sign_action.side_effect = Exception("signing also broke")
@@ -393,8 +393,8 @@ def test_fail_open_read_error_signing_does_not_swallow_exception(
 # === Multiple clients tracked independently ===
 
 
+    # Each wrapped client is signed independently.
 def test_multiple_clients_tracked_independently(hook: AsqavLettaHook) -> None:
-    """Each wrapped client is signed independently."""
     client_a = _make_client()
     client_b = _make_client()
 
@@ -412,9 +412,9 @@ def test_multiple_clients_tracked_independently(hook: AsqavLettaHook) -> None:
 # === Cleanup ===
 
 
+    # Remove fake letta_client from sys.modules after all tests.
 @pytest.fixture(autouse=True, scope="module")
 def _cleanup_letta_client_module() -> Any:
-    """Remove fake letta_client from sys.modules after all tests."""
     yield
     sys.modules.pop("letta_client", None)
     sys.modules.pop("asqav.extras.letta", None)

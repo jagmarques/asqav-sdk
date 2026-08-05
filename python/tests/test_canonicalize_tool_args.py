@@ -112,8 +112,8 @@ def test_receipt_fixture_float_in_tool_args_is_rejected() -> None:
     assert "RFC 8785 section 3.2.2" in msg
 
 
+    # Same fixture with the float stringified produces stable bytes.
 def test_receipt_fixture_stringified_float_canonicalizes_cleanly() -> None:
-    """Same fixture with the float stringified produces stable bytes."""
     receipt = {
         "payload": {
             "action_type": "tool:call",

@@ -51,8 +51,8 @@ def _key(
     }
 
 
+    # A compliance payload naming its issuer and its agent inside the signed bytes.
 def _payload(agent_id: str = "agt_two", issuer_id: str = ORG) -> dict:
-    """A compliance payload naming its issuer and its agent inside the signed bytes."""
     return {
         "type": "protectmcp:decision",
         "issued_at": "2026-06-19T00:00:00.000000Z",
@@ -81,8 +81,8 @@ def _axes(doc: dict, jwks: dict) -> dict[str, str]:
 # --- the matcher picks the key the signed bytes name ---
 
 
+    # Two siblings share the issuer, so the agent bind decides which one answers.
 def test_org_kid_resolves_the_agent_the_receipt_names() -> None:
-    """Two siblings share the issuer, so the agent bind decides which one answers."""
     jwks = {"keys": [_key("key-agent-one", "agt_one"), _key("key-agent-two", "agt_two")]}
     entry = v.match_signing_key(jwks, ORG, "agt_two", ORG)
     assert entry is not None
@@ -90,40 +90,40 @@ def test_org_kid_resolves_the_agent_the_receipt_names() -> None:
     assert entry["agent_id"] == "agt_two"
 
 
+    # Order carries no meaning: the same directory answers for either sibling.
 def test_org_kid_resolves_the_first_agent_when_it_is_the_named_one() -> None:
-    """Order carries no meaning: the same directory answers for either sibling."""
     jwks = {"keys": [_key("key-agent-one", "agt_one"), _key("key-agent-two", "agt_two")]}
     entry = v.match_signing_key(jwks, ORG, "agt_one", ORG)
     assert entry is not None
     assert entry["kid"] == "key-agent-one"
 
 
+    # A kid naming one key names it exactly, so that key answers.
 def test_exact_kid_outranks_the_agent_bind() -> None:
-    """A kid naming one key names it exactly, so that key answers."""
     jwks = {"keys": [_key("key-agent-one", "agt_one"), _key("key-agent-two", "agt_two")]}
     entry = v.match_signing_key(jwks, "key-agent-one", "agt_two", ORG)
     assert entry is not None
     assert entry["kid"] == "key-agent-one"
 
 
+    # The bare-kid wire form keeps resolving through the published issuer id.
 def test_org_kid_answers_when_the_receipt_names_no_agent() -> None:
-    """The bare-kid wire form keeps resolving through the published issuer id."""
     jwks = {"keys": [_key("key-agent-one", "agt_one")]}
     entry = v.match_signing_key(jwks, ORG, None, ORG)
     assert entry is not None
     assert entry["kid"] == "key-agent-one"
 
 
+    # An agent with no published key falls back to the issuer match, not to nothing.
 def test_org_kid_answers_for_an_agent_the_directory_omits() -> None:
-    """An agent with no published key falls back to the issuer match, not to nothing."""
     jwks = {"keys": [_key("key-agent-one", "agt_one")]}
     entry = v.match_signing_key(jwks, ORG, "agt_absent", ORG)
     assert entry is not None
     assert entry["kid"] == "key-agent-one"
 
 
+    # A directory of three siblings answers for the middle one, not the first.
 def test_three_key_org_resolves_its_middle_signer() -> None:
-    """A directory of three siblings answers for the middle one, not the first."""
     jwks = {"keys": [_key("key-agent-one", "agt_one"), _key("key-agent-two", "agt_two"),
                      _key("key-agent-three", "agt_three")]}
     entry = v.match_signing_key(jwks, ORG, "agt_two", ORG)
@@ -134,8 +134,8 @@ def test_three_key_org_resolves_its_middle_signer() -> None:
     assert last["kid"] == "key-agent-three"
 
 
+    # A hash-mode receipt signs the raw org_id, so the org bind names the signer.
 def test_three_key_org_binds_the_middle_signer_by_org() -> None:
-    """A hash-mode receipt signs the raw org_id, so the org bind names the signer."""
     def org_key(kid: str, agent_id: str) -> dict:
         return {**_key(kid, agent_id), "org_id": ORG}
     jwks = {"keys": [org_key("key-agent-one", "agt_one"), org_key("key-agent-two", "agt_two"),
@@ -148,14 +148,14 @@ def test_three_key_org_binds_the_middle_signer_by_org() -> None:
 # --- adversarial: agent_id is attacker-controlled ---
 
 
+    # agent_id alone never answers: the key's issuer must equal the claimed one.
 def test_agent_bind_rejects_a_key_published_under_another_issuer() -> None:
-    """agent_id alone never answers: the key's issuer must equal the claimed one."""
     jwks = {"keys": [_key("key-foreign", "agt_two", issuer_id=OTHER_ORG)]}
     assert v.match_signing_key(jwks, "kid-absent", "agt_two", ORG) is None
 
 
+    # A malformed sibling is a miss, never a crash, and never blocks the real key.
 def test_matcher_survives_a_directory_holding_junk_entries() -> None:
-    """A malformed sibling is a miss, never a crash, and never blocks the real key."""
     jwks = {"keys": [None, 7, "text", {"kid": "no-bytes", "issuer_id": ORG, "agent_id": "agt_two"},
                      _key("key-agent-two", "agt_two")]}
     entry = v.match_signing_key(jwks, ORG, "agt_two", ORG)
@@ -166,8 +166,8 @@ def test_matcher_survives_a_directory_holding_junk_entries() -> None:
 # --- the axes read the entry that signed ---
 
 
+    # A revoked signer stays revoked even with an active sibling ahead of it.
 def test_key_status_reads_the_signing_agent_not_its_sibling() -> None:
-    """A revoked signer stays revoked even with an active sibling ahead of it."""
     jwks = {
         "keys": [
             _key("key-agent-one", "agt_one", status="active"),
@@ -178,8 +178,8 @@ def test_key_status_reads_the_signing_agent_not_its_sibling() -> None:
     assert axes["key_status"] == "FAIL"
 
 
+    # The mirror case: a revoked sibling ahead of the signer changes no axis.
 def test_active_signer_is_not_reported_revoked_by_a_sibling() -> None:
-    """The mirror case: a revoked sibling ahead of the signer changes no axis."""
     jwks = {
         "keys": [
             _key("key-agent-one", "agt_one", status="revoked"),
@@ -194,8 +194,8 @@ def test_active_signer_is_not_reported_revoked_by_a_sibling() -> None:
 # --- end to end over a real ML-DSA-65 signature ---
 
 
+    # The whole point: an org with two agents can verify its own receipt.
 def test_oracle_passes_a_receipt_signed_by_the_second_agent() -> None:
-    """The whole point: an org with two agents can verify its own receipt."""
     ml = _ml_dsa_65()
     one_pk, _one_sk = ml.keygen()
     two_pk, two_sk = ml.keygen()
@@ -215,8 +215,8 @@ def test_oracle_passes_a_receipt_signed_by_the_second_agent() -> None:
     assert res.verdict == "PASS", axes
 
 
+    # Naming a sibling in the payload never lends that sibling's key to a forgery.
 def test_oracle_rejects_a_signature_from_the_wrong_agent() -> None:
-    """Naming a sibling in the payload never lends that sibling's key to a forgery."""
     ml = _ml_dsa_65()
     one_pk, _one_sk = ml.keygen()
     two_pk, _two_sk = ml.keygen()
@@ -235,8 +235,8 @@ def test_oracle_rejects_a_signature_from_the_wrong_agent() -> None:
     assert {a.axis: a.result for a in res.axes}["signature"] == "FAIL"
 
 
+    # A valid signature under a foreign org's key never proves the claimed issuer.
 def test_oracle_rejects_an_agent_key_from_another_org() -> None:
-    """A valid signature under a foreign org's key never proves the claimed issuer."""
     ml = _ml_dsa_65()
     one_pk, _one_sk = ml.keygen()
     foreign_pk, foreign_sk = ml.keygen()

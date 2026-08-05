@@ -27,16 +27,16 @@ _DATA = b"claim-bytes"
 _GOLDEN = "4895dd9c2ad9a9f35f18d7c60d6957e4a87b017dff65d1316f76d437905fff88"
 
 
+    # commit() equals a hand-computed HMAC-SHA256 over the framed input.
 def test_commit_matches_independent_hmac_golden() -> None:
-    """commit() equals a hand-computed HMAC-SHA256 over the framed input."""
     got = commit(_KEY, _OPENING, _LABEL, _VERSION, _DATA)
     assert got == _GOLDEN
     framed = _OPENING + _LABEL.encode() + _VERSION.to_bytes(4, "big") + _DATA
     assert got == hmac.new(_KEY, framed, hashlib.sha256).hexdigest()
 
 
+    # Same inputs always yield the same lowercase hex digest.
 def test_commit_is_deterministic_for_fixed_inputs() -> None:
-    """Same inputs always yield the same lowercase hex digest."""
     first = commit(_KEY, _OPENING, _LABEL, _VERSION, _DATA)
     second = commit(_KEY, _OPENING, _LABEL, _VERSION, _DATA)
     assert first == second
@@ -69,8 +69,8 @@ def test_commit_changes_when_data_changes() -> None:
     assert other != commit(_KEY, _OPENING, _LABEL, _VERSION, _DATA)
 
 
+    # version 1 and 256 differ, proving a 4-byte big-endian field, not a byte.
 def test_version_is_four_big_endian_bytes_in_framing() -> None:
-    """version 1 and 256 differ, proving a 4-byte big-endian field, not a byte."""
     low = commit(_KEY, _OPENING, _LABEL, 1, _DATA)
     high = commit(_KEY, _OPENING, _LABEL, 256, _DATA)
     assert low != high
@@ -81,13 +81,13 @@ def test_new_opening_is_sixteen_bytes() -> None:
     assert isinstance(new_opening(), bytes)
 
 
+    # Two openings differ (CSPRNG); a constant opening would be a bug.
 def test_new_opening_is_random_across_calls() -> None:
-    """Two openings differ (CSPRNG); a constant opening would be a bug."""
     assert new_opening() != new_opening()
 
 
+    # The key is caller-supplied: commit() must not default-generate it.
 def test_commit_has_no_default_key() -> None:
-    """The key is caller-supplied: commit() must not default-generate it."""
     params = inspect.signature(commit).parameters
     assert params["key"].default is inspect.Parameter.empty
 

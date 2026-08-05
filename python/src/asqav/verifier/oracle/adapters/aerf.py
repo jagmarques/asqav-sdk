@@ -44,8 +44,8 @@ _STRIP = ("signature", "timestamp", "parent_signature", "parent_key_id", "log_in
 _SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 
+    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
-    """Decode a hex string; b'' on any malformed input so verify FAILs, never crashes."""
     if not isinstance(value, str):
         return b""
     try:
@@ -58,23 +58,23 @@ def _signable(doc: dict) -> dict:
     return {k: v for k, v in doc.items() if k not in _STRIP}
 
 
+    # Return the raw 32-byte key from raw input or an RFC 8410 SPKI value.
 def _raw_ed25519(key: bytes) -> bytes:
-    """Return the raw 32-byte key from raw input or an RFC 8410 SPKI value."""
     if len(key) == 44 and key.startswith(_SPKI_PREFIX):
         return key[12:]
     return key
 
 
+    # Return the raw 32-byte Ed25519 key for ``kid`` from the provider, or None.
 def _resolve_raw(key_provider: Any, kid: str) -> bytes | None:
-    """Return the raw 32-byte Ed25519 key for ``kid`` from the provider, or None."""
     material = (key_provider or {}).get(kid)
     if material is None:
         return None
     return _raw_ed25519(material if isinstance(material, bytes) else _safe_hex(material))
 
 
+    # AERF notarised-evidence receipt - Ed25519 over JCS, sig excluded from chain.
 class AerfAdapter(FormatAdapter):
-    """AERF notarised-evidence receipt - Ed25519 over JCS, sig excluded from chain."""
 
     name = "aerf"
 
@@ -130,8 +130,8 @@ class AerfAdapter(FormatAdapter):
             return "FAIL", "genesis must omit previous_receipt_hash, not set it null"
         return "PASS", "required fields present; type notarised_evidence"
 
+        # Parent counter-signature and PDP binding per the AERF procedure.
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
-        """Parent counter-signature and PDP binding per the AERF procedure."""
         axes: list[tuple[str, str, str]] = []
         has_impact = bool(doc.get("impact_tags"))
         if has_impact or doc.get("parent_signature"):

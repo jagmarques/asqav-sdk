@@ -58,8 +58,8 @@ MOCK_SESSION_ERROR_END_RESPONSE: dict = {
 }
 
 
+    # Route mock _post calls to appropriate fixture responses.
 def _mock_post_side_effect(path: str, data: dict) -> dict:
-    """Route mock _post calls to appropriate fixture responses."""
     if path == "/agents/create":
         return MOCK_AGENT_RESPONSE
     if "/sign" in path:
@@ -69,8 +69,8 @@ def _mock_post_side_effect(path: str, data: dict) -> dict:
     return {}
 
 
+    # Route mock _patch calls to appropriate fixture responses.
 def _mock_patch_side_effect(path: str, data: dict) -> dict:
-    """Route mock _patch calls to appropriate fixture responses."""
     if "sessions" in path:
         if data.get("status") == "error":
             return MOCK_SESSION_ERROR_END_RESPONSE
@@ -78,18 +78,18 @@ def _mock_patch_side_effect(path: str, data: dict) -> dict:
     return {}
 
 
+    # Reset the global agent between tests.
 def _reset_global_agent() -> None:
-    """Reset the global agent between tests."""
     asqav_client._global_agent = None
 
 
 # === Tests ===
 
 
+    # @asqav.sign on sync function signs call and result.
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_sync(mock_post: MagicMock, mock_patch: MagicMock) -> None:
-    """@asqav.sign on sync function signs call and result."""
     _reset_global_agent()
 
     @sign
@@ -115,10 +115,10 @@ def test_sign_decorator_sync(mock_post: MagicMock, mock_patch: MagicMock) -> Non
     assert result_args[0][1]["context"]["success"] is True
 
 
+    # @asqav.sign on async function works with asyncio.run().
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_async(mock_post: MagicMock, mock_patch: MagicMock) -> None:
-    """@asqav.sign on async function works with asyncio.run()."""
     _reset_global_agent()
 
     @sign
@@ -137,10 +137,10 @@ def test_sign_decorator_async(mock_post: MagicMock, mock_patch: MagicMock) -> No
     assert call_args[0][1]["context"]["function"] == "fetch"
 
 
+    # @asqav.sign(action_type="deploy:prod") overrides default action type.
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_with_action_type(mock_post: MagicMock, mock_patch: MagicMock) -> None:
-    """@asqav.sign(action_type="deploy:prod") overrides default action type."""
     _reset_global_agent()
 
     @sign(action_type="deploy:prod")
@@ -156,8 +156,8 @@ def test_sign_decorator_with_action_type(mock_post: MagicMock, mock_patch: Magic
     assert call_args[0][1]["action_type"] == "deploy:prod"
 
 
+    # Agent creation succeeds; every sign is blocked with a non-2xx error.
 def _mock_post_blocks_sign(path: str, data: dict) -> dict:
-    """Agent creation succeeds; every sign is blocked with a non-2xx error."""
     if path == "/agents/create":
         return MOCK_AGENT_RESPONSE
     if "/sign" in path:
@@ -194,10 +194,10 @@ def test_sign_decorator_fail_closed_on_blocked_sign(
     )
 
 
+    # Decorated function that raises propagates exception and signs error.
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_sign_decorator_reraises_exception(mock_post: MagicMock, mock_patch: MagicMock) -> None:
-    """Decorated function that raises propagates exception and signs error."""
     _reset_global_agent()
 
     @sign
@@ -218,10 +218,10 @@ def test_sign_decorator_reraises_exception(mock_post: MagicMock, mock_patch: Mag
     assert "something broke" in error_args[0][1]["context"]["error"]
 
 
+    # with asqav.session() as s: s.sign(...) groups signs under a session.
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_session_context_manager(mock_post: MagicMock, mock_patch: MagicMock) -> None:
-    """with asqav.session() as s: s.sign(...) groups signs under a session."""
     _reset_global_agent()
 
     with session() as s:
@@ -242,12 +242,12 @@ def test_session_context_manager(mock_post: MagicMock, mock_patch: MagicMock) ->
     assert end_call[0][1]["status"] == "completed"
 
 
+    # Session that encounters an exception signs error before ending.
 @patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
 @patch("asqav.client._post", side_effect=_mock_post_side_effect)
 def test_session_signs_error_on_exception(
     mock_post: MagicMock, mock_patch: MagicMock
 ) -> None:
-    """Session that encounters an exception signs error before ending."""
     _reset_global_agent()
 
     try:
@@ -271,8 +271,8 @@ def test_session_signs_error_on_exception(
     assert end_call[0][1]["status"] == "error"
 
 
+    # Verify asqav.secure is still importable and callable (backward compat).
 def test_existing_secure_still_works() -> None:
-    """Verify asqav.secure is still importable and callable (backward compat)."""
     assert hasattr(asqav, "secure")
     assert callable(asqav.secure)
     assert hasattr(asqav, "secure_async")
@@ -284,9 +284,9 @@ def test_existing_secure_still_works() -> None:
     assert hasattr(asqav, "async_session")
 
 
+    # Concurrent first calls to get_agent create exactly one agent (no duplicate race).
 @patch("asqav.client.Agent.create")
 def test_get_agent_concurrent_first_call_creates_once(mock_create: MagicMock) -> None:
-    """Concurrent first calls to get_agent create exactly one agent (no duplicate race)."""
     import threading
 
     _reset_global_agent()

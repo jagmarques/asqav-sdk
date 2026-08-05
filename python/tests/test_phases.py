@@ -11,8 +11,8 @@ from asqav.phases import PhaseChain, sign_with_phases
 # === Helpers ===
 
 
+    # Create a mock Agent with sign() and preflight().
 def _mock_agent(cleared: bool = True) -> MagicMock:
-    """Create a mock Agent with sign() and preflight()."""
     agent = MagicMock()
 
     intent_sig = SignatureResponse(
@@ -46,8 +46,8 @@ def _mock_agent(cleared: bool = True) -> MagicMock:
 # === Three-phase flow ===
 
 
+    # All three phases execute when preflight clears.
 def test_full_three_phase_flow():
-    """All three phases execute when preflight clears."""
     agent = _mock_agent(cleared=True)
 
     chain = sign_with_phases(agent, "api:call", {"model": "gpt-4"})
@@ -67,8 +67,8 @@ def test_full_three_phase_flow():
     assert second_call[1]["parent_id"] == "sid-intent-001"
 
 
+    # When preflight denies, execution phase is skipped.
 def test_blocked_action_skips_execution():
-    """When preflight denies, execution phase is skipped."""
     agent = _mock_agent(cleared=False)
 
     chain = sign_with_phases(agent, "api:call")
@@ -82,8 +82,8 @@ def test_blocked_action_skips_execution():
     assert agent.sign.call_count == 1
 
 
+    # Custom trace_id is passed through all phases.
 def test_trace_id_propagation():
-    """Custom trace_id is passed through all phases."""
     agent = _mock_agent(cleared=True)
     custom_tid = "trace-abc-123"
 
@@ -96,8 +96,8 @@ def test_trace_id_propagation():
         assert call[1]["trace_id"] == custom_tid
 
 
+    # When no trace_id provided, one is auto-generated.
 def test_trace_id_auto_generated():
-    """When no trace_id provided, one is auto-generated."""
     agent = _mock_agent(cleared=True)
 
     with patch("asqav.client.generate_trace_id", return_value="auto-tid-999"):
@@ -109,8 +109,8 @@ def test_trace_id_auto_generated():
 # === PhaseChain serialization ===
 
 
+    # to_dict produces a complete serializable dict.
 def test_to_dict():
-    """to_dict produces a complete serializable dict."""
     agent = _mock_agent(cleared=True)
     chain = sign_with_phases(agent, "api:call")
 
@@ -123,8 +123,8 @@ def test_to_dict():
     assert d["execution"]["signature_id"] == "sid-exec-001"
 
 
+    # to_dict handles blocked chain (no execution).
 def test_to_dict_blocked():
-    """to_dict handles blocked chain (no execution)."""
     agent = _mock_agent(cleared=False)
     chain = sign_with_phases(agent, "api:call")
 
@@ -136,8 +136,8 @@ def test_to_dict_blocked():
     assert len(d["decision"]["reasons"]) > 0
 
 
+    # to_json produces valid JSON matching to_dict.
 def test_to_json():
-    """to_json produces valid JSON matching to_dict."""
     agent = _mock_agent(cleared=True)
     chain = sign_with_phases(agent, "api:call")
 
@@ -150,8 +150,8 @@ def test_to_json():
 # === Agent convenience method ===
 
 
+    # Agent.sign_with_phases delegates to phases module.
 def test_agent_convenience_method():
-    """Agent.sign_with_phases delegates to phases module."""
     from asqav.client import Agent
 
     with (

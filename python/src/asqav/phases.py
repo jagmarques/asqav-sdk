@@ -11,22 +11,22 @@ from dataclasses import dataclass
 from typing import Any
 
 
+    # Three linked receipts covering an action's full lifecycle.
 @dataclass
 class PhaseChain:
-    """Three linked receipts covering an action's full lifecycle."""
 
     intent: Any  # SignatureResponse from intent phase
     decision: Any  # PreflightResult from decision phase
     execution: Any  # SignatureResponse from execution phase
     trace_id: str
 
+        # Whether the decision phase approved the action.
     @property
     def approved(self) -> bool:
-        """Whether the decision phase approved the action."""
         return self.decision.cleared if self.decision else False
 
+        # Serialize the chain to a plain dict.
     def to_dict(self) -> dict:
-        """Serialize the chain to a plain dict."""
 
         def _sig_dict(sig: Any) -> dict | None:
             if sig is None:
@@ -57,8 +57,8 @@ class PhaseChain:
             "approved": self.approved,
         }
 
+        # Serialize the chain to a JSON string.
     def to_json(self) -> str:
-        """Serialize the chain to a JSON string."""
         return json.dumps(self.to_dict())
 
 
