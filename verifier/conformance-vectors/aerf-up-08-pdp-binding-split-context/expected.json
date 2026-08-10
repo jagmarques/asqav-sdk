@@ -1,6 +1,7 @@
 {
   "format": "aerf",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "pdp_signature",
-  "notes": "Upstream split-context vector; the PDP signed a verdict for one context but the receipt claims another, so the PDP-binding axis fails."
+  "notes": "Upstream split-context vector; the PDP signed a verdict for one context but the receipt claims another, so the PDP-binding axis fails.",
+  "failure_class": "invalid"
 }

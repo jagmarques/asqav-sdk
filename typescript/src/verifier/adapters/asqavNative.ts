@@ -270,4 +270,14 @@ export class AsqavNativeAdapter extends FormatAdapter {
     const signer = payloadOf(doc).signer;
     return signer !== undefined && signer !== null ? { signer } : {};
   }
+
+  /**
+   * A hash-mode digest sealed with the org salt is keyed (criterion 438).
+   * hash_algo hmac-sha256 is internally consistent but not third-party
+   * re-derivable, so a fully-checked receipt reports verified_keyed, never
+   * plain verified. Read from the signed field set only.
+   */
+  keyedDigest(doc: Record<string, unknown>): boolean {
+    return isHashMode(doc) && doc.hash_algo === "hmac-sha256";
+  }
 }

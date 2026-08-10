@@ -130,7 +130,8 @@ describe("end to end over a real ML-DSA-65 signature", () => {
     expect(axes.signature, JSON.stringify(axes)).toBe("PASS");
     expect(axes.key_status).toBe("PASS");
     expect(axes.issuer_bind).toBe("PASS");
-    expect(res.verdict, JSON.stringify(axes)).toBe("PASS");
+    expect(res.verdict, JSON.stringify(axes)).toBe("verified");
+    expect(res.failureClass).toBeNull();
   });
 
   it("rejects a signature from a key the directory never published", () => {
@@ -148,7 +149,8 @@ describe("end to end over a real ML-DSA-65 signature", () => {
     const axes: Record<string, string> = {};
     for (const a of res.axes) axes[a.axis] = a.result;
     expect(axes.signature).toBe("FAIL");
-    expect(res.verdict).toBe("FAIL");
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("invalid");
   });
 
   it("rejects an agent key published under another org", () => {
@@ -165,6 +167,7 @@ describe("end to end over a real ML-DSA-65 signature", () => {
     const axes: Record<string, string> = {};
     for (const a of res.axes) axes[a.axis] = a.result;
     expect(axes.signature).toBe("FAIL");
-    expect(res.verdict).toBe("FAIL");
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("invalid");
   });
 });

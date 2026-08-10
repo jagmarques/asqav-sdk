@@ -212,7 +212,8 @@ def test_oracle_passes_a_receipt_signed_by_the_second_agent() -> None:
     assert axes["signature"] == "PASS", axes
     assert axes["key_status"] == "PASS"
     assert axes["issuer_bind"] == "PASS"
-    assert res.verdict == "PASS", axes
+    assert res.verdict == "verified", axes
+    assert res.failure_class is None
 
 
     # Naming a sibling in the payload never lends that sibling's key to a forgery.
@@ -231,7 +232,8 @@ def test_oracle_rejects_a_signature_from_the_wrong_agent() -> None:
     }
     assert forger_pk not in (one_pk, two_pk)
     res = verify(_receipt(payload, sig), [AsqavNativeAdapter()], key_provider=jwks)
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert {a.axis: a.result for a in res.axes}["signature"] == "FAIL"
 
 
@@ -249,5 +251,6 @@ def test_oracle_rejects_an_agent_key_from_another_org() -> None:
         ]
     }
     res = verify(_receipt(payload, sig), [AsqavNativeAdapter()], key_provider=jwks)
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert {a.axis: a.result for a in res.axes}["signature"] == "FAIL"
