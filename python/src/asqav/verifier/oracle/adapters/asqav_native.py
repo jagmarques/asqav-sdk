@@ -268,3 +268,12 @@ class AsqavNativeAdapter(FormatAdapter):
             return {}
         signer = _payload(doc).get("signer")
         return {"signer": signer} if signer is not None else {}
+
+    def keyed_digest(self, doc: dict) -> bool:
+        """A hash-mode digest sealed with the org salt is keyed (criterion 438).
+
+        hash_algo hmac-sha256 is internally consistent but not third-party
+        re-derivable, so a fully-checked receipt reports verified_keyed, never
+        plain verified. Read from the signed field set only.
+        """
+        return _is_hash_mode(doc) and doc.get("hash_algo") == "hmac-sha256"

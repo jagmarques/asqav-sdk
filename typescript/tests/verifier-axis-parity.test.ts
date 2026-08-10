@@ -273,7 +273,8 @@ describe("nesting-depth gate parity", () => {
 
   it("caps a receipt one level past it", () => {
     const r = verifyReceiptOffline(nestedReceipt(MAX_NESTING_DEPTH - 1), JWKS);
-    expect(r.verdict).toBe("INCOMPLETE");
+    expect(r.verdict).toBe("unverified");
+    expect(r.failureClass).toBe("unverifiable");
     expect(r.axes).toHaveLength(1);
     expect(r.axes[0].axis).toBe("structure");
     expect(r.axes[0].result).toBe("FAIL");
@@ -282,7 +283,8 @@ describe("nesting-depth gate parity", () => {
 
   it("caps an over-nested predecessor", () => {
     const r = verifyReceiptOffline(nestedReceipt(0), JWKS, nestedReceipt(5000));
-    expect(r.verdict).toBe("INCOMPLETE");
+    expect(r.verdict).toBe("unverified");
+    expect(r.failureClass).toBe("unverifiable");
     expect(r.axes[0].note).toBe("receipt nesting exceeds the supported depth (> 200 levels)");
   });
 
@@ -294,6 +296,6 @@ describe("nesting-depth gate parity", () => {
     const receipt = nestedReceipt(0);
     (receipt.payload as Record<string, unknown>).junk = node;
     expect(() => verifyReceiptOffline(receipt, JWKS)).not.toThrow();
-    expect(verifyReceiptOffline(receipt, JWKS).verdict).toBe("INCOMPLETE");
+    expect(verifyReceiptOffline(receipt, JWKS).verdict).toBe("unverified");
   });
 });

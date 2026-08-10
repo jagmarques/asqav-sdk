@@ -48,8 +48,19 @@ export { AgentReceiptsAdapter } from "./adapters/agentreceipts.js";
 export { AsqavNativeAdapter } from "./adapters/asqavNative.js";
 export { AuthproofAdapter } from "./adapters/authproof.js";
 export { PipelockEvidenceAdapter } from "./adapters/pipelock.js";
-export { detect, MAX_NESTING_DEPTH, verify } from "./core.js";
-export type { AxisResult, Verdict, VerifyResult } from "./core.js";
+export {
+  detect,
+  FAILURE_INVALID,
+  FAILURE_UNVERIFIABLE,
+  MAX_NESTING_DEPTH,
+  VERDICT_UNVERIFIED,
+  VERDICT_VERIFIED,
+  VERDICT_VERIFIED_KEYED,
+  axisFailureClass,
+  foldVerdict,
+  verify,
+} from "./core.js";
+export type { AxisResult, FailureClass, Verdict, VerifyResult } from "./core.js";
 // The axes the oracle leaves out by design, so a TypeScript caller runs what a
 // Python caller runs. normaliseEnvelope ships too: skip it and you digest other bytes.
 export {
@@ -60,7 +71,15 @@ export {
   normaliseEnvelope,
   SKEW_BOUND_SECONDS,
 } from "./vrShim.js";
-export { asqavJcs, jcs, jcsRfc8785, parseJsonPreservingFloats, RawFloat } from "./canonical.js";
+export {
+  asqavJcs,
+  DuplicateMemberError,
+  jcs,
+  jcsRfc8785,
+  parseJsonPreservingFloats,
+  parseJsonStrict,
+  RawFloat,
+} from "./canonical.js";
 export {
   FAIL,
   PASS,
