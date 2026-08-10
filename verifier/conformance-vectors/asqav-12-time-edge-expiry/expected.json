@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "PASS",
+  "reason_code": "",
+  "notes": "Deterministic ML-DSA-65 vector minted from the published corpus signing seed (criterion 420; dilithium-py deterministic=True, FIPS 204 pure variant), so the signature bytes reproduce exactly. Time-edge conformance (criterion 422): issued_at 2026-05-19T00:10:00+14:00 is an extreme positive UTC offset around midnight (UTC 2026-05-18T10:10:00, a past instant the skew axis accepts); the signed expires_at 2026-05-20T00:10:00Z has lapsed, so the expiry axis FAILs alone while the verdict stays PASS (criterion 426)."
+}
