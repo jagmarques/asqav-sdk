@@ -43,6 +43,38 @@ If your implementation produces the same `canonical` and `sha256` for each `inpu
 
 If your implementation produces a different `canonical` or `sha256` for one of the provided inputs, open an issue at https://github.com/jagmarques/asqav-sdk/issues with your implementation, language, and JCS library name.
 
+## Corpus freeze at v1 (criterion 420)
+
+This corpus is frozen at version 1. `manifest.lock.json` pins every corpus
+file by SHA-256 and byte length, and carries the digest of the lock itself;
+any drift fails CI.
+
+- Lock digest: pinned in the lock's own `digest` field and reproduced in the
+  repo as the `FINGERPRINT_LOCK_DIGEST` constant in
+  `python/tests/test_corpus_lock.py`; a regenerated lock must update both.
+- Verification path A: `python/tests/test_corpus_lock.py` re-derives every
+  pin with `hashlib` + `pathlib`.
+- Verification path B: `verifier/check_corpus_lock.sh` re-derives every pin
+  through the `sha256sum` binary and `wc`.
+- Regeneration after an intentional edit: `python verifier/freeze_corpus_lock.py`.
+
+### Published signing seed (ML-DSA-65)
+
+The server signs the SHA-256 fingerprint digest with ML-DSA-65. For
+signature-byte parity this lock publishes a corpus signing seed and a
+deterministic known-answer signature:
+
+- Seed derivation: `SHA-256("asqav conformance corpus v1 ML-DSA-65 signing seed")`;
+  the seed hex and the derived public key are in the lock's `signing.mldsa65`.
+- KAT message: the 32-byte digest of the `minimal_read` vector (the hash is
+  what ML-DSA-65 signs). KAT signature: `signing.mldsa65.known_answer.signature_hex`,
+  produced with `dilithium-py` `ML_DSA_65.sign(sk, m, deterministic=True)` -
+  the FIPS 204 pure variant. Re-signing from the seed reproduces the exact
+  bytes, and CI re-derives them on every run.
+- Production signing uses the randomized (hedged) FIPS 204 variant, so live
+  signature bytes are intentionally not reproducible; verification is
+  deterministic, and that is the property this corpus pins.
+
 ## License
 
 These vectors are public domain (CC0).
