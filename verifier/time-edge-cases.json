@@ -1,0 +1,298 @@
+{
+  "note": "Time-edge conformance vectors (criterion 422), one table driving the Python half (python/tests/test_time_edge_vectors.py) and the TypeScript half (typescript/tests/verifier-time-edge-cases.test.ts). Every probe freezes the wall clock at 'clock', so no case depends on the date the suite runs. The skew bound is future-only: +300s passes, +301s fails, the past is unbounded (retention-bounded). Wire stamps carry explicit UTC offsets; both verifiers normalise to UTC before judging them.",
+  "frozen_clock": "2026-08-04T12:00:00Z",
+  "instants": [
+    {
+      "name": "north-fall-back-second-occurrence",
+      "stamp": "2026-11-01T01:30:00-05:00",
+      "utc": "2026-11-01T06:30:00+00:00",
+      "phenomenon": "America/New_York fall-back day; the 01:30 wall time occurs twice and the -05:00 offset names the second occurrence (EST), one hour after the first",
+      "probes": [
+        {
+          "clock": "2026-11-01T06:24:59+00:00",
+          "result": "FAIL",
+          "note": "issued_at 301s ahead of wall clock (> 300s)",
+          "exact": true
+        },
+        {
+          "clock": "2026-11-01T06:25:00+00:00",
+          "result": "PASS",
+          "note": "skew 300s within bound",
+          "exact": true
+        },
+        {
+          "clock": "2026-11-01T06:30:00+00:00",
+          "result": "PASS",
+          "note": "skew 0s within bound",
+          "exact": true
+        }
+      ]
+    },
+    {
+      "name": "north-fall-back-first-occurrence",
+      "stamp": "2026-11-01T01:30:00-04:00",
+      "utc": "2026-11-01T05:30:00+00:00",
+      "phenomenon": "Same ambiguous 01:30 wall time as north-fall-back-second-occurrence, but the -04:00 offset names the first occurrence (EDT); one wall clock, two instants",
+      "probes": [
+        {
+          "clock": "2026-11-01T05:24:59+00:00",
+          "result": "FAIL",
+          "note": "issued_at 301s ahead of wall clock (> 300s)",
+          "exact": true
+        },
+        {
+          "clock": "2026-11-01T05:25:00+00:00",
+          "result": "PASS",
+          "note": "skew 300s within bound",
+          "exact": true
+        },
+        {
+          "clock": "2026-11-01T05:30:00+00:00",
+          "result": "PASS",
+          "note": "skew 0s within bound",
+          "exact": true
+        }
+      ]
+    },
+    {
+      "name": "south-spring-forward-nonexistent-wall",
+      "stamp": "2026-10-04T02:30:00+10:00",
+      "utc": "2026-10-03T16:30:00+00:00",
+      "phenomenon": "Australia/Sydney spring-forward day; the 02:30 wall time never exists there, but the explicit +10:00 offset still names a real UTC instant",
+      "probes": [
+        {
+          "clock": "2026-10-03T16:24:59+00:00",
+          "result": "FAIL",
+          "note": "issued_at 301s ahead of wall clock (> 300s)",
+          "exact": true
+        },
+        {
+          "clock": "2026-10-03T16:25:00+00:00",
+          "result": "PASS",
+          "note": "skew 300s within bound",
+          "exact": true
+        },
+        {
+          "clock": "2026-10-03T16:30:00+00:00",
+          "result": "PASS",
+          "note": "skew 0s within bound",
+          "exact": true
+        }
+      ]
+    },
+    {
+      "name": "extreme-positive-offset-crosses-date",
+      "stamp": "2026-05-19T00:10:00+14:00",
+      "utc": "2026-05-18T10:10:00+00:00",
+      "phenomenon": "UTC+14 (Line Islands) just after local midnight: the local calendar date is already a day ahead of the UTC date",
+      "probes": [
+        {
+          "clock": "2026-05-18T10:04:59+00:00",
+          "result": "FAIL",
+          "note": "issued_at 301s ahead of wall clock (> 300s)",
+          "exact": true
+        },
+        {
+          "clock": "2026-05-18T10:05:00+00:00",
+          "result": "PASS",
+          "note": "skew 300s within bound",
+          "exact": true
+        },
+        {
+          "clock": "2026-05-18T10:10:00+00:00",
+          "result": "PASS",
+          "note": "skew 0s within bound",
+          "exact": true
+        }
+      ]
+    },
+    {
+      "name": "negative-offset-crosses-date-forward",
+      "stamp": "2026-05-19T23:50:00-11:00",
+      "utc": "2026-05-20T10:50:00+00:00",
+      "phenomenon": "Explicit negative offset near local midnight: the UTC instant lands on the next calendar date",
+      "probes": [
+        {
+          "clock": "2026-05-20T10:44:59+00:00",
+          "result": "FAIL",
+          "note": "issued_at 301s ahead of wall clock (> 300s)",
+          "exact": true
+        },
+        {
+          "clock": "2026-05-20T10:45:00+00:00",
+          "result": "PASS",
+          "note": "skew 300s within bound",
+          "exact": true
+        },
+        {
+          "clock": "2026-05-20T10:50:00+00:00",
+          "result": "PASS",
+          "note": "skew 0s within bound",
+          "exact": true
+        }
+      ]
+    }
+  ],
+  "skew_bounds": [
+    {
+      "name": "fresh-at-frozen-clock",
+      "issued_at": "2026-08-04T12:00:00Z",
+      "expect": {
+        "result": "PASS",
+        "note": "skew 0s within bound",
+        "exact": true
+      }
+    },
+    {
+      "name": "at-bound-plus-300s",
+      "issued_at": "2026-08-04T12:05:00Z",
+      "expect": {
+        "result": "PASS",
+        "note": "skew 300s within bound",
+        "exact": true
+      }
+    },
+    {
+      "name": "past-bound-plus-301s",
+      "issued_at": "2026-08-04T12:05:01Z",
+      "expect": {
+        "result": "FAIL",
+        "note": "issued_at 301s ahead of wall clock (> 300s)",
+        "exact": true
+      }
+    },
+    {
+      "name": "one-hour-past",
+      "issued_at": "2026-08-04T11:00:00Z",
+      "expect": {
+        "result": "PASS",
+        "note": "skew -3600s within bound",
+        "exact": true
+      }
+    },
+    {
+      "name": "far-past-three-years",
+      "issued_at": "2023-08-04T12:00:00Z",
+      "expect": {
+        "result": "PASS",
+        "note": "skew -94694400s within bound",
+        "exact": true
+      }
+    },
+    {
+      "name": "far-past-three-years-explicit-offset",
+      "issued_at": "2023-08-04T07:00:00-05:00",
+      "expect": {
+        "result": "PASS",
+        "note": "skew -94694400s within bound",
+        "exact": true
+      }
+    },
+    {
+      "name": "lowercase-z-unreadable",
+      "issued_at": "2026-08-04T12:00:00z",
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "unparseable issued_at",
+        "exact": false
+      }
+    },
+    {
+      "name": "basic-form-unreadable",
+      "issued_at": "20260804T120000Z",
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "unparseable issued_at",
+        "exact": false
+      }
+    }
+  ],
+  "expiry": [
+    {
+      "name": "no-expiry-key",
+      "payload": {},
+      "expect": {
+        "result": "PASS",
+        "note": "receipt declares no expiry",
+        "exact": true
+      }
+    },
+    {
+      "name": "unreadable-expires-at",
+      "payload": {
+        "expires_at": "not-a-stamp"
+      },
+      "expect": {
+        "result": "FAIL",
+        "note": "unreadable expires_at 'not-a-stamp'; refused rather than read as no expiry",
+        "exact": true
+      }
+    },
+    {
+      "name": "unreadable-basic-form",
+      "payload": {
+        "expires_at": "20260804T120000Z"
+      },
+      "expect": {
+        "result": "FAIL",
+        "note": "unreadable expires_at '20260804T120000Z'; refused rather than read as no expiry",
+        "exact": true
+      }
+    },
+    {
+      "name": "lapsed-one-second",
+      "payload": {
+        "expires_at": "2026-08-04T11:59:59Z"
+      },
+      "expect": {
+        "result": "FAIL",
+        "note": "expires_at 2026-08-04T11:59:59Z lapsed 1s ago",
+        "exact": true
+      }
+    },
+    {
+      "name": "lapsed-one-hour",
+      "payload": {
+        "expires_at": "2026-08-04T11:00:00Z"
+      },
+      "expect": {
+        "result": "FAIL",
+        "note": "expires_at 2026-08-04T11:00:00Z lapsed 3600s ago",
+        "exact": true
+      }
+    },
+    {
+      "name": "ahead-exactly-300s",
+      "payload": {
+        "expires_at": "2026-08-04T12:05:00Z"
+      },
+      "expect": {
+        "result": "PASS",
+        "note": "expires_at 2026-08-04T12:05:00Z is 300s ahead",
+        "exact": true
+      }
+    },
+    {
+      "name": "ahead-at-frozen-clock",
+      "payload": {
+        "expires_at": "2026-08-04T12:00:00Z"
+      },
+      "expect": {
+        "result": "PASS",
+        "note": "expires_at 2026-08-04T12:00:00Z is 0s ahead",
+        "exact": true
+      }
+    },
+    {
+      "name": "extreme-offset-instant-lapsed",
+      "payload": {
+        "expires_at": "2026-05-19T00:10:00+14:00"
+      },
+      "expect": {
+        "result": "FAIL",
+        "note": "expires_at 2026-05-19T00:10:00+14:00 lapsed 6745800s ago",
+        "exact": true
+      }
+    }
+  ]
+}
