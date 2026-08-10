@@ -5,10 +5,18 @@ knows, with one self-contained call::
 
     python -m asqav.verifier.oracle receipt.json [--keys keys.json] [--predecessor pred.json]
 
-It loads the receipt, runs :func:`verify` over the bundled ``ADAPTERS``, prints
-the verdict and per-axis result as JSON, and sets the exit status from the
-verdict: 0 on PASS, 1 on FAIL, 2 on INCOMPLETE. INCOMPLETE means an axis (the
-signature, typically) could not be checked - it is never reported as a PASS.
+It loads the receipt (strict ingest: a duplicated JSON member name at any depth
+is a terminal parse failure, rejected before any hashing - criterion 419), runs
+:func:`verify` over the bundled ``ADAPTERS``, prints the verdict and per-axis
+result as JSON, and sets the exit status from the verdict vocabulary
+(criteria 418/438):
+
+  - 0  verified / verified_keyed
+  - 1  unverified, failure_class=invalid (a binding was proven broken)
+  - 2  unverified, failure_class=unverifiable (verification could not complete)
+
+Exit 2 is NOT a verified outcome: it means a check (the signature, typically)
+could not be run, and the verifier never reports a broken receipt as verified.
 
 ``--keys`` is the format-shaped key provider: a JWKS dict for Asqav-native, a
 ``{key_id: hex}`` map for AERF, an ``{key_id: pem}`` map for ACTA, or a did_map
@@ -26,11 +34,18 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from . import ADAPTERS
-from .core import verify
+from asqav import strict_json
 
-#: verdict -> process exit status; PASS is the only success, INCOMPLETE is not a PASS.
-_EXIT = {"PASS": 0, "FAIL": 1, "INCOMPLETE": 2}
+from . import ADAPTERS
+from .core import FAILURE_INVALID, VERDICT_UNVERIFIED, verify
+
+
+def _exit_code(verdict: str, failure_class: str | None) -> int:
+    # verified/verified_keyed -> 0; invalid -> 1; unverifiable keeps the exit-2
+    # blocked-verification state the old INCOMPLETE verdict carried.
+    if verdict != VERDICT_UNVERIFIED:
+        return 0
+    return 1 if failure_class == FAILURE_INVALID else 2
 
 
 def _load(path: str | None) -> dict | None:
@@ -42,7 +57,11 @@ def _load(path: str | None) -> dict | None:
         print(f"asqav-verify: cannot read {path}: {exc.strerror or exc}", file=sys.stderr)
         raise SystemExit(2) from None
     try:
-        return json.loads(text)
+        return strict_json.loads(text)
+    except strict_json.DuplicateMemberError as exc:
+        # Terminal ingest failure (419): never hash or verify last-wins bytes.
+        print(f"asqav-verify: {path} rejected: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
     except json.JSONDecodeError as exc:
         print(f"asqav-verify: {path} is not valid JSON: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
@@ -59,10 +78,11 @@ def run(receipt_path: str, keys_path: str | None, predecessor_path: str | None) 
     report = {
         "format": result.fmt,
         "verdict": result.verdict,
+        "failure_class": result.failure_class,
         "axes": [asdict(a) for a in result.axes],
     }
     print(json.dumps(report, indent=2))
-    return _EXIT.get(result.verdict, 2)
+    return _exit_code(result.verdict, result.failure_class)
 
 
 def main(argv: list[str] | None = None) -> int:

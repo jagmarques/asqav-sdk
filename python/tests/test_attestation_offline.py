@@ -2,8 +2,8 @@
 
 Prove the SDK re-derives the cloud's statementHash byte for byte from the
 original claim, that a tampered claim or receipt fails, and that a good
-receipt yields the distinct "verified, commitment not re-derivable" outcome
-rather than a plain PASS.
+receipt yields the distinct "verified_keyed" outcome (commitment not
+re-derivable) rather than a plain verified verdict.
 
 The golden statementHash below was captured from the cloud route's merged
 canonicalization (src/asqav_cloud/api/routes/attestations.py), not a live call.
@@ -19,8 +19,10 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.attestation import (
-    VERDICT_FAIL,
-    VERDICT_VERIFIED_NOT_REDERIVABLE,
+    FAILURE_INVALID,
+    FAILURE_UNVERIFIABLE,
+    VERDICT_UNVERIFIED,
+    VERDICT_VERIFIED_KEYED,
     compute_statement_hash,
     merkle_inclusion_proof,
     merkle_leaf_hash,
@@ -145,14 +147,15 @@ def test_tampered_claim_changes_hash_and_does_not_pass() -> None:
         verify_signature=verify,
         signed_tree_head=tree_head,
     )
-    assert result["verdict"] == VERDICT_FAIL
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_INVALID
     assert result["statementHash"] != _GOLDEN_HASH
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "FAIL"
 
 
-    # (d) A good receipt yields the distinct outcome, never a plain PASS.
-def test_good_receipt_is_not_rederivable_never_plain_pass() -> None:
+    # (d) A good receipt yields verified_keyed, never plain verified (438).
+def test_good_receipt_is_not_rederivable_never_plain_verified() -> None:
     receipt, message, verify, tree_head = _good_receipt()
     result = verify_attestation_offline(
         _CLAIM,
@@ -161,8 +164,9 @@ def test_good_receipt_is_not_rederivable_never_plain_pass() -> None:
         verify_signature=verify,
         signed_tree_head=tree_head,
     )
-    assert result["verdict"] == VERDICT_VERIFIED_NOT_REDERIVABLE
-    assert result["verdict"] != "PASS"
+    assert result["verdict"] == VERDICT_VERIFIED_KEYED
+    assert result["verdict"] != "verified"
+    assert result["failure_class"] is None
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "PASS"
     assert by_name["signature"] == "PASS"
@@ -184,7 +188,8 @@ def test_tampered_signature_fails() -> None:
         verify_signature=verify,
         signed_tree_head=tree_head,
     )
-    assert result["verdict"] == VERDICT_FAIL
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_INVALID
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["signature"] == "FAIL"
     assert by_name["statement_hash"] == "PASS"
@@ -201,18 +206,19 @@ def test_tampered_inclusion_proof_fails() -> None:
         verify_signature=verify,
         signed_tree_head=wrong_head,
     )
-    assert result["verdict"] == VERDICT_FAIL
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_INVALID
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["inclusion"] == "FAIL"
     assert by_name["signature"] == "PASS"
 
 
-    # Without a key or tree head the verdict is INCOMPLETE, still never PASS.
-def test_missing_optional_inputs_is_incomplete_not_pass() -> None:
+    # Without a key or tree head the verdict is unverified/unverifiable (418).
+def test_missing_optional_inputs_is_unverifiable_not_verified() -> None:
     receipt, _message, _verify, _tree_head = _good_receipt()
     result = verify_attestation_offline(_CLAIM, receipt)
-    assert result["verdict"] == "INCOMPLETE"
-    assert result["verdict"] != "PASS"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "PASS"
     assert by_name["signature"] == "SKIP"
@@ -225,4 +231,5 @@ def test_public_surface_exposed_at_package_root() -> None:
 
     assert asqav.verify_attestation_offline is verify_attestation_offline
     assert asqav.compute_statement_hash is compute_statement_hash
-    assert asqav.VERDICT_VERIFIED_NOT_REDERIVABLE == "VERIFIED_COMMITMENT_NOT_REDERIVABLE"
+    assert asqav.VERDICT_VERIFIED_KEYED == "verified_keyed"
+    assert asqav.VERDICT_UNVERIFIED == "unverified"
