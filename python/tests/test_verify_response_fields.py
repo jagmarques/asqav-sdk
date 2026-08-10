@@ -11,6 +11,7 @@ that the SDK parser populates the dataclasses with all of them.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -83,6 +84,8 @@ def _mock_httpx(payload: dict) -> MagicMock:
     response = MagicMock()
     response.status_code = 200
     response.json.return_value = payload
+    # The strict-ingest path parses response.text, not .json() (criterion 419).
+    response.text = json.dumps(payload)
     return response
 
 

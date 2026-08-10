@@ -44,7 +44,8 @@ def test_v2_receipt_verifies_and_surfaces_signer() -> None:
     receipt, jwks = _v2()
     res = verify(receipt, ADAPTERS, key_provider=jwks)
     assert res.fmt == "asqav-native"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
+    assert res.failure_class is None
     assert res.axis("signature").result == crypto.PASS
     # The v:2 origin attestation is surfaced from the signed body.
     assert res.signer == _SIGNER
@@ -62,7 +63,8 @@ def test_v2_tampered_in_body_signer_fails() -> None:
     receipt["payload"]["signer"] = "https://api.asqav.con"
     res = verify(receipt, ADAPTERS, key_provider=jwks)
     assert res.axis("signature").result == crypto.FAIL
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
 
 
     # signer as loose metadata outside the signed payload is neither surfaced nor trusted.
@@ -73,7 +75,8 @@ def test_v2_signer_moved_outside_signed_body_not_surfaced_and_fails() -> None:
     receipt["signer"] = _SIGNER  # loose, outside the canonical body
     res = verify(receipt, ADAPTERS, key_provider=jwks)
     assert res.signer is None
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
 
 
 @requires_ed25519
@@ -82,7 +85,8 @@ def test_v2_tampered_canary_corpus_vector_fails() -> None:
         "asqav-09-v2-signer-tampered", "jwks.json"
     )
     res = verify(receipt, ADAPTERS, key_provider=jwks)
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
 
 
     # A v:2 receipt without _asqav_tid still verifies; the neutral verifier never requires it.
@@ -102,7 +106,7 @@ def test_v1_vector_still_verifies_and_exposes_no_signer() -> None:
         "asqav-01-genesis-permit", "jwks.json"
     )
     res = verify(receipt, ADAPTERS, key_provider=jwks)
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.signer is None
 
 

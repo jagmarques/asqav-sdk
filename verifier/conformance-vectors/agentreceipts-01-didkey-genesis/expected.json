@@ -1,6 +1,6 @@
 {
   "format": "agentreceipts",
-  "outcome": "PASS",
+  "outcome": "verified",
   "reason_code": "",
   "notes": "did:key genesis; key resolves inline, signature verifies, previous_receipt_hash explicit null."
 }

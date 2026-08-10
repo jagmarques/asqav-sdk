@@ -1,6 +1,6 @@
 {
   "format": "acta",
-  "outcome": "PASS",
+  "outcome": "verified",
   "reason_code": "",
   "notes": "Valid ACTA genesis; Ed25519 over JCS(payload) verifies."
 }
