@@ -69,3 +69,39 @@ AgentReceipt did:key receipts need no key file - the resolver decodes the key
 from the `did:key` identifier; did:agent / did:web vectors carry `did_map.json`.
 Vector provenance, the upstream commit SHAs, and the re-signing of the
 agent-receipts PASS vectors with the upstream keypair are recorded in `UPSTREAM.md`.
+
+## Corpus freeze at v1 (criterion 420)
+
+This corpus is frozen at version 1. `manifest.lock.json` pins every file in
+the tree by SHA-256 and byte length, and carries the digest of the lock
+itself; any drift fails CI.
+
+- Lock digest: pinned in the lock's own `digest` field and reproduced in the
+  repo as the `VERIFIER_LOCK_DIGEST` constant in
+  `python/tests/test_corpus_lock.py`; a regenerated lock must update both.
+- Verification path A: `python/tests/test_corpus_lock.py` re-derives every
+  pin with `hashlib` + `pathlib`.
+- Verification path B: `verifier/check_corpus_lock.sh` re-derives every pin
+  through the `sha256sum` binary and `wc`.
+- Regeneration after an intentional edit: `python verifier/freeze_corpus_lock.py`.
+
+### Published signing seeds
+
+Locally regenerated vectors sign with the seeds published in the lock's
+`signing` section, so their signature bytes reproduce exactly:
+
+- `ed25519_acta` - the ACTA generator seed (mirrors `gen_acta_vectors.py`).
+  Ed25519 is deterministic per RFC 8032, so the seed reproduces every ACTA
+  signature byte for byte.
+- `mldsa65` - one corpus-wide ML-DSA-65 seed (seed hex and public key in the
+  lock), used by `asqav-12-time-edge-expiry`. Signature-byte parity uses
+  `dilithium-py` `ML_DSA_65.sign(sk, m, deterministic=True)`, the FIPS 204
+  pure variant; CI re-derives the key and the pinned KAT signature from the
+  seed on every run.
+
+Upstream and prod-signed receipts (the `*-up-*` vectors, `authproof-01`,
+`asqav-05/06`) carry public keys only - their producers' seeds are not ours
+to publish. Their signature bytes are pinned by the per-file SHA-256 entries
+above, and verification of them is deterministic, so conformance does not
+depend on regeneration. Production ML-DSA-65 signing randomises (FIPS 204
+hedged variant); verification stays deterministic, which is what audits.
