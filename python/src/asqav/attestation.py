@@ -21,15 +21,18 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import json
 from collections.abc import Callable
 from typing import Any
 
+from . import strict_json
 from ._jcs import canonical_json
 
 __all__ = [
     "ATTESTATION_STATEMENT_SCHEMA",
-    "VERDICT_VERIFIED_NOT_REDERIVABLE",
+    "VERDICT_VERIFIED_KEYED",
+    "VERDICT_UNVERIFIED",
+    "FAILURE_INVALID",
+    "FAILURE_UNVERIFIABLE",
     "compute_statement_hash",
     "reconstruct_signed_message",
     "merkle_leaf_hash",
@@ -44,10 +47,15 @@ __all__ = [
 ATTESTATION_STATEMENT_SCHEMA = "asqav.attestation/1"
 DEFAULT_COMMITMENT_ALG = "HMAC-SHA256"
 
-#: Distinct outcome for a good attestation receipt. Never a plain PASS.
-VERDICT_VERIFIED_NOT_REDERIVABLE = "VERIFIED_COMMITMENT_NOT_REDERIVABLE"
-VERDICT_FAIL = "FAIL"
-VERDICT_INCOMPLETE = "INCOMPLETE"
+#: Public verdict vocabulary (criteria 418/438). A good attestation receipt is
+#: verified_keyed, never plain verified: the commitment is an HMAC sealed with a
+#: holder-only key, so the commitment itself is never re-derivable here.
+VERDICT_VERIFIED_KEYED = "verified_keyed"
+VERDICT_UNVERIFIED = "unverified"
+
+#: Failure classes carried by every unverified verdict; never collapsed (418).
+FAILURE_INVALID = "invalid"
+FAILURE_UNVERIFIABLE = "unverifiable"
 
 _AXIS_PASS = "PASS"
 _AXIS_FAIL = "FAIL"
@@ -196,8 +204,28 @@ def verify_merkle_inclusion(
 # === Offline attestation verification ===
 
 
-def _axis(name: str, result: str, note: str) -> dict[str, str]:
-    return {"name": name, "result": result, "note": note}
+    # Per-axis failure token (criterion 418); a good receipt never carries one.
+def _axis_failure_class(result: str, note: str) -> str | None:
+    if result in (_AXIS_PASS, _AXIS_NOT_REDERIVABLE):
+        return None
+    if result == _AXIS_SKIP:
+        return FAILURE_UNVERIFIABLE
+    # Parse failures and malformed members stop recomputation; they are not a
+    # proven binding break, so they never read invalid.
+    if note.startswith(("signed message rejected:", "signed message is not valid")):
+        return FAILURE_UNVERIFIABLE
+    if note == "receipt signature is not valid base64":
+        return FAILURE_UNVERIFIABLE
+    return FAILURE_INVALID
+
+
+def _axis(name: str, result: str, note: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "result": result,
+        "note": note,
+        "failure_class": _axis_failure_class(result, note),
+    }
 
 
 def verify_attestation_offline(
@@ -215,7 +243,7 @@ def verify_attestation_offline(
     asqav's signature over the signed message, and checks the inclusion proof
     against a supplied signed tree head. The commitment is an HMAC sealed with
     a holder-only key, so it can never be re-derived here. A good receipt
-    yields VERDICT_VERIFIED_NOT_REDERIVABLE, never a plain PASS.
+    yields ``verified_keyed``, never plain ``verified`` (criteria 418/438).
 
     Args:
         claim: The original claim dict the caller submitted.
@@ -230,11 +258,12 @@ def verify_attestation_offline(
         commitment_alg: Commitment algorithm id. Defaults to HMAC-SHA256.
 
     Returns:
-        dict with ``verdict`` (VERIFIED_COMMITMENT_NOT_REDERIVABLE | FAIL |
-        INCOMPLETE), ``axes`` (per-axis name/result/note), and ``statementHash``
-        (the recomputed value).
+        dict with ``verdict`` ("verified_keyed" | "unverified"),
+        ``failure_class`` ("invalid" | "unverifiable" when unverified, else
+        None), ``axes`` (per-axis name/result/note/failure_class), and
+        ``statementHash`` (the recomputed value).
     """
-    axes: list[dict[str, str]] = []
+    axes: list[dict[str, Any]] = []
 
     recomputed = compute_statement_hash(
         claim,
@@ -284,8 +313,10 @@ def verify_attestation_offline(
         )
     )
 
+    verdict, failure_class = _verdict(axes)
     return {
-        "verdict": _verdict(axes),
+        "verdict": verdict,
+        "failure_class": failure_class,
         "axes": axes,
         "statementHash": recomputed,
     }
@@ -299,7 +330,10 @@ def _check_signature(
     verify_signature: Callable[[bytes, bytes], bool],
 ) -> tuple[str, str]:
     try:
-        message_obj = json.loads(signed_message)
+        # Strict ingest (419): a duplicated member name never reaches the bind check.
+        message_obj = strict_json.loads(signed_message)
+    except strict_json.DuplicateMemberError as exc:
+        return _AXIS_FAIL, f"signed message rejected: {exc}"
     except (ValueError, TypeError):
         return _AXIS_FAIL, "signed message is not valid canonical JSON"
     if message_obj.get("statement_hash") != recomputed_hash:
@@ -313,16 +347,19 @@ def _check_signature(
     return _AXIS_FAIL, "signature does not verify over the signed message"
 
 
-    # Map per-axis results to a verdict. A good receipt is never a plain PASS.
-def _verdict(axes: list[dict[str, str]]) -> str:
+    # Fold per-axis results; a good receipt is verified_keyed, never verified.
+def _verdict(axes: list[dict[str, Any]]) -> tuple[str, str | None]:
     results = {a["name"]: a["result"] for a in axes}
-    if any(r == _AXIS_FAIL for r in results.values()):
-        return VERDICT_FAIL
+    failed = [a for a in axes if a["result"] == _AXIS_FAIL]
+    if failed:
+        classes = {a["failure_class"] for a in failed}
+        failure_class = FAILURE_INVALID if FAILURE_INVALID in classes else FAILURE_UNVERIFIABLE
+        return VERDICT_UNVERIFIED, failure_class
     checked = (
         results.get("statement_hash") == _AXIS_PASS
         and results.get("signature") == _AXIS_PASS
         and results.get("inclusion") == _AXIS_PASS
     )
     if checked:
-        return VERDICT_VERIFIED_NOT_REDERIVABLE
-    return VERDICT_INCOMPLETE
+        return VERDICT_VERIFIED_KEYED, None
+    return VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE

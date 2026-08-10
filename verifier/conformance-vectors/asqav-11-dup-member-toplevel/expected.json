@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "unverifiable",
+  "reason_code": "duplicate_member",
+  "notes": "Top-level 'payload' member appears twice; strict ingest rejects it at parse time, before any hashing or signature check, so it never verifies."
+}
