@@ -1,6 +1,7 @@
 {
   "format": "acta",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "sig_mismatch",
-  "notes": "Flipped signature byte; Ed25519 verify fails."
+  "notes": "Flipped signature byte; Ed25519 verify fails.",
+  "failure_class": "invalid"
 }

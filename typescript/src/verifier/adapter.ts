@@ -87,4 +87,14 @@ export abstract class FormatAdapter {
   attestation(_doc: Record<string, unknown>): Record<string, unknown> {
     return {};
   }
+
+  /**
+   * True when the receipt's digest is keyed (criterion 438). A keyed digest
+   * (e.g. HMAC-SHA256) is internally consistent but not third-party
+   * re-derivable, so a fully-checked receipt reports `verified_keyed`, never
+   * plain `verified`. Default is false.
+   */
+  keyedDigest(_doc: Record<string, unknown>): boolean {
+    return false;
+  }
 }

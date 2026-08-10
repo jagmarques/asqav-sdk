@@ -22,6 +22,7 @@ from .client import (
     _parse_timestamp,
     _resolve_action_ref,
     _resolve_previous_receipt_hash,
+    _strict_response_json,
     require_field,
 )
 from .patterns import resolve_pattern
@@ -87,7 +88,7 @@ async def _async_get(path: str) -> dict[str, Any]:
     ) as client:
         response = await client.get(path)
         await _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
 
 
@@ -105,7 +106,7 @@ async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
     ) as client:
         response = await client.post(path, json=data)
         await _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
 
 
@@ -123,7 +124,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
     ) as client:
         response = await client.patch(path, json=data)
         await _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
 
 
@@ -391,7 +392,7 @@ class AsyncAgent:
                 raise APIError("Signature not found", 404)
             if response.status_code >= 400:
                 raise APIError(response.text, response.status_code)
-            data: dict[str, Any] = response.json()
+            data: dict[str, Any] = _strict_response_json(response)
 
         return VerificationResponse(
             signature_id=require_field(data, "signature_id"),

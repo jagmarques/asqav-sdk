@@ -60,7 +60,8 @@ signature axis has a real upstream-keypair fixture.
   oracle runs only those three axes; it does NOT run the standalone
   `verify_receipt` clock-skew (`issued_at`) or anchor-liveness axes, which need
   wall-clock freshness and network the oracle deliberately omits. A receipt the
-  oracle PASSes can still fail those two liveness axes at ingestion time.
+  oracle reports `verified` for can still fail those two liveness axes at
+  ingestion time.
 - **aerf** - Ed25519 over RFC 8785 JCS, signed directly. Genesis OMITS
   `previous_receipt_hash`; the chain hash EXCLUDES the signature, per the AERF
   spec (the agentmint reference producer includes it; this adapter targets the
@@ -151,9 +152,10 @@ python -m asqav.verifier.oracle receipt.json --keys keys.json [--predecessor pre
 ```
 
 It prints the verdict and per-axis result as JSON and sets the exit status from
-the verdict: `0` on PASS, `1` on FAIL, `2` on INCOMPLETE. INCOMPLETE means an
-axis (the signature, when its library is absent) could not be checked; it is
-never reported as a PASS.
+the verdict: `0` on `verified`/`verified_keyed`, `1` on `unverified` with
+`failure_class=invalid`, `2` on `unverified` with `failure_class=unverifiable`.
+`unverifiable` means an axis (the signature, when its library is absent) could
+not be checked; it is never reported as verified.
 
 `--keys` is the format-shaped key provider: a JWKS dict for asqav-native, a
 `{key_id: hex}` map for AERF, a `{key_id: pem}` map for ACTA, a `did_map` for
@@ -174,8 +176,8 @@ chmod +x asqav-verify-macos
 ./asqav-verify-macos receipt.json --keys keys.json
 ```
 
-It prints the same JSON verdict and uses the same exit codes (0 PASS, 1 FAIL,
-2 INCOMPLETE).
+It prints the same JSON verdict and uses the same exit codes (0 verified /
+verified_keyed, 1 unverified+invalid, 2 unverified+unverifiable).
 
 ### What the binary verifies (and what it never does)
 
@@ -212,7 +214,8 @@ pyinstaller --onefile --name asqav-verify \
 
 Installing `dilithium-py` into the build environment is what bundles ML-DSA-65
 into the binary; without it the binary would downgrade the ML-DSA signature axis
-to SKIPPED and report INCOMPLETE on Asqav's primary receipt format.
+to SKIPPED and report `unverified`/`unverifiable` on Asqav's primary receipt
+format.
 
 ### Cross-platform builds (CI)
 

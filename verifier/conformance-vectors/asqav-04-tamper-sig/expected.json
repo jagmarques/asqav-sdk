@@ -1,6 +1,7 @@
 {
   "format": "asqav-native",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "issuer_signature",
-  "notes": "decision flipped from allow to deny after signing; signature no longer matches the canonical payload."
+  "notes": "decision flipped from allow to deny after signing; signature no longer matches the canonical payload.",
+  "failure_class": "invalid"
 }

@@ -59,6 +59,11 @@ type JsonValue =
  */
 export class RawFloat {
   constructor(public readonly value: number) {}
+
+  // JSON.stringify re-emits the number itself, never the wrapper shape.
+  toJSON(): number {
+    return this.value;
+  }
 }
 
 function isRawFloat(v: unknown): v is RawFloat {
@@ -74,10 +79,28 @@ function isRawFloat(v: unknown): v is RawFloat {
  */
 export class RawBigInt {
   constructor(public readonly source: string) {}
+
+  // JSON.stringify collapses exactly like JSON.parse would (nearest double).
+  toJSON(): number {
+    return Number(this.source);
+  }
 }
 
 function isRawBigInt(v: unknown): v is RawBigInt {
   return v instanceof RawBigInt;
+}
+
+/**
+ * A JSON object repeated a member name (criterion 419). ECMAScript object
+ * semantics are last-wins on duplicate keys, which would hash the bytes an
+ * attacker kept and drop the ones they replaced; the strict parser therefore
+ * throws this before any hashing, canonicalisation, or signature check.
+ */
+export class DuplicateMemberError extends SyntaxError {
+  constructor(message: string) {
+    super(message);
+    this.name = "DuplicateMemberError";
+  }
 }
 
 /** ECMAScript-shortest decimal of a float, forced to carry a `.0` when whole. */
@@ -96,6 +119,10 @@ function floatToString(n: number): string {
  * integers as `RawBigInt`, so the canonicalisers re-emit `500.0` rather than the
  * collapsed `500` and never let two distinct big integers share one signature.
  * Mirrors what Python's `json.load` preserves implicitly.
+ *
+ * Strict ingest (criterion 419): a duplicated object member name at ANY depth
+ * throws `DuplicateMemberError` before the value returns, so last-wins bytes
+ * never reach a hash, canonicaliser, or signature check.
  *
  * Hand-rolled recursive descent rather than a `JSON.parse` reviver: the reviver's
  * raw-literal `context.source` is only available on Node 21.1+, and this package
@@ -128,6 +155,8 @@ export function parseJsonPreservingFloats(text: string): unknown {
   };
   const object = (): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
+    // Strict ingest (419): a repeated member name at any depth is terminal.
+    const seen = new Set<string>();
     i++; // {
     ws();
     if (text[i] === "}") return i++, out;
@@ -135,6 +164,12 @@ export function parseJsonPreservingFloats(text: string): unknown {
       ws();
       if (text[i] !== '"') err("expected object key");
       const k = str();
+      if (seen.has(k)) {
+        throw new DuplicateMemberError(
+          `duplicate JSON member name: ${JSON.stringify(k)} at position ${i}`,
+        );
+      }
+      seen.add(k);
       ws();
       if (text[i++] !== ":") err("expected ':'");
       out[k] = value();
@@ -209,6 +244,37 @@ export function parseJsonPreservingFloats(text: string): unknown {
   ws();
   if (i !== text.length) err("trailing content after JSON value");
   return result;
+}
+
+/**
+ * Strip the `RawFloat` / `RawBigInt` wrappers back to plain JS values, the
+ * exact shapes `JSON.parse` produces (whole floats collapse to `500`, big
+ * integers to the nearest double). Callers that canonicalise with the
+ * float-preserving dialects keep the wrappers; callers that need the plain
+ * wire shape (doors parity, sign inputs, bundle re-post) unwrap them.
+ */
+export function unwrapPreservedFloats(value: unknown): unknown {
+  if (isRawFloat(value)) return value.value;
+  if (isRawBigInt(value)) return Number(value.source);
+  if (Array.isArray(value)) return value.map(unwrapPreservedFloats);
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = unwrapPreservedFloats(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Strict ingest with `JSON.parse`-compatible values (criterion 419): rejects a
+ * duplicated member name at ANY depth as a terminal `DuplicateMemberError` and
+ * returns plain values, so it replaces `JSON.parse` at every receipt/record
+ * parse site that does not canonicalise with the float-preserving dialects.
+ */
+export function parseJsonStrict(text: string): unknown {
+  return unwrapPreservedFloats(parseJsonPreservingFloats(text));
 }
 
 /** Recursively NFC-normalise every string key and value (mirrors `_nfc`). */

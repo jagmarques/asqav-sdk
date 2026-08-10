@@ -7,10 +7,10 @@ top-level `manifest.json`, and per-vector key material plus an `expected.json`.
 ## Layout
 
 ```
-manifest.json                  array of {dir, format, outcome, reason_code, notes}
+manifest.json                  array of {dir, format, outcome, failure_class, reason_code, notes}
 <vector-dir>/
   receipt.json                 the receipt under test
-  expected.json                {format, outcome, reason_code, notes}
+  expected.json                {format, outcome, failure_class, reason_code, notes}
   predecessor.json             (chain vectors only) the prior receipt
   jwks.json                    (asqav-native) issuer key directory
   keys.json                    (aerf) {key_id: ed25519_pubkey_hex}
@@ -18,13 +18,21 @@ manifest.json                  array of {dir, format, outcome, reason_code, note
   did_map.json                 (agentreceipts) {did: ed25519_pubkey_hex} for did:agent / did:web
 ```
 
-`outcome` is `PASS`, `FAIL`, or `INCOMPLETE`; the runner maps it one-for-one to
-the oracle verdict and asserts equality. `INCOMPLETE` carries a vector whose
-signature axis cannot be checked in the CI environment (for example a real
-ML-DSA-65 prod receipt when `dilithium-py` is absent), pinning that the verifier
-downgrades to INCOMPLETE rather than emitting a false PASS. `reason_code` follows
-the shared taxonomy (`issuer_signature`, `chain`, `schema`, `key`,
-`signature_skipped_no_dilithium`).
+`outcome` speaks the shipped verdict vocabulary - `verified`, `verified_keyed`,
+or `unverified` - and the runner asserts the oracle verdict equals it. An
+`unverified` entry also pins `failure_class` (`invalid` or `unverifiable`), so
+the two are never collapsed and both languages agree byte for byte on each.
+`unverified`/`unverifiable` carries a vector whose signature axis cannot be
+checked in the CI environment (for example a real ML-DSA-65 prod receipt when
+`dilithium-py` is absent), pinning that the verifier downgrades rather than
+emitting a false `verified`. `reason_code` follows the shared taxonomy
+(`issuer_signature`, `chain`, `schema`, `key`, `signature_skipped_no_dilithium`,
+`duplicate_member`).
+
+Receipts are parsed with duplicate-member rejection (criterion 419): a receipt
+that repeats a JSON member name at any depth is a terminal parse failure,
+reported `unverified`/`unverifiable` before any hashing. `asqav-11` and
+`asqav-12` pin the top-level and nested cases.
 
 ## Run
 
@@ -41,8 +49,13 @@ python -m oracle.runner          # from the verifier/ directory
 - `asqav-05-hash-mode-prod` - a real default-mode prod `/sign` receipt (ML-DSA-65).
   The reconstructed signing input byte-matches the prod-signed message and the
   signature verifies with `dilithium-py`; absent that optional dep the signature
-  axis SKIPs, so the outcome is `INCOMPLETE`. Guards the production hash-mode path
-  against a false PASS on the post-quantum signature the CI base cannot check.
+  axis SKIPs, so the outcome is `unverified`/`unverifiable`. Guards the
+  production hash-mode path against a false `verified` on the post-quantum
+  signature the CI base cannot check.
+- `asqav-11-dup-member-toplevel` / `asqav-12-dup-member-nested` - the valid
+  genesis receipt with a duplicated JSON member name at the top level and two
+  levels down. Both are terminal parse failures (criterion 419): the strict
+  parser rejects them before any hashing, so they never verify.
 - `aerf-01..02` - valid AERF receipts (genesis, chain link). Genesis omits
   `previous_receipt_hash`; the chain hash excludes the signature, per the AERF
   spec.

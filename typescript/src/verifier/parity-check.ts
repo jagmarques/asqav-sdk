@@ -32,7 +32,8 @@ export function runParity(corpusRoot = defaultCorpusRoot()): ParityReport {
   for (const r of results) {
     const ok = tolerated(r);
     const mark = ok ? "ok" : "FAIL";
-    lines.push(`  [${mark.padStart(4)}] ${r.dir.padEnd(38)} expect=${r.expectedOutcome.padEnd(11)} got=${r.actualVerdict}`);
+    const got = r.actualFailureClass !== "" ? `${r.actualVerdict} (${r.actualFailureClass})` : r.actualVerdict;
+    lines.push(`  [${mark.padStart(4)}] ${r.dir.padEnd(38)} expect=${r.expectedOutcome.padEnd(16)} got=${got}`);
     if (!ok) lines.push(`         ${r.detail}`);
   }
   const passed = results.filter(tolerated).length;

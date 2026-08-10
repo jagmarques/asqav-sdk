@@ -1,6 +1,7 @@
 {
   "format": "agentreceipts",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "issuer_signature",
-  "notes": "Upstream malformed vector: action.type mutated after signing."
+  "notes": "Upstream malformed vector: action.type mutated after signing.",
+  "failure_class": "invalid"
 }
