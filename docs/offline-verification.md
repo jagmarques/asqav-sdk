@@ -51,6 +51,32 @@ result = asqav.verify_receipt_offline(receipt, jwks, predecessor=prev_receipt)
 | `FAIL`       | At least one axis failed (signature mismatch, bad chain).  |
 | `INCOMPLETE` | A blocking axis was skipped (e.g., dilithium-py missing).  |
 
+## Standalone single-file verifier (no asqav install)
+
+`python/src/asqav/verifier/verify_receipt.py` is a deliberately standalone
+artifact (criterion 421): one Apache-2.0 file whose import surface is the
+Python stdlib plus one optional dependency (`dilithium-py`, imported lazily
+inside the ML-DSA-65 check). It imports no asqav producer module, so it runs
+from a bare directory after a plain copy - the exit artifact ships exactly
+this file beside the archived receipts and JWKS:
+
+```sh
+cp /path/to/asqav/src/asqav/verifier/verify_receipt.py ./
+python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline
+```
+
+`--offline` never reaches the network; the JWKS you archived is the only
+trust input. Without `dilithium-py` installed every other axis still runs and
+the signature axis reports SKIPPED, downgrading the verdict to INCOMPLETE -
+the tool never emits a PASS it did not fully check.
+
+The import surface is pinned by `python/tests/test_standalone_verifier_surface.py`
+(AST scan: stdlib plus optional dilithium only, no `asqav` import, dilithium
+imported lazily) and by a subprocess run of the copied file that refuses any
+`asqav` import and any outbound socket in the child. For a toolchain that
+cannot install Python at all, `docs/openssl-jq-walkthrough.md` verifies the
+same published receipt with only `openssl`, `jq`, and `sha256sum`.
+
 ## TypeScript / Node
 
 The TypeScript SDK ships ML-DSA-65 via `@noble/post-quantum` (pure JS, no WASM).
