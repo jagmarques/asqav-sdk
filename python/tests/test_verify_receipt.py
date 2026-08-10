@@ -121,7 +121,7 @@ def test_run_payload_null_fails_clean(capsys) -> None:
     """A hosted /verify response with ``payload: null`` must not traceback.
 
     The published verifier crashed with a raw AttributeError here; it now
-    prints a readable message and returns the INCOMPLETE exit code (2).
+    prints a readable message and returns the unverifiable exit code (2).
     """
     envelope = {
         "signature_id": "sig_abc123",
@@ -133,8 +133,8 @@ def test_run_payload_null_fails_clean(capsys) -> None:
     out = capsys.readouterr().out
     assert code == 2
     assert "receipt payload not available from this surface" in out
-    assert "INCOMPLETE" in out
-    assert "PASS" not in out.replace("never a PASS", "")
+    assert "unverified" in out
+    assert "verified" not in out.replace("unverified", "").replace("never reported verified", "")
 
 
     # Same guard when the response carries only nulls.
@@ -142,7 +142,7 @@ def test_run_payload_null_without_signature_keys(capsys) -> None:
     code = v.run({"payload": None}, {"keys": []}, predecessor_payload=None)
     out = capsys.readouterr().out
     assert code == 2
-    assert "INCOMPLETE" in out
+    assert "unverified" in out
 
 
     # A non-string alg SKIPs cleanly instead of crashing on (alg or '').upper().
@@ -232,7 +232,9 @@ def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
         "anchors": [],
     }
     code = v.run(envelope, jwks, None)
-    assert code == 1  # FAIL: the agent key does not verify the forged signature
+    # The standalone surface only checks ML-DSA-65, so the Ed25519 signature axis
+    # SKIPs and the verdict is unverified/unverifiable (exit 2), never verified.
+    assert code == 2
 
 
 # === agent_id fallback must bind the resolved key to the claimed issuer ===
@@ -364,7 +366,7 @@ def test_run_tampered_payload_fails() -> None:
 
 def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
     """run_structured mirrors run(): the issuer-kid resolves the wrong sibling, the
-    signature fails, and the agent_id fallback resolves the real signer -> PASS."""
+    signature fails, and the agent_id fallback resolves the real signer -> verified."""
     ml = _ml_dsa_65()
     a1_pk, _a1_sk = ml.keygen()
     a2_pk, a2_sk = ml.keygen()
@@ -378,15 +380,16 @@ def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
     }
     out = v.run_structured(_envelope(payload, sig), jwks, None)
     axes = {a["name"]: a["result"] for a in out["axes"]}
-    assert out["verdict"] == "PASS"
+    assert out["verdict"] == "verified"
+    assert out["failure_class"] is None
     assert axes["signature"] == "PASS"
     assert axes["issuer_bind"] == "PASS"
 
 
 def test_run_structured_agent_id_fallback_rejects_forged_issuer() -> None:
     """run_structured inherits run()'s bind: a receipt signed by org-attacker's key
-    but claiming issuer_id=org-victim FAILs, since the fallback trusts only a key
-    whose issuer_id equals the claimed issuer."""
+    but claiming issuer_id=org-victim is unverified/invalid, since the fallback
+    trusts only a key whose issuer_id equals the claimed issuer."""
     ml = _ml_dsa_65()
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _victim_sk = ml.keygen()
@@ -399,7 +402,8 @@ def test_run_structured_agent_id_fallback_rejects_forged_issuer() -> None:
         ]
     }
     out = v.run_structured(_envelope(payload, sig), jwks, None)
-    assert out["verdict"] == "FAIL"
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "invalid"
 
 
 # === the kid path must bind the verifying key to the claimed issuer too ===
@@ -447,18 +451,19 @@ def test_run_rejects_attacker_kid_claiming_another_issuer() -> None:
     assert by_org_id == 1, f"attacker org id verified a receipt claiming org-victim (exit {by_org_id})"
 
 
-    # Same forgery through run_structured: FAIL on issuer_bind, signature PASS.
+    # Same forgery through run_structured: issuer_bind FAIL (invalid), signature PASS.
 def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
     payload, sig, jwks = _cross_issuer_forgery()
     result = v.run_structured(_envelope(payload, sig, kid="attacker-key"), jwks, None)
-    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    assert result["verdict"] == "unverified", f"axes: {result['axes']}"
+    assert result["failure_class"] == "invalid", f"axes: {result['axes']}"
     bind = next(a for a in result["axes"] if a["name"] == "issuer_bind")
     assert bind["result"] == "FAIL", f"issuer_bind axis: {bind}"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig_axis["result"] == "PASS", "the forged signature itself verifies; the bind rejects it"
 
 
-    # LEGIT: the claimed issuer's own key still PASSes, so real verifies work.
+    # LEGIT: the claimed issuer's own key still verifies, so real verifies work.
 def test_run_structured_passes_a_receipt_signed_by_the_claimed_issuer() -> None:
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
@@ -466,7 +471,8 @@ def test_run_structured_passes_a_receipt_signed_by_the_claimed_issuer() -> None:
     sig = ml.sign(sk, v.canonical_json(payload))
     jwks = {"keys": [_jwks_key("agent-one", "agt_one", "org-legit", pk)]}
     result = v.run_structured(_envelope(payload, sig, kid="agent-one"), jwks, None)
-    assert result["verdict"] == "PASS", f"axes: {result['axes']}"
+    assert result["verdict"] == "verified", f"axes: {result['axes']}"
+    assert result["failure_class"] is None, f"axes: {result['axes']}"
 
 
 def test_extended_offset_rejects_out_of_range_minute() -> None:

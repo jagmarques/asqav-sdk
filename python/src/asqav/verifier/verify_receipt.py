@@ -209,6 +209,68 @@ _SHAPE_MESSAGES = {
     "too_deep": f"receipt nesting exceeds the supported depth (> {MAX_NESTING_DEPTH} levels)",
 }
 
+#: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
+#: tokens stay internal; the surface a caller reads speaks these three only.
+VERDICT_VERIFIED = "verified"
+VERDICT_UNVERIFIED = "unverified"
+
+#: Failure classes carried by every unverified verdict (criterion 418); the two
+#: are never collapsed - a proven binding failure is not an incomplete check.
+FAILURE_INVALID = "invalid"
+FAILURE_UNVERIFIABLE = "unverifiable"
+
+#: Axes whose FAIL proves a cryptographic/policy binding failure (invalid).
+_INVALID_FAIL_AXES = frozenset({"signature", "anchors", "issuer_bind", "key_status", "nonce"})
+
+
+def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
+    """Map one axis outcome to its failure class (criterion 418).
+
+    PASS carries none; SKIPPED means recomputation could not complete
+    (unverifiable); a FAIL is invalid when a binding was proven broken and
+    unverifiable when the receipt's own bytes stopped the recompute. Mirrors
+    the oracle's ``core.axis_failure_class`` byte for byte; a FAIL the table
+    does not name reads unverifiable, never a proven binding failure.
+    """
+    if result == "PASS":
+        return None
+    if result == "SKIPPED":
+        return FAILURE_UNVERIFIABLE
+    if axis in _INVALID_FAIL_AXES:
+        return FAILURE_INVALID
+    if axis == "chain":
+        if note.startswith("chain break:"):
+            return FAILURE_INVALID
+        return FAILURE_UNVERIFIABLE
+    if axis == "skew":
+        if note.startswith("unparseable issued_at"):
+            return FAILURE_UNVERIFIABLE
+        return FAILURE_INVALID
+    if axis == "structure":
+        return FAILURE_UNVERIFIABLE
+    if axis == "expiry":
+        if note.startswith("unreadable expires_at"):
+            return FAILURE_UNVERIFIABLE
+        return FAILURE_INVALID
+    # issuer_key and anything unlisted: the recompute could not complete.
+    return FAILURE_UNVERIFIABLE
+
+
+    # Fold per-axis (name, result, note) rows into verdict + failure class.
+def _fold_verdict(results) -> tuple[str, str | None]:
+    # Expiry reports on its own axis and never folds the verdict (criterion 426).
+    failed = [(n, r, note) for n, r, note in results if r == "FAIL" and n != "expiry"]
+    # A skipped chain (no predecessor supplied) is expected and does not block a
+    # verified verdict; any other skip downgrades to unverified/unverifiable.
+    blocking_skip = any(r == "SKIPPED" and n != "chain" for n, r, _ in results)
+    if failed:
+        classes = {_axis_failure_class(n, r, note) for n, r, note in failed}
+        failure_class = FAILURE_INVALID if FAILURE_INVALID in classes else FAILURE_UNVERIFIABLE
+        return VERDICT_UNVERIFIED, failure_class
+    if blocking_skip:
+        return VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE
+    return VERDICT_VERIFIED, None
+
 
 class VerifierInputError(Exception):
     """A receipt or JWKS input was missing, empty, or not a JSON object.
@@ -218,16 +280,40 @@ class VerifierInputError(Exception):
     """
 
 
+class DuplicateMemberError(ValueError):
+    """A receipt or JWKS repeated a JSON member name (criterion 419).
+
+    The stdlib decoder is last-wins on duplicate members, which would hash the
+    bytes an attacker kept and drop the ones they replaced; a duplicated name
+    is therefore a terminal parse failure, raised before any hashing or
+    canonicalisation. Self-contained here (mirrors ``asqav/strict_json.py``)
+    because this file ships standalone in the exit artifact.
+    """
+
+
+    # object_pairs_hook: reject a repeated member name at any depth (419).
+def _reject_duplicate_members(pairs):
+    out = {}
+    for key, value in pairs:
+        if key in out:
+            raise DuplicateMemberError(f"duplicate JSON member name: {key!r}")
+        out[key] = value
+    return out
+
+
 def _parse_object(text: str, source: str) -> dict:
     """Parse ``text`` as a JSON object, or raise VerifierInputError.
 
-    Rejects empty input and any non-object (array/string/number/null) so a
-    later ``.get`` never lands on a non-dict.
+    Rejects empty input, any non-object (array/string/number/null), and any
+    duplicated member name at any depth (419), so a later ``.get`` never lands
+    on a non-dict and last-wins bytes never reach the canonicaliser.
     """
     if not text or not text.strip():
         raise VerifierInputError(f"{source}: empty input, expected a JSON object")
     try:
-        value = json.loads(text)
+        value = json.loads(text, object_pairs_hook=_reject_duplicate_members)
+    except DuplicateMemberError as exc:
+        raise VerifierInputError(f"{source}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise VerifierInputError(f"{source}: not valid JSON ({exc})") from exc
     except RecursionError as exc:
@@ -899,7 +985,7 @@ def run(
             f"  [FAIL] input       expected a JSON object receipt, got "
             f"{type(envelope).__name__}"
         )
-        print("\n  => INCOMPLETE (no receipt object to verify; never a PASS)")
+        print("\n  => unverified (failure_class: unverifiable; no receipt object to verify)")
         return 2
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
@@ -913,7 +999,7 @@ def run(
             f"Verify with a saved receipt instead: --receipt FILE from your "
             f"Audit Pack or SDK capture."
         )
-        print("\n  => INCOMPLETE (no payload to verify; never a PASS)")
+        print("\n  => unverified (failure_class: unverifiable; no payload to verify)")
         return 2
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
@@ -921,7 +1007,7 @@ def run(
     if shape is not None:
         print("Asqav receipt verification")
         print(f"  [FAIL] input       {_SHAPE_MESSAGES[shape]}")
-        print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
+        print("\n  => unverified (failure_class: unverifiable; receipt not canonicalisable)")
         return 2
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):  # flat-string signature, derive the object
@@ -943,7 +1029,7 @@ def run(
         # this; this stops a bypassing caller from crashing here too.
         print("Asqav receipt verification")
         print(f"  [FAIL] input       {_SHAPE_MESSAGES['too_deep']}")
-        print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
+        print("\n  => unverified (failure_class: unverifiable; receipt not canonicalisable)")
         return 2
 
     results = []
@@ -1001,19 +1087,28 @@ def run(
         mark = {"PASS": "ok", "FAIL": "FAIL", "SKIPPED": "skip"}[res]
         print(f"  [{mark:>4}] {name:<11} {note}")
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426)
-    has_fail = any(r == "FAIL" for n, r, _ in results if n != "expiry")
-    # A skipped chain (no predecessor supplied) is expected and does not block a
-    # PASS; any other skip - notably the signature - downgrades to INCOMPLETE.
-    has_blocking_skip = any(r == "SKIPPED" and n != "chain" for n, r, _ in results)
-    if has_fail:
-        verdict, code = "FAIL", 1
-    elif has_blocking_skip:
-        verdict, code = "INCOMPLETE (some checks skipped; never a PASS)", 2
+    # Expiry reports on its own axis and never folds the verdict (criterion 426).
+    verdict, failure_class = _fold_verdict(results)
+    if verdict == VERDICT_VERIFIED:
+        code = 0
+        print(f"\n  => {verdict}")
+    elif failure_class == FAILURE_INVALID:
+        code = 1
+        print(f"\n  => {verdict} (failure_class: invalid)")
     else:
-        verdict, code = "PASS", 0
-    print(f"\n  => {verdict}")
+        code = 2
+        print(f"\n  => {verdict} (failure_class: unverifiable; never reported verified)")
     return code
+
+
+    # One structured-axis row carrying its per-axis failure token (418/438).
+def _struct_axis(name: str, result: str, note: str) -> dict:
+    return {
+        "name": name,
+        "result": result,
+        "note": note,
+        "failure_class": _axis_failure_class(name, result, note),
+    }
 
 
 def run_structured(
@@ -1029,23 +1124,23 @@ def run_structured(
 
     Returns:
         dict with keys:
-          - ``"verdict"``: "PASS" | "FAIL" | "INCOMPLETE"
-          - ``"axes"``: list of ``{"name": str, "result": str, "note": str}``
+          - ``"verdict"``: "verified" | "unverified" (criteria 418/438)
+          - ``"failure_class"``: "invalid" | "unverifiable" when unverified,
+            else None; the two are never collapsed (criterion 418)
+          - ``"axes"``: list of ``{"name", "result", "note", "failure_class"}``
           - ``"canonical_sha256"``: hex SHA-256 of the canonical payload bytes
           - ``"kid"``: the signature key id resolved
     """
     if not isinstance(envelope, dict):
         return {
-            "verdict": "INCOMPLETE",
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
             "axes": [
-                {
-                    "name": "input",
-                    "result": "FAIL",
-                    "note": (
-                        "expected a JSON object receipt, got "
-                        f"{type(envelope).__name__}"
-                    ),
-                }
+                _struct_axis(
+                    "input",
+                    "FAIL",
+                    f"expected a JSON object receipt, got {type(envelope).__name__}",
+                )
             ],
             "canonical_sha256": None,
             "kid": None,
@@ -1054,17 +1149,16 @@ def run_structured(
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
         return {
-            "verdict": "INCOMPLETE",
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
             "axes": [
-                {
-                    "name": "payload",
-                    "result": "FAIL",
-                    "note": (
-                        "receipt payload not available from this surface "
-                        f"(got {_describe_value(payload)} instead of an object). "
-                        "Verify with a saved receipt instead."
-                    ),
-                }
+                _struct_axis(
+                    "payload",
+                    "FAIL",
+                    "receipt payload not available from this surface "
+                    f"(got {_describe_value(payload)} instead of an object). "
+                    "Verify with a saved receipt instead.",
+                )
             ],
             "canonical_sha256": None,
             "kid": None,
@@ -1074,8 +1168,9 @@ def run_structured(
         shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
     if shape is not None:
         return {
-            "verdict": "INCOMPLETE",
-            "axes": [{"name": "input", "result": "FAIL", "note": _SHAPE_MESSAGES[shape]}],
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
+            "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])],
             "canonical_sha256": None,
             "kid": None,
         }
@@ -1096,37 +1191,20 @@ def run_structured(
     except RecursionError:
         # Defense in depth; the shape gate above should already have caught this.
         return {
-            "verdict": "INCOMPLETE",
-            "axes": [{"name": "input", "result": "FAIL", "note": _SHAPE_MESSAGES["too_deep"]}],
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
+            "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])],
             "canonical_sha256": None,
             "kid": None,
         }
 
     axes: list[dict] = []
-    axes.append(
-        {
-            "name": "structure",
-            "result": check_structure(payload)[0],
-            "note": check_structure(payload)[1],
-        }
-    )
+    axes.append(_struct_axis("structure", *check_structure(payload)))
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
     if pk is None:
-        axes.append(
-            {
-                "name": "issuer_key",
-                "result": "FAIL",
-                "note": f"kid {kid!r} not in jwks directory",
-            }
-        )
-        axes.append(
-            {
-                "name": "signature",
-                "result": "SKIPPED",
-                "note": "no issuer key to verify against",
-            }
-        )
+        axes.append(_struct_axis("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
+        axes.append(_struct_axis("signature", "SKIPPED", "no issuer key to verify against"))
     else:
         _raw_sig = sig_obj.get("sig", "")
         sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
@@ -1151,47 +1229,34 @@ def run_structured(
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
         axes.append(
-            {
-                "name": "issuer_key",
-                "result": "PASS",
-                "note": f"resolved signing key {eff_kid} (status={eff_status})",
-            }
+            _struct_axis(
+                "issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"
+            )
         )
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
-        bind_r, bind_n = check_issuer_binding(eff_issuer, payload.get("issuer_id"))
-        axes.append({"name": "issuer_bind", "result": bind_r, "note": bind_n})
+        axes.append(_struct_axis("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))))
         # Offline anchor presence is not trusted timing; pass False so a forged
-        # anchor never upgrades a revoked key to PASS (hosted /verify does).
-        ks_r, ks_n = check_key_status(
-            eff_status, payload.get("issued_at", ""), eff_revoked_at, False
+        # anchor never upgrades a revoked key to a verified verdict.
+        axes.append(
+            _struct_axis(
+                "key_status",
+                *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False),
+            )
         )
-        axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
-        axes.append({"name": "signature", "result": sig_res[0], "note": sig_res[1]})
+        axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
 
-    chain_r, chain_n = check_chain(payload, predecessor_payload)
-    axes.append({"name": "chain", "result": chain_r, "note": chain_n})
-    anch_r, anch_n = check_anchors(envelope)
-    axes.append({"name": "anchors", "result": anch_r, "note": anch_n})
-    skew_r, skew_n = check_skew(payload.get("issued_at", ""))
-    axes.append({"name": "skew", "result": skew_r, "note": skew_n})
-    exp_r, exp_n = check_expiry(payload)
-    axes.append({"name": "expiry", "result": exp_r, "note": exp_n})
+    axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
+    axes.append(_struct_axis("anchors", *check_anchors(envelope)))
+    axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
+    axes.append(_struct_axis("expiry", *check_expiry(payload)))
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426)
-    has_fail = any(a["result"] == "FAIL" and a["name"] != "expiry" for a in axes)
-    has_blocking_skip = any(
-        a["result"] == "SKIPPED" and a["name"] != "chain" for a in axes
-    )
-    if has_fail:
-        verdict = "FAIL"
-    elif has_blocking_skip:
-        verdict = "INCOMPLETE"
-    else:
-        verdict = "PASS"
+    # Expiry reports on its own axis and never folds the verdict (criterion 426).
+    verdict, failure_class = _fold_verdict([(a["name"], a["result"], a["note"]) for a in axes])
 
     return {
         "verdict": verdict,
+        "failure_class": failure_class,
         "axes": axes,
         "canonical_sha256": hashlib.sha256(msg).hexdigest(),
         "kid": kid,

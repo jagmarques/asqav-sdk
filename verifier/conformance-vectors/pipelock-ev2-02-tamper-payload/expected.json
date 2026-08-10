@@ -1,6 +1,7 @@
 {
   "format": "pipelock-evidence-v2",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "issuer_signature",
-  "notes": "Same receipt with payload.verdict changed from 'allow' to 'block' after signing; JCS preimage diverges, Ed25519 verify fails."
+  "notes": "Same receipt with payload.verdict changed from 'allow' to 'block' after signing; JCS preimage diverges, Ed25519 verify fails.",
+  "failure_class": "invalid"
 }

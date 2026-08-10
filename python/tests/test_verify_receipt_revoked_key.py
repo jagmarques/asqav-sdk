@@ -82,7 +82,7 @@ def test_check_key_status_revoked_after_issuance_passes_with_anchor():
 # --- standalone verify_receipt.run ---
 
 
-    # A revoked-key receipt yields a FAIL verdict, never PASS, from run().
+    # A revoked-key receipt yields unverified (invalid), never verified, from run().
 def test_run_revoked_key_does_not_pass(capsys):
     envelope = {
         "payload": _payload(),
@@ -93,7 +93,7 @@ def test_run_revoked_key_does_not_pass(capsys):
     out = capsys.readouterr().out
     assert "FAIL" in out
     assert "key_status" in out
-    assert code == 1  # FAIL dominates; never 0 (PASS)
+    assert code == 1  # invalid dominates; never 0 (verified)
 
 
     # An active key contributes a key_status PASS line.
@@ -190,9 +190,10 @@ def test_run_structured_forged_anchor_does_not_upgrade_revoked_key():
 
 
 def test_offline_forged_anchor_revoked_key_verdict_not_pass():
-    """End-to-end: a revoked key cannot mint a PASS by appending a forged anchor.
-    A real ML-DSA-65 signature over a backdated payload verifies (the holder keeps
-    the key), but the forged anchor must not upgrade it, so verdict is INCOMPLETE."""
+    """End-to-end: a revoked key cannot mint a verified verdict by appending a
+    forged anchor. A real ML-DSA-65 signature over a backdated payload verifies
+    (the holder keeps the key), but the forged anchor must not upgrade it, so the
+    verdict is unverified/unverifiable (pending anchor without cryptographic proof)."""
     import base64
 
     pytest.importorskip("dilithium_py")
@@ -209,7 +210,8 @@ def test_offline_forged_anchor_revoked_key_verdict_not_pass():
         "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],
     }
     result = v.run_structured(envelope, jwks, None)
-    assert result["verdict"] == "INCOMPLETE", f"revoked key produced verdict {result['verdict']!r}"
+    assert result["verdict"] == "unverified", f"revoked key produced verdict {result['verdict']!r}"
+    assert result["failure_class"] == "unverifiable"
 
 
 # --- oracle adapter path ---

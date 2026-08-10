@@ -1,6 +1,7 @@
 {
   "format": "authproof",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "issuer_signature",
-  "notes": "Scope changed after signing; signature no longer covers the bytes."
+  "notes": "Scope changed after signing; signature no longer covers the bytes.",
+  "failure_class": "invalid"
 }

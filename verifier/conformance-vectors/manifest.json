@@ -2,357 +2,384 @@
   {
     "dir": "asqav-01-genesis-permit",
     "format": "asqav-native",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Valid Asqav-native genesis permit; Ed25519 over canonical payload verifies."
   },
   {
     "dir": "asqav-02-genesis-deny",
     "format": "asqav-native",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Valid Asqav-native genesis deny decision; signature verifies."
   },
   {
     "dir": "asqav-03-chain-link",
     "format": "asqav-native",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Successor receipt links to its predecessor via SHA-256 of the predecessor canonical payload."
   },
   {
     "dir": "asqav-04-tamper-sig",
     "format": "asqav-native",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "decision flipped after signing; signature no longer matches the canonical payload."
   },
   {
     "dir": "asqav-05-hash-mode-prod",
     "format": "asqav-native",
-    "outcome": "INCOMPLETE",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
     "reason_code": "signature_skipped_no_dilithium",
     "notes": "Real default-mode prod /sign receipt; the reconstructed signing input byte-matches the prod-signed message and ML-DSA-65 verifies with dilithium-py. Absent that optional dep the signature axis SKIPs, so the verdict is INCOMPLETE, proving the verifier never false-PASSes the post-quantum path it cannot check."
   },
   {
     "dir": "asqav-06-mldsa65-payload-prod",
     "format": "asqav-native",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Real payload-mode prod ML-DSA-65 receipt; the signing input byte-matches and ML-DSA-65 verifies with dilithium-py (proven in test_offline_verify.py's known-answer test). Its signed expires_at lapsed 2026-06-20: the expiry axis FAILs alone while the verdict stays PASS, matching hosted parity (criterion 426). asqav-05-hash-mode-prod carries the SKIP case."
   },
   {
     "dir": "asqav-07-revoked-key",
     "format": "asqav-native",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "key_revoked",
     "notes": "Valid Ed25519 signature from a key whose JWKS status is 'revoked'; the key_status axis FAILs the verdict even though the signature itself verifies. Parity vector: both PY and TS oracles must return FAIL."
   },
   {
     "dir": "aerf-01-genesis",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Valid AERF genesis; Ed25519 over JCS payload verifies; previous_receipt_hash omitted."
   },
   {
     "dir": "aerf-02-chain-link",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Second AERF receipt; previous_receipt_hash rederives from the predecessor signable payload (signature excluded, per AERF spec)."
   },
   {
     "dir": "aerf-03-tamper-evidence",
     "format": "aerf",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "action field mutated after signing; signature no longer matches the canonical bytes."
   },
   {
     "dir": "aerf-04-tamper-chain",
     "format": "aerf",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "chain",
     "notes": "previous_receipt_hash mutated; the link no longer rederives from the predecessor."
   },
   {
     "dir": "acta-01-genesis",
     "format": "acta",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Valid ACTA genesis; Ed25519 over JCS(payload) verifies."
   },
   {
     "dir": "acta-02-chain-link",
     "format": "acta",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "ACTA successor links via SHA-256 of the JCS of the full predecessor receipt."
   },
   {
     "dir": "acta-03-tamper-sig",
     "format": "acta",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "sig_mismatch",
     "notes": "Flipped signature byte; Ed25519 verify fails."
   },
   {
     "dir": "acta-05-commitment-mode-unsupported",
     "format": "acta",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "sig_mismatch",
     "notes": "Commitment-mode receipt (signs SHA-256(JCS)) fails the baseline JCS verifier - honest, never a false pass."
   },
   {
     "dir": "acta-up-01-a2a-trusted-attestation",
     "format": "acta",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Real ScopeBlind APS issuer attestation (a2a-trust-header/happy-path.json); the upstream Ed25519 signature over JCS(payload) verifies under our adapter. Inbound interop: we verify a producer we did not write."
   },
   {
     "dir": "acta-up-02-a2a-trajectory-endpoint",
     "format": "acta",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Real ScopeBlind trust-level-ascending endpoint attestation (the 'trusted' link); a second upstream payload whose Ed25519 signature verifies, confirming the interop is not a single-receipt fluke."
   },
   {
     "dir": "acta-up-03-a2a-tampered-sig",
     "format": "acta",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "sig_mismatch",
     "notes": "The real happy-path attestation with its first signature nibble flipped; Ed25519 verify fails, proving the oracle rejects a mutated third-party receipt rather than waving it through."
   },
   {
     "dir": "aerf-up-01-genesis-happy-path",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream genesis happy path; Ed25519 over JCS payload verifies, previous_receipt_hash omitted."
   },
   {
     "dir": "aerf-up-02-chain-happy-path",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream three-receipt chain; the final link verifies its signature and rederives previous_receipt_hash from its predecessor (signature excluded from the chain hash)."
   },
   {
     "dir": "aerf-up-03-tamper-evidence",
     "format": "aerf",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream tamper vector; the action field was mutated after signing, so the issuer signature no longer matches."
   },
   {
     "dir": "aerf-up-04-tamper-chain",
     "format": "aerf",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream tamper-in-chain vector; the middle receipt's evidence was mutated after signing, so that receipt's own issuer signature fails. Ingested as the mutated middle receipt with its valid predecessor; the chain link still rederives, the signature is what fails."
   },
   {
     "dir": "aerf-up-05-impact-no-parent-sig",
     "format": "aerf",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "parent_signature",
     "notes": "Upstream impact receipt missing its required parent counter-signature; impact_tags is non-empty so the parent_signature axis fails closed even though the issuer signature is valid."
   },
   {
     "dir": "aerf-up-06-impact-with-parent-sig",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream impact receipt with valid parent and PDP signatures; issuer, parent, and PDP axes all verify."
   },
   {
     "dir": "aerf-up-07-pdp-binding-valid",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream PDP-binding happy path; the PDP signature over the canonical {context_hash_sha256, in_policy, policy_hash} tuple verifies."
   },
   {
     "dir": "aerf-up-08-pdp-binding-split-context",
     "format": "aerf",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "pdp_signature",
     "notes": "Upstream split-context vector; the PDP signed a verdict for one context but the receipt claims another, so the PDP-binding axis fails."
   },
   {
     "dir": "aerf-up-11-tag-stripped-known-limit",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream documents this as a residual the receipt layer cannot close: an agent that controls receipt construction can strip impact_tags before signing, so no counter-sign is required and the issuer signature verifies. Our verifier reaches the same PASS the upstream verifier does; the defense is producer-side tag pinning, outside the receipt bytes. Mapped to PASS because that is the honest outcome the bytes produce, not a relabel."
   },
   {
     "dir": "aerf-up-12-common-mode-known-limit",
     "format": "aerf",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream documents this as a residual: all three signers (issuer, parent, PDP) saw the same poisoned upstream context and signed honestly, so every signature verifies. The receipt records what was attested, not whether the context was sound; our verifier reaches the same PASS the upstream verifier does. Mapped to PASS because every signature genuinely verifies, not a relabel."
   },
   {
     "dir": "agentreceipts-01-didkey-genesis",
     "format": "agentreceipts",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "did:key genesis; key resolves inline, signature verifies, previous_receipt_hash explicit null."
   },
   {
     "dir": "agentreceipts-02-didkey-chain-link",
     "format": "agentreceipts",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Successor links via sha256:hex(JCS(predecessor without proof)); signature verifies."
   },
   {
     "dir": "agentreceipts-03-tamper-payload",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "action.type mutated after signing; canonical bytes no longer match the signature."
   },
   {
     "dir": "agentreceipts-04-tamper-proofvalue",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Single proofValue byte flipped; Ed25519 verification fails."
   },
   {
     "dir": "agentreceipts-05-genesis-missing-prev-hash",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "schema",
     "notes": "previous_receipt_hash omitted; spec requires it present (null on genesis), so the receipt is malformed."
   },
   {
     "dir": "agentreceipts-06-wrong-key",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "verificationMethod resolves (via the injected map) to a different valid Ed25519 key than the signer; signature fails."
   },
   {
     "dir": "agentreceipts-up-00-valid-resigned",
     "format": "agentreceipts",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Upstream malformed-corpus base receipt re-signed cleanly with the upstream keypair; signature verifies over jcs_rfc8785 bytes."
   },
   {
     "dir": "agentreceipts-up-01-wrong-proof-type",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
     "reason_code": "schema",
     "notes": "Upstream malformed vector: proof.type is not Ed25519Signature2020."
   },
   {
     "dir": "agentreceipts-up-02-mutated-action-type",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream malformed vector: action.type mutated after signing."
   },
   {
     "dir": "agentreceipts-up-03-mutated-principal-id",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream malformed vector: principal.id mutated after signing."
   },
   {
     "dir": "agentreceipts-up-04-truncated-proof-value",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream malformed vector: proofValue truncated to its multibase prefix; empty signature bytes."
   },
   {
     "dir": "agentreceipts-up-05-wrong-multibase-prefix",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream malformed vector: proofValue uses base58 'z' not base64url 'u'; signature bytes do not decode to the real signature."
   },
   {
     "dir": "agentreceipts-up-06-flipped-proof-byte",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream malformed vector: Single proofValue byte mutated; Ed25519 verification fails."
   },
   {
     "dir": "agentreceipts-up-07-tampered-mid-chain",
     "format": "agentreceipts",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Upstream tampered-chain vector: the middle receipt was mutated after signing, so its own issuer signature no longer matches; ingested against its valid predecessor."
   },
   {
     "dir": "agentreceipts-up-08-valid-chain-link",
     "format": "agentreceipts",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Successor signed with the upstream keypair; previous_receipt_hash rederives from sha256:hex(JCS(genesis without proof))."
   },
   {
     "dir": "authproof-01-genesis-real-sdk",
     "format": "authproof",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Receipt minted by the real Authproof JS SDK; ES256 over insertion-order JSON.stringify, hex raw r||s, embedded P-256 JWK. Cross-implementation interop proof."
   },
   {
     "dir": "authproof-02-forged-sig",
     "format": "authproof",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Signature first byte flipped; ECDSA verify fails."
   },
   {
     "dir": "authproof-03-tampered-scope",
     "format": "authproof",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Scope changed after signing; signature no longer covers the bytes."
   },
   {
     "dir": "pipelock-ev2-01-proxy-decision",
     "format": "pipelock-evidence-v2",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Valid proxy_decision EvidenceReceipt v2 from Go reference implementation; signed with RFC 8032 section 7.1 test-1 key (d75a98...). Verifies Ed25519 over JCS preimage (signature zeroed out) and chain genesis sha256:0. Source: luckyPipewrench/pipelock-verify-python commit 9eaff72."
   },
   {
     "dir": "pipelock-ev2-02-tamper-payload",
     "format": "pipelock-evidence-v2",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "Same receipt with payload.verdict changed from 'allow' to 'block' after signing; JCS preimage diverges, Ed25519 verify fails."
   },
   {
     "dir": "asqav-08-v2-signer-canary",
     "format": "asqav-native",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Valid v:2 Asqav receipt; signer and _asqav_tid are ordinary keys inside the signed payload, so JCS sorts them into place and Ed25519 over the canonical body verifies. The neutral verifier surfaces signer and does not require the canary. Parity vector: both PY and TS must PASS and expose signer."
   },
   {
     "dir": "asqav-09-v2-signer-tampered",
     "format": "asqav-native",
-    "outcome": "FAIL",
+    "outcome": "unverified",
+    "failure_class": "invalid",
     "reason_code": "issuer_signature",
     "notes": "The v:2 receipt with signer flipped after signing; because signer sits inside the signed body the canonical bytes diverge and Ed25519 verify FAILs. Parity vector: both PY and TS must FAIL, proving signer is inside the signed coverage, not loose metadata."
   },
   {
     "dir": "asqav-10-hash-mode-multikey",
     "format": "asqav-native",
-    "outcome": "PASS",
+    "outcome": "verified",
     "reason_code": "",
     "notes": "Hash-mode receipt signed by the LAST of three sibling keys that share issuer_id/org_id; signature.kid is the org id, so a kid-shaped match answers for every sibling and list position would pick the wrong one. The agent bind (agent_id plus the org_id the receipt signs) resolves the actual signer. ANTI-VACUOUS: pre-change kid-first resolution verifies the first sibling and FAILs. Parity vector: both PY and TS oracles must PASS."
   },
@@ -362,5 +389,21 @@
     "outcome": "PASS",
     "reason_code": "",
     "notes": "Deterministic ML-DSA-65 vector minted from the published corpus signing seed (criterion 420), so its signature bytes reproduce exactly. Time-edge conformance (criterion 422): issued_at 2026-05-19T00:10:00+14:00 is an extreme positive UTC offset around midnight (UTC 2026-05-18T10:10:00, a past instant); the signed expires_at 2026-05-20T00:10:00Z lapsed, so the expiry axis FAILs alone while the verdict stays PASS (criterion 426). Parity vector: both PY and TS oracles must PASS."
+  },
+  {
+    "dir": "asqav-11-dup-member-toplevel",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "duplicate_member",
+    "notes": "Top-level 'payload' member appears twice (the second flips decision to deny); strict ingest rejects the duplicate at parse time, before any hashing or signature check, so the mutated receipt never verifies (criterion 419)."
+  },
+  {
+    "dir": "asqav-13-dup-member-nested",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "duplicate_member",
+    "notes": "payload_digest.hash is duplicated two levels down; strict ingest rejects duplicate members at ANY depth at parse time, before any hashing or signature check, so the mutated receipt never verifies (criterion 419)."
   }
 ]

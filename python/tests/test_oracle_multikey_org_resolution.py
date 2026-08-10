@@ -92,7 +92,8 @@ def test_last_sibling_receipt_resolves_the_actual_signer() -> None:
 
     result = verify(receipt, [AsqavNativeAdapter()], key_provider=jwks)
     assert result.axis("signature").result == "PASS", result.axes
-    assert result.verdict == "PASS", result.axes
+    assert result.verdict == "verified", result.axes
+    assert result.failure_class is None, result.axes
 
 
     # Whichever sibling signs, the agent bind resolves that sibling's key, never another.
@@ -108,7 +109,7 @@ def test_each_sibling_resolves_to_its_own_key() -> None:
         receipt = _sign(_flat(f"agt_{i}"), sk)
         pk, note = ad.resolve_key(receipt, jwks)
         assert pk == pks[i], (i, note)
-        assert verify(receipt, [ad], key_provider=jwks).verdict == "PASS"
+        assert verify(receipt, [ad], key_provider=jwks).verdict == "verified"
 
 
     # A signature from a key the directory does not publish fails, never a false PASS.
@@ -123,7 +124,8 @@ def test_forged_signature_against_the_org_still_fails() -> None:
     jwks = _sibling_jwks(2, pks)
 
     result = verify(receipt, [AsqavNativeAdapter()], key_provider=jwks)
-    assert result.verdict != "PASS", result.axes
+    assert result.verdict == "unverified", result.axes
+    assert result.failure_class == "invalid", result.axes
 
 
     # agent_id is attacker-controlled: a key from another org never resolves the claim.
