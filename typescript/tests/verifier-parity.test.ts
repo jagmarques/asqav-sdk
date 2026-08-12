@@ -78,7 +78,6 @@ describe("verifier parity gate (THE GATE)", () => {
       expect(r.actualFailureClass).toBe("unverifiable");
       expect(r.detail).toContain("terminal parse failure before any hashing");
     }
->>>>>>> 795f0b7 (feat(verifier): strict JSON ingest and tri-state verdict vocabulary (criteria 419, 418, 438))
   });
 });
 

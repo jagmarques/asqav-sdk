@@ -142,7 +142,7 @@ describe("the expiry axis at the frozen clock", () => {
 });
 
 describe("the time-edge corpus vector keeps expiry on its own axis", () => {
-  it("verdict stays PASS while the lapsed expires_at FAILs alone", () => {
+  it("verdict stays verified while the lapsed expires_at FAILs alone", () => {
     const result = verify(loadVector("receipt.json"), ADAPTERS, loadVector("jwks.json"));
     expect(result.fmt).toBe("asqav-native");
     const expiry = result.axes.find((a) => a.axis === "expiry");
@@ -150,7 +150,7 @@ describe("the time-edge corpus vector keeps expiry on its own axis", () => {
     expect(expiry?.note).toContain("lapsed");
     const nonExpiry = result.axes.filter((a) => a.axis !== "expiry");
     expect(nonExpiry.map((a) => a.result)).not.toContain("FAIL");
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).toBe("verified");
   });
 
   it("matches its expected outcome through the corpus runner", () => {
