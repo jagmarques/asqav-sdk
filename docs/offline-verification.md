@@ -12,7 +12,8 @@ pip install "asqav[verify]"
 ```
 
 The `verify` extra adds `dilithium-py` (ML-DSA-65) and `cryptography` (Ed25519, ES256).
-Without it, the signature axis reports `SKIPPED`/`INCOMPLETE`, never a false PASS.
+Without it, the signature axis reports `SKIPPED` and the verdict is `unverified`
+(`failure_class=unverifiable`), never a false `verified`.
 
 ### 2. Snapshot the JWKS while online
 
@@ -32,9 +33,10 @@ receipt = json.load(open("receipt.json"))
 jwks    = json.load(open("jwks.json"))
 
 result = asqav.verify_receipt_offline(receipt, jwks)
-# result: {"verdict": "PASS"|"FAIL"|"INCOMPLETE", "axes": [...], "fmt": "..."}
+# result: {"verdict": "verified"|"verified_keyed"|"unverified",
+#          "failure_class": "invalid"|"unverifiable"|None, "axes": [...], "fmt": "..."}
 
-assert result["verdict"] == "PASS", result["axes"]
+assert result["verdict"] == "verified", result["axes"]
 ```
 
 To check a hash-chain link, supply the predecessor receipt:
@@ -45,11 +47,20 @@ result = asqav.verify_receipt_offline(receipt, jwks, predecessor=prev_receipt)
 
 ### Verdicts
 
-| Verdict      | Meaning                                                    |
-|--------------|------------------------------------------------------------|
-| `PASS`       | All axes checked and passed.                               |
-| `FAIL`       | At least one axis failed (signature mismatch, bad chain).  |
-| `INCOMPLETE` | A blocking axis was skipped (e.g., dilithium-py missing).  |
+| Verdict          | Meaning                                                    |
+|------------------|------------------------------------------------------------|
+| `verified`       | All axes checked and passed.                               |
+| `verified_keyed` | All axes passed, but the digest is keyed (e.g. HMAC-SHA256) and not third-party re-derivable. Never reported as plain `verified`. |
+| `unverified`     | Not verified; carries `failure_class` `invalid` or `unverifiable`. |
+
+Every `unverified` verdict names its `failure_class`, and the two are never collapsed:
+
+- `invalid` - a check ran and a cryptographic/policy binding failed (signature
+  mismatch, chain-link mismatch, invalid anchor, counterparty binding mismatch,
+  revoked/changed signer key, algorithm mismatch, or `issued_at` future-skew).
+- `unverifiable` - recomputation could not complete (unresolvable key, missing
+  or broken chain predecessor, malformed member, canonicalisation or parse
+  failure, unresolvable policy digest, or a pending anchor without proof).
 
 ## Standalone single-file verifier (no asqav install)
 
@@ -94,11 +105,12 @@ const receipt = JSON.parse(readFileSync("receipt.json", "utf-8"));
 const jwksSaved = JSON.parse(readFileSync("jwks.json", "utf-8"));
 
 const result = verifyReceiptOffline(receipt, jwksSaved);
-// result.verdict: "PASS" | "FAIL" | "INCOMPLETE"
-// result.axes: AxisResult[]  (axis, result, note)
+// result.verdict: "verified" | "verified_keyed" | "unverified"
+// result.failureClass: "invalid" | "unverifiable" | null
+// result.axes: AxisResult[]  (axis, result, note, failureClass)
 
-if (result.verdict !== "PASS") {
-  throw new Error(`Receipt invalid: ${JSON.stringify(result.axes)}`);
+if (result.verdict !== "verified" && result.verdict !== "verified_keyed") {
+  throw new Error(`Receipt not verified (${result.failureClass}): ${JSON.stringify(result.axes)}`);
 }
 ```
 
@@ -181,4 +193,4 @@ changes to `revoked`. The verifier rejects signatures from revoked keys.
 |-----------|--------|
 | Ed25519 | Fully validated with real known-answer (tamper) vectors. |
 | ES256 | Fully validated with real known-answer (tamper) vectors. |
-| ML-DSA-65 | Fully proven. Known-answer conformance vector `asqav-06-mldsa65-payload-prod` was minted from a real api.asqav.com payload-mode receipt (2026-06-19, agent `agt_LBe47lJwgA0DfVom`, key `mxYqaLBR_T76ThNw0Kiekw`). Both Python (`test_verify_receipt_offline_mldsa65_real_cloud_kat`) and TypeScript test suites exercise the signature axis against this vector and assert PASS; tamper tests assert FAIL. |
+| ML-DSA-65 | Fully proven. Known-answer conformance vector `asqav-06-mldsa65-payload-prod` was minted from a real api.asqav.com payload-mode receipt (2026-06-19, agent `agt_LBe47lJwgA0DfVom`, key `mxYqaLBR_T76ThNw0Kiekw`). Both Python (`test_verify_receipt_offline_mldsa65_real_cloud_kat`) and TypeScript test suites exercise the signature axis against this vector and assert `verified`; tamper tests assert `unverified`/`invalid`. |

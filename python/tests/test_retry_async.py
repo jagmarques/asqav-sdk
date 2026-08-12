@@ -230,7 +230,7 @@ async def test_async_verify() -> None:
 
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
+    _verify_payload = {
         "signature_id": "sigid_001",
         "agent_id": "agent_001",
         "agent_name": "test-agent",
@@ -243,6 +243,11 @@ async def test_async_verify() -> None:
         "verified": True,
         "verification_url": "https://api.asqav.com/verify/sigid_001",
     }
+    mock_response.json.return_value = _verify_payload
+    # The strict-ingest path parses response.text, not .json() (criterion 419).
+    import json as _json
+
+    mock_response.text = _json.dumps(_verify_payload)
 
     agent = AsyncAgent(
         agent_id="agent_001",

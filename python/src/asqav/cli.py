@@ -212,7 +212,7 @@ def verify_litellm_log(
     """
     import json as json_mod
 
-    from asqav import APIError, verify_signature
+    from asqav import APIError, strict_json, verify_signature
 
     try:
         with open(path) as fh:
@@ -226,8 +226,9 @@ def verify_litellm_log(
     failures: list[dict[str, Any]] = []
     for lineno, raw in enumerate(lines, start=1):
         try:
-            record = json_mod.loads(raw)
-        except json_mod.JSONDecodeError as exc:
+            # Strict ingest (419): a duplicated member name fails the record.
+            record = strict_json.loads(raw)
+        except (json_mod.JSONDecodeError, strict_json.DuplicateMemberError) as exc:
             total += 1
             failures.append({"line": lineno, "reason": f"bad json: {exc}"})
             continue
@@ -274,19 +275,23 @@ def _load_json_arg(source: str, label: str) -> dict | None:
     """Load a JSON arg from a file path, stdin (`-`), or return None when empty.
 
     Used by `sign` for `--action-json` and `--policy-artefact`. Exits 1 on
-    OSError or JSONDecodeError with a clear `label`-prefixed message so
-    the caller knows which arg failed.
+    OSError, JSONDecodeError, or a duplicated member name (419) with a clear
+    `label`-prefixed message so the caller knows which arg failed.
     """
     import json as json_mod
+
+    from asqav import strict_json
 
     if not source:
         return None
     try:
         if source == "-":
-            return json_mod.loads(sys.stdin.read())
-        with open(source) as f:
-            return json_mod.load(f)
-    except (OSError, json_mod.JSONDecodeError) as exc:
+            text = sys.stdin.read()
+        else:
+            with open(source) as f:
+                text = f.read()
+        return strict_json.loads(text)
+    except (OSError, json_mod.JSONDecodeError, strict_json.DuplicateMemberError) as exc:
         print(f"Error reading {label}: {exc}")
         raise typer.Exit(code=1) from exc
 

@@ -9,10 +9,11 @@ import { verify as oracleVerify } from "../src/verifier/core.js";
 import { verifySignature } from "../src/verifier/crypto.js";
 
 describe("verifier fail-clean on malformed input", () => {
-  it("returns FAIL (no throw) on a non-object top-level receipt", () => {
+  it("returns unverified (no throw) on a non-object top-level receipt", () => {
     for (const doc of [null, "a string", 123, [1, 2]] as unknown[]) {
       const r = oracleVerify(doc as Record<string, unknown>, ADAPTERS);
-      expect(r.verdict).toBe("FAIL");
+      expect(r.verdict).toBe("unverified");
+      expect(r.failureClass).toBe("unverifiable");
     }
   });
 
