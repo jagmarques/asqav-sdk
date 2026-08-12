@@ -140,19 +140,19 @@ export class PipelockEvidenceAdapter extends FormatAdapter {
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
-  ): readonly [Uint8Array | null, string] {
+  ): readonly [Uint8Array | null, string, string] {
     const sigProof = (doc["signature"] ?? {}) as Record<string, unknown>;
     const kid = (sigProof["signer_key_id"] as string) ?? "";
     const provider = keyProvider ?? {};
     const material = provider[kid];
     if (material === undefined || material === null) {
-      return [null, `signer_key_id '${kid}' not in key provider`];
+      return [null, `signer_key_id '${kid}' not in key provider`, "key_unresolvable"];
     }
     const raw = material instanceof Uint8Array ? material : safeHex(String(material));
     if (raw.length !== 32) {
-      return [null, `signer_key_id '${kid}' key is ${raw.length} bytes, expected 32`];
+      return [null, `signer_key_id '${kid}' key is ${raw.length} bytes, expected 32`, "key_malformed"];
     }
-    return [raw, `resolved signer_key_id '${kid}'`];
+    return [raw, `resolved signer_key_id '${kid}'`, "none"];
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
@@ -174,48 +174,59 @@ export class PipelockEvidenceAdapter extends FormatAdapter {
   schema(doc: Record<string, unknown>): AxisCheck {
     const missing = REQUIRED_ENVELOPE.filter((f) => doc[f] === undefined || doc[f] === null);
     if (missing.length > 0) {
-      return ["FAIL", `pipelock-evidence-v2 missing required fields: ${missing.join(",")}`];
+      return [
+        "UNVERIFIABLE",
+        `pipelock-evidence-v2 missing required fields: ${missing.join(",")}`,
+        "member_malformed",
+      ];
     }
 
     if (doc["record_type"] !== RECORD_TYPE) {
-      return ["FAIL", `record_type must be '${RECORD_TYPE}'`];
+      return ["UNVERIFIABLE", `record_type must be '${RECORD_TYPE}'`, "member_malformed"];
     }
     if (doc["receipt_version"] !== RECEIPT_VERSION) {
-      return ["FAIL", `receipt_version must be ${RECEIPT_VERSION}`];
+      return ["UNVERIFIABLE", `receipt_version must be ${RECEIPT_VERSION}`, "member_malformed"];
     }
 
     const payloadKind = (doc["payload_kind"] as string) ?? "";
     if (!PAYLOAD_KINDS.has(payloadKind)) {
-      return ["FAIL", `unknown payload_kind: '${payloadKind}'`];
+      return ["UNVERIFIABLE", `unknown payload_kind: '${payloadKind}'`, "member_malformed"];
     }
 
     const sigProof = doc["signature"] as Record<string, unknown>;
     if (typeof sigProof !== "object" || Array.isArray(sigProof)) {
-      return ["FAIL", "signature must be an object"];
+      return ["UNVERIFIABLE", "signature must be an object", "member_malformed"];
     }
 
     const algorithm = (sigProof["algorithm"] as string) ?? "";
     if (algorithm !== "ed25519") {
-      return ["FAIL", `unsupported signature algorithm '${algorithm}'; only ed25519 is implemented`];
+      return [
+        "UNVERIFIABLE",
+        `unsupported signature algorithm '${algorithm}'; only ed25519 is implemented`,
+        "algorithm_unsupported",
+      ];
     }
 
     const keyPurpose = (sigProof["key_purpose"] as string) ?? "";
     const requiredPurpose = PAYLOAD_AUTHORITY[payloadKind];
     if (requiredPurpose && keyPurpose !== requiredPurpose) {
+      // The authority matrix is a policy binding the check ran and refuted
       return [
-        "FAIL",
+        "INVALID",
         `key_purpose mismatch: '${payloadKind}' requires '${requiredPurpose}', got '${keyPurpose}'`,
+        "policy_binding_violation",
       ];
     }
 
     const sigValue = (sigProof["signature"] as string) ?? "";
     if (typeof sigValue !== "string" || !sigValue.startsWith(SIG_PREFIX)) {
-      return ["FAIL", `signature.signature must start with '${SIG_PREFIX}'`];
+      return ["UNVERIFIABLE", `signature.signature must start with '${SIG_PREFIX}'`, "member_malformed"];
     }
 
     return [
       "PASS",
       `pipelock-evidence-v2 envelope; payload_kind='${payloadKind}'; key_purpose authority-matrix check passed`,
+      "none",
     ];
   }
 }

@@ -33,11 +33,11 @@ export interface ChainStep {
   recompute: (predecessor: Record<string, unknown>) => string;
 }
 
-/** `(result, note)` pair returned by structural and extra-axis checks. */
-export type AxisCheck = readonly [VerifyState, string];
+/** `[result, note, reasonCode]` returned by structural checks (criterion 418). */
+export type AxisCheck = readonly [VerifyState, string, string];
 
-/** A named extra axis: `[axisName, result, note]`. */
-export type ExtraAxis = readonly [string, VerifyState, string];
+/** A named extra axis: `[axisName, result, note, reasonCode]` (criterion 418). */
+export type ExtraAxis = readonly [string, VerifyState, string, string];
 
 /** Format-shaped key material the runner injects (a JWKS dict, a key map, or null). */
 export type KeyProvider = Record<string, unknown> | null;
@@ -57,11 +57,15 @@ export abstract class FormatAdapter {
   /** Pull the issuer signature bytes plus alg and kid out of `doc`. */
   abstract extractSignature(doc: Record<string, unknown>): SignatureMaterial;
 
-  /** Return `[publicKeyBytesOrNull, note]` for the receipt's signer. */
+  /**
+   * Return `[publicKeyBytesOrNull, note, reasonCode]` for the receipt's signer.
+   * A miss is classified (criterion 418): key_unresolvable when the directory
+   * has no such key, key_malformed when it has unusable bytes.
+   */
   abstract resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
-  ): readonly [Uint8Array | null, string];
+  ): readonly [Uint8Array | null, string, string];
 
   /** Return the exact bytes the signature covers. */
   abstract signingInput(doc: Record<string, unknown>): Uint8Array;
@@ -69,14 +73,15 @@ export abstract class FormatAdapter {
   /** Describe how this receipt links to its predecessor. */
   abstract chainStep(doc: Record<string, unknown>): ChainStep;
 
-  /** Structural check; returns `[result, note]`. */
+  /** Structural check; returns `[result, note, reasonCode]`. */
   abstract schema(doc: Record<string, unknown>): AxisCheck;
 
   /**
    * Format-specific axes beyond structure / issuer-signature / chain. Returns a
-   * list of `[axisName, result, note]`. The default is none; a format whose
-   * verification procedure layers additional REQUIRED checks returns one tuple
-   * per check so a missing-but-required or invalid layer FAILs the verdict.
+   * list of `[axisName, result, note, reasonCode]`. The default is none; a
+   * format whose verification procedure layers additional REQUIRED checks
+   * returns one tuple per check so a missing-but-required or invalid layer
+   * blocks the verdict rather than passing on the issuer signature alone.
    */
   extraAxes(_doc: Record<string, unknown>, _keyProvider: KeyProvider): ExtraAxis[] {
     return [];

@@ -35,6 +35,7 @@ import {
   type LocalSigningAlgorithm,
   type SignatureResponse,
 } from "./index.js";
+import { DuplicateJsonMemberError, parseJsonStrict } from "./verifier/canonical.js";
 import {
   credentialsPath,
   loadCredentials,
@@ -367,16 +368,18 @@ async function cmdComplianceExport(args: string[]): Promise<void> {
 // === IETF Compliance Receipts profile commands ===
 
 async function readJsonInput(value: string): Promise<unknown> {
+  // Strict ingest (criterion 419): a JSON arg with a duplicate member name is
+  // refused whole, never collapsed into the last value
   if (value === "-") {
     const chunks: Buffer[] = [];
     for await (const chunk of process.stdin) {
       chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer));
     }
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return parseJsonStrict(Buffer.concat(chunks).toString("utf8"));
   }
   const fs = await import("node:fs/promises");
   const text = await fs.readFile(value, "utf8");
-  return JSON.parse(text);
+  return parseJsonStrict(text);
 }
 
 /** Parsed shape of `asqav sign` flags; bundles raw strings without
@@ -613,7 +616,8 @@ async function cmdAuditPackVerify(args: string[]): Promise<void> {
       const fs = await import("node:fs/promises");
       raw = await fs.readFile(bundlePath, "utf8");
     }
-    bundle = JSON.parse(raw);
+    // Strict ingest (criterion 419): an audit pack is receipt records
+    bundle = parseJsonStrict(raw);
   } catch (err) {
     die(`Error reading bundle: ${(err as Error).message}`);
   }
@@ -777,8 +781,13 @@ async function sessionRequest(
   }
   if (!text) return null;
   try {
-    return JSON.parse(text);
-  } catch {
+    // Strict ingest (criterion 419): responses may carry receipts, so a
+    // duplicate member is terminal; a non-JSON body still reads as text
+    return parseJsonStrict(text);
+  } catch (err) {
+    if (err instanceof DuplicateJsonMemberError) {
+      die(`Error: API response rejected under strict ingest: ${err.message}`);
+    }
     return text;
   }
 }
@@ -941,9 +950,12 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
       die(`HTTP ${response.status} from /maintenance/run-migration-${migration}: ${text}`);
     }
     try {
-      const parsed = JSON.parse(text);
+      const parsed = parseJsonStrict(text);
       process.stdout.write(`${JSON.stringify(parsed, null, 2)}\n`);
-    } catch {
+    } catch (err) {
+      if (err instanceof DuplicateJsonMemberError) {
+        die(`Error: response rejected under strict ingest: ${err.message}`);
+      }
       process.stdout.write(`${text}\n`);
     }
   } catch (err) {

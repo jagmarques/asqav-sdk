@@ -92,6 +92,13 @@ function floatToString(n: number): string {
 }
 
 /**
+ * Strict-ingest failure (criterion 419): a JSON text repeated a member name.
+ * Thrown before any hashing, canonicalisation, or signature check can run, so
+ * the bytes of a receipt are never read two ways by two parsers.
+ */
+export class DuplicateJsonMemberError extends SyntaxError {}
+
+/**
  * Parse JSON while preserving float literals as `RawFloat` and out-of-safe-range
  * integers as `RawBigInt`, so the canonicalisers re-emit `500.0` rather than the
  * collapsed `500` and never let two distinct big integers share one signature.
@@ -100,6 +107,8 @@ function floatToString(n: number): string {
  * Hand-rolled recursive descent rather than a `JSON.parse` reviver: the reviver's
  * raw-literal `context.source` is only available on Node 21.1+, and this package
  * supports Node 18+. The grammar is RFC 8259 JSON; it is not a lenient parser.
+ * Strict ingest (criterion 419): a duplicate member name at ANY depth is a
+ * terminal `DuplicateJsonMemberError`, never silently collapsed to the last value.
  */
 export function parseJsonPreservingFloats(text: string): unknown {
   let i = 0;
@@ -128,6 +137,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
   };
   const object = (): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
+    const seen = new Set<string>();
     i++; // {
     ws();
     if (text[i] === "}") return i++, out;
@@ -135,6 +145,13 @@ export function parseJsonPreservingFloats(text: string): unknown {
       ws();
       if (text[i] !== '"') err("expected object key");
       const k = str();
+      // Criterion 419: one member may not override another, at any depth
+      if (seen.has(k)) {
+        throw new DuplicateJsonMemberError(
+          `duplicate member name '${k}' at position ${i}: one member may not override another`,
+        );
+      }
+      seen.add(k);
       ws();
       if (text[i++] !== ":") err("expected ':'");
       out[k] = value();
@@ -209,6 +226,34 @@ export function parseJsonPreservingFloats(text: string): unknown {
   ws();
   if (i !== text.length) err("trailing content after JSON value");
   return result;
+}
+
+/** Unwrap preserved number tokens back to plain JS numbers. */
+function unwrapPreserved(v: unknown): unknown {
+  if (isRawFloat(v)) return v.value;
+  // Number(source) reproduces exactly what JSON.parse would have collapsed to
+  if (isRawBigInt(v)) return Number(v.source);
+  if (Array.isArray(v)) return v.map(unwrapPreserved);
+  if (v !== null && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      out[k] = unwrapPreserved(val);
+    }
+    return out;
+  }
+  return v;
+}
+
+/**
+ * Strict JSON parse for response/record paths that do not canonicalise (419).
+ *
+ * Same duplicate-member refusal as `parseJsonPreservingFloats`, but returns
+ * plain `JSON.parse`-shaped values (no `RawFloat` / `RawBigInt` wrappers), so
+ * API-response consumers read ordinary numbers. Receipt paths that feed a
+ * canonicaliser must keep using `parseJsonPreservingFloats` instead.
+ */
+export function parseJsonStrict(text: string): unknown {
+  return unwrapPreserved(parseJsonPreservingFloats(text));
 }
 
 /** Recursively NFC-normalise every string key and value (mirrors `_nfc`). */

@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
+import { parseJsonStrict } from "./verifier/canonical.js";
 
 export type Receipt = Record<string, unknown>;
 
@@ -213,7 +214,9 @@ export function receiptFromCloudEvent(event: Receipt): Receipt {
 }
 
 export function receiptFromOtelGenaiAttributes(attrs: Receipt): Receipt {
-  return JSON.parse(attrs[OTEL_RECEIPT_ATTR] as string) as Receipt;
+  // Strict ingest (criterion 419): a span-attr receipt with a duplicate member
+  // is refused before any hashing or signature check, never silently collapsed
+  return parseJsonStrict(attrs[OTEL_RECEIPT_ATTR] as string) as Receipt;
 }
 
 export function receiptFromC2paAssertion(assertion: Receipt): Receipt {

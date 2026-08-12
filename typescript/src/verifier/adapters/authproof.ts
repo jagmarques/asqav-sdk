@@ -90,21 +90,21 @@ export class AuthproofAdapter extends FormatAdapter {
     return { sig: safeHex(doc.signature), alg: "ES256", kid: "" };
   }
 
-  resolveKey(doc: Record<string, unknown>): readonly [Uint8Array | null, string] {
+  resolveKey(doc: Record<string, unknown>): readonly [Uint8Array | null, string, string] {
     const jwk = doc.signerPublicKey;
     if (!isP256Jwk(jwk)) {
-      return [null, "signerPublicKey is not a P-256 JWK"];
+      return [null, "signerPublicKey is not a P-256 JWK", "key_malformed"];
     }
     const x = b64url(jwk.x);
     const y = b64url(jwk.y);
     if (x.length !== 32 || y.length !== 32) {
-      return [null, "P-256 JWK coordinates are not 32 bytes each"];
+      return [null, "P-256 JWK coordinates are not 32 bytes each", "key_malformed"];
     }
     const point = new Uint8Array(65);
     point[0] = 0x04;
     point.set(x, 1);
     point.set(y, 33);
-    return [point, "resolved embedded P-256 JWK"];
+    return [point, "resolved embedded P-256 JWK", "none"];
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
@@ -124,8 +124,8 @@ export class AuthproofAdapter extends FormatAdapter {
   schema(doc: Record<string, unknown>): AxisCheck {
     const missing = REQUIRED.filter((f) => doc[f] === undefined || doc[f] === null);
     if (missing.length > 0) {
-      return ["FAIL", `authproof receipt missing fields: ${missing.join(",")}`];
+      return ["UNVERIFIABLE", `authproof receipt missing fields: ${missing.join(",")}`, "member_malformed"];
     }
-    return ["PASS", "authproof delegation receipt; required fields present"];
+    return ["PASS", "authproof delegation receipt; required fields present", "none"];
   }
 }

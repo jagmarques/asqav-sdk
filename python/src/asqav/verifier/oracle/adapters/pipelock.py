@@ -48,6 +48,7 @@ from typing import Any
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
 from ..canonical import jcs_rfc8785
 from ..core import sha256_hex
+from ..taxonomy import INVALID, PASS, UNVERIFIABLE
 
 #: Wire constants matching ``pipelock_verify/_evidence.py``.
 _RECORD_TYPE = "evidence_receipt_v2"
@@ -167,24 +168,29 @@ class PipelockEvidenceAdapter(FormatAdapter):
             kid=sig_proof.get("signer_key_id", ""),
         )
 
-    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
-        """Return the raw 32-byte Ed25519 key from the caller-supplied key provider.
+    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str, str]:
+        """Return ``(raw 32-byte key or None, note, reason_code)`` from the provider.
 
         EvidenceReceipt v2 does NOT embed its public key. The caller passes a
-        ``{signer_key_id: hex_or_bytes}`` map. If the key is absent the axis SKIPs.
+        ``{signer_key_id: hex_or_bytes}`` map; an absent key leaves the signature
+        axis UNVERIFIABLE, never a hiding PASS.
         """
         kid = doc.get("signature", {}).get("signer_key_id", "")
         provider = key_provider or {}
         material = provider.get(kid)
         if material is None:
-            return None, f"signer_key_id {kid!r} not in key provider"
+            return None, f"signer_key_id {kid!r} not in key provider", "key_unresolvable"
         if isinstance(material, bytes):
             raw = material
         else:
             raw = _safe_hex(str(material))
         if len(raw) != 32:
-            return None, f"signer_key_id {kid!r} key is {len(raw)} bytes, expected 32"
-        return raw, f"resolved signer_key_id {kid!r}"
+            return (
+                None,
+                f"signer_key_id {kid!r} key is {len(raw)} bytes, expected 32",
+                "key_malformed",
+            )
+        return raw, f"resolved signer_key_id {kid!r}", "none"
 
         # JCS preimage: full receipt with signature object zeroed out.
     def signing_input(self, doc: dict) -> bytes:
@@ -202,45 +208,60 @@ class PipelockEvidenceAdapter(FormatAdapter):
             recompute=lambda pred: "sha256:" + _full_receipt_hash(pred),
         )
 
-    def schema(self, doc: dict) -> tuple[str, str]:
+    def schema(self, doc: dict) -> tuple[str, str, str]:
         # Required envelope fields.
         missing = [f for f in _REQUIRED_ENVELOPE if doc.get(f) is None]
         if missing:
-            return "FAIL", f"pipelock-evidence-v2 missing required fields: {','.join(missing)}"
+            return (
+                UNVERIFIABLE,
+                f"pipelock-evidence-v2 missing required fields: {','.join(missing)}",
+                "member_malformed",
+            )
 
         # record_type and receipt_version are the detection discriminators; re-check for schema.
         if doc.get("record_type") != _RECORD_TYPE:
-            return "FAIL", f"record_type must be {_RECORD_TYPE!r}"
+            return UNVERIFIABLE, f"record_type must be {_RECORD_TYPE!r}", "member_malformed"
         if doc.get("receipt_version") != _RECEIPT_VERSION:
-            return "FAIL", f"receipt_version must be {_RECEIPT_VERSION}"
+            return UNVERIFIABLE, f"receipt_version must be {_RECEIPT_VERSION}", "member_malformed"
 
         payload_kind = doc.get("payload_kind", "")
         if payload_kind not in _PAYLOAD_KINDS:
-            return "FAIL", f"unknown payload_kind: {payload_kind!r}"
+            return UNVERIFIABLE, f"unknown payload_kind: {payload_kind!r}", "member_malformed"
 
         sig_proof = doc.get("signature", {})
         if not isinstance(sig_proof, dict):
-            return "FAIL", "signature must be an object"
+            return UNVERIFIABLE, "signature must be an object", "member_malformed"
 
         algorithm = sig_proof.get("algorithm", "")
         if algorithm != "ed25519":
-            return "FAIL", f"unsupported signature algorithm {algorithm!r}; only ed25519 is implemented"
+            return (
+                UNVERIFIABLE,
+                f"unsupported signature algorithm {algorithm!r}; only ed25519 is implemented",
+                "algorithm_unsupported",
+            )
 
         key_purpose = sig_proof.get("key_purpose", "")
         required_purpose = _PAYLOAD_AUTHORITY.get(payload_kind)
         if required_purpose and key_purpose != required_purpose:
+            # The authority matrix is a policy binding the check ran and refuted
             return (
-                "FAIL",
+                INVALID,
                 f"key_purpose mismatch: {payload_kind!r} requires {required_purpose!r}, "
                 f"got {key_purpose!r}",
+                "policy_binding_violation",
             )
 
         sig_value = sig_proof.get("signature", "")
         if not isinstance(sig_value, str) or not sig_value.startswith(_SIG_PREFIX):
-            return "FAIL", f"signature.signature must start with {_SIG_PREFIX!r}"
+            return (
+                UNVERIFIABLE,
+                f"signature.signature must start with {_SIG_PREFIX!r}",
+                "member_malformed",
+            )
 
         return (
-            "PASS",
+            PASS,
             f"pipelock-evidence-v2 envelope; payload_kind={payload_kind!r}; "
             f"key_purpose authority-matrix check passed",
+            "none",
         )

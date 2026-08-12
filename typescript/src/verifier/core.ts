@@ -10,19 +10,22 @@
  */
 
 import type { FormatAdapter, KeyProvider } from "./adapter.js";
-import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
+import { PASS, UNVERIFIABLE, INVALID, verifySignature, type VerifyState } from "./crypto.js";
+import { CLASSIFICATION, deriveVerdict, NO_REASON, type Classification } from "./taxonomy.js";
 
 /** One verification axis outcome. */
 export interface AxisResult {
   /** Which check (structure / signature / chain / extra). */
   axis: string;
-  /** PASS / FAIL / SKIPPED. */
+  /** PASS / INVALID / UNVERIFIABLE / SKIPPED (criterion 418). */
   result: VerifyState;
   /** Human-readable detail for the report. */
   note: string;
+  /** Closed failure-class token; "none" when nothing failed. */
+  reasonCode: string;
 }
 
-export type Verdict = "PASS" | "FAIL" | "INCOMPLETE";
+export type Verdict = "PASS" | "INVALID" | "UNVERIFIABLE";
 
 /** The aggregate outcome of verifying one receipt. */
 export interface VerifyResult {
@@ -30,10 +33,14 @@ export interface VerifyResult {
   fmt: string;
   axes: AxisResult[];
   /**
-   * PASS only when every non-skipped axis passed AND the signature was actually
-   * checked; a skipped signature downgrades to INCOMPLETE, never a PASS.
+   * Criterion 418: PASS only when every applicable axis passed and no
+   * recomputation was left incomplete. One INVALID axis dominates; otherwise
+   * any UNVERIFIABLE axis downgrades. A receipt is never PASS while a
+   * recomputation failed. The expiry axis never folds the verdict (426).
    */
   verdict: Verdict;
+  /** Wire classification mirroring the verdict: valid/invalid/unverifiable. */
+  classification: Classification;
   // In-body origin attestation (v:2 signer) from the signed payload.
   // null for v:1. Never gates the verdict.
   signer: string | null;
@@ -54,13 +61,14 @@ function signatureAxis(
   keyProvider: KeyProvider,
 ): AxisResult {
   const sm = ad.extractSignature(doc);
-  const [pk, note] = ad.resolveKey(doc, keyProvider);
+  const [pk, note, reason] = ad.resolveKey(doc, keyProvider);
   if (pk === null) {
-    return { axis: "signature", result: SKIPPED, note: `no key: ${note}` };
+    // The signature cannot be recomputed without its key; never a PASS
+    return { axis: "signature", result: UNVERIFIABLE, note: `no key: ${note}`, reasonCode: reason };
   }
   const msg = ad.signingInput(doc);
-  const { result, note: why } = verifySignature(sm.alg, pk, msg, sm.sig);
-  return { axis: "signature", result, note: why };
+  const { result, note: why, reasonCode } = verifySignature(sm.alg, pk, msg, sm.sig);
+  return { axis: "signature", result, note: why, reasonCode };
 }
 
 function chainAxis(
@@ -71,22 +79,48 @@ function chainAxis(
 ): AxisResult {
   const step = ad.chainStep(doc);
   if (step.isGenesis) {
-    return { axis: "chain", result: PASS, note: "genesis receipt (no predecessor link)" };
+    return { axis: "chain", result: PASS, note: "genesis receipt (no predecessor link)", reasonCode: NO_REASON };
   }
   if (predecessor === null) {
-    return { axis: "chain", result: SKIPPED, note: "no predecessor supplied" };
+    // Recomputation cannot complete without the predecessor; blocks PASS
+    return {
+      axis: "chain",
+      result: UNVERIFIABLE,
+      note: "no predecessor supplied",
+      reasonCode: "chain_predecessor_missing",
+    };
   }
   // A chain link must stay within one format; a cross-format predecessor is not a valid link.
   const predAd = detect(predecessor, adapters);
   if (predAd === null || predAd.name !== ad.name) {
-    return { axis: "chain", result: FAIL, note: "predecessor is a different receipt format" };
+    return {
+      axis: "chain",
+      result: INVALID,
+      note: "predecessor is a different receipt format",
+      reasonCode: "chain_mismatch",
+    };
   }
-  const actual = step.recompute(predecessor);
+  let actual: string;
+  try {
+    actual = step.recompute(predecessor);
+  } catch (exc) {
+    return {
+      axis: "chain",
+      result: UNVERIFIABLE,
+      note: `predecessor not canonicalisable: ${(exc as Error).message}`,
+      reasonCode: "canonicalization_failed",
+    };
+  }
   if (actual === step.prevField) {
-    return { axis: "chain", result: PASS, note: "chain link rederives from predecessor" };
+    return { axis: "chain", result: PASS, note: "chain link rederives from predecessor", reasonCode: NO_REASON };
   }
   const exp = String(step.prevField).slice(0, 16);
-  return { axis: "chain", result: FAIL, note: `chain break: expected ${exp}.. got ${actual.slice(0, 16)}..` };
+  return {
+    axis: "chain",
+    result: INVALID,
+    note: `chain break: expected ${exp}.. got ${actual.slice(0, 16)}..`,
+    reasonCode: "chain_mismatch",
+  };
 }
 
 /** Max nesting the recursive JCS encoder tolerates, mirrors the Python core cap. */
@@ -124,51 +158,56 @@ export function verify(
 ): VerifyResult {
   const ad = detect(doc, adapters);
   if (ad === null) {
+    // No format claims this receipt, so no check can even start: the two
+    // failure classes stay distinct - this is the unverifiable one
     return {
       fmt: "unknown",
-      axes: [{ axis: "structure", result: FAIL, note: "no adapter recognises this receipt" }],
-      verdict: "FAIL",
+      axes: [{
+        axis: "structure",
+        result: UNVERIFIABLE,
+        note: "no adapter recognises this receipt",
+        reasonCode: "format_unrecognized",
+      }],
+      verdict: "UNVERIFIABLE",
+      classification: "unverifiable",
       signer: null,
     };
   }
   // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
-  // report INCOMPLETE, never a PASS, matching the Python core's shape gate.
+  // report UNVERIFIABLE, never a PASS, matching the Python core's shape gate.
   if (
     exceedsDepth(doc, MAX_NESTING_DEPTH) ||
     (predecessor !== null && exceedsDepth(predecessor, MAX_NESTING_DEPTH))
   ) {
     return {
       fmt: ad.name,
-      axes: [{ axis: "structure", result: FAIL, note: TOO_DEEP_NOTE }],
-      verdict: "INCOMPLETE",
+      axes: [{
+        axis: "structure",
+        result: UNVERIFIABLE,
+        note: TOO_DEEP_NOTE,
+        reasonCode: "canonicalization_failed",
+      }],
+      verdict: "UNVERIFIABLE",
+      classification: "unverifiable",
       signer: null,
     };
   }
 
-  const [structResult, structNote] = ad.schema(doc);
+  const [structResult, structNote, structReason] = ad.schema(doc);
   const axes: AxisResult[] = [
-    { axis: "structure", result: structResult, note: structNote },
+    { axis: "structure", result: structResult, note: structNote, reasonCode: structReason },
     signatureAxis(ad, doc, keyProvider),
     chainAxis(ad, doc, adapters, predecessor),
   ];
-  for (const [name, res, note] of ad.extraAxes(doc, keyProvider)) {
-    axes.push({ axis: name, result: res, note });
+  for (const [name, res, note, reason] of ad.extraAxes(doc, keyProvider)) {
+    axes.push({ axis: name, result: res, note, reasonCode: reason });
   }
 
-  // Expiry reports on its own axis and never folds the verdict (criterion 426)
-  const hasFail = axes.some((a) => a.result === FAIL && a.axis !== "expiry");
-  // Any skipped axis except a missing-predecessor chain blocks PASS: an unchecked
-  // signature / counter-sign / PDP layer means INCOMPLETE, never a hiding PASS.
-  const blockingSkip = axes.some((a) => a.result === SKIPPED && a.axis !== "chain");
-  let verdict: Verdict;
-  if (hasFail) {
-    verdict = "FAIL";
-  } else if (blockingSkip) {
-    verdict = "INCOMPLETE";
-  } else {
-    verdict = "PASS";
-  }
+  // Expiry reports on its own axis and never folds the verdict (criterion 426);
+  // INVALID dominates UNVERIFIABLE and either one blocks PASS (criterion 418).
+  // SKIPPED axes do not apply and never block; UNVERIFIABLE ones always do.
+  const verdict = deriveVerdict(axes.map((a) => [a.axis, a.result] as const));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, signer };
+  return { fmt: ad.name, axes, verdict, classification: CLASSIFICATION[verdict], signer };
 }

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
+from .strict_json import DuplicateJsonMemberError, strict_loads
+
 __all__ = ["LocalQueue", "local_sign"]
 
 _DEFAULT_QUEUE_DIR = os.path.join(os.path.expanduser("~"), ".asqav", "queue")
@@ -73,10 +75,12 @@ class LocalQueue:
         items: list[dict[str, Any]] = []
         for filepath in self.queue_dir.glob("*.json"):
             try:
-                data = json.loads(filepath.read_text())
+                # Strict ingest (criterion 419): a queued record with a duplicate
+                # member is refused whole, never collapsed into a merged object
+                data = strict_loads(filepath.read_text())
                 data["id"] = filepath.stem
                 items.append(data)
-            except (json.JSONDecodeError, OSError):
+            except (json.JSONDecodeError, DuplicateJsonMemberError, OSError):
                 continue
         items.sort(key=lambda x: x.get("queued_at", ""))
         return items

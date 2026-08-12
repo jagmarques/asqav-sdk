@@ -90,7 +90,7 @@ export class AgentReceiptsAdapter extends FormatAdapter {
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
-  ): readonly [Uint8Array | null, string] {
+  ): readonly [Uint8Array | null, string, string] {
     const kid = (asRecord(doc.proof).verificationMethod as string) ?? "";
     return resolveEd25519Key(kid, keyProvider);
   }
@@ -125,14 +125,14 @@ export class AgentReceiptsAdapter extends FormatAdapter {
     ];
     const missing = required.filter((f) => !(f in doc));
     if (missing.length > 0) {
-      return ["FAIL", `missing required VC fields: ${missing.join(",")}`];
+      return ["UNVERIFIABLE", `missing required VC fields: ${missing.join(",")}`, "member_malformed"];
     }
     const types = doc.type;
     if (!Array.isArray(types) || !types.includes("VerifiableCredential") || !types.includes("AgentReceipt")) {
-      return ["FAIL", "type must include VerifiableCredential and AgentReceipt"];
+      return ["UNVERIFIABLE", "type must include VerifiableCredential and AgentReceipt", "member_malformed"];
     }
     if (asRecord(doc.proof).type !== "Ed25519Signature2020") {
-      return ["FAIL", "proof.type must be Ed25519Signature2020"];
+      return ["UNVERIFIABLE", "proof.type must be Ed25519Signature2020", "member_malformed"];
     }
     const issuer = doc.issuer;
     const issuerDid =
@@ -140,13 +140,29 @@ export class AgentReceiptsAdapter extends FormatAdapter {
         ? (issuer as Record<string, unknown>).id
         : issuer;
     const vmDid = ((asRecord(doc.proof).verificationMethod as string) ?? "").split("#")[0];
-    if (!vmDid || vmDid !== issuerDid) {
-      return ["FAIL", "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)"];
+    if (!vmDid) {
+      return [
+        "UNVERIFIABLE",
+        "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)",
+        "member_malformed",
+      ];
+    }
+    if (vmDid !== issuerDid) {
+      // did:key carries its key in-receipt; bind to issuer or anyone self-signs as a victim
+      return [
+        "INVALID",
+        "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)",
+        "counterparty_mismatch",
+      ];
     }
     const chain = chainOf(doc);
     if (!("previous_receipt_hash" in chain)) {
-      return ["FAIL", "chain.previous_receipt_hash must be present (null on genesis), never omitted"];
+      return [
+        "UNVERIFIABLE",
+        "chain.previous_receipt_hash must be present (null on genesis), never omitted",
+        "member_malformed",
+      ];
     }
-    return ["PASS", "required VC fields present; type AgentReceipt; chain link well-formed"];
+    return ["PASS", "required VC fields present; type AgentReceipt; chain link well-formed", "none"];
   }
 }

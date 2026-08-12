@@ -27,6 +27,8 @@ import webbrowser
 from dataclasses import dataclass, field
 from typing import Any
 
+from .strict_json import strict_loads as _strict_loads
+
 # === Pre-loaded scenarios ===
 
 SCENARIOS: list[dict[str, Any]] = [
@@ -372,7 +374,8 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length) if length else b"{}"
         try:
-            body = json.loads(raw)
+            # Strict ingest (criterion 419): duplicate members read as invalid json
+            body = _strict_loads(raw)
         except ValueError:
             self._json(400, {"error": "invalid json"})
             return

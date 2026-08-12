@@ -33,6 +33,7 @@ import { runDetectors } from "./detectors.js";
 import { userAgentHeaders } from "./userAgent.js";
 import { deriveChainHash } from "./replay.js";
 import { resolveApiKey } from "./credentials.js";
+import { DuplicateJsonMemberError, parseJsonStrict } from "./verifier/canonical.js";
 
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
@@ -1161,8 +1162,17 @@ export async function request<T = unknown>(
     }
 
     try {
-      return (await response.json()) as T;
-    } catch {
+      // Strict ingest (criterion 419): API responses carry receipts, so a
+      // duplicate member name is refused before any downstream verification
+      const text = await response.text();
+      return parseJsonStrict(text) as T;
+    } catch (err) {
+      if (err instanceof DuplicateJsonMemberError) {
+        throw new APIError(
+          `API response rejected under strict ingest: ${err.message}`,
+          response.status,
+        );
+      }
       return undefined as T;
     }
   }
@@ -2463,7 +2473,9 @@ export async function verify(signatureId: string): Promise<{
   if (response.status >= 400) {
     throw new APIError(await response.text(), response.status);
   }
-  const data = (await response.json()) as {
+  // Strict ingest (criterion 419): a receipt-bearing /verify response with a
+  // duplicate member name is refused before any local chain recomputation
+  let data: {
     signature_id: string;
     agent_id: string;
     agent_name?: string;
@@ -2472,6 +2484,14 @@ export async function verify(signatureId: string): Promise<{
     verification_url?: string;
     payload?: unknown;
   };
+  try {
+    data = parseJsonStrict(await response.text()) as typeof data;
+  } catch (err) {
+    if (err instanceof DuplicateJsonMemberError) {
+      throw new APIError(`API response rejected under strict ingest: ${err.message}`, response.status);
+    }
+    throw new APIError(`API response is not valid JSON: ${(err as Error).message}`, response.status);
+  }
   const payload = data.payload;
   const chainHash =
     payload !== null && typeof payload === "object" && !Array.isArray(payload)
@@ -2653,7 +2673,8 @@ const DEFAULT_JWKS_URL = "https://api.asqav.com/.well-known/jwks.json";
 export async function fetchJwks(url: string = DEFAULT_JWKS_URL): Promise<Record<string, unknown>> {
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`fetchJwks: HTTP ${res.status} from ${url}`);
-  return res.json() as Promise<Record<string, unknown>>;
+  // Strict ingest (criterion 419): the JWKS directory is verification input
+  return parseJsonStrict(await res.text()) as Record<string, unknown>;
 }
 
 import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index.js";

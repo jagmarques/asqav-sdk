@@ -45,6 +45,7 @@ from ._useragent import USER_AGENT
 from .credentials import resolve_api_key
 from .patterns import resolve_pattern
 from .retry import with_retry
+from .strict_json import DuplicateJsonMemberError, strict_loads
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -2978,7 +2979,7 @@ def _get(path: str) -> dict[str, Any]:
     if _HTTPX_AVAILABLE and _client:
         response = _client.get(path)
         _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
     else:
         # Use stdlib urllib if httpx not installed
@@ -2993,7 +2994,7 @@ def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
     if _HTTPX_AVAILABLE and _client:
         response = _client.post(path, json=data)
         _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
     else:
         return _urllib_request("POST", path, data)
@@ -3007,7 +3008,7 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
     if _HTTPX_AVAILABLE and _client:
         response = _client.patch(path, json=data)
         _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
     else:
         return _urllib_request("PATCH", path, data)
@@ -3021,7 +3022,7 @@ def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
     if _HTTPX_AVAILABLE and _client:
         response = _client.put(path, json=data)
         _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
     else:
         return _urllib_request("PUT", path, data)
@@ -3035,7 +3036,7 @@ def _delete(path: str) -> dict[str, Any]:
     if _HTTPX_AVAILABLE and _client:
         response = _client.delete(path)
         _handle_response(response)
-        result: dict[str, Any] = response.json()
+        result: dict[str, Any] = _strict_response_json(response)
         return result
     else:
         return _urllib_request("DELETE", path)
@@ -3045,6 +3046,29 @@ def _delete(path: str) -> dict[str, Any]:
 def _ensure_initialized() -> None:
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
+
+
+    # Parse an API response body under strict ingest (criterion 419).
+def _strict_response_json(response: Any) -> dict[str, Any]:
+    """Strict-parse an API response; duplicate member names fail loud, never merge.
+
+    Receipt-bearing responses (/sign, /verify, /countersign, exports) must not
+    reach the caller with one member silently overriding another, so a
+    duplicated name raises before any downstream hashing or verification.
+    """
+    text = response.text
+    try:
+        return strict_loads(text)
+    except DuplicateJsonMemberError as exc:
+        raise APIError(
+            f"API response rejected under strict ingest: {exc}",
+            getattr(response, "status_code", 0),
+        ) from exc
+    except ValueError as exc:
+        raise APIError(
+            f"API response is not valid JSON: {exc}",
+            getattr(response, "status_code", 0),
+        ) from exc
 
 
     # Handle API response errors.
@@ -3092,8 +3116,14 @@ def _urllib_request(
     def _do_request() -> dict[str, Any]:
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
         with urllib.request.urlopen(request, timeout=30) as response:
-            result: dict[str, Any] = json.loads(response.read().decode("utf-8"))
-            return result
+            text = response.read().decode("utf-8")
+        try:
+            # Strict ingest (criterion 419): duplicate members fail loud here
+            return strict_loads(text)
+        except DuplicateJsonMemberError as exc:
+            raise APIError(f"API response rejected under strict ingest: {exc}", 0) from exc
+        except ValueError as exc:
+            raise APIError(f"API response is not valid JSON: {exc}", 0) from exc
 
     try:
         return _with_retry(_do_request)
@@ -3361,21 +3391,28 @@ def verify_signature(signature_id: str) -> VerificationResponse:
             raise APIError("Signature not found", 404)
         if response.status_code >= 400:
             raise APIError(response.text, response.status_code)
-        data: dict[str, Any] = response.json()
+        data: dict[str, Any] = _strict_response_json(response)
     else:
         # Fallback to urllib
-        import json
         import urllib.error
         import urllib.request
 
         try:
             req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=30) as response:
-                data = json.loads(response.read().decode("utf-8"))
+                text = response.read().decode("utf-8")
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise APIError("Signature not found", 404) from e
             raise APIError(str(e), e.code) from e
+        try:
+            # Strict ingest (criterion 419): a receipt-bearing /verify response
+            # with duplicate member names is refused before any local processing
+            data = strict_loads(text)
+        except DuplicateJsonMemberError as exc:
+            raise APIError(f"API response rejected under strict ingest: {exc}", 0) from exc
+        except ValueError as exc:
+            raise APIError(f"API response is not valid JSON: {exc}", 0) from exc
 
     detail_raw = data.get("verification_detail")
     detail = (

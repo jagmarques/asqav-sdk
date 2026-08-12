@@ -131,6 +131,53 @@ _BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 #: stdlib json encoder recurses per level and crashes past ~1000 on Python <= 3.12.
 MAX_NESTING_DEPTH = 200
 
+# Tri-state failure taxonomy (criterion 418), standalone so this file stays a
+# self-contained download: PASS, INVALID (a binding check ran and failed), and
+# UNVERIFIABLE (recomputation could not complete); the two failure classes never
+# collapse and a receipt is never PASS while any recomputation failed
+PASS = "PASS"
+INVALID = "INVALID"
+UNVERIFIABLE = "UNVERIFIABLE"
+SKIPPED = "SKIPPED"
+
+#: Verdict -> wire classification token; the failure classes stay distinct.
+CLASSIFICATION = {PASS: "valid", INVALID: "invalid", UNVERIFIABLE: "unverifiable"}
+
+
+def _derive_verdict(named_results, exempt_axes=("expiry",)) -> str:
+    """Fold per-axis results: INVALID dominates UNVERIFIABLE; either blocks PASS."""
+    weighed = [res for name, res in named_results if name not in exempt_axes]
+    if any(res == INVALID for res in weighed):
+        return INVALID
+    if any(res == UNVERIFIABLE for res in weighed):
+        return UNVERIFIABLE
+    return PASS
+
+#: ML-DSA-65 (FIPS 204) wire lengths; a short input is malformed, never checked.
+MLDSA65_PK_LEN = 1952
+MLDSA65_SIG_LEN = 3309
+
+
+class DuplicateMemberError(ValueError):
+    """A JSON text repeated a member name; criterion 419 rejects it before hashing."""
+
+
+def _reject_duplicate_members(pairs):
+    """object_pairs_hook: raise on a repeated member name in ANY JSON object."""
+    seen = set()
+    for key, _value in pairs:
+        if key in seen:
+            raise DuplicateMemberError(
+                f"duplicate member name {key!r}: one member may not override another"
+            )
+        seen.add(key)
+    return dict(pairs)
+
+
+def strict_json_loads(text: str):
+    """Parse JSON refusing duplicate member names at any depth (criterion 419)."""
+    return json.loads(text, object_pairs_hook=_reject_duplicate_members)
+
 
 def canonical_json(obj) -> bytes:
     """JCS canonical bytes - byte-identical to the server's canonical_json.
@@ -227,7 +274,11 @@ def _parse_object(text: str, source: str) -> dict:
     if not text or not text.strip():
         raise VerifierInputError(f"{source}: empty input, expected a JSON object")
     try:
-        value = json.loads(text)
+        # Strict ingest (criterion 419): a duplicate member name at any depth is
+        # a terminal parse failure, before any hashing or signature check
+        value = strict_json_loads(text)
+    except DuplicateMemberError as exc:
+        raise VerifierInputError(f"{source}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise VerifierInputError(f"{source}: not valid JSON ({exc})") from exc
     except RecursionError as exc:
@@ -522,13 +573,14 @@ def check_issuer_binding(key_issuer_id, claimed_issuer_id):
     One jwks serves every org, so a valid signature proves only that the signer
     holds some published key. The receipt is the claimed issuer's only when the
     directory publishes that key under the receipt's server-assigned issuer_id.
+    Returns ``(result, note, reason_code)`` with the criterion 418 failure class.
     """
     if isinstance(claimed_issuer_id, str) and claimed_issuer_id and key_issuer_id == claimed_issuer_id:
-        return "PASS", f"signing key is published under the claimed issuer {claimed_issuer_id}"
-    return "FAIL", (
+        return PASS, f"signing key is published under the claimed issuer {claimed_issuer_id}", "none"
+    return INVALID, (
         f"signing key is published under issuer {key_issuer_id!r}, not the "
         f"claimed issuer {claimed_issuer_id!r}"
-    )
+    ), "counterparty_mismatch"
 
 
 def resolve_key_org(jwks: dict, kid: str):
@@ -578,19 +630,24 @@ def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
     receipt.
     """
     if not isinstance(claimed_org_id, str) or not claimed_org_id:
-        return "FAIL", f"receipt org_id is {claimed_org_id!r}, so there is no org to bind"
+        # A claim that is not an org id is a malformed member; nothing to bind
+        return (
+            UNVERIFIABLE,
+            f"receipt org_id is {claimed_org_id!r}, so there is no org to bind",
+            "member_malformed",
+        )
     if _org_key(claimed_org_id) in (_org_key(key_org_id), _org_key(key_issuer_id)):
-        return "PASS", f"signing key is published under the claimed org {claimed_org_id}"
+        return PASS, f"signing key is published under the claimed org {claimed_org_id}", "none"
     if key_org_id is None and not _is_org_id(key_issuer_id):
-        return "SKIPPED", (
+        return UNVERIFIABLE, (
             f"jwks names issuer {key_issuer_id!r} for this key, a label rather than an "
             f"org id, so org {claimed_org_id} cannot be confirmed offline; publish "
             f"org_id per key to close this"
-        )
-    return "FAIL", (
+        ), "issuer_unresolvable"
+    return INVALID, (
         f"signing key is published under org {key_org_id or key_issuer_id!r}, not the "
         f"claimed {claimed_org_id!r}"
-    )
+    ), "counterparty_mismatch"
 
 
 #: Key statuses that revoke trust in the signing key for attestation.
@@ -616,44 +673,74 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     """
     s = (status or "").lower()
     if s not in REVOKED_KEY_STATUSES:
-        return "PASS", f"signing key status {status!r} is active"
+        return PASS, f"signing key status {status!r} is active", "none"
     if revoked_at:
         try:
             rev = datetime.fromisoformat(str(revoked_at).replace("Z", "+00:00"))
             iss = datetime.fromisoformat(str(issued_at).replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            return "FAIL", f"signing key status {status!r}; unparseable revoked_at/issued_at"
+            return (
+                UNVERIFIABLE,
+                f"signing key status {status!r}; unparseable revoked_at/issued_at",
+                "member_malformed",
+            )
         if rev.tzinfo is None:
             rev = rev.replace(tzinfo=timezone.utc)
         if iss.tzinfo is None:
             iss = iss.replace(tzinfo=timezone.utc)
         if rev <= iss:
-            return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
+            return (
+                INVALID,
+                f"signing key revoked at {revoked_at} on/before issuance {issued_at}",
+                "key_changed",
+            )
         if not has_trusted_anchor:
             return (
-                "SKIPPED",
+                UNVERIFIABLE,
                 f"signing key revoked at {revoked_at}; issued_at {issued_at} is "
                 f"self-attested, no anchor proves pre-revocation timing",
+                "timing_unproven",
             )
-        return "PASS", f"signing key revoked at {revoked_at}, after issuance {issued_at}"
-    return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
+        return PASS, f"signing key revoked at {revoked_at}, after issuance {issued_at}", "none"
+    return INVALID, f"signing key status {status!r}; receipt cannot be trusted", "key_changed"
 
 
-    # ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.
+    # ML-DSA-65 verify; returns (result, note, reason_code), criterion 418 classes.
 def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
     if (alg if isinstance(alg, str) else "").upper() != "ML-DSA-65":
-        return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65)"
+        # No implementation for that algorithm: recomputation cannot complete
+        return (
+            UNVERIFIABLE,
+            f"unsupported alg {alg!r} (this tool checks ML-DSA-65)",
+            "algorithm_unsupported",
+        )
     try:
         from dilithium_py.ml_dsa import ML_DSA_65
     except ImportError:
-        return "SKIPPED", "run 'pip install dilithium-py' for the post-quantum check"
+        return (
+            UNVERIFIABLE,
+            "run 'pip install dilithium-py' for the post-quantum check",
+            "crypto_dependency_missing",
+        )
+    if len(pk) != MLDSA65_PK_LEN:
+        return (
+            UNVERIFIABLE,
+            f"bad ML-DSA-65 public key: expected {MLDSA65_PK_LEN} bytes, got {len(pk)}",
+            "key_malformed",
+        )
+    if len(sig) != MLDSA65_SIG_LEN:
+        return (
+            UNVERIFIABLE,
+            f"bad ML-DSA-65 signature: expected {MLDSA65_SIG_LEN} bytes, got {len(sig)}",
+            "signature_malformed",
+        )
     try:
         ok = ML_DSA_65.verify(pk, msg, sig)
-        return ("PASS" if ok else "FAIL"), (
-            "signature valid" if ok else "signature mismatch"
-        )
-    except Exception as exc:  # malformed key or signature bytes
-        return "FAIL", f"verify error: {exc}"
+    except Exception as exc:
+        return UNVERIFIABLE, f"verify error: {exc}", "signature_malformed"
+    if ok:
+        return PASS, "signature valid", "none"
+    return INVALID, "signature mismatch", "signature_mismatch"
 
 
 #: Basic-format UTC offset (+0200, +02), which ISO 8601 allows and fromisoformat
@@ -726,91 +813,127 @@ def _parse_stamp(value: object):
 def check_skew(issued_at: str):
     ts = _parse_stamp(issued_at)
     if ts is None:
-        return "FAIL", f"unparseable issued_at {issued_at!r}"
+        return UNVERIFIABLE, f"unparseable issued_at {issued_at!r}", "member_malformed"
     skew = (ts - datetime.now(timezone.utc)).total_seconds()
     if skew > SKEW_BOUND_SECONDS:
         return (
-            "FAIL",
+            INVALID,
             f"issued_at {skew:.0f}s ahead of wall clock (> {SKEW_BOUND_SECONDS}s)",
+            "skew_bound_violation",
         )
-    return "PASS", f"skew {skew:.0f}s within bound"
+    return PASS, f"skew {skew:.0f}s within bound", "none"
 
 
     # Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426).
 def check_expiry(payload: dict):
     if not isinstance(payload, dict) or "expires_at" not in payload:
-        return "PASS", "receipt declares no expiry"
+        return PASS, "receipt declares no expiry", "none"
     raw = payload["expires_at"]
     ts = _parse_stamp(raw)
     if ts is None:
-        return "FAIL", f"unreadable expires_at {raw!r}; refused rather than read as no expiry"
+        return (
+            UNVERIFIABLE,
+            f"unreadable expires_at {raw!r}; refused rather than read as no expiry",
+            "member_malformed",
+        )
     delta = (ts - datetime.now(timezone.utc)).total_seconds()
     if delta < 0:
-        return "FAIL", f"expires_at {raw} lapsed {-delta:.0f}s ago"
-    return "PASS", f"expires_at {raw} is {delta:.0f}s ahead"
+        return INVALID, f"expires_at {raw} lapsed {-delta:.0f}s ago", "expiry_lapsed"
+    return PASS, f"expires_at {raw} is {delta:.0f}s ahead", "none"
 
 
 def check_chain(payload: dict, predecessor_payload: dict | None):
     prev = payload.get("previousReceiptHash")
     if prev == FIRST_RECEIPT_SEED:
-        return "PASS", "first receipt on chain (all-zero seed)"
+        return PASS, "first receipt on chain (all-zero seed)", "none"
     if predecessor_payload is None:
-        return "SKIPPED", "no predecessor supplied (pass --predecessor to check)"
+        # The link cannot be recomputed: never a PASS, never an INVALID
+        return (
+            UNVERIFIABLE,
+            "no predecessor supplied (pass --predecessor to check)",
+            "chain_predecessor_missing",
+        )
     try:
         actual = hashlib.sha256(canonical_json(predecessor_payload)).hexdigest()
     except RecursionError:
         # Defense in depth: the caller's depth-cap gate should already have
         # rejected this; this stops a bypassing call from crashing here too.
-        return "FAIL", "predecessor payload too deeply nested to canonicalise"
+        return (
+            UNVERIFIABLE,
+            "predecessor payload too deeply nested to canonicalise",
+            "canonicalization_failed",
+        )
     if actual == prev:
-        return "PASS", "chain link rederives from predecessor"
-    return "FAIL", f"chain break: expected {str(prev)[:16]}.. got {actual[:16]}.."
+        return PASS, "chain link rederives from predecessor", "none"
+    return INVALID, f"chain break: expected {str(prev)[:16]}.. got {actual[:16]}..", "chain_mismatch"
 
 
 def check_anchors(envelope: dict):
     anchors = envelope.get("anchors")
     # Absent/null is a legitimate no-anchors receipt (SKIPPED); a present
-    # non-list value ({} / "" / 0) is malformed and FAILs, never laundered to [].
+    # non-list value ({} / "" / 0) is an invalid anchor, never laundered to [].
     if anchors is None:
-        return "SKIPPED", "no anchors on this receipt"
+        return SKIPPED, "no anchors on this receipt", "none"
     if not isinstance(anchors, list):
-        return "FAIL", f"anchors field is not a list (got {type(anchors).__name__})"
+        return (
+            INVALID,
+            f"anchors field is not a list (got {type(anchors).__name__})",
+            "invalid_anchor",
+        )
     if not anchors:
-        return "SKIPPED", "no anchors on this receipt"
+        return SKIPPED, "no anchors on this receipt", "none"
     try:
         bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
     except RecursionError:
         # Defense in depth, same rationale as check_chain's guard above.
-        return "FAIL", "envelope too deeply nested to canonicalise for anchor binding"
+        return (
+            UNVERIFIABLE,
+            "envelope too deeply nested to canonicalise for anchor binding",
+            "canonicalization_failed",
+        )
     lines = [f"anchors bind envelope digest sha256:{bound[:16]}.."]
-    all_ok = True
+    worst = PASS
     for a in anchors:
         if not isinstance(a, dict):
-            all_ok = False
+            worst = INVALID
             lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
             continue
         atype = a.get("type", "?")
         val = a.get("value")
-        ok = bool(val) and _safe_b64(val)
-        all_ok = all_ok and ok
-        state = "present, base64-ok" if ok else "MISSING or malformed"
+        # Absent/empty value: the anchor is declared without its proof, so the
+        # binding cannot complete; a present-but-junk value is a forged anchor
+        if not val:
+            if worst == PASS:
+                worst = UNVERIFIABLE
+            state = "MISSING or malformed"
+        elif not _safe_b64(val):
+            worst = INVALID
+            state = "MISSING or malformed"
+        else:
+            state = "present, base64-ok"
         lines.append(f"    - {atype}: value {state}")
-    return ("PASS" if all_ok else "FAIL"), "; ".join(lines)
+    return worst, "; ".join(lines), ("none" if worst == PASS else (
+        "invalid_anchor" if worst == INVALID else "anchor_unproven"))
 
 
     # Closed-key-set and false-attestation rules for controls_evaluated.
 def check_controls_evaluated(payload: dict):
     ce = payload.get("controls_evaluated")
     if ce is None:
-        return "PASS", "receipt declares no controls_evaluated block"
+        return PASS, "receipt declares no controls_evaluated block", "none"
     if not isinstance(ce, dict):
-        return "FAIL", "controls_evaluated must be an object (false_control_attestation_guard)"
+        # Unreadable block: the attestation cannot be interpreted at all
+        return (
+            UNVERIFIABLE,
+            "controls_evaluated must be an object (false_control_attestation_guard)",
+            "member_malformed",
+        )
     unknown = sorted(k for k in ce if k not in ALLOWED_CONTROL_KEYS)
     if unknown:
-        return "FAIL", (
+        return INVALID, (
             f"controls_evaluated keys outside the closed set: {','.join(unknown)} "
             f"(false_control_attestation_guard)"
-        )
+        ), "false_control_attestation"
     quorum = ce.get("quorum")
     if quorum is not None:
         ah = quorum.get("attestation_hash") if isinstance(quorum, dict) else None
@@ -820,10 +943,10 @@ def check_controls_evaluated(payload: dict):
             or not isinstance(ah, str)
             or not _BARE_SHA256_RE.match(ah)
         ):
-            return "FAIL", (
+            return INVALID, (
                 "quorum member requires fired=true and a bare 64-hex "
                 "attestation_hash (false_control_attestation_guard)"
-            )
+            ), "false_control_attestation"
     policy = ce.get("policy")
     if policy is not None:
         mc = policy.get("matched_count") if isinstance(policy, dict) else None
@@ -834,11 +957,11 @@ def check_controls_evaluated(payload: dict):
             or not isinstance(mc, int)
             or mc < 1
         ):
-            return "FAIL", (
+            return INVALID, (
                 "policy member requires evaluated=true and a real matched_count "
                 ">= 1 (false_control_attestation_guard)"
-            )
-    return "PASS", "controls_evaluated block conforms to the closed key set"
+            ), "false_control_attestation"
+    return PASS, "controls_evaluated block conforms to the closed key set", "none"
 
 
 def check_nonce(payload: dict, seen_nonces: set | None = None):
@@ -846,14 +969,14 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
     (issuer_id, nonce) pair fails, re-verifying the identical receipt does not."""
     nonce = payload.get("nonce")
     if nonce is None or nonce == "":
-        return "PASS", "receipt declares no nonce; nothing to flag"
+        return PASS, "receipt declares no nonce; nothing to flag", "none"
     issuer = payload.get("issuer_id", "")
     if seen_nonces is None:
-        return "PASS", (
+        return PASS, (
             "nonce present; this surface holds no seen-nonce index, so "
             "duplicate_emission_candidate stays false (cloud passthrough axis, "
             "draft 10.3)"
-        )
+        ), "none"
     try:
         identity = hashlib.sha256(canonical_json(payload)).hexdigest()
     except (ValueError, TypeError, RecursionError):
@@ -863,28 +986,28 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
     pair = f"{issuer}\x00{nonce}"
     entry = f"{pair}\x00{identity}"
     if entry in seen_nonces:
-        return "PASS", "identical receipt re-verified; not a duplicate emission"
+        return PASS, "identical receipt re-verified; not a duplicate emission", "none"
     if pair in seen_nonces:
-        return "FAIL", (
+        return INVALID, (
             f"duplicate nonce {nonce!r} under issuer_id {issuer!r}: replay "
             f"candidate (draft 5.7)"
-        )
+        ), "duplicate_emission"
     seen_nonces.add(pair)
     seen_nonces.add(entry)
-    return "PASS", "nonce recorded in the seen-nonce index; no duplicate observed"
+    return PASS, "nonce recorded in the seen-nonce index; no duplicate observed", "none"
 
 
 def check_structure(payload: dict):
     missing = [f for f in REQUIRED_FIELDS if f not in payload]
     if missing:
-        return "FAIL", f"missing required fields: {','.join(missing)}"
+        return UNVERIFIABLE, f"missing required fields: {','.join(missing)}", "member_malformed"
     rt = payload.get("type")
     if rt not in ALLOWED_TYPES:
-        return "FAIL", f"type {rt!r} outside the allowed namespace"
-    ce_res, ce_note = check_controls_evaluated(payload)
-    if ce_res == "FAIL":
-        return "FAIL", ce_note
-    return "PASS", f"required fields present; type {rt}"
+        return UNVERIFIABLE, f"type {rt!r} outside the allowed namespace", "member_malformed"
+    ce_res, ce_note, ce_reason = check_controls_evaluated(payload)
+    if ce_res != PASS:
+        return ce_res, ce_note, ce_reason
+    return PASS, f"required fields present; type {rt}", "none"
 
 
 def run(
@@ -896,10 +1019,10 @@ def run(
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
         print(
-            f"  [FAIL] input       expected a JSON object receipt, got "
+            f"  [UNVERIFIABLE] input       expected a JSON object receipt, got "
             f"{type(envelope).__name__}"
         )
-        print("\n  => INCOMPLETE (no receipt object to verify; never a PASS)")
+        print("\n  => UNVERIFIABLE (no receipt object to verify; never a PASS)")
         return 2
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
@@ -908,20 +1031,20 @@ def run(
         # redacted receipts). Nothing to verify; say so instead of crashing.
         print("Asqav receipt verification")
         print(
-            f"  [FAIL] payload      receipt payload not available from this "
+            f"  [UNVERIFIABLE] payload      receipt payload not available from this "
             f"surface (got {_describe_value(payload)} instead of an object). "
             f"Verify with a saved receipt instead: --receipt FILE from your "
             f"Audit Pack or SDK capture."
         )
-        print("\n  => INCOMPLETE (no payload to verify; never a PASS)")
+        print("\n  => UNVERIFIABLE (no payload to verify; never a PASS)")
         return 2
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
         shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
     if shape is not None:
         print("Asqav receipt verification")
-        print(f"  [FAIL] input       {_SHAPE_MESSAGES[shape]}")
-        print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
+        print(f"  [UNVERIFIABLE] input       {_SHAPE_MESSAGES[shape]}")
+        print("\n  => UNVERIFIABLE (receipt not canonicalisable; never a PASS)")
         return 2
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):  # flat-string signature, derive the object
@@ -932,7 +1055,7 @@ def run(
         }
     elif not isinstance(sig_obj, dict):
         # A non-object signature (list, number, ...) carries no kid/sig; key
-        # resolution then FAILs cleanly instead of .get on a non-dict.
+        # resolution then fails cleanly instead of .get on a non-dict.
         sig_obj = {}
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
@@ -942,8 +1065,8 @@ def run(
         # Defense in depth: the shape gate above should already have caught
         # this; this stops a bypassing caller from crashing here too.
         print("Asqav receipt verification")
-        print(f"  [FAIL] input       {_SHAPE_MESSAGES['too_deep']}")
-        print("\n  => INCOMPLETE (receipt not canonicalisable; never a PASS)")
+        print(f"  [UNVERIFIABLE] input       {_SHAPE_MESSAGES['too_deep']}")
+        print("\n  => UNVERIFIABLE (receipt not canonicalisable; never a PASS)")
         return 2
 
     results = []
@@ -952,18 +1075,22 @@ def run(
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
     if pk is None:
-        results.append(("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
-        results.append(("signature", "SKIPPED", "no issuer key to verify against"))
+        results.append(
+            ("issuer_key", UNVERIFIABLE, f"kid {kid!r} not in jwks directory", "key_unresolvable")
+        )
+        results.append(
+            ("signature", UNVERIFIABLE, "no issuer key to verify against", "key_unresolvable")
+        )
     else:
         _raw_sig = sig_obj.get("sig", "")
         sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
-        eff_status, eff_kid = status, kid
+        eff_status, eff_kid, eff_alg = status, kid, jwks_alg
         eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
         # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
-        if sig_res[0] != "PASS":
+        if sig_res[0] != PASS:
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
             pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
@@ -971,12 +1098,26 @@ def run(
             )
             if pk_a is not None:
                 sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
-                if sig_res_a[0] == "PASS":
+                if sig_res_a[0] == PASS:
                     sig_res = sig_res_a
-                    eff_status, eff_kid = status_a, kid_a
+                    eff_status, eff_kid, eff_alg = status_a, kid_a, alg_a
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
-        results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
+        # The envelope's claimed algorithm must equal the effective key's published
+        # one; a conflict is a binding failure, checked before the verify result
+        alg_claim = alg if isinstance(alg, str) and alg else None
+        if (
+            alg_claim
+            and isinstance(eff_alg, str)
+            and eff_alg
+            and alg_claim.upper() != eff_alg.upper()
+        ):
+            sig_res = (
+                INVALID,
+                f"algorithm mismatch: receipt claims {alg_claim!r}, key publishes {eff_alg!r}",
+                "algorithm_mismatch",
+            )
+        results.append(("issuer_key", PASS, f"resolved signing key {eff_kid} (status={eff_status})", "none"))
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         results.append(
@@ -997,23 +1138,32 @@ def run(
     print("Asqav receipt verification")
     print(f"  canonical bytes: sha256:{hashlib.sha256(msg).hexdigest()}")
     print(f"  signature.kid:   {kid}")
-    for name, res, note in results:
-        mark = {"PASS": "ok", "FAIL": "FAIL", "SKIPPED": "skip"}[res]
-        print(f"  [{mark:>4}] {name:<11} {note}")
+    for name, res, note, _reason in results:
+        mark = {PASS: "ok", INVALID: "INVALID", UNVERIFIABLE: "UNVERIFIABLE", SKIPPED: "skip"}[res]
+        print(f"  [{mark:>12}] {name:<11} {note}")
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426)
-    has_fail = any(r == "FAIL" for n, r, _ in results if n != "expiry")
-    # A skipped chain (no predecessor supplied) is expected and does not block a
-    # PASS; any other skip - notably the signature - downgrades to INCOMPLETE.
-    has_blocking_skip = any(r == "SKIPPED" and n != "chain" for n, r, _ in results)
-    if has_fail:
-        verdict, code = "FAIL", 1
-    elif has_blocking_skip:
-        verdict, code = "INCOMPLETE (some checks skipped; never a PASS)", 2
-    else:
-        verdict, code = "PASS", 0
-    print(f"\n  => {verdict}")
-    return code
+    # Expiry reports on its own axis and never folds the verdict (criterion 426);
+    # INVALID dominates UNVERIFIABLE and either one blocks PASS (criterion 418)
+    verdict = _derive_verdict((name, res) for name, res, _note, _reason in results)
+    suffix = {PASS: "", INVALID: " (a binding check failed)",
+              UNVERIFIABLE: " (recomputation could not complete; never a PASS)"}[verdict]
+    print(f"\n  => {verdict}{suffix}")
+    return {PASS: 0, INVALID: 1, UNVERIFIABLE: 2}[verdict]
+
+
+def _structured_result(verdict: str, axes: list[dict], canonical_sha256, kid) -> dict:
+    """The criterion 418 wire shape: verdict + classification + classified axes."""
+    return {
+        "verdict": verdict,
+        "classification": CLASSIFICATION[verdict],
+        "axes": axes,
+        "canonical_sha256": canonical_sha256,
+        "kid": kid,
+    }
+
+
+def _axis(name: str, result: str, note: str, reason_code: str) -> dict:
+    return {"name": name, "result": result, "reason_code": reason_code, "note": note}
 
 
 def run_structured(
@@ -1029,56 +1179,50 @@ def run_structured(
 
     Returns:
         dict with keys:
-          - ``"verdict"``: "PASS" | "FAIL" | "INCOMPLETE"
-          - ``"axes"``: list of ``{"name": str, "result": str, "note": str}``
+          - ``"verdict"``: "PASS" | "INVALID" | "UNVERIFIABLE" (criterion 418)
+          - ``"classification"``: "valid" | "invalid" | "unverifiable"
+          - ``"axes"``: list of ``{"name", "result", "reason_code", "note"}``
           - ``"canonical_sha256"``: hex SHA-256 of the canonical payload bytes
           - ``"kid"``: the signature key id resolved
     """
     if not isinstance(envelope, dict):
-        return {
-            "verdict": "INCOMPLETE",
-            "axes": [
-                {
-                    "name": "input",
-                    "result": "FAIL",
-                    "note": (
-                        "expected a JSON object receipt, got "
-                        f"{type(envelope).__name__}"
-                    ),
-                }
-            ],
-            "canonical_sha256": None,
-            "kid": None,
-        }
+        return _structured_result(
+            UNVERIFIABLE,
+            [_axis(
+                "input",
+                UNVERIFIABLE,
+                f"expected a JSON object receipt, got {type(envelope).__name__}",
+                "member_malformed",
+            )],
+            None,
+            None,
+        )
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
-        return {
-            "verdict": "INCOMPLETE",
-            "axes": [
-                {
-                    "name": "payload",
-                    "result": "FAIL",
-                    "note": (
-                        "receipt payload not available from this surface "
-                        f"(got {_describe_value(payload)} instead of an object). "
-                        "Verify with a saved receipt instead."
-                    ),
-                }
-            ],
-            "canonical_sha256": None,
-            "kid": None,
-        }
+        return _structured_result(
+            UNVERIFIABLE,
+            [_axis(
+                "payload",
+                UNVERIFIABLE,
+                "receipt payload not available from this surface "
+                f"(got {_describe_value(payload)} instead of an object). "
+                "Verify with a saved receipt instead.",
+                "member_malformed",
+            )],
+            None,
+            None,
+        )
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
         shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
     if shape is not None:
-        return {
-            "verdict": "INCOMPLETE",
-            "axes": [{"name": "input", "result": "FAIL", "note": _SHAPE_MESSAGES[shape]}],
-            "canonical_sha256": None,
-            "kid": None,
-        }
+        return _structured_result(
+            UNVERIFIABLE,
+            [_axis("input", UNVERIFIABLE, _SHAPE_MESSAGES[shape], "canonicalization_failed")],
+            None,
+            None,
+        )
 
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):
@@ -1088,56 +1232,42 @@ def run_structured(
             "sig": sig_obj,
         }
     elif not isinstance(sig_obj, dict):
-        sig_obj = {}  # non-object signature: no usable kid/sig, key resolution FAILs cleanly
+        sig_obj = {}  # non-object signature: no usable kid/sig, key resolution fails cleanly
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
     try:
         msg = canonical_json(payload)
     except RecursionError:
         # Defense in depth; the shape gate above should already have caught this.
-        return {
-            "verdict": "INCOMPLETE",
-            "axes": [{"name": "input", "result": "FAIL", "note": _SHAPE_MESSAGES["too_deep"]}],
-            "canonical_sha256": None,
-            "kid": None,
-        }
+        return _structured_result(
+            UNVERIFIABLE,
+            [_axis("input", UNVERIFIABLE, _SHAPE_MESSAGES["too_deep"], "canonicalization_failed")],
+            None,
+            None,
+        )
 
     axes: list[dict] = []
-    axes.append(
-        {
-            "name": "structure",
-            "result": check_structure(payload)[0],
-            "note": check_structure(payload)[1],
-        }
-    )
+    axes.append(_axis("structure", *check_structure(payload)))
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
     if pk is None:
-        axes.append(
-            {
-                "name": "issuer_key",
-                "result": "FAIL",
-                "note": f"kid {kid!r} not in jwks directory",
-            }
-        )
-        axes.append(
-            {
-                "name": "signature",
-                "result": "SKIPPED",
-                "note": "no issuer key to verify against",
-            }
-        )
+        axes.append(_axis(
+            "issuer_key", UNVERIFIABLE, f"kid {kid!r} not in jwks directory", "key_unresolvable"
+        ))
+        axes.append(_axis(
+            "signature", UNVERIFIABLE, "no issuer key to verify against", "key_unresolvable"
+        ))
     else:
         _raw_sig = sig_obj.get("sig", "")
         sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         sig_res = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
-        eff_status, eff_kid = status, kid
+        eff_status, eff_kid, eff_alg = status, kid, jwks_alg
         eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
         # Cloud receipts sign with the agent key though kid is the issuer id; fall
         # back, mirroring run(). agent_id is attacker-controlled, so trust only a
         # key whose published issuer_id matches the claimed issuer.
-        if sig_res[0] != "PASS":
+        if sig_res[0] != PASS:
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
             pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
@@ -1145,57 +1275,48 @@ def run_structured(
             )
             if pk_a is not None:
                 sig_res_a = verify_signature(pk_a, msg, sig_bytes, alg_a or alg or jwks_alg)
-                if sig_res_a[0] == "PASS":
+                if sig_res_a[0] == PASS:
                     sig_res = sig_res_a
-                    eff_status, eff_kid = status_a, kid_a
+                    eff_status, eff_kid, eff_alg = status_a, kid_a, alg_a
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
-        axes.append(
-            {
-                "name": "issuer_key",
-                "result": "PASS",
-                "note": f"resolved signing key {eff_kid} (status={eff_status})",
-            }
-        )
+        # Envelope alg vs the effective key's published alg: a conflict is a
+        # binding failure and supersedes the raw verify result (criterion 418)
+        alg_claim = alg if isinstance(alg, str) and alg else None
+        if (
+            alg_claim
+            and isinstance(eff_alg, str)
+            and eff_alg
+            and alg_claim.upper() != eff_alg.upper()
+        ):
+            sig_res = (
+                INVALID,
+                f"algorithm mismatch: receipt claims {alg_claim!r}, key publishes {eff_alg!r}",
+                "algorithm_mismatch",
+            )
+        axes.append(_axis(
+            "issuer_key", PASS, f"resolved signing key {eff_kid} (status={eff_status})", "none"
+        ))
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
-        bind_r, bind_n = check_issuer_binding(eff_issuer, payload.get("issuer_id"))
-        axes.append({"name": "issuer_bind", "result": bind_r, "note": bind_n})
+        axes.append(_axis("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))))
         # Offline anchor presence is not trusted timing; pass False so a forged
         # anchor never upgrades a revoked key to PASS (hosted /verify does).
-        ks_r, ks_n = check_key_status(
-            eff_status, payload.get("issued_at", ""), eff_revoked_at, False
-        )
-        axes.append({"name": "key_status", "result": ks_r, "note": ks_n})
-        axes.append({"name": "signature", "result": sig_res[0], "note": sig_res[1]})
+        axes.append(_axis(
+            "key_status",
+            *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False),
+        ))
+        axes.append(_axis("signature", *sig_res))
 
-    chain_r, chain_n = check_chain(payload, predecessor_payload)
-    axes.append({"name": "chain", "result": chain_r, "note": chain_n})
-    anch_r, anch_n = check_anchors(envelope)
-    axes.append({"name": "anchors", "result": anch_r, "note": anch_n})
-    skew_r, skew_n = check_skew(payload.get("issued_at", ""))
-    axes.append({"name": "skew", "result": skew_r, "note": skew_n})
-    exp_r, exp_n = check_expiry(payload)
-    axes.append({"name": "expiry", "result": exp_r, "note": exp_n})
+    axes.append(_axis("chain", *check_chain(payload, predecessor_payload)))
+    axes.append(_axis("anchors", *check_anchors(envelope)))
+    axes.append(_axis("skew", *check_skew(payload.get("issued_at", ""))))
+    axes.append(_axis("expiry", *check_expiry(payload)))
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426)
-    has_fail = any(a["result"] == "FAIL" and a["name"] != "expiry" for a in axes)
-    has_blocking_skip = any(
-        a["result"] == "SKIPPED" and a["name"] != "chain" for a in axes
-    )
-    if has_fail:
-        verdict = "FAIL"
-    elif has_blocking_skip:
-        verdict = "INCOMPLETE"
-    else:
-        verdict = "PASS"
-
-    return {
-        "verdict": verdict,
-        "axes": axes,
-        "canonical_sha256": hashlib.sha256(msg).hexdigest(),
-        "kid": kid,
-    }
+    # Expiry reports on its own axis and never folds the verdict (criterion 426);
+    # INVALID dominates UNVERIFIABLE and either one blocks PASS (criterion 418)
+    verdict = _derive_verdict((a["name"], a["result"]) for a in axes)
+    return _structured_result(verdict, axes, hashlib.sha256(msg).hexdigest(), kid)
 
 
 def _load(path: str) -> dict:

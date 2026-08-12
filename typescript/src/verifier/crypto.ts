@@ -22,16 +22,36 @@
 import { createPublicKey, verify } from "node:crypto";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 
-export const PASS = "PASS";
-export const FAIL = "FAIL";
-export const SKIPPED = "SKIPPED";
+import { INVALID, PASS, SKIPPED, UNVERIFIABLE } from "./taxonomy.js";
 
-export type VerifyState = "PASS" | "FAIL" | "SKIPPED";
+export { INVALID, PASS, SKIPPED, UNVERIFIABLE };
+
+/**
+ * Axis-result tokens under the criterion 418 taxonomy. FAIL is gone: every
+ * failure names its class, INVALID (a binding the check refuted) or
+ * UNVERIFIABLE (a recomputation that could not complete), and SKIPPED survives
+ * only for axes that do not apply to the receipt at all.
+ */
+export type VerifyState = "PASS" | "INVALID" | "UNVERIFIABLE" | "SKIPPED";
 
 export interface VerifyOutcome {
   result: VerifyState;
   note: string;
+  /** Closed failure-class token; "none" when nothing failed. */
+  reasonCode: string;
 }
+
+/** ML-DSA-65 (FIPS 204) wire lengths; a short input is malformed, never checked. */
+const MLDSA65_PK_LEN = 1952;
+const MLDSA65_SIG_LEN = 3309;
+
+/** Raw Ed25519 wire lengths (RFC 8032). */
+const ED25519_PK_LEN = 32;
+const ED25519_SIG_LEN = 64;
+
+/** Raw ES256 wire lengths: the 65-byte uncompressed point and 64-byte r||s. */
+const ES256_PK_LEN = 65;
+const ES256_SIG_LEN = 64;
 
 const SPKI_ED25519_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
@@ -47,38 +67,72 @@ function base64url(buf: Buffer): string {
  * Byte-compatible with Python dilithium-py.
  */
 function verifyMlDsa65(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
-  if (pk.length !== 1952) {
-    return { result: FAIL, note: `bad ML-DSA-65 public key: expected 1952 bytes, got ${pk.length}` };
+  if (pk.length !== MLDSA65_PK_LEN) {
+    return {
+      result: UNVERIFIABLE,
+      note: `bad ML-DSA-65 public key: expected ${MLDSA65_PK_LEN} bytes, got ${pk.length}`,
+      reasonCode: "key_malformed",
+    };
+  }
+  if (sig.length !== MLDSA65_SIG_LEN) {
+    return {
+      result: UNVERIFIABLE,
+      note: `bad ML-DSA-65 signature: expected ${MLDSA65_SIG_LEN} bytes, got ${sig.length}`,
+      reasonCode: "signature_malformed",
+    };
   }
   try {
     const ok = ml_dsa65.verify(sig, msg, pk);
     return ok
-      ? { result: PASS, note: "signature valid" }
-      : { result: FAIL, note: "signature mismatch" };
+      ? { result: PASS, note: "signature valid", reasonCode: "none" }
+      : { result: INVALID, note: "signature mismatch", reasonCode: "signature_mismatch" };
   } catch (exc) {
-    return { result: FAIL, note: `verify error: ${(exc as Error).message}` };
+    return {
+      result: UNVERIFIABLE,
+      note: `verify error: ${(exc as Error).message}`,
+      reasonCode: "signature_malformed",
+    };
   }
 }
 
 /** Ed25519 verify over a raw 32-byte public key (RFC 8032). */
 function verifyEd25519(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
+  if (pk.length !== ED25519_PK_LEN) {
+    return {
+      result: UNVERIFIABLE,
+      note: `bad Ed25519 public key: expected ${ED25519_PK_LEN} bytes, got ${pk.length}`,
+      reasonCode: "key_malformed",
+    };
+  }
+  if (sig.length !== ED25519_SIG_LEN) {
+    return {
+      result: UNVERIFIABLE,
+      note: `bad Ed25519 signature: expected ${ED25519_SIG_LEN} bytes, got ${sig.length}`,
+      reasonCode: "signature_malformed",
+    };
+  }
   let key;
   try {
-    if (pk.length !== 32) {
-      return { result: FAIL, note: `bad Ed25519 public key: expected 32 bytes, got ${pk.length}` };
-    }
     const spki = Buffer.concat([SPKI_ED25519_PREFIX, Buffer.from(pk)]);
     key = createPublicKey({ key: spki, format: "der", type: "spki" });
   } catch (exc) {
-    return { result: FAIL, note: `bad Ed25519 public key: ${(exc as Error).message}` };
+    return {
+      result: UNVERIFIABLE,
+      note: `bad Ed25519 public key: ${(exc as Error).message}`,
+      reasonCode: "key_malformed",
+    };
   }
   try {
     const ok = verify(null, Buffer.from(msg), key, Buffer.from(sig));
     return ok
-      ? { result: PASS, note: "signature valid" }
-      : { result: FAIL, note: "signature mismatch" };
+      ? { result: PASS, note: "signature valid", reasonCode: "none" }
+      : { result: INVALID, note: "signature mismatch", reasonCode: "signature_mismatch" };
   } catch (exc) {
-    return { result: FAIL, note: `verify error: ${(exc as Error).message}` };
+    return {
+      result: UNVERIFIABLE,
+      note: `verify error: ${(exc as Error).message}`,
+      reasonCode: "signature_malformed",
+    };
   }
 }
 
@@ -90,27 +144,43 @@ function verifyEd25519(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): Verify
  * which `node:crypto.verify` accepts with `dsaEncoding: "ieee-p1363"`.
  */
 function verifyEs256(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
+  if (pk.length !== ES256_PK_LEN || pk[0] !== 0x04) {
+    return {
+      result: UNVERIFIABLE,
+      note: `bad P-256 public key: expected ${ES256_PK_LEN}-byte uncompressed point, got ${pk.length}`,
+      reasonCode: "key_malformed",
+    };
+  }
+  if (sig.length !== ES256_SIG_LEN) {
+    return {
+      result: UNVERIFIABLE,
+      note: `ES256 signature must be ${ES256_SIG_LEN}-byte raw r||s, got ${sig.length}`,
+      reasonCode: "signature_malformed",
+    };
+  }
   let key;
   try {
-    if (pk.length !== 65 || pk[0] !== 0x04) {
-      return { result: FAIL, note: `bad P-256 public key: expected 65-byte uncompressed point, got ${pk.length}` };
-    }
     const x = base64url(Buffer.from(pk.slice(1, 33)));
     const y = base64url(Buffer.from(pk.slice(33, 65)));
     key = createPublicKey({ key: { kty: "EC", crv: "P-256", x, y }, format: "jwk" });
   } catch (exc) {
-    return { result: FAIL, note: `bad P-256 public key: ${(exc as Error).message}` };
-  }
-  if (sig.length !== 64) {
-    return { result: FAIL, note: `ES256 signature must be 64-byte raw r||s, got ${sig.length}` };
+    return {
+      result: UNVERIFIABLE,
+      note: `bad P-256 public key: ${(exc as Error).message}`,
+      reasonCode: "key_malformed",
+    };
   }
   try {
     const ok = verify("sha256", Buffer.from(msg), { key, dsaEncoding: "ieee-p1363" }, Buffer.from(sig));
     return ok
-      ? { result: PASS, note: "signature valid" }
-      : { result: FAIL, note: "signature mismatch" };
+      ? { result: PASS, note: "signature valid", reasonCode: "none" }
+      : { result: INVALID, note: "signature mismatch", reasonCode: "signature_mismatch" };
   } catch (exc) {
-    return { result: FAIL, note: `verify error: ${(exc as Error).message}` };
+    return {
+      result: UNVERIFIABLE,
+      note: `verify error: ${(exc as Error).message}`,
+      reasonCode: "signature_malformed",
+    };
   }
 }
 
@@ -123,7 +193,7 @@ const DISPATCH: Record<string, Verifier> = {
   ES256: verifyEs256,
 };
 
-/** Dispatch to the algorithm's verifier; SKIP an unsupported alg. */
+/** Dispatch to the algorithm's verifier; an unsupported alg cannot be recomputed. */
 export function verifySignature(
   alg: string,
   pk: Uint8Array,
@@ -133,7 +203,11 @@ export function verifySignature(
   const fn = DISPATCH[(typeof alg === "string" ? alg : "").toUpperCase()];
   if (fn === undefined) {
     const known = Object.keys(DISPATCH).sort().join(", ");
-    return { result: SKIPPED, note: `unsupported alg '${alg}' (oracle checks ${known})` };
+    return {
+      result: UNVERIFIABLE,
+      note: `unsupported alg '${alg}' (oracle checks ${known})`,
+      reasonCode: "algorithm_unsupported",
+    };
   }
   return fn(pk, msg, sig);
 }

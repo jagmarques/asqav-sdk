@@ -89,35 +89,41 @@ function coerceRaw(material: unknown): Uint8Array | null {
 }
 
 /**
- * Resolve a verificationMethod DID URL to `[rawKeyOrNull, note]`.
+ * Resolve a verificationMethod DID URL to `[rawKeyOrNull, note, reasonCode]`.
  *
  * did:key resolves inline; every other method resolves from `injected` keyed by
  * the full DID URL first, then by the bare DID (fragment stripped). No network.
+ * A miss is classified (criterion 418): unreadable key material is key_malformed,
+ * an absent mapping is key_unresolvable.
  */
 export function resolveEd25519Key(
   didUrl: string,
   injected: Record<string, unknown> | null = null,
-): readonly [Uint8Array | null, string] {
+): readonly [Uint8Array | null, string, string] {
   if (typeof didUrl !== "string" || !didUrl.startsWith("did:")) {
-    return [null, `not a DID URL: '${didUrl}'`];
+    return [null, `not a DID URL: '${didUrl}'`, "key_malformed"];
   }
   const bare = didUrl.split("#", 1)[0];
   if (bare.startsWith("did:key:")) {
     const key = decodeDidKey(bare.slice("did:key:".length));
     if (key === null) {
-      return [null, "did:key identifier is not a base58btc Ed25519 multikey"];
+      return [null, "did:key identifier is not a base58btc Ed25519 multikey", "key_malformed"];
     }
-    return [key, "resolved did:key inline (multicodec ed25519)"];
+    return [key, "resolved did:key inline (multicodec ed25519)", "none"];
   }
   const keys = injected || {};
   for (const candidate of [didUrl, bare]) {
     if (Object.prototype.hasOwnProperty.call(keys, candidate)) {
       const raw = coerceRaw(keys[candidate]);
       if (raw === null) {
-        return [null, `injected key for '${candidate}' is not a 32-byte Ed25519 key`];
+        return [null, `injected key for '${candidate}' is not a 32-byte Ed25519 key`, "key_malformed"];
       }
-      return [raw, `resolved ${candidate} from injected map`];
+      return [raw, `resolved ${candidate} from injected map`, "none"];
     }
   }
-  return [null, `no injected key for '${didUrl}' (oracle never fetches a DID document)`];
+  return [
+    null,
+    `no injected key for '${didUrl}' (oracle never fetches a DID document)`,
+    "key_unresolvable",
+  ];
 }

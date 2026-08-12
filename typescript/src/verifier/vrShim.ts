@@ -101,21 +101,27 @@ export function normaliseEnvelope(raw: Record<string, unknown>): Record<string, 
 /** False-attestation rules for controls_evaluated (mirrors `check_controls_evaluated`). */
 export function checkControlsEvaluated(
   payload: Record<string, unknown>,
-): readonly ["PASS" | "FAIL", string] {
+): readonly [VerifyState, string, string] {
   const ce = payload.controls_evaluated;
   if (ce === undefined || ce === null) {
-    return ["PASS", "receipt declares no controls_evaluated block"];
+    return ["PASS", "receipt declares no controls_evaluated block", "none"];
   }
   if (!isRecord(ce)) {
-    return ["FAIL", "controls_evaluated must be an object (false_control_attestation_guard)"];
+    // Unreadable block: the attestation cannot be interpreted at all
+    return [
+      "UNVERIFIABLE",
+      "controls_evaluated must be an object (false_control_attestation_guard)",
+      "member_malformed",
+    ];
   }
   const unknown = Object.keys(ce)
     .filter((k) => !ALLOWED_CONTROL_KEYS.has(k))
     .sort();
   if (unknown.length > 0) {
     return [
-      "FAIL",
+      "INVALID",
       `controls_evaluated keys outside the closed set: ${unknown.join(",")} (false_control_attestation_guard)`,
+      "false_control_attestation",
     ];
   }
   const quorum = ce.quorum;
@@ -128,8 +134,9 @@ export function checkControlsEvaluated(
       !BARE_SHA256_RE.test(ah)
     ) {
       return [
-        "FAIL",
+        "INVALID",
         "quorum member requires fired=true and a bare 64-hex attestation_hash (false_control_attestation_guard)",
+        "false_control_attestation",
       ];
     }
   }
@@ -144,12 +151,13 @@ export function checkControlsEvaluated(
       mc < 1
     ) {
       return [
-        "FAIL",
+        "INVALID",
         "policy member requires evaluated=true and a real matched_count >= 1 (false_control_attestation_guard)",
+        "false_control_attestation",
       ];
     }
   }
-  return ["PASS", "controls_evaluated block conforms to the closed key set"];
+  return ["PASS", "controls_evaluated block conforms to the closed key set", "none"];
 }
 
 /** Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
@@ -157,16 +165,17 @@ export function checkControlsEvaluated(
 export function checkNonce(
   payload: Record<string, unknown>,
   seenNonces?: Set<string>,
-): readonly ["PASS" | "FAIL", string] {
+): readonly [VerifyState, string, string] {
   const nonce = payload.nonce;
   if (nonce === undefined || nonce === null || nonce === "") {
-    return ["PASS", "receipt declares no nonce; nothing to flag"];
+    return ["PASS", "receipt declares no nonce; nothing to flag", "none"];
   }
   const issuer = payload.issuer_id ?? "";
   if (seenNonces === undefined) {
     return [
       "PASS",
       "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false (cloud passthrough axis, draft 10.3)",
+      "none",
     ];
   }
   let identity: string;
@@ -179,34 +188,37 @@ export function checkNonce(
   const pair = `${String(issuer)}\u0000${String(nonce)}`;
   const entry = `${pair}\u0000${identity}`;
   if (seenNonces.has(entry)) {
-    return ["PASS", "identical receipt re-verified; not a duplicate emission"];
+    return ["PASS", "identical receipt re-verified; not a duplicate emission", "none"];
   }
   if (seenNonces.has(pair)) {
     return [
-      "FAIL",
+      "INVALID",
       `duplicate nonce ${JSON.stringify(nonce)} under issuer_id ${JSON.stringify(issuer)}: replay candidate (draft 5.7)`,
+      "duplicate_emission",
     ];
   }
   seenNonces.add(pair);
   seenNonces.add(entry);
-  return ["PASS", "nonce recorded in the seen-nonce index; no duplicate observed"];
+  return ["PASS", "nonce recorded in the seen-nonce index; no duplicate observed", "none"];
 }
 
-/** Asqav-native structure check; returns `[result, note]` (mirrors `check_structure`). */
-export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL", string] {
+/** Asqav-native structure check; returns `[result, note, reasonCode]`. */
+export function checkStructure(
+  payload: Record<string, unknown>,
+): readonly [VerifyState, string, string] {
   const missing = REQUIRED_FIELDS.filter((f) => !(f in payload));
   if (missing.length > 0) {
-    return ["FAIL", `missing required fields: ${missing.join(",")}`];
+    return ["UNVERIFIABLE", `missing required fields: ${missing.join(",")}`, "member_malformed"];
   }
   const rt = payload.type;
   if (typeof rt !== "string" || !ALLOWED_TYPES.has(rt)) {
-    return ["FAIL", `type ${JSON.stringify(rt)} outside the allowed namespace`];
+    return ["UNVERIFIABLE", `type ${JSON.stringify(rt)} outside the allowed namespace`, "member_malformed"];
   }
-  const [ceRes, ceNote] = checkControlsEvaluated(payload);
-  if (ceRes === "FAIL") {
-    return ["FAIL", ceNote];
+  const [ceRes, ceNote, ceReason] = checkControlsEvaluated(payload);
+  if (ceRes !== "PASS") {
+    return [ceRes, ceNote, ceReason];
   }
-  return ["PASS", `required fields present; type ${rt}`];
+  return ["PASS", `required fields present; type ${rt}`, "none"];
 }
 
 // One matcher (mirrors `_match_key`), so key bytes and the key's published
@@ -332,17 +344,18 @@ export function resolveKeyIssuer(jwks: Record<string, unknown> | null, kid: stri
 export function checkIssuerBinding(
   keyIssuerId: string | null,
   claimedIssuerId: unknown,
-): readonly [VerifyState, string] {
+): readonly [VerifyState, string, string] {
   if (
     typeof claimedIssuerId === "string" &&
     claimedIssuerId !== "" &&
     keyIssuerId === claimedIssuerId
   ) {
-    return ["PASS", `signing key is published under the claimed issuer ${claimedIssuerId}`];
+    return ["PASS", `signing key is published under the claimed issuer ${claimedIssuerId}`, "none"];
   }
   return [
-    "FAIL",
+    "INVALID",
     `signing key is published under issuer ${JSON.stringify(keyIssuerId)}, not the claimed issuer ${JSON.stringify(claimedIssuerId ?? null)}`,
+    "counterparty_mismatch",
   ];
 }
 
@@ -379,23 +392,30 @@ export function checkOrgBinding(
   keyIssuerId: string | null,
   keyOrgId: string | null,
   claimedOrgId: unknown,
-): readonly [VerifyState, string] {
+): readonly [VerifyState, string, string] {
   if (typeof claimedOrgId !== "string" || claimedOrgId === "") {
-    return ["FAIL", `receipt org_id is ${JSON.stringify(claimedOrgId ?? null)}, so there is no org to bind`];
+    // A claim that is not an org id is a malformed member; nothing to bind
+    return [
+      "UNVERIFIABLE",
+      `receipt org_id is ${JSON.stringify(claimedOrgId ?? null)}, so there is no org to bind`,
+      "member_malformed",
+    ];
   }
   const claimKey = orgKey(claimedOrgId);
   if (claimKey === orgKey(keyOrgId) || claimKey === orgKey(keyIssuerId)) {
-    return ["PASS", `signing key is published under the claimed org ${claimedOrgId}`];
+    return ["PASS", `signing key is published under the claimed org ${claimedOrgId}`, "none"];
   }
   if (keyOrgId === null && !isOrgId(keyIssuerId)) {
     return [
-      "SKIPPED",
+      "UNVERIFIABLE",
       `jwks names issuer ${JSON.stringify(keyIssuerId)} for this key, a label rather than an org id, so org ${claimedOrgId} cannot be confirmed offline; publish org_id per key to close this`,
+      "issuer_unresolvable",
     ];
   }
   return [
-    "FAIL",
+    "INVALID",
     `signing key is published under org ${JSON.stringify(keyOrgId ?? keyIssuerId)}, not the claimed ${JSON.stringify(claimedOrgId)}`,
+    "counterparty_mismatch",
   ];
 }
 
@@ -497,17 +517,21 @@ function skewWithinBound(skewSeconds: number): boolean {
   return skewSeconds <= SKEW_BOUND_SECONDS;
 }
 
-/** `issued_at` within the wall-clock bound; returns `[result, note]` (mirrors `check_skew`). */
-export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
+/** `issued_at` within the wall-clock bound; classified per criterion 418. */
+export function checkSkew(issuedAt: unknown): readonly [VerifyState, string, string] {
   const ms = parseIsoMs(issuedAt);
   if (ms === null) {
-    return ["FAIL", `unparseable issued_at ${JSON.stringify(issuedAt ?? null)}`];
+    return ["UNVERIFIABLE", `unparseable issued_at ${JSON.stringify(issuedAt ?? null)}`, "member_malformed"];
   }
   const skew = (ms - Date.now()) / 1000;
   if (!skewWithinBound(skew)) {
-    return ["FAIL", `issued_at ${skew.toFixed(0)}s ahead of wall clock (> ${SKEW_BOUND_SECONDS}s)`];
+    return [
+      "INVALID",
+      `issued_at ${skew.toFixed(0)}s ahead of wall clock (> ${SKEW_BOUND_SECONDS}s)`,
+      "skew_bound_violation",
+    ];
   }
-  return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
+  return ["PASS", `skew ${skew.toFixed(0)}s within bound`, "none"];
 }
 
 // True once the signed expiry sits in the past (mirrors the hosted signature_expired
@@ -518,20 +542,24 @@ function expiryLapsed(deltaSeconds: number): boolean {
 }
 
 /** Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426). */
-export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
+export function checkExpiry(payload: unknown): readonly [VerifyState, string, string] {
   if (!isRecord(payload) || !("expires_at" in payload)) {
-    return ["PASS", "receipt declares no expiry"];
+    return ["PASS", "receipt declares no expiry", "none"];
   }
   const raw = payload.expires_at;
   const ms = parseIsoMs(raw);
   if (ms === null) {
-    return ["FAIL", `unreadable expires_at ${pyRepr(raw)}; refused rather than read as no expiry`];
+    return [
+      "UNVERIFIABLE",
+      `unreadable expires_at ${pyRepr(raw)}; refused rather than read as no expiry`,
+      "member_malformed",
+    ];
   }
   const delta = (ms - Date.now()) / 1000;
   if (expiryLapsed(delta)) {
-    return ["FAIL", `expires_at ${pyStr(raw)} lapsed ${(-delta).toFixed(0)}s ago`];
+    return ["INVALID", `expires_at ${pyStr(raw)} lapsed ${(-delta).toFixed(0)}s ago`, "expiry_lapsed"];
   }
-  return ["PASS", `expires_at ${pyStr(raw)} is ${delta.toFixed(0)}s ahead`];
+  return ["PASS", `expires_at ${pyStr(raw)} is ${delta.toFixed(0)}s ahead`, "none"];
 }
 
 /**
@@ -541,41 +569,57 @@ export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
  * non-list value is malformed and FAILs, never laundered to an empty list.
  * `anchors` sits outside the signed bytes, so a forged envelope can move it.
  */
-export function checkAnchors(envelope: Record<string, unknown>): readonly [VerifyState, string] {
+export function checkAnchors(
+  envelope: Record<string, unknown>,
+): readonly [VerifyState, string, string] {
   const anchors = envelope.anchors;
   if (anchors === null || anchors === undefined) {
-    return ["SKIPPED", "no anchors on this receipt"];
+    return ["SKIPPED", "no anchors on this receipt", "none"];
   }
   if (!Array.isArray(anchors)) {
-    return ["FAIL", `anchors field is not a list (got ${pyTypeName(anchors)})`];
+    return ["INVALID", `anchors field is not a list (got ${pyTypeName(anchors)})`, "invalid_anchor"];
   }
   if (anchors.length === 0) {
-    return ["SKIPPED", "no anchors on this receipt"];
+    return ["SKIPPED", "no anchors on this receipt", "none"];
   }
   let bound: string;
   try {
     bound = sha256Hex(envelopeMinusAnchorsJcs(envelope));
   } catch {
     // Defense in depth: core's depth gate should already have rejected this.
-    return ["FAIL", "envelope too deeply nested to canonicalise for anchor binding"];
+    return [
+      "UNVERIFIABLE",
+      "envelope too deeply nested to canonicalise for anchor binding",
+      "canonicalization_failed",
+    ];
   }
   const lines = [`anchors bind envelope digest sha256:${bound.slice(0, 16)}..`];
-  let allOk = true;
+  let worst: VerifyState = "PASS";
   for (const a of anchors as unknown[]) {
     if (a === null || typeof a !== "object" || Array.isArray(a)) {
-      allOk = false;
+      worst = "INVALID";
       lines.push(`    - malformed anchor entry (got ${pyTypeName(a)}, expected an object)`);
       continue;
     }
     const entry = a as Record<string, unknown>;
     const atype = "type" in entry ? entry.type : "?";
     const val = entry.value;
-    const ok = pyTruthy(val) && safeB64(val);
-    allOk = allOk && ok;
-    const state = ok ? "present, base64-ok" : "MISSING or malformed";
+    // Absent/empty value: the anchor is declared without its proof, so the
+    // binding cannot complete; a present-but-junk value is a forged anchor
+    let state: string;
+    if (!pyTruthy(val)) {
+      if (worst === "PASS") worst = "UNVERIFIABLE";
+      state = "MISSING or malformed";
+    } else if (!safeB64(val)) {
+      worst = "INVALID";
+      state = "MISSING or malformed";
+    } else {
+      state = "present, base64-ok";
+    }
     lines.push(`    - ${pyStr(atype)}: value ${state}`);
   }
-  return [allOk ? "PASS" : "FAIL", lines.join("; ")];
+  const reason = worst === "PASS" ? "none" : worst === "INVALID" ? "invalid_anchor" : "anchor_unproven";
+  return [worst, lines.join("; "), reason];
 }
 
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
@@ -589,28 +633,48 @@ export function checkKeyStatus(
   issuedAt: string,
   revokedAt: string | null,
   hasTrustedAnchor: boolean,
-): readonly [VerifyState, string] {
+): readonly [VerifyState, string, string] {
   const s = (status ?? "").toLowerCase();
   if (!REVOKED_KEY_STATUSES.has(s)) {
-    return ["PASS", `signing key status ${JSON.stringify(status)} is active`];
+    return ["PASS", `signing key status ${JSON.stringify(status)} is active`, "none"];
   }
   if (revokedAt) {
     try {
       const rev = new Date(revokedAt).getTime();
       const iss = new Date(issuedAt).getTime();
       if (isNaN(rev) || isNaN(iss)) {
-        return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
+        return [
+          "UNVERIFIABLE",
+          `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`,
+          "member_malformed",
+        ];
       }
       if (rev <= iss) {
-        return ["FAIL", `signing key revoked at ${revokedAt} on/before issuance ${issuedAt}`];
+        return [
+          "INVALID",
+          `signing key revoked at ${revokedAt} on/before issuance ${issuedAt}`,
+          "key_changed",
+        ];
       }
       if (!hasTrustedAnchor) {
-        return ["SKIPPED", `signing key revoked at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`];
+        return [
+          "UNVERIFIABLE",
+          `signing key revoked at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`,
+          "timing_unproven",
+        ];
       }
-      return ["PASS", `signing key revoked at ${revokedAt}, after issuance ${issuedAt}`];
+      return ["PASS", `signing key revoked at ${revokedAt}, after issuance ${issuedAt}`, "none"];
     } catch {
-      return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
+      return [
+        "UNVERIFIABLE",
+        `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`,
+        "member_malformed",
+      ];
     }
   }
-  return ["FAIL", `signing key status ${JSON.stringify(status)}; receipt cannot be trusted`];
+  return [
+    "INVALID",
+    `signing key status ${JSON.stringify(status)}; receipt cannot be trusted`,
+    "key_changed",
+  ];
 }

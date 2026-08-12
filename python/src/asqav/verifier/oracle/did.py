@@ -68,25 +68,35 @@ def _coerce_raw(material: object) -> bytes | None:
 
 def resolve_ed25519_key(
     did_url: str, injected: dict | None = None
-) -> tuple[bytes | None, str]:
-    """Resolve a verificationMethod DID URL to ``(raw_key_or_None, note)``.
+) -> tuple[bytes | None, str, str]:
+    """Resolve a verificationMethod DID URL to ``(raw_key_or_None, note, reason_code)``.
 
     did:key resolves inline; every other method resolves from ``injected`` keyed by
     the full DID URL first, then by the bare DID (fragment stripped). No network.
+    A miss is classified (criterion 418): unreadable key material is key_malformed,
+    an absent mapping is key_unresolvable.
     """
     if not isinstance(did_url, str) or not did_url.startswith("did:"):
-        return None, f"not a DID URL: {did_url!r}"
+        return None, f"not a DID URL: {did_url!r}", "key_malformed"
     bare = did_url.split("#", 1)[0]
     if bare.startswith("did:key:"):
         key = _decode_did_key(bare[len("did:key:") :])
         if key is None:
-            return None, "did:key identifier is not a base58btc Ed25519 multikey"
-        return key, "resolved did:key inline (multicodec ed25519)"
+            return None, "did:key identifier is not a base58btc Ed25519 multikey", "key_malformed"
+        return key, "resolved did:key inline (multicodec ed25519)", "none"
     keys = injected or {}
     for candidate in (did_url, bare):
         if candidate in keys:
             raw = _coerce_raw(keys[candidate])
             if raw is None:
-                return None, f"injected key for {candidate!r} is not a 32-byte Ed25519 key"
-            return raw, f"resolved {candidate} from injected map"
-    return None, f"no injected key for {did_url!r} (oracle never fetches a DID document)"
+                return (
+                    None,
+                    f"injected key for {candidate!r} is not a 32-byte Ed25519 key",
+                    "key_malformed",
+                )
+            return raw, f"resolved {candidate} from injected map", "none"
+    return (
+        None,
+        f"no injected key for {did_url!r} (oracle never fetches a DID document)",
+        "key_unresolvable",
+    )

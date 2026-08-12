@@ -60,16 +60,35 @@ export {
   normaliseEnvelope,
   SKEW_BOUND_SECONDS,
 } from "./vrShim.js";
-export { asqavJcs, jcs, jcsRfc8785, parseJsonPreservingFloats, RawFloat } from "./canonical.js";
 export {
-  FAIL,
+  asqavJcs,
+  DuplicateJsonMemberError,
+  jcs,
+  jcsRfc8785,
+  parseJsonPreservingFloats,
+  parseJsonStrict,
+  RawFloat,
+} from "./canonical.js";
+export {
+  INVALID,
   PASS,
   SKIPPED,
+  UNVERIFIABLE,
   sha256Hex,
   verifySignature,
   type VerifyOutcome,
   type VerifyState,
 } from "./crypto.js";
+export {
+  CLASSIFICATION,
+  deriveVerdict,
+  NO_REASON,
+  REASON_CLASSES,
+  reasonHasClass,
+  type AxisToken,
+  type Classification,
+  type VerdictToken,
+} from "./taxonomy.js";
 export { resolveEd25519Key } from "./did.js";
 export {
   buildPae,

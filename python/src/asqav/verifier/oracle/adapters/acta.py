@@ -38,6 +38,7 @@ from asqav.verifier import verify_receipt as _vr
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
 from ..canonical import jcs
 from ..core import sha256_hex
+from ..taxonomy import INVALID, PASS, UNVERIFIABLE
 
 
     # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
@@ -86,18 +87,22 @@ class ActaAdapter(FormatAdapter):
             kid=sig.get("kid", ""),
         )
 
-    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
+    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str, str]:
         kid = doc.get("signature", {}).get("kid", "")
         for jwk in (key_provider or {}).get("keys", []):
             if jwk.get("kid") != kid:
                 continue
             if jwk.get("kty") != "OKP" or jwk.get("crv") != "Ed25519":
-                return None, f"kid {kid!r} is not an OKP/Ed25519 JWK"
+                return None, f"kid {kid!r} is not an OKP/Ed25519 JWK", "key_malformed"
             raw = _vr._b64decode(jwk.get("x", ""))
             if len(raw) != 32:
-                return None, f"kid {kid!r} Ed25519 key is {len(raw)} bytes, expected 32"
-            return raw, f"resolved kid {kid} from ACTA JWK Set"
-        return None, f"kid {kid!r} not in ACTA JWK Set"
+                return (
+                    None,
+                    f"kid {kid!r} Ed25519 key is {len(raw)} bytes, expected 32",
+                    "key_malformed",
+                )
+            return raw, f"resolved kid {kid} from ACTA JWK Set", "none"
+        return None, f"kid {kid!r} not in ACTA JWK Set", "key_unresolvable"
 
     def signing_input(self, doc: dict) -> bytes:
         # Baseline: Ed25519 signs the JCS bytes of the payload directly, no pre-hash.
@@ -114,27 +119,35 @@ class ActaAdapter(FormatAdapter):
             recompute=lambda pred: sha256_hex(jcs(pred)),
         )
 
-    def schema(self, doc: dict) -> tuple[str, str]:
+    def schema(self, doc: dict) -> tuple[str, str, str]:
         payload = doc.get("payload")
         sig = doc.get("signature")
         if not isinstance(payload, dict) or not isinstance(sig, dict):
-            return "FAIL", "ACTA receipt needs object payload and signature"
+            return UNVERIFIABLE, "ACTA receipt needs object payload and signature", "member_malformed"
         missing = [f for f in ("issued_at",) if f not in payload]
         missing += [f"signature.{f}" for f in ("alg", "kid", "sig") if f not in sig]
         # Rev-02 asqav profile: with `type` present, `issuer_id` is required too.
         # Upstream A2A receipts carry neither and stay relaxed (not rev-02).
         if "type" in payload:
             if not isinstance(payload["type"], str) or not payload["type"]:
-                return "FAIL", "type must be a non-empty namespaced string"
+                return UNVERIFIABLE, "type must be a non-empty namespaced string", "member_malformed"
             missing += [f for f in ("issuer_id",) if f not in payload]
         if missing:
-            return "FAIL", f"missing required fields: {','.join(missing)}"
+            return UNVERIFIABLE, f"missing required fields: {','.join(missing)}", "member_malformed"
         if "previousReceiptHash" in payload and payload["previousReceiptHash"] is None:
-            return "FAIL", "genesis must omit previousReceiptHash, not set it null"
+            return (
+                UNVERIFIABLE,
+                "genesis must omit previousReceiptHash, not set it null",
+                "member_malformed",
+            )
         # False-attestation guard: issuer_id must match the signing kid.
         if "issuer_id" in payload and payload["issuer_id"] != sig.get("kid"):
-            return "FAIL", "issuer_id must match signature.kid"
+            return INVALID, "issuer_id must match signature.kid", "counterparty_mismatch"
         # Bind alg to the EdDSA baseline; reject registry algs this verifier does not check.
         if sig.get("alg") not in ("EdDSA", "Ed25519"):
-            return "FAIL", f"unsupported ACTA alg {sig.get('alg')!r}; only EdDSA baseline is implemented"
-        return "PASS", "rev-02 required fields present; issuer_id matches kid; EdDSA baseline"
+            return (
+                UNVERIFIABLE,
+                f"unsupported ACTA alg {sig.get('alg')!r}; only EdDSA baseline is implemented",
+                "algorithm_unsupported",
+            )
+        return PASS, "rev-02 required fields present; issuer_id matches kid; EdDSA baseline", "none"

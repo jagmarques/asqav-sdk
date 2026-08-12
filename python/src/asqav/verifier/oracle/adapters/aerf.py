@@ -35,7 +35,7 @@ from typing import Any
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
 from ..canonical import jcs
 from ..core import sha256_hex
-from ..crypto import FAIL, PASS, SKIPPED, verify_signature
+from ..crypto import INVALID, PASS, SKIPPED, UNVERIFIABLE, verify_signature
 
 #: Fields removed before canonicalising for both the signature and the chain hash.
 _STRIP = ("signature", "timestamp", "parent_signature", "parent_key_id", "log_inclusion_proof")
@@ -88,14 +88,14 @@ class AerfAdapter(FormatAdapter):
             kid=doc.get("key_id", ""),
         )
 
-    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
+    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str, str]:
         keys = key_provider or {}
         kid = doc.get("key_id", "")
         material = keys.get(kid)
         if material is None:
-            return None, f"key_id {kid!r} not supplied to the key provider"
+            return None, f"key_id {kid!r} not supplied to the key provider", "key_unresolvable"
         raw = _raw_ed25519(material if isinstance(material, bytes) else _safe_hex(material))
-        return raw, f"resolved key_id {kid}"
+        return raw, f"resolved key_id {kid}", "none"
 
     def signing_input(self, doc: dict) -> bytes:
         # AERF signs the JCS canonical bytes of the stripped payload directly.
@@ -110,7 +110,7 @@ class AerfAdapter(FormatAdapter):
             recompute=lambda pred: sha256_hex(jcs(_signable(pred))),
         )
 
-    def schema(self, doc: dict) -> tuple[str, str]:
+    def schema(self, doc: dict) -> tuple[str, str, str]:
         required = (
             "id",
             "type",
@@ -125,14 +125,18 @@ class AerfAdapter(FormatAdapter):
         )
         missing = [f for f in required if f not in doc]
         if missing:
-            return "FAIL", f"missing required fields: {','.join(missing)}"
+            return UNVERIFIABLE, f"missing required fields: {','.join(missing)}", "member_malformed"
         if "previous_receipt_hash" in doc and doc["previous_receipt_hash"] is None:
-            return "FAIL", "genesis must omit previous_receipt_hash, not set it null"
-        return "PASS", "required fields present; type notarised_evidence"
+            return (
+                UNVERIFIABLE,
+                "genesis must omit previous_receipt_hash, not set it null",
+                "member_malformed",
+            )
+        return PASS, "required fields present; type notarised_evidence", "none"
 
         # Parent counter-signature and PDP binding per the AERF procedure.
-    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
-        axes: list[tuple[str, str, str]] = []
+    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str, str]]:
+        axes: list[tuple[str, str, str, str]] = []
         has_impact = bool(doc.get("impact_tags"))
         if has_impact or doc.get("parent_signature"):
             axes.append(self._parent_axis(doc, key_provider, has_impact))
@@ -140,28 +144,45 @@ class AerfAdapter(FormatAdapter):
             axes.append(self._pdp_axis(doc, key_provider, has_impact))
         return axes
 
-    def _parent_axis(self, doc: dict, key_provider: Any, required: bool) -> tuple[str, str, str]:
+    def _parent_axis(self, doc: dict, key_provider: Any, required: bool) -> tuple[str, str, str, str]:
         sig_hex = doc.get("parent_signature")
         if not sig_hex:
             if required:
-                return ("parent_signature", FAIL, "parent_signature absent")
-            return ("parent_signature", SKIPPED, "no parent_signature on this receipt")
+                # A required counter-signature is a policy binding, and it is absent
+                return ("parent_signature", INVALID, "parent_signature absent", "countersign_missing")
+            return ("parent_signature", SKIPPED, "no parent_signature on this receipt", "none")
         pk = _resolve_raw(key_provider, doc.get("parent_key_id", ""))
         if pk is None:
-            return ("parent_signature", SKIPPED, "parent_key_id not supplied to the key provider")
-        res, why = verify_signature("Ed25519", pk, self.signing_input(doc), _safe_hex(sig_hex))
-        note = "parent counter-signature valid" if res == PASS else f"parent signature verification FAILED: {why}"
-        return ("parent_signature", res, note)
+            return (
+                "parent_signature",
+                UNVERIFIABLE,
+                "parent_key_id not supplied to the key provider",
+                "key_unresolvable",
+            )
+        res, why, reason = verify_signature("Ed25519", pk, self.signing_input(doc), _safe_hex(sig_hex))
+        if res == PASS:
+            return ("parent_signature", PASS, "parent counter-signature valid", "none")
+        note = f"parent signature verification FAILED: {why}"
+        # A required layer whose check failed its binding; a malformed signature
+        # keeps its UNVERIFIABLE class, a refuted one reads countersign_missing
+        if res == INVALID:
+            reason = "countersign_missing" if required else reason
+        return ("parent_signature", res, note, reason)
 
-    def _pdp_axis(self, doc: dict, key_provider: Any, required: bool) -> tuple[str, str, str]:
+    def _pdp_axis(self, doc: dict, key_provider: Any, required: bool) -> tuple[str, str, str, str]:
         sig_hex = doc.get("pdp_signature")
         if not sig_hex:
             if required:
-                return ("pdp_signature", FAIL, "pdp_signature absent")
-            return ("pdp_signature", SKIPPED, "no pdp_signature on this receipt")
+                return ("pdp_signature", INVALID, "pdp_signature absent", "pdp_binding_mismatch")
+            return ("pdp_signature", SKIPPED, "no pdp_signature on this receipt", "none")
         pk = _resolve_raw(key_provider, doc.get("pdp_key_id", ""))
         if pk is None:
-            return ("pdp_signature", SKIPPED, "pdp_key_id not supplied to the key provider")
+            return (
+                "pdp_signature",
+                UNVERIFIABLE,
+                "pdp_key_id not supplied to the key provider",
+                "key_unresolvable",
+            )
         tuple_bytes = jcs(
             {
                 "context_hash_sha256": doc.get("context_hash_sha256"),
@@ -169,6 +190,11 @@ class AerfAdapter(FormatAdapter):
                 "policy_hash": doc.get("policy_hash"),
             }
         )
-        res, why = verify_signature("Ed25519", pk, tuple_bytes, _safe_hex(sig_hex))
-        note = "pdp binding valid" if res == PASS else f"pdp signature verification FAILED: {why}"
-        return ("pdp_signature", res, note)
+        res, why, reason = verify_signature("Ed25519", pk, tuple_bytes, _safe_hex(sig_hex))
+        if res == PASS:
+            return ("pdp_signature", PASS, "pdp binding valid", "none")
+        note = f"pdp signature verification FAILED: {why}"
+        # The PDP axis IS the policy binding; a refuted signature is the mismatch
+        if res == INVALID:
+            reason = "pdp_binding_mismatch"
+        return ("pdp_signature", res, note, reason)

@@ -74,21 +74,21 @@ export class ActaAdapter extends FormatAdapter {
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
-  ): readonly [Uint8Array | null, string] {
+  ): readonly [Uint8Array | null, string, string] {
     const kid = (asRecord(doc.signature).kid as string) ?? "";
     const jwkKeys = ((keyProvider?.keys as Array<Record<string, unknown>>) ?? []);
     for (const jwk of jwkKeys) {
       if (jwk.kid !== kid) continue;
       if (jwk.kty !== "OKP" || jwk.crv !== "Ed25519") {
-        return [null, `kid '${kid}' is not an OKP/Ed25519 JWK`];
+        return [null, `kid '${kid}' is not an OKP/Ed25519 JWK`, "key_malformed"];
       }
       const raw = b64decode((jwk.x as string) ?? "");
       if (raw.length !== 32) {
-        return [null, `kid '${kid}' Ed25519 key is ${raw.length} bytes, expected 32`];
+        return [null, `kid '${kid}' Ed25519 key is ${raw.length} bytes, expected 32`, "key_malformed"];
       }
-      return [raw, `resolved kid ${kid} from ACTA JWK Set`];
+      return [raw, `resolved kid ${kid} from ACTA JWK Set`, "none"];
     }
-    return [null, `kid '${kid}' not in ACTA JWK Set`];
+    return [null, `kid '${kid}' not in ACTA JWK Set`, "key_unresolvable"];
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
@@ -114,7 +114,7 @@ export class ActaAdapter extends FormatAdapter {
     const payloadIsObj = payload !== null && typeof payload === "object" && !Array.isArray(payload);
     const sigIsObj = sig !== null && typeof sig === "object" && !Array.isArray(sig);
     if (!payloadIsObj || !sigIsObj) {
-      return ["FAIL", "ACTA receipt needs object payload and signature"];
+      return ["UNVERIFIABLE", "ACTA receipt needs object payload and signature", "member_malformed"];
     }
     const p = payload as Record<string, unknown>;
     const s = sig as Record<string, unknown>;
@@ -128,19 +128,27 @@ export class ActaAdapter extends FormatAdapter {
       if (!(f in s)) missing.push(`signature.${f}`);
     }
     if (missing.length > 0) {
-      return ["FAIL", `missing required fields: ${missing.join(",")}`];
+      return ["UNVERIFIABLE", `missing required fields: ${missing.join(",")}`, "member_malformed"];
     }
     if ("previousReceiptHash" in p && p.previousReceiptHash === null) {
-      return ["FAIL", "genesis must omit previousReceiptHash, not set it null"];
+      return ["UNVERIFIABLE", "genesis must omit previousReceiptHash, not set it null", "member_malformed"];
     }
     // False-attestation guard: when the Asqav-profile `issuer_id` is present it
     // MUST match the signing kid. Absent it, there is nothing to contradict.
     if ("issuer_id" in p && p.issuer_id !== s.kid) {
-      return ["FAIL", "issuer_id must match signature.kid"];
+      return ["INVALID", "issuer_id must match signature.kid", "counterparty_mismatch"];
     }
     if (s.alg !== "EdDSA" && s.alg !== "Ed25519") {
-      return ["FAIL", `unsupported ACTA alg ${JSON.stringify(s.alg)}; only EdDSA baseline is implemented`];
+      return [
+        "UNVERIFIABLE",
+        `unsupported ACTA alg ${JSON.stringify(s.alg)}; only EdDSA baseline is implemented`,
+        "algorithm_unsupported",
+      ];
     }
-    return ["PASS", "issued_at + signature triple present; issuer_id (when present) matches kid; EdDSA baseline"];
+    return [
+      "PASS",
+      "issued_at + signature triple present; issuer_id (when present) matches kid; EdDSA baseline",
+      "none",
+    ];
   }
 }

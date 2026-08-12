@@ -28,6 +28,7 @@ from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
 from ..canonical import jcs_rfc8785
 from ..core import sha256_hex
 from ..did import resolve_ed25519_key
+from ..taxonomy import INVALID, PASS, UNVERIFIABLE
 
 #: SHA-256 hash prefix the chain field carries before the hex digest.
 _SHA256_PREFIX = "sha256:"
@@ -71,7 +72,7 @@ class AgentReceiptsAdapter(FormatAdapter):
             sig = b""
         return SignatureMaterial(sig=sig, alg="Ed25519", kid=proof.get("verificationMethod", ""))
 
-    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
+    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str, str]:
         kid = doc.get("proof", {}).get("verificationMethod", "")
         return resolve_ed25519_key(kid, key_provider)
 
@@ -90,8 +91,8 @@ class AgentReceiptsAdapter(FormatAdapter):
             recompute=lambda pred: _SHA256_PREFIX + sha256_hex(jcs_rfc8785(_signable(pred))),
         )
 
-    def schema(self, doc: dict) -> tuple[str, str]:
-        """Structural check; returns ``(result, note)``.
+    def schema(self, doc: dict) -> tuple[str, str, str]:
+        """Structural check; returns ``(result, note, reason_code)``.
 
         Issuer binding: the strict ``verificationMethod`` DID == ``issuer.id`` check is
         intentionally stricter than the spec, which leaves controller indirection to DID
@@ -110,19 +111,33 @@ class AgentReceiptsAdapter(FormatAdapter):
         )
         missing = [f for f in required if f not in doc]
         if missing:
-            return "FAIL", f"missing required VC fields: {','.join(missing)}"
+            return UNVERIFIABLE, f"missing required VC fields: {','.join(missing)}", "member_malformed"
         types = doc.get("type")
         if not isinstance(types, list) or "VerifiableCredential" not in types or "AgentReceipt" not in types:
-            return "FAIL", "type must include VerifiableCredential and AgentReceipt"
+            return UNVERIFIABLE, "type must include VerifiableCredential and AgentReceipt", "member_malformed"
         if doc.get("proof", {}).get("type") != "Ed25519Signature2020":
-            return "FAIL", "proof.type must be Ed25519Signature2020"
+            return UNVERIFIABLE, "proof.type must be Ed25519Signature2020", "member_malformed"
         issuer = doc.get("issuer")
         issuer_did = issuer.get("id") if isinstance(issuer, dict) else issuer
         vm_did = doc.get("proof", {}).get("verificationMethod", "").split("#")[0]
-        if not vm_did or vm_did != issuer_did:
+        if not vm_did:
+            return (
+                UNVERIFIABLE,
+                "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)",
+                "member_malformed",
+            )
+        if vm_did != issuer_did:
             # did:key carries its key in-receipt; bind to issuer or anyone self-signs as a victim
-            return "FAIL", "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)"
+            return (
+                INVALID,
+                "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)",
+                "counterparty_mismatch",
+            )
         chain = _chain(doc)
         if "previous_receipt_hash" not in chain:
-            return "FAIL", "chain.previous_receipt_hash must be present (null on genesis), never omitted"
-        return "PASS", "required VC fields present; type AgentReceipt; chain link well-formed"
+            return (
+                UNVERIFIABLE,
+                "chain.previous_receipt_hash must be present (null on genesis), never omitted",
+                "member_malformed",
+            )
+        return PASS, "required VC fields present; type AgentReceipt; chain link well-formed", "none"

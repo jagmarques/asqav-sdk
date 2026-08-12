@@ -156,19 +156,45 @@ export class AsqavNativeAdapter extends FormatAdapter {
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
-  ): readonly [Uint8Array | null, string] {
+  ): readonly [Uint8Array | null, string, string] {
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const kid = this.extractSignature(doc).kid;
     const entry = this.signingKeyEntry(doc, jwks);
     if (entry === null) {
-      return [null, `kid '${kid}' not in jwks directory`];
+      return [null, `kid '${kid}' not in jwks directory`, "key_unresolvable"];
     }
     const pk = b64decode(entry.public_key as string);
     const status = (entry.status as string) ?? null;
     if (kid && (kid === entry.issuer_id || kid === entry.kid)) {
-      return [pk, `resolved kid ${kid} (status=${status})`];
+      return [pk, `resolved kid ${kid} (status=${status})`, "none"];
     }
-    return [pk, `resolved agent key ${entry.kid} (status=${status})`];
+    return [pk, `resolved agent key ${entry.kid} (status=${status})`, "none"];
+  }
+
+  /** The envelope's claimed algorithm bound against the resolved key's published one. */
+  private algBindingAxis(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis {
+    const claimedRaw = this.extractSignature(doc).alg;
+    const claimed = typeof claimedRaw === "string" && claimedRaw !== "" ? claimedRaw : null;
+    if (claimed === null) {
+      return ["algorithm", "PASS", "receipt claims no algorithm; nothing to conflict", "none"];
+    }
+    const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
+    const entry = this.signingKeyEntry(doc, jwks);
+    const published = entry !== null && typeof entry.alg === "string" && entry.alg !== ""
+      ? (entry.alg as string)
+      : null;
+    if (published === null) {
+      return ["algorithm", "PASS", "key publishes no algorithm; nothing to conflict", "none"];
+    }
+    if (claimed.toUpperCase() !== published.toUpperCase()) {
+      return [
+        "algorithm",
+        "INVALID",
+        `algorithm mismatch: receipt claims '${claimed}', key publishes '${published}'`,
+        "algorithm_mismatch",
+      ];
+    }
+    return ["algorithm", "PASS", `algorithm ${claimed} matches the key's published alg`, "none"];
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
@@ -216,17 +242,22 @@ export class AsqavNativeAdapter extends FormatAdapter {
         (f) => (doc[f] === undefined || doc[f] === null) && f !== "policy_digest",
       );
       if (missing.length > 0) {
-        return ["FAIL", `hash-mode receipt missing fields: ${missing.join(",")}`];
+        return [
+          "UNVERIFIABLE",
+          `hash-mode receipt missing fields: ${missing.join(",")}`,
+          "member_malformed",
+        ];
       }
       // A claim outside the signed field set is unauthenticated whatever it says.
       const unsigned = UNSIGNED_CLAIM_FIELDS.filter((f) => f in doc);
       if (unsigned.length > 0) {
         return [
-          "FAIL",
+          "INVALID",
           `hash-mode receipt carries claim fields its signature does not cover: ${unsigned.join(",")}`,
+          "counterparty_mismatch",
         ];
       }
-      return ["PASS", "hash-mode signature receipt; required flat fields present"];
+      return ["PASS", "hash-mode signature receipt; required flat fields present", "none"];
     }
     return checkStructure(payloadOf(doc));
   }
@@ -239,6 +270,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // expires_at, and reading the flat doc would gate on an uncovered field.
     const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc))]];
     axes.push(["nonce", ...checkNonce(hashMode ? {} : payloadOf(doc), this.seenNonces)]);
+    axes.push(this.algBindingAxis(doc, keyProvider));
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);
     if (entry === null) return axes;
@@ -250,16 +282,16 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // Offline anchor presence is unverifiable (anchors unsigned); pass false
     // so a forged anchor never rides a revoked key to PASS.
     const status = (entry.status as string) ?? null;
-    const [res, note] = checkKeyStatus(status, issuedAt, revokedAtOf(entry), false);
+    const keyStatus = checkKeyStatus(status, issuedAt, revokedAtOf(entry), false);
     // The key that verified is bound back to the issuer the signed bytes name.
     const keyIssuer = keyIssuerOf(entry);
-    const [bindRes, bindNote] = hashMode
+    const bind = hashMode
       ? checkOrgBinding(keyIssuer, keyOrgOf(entry), doc.org_id)
       : checkIssuerBinding(keyIssuer, payloadOf(doc).issuer_id);
     return [
       ...axes,
-      ["key_status", res, note],
-      ["issuer_bind", bindRes, bindNote],
+      ["key_status", ...keyStatus],
+      ["issuer_bind", ...bind],
     ];
   }
 

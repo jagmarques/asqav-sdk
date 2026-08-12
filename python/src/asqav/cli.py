@@ -48,6 +48,7 @@ from asqav._useragent import USER_AGENT
 # which is in-process sign callbacks the agent opts into.
 from asqav.cli_hook import hook_app
 from asqav.credentials import resolve_api_key
+from asqav.strict_json import DuplicateJsonMemberError, strict_load, strict_loads
 
 app = typer.Typer(
     name="asqav",
@@ -226,8 +227,10 @@ def verify_litellm_log(
     failures: list[dict[str, Any]] = []
     for lineno, raw in enumerate(lines, start=1):
         try:
-            record = json_mod.loads(raw)
-        except json_mod.JSONDecodeError as exc:
+            # Strict ingest (criterion 419): a record with a duplicated member
+            # is a bad record, never silently collapsed into the last value
+            record = strict_loads(raw)
+        except (json_mod.JSONDecodeError, DuplicateJsonMemberError) as exc:
             total += 1
             failures.append({"line": lineno, "reason": f"bad json: {exc}"})
             continue
@@ -274,8 +277,9 @@ def _load_json_arg(source: str, label: str) -> dict | None:
     """Load a JSON arg from a file path, stdin (`-`), or return None when empty.
 
     Used by `sign` for `--action-json` and `--policy-artefact`. Exits 1 on
-    OSError or JSONDecodeError with a clear `label`-prefixed message so
-    the caller knows which arg failed.
+    OSError, bad JSON, or a duplicate JSON member name (strict ingest,
+    criterion 419), with a clear `label`-prefixed message so the caller
+    knows which arg failed.
     """
     import json as json_mod
 
@@ -283,10 +287,10 @@ def _load_json_arg(source: str, label: str) -> dict | None:
         return None
     try:
         if source == "-":
-            return json_mod.loads(sys.stdin.read())
+            return strict_loads(sys.stdin.read())
         with open(source) as f:
-            return json_mod.load(f)
-    except (OSError, json_mod.JSONDecodeError) as exc:
+            return strict_load(f)
+    except (OSError, json_mod.JSONDecodeError, DuplicateJsonMemberError) as exc:
         print(f"Error reading {label}: {exc}")
         raise typer.Exit(code=1) from exc
 
@@ -549,8 +553,9 @@ def replay(
 
         try:
             with open(bundle) as f:
-                data = json_mod.load(f)
-        except OSError as exc:
+                # Strict ingest (criterion 419): a bundle is receipt records
+                data = strict_load(f)
+        except (OSError, json_mod.JSONDecodeError, DuplicateJsonMemberError) as exc:
             print(f"Error reading bundle: {exc}")
             raise typer.Exit(code=1) from exc
 
@@ -1622,17 +1627,19 @@ def audit_pack_verify(
     """
     import json as json_mod
 
+    # Strict ingest (criterion 419): an audit pack is receipt records, so a
+    # duplicate member name anywhere in it is refused before anything runs
     if bundle == "-":
         try:
-            bundle_obj = json_mod.loads(sys.stdin.read())
-        except json_mod.JSONDecodeError as exc:
+            bundle_obj = strict_loads(sys.stdin.read())
+        except (json_mod.JSONDecodeError, DuplicateJsonMemberError) as exc:
             print(f"Error reading bundle from stdin: {exc}")
             raise typer.Exit(code=1) from exc
     else:
         try:
             with open(bundle) as f:
-                bundle_obj = json_mod.load(f)
-        except (OSError, json_mod.JSONDecodeError) as exc:
+                bundle_obj = strict_load(f)
+        except (OSError, json_mod.JSONDecodeError, DuplicateJsonMemberError) as exc:
             print(f"Error reading bundle: {exc}")
             raise typer.Exit(code=1) from exc
 
@@ -1833,7 +1840,12 @@ def _session_request(
     if not raw:
         return None
     try:
-        return json_mod.loads(raw)
+        # Strict ingest (criterion 419): API responses may carry receipts, so a
+        # duplicate member name is terminal; a non-JSON body still reads as text
+        return strict_loads(raw)
+    except DuplicateJsonMemberError as exc:
+        print(f"Error: API response rejected under strict ingest: {exc}")
+        raise typer.Exit(code=1) from exc
     except json_mod.JSONDecodeError:
         return raw
 
@@ -2224,8 +2236,11 @@ def migrate_run(
         raise typer.Exit(code=1) from exc
 
     try:
-        parsed = json_mod.loads(body)
+        parsed = strict_loads(body)
         print(json_mod.dumps(parsed, indent=2))
+    except DuplicateJsonMemberError as exc:
+        print(f"Error: response rejected under strict ingest: {exc}")
+        raise typer.Exit(code=1) from exc
     except json_mod.JSONDecodeError:
         print(body)
 

@@ -19,13 +19,14 @@ import { join } from "node:path";
 
 import { ADAPTERS } from "./index.js";
 import { verify, type Verdict } from "./core.js";
-import { parseJsonPreservingFloats } from "./canonical.js";
+import { DuplicateJsonMemberError, parseJsonPreservingFloats } from "./canonical.js";
 import type { KeyProvider } from "./adapter.js";
 
+/** Manifest outcome token -> the VerifyResult verdict it must produce (418). */
 const OUTCOME_TO_VERDICT: Record<string, Verdict> = {
   PASS: "PASS",
-  FAIL: "FAIL",
-  INCOMPLETE: "INCOMPLETE",
+  INVALID: "INVALID",
+  UNVERIFIABLE: "UNVERIFIABLE",
 };
 
 /** The result of running one corpus vector against the oracle. */
@@ -49,6 +50,8 @@ interface ManifestEntry {
 function loadJson(path: string): Record<string, unknown> | null {
   // Receipts and predecessors are parsed float-preserving so a `500.0` literal
   // survives to the canonicaliser (JSON.parse otherwise collapses it to `500`).
+  // Strict ingest (criterion 419): a duplicate member name throws here, before
+  // any hashing, canonicalisation, or signature check runs.
   return existsSync(path)
     ? (parseJsonPreservingFloats(readFileSync(path, "utf-8")) as Record<string, unknown>)
     : null;
@@ -63,6 +66,25 @@ function keyProviderFor(vecDir: string, fmt: string): KeyProvider {
   return null;
 }
 
+/** Criterion 419: a strict-ingest failure ends the vector before any check runs. */
+function parseFailureOutcome(
+  vecDir: string,
+  expectedOutcome: string,
+  reasonCode: string,
+  exc: Error,
+): VectorOutcome {
+  const reason = exc instanceof DuplicateJsonMemberError ? "duplicate_member" : "parse_failed";
+  const name = vecDir.split(/[/\\]/).pop() ?? vecDir;
+  return {
+    dir: name,
+    expectedOutcome,
+    actualVerdict: "UNVERIFIABLE",
+    ok: expectedOutcome === "UNVERIFIABLE",
+    reasonCode,
+    detail: `${reason}: ${exc.message}`,
+  };
+}
+
 /** Run a single vector directory and compare against its expected outcome. */
 export function runOne(
   vecDir: string,
@@ -70,21 +92,34 @@ export function runOne(
   expectedOutcome: string,
   reasonCode = "",
 ): VectorOutcome {
-  const receipt = loadJson(join(vecDir, "receipt.json")) ?? {};
-  const predecessor = loadJson(join(vecDir, "predecessor.json"));
-  const keyProvider = keyProviderFor(vecDir, fmt);
+  let receipt: Record<string, unknown>;
+  let predecessor: Record<string, unknown> | null;
+  let keyProvider: KeyProvider;
+  try {
+    receipt = loadJson(join(vecDir, "receipt.json")) ?? {};
+    predecessor = loadJson(join(vecDir, "predecessor.json"));
+    keyProvider = keyProviderFor(vecDir, fmt);
+  } catch (exc) {
+    if (exc instanceof DuplicateJsonMemberError || exc instanceof SyntaxError) {
+      return parseFailureOutcome(vecDir, expectedOutcome, reasonCode, exc as Error);
+    }
+    throw exc;
+  }
   const result = verify(receipt, ADAPTERS, keyProvider, predecessor);
 
   const wantVerdict = OUTCOME_TO_VERDICT[expectedOutcome];
   const ok = wantVerdict !== undefined && result.verdict === wantVerdict;
-  const detail = result.axes.map((a) => `${a.axis}=${a.result}(${a.note})`).join("; ");
+  const detail = result.axes.map((a) => `${a.axis}=${a.result}(${a.reasonCode}:${a.note})`).join("; ");
   const name = vecDir.split(/[/\\]/).pop() ?? vecDir;
   return { dir: name, expectedOutcome, actualVerdict: result.verdict, ok, reasonCode, detail };
 }
 
 /** Run every vector named in `corpusRoot/manifest.json`. */
 export function runCorpus(corpusRoot: string): VectorOutcome[] {
-  const manifest = JSON.parse(readFileSync(join(corpusRoot, "manifest.json"), "utf-8")) as ManifestEntry[];
+  // The manifest is a verification input too: strict ingest, no silent collapse
+  const manifest = parseJsonPreservingFloats(
+    readFileSync(join(corpusRoot, "manifest.json"), "utf-8"),
+  ) as unknown as ManifestEntry[];
   return manifest.map((entry) =>
     runOne(join(corpusRoot, entry.dir), entry.format, entry.outcome, entry.reason_code ?? ""),
   );
@@ -94,8 +129,8 @@ export function runCorpus(corpusRoot: string): VectorOutcome[] {
 export function tolerated(outcome: VectorOutcome): boolean {
   return (
     outcome.ok ||
-    (outcome.expectedOutcome === "INCOMPLETE" &&
+    (outcome.expectedOutcome === "UNVERIFIABLE" &&
       outcome.actualVerdict === "PASS" &&
-      outcome.reasonCode === "signature_skipped_no_dilithium")
+      outcome.reasonCode === "crypto_dependency_missing")
   );
 }

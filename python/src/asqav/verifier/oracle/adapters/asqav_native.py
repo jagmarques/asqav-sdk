@@ -147,17 +147,37 @@ class AsqavNativeAdapter(FormatAdapter):
             payload.get("org_id") or doc.get("org_id"),
         )
 
-    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
+    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str, str]:
         jwks = key_provider or {"keys": []}
         kid = self.extract_signature(doc).kid
         entry = self._signing_key_entry(doc, jwks)
         if entry is None:
-            return None, f"kid {kid!r} not in jwks directory"
+            return None, f"kid {kid!r} not in jwks directory", "key_unresolvable"
         pk = _vr._b64decode(entry["public_key"])
         status = entry.get("status")
         if kid and kid in (entry.get("issuer_id"), entry.get("kid")):
-            return pk, f"resolved kid {kid} (status={status})"
-        return pk, f"resolved agent key {entry.get('kid')} (status={status})"
+            return pk, f"resolved kid {kid} (status={status})", "none"
+        return pk, f"resolved agent key {entry.get('kid')} (status={status})", "none"
+
+        # The envelope's claimed algorithm bound against the resolved key's published one.
+    def _alg_binding_axis(self, doc: dict, key_provider: Any) -> tuple[str, str, str, str]:
+        claimed = self.extract_signature(doc).alg
+        claimed = claimed if isinstance(claimed, str) and claimed else None
+        if claimed is None:
+            return ("algorithm", "PASS", "receipt claims no algorithm; nothing to conflict", "none")
+        jwks = key_provider or {"keys": []}
+        entry = self._signing_key_entry(doc, jwks)
+        published = entry.get("alg") if entry else None
+        if not isinstance(published, str) or not published:
+            return ("algorithm", "PASS", "key publishes no algorithm; nothing to conflict", "none")
+        if claimed.upper() != published.upper():
+            return (
+                "algorithm",
+                "INVALID",
+                f"algorithm mismatch: receipt claims {claimed!r}, key publishes {published!r}",
+                "algorithm_mismatch",
+            )
+        return ("algorithm", "PASS", f"algorithm {claimed} matches the key's published alg", "none")
 
     def signing_input(self, doc: dict) -> bytes:
         if _is_hash_mode(doc):
@@ -198,27 +218,33 @@ class AsqavNativeAdapter(FormatAdapter):
             recompute=lambda pred: sha256_hex(asqav_jcs(_payload(pred))),
         )
 
-    def schema(self, doc: dict) -> tuple[str, str]:
+    def schema(self, doc: dict) -> tuple[str, str, str]:
         if _is_hash_mode(doc):
             missing = [f for f in _HASH_MODE_FIELDS if doc.get(f) is None and f != "policy_digest"]
             if missing:
-                return "FAIL", f"hash-mode receipt missing fields: {','.join(missing)}"
+                return (
+                    "UNVERIFIABLE",
+                    f"hash-mode receipt missing fields: {','.join(missing)}",
+                    "member_malformed",
+                )
             # A claim outside the signed field set is unauthenticated, whatever it
             # says, so refuse it rather than reporting on bytes nobody signed.
             unsigned = [f for f in _UNSIGNED_CLAIM_FIELDS if f in doc]
             if unsigned:
-                return "FAIL", (
+                return (
+                    "INVALID",
                     f"hash-mode receipt carries claim fields its signature does not "
-                    f"cover: {','.join(unsigned)}"
+                    f"cover: {','.join(unsigned)}",
+                    "counterparty_mismatch",
                 )
-            return "PASS", "hash-mode signature receipt; required flat fields present"
+            return "PASS", "hash-mode signature receipt; required flat fields present", "none"
         return _vr.check_structure(_payload(doc))
 
     def __init__(self) -> None:
         # Shared per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7).
         self._seen_nonces: set[str] = set()
 
-    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
+    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str, str]]:
         """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
         A receipt signed by a revoked key, or by a key the directory publishes
@@ -235,8 +261,9 @@ class AsqavNativeAdapter(FormatAdapter):
         # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
         # expires_at, and reading the flat doc would gate on an uncovered field.
         signed = {} if _is_hash_mode(doc) else _payload(doc)
-        axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
+        axes: list[tuple[str, str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
         axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
+        axes.append(self._alg_binding_axis(doc, key_provider))
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
         if entry is None:
@@ -252,10 +279,10 @@ class AsqavNativeAdapter(FormatAdapter):
             bind = _vr.check_issuer_binding(key_issuer, payload.get("issuer_id"))
         # Offline anchor presence is unverifiable (anchors are unsigned); pass
         # False so a forged anchor never rides a revoked key to PASS.
-        res, note = _vr.check_key_status(
+        key_status = _vr.check_key_status(
             entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
         )
-        return axes + [("key_status", res, note), ("issuer_bind", *bind)]
+        return axes + [("key_status", *key_status), ("issuer_bind", *bind)]
 
     def attestation(self, doc: dict) -> dict[str, Any]:
         """Surface the v:2 in-body ``signer``. None for v:1 and hash-mode.

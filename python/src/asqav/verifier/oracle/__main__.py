@@ -7,8 +7,10 @@ knows, with one self-contained call::
 
 It loads the receipt, runs :func:`verify` over the bundled ``ADAPTERS``, prints
 the verdict and per-axis result as JSON, and sets the exit status from the
-verdict: 0 on PASS, 1 on FAIL, 2 on INCOMPLETE. INCOMPLETE means an axis (the
-signature, typically) could not be checked - it is never reported as a PASS.
+verdict: 0 on PASS, 1 on INVALID (a binding check ran and failed), 2 on
+UNVERIFIABLE (recomputation could not complete). UNVERIFIABLE is never a PASS,
+and a duplicate JSON member name at any depth is a terminal parse failure that
+exits 2 before any hashing or signature check (criterion 419).
 
 ``--keys`` is the format-shaped key provider: a JWKS dict for Asqav-native, a
 ``{key_id: hex}`` map for AERF, an ``{key_id: pem}`` map for ACTA, or a did_map
@@ -26,11 +28,13 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from asqav.strict_json import DuplicateJsonMemberError, strict_loads
+
 from . import ADAPTERS
 from .core import verify
 
-#: verdict -> process exit status; PASS is the only success, INCOMPLETE is not a PASS.
-_EXIT = {"PASS": 0, "FAIL": 1, "INCOMPLETE": 2}
+#: verdict -> process exit status; PASS is the only success, UNVERIFIABLE is not a PASS.
+_EXIT = {"PASS": 0, "INVALID": 1, "UNVERIFIABLE": 2}
 
 
 def _load(path: str | None) -> dict | None:
@@ -42,7 +46,12 @@ def _load(path: str | None) -> dict | None:
         print(f"asqav-verify: cannot read {path}: {exc.strerror or exc}", file=sys.stderr)
         raise SystemExit(2) from None
     try:
-        return json.loads(text)
+        # Strict ingest (criterion 419): a duplicate member name is terminal and
+        # exits before any hashing, canonicalisation, or signature check
+        return strict_loads(text)
+    except DuplicateJsonMemberError as exc:
+        print(f"asqav-verify: {path}: strict ingest refused it: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
     except json.JSONDecodeError as exc:
         print(f"asqav-verify: {path} is not valid JSON: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
@@ -59,6 +68,7 @@ def run(receipt_path: str, keys_path: str | None, predecessor_path: str | None) 
     report = {
         "format": result.fmt,
         "verdict": result.verdict,
+        "classification": result.classification,
         "axes": [asdict(a) for a in result.axes],
     }
     print(json.dumps(report, indent=2))

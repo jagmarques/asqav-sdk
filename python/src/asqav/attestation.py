@@ -21,15 +21,17 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import json
 from collections.abc import Callable
 from typing import Any
 
 from ._jcs import canonical_json
+from .strict_json import DuplicateJsonMemberError, strict_loads
 
 __all__ = [
     "ATTESTATION_STATEMENT_SCHEMA",
     "VERDICT_VERIFIED_NOT_REDERIVABLE",
+    "VERDICT_INVALID",
+    "VERDICT_UNVERIFIABLE",
     "compute_statement_hash",
     "reconstruct_signed_message",
     "merkle_leaf_hash",
@@ -46,12 +48,16 @@ DEFAULT_COMMITMENT_ALG = "HMAC-SHA256"
 
 #: Distinct outcome for a good attestation receipt. Never a plain PASS.
 VERDICT_VERIFIED_NOT_REDERIVABLE = "VERIFIED_COMMITMENT_NOT_REDERIVABLE"
-VERDICT_FAIL = "FAIL"
-VERDICT_INCOMPLETE = "INCOMPLETE"
+
+#: Criterion 418 failure classes: INVALID is a binding the check refuted,
+#: UNVERIFIABLE is a recomputation that could not complete; the two never
+#: collapse, and neither is ever the verified outcome
+VERDICT_INVALID = "INVALID"
+VERDICT_UNVERIFIABLE = "UNVERIFIABLE"
 
 _AXIS_PASS = "PASS"
-_AXIS_FAIL = "FAIL"
-_AXIS_SKIP = "SKIP"
+_AXIS_INVALID = "INVALID"
+_AXIS_UNVERIFIABLE = "UNVERIFIABLE"
 _AXIS_NOT_REDERIVABLE = "NOT_REDERIVABLE"
 
 # Merkle domain separation, mirroring the cloud (6962-style second-preimage guard).
@@ -196,8 +202,8 @@ def verify_merkle_inclusion(
 # === Offline attestation verification ===
 
 
-def _axis(name: str, result: str, note: str) -> dict[str, str]:
-    return {"name": name, "result": result, "note": note}
+def _axis(name: str, result: str, note: str, reason_code: str = "none") -> dict[str, str]:
+    return {"name": name, "result": result, "reason_code": reason_code, "note": note}
 
 
 def verify_attestation_offline(
@@ -247,33 +253,53 @@ def verify_attestation_offline(
     if recomputed == receipt_hash:
         axes.append(_axis("statement_hash", _AXIS_PASS, "recomputed from the original claim"))
     else:
-        axes.append(_axis("statement_hash", _AXIS_FAIL, "claim does not match the receipt hash"))
+        axes.append(_axis(
+            "statement_hash", _AXIS_INVALID, "claim does not match the receipt hash",
+            "claim_mismatch",
+        ))
 
     # Signature axis: verify over the exact signed message and bind it to the claim.
     if signed_message is None or verify_signature is None:
-        axes.append(_axis("signature", _AXIS_SKIP, "no signed message or verifier supplied"))
+        axes.append(_axis(
+            "signature", _AXIS_UNVERIFIABLE, "no signed message or verifier supplied",
+            "signature_unchecked",
+        ))
     else:
-        sig_result, sig_note = _check_signature(
-            signed_message, receipt, recomputed, verify_signature
-        )
-        axes.append(_axis("signature", sig_result, sig_note))
+        axes.append(_axis(
+            "signature",
+            *_check_signature(signed_message, receipt, recomputed, verify_signature),
+        ))
 
     # Inclusion axis: check the proof against the supplied signed tree head.
     proof = receipt.get("inclusionProof")
     if signed_tree_head is None or proof is None:
-        axes.append(_axis("inclusion", _AXIS_SKIP, "no signed tree head or proof supplied"))
+        axes.append(_axis(
+            "inclusion", _AXIS_UNVERIFIABLE, "no signed tree head or proof supplied",
+            "inclusion_unchecked",
+        ))
     else:
-        incl_ok = verify_merkle_inclusion(
-            bytes.fromhex(proof["leafHash"]),
-            int(proof["leafIndex"]),
-            int(proof["treeSize"]),
-            [bytes.fromhex(h) for h in proof["auditPath"]],
-            signed_tree_head,
-        )
-        if incl_ok:
+        try:
+            incl_ok = verify_merkle_inclusion(
+                bytes.fromhex(proof["leafHash"]),
+                int(proof["leafIndex"]),
+                int(proof["treeSize"]),
+                [bytes.fromhex(h) for h in proof["auditPath"]],
+                signed_tree_head,
+            )
+        except (KeyError, TypeError, ValueError):
+            # Unreadable proof members: the check cannot run on them
+            axes.append(_axis(
+                "inclusion", _AXIS_UNVERIFIABLE,
+                "inclusion proof members are unreadable", "member_malformed",
+            ))
+            incl_ok = None
+        if incl_ok is True:
             axes.append(_axis("inclusion", _AXIS_PASS, "proof verifies against the tree head"))
-        else:
-            axes.append(_axis("inclusion", _AXIS_FAIL, "proof does not match the tree head"))
+        elif incl_ok is False:
+            axes.append(_axis(
+                "inclusion", _AXIS_INVALID, "proof does not match the tree head",
+                "inclusion_mismatch",
+            ))
 
     # Commitment axis: the holder key is required and absent, so this is structural.
     axes.append(
@@ -297,27 +323,41 @@ def _check_signature(
     receipt: dict[str, Any],
     recomputed_hash: str,
     verify_signature: Callable[[bytes, bytes], bool],
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     try:
-        message_obj = json.loads(signed_message)
+        # Strict ingest (criterion 419): the signed message is canonical JSON, so
+        # a duplicate member is a terminal parse failure, before any binding check
+        message_obj = strict_loads(signed_message)
+    except DuplicateJsonMemberError as exc:
+        return _AXIS_UNVERIFIABLE, f"signed message carries {exc}", "duplicate_member"
     except (ValueError, TypeError):
-        return _AXIS_FAIL, "signed message is not valid canonical JSON"
+        return _AXIS_UNVERIFIABLE, "signed message is not valid canonical JSON", "parse_failed"
+    if not isinstance(message_obj, dict):
+        return _AXIS_UNVERIFIABLE, "signed message is not a JSON object", "parse_failed"
     if message_obj.get("statement_hash") != recomputed_hash:
-        return _AXIS_FAIL, "signed message does not bind to the original claim"
+        return (
+            _AXIS_INVALID,
+            "signed message does not bind to the original claim",
+            "claim_mismatch",
+        )
     try:
         signature = base64.b64decode(receipt.get("signature", ""))
     except (ValueError, TypeError):
-        return _AXIS_FAIL, "receipt signature is not valid base64"
+        return _AXIS_UNVERIFIABLE, "receipt signature is not valid base64", "signature_malformed"
     if verify_signature(signed_message, signature):
-        return _AXIS_PASS, "signature verifies over the signed message"
-    return _AXIS_FAIL, "signature does not verify over the signed message"
+        return _AXIS_PASS, "signature verifies over the signed message", "none"
+    return _AXIS_INVALID, "signature does not verify over the signed message", "signature_mismatch"
 
 
     # Map per-axis results to a verdict. A good receipt is never a plain PASS.
 def _verdict(axes: list[dict[str, str]]) -> str:
     results = {a["name"]: a["result"] for a in axes}
-    if any(r == _AXIS_FAIL for r in results.values()):
-        return VERDICT_FAIL
+    # Criterion 418: a refuted binding dominates an incomplete recomputation,
+    # and either failure class excludes the verified outcome
+    if any(r == _AXIS_INVALID for r in results.values()):
+        return VERDICT_INVALID
+    if any(r == _AXIS_UNVERIFIABLE for r in results.values()):
+        return VERDICT_UNVERIFIABLE
     checked = (
         results.get("statement_hash") == _AXIS_PASS
         and results.get("signature") == _AXIS_PASS
@@ -325,4 +365,4 @@ def _verdict(axes: list[dict[str, str]]) -> str:
     )
     if checked:
         return VERDICT_VERIFIED_NOT_REDERIVABLE
-    return VERDICT_INCOMPLETE
+    return VERDICT_UNVERIFIABLE

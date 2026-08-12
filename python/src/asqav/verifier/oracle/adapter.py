@@ -71,11 +71,13 @@ class FormatAdapter(ABC):
         pass
 
     @abstractmethod
-    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
-        """Return ``(public_key_bytes_or_None, note)`` for the receipt's signer.
+    def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str, str]:
+        """Return ``(public_key_bytes_or_None, note, reason_code)`` for the signer.
 
         ``key_provider`` is format-shaped: a JWKS dict for Asqav-native, a
         ``{key_id: pem_or_raw}`` map for AERF, or None when the key is embedded.
+        The reason_code classifies a miss (criterion 418): key_unresolvable when
+        the directory has no such key, key_malformed when it has unusable bytes.
         """
 
     @abstractmethod
@@ -92,19 +94,22 @@ class FormatAdapter(ABC):
         pass
 
     @abstractmethod
-    def schema(self, doc: dict) -> tuple[str, str]:
-        # Structural check; returns ``(result, note)`` with PASS / FAIL.
+    def schema(self, doc: dict) -> tuple[str, str, str]:
+        # Structural check; returns ``(result, note, reason_code)`` classified
+        # under criterion 418 (malformed members are UNVERIFIABLE, refuted
+        # bindings are INVALID)
         pass
 
-    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
+    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str, str]]:
         """Format-specific axes beyond structure / issuer-signature / chain.
 
-        Returns a list of ``(axis_name, result, note)`` where result is PASS /
-        FAIL / SKIPPED. The default is none; a format whose verification procedure
-        layers additional REQUIRED checks (a multi-signer counter-signature, a
-        policy-binding signature, a transparency-log inclusion proof) returns one
-        tuple per check so a missing-but-required or invalid layer FAILs the
-        verdict rather than passing on the issuer signature alone.
+        Returns ``(axis_name, result, note, reason_code)`` tuples where result is
+        PASS / INVALID / UNVERIFIABLE / SKIPPED (criterion 418). The default is
+        none; a format whose verification procedure layers additional REQUIRED
+        checks (a multi-signer counter-signature, a policy-binding signature, a
+        transparency-log inclusion proof) returns one tuple per check so a
+        missing-but-required or invalid layer blocks the verdict rather than
+        passing on the issuer signature alone.
         """
         return []
 

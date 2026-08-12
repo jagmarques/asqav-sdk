@@ -27,6 +27,7 @@ import re
 from typing import Any
 
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
+from ..taxonomy import PASS, UNVERIFIABLE
 
 #: A shipping-SDK delegationId is ``auth-<epoch_ms>-<5 base36 chars>``.
 #: ``[0-9]`` (not ``\d``) and ``\A``/``\Z`` (not ``^``/``$``) keep this byte-for-byte
@@ -92,14 +93,14 @@ class AuthproofAdapter(FormatAdapter):
         return SignatureMaterial(sig=_safe_hex(doc.get("signature", "")), alg="ES256", kid="")
 
         # Return the 65-byte uncompressed P-256 point from the embedded JWK (key is in-band).
-    def resolve_key(self, doc: dict, _key_provider: Any) -> tuple[bytes | None, str]:
+    def resolve_key(self, doc: dict, _key_provider: Any) -> tuple[bytes | None, str, str]:
         jwk = doc.get("signerPublicKey")
         if not _is_p256_jwk(jwk):
-            return None, "signerPublicKey is not a P-256 JWK"
+            return None, "signerPublicKey is not a P-256 JWK", "key_malformed"
         x, y = _b64url(jwk.get("x")), _b64url(jwk.get("y"))
         if len(x) != 32 or len(y) != 32:
-            return None, "P-256 JWK coordinates are not 32 bytes each"
-        return b"\x04" + x + y, "resolved embedded P-256 JWK"
+            return None, "P-256 JWK coordinates are not 32 bytes each", "key_malformed"
+        return b"\x04" + x + y, "resolved embedded P-256 JWK", "none"
 
     def signing_input(self, doc: dict) -> bytes:
         """The SDK signs ``JSON.stringify`` of the receipt minus ``signature``, key order intact.
@@ -117,8 +118,12 @@ class AuthproofAdapter(FormatAdapter):
         # The base Authproof receipt carries no in-band chain link of its own.
         return ChainStep(prev_field=None, is_genesis=True, recompute=lambda _pred: "")
 
-    def schema(self, doc: dict) -> tuple[str, str]:
+    def schema(self, doc: dict) -> tuple[str, str, str]:
         missing = [f for f in _REQUIRED if doc.get(f) is None]
         if missing:
-            return "FAIL", f"authproof receipt missing fields: {','.join(missing)}"
-        return "PASS", "authproof delegation receipt; required fields present"
+            return (
+                UNVERIFIABLE,
+                f"authproof receipt missing fields: {','.join(missing)}",
+                "member_malformed",
+            )
+        return PASS, "authproof delegation receipt; required fields present", "none"

@@ -26,7 +26,7 @@ import {
   type SignatureMaterial,
 } from "../adapter.js";
 import { jcs } from "../canonical.js";
-import { FAIL, PASS, SKIPPED, sha256Hex, verifySignature } from "../crypto.js";
+import { INVALID, PASS, SKIPPED, UNVERIFIABLE, sha256Hex, verifySignature } from "../crypto.js";
 
 /** Fields removed before canonicalising for both the signature and the chain hash. */
 const STRIP = new Set([
@@ -88,15 +88,15 @@ export class AerfAdapter extends FormatAdapter {
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
-  ): readonly [Uint8Array | null, string] {
+  ): readonly [Uint8Array | null, string, string] {
     const keys = keyProvider ?? {};
     const kid = (doc.key_id as string) ?? "";
     const material = keys[kid];
     if (material === undefined || material === null) {
-      return [null, `key_id '${kid}' not supplied to the key provider`];
+      return [null, `key_id '${kid}' not supplied to the key provider`, "key_unresolvable"];
     }
     const raw = rawEd25519(material instanceof Uint8Array ? material : safeHex(material));
-    return [raw, `resolved key_id ${kid}`];
+    return [raw, `resolved key_id ${kid}`, "none"];
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
@@ -129,12 +129,12 @@ export class AerfAdapter extends FormatAdapter {
     ];
     const missing = required.filter((f) => !(f in doc));
     if (missing.length > 0) {
-      return ["FAIL", `missing required fields: ${missing.join(",")}`];
+      return ["UNVERIFIABLE", `missing required fields: ${missing.join(",")}`, "member_malformed"];
     }
     if ("previous_receipt_hash" in doc && doc.previous_receipt_hash === null) {
-      return ["FAIL", "genesis must omit previous_receipt_hash, not set it null"];
+      return ["UNVERIFIABLE", "genesis must omit previous_receipt_hash, not set it null", "member_malformed"];
     }
-    return ["PASS", "required fields present; type notarised_evidence"];
+    return ["PASS", "required fields present; type notarised_evidence", "none"];
   }
 
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
@@ -153,27 +153,47 @@ export class AerfAdapter extends FormatAdapter {
   private parentAxis(doc: Record<string, unknown>, keyProvider: KeyProvider, required: boolean): ExtraAxis {
     const sigHex = doc.parent_signature;
     if (!sigHex) {
-      if (required) return ["parent_signature", FAIL, "parent_signature absent"];
-      return ["parent_signature", SKIPPED, "no parent_signature on this receipt"];
+      // A required counter-signature is a policy binding, and it is absent
+      if (required) return ["parent_signature", INVALID, "parent_signature absent", "countersign_missing"];
+      return ["parent_signature", SKIPPED, "no parent_signature on this receipt", "none"];
     }
     const pk = resolveRaw(keyProvider, (doc.parent_key_id as string) ?? "");
     if (pk === null) {
-      return ["parent_signature", SKIPPED, "parent_key_id not supplied to the key provider"];
+      return [
+        "parent_signature",
+        UNVERIFIABLE,
+        "parent_key_id not supplied to the key provider",
+        "key_unresolvable",
+      ];
     }
-    const { result, note: why } = verifySignature("Ed25519", pk, this.signingInput(doc), safeHex(sigHex));
-    const note = result === PASS ? "parent counter-signature valid" : `parent signature verification FAILED: ${why}`;
-    return ["parent_signature", result, note];
+    const { result, note: why, reasonCode } = verifySignature(
+      "Ed25519",
+      pk,
+      this.signingInput(doc),
+      safeHex(sigHex),
+    );
+    if (result === PASS) return ["parent_signature", PASS, "parent counter-signature valid", "none"];
+    const note = `parent signature verification FAILED: ${why}`;
+    // A malformed signature keeps its UNVERIFIABLE class; a refuted required
+    // layer reads countersign_missing
+    const reason = result === INVALID && required ? "countersign_missing" : reasonCode;
+    return ["parent_signature", result, note, reason];
   }
 
   private pdpAxis(doc: Record<string, unknown>, keyProvider: KeyProvider, required: boolean): ExtraAxis {
     const sigHex = doc.pdp_signature;
     if (!sigHex) {
-      if (required) return ["pdp_signature", FAIL, "pdp_signature absent"];
-      return ["pdp_signature", SKIPPED, "no pdp_signature on this receipt"];
+      if (required) return ["pdp_signature", INVALID, "pdp_signature absent", "pdp_binding_mismatch"];
+      return ["pdp_signature", SKIPPED, "no pdp_signature on this receipt", "none"];
     }
     const pk = resolveRaw(keyProvider, (doc.pdp_key_id as string) ?? "");
     if (pk === null) {
-      return ["pdp_signature", SKIPPED, "pdp_key_id not supplied to the key provider"];
+      return [
+        "pdp_signature",
+        UNVERIFIABLE,
+        "pdp_key_id not supplied to the key provider",
+        "key_unresolvable",
+      ];
     }
     const tupleBytes = jcs({
       context_hash_sha256: doc.context_hash_sha256 ?? null,
@@ -181,7 +201,10 @@ export class AerfAdapter extends FormatAdapter {
       policy_hash: doc.policy_hash ?? null,
     });
     const { result, note: why } = verifySignature("Ed25519", pk, tupleBytes, safeHex(sigHex));
-    const note = result === PASS ? "pdp binding valid" : `pdp signature verification FAILED: ${why}`;
-    return ["pdp_signature", result, note];
+    if (result === PASS) return ["pdp_signature", PASS, "pdp binding valid", "none"];
+    const note = `pdp signature verification FAILED: ${why}`;
+    // The PDP axis IS the policy binding; a refuted signature is the mismatch
+    const reason = result === INVALID ? "pdp_binding_mismatch" : "signature_malformed";
+    return ["pdp_signature", result, note, reason];
   }
 }
