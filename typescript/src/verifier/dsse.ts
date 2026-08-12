@@ -22,6 +22,7 @@
  */
 
 import { verifySignature } from "./crypto.js";
+import { DuplicateMemberError, parseJsonStrict } from "./canonical.js";
 import { b64decode, resolveKey, resolveRevokedAt } from "./vrShim.js";
 
 /** DSSE payloadType for an in-toto Statement (mirrors `core/dsse.py`). */
@@ -167,8 +168,10 @@ function checkAttestationStructure(envelope: unknown, expectedType: string): Str
   }
   let statement: unknown;
   try {
-    statement = JSON.parse(new TextDecoder().decode(payloadBytes));
-  } catch {
+    // Strict ingest (419): a duplicated member name is a terminal parse failure.
+    statement = parseJsonStrict(new TextDecoder().decode(payloadBytes));
+  } catch (exc) {
+    if (exc instanceof DuplicateMemberError) return bad(`payload rejected: ${exc.message}`);
     return bad("payload does not decode to a JSON document");
   }
   if (!isRecord(statement)) return bad("decoded payload is not a JSON object");

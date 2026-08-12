@@ -7,6 +7,38 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Changed
 
+- **BREAKING: the verifier speaks a three-verdict vocabulary and never collapses
+  failure classes (criteria 418/438).** Every public verifier surface — the
+  standalone `verify_receipt.py` (text + structured + exit codes), the oracle
+  `verify()` / `VerifyResult`, the oracle runner, the TypeScript `verify()` /
+  `verifyReceiptOffline`, and `verify_attestation_offline` — now reports
+  `verified` | `verified_keyed` | `unverified` instead of PASS | FAIL |
+  INCOMPLETE. Every `unverified` verdict carries a `failure_class` of `invalid`
+  (a check ran and a cryptographic/policy binding failed: signature mismatch,
+  chain-link mismatch, invalid anchor, counterparty binding mismatch, revoked or
+  changed signer key, algorithm mismatch, or `issued_at` future-skew) or
+  `unverifiable` (recomputation could not complete: unresolvable key, missing or
+  broken chain predecessor, malformed member, canonicalisation or parse failure,
+  unresolvable policy digest, or a pending anchor without proof). The two are
+  never collapsed, and a receipt is never reported verified when recomputation
+  failed. A keyed digest (e.g. HMAC-SHA256) that fully checks reports
+  `verified_keyed`, never plain `verified`. Exit codes keep the stable mapping:
+  `verified`/`verified_keyed` → 0, `unverified`+`invalid` → 1,
+  `unverified`+`unverifiable` → 2 (the blocked state INCOMPLETE used to carry).
+  The per-axis PASS/FAIL/SKIPPED tokens stay internal. Both language halves and
+  the conformance corpus agree byte for byte on verdict and failure_class.
+
+- **BREAKING: duplicate JSON member names are rejected at any depth (criterion
+  419).** Every receipt- and record-parsing path — `verify_receipt` ingest, the
+  oracle runner and CLI, the attestation signed-message re-parse, the doors OTel
+  receipt recovery, the CLI JSON arguments and signing-log records, the API
+  response parsers, and the TypeScript `parseJsonPreservingFloats` plus the
+  receipt/bundle/doors/DSSE loaders — now fails closed on a duplicated member
+  name, before any hashing, canonicalisation, or signature check. The stdlib
+  last-wins behaviour would hash the bytes an attacker kept and drop the ones
+  they replaced, so a duplicate is a terminal parse failure, reported
+  `unverified`/`unverifiable`.
+
 - **BREAKING for hand-assembled receipts: an anchor `value` must be one unwrapped
   base64 token.** A value carrying whitespace, including a trailing newline or MIME
   line wrapping, reported PASS on the anchors axis and now reports FAIL. Both language

@@ -82,7 +82,8 @@ describe("verifyReceiptOffline - Ed25519 path (no network)", () => {
     const receipt = loadJson(PASS_DIR, "receipt.json");
     const jwks = loadJson(PASS_DIR, "jwks.json");
     const result = verifyReceiptOffline(receipt, jwks);
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).toBe("verified");
+    expect(result.failureClass).toBeNull();
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("PASS");
   });
@@ -103,6 +104,7 @@ describe("verifyReceiptOffline - Ed25519 path (no network)", () => {
       expect(ax).toHaveProperty("axis");
       expect(ax).toHaveProperty("result");
       expect(ax).toHaveProperty("note");
+      expect(ax).toHaveProperty("failureClass");
     }
   });
 });
@@ -118,7 +120,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const jwks = loadJson(REVOKED_DIR, "jwks.json");
     const result = verifyReceiptOffline(receipt, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
+    expect(result.failureClass).toBe("invalid");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis, "key_status axis must be present").toBeDefined();
     expect(keyAxis?.result).toBe("FAIL");
@@ -147,7 +150,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const activeJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((activeJwks.keys as Array<Record<string, unknown>>)[0]).status = "active";
     const result = verifyReceiptOffline(receipt, activeJwks);
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).toBe("verified");
   });
 
   it("suspended key also FAILs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
@@ -156,7 +159,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const suspJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((suspJwks.keys as Array<Record<string, unknown>>)[0]).status = "suspended";
     const result = verifyReceiptOffline(receipt, suspJwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("FAIL");
   });
@@ -167,7 +170,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const compJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((compJwks.keys as Array<Record<string, unknown>>)[0]).status = "compromised";
     const result = verifyReceiptOffline(receipt, compJwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("FAIL");
   });
@@ -182,7 +185,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
     const result = verifyReceiptOffline(receipt, futureJwks);
-    expect(result.verdict).toBe("INCOMPLETE");
+    expect(result.verdict).toBe("unverified");
+    expect(result.failureClass).toBe("unverifiable");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("SKIPPED");
     expect(keyAxis?.note).toMatch(/no anchor/i);
@@ -198,8 +202,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const anchored = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
     anchored.anchors = [{ type: "rfc3161", value: "dGVzdC10c3ItY29va2ll", tsa_url: "https://tsa.example/timestamp" }];
     const result = verifyReceiptOffline(anchored, futureJwks);
-    expect(result.verdict).not.toBe("PASS");
-    expect(result.verdict).toBe("INCOMPLETE");
+    expect(result.verdict).not.toBe("verified");
+    expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("SKIPPED");
     expect(keyAxis?.note).toMatch(/no anchor|self-attested/i);
@@ -214,8 +218,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     ((compromisedJwks.keys as Array<Record<string, unknown>>)[0]).status = "compromised";
     ((compromisedJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
     const result = verifyReceiptOffline(receipt, compromisedJwks);
-    expect(result.verdict).not.toBe("PASS");
-    expect(result.verdict).toBe("INCOMPLETE");
+    expect(result.verdict).not.toBe("verified");
+    expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("SKIPPED");
   });
@@ -227,7 +231,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const atJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((atJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-06-01T12:00:00+00:00";
     const result = verifyReceiptOffline(receipt, atJwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis?.result).toBe("FAIL");
     expect(keyAxis?.note).toMatch(/on\/before issuance/i);
@@ -243,7 +247,8 @@ describe("verifyReceiptOffline - tamper detection (no network)", () => {
     const receipt = loadJson(TAMPER_DIR, "receipt.json");
     const jwks = loadJson(TAMPER_DIR, "jwks.json");
     const result = verifyReceiptOffline(receipt, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
+    expect(result.failureClass).toBe("invalid");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("FAIL");
   });
@@ -254,7 +259,8 @@ describe("verifyReceiptOffline - tamper detection (no network)", () => {
     const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
     (tampered.payload as Record<string, unknown>).decision = "deny";
     const result = verifyReceiptOffline(tampered, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
+    expect(result.failureClass).toBe("invalid");
   });
 });
 
@@ -266,7 +272,8 @@ describe("verifyReceiptOffline - missing key (no network)", () => {
   it("never returns PASS when key is absent from JWKS", () => {
     const receipt = loadJson(PASS_DIR, "receipt.json");
     const result = verifyReceiptOffline(receipt, { keys: [] });
-    expect(result.verdict).not.toBe("PASS");
+    expect(result.verdict).toBe("unverified");
+    expect(result.failureClass).toBe("unverifiable");
     // Signature must be SKIPPED (key not found) not FAIL
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("SKIPPED");
@@ -332,7 +339,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     };
 
     const result = oracleVerify(envelope, ADAPTERS, jwks);
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).toBe("verified");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("PASS");
   });
@@ -371,7 +378,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
       keys: [{ kid, issuer_id: kid, alg: "ML-DSA-65", status: "active", public_key: pk_b64 }],
     };
     const result = verifyReceiptOffline(envelope, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("FAIL");
   });
@@ -394,7 +401,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     expect(result.axes.filter((a) => a.axis !== "expiry").map((a) => a.result)).toEqual(
       result.axes.filter((a) => a.axis !== "expiry").map(() => "PASS"),
     );
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).toBe("verified");
   });
 
   it("returns FAIL for a tampered real-cloud ML-DSA-65 KAT receipt (anti-vacuous)", () => {
@@ -404,7 +411,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     // Flip one payload field - ML-DSA sig over canonical bytes must not match.
     (tampered.payload as Record<string, unknown>).decision = "deny";
     const result = verifyReceiptOffline(tampered, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("FAIL");
   });
@@ -421,7 +428,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     bad.fill(0, 0, 16);
     sig.sig = Buffer.from(bad).toString("base64");
     const result = verifyReceiptOffline(tampered, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const sigAxis = result.axes.find((a) => a.axis === "signature");
     expect(sigAxis?.result).toBe("FAIL");
   });
@@ -474,7 +481,7 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
   it("refuses a receipt signed by a key published under another issuer", () => {
     const [envelope, jwks] = crossIssuerForgery();
     const result = verifyReceiptOffline(envelope, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     const bind = result.axes.find((a) => a.axis === "issuer_bind");
     expect(bind?.result).toBe("FAIL");
     // The forged signature itself verifies; the bind is what refuses it.
@@ -513,7 +520,7 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
         },
       ],
     };
-    expect(verifyReceiptOffline(envelope, jwks).verdict).toBe("PASS");
+    expect(verifyReceiptOffline(envelope, jwks).verdict).toBe("verified");
   });
 });
 
@@ -565,7 +572,7 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     const { publicKey, secretKey } = ml_dsa65.keygen();
     const doc = hashModeReceipt(VICTIM_ORG, secretKey);
     const result = verifyReceiptOffline(doc, hashModeJwks(ATTACKER_ORG, publicKey));
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     expect(result.axes.find((a) => a.axis === "issuer_bind")?.result).toBe("FAIL");
     // The signature itself verifies; the bind is what refuses it.
     expect(result.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
@@ -575,11 +582,11 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     const { publicKey, secretKey } = ml_dsa65.keygen();
     const clean = hashModeReceipt(ATTACKER_ORG, secretKey);
     const jwks = hashModeJwks(ATTACKER_ORG, publicKey);
-    expect(verifyReceiptOffline(clean, jwks).verdict).toBe("PASS");
+    expect(verifyReceiptOffline(clean, jwks).verdict).toBe("verified");
 
     const doc = { ...clean, issuer_id: "org-victim", previousReceiptHash: "0".repeat(64) };
     const result = verifyReceiptOffline(doc, jwks);
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     expect(result.axes.find((a) => a.axis === "structure")?.note).toContain("does not cover");
   });
 
@@ -588,12 +595,12 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     const doc = hashModeReceipt(ATTACKER_ORG, secretKey);
     const aliased = verifyReceiptOffline(doc, hashModeJwks("Acme Compliance Ltd", publicKey));
     expect(aliased.axes.find((a) => a.axis === "issuer_bind")?.result).toBe("SKIPPED");
-    expect(aliased.verdict).toBe("INCOMPLETE");
+    expect(aliased.verdict).toBe("unverified");
     const published = verifyReceiptOffline(
       doc,
       hashModeJwks("Acme Compliance Ltd", publicKey, ATTACKER_ORG),
     );
-    expect(published.verdict).toBe("PASS");
+    expect(published.verdict).toBe("verified");
   });
 
   it("gives a clean FAIL, not a crash, on the prod vector plus unsigned claims", () => {
@@ -602,7 +609,7 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     doc.issuer_id = "org-victim";
     doc.previousReceiptHash = "0".repeat(64);
     const result = verifyReceiptOffline(doc, loadJson(dir, "jwks.json"));
-    expect(result.verdict).toBe("FAIL");
+    expect(result.verdict).toBe("unverified");
     expect(result.axes.find((a) => a.axis === "structure")?.note).toContain("does not cover");
   });
 });

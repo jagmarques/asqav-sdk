@@ -193,7 +193,9 @@ def test_rewritten_kid_cannot_flip_a_revoked_receipt_to_pass() -> None:
     assert honest_res.axis("signature").result == "PASS"
     assert rewritten_res.axis("signature").result == "PASS"
     # And the revoked status carries the verdict in both cases.
-    assert honest_res.verdict == "FAIL"
-    assert rewritten_res.verdict == "FAIL"
+    assert honest_res.verdict == "unverified"
+    assert rewritten_res.verdict == "unverified"
+    assert honest_res.failure_class == "invalid"
+    assert rewritten_res.failure_class == "invalid"
     assert rewritten_res.axis("key_status") is not None
     assert rewritten_res.axis("key_status").result == "FAIL"
