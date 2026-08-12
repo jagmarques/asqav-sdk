@@ -43,6 +43,7 @@ import {
   saveCredentials,
 } from "./credentials.js";
 import { SDK_VERSION, userAgentHeaders } from "./userAgent.js";
+import { parseJsonStrict } from "./verifier/canonical.js";
 
 export const CLI_VERSION = SDK_VERSION;
 
@@ -372,11 +373,12 @@ async function readJsonInput(value: string): Promise<unknown> {
     for await (const chunk of process.stdin) {
       chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer));
     }
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    // Strict ingest (419): a duplicated member name is a terminal parse failure.
+    return parseJsonStrict(Buffer.concat(chunks).toString("utf8"));
   }
   const fs = await import("node:fs/promises");
   const text = await fs.readFile(value, "utf8");
-  return JSON.parse(text);
+  return parseJsonStrict(text);
 }
 
 /** Parsed shape of `asqav sign` flags; bundles raw strings without
@@ -613,7 +615,8 @@ async function cmdAuditPackVerify(args: string[]): Promise<void> {
       const fs = await import("node:fs/promises");
       raw = await fs.readFile(bundlePath, "utf8");
     }
-    bundle = JSON.parse(raw);
+    // Strict ingest (419): a duplicated member name is a terminal parse failure.
+    bundle = parseJsonStrict(raw);
   } catch (err) {
     die(`Error reading bundle: ${(err as Error).message}`);
   }

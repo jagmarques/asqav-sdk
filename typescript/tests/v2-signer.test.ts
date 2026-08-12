@@ -28,7 +28,8 @@ describe("v:2 signer + canary acceptance (neutral verifier)", () => {
     const { receipt, jwks } = v2();
     const res = verify(receipt, ADAPTERS, jwks);
     expect(res.fmt).toBe("asqav-native");
-    expect(res.verdict).toBe("PASS");
+    expect(res.verdict).toBe("verified");
+    expect(res.failureClass).toBeNull();
     expect(res.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
     expect(res.signer).toBe(SIGNER);
   });
@@ -38,7 +39,8 @@ describe("v:2 signer + canary acceptance (neutral verifier)", () => {
     (receipt.payload as Record<string, unknown>).signer = "https://api.asqav.con";
     const res = verify(receipt, ADAPTERS, jwks);
     expect(res.axes.find((a) => a.axis === "signature")?.result).toBe("FAIL");
-    expect(res.verdict).toBe("FAIL");
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("invalid");
   });
 
   it("does not surface or trust a signer moved outside the signed body", () => {
@@ -47,14 +49,16 @@ describe("v:2 signer + canary acceptance (neutral verifier)", () => {
     receipt.signer = SIGNER; // loose, outside the canonical body
     const res = verify(receipt, ADAPTERS, jwks);
     expect(res.signer).toBeNull();
-    expect(res.verdict).toBe("FAIL");
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("invalid");
   });
 
   it("fails the tampered-canary corpus vector", () => {
     const receipt = load("asqav-09-v2-signer-tampered", "receipt.json");
     const jwks = load("asqav-09-v2-signer-tampered", "jwks.json");
     const res = verify(receipt, ADAPTERS, jwks);
-    expect(res.verdict).toBe("FAIL");
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("invalid");
   });
 
   it("does not add a canary axis (neutral verifier cannot recompute _asqav_tid)", () => {
@@ -67,7 +71,7 @@ describe("v:2 signer + canary acceptance (neutral verifier)", () => {
     const receipt = load("asqav-01-genesis-permit", "receipt.json");
     const jwks = load("asqav-01-genesis-permit", "jwks.json");
     const res = verify(receipt, ADAPTERS, jwks);
-    expect(res.verdict).toBe("PASS");
+    expect(res.verdict).toBe("verified");
     expect(res.signer).toBeNull();
   });
 

@@ -32,6 +32,10 @@ def test_cross_language_case(case: dict) -> None:
     assert result["verdict"] == case["expect"]["verdict"], (
         f"{case['name']}: verdict {result['verdict']!r}, axes {axes}"
     )
+    # invalid and unverifiable are never collapsed (criterion 418).
+    assert result["failure_class"] == case["expect"]["failure_class"], (
+        f"{case['name']}: failure_class {result['failure_class']!r}, axes {axes}"
+    )
     for axis, expected in case["expect"]["axes"].items():
         assert axes.get(axis) == expected, (
             f"{case['name']}: axis {axis} is {axes.get(axis)!r}, expected {expected!r}"

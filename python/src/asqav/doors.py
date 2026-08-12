@@ -29,9 +29,9 @@ use an Asqav-aware verifier to check the signature.
 from __future__ import annotations
 
 import hashlib
-import json
 from typing import Any
 
+from . import strict_json
 from ._jcs import canonical_json
 
 __all__ = [
@@ -295,7 +295,8 @@ def receipt_from_cloudevent(event: dict) -> dict:
 
     # Recover the inner receipt from an OTel GenAI attribute map.
 def receipt_from_otel_genai_attributes(attrs: dict) -> dict:
-    return json.loads(attrs[OTEL_RECEIPT_ATTR])
+    # Strict ingest (419): a duplicated member name never reaches the caller.
+    return strict_json.loads(attrs[OTEL_RECEIPT_ATTR])
 
 
     # Recover the inner receipt from a C2PA door.

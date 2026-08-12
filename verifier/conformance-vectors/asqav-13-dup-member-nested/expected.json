@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "unverifiable",
+  "reason_code": "duplicate_member",
+  "notes": "The payload_digest.hash member is duplicated two levels down; strict ingest rejects duplicate members at any depth at parse time, before any hashing or signature check, so it never verifies."
+}
