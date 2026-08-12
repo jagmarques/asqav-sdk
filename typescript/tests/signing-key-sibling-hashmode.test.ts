@@ -67,7 +67,18 @@ describe("hash-mode resolution across three org siblings", () => {
     const res = verify(hashReceipt(f, sig), [new AsqavNativeAdapter()], jwks);
     const axes = axesOf(res);
     expect(axes.signature, JSON.stringify(axes)).toBe("PASS");
-    expect(res.verdict, JSON.stringify(axes)).toBe("PASS");
+    expect(res.verdict, JSON.stringify(axes)).toBe("verified");
+    expect(res.failureClass).toBeNull();
+  });
+
+  it("reports verified_keyed, never plain verified, for an hmac-sha256 digest (criterion 438)", () => {
+    const kp = ml_dsa65.keygen();
+    const f = { ...flat("agt_1"), hash_algo: "hmac-sha256" };
+    const sig = Buffer.from(ml_dsa65.sign(asqavJcs(f), kp.secretKey)).toString("base64");
+    const jwks = { keys: [siblingKey(1, kp.publicKey)] };
+    const res = verify(hashReceipt(f, sig), [new AsqavNativeAdapter()], jwks);
+    expect(res.verdict).toBe("verified_keyed");
+    expect(res.failureClass).toBeNull();
   });
 
   it("resolves each sibling to its own key", () => {

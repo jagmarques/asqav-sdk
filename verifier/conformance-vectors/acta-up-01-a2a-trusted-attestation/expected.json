@@ -1,6 +1,6 @@
 {
   "format": "acta",
-  "outcome": "PASS",
+  "outcome": "verified",
   "reason_code": "",
   "notes": "Real ScopeBlind APS issuer attestation (a2a-trust-header/happy-path.json); the upstream Ed25519 signature over JCS(payload) verifies under our adapter. Inbound interop: we verify a producer we did not write."
 }

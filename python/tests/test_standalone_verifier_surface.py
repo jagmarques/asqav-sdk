@@ -144,7 +144,7 @@ def test_standalone_file_verifies_the_published_receipt_without_asqav(tmp_path) 
         timeout=180,
     )
     assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert "=> PASS" in proc.stdout, proc.stdout
+    assert "=> verified" in proc.stdout, proc.stdout
     # The lapsed signed expiry reports on its own axis and never folds the verdict
     assert "[FAIL] expiry" in proc.stdout, proc.stdout
 
@@ -179,4 +179,4 @@ def test_standalone_file_rejects_a_tampered_published_receipt(tmp_path) -> None:
         timeout=180,
     )
     assert proc.returncode == 1, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert "=> FAIL" in proc.stdout, proc.stdout
+    assert "=> unverified" in proc.stdout, proc.stdout

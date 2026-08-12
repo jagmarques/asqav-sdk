@@ -89,7 +89,8 @@ def test_aerf_valid_receipt_passes() -> None:
     doc = _load("aerf-01-genesis", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("aerf-01-genesis", "aerf"))
     assert res.fmt == "aerf"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
+    assert res.failure_class is None
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -98,7 +99,8 @@ def test_aerf_chain_link_passes() -> None:
     doc = _load("aerf-02-chain-link", "receipt.json")
     pred = _load("aerf-02-chain-link", "predecessor.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("aerf-02-chain-link", "aerf"), predecessor=pred)
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
+    assert res.failure_class is None
     assert res.axis("chain").result == crypto.PASS
 
 
@@ -106,7 +108,8 @@ def test_aerf_chain_link_passes() -> None:
 def test_aerf_tampered_evidence_fails_signature() -> None:
     doc = _load("aerf-03-tamper-evidence", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("aerf-03-tamper-evidence", "aerf"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -115,7 +118,8 @@ def test_aerf_tampered_chain_fails_chain() -> None:
     doc = _load("aerf-04-tamper-chain", "receipt.json")
     pred = _load("aerf-04-tamper-chain", "predecessor.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("aerf-04-tamper-chain", "aerf"), predecessor=pred)
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("chain").result == crypto.FAIL
 
 
@@ -124,7 +128,8 @@ def test_aerf_tampered_chain_fails_chain() -> None:
 def test_aerf_impact_without_parent_sig_fails() -> None:
     doc = _load("aerf-up-05-impact-no-parent-sig", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("aerf-up-05-impact-no-parent-sig", "aerf"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.PASS
     assert res.axis("parent_signature").result == crypto.FAIL
 
@@ -134,20 +139,23 @@ def test_aerf_impact_without_parent_sig_fails() -> None:
 def test_aerf_pdp_split_context_fails() -> None:
     doc = _load("aerf-up-08-pdp-binding-split-context", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("aerf-up-08-pdp-binding-split-context", "aerf"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.PASS
     assert res.axis("pdp_signature").result == crypto.FAIL
 
 
-    # A required counter-sign axis whose key is not supplied SKIPs and downgrades to INCOMPLETE, never PASS.
+    # A required counter-sign axis whose key is not supplied SKIPs and downgrades to
+    # unverified/unverifiable, never a verified verdict.
 @requires_ed25519
-def test_aerf_required_layer_without_key_is_incomplete_never_pass() -> None:
+def test_aerf_required_layer_without_key_is_unverifiable_never_verified() -> None:
     doc = _load("aerf-up-07-pdp-binding-valid", "receipt.json")
     keys = dict(_provider("aerf-up-07-pdp-binding-valid", "aerf"))
     keys.pop("dfe937603b2f3312", None)  # drop the PDP key so the axis cannot be checked
     res = verify(doc, ADAPTERS, key_provider=keys)
     assert res.axis("pdp_signature").result == crypto.SKIPPED
-    assert res.verdict == "INCOMPLETE"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
 
 
 @requires_ed25519
@@ -155,7 +163,8 @@ def test_asqav_native_valid_receipt_passes() -> None:
     doc = _load("asqav-01-genesis-permit", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native"))
     assert res.fmt == "asqav-native"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
+    assert res.failure_class is None
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -166,7 +175,8 @@ def test_asqav_native_chain_link_passes() -> None:
     res = verify(
         doc, ADAPTERS, key_provider=_provider("asqav-03-chain-link", "asqav-native"), predecessor=pred
     )
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
+    assert res.failure_class is None
     assert res.axis("chain").result == crypto.PASS
 
 
@@ -174,7 +184,8 @@ def test_asqav_native_chain_link_passes() -> None:
 def test_asqav_native_tampered_signature_fails() -> None:
     doc = _load("asqav-04-tamper-sig", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("asqav-04-tamper-sig", "asqav-native"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -191,15 +202,18 @@ def test_asqav_native_chain_break_fails_without_crypto() -> None:
 def test_unknown_format_fails_closed() -> None:
     res = verify({"hello": "world"}, ADAPTERS)
     assert res.fmt == "unknown"
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    # An unrecognised receipt cannot be recomputed at all (malformed member class).
+    assert res.failure_class == "unverifiable"
 
 
-    # No key provider means the signature cannot be checked; never a PASS.
-def test_signature_skips_downgrade_to_incomplete() -> None:
+    # No key provider means the signature cannot be checked; never a verified verdict.
+def test_signature_skips_downgrade_to_unverifiable() -> None:
     doc = _load("aerf-01-genesis", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider={})
     assert res.axis("signature").result == crypto.SKIPPED
-    assert res.verdict == "INCOMPLETE"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
 
 
     # The CLI entrypoint runs the corpus, tolerates the optional-dep vector, exits 0.
@@ -215,12 +229,12 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 52
-    # asqav-05 (INCOMPLETE) upgrades to PASS when dilithium-py is present.
+    assert len(results) == 54
+    # asqav-05 (unverified) upgrades to verified when dilithium-py is present.
     def _tol(r):
         return r.ok or (
-            r.expected_outcome == "INCOMPLETE"
-            and r.actual_verdict == "PASS"
+            r.expected_outcome == "unverified"
+            and r.actual_verdict == "verified"
             and r.reason_code == "signature_skipped_no_dilithium"
         )
 
@@ -242,7 +256,7 @@ def test_acta_valid_genesis_passes() -> None:
     doc = _load("acta-01-genesis", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-01-genesis"))
     assert res.fmt == "acta"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -251,7 +265,7 @@ def test_acta_chain_link_passes() -> None:
     doc = _load("acta-02-chain-link", "receipt.json")
     pred = _load("acta-02-chain-link", "predecessor.json")
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-02-chain-link"), predecessor=pred)
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("chain").result == crypto.PASS
 
 
@@ -259,7 +273,8 @@ def test_acta_chain_link_passes() -> None:
 def test_acta_tampered_signature_fails() -> None:
     doc = _load("acta-03-tamper-sig", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-03-tamper-sig"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -268,7 +283,8 @@ def test_acta_tampered_signature_fails() -> None:
 def test_acta_commitment_mode_fails_not_false_passes() -> None:
     doc = _load("acta-05-commitment-mode-unsupported", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-05-commitment-mode-unsupported"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -319,7 +335,7 @@ def test_acta_rev02_vectors_still_verify() -> None:
     for vec in ("acta-01-genesis",):
         doc = _load(vec, "receipt.json")
         res = verify(doc, ADAPTERS, key_provider=_acta_keys(vec))
-        assert res.verdict == "PASS", vec
+        assert res.verdict == "verified", vec
 
 
 @requires_ed25519
@@ -337,7 +353,7 @@ def test_acta_upstream_scopeblind_receipt_verifies() -> None:
     assert "issuer_id" not in doc["payload"] and "type" not in doc["payload"]
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-up-01-a2a-trusted-attestation"))
     assert res.fmt == "acta"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -346,7 +362,8 @@ def test_acta_upstream_scopeblind_receipt_verifies() -> None:
 def test_acta_upstream_tampered_receipt_fails() -> None:
     doc = _load("acta-up-03-a2a-tampered-sig", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_acta_keys("acta-up-03-a2a-tampered-sig"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -363,7 +380,7 @@ def test_acta_malformed_signature_fails_does_not_crash() -> None:
         forged = json.loads(json.dumps(doc))
         forged["signature"] = {"sig": bad, "alg": "EdDSA", "kid": "k1"}
         res = verify(forged, ADAPTERS, key_provider=_acta_keys("acta-01-genesis"))
-        assert res.verdict != "PASS"
+        assert res.verdict == "unverified"
         assert ActaAdapter().extract_signature(forged).sig == b""
 
 
@@ -386,7 +403,9 @@ def test_cross_format_confusion_asqav_with_hex_sig_does_not_verify_as_native() -
     forged["signature"]["sig"] = "ab" * 64  # 128-char lowercase hex (ACTA-shaped)
     res = verify(forged, ADAPTERS, key_provider=_acta_keys("acta-01-genesis"))
     assert res.fmt == "acta"
-    assert res.verdict != "PASS"
+    assert res.verdict == "unverified"
+    # The ACTA route cannot resolve the native kid, so the check cannot complete.
+    assert res.failure_class == "unverifiable"
     # The unmodified native receipt still routes to asqav-native.
     assert verify(native, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native")).fmt == "asqav-native"
 
@@ -407,7 +426,8 @@ def test_acta_genesis_spoof_breaks_signature() -> None:
     spoof = json.loads(json.dumps(succ))
     del spoof["payload"]["previousReceiptHash"]
     res = verify(spoof, ADAPTERS, key_provider=_acta_keys("acta-02-chain-link"))
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -466,7 +486,7 @@ def test_asqav_native_agent_id_fallback_resolves_absent_kid() -> None:
     res = verify(doc, ADAPTERS, key_provider=jwks)
     assert res.fmt == "asqav-native"
     assert res.axis("signature").result == crypto.PASS
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
 
 
 @requires_ed25519
@@ -514,7 +534,8 @@ def test_asqav_native_agent_id_fallback_binds_issuer() -> None:
     }
     res = verify(doc, ADAPTERS, key_provider=jwks)
     assert res.fmt == "asqav-native"
-    assert res.verdict != "PASS"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
     assert res.axis("signature").result in (crypto.FAIL, crypto.SKIPPED)
 
 
@@ -528,11 +549,12 @@ def test_wrong_key_resolution_fails_signature() -> None:
     swapped[kid] = other_raw.hex()
     res = verify(doc, ADAPTERS, key_provider=swapped)
     assert res.fmt == "aerf"
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # An Ed25519 receipt relabelled to an alg the verifier does not check never PASSes.
+    # An Ed25519 receipt relabelled to an alg the verifier does not check never verifies.
 @requires_ed25519
 def test_algorithm_confusion_does_not_false_pass() -> None:
     doc = _load("acta-01-genesis", "receipt.json")
@@ -540,7 +562,9 @@ def test_algorithm_confusion_does_not_false_pass() -> None:
     forged["signature"]["alg"] = "ES256"
     res = verify(forged, ADAPTERS, key_provider=_acta_keys("acta-01-genesis"))
     assert res.fmt == "acta"
-    assert res.verdict != "PASS"
+    assert res.verdict == "unverified"
+    # An algorithm the format does not implement is an algorithm mismatch: invalid.
+    assert res.failure_class == "invalid"
     assert res.axis("structure").result == crypto.FAIL
     assert res.axis("signature").result in (crypto.FAIL, crypto.SKIPPED)
 
@@ -629,7 +653,7 @@ def test_agentreceipts_didkey_genesis_passes() -> None:
     doc = _ar("agentreceipts-01-didkey-genesis")
     res = verify(doc, ADAPTERS)
     assert res.fmt == "agentreceipts"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -638,7 +662,7 @@ def test_agentreceipts_chain_link_passes() -> None:
     doc = _ar("agentreceipts-02-didkey-chain-link")
     pred = _ar("agentreceipts-02-didkey-chain-link", "predecessor.json")
     res = verify(doc, ADAPTERS, predecessor=pred)
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("chain").result == crypto.PASS
 
 
@@ -646,7 +670,8 @@ def test_agentreceipts_chain_link_passes() -> None:
 def test_agentreceipts_tampered_payload_fails_signature() -> None:
     doc = _ar("agentreceipts-03-tamper-payload")
     res = verify(doc, ADAPTERS)
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -654,7 +679,8 @@ def test_agentreceipts_tampered_payload_fails_signature() -> None:
 def test_agentreceipts_tampered_proofvalue_fails_signature() -> None:
     doc = _ar("agentreceipts-04-tamper-proofvalue")
     res = verify(doc, ADAPTERS)
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -677,7 +703,8 @@ def test_agentreceipts_issuer_must_control_signing_key_no_impersonation() -> Non
     res = verify(forged, ADAPTERS, key_provider={vm: pk.hex()})
     assert res.axis("signature").result == crypto.PASS  # attacker's sig is cryptographically valid
     assert res.axis("structure").result == crypto.FAIL  # but signing-key DID != issuer
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
 
 
     # Genesis carries previous_receipt_hash present and null; omitting it is malformed.
@@ -689,7 +716,7 @@ def test_agentreceipts_genesis_explicit_null_is_genesis_missing_field_is_malform
 
     missing = _ar("agentreceipts-05-genesis-missing-prev-hash")
     assert ad.schema(missing)[0] == crypto.FAIL
-    assert verify(missing, ADAPTERS).verdict == "FAIL"
+    assert verify(missing, ADAPTERS).verdict == "unverified"
 
 
     # A verificationMethod resolved to a different key cannot verify the signature.
@@ -698,7 +725,8 @@ def test_agentreceipts_wrong_did_fails_signature() -> None:
     doc = _ar("agentreceipts-06-wrong-key")
     res = verify(doc, ADAPTERS, key_provider=_ar_provider("agentreceipts-06-wrong-key"))
     assert res.fmt == "agentreceipts"
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -707,7 +735,7 @@ def test_agentreceipts_wrong_did_fails_signature() -> None:
 def test_agentreceipts_upstream_valid_resigned_passes() -> None:
     doc = _ar("agentreceipts-up-00-valid-resigned")
     res = verify(doc, ADAPTERS, key_provider=_ar_provider("agentreceipts-up-00-valid-resigned"))
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -792,8 +820,9 @@ def test_hash_mode_signature_skips_without_dilithium_never_false_pass() -> None:
     assert res.fmt == "asqav-native"
     assert res.axis("structure").result == crypto.PASS
     assert res.axis("signature").result in (crypto.PASS, crypto.SKIPPED)
-    assert res.verdict in ("PASS", "INCOMPLETE")
-    assert res.verdict != "FAIL"
+    assert res.verdict in ("verified", "unverified")
+    # A skipped post-quantum check is unverifiable, never a proven invalid.
+    assert res.failure_class in (None, "unverifiable")
 
 
     # A malformed hash-mode signature (non-string) verifies to a non-PASS, never raises.
@@ -804,7 +833,7 @@ def test_hash_mode_malformed_signature_fails_does_not_crash() -> None:
         forged.pop("signature_b64", None)
         forged["signature"] = bad
         res = verify(forged, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
-        assert res.verdict != "PASS"
+        assert res.verdict == "unverified"
 
 
     # A malformed Asqav compliance-envelope signature decodes to b'' and FAILs, never raises.
@@ -814,7 +843,8 @@ def test_compliance_envelope_malformed_signature_fails_does_not_crash() -> None:
         forged = json.loads(json.dumps(doc))
         forged["signature"]["sig"] = bad
         res = verify(forged, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native"))
-        assert res.verdict != "PASS"
+        assert res.verdict == "unverified"
+        assert res.failure_class == "invalid"
 
 
     # A malformed AERF signature (non-hex or non-string) decodes to b'' and FAILs, never raises.
@@ -824,7 +854,8 @@ def test_aerf_malformed_signature_fails_does_not_crash() -> None:
         forged = json.loads(json.dumps(doc))
         forged["signature"] = bad
         res = verify(forged, ADAPTERS, key_provider=_provider("aerf-01-genesis", "aerf"))
-        assert res.verdict != "PASS"
+        assert res.verdict == "unverified"
+        assert res.failure_class == "invalid"
 
 
     # Malformed AERF parent/pdp counter-signatures decode to b'' and FAIL, never raise.
@@ -836,7 +867,8 @@ def test_aerf_malformed_parent_pdp_signature_fails_does_not_crash() -> None:
             forged = json.loads(json.dumps(doc))
             forged[field] = bad
             res = verify(forged, ADAPTERS, key_provider=_provider(vec, "aerf"))
-            assert res.verdict != "PASS"
+            assert res.verdict == "unverified"
+            assert res.failure_class == "invalid"
 
 
 # --- Authproof adapter (ES256 over insertion-order JSON.stringify) ---
@@ -853,7 +885,7 @@ def _authproof_receipt() -> dict:
 def test_authproof_real_sdk_receipt_verifies() -> None:
     res = verify(_authproof_receipt(), ADAPTERS)
     assert res.fmt == "authproof"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("signature").result == crypto.PASS
 
 
@@ -871,13 +903,13 @@ def test_authproof_tamper_and_forge_fail_closed() -> None:
     base = _authproof_receipt()
     tampered = json.loads(json.dumps(base))
     tampered["scope"] = "Send all the emails."
-    assert verify(tampered, ADAPTERS).verdict == "FAIL"
+    assert verify(tampered, ADAPTERS).verdict == "unverified"
     forged = json.loads(json.dumps(base))
     forged["signature"] = "25" + base["signature"][2:]
-    assert verify(forged, ADAPTERS).verdict == "FAIL"
+    assert verify(forged, ADAPTERS).verdict == "unverified"
     wrong_key = json.loads(json.dumps(base))
     wrong_key["signerPublicKey"]["x"] = "AAAAXZILz_GGg8wwWuea3gOYkTvvYwzM42bgY5k_zgM"
-    assert verify(wrong_key, ADAPTERS).verdict == "FAIL"
+    assert verify(wrong_key, ADAPTERS).verdict == "unverified"
 
 
     # A malformed Authproof signature decodes to b'' and FAILs, never raises.
@@ -886,7 +918,7 @@ def test_authproof_malformed_signature_fails_does_not_crash() -> None:
     for bad in ("zz-not-hex", {"k": "v"}, 42, None, "abc"):
         forged = json.loads(json.dumps(base))
         forged["signature"] = bad
-        assert verify(forged, ADAPTERS).verdict != "PASS"
+        assert verify(forged, ADAPTERS).verdict == "unverified"
 
 
     # ES256 verify returns FAIL (never raises) on a bad point or a wrong-length signature.
@@ -903,7 +935,8 @@ def test_non_dict_receipt_fails_closed_never_crashes() -> None:
     for bad in ([1, 2, 3], "a-string", 42, None, True):
         assert detect(bad, ADAPTERS) is None
         res = verify(bad, ADAPTERS)
-        assert res.verdict != "PASS"
+        assert res.verdict == "unverified"
+        assert res.failure_class == "unverifiable"
 
 
 # --- Pipelock EvidenceReceipt v2 adapter ---
@@ -937,7 +970,7 @@ def test_pipelock_evidence_v2_valid_passes() -> None:
     doc = _pipelock("pipelock-ev2-01-proxy-decision")
     res = verify(doc, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
     assert res.fmt == "pipelock-evidence-v2"
-    assert res.verdict == "PASS"
+    assert res.verdict == "verified"
     assert res.axis("structure").result == crypto.PASS
     assert res.axis("signature").result == crypto.PASS
 
@@ -953,7 +986,8 @@ def test_pipelock_evidence_v2_tampered_payload_fails() -> None:
     doc = _pipelock("pipelock-ev2-02-tamper-payload")
     res = verify(doc, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
     assert res.fmt == "pipelock-evidence-v2"
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
@@ -981,17 +1015,19 @@ def test_pipelock_wrong_key_fails_signature() -> None:
     wrong_provider = {"receipt-signing-test": "00" * 32}
     res = verify(doc, ADAPTERS, key_provider=wrong_provider)
     assert res.fmt == "pipelock-evidence-v2"
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # No key for signer_key_id: signature axis SKIPs; verdict is INCOMPLETE, never PASS.
-def test_pipelock_missing_key_skips_never_passes() -> None:
+    # No key for signer_key_id: signature axis SKIPs; unverified/unverifiable, never verified.
+def test_pipelock_missing_key_skips_never_verified() -> None:
     doc = _pipelock("pipelock-ev2-01-proxy-decision")
     res = verify(doc, ADAPTERS, key_provider={})
     assert res.fmt == "pipelock-evidence-v2"
     assert res.axis("signature").result == crypto.SKIPPED
-    assert res.verdict == "INCOMPLETE"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
 
 
     # A Pipelock receipt carrying an unsupported algorithm token FAILs the structure axis.
@@ -1001,7 +1037,8 @@ def test_pipelock_schema_rejects_bad_algorithm() -> None:
     forged["signature"]["algorithm"] = "ecdsa-p256"
     res = verify(forged, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
     assert res.axis("structure").result == crypto.FAIL
-    assert res.verdict == "FAIL"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "invalid"
 
 
     # Both 'genesis' and 'sha256:0' chain_prev_hash values are accepted as genesis.
@@ -1028,11 +1065,12 @@ def test_oracle_verify_signature_nonstring_alg_skips_clean() -> None:
         assert result == crypto.SKIPPED
 
 
-    # A non-dict top-level receipt returns a FAIL verdict, never raises in detect().
+    # A non-dict top-level receipt reads unverified/unverifiable, never raises in detect().
 def test_oracle_verify_nonobject_doc_fails_clean() -> None:
     for bad_doc in (None, "a string", 123, [1, 2]):
         res = verify(bad_doc, ADAPTERS)
-        assert res.verdict == "FAIL"
+        assert res.verdict == "unverified"
+        assert res.failure_class == "unverifiable"
 
 
 # A did:web signer resolved from an injected map, so the signature axis reaches the
@@ -1070,23 +1108,25 @@ def _deep_agentreceipt(depth: int, *, genesis: bool = True) -> dict:
     }
 
 
-def test_oracle_over_nested_receipt_is_incomplete_not_recursionerror() -> None:
-    """A receipt nested past the cap returns INCOMPLETE, never an unhandled RecursionError.
+def test_oracle_over_nested_receipt_is_unverifiable_not_recursionerror() -> None:
+    """A receipt nested past the cap returns unverified/unverifiable, never an unhandled RecursionError.
 
     The signer resolves so the signature axis reaches the recursive JCS
     canonicaliser, which overflows the stack without the depth gate in verify().
     """
     res = verify(_deep_agentreceipt(3000), ADAPTERS, key_provider=_SIGNER)
-    assert res.verdict == "INCOMPLETE"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
     assert res.fmt == "agentreceipts"
     assert "depth" in (res.axis("structure").note or "")
 
 
     # A deeply nested predecessor is capped on the chain axis, never a RecursionError.
-def test_oracle_over_nested_predecessor_is_incomplete_not_recursionerror() -> None:
+def test_oracle_over_nested_predecessor_is_unverifiable_not_recursionerror() -> None:
     doc = _deep_agentreceipt(1, genesis=False)
     res = verify(doc, ADAPTERS, key_provider=_SIGNER, predecessor=_deep_agentreceipt(3000))
-    assert res.verdict == "INCOMPLETE"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
     assert "depth" in (res.axis("structure").note or "")
 
 

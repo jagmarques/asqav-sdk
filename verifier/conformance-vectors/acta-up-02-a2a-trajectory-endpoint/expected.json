@@ -1,6 +1,6 @@
 {
   "format": "acta",
-  "outcome": "PASS",
+  "outcome": "verified",
   "reason_code": "",
   "notes": "Real ScopeBlind trust-level-ascending endpoint attestation (the 'trusted' link); a second upstream payload whose Ed25519 signature verifies, confirming the interop is not a single-receipt fluke."
 }

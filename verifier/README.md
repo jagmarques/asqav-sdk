@@ -26,8 +26,8 @@ pip install dilithium-py
 `dilithium-py` is a pure-python FIPS 204 implementation; its verify path uses
 only stdlib SHAKE, so nothing compiles. If you skip it, every other check still
 runs and the signature axis reports `SKIPPED`; the overall verdict is then
-`INCOMPLETE`. The tool never prints `PASS` unless the signature was actually
-verified.
+`unverified` with `failure_class=unverifiable`. The tool never reports
+`verified` unless the signature was actually verified.
 
 ## Verify a live receipt
 
@@ -46,10 +46,10 @@ python -m asqav.verifier.verify_receipt --id sig_example_regulator_cold_verify_2
 This pulls `https://api.asqav.com/api/v1/verify/<id>` and
 `https://api.asqav.com/.well-known/jwks.json`, then prints a per-axis report.
 This is a public documentation fixture. Its signing key is a reserved example
-identity that is not published in the public JWKS, so the offline verdict is a
-FAIL on issuer-key resolution rather than a green PASS. Point `--id` at one of
-your own signed receipts, whose agent key is in the JWKS, to run the full
-cryptographic path through to a PASS.
+identity that is not published in the public JWKS, so the offline verdict is
+`unverified` (issuer-key resolution cannot complete) rather than a `verified`
+outcome. Point `--id` at one of your own signed receipts, whose agent key is in
+the JWKS, to run the full cryptographic path through to `verified`.
 
 ## Verify fully offline
 
@@ -92,8 +92,30 @@ This file is Python. The TypeScript SDK reaches the same axes through
 snippets and the measured list of stamp spellings the two halves read differently.
 There is no single-file TypeScript download equivalent to this script.
 
+## Verdict vocabulary
+
+The verifier reports one of three verdicts (criteria 418/438):
+
+| Verdict | Meaning |
+|---|---|
+| `verified` | Every non-skipped axis passed and the signature was actually checked. |
+| `verified_keyed` | Same as `verified`, but the digest is keyed (e.g. HMAC-SHA256) and so is internally consistent yet not third-party re-derivable. Never reported as plain `verified`. |
+| `unverified` | The receipt is not verified. Carries a `failure_class` of `invalid` or `unverifiable`. |
+
+Every `unverified` verdict names why, and the two classes are never collapsed:
+
+- `invalid` - a check ran and a cryptographic/policy binding failed: signature
+  mismatch, chain-link mismatch, anchor invalid, counterparty binding mismatch,
+  signer key revoked/changed, algorithm mismatch, or `issued_at` future-skew
+  bound violation.
+- `unverifiable` - recomputation could not complete: unresolvable key, missing
+  or broken chain predecessor, malformed member, canonicalisation or parse
+  failure (including a duplicated JSON member name), or a pending anchor without
+  cryptographic proof.
+
 ## Exit codes
 
-- `0` - PASS (every non-skipped axis passed, signature verified)
-- `1` - FAIL (at least one axis failed)
-- `2` - INCOMPLETE (a blocking axis, typically the signature, was skipped)
+- `0` - `verified` or `verified_keyed`
+- `1` - `unverified`, `failure_class=invalid` (a binding was proven broken)
+- `2` - `unverified`, `failure_class=unverifiable` (verification could not
+  complete; a blocked check is never reported as verified)

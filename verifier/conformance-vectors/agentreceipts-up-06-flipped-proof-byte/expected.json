@@ -1,6 +1,7 @@
 {
   "format": "agentreceipts",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "issuer_signature",
-  "notes": "Upstream malformed vector: Single proofValue byte mutated; Ed25519 verification fails."
+  "notes": "Upstream malformed vector: Single proofValue byte mutated; Ed25519 verification fails.",
+  "failure_class": "invalid"
 }
