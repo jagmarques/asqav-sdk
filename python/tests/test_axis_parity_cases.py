@@ -108,6 +108,9 @@ def test_chain_prev_hash_case(case: dict) -> None:
     result = asqav.verify_receipt_offline(_pipelock_receipt(case), keys)
     axes = {a["name"]: a["result"] for a in result["axes"]}
     assert result["verdict"] == case["expect"]["verdict"], f"{case['name']}: axes {axes}"
+    assert result["failure_class"] == case["expect"]["failure_class"], (
+        f"{case['name']}: axes {axes}"
+    )
     assert axes["chain"] == case["expect"]["chain"], f"{case['name']}: axes {axes}"
     assert axes["signature"] == case["expect"]["signature"], f"{case['name']}: axes {axes}"
 

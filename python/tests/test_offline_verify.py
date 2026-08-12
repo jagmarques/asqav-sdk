@@ -79,7 +79,8 @@ def test_verify_receipt_offline_pass():
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
-    assert result["verdict"] == "PASS", f"axes: {result['axes']}"
+    assert result["verdict"] == "verified", f"axes: {result['axes']}"
+    assert result["failure_class"] is None
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig_axis["result"] == "PASS"
 
@@ -105,7 +106,8 @@ def test_verify_receipt_offline_tampered_receipt_fails():
     receipt = _load(TAMPER_VECTOR / "receipt.json")
     jwks = _load(TAMPER_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
-    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    assert result["verdict"] == "unverified", f"axes: {result['axes']}"
+    assert result["failure_class"] == "invalid"
     sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
     assert sig_axis is not None
     assert sig_axis["result"] == "FAIL"
@@ -118,7 +120,8 @@ def test_verify_receipt_offline_tampered_payload_directly():
     tampered = copy.deepcopy(receipt)
     tampered["payload"]["decision"] = "deny"
     result = asqav.verify_receipt_offline(tampered, jwks)
-    assert result["verdict"] == "FAIL"
+    assert result["verdict"] == "unverified"
+    assert result["failure_class"] == "invalid"
 
 
 # ---------------------------------------------------------------------------
@@ -126,13 +129,13 @@ def test_verify_receipt_offline_tampered_payload_directly():
 # ---------------------------------------------------------------------------
 
 
-    # Missing key in JWKS -> signature SKIPPED -> INCOMPLETE (never a PASS).
+    # Missing key in JWKS -> signature SKIPPED -> unverified/unverifiable (never verified).
 def test_verify_receipt_offline_no_key_in_jwks():
     receipt = _load(PASS_VECTOR / "receipt.json")
     result = asqav.verify_receipt_offline(receipt, {"keys": []})
-    # Oracle SKIPs the signature when the key is absent; verdict is INCOMPLETE.
-    assert result["verdict"] in ("FAIL", "INCOMPLETE")
-    assert result["verdict"] != "PASS"
+    # Oracle SKIPs the signature when the key is absent; the check cannot complete.
+    assert result["verdict"] == "unverified"
+    assert result["failure_class"] == "unverifiable"
     sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
     assert sig_axis is not None
     assert sig_axis["result"] in ("SKIPPED", "FAIL")
@@ -207,18 +210,20 @@ except ImportError:
 def test_verify_receipt_offline_mldsa65_pass():
     envelope, jwks = _make_mldsa_receipt_and_jwks()
     result = asqav.verify_receipt_offline(envelope, jwks)
-    assert result["verdict"] == "PASS", f"axes: {result['axes']}"
+    assert result["verdict"] == "verified", f"axes: {result['axes']}"
+    assert result["failure_class"] is None
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig_axis["result"] == "PASS"
 
 
-    # A tampered ML-DSA-65 receipt must return FAIL, never PASS.
+    # A tampered ML-DSA-65 receipt reads unverified/invalid, never verified.
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_tampered_fails():
     envelope, jwks = _make_mldsa_receipt_and_jwks()
     envelope["payload"]["decision"] = "deny"
     result = asqav.verify_receipt_offline(envelope, jwks)
-    assert result["verdict"] == "FAIL"
+    assert result["verdict"] == "unverified"
+    assert result["failure_class"] == "invalid"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig_axis["result"] == "FAIL"
 
@@ -343,7 +348,8 @@ def test_verify_receipt_offline_rejects_hash_mode_claiming_another_org():
     }
     doc = _hash_mode_receipt(_VICTIM_ORG, "attacker-key", attacker_sk)
     result = asqav.verify_receipt_offline(doc, jwks)
-    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    assert result["verdict"] == "unverified", f"axes: {result['axes']}"
+    assert result["failure_class"] == "invalid"
     bind = next(a for a in result["axes"] if a["name"] == "issuer_bind")
     assert bind["result"] == "FAIL", f"issuer_bind axis: {bind}"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
@@ -373,14 +379,14 @@ def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields()
     }
     clean = _hash_mode_receipt(_ATTACKER_ORG, "attacker-key", attacker_sk)
     # Control: the honest hash-mode receipt still verifies.
-    assert asqav.verify_receipt_offline(clean, jwks)["verdict"] == "PASS"
+    assert asqav.verify_receipt_offline(clean, jwks)["verdict"] == "verified"
 
     doc = dict(clean)
     # Unsigned in hash mode, so a consumer reading these fields sees a victim claim.
     doc["issuer_id"] = "org-victim"
     doc["previousReceiptHash"] = "0" * 64
     result = asqav.verify_receipt_offline(doc, jwks)
-    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    assert result["verdict"] == "unverified", f"axes: {result['axes']}"
     # The compliance rule set applied, so the doc is judged on the claim it displays.
     structure = next(a for a in result["axes"] if a["name"] == "structure")
     assert structure["result"] == "FAIL", f"structure axis: {structure}"
@@ -393,7 +399,8 @@ def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
     issuer_id. The signature is genuine, so only the issuer bind can refuse it."""
     envelope, jwks = _cross_issuer_forgery_and_jwks()
     result = asqav.verify_receipt_offline(envelope, jwks)
-    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    assert result["verdict"] == "unverified", f"axes: {result['axes']}"
+    assert result["failure_class"] == "invalid"
     bind = next(a for a in result["axes"] if a["name"] == "issuer_bind")
     assert bind["result"] == "FAIL", f"issuer_bind axis: {bind}"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
@@ -424,8 +431,8 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat():
     assert "lapsed" in expiry_axis["note"], expiry_axis["note"]
     # Expiry never folds the verdict; the crypto axes decide it (criterion 426)
     assert (
-        result["verdict"] == "PASS"
-    ), f"Expected PASS with the lapsed window on its own axis, got {result['verdict']}; axes: {result['axes']}"
+        result["verdict"] == "verified"
+    ), f"Expected verified with the lapsed window on its own axis, got {result['verdict']}; axes: {result['axes']}"
 
 
     # Tampered KAT payload byte must return FAIL - anti-vacuous guard.
@@ -438,8 +445,9 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_payload():
     tampered["payload"]["decision"] = "deny"
     result = asqav.verify_receipt_offline(tampered, jwks)
     assert (
-        result["verdict"] == "FAIL"
-    ), f"Tampered receipt must be FAIL, got {result['verdict']}; axes: {result['axes']}"
+        result["verdict"] == "unverified"
+    ), f"Tampered receipt must be unverified, got {result['verdict']}; axes: {result['axes']}"
+    assert result["failure_class"] == "invalid"
     sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
     assert sig_axis is not None
     assert (
@@ -463,8 +471,9 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
     tampered["signature"]["sig"] = base64.b64encode(bad_sig).decode()
     result = asqav.verify_receipt_offline(tampered, jwks)
     assert (
-        result["verdict"] == "FAIL"
-    ), f"Corrupted-sig receipt must be FAIL, got {result['verdict']}; axes: {result['axes']}"
+        result["verdict"] == "unverified"
+    ), f"Corrupted-sig receipt must be unverified, got {result['verdict']}; axes: {result['axes']}"
+    assert result["failure_class"] == "invalid"
     sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
     assert sig_axis is not None
     assert sig_axis["result"] == "FAIL"
@@ -474,7 +483,7 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
 # run_structured is also available directly on the verifier module.
 # run_structured uses the standalone verify_receipt engine (ML-DSA-65 only).
 # The Ed25519 vector has an unsupported alg for the standalone engine, so it
-# returns INCOMPLETE (not PASS); that is correct and expected behaviour.
+# returns unverified/unverifiable (not verified); correct and expected behaviour.
 # ---------------------------------------------------------------------------
 
 
@@ -483,8 +492,8 @@ def test_run_structured_directly():
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = vr.run_structured(receipt, jwks)
-    # The standalone engine only verifies ML-DSA-65; Ed25519 is SKIPPED -> INCOMPLETE.
-    assert result["verdict"] in ("PASS", "INCOMPLETE")
+    # The standalone engine only verifies ML-DSA-65; Ed25519 is SKIPPED -> unverifiable.
+    assert result["verdict"] in ("verified", "unverified")
     assert isinstance(result["axes"], list)
     assert result["canonical_sha256"] is not None
 
@@ -500,7 +509,7 @@ def test_offline_api_missing_public_key_no_crash():
     kid = receipt["signature"]["kid"]
     jwks = {"keys": [{"kid": kid, "kty": "OKP", "crv": "Ed25519", "x": "abc"}]}
     result = asqav.verify_receipt_offline(receipt, jwks)
-    assert result["verdict"] in ("FAIL", "INCOMPLETE")
+    assert result["verdict"] == "unverified"
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig_axis["result"] in ("FAIL", "SKIPPED")
 
@@ -537,12 +546,13 @@ def test_hash_mode_org_with_a_legal_entity_does_not_false_fail():
     aliased = asqav.verify_receipt_offline(doc, _hash_mode_jwks("Acme Compliance Ltd", pk))
     bind = next(a for a in aliased["axes"] if a["name"] == "issuer_bind")
     assert bind["result"] == "SKIPPED", f"honest receipt false-FAILed: {bind}"
-    assert aliased["verdict"] == "INCOMPLETE", f"axes: {aliased['axes']}"
+    assert aliased["verdict"] == "unverified", f"axes: {aliased['axes']}"
+    assert aliased["failure_class"] == "unverifiable"
 
     published = asqav.verify_receipt_offline(
         doc, _hash_mode_jwks("Acme Compliance Ltd", pk, org_id=_ATTACKER_ORG)
     )
-    assert published["verdict"] == "PASS", f"axes: {published['axes']}"
+    assert published["verdict"] == "verified", f"axes: {published['axes']}"
 
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
@@ -558,7 +568,8 @@ def test_hash_mode_cross_org_still_fails_when_the_directory_names_an_org():
         _hash_mode_jwks("Acme Compliance Ltd", pk, org_id=_ATTACKER_ORG),
     ):
         result = asqav.verify_receipt_offline(doc, jwks)
-        assert result["verdict"] == "FAIL", f"cross-org forgery survived: {result['axes']}"
+        assert result["verdict"] == "unverified", f"cross-org forgery survived: {result['axes']}"
+        assert result["failure_class"] == "invalid"
 
 
 def test_unmodified_prod_vector_with_unsigned_claims_does_not_crash():
@@ -569,6 +580,6 @@ def test_unmodified_prod_vector_with_unsigned_claims_does_not_crash():
     doc["issuer_id"] = "org-victim"
     doc["previousReceiptHash"] = "0" * 64
     result = asqav.verify_receipt_offline(doc, _load(V / "jwks.json"))
-    assert result["verdict"] == "FAIL", f"axes: {result['axes']}"
+    assert result["verdict"] == "unverified", f"axes: {result['axes']}"
     structure = next(a for a in result["axes"] if a["name"] == "structure")
     assert "does not cover" in structure["note"], structure
