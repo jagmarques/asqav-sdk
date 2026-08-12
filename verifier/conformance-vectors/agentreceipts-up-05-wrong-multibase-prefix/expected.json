@@ -1,6 +1,7 @@
 {
   "format": "agentreceipts",
-  "outcome": "FAIL",
+  "outcome": "unverified",
   "reason_code": "issuer_signature",
-  "notes": "Upstream malformed vector: proofValue uses base58 'z' not base64url 'u'; signature bytes do not decode to the real signature."
+  "notes": "Upstream malformed vector: proofValue uses base58 'z' not base64url 'u'; signature bytes do not decode to the real signature.",
+  "failure_class": "invalid"
 }

@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 import { asqavJcs, jcsRfc8785, parseJsonPreservingFloats } from "../src/verifier/canonical.js";
 import { verify } from "../src/verifier/core.js";
 import { ADAPTERS } from "../src/verifier/index.js";
-import { runCorpus, tolerated } from "../src/verifier/runner.js";
+import { runCorpus, runOne, tolerated } from "../src/verifier/runner.js";
 
 // typescript/tests -> repo root -> verifier/conformance-vectors
 const CORPUS_ROOT = resolve(__dirname, "..", "..", "verifier", "conformance-vectors");
@@ -27,7 +27,7 @@ function loadJson(path: string): Record<string, unknown> {
 }
 
 describe("verifier parity gate (THE GATE)", () => {
-  it("matches every manifest outcome across all 52 corpus vectors", () => {
+  it("matches every manifest outcome across all 54 corpus vectors", () => {
     const results = runCorpus(CORPUS_ROOT);
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
@@ -36,16 +36,48 @@ describe("verifier parity gate (THE GATE)", () => {
     const report = results
       .map((r) => {
         const mark = tolerated(r) ? "ok" : "FAIL";
-        const line = `  [${mark.padStart(4)}] ${r.dir.padEnd(38)} expect=${r.expectedOutcome.padEnd(11)} got=${r.actualVerdict}`;
+        const got = r.actualFailureClass !== "" ? `${r.actualVerdict} (${r.actualFailureClass})` : r.actualVerdict;
+        const line = `  [${mark.padStart(4)}] ${r.dir.padEnd(38)} expect=${r.expectedOutcome.padEnd(16)} got=${got}`;
         return tolerated(r) ? line : `${line}\n         ${r.detail}`;
       })
       .join("\n");
     // eslint-disable-next-line no-console
     console.log(`\n${report}\n\n  => ${passed}/${results.length} vectors matched expected outcome\n`);
 
-    expect(results.length).toBe(52);
+    expect(results.length).toBe(54);
     expect(mismatches, `mismatched vectors: ${mismatches.map((m) => m.dir).join(", ")}`).toEqual([]);
-    expect(passed).toBe(52);
+    expect(passed).toBe(54);
+  });
+
+  it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
+    // Criteria 418/438: invalid and unverifiable must never collapse, and the two
+    // languages must agree on which class each failing vector lands in. The
+    // optional-dep ML-DSA vector is skipped: with a crypto library present it
+    // upgrades to verified, which the tolerance rule above already covers.
+    const results = runCorpus(CORPUS_ROOT);
+    const unverified = results.filter(
+      (r) => r.expectedOutcome === "unverified" && r.reasonCode !== "signature_skipped_no_dilithium",
+    );
+    expect(unverified.length).toBeGreaterThanOrEqual(2);
+    for (const r of unverified) {
+      expect(r.actualVerdict, r.dir).toBe("unverified");
+      expect(r.expectedFailureClass, `${r.dir} pins a failure_class`).not.toBe("");
+      expect(r.actualFailureClass, `${r.dir}: ${r.detail}`).toBe(r.expectedFailureClass);
+    }
+    // Both criteria-418 classes are exercised by the corpus.
+    const classes = new Set(unverified.map((r) => r.actualFailureClass));
+    expect(classes).toContain("invalid");
+    expect(classes).toContain("unverifiable");
+  });
+
+  it("rejects the duplicate-member vectors at ingest; they never verify (criterion 419)", () => {
+    for (const dir of ["asqav-11-dup-member-toplevel", "asqav-13-dup-member-nested"]) {
+      const r = runOne(join(CORPUS_ROOT, dir), "asqav-native", "unverified", "duplicate_member", "unverifiable");
+      expect(r.ok, `${dir}: ${r.detail}`).toBe(true);
+      expect(r.actualVerdict).toBe("unverified");
+      expect(r.actualFailureClass).toBe("unverifiable");
+      expect(r.detail).toContain("terminal parse failure before any hashing");
+    }
   });
 });
 
@@ -66,15 +98,16 @@ describe("jcs_rfc8785 byte-parity vs upstream canonicalization vectors", () => {
   });
 });
 
-describe("real Authproof receipt verifies PASS (ES256 path)", () => {
-  it("authproof-01-genesis-real-sdk -> PASS", () => {
+describe("real Authproof receipt verifies (ES256 path)", () => {
+  it("authproof-01-genesis-real-sdk -> verified", () => {
     const dir = join(CORPUS_ROOT, "authproof-01-genesis-real-sdk");
     const receipt = loadJson(join(dir, "receipt.json"));
     const result = verify(receipt, ADAPTERS);
     // eslint-disable-next-line no-console
     console.log(`\n  authproof-01-genesis-real-sdk: fmt=${result.fmt} verdict=${result.verdict}\n`);
     expect(result.fmt).toBe("authproof");
-    expect(result.verdict).toBe("PASS");
+    expect(result.verdict).toBe("verified");
+    expect(result.failureClass).toBeNull();
   });
 });
 

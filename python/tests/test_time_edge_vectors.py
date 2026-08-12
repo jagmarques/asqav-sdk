@@ -138,7 +138,7 @@ def test_time_edge_corpus_vector_expiry_never_folds_the_verdict() -> None:
     jwks = json.loads((TIME_EDGE_VECTOR / "jwks.json").read_text())
     result = vr.run_structured(receipt, jwks)
     axes = {a["name"]: a for a in result["axes"]}
-    assert result["verdict"] == "PASS", result["axes"]
+    assert result["verdict"] == "verified", result["axes"]
     assert axes["skew"]["result"] == "PASS", axes["skew"]
     assert axes["expiry"]["result"] == "FAIL", axes["expiry"]
     assert "lapsed" in axes["expiry"]["note"], axes["expiry"]
@@ -149,7 +149,7 @@ def test_time_edge_corpus_vector_expiry_never_folds_the_verdict() -> None:
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_time_edge_corpus_vector_matches_its_expected_outcome() -> None:
     expected = json.loads((TIME_EDGE_VECTOR / "expected.json").read_text())
-    assert expected["outcome"] == "PASS"
+    assert expected["outcome"] == "verified"
     from asqav.verifier.oracle.runner import run_one
 
     outcome = run_one(

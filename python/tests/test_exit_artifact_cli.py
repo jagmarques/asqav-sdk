@@ -156,8 +156,8 @@ def test_exit_artifact_command_passes_an_intact_pair(tmp_path: Path) -> None:
     _lay_out_exit_artifact(tmp_path, receipt, jwks)
     proc = _run_documented_command(tmp_path)
     assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert "=> PASS" in proc.stdout, proc.stdout
-    # A PASS with a skipped signature axis would be the failure this test exists for.
+    assert "=> verified" in proc.stdout, proc.stdout
+    # A verified verdict with a skipped signature axis is the failure this test exists for.
     assert "[  ok] signature" in proc.stdout, proc.stdout
     assert "[  ok] anchors" in proc.stdout, proc.stdout
     assert "[  ok] expiry" in proc.stdout, proc.stdout
@@ -170,7 +170,7 @@ def test_exit_artifact_command_fails_a_tampered_receipt(tmp_path: Path) -> None:
     _lay_out_exit_artifact(tmp_path, receipt, jwks)
     proc = _run_documented_command(tmp_path)
     assert proc.returncode == 1, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert "=> FAIL" in proc.stdout, proc.stdout
+    assert "=> unverified (failure_class: invalid)" in proc.stdout, proc.stdout
     assert "[FAIL] signature" in proc.stdout, proc.stdout
 
 
@@ -183,7 +183,7 @@ def test_exit_artifact_command_fails_a_tampered_jwks(tmp_path: Path) -> None:
     _lay_out_exit_artifact(tmp_path, receipt, jwks)
     proc = _run_documented_command(tmp_path)
     assert proc.returncode == 1, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert "=> FAIL" in proc.stdout, proc.stdout
+    assert "=> unverified (failure_class: invalid)" in proc.stdout, proc.stdout
 
 
     # The exit artifact ships one file, so it must not import the rest of the SDK.

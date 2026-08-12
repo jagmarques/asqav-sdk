@@ -19,13 +19,14 @@ from asqav.verifier import verify_receipt as vr
 
 
 def test_run_rejects_non_object_envelope() -> None:
-    # A JSON array (non-object) must not crash run(); it returns 2 (INCOMPLETE).
+    # A JSON array (non-object) must not crash run(); unverified/unverifiable -> 2.
     assert vr.run([], {"keys": []}, None) == 2
 
 
 def test_run_structured_rejects_non_object() -> None:
     out = vr.run_structured("not-an-object", {"keys": []})
-    assert out["verdict"] == "INCOMPLETE"
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "unverifiable"
     assert out["canonical_sha256"] is None
 
 
@@ -86,13 +87,15 @@ def test_run_structured_handles_malformed_anchors_string() -> None:
     # printf '{"anchors":"str"}' | verify_receipt --receipt - must not raise.
     envelope = {"payload": {"type": "x"}, "anchors": "str"}
     out = vr.run_structured(envelope, {"keys": []})
-    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "invalid"
 
 
 def test_run_structured_handles_malformed_anchor_entries() -> None:
     envelope = {"payload": {"type": "x"}, "anchors": ["x"]}
     out = vr.run_structured(envelope, {"keys": []})
-    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "invalid"
 
 
 # === criterion 446: complete the fail-clean surface ===
@@ -136,7 +139,8 @@ def test_run_infinity_in_payload_fails_clean(capsys) -> None:
 def test_run_structured_nan_fails_clean() -> None:
     env = {"payload": {**_payload(), "score": float("nan")}, "signature": _sig(), "anchors": []}
     out = vr.run_structured(env, {"keys": []})
-    assert out["verdict"] == "INCOMPLETE"
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "unverifiable"
 
 
 # S2: non-dict "signature" on a flat receipt (no payload wrapper) -> kid = sig_obj.get(...)
@@ -151,7 +155,7 @@ def test_run_non_dict_signature_fails_clean(capsys) -> None:
 def test_run_structured_non_dict_signature_fails_clean() -> None:
     env = {**_payload(), "signature": [1, 2, 3]}
     out = vr.run_structured(env, {"keys": []})
-    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+    assert out["verdict"] == "unverified"
 
 
 # S3: malformed JWKS "keys" (string / list of non-dicts) -> resolve_key must not crash
@@ -197,7 +201,7 @@ def test_run_non_string_sig_fails_clean(capsys) -> None:
 def test_run_structured_non_string_sig_fails_clean() -> None:
     env = {"payload": _payload(), "signature": {"alg": "ML-DSA-65", "kid": "kid-x", "sig": 123}, "anchors": []}
     out = vr.run_structured(env, _resolvable_jwks())
-    assert out["verdict"] in ("FAIL", "INCOMPLETE")
+    assert out["verdict"] == "unverified"
 
 
 # S6: binary / non-UTF8 --receipt file -> VerifierInputError, not a raw UnicodeDecodeError
@@ -331,7 +335,8 @@ def test_run_deep_nesting_no_recursion_error(capsys) -> None:
 def test_run_structured_deep_nesting_no_recursion_error() -> None:
     env = {"payload": {"a": _deep_dict(1500)}, "signature": _sig(), "anchors": []}
     out = vr.run_structured(env, {"keys": []})
-    assert out["verdict"] == "INCOMPLETE"
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "unverifiable"
     assert "nesting exceeds" in out["axes"][0]["note"]
 
 
@@ -346,7 +351,7 @@ def test_run_deep_predecessor_no_recursion_error() -> None:
 def test_parse_object_recursion_error_becomes_input_error(monkeypatch) -> None:
     # Defense-in-depth: json.loads itself raising RecursionError (a pure-Python
     # decoder fallback) must surface as VerifierInputError, not crash the CLI.
-    def _boom(text):
+    def _boom(text, **kwargs):
         raise RecursionError("maximum recursion depth exceeded")
 
     monkeypatch.setattr(vr.json, "loads", _boom)
@@ -354,7 +359,7 @@ def test_parse_object_recursion_error_becomes_input_error(monkeypatch) -> None:
         vr._parse_object('{"a": 1}', "stdin")
 
 
-def test_canonical_json_recursion_error_becomes_incomplete(monkeypatch, capsys) -> None:
+def test_canonical_json_recursion_error_becomes_unverifiable(monkeypatch, capsys) -> None:
     # Defense-in-depth: even if canonical_json itself raises RecursionError
     # (a bypassed or future call path), run() must still report cleanly.
     def _boom(*a, **kw):
@@ -397,6 +402,7 @@ def test_run_payload_string_names_actual_type(capsys) -> None:
 
 def test_run_structured_payload_list_names_actual_type() -> None:
     out = vr.run_structured({"payload": [1, 2, 3], "signature": "x"}, {"keys": []})
-    assert out["verdict"] == "INCOMPLETE"
+    assert out["verdict"] == "unverified"
+    assert out["failure_class"] == "unverifiable"
     note = out["axes"][0]["note"]
     assert "list" in note

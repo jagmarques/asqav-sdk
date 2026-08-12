@@ -40,7 +40,10 @@ from ._schema import normalize_context, validate_context_schema
 from .async_client import AsyncAgent
 from .attestation import (
     ATTESTATION_STATEMENT_SCHEMA,
-    VERDICT_VERIFIED_NOT_REDERIVABLE,
+    FAILURE_INVALID,
+    FAILURE_UNVERIFIABLE,
+    VERDICT_UNVERIFIED,
+    VERDICT_VERIFIED_KEYED,
     compute_statement_hash,
     reconstruct_signed_message,
     verify_attestation_offline,
@@ -382,7 +385,10 @@ __all__ = [
     "verify_attestation_offline",
     "verify_merkle_inclusion",
     "ATTESTATION_STATEMENT_SCHEMA",
-    "VERDICT_VERIFIED_NOT_REDERIVABLE",
+    "VERDICT_VERIFIED_KEYED",
+    "VERDICT_UNVERIFIED",
+    "FAILURE_INVALID",
+    "FAILURE_UNVERIFIABLE",
     # Structured receipts (criterion 328)
     "validate_context_schema",
     "normalize_context",
@@ -408,7 +414,7 @@ def verify_receipt_offline(
     Runs the full oracle: structure, signature (Ed25519/ES256/ML-DSA-65),
     hash-chain link. No network call is made; all crypto happens in-process.
     ML-DSA-65 requires ``pip install asqav[verify]``; without it the signature
-    axis is SKIPPED and the verdict is INCOMPLETE, never a false PASS.
+    axis is SKIPPED and the verdict is unverified/unverifiable, never verified.
 
     Args:
         receipt: Parsed receipt envelope dict (``{payload, signature, anchors}``).
@@ -419,8 +425,10 @@ def verify_receipt_offline(
     Returns:
         dict with keys:
 
-          - ``"verdict"``: "PASS" | "FAIL" | "INCOMPLETE"
-          - ``"axes"``: list of per-axis dicts (name, result, note)
+          - ``"verdict"``: "verified" | "verified_keyed" | "unverified"
+          - ``"failure_class"``: "invalid" | "unverifiable" when unverified,
+            else None; the two are never collapsed (criterion 418)
+          - ``"axes"``: list of per-axis dicts (name, result, note, failure_class)
           - ``"fmt"``: detected receipt format name
 
     Example::
@@ -428,7 +436,7 @@ def verify_receipt_offline(
         jwks = asqav.fetch_jwks()       # snapshot online
         # ... go offline ...
         result = asqav.verify_receipt_offline(receipt, jwks)
-        assert result["verdict"] == "PASS"
+        assert result["verdict"] == "verified"
     """
     predecessor_payload = None
     if predecessor is not None:
@@ -438,6 +446,10 @@ def verify_receipt_offline(
     )
     return {
         "verdict": vr.verdict,
-        "axes": [{"name": a.axis, "result": a.result, "note": a.note} for a in vr.axes],
+        "failure_class": vr.failure_class,
+        "axes": [
+            {"name": a.axis, "result": a.result, "note": a.note, "failure_class": a.failure_class}
+            for a in vr.axes
+        ],
         "fmt": vr.fmt,
     }
