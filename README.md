@@ -220,6 +220,7 @@ The Python SDK additionally ships:
 - The `asqav hook` CLI signs Claude Code harness hook events for audit and gating. See [`hooks/README.md`](hooks/README.md).
 - A pytest plugin, enabled with `pytest --asqav`, that signs every test result and emits a Merkle-rooted compliance bundle on session finish. See [asqav.com/docs/pytest-plugin](https://asqav.com/docs/pytest-plugin).
 - Native callbacks for LangChain, CrewAI, LiteLLM, Haystack, OpenAI Agents SDK, LlamaIndex, smolagents, DSPy, PydanticAI, Letta, Strands, and Instructor through the Hooks API.
+- A LiteLLM cloud-signing logger (`asqav.extras.litellm.AsqavSigningLogger`) that signs each LLM call via the asqav cloud for third-party-verifiable receipts — the cloud upgrade to LiteLLM's built-in local audit ledger. See [`docs/integrations-litellm.md`](docs/integrations-litellm.md).
 - Cookbooks for Streamlit dashboards and Dify workflows under `python/examples/`.
 - Local-mode offline signing with deferred sync.
 
