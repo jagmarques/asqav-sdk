@@ -5,6 +5,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-26
+
 ### Changed
 
 - **BREAKING: the verifier speaks a three-verdict vocabulary and never collapses
