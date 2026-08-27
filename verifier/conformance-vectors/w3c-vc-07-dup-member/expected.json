@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "unverified",
+  "reason_code": "duplicate_member",
+  "notes": "credentialSubject appears twice (the second flips outcome to failed); strict ingest rejects the duplicate at parse time, before any hashing or signature check (criterion 419)."
+}

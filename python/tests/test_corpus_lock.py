@@ -25,7 +25,7 @@ VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 # and in the corpus READMEs. A regenerated lock that forgets to update these is
 # drift, not a refresh
 FINGERPRINT_LOCK_DIGEST = "aa4e38f19dd227ffd4f674a9e25298199769d40ade9be63417eb9432ccb5ba6d"
-VERIFIER_LOCK_DIGEST = "37fdb7564b54303dde937e6f3324321e108dcd3710367ca6b0cf19906d029103"
+VERIFIER_LOCK_DIGEST = "8a8904f0b496b0ecb2580212f9cc59d3edd27e5292eaa0a15a5ba1f7bf4ee3b9"
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
