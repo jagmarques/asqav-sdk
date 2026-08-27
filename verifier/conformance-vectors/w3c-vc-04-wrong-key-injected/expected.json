@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "unverified",
+  "reason_code": "issuer_signature",
+  "notes": "Receipt signed by the real issuer key, but the injected DID document publishes an unrelated key; verification fails against the published key."
+}
