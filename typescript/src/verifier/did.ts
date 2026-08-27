@@ -9,8 +9,13 @@
  *   - `did:key`  : self-contained. The multibase `z` (base58btc) identifier
  *                  decodes to a multicodec frame: the two-byte 0xed 0x01 Ed25519
  *                  prefix followed by the 32 raw key bytes. No network.
- *   - other      : resolved from an injected `{didOrKid: hexOrRaw}` map. The
- *                  oracle NEVER fetches a DID document over the network.
+ *   - other      : resolved from an injected map. A value is either a raw key
+ *                  (hex string or bytes, 32 bytes) or the DID DOCUMENT the
+ *                  method's network fetch would have returned; the resolver then
+ *                  walks `verificationMethod` / `assertionMethod` and extracts an
+ *                  Ed25519 key (publicKeyMultibase Multikey, publicKeyJwk OKP, or
+ *                  legacy publicKeyBase58). The oracle NEVER fetches a DID
+ *                  document over the network; an unmapped DID returns null.
  */
 
 /** Bitcoin base58 alphabet - the base58btc encoding multibase 'z' uses. */
@@ -88,11 +93,95 @@ function coerceRaw(material: unknown): Uint8Array | null {
   return raw !== null && raw.length === 32 ? raw : null;
 }
 
+/** Decode a base64url string to bytes (JWK coordinate form). */
+function b64urlDecode(value: string): Uint8Array {
+  const body = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = body + "=".repeat((-body.length % 4 + 4) % 4);
+  return new Uint8Array(Buffer.from(padded, "base64"));
+}
+
+/** OKP/Ed25519 JWK -> raw 32-byte key; null for any other curve or bad encoding. */
+function rawFromJwk(jwk: unknown): Uint8Array | null {
+  if (jwk === null || typeof jwk !== "object" || Array.isArray(jwk)) return null;
+  const rec = jwk as Record<string, unknown>;
+  if (rec.kty !== "OKP" || rec.crv !== "Ed25519" || typeof rec.x !== "string") return null;
+  let raw: Uint8Array;
+  try {
+    raw = b64urlDecode(rec.x);
+  } catch {
+    return null;
+  }
+  return raw.length === 32 ? raw : null;
+}
+
+/** Extract the raw Ed25519 key one DID-document verificationMethod publishes. */
+function rawFromVerificationMethod(vm: unknown): Uint8Array | null {
+  if (vm === null || typeof vm !== "object" || Array.isArray(vm)) return null;
+  const rec = vm as Record<string, unknown>;
+  if (typeof rec.publicKeyMultibase === "string") {
+    // A Multikey multibase value is shaped exactly like a did:key identifier
+    const key = decodeDidKey(rec.publicKeyMultibase);
+    if (key !== null) return key;
+  }
+  const jwk = rawFromJwk(rec.publicKeyJwk);
+  if (jwk !== null) return jwk;
+  if (typeof rec.publicKeyBase58 === "string") {
+    let raw: Uint8Array;
+    try {
+      raw = b58btcDecode(rec.publicKeyBase58);
+    } catch {
+      return null;
+    }
+    return raw.length === 32 ? raw : null;
+  }
+  return null;
+}
+
+/**
+ * Walk an injected DID document like the fetched one: exact fragment match first,
+ * else assertionMethod-authorized Ed25519 methods, then any remaining method.
+ */
+function keyFromDidDocument(
+  didDoc: Record<string, unknown>,
+  didUrl: string,
+): readonly [Uint8Array | null, string] {
+  const methods = Array.isArray(didDoc.verificationMethod)
+    ? didDoc.verificationMethod.filter(
+        (vm): vm is Record<string, unknown> => vm !== null && typeof vm === "object" && !Array.isArray(vm),
+      )
+    : [];
+  const assertion = Array.isArray(didDoc.assertionMethod) ? didDoc.assertionMethod : [];
+  let pool: Array<Record<string, unknown>> = [
+    ...methods,
+    ...assertion.filter(
+      (vm): vm is Record<string, unknown> => vm !== null && typeof vm === "object" && !Array.isArray(vm),
+    ),
+  ];
+  if (didUrl.includes("#")) {
+    pool = pool.filter((vm) => vm.id === didUrl);
+    if (pool.length === 0) {
+      return [null, `no verificationMethod '${didUrl}' in injected DID document`];
+    }
+  } else {
+    const refs = new Set(assertion.filter((vm): vm is string => typeof vm === "string"));
+    pool.sort((a, b) => (refs.has(a.id as string) ? 0 : 1) - (refs.has(b.id as string) ? 0 : 1));
+  }
+  for (const vm of pool) {
+    const key = rawFromVerificationMethod(vm);
+    if (key !== null) {
+      return [key, `resolved ${typeof vm.id === "string" ? vm.id : didUrl} from injected DID document`];
+    }
+  }
+  return [null, `no Ed25519 verificationMethod for '${didUrl}' in injected DID document`];
+}
+
 /**
  * Resolve a verificationMethod DID URL to `[rawKeyOrNull, note]`.
  *
  * did:key resolves inline; every other method resolves from `injected` keyed by
- * the full DID URL first, then by the bare DID (fragment stripped). No network.
+ * the full DID URL first, then by the bare DID (fragment stripped). An injected
+ * value is a raw 32-byte key (bytes or hex) or the DID document the method's
+ * fetch would have returned. No network.
  */
 export function resolveEd25519Key(
   didUrl: string,
@@ -112,7 +201,11 @@ export function resolveEd25519Key(
   const keys = injected || {};
   for (const candidate of [didUrl, bare]) {
     if (Object.prototype.hasOwnProperty.call(keys, candidate)) {
-      const raw = coerceRaw(keys[candidate]);
+      const material = keys[candidate];
+      if (material !== null && typeof material === "object" && !Array.isArray(material)) {
+        return keyFromDidDocument(material as Record<string, unknown>, didUrl);
+      }
+      const raw = coerceRaw(material);
       if (raw === null) {
         return [null, `injected key for '${candidate}' is not a 32-byte Ed25519 key`];
       }

@@ -1,0 +1,20 @@
+{
+  "did:web:issuer.example": {
+    "@context": [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/multikey/v1"
+    ],
+    "id": "did:web:issuer.example",
+    "verificationMethod": [
+      {
+        "id": "did:web:issuer.example#key-1",
+        "type": "Multikey",
+        "controller": "did:web:issuer.example",
+        "publicKeyMultibase": "z6MkqSx2RutRZxLpVhnEjzXNPbP6DjV1A6hHA1L1ArzEDJSR"
+      }
+    ],
+    "assertionMethod": [
+      "did:web:issuer.example#key-1"
+    ]
+  }
+}
