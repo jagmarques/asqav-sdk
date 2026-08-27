@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Valid W3C VC 2.0 with DataIntegrityProof eddsa-jcs-2022; did:web issuer resolves from the injected DID document (offline mode) and Ed25519 verifies over SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))."
+}
