@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "unverified",
+  "reason_code": "issuer_signature",
+  "notes": "credentialSubject.agentAction.outcome flipped after signing; the JCS document hash diverges and Ed25519 verify fails."
+}
