@@ -5,6 +5,44 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-27
+
+### Added
+
+- **New oracle format: W3C Verifiable Credentials 2.0 secured by
+  DataIntegrityProof with the eddsa-jcs-2022 cryptosuite (W3C TR
+  vc-di-eddsa).** The seventh format the universal neutral verifier checks, in
+  both language halves together. The signature is Ed25519 over
+  `SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))` under strict
+  RFC 8785 JCS, with proofOptions the proof minus `proofValue` and the
+  unsecured document the credential minus `proof`; `proofValue` is the raw
+  signature multibase base58btc encoded. The cryptosuite's proof `@context`
+  prefix transform is enforced (the document `@context` must start with the
+  proof's, and the proof's substitutes it before canonicalization). The adapter
+  is fail-closed stricter than the suite spec: `proofPurpose` must be
+  `assertionMethod` and the verificationMethod DID must equal the issuer DID,
+  mirroring the agentreceipts adapter. `validFrom`/`validUntil` report on the
+  expiry axis, which never folds the verdict (criterion 426). A sibling
+  cryptosuite reports as an algorithm mismatch (`invalid`), never a silent
+  re-dispatch. Eight new conformance vectors (`w3c-vc-01..08`) pin the did:web
+  and did:key happy paths, tamper rejection, a wrong published key, fail-closed
+  offline resolution, the expiry rule, and strict ingest; the corpus lock is
+  re-frozen at v1 and both lock paths re-derive every pin.
+
+- **The shared DID resolver accepts an injected DID document** in the
+  `did_map.json` slot: the bytes the did:web fetch would have returned. The
+  resolver walks `verificationMethod` and `assertionMethod` and extracts an
+  Ed25519 key from `publicKeyMultibase` (Multikey), `publicKeyJwk`
+  (OKP/Ed25519), or `publicKeyBase58`. The oracle still never fetches a DID
+  document: an unmapped DID reads `unverified`/`unverifiable`, fail closed.
+  The raw-key injection shape (hex string or bytes) is unchanged.
+
+### Removed
+
+- **The `asqav shadow-ai` CLI subcommand, its templates, and its tests.**
+  Shadow-AI detection is retired as a product focus; platform observations and
+  SIEM ingest stay, unbranded.
+
 ## [0.9.0] - 2026-08-26
 
 ### Changed
