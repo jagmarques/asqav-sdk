@@ -1,0 +1,30 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2"
+  ],
+  "id": "urn:asqav-test:w3c-vc-06",
+  "type": [
+    "VerifiableCredential"
+  ],
+  "issuer": "did:web:issuer.example",
+  "validFrom": "2026-08-01T00:00:00Z",
+  "validUntil": "2026-01-01T00:00:00Z",
+  "credentialSubject": {
+    "id": "did:web:counterparty.example",
+    "agentAction": {
+      "type": "AgentAction",
+      "agent": "did:web:issuer.example#agent-payments",
+      "task": "invoice-settlement-run-2026-08",
+      "outcome": "completed",
+      "timestamp": "2026-08-01T09:30:00Z"
+    }
+  },
+  "proof": {
+    "type": "DataIntegrityProof",
+    "cryptosuite": "eddsa-jcs-2022",
+    "created": "2026-08-01T09:30:05Z",
+    "verificationMethod": "did:web:issuer.example#key-1",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3a7ErrmBXteURzy64UwHfPYKZY4ieWwfkSNnqFo2fydKNziGGD64HcXFm3yWJKzPoa1PKoZtcSQZzZhS25cPbRt4"
+  }
+}
