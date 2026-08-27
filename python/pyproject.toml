@@ -126,19 +126,10 @@ include = [
     "/src",
 ]
 
-[tool.hatch.build.targets.sdist.force-include]
-"src/asqav/templates/shadow-ai/.env.template" = "src/asqav/templates/shadow-ai/.env.template"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
 
-# The neutral verifier now lives under src/asqav/verifier, so packages=["src/asqav"]
-# carries its runtime into BOTH the sdist and the wheel with no cross-root force-include.
-# The conformance-vectors corpus and the verifier tests stay outside src/asqav, so they
-# stay out of the built distributions. Only the templated .env needs a force-include
-# because hatchling's default file selector skips dotfiles.
-[tool.hatch.build.targets.wheel.force-include]
-"src/asqav/templates/shadow-ai/.env.template" = "asqav/templates/shadow-ai/.env.template"
 
 [tool.ruff]
 target-version = "py310"
