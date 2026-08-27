@@ -7,7 +7,7 @@
  * `<NN-name>/` directory carries `receipt.json`, an `expected.json`, optional
  * `predecessor.json`, and optional key material (`jwks.json` for Asqav-native,
  * `keys.json` for AERF, `acta-keys.json` for ACTA, `did_map.json` for
- * agentreceipts).
+ * agentreceipts and w3c-vc).
  *
  * `outcome` speaks the public verdict vocabulary (criteria 418/438):
  * verified / verified_keyed / unverified, and an `unverified` entry pins its
@@ -60,6 +60,8 @@ function keyProviderFor(vecDir: string, fmt: string): KeyProvider {
   if (fmt === "aerf") return loadJson(join(vecDir, "keys.json"));
   if (fmt === "acta") return loadJson(join(vecDir, "acta-keys.json"));
   if (fmt === "agentreceipts") return loadJson(join(vecDir, "did_map.json"));
+  // did:web resolves from an injected DID-document map; the oracle never fetches
+  if (fmt === "w3c-vc") return loadJson(join(vecDir, "did_map.json"));
   if (fmt === "pipelock-evidence-v2") return loadJson(join(vecDir, "keys.json"));
   return null;
 }
