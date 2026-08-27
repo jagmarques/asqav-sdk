@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Signature verifies, but signed validUntil 2026-01-01T00:00:00Z lapsed; the expiry axis FAILs alone while the verdict stays verified (criterion 426)."
+}
