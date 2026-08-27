@@ -117,6 +117,8 @@ def axis_failure_class(axis: str, result: str, note: str) -> str | None:
             return FAILURE_INVALID
         if "signing-key DID != issuer DID" in note:
             return FAILURE_INVALID
+        if note.startswith("proof @context is not a prefix"):
+            return FAILURE_INVALID
         return FAILURE_UNVERIFIABLE
     if axis == "expiry":
         if note.startswith("unreadable expires_at"):

@@ -72,7 +72,15 @@ def test_verifier_ships_inside_the_asqav_package() -> None:
 
 def test_adapters_registered() -> None:
     names = [a.name for a in ADAPTERS]
-    assert names == ["asqav-native", "aerf", "acta", "agentreceipts", "authproof", "pipelock-evidence-v2"]
+    assert names == [
+        "asqav-native",
+        "aerf",
+        "acta",
+        "agentreceipts",
+        "w3c-vc",
+        "authproof",
+        "pipelock-evidence-v2",
+    ]
 
 
 def test_detection_picks_the_right_adapter() -> None:
@@ -229,7 +237,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 54
+    assert len(results) == 62
     # asqav-05 (unverified) upgrades to verified when dilithium-py is present.
     def _tol(r):
         return r.ok or (
