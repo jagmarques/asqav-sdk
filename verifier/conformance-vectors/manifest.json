@@ -405,5 +405,66 @@
     "failure_class": "unverifiable",
     "reason_code": "duplicate_member",
     "notes": "payload_digest.hash is duplicated two levels down; strict ingest rejects duplicate members at ANY depth at parse time, before any hashing or signature check, so the mutated receipt never verifies (criterion 419)."
+  },
+  {
+    "dir": "w3c-vc-01-didweb-happy-path",
+    "format": "w3c-vc",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Valid W3C VC 2.0 with DataIntegrityProof eddsa-jcs-2022; the did:web issuer resolves from the injected DID document (offline mode) and Ed25519 verifies over SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument)) per W3C TR vc-di-eddsa."
+  },
+  {
+    "dir": "w3c-vc-02-tamper-subject",
+    "format": "w3c-vc",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "issuer_signature",
+    "notes": "credentialSubject.agentAction.outcome flipped from 'completed' to 'failed' after signing; the JCS document hash diverges and Ed25519 verify fails."
+  },
+  {
+    "dir": "w3c-vc-03-tamper-proofvalue",
+    "format": "w3c-vc",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "issuer_signature",
+    "notes": "One base58btc character of proof.proofValue replaced after signing; the decoded signature no longer matches the signed hashData."
+  },
+  {
+    "dir": "w3c-vc-04-wrong-key-injected",
+    "format": "w3c-vc",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "issuer_signature",
+    "notes": "Receipt signed by the real issuer key, but the injected DID document publishes an unrelated Ed25519 key; verification fails against the published key, never a false pass."
+  },
+  {
+    "dir": "w3c-vc-05-no-did-document",
+    "format": "w3c-vc",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "signature_skipped_no_did_document",
+    "notes": "No injected DID document for the did:web issuer and the oracle never fetches, so the signature axis SKIPs and the verdict downgrades to unverified/unverifiable: fail-closed offline DID resolution."
+  },
+  {
+    "dir": "w3c-vc-06-expired",
+    "format": "w3c-vc",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Signature verifies, but the signed validUntil 2026-01-01T00:00:00Z lapsed; the expiry axis FAILs alone while the verdict stays verified (criterion 426). Parity vector: both PY and TS oracles must verify."
+  },
+  {
+    "dir": "w3c-vc-07-dup-member",
+    "format": "w3c-vc",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "duplicate_member",
+    "notes": "credentialSubject appears twice (the second flips outcome to failed); strict ingest rejects the duplicate at parse time, before any hashing or signature check, so the mutated credential never verifies (criterion 419)."
+  },
+  {
+    "dir": "w3c-vc-08-didkey-happy-path",
+    "format": "w3c-vc",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "did:key issuer self-resolves inline from the base58btc multicodec frame; no injected map needed and Ed25519 over hashData verifies."
   }
 ]

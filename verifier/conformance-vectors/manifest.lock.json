@@ -6,8 +6,8 @@
   "files": [
     {
       "path": "README.md",
-      "sha256": "42fb019594b3ce9f50c69e90664adfd0254ea873060c54522f061e65510abf97",
-      "bytes": 6529
+      "sha256": "69a8a270ca655b3e8f5cf8f1237ca43f257871169558f28443f5747d3aa76eb3",
+      "bytes": 8964
     },
     {
       "path": "UPSTREAM.md",
@@ -851,8 +851,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "86d4450636912ae97ec1a00e1aa7009f5f45b79f734890ae5e7d8f3cd3813be9",
-      "bytes": 17747
+      "sha256": "dcce074da806c01f83335172609efa7bda474d21d75ca7e378f92be4fe232e4b",
+      "bytes": 20564
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -883,6 +883,111 @@
       "path": "pipelock-ev2-02-tamper-payload/receipt.json",
       "sha256": "9bb3a0d9c98e7f6affa065cd5207f7ef89fb062e4bcf2da5e11f9847f764c866",
       "bytes": 730
+    },
+    {
+      "path": "w3c-vc-01-didweb-happy-path/did_map.json",
+      "sha256": "696b6045b08c96348fe563d15b49a54d2383d68c83ea7ed45aeb93979aac3763",
+      "bytes": 505
+    },
+    {
+      "path": "w3c-vc-01-didweb-happy-path/expected.json",
+      "sha256": "a859e48fc1b5d80d5294d966581dd1fa56defd0bbb9b6d66548a9c72c210f027",
+      "bytes": 301
+    },
+    {
+      "path": "w3c-vc-01-didweb-happy-path/receipt.json",
+      "sha256": "c116216553f9c94b8b2ab08505365b60a9c952b7ae6f5b2a17cb8a356e873a08",
+      "bytes": 903
+    },
+    {
+      "path": "w3c-vc-02-tamper-subject/did_map.json",
+      "sha256": "696b6045b08c96348fe563d15b49a54d2383d68c83ea7ed45aeb93979aac3763",
+      "bytes": 505
+    },
+    {
+      "path": "w3c-vc-02-tamper-subject/expected.json",
+      "sha256": "6e8b825f03e8004eb25c33c6a48d0994cdfb2e673a530be655e5039ec6c0e584",
+      "bytes": 221
+    },
+    {
+      "path": "w3c-vc-02-tamper-subject/receipt.json",
+      "sha256": "9170e637dab18e030a4bc2b714fbb86aeeaaee9df219b468ab91c851056d7f00",
+      "bytes": 900
+    },
+    {
+      "path": "w3c-vc-03-tamper-proofvalue/did_map.json",
+      "sha256": "696b6045b08c96348fe563d15b49a54d2383d68c83ea7ed45aeb93979aac3763",
+      "bytes": 505
+    },
+    {
+      "path": "w3c-vc-03-tamper-proofvalue/expected.json",
+      "sha256": "e3b48a3feb74e0b3ad1f3953e28ccecb004a39c500a1f9837a7a6358d542061d",
+      "bytes": 226
+    },
+    {
+      "path": "w3c-vc-03-tamper-proofvalue/receipt.json",
+      "sha256": "63f6061a51366d7b39bfb8dbf1862fbdbb09eb3d3c79b692d193a3fe24d8a9b9",
+      "bytes": 903
+    },
+    {
+      "path": "w3c-vc-04-wrong-key-injected/did_map.json",
+      "sha256": "f46792c0bd195d8139cac4ba406face71d8f1dce9195dfc05d75e96035e74819",
+      "bytes": 505
+    },
+    {
+      "path": "w3c-vc-04-wrong-key-injected/expected.json",
+      "sha256": "cb1929a9a2e99c50366235c1ec328e9bb9ddee011efb512ea45325621b9f1b63",
+      "bytes": 246
+    },
+    {
+      "path": "w3c-vc-04-wrong-key-injected/receipt.json",
+      "sha256": "c116216553f9c94b8b2ab08505365b60a9c952b7ae6f5b2a17cb8a356e873a08",
+      "bytes": 903
+    },
+    {
+      "path": "w3c-vc-05-no-did-document/expected.json",
+      "sha256": "bfa3c724fb68a3a46d5245aa612a32a7024cfde675e6b0f25d249e53db5aff2c",
+      "bytes": 278
+    },
+    {
+      "path": "w3c-vc-05-no-did-document/receipt.json",
+      "sha256": "c116216553f9c94b8b2ab08505365b60a9c952b7ae6f5b2a17cb8a356e873a08",
+      "bytes": 903
+    },
+    {
+      "path": "w3c-vc-06-expired/did_map.json",
+      "sha256": "696b6045b08c96348fe563d15b49a54d2383d68c83ea7ed45aeb93979aac3763",
+      "bytes": 505
+    },
+    {
+      "path": "w3c-vc-06-expired/expected.json",
+      "sha256": "cfa6511ce9c4a684f26b0d480b2ecaedac44f88a3c77fb3ea1a3f6dd6211f18c",
+      "bytes": 234
+    },
+    {
+      "path": "w3c-vc-06-expired/receipt.json",
+      "sha256": "4952d542d6bc5080b747472dfaa4fa8f2f74445724e64553bdc79115512b5a4c",
+      "bytes": 903
+    },
+    {
+      "path": "w3c-vc-07-dup-member/expected.json",
+      "sha256": "39dedc558c062a68e5c3f50ac9aac8c5661da9217de5c920be7cdba1aa1c8f49",
+      "bytes": 279
+    },
+    {
+      "path": "w3c-vc-07-dup-member/receipt.json",
+      "sha256": "e6209f19ae938c687533667a45ba3e68292b8f9c15bf1529986af05e76cfde06",
+      "bytes": 1064
+    },
+    {
+      "path": "w3c-vc-08-didkey-happy-path/expected.json",
+      "sha256": "f5acecb78db7fb0542ac54ef79be9c7978dc9b54e688189d091962960c9e7c79",
+      "bytes": 207
+    },
+    {
+      "path": "w3c-vc-08-didkey-happy-path/receipt.json",
+      "sha256": "6df9655344e7b87f5fc4a03ae097a6cd556acb7449c0df696dab6d66488e1aa4",
+      "bytes": 1005
     }
   ],
   "signing": {
@@ -915,5 +1020,5 @@
       ]
     }
   },
-  "digest": "37fdb7564b54303dde937e6f3324321e108dcd3710367ca6b0cf19906d029103"
+  "digest": "8a8904f0b496b0ecb2580212f9cc59d3edd27e5292eaa0a15a5ba1f7bf4ee3b9"
 }

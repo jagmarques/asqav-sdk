@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "did:key issuer self-resolves inline from the multicodec frame; no injected map needed and Ed25519 over hashData verifies."
+}

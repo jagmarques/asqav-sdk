@@ -21,6 +21,7 @@ from .adapters.agentreceipts import AgentReceiptsAdapter
 from .adapters.asqav_native import AsqavNativeAdapter
 from .adapters.authproof import AuthproofAdapter
 from .adapters.pipelock import PipelockEvidenceAdapter
+from .adapters.w3c_vc import W3cVcAdapter
 from .core import AxisResult, VerifyResult, verify
 
 #: Detection fingerprints are mutually exclusive, so registration order is not load-bearing.
@@ -29,6 +30,7 @@ ADAPTERS: list[FormatAdapter] = [
     AerfAdapter(),
     ActaAdapter(),
     AgentReceiptsAdapter(),
+    W3cVcAdapter(),
     AuthproofAdapter(),
     PipelockEvidenceAdapter(),
 ]
@@ -46,5 +48,6 @@ __all__ = [
     "PipelockEvidenceAdapter",
     "SignatureMaterial",
     "VerifyResult",
+    "W3cVcAdapter",
     "verify",
 ]

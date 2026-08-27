@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "unverified",
+  "reason_code": "signature_skipped_no_did_document",
+  "notes": "No injected DID document for the did:web issuer; the oracle never fetches, so the signature axis SKIPs and the verdict downgrades to unverified/unverifiable."
+}
