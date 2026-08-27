@@ -1,0 +1,6 @@
+{
+  "format": "w3c-vc",
+  "outcome": "unverified",
+  "reason_code": "issuer_signature",
+  "notes": "One base58btc character of proofValue replaced after signing; the decoded signature no longer matches the signed hashData."
+}

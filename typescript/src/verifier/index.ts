@@ -23,6 +23,7 @@ import { AgentReceiptsAdapter } from "./adapters/agentreceipts.js";
 import { AsqavNativeAdapter } from "./adapters/asqavNative.js";
 import { AuthproofAdapter } from "./adapters/authproof.js";
 import { PipelockEvidenceAdapter } from "./adapters/pipelock.js";
+import { W3cVcAdapter } from "./adapters/w3cVc.js";
 
 /** Detection fingerprints are mutually exclusive, so registration order is not load-bearing. */
 export const ADAPTERS: FormatAdapter[] = [
@@ -30,6 +31,7 @@ export const ADAPTERS: FormatAdapter[] = [
   new AerfAdapter(),
   new ActaAdapter(),
   new AgentReceiptsAdapter(),
+  new W3cVcAdapter(),
   new AuthproofAdapter(),
   new PipelockEvidenceAdapter(),
 ];
@@ -48,6 +50,7 @@ export { AgentReceiptsAdapter } from "./adapters/agentreceipts.js";
 export { AsqavNativeAdapter } from "./adapters/asqavNative.js";
 export { AuthproofAdapter } from "./adapters/authproof.js";
 export { PipelockEvidenceAdapter } from "./adapters/pipelock.js";
+export { W3cVcAdapter } from "./adapters/w3cVc.js";
 export {
   detect,
   FAILURE_INVALID,
