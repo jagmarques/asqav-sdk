@@ -15,7 +15,8 @@ manifest.json                  array of {dir, format, outcome, failure_class, re
   jwks.json                    (asqav-native) issuer key directory
   keys.json                    (aerf) {key_id: ed25519_pubkey_hex}
   acta-keys.json               (acta) JWKS-shaped key set
-  did_map.json                 (agentreceipts) {did: ed25519_pubkey_hex} for did:agent / did:web
+  did_map.json                 (agentreceipts, w3c-vc) {did: ed25519_pubkey_hex} or
+                               {did: did_document} for did:agent / did:web
 ```
 
 `outcome` speaks the shipped verdict vocabulary - `verified`, `verified_keyed`,
@@ -52,10 +53,24 @@ python -m oracle.runner          # from the verifier/ directory
   axis SKIPs, so the outcome is `unverified`/`unverifiable`. Guards the
   production hash-mode path against a false `verified` on the post-quantum
   signature the CI base cannot check.
-- `asqav-11-dup-member-toplevel` / `asqav-12-dup-member-nested` - the valid
+- `asqav-06-mldsa65-payload-prod` - a real payload-mode prod ML-DSA-65 receipt;
+  its signed `expires_at` lapsed, so the expiry axis FAILs alone while the
+  verdict stays verified (criterion 426).
+- `asqav-07-revoked-key` - a valid signature from a key whose JWKS status is
+  `revoked`; the key_status axis FAILs the verdict (parity vector).
+- `asqav-08-v2-signer-canary` / `asqav-09-v2-signer-tampered` - a v:2 receipt
+  whose in-signed-body `signer` the neutral verifier surfaces, and its tampered
+  twin proving `signer` sits inside the signed coverage (parity vectors).
+- `asqav-10-hash-mode-multikey` - hash-mode receipt signed by the last of three
+  sibling keys sharing issuer/org ids; the agent bind resolves the actual signer
+  (anti-vacuous parity vector).
+- `asqav-11-dup-member-toplevel` / `asqav-13-dup-member-nested` - the valid
   genesis receipt with a duplicated JSON member name at the top level and two
   levels down. Both are terminal parse failures (criterion 419): the strict
   parser rejects them before any hashing, so they never verify.
+- `asqav-12-time-edge-expiry` - deterministic ML-DSA-65 vector with an extreme
+  positive UTC offset around midnight and a lapsed signed `expires_at`
+  (time-edge conformance, criterion 422; parity vector).
 - `aerf-01..02` - valid AERF receipts (genesis, chain link). Genesis omits
   `previous_receipt_hash`; the chain hash excludes the signature, per the AERF
   spec.
@@ -75,6 +90,26 @@ python -m oracle.runner          # from the verifier/ directory
   cross-implementation interop PASS. `authproof-02/03` are its forged-signature
   and tampered-scope negatives. The signer key is embedded, so no key file. See
   `UPSTREAM.md`.
+- `pipelock-ev2-01-proxy-decision` / `pipelock-ev2-02-tamper-payload` - a valid
+  Pipelock evidence-v2 receipt and its verdict-flipped twin (keys.json carries
+  the signer key id -> raw Ed25519 hex).
+- `w3c-vc-01-didweb-happy-path` - a W3C VC 2.0 credential with a
+  DataIntegrityProof `eddsa-jcs-2022` signature (W3C TR vc-di-eddsa): Ed25519
+  over `SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))`. The
+  did:web issuer resolves from the injected DID document (offline mode).
+- `w3c-vc-02-tamper-subject` / `w3c-vc-03-tamper-proofvalue` - credentialSubject
+  flipped and one proofValue base58 character replaced after signing; both fail
+  the signature axis.
+- `w3c-vc-04-wrong-key-injected` - the injected DID document publishes an
+  unrelated key; verification fails against the published key, never a false pass.
+- `w3c-vc-05-no-did-document` - no injected DID document and the oracle never
+  fetches, so the signature axis SKIPs: `unverified`/`unverifiable`, fail closed.
+- `w3c-vc-06-expired` - signature verifies but signed `validUntil` lapsed; the
+  expiry axis FAILs alone while the verdict stays verified (criterion 426).
+- `w3c-vc-07-dup-member` - `credentialSubject` appears twice; strict ingest
+  rejects the duplicate at parse time (criterion 419).
+- `w3c-vc-08-didkey-happy-path` - a did:key issuer self-resolves inline from
+  the multicodec frame; no key file needed.
 
 The keys are generated from fixed seeds so the vectors are reproducible. AERF
 public keys are derived per spec as the first 16 hex of `SHA-256(pubkey)`.

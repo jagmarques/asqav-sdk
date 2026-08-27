@@ -6,7 +6,7 @@
  * Python verifier without dilithium-py).
  *
  * Run directly:  node --import tsx typescript/src/verifier/parity-check.ts
- * or via the test `tests/verifier-parity.test.ts`, which asserts 44/44.
+ * or via the test `tests/verifier-parity.test.ts`, which asserts 62/62.
  */
 
 import { resolve } from "node:path";
