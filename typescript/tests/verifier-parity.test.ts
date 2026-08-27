@@ -27,7 +27,7 @@ function loadJson(path: string): Record<string, unknown> {
 }
 
 describe("verifier parity gate (THE GATE)", () => {
-  it("matches every manifest outcome across all 54 corpus vectors", () => {
+  it("matches every manifest outcome across all 62 corpus vectors", () => {
     const results = runCorpus(CORPUS_ROOT);
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
@@ -44,9 +44,9 @@ describe("verifier parity gate (THE GATE)", () => {
     // eslint-disable-next-line no-console
     console.log(`\n${report}\n\n  => ${passed}/${results.length} vectors matched expected outcome\n`);
 
-    expect(results.length).toBe(54);
+    expect(results.length).toBe(62);
     expect(mismatches, `mismatched vectors: ${mismatches.map((m) => m.dir).join(", ")}`).toEqual([]);
-    expect(passed).toBe(54);
+    expect(passed).toBe(62);
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
@@ -126,6 +126,14 @@ describe("canonical-bytes cross-check (TS signing_input sha256 == Python)", () =
     "agentreceipts-01-didkey-genesis": {
       fmt: "agentreceipts",
       sha: "eb5fd119afbd399658e615cd4687c0047c72dd3bb3c59bbf40f69b7a12e66a34",
+    },
+    "w3c-vc-01-didweb-happy-path": {
+      fmt: "w3c-vc",
+      sha: "8bc6f6def30bde0132b272f99efdf583d49129f1c0f34291840525ed8802aed6",
+    },
+    "w3c-vc-08-didkey-happy-path": {
+      fmt: "w3c-vc",
+      sha: "969b993f84624dd9f47bba5baa2be7601a07c94bcea4369f7059d53502567c29",
     },
     "asqav-01-genesis-permit": {
       fmt: "asqav-native",
