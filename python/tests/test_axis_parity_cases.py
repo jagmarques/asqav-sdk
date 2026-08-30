@@ -7,6 +7,7 @@ typescript/tests/verifier-axis-parity.test.ts and reads the same file.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -140,3 +141,29 @@ def test_normalise_case(case: dict) -> None:
     # halves normalise and canonicalise the same envelope.
     assert digest == case["expect"]["digest"], case["name"]
     assert check_anchors(env)[0] == case["expect"]["anchors_axis"], case["name"]
+
+
+# --- Cases where the two languages legitimately disagree (criterion 446) ---
+
+DIVERGENCE = TABLE["anchors_divergence"]
+
+
+def test_divergence_table_is_populated_and_two_sided() -> None:
+    """A one-sided table cannot tell a real divergence from a stuck axis."""
+    assert len(DIVERGENCE) >= 2, DIVERGENCE
+    assert {c["expect_python"]["result"] for c in DIVERGENCE} == {"FAIL", "PASS"}
+    assert {c["expect_ts"]["result"] for c in DIVERGENCE} == {"SKIPPED"}
+
+
+@pytest.mark.parametrize(
+    "case", DIVERGENCE, ids=[c["name"] for c in DIVERGENCE]
+)
+def test_anchor_divergence_python_side(case: dict) -> None:
+    """Python evaluates the token; the TS half of each case is asserted in
+    typescript/tests/verifier-axis-parity.test.ts against the same rows."""
+    keys = [base64.b64decode(case["trusted_tsa_key_b64"])]
+    result, note = check_anchors(case["envelope"], trusted_tsa_keys=keys)
+    assert result == case["expect_python"]["result"], f"{case['name']}: {note}"
+    assert case["expect_python"]["note_contains"] in note, case["name"]
+    # The divergence itself: TS cannot reach this verdict at all.
+    assert result != case["expect_ts"]["result"], case["name"]

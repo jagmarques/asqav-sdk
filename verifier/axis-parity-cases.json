@@ -1,5 +1,5 @@
 {
-  "note": "Anchor-binding and clock-skew axis parity table. Expectations are the output of the Python check_anchors / check_skew in python/src/asqav/verifier/verify_receipt.py, and both suites feed every case through their own implementation. The anchors notes are deterministic so they are pinned whole; a skew note carries a live wall-clock reading, so only the stable fragment is pinned.",
+  "note": "Anchor-binding and clock-skew axis parity table. Expectations are the output of the Python check_anchors / check_skew in python/src/asqav/verifier/verify_receipt.py, and both suites feed every case through their own implementation. Since the cryptographic anchor check landed, a shape-valid anchor value that is not a verifiable token reports SKIPPED (unverifiable), never PASS on presence alone; the anchors notes are deterministic so they are pinned whole. A skew note carries a live wall-clock reading, so only the stable fragment is pinned.",
   "anchors": [
     {
       "name": "absent",
@@ -212,8 +212,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -475,8 +475,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -715,8 +715,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -739,8 +739,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -918,8 +918,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - ?: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - ?: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     },
     {
@@ -942,8 +942,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - None: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - None: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     },
     {
@@ -966,8 +966,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - True: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - True: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     },
     {
@@ -995,7 +995,7 @@
       },
       "expect": {
         "result": "FAIL",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok;     - merkle: value MISSING or malformed"
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete);     - merkle: value MISSING or malformed"
       }
     },
     {
@@ -1022,8 +1022,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok;     - merkle: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete);     - merkle: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     }
   ],
@@ -1313,7 +1313,7 @@
       },
       "expect": {
         "digest": "39a39f4279c02b1e6e38e35f16238c6da0d14d42ad44377b60056d318f4727af",
-        "anchors_axis": "PASS"
+        "anchors_axis": "SKIPPED"
       }
     },
     {
@@ -1764,6 +1764,89 @@
         "signature": "FAIL",
         "failure_class": "invalid"
       }
+    }
+  ],
+  "anchors_divergence_note": "Cases where the two languages legitimately disagree because the TypeScript shim carries no anchor cryptography (criterion 446). Each case pins BOTH verdicts, so porting the DER/CMS + ots evaluation to TS turns these red and the corpus has to be updated deliberately rather than the divergence silently persisting.",
+  "anchors_divergence": [
+    {
+      "name": "rfc3161-imprint-commits-a-different-envelope",
+      "envelope": {
+        "payload": {
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00+00:00",
+          "issuer_id": "f94f66c0-c580-432d-a041-29374f7aee07",
+          "agent_id": "agt_1",
+          "action_ref": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "payload_digest": {
+            "hash": "88",
+            "size": 512
+          },
+          "policy_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "decision": "allow"
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "k1",
+          "sig": "AAAA"
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "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"
+          }
+        ]
+      },
+      "trusted_tsa_key_b64": "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",
+      "expect_python": {
+        "result": "FAIL",
+        "note_contains": "commits a different digest"
+      },
+      "expect_ts": {
+        "result": "SKIPPED",
+        "note_contains": "unverifiable"
+      },
+      "why": "A real ML-DSA-65 TSA token whose messageImprint provably commits some other envelope. Python parses the token and calls it invalid; the TS shim runs no ASN.1 and can only say unverifiable. Under-claiming is the safe direction, but 'proven forged' and 'not checked' are different facts, so the divergence is pinned rather than left untested."
+    },
+    {
+      "name": "rfc3161-imprint-commits-this-envelope",
+      "envelope": {
+        "payload": {
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00+00:00",
+          "issuer_id": "f94f66c0-c580-432d-a041-29374f7aee07",
+          "agent_id": "agt_1",
+          "action_ref": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "payload_digest": {
+            "hash": "88",
+            "size": 512
+          },
+          "policy_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "decision": "allow"
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "k1",
+          "sig": "AAAA"
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "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"
+          }
+        ]
+      },
+      "trusted_tsa_key_b64": "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",
+      "expect_python": {
+        "result": "PASS",
+        "note_contains": "commits this envelope"
+      },
+      "expect_ts": {
+        "result": "SKIPPED",
+        "note_contains": "unverifiable"
+      },
+      "why": "The control: an honest token over the right digest. Python verifies it to PASS, TS still reports unverifiable, so the divergence above is the absence of anchor cryptography in TS and not a quirk of a forged token."
     }
   ]
 }
