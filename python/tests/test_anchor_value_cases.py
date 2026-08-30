@@ -30,8 +30,13 @@ def test_corpus_is_populated() -> None:
     assert len(VALUES) >= 900, f"corpus has only {len(VALUES)} values"
     wide = [c for c in VALUES if any(ord(ch) > 127 for ch in c["value"])]
     assert len(wide) >= 350, f"only {len(wide)} values carry a non-ASCII codepoint"
-    passing = [c for c in VALUES if c["expect"]["axis"] == "PASS"]
-    assert len(passing) >= 100, f"only {len(passing)} values are expected to pass"
+    # Since the cryptographic anchor check landed, a shape-valid value reports
+    # SKIPPED (unverifiable) rather than PASS; both directions must be present
+    # or the corpus cannot tell a working shape gate from a stuck one.
+    failing = [c for c in VALUES if c["expect"]["axis"] == "FAIL"]
+    assert len(failing) >= 100, f"only {len(failing)} values are expected to fail"
+    skipped = [c for c in VALUES if c["expect"]["axis"] == "SKIPPED"]
+    assert len(skipped) >= 100, f"only {len(skipped)} values are expected to skip"
 
 
 def _surplus_padding(value: str) -> bool:
