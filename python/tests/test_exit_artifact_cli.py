@@ -92,8 +92,10 @@ def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
     envelope = {
         "payload": payload,
         "signature": {"alg": "ML-DSA-65", "kid": kid, "sig": base64.b64encode(sig).decode()},
-        "anchors": [{"type": "rfc3161", "value": "dGVzdC1hbmNob3I="}],
     }
+    bound = hashlib.sha256(vr.envelope_minus_anchors_jcs(envelope)).digest()
+    tok, tsa_pk = mint_ml_dsa_anchor(bound)
+    envelope["anchors"] = [{"type": "rfc3161", "value": tok}]
     jwks = {
         "keys": [
             {
@@ -105,14 +107,16 @@ def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
             }
         ]
     }
-    return envelope, jwks
+    return envelope, jwks, tsa_pk
 
 
-    # Write the three files an exit artifact carries, and nothing else.
-def _lay_out_exit_artifact(root: Path, receipt: dict, jwks: dict) -> None:
+    # Write the files an exit artifact carries, and nothing else. The pinned TSA
+    # key ships beside them the way the walkthrough's <asqav-tsa-chain.pem> does.
+def _lay_out_exit_artifact(root: Path, receipt: dict, jwks: dict, tsa_pk: bytes) -> None:
     shutil.copy(VERIFIER_SOURCE, root / "verify_receipt.py")
     (root / "receipt.json").write_text(json.dumps(receipt))
     (root / "jwks.json").write_text(json.dumps(jwks))
+    (root / "tsa-key.b64").write_text(base64.b64encode(tsa_pk).decode())
     (root / "sitecustomize.py").write_text(SITECUSTOMIZE)
 
 
@@ -127,13 +131,13 @@ def _child_env(root: Path) -> dict[str, str]:
 
 
     # Run the exit-manifest command verbatim, with the network refused.
-def _run_documented_command(root: Path) -> subprocess.CompletedProcess:
+def _run_documented_command(root: Path, *extra: str) -> subprocess.CompletedProcess:
     argv = EXIT_MANIFEST_COMMAND.replace("<receipt.json>", "receipt.json").replace(
         "<jwks.json>", "jwks.json"
     ).split()
     assert argv[0] == "python" and argv[1] == "verify_receipt.py", argv
     return subprocess.run(
-        [sys.executable, *argv[1:]],
+        [sys.executable, *argv[1:], *extra],
         cwd=root,
         capture_output=True,
         text=True,
@@ -158,9 +162,9 @@ def test_the_network_block_actually_blocks(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_exit_artifact_command_passes_an_intact_pair(tmp_path: Path) -> None:
-    receipt, jwks = _anchored_mldsa_pair()
-    _lay_out_exit_artifact(tmp_path, receipt, jwks)
-    proc = _run_documented_command(tmp_path)
+    receipt, jwks, tsa_pk = _anchored_mldsa_pair()
+    _lay_out_exit_artifact(tmp_path, receipt, jwks, tsa_pk)
+    proc = _run_documented_command(tmp_path, "--tsa-key", "tsa-key.b64")
     assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     assert "=> verified" in proc.stdout, proc.stdout
     # A verified verdict with a skipped signature axis is the failure this test exists for.
@@ -170,10 +174,28 @@ def test_exit_artifact_command_passes_an_intact_pair(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
+def test_exit_artifact_command_without_tsa_key_never_passes_on_presence(tmp_path: Path) -> None:
+    """The documented command alone: anchors report unverifiable, never verified.
+
+    The token's imprint matches (the offline proof the timestamp covers these
+    bytes), but without pinned TSA key material the TSA signature cannot be
+    trusted, so the draft's no-PASS-on-presence rule caps the verdict at
+    unverified/unverifiable. The verified path above adds --tsa-key.
+    """
+    receipt, jwks, tsa_pk = _anchored_mldsa_pair()
+    _lay_out_exit_artifact(tmp_path, receipt, jwks, tsa_pk)
+    proc = _run_documented_command(tmp_path)
+    assert proc.returncode == 2, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    assert "=> unverified (failure_class: unverifiable" in proc.stdout, proc.stdout
+    assert "[skip] anchors" in proc.stdout, proc.stdout
+    assert "imprint matches" in proc.stdout, proc.stdout
+
+
+@pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_exit_artifact_command_fails_a_tampered_receipt(tmp_path: Path) -> None:
-    receipt, jwks = _anchored_mldsa_pair()
+    receipt, jwks, tsa_pk = _anchored_mldsa_pair()
     receipt["payload"]["decision"] = "deny"
-    _lay_out_exit_artifact(tmp_path, receipt, jwks)
+    _lay_out_exit_artifact(tmp_path, receipt, jwks, tsa_pk)
     proc = _run_documented_command(tmp_path)
     assert proc.returncode == 1, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     assert "=> unverified (failure_class: invalid)" in proc.stdout, proc.stdout
@@ -183,10 +205,10 @@ def test_exit_artifact_command_fails_a_tampered_receipt(tmp_path: Path) -> None:
     # A swapped verification key must not verify the receipt it did not sign.
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_exit_artifact_command_fails_a_tampered_jwks(tmp_path: Path) -> None:
-    receipt, jwks = _anchored_mldsa_pair()
-    _, other_jwks = _anchored_mldsa_pair()
+    receipt, jwks, tsa_pk = _anchored_mldsa_pair()
+    other_jwks = _anchored_mldsa_pair()[1]
     jwks["keys"][0]["public_key"] = other_jwks["keys"][0]["public_key"]
-    _lay_out_exit_artifact(tmp_path, receipt, jwks)
+    _lay_out_exit_artifact(tmp_path, receipt, jwks, tsa_pk)
     proc = _run_documented_command(tmp_path)
     assert proc.returncode == 1, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     assert "=> unverified (failure_class: invalid)" in proc.stdout, proc.stdout
