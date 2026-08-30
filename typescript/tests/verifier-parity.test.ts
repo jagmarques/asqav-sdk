@@ -44,9 +44,9 @@ describe("verifier parity gate (THE GATE)", () => {
     // eslint-disable-next-line no-console
     console.log(`\n${report}\n\n  => ${passed}/${results.length} vectors matched expected outcome\n`);
 
-    expect(results.length).toBe(62);
+    expect(results.length).toBe(65);
     expect(mismatches, `mismatched vectors: ${mismatches.map((m) => m.dir).join(", ")}`).toEqual([]);
-    expect(passed).toBe(62);
+    expect(passed).toBe(65);
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
