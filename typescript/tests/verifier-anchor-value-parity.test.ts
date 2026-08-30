@@ -25,7 +25,8 @@ const ENVELOPE = {
   signature: { alg: "ML-DSA-65", kid: "k1", sig: "AAAA" },
 };
 
-/** The axis result for one anchor value, which is PASS exactly when the value decodes. */
+/** The axis result for one anchor value: FAIL on junk, SKIPPED (unverifiable) on
+ * shape-valid non-tokens since the cryptographic anchor check landed. */
 function axisFor(value: string): string {
   return checkAnchors({ ...ENVELOPE, anchors: [{ type: "rfc3161", value }] })[0];
 }
@@ -35,7 +36,10 @@ describe("anchor value base64 parity", () => {
     expect(VALUES.length).toBeGreaterThanOrEqual(900);
     const wide = VALUES.filter((c) => [...c.value].some((ch) => ch.codePointAt(0)! > 127));
     expect(wide.length).toBeGreaterThanOrEqual(350);
-    expect(VALUES.filter((c) => c.expect.axis === "PASS").length).toBeGreaterThanOrEqual(100);
+    // Both directions present: junk FAILs (invalid), shape-valid non-tokens
+    // SKIP (unverifiable, never PASS on presence).
+    expect(VALUES.filter((c) => c.expect.axis === "FAIL").length).toBeGreaterThanOrEqual(100);
+    expect(VALUES.filter((c) => c.expect.axis === "SKIPPED").length).toBeGreaterThanOrEqual(100);
   });
 
   // Python's b64decode(validate=True) accepts this shape on 3.11 and raises on
