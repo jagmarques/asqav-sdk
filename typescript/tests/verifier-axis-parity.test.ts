@@ -55,6 +55,13 @@ interface ChainPrevCase {
   expect: { verdict: string; chain: string; signature: string };
 }
 
+interface DivergenceCase {
+  name: string;
+  envelope: Record<string, unknown>;
+  expect_python: { result: string; note_contains: string };
+  expect_ts: { result: string; note_contains: string };
+}
+
 const CASES_FILE = resolve(__dirname, "..", "..", "verifier", "axis-parity-cases.json");
 const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf-8")) as {
   anchors: AnchorCase[];
@@ -62,6 +69,7 @@ const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf-8")) as {
   normalise: NormaliseCase[];
   expiry: ExpiryCase[];
   chain_prev_hash: ChainPrevCase[];
+  anchors_divergence: DivergenceCase[];
 };
 
 const PIPELOCK_VECTOR = resolve(
@@ -119,6 +127,27 @@ describe("anchor-binding axis parity", () => {
       // The digest in the note is the JCS of the envelope minus anchors, so an
       // exact match also proves the two canonicalisers agree byte for byte.
       expect(note, c.name).toBe(c.expect.note);
+    });
+  }
+});
+
+// Cases where the two halves legitimately disagree, because this shim carries no
+// anchor cryptography (criterion 446). The Python side of the same rows is
+// asserted in python/tests/test_axis_parity_cases.py.
+describe("anchor divergence from the Python verifier", () => {
+  it("the divergence table is populated and two-sided", () => {
+    expect(TABLE.anchors_divergence.length).toBeGreaterThanOrEqual(2);
+    const py = new Set(TABLE.anchors_divergence.map((c) => c.expect_python.result));
+    expect([...py].sort()).toEqual(["FAIL", "PASS"]);
+  });
+
+  for (const c of TABLE.anchors_divergence) {
+    it(c.name, () => {
+      const [result, note] = checkAnchors(c.envelope);
+      expect(result, c.name).toBe(c.expect_ts.result);
+      expect(note, c.name).toContain(c.expect_ts.note_contains);
+      // The divergence itself: Python reaches a verdict this shim cannot.
+      expect(result, c.name).not.toBe(c.expect_python.result);
     });
   }
 });
