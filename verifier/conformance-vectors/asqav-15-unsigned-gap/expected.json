@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Server-built unsigned_gap evidences a signer outage that preceded this receipt. A verifier MUST NOT read it as an assertion that the unsigned Actions were policy-evaluated."
+}
