@@ -195,7 +195,7 @@ Autonomous coding agents open and merge their own pull requests, and a git autho
 
 Without governance, there is no record of what agents did, any agent can do anything, one person approves everything by hand, compliance reports are written manually, and the reasoning is lost once the run ends. Asqav changes each of those:
 
-* Every action is signed with ML-DSA (FIPS 204).
+* Every action is signed; the algorithm is per-receipt in `signature.alg` — ML-DSA-65 (FIPS 204) for cloud-issued receipts, Ed25519/ES256 for locally signed ones.
 * Policies block dangerous actions before they run.
 * Critical actions can require multi-party authorization.
 * EU AI Act and DORA reports are generated automatically.
@@ -289,7 +289,7 @@ From the command line, install the optional CLI extra (`pip install "asqav[cli]"
 asqav verify sig_example_regulator_cold_verify_2026
 ```
 
-Or open the receipt's `verification_url` in a browser. For a fully offline, zero-trust check that reproduces the ML-DSA-65 signature itself, use `asqav.verify_receipt_offline(receipt, jwks)` in Python or `verifyReceiptOffline()` in TypeScript, or run the standalone `python -m asqav.verifier.verify_receipt --offline`. Every hash rederives from the RFC 8785 canonical payload, so auditors do not need to trust Asqav's servers.
+Or open the receipt's `verification_url` in a browser. For a fully offline, zero-trust check that reproduces the receipt's signature itself (the algorithm is per-receipt from `signature.alg`: ML-DSA-65 for cloud-issued receipts, Ed25519/ES256 for locally signed), use `asqav.verify_receipt_offline(receipt, jwks)` in Python or `verifyReceiptOffline()` in TypeScript, or run the standalone `python -m asqav.verifier.verify_receipt --offline`. Every hash rederives from the RFC 8785 canonical payload, so auditors do not need to trust Asqav's servers.
 
 ## Verified by Asqav badge
 

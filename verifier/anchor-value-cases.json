@@ -1,5 +1,5 @@
 {
-  "note": "Anchor value corpus for the base64 tolerance inside the anchors axis. Expectations are the output of the Python _safe_b64 in python/src/asqav/verifier/verify_receipt.py, which accepts a value only when it is genuinely base64 and decodes to at least one byte. Both suites assert every value, and the TypeScript half additionally asserts that no disagreement is permissive: a value Python refuses must never read as base64-ok, since the anchors field is unsigned and attacker-steerable. A JSON string admits every codepoint, so the corpus sweeps Unicode rather than ASCII alone.",
+  "note": "Anchor value corpus for the base64 tolerance inside the anchors axis. Expectations are the output of the Python _safe_b64 and check_anchors in python/src/asqav/verifier/verify_receipt.py: _safe_b64 accepts a value only when it is genuinely base64 and decodes to at least one byte; the axis FAILs a value that is not (invalid) and, since the cryptographic anchor check landed, reports SKIPPED (unverifiable) for a shape-valid value that is not a verifiable token - never PASS on presence alone. Both suites assert every value, and the TypeScript half additionally asserts that no disagreement runs in the permissive direction: a value Python refuses must never read as base64-ok, since the anchors field is unsigned and attacker-steerable. A JSON string admits every codepoint, so the corpus sweeps Unicode rather than ASCII alone.",
   "values": [
     {
       "value": "",
@@ -19,21 +19,21 @@
       "value": "ab",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "abc",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "abcd",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -103,42 +103,42 @@
       "value": "MTIzNA==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "MTIzNA=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "MTIzNA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "YWJjZA==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "-_-_",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "+/+/",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -187,21 +187,21 @@
       "value": "AA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -222,95 +222,95 @@
       "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\u00e9",
+      "value": "é",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u4e2d\u6587",
+      "value": "中文",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud83d\ude00",
+      "value": "😀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00a0",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00e1bc",
+      "value": "ábc",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "MTIzNA==\u00e9",
+      "value": "MTIzNA==é",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00e9MTIzNA==",
+      "value": "éMTIzNA==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "MTI\u200bzNA==",
+      "value": "MTI​zNA==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "e\u0301",
+      "value": "é",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "MTIzNA==\u2014",
+      "value": "MTIzNA==—",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0416",
+      "value": "Ж",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u65e5\u672c\u8a9e\u30c6\u30b9\u30c8",
+      "value": "日本語テスト",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -324,77 +324,77 @@
       }
     },
     {
-      "value": "\u00a0MTIzNA==",
+      "value": " MTIzNA==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "MTIzNA\u00a0==",
+      "value": "MTIzNA ==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "caf\u00e9",
+      "value": "café",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "na\u00efve",
+      "value": "naïve",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "MT\u0301IzNA==",
+      "value": "MT́IzNA==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud83d\udd12\ud83d\udd12\ud83d\udd12\ud83d\udd12",
+      "value": "🔒🔒🔒🔒",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "MTIzNA==\ud83d\ude00",
+      "value": "MTIzNA==😀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "a\u00e9",
+      "value": "aé",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00e9a",
+      "value": "éa",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "aa\u00e9",
+      "value": "aaé",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "aaa\u00e9",
+      "value": "aaaé",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -572,7 +572,7 @@
       "value": "HlCh",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -586,7 +586,7 @@
       "value": "RuXf",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -691,7 +691,7 @@
       "value": "O02",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -817,7 +817,7 @@
       "value": "ur",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -978,25 +978,25 @@
       "value": "qTvm",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "]:\u0416\u00fc0\u0301",
+      "value": "]:Жü0́",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": ".\u0416jPj\u00f1\u672c",
+      "value": ".ЖjPjñ本",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "lG\u8a9ed\\\u04166",
+      "value": "lG語d\\Ж6",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1010,21 +1010,21 @@
       }
     },
     {
-      "value": "C$\ud83d\udd12a",
+      "value": "C$🔒a",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "_\ud83d\udd12\u00fc\ud83d\ude00S",
+      "value": "_🔒ü😀S",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud83d\udd12ZD0\u00fca\u672c",
+      "value": "🔒ZD0üa本",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1045,14 +1045,14 @@
       }
     },
     {
-      "value": "\ud83d\ude00vT\u8a9e",
+      "value": "😀vT語",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "Yk\u672c2",
+      "value": "Yk本2",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1062,18 +1062,18 @@
       "value": "fa",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "`j\u0416",
+      "value": "`jЖ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": ")\u0419\ud83d\ude00u5 p",
+      "value": ")Й😀u5 p",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1083,46 +1083,46 @@
       "value": "byp",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "Bv/J",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\u0416\u4e2d",
+      "value": "Ж中",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0301\ud83d\udd12\u0419ll",
+      "value": "́🔒Йll",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "b(\u0416",
+      "value": "b(Ж",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "a\u0416\u65879^i[\u00fc",
+      "value": "aЖ文9^i[ü",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud83d\udd12\"w",
+      "value": "🔒\"w",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1136,35 +1136,35 @@
       }
     },
     {
-      "value": "\ud83d\udd129io",
+      "value": "🔒9io",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": ")\u4e2d",
+      "value": ")中",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u672c4x\u00e9O5Z",
+      "value": "本4xéO5Z",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "C\u672cx\u00e9\u2014n\u8a9e",
+      "value": "C本xé—n語",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "t\u00fcy\u00f15",
+      "value": "tüyñ5",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1178,7 +1178,7 @@
       }
     },
     {
-      "value": "\u6587\u00e0p",
+      "value": "文àp",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1192,42 +1192,42 @@
       }
     },
     {
-      "value": "`\u8a9eO",
+      "value": "`語O",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "glX\u65e5\u200b7\u0416",
+      "value": "glX日​7Ж",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "|L\u00f1h",
+      "value": "|Lñh",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "W5\u8a9e\u00e0\u672c\u00e0tz",
+      "value": "W5語à本àtz",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": ">\u00a0\ud83d\udd12{v6&P",
+      "value": "> 🔒{v6&P",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "[Xe?\u2014",
+      "value": "[Xe?—",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1244,11 +1244,11 @@
       "value": "5s",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "Y\u00e9",
+      "value": "Yé",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1262,42 +1262,42 @@
       }
     },
     {
-      "value": "D/\"[G\u0301",
+      "value": "D/\"[Ǵ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u4e2dM$ ",
+      "value": "中M$ ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "^\ud83d\udd12",
+      "value": "^🔒",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "U\u0301\u65e5\u0416",
+      "value": "Ú日Ж",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2014XT\u6587\u00f1",
+      "value": "—XT文ñ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "$T\u00f1d\u672cFx",
+      "value": "$Tñd本Fx",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1311,42 +1311,42 @@
       }
     },
     {
-      "value": "f\u0301G",
+      "value": "f́G",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "}\u00fc%\u2014<\u00e9_>",
+      "value": "}ü%—<é_>",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00f1M\ud83d\udd12&",
+      "value": "ñM🔒&",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "7HD\u672cK?e",
+      "value": "7HD本K?e",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u8a9e\u00e0tPf\u00fc ",
+      "value": "語àtPfü ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "8\u0301",
+      "value": "8́",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1360,28 +1360,28 @@
       }
     },
     {
-      "value": "\\D\u04167\u672c",
+      "value": "\\DЖ7本",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "D\u03018\ud83d\ude00\u00a0",
+      "value": "D́8😀 ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "bW\u4e2d\\\u0301tu6",
+      "value": "bW中\\́tu6",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "Ks?\ud83d\ude00lD@",
+      "value": "Ks?😀lD@",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -1776,28 +1776,28 @@
       "value": "--",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "---",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "----",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "--------",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -2189,28 +2189,28 @@
       "value": "__",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "___",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "____",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "________",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -2462,7 +2462,7 @@
       "value": "YQ==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -2662,28 +2662,28 @@
       }
     },
     {
-      "value": "YQ==\u007f",
+      "value": "YQ==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u007fYQ==",
+      "value": "YQ==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "YQ\u007f==",
+      "value": "YQ==",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u007fAAAA",
+      "value": "AAAAAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -2952,21 +2952,21 @@
       "value": "AY",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "Nyc",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "mjsg",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -2980,21 +2980,21 @@
       "value": "0rmj+3",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "xzVnw/+",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "LNDP5eha",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -3008,21 +3008,21 @@
       "value": "yz8/pobb7B",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "rh+DdfcSFwe",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "NKZ76EEz6vuL",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -3036,21 +3036,21 @@
       "value": "Ppjp4oaSPbK7VQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "zA4IJuWwCm64f8Q",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "CuItZUMxcO493y+E",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -3064,21 +3064,21 @@
       "value": "YCUSTjb2bSX0uQdbNk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "duS7Szpgo76Onkg94hi",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "ORUm2HGlbO+08cIaGAkE",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
@@ -3092,1901 +3092,1901 @@
       "value": "BRuvDP+lD1MzTmjMe8d87T",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "i8n9sh0qhNGUoJ/hjXvMiFq",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "CZdSWJJVSMBSx96KTNjYimKK",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAAAAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAAA_synthetic_tsr_base64_placeholder_AAAA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "XngedBv0",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "HvNhUPYrLCxrwcUN",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "i+tI",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "zHTuDpFY5zp1K5Jd",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "j/MUitruRQd9M9U5",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "udi2hiFS2eCnm561ovAdkL2uzOPmybfjsoWRbAStZ16ReP5nkpClDnWJcIFxYCoD",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "0b8z9fL4NGjnRfpX",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "oe+F0J91swRxj9NZ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "8Vl4EzmgEZuX4m7WwbYtSGZcyMeWu38T",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "/jpKDFYWGa1u2Gds",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "YQWDsMZGZjHKSXIQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "JRc0EuyCB6VidOrR4ZdIol8Y",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "v8oRWNAufzHfTeMU7Ci15uXJROjtXBG4",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "3XgRhktdj3iaRh2CjE86iN1Ak2IsvLu8uwQN3b/NdHyuB7andcIwTbsg/WCv6z8O",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "J3aj5ioaMocjnyXBjdtZ2RMl",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "N6ED",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "YzzHatAzERKNY4fCvBxnfY/8",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "siCo2pMGypW0XwSkbfOz0g+fTzsXN7OoRWphe1px6uhD5H9yM7iHVWsdWeOMuNlQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "J9e1",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "y1fNGRlFJUHD",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "JR+IK81ZC59KDMNKLNr9OPtCLPDx7+wtEH08PMoQyquq2/oJtWtL4znFe9jnaQv8",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "mTZ1afwRiG6GdCU33OkFW3kXydDKBVoraAjKyNAWjYiJtCYN1aZkcBnk8s/J5+SK",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "BZ5WNYTiLhYgW1f/0mj8y+vxnemAqLh4",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "JdEjKGwV0KTnuFY9hxhER8mhg7svd9+iuJT9ibN6O+bySX5HHsAEI9W6b3d8XRXo",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "0T/7gc7GITnmpkOJagmMTN9c",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "iTJLMPkLXXluacJG9mcz/HEx",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "c6HlMM0Pw1jN",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "Xplmmn6KYwgzQjgzDYf7vEfc80ITWxHf",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "CoomZCGZ8soaVUhtiEO4ZelAJzxE6N+0De1O2528cdK1ggZiLZ0PRQgZa3++xwUj",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "hv45OTHlwNXu",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "o_3D",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "ZnhgqwPkOROh33TAz0OM1GbW8doCVnFf",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "k5LMgPtR_OlpFft3",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "DLbD",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "ufVDRO8H",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "qvlg",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "CNTFyEkWrxEtCHrsoEn4XRh9pq71N1Ai",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "eEdOEgzh58sMkZds",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "3VrLAme_QKpNfRLFOKCTZlzJNDZ9uudG",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "RpIdp5D4Pph0iO-N",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "hhyn-bq1UiWYA2Gc",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "lZYsIxJw4yiYVcf-",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "Ot7P",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "gKcgWqHq_f4fnw4C",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "XcNk5wvOn4vQtLCazwp4uasCtCRkx087",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "Qt8xhyCrJ7gNK42C",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "hO4iNFhj7AcnligTaiZqIszbbjWwzQz7",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "q18i8sYliNf6Aq-gv_2fhnTZO7vggqNl",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "0eiG",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "5aSrs-kkT55xNbkbGIfjR34y37QrJtIv",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\u00a0\u00a0\u00a0\u00a0",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u00a0",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00a0AAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u00a0AA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0085",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0085\u0085\u0085\u0085",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0085",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0085AAAA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0085AA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u1680",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u1680\u1680\u1680\u1680",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u1680",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u1680AAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u1680AA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2000",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2000\u2000\u2000\u2000",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u2000",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2000AAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u2000AA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2007",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2007\u2007\u2007\u2007",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u2007",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2007AAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u2007AA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2028",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2028\u2028\u2028\u2028",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u2028",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2028AAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u2028AA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2029",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2029\u2029\u2029\u2029",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u2029",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2029AAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u2029AA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u202f",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u202f\u202f\u202f\u202f",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u202f",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u202fAAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u202fAA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u205f",
+      "value": " ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u205f\u205f\u205f\u205f",
+      "value": "    ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u205f",
+      "value": "AAAA ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u205fAAAA",
+      "value": " AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u205fAA",
+      "value": "AA AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u3000",
+      "value": "　",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u3000\u3000\u3000\u3000",
+      "value": "　　　　",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u3000",
+      "value": "AAAA　",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u3000AAAA",
+      "value": "　AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u3000AA",
+      "value": "AA　AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200b",
+      "value": "​",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200b\u200b\u200b\u200b",
+      "value": "​​​​",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u200b",
+      "value": "AAAA​",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200bAAAA",
+      "value": "​AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u200bAA",
+      "value": "AA​AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200c",
+      "value": "‌",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200c\u200c\u200c\u200c",
+      "value": "‌‌‌‌",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u200c",
+      "value": "AAAA‌",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200cAAAA",
+      "value": "‌AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u200cAA",
+      "value": "AA‌AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200d",
+      "value": "‍",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200d\u200d\u200d\u200d",
+      "value": "‍‍‍‍",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u200d",
+      "value": "AAAA‍",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200dAAAA",
+      "value": "‍AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u200dAA",
+      "value": "AA‍AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ufeff",
+      "value": "﻿",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ufeff\ufeff\ufeff\ufeff",
+      "value": "﻿﻿﻿﻿",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\ufeff",
+      "value": "AAAA﻿",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ufeffAAAA",
+      "value": "﻿AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\ufeffAA",
+      "value": "AA﻿AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200e",
+      "value": "‎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200e\u200e\u200e\u200e",
+      "value": "‎‎‎‎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u200e",
+      "value": "AAAA‎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u200eAAAA",
+      "value": "‎AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u200eAA",
+      "value": "AA‎AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u202e",
+      "value": "‮",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u202e\u202e\u202e\u202e",
+      "value": "‮‮‮‮",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u202e",
+      "value": "AAAA‮",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u202eAAAA",
+      "value": "‮AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u202eAA",
+      "value": "AA‮AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00e9\u00e9\u00e9\u00e9",
+      "value": "éééé",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u00e9",
+      "value": "AAAAé",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00e9AAAA",
+      "value": "éAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u00e9AA",
+      "value": "AAéAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00c0",
+      "value": "À",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00c0\u00c0\u00c0\u00c0",
+      "value": "ÀÀÀÀ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u00c0",
+      "value": "AAAAÀ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00c0AAAA",
+      "value": "ÀAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u00c0AA",
+      "value": "AAÀAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0141",
+      "value": "Ł",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0141\u0141\u0141\u0141",
+      "value": "ŁŁŁŁ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0141",
+      "value": "AAAAŁ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0141AAAA",
+      "value": "ŁAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0141AA",
+      "value": "AAŁAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0301",
+      "value": "́",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0301\u0301\u0301\u0301",
+      "value": "́́́́",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0301",
+      "value": "AAAÁ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0301AAAA",
+      "value": "́AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0301AA",
+      "value": "AÁAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0416\u0416\u0416\u0416",
+      "value": "ЖЖЖЖ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0416",
+      "value": "AAAAЖ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0416AAAA",
+      "value": "ЖAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0416AA",
+      "value": "AAЖAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u05d0",
+      "value": "א",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u05d0\u05d0\u05d0\u05d0",
+      "value": "אאאא",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u05d0",
+      "value": "AAAAא",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u05d0AAAA",
+      "value": "אAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u05d0AA",
+      "value": "AAאAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0627",
+      "value": "ا",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0627\u0627\u0627\u0627",
+      "value": "اااا",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0627",
+      "value": "AAAAا",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0627AAAA",
+      "value": "اAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0627AA",
+      "value": "AAاAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u4e2d",
+      "value": "中",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u4e2d\u4e2d\u4e2d\u4e2d",
+      "value": "中中中中",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u4e2d",
+      "value": "AAAA中",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u4e2dAAAA",
+      "value": "中AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u4e2dAA",
+      "value": "AA中AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u3042",
+      "value": "あ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u3042\u3042\u3042\u3042",
+      "value": "ああああ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u3042",
+      "value": "AAAAあ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u3042AAAA",
+      "value": "あAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u3042AA",
+      "value": "AAあAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uac00",
+      "value": "가",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uac00\uac00\uac00\uac00",
+      "value": "가가가가",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\uac00",
+      "value": "AAAA가",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uac00AAAA",
+      "value": "가AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\uac00AA",
+      "value": "AA가AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff21",
+      "value": "Ａ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff21\uff21\uff21\uff21",
+      "value": "ＡＡＡＡ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\uff21",
+      "value": "AAAAＡ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff21AAAA",
+      "value": "ＡAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\uff21AA",
+      "value": "AAＡAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff10",
+      "value": "０",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff10\uff10\uff10\uff10",
+      "value": "００００",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\uff10",
+      "value": "AAAA０",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff10AAAA",
+      "value": "０AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\uff10AA",
+      "value": "AA０AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff0b",
+      "value": "＋",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff0b\uff0b\uff0b\uff0b",
+      "value": "＋＋＋＋",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\uff0b",
+      "value": "AAAA＋",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff0bAAAA",
+      "value": "＋AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\uff0bAA",
+      "value": "AA＋AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff0f",
+      "value": "／",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff0f\uff0f\uff0f\uff0f",
+      "value": "／／／／",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\uff0f",
+      "value": "AAAA／",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff0fAAAA",
+      "value": "／AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\uff0fAA",
+      "value": "AA／AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff1d",
+      "value": "＝",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff1d\uff1d\uff1d\uff1d",
+      "value": "＝＝＝＝",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\uff1d",
+      "value": "AAAA＝",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uff1dAAAA",
+      "value": "＝AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\uff1dAA",
+      "value": "AA＝AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2044",
+      "value": "⁄",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2044\u2044\u2044\u2044",
+      "value": "⁄⁄⁄⁄",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u2044",
+      "value": "AAAA⁄",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2044AAAA",
+      "value": "⁄AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u2044AA",
+      "value": "AA⁄AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2215",
+      "value": "∕",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2215\u2215\u2215\u2215",
+      "value": "∕∕∕∕",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u2215",
+      "value": "AAAA∕",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2215AAAA",
+      "value": "∕AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u2215AA",
+      "value": "AA∕AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u02d0",
+      "value": "ː",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u02d0\u02d0\u02d0\u02d0",
+      "value": "ːːːː",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u02d0",
+      "value": "AAAAː",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u02d0AAAA",
+      "value": "ːAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u02d0AA",
+      "value": "AAːAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0130",
+      "value": "İ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0130\u0130\u0130\u0130",
+      "value": "İİİİ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0130",
+      "value": "AAAAİ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0130AAAA",
+      "value": "İAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0130AA",
+      "value": "AAİAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u212a",
+      "value": "K",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u212a\u212a\u212a\u212a",
+      "value": "KKKK",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u212a",
+      "value": "AAAAK",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u212aAAAA",
+      "value": "KAAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u212aAA",
+      "value": "AAKAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+      "value": "😀😀😀😀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\ud83d\ude00",
+      "value": "AAAA😀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud83d\ude00AAAA",
+      "value": "😀AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\ud83d\ude00AA",
+      "value": "AA😀AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud835\udc00",
+      "value": "𝐀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud835\udc00\ud835\udc00\ud835\udc00\ud835\udc00",
+      "value": "𝐀𝐀𝐀𝐀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\ud835\udc00",
+      "value": "AAAA𝐀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud835\udc00AAAA",
+      "value": "𝐀AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\ud835\udc00AA",
+      "value": "AA𝐀AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud835\udfce",
+      "value": "𝟎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud835\udfce\ud835\udfce\ud835\udfce\ud835\udfce",
+      "value": "𝟎𝟎𝟎𝟎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\ud835\udfce",
+      "value": "AAAA𝟎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud835\udfceAAAA",
+      "value": "𝟎AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\ud835\udfceAA",
+      "value": "AA𝟎AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud801\udc37",
+      "value": "𐐷",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud801\udc37\ud801\udc37\ud801\udc37\ud801\udc37",
+      "value": "𐐷𐐷𐐷𐐷",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\ud801\udc37",
+      "value": "AAAA𐐷",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud801\udc37AAAA",
+      "value": "𐐷AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\ud801\udc37AA",
+      "value": "AA𐐷AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud87e\udc00",
+      "value": "丽",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud87e\udc00\ud87e\udc00\ud87e\udc00\ud87e\udc00",
+      "value": "丽丽丽丽",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\ud87e\udc00",
+      "value": "AAAA丽",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud87e\udc00AAAA",
+      "value": "丽AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\ud87e\udc00AA",
+      "value": "AA丽AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udb40\udc01",
+      "value": "󠀁",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udb40\udc01\udb40\udc01\udb40\udc01\udb40\udc01",
+      "value": "󠀁󠀁󠀁󠀁",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\udb40\udc01",
+      "value": "AAAA󠀁",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udb40\udc01AAAA",
+      "value": "󠀁AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\udb40\udc01AA",
+      "value": "AA󠀁AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udbc0\udc00",
+      "value": "􀀀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udbc0\udc00\udbc0\udc00\udbc0\udc00\udbc0\udc00",
+      "value": "􀀀􀀀􀀀􀀀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\udbc0\udc00",
+      "value": "AAAA􀀀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udbc0\udc00AAAA",
+      "value": "􀀀AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\udbc0\udc00AA",
+      "value": "AA􀀀AA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5098,112 +5098,112 @@
       }
     },
     {
-      "value": "\u007f",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u007f\u007f\u007f\u007f",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u007f",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u007fAAAA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u007fAA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0080",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0080\u0080\u0080\u0080",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u0080",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0080AAAA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u0080AA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u009f",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u009f\u009f\u009f\u009f",
+      "value": "",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AAAA\u009f",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u009fAAAA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "AA\u009fAA",
+      "value": "AAAA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "j,\u0c5e6+1",
+      "value": "j,౞6+1",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5217,161 +5217,161 @@
       }
     },
     {
-      "value": "s\u1703C\u085b\u08a3e",
+      "value": "sᜃC࡛ࢣe",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udbb7\udd7d\ub359K\ubcc1",
+      "value": "󽵽덙K볁",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "@\u045aP1\u1184\u6e83Fu\ud992\uddec`",
+      "value": "@њP1ᆄ溃Fu񴧬`",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uaa0f\u1d5e\u2117@8\ud95a\udf0dK\u9d22DA",
+      "value": "ꨏᵞ℗@8񦬍K鴢DA",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udb6d\udf16P",
+      "value": "󫜖P",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "sG\u4e90\u47f3>\u53ef\udaf5\ude86?",
+      "value": "sG亐䟳>可󍚆?",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2adb]\ud9b3\udf12WG",
+      "value": "⫛]񼼒WG",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u5ffa9L{\u1426",
+      "value": "忺9L{ᐦ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udaa4\udc435z\ud52b,3+RxM",
+      "value": "򹁃5z픫,3+RxM",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2f9e8`7\ud9f9\udd8eMd",
+      "value": "⾞8`7򎖎Md",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "_<P/xKf;s\u6239W",
+      "value": "_<P/xKf;s戹W",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "9\u15c5N",
+      "value": "9ᗅN",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "6nX\uf055\u2fecw\uf320\ud8b3\udc1e\udbae\udc0f;",
+      "value": "6nX⿬w𼰞󻠏;",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "9\u1c33;`Yr\u2495\u18cdb\ud94d\udfcb",
+      "value": "9ᰳ;`Yr⒕ᣍb񣟋",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "V\u2357U",
+      "value": "V⍗U",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "i/\u9750g\u6045\u15347\uc02c\ud949\udeba\uda84\udf74\u28e4",
+      "value": "i/靐g恅ᔴ7쀬񢚺򱍴⣤",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u407d\ua5bb\u4cecd8h\ued79",
+      "value": "䁽ꖻ䳬d8h",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "Y*O\udbb1\uddf6*F\u54fe0\u10cdp\u6d2bo",
+      "value": "Y*O󼗶*F哾0Ⴭp洫o",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u60c9",
+      "value": "惉",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u6c7bv\udb0b\udcdb\u1831\u6b5d.B",
+      "value": "汻v󒳛ᠱ歝.B",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "}cx\udbb7\uddec\uf4fb\ud8e8\uddd95:R\ud8f5\udf17*",
+      "value": "}cx󽷬񊇙5:R񍜗*",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uee6d)\u99b25MI\u394b",
+      "value": ")馲5MI㥋",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "akA\u1099\u2af6\uda7f\udee82`-\uda4d\udff9",
+      "value": "akA႙⫶򯻨2`-򣟹",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5381,81 +5381,81 @@
       "value": "F+y",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "q\ub808\ud971\udf54T\uba8b\u2c06\uda25\udde8V|n\u4655",
+      "value": "q레񬝔T몋Ⰶ򙗨V|n䙕",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud897\udf7a\u2a7cl1\ufb5aB\u60bb\u7b19/HD/",
+      "value": "𵽺⩼l1ﭚB悻笙/HD/",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "x\uda51\udfd4sJ",
+      "value": "x򤟔sJ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "CQ'\u08b5I",
+      "value": "CQ'ࢵI",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "a\u05ae!&\u017d\uacfd\ud404\u6665",
+      "value": "a֮!&Ž곽퐄晥",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uaff7AWB",
+      "value": "꿷AWB",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uad17\u410e#\udb32\ude095k",
+      "value": "괗䄎#󜨉5k",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0b17~$y\"-\ud971\udd97\u299a\u0244R\u29fb\ub1fb",
+      "value": "ଗ~$y\"-񬖗⦚ɄR⧻뇻",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "vq\u62dd",
+      "value": "vq拝",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud950\udf42\ud47f\u1983\ubdc4",
+      "value": "񤍂푿ᦃ뷄",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "e&Q\u3bd8\u0cf4}+~\u0952\u57dd",
+      "value": "e&Q㯘೴}+~॒埝",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5469,21 +5469,21 @@
       }
     },
     {
-      "value": "\u05eb\uf369RiR",
+      "value": "׫RiR",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "%\u0af7vj7\ud80f\ude72\uda0f\udf44@\u17d5\ud100\u1b84\u1fc8",
+      "value": "%૷vj7𓹲򓽄@៕턀ᮄῈ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "g'S\uda03\udc31;",
+      "value": "g'S򐰱;",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5497,7 +5497,7 @@
       }
     },
     {
-      "value": "\udae2\uddf7",
+      "value": "󈧷",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5507,109 +5507,109 @@
       "value": "o4",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\u1c23\u0578.",
+      "value": "ᰣո.",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "jB\udbe5\udc4e",
+      "value": "jB􉑎",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "@\u2e21th\udb30\ude11\udafd\ude0b\u7980",
+      "value": "@⸡th󜈑󏘋禀",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udb66\ude4f5\u9ae7\u09bak}W\u1660m\u9f27\u2a1d",
+      "value": "󩩏5髧঺k}Wᙠm鼧⨝",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0d3c",
+      "value": "഼",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u9398.sIH8<eW",
+      "value": "鎘.sIH8<eW",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "%yj\uf414",
+      "value": "%yj",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "k<W:\u1f73",
+      "value": "k<W:έ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "PFf\udbfb\udd88HTt\uda7b\udf1e",
+      "value": "PFf􎶈HTt򮼞",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "u\u50d8E\"\ud880\udec3R",
+      "value": "u僘E\"𰋃R",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "]\ud91e\udf80\ud99d\udc1c?\u16b3\ucbfa<\u1582",
+      "value": "]񗮀񷐜?ᚳ쯺<ᖂ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u190eVKl",
+      "value": "ᤎVKl",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\udb36\udce9\u2919lG'b*A\u0e52c\uaed4a",
+      "value": "󝣩⤙lG'b*A๒c껔a",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ufc72j!\u2284\u01f9\u1b96\u25c9\u282d\ud8bb\udcd0g|5",
+      "value": "ﱲj!⊄ǹᮖ◉⠭𾳐g|5",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "D+\u4b15\u1f83\u0f05|W",
+      "value": "D+䬕ᾃ༅|W",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5619,67 +5619,67 @@
       "value": "Vag",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\ud9c5\ude49\udbd8\udd83\uc053\u612a",
+      "value": "򁙉􆆃쁓愪",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "I(\ud93d\udc3a$nm\udb43\udd72\u7926z\u3d72",
+      "value": "I(񟐺$nm󠵲礦z㵲",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "@\ua1b69dH\u85dd\u186b\udbb1\uddb3",
+      "value": "@ꆶ9dH藝ᡫ󼖳",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "m\u1991\ua516\u0f1axo}}\uda7a\uddb8",
+      "value": "mᦑꔖ༚xo}}򮦸",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u00ce(\u2781Q\uce9a\u215a\ucdfdsqS",
+      "value": "Î(➁Q캚⅚췽sqS",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "J\u272b\u234b\u25c8",
+      "value": "J✫⍋◈",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u5b62\udafd\udce1",
+      "value": "孢󏓡",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "NO\u1fb4c\u2c5exj<7",
+      "value": "NOᾴcⱞxj<7",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "O\\\u3a02^+\u2481\ub9e0\ud9a4\udf94}",
+      "value": "O\\㨂^+⒁맠񹎔}",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5693,70 +5693,70 @@
       }
     },
     {
-      "value": "?5RQ\ud9d4\udcba\u1b7c:4\u2566\u5c01",
+      "value": "?5RQ򅂺᭼:4╦封",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "j2\udaf4\ude3dfo\u6d6f-?Q\u0aaa",
+      "value": "j2󍈽fo浯-?Qપ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "-:\u2fe6A\u1884\uda09\udd2b\u0db9T",
+      "value": "-:⿦Aᢄ򒔫ඹT",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\uda5b\udce2\ue3ffcUV4R\ud9b3\udf4dC",
+      "value": "򦳢cUV4R񼽍C",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "7\ud870\udff7OaW+Ac(T\ud978\udf2e\u20a5",
+      "value": "7𬏷OaW+Ac(T񮌮₥",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\\8\uc064G",
+      "value": "\\8쁤G",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2c1d\uaa94",
+      "value": "Ⱍꪔ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "'\u09a7E\udb46\udee8N\ud93d\uddedk\ud846\udf20h@y0",
+      "value": "'ধE󡫨N񟗭k𡬠h@y0",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "YZQW\u1293|",
+      "value": "YZQWና|",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "!\u06f6\ud8d9\udd98b\u7f78\u1684HLQc\u38aa",
+      "value": "!۶񆖘b罸ᚄHLQc㢪",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5766,25 +5766,25 @@
       "value": "LF2",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": ")\u05c1\ud83a\udcef\ud836\ude64R\u299cv~",
+      "value": ")ׁ𞣯𝩤R⦜v~",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2ea2Q\u1a84\u0e05\u3e58H",
+      "value": "⺢Q᪄ฅ㹘H",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "J\u2172\u27d3TP",
+      "value": "Jⅲ⟓TP",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5798,7 +5798,7 @@
       }
     },
     {
-      "value": "\u1088\u21d2",
+      "value": "ႈ⇒",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5812,7 +5812,7 @@
       }
     },
     {
-      "value": "05Z&3\udbf2\udfd4/\u951clE'U",
+      "value": "05Z&3􌯔/锜lE'U",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5826,7 +5826,7 @@
       }
     },
     {
-      "value": ";4\u95c3n:\u7596/c\ud7dbR\u0c54",
+      "value": ";4闃n:疖/cퟛR౔",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5840,63 +5840,63 @@
       }
     },
     {
-      "value": "I\ud9d4\udf23\"\u12e9g^R.\ud8b0\uddba\u0c6dB",
+      "value": "I򅌣\"ዩg^R.𼆺౭B",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "e\udbb8\udd82\u0128\u24e6S",
+      "value": "e󾆂ĨⓦS",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "3\u0a86\u25d7e\u08af\ua26c?96",
+      "value": "3આ◗eࢯꉬ?96",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u1b92\udaec\udca2\u270a\udb7e\udf38|1Zd!\u0d82\u284fS",
+      "value": "ᮒ󋂢✊󯬸|1Zd!ං⡏S",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "pcZ\u2a87#",
+      "value": "pcZ⪇#",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u2c7d8\u2eea\u23d1qx",
+      "value": "ⱽ8⻪⏑qx",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud8a9\uddcd\u5c208j",
+      "value": "𺗍尠8j",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "c\uadd0-(\ud890\udf71+\ud966\udc5b\u2142\uf08e",
+      "value": "c귐-(𴍱+񩡛⅂",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "n8v\u7720D\udacc\udfa7\u0b0f\udab3\udf35",
+      "value": "n8v眠D󃎧ଏ򼼵",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5906,18 +5906,18 @@
       "value": "FiA",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\u2d81Ia\ub3eea;gIzSH",
+      "value": "ⶁIa돮a;gIzSH",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "Hob\udade\udf0a",
+      "value": "Hob󇬊",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5927,53 +5927,53 @@
       "value": "H3",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "\ud8cf\udd31p\ub865nGzwz\udb57\udc6c",
+      "value": "񃴱p롥nGzwz󥱬",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u08a3t\u42a1\u0d8aq",
+      "value": "ࢣt䊡ඊq",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "[I\uac22\u1666\u1203\u33eaL)*\u0306",
+      "value": "[I갢ᙦሃ㏪L)*̆",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u0a95\ud9b1\udd92",
+      "value": "ક񼖒",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "u\uef96<2iF\u7348\uda47\udd1e\u9c23+\\",
+      "value": "u<2iF獈򡴞鰣+\\",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\ud9ef\udd32\u3a0eVv\uee25+Xu",
+      "value": "򋴲㨎Vv+Xu",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "\u9665\ud8da\udcf4Bs\ud887\udfc9\uf587",
+      "value": "陥񆣴Bs𱿉",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -5983,32 +5983,32 @@
       "value": "Ff",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
-      "value": "T\u2d25\ud5badh\udac9\udcce9\ufef0",
+      "value": "Tⴥ햺dh󂓎9ﻰ",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "@\uda0c\udeb1\u2341",
+      "value": "@򓊱⍁",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "O}\u0c12umpZ\u1dcaye\u2e23",
+      "value": "O}ఒumpZ᷊ye⸣",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
       }
     },
     {
-      "value": "c\ue795YFs3h\u5ad7\udade\udd82\u9edf\u20d27",
+      "value": "cYFs3h嫗󇦂黟⃒7",
       "expect": {
         "safe_b64": false,
         "axis": "FAIL"
@@ -6445,357 +6445,357 @@
       "value": "Hw==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "Hw",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "PkU=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "PkU",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "XWRr",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "m6KpsLc=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "m6KpsLc",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "2eDn7vX8Aw==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "2eDn7vX8Aw",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "VVxjanF4f4aNlJs=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "VVxjanF4f4aNlJs",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "8Pf+BQwTGiEoLzY9REtSWQ==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "8Pf+BQwTGiEoLzY9REtSWQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "8Pf-BQwTGiEoLzY9REtSWQ==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "8Pf-BQwTGiEoLzY9REtSWQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMkw==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMkw",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wcjP1t3k6_L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMkw==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wcjP1t3k6_L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMkw",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrk=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI-WnaSrsrk=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI-WnaSrsrk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "_wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "sbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PM=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "sbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PM",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "sbi_xs3U2-Lp8Pf-BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ-mrbS7wsnQ197l7PM=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "sbi_xs3U2-Lp8Pf-BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ-mrbS7wsnQ197l7PM",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "0Nfe5ezz-gEIDxYdJCsyOUBHTlVcY2pxeH-GjZSboqmwt77FzNPa4ejv9v0ECxIZ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeQ==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wMfO1dzj6vH4_wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30-wIJEBceJSwzOkFIT1ZdZGtyeQ==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "wMfO1dzj6vH4_wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30-wIJEBceJSwzOkFIT1ZdZGtyeQ",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "oKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "oKeutbzDytHY3-bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ-mrbS7wsnQ197l7PP6AQgPFh0kKzI5",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vk=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "gIeOlZyjqrG4v8bN1Nvi6fD3_gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlVcY2pxeH-GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM_W3eTr8vk=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "gIeOlZyjqrG4v8bN1Nvi6fD3_gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlVcY2pxeH-GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM_W3eTr8vk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "OD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqk=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "OD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "OD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI-WnaSrsrnAx87V3OPq8fj_Bg0UGyIpMDc-RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N_m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3_gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlVcY2pxeH-GjZSboqk=",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "OD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI-WnaSrsrnAx87V3OPq8fj_Bg0UGyIpMDc-RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N_m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3_gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz-gEIDxYdJCsyOUBHTlVcY2pxeH-GjZSboqk",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM_W3eTr8vkABw4VHCMqMTg_Rk1UW2JpcHd-hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4_wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30-wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL_GzdTb4unw9_4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8_oBCA8WHSQrMjlAR05VXGNqcXh_ho2Um6KpsLe-xczT",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+Q==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+Q",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK-2vcTL0tng5-71_AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4-rx-P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3-bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ-mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O_2_QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy-Q==",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     },
     {
       "value": "AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK-2vcTL0tng5-71_AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4-rx-P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3-bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi_xs3U2-Lp8Pf-BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ-mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O_2_QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy-Q",
       "expect": {
         "safe_b64": true,
-        "axis": "PASS"
+        "axis": "SKIPPED"
       }
     }
   ]
