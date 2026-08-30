@@ -1,11 +1,9 @@
 /**
- * A focused port of the standalone `verify_receipt.py` helpers the Asqav-native
- * and ACTA adapters reuse, so the TS oracle reproduces the same bytes and the
- * same structure verdict as the Python surface.
- *
- * Only the pieces the adapters touch are ported: base64 decoding, envelope
- * normalisation, the Asqav-native structure check, JWKS key resolution, and the
- * first-receipt seed constant.
+ * A focused port of the `verify_receipt.py` helpers the Asqav-native and ACTA
+ * adapters reuse, so the TS oracle reproduces the same bytes and the same
+ * structure verdict as the Python surface. Only what those adapters touch is
+ * ported: base64 decoding, envelope normalisation, the structure check, JWKS key
+ * resolution, and the first-receipt seed.
  */
 
 import { asqavJcs } from "./canonical.js";
@@ -227,8 +225,8 @@ function matchKey(
   return null;
 }
 
-// Exact key id (mirrors `_match_key_by_id`). A key id names one key, while the
-// issuer match above answers for every key an org publishes, which is a set.
+// Exact key id (mirrors `_match_key_by_id`): a key id names one key, while the
+// issuer match above answers for a whole set.
 function matchKeyById(
   jwks: Record<string, unknown> | null,
   kid: string,
@@ -247,8 +245,7 @@ function matchKeyById(
 
 // An agent key bound to the issuer the receipt claims (mirrors `_match_key_by_agent`).
 // agent_id is attacker-controlled, so the key's published issuer (or org) must equal
-// the one the receipt names inside its signed bytes; a hash-mode receipt signs the raw
-// org_id, so the org binding answers for that shape and names exactly one sibling.
+// the one the receipt names inside its signed bytes.
 function matchKeyByAgent(
   jwks: Record<string, unknown> | null,
   agentId: unknown,
@@ -273,13 +270,11 @@ function matchKeyByAgent(
 /**
  * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
  *
- * Exact key id, then the agent bind, then the bare-kid issuer match. A cloud receipt
- * puts the org id in kid and signs with the agent's own key, and the directory
- * publishes issuer_id on every key that org owns, so an org-shaped kid matches each
- * sibling alike and list position picks one. Position binds nothing: agent_id and
- * issuer_id both sit inside the signed bytes, so the pair names the signer, while the
- * sibling it lands on holds other key bytes and another revocation status. The agent
- * bind carries the org_id a hash-mode receipt signs, so the right sibling resolves.
+ * Order carries the security: exact key id, then the agent bind, then the bare-kid
+ * issuer match. An org-shaped kid matches every sibling that org publishes alike, so
+ * list position would pick one arbitrarily, and position binds nothing while the
+ * sibling holds other key bytes and another revocation status. The agent bind carries
+ * the org_id a hash-mode receipt signs, so the right sibling resolves first.
  */
 export function matchSigningKey(
   jwks: Record<string, unknown> | null,
@@ -444,8 +439,7 @@ const B64_STRICT = /^[A-Za-z0-9+/]*={0,2}$/;
  * True when Python's `_safe_b64` accepts `value`, false otherwise.
  *
  * Strict on purpose: an out-of-alphabet character is refused, not dropped, so a
- * forged all-punctuation anchor cannot read as present. A non-ASCII codepoint
- * falls outside the alphabet here, matching the ascii encode Python raises on.
+ * forged all-punctuation anchor cannot read as present.
  */
 function safeB64(value: unknown): boolean {
   if (typeof value !== "string") return false;
@@ -540,6 +534,11 @@ export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
  * Absent or null anchors is a legitimate no-anchors receipt (SKIPPED). A present
  * non-list value is malformed and FAILs, never laundered to an empty list.
  * `anchors` sits outside the signed bytes, so a forged envelope can move it.
+ *
+ * This shim runs no ASN.1/CMS or ots evaluation, so it never returns PASS - safe -
+ * but it also never returns `invalid`, which is not: Python calls a provably forged
+ * imprint FAIL/invalid where this reports unverifiable. Use the Python verifier when
+ * "proven forged" must be distinguished from "not checked".
  */
 export function checkAnchors(envelope: Record<string, unknown>): readonly [VerifyState, string] {
   const anchors = envelope.anchors;
@@ -560,10 +559,11 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
     return ["FAIL", "envelope too deeply nested to canonicalise for anchor binding"];
   }
   const lines = [`anchors bind envelope digest sha256:${bound.slice(0, 16)}..`];
-  let allOk = true;
+  let sawInvalid = false;
+  let sawUnverifiable = false;
   for (const a of anchors as unknown[]) {
     if (a === null || typeof a !== "object" || Array.isArray(a)) {
-      allOk = false;
+      sawInvalid = true;
       lines.push(`    - malformed anchor entry (got ${pyTypeName(a)}, expected an object)`);
       continue;
     }
@@ -571,11 +571,32 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
     const atype = "type" in entry ? entry.type : "?";
     const val = entry.value;
     const ok = pyTruthy(val) && safeB64(val);
-    allOk = allOk && ok;
-    const state = ok ? "present, base64-ok" : "MISSING or malformed";
-    lines.push(`    - ${pyStr(atype)}: value ${state}`);
+    if (!ok) {
+      sawInvalid = true;
+      lines.push(`    - ${pyStr(atype)}: value MISSING or malformed`);
+      continue;
+    }
+    const status = entry.status;
+    if (status === "pending" || status === "failed") {
+      // A declared non-anchored status is never a trusted anchor (draft rule).
+      sawUnverifiable = true;
+      lines.push(`    - ${pyStr(atype)}: value present, base64-ok; status ${status}, not an anchored proof`);
+      continue;
+    }
+    sawUnverifiable = true;
+    const detail =
+      atype === "rfc3161"
+        ? "offline RFC3161 check did not complete"
+        : atype === "opentimestamps"
+          ? "offline OpenTimestamps check did not complete"
+          : "no offline verifier for this anchor type";
+    lines.push(`    - ${pyStr(atype)}: value present, base64-ok; unverifiable (${detail})`);
   }
-  return [allOk ? "PASS" : "FAIL", lines.join("; ")];
+  if (sawInvalid) {
+    return ["FAIL", lines.join("; ")];
+  }
+  // No PASS branch: every shape-valid entry above is unverifiable here.
+  return ["SKIPPED", lines.join("; ")];
 }
 
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.

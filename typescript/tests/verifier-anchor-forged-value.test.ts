@@ -99,10 +99,13 @@ describe("forged anchor value", () => {
     expect(note).not.toContain("base64-ok");
   });
 
+  // Genuine base64 passes the shape gate, but shape is not proof: since the
+  // cryptographic anchor check landed, a non-token value reports unverifiable.
   it.each(LEGITIMATE)("still accepts %j", (value) => {
     const [state, note] = axisFor(value);
-    expect(state).toBe("PASS");
+    expect(state).toBe("SKIPPED");
     expect(note).toContain("present, base64-ok");
+    expect(note).toContain("unverifiable");
   });
 
   it.each(NON_STRINGS.map((v) => [v]))("never reads non-string %j as present", (value) => {
@@ -124,12 +127,14 @@ describe("forged anchor value", () => {
   });
 
   it("keeps every encoding a real signer emits", () => {
+    // Every encoding passes the shape gate; the crypto check then reports
+    // unverifiable for a non-token, never PASS.
     for (let n = 1; n <= 128; n++) {
       const raw = Buffer.from(Array.from({ length: n }, (_, i) => (n * 31 + i * 7) % 256));
       const std = raw.toString("base64");
       const url = raw.toString("base64url");
       for (const value of [std, std.replace(/=+$/, ""), url, url.replace(/=+$/, "")]) {
-        expect(axisFor(value)[0], value).toBe("PASS");
+        expect(axisFor(value)[0], value).toBe("SKIPPED");
       }
     }
   });
