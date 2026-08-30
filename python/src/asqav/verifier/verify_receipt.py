@@ -1343,11 +1343,20 @@ def main() -> int:
         if args.predecessor:
             pred = _load(args.predecessor)
             predecessor_payload = pred.get("payload", pred)
+
+        trusted_tsa_keys = _load_tsa_keys(args.tsa_key)
+        bitcoin_headers = _load(args.bitcoin_headers) if args.bitcoin_headers else None
     except VerifierInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    return run(envelope, jwks, predecessor_payload)
+    return run(
+        envelope,
+        jwks,
+        predecessor_payload,
+        trusted_tsa_keys=trusted_tsa_keys,
+        bitcoin_headers=bitcoin_headers,
+    )
 
 
 if __name__ == "__main__":
