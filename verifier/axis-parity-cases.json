@@ -1,5 +1,5 @@
 {
-  "note": "Anchor-binding and clock-skew axis parity table. Expectations are the output of the Python check_anchors / check_skew in python/src/asqav/verifier/verify_receipt.py, and both suites feed every case through their own implementation. The anchors notes are deterministic so they are pinned whole; a skew note carries a live wall-clock reading, so only the stable fragment is pinned.",
+  "note": "Anchor-binding and clock-skew axis parity table. Expectations are the output of the Python check_anchors / check_skew in python/src/asqav/verifier/verify_receipt.py, and both suites feed every case through their own implementation. Since the cryptographic anchor check landed, a shape-valid anchor value that is not a verifiable token reports SKIPPED (unverifiable), never PASS on presence alone; the anchors notes are deterministic so they are pinned whole. A skew note carries a live wall-clock reading, so only the stable fragment is pinned.",
   "anchors": [
     {
       "name": "absent",
@@ -212,8 +212,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -475,8 +475,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -662,7 +662,7 @@
         "anchors": [
           {
             "type": "rfc3161",
-            "value": "MTIzN\u0410=="
+            "value": "MTIzNА=="
           }
         ]
       },
@@ -715,8 +715,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -739,8 +739,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)"
       }
     },
     {
@@ -918,8 +918,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - ?: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - ?: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     },
     {
@@ -942,8 +942,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - None: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - None: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     },
     {
@@ -966,8 +966,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - True: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - True: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     },
     {
@@ -995,7 +995,7 @@
       },
       "expect": {
         "result": "FAIL",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok;     - merkle: value MISSING or malformed"
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete);     - merkle: value MISSING or malformed"
       }
     },
     {
@@ -1022,8 +1022,8 @@
         ]
       },
       "expect": {
-        "result": "PASS",
-        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok;     - merkle: value present, base64-ok"
+        "result": "SKIPPED",
+        "note": "anchors bind envelope digest sha256:e0f1230ab2fbbe1a..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete);     - merkle: value present, base64-ok; unverifiable (no offline verifier for this anchor type)"
       }
     }
   ],
@@ -1313,7 +1313,7 @@
       },
       "expect": {
         "digest": "39a39f4279c02b1e6e38e35f16238c6da0d14d42ad44377b60056d318f4727af",
-        "anchors_axis": "PASS"
+        "anchors_axis": "SKIPPED"
       }
     },
     {
