@@ -344,7 +344,8 @@ def test_run_agent_id_fallback_passes_legit_multi_agent() -> None:
             _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),  # real signer via agent_id
         ]
     }
-    assert v.run(_envelope(payload, sig), jwks, None) == 0  # fallback resolves the bound signer
+    env, tsa_pk = _trusted_envelope(payload, sig)
+    assert v.run(env, jwks, None, trusted_tsa_keys=[tsa_pk]) == 0  # fallback resolves the bound signer
 
 
     # A flipped signature byte on the legit multi-agent receipt FAILs.
@@ -398,7 +399,8 @@ def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
             _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),  # real signer via agent_id
         ]
     }
-    out = v.run_structured(_envelope(payload, sig), jwks, None)
+    env, tsa_pk = _trusted_envelope(payload, sig)
+    out = v.run_structured(env, jwks, None, trusted_tsa_keys=[tsa_pk])
     axes = {a["name"]: a["result"] for a in out["axes"]}
     assert out["verdict"] == "verified"
     assert out["failure_class"] is None
@@ -490,7 +492,8 @@ def test_run_structured_passes_a_receipt_signed_by_the_claimed_issuer() -> None:
     payload = _valid_payload("org-legit", "agt_one")
     sig = ml.sign(sk, v.canonical_json(payload))
     jwks = {"keys": [_jwks_key("agent-one", "agt_one", "org-legit", pk)]}
-    result = v.run_structured(_envelope(payload, sig, kid="agent-one"), jwks, None)
+    env, tsa_pk = _trusted_envelope(payload, sig, kid="agent-one")
+    result = v.run_structured(env, jwks, None, trusted_tsa_keys=[tsa_pk])
     assert result["verdict"] == "verified", f"axes: {result['axes']}"
     assert result["failure_class"] is None, f"axes: {result['axes']}"
 
@@ -603,3 +606,20 @@ def test_run_prints_nonce_axis(capsys) -> None:
     v.run(envelope, {"keys": []}, predecessor_payload=None)
     out = capsys.readouterr().out
     assert "nonce" in out
+
+
+def test_alg_is_reported_verbatim_from_the_wire(capsys) -> None:
+    """The signature algorithm is per-receipt (ML-DSA-65 cloud, Ed25519/ES256
+    local); both surfaces report the signature.alg wire value, not a constant."""
+    envelope = {
+        "payload": _risk_payload(),
+        "signature": {"alg": "Ed25519", "kid": "c37probe-org-00001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    v.run(envelope, {"keys": []}, predecessor_payload=None)
+    out = capsys.readouterr().out
+    assert "signature.alg:   Ed25519" in out
+    result = v.run_structured(envelope, {"keys": []}, None)
+    assert result["alg"] == "Ed25519"
+    # A non-object input carries no wire alg; the field is present and null.
+    assert v.run_structured("not-an-object", {"keys": []})["alg"] is None

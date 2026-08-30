@@ -152,6 +152,20 @@ value carrying no bytes never reads as an anchor. `verifier/axis-parity-cases.js
 and `verifier/anchor-value-cases.json` pin the cases both languages answer alike, and
 both suites assert them.
 
+Presence is not proof, and the draft says an anchor must not yield a valid verdict
+without a successful cryptographic check. The Python verifier therefore evaluates the
+token itself: an RFC 3161 anchor PASSes only when its `messageImprint` commits
+`sha256(JCS(envelope minus anchors))` AND the TSA signature verifies against
+caller-pinned TSA key material (`trusted_tsa_keys`, or `--tsa-key` on the CLI);
+an OpenTimestamps anchor PASSes only when the proof commits the same digest and,
+when bitcoin headers are supplied (`bitcoin_headers` / `--bitcoin-headers`), its
+merkle path lands in the stated block. A token whose check runs and fails reports
+FAIL (`invalid`); one the check cannot complete offline — junk token, no pinned TSA
+key, no header source, `status: pending`/`failed`, unknown type — reports SKIPPED
+(`unverifiable`), never PASS. The TypeScript shim carries no CMS/ots evaluation, so
+every shape-valid entry reports unverifiable there; that residual is conservative,
+never permissive.
+
 An anchor value is one unwrapped base64 token. Whitespace is refused, including a
 trailing newline and MIME line wrapping, so a value piped from a shell base64 tool
 reports FAIL. `openssl base64` wraps at 64 characters, GNU `base64` wraps at 76, and
