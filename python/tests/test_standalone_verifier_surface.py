@@ -64,19 +64,23 @@ def _module_names() -> list[tuple[str, bool]]:
     return found
 
 
-def test_import_surface_is_stdlib_plus_optional_dilithium_only() -> None:
-    allowed = set(sys.stdlib_module_names) | {"dilithium_py"}
+def test_import_surface_is_stdlib_plus_optional_crypto_only() -> None:
+    # cryptography joins dilithium_py as an optional lazy import: the RFC 3161
+    # anchor check decodes pinned X.509 TSA certificates with it when present
+    # (the verify extra already ships it), and degrades to unverifiable without.
+    allowed = set(sys.stdlib_module_names) | {"dilithium_py", "cryptography"}
     for root, _lazy in _module_names():
         assert root != "asqav", "the standalone verifier must never import producer code"
         assert root in allowed, f"non-stdlib import {root!r} in verify_receipt.py"
 
 
-def test_dilithium_is_the_only_non_stdlib_dep_and_imports_lazily() -> None:
+def test_optional_crypto_deps_import_lazily() -> None:
     roots = {root for root, _lazy in _module_names()}
     assert "dilithium_py" in roots, "the ML-DSA-65 axis must stay in the tool"
+    assert "cryptography" in roots, "the RFC 3161 TSA-cert path must stay in the tool"
     for root, lazy in _module_names():
-        if root == "dilithium_py":
-            assert lazy, "dilithium-py must import inside the check, not at top level"
+        if root in ("dilithium_py", "cryptography"):
+            assert lazy, f"{root} must import inside the check, not at top level"
 
 
 def test_the_file_level_apache_exception_stays_documented() -> None:
@@ -121,6 +125,15 @@ sys.meta_path.insert(0, _RefuseAsqav())
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_standalone_file_verifies_the_published_receipt_without_asqav(tmp_path) -> None:
+    """The published receipt offline: imprint proven, TSA untrusted, never verified.
+
+    Since the cryptographic anchor check landed, presence no longer yields a
+    verified verdict: the receipt's RFC3161 token commits this envelope (the
+    imprint matches), but the TSA trust anchor is not pinned by this fixture,
+    so the anchors axis reports unverifiable and the verdict caps at
+    unverified/unverifiable. A caller holding the TSA chain passes it via
+    --tsa-key for the full verified path (covered in test_exit_artifact_cli).
+    """
     shutil.copy(VERIFIER_SOURCE, tmp_path / "verify_receipt.py")
     shutil.copy(FIXTURES / "published-receipt.json", tmp_path / "receipt.json")
     shutil.copy(FIXTURES / "published-jwks.json", tmp_path / "jwks.json")
@@ -143,8 +156,12 @@ def test_standalone_file_verifies_the_published_receipt_without_asqav(tmp_path) 
         text=True,
         timeout=180,
     )
-    assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert "=> verified" in proc.stdout, proc.stdout
+    assert proc.returncode == 2, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    assert "=> unverified (failure_class: unverifiable" in proc.stdout, proc.stdout
+    # The receipt signature itself verifies; only the anchor trust is missing.
+    assert "[  ok] signature" in proc.stdout, proc.stdout
+    assert "[skip] anchors" in proc.stdout, proc.stdout
+    assert "imprint matches" in proc.stdout, proc.stdout
     # The lapsed signed expiry reports on its own axis and never folds the verdict
     assert "[FAIL] expiry" in proc.stdout, proc.stdout
 

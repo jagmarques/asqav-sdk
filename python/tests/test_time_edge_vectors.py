@@ -133,17 +133,27 @@ def test_unreadable_expires_at_fails_closed_on_its_own_axis(monkeypatch) -> None
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_time_edge_corpus_vector_expiry_never_folds_the_verdict() -> None:
     # asqav-12: extreme +14:00 issued_at (past, skew PASS) and a lapsed signed
-    # expires_at; the expiry axis FAILs alone and the verdict stays PASS (426)
+    # expires_at; the expiry axis FAILs alone and never folds the verdict (426).
+    # The vector's placeholder anchor is not a verifiable token, so since the
+    # cryptographic anchor check landed the anchors axis reports unverifiable
+    # (never PASS on presence); the 426 property is pinned by folding the same
+    # axes with and without the expiry row and requiring one verdict.
     receipt = json.loads((TIME_EDGE_VECTOR / "receipt.json").read_text())
     jwks = json.loads((TIME_EDGE_VECTOR / "jwks.json").read_text())
     result = vr.run_structured(receipt, jwks)
     axes = {a["name"]: a for a in result["axes"]}
-    assert result["verdict"] == "verified", result["axes"]
+    assert result["verdict"] == "unverified", result["axes"]
+    assert result["failure_class"] == "unverifiable", result["axes"]
     assert axes["skew"]["result"] == "PASS", axes["skew"]
+    assert axes["anchors"]["result"] == "SKIPPED", axes["anchors"]
     assert axes["expiry"]["result"] == "FAIL", axes["expiry"]
     assert "lapsed" in axes["expiry"]["note"], axes["expiry"]
-    non_expiry = [a for a in result["axes"] if a["name"] != "expiry"]
+    non_expiry = [a for a in result["axes"] if a["name"] not in ("expiry", "anchors")]
     assert all(a["result"] == "PASS" for a in non_expiry), non_expiry
+    rows = [(a["name"], a["result"], a["note"]) for a in result["axes"]]
+    assert vr._fold_verdict(rows) == vr._fold_verdict(
+        [r for r in rows if r[0] != "expiry"]
+    ), "the lapsed expiry moved the verdict (criterion 426)"
 
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")

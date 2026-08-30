@@ -22,33 +22,38 @@
 
 Verify an Asqav Compliance Receipt yourself, without the Asqav SDK or liboqs.
 
-WHAT THIS CHECKS (independently, on your machine):
+CHECKS (independently, on your machine):
   - ML-DSA-65 (FIPS 204) signature over the receipt's canonical bytes
   - canonical-bytes integrity (JCS / RFC8785 reproduction, stdlib json)
   - hash-chain link to a predecessor receipt
-  - anchor binding (which envelope each anchor commits to) plus anchor presence
-  - issuer public-key resolution from the public /.well-known/jwks.json
-  - issuer binding (the verifying key is published under the claimed issuer_id)
   - expiry (the expires_at the signer committed to inside the signed bytes)
+  - issuer key resolution from the public /.well-known/jwks.json, and issuer
+    binding (the verifying key is published under the claimed issuer_id)
+  - anchor binding AND each anchor's own proof: an RFC 3161 token must commit
+    sha256(JCS(envelope minus anchors)) in its messageImprint and verify against
+    caller-pinned TSA keys (--tsa-key); an OpenTimestamps proof must commit the
+    same digest and, given --bitcoin-headers, land its merkle path in the stated
+    block. Presence alone never PASSes the axis.
 
-WHAT THIS DOES NOT CHECK (needs server state or ASN.1; use the hosted /verify):
-  - full RFC3161 certificate-chain walk
-  - policy_digest artefact resolution
+DOES NOT CHECK (needs server state or extra trust material): a TSA
+certificate-chain walk to a public root - offline trust comes only from the TSA
+keys you pin, never from the unsigned envelope; OpenTimestamps block placement
+without a caller-supplied header source; policy_digest artefact resolution.
 
-The only non-stdlib dependency is the signature check:
+Only the signature checks need non-stdlib code:
   pip install dilithium-py        (pure python; verify path uses stdlib SHAKE)
-Without it, every other check still runs and the signature axis reports SKIPPED;
-the overall verdict is then INCOMPLETE, never a PASS. This tool will not emit a
-PASS unless the post-quantum signature was actually verified.
-
-Security note: dilithium-py is a pure-python FIPS 204 implementation that is not
-constant-time. For a verify-only tool this is acceptable: verification touches
-only public data (public key, signature, message), so there is no secret to leak
-through timing.
+  pip install cryptography        (pinned RSA/ECDSA/Ed25519 TSA certificates)
+Without either, the matching axis reports SKIPPED and the verdict is INCOMPLETE:
+this tool never emits a PASS on an unverified post-quantum signature, nor on
+anchor presence alone. dilithium-py is not constant-time, which is fine for a
+verify-only tool: it touches only public data (public key, signature, message),
+so there is no secret to leak through timing.
 
 Run:
   python verify_receipt.py --id sig_abc123
   python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline
+  python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline \
+      --tsa-key asqav-tsa-chain.pem   # pinned TSA material: anchors can verify
 """
 
 from __future__ import annotations
@@ -62,6 +67,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from collections import namedtuple
 from datetime import datetime, timezone
 
 API_BASE = "https://api.asqav.com/api/v1"
@@ -173,10 +179,9 @@ def _scan_shape(obj, max_depth: int | None = None) -> str | None:
     """Iteratively walk ``obj``; returns "non_finite", "too_deep", or None (ok).
 
     Explicit stack, no recursion: depth alone cannot crash this walk. With
-    ``max_depth`` set, nesting past it stops the walk and reports "too_deep"
-    before the caller can hand the structure to the recursive stdlib json
-    encoder (canonical_json), which crashes past ~1000 levels on Python's C
-    encoder for versions <= 3.12.
+    ``max_depth``, nesting past it stops and reports "too_deep" before the caller
+    hands the structure to canonical_json's recursive stdlib encoder, which
+    crashes past ~1000 levels on CPython <= 3.12.
     """
     stack = [(obj, 0)]
     while stack:
@@ -212,7 +217,26 @@ _SHAPE_MESSAGES = {
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
 VERDICT_VERIFIED = "verified"
+#: Passing, but keyed under a holder salt so not third-party re-derivable.
+#: Never collapsed into `verified` or `unverified`.
+VERDICT_VERIFIED_KEYED = "verified_keyed"
 VERDICT_UNVERIFIED = "unverified"
+
+#: Unkeyed hash_algo values (absent defaults to sha256). Anything else counts
+#: as keyed, so a near-miss spelling under-claims rather than over-claims.
+_UNKEYED_HASH_ALGOS = frozenset({"sha256"})
+
+
+def is_keyed_digest(payload: dict) -> bool:
+    """True when the receipt's context digest is keyed (not re-derivable)."""
+    if not isinstance(payload, dict):
+        return False
+    algo = payload.get("hash_algo")
+    if algo is None:
+        return False
+    if not isinstance(algo, str):
+        return True
+    return algo.strip().lower() not in _UNKEYED_HASH_ALGOS
 
 #: Failure classes carried by every unverified verdict (criterion 418); the two
 #: are never collapsed - a proven binding failure is not an incomplete check.
@@ -226,11 +250,11 @@ _INVALID_FAIL_AXES = frozenset({"signature", "anchors", "issuer_bind", "key_stat
 def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
     """Map one axis outcome to its failure class (criterion 418).
 
-    PASS carries none; SKIPPED means recomputation could not complete
+    PASS carries none; SKIPPED means the recompute could not complete
     (unverifiable); a FAIL is invalid when a binding was proven broken and
-    unverifiable when the receipt's own bytes stopped the recompute. Mirrors
-    the oracle's ``core.axis_failure_class`` byte for byte; a FAIL the table
-    does not name reads unverifiable, never a proven binding failure.
+    unverifiable when the receipt's own bytes stopped the recompute. Mirrors the
+    oracle's ``core.axis_failure_class`` byte for byte, and a FAIL the table does
+    not name reads unverifiable, never a proven binding failure.
     """
     if result == "PASS":
         return None
@@ -257,7 +281,7 @@ def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
 
 
     # Fold per-axis (name, result, note) rows into verdict + failure class.
-def _fold_verdict(results) -> tuple[str, str | None]:
+def _fold_verdict(results, keyed: bool = False) -> tuple[str, str | None]:
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
     failed = [(n, r, note) for n, r, note in results if r == "FAIL" and n != "expiry"]
     # A skipped chain (no predecessor supplied) is expected and does not block a
@@ -269,6 +293,8 @@ def _fold_verdict(results) -> tuple[str, str | None]:
         return VERDICT_UNVERIFIED, failure_class
     if blocking_skip:
         return VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE
+    if keyed:
+        return VERDICT_VERIFIED_KEYED, None
     return VERDICT_VERIFIED, None
 
 
@@ -283,11 +309,10 @@ class VerifierInputError(Exception):
 class DuplicateMemberError(ValueError):
     """A receipt or JWKS repeated a JSON member name (criterion 419).
 
-    The stdlib decoder is last-wins on duplicate members, which would hash the
-    bytes an attacker kept and drop the ones they replaced; a duplicated name
-    is therefore a terminal parse failure, raised before any hashing or
-    canonicalisation. Self-contained here (mirrors ``asqav/strict_json.py``)
-    because this file ships standalone in the exit artifact.
+    The stdlib decoder is last-wins on duplicates, which would hash the bytes an
+    attacker kept and drop the ones they replaced, so a duplicated name is a
+    terminal parse failure raised before any hashing. Self-contained here (mirrors
+    ``asqav/strict_json.py``) because this file ships standalone.
     """
 
 
@@ -348,16 +373,10 @@ def _get_json(url: str, *, timeout: int = 30) -> dict:
 def fetch_jwks(url: str = JWKS_URL, *, timeout: int = 30) -> dict:
     """Fetch and return the Asqav public JWKS directory as a dict.
 
-    Snapshot this before going air-gapped; pass the result to
+    Snapshot this before going air-gapped and pass the result to
     ``verify_receipt_offline(receipt, jwks)`` or ``run(envelope, jwks, ...)``.
-    The endpoint is public and unauthenticated.
-
-    Args:
-        url: JWKS URL (default: https://api.asqav.com/.well-known/jwks.json).
-        timeout: HTTP timeout in seconds.
-
-    Returns:
-        Parsed JWKS dict with a ``"keys"`` list.
+    The endpoint is public and unauthenticated. Returns the parsed JWKS dict
+    with a ``"keys"`` list.
     """
     return _get_json(url, timeout=timeout)
 
@@ -374,33 +393,726 @@ def _b64decode(value: str) -> bytes:
 _ANCHOR_B64_RE = re.compile(r"[A-Za-z0-9+/]+={0,2}")
 
 
+    # Strict base64 -> decoded bytes, or None on any junk (None never raises).
+def _anchor_bytes(v: object):
+    if not isinstance(v, str) or not v:
+        return None
+    s = v.replace("-", "+").replace("_", "/")
+    s += "=" * ((-len(s)) % 4)
+    # The alphabet and padding decision lives here, not in b64decode, because
+    # b64decode(validate=True) accepts excess padding on 3.11 and raises on 3.12
+    if not _ANCHOR_B64_RE.fullmatch(s):
+        return None
+    # fullmatch leaves only alphabet characters and a length that is a multiple
+    # of 4 with at most two pads, so a strict decode cannot raise here
+    raw = base64.b64decode(s, validate=True)
+    return raw if raw else None
+
+
 def _safe_b64(v: object) -> bool:
     """True only when ``v`` is real base64 carrying at least one byte.
 
     Kept separate from ``_b64decode``, which stays lenient for keys and
     signatures. Anchors are unsigned, so this half refuses junk instead.
     """
-    if not isinstance(v, str) or not v:
+    return _anchor_bytes(v) is not None
+
+
+# --- Offline anchor cryptographic verification -------------------------------
+#
+# Presence is not proof: anchors sit outside the signed bytes, so the draft
+# requires a successful cryptographic check before an anchor counts. Per entry:
+#   "verified"     - the token commits this envelope's digest AND its own
+#                    signature/merkle path checks out against pinned trust material
+#   "invalid"      - the check ran and failed (wrong committed digest, TSA
+#                    rejection status, a signature that does not verify, a merkle
+#                    path that misses the stated block)
+#   "unverifiable" - the check could not complete offline (unparseable token,
+#                    missing optional dep, no pinned TSA key, no Bitcoin header
+#                    source, unknown anchor type, declared status pending/failed).
+#                    Never a PASS on presence alone.
+#
+# Trust material is caller-pinned, never derived from the unsigned envelope:
+# ``trusted_tsa_keys`` is TSA public keys (raw ML-DSA/Ed25519 bytes) or X.509
+# certificates (PEM or DER); ``bitcoin_headers`` maps a block height to
+# {"merkle_root": <display hex>, "time": <ISO-8601>}.
+
+
+class _AnchorParseError(ValueError):
+    """A token blob did not parse; the anchor reports unverifiable, never a crash."""
+
+
+    # Read one DER TLV at ``off``; return (tag, content bytes, next offset).
+def _der_read(buf: bytes, off: int) -> tuple[int, bytes, int]:
+    if off + 2 > len(buf):
+        raise _AnchorParseError("truncated DER header")
+    tag = buf[off]
+    if tag & 0x1F == 0x1F:
+        raise _AnchorParseError("multi-byte DER tags unsupported")
+    first = buf[off + 1]
+    off += 2
+    if first & 0x80:
+        n = first & 0x7F
+        if n == 0 or n > 4 or off + n > len(buf):
+            raise _AnchorParseError("bad DER length")
+        length = int.from_bytes(buf[off : off + n], "big")
+        off += n
+    else:
+        length = first
+    if length > len(buf) - off:
+        raise _AnchorParseError("DER content overruns buffer")
+    return tag, buf[off : off + length], off + length
+
+
+    # DER length bytes for a content of ``n`` bytes (definite form).
+def _der_len(n: int) -> bytes:
+    if n < 0x80:
+        return bytes([n])
+    body = n.to_bytes((n.bit_length() + 7) // 8, "big")
+    return bytes([0x80 | len(body)]) + body
+
+
+    # Iterate the TLVs concatenated inside a constructed element's content.
+def _der_children(content: bytes) -> list[tuple[int, bytes, int, int]]:
+    out = []
+    off = 0
+    while off < len(content):
+        tag, value, nxt = _der_read(content, off)
+        out.append((tag, value, off, nxt))
+        off = nxt
+    return out
+
+
+#: Real arcs are tiny. Unbounded, a relay-supplied arc builds an int whose
+#: str() raises the interpreter's digit-limit ValueError, crashing the verifier.
+_MAX_OID_ARC_BITS = 512
+
+
+def _der_oid_str(content: bytes) -> str:
+    if not content:
+        raise _AnchorParseError("empty OID")
+    first = content[0]
+    arcs = [str(min(first // 40, 2)), str(first - 40 * min(first // 40, 2))]
+    val = 0
+    for byte in content[1:]:
+        val = (val << 7) | (byte & 0x7F)
+        if val.bit_length() > _MAX_OID_ARC_BITS:
+            raise _AnchorParseError("OID arc exceeds the supported width")
+        if not byte & 0x80:
+            arcs.append(str(val))
+            val = 0
+    if content[-1] & 0x80 and len(content) > 1:
+        raise _AnchorParseError("truncated OID arc")
+    return ".".join(arcs)
+
+
+    # Decode an AlgorithmIdentifier's OID out of its SEQUENCE content.
+def _algid_oid(content: bytes) -> str:
+    children = _der_children(content)
+    if not children or children[0][0] != 0x06:
+        raise _AnchorParseError("AlgorithmIdentifier without OID")
+    return _der_oid_str(children[0][1])
+
+
+_OID_SIGNED_DATA = "1.2.840.113549.1.7.2"
+_OID_MESSAGE_DIGEST = "1.2.840.113549.1.9.4"
+#: RFC 5652 s11.1 contentType and the eContentType it must equal. Binding both
+#: blocks reuse of a TSA signature over content that parses as a TSTInfo.
+_OID_CONTENT_TYPE = "1.2.840.113549.1.9.3"
+_OID_CT_TST_INFO = "1.2.840.113549.1.9.16.1.4"
+#: digestAlgorithm OIDs this verifier hashes with, OID -> hashlib name.
+_DIGEST_OIDS = {
+    "2.16.840.1.101.3.4.2.1": "sha256",
+    "2.16.840.1.101.3.4.2.2": "sha384",
+    "2.16.840.1.101.3.4.2.3": "sha512",
+}
+#: TSA signature algorithms verified via dilithium-py (raw pinned keys).
+_ML_DSA_SIG_OIDS = {
+    "2.16.840.1.101.3.4.3.17": "ML_DSA_44",
+    "2.16.840.1.101.3.4.3.18": "ML_DSA_65",
+    "2.16.840.1.101.3.4.3.19": "ML_DSA_87",
+}
+_OID_ED25519 = "1.3.101.112"
+#: RSA/ECDSA signature OIDs verified via cryptography (pinned X.509 certs).
+_RSA_SIG_OIDS = {
+    "1.2.840.113549.1.1.11": "sha256",
+    "1.2.840.113549.1.1.12": "sha384",
+    "1.2.840.113549.1.1.13": "sha512",
+}
+_ECDSA_SIG_OIDS = {
+    "1.2.840.10045.4.3.2": "sha256",
+    "1.2.840.10045.4.3.3": "sha384",
+    "1.2.840.10045.4.3.4": "sha512",
+}
+
+
+def _parse_generalized_time(content: bytes):
+    """GeneralizedTime -> aware datetime; RFC 3161 pins the Z (UTC) form."""
+    m = re.fullmatch(rb"(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\.\d+)?Z", content)
+    if m is None:
+        raise _AnchorParseError("unparseable genTime")
+    try:
+        return datetime(
+            *(int(g) for g in m.groups()), tzinfo=timezone.utc
+        )
+    except ValueError as exc:
+        raise _AnchorParseError(f"genTime out of range: {exc}") from exc
+
+
+    # Parse a retained TimeStampResp into the fields the checks below read.
+def _parse_time_stamp_resp(der: bytes) -> dict:
+    tag, content, nxt = _der_read(der, 0)
+    if tag != 0x30 or nxt != len(der):
+        raise _AnchorParseError("TimeStampResp is not one DER SEQUENCE")
+    resp = _der_children(content)
+    if not resp or resp[0][0] != 0x30:
+        raise _AnchorParseError("missing PKIStatusInfo")
+    status_fields = _der_children(resp[0][1])
+    if not status_fields or status_fields[0][0] != 0x02:
+        raise _AnchorParseError("PKIStatusInfo without status integer")
+    status = int.from_bytes(status_fields[0][1], "big")
+    if status not in (0, 1):  # granted / grantedWithMods; anything else is a refusal
+        return {"status": status}
+    if len(resp) < 2 or resp[1][0] != 0x30:
+        raise _AnchorParseError("granted status but no timeStampToken")
+    ci = _der_children(resp[1][1])
+    if len(ci) != 2 or ci[0][0] != 0x06 or _der_oid_str(ci[0][1]) != _OID_SIGNED_DATA:
+        raise _AnchorParseError("timeStampToken is not a CMS SignedData")
+    if ci[1][0] != 0xA0:
+        raise _AnchorParseError("SignedData content missing")
+    sd_children = _der_children(ci[1][1])
+    if not sd_children or sd_children[0][0] != 0x30:
+        raise _AnchorParseError("SignedData body missing")
+    sd = _der_children(sd_children[0][1])
+    if len(sd) < 4:
+        raise _AnchorParseError("SignedData too short")
+    encap = _der_children(sd[2][1])
+    if len(encap) != 2 or encap[1][0] != 0xA0:
+        raise _AnchorParseError("encapContentInfo without eContent")
+    if encap[0][0] != 0x06 or _der_oid_str(encap[0][1]) != _OID_CT_TST_INFO:
+        # Not a time-stamp token: the signature covers some other content type.
+        raise _AnchorParseError("eContentType is not id-ct-TSTInfo")
+    etag, tst_bytes, _ = _der_read(encap[1][1], 0)
+    if etag != 0x04:
+        raise _AnchorParseError("eContent is not an OCTET STRING")
+    certs = []
+    signer_infos = None
+    for stag, svalue, _sstart, _send in sd[3:]:
+        if stag == 0xA0:
+            certs = [svalue[cstart:send] for _t, _v, cstart, send in _der_children(svalue)]
+        elif stag == 0x31:
+            signer_infos = _der_children(svalue)
+    if not signer_infos:
+        raise _AnchorParseError("SignedData without signerInfos")
+    si = _der_children(signer_infos[0][1])
+    if len(si) < 5:
+        raise _AnchorParseError("SignerInfo too short")
+    # version, sid, digestAlgorithm, [signedAttrs], signatureAlgorithm, signature
+    rest = si[3:]
+    signed_attrs = None
+    if rest[0][0] == 0xA0:
+        signed_attrs = rest[0][1]
+        rest = rest[1:]
+    if len(rest) < 2 or rest[0][0] != 0x30 or rest[1][0] != 0x04:
+        raise _AnchorParseError("SignerInfo without signatureAlgorithm/signature")
+    return {
+        "status": status,
+        "tst": tst_bytes,
+        "certs": certs,
+        "digest_alg": _algid_oid(si[2][1]) if si[2][0] == 0x30 else None,
+        "signed_attrs": signed_attrs,
+        "sig_alg": _algid_oid(rest[0][1]),
+        "signature": rest[1][1],
+    }
+
+
+    # Parse TSTInfo; return (imprint digest bytes, imprint hash OID, genTime).
+def _parse_tst_info(tst: bytes):
+    tag, content, nxt = _der_read(tst, 0)
+    if tag != 0x30 or nxt != len(tst):
+        raise _AnchorParseError("TSTInfo is not one DER SEQUENCE")
+    fields = _der_children(content)
+    if len(fields) < 5 or fields[2][0] != 0x30:
+        raise _AnchorParseError("TSTInfo without messageImprint")
+    imprint = _der_children(fields[2][1])
+    if len(imprint) != 2 or imprint[0][0] != 0x30 or imprint[1][0] != 0x04:
+        raise _AnchorParseError("malformed messageImprint")
+    if fields[4][0] != 0x18:
+        raise _AnchorParseError("TSTInfo without genTime")
+    return imprint[1][1], _algid_oid(imprint[0][1]), _parse_generalized_time(fields[4][1])
+
+
+    # The bytes a CMS signature covers: signedAttrs re-tagged as SET OF, else eContent.
+def _cms_signed_bytes(info: dict) -> bytes:
+    attrs = info["signed_attrs"]
+    if attrs is None:
+        return info["tst"]
+    return b"\x31" + _der_len(len(attrs)) + attrs
+
+
+    # A signedAttrs messageDigest attribute must commit the eContent bytes.
+def _cms_message_digest_ok(info: dict) -> bool:
+    attrs = info["signed_attrs"]
+    if attrs is None:
+        return True
+    digest_name = _DIGEST_OIDS.get(info.get("digest_alg") or "")
+    if digest_name is None:
         return False
-    s = v.replace("-", "+").replace("_", "/")
-    s += "=" * ((-len(s)) % 4)
-    # The alphabet and padding decision lives here, not in b64decode, because
-    # b64decode(validate=True) accepts excess padding on 3.11 and raises on 3.12
-    if not _ANCHOR_B64_RE.fullmatch(s):
-        return False
-    # fullmatch leaves only alphabet characters and a length that is a multiple
-    # of 4 with at most two pads, so a strict decode cannot raise here
-    return len(base64.b64decode(s, validate=True)) > 0
+    want = hashlib.new(digest_name, info["tst"]).digest()
+    digest_ok = False
+    content_type_ok = False
+    for atag, avalue, _s, _e in _der_children(attrs):
+        if atag != 0x30:
+            continue
+        attr = _der_children(avalue)
+        if len(attr) != 2 or attr[0][0] != 0x06:
+            continue
+        attr_oid = _der_oid_str(attr[0][1])
+        if attr_oid == _OID_MESSAGE_DIGEST:
+            vals = _der_children(attr[1][1])
+            digest_ok = len(vals) == 1 and vals[0][0] == 0x04 and vals[0][1] == want
+        elif attr_oid == _OID_CONTENT_TYPE:
+            vals = _der_children(attr[1][1])
+            content_type_ok = (
+                len(vals) == 1
+                and vals[0][0] == 0x06
+                and _der_oid_str(vals[0][1]) == _OID_CT_TST_INFO
+            )
+    # contentType is mandatory alongside signedAttrs (RFC 5652 s11.1).
+    return digest_ok and content_type_ok
+
+
+def _tsa_key_candidates(trusted_tsa_keys):
+    """Split pinned TSA material into (raw key bytes, cryptography public keys).
+
+    A PEM/DER X.509 certificate or public key needs ``cryptography`` to decode;
+    without it those entries are unusable and the caller's axis reports
+    unverifiable rather than trusting anything. Raw bytes pass through for the
+    ML-DSA / Ed25519 paths.
+    """
+    raw, pkeys = [], []
+    try:
+        from cryptography import x509
+        from cryptography.hazmat.primitives.serialization import (
+            load_der_public_key,
+            load_pem_public_key,
+        )
+    except ImportError:
+        x509 = None
+    for entry in trusted_tsa_keys or []:
+        if not isinstance(entry, (bytes, bytearray)) or not entry:
+            continue
+        blob = bytes(entry)
+        if x509 is not None:
+            try:
+                if blob.startswith(b"-----BEGIN"):
+                    try:
+                        pkeys.append(x509.load_pem_x509_certificate(blob).public_key())
+                    except ValueError:
+                        pkeys.append(load_pem_public_key(blob))
+                    continue
+                pkeys.append(x509.load_der_x509_certificate(blob).public_key())
+                continue
+            except ValueError:
+                try:
+                    pkeys.append(load_der_public_key(blob))
+                    continue
+                except ValueError:
+                    pass
+        raw.append(blob)
+    return raw, pkeys
+
+
+def _verify_tsa_signature(sig_alg: str, signed: bytes, signature: bytes, trusted_tsa_keys) -> str:
+    """Verify the TSA signature against pinned key material only.
+
+    Returns "verified", "invalid" (a usable key was present and no signature
+    verified), or "unverifiable" (no usable key material or optional dep).
+    """
+    raw_keys, pkeys = _tsa_key_candidates(trusted_tsa_keys)
+    usable = False
+    if sig_alg in _ML_DSA_SIG_OIDS:
+        try:
+            import dilithium_py.ml_dsa as _ml
+        except ImportError:
+            return "unverifiable"
+        mod = getattr(_ml, _ML_DSA_SIG_OIDS[sig_alg])
+        for pk in raw_keys:
+            usable = True
+            try:
+                if mod.verify(pk, signed, signature):
+                    return "verified"
+            except Exception:  # wrong-size or malformed candidate key; try the next
+                continue
+    elif sig_alg == _OID_ED25519:
+        try:
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        except ImportError:
+            # cryptography is optional (see the module docstring); without it
+            # this branch reports unverifiable, exactly as the RSA/ECDSA one
+            # does, rather than raising out of the anchors axis.
+            return "unverifiable"
+
+        for pk in raw_keys:
+            if len(pk) != 32:
+                continue
+            usable = True
+            try:
+                Ed25519PublicKey.from_public_bytes(pk).verify(signature, signed)
+                return "verified"
+            except Exception:
+                continue
+        for pk in pkeys:
+            usable = True
+            try:
+                pk.verify(signature, signed)
+                return "verified"
+            except Exception:
+                continue
+    elif sig_alg in _RSA_SIG_OIDS or sig_alg in _ECDSA_SIG_OIDS:
+        try:
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric import ec, padding
+        except ImportError:
+            return "unverifiable"
+        table = _RSA_SIG_OIDS if sig_alg in _RSA_SIG_OIDS else _ECDSA_SIG_OIDS
+        hash_alg = getattr(hashes, table[sig_alg].upper())()
+        for pk in pkeys:
+            usable = True
+            try:
+                if sig_alg in _RSA_SIG_OIDS:
+                    pk.verify(signature, signed, padding.PKCS1v15(), hash_alg)
+                else:
+                    pk.verify(signature, signed, ec.ECDSA(hash_alg))
+                return "verified"
+            except Exception:
+                continue
+    else:
+        # An algorithm family this verifier cannot evaluate at all.
+        return "unverifiable"
+    return "invalid" if usable else "unverifiable"
+
+
+def _check_rfc3161_anchor(
+    blob: bytes, bound: bytes, trusted_tsa_keys, env_jcs: bytes | None = None
+) -> tuple[str, str, object]:
+    """One RFC 3161 anchor -> (outcome, detail, genTime when verified).
+
+    ``env_jcs`` is the JCS of the envelope minus anchors, needed only to re-derive
+    the committed digest under a non-sha256 messageImprint algorithm; ``bound`` is
+    its sha256 and stays the default. The imprint comparison is stdlib-only; the
+    TSA signature needs pinned key material (dilithium-py for ML-DSA, cryptography
+    for RSA/ECDSA/Ed25519). A full PKI chain walk is out of scope offline: trust
+    comes from the caller's allowlist, never from the unsigned envelope.
+    """
+    # Every DER walk stays inside this guard: an escaping exception exits 1
+    # (invalid), claiming a binding failure for input never evaluated.
+    try:
+        info = _parse_time_stamp_resp(blob)
+        if info["status"] not in (0, 1):
+            return "invalid", f"TimeStampResp carries TSA status {info['status']}, not granted", None
+        imprint, imprint_alg, gen_time = _parse_tst_info(info["tst"])
+        digest_name = _DIGEST_OIDS.get(imprint_alg)
+        if digest_name is None:
+            return (
+                "unverifiable",
+                f"offline RFC3161 check did not complete; unknown messageImprint OID {imprint_alg}",
+                None,
+            )
+        # A sha384/sha512 imprint we never computed is not a proven mismatch.
+        if digest_name != "sha256":
+            if env_jcs is None:
+                return (
+                    "unverifiable",
+                    f"offline RFC3161 check did not complete; {digest_name} imprint not recomputable",
+                    None,
+                )
+            bound = hashlib.new(digest_name, env_jcs).digest()
+        if imprint != bound:
+            return "invalid", "RFC3161 imprint commits a different digest than this envelope", None
+        if not _cms_message_digest_ok(info):
+            return "invalid", "signedAttrs messageDigest does not commit the TSTInfo bytes", None
+        sig_state = _verify_tsa_signature(
+            info["sig_alg"], _cms_signed_bytes(info), info["signature"], trusted_tsa_keys
+        )
+    except _AnchorParseError:
+        # Shared note with the TypeScript shim, which runs no DER parse; the
+        # parity corpora pin this exact wording for shape-valid junk values.
+        return "unverifiable", "offline RFC3161 check did not complete", None
+    except (ValueError, IndexError, TypeError, MemoryError, RecursionError):
+        # Anything else the DER walk raises: still unverifiable, never a pass.
+        return "unverifiable", "offline RFC3161 check did not complete", None
+    if sig_state == "verified":
+        return (
+            "verified",
+            f"RFC3161 imprint commits this envelope; TSA signature verifies at {gen_time.isoformat()}",
+            gen_time,
+        )
+    if sig_state == "invalid":
+        return "invalid", "TSA signature does not verify against any trusted TSA key", None
+    return (
+        "unverifiable",
+        "offline RFC3161 check did not complete; imprint matches but no trusted "
+        "TSA key material verified the token signature",
+        None,
+    )
+
+
+#: Detached .ots header (python-opentimestamps DetachedTimestampFile.HEADER_MAGIC).
+_OTS_MAGIC = b"\x00OpenTimestamps\x00\x00Proof\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94"
+#: BitcoinBlockHeaderAttestation.TAG (opentimestamps.core.notary).
+_OTS_BITCOIN_TAG = bytes.fromhex("0588960d73d71901")
+#: CryptOp tags this evaluator can hash with (RFC4880 numbering, per ots op.py).
+_OTS_HASH_OPS = {0x02: "sha1", 0x03: "ripemd160", 0x08: "sha256"}
+_OTS_MAX_BLOB = 1 << 20
+_OTS_MAX_MSG = 4096
+_OTS_MAX_DEPTH = 128
+
+
+class _OtsState:
+    def __init__(self) -> None:
+        self.attestations: list[tuple[int, bytes]] = []
+        self.unknown = False
+
+
+#: Block heights fit in five groups. Unbounded, ~1 MiB of continuation bytes
+#: builds a multi-megabit int one shift at a time: 326s of CPU per anchor.
+_OTS_MAX_VARUINT_GROUPS = 10
+
+
+def _ots_varuint(buf: bytes, off: int) -> tuple[int, int]:
+    val = 0
+    groups = 0
+    while True:
+        if off >= len(buf):
+            raise _AnchorParseError("truncated ots varuint")
+        groups += 1
+        if groups > _OTS_MAX_VARUINT_GROUPS:
+            raise _AnchorParseError("ots varuint exceeds the supported width")
+        byte = buf[off]
+        off += 1
+        val = (val << 7) | (byte & 0x7F)
+        if not byte & 0x80:
+            return val, off
+
+
+def _ots_varbytes(buf: bytes, off: int) -> tuple[bytes, int]:
+    n, off = _ots_varuint(buf, off)
+    if n > len(buf) - off:
+        raise _AnchorParseError("truncated ots varbytes")
+    return buf[off : off + n], off + n
+
+
+def _ots_item(tag: int, buf: bytes, off: int, msg: bytes, depth: int, state: _OtsState) -> int:
+    if tag == 0x00:
+        atag = buf[off : off + 8]
+        if len(atag) != 8:
+            raise _AnchorParseError("truncated ots attestation tag")
+        off += 8
+        if atag == _OTS_BITCOIN_TAG:
+            height, off = _ots_varuint(buf, off)
+            state.attestations.append((height, msg))
+        else:
+            _payload, off = _ots_varbytes(buf, off)
+            state.unknown = True
+        return off
+    if tag in (0xF0, 0xF1):
+        arg, off = _ots_varbytes(buf, off)
+        new_msg = msg + arg if tag == 0xF0 else arg + msg
+        if len(new_msg) > _OTS_MAX_MSG:
+            raise _AnchorParseError("ots message exceeds the 4096-byte op limit")
+        return _ots_node(buf, off, new_msg, depth + 1, state)
+    if tag in _OTS_HASH_OPS:
+        try:
+            new_msg = hashlib.new(_OTS_HASH_OPS[tag], msg).digest()
+        except (ValueError, TypeError) as exc:
+            raise _AnchorParseError(f"ots hash op unavailable here: {exc}") from exc
+        return _ots_node(buf, off, new_msg, depth + 1, state)
+    raise _AnchorParseError(f"unknown ots op tag 0x{tag:02x}")
+
+
+def _ots_node(buf: bytes, off: int, msg: bytes, depth: int, state: _OtsState) -> int:
+    if depth > _OTS_MAX_DEPTH:
+        raise _AnchorParseError("ots proof nesting exceeds the supported depth")
+    if off >= len(buf):
+        raise _AnchorParseError("truncated ots timestamp")
+    tag = buf[off]
+    off += 1
+    while tag == 0xFF:
+        if off >= len(buf):
+            raise _AnchorParseError("truncated ots fork")
+        off = _ots_item(buf[off], buf, off + 1, msg, depth, state)
+        if off >= len(buf):
+            raise _AnchorParseError("truncated ots fork")
+        tag = buf[off]
+        off += 1
+    return _ots_item(tag, buf, off, msg, depth, state)
+
+
+def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, str, object]:
+    """One OpenTimestamps anchor -> (outcome, detail, block time when verified).
+
+    Offline-checkable portion: the proof's initial commitment must equal this
+    envelope's digest, and the op chain evaluates to a merkle root. Placing that
+    root in a real block needs a caller-supplied header source; without one the
+    block portion reports unverifiable, never a PASS.
+    """
+    try:
+        if len(blob) > _OTS_MAX_BLOB or not blob.startswith(_OTS_MAGIC):
+            raise _AnchorParseError("not a detached .ots proof")
+        off = len(_OTS_MAGIC)
+        if blob[off] != 1:
+            raise _AnchorParseError("unsupported .ots major version")
+        off += 1
+        hash_op = blob[off]
+        off += 1
+        if hash_op != 0x08:  # the envelope digest is sha256; other ops cannot commit it
+            raise _AnchorParseError("proof does not commit a sha256 digest")
+        committed, blob_rest = blob[off : off + 32], off + 32
+        if len(committed) != 32:
+            raise _AnchorParseError("truncated commitment digest")
+        if committed != bound:
+            return "invalid", "OpenTimestamps proof commits a different digest than this envelope", None
+        state = _OtsState()
+        if _ots_node(blob, blob_rest, committed, 0, state) != len(blob):
+            raise _AnchorParseError("trailing bytes after the ots timestamp")
+    except (_AnchorParseError, IndexError):
+        return "unverifiable", "offline OpenTimestamps check did not complete", None
+    if not state.attestations:
+        return "unverifiable", "offline OpenTimestamps check did not complete; no bitcoin attestation in proof", None
+    headers = {}
+    if isinstance(bitcoin_headers, dict):
+        for k, v in bitcoin_headers.items():
+            try:
+                headers[int(k)] = v
+            except (TypeError, ValueError):
+                continue
+    saw_mismatch = None
+    for height, root in state.attestations:
+        header = headers.get(height)
+        if not isinstance(header, dict) or not isinstance(header.get("merkle_root"), str):
+            continue
+        try:
+            # The attestation message is the block's merkle root in internal
+            # (little-endian) order; the header source carries the display hex.
+            want = bytes.fromhex(header["merkle_root"])[::-1]
+        except ValueError:
+            continue
+        if len(want) != 32:
+            continue
+        if root != want:
+            saw_mismatch = height
+            continue
+        when = _parse_stamp(header.get("time")) if header.get("time") else None
+        return "verified", f"OpenTimestamps proof lands in bitcoin block {height}", when
+    if saw_mismatch is not None:
+        return "invalid", f"merkle path does not land in bitcoin block {saw_mismatch}", None
+    return (
+        "unverifiable",
+        "offline OpenTimestamps check did not complete; commitment matches but no "
+        "supplied bitcoin header confirms the block",
+        None,
+    )
+
+
+#: (result, note, trusted_times) triple for the anchors axis. ``trusted_times``
+#: carries the provenance times of anchors that CRYPTOGRAPHICALLY verified, the
+#: only times a caller may weigh against a key's revoked_at.
+AnchorEvaluation = namedtuple("AnchorEvaluation", ("result", "note", "trusted_times"))
+
+
+def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None) -> AnchorEvaluation:
+    """Cryptographically evaluate every anchor against the envelope digest.
+
+    Shape rules are unchanged (malformed entries FAIL, absent/empty SKIPs), but a
+    shape-valid entry no longer PASSes on presence: the axis PASSes only when every
+    entry cryptographically verifies, FAILs when any entry's check runs and fails,
+    and reports SKIPPED (unverifiable) when a check cannot complete offline. Anchors
+    declared ``status: pending``/``failed`` never count as trusted anchors.
+    """
+    anchors = envelope.get("anchors")
+    # Absent/null is a legitimate no-anchors receipt (SKIPPED); a present
+    # non-list value ({} / "" / 0) is malformed and FAILs, never laundered to [].
+    if anchors is None:
+        return AnchorEvaluation("SKIPPED", "no anchors on this receipt", [])
+    if not isinstance(anchors, list):
+        return AnchorEvaluation("FAIL", f"anchors field is not a list (got {type(anchors).__name__})", [])
+    if not anchors:
+        return AnchorEvaluation("SKIPPED", "no anchors on this receipt", [])
+    try:
+        _env_jcs = envelope_minus_anchors_jcs(envelope)
+        bound = hashlib.sha256(_env_jcs).digest()
+    except RecursionError:
+        # Defense in depth, same rationale as check_chain's guard above.
+        return AnchorEvaluation(
+            "FAIL", "envelope too deeply nested to canonicalise for anchor binding", []
+        )
+    lines = [f"anchors bind envelope digest sha256:{bound.hex()[:16]}.."]
+    saw_invalid = False
+    saw_unverifiable = False
+    trusted_times = []
+    for a in anchors:
+        if not isinstance(a, dict):
+            saw_invalid = True
+            lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
+            continue
+        atype = a.get("type", "?")
+        blob = _anchor_bytes(a.get("value"))
+        if blob is None:
+            saw_invalid = True
+            lines.append(f"    - {atype}: value MISSING or malformed")
+            continue
+        status = a.get("status")
+        if status in ("pending", "failed"):
+            saw_unverifiable = True
+            lines.append(
+                f"    - {atype}: value present, base64-ok; status {status}, not an anchored proof"
+            )
+            continue
+        if atype == "rfc3161":
+            outcome, detail, when = _check_rfc3161_anchor(
+                blob, bound, trusted_tsa_keys, _env_jcs
+            )
+        elif atype == "opentimestamps":
+            outcome, detail, when = _check_ots_anchor(blob, bound, bitcoin_headers)
+        else:
+            outcome, detail, when = (
+                "unverifiable",
+                "no offline verifier for this anchor type",
+                None,
+            )
+        if outcome == "verified":
+            lines.append(f"    - {atype}: verified ({detail})")
+            if when is not None:
+                trusted_times.append(when)
+        elif outcome == "invalid":
+            saw_invalid = True
+            lines.append(f"    - {atype}: invalid ({detail})")
+        else:
+            saw_unverifiable = True
+            lines.append(f"    - {atype}: value present, base64-ok; unverifiable ({detail})")
+    if saw_invalid:
+        return AnchorEvaluation("FAIL", "; ".join(lines), trusted_times)
+    if saw_unverifiable:
+        return AnchorEvaluation("SKIPPED", "; ".join(lines), trusted_times)
+    return AnchorEvaluation("PASS", "; ".join(lines), trusted_times)
+
+
+def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None):
+    """(result, note) for the anchors axis; see evaluate_anchors."""
+    ev = evaluate_anchors(
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+    )
+    return ev.result, ev.note
 
 
 def normalise_envelope(raw: dict) -> dict:
     """Remap a hosted /verify response into the canonical 3-key envelope.
 
-    An Audit Pack already ships the canonical ``{payload, signature, anchors}``
-    shape, so pass it through untouched. The hosted ``/verify/{id}`` JSON instead
-    nests the signed dict under ``payload`` and exposes the signature object as
-    ``signature_envelope`` (and a possibly flat-string ``signature``); rebuild
-    the canonical envelope from those parts so ``run()`` sees one shape.
+    An Audit Pack already ships ``{payload, signature, anchors}``, so pass it
+    through untouched. The hosted ``/verify/{id}`` JSON nests the signed dict under
+    ``payload`` and exposes the signature object as ``signature_envelope`` (plus a
+    possibly flat-string ``signature``); rebuild from those so ``run()`` sees one shape.
     """
     # Already canonical: a top-level signature object plus a payload dict.
     sig = raw.get("signature")
@@ -510,18 +1222,18 @@ def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None, org_i
     """Return the one jwks entry a receipt's signature is checked against.
 
     Exact key id, then the agent bind, then the bare-kid issuer match. Every caller
-    resolves through here, so the key that verifies a signature and the key whose
-    status and issuer the axes weigh are one entry rather than two independent
-    lookups. Resolving them separately lets a receipt verify against a key found one
-    way while the revocation and issuer axes read a key found the other way.
+    resolves through here so the key that verifies a signature and the key whose
+    status and issuer the axes weigh are one entry; resolving them separately lets a
+    receipt verify against a key found one way while revocation and issuer read a
+    key found the other.
 
-    Order carries the security. A cloud receipt puts the org id in kid and signs with
-    the agent's own key, and the directory publishes issuer_id on every key that org
-    owns, so an org-shaped kid matches each sibling alike and list position picks one.
-    Position binds nothing: agent_id and issuer_id both sit inside the signed bytes,
-    so the pair names the signer, while the sibling it lands on holds other key bytes,
-    another revocation status and another agent. The agent bind carries the org_id a
-    hash-mode receipt signs, so the correct sibling resolves before the loose match.
+    Order carries the security. A cloud receipt puts the org id in kid and the
+    directory publishes issuer_id on every key that org owns, so an org-shaped kid
+    matches each sibling alike and list position picks one. Position binds nothing -
+    agent_id and issuer_id both sit inside the signed bytes - while the sibling it
+    lands on holds other key bytes, another revocation status and another agent. The
+    agent bind carries the org_id a hash-mode receipt signs, so the correct sibling
+    resolves before the loose match.
     """
     entry = _match_key_by_id(jwks, kid)
     if entry is not None:
@@ -574,11 +1286,10 @@ def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str, org_id: s
     """Return (public_key_bytes, status, alg, kid, key_issuer_id) for an agent key.
 
     Cloud receipts set signature.kid to the issuer (org) id but sign with the
-    agent's own key; the JWKS publishes agent_id per key, so the signing key is
-    resolvable by the receipt's agent_id. agent_id is attacker-controlled, so a
-    match also requires the key's published issuer_id (or org_id) to equal the
-    receipt's claimed issuer: without that bind a valid key from any org would
-    verify a receipt claiming a different issuer. Same defensive shape as resolve_key.
+    agent's own key, and the JWKS publishes agent_id per key, so the signing key
+    resolves by agent_id. agent_id is attacker-controlled, so a match also requires
+    the key's published issuer_id (or org_id) to equal the claimed issuer: without
+    that bind a valid key from any org would verify a receipt claiming another.
     """
     k = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
     if k is None:
@@ -658,10 +1369,9 @@ def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
     """Bind a hash-mode receipt's org_id to the org the directory names for its key.
 
     issuer_id is the org's legal entity or its id, so it equals org_id only while
-    no org sets a legal entity. Prefer a published per-key org_id, the field the
-    server can guarantee equal. With neither an org_id nor an org-id-shaped
-    issuer the claim is not comparable offline: SKIP rather than FAIL an honest
-    receipt.
+    no org sets a legal entity; prefer the published per-key org_id, the field the
+    server can guarantee equal. With neither, the claim is not comparable offline:
+    SKIP rather than FAIL an honest receipt.
     """
     if not isinstance(claimed_org_id, str) or not claimed_org_id:
         return "FAIL", f"receipt org_id is {claimed_org_id!r}, so there is no org to bind"
@@ -683,22 +1393,37 @@ def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
 REVOKED_KEY_STATUSES = {"revoked", "suspended", "compromised"}
 
 
+def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
+    """True when a cryptographically verified anchor proves the envelope existed
+    at or before the key's revoked_at.
+
+    Only then is the self-attested issued_at corroborated for the historical verify
+    path: an anchor proves the envelope (payload + signature) existed at the anchor's
+    own proven time, so a time at/before revocation rules out a signature made with
+    the revoked key. An anchor with no proven time (an unplaced OTS proof) is False.
+    """
+    if not trusted_times or not revoked_at:
+        return False
+    rev = _parse_stamp(revoked_at)
+    if rev is None:
+        return False
+    return any(t <= rev for t in trusted_times)
+
+
 def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False):
     """Gate the verdict on the signing key's published status.
 
-    The public JWKS marks a key revoked once its agent is revoked. A receipt
-    signed by such a key must not PASS offline, mirroring the hosted /verify.
-
-    When the JWKS carries a precise revoked_at, prefer the at-or-before-issuance
-    check so a receipt signed BEFORE revocation still PASSes (historical verify).
-    Without a revoked_at the axis cannot place issuance, so any revoked key fails.
+    The public JWKS marks a key revoked once its agent is revoked; a receipt signed
+    by such a key must not PASS offline, mirroring the hosted /verify. With a
+    precise revoked_at, prefer the at-or-before-issuance check so a receipt signed
+    BEFORE revocation still PASSes; without one the axis cannot place issuance, so
+    any revoked key fails.
 
     has_trusted_anchor must be an anchor the caller CRYPTOGRAPHICALLY verified as
-    pre-revocation timing; mere presence is not enough (anchors are unsigned and
+    pre-revocation; mere presence is not enough (anchors are unsigned and
     attacker-addable). Without one the self-attested issued_at is backdateable, so
-    that case downgrades to SKIPPED (INCOMPLETE), never a hiding PASS. The offline
-    verifier cannot do that walk and passes False; default False so a caller that
-    ignores the parameter never hides behind a bare timestamp.
+    that case downgrades to SKIPPED (INCOMPLETE), never a hiding PASS. Defaults
+    False so a caller that ignores the parameter never hides behind a bare timestamp.
     """
     s = (status or "").lower()
     if s not in REVOKED_KEY_STATUSES:
@@ -853,37 +1578,6 @@ def check_chain(payload: dict, predecessor_payload: dict | None):
     return "FAIL", f"chain break: expected {str(prev)[:16]}.. got {actual[:16]}.."
 
 
-def check_anchors(envelope: dict):
-    anchors = envelope.get("anchors")
-    # Absent/null is a legitimate no-anchors receipt (SKIPPED); a present
-    # non-list value ({} / "" / 0) is malformed and FAILs, never laundered to [].
-    if anchors is None:
-        return "SKIPPED", "no anchors on this receipt"
-    if not isinstance(anchors, list):
-        return "FAIL", f"anchors field is not a list (got {type(anchors).__name__})"
-    if not anchors:
-        return "SKIPPED", "no anchors on this receipt"
-    try:
-        bound = hashlib.sha256(envelope_minus_anchors_jcs(envelope)).hexdigest()
-    except RecursionError:
-        # Defense in depth, same rationale as check_chain's guard above.
-        return "FAIL", "envelope too deeply nested to canonicalise for anchor binding"
-    lines = [f"anchors bind envelope digest sha256:{bound[:16]}.."]
-    all_ok = True
-    for a in anchors:
-        if not isinstance(a, dict):
-            all_ok = False
-            lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
-            continue
-        atype = a.get("type", "?")
-        val = a.get("value")
-        ok = bool(val) and _safe_b64(val)
-        all_ok = all_ok and ok
-        state = "present, base64-ok" if ok else "MISSING or malformed"
-        lines.append(f"    - {atype}: value {state}")
-    return ("PASS" if all_ok else "FAIL"), "; ".join(lines)
-
-
     # Closed-key-set and false-attestation rules for controls_evaluated.
 def check_controls_evaluated(payload: dict):
     ce = payload.get("controls_evaluated")
@@ -978,6 +1672,9 @@ def run(
     jwks: dict,
     predecessor_payload: dict | None,
     seen_nonces: set | None = None,
+    *,
+    trusted_tsa_keys=None,
+    bitcoin_headers=None,
 ) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
@@ -1035,6 +1732,11 @@ def run(
     results = []
     results.append(("structure", *check_structure(payload)))
     results.append(("nonce", *check_nonce(payload, seen_nonces)))
+    # Evaluated once, up front: the anchors axis reports it, and the key_status
+    # axis weighs its cryptographically-proven timing against any revoked_at.
+    anchor_eval = evaluate_anchors(
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+    )
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
     if pk is None:
@@ -1068,28 +1770,35 @@ def run(
         results.append(
             ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id")))
         )
-        # Offline anchor presence is unverifiable (anchors are unsigned); pass
-        # False so a forged anchor never rides a revoked key to PASS.
+        # Only a cryptographically verified anchor whose proven time lands at or
+        # before the key's revoked_at proves pre-revocation timing; presence
+        # alone never upgrades a revoked key (anchors are unsigned).
+        trusted_anchor = _has_trusted_pre_revocation_anchor(
+            anchor_eval.trusted_times, eff_revoked_at
+        )
         results.append(
-            ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False))
+            ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor))
         )
         results.append(("signature", *sig_res))
 
     results.append(("chain", *check_chain(payload, predecessor_payload)))
-    results.append(("anchors", *check_anchors(envelope)))
+    results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
     results.append(("expiry", *check_expiry(payload)))
 
     print("Asqav receipt verification")
     print(f"  canonical bytes: sha256:{hashlib.sha256(msg).hexdigest()}")
     print(f"  signature.kid:   {kid}")
+    # The algorithm is per-receipt, verbatim from the signed envelope: ML-DSA-65
+    # for cloud-issued receipts, Ed25519/ES256 for locally signed ones.
+    print(f"  signature.alg:   {alg}")
     for name, res, note in results:
         mark = {"PASS": "ok", "FAIL": "FAIL", "SKIPPED": "skip"}[res]
         print(f"  [{mark:>4}] {name:<11} {note}")
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
-    verdict, failure_class = _fold_verdict(results)
-    if verdict == VERDICT_VERIFIED:
+    verdict, failure_class = _fold_verdict(results, keyed=is_keyed_digest(payload))
+    if verdict in (VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED):
         code = 0
         print(f"\n  => {verdict}")
     elif failure_class == FAILURE_INVALID:
@@ -1115,21 +1824,21 @@ def run_structured(
     envelope: dict,
     jwks: dict,
     predecessor_payload: dict | None = None,
+    *,
+    trusted_tsa_keys=None,
+    bitcoin_headers=None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
-    Same logic as ``run()`` but returns a dict instead of printing and exiting.
-    Callable directly from the verifier module; the public SDK uses the oracle
-    adapter path for multi-format support.
+    Same logic as ``run()`` but returns a dict instead of printing and exiting; the
+    public SDK uses the oracle adapter path for multi-format support.
 
-    Returns:
-        dict with keys:
-          - ``"verdict"``: "verified" | "unverified" (criteria 418/438)
-          - ``"failure_class"``: "invalid" | "unverifiable" when unverified,
-            else None; the two are never collapsed (criterion 418)
-          - ``"axes"``: list of ``{"name", "result", "note", "failure_class"}``
-          - ``"canonical_sha256"``: hex SHA-256 of the canonical payload bytes
-          - ``"kid"``: the signature key id resolved
+    Keys: ``verdict`` ("verified" | "unverified", criteria 418/438);
+    ``failure_class`` ("invalid" | "unverifiable" when unverified, else None - the
+    two are never collapsed, criterion 418); ``axes``, a list of
+    ``{"name", "result", "note", "failure_class"}``; ``canonical_sha256``, hex
+    SHA-256 of the canonical payload bytes; ``kid``; and ``alg``, verbatim from the
+    wire (ML-DSA-65 cloud-issued, Ed25519/ES256 local).
     """
     if not isinstance(envelope, dict):
         return {
@@ -1144,6 +1853,7 @@ def run_structured(
             ],
             "canonical_sha256": None,
             "kid": None,
+            "alg": None,
         }
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
@@ -1162,6 +1872,7 @@ def run_structured(
             ],
             "canonical_sha256": None,
             "kid": None,
+            "alg": None,
         }
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
@@ -1173,6 +1884,7 @@ def run_structured(
             "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])],
             "canonical_sha256": None,
             "kid": None,
+            "alg": None,
         }
 
     sig_obj = envelope.get("signature", {})
@@ -1196,10 +1908,16 @@ def run_structured(
             "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])],
             "canonical_sha256": None,
             "kid": None,
+            "alg": None,
         }
 
     axes: list[dict] = []
     axes.append(_struct_axis("structure", *check_structure(payload)))
+    # Evaluated once, up front: the anchors axis reports it, and the key_status
+    # axis weighs its cryptographically-proven timing against any revoked_at.
+    anchor_eval = evaluate_anchors(
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+    )
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
     if pk is None:
@@ -1236,23 +1954,30 @@ def run_structured(
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         axes.append(_struct_axis("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))))
-        # Offline anchor presence is not trusted timing; pass False so a forged
-        # anchor never upgrades a revoked key to a verified verdict.
+        # Only a cryptographically verified anchor whose proven time lands at or
+        # before revoked_at counts as trusted timing; presence alone never
+        # upgrades a revoked key to a verified verdict.
+        trusted_anchor = _has_trusted_pre_revocation_anchor(
+            anchor_eval.trusted_times, eff_revoked_at
+        )
         axes.append(
             _struct_axis(
                 "key_status",
-                *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False),
+                *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor),
             )
         )
         axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
 
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
-    axes.append(_struct_axis("anchors", *check_anchors(envelope)))
+    axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
     axes.append(_struct_axis("expiry", *check_expiry(payload)))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
-    verdict, failure_class = _fold_verdict([(a["name"], a["result"], a["note"]) for a in axes])
+    verdict, failure_class = _fold_verdict(
+        [(a["name"], a["result"], a["note"]) for a in axes],
+        keyed=is_keyed_digest(payload),
+    )
 
     return {
         "verdict": verdict,
@@ -1260,6 +1985,7 @@ def run_structured(
         "axes": axes,
         "canonical_sha256": hashlib.sha256(msg).hexdigest(),
         "kid": kid,
+        "alg": alg,
     }
 
 
@@ -1276,6 +2002,33 @@ def _load(path: str) -> dict:
     return _parse_object(text, path)
 
 
+def _load_tsa_keys(paths) -> list:
+    """Read pinned TSA key material: PEM/DER X.509 certs, or base64/raw keys.
+
+    Anchors sit outside the signed bytes, so trust material must come from the
+    caller, never from the envelope; each file is one TSA public key or
+    certificate the RFC 3161 check may trust.
+    """
+    keys = []
+    for path in paths or []:
+        try:
+            with open(path, "rb") as fh:
+                blob = fh.read()
+        except OSError as exc:
+            raise VerifierInputError(f"{path}: {exc.strerror or exc}") from exc
+        text = blob.strip()
+        if text.startswith(b"-----BEGIN"):
+            keys.append(text + b"\n")
+            continue
+        try:
+            keys.append(base64.b64decode(text, validate=True))
+            continue
+        except Exception:
+            pass
+        keys.append(bytes(text))
+    return keys
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Standalone Asqav receipt verifier.")
     p.add_argument("--id", help="signature id to fetch from api.asqav.com")
@@ -1283,6 +2036,22 @@ def main() -> int:
     p.add_argument("--jwks", help="path to a saved jwks.json, or - for stdin (offline)")
     p.add_argument(
         "--predecessor", help="path to predecessor receipt JSON for the chain check"
+    )
+    p.add_argument(
+        "--tsa-key",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="pinned TSA public key or X.509 certificate (PEM, DER, or base64); "
+        "repeatable. Without one, an RFC 3161 anchor's TSA signature cannot be "
+        "trusted offline and the anchors axis reports unverifiable",
+    )
+    p.add_argument(
+        "--bitcoin-headers",
+        metavar="FILE",
+        help="JSON map of bitcoin block height to {\"merkle_root\": <display hex>, "
+        "\"time\": <ISO-8601>} for the OpenTimestamps block check; without it the "
+        "block portion reports unverifiable",
     )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
@@ -1308,11 +2077,20 @@ def main() -> int:
         if args.predecessor:
             pred = _load(args.predecessor)
             predecessor_payload = pred.get("payload", pred)
+
+        trusted_tsa_keys = _load_tsa_keys(args.tsa_key)
+        bitcoin_headers = _load(args.bitcoin_headers) if args.bitcoin_headers else None
     except VerifierInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    return run(envelope, jwks, predecessor_payload)
+    return run(
+        envelope,
+        jwks,
+        predecessor_payload,
+        trusted_tsa_keys=trusted_tsa_keys,
+        bitcoin_headers=bitcoin_headers,
+    )
 
 
 if __name__ == "__main__":

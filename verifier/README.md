@@ -76,13 +76,21 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 | canonical bytes | JCS reproduction | stdlib `json` (sorted keys, no whitespace, UTF-8) |
 | issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json` |
 | chain | SHA-256 link to predecessor | stdlib `hashlib` |
-| anchors | which envelope each anchor binds | stdlib `hashlib` + `base64` |
+| anchors | each anchor's token must commit `sha256(JCS(envelope minus anchors))`; RFC3161 TSA signature against pinned TSA key material, OpenTimestamps merkle path against supplied bitcoin headers | stdlib DER/ots parse + `dilithium-py`/`cryptography` for the TSA signature |
 | skew | `issued_at` within 300s of now | stdlib `datetime` |
 | structure | required fields and type namespace | stdlib |
 
-It does **not** perform the full RFC3161 certificate-chain walk or
-`policy_digest` artefact resolution; both need server state or ASN.1. For those,
-use the hosted `/verify` endpoint or the full Asqav SDK.
+An anchor never PASSes on presence alone: a token whose check runs and fails is
+`invalid`, and one the check cannot complete offline (no pinned TSA key via
+`--tsa-key`, no header source via `--bitcoin-headers`, a `pending`/`failed`
+status, an unknown type) reports `unverifiable`. A verified anchor whose proven
+time lands at or before a key's `revoked_at` lets a pre-revocation receipt pass
+the `key_status` axis; a forged or unverifiable one never does.
+
+It does **not** perform a PKI chain walk from the TSA certificate to a public
+root — offline trust comes from the TSA key material you pin — or
+`policy_digest` artefact resolution. For those, use the hosted `/verify`
+endpoint or the full Asqav SDK.
 
 ## The same axes from TypeScript
 

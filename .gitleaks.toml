@@ -1,0 +1,7 @@
+# Secret scanning keeps the default ruleset; one corpus path is exempt.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Parity corpus holds ML-DSA-65 public keys, signatures and SHA-384 digests only"
+paths = ['''verifier/axis-parity-cases\.json''']
