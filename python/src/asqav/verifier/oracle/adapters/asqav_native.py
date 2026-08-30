@@ -250,8 +250,10 @@ class AsqavNativeAdapter(FormatAdapter):
             payload = _payload(doc)
             issued_at = payload.get("issued_at", "")
             bind = _vr.check_issuer_binding(key_issuer, payload.get("issuer_id"))
-        # Offline anchor presence is unverifiable (anchors are unsigned); pass
-        # False so a forged anchor never rides a revoked key to PASS.
+        # Only an anchor the caller cryptographically verified counts as trusted
+        # timing (verify_receipt.evaluate_anchors). This adapter pins no TSA key
+        # material, so it passes False: a forged anchor never rides a revoked key
+        # to PASS here.
         res, note = _vr.check_key_status(
             entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
         )
