@@ -65,8 +65,14 @@ except ImportError:  # pragma: no cover - optional dep
 
 
     # An anchored ML-DSA-65 receipt plus the JWKS an export would archive for it.
-def _anchored_mldsa_pair() -> tuple[dict, dict]:
+    # The anchor is a real RFC3161 token minted over the envelope digest; the
+    # caller pins the TSA key (--tsa-key), since presence alone never PASSes.
+def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
+    import hashlib
+
     from dilithium_py.ml_dsa import ML_DSA_65
+
+    from tests.tsa_testkit import mint_ml_dsa_anchor
 
     pk, sk = ML_DSA_65.keygen()
     kid = "exit-artifact-key-01"

@@ -287,8 +287,28 @@ def _envelope(payload: dict, sig: bytes, kid: str | None = None) -> dict:
             "kid": payload["issuer_id"] if kid is None else kid,
             "sig": base64.b64encode(sig).decode(),
         },
+        # A placeholder anchor: shape-valid but cryptographically unverifiable,
+        # so the anchors axis reports SKIPPED (unverifiable), never PASS.
         "anchors": [{"type": "test", "value": "AAAA"}],
     }
+
+
+def _trusted_envelope(payload: dict, sig: bytes, kid: str | None = None):
+    """_envelope plus a real RFC3161 anchor; returns (envelope, pinned TSA key).
+
+    A verified verdict needs a cryptographically verified anchor since the
+    anchor check landed, so the PASS-path tests mint one and pass the TSA key
+    through trusted_tsa_keys.
+    """
+    import hashlib
+
+    from tests.tsa_testkit import mint_ml_dsa_anchor
+
+    env = _envelope(payload, sig, kid)
+    bound = hashlib.sha256(v.envelope_minus_anchors_jcs(env)).digest()
+    tok, tsa_pk = mint_ml_dsa_anchor(bound)
+    env["anchors"] = [{"type": "rfc3161", "value": tok}]
+    return env, tsa_pk
 
 
 def test_run_agent_id_fallback_rejects_forged_issuer() -> None:
