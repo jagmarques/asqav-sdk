@@ -117,10 +117,16 @@ def test_forged_value_never_reads_as_present(value: str) -> None:
 
 @pytest.mark.parametrize("value", LEGITIMATE, ids=repr)
 def test_legitimate_anchor_still_passes(value: str) -> None:
+    """Genuine base64 passes the shape gate, but shape is not proof.
+
+    Since the cryptographic anchor check landed, a value that is not a
+    verifiable token reports unverifiable (SKIPPED), never PASS on presence.
+    """
     assert _safe_b64(value) is True, repr(value)
     state, note = _axis(value)
-    assert state == "PASS", repr(value)
+    assert state == "SKIPPED", repr(value)
     assert "present, base64-ok" in note, repr(value)
+    assert "unverifiable" in note, repr(value)
 
 
 @pytest.mark.parametrize("value", NON_STRINGS, ids=repr)
@@ -162,7 +168,8 @@ def test_mime_line_wrapped_base64_is_refused(value: str) -> None:
     assert _axis(value)[0] == "FAIL", repr(value)
 
 
-    # Every encoding a real signer emits keeps passing, padded or not.
+    # Every encoding a real signer emits keeps passing the shape gate; the
+    # cryptographic check then reports unverifiable for a non-token, never PASS.
 def test_legitimate_anchor_values_still_pass() -> None:
     rng = random.Random(358)
     for n in range(1, 129):
@@ -171,7 +178,7 @@ def test_legitimate_anchor_values_still_pass() -> None:
         url = base64.urlsafe_b64encode(raw).decode()
         for value in (std, std.rstrip("="), url, url.rstrip("=")):
             assert _safe_b64(value) is True, repr(value)
-            assert _axis(value)[0] == "PASS", repr(value)
+            assert _axis(value)[0] == "SKIPPED", repr(value)
 
 
 def test_verdict_matches_the_grammar_rule_not_a_decoder() -> None:
