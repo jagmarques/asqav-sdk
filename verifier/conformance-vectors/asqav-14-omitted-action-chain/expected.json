@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "An Action between the two receipts produced no receipt at all. The chain still verifies: links cover the receipts that exist and are silent about an Action that never reached the signer. Completeness is a deployment property, not a chain property."
+}

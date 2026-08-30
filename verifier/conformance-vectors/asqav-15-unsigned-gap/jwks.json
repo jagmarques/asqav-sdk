@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-omission-vec-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "zzNtvKCoCHKRt2J8Ejr4hG+wkn36jIEzNh/dkW94AdA="
+    }
+  ]
+}
