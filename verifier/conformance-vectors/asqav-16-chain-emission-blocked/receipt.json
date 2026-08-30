@@ -1,0 +1,24 @@
+{
+  "payload": {
+    "type": "protectmcp:lifecycle",
+    "issued_at": "2026-08-30T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_omission_001",
+    "action_ref": "act_21",
+    "payload_digest": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "previousReceiptHash": "e0ba3346846c45e7a1f7b5a9e31ac7577265bf7f94297a6ca391b120003287d3",
+    "decision": "deny",
+    "tool_name": "demo.action",
+    "reason": "chain_emission_blocked"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "asqav-omission-vec-key",
+    "sig": "TTjqNGZ501bH5PL0mk5jOGj3bpJx1FNBIHkmn7yQqu6siJgmnmnkb8Gw7Hv+XkWmWDGcZpGsnzT4ntPtPRmBBw=="
+  },
+  "anchors": []
+}
