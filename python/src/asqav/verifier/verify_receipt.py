@@ -212,7 +212,26 @@ _SHAPE_MESSAGES = {
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
 VERDICT_VERIFIED = "verified"
+#: Passing, but keyed under a holder salt so not third-party re-derivable.
+#: Never collapsed into `verified` or `unverified`.
+VERDICT_VERIFIED_KEYED = "verified_keyed"
 VERDICT_UNVERIFIED = "unverified"
+
+#: Unkeyed hash_algo values (absent defaults to sha256). Anything else counts
+#: as keyed, so a near-miss spelling under-claims rather than over-claims.
+_UNKEYED_HASH_ALGOS = frozenset({"sha256"})
+
+
+def is_keyed_digest(payload: dict) -> bool:
+    """True when the receipt's context digest is keyed (not re-derivable)."""
+    if not isinstance(payload, dict):
+        return False
+    algo = payload.get("hash_algo")
+    if algo is None:
+        return False
+    if not isinstance(algo, str):
+        return True
+    return algo.strip().lower() not in _UNKEYED_HASH_ALGOS
 
 #: Failure classes carried by every unverified verdict (criterion 418); the two
 #: are never collapsed - a proven binding failure is not an incomplete check.
@@ -269,6 +288,8 @@ def _fold_verdict(results) -> tuple[str, str | None]:
         return VERDICT_UNVERIFIED, failure_class
     if blocking_skip:
         return VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE
+    if keyed:
+        return VERDICT_VERIFIED_KEYED, None
     return VERDICT_VERIFIED, None
 
 
@@ -1068,28 +1089,35 @@ def run(
         results.append(
             ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id")))
         )
-        # Offline anchor presence is unverifiable (anchors are unsigned); pass
-        # False so a forged anchor never rides a revoked key to PASS.
+        # Only a cryptographically verified anchor whose proven time lands at or
+        # before the key's revoked_at proves pre-revocation timing; presence
+        # alone never upgrades a revoked key (anchors are unsigned).
+        trusted_anchor = _has_trusted_pre_revocation_anchor(
+            anchor_eval.trusted_times, eff_revoked_at
+        )
         results.append(
-            ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False))
+            ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor))
         )
         results.append(("signature", *sig_res))
 
     results.append(("chain", *check_chain(payload, predecessor_payload)))
-    results.append(("anchors", *check_anchors(envelope)))
+    results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
     results.append(("expiry", *check_expiry(payload)))
 
     print("Asqav receipt verification")
     print(f"  canonical bytes: sha256:{hashlib.sha256(msg).hexdigest()}")
     print(f"  signature.kid:   {kid}")
+    # The algorithm is per-receipt, verbatim from the signed envelope: ML-DSA-65
+    # for cloud-issued receipts, Ed25519/ES256 for locally signed ones.
+    print(f"  signature.alg:   {alg}")
     for name, res, note in results:
         mark = {"PASS": "ok", "FAIL": "FAIL", "SKIPPED": "skip"}[res]
         print(f"  [{mark:>4}] {name:<11} {note}")
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
-    verdict, failure_class = _fold_verdict(results)
-    if verdict == VERDICT_VERIFIED:
+    verdict, failure_class = _fold_verdict(results, keyed=is_keyed_digest(payload))
+    if verdict in (VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED):
         code = 0
         print(f"\n  => {verdict}")
     elif failure_class == FAILURE_INVALID:
@@ -1236,23 +1264,30 @@ def run_structured(
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         axes.append(_struct_axis("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))))
-        # Offline anchor presence is not trusted timing; pass False so a forged
-        # anchor never upgrades a revoked key to a verified verdict.
+        # Only a cryptographically verified anchor whose proven time lands at or
+        # before revoked_at counts as trusted timing; presence alone never
+        # upgrades a revoked key to a verified verdict.
+        trusted_anchor = _has_trusted_pre_revocation_anchor(
+            anchor_eval.trusted_times, eff_revoked_at
+        )
         axes.append(
             _struct_axis(
                 "key_status",
-                *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, False),
+                *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor),
             )
         )
         axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
 
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
-    axes.append(_struct_axis("anchors", *check_anchors(envelope)))
+    axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
     axes.append(_struct_axis("expiry", *check_expiry(payload)))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
-    verdict, failure_class = _fold_verdict([(a["name"], a["result"], a["note"]) for a in axes])
+    verdict, failure_class = _fold_verdict(
+        [(a["name"], a["result"], a["note"]) for a in axes],
+        keyed=is_keyed_digest(payload),
+    )
 
     return {
         "verdict": verdict,
