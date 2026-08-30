@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "A bounded predecessor-lookup timeout blocked emission. The lifecycle receipt naming it links into the chain once emission resumes, so the blocked interval is detectable rather than silent."
+}

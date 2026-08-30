@@ -466,5 +466,26 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "did:key issuer self-resolves inline from the base58btc multicodec frame; no injected map needed and Ed25519 over hashData verifies."
+  },
+  {
+    "dir": "asqav-14-omitted-action-chain",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "An Action between the two receipts produced no receipt at all; the chain still verifies because links cover only the receipts that exist. Completeness is a deployment property, not a chain property."
+  },
+  {
+    "dir": "asqav-15-unsigned-gap",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Server-built unsigned_gap evidences a signer outage preceding this receipt; it is not an assertion that the unsigned Actions were policy-evaluated."
+  },
+  {
+    "dir": "asqav-16-chain-emission-blocked",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "A bounded predecessor-lookup timeout blocked emission; the lifecycle receipt naming it links into the chain once emission resumes."
   }
 ]
