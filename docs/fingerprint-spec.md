@@ -97,6 +97,15 @@ Signatures are NOT replay-stable: re-sending the same `(action_type, context)` p
 
 Each signed record has a `mode` field on `signature_records` with value `"hash"` or `"payload"`. Verifiers SHOULD read `signature_records.mode` to determine which form to expect, rather than inspecting the signed bytes. The hash-mode signing input includes `"v": 1` and `"mode": "hash"` for self-description; the payload-mode signing input keeps the flat shape unchanged.
 
+## Keyed vs unkeyed digests (`hash_algo`)
+
+A verifier CAN tell a keyed (salted) context digest from a plain one: the discriminator is the `hash_algo` member of the signed record, which sits inside the signed field set so it cannot be flipped without breaking the signature.
+
+- **`hash_algo: "hmac-sha256"`** means the context digest is keyed (HMAC-SHA256 under the org salt). It is internally consistent but not third-party re-derivable, so a fully-checked receipt reports the verdict `verified_keyed`, never plain `verified`.
+- **`hash_algo: "sha256"`** — or an absent `hash_algo`, which defaults to `sha256` — means the digest is the plain SHA-256 fingerprint above, re-derivable by anyone from the original `(action_type, context)` pair, and the verdict is `verified`.
+
+Verifiers MUST NOT report a keyed digest as plain `verified`: the two are different statements, and only the unkeyed one is independently reproducible.
+
 ## Test vectors
 
 See `conformance/vectors.json`. The hash-mode happy-path vectors (`minimal_read`, `tool_call_with_counterparty`, `traced_child_action`) are the ones that exercise this spec; the remaining vectors cover the agent-card verification feature, not GDPR hash signing.
