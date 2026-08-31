@@ -1,10 +1,6 @@
 /**
- * Shared User-Agent for every outbound HTTP call the SDK makes from Node.
- *
- * The api.asqav.com edge runs a Cloudflare browser-integrity check that
- * 403s anonymous default agents, so SDK requests must identify themselves.
- * Browsers forbid setting User-Agent on fetch (it is a forbidden header
- * name), so the helper only adds it when running under Node.
+ * Shared User-Agent for outbound SDK calls: the api.asqav.com edge 403s anonymous default agents. Only
+ * added under Node, since browsers forbid setting User-Agent on fetch.
  */
 
 export const SDK_VERSION = "0.10.2";

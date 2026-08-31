@@ -1,24 +1,6 @@
 /**
- * Offline DSSE attestation verifier - verify a POST /v1/attest envelope locally,
- * with no round-trip to any Asqav server. Signing stays remote; verification is
- * air-gapped.
- *
- * The envelope is a DSSE (Dead Simple Signing Envelope) wrapping an in-toto
- * Statement v1, signed with ML-DSA-65. The signed bytes are the DSSE
- * Pre-Authentication Encoding (PAE), not the raw JSON:
- *
- *   PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
- *
- * SP is a single 0x20 space and LEN is the ASCII-decimal byte length. This is a
- * byte-for-byte port of the backend `core/dsse.py` `pae()`, so an envelope the
- * cloud signs re-derives to the identical bytes here.
- *
- * Verify recomputes PAE over the DECODED payload bytes, exactly as the backend
- * `verify_dsse_envelope` does: canonicalization never sits on the trust path, so
- * a verifier never re-encodes the statement and cannot diverge from the signer.
- *
- * Verdict is fail-closed: a missing key, a revoked key, an unsupported algorithm,
- * or a signature that does not check is a FAIL, never a PASS or a skip.
+ * Offline DSSE attestation verifier: signing stays remote, verification is air-gapped. Signed bytes are
+ * the PAE, a byte-for-byte port of `core/dsse.py`. Fail-closed: anything unresolved is a FAIL.
  */
 
 import { verifySignature } from "./crypto.js";
@@ -40,11 +22,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * DSSE Pre-Authentication Encoding of (payloadType, body).
- *
- * Returns `"DSSEv1" SP LEN(type) SP type SP LEN(body) SP body` with single 0x20
- * separators and ASCII-decimal byte lengths - the exact bytes a signer signs and
- * a verifier re-derives. Byte-compatible with `core/dsse.py` `pae()`.
+ * DSSE Pre-Authentication Encoding of (payloadType, body): `"DSSEv1" SP LEN(type) SP type SP LEN(body)
+ * SP body`, with 0x20 separators and ASCII-decimal lengths. Byte-compatible with `core/dsse.py`.
  */
 export function buildPae(payloadType: string | Uint8Array, body: Uint8Array): Uint8Array {
   const enc = new TextEncoder();
@@ -69,11 +48,8 @@ export function buildPae(payloadType: string | Uint8Array, body: Uint8Array): Ui
 }
 
 /**
- * Pull the sha256 hex digest an in-toto Statement binds its subject to.
- *
- * Returns `subject[0].digest.sha256` lowercased, or null when absent. A push
- * guard asserts this equals the pushed commit sha to bind the attestation to the
- * exact bytes that landed.
+ * Pull `subject[0].digest.sha256` from an in-toto Statement, lowercased, or null when absent. A push
+ * guard asserts it equals the pushed commit sha, binding the attestation to the bytes that landed.
  */
 export function extractSubjectDigest(statement: unknown): string | null {
   if (!isRecord(statement)) return null;
@@ -195,17 +171,8 @@ function checkAttestationStructure(envelope: unknown, expectedType: string): Str
 }
 
 /**
- * Verify a DSSE attestation envelope fully offline against an in-memory JWKS.
- *
- * Steps: decode the payload to the in-toto Statement; for each signature resolve
- * the JWKS key (fail-closed on missing/revoked); recompute PAE over the decoded
- * payload bytes and check the ML-DSA-65 signature. PASS requires a well-formed
- * Statement plus at least one signature that both verifies and resolves to an
- * active key. No network call is made.
- *
- * @param envelope - Parsed DSSE envelope ({payloadType, payload, signatures}).
- * @param jwks - JWKS object previously fetched via `fetchJwks()`.
- * @param opts - Optional overrides (expected payloadType).
+ * Verify a DSSE attestation envelope fully offline against an in-memory JWKS. PASS needs a well-formed
+ * Statement plus one signature that verifies against an active key. No network call is made.
  */
 export function verifyAttestation(
   envelope: unknown,

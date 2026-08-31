@@ -1,15 +1,6 @@
 /**
- * Hooks / middleware system for the Asqav TypeScript SDK.
- *
- * Mirrors the Python sibling's public surface:
- *   registerBefore(actionType, fn)  - mutate context before sign
- *   registerAfter(actionType, fn)   - observe response after sign
- *   clearHooks()                    - empty the registry
- *
- * Pattern matching:
- *   - "*"            matches every action type
- *   - "strands:*"    glob-matches any action type with the prefix "strands:"
- *   - "exact:type"   matches only that exact action type
+ * Hooks / middleware system mirroring the Python sibling: registerBefore, registerAfter, clearHooks.
+ * Patterns are `*`, a `prefix:*` glob, or an exact action type.
  */
 
 import type { SignatureResponse } from "./index.js";

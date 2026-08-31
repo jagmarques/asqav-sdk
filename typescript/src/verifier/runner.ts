@@ -1,20 +1,6 @@
 /**
- * Conformance-vector runner - drive the oracle over the vector corpus.
- * A port of the Python oracle's `verifier/oracle/runner.py`.
- *
- * The corpus uses the AERF dir-per-vector layout: a top-level `manifest.json`
- * lists `{dir, format, outcome, failure_class, reason_code, notes}` and each
- * `<NN-name>/` directory carries `receipt.json`, an `expected.json`, optional
- * `predecessor.json`, and optional key material (`jwks.json` for Asqav-native,
- * `keys.json` for AERF, `acta-keys.json` for ACTA, `did_map.json` for
- * agentreceipts and w3c-vc).
- *
- * `outcome` speaks the public verdict vocabulary (criteria 418/438):
- * verified / verified_keyed / unverified, and an `unverified` entry pins its
- * `failure_class` (invalid / unverifiable) so the two classes are never
- * collapsed. Every receipt/record file is parsed with duplicate-member
- * rejection (criterion 419); a receipt that fails to parse is a terminal
- * unverified/unverifiable outcome, never verified.
+ * Conformance-vector runner driving the oracle over the corpus, a port of the Python `runner.py`.
+ * `outcome` speaks the public verdict vocabulary, and an `unverified` entry pins its failure_class.
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -47,9 +33,8 @@ interface ManifestEntry {
 }
 
 function loadJson(path: string): Record<string, unknown> | null {
-  // Receipts and predecessors are parsed float-preserving so a `500.0` literal
-  // survives to the canonicaliser (JSON.parse otherwise collapses it to `500`).
-  // The same parser rejects a duplicated member name at any depth (419).
+  // Float-preserving parse so a `500.0` literal reaches the canonicaliser intact;
+  // the same parser rejects a duplicated member name at any depth (419).
   return existsSync(path)
     ? (parseJsonPreservingFloats(readFileSync(path, "utf-8")) as Record<string, unknown>)
     : null;

@@ -1,22 +1,6 @@
 /**
- * W3C VC 2.0 adapter - DataIntegrityProof with the eddsa-jcs-2022 cryptosuite.
- * A port of the Python oracle's `verifier/oracle/adapters/w3c_vc.py`.
- *
- * A Verifiable Credential 2.0 envelope secured by a `DataIntegrityProof` whose
- * `cryptosuite` is `eddsa-jcs-2022` (W3C TR vc-di-eddsa): Ed25519 (RFC 8032)
- * signs `SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))` where
- * JCS is strict RFC 8785, proofOptions is `proof` with `proofValue` removed,
- * and unsecuredDocument is the credential with `proof` removed. `proofValue` is
- * the raw 64-byte signature multibase base58btc ('z') encoded.
- *
- * When the proof options carry their own `@context` the spec's transform
- * requires the document `@context` to start with it in order and canonicalises
- * the document with the proof's `@context` substituted; both rules are enforced.
- *
- * Structure is intentionally stricter than the suite spec: proofPurpose must be
- * `assertionMethod` and the verificationMethod DID must equal the issuer DID,
- * fail-closed, mirroring the agentreceipts adapter. A W3C VC carries no in-band
- * chain link, so the chain axis reports genesis.
+ * W3C VC 2.0 adapter for DataIntegrityProof with the eddsa-jcs-2022 cryptosuite, a port of the Python
+ * `w3c_vc.py`. Stricter than the suite: assertionMethod only, and the signing-key DID must equal issuer.
  */
 
 import { createHash } from "node:crypto";

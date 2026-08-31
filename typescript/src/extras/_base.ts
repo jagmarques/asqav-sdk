@@ -1,33 +1,13 @@
 /**
- * Base adapter for Asqav framework integrations.
- *
- * Mirrors the Python ``asqav.extras._base.AsqavAdapter`` surface so the
- * documentation can cross-link the two SDKs. Framework-specific adapters
- * (LangChain.js, Mastra, OpenAI Agents JS, etc.) compose this class via
- * an internal field rather than multiple inheritance because TypeScript
- * does not support multi-class inheritance.
- *
- * Responsibilities:
- *   - Resolve an Asqav ``Agent`` from either a pre-built instance,
- *     ``agentId`` (calls ``Agent.get``), or ``agentName`` (calls
- *     ``Agent.create``).
- *   - Provide a shared ``signAction`` helper that is fail-open: signing
- *     errors are routed to the caller-supplied ``onError`` handler and
- *     never raise into the host pipeline.
- *   - Provide a stable place to attach future cross-cutting features
- *     (observe mode, session grouping) without touching every adapter.
+ * Base adapter for Asqav framework integrations, mirroring the Python ``asqav.extras._base`` surface.
+ * Resolves an Agent and provides a fail-open ``signAction``; adapters compose it rather than inherit.
  */
 
 import { Agent } from "../index.js";
 
 /**
- * Options accepted by every Asqav adapter constructor.
- *
- * Exactly one of ``agent``, ``agentId``, or ``agentName`` should be
- * provided. When ``agent`` is set the adapter signs against it directly.
- * When ``agentId`` is set the adapter calls ``Agent.get`` lazily on the
- * first event. When ``agentName`` is set the adapter calls
- * ``Agent.create`` lazily on the first event.
+ * Options accepted by every Asqav adapter constructor. Provide exactly one of ``agent`` (used directly),
+ * ``agentId`` (lazy ``Agent.get``), or ``agentName`` (lazy ``Agent.create``).
  */
 export interface AsqavAdapterOptions {
   /** Pre-built Asqav Agent. Takes precedence over agentId/agentName. */
@@ -54,11 +34,8 @@ interface SignActionInput {
 }
 
 /**
- * Shared base for the framework adapters in this folder.
- *
- * Subclasses call ``protected signAction`` on every framework callback.
- * They MUST NOT call the Asqav SDK directly so the fail-open contract is
- * preserved at one place.
+ * Shared base for the framework adapters here. Subclasses call ``signAction`` on every framework
+ * callback and MUST NOT call the SDK directly, so the fail-open contract lives in one place.
  */
 export class AsqavAdapter {
   protected readonly options: AsqavAdapterOptions;
@@ -140,10 +117,8 @@ function defaultOnError(err: unknown, ctx: { actionType: string }): void {
 }
 
 /**
- * Throw the canonical missing-peer error for an Asqav framework adapter.
- * Mirrors the Python ``ImportError`` contract. Optional ``cause`` keeps
- * the underlying module-resolution error (ERR_MODULE_NOT_FOUND, ESM/CJS
- * interop, version mismatch, native binding crash) visible to the user.
+ * Throw the canonical missing-peer error, mirroring the Python ``ImportError`` contract. ``cause`` keeps
+ * the underlying module-resolution error visible to the user.
  */
 export function raiseMissingPeer(
   framework: string,

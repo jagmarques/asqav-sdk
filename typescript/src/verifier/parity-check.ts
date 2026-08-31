@@ -1,12 +1,6 @@
 /**
- * Reproducible equivalence gate - run ALL corpus vectors through the TS verifier
- * and compare each verdict to the EXPECTED manifest outcome, exactly as the Python
- * `runner.main()` does. ML-DSA vectors are tolerated as INCOMPLETE->PASS only for
- * reason_code `signature_skipped_no_dilithium` (Node has no ML-DSA, matching the
- * Python verifier without dilithium-py).
- *
- * Run directly:  node --import tsx typescript/src/verifier/parity-check.ts
- * or via the test `tests/verifier-parity.test.ts`, which asserts 62/62.
+ * Reproducible equivalence gate: run every corpus vector through the TS verifier and compare each verdict
+ * to the manifest, as Python's `runner.main()` does. ML-DSA vectors tolerate the no-dilithium skip.
  */
 
 import { resolve } from "node:path";

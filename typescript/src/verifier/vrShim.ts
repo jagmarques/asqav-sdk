@@ -1,9 +1,6 @@
 /**
- * A focused port of the `verify_receipt.py` helpers the Asqav-native and ACTA
- * adapters reuse, so the TS oracle reproduces the same bytes and the same
- * structure verdict as the Python surface. Only what those adapters touch is
- * ported: base64 decoding, envelope normalisation, the structure check, JWKS key
- * resolution, and the first-receipt seed.
+ * A focused port of the `verify_receipt.py` helpers the Asqav-native and ACTA adapters reuse, so
+ * the TS oracle reproduces the same bytes and the same structure verdict as the Python surface.
  */
 
 import { asqavJcs } from "./canonical.js";
@@ -64,9 +61,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * Remap a hosted /verify response into the canonical 3-key envelope. Already
- * canonical or non-hosted shapes pass through unchanged (mirrors
- * `normalise_envelope`).
+ * Remap a hosted /verify response into the canonical 3-key envelope; already canonical or
+ * non-hosted shapes pass through unchanged (mirrors `normalise_envelope`).
  */
 export function normaliseEnvelope(raw: Record<string, unknown>): Record<string, unknown> {
   const sig = raw.signature;
@@ -244,8 +240,7 @@ function matchKeyById(
 }
 
 // An agent key bound to the issuer the receipt claims (mirrors `_match_key_by_agent`).
-// agent_id is attacker-controlled, so the key's published issuer (or org) must equal
-// the one the receipt names inside its signed bytes.
+// agent_id is attacker-controlled, so the key's issuer must match the signed bytes.
 function matchKeyByAgent(
   jwks: Record<string, unknown> | null,
   agentId: unknown,
@@ -269,12 +264,7 @@ function matchKeyByAgent(
 
 /**
  * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
- *
- * Order carries the security: exact key id, then the agent bind, then the bare-kid
- * issuer match. An org-shaped kid matches every sibling that org publishes alike, so
- * list position would pick one arbitrarily, and position binds nothing while the
- * sibling holds other key bytes and another revocation status. The agent bind carries
- * the org_id a hash-mode receipt signs, so the right sibling resolves first.
+ * Order carries the security: exact key id, then the agent bind, then the bare-kid issuer match.
  */
 export function matchSigningKey(
   jwks: Record<string, unknown> | null,
@@ -436,10 +426,8 @@ function pyTruthy(v: unknown): boolean {
 const B64_STRICT = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /**
- * True when Python's `_safe_b64` accepts `value`, false otherwise.
- *
- * Strict on purpose: an out-of-alphabet character is refused, not dropped, so a
- * forged all-punctuation anchor cannot read as present.
+ * True when Python's `_safe_b64` accepts `value`. Strict on purpose: an out-of-alphabet character
+ * is refused, not dropped, so a forged all-punctuation anchor cannot read as present.
  */
 function safeB64(value: unknown): boolean {
   if (typeof value !== "string") return false;
@@ -504,9 +492,8 @@ export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
   return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
 }
 
-// True once the signed expiry sits in the past (mirrors the hosted signature_expired
-// verdict). The window is a negative delta from the wall clock, so the verdict does
-// not depend on which verifier the reader runs
+// True once the signed expiry sits in the past (mirrors signature_expired). A negative
+// delta from the wall clock, so the verdict never depends on which verifier runs.
 function expiryLapsed(deltaSeconds: number): boolean {
   return deltaSeconds < 0;
 }
@@ -529,16 +516,8 @@ export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
 }
 
 /**
- * Report which envelope each anchor binds (mirrors `check_anchors`).
- *
- * Absent or null anchors is a legitimate no-anchors receipt (SKIPPED). A present
- * non-list value is malformed and FAILs, never laundered to an empty list.
- * `anchors` sits outside the signed bytes, so a forged envelope can move it.
- *
- * This shim runs no ASN.1/CMS or ots evaluation, so it never returns PASS - safe -
- * but it also never returns `invalid`, which is not: Python calls a provably forged
- * imprint FAIL/invalid where this reports unverifiable. Use the Python verifier when
- * "proven forged" must be distinguished from "not checked".
+ * Report which envelope each anchor binds (mirrors `check_anchors`). This shim runs no ASN.1/CMS or
+ * ots evaluation, so it never returns PASS and never returns `invalid` - use Python for that.
  */
 export function checkAnchors(envelope: Record<string, unknown>): readonly [VerifyState, string] {
   const anchors = envelope.anchors;
@@ -602,9 +581,8 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
 const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 
-// Gate on the key's JWKS status (mirrors `check_key_status`). With revoked_at and a trusted
-// anchor, pre-revocation receipts PASS, and without revoked_at any revoked-status key FAILs.
-// Without an anchor, issued_at is self-attested (backdateable), so downgrade to SKIPPED.
+// Gate on the key's JWKS status (mirrors `check_key_status`). Without a trusted anchor
+// issued_at is self-attested and backdateable, so downgrade to SKIPPED.
 export function checkKeyStatus(
   status: string | null,
   issuedAt: string,
@@ -636,11 +614,8 @@ export function checkKeyStatus(
   return ["FAIL", `signing key status ${JSON.stringify(status)}; receipt cannot be trusted`];
 }
 
-// ---------------------------------------------------------------------------
-// RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key (criterion 458).
-// A port of the Python `thumbprint_for_key` / `check_key_binding`; the shared
-// vectors in verifier/axis-parity-cases.json hold the two copies together.
-// ---------------------------------------------------------------------------
+// RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key (criterion 458). A port of
+// `thumbprint_for_key`; the shared axis-parity vectors hold the two copies together.
 
 /** draft-ietf-cose-dilithium key type for ML-DSA key pairs. */
 export const AKP_KTY = "AKP";
@@ -649,8 +624,7 @@ export const AKP_KTY = "AKP";
 const THUMBPRINT_RE = /^sha256:[0-9a-f]{64}$/;
 
 // FIPS 204 public-key widths in bytes, fixed by the standard. A KMS-backed agent
-// publishes a PEM in the same column as a locally generated raw key, and a PEM is
-// not the key material an AKP `pub` carries, so width is what separates the two.
+// publishes a PEM where a raw key would sit, so width is what separates the two.
 const ML_DSA_PUBLIC_KEY_BYTES: Record<string, number> = {
   "ML-DSA-44": 1312,
   "ML-DSA-65": 1952,
@@ -675,12 +649,8 @@ export function isWellFormedThumbprint(value: unknown): boolean {
 }
 
 /**
- * Build the required-members-only AKP JWK the thumbprint is taken over.
- *
- * `pub` is base64url WITHOUT padding, which is the one encoding trap here: the
- * published directory carries the same bytes as standard base64 under
- * `public_key`, and thumbprinting that alphabet yields a digest no third-party
- * verifier reproduces.
+ * Build the required-members-only AKP JWK the thumbprint is taken over. `pub` is base64url WITHOUT
+ * padding; thumbprinting the directory's standard-base64 alphabet yields an irreproducible digest.
  */
 export function akpJwk(alg: string, publicKey: Uint8Array): Record<string, string> {
   if (!alg) throw new Error("alg is required to build an AKP JWK");
@@ -689,9 +659,8 @@ export function akpJwk(alg: string, publicKey: Uint8Array): Record<string, strin
 }
 
 /**
- * Return `sha256:<hex>` for a JWK already reduced to its required members.
- * Sorting is what RFC 7638 section 3 calls for, so the caller cannot change the
- * digest by handing the members in a different order.
+ * Return `sha256:<hex>` for a JWK already reduced to its required members. Sorting is what RFC 7638
+ * section 3 calls for, so member order cannot change the digest.
  */
 export function jwkThumbprint(jwk: Record<string, string>): string {
   const canonical = `{${Object.keys(jwk)
@@ -707,18 +676,8 @@ export function thumbprintForKey(alg: string, publicKey: Uint8Array): string {
 }
 
 /**
- * Recompute the signed key_thumbprint from the resolved key and compare.
- *
- * The receipt names its own signing key INSIDE the signed bytes, so a key swapped
- * under the same kid stops rederiving the digest the issuer committed to. A
- * mismatch is a proven binding break, never a warning: `key_binding` sits in
- * INVALID_FAIL_AXES, so the verdict reads unverified with failureClass invalid.
- *
- * Absence is the profile's legacy case and stays conformant, so it PASSes with a
- * note rather than skipping; a skip would block every pre-binding receipt ever
- * issued. The two cases that cannot be recomputed - no key resolved, and a
- * resolved key that is not raw ML-DSA of the width its own alg fixes - report
- * SKIPPED, which blocks, so an unrecomputable binding never reads as verified.
+ * Recompute the signed key_thumbprint from the resolved key and compare; a mismatch is a proven
+ * binding break. Absence PASSes as the legacy case, but an unrecomputable binding SKIPs and blocks.
  */
 export function checkKeyBinding(
   payload: unknown,
@@ -751,21 +710,14 @@ export function checkKeyBinding(
   return ["FAIL", `key_substituted: receipt binds ${claimed}, resolved key computes ${actual}`];
 }
 
-// ---------------------------------------------------------------------------
-// Receipt-internal integrity: payload_digest vs the carried context, and a
-// claimed counterparty binding. Ports of the Python check_payload_digest /
-// check_counterparty_binding; the shared vectors hold the two copies together.
-// ---------------------------------------------------------------------------
+// Receipt-internal integrity: payload_digest vs the carried context, and a claimed
+// counterparty binding. Ports of check_payload_digest / check_counterparty_binding.
 
 const LOWER_HEX_64 = /^[0-9a-f]{64}$/;
 
 /**
- * Recompute payload_digest from the context carried in the same receipt.
- *
- * A receipt carrying BOTH a context and a digest over it is checkable with no
- * external data, and the two disagreeing means one of them is a lie. Absence
- * PASSes on both sides: hash mode carries no context, and a payload-mode receipt
- * may legitimately omit it under redaction.
+ * Recompute payload_digest from the context carried in the same receipt; the two disagreeing means
+ * one is a lie. Absence PASSes: hash mode carries no context and redaction may drop it.
  */
 export function checkPayloadDigest(payload: unknown): readonly [VerifyState, string] {
   if (!isRecord(payload)) return ["PASS", "no signed payload; no digest to recompute"];
@@ -816,12 +768,8 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
 }
 
 /**
- * Weigh a claimed cross-agent binding instead of letting it ride unchecked.
- *
- * counterparty_binding is caller-supplied, so an issuer can assert "the
- * counterparty acknowledged this" over a receipt nobody else saw. Absence PASSes;
- * a claim this verifier cannot resolve reports SKIPPED, which blocks, so an
- * unchecked binding never reads as corroborated; malformed or mismatched FAILs.
+ * Weigh a claimed cross-agent binding instead of letting it ride unchecked. Absence PASSes, an
+ * unresolvable claim SKIPs and blocks, and malformed or mismatched FAILs.
  */
 export function checkCounterpartyBinding(
   payload: unknown,

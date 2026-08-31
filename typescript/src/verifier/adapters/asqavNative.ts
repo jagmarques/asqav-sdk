@@ -1,19 +1,6 @@
 /**
- * Asqav-native adapter - the existing verify_receipt logic behind the seam.
- * A port of the Python oracle's `verifier/oracle/adapters/asqav_native.py`.
- *
- * Two real Asqav wire shapes route here, kept mutually exclusive at detection:
- *
- *   - COMPLIANCE mode: the `{payload, signature, anchors}` envelope whose
- *     `payload` carries `previousReceiptHash` / `issuer_id`. The signature signs
- *     the canonical bytes of `payload` DIRECTLY; the chain hash is SHA-256 of the
- *     predecessor payload's canonical bytes.
- *   - HASH mode: the default `/sign` output - a FLAT receipt with `mode:"hash"`,
- *     `payload:null`, a `signature_b64` (or `signature`), and a `hash`. The
- *     signing input is the flat 11-field object the cloud rebuilds.
- *
- * Canonicalisation goes through `asqavJcs`, byte-identical to the cloud's
- * `verify_receipt.canonical_json`.
+ * Asqav-native adapter, a port of the Python oracle's `asqav_native.py`. Two wire shapes route here,
+ * mutually exclusive at detection: the compliance envelope and the flat hash-mode receipt.
  */
 
 import {
@@ -67,18 +54,13 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** True for a flat hash-mode signature receipt (mode=hash, null payload, a sig). */
-// Claim fields that live inside the signed compliance payload. A hash-mode
-// receipt carrying one is presenting a claim its signature does not cover.
-// key_thumbprint is here because hash mode signs the flat 11 fields and nothing
-// else, so a thumbprint pasted onto one binds no key at all.
+// Claims belonging to the signed payload; hash mode signs the flat fields only,
+// so a thumbprint pasted onto one binds nothing.
 const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash", "key_thumbprint"];
 
 /**
- * alg plus raw public-key bytes of the resolved directory entry.
- *
- * The directory publishes the key as standard base64 under `public_key`; an AKP
- * thumbprint is taken over the same bytes in unpadded base64url, so the decode
- * has to happen before the digest, never after.
+ * alg plus raw public-key bytes of the resolved directory entry. The directory publishes standard
+ * base64 while an AKP thumbprint is over unpadded base64url, so the decode precedes the digest.
  */
 function resolvedKeyMaterial(
   entry: Record<string, unknown> | null,
@@ -154,14 +136,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
   }
 
   /**
-   * The one JWKS entry this receipt's signature is checked against.
-   *
-   * Mirrors the Python adapter's `_signing_key_entry`. Every axis resolves through
-   * here, so the entry that verifies the signature is the entry each published field
-   * is read from. kid lives OUTSIDE the signed bytes, so a second independent lookup
-   * on it is attacker-steerable: a receipt could verify against a key found one way
-   * while the revocation and issuer axes read a key found another way, or emit no
-   * axis at all. An axis that never exists cannot be blocked on.
+   * The one JWKS entry this receipt's signature is checked against. Every axis resolves through here: kid
+   * sits outside the signed bytes, so a second independent lookup would be attacker-steerable.
    */
   private signingKeyEntry(
     doc: Record<string, unknown>,
@@ -308,10 +284,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
   }
 
   /**
-   * A hash-mode digest sealed with the org salt is keyed (criterion 438).
-   * hash_algo hmac-sha256 is internally consistent but not third-party
-   * re-derivable, so a fully-checked receipt reports verified_keyed, never
-   * plain verified. Read from the signed field set only.
+   * A hash-mode digest sealed with the org salt is keyed (criterion 438): internally consistent but not
+   * third-party re-derivable, so a fully-checked receipt reports verified_keyed, never plain verified.
    */
   keyedDigest(doc: Record<string, unknown>): boolean {
     return isHashMode(doc) && doc.hash_algo === "hmac-sha256";

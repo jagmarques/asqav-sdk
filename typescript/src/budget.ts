@@ -1,10 +1,6 @@
 /**
- * Client-side spend budget tracking for AI agent actions.
- *
- * Mirrors the Python BudgetTracker. Each recorded spend is signed via
- * the agent so the budget trail itself is tamper-evident. Enforcement
- * is the caller's responsibility: `check()` is a fail-closed arithmetic
- * check; the SDK does not block actions on its own.
+ * Client-side spend budget tracking mirroring the Python BudgetTracker; each spend is signed so the trail
+ * is tamper-evident. Enforcement is the caller's: `check()` is arithmetic, the SDK blocks nothing.
  */
 
 import type { Agent, SignatureResponse } from "./index.js";
