@@ -49,8 +49,8 @@ _HASH_MODE_FIELDS = (
 
 
 #: Claims belonging to the signed payload; hash mode signs the flat fields only,
-#: so a thumbprint pasted onto one binds nothing.
-_UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash", "key_thumbprint")
+#: so a thumbprint or seq pasted onto one binds nothing.
+_UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash", "key_thumbprint", "seq")
 
 
 def _is_hash_mode(doc: dict) -> bool:
@@ -284,6 +284,12 @@ class AsqavNativeAdapter(FormatAdapter):
             entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
         )
         return axes + [("key_status", res, note), ("issuer_bind", *bind)]
+
+    def seq_of(self, doc: dict) -> Any:
+        # Hash mode signs the flat field set only, so a seq sitting there binds nothing.
+        if _is_hash_mode(doc):
+            return None
+        return _payload(doc).get("seq")
 
     def attestation(self, doc: dict) -> dict[str, Any]:
         """Surface the v:2 in-body ``signer``. None for v:1 and hash-mode.
