@@ -32,8 +32,11 @@ import {
   b64decode,
   checkExpiry,
   checkIssuerBinding,
+  checkCounterpartyBinding,
   checkKeyBinding,
   checkKeyStatus,
+  checkPayloadDigest,
+  checkSkew,
   checkNonce,
   checkOrgBinding,
   checkStructure,
@@ -265,7 +268,15 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // Reported before the no-entry return, so a receipt binding no thumbprint
     // still says so rather than dropping the axis when nothing resolved.
     const [boundAlg, boundPk] = resolvedKeyMaterial(entry);
-    axes.push(["key_binding", ...checkKeyBinding(hashMode ? {} : payloadOf(doc), boundAlg, boundPk)]);
+    const signedUnit = hashMode ? {} : payloadOf(doc);
+    axes.push(["key_binding", ...checkKeyBinding(signedUnit, boundAlg, boundPk)]);
+    // No database offline, so a claimed binding reports unresolved rather than
+    // riding along as corroboration nobody checked
+    axes.push(["counterparty", ...checkCounterpartyBinding(signedUnit)]);
+    axes.push(["payload_digest", ...checkPayloadDigest(signedUnit)]);
+    // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
+    const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
+    axes.push(["skew", ...checkSkew(stamp)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.
