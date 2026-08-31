@@ -1,19 +1,6 @@
 /**
- * ACTA adapter - Ed25519 over the JCS of the payload, signed directly.
- * A port of the Python oracle's `verifier/oracle/adapters/acta.py`.
- *
- * Targets draft-farley-acta-signed-receipts-01. The envelope is
- * `{payload, signature:{alg, kid, sig}}`; the signature is Ed25519 over the JCS
- * canonical bytes of the `payload` object, signed DIRECTLY (no pre-hash), with the
- * sig as a lowercase hex string. The OPTIONAL Commitment Mode is NOT implemented:
- * a commitment-mode receipt fails the baseline signature check (the honest outcome).
- *
- * Asqav-native is a PROFILE of ACTA, so the payloads look identical; the formats
- * are kept disjoint by the signature encoding (ACTA hex, Asqav-native base64) plus
- * the Asqav-only `anchors` envelope key.
- *
- * The chain field `previousReceiptHash` is SHA-256 of the JCS of the FULL
- * predecessor receipt INCLUDING its signature.
+ * ACTA adapter (draft-farley-acta-signed-receipts-01): Ed25519 over the JCS of `payload`, hex sig. Kept
+ * disjoint from Asqav-native by sig encoding and the `anchors` key; Commitment Mode is not implemented.
  */
 
 import {
