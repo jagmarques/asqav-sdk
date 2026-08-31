@@ -1,22 +1,6 @@
 /**
- * Signature-verify dispatch shared across format adapters - a port of the Python
- * oracle's `verifier/oracle/crypto.py`.
- *
- * One entry point, `verifySignature(alg, pk, msg, sig)`, returns a 3-state
- * `{result, note}` where result is `PASS` / `FAIL` / `SKIPPED`, so the oracle
- * never prints a PASS for a signature it could not actually check.
- *
- * Algorithm wiring:
- *   - `Ed25519` / `EdDSA` : `node:crypto.verify` over a raw 32-byte public key.
- *   - `ES256`             : ECDSA P-256 / SHA-256 over a 65-byte uncompressed
- *                           point; signature is the 64-byte raw r||s form
- *                           (ieee-p1363), which `node:crypto` verifies directly.
- *   - `ML-DSA-65`         : `@noble/post-quantum` (MIT, pure JS). API:
- *                           `verify(sig, msg, publicKey)` -> boolean.
- *                           Public key is 1952 raw bytes; signature is 3309 bytes.
- *                           Byte-compatible with FIPS 204 / dilithium-py.
- *
- * Malformed key or signature bytes -> FAIL, never throw.
+ * Signature-verify dispatch shared across format adapters, a port of the Python oracle's `crypto.py`.
+ * `verifySignature` returns PASS / FAIL / SKIPPED, so a signature it could not check never reads PASS.
  */
 
 import { createPublicKey, verify } from "node:crypto";
@@ -40,10 +24,7 @@ function base64url(buf: Buffer): string {
 }
 
 /**
- * ML-DSA-65 verify via @noble/post-quantum (MIT, pure JS/WASM-free).
- *
- * Noble's API: verify(sig, msg, publicKey) -> boolean.
- * Key is 1952 raw bytes; signature is 3309 bytes (FIPS 204 ML-DSA-65).
+ * ML-DSA-65 verify via @noble/post-quantum: key 1952 raw bytes, signature 3309 (FIPS 204).
  * Byte-compatible with Python dilithium-py.
  */
 function verifyMlDsa65(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
@@ -83,11 +64,8 @@ function verifyEd25519(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): Verify
 }
 
 /**
- * ES256 (ECDSA P-256 over SHA-256) verify.
- *
- * The public key is the 65-byte uncompressed point (0x04 || X || Y). The
- * signature is the 64-byte raw r||s (ieee-p1363) form WebCrypto / JOSE emit,
- * which `node:crypto.verify` accepts with `dsaEncoding: "ieee-p1363"`.
+ * ES256 (ECDSA P-256 over SHA-256). Key is the 65-byte uncompressed point; signature is the 64-byte
+ * raw r||s form, which `node:crypto.verify` accepts with `dsaEncoding: "ieee-p1363"`.
  */
 function verifyEs256(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
   let key;
