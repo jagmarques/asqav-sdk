@@ -108,6 +108,11 @@ class FormatAdapter(ABC):
         """
         return []
 
+    def seq_of(self, doc: dict) -> Any:
+        # Raw so the axis can report a malformed counter; extra_axes never sees the
+        # predecessor continuity needs, so the counter is read here instead.
+        return None
+
     def attestation(self, doc: dict) -> dict[str, Any]:
         """In-body attestation fields surfaced in the verdict (e.g. ``signer``).
 
