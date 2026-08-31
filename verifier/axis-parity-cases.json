@@ -2103,5 +2103,258 @@
           "note_contains": "binding not checked"
         }
       }
+    ],
+    "receipt_integrity_note": "Receipt-internal integrity axes (payload_digest, counterparty). Expectations are the output of the Python check_payload_digest / check_counterparty_binding in python/src/asqav/verifier/verify_receipt.py; both suites feed every case through their own implementation. payload_digest is recomputable with NO external data whenever the receipt carries both a context and a digest over it, so the two disagreeing proves one of them is a lie. counterparty_binding is caller-supplied corroboration: absence PASSes, a claim the verifier cannot resolve reports SKIPPED (which blocks, so it never reads as corroborated), and malformed or mismatched FAILs.",
+    "payload_digest": [
+      {
+        "name": "no payload_digest bound",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          }
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "binds no payload_digest"
+        }
+      },
+      {
+        "name": "digest rederives from the carried context",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": {
+            "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+            "size": 31
+          }
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "rederives from the carried context"
+        }
+      },
+      {
+        "name": "digest commits to something the context does not hash to",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": {
+            "hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "size": 31
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "payload_digest_mismatch"
+        }
+      },
+      {
+        "name": "size disagrees with the canonical context",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": {
+            "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+            "size": 99999
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "payload_digest_mismatch"
+        }
+      },
+      {
+        "name": "no context carried, nothing to recompute against",
+        "payload": {
+          "payload_digest": {
+            "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+            "size": 31
+          }
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "no context carried"
+        }
+      },
+      {
+        "name": "explicit null context reads as absent",
+        "payload": {
+          "context": null,
+          "payload_digest": {
+            "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e"
+          }
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "no context carried"
+        }
+      },
+      {
+        "name": "payload_digest is not an object",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": "nope"
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "not an object"
+        }
+      },
+      {
+        "name": "hash is not 64 lowercase hex",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": {
+            "hash": "ABC"
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "not 64 lowercase hex"
+        }
+      },
+      {
+        "name": "hash is uppercase hex",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": {
+            "hash": "F50D36C1739463E571DA8E929FDEB3BC35C5BF86051C653D6A61DEEDCB10944E"
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "not 64 lowercase hex"
+        }
+      },
+      {
+        "name": "size is negative",
+        "payload": {
+          "context": {
+            "amount": 100,
+            "currency": "EUR"
+          },
+          "payload_digest": {
+            "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+            "size": -1
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "non-negative integer"
+        }
+      }
+    ],
+    "counterparty_binding": [
+      {
+        "name": "no counterparty binding claimed",
+        "payload": {},
+        "expect": {
+          "result": "PASS",
+          "note_contains": "unilaterally asserted"
+        }
+      },
+      {
+        "name": "claimed but no originating receipt supplied",
+        "payload": {
+          "counterparty_binding": {
+            "receipt_ref": "sig_X",
+            "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          }
+        },
+        "expect": {
+          "result": "SKIPPED",
+          "note_contains": "corroboration is unchecked"
+        }
+      },
+      {
+        "name": "binding is not an object",
+        "payload": {
+          "counterparty_binding": "nope"
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "not an object"
+        }
+      },
+      {
+        "name": "receipt_ref missing",
+        "payload": {
+          "counterparty_binding": {
+            "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "receipt_ref missing"
+        }
+      },
+      {
+        "name": "envelope_hash missing",
+        "payload": {
+          "counterparty_binding": {
+            "receipt_ref": "sig_X"
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "envelope_hash missing"
+        }
+      },
+      {
+        "name": "envelope_hash is not base64",
+        "payload": {
+          "counterparty_binding": {
+            "receipt_ref": "sig_X",
+            "envelope_hash": "!!!not-b64!!!"
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "is not base64"
+        }
+      },
+      {
+        "name": "envelope_hash is not a sha-256 width",
+        "payload": {
+          "counterparty_binding": {
+            "receipt_ref": "sig_X",
+            "envelope_hash": "c2hvcnQ="
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "not a sha-256"
+        }
+      },
+      {
+        "name": "expect_ack_from is not a string",
+        "payload": {
+          "counterparty_binding": {
+            "receipt_ref": "sig_X",
+            "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "expect_ack_from": 7
+          }
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "expect_ack_from is not a string"
+        }
+      }
     ]
 }
