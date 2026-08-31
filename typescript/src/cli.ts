@@ -1,22 +1,7 @@
 #!/usr/bin/env node
 /**
- * asqav CLI for TypeScript / Node.
- *
- * Mirrors the Python `asqav` CLI surface:
- *   asqav --version
- *   asqav verify <signature_id>
- *   asqav agents list / create <name>
- *   asqav sessions list / end <session_id>
- *   asqav replay <agent_id> <session_id>
- *   asqav preflight <agent_id> <action_type>
- *   asqav budget check / record
- *   asqav approve <session_id> <entity_id>
- *   asqav compliance frameworks / export
- *   asqav audit-pack verify <bundle>
- *   asqav org halt / resume <org_id>          (admin, ASQAV_SESSION_TOKEN)
- *
- * Every command here works on the free tier. The server is the source of
- * truth for what a given key may do.
+ * asqav CLI for TypeScript / Node, mirroring the Python `asqav` CLI surface. Every command works on the
+ * free tier; the server is the source of truth for what a given key may do.
  */
 
 import fs from "node:fs";
@@ -455,9 +440,10 @@ function validateSignFlags(flags: SignCliFlags): void {
   }
 }
 
-/** Assemble the call-time `context` map by reading the optional JSON
- * file, layering the optional policy artefact under a sentinel key, and
- * stamping the `_action_id` sentinel when supplied. */
+/**
+ * Assemble the call-time `context` map: the optional JSON file, the optional policy artefact under a
+ * sentinel key, and the `_action_id` sentinel when supplied.
+ */
 async function loadSignContext(
   flags: SignCliFlags,
 ): Promise<Record<string, unknown> | undefined> {
@@ -740,11 +726,8 @@ async function cmdOrgSetComplianceStrict(args: string[]): Promise<void> {
 }
 
 /**
- * Call an admin/owner route that authenticates with a dashboard JWT.
- *
- * The emergency-halt routes resolve the caller via the cloud's
- * get_current_user dependency (cookie or Authorization: Bearer), not the
- * X-API-Key an agent key carries. Reads the JWT from ASQAV_SESSION_TOKEN.
+ * Call an admin/owner route that authenticates with a dashboard JWT read from ASQAV_SESSION_TOKEN, not
+ * the X-API-Key an agent key carries.
  */
 async function sessionRequest(
   method: string,
