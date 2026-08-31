@@ -750,3 +750,143 @@ export function checkKeyBinding(
   }
   return ["FAIL", `key_substituted: receipt binds ${claimed}, resolved key computes ${actual}`];
 }
+
+// ---------------------------------------------------------------------------
+// Receipt-internal integrity: payload_digest vs the carried context, and a
+// claimed counterparty binding. Ports of the Python check_payload_digest /
+// check_counterparty_binding; the shared vectors hold the two copies together.
+// ---------------------------------------------------------------------------
+
+const LOWER_HEX_64 = /^[0-9a-f]{64}$/;
+
+/**
+ * Recompute payload_digest from the context carried in the same receipt.
+ *
+ * A receipt carrying BOTH a context and a digest over it is checkable with no
+ * external data, and the two disagreeing means one of them is a lie. Absence
+ * PASSes on both sides: hash mode carries no context, and a payload-mode receipt
+ * may legitimately omit it under redaction.
+ */
+export function checkPayloadDigest(payload: unknown): readonly [VerifyState, string] {
+  if (!isRecord(payload)) return ["PASS", "no signed payload; no digest to recompute"];
+  const digest = payload.payload_digest;
+  if (digest === undefined || digest === null) {
+    return ["PASS", "receipt binds no payload_digest; nothing to recompute"];
+  }
+  if (!isRecord(digest)) {
+    return ["FAIL", `payload_digest is ${pyTypeName(digest)}, not an object`];
+  }
+  const claimed = digest.hash;
+  if (typeof claimed !== "string" || !LOWER_HEX_64.test(claimed)) {
+    return ["FAIL", `payload_digest.hash ${pyRepr(claimed)} is not 64 lowercase hex`];
+  }
+  const claimedSize = digest.size;
+  if (
+    claimedSize !== undefined &&
+    claimedSize !== null &&
+    (typeof claimedSize !== "number" || !Number.isInteger(claimedSize) || claimedSize < 0)
+  ) {
+    return ["FAIL", `payload_digest.size ${pyRepr(claimedSize)} is not a non-negative integer`];
+  }
+  if (payload.context === undefined || payload.context === null) {
+    return ["PASS", "no context carried; payload_digest not recomputable here"];
+  }
+  let encoded: Uint8Array;
+  try {
+    encoded = asqavJcs(payload.context);
+  } catch {
+    return ["SKIPPED", "context is not canonicalisable, so payload_digest cannot be recomputed"];
+  }
+  const actual = sha256Hex(encoded);
+  if (actual !== claimed) {
+    return [
+      "FAIL",
+      `payload_digest_mismatch: receipt binds ${claimed.slice(0, 16)}.., ` +
+        `its own context hashes to ${actual.slice(0, 16)}..`,
+    ];
+  }
+  if (claimedSize !== undefined && claimedSize !== null && claimedSize !== encoded.length) {
+    return [
+      "FAIL",
+      `payload_digest_mismatch: size claims ${claimedSize}, ` +
+        `canonical context is ${encoded.length} bytes`,
+    ];
+  }
+  return ["PASS", `payload_digest rederives from the carried context (${encoded.length} bytes)`];
+}
+
+/**
+ * Weigh a claimed cross-agent binding instead of letting it ride unchecked.
+ *
+ * counterparty_binding is caller-supplied, so an issuer can assert "the
+ * counterparty acknowledged this" over a receipt nobody else saw. Absence PASSes;
+ * a claim this verifier cannot resolve reports SKIPPED, which blocks, so an
+ * unchecked binding never reads as corroborated; malformed or mismatched FAILs.
+ */
+export function checkCounterpartyBinding(
+  payload: unknown,
+  originator?: Record<string, unknown> | null,
+): readonly [VerifyState, string] {
+  if (!isRecord(payload)) return ["PASS", "no signed payload; no counterparty binding to check"];
+  const cpb = payload.counterparty_binding;
+  if (cpb === undefined || cpb === null) {
+    return ["PASS", "no counterparty binding; content is unilaterally asserted"];
+  }
+  if (!isRecord(cpb)) {
+    return ["FAIL", `counterparty_binding is ${pyTypeName(cpb)}, not an object`];
+  }
+  const receiptRef = cpb.receipt_ref;
+  const envelopeHash = cpb.envelope_hash;
+  if (typeof receiptRef !== "string" || receiptRef.length === 0) {
+    return ["FAIL", "counterparty_binding.receipt_ref missing or not a string"];
+  }
+  if (typeof envelopeHash !== "string" || envelopeHash.length === 0) {
+    return ["FAIL", "counterparty_binding.envelope_hash missing or not a string"];
+  }
+  let raw: Buffer;
+  try {
+    raw = Buffer.from(envelopeHash, "base64");
+    if (raw.toString("base64").replace(/=+$/, "") !== envelopeHash.replace(/=+$/, "")) {
+      return ["FAIL", `counterparty_binding.envelope_hash ${pyRepr(envelopeHash)} is not base64`];
+    }
+  } catch {
+    return ["FAIL", `counterparty_binding.envelope_hash ${pyRepr(envelopeHash)} is not base64`];
+  }
+  if (raw.length !== 32) {
+    return [
+      "FAIL",
+      `counterparty_binding.envelope_hash decodes to ${raw.length} bytes, not a sha-256`,
+    ];
+  }
+  const expectAckFrom = cpb.expect_ack_from;
+  if (expectAckFrom !== undefined && expectAckFrom !== null && typeof expectAckFrom !== "string") {
+    return ["FAIL", "counterparty_binding.expect_ack_from is not a string"];
+  }
+  if (!isRecord(originator)) {
+    return [
+      "SKIPPED",
+      `counterparty binding claims ${receiptRef}; no originating receipt supplied, ` +
+        "so the corroboration is unchecked",
+    ];
+  }
+  const actual = Buffer.from(sha256Hex(asqavJcs(originator)), "hex").toString("base64");
+  if (actual !== envelopeHash) {
+    return [
+      "FAIL",
+      `counterparty_mismatch: binding commits ${envelopeHash.slice(0, 16)}.., ` +
+        `supplied originator hashes to ${actual.slice(0, 16)}..`,
+    ];
+  }
+  if (
+    expectAckFrom !== undefined &&
+    expectAckFrom !== null &&
+    payload.issuer_id !== expectAckFrom
+  ) {
+    return [
+      "FAIL",
+      `counterparty_mismatch: binding expects an acknowledgment from ${expectAckFrom}, ` +
+        `this receipt is issued by ${pyRepr(payload.issuer_id)}`,
+    ];
+  }
+  return ["PASS", `counterparty binding rederives from the supplied ${receiptRef}`];
+}

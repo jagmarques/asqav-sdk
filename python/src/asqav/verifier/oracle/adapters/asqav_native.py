@@ -251,7 +251,8 @@ class AsqavNativeAdapter(FormatAdapter):
         """
         # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
         # expires_at, and reading the flat doc would gate on an uncovered field.
-        signed = {} if _is_hash_mode(doc) else _payload(doc)
+        hash_mode = _is_hash_mode(doc)
+        signed = {} if hash_mode else _payload(doc)
         axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
         axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
         jwks = key_provider or {"keys": []}
@@ -260,6 +261,15 @@ class AsqavNativeAdapter(FormatAdapter):
         # still says so rather than dropping the axis when nothing resolved.
         bound_alg, bound_pk = _resolved_key_material(entry)
         axes.append(("key_binding", *_vr.check_key_binding(signed, bound_alg, bound_pk)))
+        # No database offline, so a claimed binding reports unresolved rather than
+        # riding along as corroboration nobody checked
+        axes.append(("counterparty", *_vr.check_counterparty_binding(signed)))
+        axes.append(("payload_digest", *_vr.check_payload_digest(signed)))
+        # Hash mode signs no issued_at, so skew reads the flat server_timestamp there.
+        # Without this the oracle accepted a receipt claiming a 2099 issue time that the
+        # standalone verifier has always refused
+        stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
+        axes.append(("skew", *_vr.check_skew(stamp)))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)
