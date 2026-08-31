@@ -32,6 +32,7 @@ import {
   b64decode,
   checkExpiry,
   checkIssuerBinding,
+  checkKeyBinding,
   checkKeyStatus,
   checkNonce,
   checkOrgBinding,
@@ -65,7 +66,27 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /** True for a flat hash-mode signature receipt (mode=hash, null payload, a sig). */
 // Claim fields that live inside the signed compliance payload. A hash-mode
 // receipt carrying one is presenting a claim its signature does not cover.
-const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash"];
+// key_thumbprint is here because hash mode signs the flat 11 fields and nothing
+// else, so a thumbprint pasted onto one binds no key at all.
+const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash", "key_thumbprint"];
+
+/**
+ * alg plus raw public-key bytes of the resolved directory entry.
+ *
+ * The directory publishes the key as standard base64 under `public_key`; an AKP
+ * thumbprint is taken over the same bytes in unpadded base64url, so the decode
+ * has to happen before the digest, never after.
+ */
+function resolvedKeyMaterial(
+  entry: Record<string, unknown> | null,
+): readonly [unknown, Uint8Array | null] {
+  if (entry === null) return [null, null];
+  try {
+    return [entry.alg, b64decode(entry.public_key as string)];
+  } catch {
+    return [entry.alg, null];
+  }
+}
 
 function isHashMode(doc: Record<string, unknown>): boolean {
   // Routing reads the shape of the signed unit only: a record payload is the
@@ -241,6 +262,10 @@ export class AsqavNativeAdapter extends FormatAdapter {
     axes.push(["nonce", ...checkNonce(hashMode ? {} : payloadOf(doc), this.seenNonces)]);
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);
+    // Reported before the no-entry return, so a receipt binding no thumbprint
+    // still says so rather than dropping the axis when nothing resolved.
+    const [boundAlg, boundPk] = resolvedKeyMaterial(entry);
+    axes.push(["key_binding", ...checkKeyBinding(hashMode ? {} : payloadOf(doc), boundAlg, boundPk)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.

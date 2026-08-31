@@ -1848,5 +1848,260 @@
       },
       "why": "The control: an honest token over the right digest. Python verifies it to PASS, TS still reports unverifiable, so the divergence above is the absence of anchor cryptography in TS and not a quirk of a forged token."
     }
-  ]
+  ],
+    "key_thumbprint_vectors_note": "RFC 7638 JWK Thumbprint vectors over the draft-ietf-cose-dilithium AKP form: the digest is taken over {alg, kty, pub} sorted, separator-tight, with pub in UNPADDED BASE64URL. The all-0xff ML-DSA-87 vector is the alphabet trap: its pub is all '_' in base64url where standard base64 gives '/', so an implementation that reuses the directory's public_key alphabet produces a digest no other verifier reproduces.",
+    "key_thumbprint_vectors": [
+      {
+        "name": "ML-DSA-44 all-zero key",
+        "key": {
+          "alg": "ML-DSA-44",
+          "fill": 0,
+          "len": 1312
+        },
+        "thumbprint": "sha256:d822401dad5b6a8832b186e94c3be90b0918823b9f24dae4720432d208bfd9f5"
+      },
+      {
+        "name": "ML-DSA-65 all-zero key",
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "thumbprint": "sha256:6c5527f63dbf9e252375ad2bf114074d995a389a0d818cce38b3a25794f875de"
+      },
+      {
+        "name": "ML-DSA-65 all-0x01 key",
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 1,
+          "len": 1952
+        },
+        "thumbprint": "sha256:f1c75378c00886a8c6b2df96564b21e5c189e2b4366fa78c8e42fb207c34c2ac"
+      },
+      {
+        "name": "ML-DSA-87 all-0xff key (base64url alphabet: pub is all '_', standard base64 would be '/')",
+        "key": {
+          "alg": "ML-DSA-87",
+          "fill": 255,
+          "len": 2592
+        },
+        "thumbprint": "sha256:95078132ec612bea77887e77a1652ee0df411afd32596dd647a15e378ea8dd92"
+      }
+    ],
+    "key_binding_note": "key_thumbprint binding axis parity table (criterion 458). Expectations are the output of the Python check_key_binding in python/src/asqav/verifier/verify_receipt.py; both suites feed every case through their own implementation. `key` describes the key the signature axis resolved, expanded by each suite as a byte of value `fill` repeated `len` times, so the table stays small and identical in both languages; `key: null` means nothing resolved. ABSENCE is PASS, not SKIPPED: a skip blocks the verdict, and every receipt issued before the field existed omits it. A mismatch is FAIL and key_binding is in _INVALID_FAIL_AXES, so the verdict is unverified with failure_class invalid, never a warning. The two unrecomputable cases report SKIPPED, which also blocks, so an unverifiable binding cannot read as verified.",
+    "key_binding": [
+      {
+        "name": "no key_thumbprint bound",
+        "payload": {},
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "receipt binds no key_thumbprint; binding not checked"
+        }
+      },
+      {
+        "name": "bound thumbprint rederives from the resolved key",
+        "payload": {
+          "key_thumbprint": "sha256:6c5527f63dbf9e252375ad2bf114074d995a389a0d818cce38b3a25794f875de"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "rederives from the resolved ML-DSA-65 key"
+        }
+      },
+      {
+        "name": "ML-DSA-44 binding rederives",
+        "payload": {
+          "key_thumbprint": "sha256:d822401dad5b6a8832b186e94c3be90b0918823b9f24dae4720432d208bfd9f5"
+        },
+        "key": {
+          "alg": "ML-DSA-44",
+          "fill": 0,
+          "len": 1312
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "rederives from the resolved ML-DSA-44 key"
+        }
+      },
+      {
+        "name": "ML-DSA-87 binding rederives over the base64url alphabet",
+        "payload": {
+          "key_thumbprint": "sha256:95078132ec612bea77887e77a1652ee0df411afd32596dd647a15e378ea8dd92"
+        },
+        "key": {
+          "alg": "ML-DSA-87",
+          "fill": 255,
+          "len": 2592
+        },
+        "expect": {
+          "result": "PASS",
+          "note_contains": "rederives from the resolved ML-DSA-87 key"
+        }
+      },
+      {
+        "name": "key substituted under the same identifier",
+        "payload": {
+          "key_thumbprint": "sha256:6c5527f63dbf9e252375ad2bf114074d995a389a0d818cce38b3a25794f875de"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 1,
+          "len": 1952
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "key_substituted"
+        }
+      },
+      {
+        "name": "alg participates in the digest: a 44 key cannot satisfy a 65 binding",
+        "payload": {
+          "key_thumbprint": "sha256:6c5527f63dbf9e252375ad2bf114074d995a389a0d818cce38b3a25794f875de"
+        },
+        "key": {
+          "alg": "ML-DSA-44",
+          "fill": 0,
+          "len": 1312
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "key_substituted"
+        }
+      },
+      {
+        "name": "standard-base64 pub yields a digest the AKP form never produces",
+        "payload": {
+          "key_thumbprint": "sha256:e187b36fdf876583a6a6429591900efd1b636ce6a6d00f48c85451a4278d2650"
+        },
+        "key": {
+          "alg": "ML-DSA-87",
+          "fill": 255,
+          "len": 2592
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "key_substituted"
+        }
+      },
+      {
+        "name": "malformed: digest too short",
+        "payload": {
+          "key_thumbprint": "sha256:abc"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "is not sha256:<64 lowercase hex>"
+        }
+      },
+      {
+        "name": "malformed: uppercase hex",
+        "payload": {
+          "key_thumbprint": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "is not sha256:<64 lowercase hex>"
+        }
+      },
+      {
+        "name": "malformed: wrong digest prefix",
+        "payload": {
+          "key_thumbprint": "sha1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "is not sha256:<64 lowercase hex>"
+        }
+      },
+      {
+        "name": "malformed: bare hex with no prefix",
+        "payload": {
+          "key_thumbprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "is not sha256:<64 lowercase hex>"
+        }
+      },
+      {
+        "name": "malformed: not a string",
+        "payload": {
+          "key_thumbprint": 42
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 1952
+        },
+        "expect": {
+          "result": "FAIL",
+          "note_contains": "is not sha256:<64 lowercase hex>"
+        }
+      },
+      {
+        "name": "no key resolved, so nothing to rederive from",
+        "payload": {
+          "key_thumbprint": "sha256:6c5527f63dbf9e252375ad2bf114074d995a389a0d818cce38b3a25794f875de"
+        },
+        "key": null,
+        "expect": {
+          "result": "SKIPPED",
+          "note_contains": "no signing key resolved"
+        }
+      },
+      {
+        "name": "resolved key is not raw ML-DSA material (the KMS PEM row)",
+        "payload": {
+          "key_thumbprint": "sha256:6c5527f63dbf9e252375ad2bf114074d995a389a0d818cce38b3a25794f875de"
+        },
+        "key": {
+          "alg": "ML-DSA-65",
+          "fill": 0,
+          "len": 800
+        },
+        "expect": {
+          "result": "SKIPPED",
+          "note_contains": "not raw ML-DSA material"
+        }
+      },
+      {
+        "name": "absence stays conformant even when no key resolved",
+        "payload": {},
+        "key": null,
+        "expect": {
+          "result": "PASS",
+          "note_contains": "binding not checked"
+        }
+      }
+    ]
 }
