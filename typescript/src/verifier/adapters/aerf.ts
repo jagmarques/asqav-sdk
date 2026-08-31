@@ -1,20 +1,6 @@
 /**
- * AERF adapter - Ed25519 over RFC 8785 JCS, signed directly (no pre-hash).
- * A port of the Python oracle's `verifier/oracle/adapters/aerf.py`.
- *
- * AERF receipts are a flat object. The signature is Ed25519 over the JCS bytes of
- * the receipt with the non-payload fields stripped - `signature`, `timestamp`,
- * `parent_signature`, `parent_key_id`, `log_inclusion_proof` - signed DIRECTLY.
- *
- * Chain rule (AERF SPEC): `previous_receipt_hash` is the SHA-256 of the
- * predecessor's signable payload with the SAME field set stripped (signature
- * EXCLUDED). Genesis OMITS the field entirely; a present `previous_receipt_hash:
- * null` is a malformed genesis.
- *
- * AERF layers two conditionally-REQUIRED signature checks in `extraAxes`:
- *   - parent counter-signature: REQUIRED when `impact_tags` is non-empty.
- *   - PDP binding: REQUIRED when `impact_tags` is non-empty; the PDP key signs
- *     the canonical tuple `{context_hash_sha256, in_policy, policy_hash}`.
+ * AERF adapter: Ed25519 over RFC 8785 JCS of the receipt with the non-payload fields stripped, signed
+ * directly. Non-empty `impact_tags` makes the parent counter-signature and PDP binding REQUIRED.
  */
 
 import {
