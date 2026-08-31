@@ -245,7 +245,16 @@ FAILURE_UNVERIFIABLE = "unverifiable"
 
 #: Axes whose FAIL proves a cryptographic/policy binding failure (invalid).
 _INVALID_FAIL_AXES = frozenset(
-    {"signature", "anchors", "issuer_bind", "key_status", "nonce", "key_binding"}
+    {
+        "signature",
+        "anchors",
+        "issuer_bind",
+        "key_status",
+        "nonce",
+        "key_binding",
+        "counterparty",
+        "payload_digest",
+    }
 )
 
 
@@ -1617,6 +1626,132 @@ def check_skew(issued_at: str):
     return "PASS", f"skew {skew:.0f}s within bound"
 
 
+def check_payload_digest(payload: dict):
+    """Recompute payload_digest from the context carried in the same receipt.
+
+    A receipt that carries BOTH the context and a digest over it is checkable with
+    no external data at all, and the two disagreeing means one of them is a lie:
+    the digest is what downstream systems bind the action content to, so a receipt
+    whose own context does not hash to its own digest is internally inconsistent.
+    Nothing checked this before, so an issuer could sign a benign context beside a
+    digest committing to something else entirely and every verifier passed it.
+
+    Absence PASSes on both sides. Hash mode carries no context, and a payload-mode
+    receipt may legitimately omit it (redaction, or an org that does not store the
+    full payload), so a missing context is the ordinary case and never a failure.
+    """
+    if not isinstance(payload, dict):
+        return "PASS", "no signed payload; no digest to recompute"
+    digest = payload.get("payload_digest")
+    if digest is None:
+        return "PASS", "receipt binds no payload_digest; nothing to recompute"
+    if not isinstance(digest, dict):
+        return "FAIL", f"payload_digest is {type(digest).__name__}, not an object"
+    claimed = digest.get("hash")
+    if not isinstance(claimed, str) or not re.fullmatch(r"[0-9a-f]{64}", claimed):
+        return "FAIL", f"payload_digest.hash {claimed!r} is not 64 lowercase hex"
+    claimed_size = digest.get("size")
+    if claimed_size is not None and (
+        not isinstance(claimed_size, int) or isinstance(claimed_size, bool) or claimed_size < 0
+    ):
+        return "FAIL", f"payload_digest.size {claimed_size!r} is not a non-negative integer"
+    if payload.get("context") is None:
+        # An explicit null reads as absent: the hosted verifier returns payload: null
+        # for redacted and hash-only receipts, and null is not a context to hash
+        return "PASS", "no context carried; payload_digest not recomputable here"
+
+    try:
+        encoded = canonical_json(payload["context"])
+    except (TypeError, ValueError, RecursionError):
+        return "SKIPPED", "context is not canonicalisable, so payload_digest cannot be recomputed"
+    actual = hashlib.sha256(encoded).hexdigest()
+    if actual != claimed:
+        return "FAIL", (
+            f"payload_digest_mismatch: receipt binds {claimed[:16]}.., "
+            f"its own context hashes to {actual[:16]}.."
+        )
+    if claimed_size is not None and claimed_size != len(encoded):
+        return "FAIL", (
+            f"payload_digest_mismatch: size claims {claimed_size}, "
+            f"canonical context is {len(encoded)} bytes"
+        )
+    return "PASS", f"payload_digest rederives from the carried context ({len(encoded)} bytes)"
+
+
+def _envelope_hash(envelope: dict) -> str:
+    """Base64 SHA-256 over the originating envelope's full canonical bytes.
+
+    Scope includes the originator's signature bytes, which is the rule that stops a
+    re-signing intermediary from escaping detection. Mirrors the cloud's
+    core/envelope.py compute_envelope_hash.
+    """
+    return base64.b64encode(hashlib.sha256(canonical_json(envelope)).digest()).decode()
+
+
+def check_counterparty_binding(payload: dict, originator: dict | None = None):
+    """Weigh a claimed cross-agent binding instead of letting it ride unchecked.
+
+    counterparty_binding is caller-supplied: an issuer can attach one asserting
+    "the counterparty acknowledged this" over a receipt nobody else ever saw. The
+    hosted verifier resolves receipt_ref against its own database, but an offline
+    third party has no database, so before this axis existed a fabricated binding
+    reached a plain verified verdict with the corroboration claim unexamined.
+
+    Absence PASSes: a receipt that claims no corroboration is the ordinary case and
+    must not be penalised, and a skip would block every one of them. A claim the
+    verifier cannot resolve reports SKIPPED, which blocks, so an unchecked binding
+    can never read as corroborated - the same rule anchors follow, where presence
+    alone never passes the axis. A malformed or mismatched binding is a proven
+    break and FAILs, because the receipt asserts a binding it cannot satisfy.
+    """
+    if not isinstance(payload, dict):
+        return "PASS", "no signed payload; no counterparty binding to check"
+    cpb = payload.get("counterparty_binding")
+    if cpb is None:
+        return "PASS", "no counterparty binding; content is unilaterally asserted"
+    if not isinstance(cpb, dict):
+        return "FAIL", f"counterparty_binding is {type(cpb).__name__}, not an object"
+
+    receipt_ref = cpb.get("receipt_ref")
+    envelope_hash = cpb.get("envelope_hash")
+    if not isinstance(receipt_ref, str) or not receipt_ref:
+        return "FAIL", "counterparty_binding.receipt_ref missing or not a string"
+    if not isinstance(envelope_hash, str) or not envelope_hash:
+        return "FAIL", "counterparty_binding.envelope_hash missing or not a string"
+    try:
+        raw = base64.b64decode(envelope_hash, validate=True)
+    except Exception:
+        return "FAIL", f"counterparty_binding.envelope_hash {envelope_hash!r} is not base64"
+    if len(raw) != 32:
+        return "FAIL", (
+            f"counterparty_binding.envelope_hash decodes to {len(raw)} bytes, not a sha-256"
+        )
+
+    expect_ack_from = cpb.get("expect_ack_from")
+    if expect_ack_from is not None and not isinstance(expect_ack_from, str):
+        return "FAIL", "counterparty_binding.expect_ack_from is not a string"
+
+    if not isinstance(originator, dict):
+        # Structurally sound but nothing here corroborates it; blocking on purpose
+        return "SKIPPED", (
+            f"counterparty binding claims {receipt_ref}; no originating receipt supplied, "
+            "so the corroboration is unchecked"
+        )
+
+    actual = _envelope_hash(originator)
+    if actual != envelope_hash:
+        return "FAIL", (
+            f"counterparty_mismatch: binding commits {envelope_hash[:16]}.., "
+            f"supplied originator hashes to {actual[:16]}.."
+        )
+    if expect_ack_from is not None and payload.get("issuer_id") != expect_ack_from:
+        return "FAIL", (
+            f"counterparty_mismatch: binding expects an acknowledgment from "
+            f"{expect_ack_from}, this receipt is issued by {payload.get('issuer_id')!r}"
+        )
+    return "PASS", f"counterparty binding rederives from the supplied {receipt_ref}"
+
+
 def check_key_binding(payload: dict, alg, public_key):
     """Recompute the signed key_thumbprint from the resolved key and compare.
 
@@ -1784,6 +1919,7 @@ def run(
     *,
     trusted_tsa_keys=None,
     bitcoin_headers=None,
+    counterparty: dict | None = None,
 ) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
@@ -1898,6 +2034,8 @@ def run(
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
+    results.append(("counterparty", *check_counterparty_binding(payload, counterparty)))
+    results.append(("payload_digest", *check_payload_digest(payload)))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
@@ -1944,6 +2082,7 @@ def run_structured(
     *,
     trusted_tsa_keys=None,
     bitcoin_headers=None,
+    counterparty: dict | None = None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
@@ -2093,6 +2232,10 @@ def run_structured(
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
+    axes.append(
+        _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty))
+    )
+    axes.append(_struct_axis("payload_digest", *check_payload_digest(payload)))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))

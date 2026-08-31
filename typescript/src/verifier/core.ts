@@ -68,6 +68,8 @@ const INVALID_FAIL_AXES = new Set([
   "issuer_bind",
   "key_status",
   "key_binding",
+  "counterparty",
+  "payload_digest",
   "nonce",
   "parent_signature",
   "pdp_signature",
