@@ -48,10 +48,8 @@ _HASH_MODE_FIELDS = (
 )
 
 
-#: Claim fields that live inside the signed compliance payload. A hash-mode
-#: receipt carrying one is presenting a claim its signature does not cover.
-#: key_thumbprint is here because hash mode signs the flat 11 fields above and
-#: nothing else, so a thumbprint pasted onto one binds no key at all.
+#: Claims belonging to the signed payload; hash mode signs the flat fields only,
+#: so a thumbprint pasted onto one binds nothing.
 _UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash", "key_thumbprint")
 
 
@@ -265,9 +263,8 @@ class AsqavNativeAdapter(FormatAdapter):
         # riding along as corroboration nobody checked
         axes.append(("counterparty", *_vr.check_counterparty_binding(signed)))
         axes.append(("payload_digest", *_vr.check_payload_digest(signed)))
-        # Hash mode signs no issued_at, so skew reads the flat server_timestamp there.
-        # Without this the oracle accepted a receipt claiming a 2099 issue time that the
-        # standalone verifier has always refused
+        # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
+        # this the oracle accepted a 2099 issue time the standalone verifier refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
         axes.append(("skew", *_vr.check_skew(stamp)))
         if entry is None:
@@ -281,10 +278,8 @@ class AsqavNativeAdapter(FormatAdapter):
             payload = _payload(doc)
             issued_at = payload.get("issued_at", "")
             bind = _vr.check_issuer_binding(key_issuer, payload.get("issuer_id"))
-        # Only an anchor the caller cryptographically verified counts as trusted
-        # timing (verify_receipt.evaluate_anchors). This adapter pins no TSA key
-        # material, so it passes False: a forged anchor never rides a revoked key
-        # to PASS here.
+        # Only a caller-verified anchor counts as trusted timing. This adapter pins no
+        # TSA material, so it passes False: a forged anchor never rides a revoked key.
         res, note = _vr.check_key_status(
             entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
         )

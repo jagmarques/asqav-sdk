@@ -1,27 +1,15 @@
 /**
- * Counterparty acknowledgment binding helpers for the IETF Compliance Receipts profile.
- *
- * The acknowledging receipt's `receipt_type` is `protectmcp:acknowledgment`;
- * the binding object travels on the signed payload of B's receipt and
- * gates verification per the staged IETF -04 revision.
- *
- * See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
+ * Counterparty acknowledgment binding helpers for the IETF Compliance Receipts profile. The binding
+ * travels on the signed payload of B's `protectmcp:acknowledgment` receipt and gates verification.
  */
 
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
 
-/** Cross-agent byte-equality binding to an originating receipt.
- *
- * `envelope_hash` is the base64-encoded SHA-256 digest over the
- * originating receipt's full canonical signed envelope (signature bytes
- * included). `receipt_ref` is the opaque resolvable locator the
- * verifier uses to fetch A's envelope from the Audit Pack or a
- * Deployer-published index. `expect_ack_from` is an OPTIONAL
- * cross-check on the acknowledging receipt's signature `kid`;
- * `transport_label` is operational only and MUST NOT serve as a basis
- * for trust derivation.
+/**
+ * Cross-agent byte-equality binding to an originating receipt: `envelope_hash` over A's full canonical
+ * signed envelope, `receipt_ref` to fetch it. `transport_label` is operational, never a basis for trust.
  */
 export interface CounterpartyBinding {
   envelope_hash: string;
@@ -30,11 +18,9 @@ export interface CounterpartyBinding {
   transport_label?: string;
 }
 
-/** Per-axis outcome of the SDK-side counterparty-binding sanity check.
- *
- * `label` vocabulary: `matches` | `mismatch` | `unresolved` |
- * `kid_mismatch`. Mirrors the cloud's `counterparty_binding_verified`
- * axis in `api/routes/verify.py`.
+/**
+ * Per-axis outcome of the SDK-side counterparty-binding check; `label` is matches | mismatch |
+ * unresolved | kid_mismatch, mirroring the cloud's `counterparty_binding_verified` axis.
  */
 export interface CounterpartyBindingVerification {
   valid: boolean;
@@ -43,11 +29,9 @@ export interface CounterpartyBindingVerification {
   label: "matches" | "mismatch" | "unresolved" | "kid_mismatch";
 }
 
-/** Base64 SHA-256 of the originating envelope's full JCS bytes.
- *
- * Mirrors the cloud's `core.envelope.compute_envelope_hash` so the
- * acknowledger and the verifier produce byte-identical digests across
- * SDKs and the cloud emit path.
+/**
+ * Base64 SHA-256 of the originating envelope's full JCS bytes, mirroring the cloud's
+ * `compute_envelope_hash` so acknowledger, verifier and cloud produce byte-identical digests.
  */
 export function computeEnvelopeHash(
   envelope: Record<string, unknown>,
@@ -57,10 +41,10 @@ export function computeEnvelopeHash(
 
 /** Options for {@link computeCounterpartyBinding}. */
 export interface ComputeCounterpartyBindingOptions {
-  /** Resolvable locator for A's receipt. Defaults to
-   * `originatingEnvelope.payload.action_id` (then `signature_id`); pass
-   * an explicit value when the Audit Pack production layer uses a
-   * different identifier scheme. */
+  /**
+   * Resolvable locator for A's receipt, defaulting to `payload.action_id` then `signature_id`. Pass an
+   * explicit value when the Audit Pack uses a different identifier scheme.
+   */
   receiptRef?: string;
   /** Optional declared acknowledger identifier; the verifier cross-checks
    * the acknowledging receipt's `signature.kid` against this value. */
@@ -69,14 +53,9 @@ export interface ComputeCounterpartyBindingOptions {
   transportLabel?: string;
 }
 
-/** Build a {@link CounterpartyBinding} for the originating envelope.
- *
- * The digest is computed over the canonical bytes of the dict as-passed;
- * callers MUST pass the bytes B actually received, not a
- * re-canonicalization, so intermediary tampering is detectable.
- *
- * @throws Error if `receiptRef` was not supplied and the originating
- *   envelope's payload has no `action_id` to default to.
+/**
+ * Build a {@link CounterpartyBinding} over the canonical bytes of the dict as-passed; callers MUST pass
+ * the bytes B actually received, not a re-canonicalization, so intermediary tampering is detectable.
  */
 export function computeCounterpartyBinding(
   originatingEnvelope: Record<string, unknown>,
@@ -111,12 +90,9 @@ export function computeCounterpartyBinding(
   return binding;
 }
 
-/** Re-derive and compare the binding's `envelope_hash`.
- *
- * Returns `label` in {`matches`, `mismatch`, `unresolved`,
- * `kid_mismatch`} so callers can distinguish a tampered handoff from
- * a missing originator. `kidMatches` is `null` when `expect_ack_from`
- * was not declared on the binding.
+/**
+ * Re-derive and compare the binding's `envelope_hash`, returning a label that separates a tampered
+ * handoff from a missing originator. `kidMatches` is null when `expect_ack_from` was not declared.
  */
 export function verifyCounterpartyBinding(
   acknowledgmentEnvelope: Record<string, unknown>,

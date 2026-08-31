@@ -1,19 +1,6 @@
 /**
- * agent-receipts adapter - W3C-VC AgentReceipt, Ed25519 over strict RFC 8785 JCS.
- * A port of the Python oracle's `verifier/oracle/adapters/agentreceipts.py`.
- *
- * An AgentReceipt is a W3C Verifiable Credential 2.0 envelope. The signature is
- * Ed25519 over the strict JCS bytes of the receipt with the `proof` member
- * removed, signed DIRECTLY. `proof.type` is `Ed25519Signature2020` and
- * `proof.proofValue` is multibase `u` (base64url, no padding).
- *
- * Uses `jcsRfc8785` (UTF-16 key sort, ECMAScript numbers), NOT the AERF/ACTA
- * `jcs` dialect. The signing key resolves from `proof.verificationMethod` through
- * the shared DID resolver.
- *
- * Chain rule: `credentialSubject.chain.previous_receipt_hash` is `"sha256:"` +
- * hex(SHA-256(JCS(predecessor without proof))). Genesis carries the field present
- * and explicitly `null`.
+ * agent-receipts adapter: a W3C VC 2.0 envelope, Ed25519 over strict RFC 8785 JCS with `proof` removed.
+ * The signing key resolves from `proof.verificationMethod` through the shared DID resolver.
  */
 
 import {

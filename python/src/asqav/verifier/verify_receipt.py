@@ -399,13 +399,8 @@ def _b64decode(value: str) -> bytes:
     return base64.b64decode(s, validate=False)
 
 
-# ---------------------------------------------------------------------------
-# RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key.
-#
-# The mirror of the cloud's asqav_cloud.core.key_thumbprint. Inlined rather than
-# imported so this file stays the single-file offline verifier its header
-# promises; the cross-language vectors are what hold the two copies together.
-# ---------------------------------------------------------------------------
+# RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key, mirroring the cloud's
+# key_thumbprint. Inlined so this stays the single-file offline verifier.
 
 #: draft-ietf-cose-dilithium key type for ML-DSA key pairs
 AKP_KTY = "AKP"
@@ -414,8 +409,7 @@ AKP_KTY = "AKP"
 _THUMBPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 #: FIPS 204 public-key widths in bytes, fixed by the standard. A KMS-backed agent
-#: publishes a PEM in the same column as a locally generated raw key, and a PEM is
-#: not the key material an AKP `pub` carries, so width is what separates the two.
+#: publishes a PEM where a raw key would sit, so width is what separates the two.
 _ML_DSA_PUBLIC_KEY_BYTES = {"ML-DSA-44": 1312, "ML-DSA-65": 1952, "ML-DSA-87": 2592}
 
 
@@ -497,24 +491,8 @@ def _safe_b64(v: object) -> bool:
     return _anchor_bytes(v) is not None
 
 
-# --- Offline anchor cryptographic verification -------------------------------
-#
-# Presence is not proof: anchors sit outside the signed bytes, so the draft
-# requires a successful cryptographic check before an anchor counts. Per entry:
-#   "verified"     - the token commits this envelope's digest AND its own
-#                    signature/merkle path checks out against pinned trust material
-#   "invalid"      - the check ran and failed (wrong committed digest, TSA
-#                    rejection status, a signature that does not verify, a merkle
-#                    path that misses the stated block)
-#   "unverifiable" - the check could not complete offline (unparseable token,
-#                    missing optional dep, no pinned TSA key, no Bitcoin header
-#                    source, unknown anchor type, declared status pending/failed).
-#                    Never a PASS on presence alone.
-#
-# Trust material is caller-pinned, never derived from the unsigned envelope:
-# ``trusted_tsa_keys`` is TSA public keys (raw ML-DSA/Ed25519 bytes) or X.509
-# certificates (PEM or DER); ``bitcoin_headers`` maps a block height to
-# {"merkle_root": <display hex>, "time": <ISO-8601>}.
+# --- Offline anchor verification: presence is not proof, each entry reports
+# verified / invalid / unverifiable, and trust material is caller-pinned. ------
 
 
 class _AnchorParseError(ValueError):
@@ -827,9 +805,8 @@ def _verify_tsa_signature(sig_alg: str, signed: bytes, signature: bytes, trusted
         try:
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
         except ImportError:
-            # cryptography is optional (see the module docstring); without it
-            # this branch reports unverifiable, exactly as the RSA/ECDSA one
-            # does, rather than raising out of the anchors axis.
+            # cryptography is optional; without it this branch reports unverifiable,
+            # as the RSA/ECDSA one does, rather than raising out of the anchors axis.
             return "unverifiable"
 
         for pk in raw_keys:
@@ -1094,9 +1071,8 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
     )
 
 
-#: (result, note, trusted_times) triple for the anchors axis. ``trusted_times``
-#: carries the provenance times of anchors that CRYPTOGRAPHICALLY verified, the
-#: only times a caller may weigh against a key's revoked_at.
+#: (result, note, trusted_times) for the anchors axis. ``trusted_times`` holds times of
+#: anchors that CRYPTOGRAPHICALLY verified, the only ones weighable against revoked_at.
 AnchorEvaluation = namedtuple("AnchorEvaluation", ("result", "note", "trusted_times"))
 
 
@@ -1546,9 +1522,8 @@ def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
         return "FAIL", f"verify error: {exc}"
 
 
-#: Basic-format UTC offset (+0200, +02), which ISO 8601 allows and fromisoformat
-#: reads only from CPython 3.11 on. Matched on the part after the 10-char date so
-#: a bare "2020-01-01" is never mistaken for an offset.
+#: Basic-format UTC offset (+0200, +02); fromisoformat reads it only from CPython 3.11 on.
+#: Matched after the 10-char date so a bare "2020-01-01" is never mistaken for an offset.
 _BASIC_OFFSET_RE = re.compile(r"([+-])(\d{2}):?(\d{2})?$")
 
 #: Colon-separated clock time, the spelling every supported version reads alike.
@@ -2020,9 +1995,8 @@ def run(
         results.append(
             ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id")))
         )
-        # Only a cryptographically verified anchor whose proven time lands at or
-        # before the key's revoked_at proves pre-revocation timing; presence
-        # alone never upgrades a revoked key (anchors are unsigned).
+        # Only a cryptographically verified anchor at or before revoked_at proves
+        # pre-revocation timing; presence alone never upgrades a revoked key.
         trusted_anchor = _has_trusted_pre_revocation_anchor(
             anchor_eval.trusted_times, eff_revoked_at
         )
@@ -2190,9 +2164,8 @@ def run_structured(
         eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
         eff_pk, eff_alg = pk, jwks_alg
-        # Cloud receipts sign with the agent key though kid is the issuer id; fall
-        # back, mirroring run(). agent_id is attacker-controlled, so trust only a
-        # key whose published issuer_id matches the claimed issuer.
+        # Cloud receipts sign with the agent key though kid is the issuer id; fall back,
+        # mirroring run(). agent_id is attacker-controlled, so match on issuer_id.
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
@@ -2215,9 +2188,8 @@ def run_structured(
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         axes.append(_struct_axis("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))))
-        # Only a cryptographically verified anchor whose proven time lands at or
-        # before revoked_at counts as trusted timing; presence alone never
-        # upgrades a revoked key to a verified verdict.
+        # Only a cryptographically verified anchor at or before revoked_at counts as
+        # trusted timing; presence alone never upgrades a revoked key.
         trusted_anchor = _has_trusted_pre_revocation_anchor(
             anchor_eval.trusted_times, eff_revoked_at
         )
