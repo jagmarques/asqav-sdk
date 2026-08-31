@@ -77,6 +77,8 @@ _INVALID_FAIL_AXES = frozenset(
         "issuer_bind",
         "key_status",
         "key_binding",
+        "counterparty",
+        "payload_digest",
         "nonce",
         "parent_signature",
         "pdp_signature",
