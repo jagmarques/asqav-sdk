@@ -5,6 +5,35 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-08-31
+
+### Added
+
+- **`key_binding` verification axis: the signed `key_thumbprint` is recomputed
+  from the resolved signing key and compared.** Both language halves gain the
+  check for the JWK Thumbprint (RFC7638) over the draft-ietf-cose-dilithium AKP
+  form `{alg, kty, pub}`, with `pub` in unpadded base64url. A receipt whose
+  bound digest names a key other than the one that verified reports
+  `key_substituted`; `key_binding` is an invalid-fail axis in both cores, so the
+  verdict folds to `unverified` / `invalid` and is never softened to a warning
+  or reported as verified.
+- Absence of `key_thumbprint` PASSes the axis with a "binding not checked" note
+  rather than skipping, so every receipt issued before the member existed stays
+  conformant; a skip outside `chain` blocks a verdict. The two cases that cannot
+  be recomputed - no key resolved, and a resolved key that is not raw ML-DSA of
+  the width its own `alg` fixes, which is how a KMS-backed row storing a PEM
+  presents - report SKIPPED, which also blocks, so an unverifiable binding is
+  never read as verified.
+- `key_thumbprint` joins the hash-mode unsigned-claim guard. Hash mode signs a
+  flat 11-field object with no room for the member, so a thumbprint pasted onto
+  a hash-mode receipt FAILs the structure axis instead of appearing bound.
+- 15 axis cases and 4 thumbprint digest vectors in the shared
+  `verifier/axis-parity-cases.json`, read by both suites, including a vector
+  that pins the base64url alphabet: an implementation reusing the directory's
+  standard-base64 `public_key` alphabet computes a digest no other verifier
+  reproduces, and a case binding exactly that digest must FAIL.
+
+
 ## [0.10.0] - 2026-08-27
 
 ### Added
