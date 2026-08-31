@@ -1,8 +1,7 @@
 // Algorithm agility for receipt signing.
 
-// SUPPORTED_ALGORITHMS is the client-side validation set (all five). The cloud
-// signs only with ml-dsa-{44,65,87}; ed25519/es256 pass local validation but
-// the cloud returns HTTP 400. Those two are for local sign/verify only.
+// Client-side validation set (all five). The cloud signs only ml-dsa-{44,65,87};
+// ed25519/es256 pass locally but the cloud returns HTTP 400, so they are local-only.
 
 import {
   createPrivateKey,

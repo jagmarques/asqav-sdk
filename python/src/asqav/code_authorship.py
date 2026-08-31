@@ -40,9 +40,8 @@ CODE_AUTHORSHIP_ASSET_CLASS: str = "code"
 #: The server stamps it after re-fetching the commit and recomputing the diff.
 AUTHORITATIVE_CAPTURE_LAYER: str = "github_sha_pull"
 
-#: Capture layers that are client self-reports. A code-authorship receipt
-#: carrying one of these is observation only and never an authoritative
-#: decision receipt.
+#: Capture layers that are client self-reports. A code-authorship receipt carrying one
+#: is observation only, never an authoritative decision receipt.
 OBSERVATION_ONLY_CAPTURE_LAYERS: frozenset[str] = frozenset(
     {"in_process_sdk", "passive_telemetry"}
 )

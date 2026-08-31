@@ -1,25 +1,6 @@
 /**
- * Pipelock EvidenceReceipt v2 adapter - Ed25519 over JCS with zeroed signature.
- * A port of the Python oracle's `verifier/oracle/adapters/pipelock.py`.
- *
- * Signing rule: clone the receipt dict, zero out the `signature` object (all
- * four fields set to empty strings), then JCS-canonicalize (RFC 8785 dialect)
- * the result. The signature is Ed25519 PureEdDSA over those bytes; the 64-byte
- * signature is hex-encoded with an `ed25519:` prefix (`ed25519:<128 hex chars>`).
- *
- * Key resolution: EvidenceReceipt v2 does NOT embed its signer public key in
- * the envelope. The caller must supply the raw 32-byte Ed25519 key hex via the
- * key provider, keyed by `signature.signer_key_id`. When the key is absent the
- * signature axis SKIPs and the verdict is INCOMPLETE, never a hiding PASS.
- *
- * Chain rule: `chain_prev_hash` is `"sha256:" + hex(SHA-256(JCS(full predecessor
- * receipt)))` for non-genesis receipts. Genesis receipts set `chain_prev_hash`
- * to `"genesis"` or `"sha256:0"` (both are accepted). Unlike AERF, the chain
- * hash covers the full predecessor receipt INCLUDING its signature.
- *
- * Canonicalization: Pipelock v2 uses strict RFC 8785 JCS (NFC strings,
- * lexicographic UTF-16 code-unit key sort). We reuse `jcsRfc8785` which
- * byte-matches Pipelock's Go canonicaliser for all-ASCII field sets and NFC input.
+ * Pipelock EvidenceReceipt v2 adapter: Ed25519 over strict RFC 8785 JCS with the `signature` object
+ * zeroed. The caller supplies the signer key; absent, the signature axis SKIPs rather than hiding a PASS.
  */
 
 import {
@@ -88,9 +69,8 @@ function safeHex(value: unknown): Uint8Array {
 }
 
 /**
- * Build the signable preimage: full receipt with the `signature` sub-object
- * zeroed out (all four fields set to empty strings), then JCS RFC 8785.
- * Mirrors `pipelock_verify._evidence._signable_preimage`.
+ * Build the signable preimage: the full receipt with the `signature` sub-object zeroed, then JCS
+ * RFC 8785. Mirrors `pipelock_verify._evidence._signable_preimage`.
  */
 function signablePreimage(doc: Record<string, unknown>): Uint8Array {
   const clone: Record<string, unknown> = { ...doc };
