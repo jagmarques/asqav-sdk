@@ -1,10 +1,6 @@
 /**
- * Barrel for Asqav framework adapters.
- *
- * Each adapter is also published as a discrete subpath export
- * (``@asqav/sdk/extras/<framework>``) so peers stay tree-shakable. This
- * barrel exists so callers who already depend on multiple peers can
- * import everything from a single specifier.
+ * Barrel for Asqav framework adapters. Each is also published as a discrete subpath export so peers stay
+ * tree-shakable; this exists for callers that already depend on several.
  */
 
 export { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";

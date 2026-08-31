@@ -1,19 +1,6 @@
 /**
- * Universal neutral verifier (TypeScript) - verify agent receipts across formats.
- * A port of the Python oracle at `verifier/oracle/`, to parity with the proven
- * Python verifier.
- *
- * It proves only what a verifier can prove from the bytes: a valid signature over
- * the canonical bytes, a reproducible hash-chain link, and structural presence at
- * time T. It never attests behaviour or correctness of the recorded action.
- *
- * Public surface:
- *   - `FormatAdapter` : the 6-method per-format seam.
- *   - `ADAPTERS`      : ordered registry the dispatcher walks for detection.
- *   - `verify`        : verify one parsed receipt; returns a `VerifyResult`.
- *   - `checkAnchors` / `checkSkew` : the two axes the oracle leaves out.
- *   - `checkExpiry`   : the signed expires_at window, mirroring the hosted verdict.
- *   - canonicalisers, crypto, and the conformance runner.
+ * Universal neutral verifier (TypeScript), a port of the Python oracle at `verifier/oracle/`. It proves
+ * only what the bytes prove: signature, chain link and structural presence, never behaviour.
  */
 
 import { FormatAdapter } from "./adapter.js";

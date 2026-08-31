@@ -1,9 +1,6 @@
 /**
- * File-backed credential layer for the Asqav SDK.
- *
- * Stores an API key (and optional API base) in ~/.asqav/credentials so the SDK
- * and CLI can resolve a key without an environment variable. Resolution mirrors
- * the Python half: explicit argument, then environment, then file.
+ * File-backed credential layer storing an API key in ~/.asqav/credentials. Resolution mirrors the Python
+ * half: explicit argument, then environment, then file.
  */
 
 import fs from "node:fs";
@@ -23,10 +20,8 @@ function expandHome(raw: string): string {
 }
 
 /**
- * Sanitize a caller-supplied path before any file I/O. Expands a leading "~"
- * and rejects the two classic path-injection vectors, null bytes and traversal
- * ("..") components, so an attacker-influenced value cannot redirect a read,
- * write, or chmod to an arbitrary location. Throws on a rejected path.
+ * Sanitize a caller-supplied path before any file I/O: expands a leading "~" and rejects null bytes and
+ * traversal components, so an attacker-influenced value cannot redirect I/O. Throws on a rejected path.
  */
 export function validatedPath(raw: string, source: string): string {
   if (raw.includes("\0")) {
@@ -40,9 +35,8 @@ export function validatedPath(raw: string, source: string): string {
 }
 
 /**
- * Resolve the credentials file location (env override, else ~/.asqav/credentials).
- * The ASQAV_CREDENTIALS_PATH override is validated before it is used for I/O, so
- * a traversal value such as ../../etc/passwd is rejected rather than read or written.
+ * Resolve the credentials file location (env override, else ~/.asqav/credentials). ASQAV_CREDENTIALS_PATH
+ * is validated before use, so a traversal value is rejected rather than read or written.
  */
 export function credentialsPath(): string {
   const override = process.env.ASQAV_CREDENTIALS_PATH;
