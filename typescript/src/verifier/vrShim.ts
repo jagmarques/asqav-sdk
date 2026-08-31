@@ -635,3 +635,118 @@ export function checkKeyStatus(
   }
   return ["FAIL", `signing key status ${JSON.stringify(status)}; receipt cannot be trusted`];
 }
+
+// ---------------------------------------------------------------------------
+// RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key (criterion 458).
+// A port of the Python `thumbprint_for_key` / `check_key_binding`; the shared
+// vectors in verifier/axis-parity-cases.json hold the two copies together.
+// ---------------------------------------------------------------------------
+
+/** draft-ietf-cose-dilithium key type for ML-DSA key pairs. */
+export const AKP_KTY = "AKP";
+
+/** The only well-formed key_thumbprint shape; anything else is refused, not compared. */
+const THUMBPRINT_RE = /^sha256:[0-9a-f]{64}$/;
+
+// FIPS 204 public-key widths in bytes, fixed by the standard. A KMS-backed agent
+// publishes a PEM in the same column as a locally generated raw key, and a PEM is
+// not the key material an AKP `pub` carries, so width is what separates the two.
+const ML_DSA_PUBLIC_KEY_BYTES: Record<string, number> = {
+  "ML-DSA-44": 1312,
+  "ML-DSA-65": 1952,
+  "ML-DSA-87": 2592,
+};
+
+/** base64url with padding stripped - the encoding RFC 7638 `pub` requires. */
+export function b64urlNoPad(data: Uint8Array): string {
+  return Buffer.from(data).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** True when these bytes are a raw ML-DSA public key of the width `alg` fixes. */
+export function isAkpPublicKey(alg: unknown, publicKey: Uint8Array | null): boolean {
+  if (!publicKey || publicKey.length === 0 || typeof alg !== "string") return false;
+  const expected = ML_DSA_PUBLIC_KEY_BYTES[alg];
+  return expected !== undefined && publicKey.length === expected;
+}
+
+/** True for a `sha256:<64 lowercase hex>` string, the only comparable form. */
+export function isWellFormedThumbprint(value: unknown): boolean {
+  return typeof value === "string" && THUMBPRINT_RE.test(value);
+}
+
+/**
+ * Build the required-members-only AKP JWK the thumbprint is taken over.
+ *
+ * `pub` is base64url WITHOUT padding, which is the one encoding trap here: the
+ * published directory carries the same bytes as standard base64 under
+ * `public_key`, and thumbprinting that alphabet yields a digest no third-party
+ * verifier reproduces.
+ */
+export function akpJwk(alg: string, publicKey: Uint8Array): Record<string, string> {
+  if (!alg) throw new Error("alg is required to build an AKP JWK");
+  if (!publicKey || publicKey.length === 0) throw new Error("public_key is required to build an AKP JWK");
+  return { alg, kty: AKP_KTY, pub: b64urlNoPad(publicKey) };
+}
+
+/**
+ * Return `sha256:<hex>` for a JWK already reduced to its required members.
+ * Sorting is what RFC 7638 section 3 calls for, so the caller cannot change the
+ * digest by handing the members in a different order.
+ */
+export function jwkThumbprint(jwk: Record<string, string>): string {
+  const canonical = `{${Object.keys(jwk)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${JSON.stringify(jwk[k])}`)
+    .join(",")}}`;
+  return `sha256:${sha256Hex(new TextEncoder().encode(canonical))}`;
+}
+
+/** The profile's key_thumbprint value for one ML-DSA public key. */
+export function thumbprintForKey(alg: string, publicKey: Uint8Array): string {
+  return jwkThumbprint(akpJwk(alg, publicKey));
+}
+
+/**
+ * Recompute the signed key_thumbprint from the resolved key and compare.
+ *
+ * The receipt names its own signing key INSIDE the signed bytes, so a key swapped
+ * under the same kid stops rederiving the digest the issuer committed to. A
+ * mismatch is a proven binding break, never a warning: `key_binding` sits in
+ * INVALID_FAIL_AXES, so the verdict reads unverified with failureClass invalid.
+ *
+ * Absence is the profile's legacy case and stays conformant, so it PASSes with a
+ * note rather than skipping; a skip would block every pre-binding receipt ever
+ * issued. The two cases that cannot be recomputed - no key resolved, and a
+ * resolved key that is not raw ML-DSA of the width its own alg fixes - report
+ * SKIPPED, which blocks, so an unrecomputable binding never reads as verified.
+ */
+export function checkKeyBinding(
+  payload: unknown,
+  alg: unknown,
+  publicKey: Uint8Array | null,
+): readonly [VerifyState, string] {
+  if (!isRecord(payload)) return ["PASS", "no signed payload; binding not checked"];
+  const claimed = payload.key_thumbprint;
+  if (claimed === undefined || claimed === null) {
+    return ["PASS", "receipt binds no key_thumbprint; binding not checked"];
+  }
+  if (!isWellFormedThumbprint(claimed)) {
+    return ["FAIL", `key_thumbprint ${pyRepr(claimed)} is not sha256:<64 lowercase hex>`];
+  }
+  if (!publicKey || publicKey.length === 0) {
+    return ["SKIPPED", "no signing key resolved, so the bound key_thumbprint cannot be recomputed"];
+  }
+  if (!isAkpPublicKey(alg, publicKey)) {
+    // A KMS-backed row publishes a PEM in this column, and a PEM is not the key
+    // material an AKP `pub` carries, so the digest is not reconstructible here
+    return [
+      "SKIPPED",
+      "resolved key is not raw ML-DSA material, so the bound key_thumbprint cannot be recomputed",
+    ];
+  }
+  const actual = thumbprintForKey(alg as string, publicKey);
+  if (actual === claimed) {
+    return ["PASS", `key_thumbprint rederives from the resolved ${alg as string} key`];
+  }
+  return ["FAIL", `key_substituted: receipt binds ${claimed}, resolved key computes ${actual}`];
+}
