@@ -47,9 +47,8 @@ __all__ = [
 ATTESTATION_STATEMENT_SCHEMA = "asqav.attestation/1"
 DEFAULT_COMMITMENT_ALG = "HMAC-SHA256"
 
-#: Public verdict vocabulary (criteria 418/438). A good attestation receipt is
-#: verified_keyed, never plain verified: the commitment is an HMAC sealed with a
-#: holder-only key, so the commitment itself is never re-derivable here.
+#: Public verdict vocabulary (criteria 418/438). An attestation receipt is verified_keyed,
+#: never plain verified: the HMAC commitment is sealed with a holder-only key.
 VERDICT_VERIFIED_KEYED = "verified_keyed"
 VERDICT_UNVERIFIED = "unverified"
 

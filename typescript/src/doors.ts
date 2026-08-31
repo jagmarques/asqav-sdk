@@ -1,6 +1,5 @@
-// Standards-interop doors: one Asqav receipt, N native envelopes (W3C VC, CloudEvents,
-// OTel GenAI, C2PA, ERC-8004). Inner receipt is byte-identical across every door.
-// Pure and offline: no signing, no network, no mutation, no clock reads. See doors.py.
+// Standards-interop doors: one Asqav receipt, N native envelopes, inner receipt
+// byte-identical across every door. Pure and offline. See doors.py.
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";

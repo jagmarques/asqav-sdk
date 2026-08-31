@@ -1,17 +1,6 @@
 /**
- * Canonical JSON + content hashing for the @asqav/sdk TypeScript client.
- *
- * Mirrors the Python ``asqav.canonicalize`` module byte-for-byte. The
- * conformance vectors at ``conformance/vectors.json`` are validated against
- * both implementations, so a hash computed in Node and a hash computed in
- * Python over the same dict are guaranteed to agree.
- *
- * JCS subset:
- *   - object keys sorted lexicographically
- *   - no whitespace anywhere
- *   - non-ASCII strings emitted as raw UTF-8
- *   - integers as integers (no trailing ``.0``)
- *   - finite floats only (NaN / Infinity rejected)
+ * Canonical JSON + content hashing, mirroring the Python ``asqav.canonicalize`` byte-for-byte: sorted
+ * keys, no whitespace, raw UTF-8, integers as integers, finite floats only.
  */
 
 import { createHash, createHmac } from "node:crypto";
@@ -25,11 +14,8 @@ type JsonValue =
   | { [key: string]: JsonValue };
 
 /**
- * Canonicalize a JSON-serializable value into UTF-8 bytes.
- *
- * Throws on values that aren't representable in JSON (functions, undefined,
- * BigInt, Symbol) and on non-finite numbers (NaN / Infinity), matching
- * the behavior of Python's ``json.dumps(allow_nan=False)``.
+ * Canonicalize a JSON-serializable value into UTF-8 bytes. Throws on values JSON cannot represent and
+ * on non-finite numbers, matching Python's ``json.dumps(allow_nan=False)``.
  */
 export function canonicalize(value: unknown): Uint8Array {
   return new TextEncoder().encode(canonicalString(value));
@@ -73,13 +59,8 @@ function numberToCanonical(n: number): string {
 }
 
 /**
- * Standard JSON string serialization.
- *
- * Escapes control chars below U+0020, plus the two characters that JSON
- * requires (`"` and `\`). Everything U+0020 and above (including all
- * non-ASCII letters) is emitted as raw UTF-8. This matches Python's
- * ``json.dumps(ensure_ascii=False)`` which is what the conformance
- * vectors are generated with.
+ * Standard JSON string serialization: escapes control chars below U+0020 plus `"` and `\`, everything
+ * else raw UTF-8. Matches the ``ensure_ascii=False`` form the conformance vectors are generated with.
  */
 function jsonString(s: string): string {
   let out = '"';
@@ -148,17 +129,8 @@ function findFloatPointer(value: unknown, pointer: string): string | null {
 }
 
 /**
- * Pre-validate ``tool_args`` and return JCS-canonical bytes.
- *
- * Floats are not byte-stable across runtimes, so the Compliance Receipts
- * profile keeps them out of the signed canonical scope. Serialize
- * numerics as strings (``"1.5"``) or integer-rational pairs before
- * calling this helper. Integers (including any value where
- * ``Number.isInteger`` is true) and booleans pass through.
- *
- * @throws Error When any leaf is a non-integer or non-finite number; the
- *   message includes the JSON pointer to the offending value so the
- *   caller can fix the input.
+ * Pre-validate ``tool_args`` and return JCS-canonical bytes. Floats are not byte-stable across runtimes,
+ * so a non-integer leaf throws with a JSON pointer to the offending value; serialize numerics as strings.
  */
 export function canonicalizeToolArgs(args: unknown): Uint8Array {
   const pointer = findFloatPointer(args, "");
@@ -174,10 +146,8 @@ export function canonicalizeToolArgs(args: unknown): Uint8Array {
 }
 
 /**
- * Self-describing hash for an action: `sha256:<hex>`.
- * With `salt` set, uses HMAC-SHA-256 keyed by that caller-held salt. The prefix
- * reads `sha256` either way, so a verifier recomputing per the fingerprint spec
- * cannot tell a salted digest from a plain one.
+ * Self-describing hash for an action: `sha256:<hex>`, or HMAC-SHA-256 when `salt` is set. The prefix
+ * reads `sha256` either way, so a verifier cannot tell a salted digest from a plain one.
  */
 export async function hashAction(
   actionType: string,

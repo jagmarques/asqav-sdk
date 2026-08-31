@@ -1,18 +1,6 @@
 /**
- * SDK half of the un-bypassable code-authorship path.
- *
- * POST /v1/code-authorship is the authoritative ingress. The client supplies an
- * ADVISORY change digest (sha256 of `git diff base..head`) and the server
- * re-fetches the commit, recomputes the canonical diff, and signs an in-toto
- * Statement whose `subject[0].digest.sha256` is the SERVER-recomputed hash. The
- * client digest is never trusted. `digest_match` only reports whether the
- * advisory value agreed with the server's.
- *
- * The authoritative capture layer for a code-authorship receipt is
- * `github_sha_pull`. A receipt whose capture layer is `in_process_sdk` or
- * `passive_telemetry` is a client self-report and can NEVER be an authoritative
- * decision receipt (observation only), mirroring the cloud's
- * `observation_decision_not_allowed` rule.
+ * SDK half of the un-bypassable code-authorship path: the client digest is ADVISORY and the server
+ * re-fetches the commit and signs its own. Only `github_sha_pull` is an authoritative capture layer.
  */
 
 import { createHash } from "node:crypto";
@@ -42,9 +30,8 @@ export const CODE_AUTHORSHIP_ASSET_CLASS = "code";
 export const AUTHORITATIVE_CAPTURE_LAYER = "github_sha_pull";
 
 /**
- * Capture layers that are client self-reports. A code-authorship receipt
- * carrying one of these is observation only and never an authoritative
- * decision receipt.
+ * Capture layers that are client self-reports. A code-authorship receipt carrying one is observation
+ * only, never an authoritative decision receipt.
  */
 export const OBSERVATION_ONLY_CAPTURE_LAYERS = [
   "in_process_sdk",
@@ -56,13 +43,8 @@ export const VERDICT_PASS = "PASS";
 export const VERDICT_REJECT = "REJECT";
 
 /**
- * Compute the ADVISORY change digest `sha256:<hex>`.
- *
- * The advisory digest is sha256 of `git diff base..head`. When `diffText` is
- * supplied it is hashed directly. With no diff the bare head sha is hashed so
- * the field is always a well-formed `sha256:<64 hex>` existence proof. The
- * server recomputes its own digest and signs that. This value only lets the
- * server report `digest_match`.
+ * Compute the ADVISORY change digest `sha256:<hex>` over `git diff base..head`, or over the bare head
+ * sha when no diff is supplied. The server recomputes and signs its own; this only feeds `digest_match`.
  */
 export function computeAdvisoryDigest(
   headSha: string,
@@ -160,12 +142,8 @@ export interface CodeAuthorshipOptions {
 }
 
 /**
- * POST an advisory code-authorship record to /v1/code-authorship.
- *
- * `changeDigest` is ADVISORY (sha256 of `git diff base..head`). The server
- * recomputes the authoritative digest and signs it. Requires `init({ apiKey })`
- * with a key holding the `code_authorship:write` scope. Returns the parsed
- * authoritative envelope.
+ * POST an advisory code-authorship record to /v1/code-authorship; the server recomputes the
+ * authoritative digest and signs it. Needs an apiKey holding the `code_authorship:write` scope.
  */
 export async function submitCodeAuthorship(
   options: CodeAuthorshipOptions,
@@ -201,14 +179,8 @@ export interface CodeAuthorshipVerification {
 }
 
 /**
- * Verify the code-authorship structural + capture-layer invariant.
- *
- * Checks the in-toto Statement shape (`_type`, `predicateType`), that
- * `subject[0].digest.sha256` is present, and the capture-layer rule:
- * `github_sha_pull` is authoritative, `in_process_sdk` / `passive_telemetry`
- * are observation only and never authoritative. The cryptographic DSSE
- * signature is verified by the standalone verifier or the hosted /verify. The
- * cloud is the authoritative verifier and this helper is a convenience.
+ * Verify the in-toto Statement shape and the capture-layer invariant. The DSSE signature is verified by
+ * the standalone verifier or the hosted /verify; this helper is a convenience, not the authority.
  */
 export function verifyCodeAuthorshipEnvelope(
   envelope: unknown,

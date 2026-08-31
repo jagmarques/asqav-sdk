@@ -1,20 +1,6 @@
 /**
- * OpenAI Agents JS integration for Asqav.
- *
- * Install (peer dependency):
- *   npm install @openai/agents
- *
- * Usage:
- *   import { init } from "@asqav/sdk";
- *   import { AsqavOpenAIAgentsAdapter } from "@asqav/sdk/extras/openai-agents";
- *   init({ apiKey: process.env.ASQAV_API_KEY! });
- *   const adapter = new AsqavOpenAIAgentsAdapter({ agentName: "my-agent" });
- *   adapter.wrapTool(myTool);
- *
- * Mirrors the Python ``asqav.extras.openai_agents.AsqavGuardrail`` /
- * ``AsqavTracingProcessor`` adapter: signs ``agent:input`` /
- * ``agent:output`` / ``tool:start`` / ``tool:end`` events as the agent
- * runs. Operates fail-open so governance never breaks the agent loop.
+ * OpenAI Agents JS integration, mirroring the Python ``AsqavGuardrail`` / ``AsqavTracingProcessor``.
+ * Signs agent and tool lifecycle events, fail-open so governance never breaks the agent loop.
  */
 
 import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
@@ -26,9 +12,8 @@ function truncate(s: string, max = MAX_PREVIEW): string {
 }
 
 /**
- * Minimal surface of an OpenAI Agents JS ``tool``. We accept any object
- * with ``name`` and ``execute`` so we never bind to a specific SDK
- * version.
+ * Minimal surface of an OpenAI Agents JS ``tool``: any object with ``name`` and ``execute``, so the
+ * adapter never binds to a specific SDK version.
  */
 export interface OpenAIAgentsToolLike<I = unknown, O = unknown> {
   name?: string;
@@ -42,9 +27,8 @@ export interface AsqavOpenAIAgentsAdapterOptions extends AsqavAdapterOptions {
 }
 
 /**
- * Wraps OpenAI Agents JS tools and run-loop callbacks so every
- * tool-call lifecycle event flows through Asqav. Mirrors the Python
- * ``AsqavGuardrail`` and ``AsqavTracingProcessor``.
+ * Wraps OpenAI Agents JS tools and run-loop callbacks so every tool-call lifecycle event flows through
+ * Asqav. Mirrors the Python ``AsqavGuardrail`` and ``AsqavTracingProcessor``.
  */
 export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
   public readonly name: string;
@@ -71,10 +55,8 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
   }
 
   /**
-   * Wrap an OpenAI Agents tool so each invocation signs
-   * ``tool:start`` and ``tool:end`` (or ``tool:error``). Returns a new
-   * tool object with the same ``name``/``description`` and a wrapped
-   * ``execute``.
+   * Wrap a tool so each invocation signs ``tool:start`` and ``tool:end`` (or ``tool:error``). Returns a
+   * new tool with the same ``name`` / ``description`` and a wrapped ``execute``.
    */
   wrapTool<I, O>(tool: OpenAIAgentsToolLike<I, O>): OpenAIAgentsToolLike<I, O> {
     if (typeof tool.execute !== "function") {
