@@ -67,6 +67,7 @@ const INVALID_FAIL_AXES = new Set([
   "anchors",
   "issuer_bind",
   "key_status",
+  "key_binding",
   "nonce",
   "parent_signature",
   "pdp_signature",
