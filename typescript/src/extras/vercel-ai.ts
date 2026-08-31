@@ -1,39 +1,6 @@
 /**
- * Vercel AI SDK adapter.
- *
- * Wires Asqav signing into Vercel's `experimental_telemetry: { tracer }`
- * hook. Every span the AI SDK opens (generateText, streamText, tool call,
- * embed, etc.) becomes an asqav signature on `span.end()`.
- *
- * Usage:
- *   import { generateText } from "ai";
- *   import { openai } from "@ai-sdk/openai";
- *   import { Agent, init } from "@asqav/sdk";
- *   import { createAsqavExporter } from "@asqav/sdk/extras/vercel-ai";
- *
- *   init({ apiKey: process.env.ASQAV_API_KEY! });
- *   const agent = await Agent.create({ name: "writer" });
- *
- *   const tracer = createAsqavExporter({ agent });
- *   await generateText({
- *     model: openai("gpt-4o"),
- *     prompt: "...",
- *     experimental_telemetry: { isEnabled: true, tracer },
- *   });
- *
- * Source URLs verified:
- *   - https://ai-sdk.dev/docs/ai-sdk-core/telemetry
- *     ("You may provide a `tracer` which must return an OpenTelemetry `Tracer`.")
- *   - https://github.com/vercel/ai/blob/main/packages/otel/src/get-tracer.ts
- *     (signature: `{ isEnabled?: boolean; tracer?: Tracer }` from `@opentelemetry/api`)
- *   - https://github.com/vercel/ai/blob/main/packages/otel/src/noop-tracer.ts
- *     (Tracer surface used: startSpan, startActiveSpan;
- *      Span surface: spanContext, setAttribute, setAttributes, addEvent,
- *      addLink, addLinks, setStatus, updateName, end, isRecording,
- *      recordException)
- *   - https://github.com/vercel/ai/blob/main/packages/otel/src/record-span.ts
- *     (calls tracer.startActiveSpan(name, { attributes }, span => fn(span));
- *      records errors via span.setStatus + span.recordException then span.end)
+ * Vercel AI SDK adapter. Wires Asqav signing into `experimental_telemetry: { tracer }`, so every
+ * span the AI SDK opens becomes an asqav signature on `span.end()`. See the README for usage.
  */
 
 import type { Agent } from "../index.js";
@@ -90,12 +57,8 @@ export interface Tracer {
 // === Action-type mapping ===
 
 /**
- * Map a Vercel AI SDK span name to an asqav action_type.
- *
- * Span names emitted by the AI SDK include `ai.generateText`,
- * `ai.streamText`, `ai.embed`, `ai.embedMany`, `ai.toolCall`,
- * `ai.generateObject`, `ai.streamObject`. The full list lives at
- * https://ai-sdk.dev/docs/ai-sdk-core/telemetry#collected-data.
+ * Map a Vercel AI SDK span name (`ai.generateText`, `ai.toolCall`, ...) to an asqav action_type.
+ * Full list: https://ai-sdk.dev/docs/ai-sdk-core/telemetry#collected-data.
  */
 export function mapSpanNameToActionType(name: string): string {
   if (!name) return "ai:span";
@@ -213,11 +176,8 @@ function makeSpan(
 }
 
 /**
- * Build a `Tracer` you can hand to `generateText({ experimental_telemetry: { tracer } })`.
- *
- * Each span the AI SDK opens is buffered locally; on `span.end()` the
- * adapter fires a fire-and-forget `agent.sign(actionType, attributes)`.
- * Network errors are swallowed so signing never breaks generation.
+ * Build a `Tracer` for `generateText({ experimental_telemetry: { tracer } })`. Each span fires a
+ * fire-and-forget `agent.sign` on end; network errors are swallowed so signing never breaks generation.
  */
 export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
   if (!opts.agent && !opts.agentId) {

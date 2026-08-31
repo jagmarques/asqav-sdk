@@ -1,6 +1,5 @@
-// LangChain.js integration for Asqav. Install: npm install @langchain/core.
-// Default-on: await enableLangchainGovernance({ agentName: "my-chain" }) then chain.invoke.
-// Manual: const h = await AsqavCallbackHandler.create({...}); chain.invoke(i, {callbacks:[h]}).
+// LangChain.js integration. Install @langchain/core, then either
+// enableLangchainGovernance({ agentName }) or AsqavCallbackHandler.create({...}).
 
 import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 

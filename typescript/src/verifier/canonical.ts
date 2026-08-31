@@ -1,34 +1,6 @@
 /**
- * Canonicalization shared across format adapters - a byte-for-byte port of the
- * Python oracle's `verifier/oracle/canonical.py`.
- *
- * Three callable shapes, because three signers disagree on what "JCS" means:
- *
- *   - `jcs(obj)`          : NFC-normalised, code-POINT key ordering (Python
- *                           `sort_keys`), numbers preserved as Python emits them.
- *                           Matches the AERF / ACTA reference producers.
- *   - `jcsRfc8785(obj)`   : strict RFC 8785 - UTF-16 code-UNIT key ordering and
- *                           ECMAScript Number.prototype.toString number output,
- *                           plus NFC. Byte-matches the agent-receipts upstream
- *                           canonicalization vectors.
- *   - `asqavJcs(obj)`     : the Asqav cloud's historical JCS WITHOUT NFC, kept
- *                           byte-identical to `verify_receipt.canonical_json`.
- *
- * Implementation parity notes vs the Python source:
- *   - Python `sort_keys` sorts by Unicode CODE POINT; JavaScript's default
- *     `Array.prototype.sort` on strings sorts by UTF-16 CODE UNIT. These differ
- *     only on supplementary-plane keys. `jcs`/`asqavJcs` therefore sort by code
- *     point (mirroring Python); `jcsRfc8785` sorts by code unit (RFC 8785).
- *   - V8's `Number.prototype.toString` already produces the ECMAScript shortest
- *     round-trip form RFC 8785 mandates; verified byte-equal against the upstream
- *     number vectors (1e-7, 1e+21, 0.30000000000000004, ...).
- *   - Python `json.dumps(ensure_ascii=False)` short-escapes \b \t \n \f \r,
- *     emits other control chars < 0x20 as \u00xx, and passes everything >= 0x20
- *     (including 0x7f and all non-ASCII) verbatim. `jsonString` reproduces this.
- *   - Python `json.dumps(allow_nan=False)` rejects NaN/Infinity; we throw too.
- *   - `jcs`/`asqavJcs` keep numbers as Python emits them. For the integer field
- *     sets these receipts carry, Python `repr` and V8 `toString` agree; floats
- *     are out of the Asqav/AERF/ACTA signed scope, so this is exact for the corpus.
+ * Canonicalization shared across format adapters, a byte-for-byte port of the Python oracle's
+ * `canonical.py`: `jcs`, `jcsRfc8785` and `asqavJcs` differ on key order, NFC and numbers.
  */
 
 type JsonValue =
@@ -40,22 +12,8 @@ type JsonValue =
   | { [key: string]: JsonValue };
 
 /**
- * A JSON number that was written as a FLOAT literal (had a `.`, `e`, or `E`).
- *
- * JavaScript's `JSON.parse` collapses `500.0` to the integer `500` because
- * IEEE-754 has no int/float distinction, so the trailing `.0` is lost. Python's
- * `json.load` keeps it as a `float` and `json.dumps` re-emits `500.0`. The
- * AERF / ACTA / Asqav `jcs` dialects sign numbers "as the producer emitted them",
- * so a receipt carrying `500.0` is signed over the bytes `500.0`, not `500`.
- *
- * To reproduce those exact bytes, parse receipts with `parseJsonPreservingFloats`
- * (below), which wraps float literals in this class; the canonicalisers then
- * re-emit the float form. Integer literals are left as plain `number`.
- *
- * Parity scope: the corpus floats are whole-magnitude (`500.0`, `1250.0`), where
- * Python repr, the AERF Go producer, and this emitter all agree on `<int>.0`.
- * Exotic floats (e.g. `1e-7` vs Python's `1e-07`) do not occur in any signed
- * receipt; were they to, the AERF Go producer - not Python repr - is the target.
+ * A JSON number written as a FLOAT literal, kept so `500.0` re-emits as `500.0` rather than the
+ * `500` JSON.parse collapses it to; the jcs dialects sign numbers as the producer emitted them.
  */
 export class RawFloat {
   constructor(public readonly value: number) {}
@@ -71,11 +29,8 @@ function isRawFloat(v: unknown): v is RawFloat {
 }
 
 /**
- * An integer literal beyond IEEE-754 safe range (|n| > 2^53). JS `JSON.parse`
- * collapses it to the nearest double, so two distinct integers can read as one
- * and a tampered receipt could verify. Keeping the exact source digits lets the
- * Python-dialect canonicalisers emit them verbatim (matching Python's
- * arbitrary-precision int), closing that false-PASS path.
+ * An integer beyond IEEE-754 safe range, kept as exact source digits. Collapsing it to the nearest
+ * double would let two distinct integers share one signature and a tampered receipt verify.
  */
 export class RawBigInt {
   constructor(public readonly source: string) {}
@@ -91,10 +46,8 @@ function isRawBigInt(v: unknown): v is RawBigInt {
 }
 
 /**
- * A JSON object repeated a member name (criterion 419). ECMAScript object
- * semantics are last-wins on duplicate keys, which would hash the bytes an
- * attacker kept and drop the ones they replaced; the strict parser therefore
- * throws this before any hashing, canonicalisation, or signature check.
+ * A JSON object repeated a member name (criterion 419). Last-wins would hash the bytes an attacker
+ * kept, so the strict parser throws before any hashing, canonicalisation or signature check.
  */
 export class DuplicateMemberError extends SyntaxError {
   constructor(message: string) {
@@ -115,18 +68,8 @@ function floatToString(n: number): string {
 }
 
 /**
- * Parse JSON while preserving float literals as `RawFloat` and out-of-safe-range
- * integers as `RawBigInt`, so the canonicalisers re-emit `500.0` rather than the
- * collapsed `500` and never let two distinct big integers share one signature.
- * Mirrors what Python's `json.load` preserves implicitly.
- *
- * Strict ingest (criterion 419): a duplicated object member name at ANY depth
- * throws `DuplicateMemberError` before the value returns, so last-wins bytes
- * never reach a hash, canonicaliser, or signature check.
- *
- * Hand-rolled recursive descent rather than a `JSON.parse` reviver: the reviver's
- * raw-literal `context.source` is only available on Node 21.1+, and this package
- * supports Node 18+. The grammar is RFC 8259 JSON; it is not a lenient parser.
+ * Parse JSON preserving float literals as `RawFloat` and out-of-safe-range integers as `RawBigInt`,
+ * mirroring Python's `json.load`. Strict: a duplicated member at any depth throws (criterion 419).
  */
 export function parseJsonPreservingFloats(text: string): unknown {
   let i = 0;
@@ -247,11 +190,8 @@ export function parseJsonPreservingFloats(text: string): unknown {
 }
 
 /**
- * Strip the `RawFloat` / `RawBigInt` wrappers back to plain JS values, the
- * exact shapes `JSON.parse` produces (whole floats collapse to `500`, big
- * integers to the nearest double). Callers that canonicalise with the
- * float-preserving dialects keep the wrappers; callers that need the plain
- * wire shape (doors parity, sign inputs, bundle re-post) unwrap them.
+ * Strip the `RawFloat` / `RawBigInt` wrappers back to the exact shapes `JSON.parse` produces.
+ * Canonicalising callers keep the wrappers; callers needing the plain wire shape unwrap them.
  */
 export function unwrapPreservedFloats(value: unknown): unknown {
   if (isRawFloat(value)) return value.value;
@@ -268,10 +208,8 @@ export function unwrapPreservedFloats(value: unknown): unknown {
 }
 
 /**
- * Strict ingest with `JSON.parse`-compatible values (criterion 419): rejects a
- * duplicated member name at ANY depth as a terminal `DuplicateMemberError` and
- * returns plain values, so it replaces `JSON.parse` at every receipt/record
- * parse site that does not canonicalise with the float-preserving dialects.
+ * Strict ingest with `JSON.parse`-compatible values (criterion 419): a duplicated member name at any
+ * depth throws. Replaces `JSON.parse` wherever the float-preserving dialects are not needed.
  */
 export function parseJsonStrict(text: string): unknown {
   return unwrapPreservedFloats(parseJsonPreservingFloats(text));
@@ -293,11 +231,8 @@ function nfc(obj: unknown): unknown {
 }
 
 /**
- * Compare two strings by Unicode CODE POINT (Python `sort_keys` ordering).
- *
- * JavaScript string `<` compares by UTF-16 code unit, which differs from code
- * point on supplementary-plane characters. Iterating with `for...of` yields code
- * points, so we compare those directly.
+ * Compare two strings by Unicode CODE POINT (Python `sort_keys` ordering). JS string `<` compares by
+ * UTF-16 code unit, which differs from code point on supplementary-plane characters.
  */
 function compareCodePoints(a: string, b: string): number {
   const ai = a[Symbol.iterator]();
@@ -315,11 +250,8 @@ function compareCodePoints(a: string, b: string): number {
 }
 
 /**
- * Standard JSON string serialization matching Python `json.dumps(ensure_ascii=False)`.
- *
- * Short-escapes \b \t \n \f \r, emits other control chars < 0x20 as \u00xx, and
- * passes everything else (including 0x7f and all non-ASCII) verbatim. Note `/` is
- * NOT escaped, matching Python.
+ * JSON string serialization matching Python `json.dumps(ensure_ascii=False)`: short-escapes the five
+ * C0 shorthands, other control chars as \u00xx, everything else verbatim. `/` is not escaped.
  */
 function jsonString(s: string): string {
   let out = '"';
@@ -363,13 +295,8 @@ function numberToString(n: number): string {
 }
 
 /**
- * Serialise with a chosen key-comparison function.
- *
- * `honorFloat` selects the number dialect for `RawFloat` tokens:
- *   - true  (jcs / asqavJcs, the Python-`json.dumps` dialect): emit the float
- *     form, e.g. `500.0` (Python `repr(500.0)`).
- *   - false (jcsRfc8785, strict ECMAScript): collapse a whole-valued float to its
- *     integer form `500`, matching Python `_number_8785`'s `str(int(value))`.
+ * Serialise with a chosen key-comparison function. `honorFloat` picks the number dialect: true emits
+ * the float form `500.0`, false collapses a whole-valued float to `500` (strict RFC 8785).
  */
 function serialize(
   value: unknown,
