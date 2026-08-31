@@ -337,11 +337,8 @@ SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "una
 #: only this set (`rekor` rejected, not shipped). Mirrors the governance.json contract.
 WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
 
-#: Producer-side `capture_topology` vocabulary mirrored from the cloud
-#: SignRequest Literal. See docs/capture-topology.md. A client-supplied
-#: capture_topology is ADVISORY: the server stamps the authoritative value
-#: from the ingress route (for code-authorship that is `github_sha_pull`,
-#: set only after the server re-fetches the commit and recomputes the diff).
+#: Producer-side `capture_topology` mirrored from the cloud SignRequest Literal.
+#: ADVISORY: the server stamps the authoritative value from the ingress route.
 CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
     {
         "in_process_sdk",
@@ -421,10 +418,8 @@ def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
     )
 
 
-#: REQUIRED fields on a Compliance Receipt envelope (wire form); the wire
-#: discriminator is ``type`` and the wire verdict field is ``decision``
-#: (matches the standalone verifier's REQUIRED_FIELDS). Used by
-#: `verify_compliance_receipt`.
+#: REQUIRED fields on a Compliance Receipt envelope (wire form); the discriminator is
+#: ``type`` and the verdict field is ``decision``. Used by `verify_compliance_receipt`.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "type",
     "issuer_id",

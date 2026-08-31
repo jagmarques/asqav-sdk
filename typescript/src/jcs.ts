@@ -1,32 +1,6 @@
 /**
- * JCS canonicalization helper for the IETF Compliance Receipts profile.
- *
- * Public surface: `canonicalJson(obj): Uint8Array`.
- *
- * The output bytes are the exact bytes the cloud (`core/canonical.py`)
- * signs and the bytes the chain hashes over.
- *
- * See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
- *
- * Subset implemented:
- *   - Lexicographic (UTF-16 code unit) ordering of object keys.
- *   - No insignificant whitespace.
- *   - UTF-8 byte output, no BOM, non-ASCII passes through verbatim.
- *   - Standard JSON string escapes (backslash, quote, b, f, n, r, t,
- *     and `\u00xx` for U+0000..U+001F).
- *   - Numbers: integers within IEEE-754 safe range serialize without
- *     trailing ".0"; finite floats use the shortest round-trip form
- *     (V8's Number.toString already produces this, matching ECMAScript).
- *   - NaN / Infinity rejected (not representable in JSON).
- *
- * Out of scope: pre-2024 erratum normalization for non-finite numbers
- * and explicit handling of negative zero (we map -0 to "0", as
- * Python's json.dumps does, since the Compliance Receipts profile signs
- * no floats).
- *
- * The companion module `canonicalize.ts` exposes the same function under
- * the alias `canonicalize()`. They are kept byte-identical; this module
- * is the named landing for the IETF profile callers.
+ * JCS canonicalization for the IETF Compliance Receipts profile; `canonicalJson(obj)` returns the exact
+ * bytes the cloud signs and the chain hashes over. `canonicalize.ts` exposes the same bytes by alias.
  */
 
 type JsonValue =
@@ -38,11 +12,8 @@ type JsonValue =
   | { [key: string]: JsonValue };
 
 /**
- * Canonicalize a JSON-serializable value to JCS bytes.
- *
- * Throws TypeError for values not representable in JSON (functions,
- * undefined, BigInt, Symbol) and for non-finite numbers (NaN, Infinity,
- * -Infinity).
+ * Canonicalize a JSON-serializable value to JCS bytes. Throws TypeError for values JSON cannot
+ * represent (functions, undefined, BigInt, Symbol) and for non-finite numbers.
  */
 export function canonicalJson(value: unknown): Uint8Array {
   return new TextEncoder().encode(canonicalString(value));
