@@ -5,6 +5,34 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-08-31
+
+### Added
+
+- **`payload_digest` verification axis: the digest is recomputed from the
+  `context` the receipt carries itself.** A receipt carrying both is checkable
+  with no external data, and the two disagreeing proves one of them is a lie.
+  Nothing compared them before, so an issuer could sign a benign context beside
+  a digest committing to something else entirely and every verifier passed it.
+  A mismatch is terminal invalid. Absence PASSes on both sides: hash mode carries
+  no context, and a payload-mode receipt may legitimately omit it under redaction.
+- **`counterparty` verification axis.** `counterparty_binding` asserts that a
+  counterparty acknowledged the Action. The hosted verifier resolves it against
+  its own database, but an offline third party has none, so a fabricated binding
+  pointing at a receipt that never existed previously reached a plain `verified`
+  verdict with the corroboration claim unexamined. Absence PASSes; a malformed
+  binding FAILs as invalid; a binding the verifier cannot resolve reports SKIPPED,
+  which blocks, so an unchecked claim can never read as corroborated. Supplying
+  the originating receipt recomputes the envelope digest and cross-checks
+  `expect_ack_from`.
+- **The oracle path now emits the `skew` axis.** `check_skew` existed and the
+  standalone verifier used it, but the oracle never emitted it, so the oracle
+  accepted a receipt claiming an `issued_at` in 2099 that the standalone verifier
+  had always refused. Closes a parity gap between the two offline surfaces.
+- 18 shared cross-language vectors in `verifier/axis-parity-cases.json` drive both
+  language halves.
+
+
 ## [0.10.1] - 2026-08-31
 
 ### Added
