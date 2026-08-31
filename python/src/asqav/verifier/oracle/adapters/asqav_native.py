@@ -50,7 +50,9 @@ _HASH_MODE_FIELDS = (
 
 #: Claim fields that live inside the signed compliance payload. A hash-mode
 #: receipt carrying one is presenting a claim its signature does not cover.
-_UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash")
+#: key_thumbprint is here because hash mode signs the flat 11 fields above and
+#: nothing else, so a thumbprint pasted onto one binds no key at all.
+_UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash", "key_thumbprint")
 
 
 def _is_hash_mode(doc: dict) -> bool:
@@ -65,6 +67,21 @@ def _is_hash_mode(doc: dict) -> bool:
     if doc.get("mode") != "hash" or isinstance(doc.get("payload"), dict):
         return False
     return bool(doc.get("signature_b64") or doc.get("signature"))
+
+
+def _resolved_key_material(entry: dict | None) -> tuple[Any, bytes | None]:
+    """alg plus raw public-key bytes of the resolved directory entry.
+
+    The directory publishes the key as standard base64 under ``public_key``; an
+    AKP thumbprint is taken over the same bytes in unpadded base64url, so the
+    decode has to happen before the digest, never after.
+    """
+    if not isinstance(entry, dict):
+        return None, None
+    try:
+        return entry.get("alg"), _vr._b64decode(entry.get("public_key", ""))
+    except Exception:
+        return entry.get("alg"), None
 
 
 def _payload(doc: dict) -> dict:
@@ -239,6 +256,10 @@ class AsqavNativeAdapter(FormatAdapter):
         axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
+        # Reported before the no-entry return, so a receipt binding no thumbprint
+        # still says so rather than dropping the axis when nothing resolved.
+        bound_alg, bound_pk = _resolved_key_material(entry)
+        axes.append(("key_binding", *_vr.check_key_binding(signed, bound_alg, bound_pk)))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)

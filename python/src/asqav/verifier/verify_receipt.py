@@ -244,7 +244,9 @@ FAILURE_INVALID = "invalid"
 FAILURE_UNVERIFIABLE = "unverifiable"
 
 #: Axes whose FAIL proves a cryptographic/policy binding failure (invalid).
-_INVALID_FAIL_AXES = frozenset({"signature", "anchors", "issuer_bind", "key_status", "nonce"})
+_INVALID_FAIL_AXES = frozenset(
+    {"signature", "anchors", "issuer_bind", "key_status", "nonce", "key_binding"}
+)
 
 
 def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
@@ -386,6 +388,74 @@ def _b64decode(value: str) -> bytes:
     s = value.replace("-", "+").replace("_", "/")
     s += "=" * ((-len(s)) % 4)
     return base64.b64decode(s, validate=False)
+
+
+# ---------------------------------------------------------------------------
+# RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key.
+#
+# The mirror of the cloud's asqav_cloud.core.key_thumbprint. Inlined rather than
+# imported so this file stays the single-file offline verifier its header
+# promises; the cross-language vectors are what hold the two copies together.
+# ---------------------------------------------------------------------------
+
+#: draft-ietf-cose-dilithium key type for ML-DSA key pairs
+AKP_KTY = "AKP"
+
+#: The only well-formed key_thumbprint shape; anything else is refused, not compared
+_THUMBPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+#: FIPS 204 public-key widths in bytes, fixed by the standard. A KMS-backed agent
+#: publishes a PEM in the same column as a locally generated raw key, and a PEM is
+#: not the key material an AKP `pub` carries, so width is what separates the two.
+_ML_DSA_PUBLIC_KEY_BYTES = {"ML-DSA-44": 1312, "ML-DSA-65": 1952, "ML-DSA-87": 2592}
+
+
+    # base64url with padding stripped - the encoding RFC 7638 `pub` requires.
+def _b64url_nopad(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+    # True when these bytes are a raw ML-DSA public key of the width `alg` fixes.
+def is_akp_public_key(*, alg: str, public_key: bytes | None) -> bool:
+    if not public_key:
+        return False
+    expected = _ML_DSA_PUBLIC_KEY_BYTES.get(alg)
+    return expected is not None and len(public_key) == expected
+
+
+    # True for a `sha256:<64 lowercase hex>` string, the only comparable form.
+def is_well_formed(value) -> bool:
+    return isinstance(value, str) and bool(_THUMBPRINT_RE.match(value))
+
+
+def akp_jwk(*, alg: str, public_key: bytes) -> dict:
+    """Build the required-members-only AKP JWK the thumbprint is taken over.
+
+    `pub` is base64url WITHOUT padding, which is the one encoding trap here: the
+    published directory carries the same bytes as standard base64 under
+    `public_key`, and thumbprinting that alphabet yields a digest no third-party
+    verifier reproduces.
+    """
+    if not alg:
+        raise ValueError("alg is required to build an AKP JWK")
+    if not public_key:
+        raise ValueError("public_key is required to build an AKP JWK")
+    return {"alg": alg, "kty": AKP_KTY, "pub": _b64url_nopad(public_key)}
+
+
+def jwk_thumbprint(jwk: dict) -> str:
+    """Return `sha256:<hex>` for a JWK already reduced to its required members.
+
+    Sorting here is what RFC 7638 section 3 calls for, so the caller cannot change
+    the digest by handing the members in a different order.
+    """
+    canonical = json.dumps(jwk, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
+
+
+    # The profile's key_thumbprint value for one ML-DSA public key.
+def thumbprint_for_key(*, alg: str, public_key: bytes) -> str:
+    return jwk_thumbprint(akp_jwk(alg=alg, public_key=public_key))
 
 
 # Anchor values only, and strict on purpose: anchors sit outside the signed
@@ -1547,6 +1617,45 @@ def check_skew(issued_at: str):
     return "PASS", f"skew {skew:.0f}s within bound"
 
 
+def check_key_binding(payload: dict, alg, public_key):
+    """Recompute the signed key_thumbprint from the resolved key and compare.
+
+    The receipt names its own signing key INSIDE the signed bytes, so a key swapped
+    under the same kid stops rederiving the digest the issuer committed to. A
+    mismatch is a proven binding break, never a warning: `key_binding` sits in
+    `_INVALID_FAIL_AXES`, so the verdict reads unverified with failure_class invalid.
+
+    Absence is the profile's legacy case and stays conformant, so it PASSes with a
+    note rather than skipping; a skip would block every pre-binding receipt ever
+    issued. The two cases that cannot be recomputed - no key resolved, and a
+    resolved key that is not raw ML-DSA of the width its own alg fixes - report
+    SKIPPED, which blocks, so an unrecomputable binding never reads as verified.
+
+    ``public_key`` is the key the signature axis actually verified against, not
+    whatever the unsigned kid names, matching how issuer_bind and key_status resolve.
+    """
+    if not isinstance(payload, dict):
+        return "PASS", "no signed payload; binding not checked"
+    claimed = payload.get("key_thumbprint")
+    if claimed is None:
+        return "PASS", "receipt binds no key_thumbprint; binding not checked"
+    if not is_well_formed(claimed):
+        return "FAIL", f"key_thumbprint {claimed!r} is not sha256:<64 lowercase hex>"
+    if not public_key:
+        return "SKIPPED", "no signing key resolved, so the bound key_thumbprint cannot be recomputed"
+    if not isinstance(alg, str) or not is_akp_public_key(alg=alg, public_key=public_key):
+        # A KMS-backed row publishes a PEM in this column, and a PEM is not the key
+        # material an AKP `pub` carries, so the digest is not reconstructible here
+        return "SKIPPED", (
+            "resolved key is not raw ML-DSA material, so the bound key_thumbprint "
+            "cannot be recomputed"
+        )
+    actual = thumbprint_for_key(alg=alg, public_key=public_key)
+    if actual == claimed:
+        return "PASS", f"key_thumbprint rederives from the resolved {alg} key"
+    return "FAIL", f"key_substituted: receipt binds {claimed}, resolved key computes {actual}"
+
+
     # Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426).
 def check_expiry(payload: dict):
     if not isinstance(payload, dict) or "expires_at" not in payload:
@@ -1739,6 +1848,9 @@ def run(
     )
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
+    # The key the signature axis actually verified against, which is what the
+    # key_binding axis has to rederive the bound thumbprint from.
+    eff_pk, eff_alg = None, None
     if pk is None:
         results.append(("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
         results.append(("signature", "SKIPPED", "no issuer key to verify against"))
@@ -1749,6 +1861,7 @@ def run(
         eff_status, eff_kid = status, kid
         eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
+        eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
         # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
         if sig_res[0] != "PASS":
@@ -1764,6 +1877,7 @@ def run(
                     eff_status, eff_kid = status_a, kid_a
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+                    eff_pk, eff_alg = pk_a, alg_a
         results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
@@ -1781,6 +1895,9 @@ def run(
         )
         results.append(("signature", *sig_res))
 
+    # Outside the else on purpose: a receipt binding no thumbprint still reports the
+    # axis, so the report says the binding was not checked rather than staying silent.
+    results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
@@ -1920,6 +2037,9 @@ def run_structured(
     )
 
     pk, status, jwks_alg = resolve_key(jwks, kid)
+    # The key the signature axis actually verified against, which is what the
+    # key_binding axis has to rederive the bound thumbprint from.
+    eff_pk, eff_alg = None, None
     if pk is None:
         axes.append(_struct_axis("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
         axes.append(_struct_axis("signature", "SKIPPED", "no issuer key to verify against"))
@@ -1930,6 +2050,7 @@ def run_structured(
         eff_status, eff_kid = status, kid
         eff_issuer = resolve_key_issuer(jwks, kid)
         eff_revoked_at = resolve_revoked_at(jwks, kid)
+        eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall
         # back, mirroring run(). agent_id is attacker-controlled, so trust only a
         # key whose published issuer_id matches the claimed issuer.
@@ -1946,6 +2067,7 @@ def run_structured(
                     eff_status, eff_kid = status_a, kid_a
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+                    eff_pk, eff_alg = pk_a, alg_a
         axes.append(
             _struct_axis(
                 "issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"
@@ -1968,6 +2090,9 @@ def run_structured(
         )
         axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
 
+    # Outside the else on purpose: a receipt binding no thumbprint still reports the
+    # axis, so the report says the binding was not checked rather than staying silent.
+    axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
