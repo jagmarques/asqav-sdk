@@ -1,14 +1,6 @@
 /**
- * asqav - AI agent governance.
- *
- * Thin TypeScript SDK for asqav.com. All ML-DSA cryptography happens server-side.
- *
- * Quick start:
- *   import { init, Agent } from "@asqav/sdk";
- *
- *   init({ apiKey: "sk_..." });
- *   const agent = await Agent.create({ name: "my-agent" });
- *   const sig = await agent.sign({ actionType: "api:call", context: { model: "gpt-4" } });
+ * asqav - AI agent governance. Thin TypeScript SDK for asqav.com; all ML-DSA
+ * cryptography happens server-side. See the README for the quick start.
  */
 
 import { createHash, createHmac } from "node:crypto";
@@ -73,15 +65,8 @@ export const CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE = [
  * receipt; the binding object travels on B's signed payload. */
 export const ACKNOWLEDGMENT_RECEIPT_TYPE = "protectmcp:acknowledgment" as const;
 
-/** DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification.
- *
- * The Joint Committee of the European Supervisory Authorities published
- * the final RTS on classification of major ICT-related incidents on
- * 17 July 2024 (JC 2024-33). Annex II field 3.23 fixes the controlled
- * vocabulary of `incident_class` to exactly six values. The cloud
- * accepts only these canonical tokens; this SDK forwards the caller's
- * value verbatim and rejects anything outside the canonical set.
- */
+/** DORA RTS JC 2024-33 Annex II field 3.23 canonical incident classification: six
+ * values, the only tokens the cloud accepts. */
 export const DORA_INCIDENT_CLASS_NAMESPACE = [
   "cybersecurity_related",
   "process_failure",
@@ -92,40 +77,28 @@ export const DORA_INCIDENT_CLASS_NAMESPACE = [
 ] as const;
 export type DoraIncidentClass = (typeof DORA_INCIDENT_CLASS_NAMESPACE)[number];
 
-/** HIPAA Security Rule canonical incident classification.
- *
- * HIPAA 45 CFR 164.304 is one of the canonical source regimes for
- * `incident_class` alongside DORA, NYDFS, and CIRCIA. A Covered Entity
- * SHOULD be able to emit a HIPAA token without falling back to a DORA
- * category.
- */
+/** HIPAA Security Rule (45 CFR 164.304) canonical incident classification, so a
+ * Covered Entity can emit a HIPAA token without falling back to DORA. */
 export const HIPAA_INCIDENT_CLASS_NAMESPACE = [
   "hipaa_security_incident",
 ] as const;
 export type HipaaIncidentClass = (typeof HIPAA_INCIDENT_CLASS_NAMESPACE)[number];
 
-/** Union of every canonical incident_class token the SDK accepts. The
- * cloud's `core/incident_vocabulary.py` is authoritative; this mirror
- * spares callers a network round-trip on obvious mistakes.
- */
+/** Union of every canonical incident_class token the SDK accepts. The cloud's
+ * `core/incident_vocabulary.py` is authoritative; this mirror saves a round-trip. */
 export const INCIDENT_CLASS_NAMESPACE = [
   ...DORA_INCIDENT_CLASS_NAMESPACE,
   ...HIPAA_INCIDENT_CLASS_NAMESPACE,
 ] as const;
 export type IncidentClass = (typeof INCIDENT_CLASS_NAMESPACE)[number];
 
-/** Sandbox state vocabulary per the High-Risk gate. Closes GAP-E3 on the
- * TypeScript SDK: the cloud already enforces this enum, the SDK now
- * refuses out-of-vocabulary values before the HTTP roundtrip. */
+/** Sandbox state vocabulary per the High-Risk gate. The cloud enforces this enum;
+ * the SDK refuses out-of-vocabulary values before the HTTP roundtrip. */
 export const SANDBOX_STATE_NAMESPACE = ["enabled", "disabled", "unavailable"] as const;
 export type SandboxState = (typeof SANDBOX_STATE_NAMESPACE)[number];
 
-/** Producer-side `capture_topology` vocabulary; mirrors the cloud
- * SignRequest Literal and the IETF -04 capture-topologies appendix.
- * A client-supplied captureTopology is ADVISORY: the server stamps the
- * authoritative value from the ingress route (for code-authorship that is
- * `github_sha_pull`, set only after the server re-fetches the commit and
- * recomputes the diff). */
+/** Producer-side `capture_topology` vocabulary mirroring the cloud SignRequest Literal.
+ * ADVISORY: the server stamps the authoritative value from the ingress route. */
 export const CAPTURE_TOPOLOGY_NAMESPACE = [
   "in_process_sdk",
   "network_proxy",
@@ -136,15 +109,13 @@ export const CAPTURE_TOPOLOGY_NAMESPACE = [
 ] as const;
 export type CaptureTopology = (typeof CAPTURE_TOPOLOGY_NAMESPACE)[number];
 
-/** Durable-anchoring witnesses Asqav ships. The cloud `witness_policy`
- * extension accepts only this set; `rekor` is explicitly rejected because
- * it is not a shipped witness. Mirrors the live governance.json contract. */
+/** Durable-anchoring witnesses Asqav ships. The cloud `witness_policy` extension
+ * accepts only this set; `rekor` is rejected as it is not a shipped witness. */
 export const WITNESS_NAMESPACE = ["rfc3161", "opentimestamps"] as const;
 export type Witness = (typeof WITNESS_NAMESPACE)[number];
 
 /** Caller-declared N-of-M durable-anchoring quorum. `required` must be in
- * `[1, witnesses.length]`; `witnesses` must be a non-empty subset of the
- * two shipped witnesses. `rekor` is rejected. */
+ * `[1, witnesses.length]` and `witnesses` a non-empty subset of the shipped two. */
 export interface WitnessPolicy {
   required: number;
   witnesses: Witness[];
@@ -161,9 +132,8 @@ export type PolicyDecision = "permit" | "deny" | "rate_limit" | "none";
  * lifecycle receipts emitted under `policyDecision="none"` (IETF -04). */
 export type Decision = "allow" | "deny" | "rate_limit" | "observation";
 
-/** Map an original `policyDecision` token to the spec-shape `decision`.
- * The `none -> observation` row is gated to lifecycle receipts by the
- * no-false-attestation rule on the cloud side. */
+/** Map an original `policyDecision` token to the spec-shape `decision`. The
+ * `none -> observation` row is gated to lifecycle receipts on the cloud side. */
 export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
   permit: "allow",
   allow: "allow",
@@ -172,10 +142,8 @@ export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
   none: "observation",
 });
 
-/** Translate `policyDecision` to the spec-shape `decision`. Falls back
- * to `"deny"` so a misconfigured caller never publishes an
- * out-of-vocabulary token to a draft-strict verifier.
- */
+/** Translate `policyDecision` to the spec-shape `decision`. Falls back to `"deny"` so a
+ * misconfigured caller never publishes an out-of-vocabulary token. */
 export function mapPolicyDecisionToDecision(
   policyDecision: string | null | undefined,
 ): Decision {
@@ -362,9 +330,8 @@ export class APIError extends AsqavError {
   }
 }
 
-/** Thrown when a cloud response omits a field the SDK requires (rule 3.9).
- * Replaces a silent `undefined` read so a caller gets a typed, catchable
- * error naming the missing field instead of an unexplained runtime bug. */
+/** Thrown when a cloud response omits a field the SDK requires (rule 3.9), so a caller
+ * gets a typed error naming the field instead of a silent `undefined`. */
 export class AsqavResponseError extends AsqavError {
   constructor(message: string, docsUrl?: string) {
     super(message, docsUrl);
@@ -375,10 +342,8 @@ export class AsqavResponseError extends AsqavError {
 /** Docs page anchoring missing-required-field response errors (rule 3.9). */
 export const RESPONSE_ERROR_DOCS_URL = "https://asqav.com/docs/sdk-errors" as const;
 
-/** Return `obj[key]` or throw `AsqavResponseError` if the field is absent.
- * Centralizes required-field response parsing so a cloud response missing
- * e.g. `signature_id` throws one typed error instead of leaving a
- * TS-typed-as-required field silently `undefined` at runtime. */
+/** Return `obj[key]` or throw `AsqavResponseError` if the field is absent, so a missing
+ * response field throws one typed error instead of reading `undefined` at runtime. */
 function requireField<T = unknown>(obj: object, key: string): T {
   const rec = obj as Record<string, unknown>;
   if (!(key in rec) || rec[key] === undefined) {
@@ -396,30 +361,21 @@ export interface InitOptions {
   apiKey?: string;
   baseUrl?: string;
   /**
-   * Wire mode for ``Agent.sign``. Defaults to ``"auto"``: hash-only for
-   * ``*.asqav.com`` cloud URLs, full-payload otherwise. Set to
-   * ``"hash-only"`` or ``"full-payload"`` to override. Also reads the
-   * ``ASQAV_MODE`` env var when ``"auto"``.
+   * Wire mode for ``Agent.sign``. Defaults to ``"auto"``: hash-only for ``*.asqav.com``,
+   * full-payload otherwise. Reads ``ASQAV_MODE`` when ``"auto"``.
    */
   mode?: "auto" | "hash-only" | "full-payload";
   /**
-   * Optional 32-byte salt that you generate and hold. When set, hash-only
-   * mode uses HMAC-SHA-256 keyed by it instead of plain SHA-256. Asqav
-   * never receives it and cannot recover it for you. Unset means an
-   * unsalted SHA-256 digest, which can be guessed for a predictable
-   * context. Salted digests still travel labelled `sha256`, so a third
-   * party recomputing per `docs/fingerprint-spec.md` sees a mismatch even
-   * though the signature verifies.
+   * Optional 32-byte salt you generate and hold; hash-only mode then uses HMAC-SHA-256
+   * keyed by it. Asqav never receives it, and salted digests still travel labelled `sha256`.
    */
   orgSalt?: Uint8Array;
 }
 
 export interface AgentCreateOptions {
   name: string;
-  /** One of `ml-dsa-65` (default), `ml-dsa-44`, `ml-dsa-87`, `ed25519`,
-   * or `es256`. Validated client-side; the cloud is the source of
-   * truth on which algorithms are honored on the receipt-signing
-   * path. */
+  /** One of `ml-dsa-65` (default), `ml-dsa-44`, `ml-dsa-87`, `ed25519`, or `es256`.
+   * Validated client-side; the cloud is the source of truth. */
   algorithm?: SupportedAlgorithm | string;
   capabilities?: string[];
 }
@@ -445,14 +401,11 @@ export interface SignOptions {
   /** Optional parent action ID for linking child actions to their parent
    * in a workflow. Powers the agent graph view. */
   parentId?: string;
-  /** Optional list of agent_ids in the same org expected to countersign
-   * this record. Each peer fetches the record and calls
-   * ``agent.countersign(signatureId)``. */
+  /** Optional agent_ids in the same org expected to countersign this record; each peer
+   * calls ``agent.countersign(signatureId)``. */
   coSigners?: string[];
-  /** Optional resolvable man_<token> mandate this sign is authorised under.
-   * The cloud re-verifies the issuer signature, scope, server-clock window,
-   * and revocation, then builds the signed authorized_under_mandate
-   * attestation. The attestation is never a request input. */
+  /** Optional resolvable man_<token> mandate this sign is authorised under. The cloud
+   * re-verifies it and builds the signed attestation; it is never a request input. */
   mandateId?: string;
   /** Optional user-intent envelope. The end user signs a digest of the
    * action and the SDK passes it through to the backend verbatim. */
@@ -460,14 +413,8 @@ export interface SignOptions {
   /** Optional opaque per-call token. The cloud stores it and checks no re-use, so
    * it gates no replay. Bound replay with `validSeconds` or `expiresAt`. */
   nonce?: string;
-  /** Optional validity window in seconds. Sets `valid_until = signed_at + validSeconds`
-   * on the server; verifying the record after expiry returns
-   * `verified=false` with `validation_label="signature_expired"`.
-   * Mutually exclusive with `expiresAt` (rule 10). Pass exactly one of
-   * the two: `validSeconds` for "expire N seconds after signing", or
-   * `expiresAt` for an explicit horizon. Passing both throws
-   * `expiry_collision_guard`. Passing neither falls back to the
-   * server-side default (`valid_seconds=86400`). */
+  /** Optional validity window in seconds, setting `valid_until = signed_at + validSeconds`.
+   * Mutually exclusive with `expiresAt`; passing both throws `expiry_collision_guard`. */
   validSeconds?: number;
   /** Counterparty pin: base64 executor pubkey expected on attestation;
    * other keys -> 403 `executor_key_mismatch`. */
@@ -475,15 +422,12 @@ export interface SignOptions {
 
   // === IETF Compliance Receipts profile fields ===
 
-  /** Emit the receipt under the IETF profile. When true, the cloud uses
-   * fail-closed anchoring, raises the retention floor, and writes the
-   * v3-20 envelope fields. Defaults to false. */
+  /** Emit the receipt under the IETF profile: fail-closed anchoring, a raised retention
+   * floor, and the v3-20 envelope fields. Defaults to false. */
   complianceMode?: boolean;
 
-  /** `sha256:<hex>` of the canonical Action object. When omitted under
-   * `complianceMode=true`, the SDK computes it client-side as
-   * `"sha256:" + sha256(canonicalJson(action))` where `action` is
-   * `{action_type, context}`. */
+  /** `sha256:<hex>` of the canonical Action object. Computed client-side when omitted
+   * under `complianceMode=true`, over `{action_type, context}`. */
   actionRef?: string;
 
   /** High-Risk gate. Caller-supplied; defaults to `"unavailable"` when
@@ -505,35 +449,24 @@ export interface SignOptions {
    * `Organization.legal_entity` when omitted. */
   issuerId?: string;
 
-  /** Digest of the request payload. Accepts the
-   * `"sha256:<hex>"` string or the wire object form
+  /** Digest of the request payload. Accepts `"sha256:<hex>"` or the wire object form
    * `{ hash, size?, preview? }`. */
   payloadDigest?: string | { hash: string; size?: number; preview?: string };
 
-  /** Receipt namespace. One of `protectmcp:decision` |
-   * `protectmcp:restraint` | `protectmcp:lifecycle` |
-   * `protectmcp:acknowledgment` | `protectmcp:observation`. Defaults to
-   * `protectmcp:decision`. Validated client-side. */
+  /** Receipt namespace: `protectmcp:` decision | restraint | lifecycle | acknowledgment |
+   * observation. Defaults to `protectmcp:decision`. Validated client-side. */
   receiptType?: ReceiptType;
 
-  /** Machine-readable code for `policy_decision in {deny, rate_limit}`.
-   * Drawn from the IETF rejection-reason vocabulary; the cloud is the
-   * source of truth on which codes are accepted. */
+  /** Machine-readable code for `policy_decision in {deny, rate_limit}`, drawn from the
+   * IETF rejection-reason vocabulary. The cloud is the source of truth. */
   reason?: string;
 
-  /** Policy decision. `permit` (default), `deny`, `rate_limit`, or `none`.
-   * `none` is the lifecycle opt-out and requires `receiptType` in the
-   * `protectmcp:lifecycle` namespace. When `deny` or `rate_limit`,
-   * `reason` is required. */
+  /** Policy decision: `permit` (default), `deny`, `rate_limit`, or `none`. `none` needs a
+   * `protectmcp:lifecycle` receiptType; `deny` / `rate_limit` need `reason`. */
   policyDecision?: PolicyDecision;
 
-  /** Producer-side topology. One of `in_process_sdk`, `network_proxy`,
-   * `browser_extension`, `mcp_proxy`, `passive_telemetry`, `github_sha_pull`.
-   * Stamped on the audit-pack manifest entry; never on the signed payload.
-   * Client-supplied captureTopology is advisory: the server stamps the
-   * authoritative value from the ingress route.
-   * `passive_telemetry` requires `receiptType='protectmcp:observation'`
-   * (false-attestation guard). */
+  /** Producer-side topology, stamped on the audit-pack manifest and never on the signed
+   * payload. Advisory; `passive_telemetry` requires `protectmcp:observation`. */
   captureTopology?: CaptureTopology;
 
   // === NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0) ===
@@ -542,39 +475,28 @@ export interface SignOptions {
    * verbatim to the cloud. */
   resultDigest?: string;
 
-  /** Receipt validity horizon. ISO-8601 string or POSIX number. The cloud
-   * owns absolute time-binding and accepts only a duration, so the SDK
-   * converts this absolute horizon to a client-computed `valid_seconds` and
-   * sends that instead. Mutually exclusive with `validSeconds` (rule 10);
-   * see `validSeconds` for precedence. */
+  /** Receipt validity horizon (ISO-8601 or POSIX), converted client-side to
+   * `valid_seconds`. Mutually exclusive with `validSeconds`. */
   expiresAt?: string | number;
 
-  /** Optional JSON schema describing the tool surface. When provided
-   * alongside `toolName` and `toolFingerprint` is omitted, the SDK
-   * computes the fingerprint client-side via JCS canonicalization. */
+  /** Optional JSON schema describing the tool surface. With `toolName` and no
+   * `toolFingerprint`, the SDK computes the fingerprint client-side via JCS. */
   toolSchema?: Record<string, unknown>;
 
-  /** Explicit fingerprint over the canonical `{tool_name, schema}` blob.
-   * When omitted but `toolName` + `toolSchema` are present, the SDK
-   * derives it client-side. MUST be 32 bare lowercase hex chars
-   * (SHA-256[:32], no `sha256:` prefix), matching the cloud wire form; use
-   * `computeToolFingerprint` to avoid drift. */
+  /** Explicit fingerprint over the canonical `{tool_name, schema}` blob, 32 bare lowercase
+   * hex chars (SHA-256[:32]). Use `computeToolFingerprint` to avoid drift. */
   toolFingerprint?: string;
 
-  /** `sha256:<hex>` of the agent's runtime configuration manifest.
-   * REQUIRED for `receiptType='protectmcp:lifecycle:configuration_change'`
-   * (false-attestation rule 9). MUST match `sha256:<64-hex>` (rule 11);
-   * use `computeConfigManifestDigest` to avoid drift. */
+  /** `sha256:<hex>` of the agent's runtime configuration manifest, REQUIRED for
+   * `protectmcp:lifecycle:configuration_change`. Use `computeConfigManifestDigest`. */
   configManifestDigest?: string;
 
-  /** `sha256:<hex>` of the agent's CVE inventory snapshot at signing time.
-   * MUST match `sha256:<64-hex>` (rule 11); use
+  /** `sha256:<hex>` of the agent's CVE inventory snapshot at signing time. Use
    * `computeCveInventoryDigest` to avoid drift. */
   cveInventoryDigest?: string;
 
-  /** Build-provenance 4-tuple. `sha256:<hex>` of the executable that
-   * invoked the action. Binds build-side provenance into the signed
-   * receipt. MUST match `sha256:<64-hex>` (rule 11). */
+  /** Build-provenance 4-tuple: `sha256:<hex>` of the executable that invoked the action,
+   * binding build-side provenance into the signed receipt. */
   executableHash?: string;
 
   /** Build-provenance 4-tuple. `sha256:<hex>` of the canonical CycloneDX
@@ -589,10 +511,8 @@ export interface SignOptions {
    * Rekor entry covering the executing build. */
   supplyChainPointer?: string;
 
-  /** Caller-supplied list of MITRE ATT&CK technique ids (e.g.
-   * `["T1059", "T1078"]`). Self-declared; never Asqav-verified. Cloud
-   * sets `framework_mappings_self_declared=true` whenever any of the six
-   * taxonomy lists is populated. */
+  /** Caller-supplied MITRE ATT&CK technique ids. Self-declared, never Asqav-verified; any
+   * populated taxonomy list sets `framework_mappings_self_declared=true`. */
   mitreTechniques?: string[];
 
   /** Caller-supplied list of MITRE ATLAS ids for AI-system threats
@@ -615,46 +535,36 @@ export interface SignOptions {
    * `["Article-12", "Article-15"]`). Self-declared. */
   euAiActArticles?: string[];
 
-  /** Caller-supplied base64-encoded RFC 3161 TimeStampResp (DER).
-   * Preserved on the receipt for offline TSA chain verification
-   * independent of cloud-issued anchors. */
+  /** Caller-supplied base64 RFC 3161 TimeStampResp (DER), preserved for offline TSA chain
+   * verification independent of cloud-issued anchors. */
   rfc3161Timestamp?: string;
 
-  /** Caller-declared N-of-M durable-anchoring quorum. Shape
-   * `{ required, witnesses: [<subset of "rfc3161", "opentimestamps">] }`.
-   * `required` must be in `[1, witnesses.length]`; `witnesses` must be a
-   * non-empty subset of the two shipped witnesses. `rekor` is rejected
-   * (not a shipped witness). The receipt reaches `witness_quorum_met`
-   * only when `required` witnesses hold a real inclusion proof. Projected
-   * to the wire as snake_case `witness_policy`. */
+  /** Caller-declared N-of-M durable-anchoring quorum `{ required, witnesses }`. Reaches
+   * `witness_quorum_met` only when `required` witnesses hold a real inclusion proof. */
   witnessPolicy?: WitnessPolicy;
 
-  /** Risk-acceptance receipt: identity that authored the acceptance.
-   * REQUIRED on `receiptType='protectmcp:lifecycle:risk_acceptance'`. Field
-   * only: bound into the signed bytes, never compared or authenticated. */
+  /** Risk-acceptance receipt: identity that authored the acceptance, REQUIRED on
+   * `protectmcp:lifecycle:risk_acceptance`. Bound into the signed bytes, never authenticated. */
   approverId?: string;
 
   /** Risk-acceptance receipt: identity that requested the acceptance.
    * Field only; never compared to `approverId`. */
   initiatorId?: string;
 
-  /** Risk-acceptance receipt: free-text human rationale. REQUIRED on
-   * `receiptType='protectmcp:lifecycle:risk_acceptance'`. Proves the reason
-   * existed at signing time; never parsed or scored. */
+  /** Risk-acceptance receipt: free-text human rationale, REQUIRED on
+   * `protectmcp:lifecycle:risk_acceptance`. Never parsed or scored. */
   acceptanceReason?: string;
 
   /** Risk-acceptance receipt: RFC 3339 wall-clock the approver authored the
    * acceptance. Producer-asserted; Asqav-attested time is the anchors. */
   acceptedAt?: string;
 
-  /** Risk-acceptance receipt: pointer to the prior risk-acceptance receipt
-   * this one replaces. The chain stays immutable; supersession is a forward
-   * pointer only. */
+  /** Risk-acceptance receipt: pointer to the prior acceptance this one replaces. The chain
+   * stays immutable; supersession is a forward pointer only. */
   supersedes?: string;
 
-  /** Risk-acceptance receipt: `sha256:<64 hex>` of the SARIF scan artifact
-   * the acceptance rested on. Proves THAT SARIF existed unaltered; Asqav does
-   * not re-run or validate the scan. */
+  /** Risk-acceptance receipt: `sha256:<64 hex>` of the SARIF artifact the acceptance rested
+   * on. Proves that SARIF existed unaltered; Asqav does not re-run the scan. */
   sarifDigest?: string;
 
   /** Risk-acceptance receipt: opaque pointer to a finding / rule id inside
@@ -665,19 +575,16 @@ export interface SignOptions {
    * approval id. Free-text correlation anchor. */
   approvalRef?: string;
 
-  /** Risk-acceptance receipt: producer-asserted point-in-time risk snapshot.
-   * Projected to the wire as snake_case `risk_snapshot`. A numeric without
-   * `snapshotSource` is rejected so it is never read as an Asqav score. */
+  /** Risk-acceptance receipt: producer-asserted risk snapshot, wired as `risk_snapshot`. A
+   * numeric without `snapshotSource` is rejected so it is never read as an Asqav score. */
   riskSnapshot?: RiskSnapshot;
 
-  /** Code-authorship receipt: opaque pointer to the repository the change
-   * lives in. REQUIRED on `receiptType='protectmcp:lifecycle:code_authorship'`.
-   * Free-text; recorded, never resolved by Asqav. */
+  /** Code-authorship receipt: opaque repository pointer, REQUIRED on
+   * `protectmcp:lifecycle:code_authorship`. Recorded, never resolved by Asqav. */
   repoRef?: string;
 
-  /** Code-authorship receipt: commit sha of the change. REQUIRED on
-   * `receiptType='protectmcp:lifecycle:code_authorship'`. Producer-asserted;
-   * Asqav records it, never fetches or verifies the commit. */
+  /** Code-authorship receipt: commit sha of the change, REQUIRED on
+   * `protectmcp:lifecycle:code_authorship`. Recorded, never fetched or verified. */
   commitSha?: string;
 
   /** Code-authorship receipt: base sha the change is measured against.
@@ -700,27 +607,17 @@ export interface SignOptions {
    * one of read|write|delete|execute|deploy. */
   changeClass?: string;
 
-  /** Code-authorship receipt: producer-asserted author of the change.
-   * Projected to the wire as snake_case `authored_by`. A populated
-   * `modelId` / `modelVersion` requires `attestationSource` so the
-   * machine-authorship claim is never read as Asqav-verified. */
+  /** Code-authorship receipt: producer-asserted author, wired as `authored_by`. A populated
+   * `modelId` / `modelVersion` requires `attestationSource`. */
   authoredBy?: AuthoredBy;
 
-  /** Optional schema for context (criterion 328). Built-in descriptor map or
-   * custom validator function. Validates + normalises context before signing;
-   * throws ValidationError on mismatch. Omit for today's exact behavior. */
+  /** Optional schema for context (criterion 328). Validates and normalises context before
+   * signing; throws ValidationError on mismatch. */
   contextSchema?: ContextSchema | ((ctx: Record<string, unknown>) => void);
 }
 
-/** Producer-asserted point-in-time snapshot of third-party risk signals.
- *
- * Mirrors the cloud RiskSnapshot model. Every value is a snapshot the
- * producer READ at `snapshot_at` from `snapshot_source`; Asqav never
- * fetches, computes, verifies, or vouches for any of them. The
- * `snapshot_at` + `snapshot_source` labels are normative: a numeric
- * (`epss` / `cvss` / `cvssVector` / `kevListed`) without `snapshotSource`
- * is rejected so a value can never appear unlabeled and be mistaken for an
- * Asqav-derived score. Numerics are strings on the wire. */
+/** Producer-asserted point-in-time snapshot of third-party risk signals, mirroring the cloud
+ * RiskSnapshot. A numeric without `snapshotSource` is rejected; numerics are strings on the wire. */
 export interface RiskSnapshot {
   /** RFC 3339 read-time of the signals (REQUIRED). Producer-asserted. */
   snapshotAt: string;
@@ -738,14 +635,8 @@ export interface RiskSnapshot {
   cveIds?: string[];
 }
 
-/** Producer-asserted author of a code change on a code-authorship receipt.
- *
- * Mirrors the cloud AuthoredBy model. Every value is producer-asserted;
- * Asqav never verifies the identity, the model, or the change. `modelId` /
- * `modelVersion` are a machine-authorship claim: if either is populated,
- * `attestationSource` is REQUIRED so the claim is recorded as
- * producer-asserted and is never read as an Asqav-verified attestation.
- * Projected to the wire as snake_case keys. */
+/** Producer-asserted author of a code change, mirroring the cloud AuthoredBy. A populated
+ * `modelId` / `modelVersion` requires `attestationSource`; wired as snake_case. */
 export interface AuthoredBy {
   /** Human author identity (free-text id / email). Producer-asserted. */
   humanId?: string;
@@ -765,9 +656,8 @@ export interface CoSignature {
 }
 
 export interface SignatureResponse {
-  /** Polymorphic. Base64 string in non-compliance mode, `{alg, kid, sig}` object
-   * form under compliance_mode. Use `signatureEnvelope()` for the dict
-   * form. */
+  /** Polymorphic: base64 string in non-compliance mode, `{alg, kid, sig}` under compliance
+   * mode. Use `signatureEnvelope()` for the dict form. */
   signature: string | SignatureEnvelope;
   signatureId: string;
   actionId: string;
@@ -796,8 +686,7 @@ export interface SignatureResponse {
   receiptType?: string;
   /** Resolved legal entity for this receipt. */
   issuerId?: string;
-  /** Original `policy_decision` value echoed from the request (one of
-   * `"permit" | "deny" | "rate_limit"`). Kept for backward compat with
+  /** Original `policy_decision` echoed from the request, kept for backward compat with
    * tooling built against the pre-spec implementation. */
   policyDecision?: PolicyDecision;
   /** Spec-shape `decision`: echoed from cloud or mapped from
@@ -806,9 +695,8 @@ export interface SignatureResponse {
   /** Compliance Receipts envelope: the canonical signed dict. None on
    * non-compliance receipts. */
   payload?: Record<string, unknown>;
-  /** Compliance Receipts envelope: the type-discriminated anchors
-   * array. None on non-compliance receipts; `[]` when compliance_mode is on
-   * before anchors land. */
+  /** Compliance Receipts envelope: the type-discriminated anchors array. None on
+   * non-compliance receipts; `[]` before anchors land. */
   anchors?: AnchorEntry[];
 }
 
@@ -820,16 +708,8 @@ export interface SessionResponse {
   endedAt?: string;
 }
 
-/** Granular sub-checks the cloud returns alongside `verified`. The
- * `validationLabel` string is the dominant failure reason when
- * `verified=false`, e.g. `signature_expired` or `signer_key_changed`.
- *
- * The IETF profile sub-axes (`chainValid`, `anchorValidOts`,
- * `anchorValidRfc3161`, `anchorStatusOts`, `anchorStatusRfc3161`,
- * `signedAtSkewSeconds`, `missingFields`, `policyDigestResolved`,
- * `duplicateEmissionCandidate`, `regimesSatisfied`) populate only
- * when the cloud emits them on a compliance-mode receipt;
- * non-compliance-mode receipts leave them undefined. */
+/** Granular sub-checks the cloud returns alongside `verified`; `validationLabel` is the
+ * dominant failure reason. The IETF sub-axes populate only on compliance-mode receipts. */
 export interface VerificationDetail {
   signerKeyMatch: boolean;
   signatureValid: boolean;
@@ -851,40 +731,34 @@ export interface VerificationDetail {
     | string;
   /** Skew vs verifier wall clock; beyond the cloud's bound -> reject. */
   signedAtSkewSeconds?: number;
-  /** True when the cloud could rederive the chain hash from the stored
-   * `signed_envelope` and the predecessor matches. Undefined on
-   * non-compliance-mode records. */
+  /** True when the cloud could rederive the chain hash from the stored `signed_envelope`
+   * and the predecessor matches. Undefined on non-compliance-mode records. */
   chainValid?: boolean;
   /** OTS proof bool form. True when the OpenTimestamps proof rederived. */
   anchorValidOts?: boolean;
   /** Timestamp anchor bool form. True when the timestamp rederived. */
   anchorValidRfc3161?: boolean;
-  /** Tri-state OTS status. `pending` means inside the upgrade window;
-   * `invalid` means corruption or stale; `valid` mirrors the Bitcoin
-   * block-confirmed case. */
+  /** Tri-state OTS status: `pending` inside the upgrade window, `invalid` on corruption or
+   * staleness, `valid` for the Bitcoin block-confirmed case. */
   anchorStatusOts?: "valid" | "pending" | "invalid";
   /** Timestamp anchor outcome. Deterministic at issuance; never
    * `pending`. */
   anchorStatusRfc3161?: "valid" | "pending" | "invalid";
-  /** REQUIRED-fields presence check. Surfaces column names NULLed
-   * post-issuance on a compliance-mode receipt; empty / undefined means
-   * every required field is present. */
+  /** REQUIRED-fields presence check, surfacing column names NULLed post-issuance. Empty or
+   * undefined means every required field is present. */
   missingFields?: string[];
   /** True when the policy digest at issuance resolved to a known artefact. */
   policyDigestResolved?: boolean;
-  /** True / non-empty when more than one receipt exists for the
-   * (action_ref, issuer_id) pair; reporting flag, not a verification
-   * downgrade. */
+  /** Set when more than one receipt exists for the (action_ref, issuer_id) pair. A reporting
+   * flag, not a verification downgrade. */
   duplicateEmissionCandidate?: boolean | string;
-  /** Regulator tokens the cloud derived for the receipt (e.g.
-   * `eu_ai_act`, `dora`). Empty / undefined on non-compliance-mode
-   * receipts. */
+  /** Regulator tokens the cloud derived for the receipt (e.g. `eu_ai_act`, `dora`). Empty or
+   * undefined on non-compliance-mode receipts. */
   regimesSatisfied?: string[];
 }
 
-/** Execution-evidence projection on a verification response. `label`
- * vocabulary: result_bound | digest_present | none_by_design | absent.
- * `present` is the top-line boolean; `resultDigest` echoes the bound hash. */
+/** Execution-evidence projection on a verification response. `label` is one of result_bound |
+ * digest_present | none_by_design | absent; `resultDigest` echoes the bound hash. */
 export interface ExecutionEvidence {
   present: boolean;
   label: "result_bound" | "digest_present" | "none_by_design" | "absent" | string;
@@ -893,11 +767,8 @@ export interface ExecutionEvidence {
   noneByDesign?: boolean;
 }
 
-/** Anchor attestation state on a verification response. `status`
- * vocabulary: none | pending | confirmed | failed. `anchorTxRef` and
- * `anchorBlockHeight` populate once the OpenTimestamps proof upgrades
- * to a confirmed attestation. Field names are provider-agnostic so the
- * response shape survives a future switch off OpenTimestamps + Bitcoin. */
+/** Anchor attestation state: `status` is none | pending | confirmed | failed. Field names are
+ * provider-agnostic so the shape survives a switch off OpenTimestamps + Bitcoin. */
 export interface BitcoinAnchorStatus {
   status: "none" | "pending" | "confirmed" | "failed" | string;
   anchorTxRef?: string | null;
@@ -927,9 +798,8 @@ export interface VerificationResponse {
   /** IETF projection of the signed envelope: `{alg, kid}`. Undefined on
    * non-compliance-mode receipts. */
   signatureEnvelope?: { alg: string; kid: string } & Record<string, string>;
-  /** IETF anchors projection: list of `{type, value, ...}` per anchor.
-   * `type` is `"opentimestamps"` or `"rfc3161"`. Undefined on
-   * non-compliance-mode receipts. */
+  /** IETF anchors projection: `{type, value, ...}` per anchor, `type` being
+   * `"opentimestamps"` or `"rfc3161"`. Undefined on non-compliance-mode receipts. */
   anchors?: Array<
     {
       type: "opentimestamps" | "rfc3161" | string;
@@ -1173,11 +1043,8 @@ export async function request<T = unknown>(
 // === Sign body builder (mode-aware) ===
 
 /**
- * Merge explicit kwargs (`toolName`, `modelName`, `parentId`) into the
- * caller-supplied context as underscored sentinel keys so the hash-only
- * metadata builder picks them up. Returns a fresh object only when one
- * of the kwargs was present; otherwise returns the original ref. Mirrors
- * the Python SDK's surface-into-context behaviour.
+ * Merge explicit kwargs into the caller's context as underscored sentinel keys so the
+ * hash-only metadata builder picks them up. Returns the original ref when none were present.
  */
 function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown> {
   const initial = options.context ?? {};
@@ -1196,10 +1063,8 @@ function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown>
 }
 
 /**
- * Fail-fast vocabulary checks on caller input before the HTTP roundtrip.
- * The cloud remains source of truth; these mirror the canonical sets so
- * obvious mistakes do not consume a network call. Throws AsqavError on
- * the first offending field.
+ * Fail-fast vocabulary checks before the HTTP roundtrip; the cloud stays source of truth.
+ * Throws AsqavError on the first offending field.
  */
 function validateSignOptions(options: SignOptions, complianceMode: boolean): void {
   if (
@@ -1366,12 +1231,8 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
 }
 
 /**
- * Reject malformed `witnessPolicy` before the HTTP roundtrip. Lockstep
- * with the cloud witness_policy extension: `{ required, witnesses }` where
- * `witnesses` is a non-empty subset of the two shipped witnesses and
- * `required` is an integer in `[1, witnesses.length]`. `rekor` is rejected
- * because it is not a shipped witness. Verbatim guard tokens match the
- * Python SDK so SDK errors round-trip through the conformance vectors.
+ * Reject malformed `witnessPolicy` before the HTTP roundtrip, in lockstep with the cloud
+ * extension. Guard tokens match the Python SDK so errors round-trip through the vectors.
  */
 function validateWitnessPolicy(value: WitnessPolicy | undefined): void {
   if (value === undefined) return;
@@ -1411,9 +1272,8 @@ function validateWitnessPolicy(value: WitnessPolicy | undefined): void {
 }
 
 /**
- * Reject `incident_class` values outside the canonical union (HIPAA
- * token plus the six DORA tokens). Accepts a single value, an array,
- * or undefined / empty string (skip).
+ * Reject `incident_class` values outside the canonical union. Accepts a single value, an
+ * array, or undefined / empty string (skip).
  */
 function validateIncidentClass(value: string | string[] | undefined): void {
   if (value === undefined || value === "") return;
@@ -1431,11 +1291,8 @@ function validateIncidentClass(value: string | string[] | undefined): void {
 const RISK_ACCEPTANCE_RECEIPT_TYPE = "protectmcp:lifecycle:risk_acceptance";
 
 /**
- * Reject a malformed `riskSnapshot` before the HTTP roundtrip. Lockstep with
- * the cloud RiskSnapshot validator: `snapshotAt` is required, a numeric
- * (`epss` / `cvss` / `cvssVector` / `kevListed`) requires `snapshotSource`,
- * `epss` / `cvss` must be strings, and `cveIds` must be a non-empty array of
- * strings (<= 128 chars). Verbatim guard tokens match the Python SDK.
+ * Reject a malformed `riskSnapshot` before the HTTP roundtrip, in lockstep with the cloud
+ * validator. Verbatim guard tokens match the Python SDK.
  */
 function validateRiskSnapshot(rs: RiskSnapshot | undefined): void {
   if (rs === undefined) return;
@@ -1488,13 +1345,8 @@ function validateRiskSnapshot(rs: RiskSnapshot | undefined): void {
 }
 
 /**
- * Reject malformed risk-acceptance receipts before the HTTP roundtrip.
- * Lockstep with the cloud SignRequest `_validate_risk_acceptance_extensions`:
- * sarifDigest must be `sha256:<64 hex>`; the extension fields are fenced to
- * `receiptType='protectmcp:lifecycle:risk_acceptance'`; the receipt requires
- * `approverId` + `acceptanceReason`, signs with `policyDecision='none'`, and
- * (mirroring the cloud compliance-mode guard) requires `complianceMode` so the
- * fields are never silently dropped from the signed bytes.
+ * Reject malformed risk-acceptance receipts before the HTTP roundtrip, in lockstep with the
+ * cloud validator. `complianceMode` is required so the fields reach the signed bytes.
  */
 function validateRiskAcceptance(options: SignOptions, complianceMode: boolean): void {
   if (options.sarifDigest !== undefined && !SHA256_HEX_RE.test(options.sarifDigest)) {
@@ -1555,11 +1407,8 @@ function validateRiskAcceptance(options: SignOptions, complianceMode: boolean): 
 const CODE_AUTHORSHIP_RECEIPT_TYPE = "protectmcp:lifecycle:code_authorship";
 
 /**
- * Reject a malformed `authoredBy` before the HTTP roundtrip. Lockstep with the
- * cloud AuthoredBy validator: it must be an object, and a populated `modelId` /
- * `modelVersion` (a machine-authorship claim) requires `attestationSource` so
- * the claim is never read as Asqav-verified. Verbatim guard tokens match the
- * Python SDK.
+ * Reject a malformed `authoredBy` before the HTTP roundtrip: a populated `modelId` /
+ * `modelVersion` requires `attestationSource` so the claim is never read as Asqav-verified.
  */
 function validateAuthoredBy(ab: AuthoredBy | undefined): void {
   if (ab === undefined) return;
@@ -1579,15 +1428,8 @@ function validateAuthoredBy(ab: AuthoredBy | undefined): void {
 }
 
 /**
- * Reject malformed code-authorship receipts before the HTTP roundtrip.
- * Lockstep with the cloud SignRequest `_validate_code_authorship_extensions`:
- * changeDigest must be `sha256:<64 hex>`; changeClass is a closed
- * read|write|delete|execute|deploy set; the extension fields are fenced to
- * `receiptType='protectmcp:lifecycle:code_authorship'`; the receipt requires
- * `repoRef` + `commitSha`, signs with `policyDecision='none'`, and (mirroring
- * the cloud compliance-mode guard) requires `complianceMode` so the fields are
- * never silently dropped from the signed bytes. Honest-scope: every field is
- * producer-asserted / recorded-not-verified.
+ * Reject malformed code-authorship receipts before the HTTP roundtrip, in lockstep with the
+ * cloud validator. Every field is producer-asserted and recorded, never verified.
  */
 function validateCodeAuthorship(options: SignOptions, complianceMode: boolean): void {
   if (options.changeDigest !== undefined && !SHA256_HEX_RE.test(options.changeDigest)) {
@@ -1643,10 +1485,8 @@ function validateCodeAuthorship(options: SignOptions, complianceMode: boolean): 
 }
 
 /**
- * Derive `action_ref` locally when omitted under compliance mode; matches
- * the cloud's `hash_action` shape (`sha256:<hex>` over canonical JSON of
- * `{action_type, context}`). Returns the caller's value verbatim when
- * compliance mode is off or `actionRef` is already set.
+ * Derive `action_ref` locally when omitted under compliance mode, matching the cloud's
+ * `hash_action` shape. Returns the caller's value verbatim otherwise.
  */
 function deriveActionRef(
   complianceMode: boolean,
@@ -1660,24 +1500,16 @@ function deriveActionRef(
   return `sha256:${hex}`;
 }
 
-/** Wire format for every caller-supplied digest field
- * (`tool_fingerprint`, `config_manifest_digest`, `cve_inventory_digest`,
- * `result_digest`). The cloud accepts the same exact-match form so the
- * SDK surfaces bad inputs before the HTTP roundtrip; the regex matches
- * the helper outputs byte-for-byte. */
+/** Wire format for every caller-supplied digest field. The cloud accepts the same exact-match
+ * form, and the regex matches the helper outputs byte-for-byte. */
 const SHA256_HEX_RE = /^sha256:[a-f0-9]{64}$/;
 
-/** Wire format for `tool_fingerprint`: 32 bare lowercase hex chars
- * (SHA-256[:32]). The cloud validates this field with the bare form, not
- * the self-describing `sha256:<hex>` form used by the other digests. */
+/** Wire format for `tool_fingerprint`: 32 bare lowercase hex chars (SHA-256[:32]), not the
+ * self-describing `sha256:<hex>` form the other digests use. */
 const TOOL_FINGERPRINT_RE = /^[0-9a-f]{32}$/;
 
-/** Compute a deterministic 32-bare-hex fingerprint over `{tool_name,
- * schema}` per NSA CSI U/OO/6030316-26. The fingerprint is
- * byte-deterministic under JCS (RFC 8785) so the SDK and cloud agree when
- * the cloud rehashes for tamper detection. The cloud requires the first 32
- * hex chars of the SHA-256 digest, bare (no `sha256:` prefix), matching
- * `TOOL_FINGERPRINT_RE`. */
+/** Compute a deterministic 32-bare-hex fingerprint over `{tool_name, schema}` per NSA CSI
+ * U/OO/6030316-26. Byte-deterministic under JCS so the SDK and cloud agree. */
 export function computeToolFingerprint(
   toolName: string,
   toolSchema: Record<string, unknown> | undefined,
@@ -1687,13 +1519,8 @@ export function computeToolFingerprint(
   return hex.slice(0, 32);
 }
 
-/** Compute the canonical `sha256:<hex>` of a runtime configuration
- * manifest. NSA CSI U/OO/6030316-26 anchors the "silent capability creep"
- * audit on `protectmcp:lifecycle:configuration_change` receipts (rule 9).
- * This helper produces a digest byte-deterministic under JCS (RFC 8785)
- * so two auditors who receive the same manifest object produce identical
- * digests regardless of insertion order. Output matches `SHA256_HEX_RE`
- * byte-for-byte. */
+/** Compute the canonical `sha256:<hex>` of a runtime configuration manifest, byte-deterministic
+ * under JCS so two auditors with the same object produce identical digests. */
 export function computeConfigManifestDigest(
   manifest: Record<string, unknown>,
 ): string {
@@ -1701,20 +1528,15 @@ export function computeConfigManifestDigest(
   return `sha256:${hex}`;
 }
 
-/** Compute the canonical `sha256:<hex>` of a CVE inventory snapshot. NSA
- * CSI U/OO/6030316-26 anchors the "known-vulnerable invocation" audit on
- * receipts that carry `cve_inventory_digest`. The helper takes the list
- * of CVE records (any JSON-serialisable shape) and produces a digest
- * byte-deterministic under JCS (RFC 8785). Output matches
- * `SHA256_HEX_RE` byte-for-byte. */
+/** Compute the canonical `sha256:<hex>` of a CVE inventory snapshot, byte-deterministic under
+ * JCS. Output matches `SHA256_HEX_RE` byte-for-byte. */
 export function computeCveInventoryDigest(cveList: unknown[]): string {
   const hex = createHash("sha256").update(canonicalJson(cveList)).digest("hex");
   return `sha256:${hex}`;
 }
 
-/** Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
- * The cloud stores it verbatim and runs no uniqueness check, so re-sending one
- * produces a second accepted signature. Bound replay with `validSeconds`. */
+/** Return a 24-hex-char value for the `nonce` wire field. The cloud stores it verbatim and
+ * runs no uniqueness check, so bound replay with `validSeconds`. */
 export function generateNonce(): string {
   // Use Web Crypto (Node >=19 + browsers); avoids require("crypto") CJS shim in the .mjs bundle.
   const buf = new Uint8Array(12);
@@ -1723,11 +1545,8 @@ export function generateNonce(): string {
 }
 
 /**
- * Tack the optional non-IETF wire fields (`co_signers`, `nonce`,
- * `valid_seconds`, `expected_executor_pubkey_b64`) onto the body when
- * the caller supplied them. Mutates `body` in place for parity with the
- * inline original. Fills `nonce` (NSA CSI alignment) when the caller omits
- * one. The cloud stores that value and checks no re-use.
+ * Tack the optional non-IETF wire fields onto the body when supplied, filling `nonce` when
+ * the caller omits one. Mutates `body` in place for parity with the inline original.
  */
 function applyOptionalWireFields(
   body: Record<string, unknown>,
@@ -1755,9 +1574,8 @@ function applyOptionalWireFields(
   }
 }
 
-/** Convert a camelCase `RiskSnapshot` to its snake_case wire object so the
- * signed payload uses the same keys the cloud RiskSnapshot model emits.
- * Returns undefined when no snapshot is supplied (field omitted from wire). */
+/** Convert a camelCase `RiskSnapshot` to its snake_case wire object. Returns undefined when no
+ * snapshot is supplied, so the field is omitted from the wire. */
 function riskSnapshotToWire(rs: RiskSnapshot | undefined): Record<string, unknown> | undefined {
   if (rs === undefined) return undefined;
   const wire: Record<string, unknown> = {
@@ -1772,9 +1590,8 @@ function riskSnapshotToWire(rs: RiskSnapshot | undefined): Record<string, unknow
   return wire;
 }
 
-/** Convert a camelCase `AuthoredBy` to its snake_case wire object so the
- * signed payload uses the same keys the cloud AuthoredBy model emits.
- * Returns undefined when no author is supplied (field omitted from wire). */
+/** Convert a camelCase `AuthoredBy` to its snake_case wire object. Returns undefined when no
+ * author is supplied, so the field is omitted from the wire. */
 function authoredByToWire(ab: AuthoredBy | undefined): Record<string, unknown> | undefined {
   if (ab === undefined) return undefined;
   const wire: Record<string, unknown> = {};
@@ -1785,9 +1602,8 @@ function authoredByToWire(ab: AuthoredBy | undefined): Record<string, unknown> |
   return wire;
 }
 
-/** Snake_case wire-key projection of the optional IETF profile fields
- * that do not depend on `complianceMode`. Defined as a const table so
- * the `applyComplianceFields` loop stays single-pass. */
+/** Snake_case wire-key projection of the optional IETF fields that do not depend on
+ * `complianceMode`. A const table so the `applyComplianceFields` loop stays single-pass. */
 const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   wire: string;
   read: (o: SignOptions) => unknown;
@@ -1848,12 +1664,8 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
 ];
 
 /**
- * Project IETF Compliance Receipts profile fields onto the request body
- * using snake_case wire keys. Adds `compliance_mode`, `action_ref`, the
- * non-conditional optional fields (`sandbox_state`, `iteration_id`,
- * `risk_class`, `incident_class`, `issuer_id`, `payload_digest`,
- * `receipt_type`, `reason`), then the decision / topology fields that
- * depend on `complianceMode`.
+ * Project IETF Compliance Receipts profile fields onto the request body using snake_case wire
+ * keys, then the decision / topology fields that depend on `complianceMode`.
  */
 function applyComplianceFields(
   body: Record<string, unknown>,
@@ -1870,9 +1682,8 @@ function applyComplianceFields(
   applyDecisionFields(body, options, complianceMode);
 }
 
-/** Attach `policy_decision`, the spec-shape `decision` mirror, and the
- * compliance-only `capture_topology` to the body. Split out so
- * `applyComplianceFields` stays a flat loop plus one helper call. */
+/** Attach `policy_decision`, the spec-shape `decision` mirror, and the compliance-only
+ * `capture_topology`. Split out so `applyComplianceFields` stays a flat loop. */
 function applyDecisionFields(
   body: Record<string, unknown>,
   options: SignOptions,
@@ -1918,10 +1729,8 @@ interface SignWireResponse {
 }
 
 /**
- * Shape the snake_case wire response into the camelCase
- * `SignatureResponse` returned to callers. Prefers cloud-supplied
- * `decision`; maps from `policy_decision` for older clouds under
- * compliance_mode. Accepts either casing on `previous_receipt_hash`.
+ * Shape the snake_case wire response into the camelCase `SignatureResponse`. Prefers
+ * cloud-supplied `decision`, mapping from `policy_decision` for older clouds.
  */
 function mapSignWireToResponse(data: SignWireResponse): SignatureResponse {
   // Some clouds nest these under `payload` instead of top level.
@@ -2028,10 +1837,8 @@ const _DELETE_SQL_PREFIX = "data:delete:sql:";
 const _DESTRUCTIVE_VERB_RE = /(?<![A-Za-z])(DELETE|DROP|TRUNCATE|ALTER|GRANT|REVOKE|REPLACE|COPY|UPSERT)(?![A-Za-z])/i;
 
 /**
- * Returns match candidates for a given action type.
- * Normalizes (trim + lowercase) so case variants and stray whitespace cannot
- * dodge the prefix check. For a destructive SQL write, also returns a
- * `data:delete:sql:` candidate so delete-namespace policies fire.
+ * Return match candidates for an action type, normalised (trim + lowercase) so case variants
+ * cannot dodge the prefix check. A destructive SQL write also yields a `data:delete:sql:` candidate.
  */
 function _actionCandidates(actionType: string): string[] {
   const normalized = actionType.trim().toLowerCase();
@@ -2245,9 +2052,8 @@ export class Agent {
   }
 
   /**
-   * Pre-flight check combining revocation/suspension status and policy.
-   * Fail-closed: if a sub-check cannot complete, checksComplete is false and
-   * cleared is false so a fetch error never clears. Mirrors Python preflight.
+   * Pre-flight check combining revocation/suspension status and policy. Fail-closed: an incomplete
+   * sub-check leaves checksComplete and cleared false, so a fetch error never clears.
    */
   async preflight(actionType: string): Promise<PreflightResult> {
     let agentActive = true;
@@ -2442,9 +2248,8 @@ export async function verifySignature(signatureId: string): Promise<Verification
 }
 
 /**
- * Publicly verify a receipt by id. No API key or `init()` required. Recomputes
- * `chainHash` locally (sha256 of the RFC 8785 canonical payload) so the chain
- * link stays reproducible offline.
+ * Publicly verify a receipt by id; no API key or `init()` required. Recomputes `chainHash`
+ * locally so the chain link stays reproducible offline.
  */
 export async function verify(signatureId: string): Promise<{
   verified: boolean;
@@ -2488,15 +2293,8 @@ export async function verify(signatureId: string): Promise<{
   };
 }
 
-/** Post the executor side of an action.
- *
- * The executor signs the canonical bytes
- * `{applied_at, error_code, outcome, signature_id}` (sorted-keys JSON,
- * no whitespace) with its identity key and posts the base64 of pubkey +
- * signature back. If the original signer pinned an expected executor
- * public key on `agent.sign({ expectedExecutorPubkeyB64 })`, any
- * attestation from a different key is rejected with 403.
- */
+/** Post the executor side of an action, signed over the canonical
+ * `{applied_at, error_code, outcome, signature_id}`. An unpinned executor key is rejected with 403. */
 export async function postAppliedAttestation(
   options: AppliedAttestationOptions,
 ): Promise<AppliedAttestationResponse> {
@@ -2534,9 +2332,8 @@ export async function postAppliedAttestation(
   };
 }
 
-/** List rejected sign / verify / replay attempts for the caller's
- * org. Public verify rejections (org NULL) are filtered out by design.
- * Admins query those separately via maintenance. */
+/** List rejected sign / verify / replay attempts for the caller's org. Public verify
+ * rejections (org NULL) are filtered out by design. */
 export async function listRejectedAttempts(
   options: ListRejectedAttemptsOptions = {},
 ): Promise<RejectedAttemptList> {
@@ -2642,13 +2439,8 @@ export async function exportAuditJson(
 const DEFAULT_JWKS_URL = "https://api.asqav.com/.well-known/jwks.json";
 
 /**
- * Fetch and return the Asqav public JWKS directory as a plain object.
- *
- * Snapshot this before going air-gapped; pass the result to
- * `verifyReceiptOffline(receipt, jwks)`. The endpoint is public and
- * unauthenticated.
- *
- * @param url - JWKS URL (default: https://api.asqav.com/.well-known/jwks.json).
+ * Fetch the Asqav public JWKS directory as a plain object; snapshot it before going
+ * air-gapped and pass it to `verifyReceiptOffline`. Defaults to the public api.asqav.com URL.
  */
 export async function fetchJwks(url: string = DEFAULT_JWKS_URL): Promise<Record<string, unknown>> {
   const res = await fetch(url, { headers: { Accept: "application/json" } });
@@ -2660,14 +2452,8 @@ import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index
 import type { VerifyResult } from "./verifier/core.js";
 
 /**
- * Verify a receipt fully offline against an in-memory JWKS snapshot.
- *
- * Runs the full oracle: structure, signature (Ed25519/ES256/ML-DSA-65 via
- * `@noble/post-quantum`), hash-chain link. No network call is made.
- *
- * @param receipt - Parsed receipt envelope object ({payload, signature, anchors}).
- * @param jwks - JWKS object previously fetched via `fetchJwks()`.
- * @param predecessor - Parsed predecessor receipt for the chain check (optional).
+ * Verify a receipt fully offline against an in-memory JWKS snapshot, running the full oracle
+ * (structure, signature, hash-chain link). No network call is made.
  */
 export function verifyReceiptOffline(
   receipt: Record<string, unknown>,

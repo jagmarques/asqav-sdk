@@ -1,9 +1,6 @@
 /**
- * The format-adapter seam - a port of the Python oracle's `verifier/oracle/adapter.py`.
- *
- * Everything format-specific lives behind this seam; everything shared (the JCS
- * canonicaliser, the Ed25519 / ES256 verify, the SHA-256 chain walk, the vector
- * runner) is infrastructure the core drives.
+ * The format-adapter seam, a port of the Python oracle's `adapter.py`. Everything format-specific lives
+ * behind it; the canonicaliser, verify, chain walk and vector runner are shared infrastructure.
  */
 
 import type { VerifyState } from "./crypto.js";
@@ -21,10 +18,8 @@ export interface SignatureMaterial {
 /** The hash-chain linkage for one receipt. */
 export interface ChainStep {
   /**
-   * The value of the format's previous-hash field, or null when the format omits
-   * it on genesis (AERF) - distinct from an explicit-null genesis. Typed unknown
-   * because the wire value is producer-set: a non-string must reach the chain
-   * axis as-is rather than be narrowed into an absent link.
+   * The format's previous-hash field value, or null when the format omits it on genesis. Typed unknown
+   * because the wire value is producer-set: a non-string must reach the chain axis as-is.
    */
   prevField: unknown;
   /** True when this receipt declares itself first on its chain. */
@@ -43,9 +38,8 @@ export type ExtraAxis = readonly [string, VerifyState, string];
 export type KeyProvider = Record<string, unknown> | null;
 
 /**
- * One receipt format's binding to the shared verification core. Subclasses
- * implement the six methods; `name` labels the format in results and the manifest;
- * `detect` is a cheap structural fingerprint (no crypto).
+ * One receipt format's binding to the shared verification core. `name` labels the format in results and
+ * the manifest; `detect` is a cheap structural fingerprint with no crypto.
  */
 export abstract class FormatAdapter {
   /** Stable format label surfaced in results and the vector manifest. */
@@ -73,10 +67,8 @@ export abstract class FormatAdapter {
   abstract schema(doc: Record<string, unknown>): AxisCheck;
 
   /**
-   * Format-specific axes beyond structure / issuer-signature / chain. Returns a
-   * list of `[axisName, result, note]`. The default is none; a format whose
-   * verification procedure layers additional REQUIRED checks returns one tuple
-   * per check so a missing-but-required or invalid layer FAILs the verdict.
+   * Format-specific axes beyond structure / signature / chain, as `[axisName, result, note]`. Default is
+   * none; a format layering REQUIRED checks returns one tuple each so a missing layer FAILs the verdict.
    */
   extraAxes(_doc: Record<string, unknown>, _keyProvider: KeyProvider): ExtraAxis[] {
     return [];
@@ -89,10 +81,8 @@ export abstract class FormatAdapter {
   }
 
   /**
-   * True when the receipt's digest is keyed (criterion 438). A keyed digest
-   * (e.g. HMAC-SHA256) is internally consistent but not third-party
-   * re-derivable, so a fully-checked receipt reports `verified_keyed`, never
-   * plain `verified`. Default is false.
+   * True when the receipt's digest is keyed (criterion 438): internally consistent but not third-party
+   * re-derivable, so a fully-checked receipt reports `verified_keyed`. Default is false.
    */
   keyedDigest(_doc: Record<string, unknown>): boolean {
     return false;

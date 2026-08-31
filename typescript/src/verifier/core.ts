@@ -1,12 +1,6 @@
 /**
- * The shared verification core - format detection, dispatch, and the verdict.
- * A port of the Python oracle's `verifier/oracle/core.py`.
- *
- * `verify(doc, ...)` detects the format, then drives the adapter through the
- * shared axes: structure, signature, chain. It proves only what the bytes prove -
- * a valid signature over the canonical bytes, a reproducible chain link, and
- * structural presence at time T. It never attests the behaviour or correctness of
- * the recorded action.
+ * The shared verification core - format detection, dispatch and the verdict, a port of the Python
+ * oracle's `core.py`. It proves only what the bytes prove, never the behaviour of the recorded action.
  */
 
 import type { FormatAdapter, KeyProvider } from "./adapter.js";
@@ -47,11 +41,8 @@ export interface VerifyResult {
   fmt: string;
   axes: AxisResult[];
   /**
-   * `verified` only when every non-skipped axis passed AND the signature was
-   * actually checked; `verified_keyed` when the digest is keyed (internally
-   * consistent but not third-party re-derivable). A skipped signature
-   * downgrades to `unverified` with failureClass `unverifiable`, never a
-   * verified. Defaults fail closed: an unfolded result reads unverified.
+   * `verified` only when every non-skipped axis passed AND the signature was checked; `verified_keyed`
+   * when the digest is keyed. Defaults fail closed: an unfolded result reads unverified.
    */
   verdict: Verdict;
   /** invalid / unverifiable when unverified, else null. */
@@ -76,12 +67,8 @@ const INVALID_FAIL_AXES = new Set([
 ]);
 
 /**
- * Map one axis outcome to its failure class (criterion 418). A port of the
- * Python `axis_failure_class`: PASS carries none; SKIPPED means recomputation
- * could not complete (unverifiable); a FAIL is invalid when a binding was
- * proven broken and unverifiable when the receipt's own bytes stopped the
- * recompute. A FAIL this table does not name reads unverifiable, never a
- * proven binding failure.
+ * Map one axis outcome to its failure class (criterion 418). A FAIL is invalid when a binding was proven
+ * broken, unverifiable when the recompute could not finish; an unlisted FAIL reads unverifiable.
  */
 export function axisFailureClass(axis: string, result: VerifyState, note: string): FailureClass | null {
   if (result === PASS) return null;
@@ -199,11 +186,8 @@ export const MAX_NESTING_DEPTH = 200;
 const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NESTING_DEPTH} levels)`;
 
 /**
- * True when `obj` nests deeper than `maxDepth`, walked with an explicit stack.
- *
- * No recursion here, so the check never overflows before it can cap a receipt the
- * JCS canonicaliser would crash on. `JSON.parse` applies no depth limit, so this
- * gate is the only cap an already-parsed object meets.
+ * True when `obj` nests deeper than `maxDepth`, walked with an explicit stack so the check itself never
+ * overflows. `JSON.parse` applies no depth limit, so this is the only cap a parsed object meets.
  */
 function exceedsDepth(obj: unknown, maxDepth: number): boolean {
   const stack: Array<[unknown, number]> = [[obj, 0]];
