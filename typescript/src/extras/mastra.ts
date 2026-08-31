@@ -1,20 +1,6 @@
 /**
- * Mastra integration for Asqav.
- *
- * Install (peer dependency):
- *   npm install @mastra/core
- *
- * Usage:
- *   import { init } from "@asqav/sdk";
- *   import { AsqavMastraHook } from "@asqav/sdk/extras/mastra";
- *   init({ apiKey: process.env.ASQAV_API_KEY! });
- *   const hook = new AsqavMastraHook({ agentName: "my-mastra-agent" });
- *   await hook.attach(mastraAgent);
- *
- * Signs Mastra agent step ``before`` and ``after`` events so every tool
- * call, LLM call, and workflow step is captured as an Asqav receipt.
- * Falls back to a direct ``before``/``after`` API for tests when no
- * Mastra instance is present.
+ * Mastra integration. Signs agent step ``before`` / ``after`` events so every tool call, LLM call and
+ * workflow step becomes a receipt. Needs the `@mastra/core` peer dependency; see the README.
  */
 
 import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
@@ -26,9 +12,8 @@ function truncate(s: string, max = MAX_PREVIEW): string {
 }
 
 /**
- * Shape of the minimum surface we touch on a Mastra agent. We avoid
- * importing ``@mastra/core`` at the top level so the SDK installs
- * cleanly without it.
+ * Minimum surface we touch on a Mastra agent. ``@mastra/core`` is never imported at the top level, so
+ * the SDK installs cleanly without it.
  */
 interface MastraAgentLike {
   readonly name?: string;
@@ -52,11 +37,8 @@ export interface AsqavMastraHookOptions extends AsqavAdapterOptions {
 }
 
 /**
- * Mastra hook that signs agent step lifecycle events through Asqav.
- *
- * The class composes with Asqav's shared adapter base. ``before`` and
- * ``after`` are public so callers can wire them into custom Mastra
- * middleware or invoke them directly from tests.
+ * Mastra hook signing agent step lifecycle events through Asqav. ``before`` and ``after`` are public so
+ * callers can wire them into custom middleware or invoke them from tests.
  */
 export class AsqavMastraHook extends AsqavAdapter {
   public readonly name: string;
@@ -86,9 +68,8 @@ export class AsqavMastraHook extends AsqavAdapter {
   }
 
   /**
-   * Attach to a Mastra agent. Subscribes to ``step:before`` and
-   * ``step:after`` if the agent exposes an event emitter; otherwise
-   * registers a middleware that wraps each step.
+   * Attach to a Mastra agent: subscribes to ``step:before`` / ``step:after`` when the agent exposes an
+   * event emitter, otherwise registers a middleware that wraps each step.
    */
   async attach(agent: MastraAgentLike): Promise<void> {
     // Validate the peer is available so attach() fails fast with a

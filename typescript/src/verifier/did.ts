@@ -1,21 +1,6 @@
 /**
- * Shared DID resolver - map a verificationMethod DID URL to a raw Ed25519 key.
- * A port of the Python oracle's `verifier/oracle/did.py`.
- *
- * `resolveEd25519Key(didUrl, injected)` returns the raw 32-byte Ed25519 public
- * key for a signer, or null when it cannot resolve without a network the oracle
- * is forbidden from touching.
- *
- *   - `did:key`  : self-contained. The multibase `z` (base58btc) identifier
- *                  decodes to a multicodec frame: the two-byte 0xed 0x01 Ed25519
- *                  prefix followed by the 32 raw key bytes. No network.
- *   - other      : resolved from an injected map. A value is either a raw key
- *                  (hex string or bytes, 32 bytes) or the DID DOCUMENT the
- *                  method's network fetch would have returned; the resolver then
- *                  walks `verificationMethod` / `assertionMethod` and extracts an
- *                  Ed25519 key (publicKeyMultibase Multikey, publicKeyJwk OKP, or
- *                  legacy publicKeyBase58). The oracle NEVER fetches a DID
- *                  document over the network; an unmapped DID returns null.
+ * Shared DID resolver mapping a verificationMethod DID URL to a raw Ed25519 key, a port of the Python
+ * oracle's `did.py`. did:key resolves inline; everything else comes from an injected map, never a fetch.
  */
 
 /** Bitcoin base58 alphabet - the base58btc encoding multibase 'z' uses. */
@@ -176,12 +161,8 @@ function keyFromDidDocument(
 }
 
 /**
- * Resolve a verificationMethod DID URL to `[rawKeyOrNull, note]`.
- *
- * did:key resolves inline; every other method resolves from `injected` keyed by
- * the full DID URL first, then by the bare DID (fragment stripped). An injected
- * value is a raw 32-byte key (bytes or hex) or the DID document the method's
- * fetch would have returned. No network.
+ * Resolve a verificationMethod DID URL to `[rawKeyOrNull, note]`. did:key resolves inline; others come
+ * from `injected`, keyed by full DID URL then bare DID. No network.
  */
 export function resolveEd25519Key(
   didUrl: string,

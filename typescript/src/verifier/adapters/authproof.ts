@@ -1,16 +1,6 @@
 /**
- * Authproof adapter - ES256 over insertion-order JSON, key embedded as a JWK.
- * A port of the Python oracle's `verifier/oracle/adapters/authproof.py`.
- *
- * Authproof delegation receipts are signed by the reference JS SDK
- * (`Commonguy25/authproof-sdk`, `src/authproof.js`), authoritative for the wire
- * shape. A receipt is a flat object whose signature is ECDSA P-256 / SHA-256 over
- * `JSON.stringify(receipt-without-signature)` in INSERTION order (not JCS, no
- * pre-hash). The signature is hex-encoded raw r||s (64 bytes); the signer's public
- * key is embedded as a P-256 JWK at `signerPublicKey`.
- *
- * In TypeScript the signing input is produced with native `JSON.stringify`, which
- * is exactly what the JS SDK signs - byte-for-byte, no re-derivation.
+ * Authproof adapter: ES256 over `JSON.stringify(receipt-without-signature)` in INSERTION order, not JCS,
+ * with the signer key embedded as a P-256 JWK. Native stringify reproduces the JS SDK's bytes exactly.
  */
 
 import {
@@ -22,10 +12,8 @@ import {
 } from "../adapter.js";
 
 /**
- * A shipping-SDK delegationId is `auth-<epoch_ms>-<5 base36 chars>`.
- * `[0-9]` (not `\d`) spells out the ASCII digit class so the pattern reads
- * identical to the Python validator's; ECMAScript `^`/`$` are already strict
- * (no trailing newline) and `\d` is already ASCII here, so this is the anchor.
+ * A shipping-SDK delegationId is `auth-<epoch_ms>-<5 base36 chars>`. `[0-9]` spells out the ASCII digit
+ * class so the pattern reads identical to the Python validator's.
  */
 const DELEGATION_ID = /^auth-[0-9]+-[a-z0-9]{5}$/;
 

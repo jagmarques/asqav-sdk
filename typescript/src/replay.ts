@@ -1,24 +1,6 @@
 /**
- * Offline replay / chain verification for the IETF Compliance Receipts profile.
- *
- * See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
- *
- * The verifier walks an ordered list of signed envelopes for one agent,
- * re-derives each predecessor's `previousReceiptHash`, and reports any
- * mismatch as a chain break. Equivalent to the Python SDK's
- * `replay.ReplayTimeline.verify_chain`.
- *
- * Chain link (cloud-canonical):
- *
- *   previousReceiptHash[i+1] = sha256(canonicalJson(payload[i]))   // 64 hex
- *   previousReceiptHash[0]   = "0".repeat(64)
- *
- * The cloud hashes the inner compliance payload only, not the
- * `{payload, signature, anchors}` wrapper. When a record's `signedEnvelope`
- * carries that wrapper, the verifier unwraps and hashes only `payload`.
- *
- * This module is import-free of any HTTP / network code so it can run
- * over a downloaded ComplianceBundle.
+ * Offline replay / chain verification for the IETF Compliance Receipts profile: walk ordered envelopes
+ * for one agent, re-derive each `previousReceiptHash`, report mismatches. Network-free by design.
  */
 
 import { createHash } from "node:crypto";
@@ -30,9 +12,10 @@ export const FIRST_RECEIPT_SEED = "0".repeat(64);
 
 /** A single record in the chain to verify. */
 export interface ChainRecord {
-  /** The full signed envelope (the bytes the cloud signed, as a JSON
-   * object). Must include `previousReceiptHash`. Other fields are
-   * passed through as-is into the JCS canonical bytes. */
+  /**
+   * The full signed envelope as a JSON object; must include `previousReceiptHash`. Other fields pass
+   * through as-is into the JCS canonical bytes.
+   */
   signedEnvelope: Record<string, unknown>;
   /** Optional pre-computed chain hash for this record. When omitted,
    * the verifier derives it from the envelope. */
@@ -51,9 +34,10 @@ export interface ChainStepResult {
   actualPreviousReceiptHash: string;
   /** This record's derived chain hash. */
   derivedChainHash: string;
-  /** When `chainHash` was supplied on the input, true if it matches the
-   * derived value (catches storage-side mutation). Undefined when not
-   * supplied. */
+  /**
+   * When `chainHash` was supplied on the input, true if it matches the derived value, catching
+   * storage-side mutation. Undefined when not supplied.
+   */
   storedChainHashMatches?: boolean;
 }
 
@@ -63,22 +47,15 @@ export interface ChainVerificationResult {
   steps: ChainStepResult[];
 }
 
-/** Reserved for future verifier knobs. No keys are accepted today;
- * passing any unrecognized key (including flag names removed in this release)
- * throws so silent-fallback bugs surface immediately. */
+/**
+ * Reserved for future verifier knobs. No keys are accepted today; any unrecognized key throws so
+ * silent-fallback bugs surface immediately.
+ */
 export type VerifyChainOptions = Record<string, never>;
 
 /**
- * Re-derive the chain over an ordered list of signed envelopes for one
- * agent and return per-step + aggregate validity.
- *
- * The list MUST be in chain order (oldest first). Mixing agents yields
- * `chainIntegrity=false` because the predecessor links won't match.
- *
- * @throws TypeError if `options` carries any unrecognized key. The
- *   `signedEnvelope` is now required on every step; callers that
- *   relied on a synthetic chain shape must migrate their bundles
- *   accordingly.
+ * Re-derive the chain over an ordered list of signed envelopes for one agent (oldest first) and return
+ * per-step plus aggregate validity. Throws TypeError on any unrecognized `options` key.
  */
 export function verifyChain(
   records: ChainRecord[],
@@ -141,12 +118,8 @@ export function deriveChainHash(envelope: Record<string, unknown>): string {
 }
 
 /**
- * Return the inner compliance payload the cloud hashes for the chain link.
- *
- * The cloud computes `sha256(canonicalJson(payload))` where `payload` is
- * the IETF compliance payload dict. When the input is the bundle-shaped
- * `{payload, signature, anchors, ...}` wrapper this returns
- * `envelope.payload`; otherwise the envelope is hashed as-is.
+ * Return the inner compliance payload the cloud hashes for the chain link, unwrapping the bundle-shaped
+ * `{payload, signature, anchors}` wrapper when present.
  */
 function payloadForChain(
   envelope: Record<string, unknown>,
