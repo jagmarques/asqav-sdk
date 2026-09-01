@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Neither receipt carries a counter, which is every receipt minted before the member shipped. Absence MUST stay legal: the axis passes with a note rather than skipping, because a blocking skip would regress all of them from verified to unverified."
+}

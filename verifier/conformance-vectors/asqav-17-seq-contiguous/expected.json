@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "seq 8 follows predecessor 7 with nothing missing between them. The baseline the gap vector is measured against."
+}
