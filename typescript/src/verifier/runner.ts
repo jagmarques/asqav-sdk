@@ -32,7 +32,7 @@ interface ManifestEntry {
   notes?: string;
 }
 
-function loadJson(path: string): Record<string, unknown> | null {
+export function loadJson(path: string): Record<string, unknown> | null {
   // Float-preserving parse so a `500.0` literal reaches the canonicaliser intact;
   // the same parser rejects a duplicated member name at any depth (419).
   return existsSync(path)
@@ -40,7 +40,7 @@ function loadJson(path: string): Record<string, unknown> | null {
     : null;
 }
 
-function keyProviderFor(vecDir: string, fmt: string): KeyProvider {
+export function keyProviderFor(vecDir: string, fmt: string): KeyProvider {
   if (fmt === "asqav-native") return loadJson(join(vecDir, "jwks.json"));
   if (fmt === "aerf") return loadJson(join(vecDir, "keys.json"));
   if (fmt === "acta") return loadJson(join(vecDir, "acta-keys.json"));
