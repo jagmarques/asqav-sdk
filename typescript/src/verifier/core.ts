@@ -50,6 +50,13 @@ export interface VerifyResult {
   // In-body origin attestation (v:2 signer) from the signed payload.
   // null for v:1. Never gates the verdict.
   signer: string | null;
+  /**
+   * Name of the earliest axis in report order that did not PASS, or null when
+   * every axis passed. Reported so two verifiers disagreeing about WHICH check
+   * failed first is as visible as disagreeing about the verdict; a bare verdict
+   * hides that, and it is the divergence that costs debugging time.
+   */
+  firstFailingEdge: string | null;
 }
 
 /** Axes whose FAIL proves a cryptographic/policy binding failure (invalid). */
@@ -108,6 +115,39 @@ export function axisFailureClass(axis: string, result: VerifyState, note: string
 
 function axis(axis: string, result: VerifyState, note: string): AxisResult {
   return { axis, result, note, failureClass: axisFailureClass(axis, result, note) };
+}
+
+/**
+ * The fixed leading order every adapter's report walks, before its own
+ * format-specific extra axes. Pinned here rather than left implicit in the array
+ * literal so a refactor that reorders the checks fails a gate instead of quietly
+ * renaming which edge is "first". Mirrors the Python `AXIS_ORDER_PREFIX`.
+ */
+export const AXIS_ORDER_PREFIX = ["structure", "signature", "chain", "seq"] as const;
+
+/**
+ * Name the earliest axis in report order that drove the verdict away from verified.
+ *
+ * Walks the axes as reported, which is the fixed order `verify` builds, so the
+ * answer never depends on which check happened to be evaluated first internally.
+ *
+ * The two exclusions mirror `foldVerdict` exactly, and are the whole reason this
+ * is not simply "the first non-PASS axis": the expiry axis reports on its own and
+ * never folds the verdict (criterion 426), and a SKIPPED chain is tolerated where
+ * any other SKIPPED blocks. Without them a verified receipt that is merely expired
+ * would name an edge, reporting a failure that did not happen.
+ *
+ * SKIPPED counts otherwise: an axis that could not be checked is where the chain of
+ * reasoning stopped being clean, and naming only a FAIL would let an unverifiable
+ * receipt report no failing edge at all.
+ * A port of the Python `first_failing_edge`.
+ */
+export function firstFailingEdge(axes: AxisResult[]): string | null {
+  for (const a of axes) {
+    if (a.result === FAIL && a.axis !== "expiry") return a.axis;
+    if (a.result === SKIPPED && a.axis !== "chain") return a.axis;
+  }
+  return null;
 }
 
 /**
@@ -255,7 +295,14 @@ export function verify(
   if (ad === null) {
     const axes = [axis("structure", FAIL, "no adapter recognises this receipt")];
     const [verdict, failureClass] = foldVerdict(axes, false);
-    return { fmt: "unknown", axes, verdict, failureClass, signer: null };
+    return {
+      fmt: "unknown",
+      axes,
+      verdict,
+      failureClass,
+      signer: null,
+      firstFailingEdge: firstFailingEdge(axes),
+    };
   }
   // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
   // report unverified/unverifiable, never a verified, matching the Python gate.
@@ -265,7 +312,7 @@ export function verify(
   ) {
     const axes = [axis("structure", FAIL, TOO_DEEP_NOTE)];
     const [verdict, failureClass] = foldVerdict(axes, false);
-    return { fmt: ad.name, axes, verdict, failureClass, signer: null };
+    return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes) };
   }
 
   const [structResult, structNote] = ad.schema(doc);
@@ -284,5 +331,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes) };
 }
