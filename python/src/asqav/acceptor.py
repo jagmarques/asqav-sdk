@@ -119,7 +119,10 @@ def check_peer_receipt(
         if stamp is None:
             return AcceptorDecision(
                 accepted=False,
-                reason=f"unreadable expires_at {expires_at!r}; refused rather than read as no expiry",
+                reason=(
+                    f"unreadable expires_at {expires_at!r}; refused rather "
+                    "than read as no expiry"
+                ),
                 verdict=result.verdict,
                 failure_class="unverifiable",
                 first_failing_edge="expiry",
