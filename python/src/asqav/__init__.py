@@ -37,6 +37,7 @@ from ._detectors import (
 )
 from ._jcs import canonical_json
 from ._schema import normalize_context, validate_context_schema
+from .acceptor import AcceptorDecision, check_peer_receipt
 from .async_client import AsyncAgent
 from .attestation import (
     ATTESTATION_STATEMENT_SCHEMA,
@@ -156,7 +157,6 @@ from .code_authorship import (
     submit_code_authorship,
     verify_code_authorship_envelope,
 )
-from .acceptor import AcceptorDecision, check_peer_receipt
 from .commitment import commit, new_opening
 from .compliance import ComplianceBundle, export_bundle, fetch_audit_pack
 from .counterparty import (
