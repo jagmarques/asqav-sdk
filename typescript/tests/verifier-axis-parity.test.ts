@@ -1,9 +1,6 @@
 /**
- * Anchor-binding, clock-skew, signed-expiry, and nesting-depth parity, TypeScript half.
- *
- * One JSON table drives both verifiers, pinned to the output of the Python
- * `check_anchors` / `check_skew` / `check_expiry`. The Python half lives in
- * python/tests/test_axis_parity_cases.py and reads the same file.
+ * Anchor, skew, expiry and nesting-depth parity, TS half. One JSON table drives both
+ * verifiers; python/tests/test_axis_parity_cases.py reads the same file.
  */
 
 import { readFileSync } from "node:fs";
@@ -131,9 +128,8 @@ describe("anchor-binding axis parity", () => {
   }
 });
 
-// Cases where the two halves legitimately disagree, because this shim carries no
-// anchor cryptography (criterion 446). The Python side of the same rows is
-// asserted in python/tests/test_axis_parity_cases.py.
+// Rows where the halves legitimately disagree: this shim carries no anchor cryptography
+// (criterion 446). The Python side of the same rows is asserted in its parity test.
 describe("anchor divergence from the Python verifier", () => {
   it("the divergence table is populated and two-sided", () => {
     expect(TABLE.anchors_divergence.length).toBeGreaterThanOrEqual(2);

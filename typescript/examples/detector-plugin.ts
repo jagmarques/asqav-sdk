@@ -1,7 +1,6 @@
-/** Runnable example: pluggable DLP/policy detector on the sign path.
- * A registered detector runs inside agent.sign(), after normalization and before
- * the network call; its verdict is recorded in the signed receipt and a deny throws
- * DetectorBlockedError. ASQAV_API_KEY=sk_... npx ts-node examples/detector-plugin.ts */
+/** Runnable example: a registered DLP/policy detector runs inside agent.sign() after
+ * normalization, its verdict is signed into the receipt, and a deny throws DetectorBlockedError. */
+// Run: ASQAV_API_KEY=sk_... npx ts-node examples/detector-plugin.ts
 
 import {
   Agent,

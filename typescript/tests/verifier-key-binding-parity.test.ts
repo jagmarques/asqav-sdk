@@ -1,9 +1,6 @@
 /**
- * key_thumbprint binding axis, TypeScript half (criterion 458).
- *
- * Reads the same verifier/axis-parity-cases.json the Python suite reads, so a
- * rule that drifts in one language fails a suite. The wire tests below are
- * mutation-shaped: each fails if its own call site is deleted.
+ * key_thumbprint binding axis, TS half (criterion 458), reading the same axis-parity-cases.json
+ * as Python. The wire tests are mutation-shaped: each fails if its own call site is deleted.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";

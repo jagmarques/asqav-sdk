@@ -1,12 +1,6 @@
 /**
- * SDK parity for the threat-framework taxonomy wire fields.
- *
- * Seven optional wire fields on `agent.sign({...})` mirror the cloud
- * SignRequest cross-field validator: `mitre_techniques`, `mitre_atlas`,
- * `owasp_llm_top10`, `nist_ai_rmf`, `iso_42001`, `eu_ai_act_articles`,
- * and `rfc3161_timestamp`. The SDK forwards each verbatim, validates
- * each list field as a non-empty array of strings (each entry <= 128
- * chars), and validates `rfc3161Timestamp` as base64.
+ * SDK parity for the seven threat-framework taxonomy fields: each forwarded verbatim, list
+ * fields validated as non-empty string arrays (<=128 chars), rfc3161Timestamp as base64.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

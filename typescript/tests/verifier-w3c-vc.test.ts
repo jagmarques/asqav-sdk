@@ -1,10 +1,6 @@
 /**
- * W3C VC 2.0 eddsa-jcs-2022 adapter tests (TS half).
- *
- * Mirrors the Python `tests/test_oracle_w3c_vc.py` negatives: proof sets,
- * sibling cryptosuites, proofPurpose, issuer binding, the @context prefix
- * transform, and the offline DID-document resolution. Corpus verdicts are
- * gated in verifier-parity.test.ts; here the axis-level behaviour is pinned.
+ * W3C VC 2.0 eddsa-jcs-2022 adapter, TS half of test_oracle_w3c_vc.py's negatives. Corpus
+ * verdicts are gated in verifier-parity.test.ts; this pins the axis-level behaviour.
  */
 
 import { readFileSync, existsSync } from "node:fs";
