@@ -27,7 +27,7 @@ function loadJson(path: string): Record<string, unknown> {
 }
 
 describe("verifier parity gate (THE GATE)", () => {
-  it("matches every manifest outcome across all 62 corpus vectors", () => {
+  it("matches every manifest outcome across all 69 corpus vectors", () => {
     const results = runCorpus(CORPUS_ROOT);
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
@@ -44,9 +44,9 @@ describe("verifier parity gate (THE GATE)", () => {
     // eslint-disable-next-line no-console
     console.log(`\n${report}\n\n  => ${passed}/${results.length} vectors matched expected outcome\n`);
 
-    expect(results.length).toBe(65);
+    expect(results.length).toBe(69);
     expect(mismatches, `mismatched vectors: ${mismatches.map((m) => m.dir).join(", ")}`).toEqual([]);
-    expect(passed).toBe(65);
+    expect(passed).toBe(69);
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
