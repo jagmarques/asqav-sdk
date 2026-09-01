@@ -845,6 +845,86 @@
       "bytes": 814
     },
     {
+      "path": "asqav-17-seq-contiguous/expected.json",
+      "sha256": "09f4257b74ad32874c10f3c7a262d3642e5c55bad6f4fa303815030e1bded210",
+      "bytes": 203
+    },
+    {
+      "path": "asqav-17-seq-contiguous/jwks.json",
+      "sha256": "79868ab758a20f67ec0e9b670760c8cde54b62a55754336d0f1b8379f4c42c4b",
+      "bytes": 215
+    },
+    {
+      "path": "asqav-17-seq-contiguous/predecessor.json",
+      "sha256": "1da61225a7cee5d09079eff486a29bef02c36f5be5e9de30ef496e8012e71909",
+      "bytes": 777
+    },
+    {
+      "path": "asqav-17-seq-contiguous/receipt.json",
+      "sha256": "c71620d2bd61bdb798ffae0e99506d868b258d0b88941af8d366d771656de54e",
+      "bytes": 777
+    },
+    {
+      "path": "asqav-18-seq-gap/expected.json",
+      "sha256": "de21db0364ff296d0d3a67ab6f2d26cdceddf24987b84514a2bddeb4ad0ca926",
+      "bytes": 462
+    },
+    {
+      "path": "asqav-18-seq-gap/jwks.json",
+      "sha256": "79868ab758a20f67ec0e9b670760c8cde54b62a55754336d0f1b8379f4c42c4b",
+      "bytes": 215
+    },
+    {
+      "path": "asqav-18-seq-gap/predecessor.json",
+      "sha256": "f064920f6a89ddee4467bf72e4761fa2035a4f9e38b5e9fa1d5991611083f4fc",
+      "bytes": 778
+    },
+    {
+      "path": "asqav-18-seq-gap/receipt.json",
+      "sha256": "06c0eccde138ebcf45b50f205e2799d742cbbfd26df75660f2467213de9b35f3",
+      "bytes": 779
+    },
+    {
+      "path": "asqav-19-seq-non-monotonic/expected.json",
+      "sha256": "727d052e1cf0dac08b9c5bbbd6420dfc1f6e18b955e10d2e296db9d9d9c33aab",
+      "bytes": 348
+    },
+    {
+      "path": "asqav-19-seq-non-monotonic/jwks.json",
+      "sha256": "79868ab758a20f67ec0e9b670760c8cde54b62a55754336d0f1b8379f4c42c4b",
+      "bytes": 215
+    },
+    {
+      "path": "asqav-19-seq-non-monotonic/predecessor.json",
+      "sha256": "882ccd829556439851ecbe8e2a10228a7ca9a1bcdd4be2578cdd2fe9eeae0dec",
+      "bytes": 778
+    },
+    {
+      "path": "asqav-19-seq-non-monotonic/receipt.json",
+      "sha256": "c0dba77d27afce143a3f1597c82d64f0950acc9a3fa40b9aeb0d6ce9a58ac284",
+      "bytes": 778
+    },
+    {
+      "path": "asqav-20-seq-absent/expected.json",
+      "sha256": "9252b33720cdb45e9f777d5af453b286335b2679768cfec46bfdbdffbfa6260f",
+      "bytes": 337
+    },
+    {
+      "path": "asqav-20-seq-absent/jwks.json",
+      "sha256": "79868ab758a20f67ec0e9b670760c8cde54b62a55754336d0f1b8379f4c42c4b",
+      "bytes": 215
+    },
+    {
+      "path": "asqav-20-seq-absent/predecessor.json",
+      "sha256": "e14a964fecdcbaa542f9acb67562dceb7d186a1c2cedb4765e2e846ecbadcda8",
+      "bytes": 764
+    },
+    {
+      "path": "asqav-20-seq-absent/receipt.json",
+      "sha256": "54621d51666b802fd62430ec0bdcec43e9c493db6e5a10a226664d2c0d66e0fa",
+      "bytes": 764
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -915,9 +995,14 @@
       "bytes": 6959
     },
     {
+      "path": "gen_seq_vectors.py",
+      "sha256": "237e4986481f5df7826ebcd0309e824a185c46a71018a60a9d9600b78fb0b499",
+      "bytes": 7712
+    },
+    {
       "path": "manifest.json",
-      "sha256": "c0134b830263efc9ff19820e809288cc655c52591742abf1a9786bfd8b903e2c",
-      "bytes": 21480
+      "sha256": "6ffa041884be67b07501ca4bb35956fe9d7e62d96da0c0ac768dbb91d1c09cc4",
+      "bytes": 23030
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1085,5 +1170,5 @@
       ]
     }
   },
-  "digest": "525b0b407d6bf752e51d6bde74e384fd65020362aadf186ab73ed53013229653"
+  "digest": "aec29cc3f2eefb5818214427bae1b575173a0c0119bab7c34710b9a63cf91262"
 }

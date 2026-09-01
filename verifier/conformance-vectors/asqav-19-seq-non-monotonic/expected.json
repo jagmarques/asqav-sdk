@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "invalid",
+  "reason_code": "seq_not_monotonic",
+  "notes": "The counter goes backwards, 9 then 4. A replayed or reordered receipt reaches this before a gap does, and it is refused for the same reason: the series cannot decrease under a server-built monotonic counter."
+}
