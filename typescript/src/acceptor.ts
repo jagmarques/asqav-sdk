@@ -189,3 +189,123 @@ export function checkPeerReceipt(
     rule: null,
   };
 }
+
+// --- Connect/Express adapter --------------------------------------------------
+//
+// The handler signature is a convention, not a library, so this turns the
+// decision into deployable middleware for Express/Connect with no dependency on
+// any of them. The decision stays in checkPeerReceipt: an acceptor that mounts
+// this and one that calls the function directly must refuse the same receipts.
+
+/** Header the peer presents its receipt in, JSON or base64-of-JSON. */
+export const DEFAULT_RECEIPT_HEADER = "x-asqav-receipt";
+
+/** Parse a receipt header, accepting raw JSON or base64-wrapped JSON. */
+function decodeReceipt(raw: string): Record<string, unknown> | null {
+  const attempt = (text: string): Record<string, unknown> | null => {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  };
+  const direct = attempt(raw.trim());
+  if (direct !== null) return direct;
+  try {
+    return attempt(Buffer.from(raw, "base64").toString("utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+export interface AcceptorMiddlewareOptions {
+  keyProvider?: KeyProvider;
+  header?: string;
+  /** The last receipt admitted from the same peer chain. */
+  predecessorFor?: (receipt: Record<string, unknown>) => Record<string, unknown> | null;
+  /** The nonce this acceptor issued for the exchange, if any. */
+  challengeFor?: (receipt: Record<string, unknown>) => string | null;
+  statusCode?: number;
+  exemptPaths?: readonly string[];
+}
+
+interface AcceptorRequest {
+  headers?: Record<string, unknown>;
+  path?: string;
+  url?: string;
+}
+
+interface AcceptorResponse {
+  status: (code: number) => { json: (body: unknown) => unknown };
+  locals?: Record<string, unknown>;
+}
+
+/**
+ * Connect/Express middleware refusing a request whose peer receipt is not admissible.
+ *
+ * Fails CLOSED: a request carrying no receipt, or one whose header does not
+ * parse, is refused. An acceptor that admitted an unsigned request while refusing
+ * a badly-signed one would be strictly worse than having no middleware at all,
+ * because the cheapest bypass would be to send nothing.
+ *
+ * `predecessorFor` supplies the last receipt admitted from the same peer chain;
+ * without it the seq and chain axes have nothing to compare against and a gap
+ * cannot be detected. Both hooks are deliberately caller-supplied: where that
+ * state lives is the deployer's choice.
+ */
+export function acceptorMiddleware(options: AcceptorMiddlewareOptions = {}) {
+  const {
+    keyProvider = null,
+    header = DEFAULT_RECEIPT_HEADER,
+    predecessorFor,
+    challengeFor,
+    statusCode = 403,
+    exemptPaths = [],
+  } = options;
+  const headerName = header.toLowerCase();
+
+  return function asqavAcceptor(
+    req: AcceptorRequest,
+    res: AcceptorResponse,
+    next: () => void,
+  ): void {
+    const path = req.path ?? req.url ?? "";
+    if (exemptPaths.includes(path)) {
+      next();
+      return;
+    }
+
+    const refuse = (reason: string, rule: string | null): void => {
+      res.status(statusCode).json({ error: "peer_receipt_refused", reason, rule });
+    };
+
+    const rawHeader = (req.headers ?? {})[headerName];
+    const raw = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+    if (typeof raw !== "string" || raw === "") {
+      refuse("no peer receipt presented", "missing");
+      return;
+    }
+
+    const receipt = decodeReceipt(raw);
+    if (receipt === null) {
+      refuse("peer receipt header is not a JSON object", "malformed");
+      return;
+    }
+
+    const decision = checkPeerReceipt(receipt, {
+      keyProvider,
+      predecessor: predecessorFor ? predecessorFor(receipt) : null,
+      challenge: challengeFor ? challengeFor(receipt) : null,
+    });
+    if (!decision.accepted) {
+      refuse(decision.reason, decision.rule);
+      return;
+    }
+
+    if (res.locals) res.locals.asqavAcceptorDecision = decision;
+    next();
+  };
+}

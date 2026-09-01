@@ -311,3 +311,136 @@ class TestRuleOrderIsDeterministic:
         first = check_peer_receipt(receipt, key_provider=jwks, predecessor=pred)
         again = check_peer_receipt(receipt, key_provider=jwks, predecessor=pred)
         assert first == again
+
+
+class TestAsgiMiddleware:
+    """The adapter that makes the decision deployable.
+
+    Its own risk is not the verification - that is check_peer_receipt's, already
+    gated above - but the plumbing around it: what happens when no receipt is
+    presented at all, and whether a refusal actually stops the request.
+    """
+
+    def _run(self, mw, headers, path="/act"):
+        """Drive the middleware as an ASGI server would; return (status, body, reached)."""
+        import asyncio
+
+        reached: list[bool] = []
+        sent: list[dict] = []
+
+        async def app(scope, receive, send):
+            reached.append(True)
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+
+        mw.app = app
+        scope = {"type": "http", "path": path, "headers": headers}
+
+        async def receive():
+            return {"type": "http.request", "body": b""}
+
+        async def send(msg):
+            sent.append(msg)
+
+        asyncio.run(mw(scope, receive, send))
+        status = next((m["status"] for m in sent if m["type"] == "http.response.start"), None)
+        body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+        return status, body, bool(reached)
+
+    def _mw(self, **kw):
+        from asqav.acceptor import AcceptorMiddleware
+
+        return AcceptorMiddleware(None, **kw)
+
+    def test_a_request_with_no_receipt_is_refused(self) -> None:
+        """Fails closed. An acceptor that admitted an unsigned request while
+        refusing a badly-signed one would be worse than no middleware, because
+        the cheapest bypass would be to send nothing."""
+        status, body, reached = self._run(self._mw(), headers=[])
+        assert status == 403
+        assert not reached, "the request reached the app despite carrying no receipt"
+        assert b"no peer receipt presented" in body
+
+    def test_a_junk_receipt_header_is_refused(self) -> None:
+        status, body, reached = self._run(
+            self._mw(), headers=[(b"x-asqav-receipt", b"not-json-at-all")]
+        )
+        assert status == 403
+        assert not reached
+
+    def test_a_refused_receipt_never_reaches_the_app(self) -> None:
+        doc, jwks, pred = _chained({"seq": 7}, {"seq": 11})
+        mw = self._mw(key_provider=jwks, predecessor_for=lambda _r: pred)
+        status, body, reached = self._run(
+            mw, headers=[(b"x-asqav-receipt", json.dumps(doc).encode())]
+        )
+        assert status == 403
+        assert not reached, "a receipt with a withheld-receipt gap reached the app"
+
+    def test_an_admissible_receipt_reaches_the_app(self) -> None:
+        """The control. Without it the middleware could refuse everything."""
+        doc, jwks, pred = _chained({"seq": 7}, {"seq": 8})
+        mw = self._mw(key_provider=jwks, predecessor_for=lambda _r: pred)
+        status, _body, reached = self._run(
+            mw, headers=[(b"x-asqav-receipt", json.dumps(doc).encode())]
+        )
+        assert reached, "an admissible receipt was refused"
+        assert status == 200
+
+    def test_a_base64_wrapped_receipt_is_accepted(self) -> None:
+        doc, jwks, pred = _chained({"seq": 7}, {"seq": 8})
+        mw = self._mw(key_provider=jwks, predecessor_for=lambda _r: pred)
+        packed = base64.b64encode(json.dumps(doc).encode())
+        _status, _body, reached = self._run(mw, headers=[(b"x-asqav-receipt", packed)])
+        assert reached
+
+    def test_a_non_http_scope_passes_through(self) -> None:
+        """Lifespan and websocket scopes carry no receipt; passing them through is
+        not a bypass because no inbound ACTION rides on them."""
+        import asyncio
+
+        reached: list[bool] = []
+
+        async def app(scope, receive, send):
+            reached.append(True)
+
+        mw = self._mw()
+        mw.app = app
+        asyncio.run(mw({"type": "lifespan"}, None, None))
+        assert reached
+
+    def test_an_exempt_path_passes_through(self) -> None:
+        mw = self._mw(exempt_paths=("/health",))
+        _status, _body, reached = self._run(mw, headers=[], path="/health")
+        assert reached
+
+    def test_the_decision_is_handed_to_the_app(self) -> None:
+        """A downstream handler should be able to read why it was admitted rather
+        than verifying a second time."""
+        import asyncio
+
+        doc, jwks, pred = _chained({"seq": 7}, {"seq": 8})
+        seen: list[object] = []
+
+        async def app(scope, receive, send):
+            seen.append(scope["state"]["asqav_acceptor_decision"])
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+
+        from asqav.acceptor import AcceptorMiddleware
+
+        mw = AcceptorMiddleware(app, key_provider=jwks, predecessor_for=lambda _r: pred)
+        scope = {
+            "type": "http",
+            "path": "/act",
+            "headers": [(b"x-asqav-receipt", json.dumps(doc).encode())],
+        }
+
+        async def receive():
+            return {"type": "http.request", "body": b""}
+
+        async def send(_msg):
+            return None
+
+        asyncio.run(mw(scope, receive, send))
+        assert seen and seen[0].accepted
