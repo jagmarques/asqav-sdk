@@ -498,6 +498,32 @@
       "sha256": "dbb9fa8b319830814d2e6cc5b9c6a33f9c8f45e3223f75096d9c520aa9be55d4",
       "expected_verify": true,
       "reason": "signer and _asqav_tid are ordinary keys in the signed payload; JCS sorts them into place and the canonical form plus SHA-256 reproduce byte-for-byte."
+    },
+    {
+      "name": "asqav-24-jcs-astral-key-order",
+      "description": "RFC 8785 Section 3.2.3 orders member names by UTF-16 code unit. U+1F600 encodes as the surrogate pair D83D DE00, so it sorts BEFORE U+FF20 even though its code point is larger. A canonicalizer that sorts by code point (Python sorted / json.dumps(sort_keys=True), Rust and Go byte order) emits the other order and is non-conformant.",
+      "input": {
+        "＠": 1,
+        "😀": 1
+      },
+      "canonical": "{\"😀\":1,\"＠\":1}",
+      "sha256": "425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6",
+      "expected_verify": true,
+      "reason": "Correct JCS ordering for supplementary-plane member names."
+    },
+    {
+      "name": "asqav-24-jcs-astral-key-order-codepoint-rejected",
+      "description": "Negative twin of asqav-24-jcs-astral-key-order. non_conformant_canonical is the code point ordering a non-conformant implementation produces for the SAME input. A verifier MUST NOT accept it as the canonical form, and MUST NOT reproduce it: canonicalize(input) has to differ from it byte for byte.",
+      "input": {
+        "＠": 1,
+        "😀": 1
+      },
+      "canonical": "{\"😀\":1,\"＠\":1}",
+      "sha256": "425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6",
+      "non_conformant_canonical": "{\"＠\":1,\"😀\":1}",
+      "non_conformant_sha256": "1c314559129cce00bc1b3caa2ee37fa3e81f926aee65b34f8e4e21856b2de83b",
+      "expected_verify": false,
+      "reason": "Code point key order is not RFC 8785; a canonicalizer emitting non_conformant_canonical fails this vector."
     }
   ]
 }
