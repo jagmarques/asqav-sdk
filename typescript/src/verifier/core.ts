@@ -51,10 +51,8 @@ export interface VerifyResult {
   // null for v:1. Never gates the verdict.
   signer: string | null;
   /**
-   * Name of the earliest axis in report order that did not PASS, or null when
-   * every axis passed. Reported so two verifiers disagreeing about WHICH check
-   * failed first is as visible as disagreeing about the verdict; a bare verdict
-   * hides that, and it is the divergence that costs debugging time.
+   * Earliest axis in report order that did not PASS, else null. Reported so two verifiers
+   * disagreeing about WHICH check failed first is as visible as disagreeing about the verdict.
    */
   firstFailingEdge: string | null;
 }
@@ -118,29 +116,14 @@ function axis(axis: string, result: VerifyState, note: string): AxisResult {
 }
 
 /**
- * The fixed leading order every adapter's report walks, before its own
- * format-specific extra axes. Pinned here rather than left implicit in the array
- * literal so a refactor that reorders the checks fails a gate instead of quietly
- * renaming which edge is "first". Mirrors the Python `AXIS_ORDER_PREFIX`.
+ * Fixed leading axis order every adapter walks, before its format-specific extras.
+ * Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
  */
 export const AXIS_ORDER_PREFIX = ["structure", "signature", "chain", "seq"] as const;
 
 /**
  * Name the earliest axis in report order that drove the verdict away from verified.
- *
- * Walks the axes as reported, which is the fixed order `verify` builds, so the
- * answer never depends on which check happened to be evaluated first internally.
- *
- * The two exclusions mirror `foldVerdict` exactly, and are the whole reason this
- * is not simply "the first non-PASS axis": the expiry axis reports on its own and
- * never folds the verdict (criterion 426), and a SKIPPED chain is tolerated where
- * any other SKIPPED blocks. Without them a verified receipt that is merely expired
- * would name an edge, reporting a failure that did not happen.
- *
- * SKIPPED counts otherwise: an axis that could not be checked is where the chain of
- * reasoning stopped being clean, and naming only a FAIL would let an unverifiable
- * receipt report no failing edge at all.
- * A port of the Python `first_failing_edge`.
+ * Exclusions mirror `foldVerdict` (expiry never folds; SKIPPED chain is tolerated, others are not).
  */
 export function firstFailingEdge(axes: AxisResult[]): string | null {
   for (const a of axes) {

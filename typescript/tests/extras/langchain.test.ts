@@ -65,9 +65,8 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
   });
 
   it("signs handleChainStart with non-dict inputs (bare string) yields input_keys=[]", async () => {
-    // Non-vacuous: without the non-dict guard, Object.keys("hello") returns
-    // ["0","1","2","3","4"] (string index keys). Revert the guard and this
-    // assertion fails (input_keys would be ["0","1","2","3","4"]).
+    // Non-vacuous: without the non-dict guard Object.keys("hello") is ["0".."4"],
+    // so reverting the guard fails this assertion.
     const { AsqavCallbackHandler } = await import("../../src/extras/langchain.js");
     const { agent, calls, sign } = makeFakeAgent();
     const handler = await AsqavCallbackHandler.create({ agent });
@@ -160,9 +159,8 @@ describe("enableLangchainGovernance default-on", () => {
     vi.doUnmock("@langchain/core/context");
   });
 
-  // Replicate langchain's _configure loop: collect handlers whose hook
-  // context variable is set, exactly how a run with no explicit callbacks
-  // picks up an inheritable handler.
+  // Replicates langchain's _configure loop: collect handlers whose hook context var is
+  // set, how a run with no explicit callbacks picks up an inheritable handler.
   function collectDefaultHandlers(): unknown[] {
     return hooks
       .map((h) => (h.contextVar ? store.get(h.contextVar) : undefined))
