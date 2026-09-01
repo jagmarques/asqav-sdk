@@ -19,6 +19,9 @@ from asqav.verifier.oracle.adapters.agentreceipts import AgentReceiptsAdapter
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
 from asqav.verifier.oracle.runner import main as runner_main
 from asqav.verifier.oracle.runner import run_corpus
+from asqav.verifier.oracle.runner import _key_provider as _runner_key_provider
+from asqav.verifier.oracle.runner import _load as _runner_load
+from asqav.verifier.oracle.core import VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED
 
 # The corpus stays at the repo root (verifier/conformance-vectors) so the TS parity gate
 # and the published governance URL keep one source of truth; walk up from tests to it.
@@ -1142,3 +1145,119 @@ def test_oracle_over_nested_predecessor_is_unverifiable_not_recursionerror() -> 
 def test_oracle_receipt_within_depth_is_not_flagged_too_deep() -> None:
     res = verify(_deep_agentreceipt(50), ADAPTERS, key_provider=_SIGNER)
     assert "depth" not in (res.axis("structure").note or "")
+
+
+# --- A29: ordered first-bad-edge reporting (criterion 490) ---
+
+_FIRST_BAD_EDGE = Path(__file__).resolve().parents[2] / "verifier" / "first-bad-edge-cases.json"
+
+
+def _first_bad_edge_table() -> dict:
+    return json.loads(_FIRST_BAD_EDGE.read_text(encoding="utf-8"))["cases"]
+
+
+def test_the_axis_prefix_order_is_pinned() -> None:
+    """The shared prefix every adapter reports before its own extra axes.
+
+    Pinned because "the first failing edge" is only meaningful against a fixed
+    order: silently reordering the checks would rename which edge is first while
+    every verdict stayed identical, so nothing else in the suite would notice.
+    """
+    from asqav.verifier.oracle.core import AXIS_ORDER_PREFIX
+
+    assert AXIS_ORDER_PREFIX == ("structure", "signature", "chain", "seq")
+
+
+@requires_ed25519
+def test_every_vector_reports_its_pinned_first_bad_edge() -> None:
+    """Drive the real corpus and compare against the pinned table.
+
+    Not a restatement of the implementation: the table is a frozen artifact both
+    language halves read, so a change in either one's ordering or its non-PASS
+    set fails here rather than surfacing as a support ticket.
+    """
+    table = _first_bad_edge_table()
+    corpus = json.loads((_CORPUS / "manifest.json").read_text(encoding="utf-8"))
+    assert len(table) == len(corpus), "the table and the corpus have drifted apart"
+
+    mismatches = []
+    for entry in corpus:
+        vec = _CORPUS / entry["dir"]
+        try:
+            # The runner's STRICT loader, not the plain json.loads helper above:
+            # duplicate members are exactly what makes a vector terminal at ingest,
+            # and stdlib json silently keeps the last one.
+            receipt = _runner_load(vec / "receipt.json")
+            predecessor = _runner_load(vec / "predecessor.json")
+            key_provider = _runner_key_provider(vec, entry["format"])
+        except Exception:
+            got = "__ingest_error__"
+        else:
+            got = verify(
+                receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor
+            ).first_failing_edge
+        want = table[entry["dir"]]
+        if got != want:
+            mismatches.append(f"{entry['dir']}: want {want!r}, got {got!r}")
+    assert not mismatches, "first-bad-edge drift:\n  " + "\n  ".join(mismatches)
+
+
+@requires_ed25519
+def test_an_edge_is_named_for_exactly_the_unverified_verdicts() -> None:
+    """first_failing_edge is None if and only if the verdict is a verified one.
+
+    The invariant that makes the field trustworthy rather than decorative. It is
+    NOT free: the two exclusions inside first_failing_edge (expiry never folds,
+    a SKIPPED chain does not block) have to stay in step with fold_verdict's, and
+    an earlier draft of this feature got it wrong in the direction this catches -
+    asqav-06 verifies while its expiry axis FAILs, so a naive "first non-PASS
+    axis" named an edge on a receipt that verified.
+    """
+    corpus = json.loads((_CORPUS / "manifest.json").read_text(encoding="utf-8"))
+    verified_states = {VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED}
+    checked = 0
+    for entry in corpus:
+        vec = _CORPUS / entry["dir"]
+        try:
+            result = verify(
+                _runner_load(vec / "receipt.json"),
+                ADAPTERS,
+                key_provider=_runner_key_provider(vec, entry["format"]),
+                predecessor=_runner_load(vec / "predecessor.json"),
+            )
+        except Exception:
+            continue  # terminal at ingest; never produces a VerifyResult
+        checked += 1
+        names_edge = result.first_failing_edge is not None
+        is_unverified = result.verdict not in verified_states
+        assert names_edge == is_unverified, (
+            f"{entry['dir']}: verdict={result.verdict} but "
+            f"first_failing_edge={result.first_failing_edge!r}"
+        )
+    assert checked > 60, f"only {checked} vectors reached verification"
+
+
+@requires_ed25519
+def test_the_named_edge_is_an_axis_the_report_actually_carries() -> None:
+    """A named edge must be findable in the axes list, not a stale literal.
+
+    Without this the field could name an axis that was renamed or never ran, and
+    a caller following it would look for a check that is not in the report.
+    """
+    corpus = json.loads((_CORPUS / "manifest.json").read_text(encoding="utf-8"))
+    for entry in corpus:
+        vec = _CORPUS / entry["dir"]
+        try:
+            result = verify(
+                _runner_load(vec / "receipt.json"),
+                ADAPTERS,
+                key_provider=_runner_key_provider(vec, entry["format"]),
+                predecessor=_runner_load(vec / "predecessor.json"),
+            )
+        except Exception:
+            continue
+        if result.first_failing_edge is not None:
+            assert result.axis(result.first_failing_edge) is not None, (
+                f"{entry['dir']} names edge {result.first_failing_edge!r} "
+                f"but the report carries no such axis"
+            )
