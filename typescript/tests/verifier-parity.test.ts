@@ -14,9 +14,15 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { asqavJcs, jcsRfc8785, parseJsonPreservingFloats } from "../src/verifier/canonical.js";
-import { verify } from "../src/verifier/core.js";
+import { AXIS_ORDER_PREFIX, verify } from "../src/verifier/core.js";
 import { ADAPTERS } from "../src/verifier/index.js";
-import { runCorpus, runOne, tolerated } from "../src/verifier/runner.js";
+import {
+  keyProviderFor,
+  loadJson as runnerLoadJson,
+  runCorpus,
+  runOne,
+  tolerated,
+} from "../src/verifier/runner.js";
 
 // typescript/tests -> repo root -> verifier/conformance-vectors
 const CORPUS_ROOT = resolve(__dirname, "..", "..", "verifier", "conformance-vectors");
@@ -204,5 +210,81 @@ describe("integers beyond IEEE-754 safe range stay distinct (no false-PASS)", ()
     const a = dec.decode(asqavJcs(parseJsonPreservingFloats('{"n":9007199254740993}')));
     const b = dec.decode(asqavJcs(parseJsonPreservingFloats('{"n":9007199254740992}')));
     expect(a).not.toBe(b);
+  });
+});
+
+// --- A29: ordered first-bad-edge reporting (criterion 490) ---
+
+const FIRST_BAD_EDGE = resolve(__dirname, "..", "..", "verifier", "first-bad-edge-cases.json");
+
+describe("first-bad-edge parity (criterion 490)", () => {
+  it("reproduces the pinned first-bad-edge for every corpus vector", () => {
+    // The same frozen table the Python gate drives. A verdict alone hides an
+    // ordering divergence: two verifiers can agree a receipt is unverified while
+    // disagreeing about WHICH check failed first, which is the difference between
+    // a debuggable report and a guess.
+    const table = JSON.parse(readFileSync(FIRST_BAD_EDGE, "utf-8")).cases as Record<
+      string,
+      string | null
+    >;
+    const manifest = JSON.parse(
+      readFileSync(join(CORPUS_ROOT, "manifest.json"), "utf-8"),
+    ) as { dir: string; format: string }[];
+
+    expect(Object.keys(table).length).toBe(manifest.length);
+
+    const mismatches: string[] = [];
+    for (const entry of manifest) {
+      const vecDir = join(CORPUS_ROOT, entry.dir);
+      let got: string | null;
+      try {
+        const receipt = runnerLoadJson(join(vecDir, "receipt.json")) ?? {};
+        const predecessor = runnerLoadJson(join(vecDir, "predecessor.json"));
+        const keyProvider = keyProviderFor(vecDir, entry.format);
+        got = verify(receipt, ADAPTERS, keyProvider, predecessor).firstFailingEdge;
+      } catch {
+        // Terminal at ingest. Both halves must agree on WHICH vectors these are,
+        // so a parser-strictness divergence fails here too.
+        got = "__ingest_error__";
+      }
+      const want = table[entry.dir];
+      if (got !== want) mismatches.push(`${entry.dir}: want ${want}, got ${got}`);
+    }
+    expect(mismatches, `first-bad-edge divergence from Python:\n  ${mismatches.join("\n  ")}`).toEqual([]);
+  });
+
+  it("names an edge for exactly the unverified verdicts", () => {
+    // The invariant that makes the field trustworthy rather than decorative, held
+    // on the TypeScript side independently: the exclusions inside firstFailingEdge
+    // (expiry never folds, a SKIPPED chain does not block) must stay in step with
+    // foldVerdict's, or a verified-but-expired receipt names a failure that did
+    // not happen.
+    const manifest = JSON.parse(
+      readFileSync(join(CORPUS_ROOT, "manifest.json"), "utf-8"),
+    ) as { dir: string; format: string }[];
+    let checked = 0;
+    for (const entry of manifest) {
+      const vecDir = join(CORPUS_ROOT, entry.dir);
+      let result;
+      try {
+        const receipt = runnerLoadJson(join(vecDir, "receipt.json")) ?? {};
+        const predecessor = runnerLoadJson(join(vecDir, "predecessor.json"));
+        result = verify(receipt, ADAPTERS, keyProviderFor(vecDir, entry.format), predecessor);
+      } catch {
+        continue;
+      }
+      checked += 1;
+      const namesEdge = result.firstFailingEdge !== null;
+      const isUnverified = result.verdict === "unverified";
+      expect(
+        namesEdge,
+        `${entry.dir}: verdict=${result.verdict} firstFailingEdge=${result.firstFailingEdge}`,
+      ).toBe(isUnverified);
+    }
+    expect(checked).toBeGreaterThan(60);
+  });
+
+  it("pins the shared axis prefix order", () => {
+    expect([...AXIS_ORDER_PREFIX]).toEqual(["structure", "signature", "chain", "seq"]);
   });
 });
