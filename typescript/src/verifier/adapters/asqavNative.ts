@@ -55,8 +55,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 /** True for a flat hash-mode signature receipt (mode=hash, null payload, a sig). */
 // Claims belonging to the signed payload; hash mode signs the flat fields only,
-// so a thumbprint pasted onto one binds nothing.
-const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash", "key_thumbprint"];
+// so a thumbprint or seq pasted onto one binds nothing.
+const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash", "key_thumbprint", "seq"];
 
 /**
  * alg plus raw public-key bytes of the resolved directory entry. The directory publishes standard
@@ -273,6 +273,12 @@ export class AsqavNativeAdapter extends FormatAdapter {
       ["key_status", res, note],
       ["issuer_bind", bindRes, bindNote],
     ];
+  }
+
+  // Hash mode signs the flat field set only, so a seq sitting there binds nothing.
+  seqOf(doc: Record<string, unknown>): unknown {
+    if (isHashMode(doc)) return null;
+    return payloadOf(doc).seq ?? null;
   }
 
   // Surface the v:2 in-body signer. null for v:1 and hash-mode. Read only from
