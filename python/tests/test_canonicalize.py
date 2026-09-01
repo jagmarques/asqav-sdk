@@ -88,3 +88,22 @@ def test_canonicalize_preserves_unicode_raw() -> None:
 def test_canonicalize_rejects_nan() -> None:
     with pytest.raises(ValueError):
         canonicalize({"x": float("nan")})
+
+
+    # RFC 8785 3.2.3 sorts member names by UTF-16 code unit, not code point.
+def test_canonicalize_orders_astral_keys_by_utf16_code_unit() -> None:
+    vectors = {v["name"]: v for v in _load_vectors()}
+    positive = vectors["asqav-24-jcs-astral-key-order"]
+    assert canonicalize(positive["input"]).decode("utf-8") == positive["canonical"]
+
+
+    # The code point ordering a non-conformant canonicalizer emits must not be reproduced.
+def test_canonicalize_rejects_code_point_key_order() -> None:
+    twin = {v["name"]: v for v in _load_vectors()}[
+        "asqav-24-jcs-astral-key-order-codepoint-rejected"
+    ]
+    produced = canonicalize(twin["input"]).decode("utf-8")
+    assert produced != twin["non_conformant_canonical"]
+    assert hashlib.sha256(produced.encode()).hexdigest() != twin["non_conformant_sha256"]
+    # Anti-vacuous: the rejected form must really be a reordering of the same members.
+    assert sorted(json.loads(produced)) == sorted(json.loads(twin["non_conformant_canonical"]))
