@@ -1,15 +1,6 @@
 /**
- * SDK parity for the code-authorship receipt.
- *
- * Mirrors the deployed cloud SignRequest validators (routes/agents.py
- * `_validate_code_authorship_extensions` + AuthoredBy) for
- * `receiptType='protectmcp:lifecycle:code_authorship'`. The SDK forwards the
- * eight extension fields verbatim (camelCase -> snake_case), validates the
- * changeDigest shape, the changeClass closed vocabulary, the authored_by
- * model-requires-attestation_source rule, the field-fence to the
- * code-authorship type, and requires complianceMode so the fields are never
- * silently dropped from the signed bytes. Honest-scope: every field is
- * producer-asserted / recorded-not-verified.
+ * SDK parity for the code-authorship receipt, mirroring the cloud's SignRequest validators.
+ * Honest scope: every one of the eight extension fields is producer-asserted, not verified.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
