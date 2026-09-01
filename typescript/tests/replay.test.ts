@@ -1,9 +1,6 @@
 /**
- * Offline chain verification under the IETF v2 chain shape.
- *
- * The v2 chain is `previousReceiptHash[i+1] = sha256(canonicalJson(env[i]))`
- * with seed `"0".repeat(64)` on the first record. This test builds a
- * synthetic chain, then mutates each link to confirm tamper detection.
+ * Offline chain verification: v2 links are previousReceiptHash[i+1] = sha256(canonicalJson(env[i]))
+ * seeded with 64 zeros. Builds a synthetic chain, then mutates each link to confirm detection.
  */
 
 import { createHash } from "node:crypto";

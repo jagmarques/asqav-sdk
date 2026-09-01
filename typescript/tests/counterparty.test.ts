@@ -1,9 +1,6 @@
 /**
- * SDK-side tests for the counterparty acknowledgment binding (IETF -04).
- *
- * Covers envelope_hash byte-stability, default vs explicit receipt_ref,
- * verifyCounterpartyBinding matches / mismatch / kid_mismatch / unresolved
- * labels, and cross-SDK byte-stability with the Python helper (vector pin).
+ * Counterparty acknowledgment binding: envelope_hash byte-stability, default vs explicit
+ * receipt_ref, each verifyCounterpartyBinding label, and cross-SDK stability with Python.
  */
 
 import { createHash } from "node:crypto";

@@ -38,13 +38,8 @@ def _vec(name: str):
     return receipt, jwks, predecessor
 
 
-# --- properly signed fixtures -------------------------------------------------
-#
-# The acceptor rules refuse receipts the VERIFIER is content with, so testing
-# them needs receipts that actually verify. Editing a corpus payload cannot do
-# it: the edit breaks the signature, the verifier refuses first, and the rule
-# under test never runs. So these mint real receipts with the corpus's own
-# published seed, exactly as gen_seq_vectors.py does.
+# Properly signed fixtures: the acceptor rules refuse receipts the VERIFIER accepts, so an
+# edited payload would fail the signature first. These mint real ones from the published seed.
 
 _SEED_PHRASE = b"asqav conformance corpus v1 seq-continuity signing seed"
 _KID = "asqav-seq-vec-key"

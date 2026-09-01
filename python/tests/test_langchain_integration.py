@@ -25,9 +25,8 @@ _original_modules: dict[str, ModuleType | None] = {}
 _MISSING = object()
 
 
-# Fake registry mirroring langchain_core's private _configure_hooks list.
-# Each entry is the (context_var, inheritable, handle_class, env_var) tuple
-# register_configure_hook appends and the _configure loop iterates.
+# Fake registry mirroring langchain_core's private _configure_hooks list: each entry is the
+# (context_var, inheritable, handle_class, env_var) tuple the _configure loop iterates.
 _FAKE_CONFIGURE_HOOKS: list = []
 
 

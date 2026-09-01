@@ -1,13 +1,6 @@
 /**
- * SDK parity for the `witnessPolicy` wire field.
- *
- * The cloud accepts an optional `witness_policy` object on the signed
- * Compliance Receipt with shape
- * `{ required: int, witnesses: [<subset of "rfc3161", "opentimestamps">] }`.
- * The SDK projects `witnessPolicy` to the snake_case `witness_policy` wire
- * key verbatim and validates the shape client-side: `required` in
- * `[1, witnesses.length]`, `witnesses` a non-empty subset of the two
- * shipped witnesses, and `rekor` rejected.
+ * SDK parity for `witnessPolicy` -> `witness_policy`: required in [1, witnesses.length],
+ * witnesses a non-empty subset of rfc3161/opentimestamps, and `rekor` rejected.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

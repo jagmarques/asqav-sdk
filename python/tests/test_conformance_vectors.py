@@ -15,9 +15,8 @@ import pytest
 
 VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.json"
 
-# Closed Literal mirrored from the cloud SignRequest and IETF draft -04 appendix.
-# passive_telemetry is observation-only and tested separately. github_sha_pull is
-# the server-stamped authoritative code-authorship capture layer.
+# Closed Literal mirrored from the cloud SignRequest. passive_telemetry is observation-only;
+# github_sha_pull is the server-stamped authoritative code-authorship capture layer.
 CAPTURE_TOPOLOGY_VOCABULARY: frozenset[str] = frozenset(
     {
         "in_process_sdk",
@@ -29,8 +28,18 @@ CAPTURE_TOPOLOGY_VOCABULARY: frozenset[str] = frozenset(
 )
 
 
+    # Independent of asqav.canonicalize on purpose: a third party must be able to
+    # reproduce these bytes, so importing the SDK helper here would be circular.
 def _jcs(obj: object) -> str:
-    return json.dumps(obj, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
+    if isinstance(obj, dict):
+        # RFC 8785 3.2.3 orders member names by UTF-16 code unit, not code point.
+        items = sorted(obj.items(), key=lambda kv: str(kv[0]).encode("utf-16-be"))
+        return "{" + ",".join(
+            json.dumps(str(k), ensure_ascii=False) + ":" + _jcs(v) for k, v in items
+        ) + "}"
+    if isinstance(obj, list):
+        return "[" + ",".join(_jcs(v) for v in obj) + "]"
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
 
 
 def test_vectors_file_exists() -> None:

@@ -1,13 +1,6 @@
 /**
- * SDK half of the authoritative code-authorship path (POST /v1/code-authorship).
- *
- * The client supplies an ADVISORY change digest. The server re-fetches the
- * commit, recomputes the canonical diff, and signs an in-toto Statement whose
- * `subject[0].digest.sha256` is the SERVER digest. These tests pin the advisory
- * digest computation, the wire body the submit helper posts, the authoritative
- * envelope parsing, and the capture-layer observation-decision rule
- * (`github_sha_pull` is authoritative, `in_process_sdk` / `passive_telemetry`
- * are observation only and never authoritative).
+ * SDK half of the authoritative code-authorship path: the client digest is ADVISORY and the
+ * server's recomputed one is signed. Only `github_sha_pull` is authoritative.
  */
 
 import { createHash } from "node:crypto";
