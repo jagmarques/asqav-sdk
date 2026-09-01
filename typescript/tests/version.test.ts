@@ -1,9 +1,6 @@
 /**
- * Version consistency: CLI_VERSION in src/cli.ts must match version in package.json.
- *
- * Prevents the drift bug where the CLI prints a different version than the
- * package actually publishes (mirrors the Python __version__/pyproject drift
- * that yanked asqav 0.3.7 from PyPI).
+ * CLI_VERSION in src/cli.ts must match package.json, so the CLI cannot print a version the
+ * package does not publish (the Python __version__ drift that yanked asqav 0.3.7).
  */
 
 import { readFileSync } from "node:fs";
