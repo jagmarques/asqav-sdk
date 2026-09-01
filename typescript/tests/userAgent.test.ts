@@ -1,9 +1,6 @@
 /**
- * Every outbound API call from Node carries the asqav-js User-Agent.
- *
- * The api.asqav.com edge runs a Cloudflare browser-integrity check that
- * 403s anonymous default agents; the SDK must identify itself. Browsers
- * forbid setting User-Agent on fetch, so the helper returns {} there.
+ * Every outbound Node call carries the asqav-js User-Agent, because the edge 403s anonymous
+ * default agents. Browsers forbid setting User-Agent on fetch, so the helper returns {} there.
  */
 
 import { readFileSync } from "node:fs";

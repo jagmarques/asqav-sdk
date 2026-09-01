@@ -1,12 +1,6 @@
 /**
- * Gates for acceptor-side admission control (criterion 472, B15), the TypeScript
- * half. Mirrors python/tests/test_acceptor.py rule for rule.
- *
- * The acceptor rules refuse receipts the VERIFIER is content with, so testing
- * them needs receipts that actually verify. Editing a corpus payload cannot do
- * it: the edit breaks the signature, the verifier refuses first, and the rule
- * under test never runs. So these mint real receipts with the corpus's own
- * published seed.
+ * Acceptor-side admission control (criterion 472, B15), TS half of test_acceptor.py. These
+ * rules refuse receipts the VERIFIER accepts, so the fixtures are minted, not edited.
  */
 
 import { createHash, createPrivateKey, createPublicKey, sign as nodeSign } from "node:crypto";
