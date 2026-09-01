@@ -1,10 +1,6 @@
 /**
- * Regression test for the ESM bundle crypto bug.
- *
- * generateNonce previously used require("node:crypto") which tsup converts to
- * a __require() CJS shim in the .mjs bundle - that shim throws
- * "Dynamic require of "crypto" is not supported" in pure-ESM Node 22 contexts.
- * The fix uses globalThis.crypto.getRandomValues (Web Crypto, Node >=19 + browsers).
+ * ESM bundle crypto regression: tsup turns require("node:crypto") into a __require() shim that
+ * throws in pure-ESM Node 22, so generateNonce uses globalThis.crypto.getRandomValues.
  */
 
 import { describe, expect, it } from "vitest";

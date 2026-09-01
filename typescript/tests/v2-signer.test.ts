@@ -1,6 +1,5 @@
-// v:2 receipt acceptance in the neutral oracle verifier (TS parity with Python).
-// Verifies the signature over the body that includes signer + _asqav_tid, surfaces
-// signer, and FAILs a tampered in-body signer. Byte-pinned to the backend v:2 body.
+// v:2 receipt acceptance in the neutral oracle (TS parity with Python): verifies over the body
+// including signer + _asqav_tid, surfaces signer, and FAILs a tampered one. Byte-pinned.
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
