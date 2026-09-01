@@ -37,6 +37,7 @@ from ._detectors import (
 )
 from ._jcs import canonical_json
 from ._schema import normalize_context, validate_context_schema
+from .acceptor import AcceptorDecision, check_peer_receipt
 from .async_client import AsyncAgent
 from .attestation import (
     ATTESTATION_STATEMENT_SCHEMA,
@@ -363,6 +364,9 @@ __all__ = [
     "CounterpartyBindingVerification",
     "compute_counterparty_binding",
     "verify_counterparty_binding",
+    # Acceptor-side admission control for an inbound peer receipt (B15)
+    "AcceptorDecision",
+    "check_peer_receipt",
     # DORA RTS JC 2024-33 Annex II vocabulary
     "DORA_INCIDENT_CLASS_NAMESPACE",
     # IETF -04 capture-topologies appendix vocabulary
