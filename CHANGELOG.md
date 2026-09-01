@@ -5,6 +5,50 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-09-01
+
+### Added
+
+- **Acceptor-side admission control, in both halves.** `check_peer_receipt` /
+  `checkPeerReceipt` answer whether an inbound agent-to-agent action may be
+  admitted given the receipt the peer presented, returning an `AcceptorDecision`
+  that names one refusal edge rather than a wall of axes. It runs off the same
+  shared oracle the offline verifier uses, so an acceptor and an auditor cannot
+  disagree about the same bytes.
+- Three of its rules deliberately do **not** follow from the verdict, because a
+  peer can weaken the evidence without ever producing an unverified receipt.
+  *Expiry*: the verifier reports expiry on its own axis and never folds it, which
+  is right for a verifier and wrong for a party deciding about an action happening
+  now, so a lapsed receipt is refused here. *Seq downgrade*: absence of a counter
+  stays legal in general, but an acceptor holding a predecessor that carried one
+  is watching the exact transition that hides a withheld receipt. *Challenge*: a
+  challenge the acceptor issued and the receipt does not answer proved nothing, so
+  it is required once issued rather than checked only when present. Refusals are
+  ordered, so the reason is deterministic for the same inputs.
+- **Framework adapters for that decision**: `AcceptorMiddleware` (ASGI, Python)
+  and `acceptorMiddleware` (Connect-style, TypeScript), plus
+  `DEFAULT_RECEIPT_HEADER`. They add plumbing and no policy — an acceptor that
+  mounts the middleware and one that calls the function directly refuse the same
+  receipts. They **fail closed**: a request carrying no receipt, or one whose
+  header does not parse, is refused, since middleware that admitted an unsigned
+  request while refusing a badly-signed one would make sending nothing the
+  cheapest bypass. Non-HTTP scopes (lifespan, websocket) pass through, carrying no
+  receipt and no inbound action. `predecessor_for` and `challenge_for` are
+  caller-supplied hooks, because where that state lives is the deployer's choice.
+- **The verifier now reports which check failed first**: `first_failing_edge` /
+  `firstFailingEdge` on the result. A verdict alone hides an ordering divergence —
+  two verifiers can agree a receipt is unverified while disagreeing about which
+  check failed first, which is the difference between a debuggable report and a
+  guess. The definition is not "the first non-PASS axis"; it mirrors
+  `fold_verdict`'s two exclusions, since the expiry axis never folds the verdict
+  and a SKIPPED chain is tolerated where any other SKIPPED blocks. An edge is
+  named for exactly the unverified verdicts, and the shared axis prefix order is
+  pinned so a refactor that reorders the checks fails a gate instead of quietly
+  renaming which edge is first.
+- Two key-binding conformance vectors in the shared corpus (`asqav-21`
+  key thumbprint binds, `asqav-22` key substituted), with a generator that mints
+  them from a published seed.
+
 ## [0.10.4] - 2026-09-01
 
 ### Fixed
