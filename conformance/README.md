@@ -12,10 +12,10 @@ These vectors intentionally do NOT pin ML-DSA-65 signature bytes. FIPS 204 suppo
 
 ## Fingerprint format
 
-Asqav canonicalizes with the Python `json.dumps` dialect, which matches the RFC 8785 (JCS) rules on the domain the corpus exercises:
+Asqav canonicalizes per RFC 8785 (JCS):
 
 - UTF-8 encoded.
-- Object keys sorted lexicographically by Unicode code point.
+- Object keys sorted by UTF-16 code units per RFC 8785 Section 3.2.3; a code point or UTF-8 byte sort is not conformant for keys outside the Basic Multilingual Plane. The two orders agree across the BMP and diverge above U+FFFF, because a supplementary character's UTF-16 form begins with a surrogate in `0xD800..0xDBFF`, which sorts below every BMP character from `U+E000` up. Python's `sorted()` and `json.dumps(sort_keys=True)`, and Rust and Go byte ordering, are code point order and must not be used directly; JavaScript string comparison is already UTF-16 order. Vector `asqav-24-jcs-astral-key-order` pins this.
 - No insignificant whitespace between tokens.
 - Strings escaped per JSON RFC 8259.
 - Integers serialized bare; floats follow Python's shortest-repr, so float forms outside the corpus domain are out of scope (NaN/Infinity are rejected).
