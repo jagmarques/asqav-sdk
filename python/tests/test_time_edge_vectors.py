@@ -69,9 +69,8 @@ def test_parse_pins_the_utc_instant(case: dict) -> None:
 
 @pytest.mark.parametrize("case", TABLE["instants"], ids=[c["name"] for c in TABLE["instants"]])
 def test_instant_probes_pin_normalisation(case: dict, monkeypatch) -> None:
-    # Frozen at utc-301s the stamp is exactly 301s ahead and FAILs; at utc-300s
-    # and utc it PASSes. Only the true UTC instant draws all three verdicts, so
-    # the probes pin both the instant and the future-only 300s bound
+    # At utc-301s the stamp is 301s ahead and FAILs; at utc-300s and utc it PASSes. Only the
+    # true UTC instant draws all three, pinning both the instant and the future-only bound.
     for probe in case["probes"]:
         _freeze(monkeypatch, probe["clock"])
         result, note = vr.check_skew(case["stamp"])
@@ -132,12 +131,8 @@ def test_unreadable_expires_at_fails_closed_on_its_own_axis(monkeypatch) -> None
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_time_edge_corpus_vector_expiry_never_folds_the_verdict() -> None:
-    # asqav-12: extreme +14:00 issued_at (past, skew PASS) and a lapsed signed
-    # expires_at; the expiry axis FAILs alone and never folds the verdict (426).
-    # The vector's placeholder anchor is not a verifiable token, so since the
-    # cryptographic anchor check landed the anchors axis reports unverifiable
-    # (never PASS on presence); the 426 property is pinned by folding the same
-    # axes with and without the expiry row and requiring one verdict.
+    # asqav-12: +14:00 issued_at with a lapsed expires_at, so expiry FAILs alone and never
+    # folds the verdict (426), pinned by folding the same axes with and without that row.
     receipt = json.loads((TIME_EDGE_VECTOR / "receipt.json").read_text())
     jwks = json.loads((TIME_EDGE_VECTOR / "jwks.json").read_text())
     result = vr.run_structured(receipt, jwks)

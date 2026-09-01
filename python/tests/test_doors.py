@@ -176,13 +176,12 @@ def test_parity_safe_domain_matches_shared_golden() -> None:
 
 
 def test_known_canonicalization_divergence_outside_safe_domain() -> None:
-    """Guard the known pre-existing JCS-core limitation as a documented fact.
+    """Pin what still diverges between the Python and TS canonicalizers, and what no longer does.
 
-    Astral-plane object keys and integers above 2**53 make the Python and TS
-    canonicalizers emit different bytes. This pins Python's bytes and asserts they
-    differ from the committed TS bytes, so the boundary is visible and regression
-    guarded rather than silently claimed equal. It needs a versioned migration to
-    close, out of scope for the doors layer.
+    This guard used to record TWO causes. The key-ordering one is now CLOSED: Python
+    orders member names by UTF-16 code unit per RFC 8785 3.2.3, so it agrees with TS on
+    astral keys. The number path is still open, and this test now says exactly that
+    rather than claiming a divergence that has been fixed.
     """
     fixture = json.loads((_PARITY / "divergence-input.json").read_text(encoding="utf-8"))
     py_bytes = doors.canonical_json(fixture)
@@ -190,12 +189,19 @@ def test_known_canonicalization_divergence_outside_safe_domain() -> None:
     ts_golden = (_PARITY / "divergence-typescript.jcs").read_bytes()
 
     assert py_bytes == py_golden  # Python output pinned
-    assert py_golden != ts_golden  # the two SDKs diverge here
+    assert py_golden != ts_golden  # one cause still divides them
 
-    # cause 1: integer above 2**53 stays exact in Python, rounds in the TS number path
+    # OPEN cause: an integer above 2**53 stays exact in Python and rounds in the TS
+    # number path. Closing it needs a versioned migration, out of scope for doors.
     assert b"9007199254740993" in py_golden
     assert b"9007199254740992" in ts_golden
-    # cause 2: astral key (U+10000) sorts after U+FFFF in Python, before it in TS
+
+    # CLOSED cause: the astral key (U+10000) now sorts BEFORE U+FFFF in BOTH, because
+    # its UTF-16 form leads with a surrogate in 0xD800..0xDBFF. Python sorted it after
+    # while it used code-point order; asserting both directions keeps the fix pinned.
     astral, bmp_max = "\U00010000".encode("utf-8"), "￿".encode("utf-8")
-    assert py_golden.index(astral) > py_golden.index(bmp_max)
+    assert py_golden.index(astral) < py_golden.index(bmp_max)
     assert ts_golden.index(astral) < ts_golden.index(bmp_max)
+
+    # The remaining difference is the number alone: neutralise it and the bytes match.
+    assert py_golden.replace(b"9007199254740993", b"9007199254740992") == ts_golden
