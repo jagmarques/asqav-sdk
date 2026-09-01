@@ -21,10 +21,9 @@ VERIFIER_ROOT = _REPO_ROOT / "verifier" / "conformance-vectors"
 FINGERPRINT_LOCK = FINGERPRINT_ROOT / "manifest.lock.json"
 VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 
-# The lock digests, reproduced in the repo beside each lock's own digest field
-# and in the corpus READMEs. A regenerated lock that forgets to update these is
-# drift, not a refresh
-FINGERPRINT_LOCK_DIGEST = "aa4e38f19dd227ffd4f674a9e25298199769d40ade9be63417eb9432ccb5ba6d"
+# The lock digests, reproduced beside each lock's own digest field and in the corpus
+# READMEs. A regenerated lock that forgets to update these is drift, not a refresh.
+FINGERPRINT_LOCK_DIGEST = "de1dfb87baf517cd4b779edd253588eede636cd20ca2265f2a2c21b07a82e250"
 VERIFIER_LOCK_DIGEST = "1b030a79ebc34f08556877c134d320aef93317abcbf47f2d012c58a04814ba59"
 
 try:
