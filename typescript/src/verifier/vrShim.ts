@@ -459,7 +459,12 @@ function parseIsoMs(issuedAt: unknown): number | null {
   const [, date, time, zone] = m;
   if (time !== undefined) {
     const [hh, mm, ss] = time.split(":");
-    if (Number(hh) > 23 || Number(mm) > 59 || Number(ss ?? "0") > 59) return null;
+    // Range-check the WHOLE seconds only. Number("59.656") is 59.656, which is
+    // > 59, so a fractional stamp in the 59th second read as out of range and
+    // the receipt failed closed - one second in every sixty. Python range-checks
+    // a two-digit capture, so this is also what keeps the two halves agreeing.
+    const wholeSeconds = (ss ?? "0").split(".")[0];
+    if (Number(hh) > 23 || Number(mm) > 59 || Number(wholeSeconds) > 59) return null;
   }
   let tz = zone ?? "Z";
   if (tz !== "Z") {
