@@ -5,6 +5,29 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-09-01
+
+### Fixed
+
+- **A valid receipt could be reported as provably bad, decided by nothing but the
+  second of the minute it was signed in.** The TypeScript ISO parser range-checked
+  the seconds field as `Number(ss) > 59`. On a fractional stamp that string is
+  `"59.656"`, and `59.656 > 59`, so the parser returned `null` and the axis called
+  the value unreadable. `Date#toISOString` always emits milliseconds, so roughly
+  one receipt in sixty — any minted during the 59th second — was refused. It
+  reached both axes sharing the parser: `expires_at` FAILed as `unverifiable`, and
+  `issued_at` FAILed as **`invalid`**. It was also a cross-language split, since
+  Python range-checks a two-digit capture and verified the same bytes. Fixed to
+  range-check whole seconds only, mirroring Python; second 60 is still refused.
+  **Anyone verifying receipts with the TypeScript half should upgrade.**
+
+### Added
+
+- Four `seq` continuity conformance vectors in the shared corpus, and the
+  fractional-second cases in `verifier/axis-parity-cases.json` — the shared table
+  both language suites drive, so a future divergence of this kind fails in CI
+  rather than in a caller's verdict.
+
 ## [0.10.3] - 2026-09-01
 
 ### Added
