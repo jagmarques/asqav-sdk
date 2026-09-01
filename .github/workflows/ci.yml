@@ -70,6 +70,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: typescript/package-lock.json
+      - run: npm ci
+        working-directory: typescript
+      # Build the TS bundle so the differential fuzz gate has a second engine to
+      # compare against; with one engine it cannot diverge and would prove nothing.
+      - run: npm run build
+        working-directory: typescript
       - run: pip install -e "./python[all,dev]" pytest ruff
       - run: ruff check python/src
       - run: pytest python/tests -v --tb=short --continue-on-collection-errors
