@@ -29,7 +29,6 @@ def _load(p: Path) -> dict:
 
 # ---------------------------------------------------------------------------
 # Hard-ban all HTTP while these tests run.
-# ---------------------------------------------------------------------------
 
 
     # Raise if anything tries to open a network connection.
@@ -43,10 +42,8 @@ def _forbid_network(monkeypatch):
     yield
 
 
-# ---------------------------------------------------------------------------
-# fetch_jwks public API smoke-test (network forbidden -> expect RuntimeError).
-# This proves the helper is exported and wired to the network call.
-# ---------------------------------------------------------------------------
+# fetch_jwks smoke-test (network forbidden -> RuntimeError), proving the helper is
+# exported and wired to the network call.
 
 
     # fetch_jwks must be importable from the top-level asqav namespace.
@@ -71,7 +68,6 @@ def test_fetch_jwks_hits_network(monkeypatch):
 
 # ---------------------------------------------------------------------------
 # verify_receipt_offline: PASS path using the conformance-vector jwks.
-# ---------------------------------------------------------------------------
 
 
     # A valid Ed25519-signed receipt verifies PASS against the vector JWKS.
@@ -98,7 +94,6 @@ def test_verify_receipt_offline_axes_structure():
 
 # ---------------------------------------------------------------------------
 # verify_receipt_offline: FAIL on tampered receipt.
-# ---------------------------------------------------------------------------
 
 
     # A receipt with a flipped decision field must come back FAIL.
@@ -126,7 +121,6 @@ def test_verify_receipt_offline_tampered_payload_directly():
 
 # ---------------------------------------------------------------------------
 # verify_receipt_offline: INCOMPLETE when JWKS has no matching key.
-# ---------------------------------------------------------------------------
 
 
     # Missing key in JWKS -> signature SKIPPED -> unverified/unverifiable (never verified).
@@ -141,14 +135,8 @@ def test_verify_receipt_offline_no_key_in_jwks():
     assert sig_axis["result"] in ("SKIPPED", "FAIL")
 
 
-# ---------------------------------------------------------------------------
-# ML-DSA-65 path: PASS when dilithium-py is present, SKIPPED otherwise.
-#
-# NOTE: these are same-library interop round-trips (dilithium-py sign +
-# dilithium-py verify). They confirm the wiring works but do NOT prove
-# interop with real Asqav-cloud ML-DSA-65 signatures. A real-cloud
-# payload-mode known-answer conformance vector is a documented follow-up.
-# ---------------------------------------------------------------------------
+# ML-DSA-65: PASS with dilithium-py present, else SKIPPED. Same-library round-trips, so
+# they prove wiring, NOT interop with real cloud signatures (known-answer vector is owed).
 
 
     # Generate a real ML-DSA-65 receipt + JWKS using dilithium-py.
@@ -407,9 +395,8 @@ def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
     assert sig_axis["result"] == "PASS", "the forged signature verifies; the bind is what refuses it"
 
 
-# Real-cloud ML-DSA-65 payload-mode known-answer test (asqav-06-mldsa65-payload-prod).
-# Uses a receipt + JWKS minted from api.asqav.com with mode=full-payload.
-# The ML-DSA-65 signature axis must be PASS, not SKIPPED or INCOMPLETE.
+# Real-cloud ML-DSA-65 known-answer test (asqav-06-mldsa65-payload-prod), minted from
+# api.asqav.com: the signature axis must be PASS, not SKIPPED or INCOMPLETE.
 MLDSA_KAT_VECTOR = VECTORS / "asqav-06-mldsa65-payload-prod"
 
 
@@ -479,12 +466,8 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
     assert sig_axis["result"] == "FAIL"
 
 
-# ---------------------------------------------------------------------------
-# run_structured is also available directly on the verifier module.
-# run_structured uses the standalone verify_receipt engine (ML-DSA-65 only).
-# The Ed25519 vector has an unsupported alg for the standalone engine, so it
-# returns unverified/unverifiable (not verified); correct and expected behaviour.
-# ---------------------------------------------------------------------------
+# run_structured uses the standalone verify_receipt engine (ML-DSA-65 only), so the
+# Ed25519 vector correctly returns unverified/unverifiable rather than verified.
 
 
     # run_structured() is callable from the verifier module and returns a dict.

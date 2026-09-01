@@ -45,9 +45,8 @@ __all__ = [
     "check_peer_receipt",
 ]
 
-#: Verdicts an acceptor may admit at all. `verified_keyed` is included because a
-#: keyed digest is internally consistent; it is the peer's own hash, so it proves
-#: the same binding to the acceptor while not being third-party re-derivable.
+#: Verdicts an acceptor may admit. `verified_keyed` counts: the peer's own keyed digest
+#: is internally consistent, proving the same binding while not third-party re-derivable.
 _ADMISSIBLE_VERDICTS = frozenset({VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED})
 
 
@@ -194,12 +193,8 @@ def check_peer_receipt(
     )
 
 
-# --- ASGI adapter -------------------------------------------------------------
-#
-# ASGI is a protocol, not a library, so this turns the decision into deployable
-# middleware for FastAPI/Starlette/Quart with no dependency on any of them. The
-# decision stays in check_peer_receipt: an acceptor that mounts this and one that
-# calls the function directly must refuse the same receipts.
+# --- ASGI adapter: wrapper only, no FastAPI/Starlette/Quart dependency. The decision
+# stays in check_peer_receipt, so mounting this and calling it directly agree.
 
 #: Header the peer presents its receipt in, JSON or base64-of-JSON.
 DEFAULT_RECEIPT_HEADER = "x-asqav-receipt"
