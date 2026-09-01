@@ -64,9 +64,8 @@ except ImportError:  # pragma: no cover - optional dep
     _DILITHIUM_AVAILABLE = False
 
 
-    # An anchored ML-DSA-65 receipt plus the JWKS an export would archive for it.
-    # The anchor is a real RFC3161 token minted over the envelope digest; the
-    # caller pins the TSA key (--tsa-key), since presence alone never PASSes.
+    # An anchored ML-DSA-65 receipt plus the JWKS an export would archive. The RFC3161 token
+    # is real and the caller pins the TSA key (--tsa-key), since presence alone never PASSes.
 def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
     import hashlib
 

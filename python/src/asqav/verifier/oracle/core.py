@@ -63,10 +63,8 @@ class VerifyResult:
     #: In-body origin attestation (v:2 ``signer``), surfaced from the signed
     #: payload. None when the receipt carries none (v:1). Never gates the verdict.
     signer: str | None = None
-    #: The name of the earliest axis in report order that did not PASS, or None
-    #: when every axis passed. Reported so two verifiers disagreeing about WHICH
-    #: check failed first is as visible as disagreeing about the verdict; a bare
-    #: verdict hides that, and it is the divergence that costs debugging time.
+    #: Earliest axis in report order that did not PASS, else None. Reported so two verifiers
+    #: disagreeing about WHICH check failed first is as visible as disagreeing about the verdict.
     first_failing_edge: str | None = None
 
         # Return the result for one axis, or None if it was not run.
@@ -139,10 +137,8 @@ def axis_failure_class(axis: str, result: str, note: str) -> str | None:
     return FAILURE_UNVERIFIABLE
 
 
-#: The fixed leading order every adapter's report walks, before its own
-#: format-specific extra axes. Pinned here rather than left implicit in the list
-#: literal so a refactor that reorders the checks fails a gate instead of quietly
-#: renaming which edge is "first".
+#: Fixed leading axis order every adapter walks, before its format-specific extras.
+#: Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
 AXIS_ORDER_PREFIX = ("structure", "signature", "chain", "seq")
 
 
