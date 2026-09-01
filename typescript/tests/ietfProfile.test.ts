@@ -1,9 +1,6 @@
 /**
- * IETF Compliance Receipts profile fields on agent.sign().
- *
- * Covers the wire-format mapping (camelCase TS -> snake_case JSON), the
- * client-side `action_ref` derivation under `complianceMode`, and the
- * receipt-namespace / reason validation that mirrors the cloud.
+ * IETF Compliance Receipts profile fields on agent.sign(): the camelCase -> snake_case wire
+ * mapping, client-side action_ref derivation under complianceMode, and namespace validation.
  */
 
 import { createHash } from "node:crypto";

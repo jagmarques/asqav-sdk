@@ -1,9 +1,6 @@
 /**
- * Offline receipt verification helpers: fetchJwks + verifyReceiptOffline.
- *
- * All network tests are guarded: fetch is mocked where needed, and the main
- * verifyReceiptOffline tests pass NO network calls (all data comes from the
- * conformance-vector files on disk).
+ * Offline receipt verification: fetchJwks + verifyReceiptOffline. Network is mocked where
+ * needed; the verifyReceiptOffline tests make none, reading conformance vectors from disk.
  */
 
 import { readFileSync } from "node:fs";
@@ -28,7 +25,6 @@ function loadJson(dir: string, file: string): Record<string, unknown> {
 
 // ---------------------------------------------------------------------------
 // fetchJwks: exported, wires to the network
-// ---------------------------------------------------------------------------
 
 describe("fetchJwks", () => {
   it("is exported from the top-level SDK module", () => {
@@ -75,7 +71,6 @@ describe("fetchJwks", () => {
 
 // ---------------------------------------------------------------------------
 // verifyReceiptOffline: Ed25519 (conformance vector, no network)
-// ---------------------------------------------------------------------------
 
 describe("verifyReceiptOffline - Ed25519 path (no network)", () => {
   it("returns PASS for a valid Ed25519-signed receipt", () => {
@@ -111,7 +106,6 @@ describe("verifyReceiptOffline - Ed25519 path (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // verifyReceiptOffline: revoked-key receipts (CRIT-167 fix)
-// ---------------------------------------------------------------------------
 
 describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
   const REVOKED_DIR = join(VECTORS, "asqav-07-revoked-key");
@@ -178,10 +172,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
   it("revoked key with revoked_at AFTER issuance INCOMPLETE without anchor (c386 backdating fix)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
-    // issued_at is 2026-06-01T12:00:00+00:00; revoked_at is after that.
-    // The vector receipt ships anchors:[] so issued_at is self-attested.
-    // Without an anchor a holder of the compromised key can backdate, so the
-    // verdict must be INCOMPLETE, never a hiding PASS.
+    // The vector ships anchors:[], so issued_at is self-attested and a holder of the
+    // compromised key can backdate it. The verdict must be INCOMPLETE, never a hiding PASS.
     const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
     const result = verifyReceiptOffline(receipt, futureJwks);
@@ -210,9 +202,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
   });
 
   it("c386: compromised-key backdated receipt, offline, no anchor, must NOT PASS", () => {
-    // A receipt whose key is now compromised (status=compromised) but whose
-    // signed issued_at is BEFORE revoked_at. Offline with no anchor the
-    // self-attested issued_at is forgeable, so PASS is forbidden.
+    // Key now compromised but signed issued_at is BEFORE revoked_at: offline with no
+    // anchor that stamp is forgeable, so PASS is forbidden.
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const compromisedJwks = JSON.parse(JSON.stringify(loadJson(REVOKED_DIR, "jwks.json"))) as Record<string, unknown>;
     ((compromisedJwks.keys as Array<Record<string, unknown>>)[0]).status = "compromised";
@@ -240,7 +231,6 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
 
 // ---------------------------------------------------------------------------
 // verifyReceiptOffline: FAIL on tampered receipts (no network)
-// ---------------------------------------------------------------------------
 
 describe("verifyReceiptOffline - tamper detection (no network)", () => {
   it("returns FAIL for a receipt with tampered decision field", () => {
@@ -266,7 +256,6 @@ describe("verifyReceiptOffline - tamper detection (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // verifyReceiptOffline: missing key in JWKS (no network)
-// ---------------------------------------------------------------------------
 
 describe("verifyReceiptOffline - missing key (no network)", () => {
   it("never returns PASS when key is absent from JWKS", () => {
@@ -282,12 +271,9 @@ describe("verifyReceiptOffline - missing key (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // ML-DSA-65 path: sign in Node with noble, verify with the oracle
-// ---------------------------------------------------------------------------
 
-// NOTE: ML-DSA-65 tests below are same-library interop round-trips (noble sign +
-// noble verify). They confirm the wiring works but do NOT prove interop with
-// real Asqav-cloud ML-DSA-65 signatures. A real-cloud known-answer test vector
-// (payload-mode prod receipt) is a documented follow-up.
+// NOTE: the ML-DSA-65 tests below are same-library round-trips (noble sign + noble verify).
+// They prove wiring, NOT interop with real cloud signatures; a known-answer vector is owed.
 
 describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
   it("verifies a real ML-DSA-65 receipt PASS (noble sign + noble verify)", () => {
@@ -301,11 +287,8 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
   });
 
   it("verifies a well-formed ML-DSA-65 receipt envelope through the oracle", () => {
-    // NOTE: the oracle uses the asqav-native adapter whose signing_input
-    // is asqavJcs (canonical bytes). We use a simpler approach here:
-    // generate with JSON.stringify+sort which is close but not JCS-exact
-    // for complex payloads. The round-trip test below uses the oracle's
-    // actual canonical bytes to generate the signature.
+    // The oracle signs asqavJcs bytes; this generates with JSON.stringify+sort, close but
+    // not JCS-exact. The round-trip below uses the oracle's actual canonical bytes.
     const { publicKey, secretKey } = ml_dsa65.keygen();
     const pk_b64 = Buffer.from(publicKey).toString("base64");
     const kid = "test-mldsa-roundtrip-01";
@@ -436,7 +419,6 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
 
 // ---------------------------------------------------------------------------
 // Cross-issuer forgery: a real key from the shared JWKS, another org's claim
-// ---------------------------------------------------------------------------
 
 describe("verifyReceiptOffline - issuer binding (no network)", () => {
   function crossIssuerForgery(): [Record<string, unknown>, Record<string, unknown>] {
@@ -524,10 +506,8 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Hash mode: org binding, the unsigned-claim rule, and the crash guard.
 // Mirrors the Python tests one for one so the two languages stay in step.
-// ---------------------------------------------------------------------------
 
 describe("verifyReceiptOffline - hash mode (no network)", () => {
   const VICTIM_ORG = "f94f66c0-c580-432d-a041-29374f7aee07";

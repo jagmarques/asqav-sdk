@@ -1,13 +1,6 @@
 /**
- * Offline DSSE attestation verification: verifyAttestation + buildPae +
- * extractSubjectDigest, the local verifier for POST /v1/attest envelopes.
- *
- * The happy path runs the committed conformance vector (a real ML-DSA-65 DSSE
- * envelope plus its JWKS) discovered through the vector's own manifest.json.
- * Negatives are derived by mutation, matching the offline-verify.test.ts style,
- * so each FAIL is anti-vacuous: only the field under test changes.
- *
- * No network calls: every input comes from disk or is minted in-process.
+ * Offline DSSE attestation: the happy path runs the committed ML-DSA-65 vector and negatives
+ * are derived by mutation, so each FAIL is anti-vacuous. No network; disk or in-process only.
  */
 
 import { readFileSync } from "node:fs";
@@ -47,7 +40,6 @@ function reencodePayload(envelope: Record<string, unknown>, statement: Record<st
 
 // ---------------------------------------------------------------------------
 // Conformance vector: discovered via its per-dir manifest.json
-// ---------------------------------------------------------------------------
 
 describe("dsse-attestation conformance vector (manifest-driven)", () => {
   it("manifest.json discovers a PASS vector that verifyAttestation confirms", () => {
@@ -75,7 +67,6 @@ describe("dsse-attestation conformance vector (manifest-driven)", () => {
 
 // ---------------------------------------------------------------------------
 // Happy path
-// ---------------------------------------------------------------------------
 
 describe("verifyAttestation - valid envelope (no network)", () => {
   it("returns PASS for the committed real ML-DSA-65 DSSE envelope", () => {
@@ -96,7 +87,6 @@ describe("verifyAttestation - valid envelope (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // Tamper detection
-// ---------------------------------------------------------------------------
 
 describe("verifyAttestation - tamper detection (no network)", () => {
   it("returns FAIL when subject.digest is mutated after signing", () => {
@@ -132,7 +122,6 @@ describe("verifyAttestation - tamper detection (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // Key status: fail-closed
-// ---------------------------------------------------------------------------
 
 describe("verifyAttestation - key status (no network)", () => {
   it("returns FAIL when revoked_at is set (sig still valid)", () => {
@@ -175,7 +164,6 @@ describe("verifyAttestation - key status (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // Structure guards
-// ---------------------------------------------------------------------------
 
 describe("verifyAttestation - structure guards (no network)", () => {
   it("rejects a wrong payloadType", () => {
@@ -204,7 +192,6 @@ describe("verifyAttestation - structure guards (no network)", () => {
 
 // ---------------------------------------------------------------------------
 // PAE byte-exactness vs the backend formula (core/dsse.py pae())
-// ---------------------------------------------------------------------------
 
 describe("buildPae - DSSEv1 byte-exactness (known-answer)", () => {
   const enc = new TextEncoder();
@@ -232,7 +219,6 @@ describe("buildPae - DSSEv1 byte-exactness (known-answer)", () => {
 
 // ---------------------------------------------------------------------------
 // extractSubjectDigest
-// ---------------------------------------------------------------------------
 
 describe("extractSubjectDigest", () => {
   it("returns the sha256 hex the committed Statement binds", () => {

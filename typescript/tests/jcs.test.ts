@@ -1,8 +1,6 @@
 /**
- * Canonical-JSON (JCS) golden-vector tests for `canonicalJson`.
- *
- * Vectors come from the canonical-JSON appendix of test data.
- * See https://datatracker.ietf.org/doc/html/rfc8785 for the canonical form.
+ * Canonical-JSON golden vectors for `canonicalJson`, from the canonical-JSON test appendix.
+ * Canonical form: https://datatracker.ietf.org/doc/html/rfc8785
  */
 
 import { createHash } from "node:crypto";
