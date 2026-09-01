@@ -29,8 +29,13 @@ import { resolveApiKey } from "./credentials.js";
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
 // Acceptor-side admission control for an inbound peer receipt (B15)
-export { checkPeerReceipt } from "./acceptor.js";
-export type { AcceptorDecision, AcceptorRule, CheckPeerReceiptOptions } from "./acceptor.js";
+export { DEFAULT_RECEIPT_HEADER, acceptorMiddleware, checkPeerReceipt } from "./acceptor.js";
+export type {
+  AcceptorDecision,
+  AcceptorMiddlewareOptions,
+  AcceptorRule,
+  CheckPeerReceiptOptions,
+} from "./acceptor.js";
 
 /** Allowed values for `receiptType` per the IETF Compliance Receipts profile. */
 export const RECEIPT_TYPE_NAMESPACE = [

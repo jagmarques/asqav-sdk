@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { checkPeerReceipt } from "../src/acceptor.js";
+import { acceptorMiddleware, checkPeerReceipt } from "../src/acceptor.js";
 import { ADAPTERS } from "../src/verifier/index.js";
 import { verify } from "../src/verifier/core.js";
 
@@ -309,5 +309,80 @@ describe("acceptor: rule order is deterministic", () => {
     const a = checkPeerReceipt(receipt, { keyProvider: jwks, predecessor });
     const b = checkPeerReceipt(receipt, { keyProvider: jwks, predecessor });
     expect(a).toEqual(b);
+  });
+});
+
+describe("acceptor middleware (Connect/Express adapter)", () => {
+  function drive(mw: ReturnType<typeof acceptorMiddleware>, headers: Record<string, unknown>, path = "/act") {
+    let status: number | null = null;
+    let body: unknown = null;
+    let reached = false;
+    const res = {
+      status(code: number) {
+        status = code;
+        return {
+          json(payload: unknown) {
+            body = payload;
+            return payload;
+          },
+        };
+      },
+      locals: {} as Record<string, unknown>,
+    };
+    mw({ headers, path }, res, () => {
+      reached = true;
+    });
+    return { status, body, reached, locals: res.locals };
+  }
+
+  it("refuses a request carrying no receipt", () => {
+    // Fails closed. Admitting an unsigned request while refusing a badly-signed
+    // one would be worse than no middleware: the cheapest bypass is to send nothing.
+    const got = drive(acceptorMiddleware(), {});
+    expect(got.status).toBe(403);
+    expect(got.reached).toBe(false);
+    expect((got.body as { reason: string }).reason).toContain("no peer receipt");
+  });
+
+  it("refuses a junk receipt header", () => {
+    const got = drive(acceptorMiddleware(), { "x-asqav-receipt": "not-json-at-all" });
+    expect(got.status).toBe(403);
+    expect(got.reached).toBe(false);
+  });
+
+  it("a refused receipt never reaches the handler", () => {
+    const { receipt, jwks, predecessor } = chained({ seq: 7 }, { seq: 11 });
+    const mw = acceptorMiddleware({ keyProvider: jwks, predecessorFor: () => predecessor });
+    const got = drive(mw, { "x-asqav-receipt": JSON.stringify(receipt) });
+    expect(got.status).toBe(403);
+    expect(got.reached).toBe(false);
+  });
+
+  it("an admissible receipt reaches the handler", () => {
+    // The control. Without it the middleware could refuse everything and pass.
+    const { receipt, jwks, predecessor } = chained({ seq: 7 }, { seq: 8 });
+    const mw = acceptorMiddleware({ keyProvider: jwks, predecessorFor: () => predecessor });
+    const got = drive(mw, { "x-asqav-receipt": JSON.stringify(receipt) });
+    expect(got.reached).toBe(true);
+    expect(got.status).toBeNull();
+  });
+
+  it("accepts a base64-wrapped receipt", () => {
+    const { receipt, jwks, predecessor } = chained({ seq: 7 }, { seq: 8 });
+    const mw = acceptorMiddleware({ keyProvider: jwks, predecessorFor: () => predecessor });
+    const packed = Buffer.from(JSON.stringify(receipt), "utf-8").toString("base64");
+    expect(drive(mw, { "x-asqav-receipt": packed }).reached).toBe(true);
+  });
+
+  it("passes an exempt path through", () => {
+    const mw = acceptorMiddleware({ exemptPaths: ["/health"] });
+    expect(drive(mw, {}, "/health").reached).toBe(true);
+  });
+
+  it("hands the decision to the handler", () => {
+    const { receipt, jwks, predecessor } = chained({ seq: 7 }, { seq: 8 });
+    const mw = acceptorMiddleware({ keyProvider: jwks, predecessorFor: () => predecessor });
+    const got = drive(mw, { "x-asqav-receipt": JSON.stringify(receipt) });
+    expect((got.locals.asqavAcceptorDecision as { accepted: boolean }).accepted).toBe(true);
   });
 });
