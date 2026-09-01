@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "invalid",
+  "reason_code": "seq_gap",
+  "notes": "seq jumps 7 -> 11, so three receipts were withheld. Both receipts are correctly signed and the chain link rederives, so the hash chain alone reports nothing wrong; the counter is what makes the omission evidence. A proven omission is a binding failure, not an incomplete recompute, so the class is invalid rather than unverifiable."
+}

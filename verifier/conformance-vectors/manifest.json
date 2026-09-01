@@ -487,5 +487,35 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "A bounded predecessor-lookup timeout blocked emission; the lifecycle receipt naming it links into the chain once emission resumes."
+  },
+  {
+    "dir": "asqav-17-seq-contiguous",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "seq 8 follows predecessor 7 with nothing missing between them. The baseline the gap vector is measured against."
+  },
+  {
+    "dir": "asqav-18-seq-gap",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "seq_gap",
+    "notes": "seq jumps 7 -> 11, so three receipts were withheld. Both receipts are correctly signed and the chain link rederives, so the hash chain alone reports nothing wrong; the counter is what makes the omission evidence. A proven omission is a binding failure, not an incomplete recompute, so the class is invalid rather than unverifiable."
+  },
+  {
+    "dir": "asqav-19-seq-non-monotonic",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "seq_not_monotonic",
+    "notes": "The counter goes backwards, 9 then 4. A replayed or reordered receipt reaches this before a gap does, and it is refused for the same reason: the series cannot decrease under a server-built monotonic counter."
+  },
+  {
+    "dir": "asqav-20-seq-absent",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Neither receipt carries a counter, which is every receipt minted before the member shipped. Absence MUST stay legal: the axis passes with a note rather than skipping, because a blocking skip would regress all of them from verified to unverified."
   }
 ]
