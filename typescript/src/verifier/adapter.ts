@@ -74,6 +74,12 @@ export abstract class FormatAdapter {
     return [];
   }
 
+  // Raw so the axis can report a malformed counter; extraAxes never sees the
+  // predecessor continuity needs, so the counter is read here instead.
+  seqOf(_doc: Record<string, unknown>): unknown {
+    return null;
+  }
+
   // In-body attestation surfaced in the verdict (e.g. signer). Not a check.
   // Default none; a format with an in-signed-body attestation returns it.
   attestation(_doc: Record<string, unknown>): Record<string, unknown> {
