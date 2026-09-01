@@ -156,6 +156,7 @@ from .code_authorship import (
     submit_code_authorship,
     verify_code_authorship_envelope,
 )
+from .acceptor import AcceptorDecision, check_peer_receipt
 from .commitment import commit, new_opening
 from .compliance import ComplianceBundle, export_bundle, fetch_audit_pack
 from .counterparty import (
@@ -363,6 +364,9 @@ __all__ = [
     "CounterpartyBindingVerification",
     "compute_counterparty_binding",
     "verify_counterparty_binding",
+    # Acceptor-side admission control for an inbound peer receipt (B15)
+    "AcceptorDecision",
+    "check_peer_receipt",
     # DORA RTS JC 2024-33 Annex II vocabulary
     "DORA_INCIDENT_CLASS_NAMESPACE",
     # IETF -04 capture-topologies appendix vocabulary
