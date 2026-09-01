@@ -64,6 +64,9 @@ const INVALID_FAIL_AXES = new Set([
   "nonce",
   "parent_signature",
   "pdp_signature",
+  // A gap proves receipts were withheld and a malformed counter was signed as-is;
+  // both are proven defects, not a recompute that could not finish.
+  "seq",
 ]);
 
 /**
@@ -180,6 +183,44 @@ function chainAxis(
   return axis("chain", FAIL, `chain break: expected ${exp}.. got ${actual.slice(0, 16)}..`);
 }
 
+// A gap is omission evidence. Never SKIPPED: foldVerdict blocks on a non-chain
+// SKIPPED, so a receipt with no counter would regress to unverified.
+function seqAxis(
+  ad: FormatAdapter,
+  doc: Record<string, unknown>,
+  adapters: FormatAdapter[],
+  predecessor: Record<string, unknown> | null,
+): AxisResult {
+  const seq = ad.seqOf(doc);
+  if (seq === null || seq === undefined) {
+    return axis("seq", PASS, "no seq member; receipt is not part of a counted series");
+  }
+  if (!isCounter(seq)) return axis("seq", FAIL, `malformed seq: ${JSON.stringify(seq)}`);
+  if (predecessor === null) return axis("seq", PASS, `seq ${seq}; no predecessor supplied`);
+  // A counter only means anything within one format's own series.
+  const predAd = detect(predecessor, adapters);
+  if (predAd === null || predAd.name !== ad.name) {
+    return axis("seq", PASS, `seq ${seq}; predecessor is a different receipt format`);
+  }
+  const prev = ad.seqOf(predecessor);
+  if (prev === null || prev === undefined) {
+    return axis("seq", PASS, `seq ${seq}; predecessor carries no seq`);
+  }
+  if (!isCounter(prev)) {
+    return axis("seq", FAIL, `malformed predecessor seq: ${JSON.stringify(prev)}`);
+  }
+  if (seq === prev + 1) return axis("seq", PASS, `seq ${seq} follows predecessor ${prev}`);
+  if (seq <= prev) {
+    return axis("seq", FAIL, `seq not monotonic: ${seq} after predecessor ${prev}`);
+  }
+  return axis("seq", FAIL, `seq gap: ${seq - prev - 1} receipt(s) withheld between ${prev} and ${seq}`);
+}
+
+// A counter is a positive whole number; booleans and 1.5 are not counters.
+function isCounter(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 1;
+}
+
 /** Max nesting the recursive JCS encoder tolerates, mirrors the Python core cap. */
 export const MAX_NESTING_DEPTH = 200;
 
@@ -232,6 +273,7 @@ export function verify(
     axis("structure", structResult, structNote),
     signatureAxis(ad, doc, keyProvider),
     chainAxis(ad, doc, adapters, predecessor),
+    seqAxis(ad, doc, adapters, predecessor),
   ];
   for (const [name, res, note] of ad.extraAxes(doc, keyProvider)) {
     axes.push(axis(name, res, note));
