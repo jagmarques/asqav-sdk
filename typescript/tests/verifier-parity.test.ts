@@ -1,11 +1,6 @@
 /**
- * THE GATE - the TypeScript verifier must reproduce the proven Python oracle's
- * verdicts across the whole conformance corpus, byte-match the upstream
- * canonicalization vectors, and verify the real Authproof receipt.
- *
- * These are reproduced artifacts, not assertions: the corpus, the canonicalization
- * vectors, and the real-SDK receipt are the same files the Python oracle is gated
- * on.
+ * THE GATE: the TS verifier must reproduce the Python oracle's verdicts across the corpus,
+ * byte-match the upstream canonicalization vectors, and verify the real Authproof receipt.
  */
 
 import { readFileSync } from "node:fs";
@@ -56,10 +51,8 @@ describe("verifier parity gate (THE GATE)", () => {
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
-    // Criteria 418/438: invalid and unverifiable must never collapse, and the two
-    // languages must agree on which class each failing vector lands in. The
-    // optional-dep ML-DSA vector is skipped: with a crypto library present it
-    // upgrades to verified, which the tolerance rule above already covers.
+    // Criteria 418/438: invalid and unverifiable must never collapse, and both languages
+    // must agree which class each failing vector lands in. The optional-dep vector is skipped.
     const results = runCorpus(CORPUS_ROOT);
     const unverified = results.filter(
       (r) => r.expectedOutcome === "unverified" && r.reasonCode !== "signature_skipped_no_dilithium",
@@ -219,10 +212,8 @@ const FIRST_BAD_EDGE = resolve(__dirname, "..", "..", "verifier", "first-bad-edg
 
 describe("first-bad-edge parity (criterion 490)", () => {
   it("reproduces the pinned first-bad-edge for every corpus vector", () => {
-    // The same frozen table the Python gate drives. A verdict alone hides an
-    // ordering divergence: two verifiers can agree a receipt is unverified while
-    // disagreeing about WHICH check failed first, which is the difference between
-    // a debuggable report and a guess.
+    // The same frozen table the Python gate drives: a verdict alone hides two verifiers
+    // agreeing a receipt is unverified while disagreeing about WHICH check failed first.
     const table = JSON.parse(readFileSync(FIRST_BAD_EDGE, "utf-8")).cases as Record<
       string,
       string | null
@@ -254,11 +245,8 @@ describe("first-bad-edge parity (criterion 490)", () => {
   });
 
   it("names an edge for exactly the unverified verdicts", () => {
-    // The invariant that makes the field trustworthy rather than decorative, held
-    // on the TypeScript side independently: the exclusions inside firstFailingEdge
-    // (expiry never folds, a SKIPPED chain does not block) must stay in step with
-    // foldVerdict's, or a verified-but-expired receipt names a failure that did
-    // not happen.
+    // Held independently on the TS side: firstFailingEdge's exclusions (expiry never folds,
+    // a SKIPPED chain does not block) must track foldVerdict's, or an expired receipt names one.
     const manifest = JSON.parse(
       readFileSync(join(CORPUS_ROOT, "manifest.json"), "utf-8"),
     ) as { dir: string; format: string }[];

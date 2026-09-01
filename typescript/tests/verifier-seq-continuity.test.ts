@@ -1,7 +1,6 @@
 /**
- * Seq continuity axis, TypeScript half. Mirrors python/tests/test_seq_continuity_axis.py.
- * The no-SKIPPED gate matters most: foldVerdict blocks on a non-chain SKIPPED, so a
- * counter-less receipt would go from verified to unverified.
+ * Seq continuity axis, TS half of test_seq_continuity_axis.py. The no-SKIPPED gate matters
+ * most: foldVerdict blocks on a non-chain SKIPPED, so a counter-less receipt would flip.
  */
 
 import { readdirSync, existsSync, readFileSync } from "node:fs";

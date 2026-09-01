@@ -1,9 +1,6 @@
 /**
- * TS SDK projection helpers for the three-key Compliance Receipts envelope.
- *
- * `signatureEnvelope(resp)` returns `{alg, kid, sig}` when the response
- * carries the object form, undefined otherwise. `anchors(resp)` returns
- * the cloud-supplied array, undefined for non-compliance receipts.
+ * Projection helpers for the three-key envelope: signatureEnvelope(resp) returns {alg,kid,sig}
+ * only for the object form, and anchors(resp) is undefined for non-compliance receipts.
  */
 
 import { describe, expect, it } from "vitest";

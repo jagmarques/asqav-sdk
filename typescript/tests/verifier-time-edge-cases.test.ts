@@ -1,6 +1,5 @@
-// Time-edge conformance vectors, TypeScript half (criterion 422). One JSON table
-// drives both verifiers; the Python half lives in python/tests/test_time_edge_vectors.py
-// Every case freezes the wall clock, so no verdict depends on the run date
+// Time-edge vectors, TS half (criterion 422). One JSON table drives both verifiers and every
+// case freezes the wall clock, so no verdict depends on the run date.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -81,9 +80,8 @@ describe("the time-edge table is populated", () => {
 describe("DST and offset instants normalise to the pinned UTC instant", () => {
   for (const c of TABLE.instants) {
     it(c.name, () => {
-      // Frozen at utc-301s the stamp is exactly 301s ahead and FAILs; at
-      // utc-300s and utc it PASSes. Only the true UTC instant draws all three
-      // verdicts, so the probes pin the parse result on the TypeScript side
+      // At utc-301s the stamp is 301s ahead and FAILs; at utc-300s and utc it PASSes.
+      // Only the true UTC instant draws all three, pinning the parse on the TS side.
       for (const p of c.probes) {
         vi.setSystemTime(Date.parse(p.clock));
         const [result, note] = checkSkew(c.stamp);

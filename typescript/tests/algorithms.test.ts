@@ -1,6 +1,5 @@
-// Algorithm agility tests (AG3, AG4). Pins client-side validation plus the
-// node:crypto Ed25519/ES256 keypair, sign, and verify helpers, and the
-// cloud 400 reject for local-only algorithms on Agent.create.
+// Algorithm agility (AG3, AG4): client-side validation, the node:crypto Ed25519/ES256
+// keypair/sign/verify helpers, and the cloud 400 for local-only algorithms.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,9 +65,8 @@ describe("Agent.create algorithm validation", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  // Pins CLIENT-SIDE validation passthrough only: every member clears local
-  // validation and is forwarded. Cloud acceptance is a separate matter (the
-  // cloud signs only ml-dsa-{44,65,87}; see the 400-mock test below).
+  // CLIENT-SIDE passthrough only: every member clears local validation and is forwarded.
+  // Cloud acceptance is separate; it signs only ml-dsa-{44,65,87}.
   it("passes every SUPPORTED_ALGORITHMS member past client-side validation", async () => {
     for (const alg of SUPPORTED_ALGORITHMS) {
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -96,9 +94,8 @@ describe("Agent.create algorithm validation", () => {
     ).rejects.toThrow(SUPPORTED_ALGORITHMS.join(", "));
   });
 
-  // Mocked fetch = client-side passthrough only. ed25519 clears local
-  // validation and is forwarded verbatim. This does NOT prove the live cloud
-  // accepts it (it returns 400; see the next test).
+  // Mocked fetch, so client-side only: ed25519 is forwarded verbatim. This does NOT
+  // prove the live cloud accepts it; it returns 400 (next test).
   it("forwards ed25519 past client-side validation (mocked transport)", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
@@ -134,9 +131,8 @@ describe("Agent.create algorithm validation", () => {
     expect(JSON.parse(calledInit.body as string).algorithm).toBe("es256");
   });
 
-  // Pins the real cloud reality: ed25519 clears client validation, but the
-  // cloud signs only ml-dsa-{44,65,87} and returns 400. The SDK surfaces it
-  // as an APIError with statusCode 400 (index.ts create comment + READMEs).
+  // Real cloud behaviour: ed25519 clears client validation but the cloud signs only
+  // ml-dsa-{44,65,87}, returning 400, surfaced as an APIError with statusCode 400.
   it("surfaces the cloud 400 when ed25519 reaches the cloud", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(

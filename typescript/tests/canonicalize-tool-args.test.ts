@@ -1,11 +1,6 @@
 /**
- * Tests for `canonicalizeToolArgs`.
- *
- * The helper pre-validates `tool_args` payloads against the Compliance
- * Receipts canonicalization rule: no floats in the signed canonical
- * scope, because canonical JSON only fixes byte-stable numeric output
- * for safe-range integers. Floats drift across runtimes and break
- * verifier equality.
+ * `canonicalizeToolArgs` pre-validates tool_args against the no-floats canonicalization rule:
+ * canonical JSON only fixes byte-stable output for safe-range integers.
  */
 
 import { createHash } from "node:crypto";

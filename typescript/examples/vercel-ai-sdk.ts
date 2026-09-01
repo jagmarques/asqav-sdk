@@ -1,20 +1,9 @@
 /**
- * Vercel AI SDK + Asqav cookbook recipe
- *
- * Wraps a Vercel AI SDK tool so every invocation produces an ML-DSA-signed
- * audit record on Asqav before the side effect runs. If the side effect
- * throws, the signed intent still exists in the audit trail.
- *
- * Install:
- *   npm install @asqav/sdk ai @ai-sdk/openai zod
- *
- * Env:
- *   export ASQAV_API_KEY=sk_...   # from https://asqav.com
- *   export OPENAI_API_KEY=sk-...
- *
- * Run:
- *   tsx examples/vercel-ai-sdk.ts
+ * Vercel AI SDK + Asqav cookbook: wraps a tool so every invocation signs an ML-DSA audit
+ * record before the side effect runs, leaving the intent in the trail if it throws.
  */
+// Install: npm install @asqav/sdk ai @ai-sdk/openai zod
+// Env: ASQAV_API_KEY (asqav.com) + OPENAI_API_KEY.  Run: tsx examples/vercel-ai-sdk.ts
 
 import { tool, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";

@@ -1,7 +1,5 @@
-/** Tests for opt-in schema-driven structured receipts (criterion 328).
- * (a) valid context -> fetch called with sorted context;
- * (b) invalid context -> ValidationError raised, fetch NOT called;
- * (c) no schema -> unchanged behavior (fetch called as before). */
+/** Opt-in schema-driven structured receipts (criterion 328): a valid context sorts and fetches,
+ * an invalid one raises ValidationError without fetching, and no schema is unchanged. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

@@ -1,14 +1,6 @@
 /**
- * SDK parser surfaces every field the cloud `/verify` returns.
- *
- * The cloud's `VerificationResponse` emits the IETF projection
- * (`signature_envelope`, `anchors`, `algorithm_registry_version`),
- * the `bitcoin_anchor` block, the receipt `type` discriminator, and
- * the `VerificationDetail` sub-axes (`anchor_valid_ots`,
- * `anchor_valid_rfc3161`, `policy_digest_resolved`,
- * `duplicate_emission_candidate`, `regimes_satisfied`). These tests
- * pin that the parser populates the TS interface with all of them and
- * that the `validationLabel` union admits `agent_revoked_before_issuance`.
+ * The SDK parser must surface every field cloud `/verify` returns: the IETF projection,
+ * bitcoin_anchor, the type discriminator, and each VerificationDetail sub-axis.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

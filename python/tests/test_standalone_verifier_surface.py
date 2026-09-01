@@ -65,9 +65,8 @@ def _module_names() -> list[tuple[str, bool]]:
 
 
 def test_import_surface_is_stdlib_plus_optional_crypto_only() -> None:
-    # cryptography joins dilithium_py as an optional lazy import: the RFC 3161
-    # anchor check decodes pinned X.509 TSA certificates with it when present
-    # (the verify extra already ships it), and degrades to unverifiable without.
+    # cryptography joins dilithium_py as an optional lazy import: the RFC 3161 check decodes
+    # pinned X.509 TSA certificates with it, and degrades to unverifiable without.
     allowed = set(sys.stdlib_module_names) | {"dilithium_py", "cryptography"}
     for root, _lazy in _module_names():
         assert root != "asqav", "the standalone verifier must never import producer code"

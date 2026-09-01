@@ -1,12 +1,6 @@
 /**
- * SDK parity for the build-provenance 4-tuple wire fields.
- *
- * Four optional wire fields on `agent.sign({...})` mirror the cloud
- * 0.5.1 SignRequest: `executable_hash`, `sbom_digest`,
- * `slsa_provenance_pointer`, `supply_chain_pointer`. The SDK forwards
- * each verbatim, validates the `sha256:<64-hex>` shape on the two
- * digest fields, and validates http(s) URL form on the two pointer
- * fields.
+ * SDK parity for the build-provenance 4-tuple: each field is forwarded verbatim, the two
+ * digests validated as `sha256:<64-hex>` and the two pointers as http(s) URLs.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

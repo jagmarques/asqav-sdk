@@ -1,11 +1,6 @@
 /**
- * Receipt-internal integrity axes, TypeScript half.
- *
- * Reads the same verifier/axis-parity-cases.json the Python suite reads, so a
- * rule that drifts in one language fails a suite. Covers payload_digest (a
- * digest recomputable from the context the receipt carries itself) and
- * counterparty_binding (caller-supplied corroboration that used to ride
- * unchecked through every offline verifier).
+ * Receipt-internal integrity axes, TS half, reading the same axis-parity-cases.json as Python
+ * so a rule drifting in one language fails a suite. Covers payload_digest and counterparty_binding.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
