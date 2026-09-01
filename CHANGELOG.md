@@ -5,6 +5,33 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-09-01
+
+### Added
+
+- **`seq` continuity verification axis, in both halves.** The platform binds a
+  server-built per-agent counter into every compliance receipt, so a gap in the
+  series proves receipts were withheld *without needing the withheld receipts*.
+  The chain axis alone cannot do this: hash linkage detects modification,
+  reordering and removal of interior records, but a gap and a duplicate position
+  are indistinguishable to it. A gap now FAILs as terminal `invalid` and names
+  the count, e.g. `seq gap: 4 receipt(s) withheld between 1 and 6`; a
+  non-monotonic counter and a malformed one FAIL too.
+- The axis is **never SKIPPED**. A counter-less receipt PASSes with a note, since
+  `fold_verdict` blocks on any non-chain SKIPPED and a bare skip would regress
+  every receipt minted before the counter shipped from verified to unverified. A
+  corpus-wide gate holds that property for future changes.
+- A counter is only compared within one format's own series, and a `seq` sitting
+  on a hash-mode receipt binds nothing (hash mode signs the flat field set only),
+  so it is treated as an unsigned claim rather than read as evidence.
+
+### Fixed
+
+- The TypeScript ACTA adapter named revision `-01` while its Python sibling named
+  `-02`. Both compute the signing input as the canonical JCS bytes of the payload
+  with no pre-hash, which is the `-02` rule, so the TypeScript label was stale.
+  Comment only; behaviour is unchanged.
+
 ## [0.10.2] - 2026-08-31
 
 ### Added
