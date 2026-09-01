@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "The bound key_thumbprint rederives from the resolved signing key. The control the substitution vector is measured against: without it an axis wired to FAIL would satisfy that vector too."
+}
