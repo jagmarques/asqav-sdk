@@ -1,7 +1,5 @@
-// The offline verifier refuses a receipt whose signed expires_at is in the past, so
-// the verdict does not depend on which verifier the reader runs. The window is read
-// from inside the signed bytes; the TypeScript half of the Python control lives in
-// python/tests/test_expiry_offline.py
+// The offline verifier refuses a receipt whose signed expires_at has passed, read from inside
+// the signed bytes. Python half: python/tests/test_expiry_offline.py
 
 import { describe, expect, it } from "vitest";
 
@@ -34,11 +32,8 @@ describe("the offline expiry axis", () => {
   });
 });
 
-// A stamp in the 59th second with a fractional part is ordinary: Date#toISOString
-// always emits milliseconds, so roughly one receipt in sixty lands here. Range-
-// checking Number("59.656") read it as out of range and failed the receipt closed,
-// while the Python half range-checks a two-digit capture and passed the same bytes.
-// A verdict that depends on which half you run, and on the second of the minute.
+// toISOString always emits milliseconds, so ~1 receipt in 60 lands in the 59th second.
+// Number("59.656") read as out of range failed it closed while Python passed the same bytes.
 describe("a fractional second in the 59th second (cross-language parity)", () => {
   const STAMPS = [
     "2099-01-01T06:30:59.656Z",

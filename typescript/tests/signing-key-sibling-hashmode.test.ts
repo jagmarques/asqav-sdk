@@ -1,9 +1,5 @@
-// A multi-agent org's hash-mode receipts resolve the actual signer, not the first
-// sibling. The TypeScript half of python/tests/test_oracle_multikey_org_resolution.py:
-// a hash-mode receipt sets signature.kid to the org id and signs with the agent's own
-// key, so the agent bind (agent_id plus the org_id the receipt signs) must pick the
-// signer. ANTI-VACUOUS: the signer is the LAST of three siblings, so the pre-change
-// kid-first resolution checks the first sibling and FAILs the signature axis.
+// Hash-mode kid is the ORG id, so the agent bind must pick the real signer, not the first
+// sibling. ANTI-VACUOUS: the signer is the last of three, so kid-first resolution FAILs.
 
 import { describe, expect, it } from "vitest";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";

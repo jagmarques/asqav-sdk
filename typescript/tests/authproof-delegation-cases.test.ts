@@ -1,11 +1,6 @@
 /**
- * Shared authproof delegationId format table, TypeScript half.
- *
- * One JSON table drives both authproof adapters. Each case feeds a delegationId
- * through this language's format-detection validator and pins the boolean, so a
- * regex that drifts between languages fails a suite instead of waiting for a
- * reviewer. The Python half lives in
- * python/tests/test_authproof_delegation_cases.py and reads the same file.
+ * Shared authproof delegationId format table, TS half: one JSON table drives both adapters, so
+ * a regex drifting between languages fails a suite instead of waiting for a reviewer.
  */
 
 import { readFileSync } from "node:fs";

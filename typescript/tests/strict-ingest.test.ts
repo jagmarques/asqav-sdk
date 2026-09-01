@@ -1,10 +1,6 @@
 /**
- * Strict JSON ingest (criterion 419): duplicate members fail closed.
- *
- * Every receipt- and record-parsing path rejects a duplicated JSON member name
- * at ANY nesting depth as a terminal parse failure, before any hashing,
- * canonicalisation, or signature check. Last-wins ingest would hash the bytes an
- * attacker kept and drop the ones they replaced; these tests pin the rejection.
+ * Strict JSON ingest (criterion 419): a duplicated member at ANY depth is terminal before any
+ * hashing or signature check, since last-wins would hash the bytes an attacker kept.
  */
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

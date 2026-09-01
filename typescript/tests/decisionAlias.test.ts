@@ -1,10 +1,6 @@
 /**
- * Spec-shape `decision` alias on the TS SDK.
- *
- * Covers the DECISION_MAP, the `mapPolicyDecisionToDecision` helper, and
- * end-to-end propagation of the `decision` token on a fake `agent.sign`
- * call (request body MUST carry `decision` when complianceMode is on,
- * response MUST surface both `policyDecision` and `decision`).
+ * Spec-shape `decision` alias: DECISION_MAP, mapPolicyDecisionToDecision, and end-to-end
+ * propagation (the body carries `decision` under complianceMode; the response surfaces both).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

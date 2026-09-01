@@ -1,9 +1,6 @@
 /**
- * SDK parity for `capture_topology` + `observation` decision vocabulary.
- *
- * Mirrors the Python `tests/test_client_capture_topology.py` cases: the
- * `none -> observation` DECISION_MAP entry, the closed Literal of five
- * `captureTopology` values, and end-to-end wire-body assertions.
+ * SDK parity for `capture_topology` + the `observation` vocabulary: the none -> observation
+ * DECISION_MAP entry, the closed Literal of five values, and wire-body assertions.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

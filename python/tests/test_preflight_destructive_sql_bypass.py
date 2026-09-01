@@ -23,7 +23,6 @@ from asqav.async_client import AsyncAgent
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
-# ---------------------------------------------------------------------------
 
 MOCK_AGENT_DATA = {
     "agent_id": "agent_test123",
@@ -66,7 +65,6 @@ _WRITE_SQL_POLICY = [
 
 # ---------------------------------------------------------------------------
 # Sync Agent tests
-# ---------------------------------------------------------------------------
 
 
     # data:delete:* policy blocks data:write:sql:DELETE FROM users.
@@ -204,7 +202,6 @@ _UPPER_WRITE_SQL_POLICY = [
 
 # ---------------------------------------------------------------------------
 # H3: case-variant + whitespace must not bypass matching
-# ---------------------------------------------------------------------------
 
 
     # Uppercase and whitespace variants produce the same candidates as lowercase.
@@ -284,7 +281,6 @@ def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
 
 # ---------------------------------------------------------------------------
 # M1: extended destructive verbs
-# ---------------------------------------------------------------------------
 
 
     # Each extended destructive verb matches the data:delete:* augment.
@@ -306,7 +302,6 @@ def test_extended_destructive_verb_blocked_by_delete_policy(mock_post, mock_get,
 
 # ---------------------------------------------------------------------------
 # Async Agent tests
-# ---------------------------------------------------------------------------
 
 
     # Async: data:delete:* policy blocks data:write:sql:DELETE FROM users.

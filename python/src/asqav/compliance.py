@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from ._jcs import canonical_json
+
 FRAMEWORKS = {
     "eu_ai_act": {
         "name": "EU AI Act",
@@ -85,8 +87,7 @@ def _compute_merkle_root(hashes: list[str]) -> str:
 
     # Deterministic hash for a single receipt.
 def _receipt_hash(receipt: dict) -> str:
-    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode()).hexdigest()
+    return hashlib.sha256(canonical_json(receipt)).hexdigest()
 
 
     # Convert a SignatureResponse, SignedActionResponse, or dict to a receipt dict.

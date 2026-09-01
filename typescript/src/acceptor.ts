@@ -1,32 +1,6 @@
 /**
- * Acceptor-side admission control for an inbound peer receipt.
- * A port of the Python `asqav.acceptor`, rule for rule.
- *
- * An Acceptor is the party on the receiving end of an agent-to-agent action.
- * This module answers one question: may this inbound action be admitted, given
- * the receipt the peer presented?
- *
- * It is deliberately NOT a thin wrapper over the verifier. Three of its rules do
- * not follow from the verdict alone, and each exists because a peer could
- * otherwise weaken the evidence without ever producing an unverified receipt:
- *
- *   Expiry.  The verifier reports expiry on its own axis and never folds it into
- *            the verdict, so a lapsed receipt still reads `verified`. Correct for
- *            a verifier - the signature really is good - and wrong for an
- *            acceptor, which is deciding about an action happening NOW.
- *
- *   Seq downgrade. A peer that has been emitting a counter and then stops makes
- *            contiguity uncheckable across that link. Absence has to stay legal
- *            in general (receipts predate the member), but an acceptor holding a
- *            predecessor that carried one is watching the exact transition that
- *            hides a withheld receipt.
- *
- *   Challenge. A challenge the acceptor issued but the receipt does not answer is
- *            a challenge that proved nothing. "Verify it when present" alone
- *            would let a peer skip freshness by omitting the member.
- *
- * The verification itself is the shared oracle's, not a reimplementation, so an
- * acceptor and an offline auditor cannot disagree about the same bytes.
+ * Acceptor-side admission control for an inbound peer receipt; a rule-for-rule port of
+ * Python `asqav.acceptor`. Adds expiry, seq-downgrade and challenge rules the verdict alone misses.
  */
 
 import { ADAPTERS } from "./verifier/index.js";
@@ -63,9 +37,8 @@ export interface CheckPeerReceiptOptions {
 }
 
 /**
- * `verified_keyed` is admissible because a keyed digest is internally consistent:
- * it is the peer's own hash, so it proves the same binding to the acceptor while
- * not being third-party re-derivable.
+ * `verified_keyed` is admissible: the peer's own keyed digest is internally consistent,
+ * proving the same binding to the acceptor while not being third-party re-derivable.
  */
 const ADMISSIBLE = new Set<string>([VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED]);
 
@@ -81,13 +54,8 @@ function payloadOf(receipt: Record<string, unknown>): Record<string, unknown> {
 }
 
 /**
- * Decide whether an inbound action carrying `receipt` may be admitted.
- *
- * Supplying `predecessor` is what lets the seq and chain axes mean anything,
- * since neither can detect a gap against nothing.
- *
- * Refuses on the first rule that fails, in a fixed order, so the reason is
- * deterministic for the same inputs.
+ * Decide whether an inbound action carrying `receipt` may be admitted. `predecessor` is what
+ * lets seq and chain mean anything; refuses on the first failing rule in a fixed order.
  */
 export function checkPeerReceipt(
   receipt: Record<string, unknown>,
@@ -190,12 +158,8 @@ export function checkPeerReceipt(
   };
 }
 
-// --- Connect/Express adapter --------------------------------------------------
-//
-// The handler signature is a convention, not a library, so this turns the
-// decision into deployable middleware for Express/Connect with no dependency on
-// any of them. The decision stays in checkPeerReceipt: an acceptor that mounts
-// this and one that calls the function directly must refuse the same receipts.
+// --- Connect/Express adapter: wrapper only, no dependency on either. The decision
+// stays in checkPeerReceipt, so mounting this and calling it directly agree.
 
 /** Header the peer presents its receipt in, JSON or base64-of-JSON. */
 export const DEFAULT_RECEIPT_HEADER = "x-asqav-receipt";
@@ -245,16 +209,7 @@ interface AcceptorResponse {
 
 /**
  * Connect/Express middleware refusing a request whose peer receipt is not admissible.
- *
- * Fails CLOSED: a request carrying no receipt, or one whose header does not
- * parse, is refused. An acceptor that admitted an unsigned request while refusing
- * a badly-signed one would be strictly worse than having no middleware at all,
- * because the cheapest bypass would be to send nothing.
- *
- * `predecessorFor` supplies the last receipt admitted from the same peer chain;
- * without it the seq and chain axes have nothing to compare against and a gap
- * cannot be detected. Both hooks are deliberately caller-supplied: where that
- * state lives is the deployer's choice.
+ * Fails CLOSED (no receipt is refused); `predecessorFor` supplies the chain state seq needs.
  */
 export function acceptorMiddleware(options: AcceptorMiddlewareOptions = {}) {
   const {

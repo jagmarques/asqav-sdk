@@ -1,9 +1,6 @@
 /**
- * Anchor value base64 tolerance, differential against the Python corpus.
- *
- * The anchors field is unsigned and attacker-steerable, so a value Python
- * refuses must never read as base64-ok here. The permissive direction is the
- * one that produces a false PASS, so it is asserted at zero separately.
+ * Anchor value base64 tolerance, differential against Python. The anchors field is unsigned
+ * and attacker-steerable, so the permissive direction (a false PASS) is asserted at zero.
  */
 
 import { readFileSync } from "node:fs";

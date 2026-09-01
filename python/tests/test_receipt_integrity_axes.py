@@ -130,7 +130,6 @@ def test_counterparty_binding_resolves_against_a_supplied_originator() -> None:
 
 # --------------------------------------------------------------------------
 # Wire tests - each fails if its own call site is deleted
-# --------------------------------------------------------------------------
 
 
 def test_oracle_emits_all_three_axes() -> None:

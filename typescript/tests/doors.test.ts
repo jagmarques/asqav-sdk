@@ -1,6 +1,5 @@
-// Doors: one receipt, N standard envelopes, byte-identical inner across all.
-// Pins per door: valid shape + exact receipt, round-trip inverse, and a parity
-// golden the Python test also checks against the same file.
+// Doors: one receipt, N standard envelopes, byte-identical inner across all. Per door: valid
+// shape + exact receipt, round-trip inverse, and a parity golden Python checks too.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -156,8 +155,8 @@ describe("cross-language parity", () => {
     expect(Object.keys(fixture).some((k) => [...k].some((c) => c.charCodeAt(0) > 0x7f))).toBe(true);
   });
 
-  // Documented limit: astral-plane keys and integers above 2**53 make the two SDK
-  // canonicalizers emit different bytes. Pin TS bytes and assert they differ from Python.
+  // The key-ordering cause is CLOSED (Python now sorts by UTF-16 per RFC 8785 3.2.3);
+  // only the above-2**53 number path still divides the two SDKs.
   it("records the known divergence outside the safe domain", () => {
     const fixture = JSON.parse(readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8"));
     const tsBytes = jcs(fixture);
@@ -165,13 +164,18 @@ describe("cross-language parity", () => {
     const pyGolden = readFileSync(resolve(PARITY, "divergence-python.jcs"), "utf-8");
 
     expect(tsBytes).toBe(tsGolden); // TS output pinned
-    expect(tsGolden).not.toBe(pyGolden); // the two SDKs diverge here
+    expect(tsGolden).not.toBe(pyGolden); // one cause still divides them
 
-    // integer above 2**53 rounds in the TS number path, stays exact in Python
+    // OPEN cause: an integer above 2**53 rounds in the TS number path, exact in Python.
     expect(tsGolden).toContain("9007199254740992");
     expect(pyGolden).toContain("9007199254740993");
-    // astral key (U+10000) sorts before U+FFFF in TS, after it in Python
+
+    // CLOSED cause: the astral key (U+10000) now sorts BEFORE U+FFFF in BOTH, since its
+    // UTF-16 form leads with a surrogate. Asserting both keeps the Python fix pinned here.
     expect(tsGolden.indexOf("\u{10000}")).toBeLessThan(tsGolden.indexOf("￿"));
-    expect(pyGolden.indexOf("\u{10000}")).toBeGreaterThan(pyGolden.indexOf("￿"));
+    expect(pyGolden.indexOf("\u{10000}")).toBeLessThan(pyGolden.indexOf("￿"));
+
+    // The remaining difference is the number alone.
+    expect(pyGolden.replace("9007199254740993", "9007199254740992")).toBe(tsGolden);
   });
 });

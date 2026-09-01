@@ -1,12 +1,6 @@
 /**
- * Destructive SQL bypass fix: augment-match policy coverage.
- *
- * A data:write:sql: action with a destructive verb (DELETE, DROP, TRUNCATE,
- * ALTER) must also match a data:delete:* block policy. The write-namespace
- * match must be preserved (regression guard). Reads and benign writes are not
- * affected.
- *
- * Each test here fails against pre-fix code and passes after the fix.
+ * A data:write:sql: action with a destructive verb must ALSO match a data:delete:* block policy,
+ * with the write-namespace match preserved. Each test fails against pre-fix code.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

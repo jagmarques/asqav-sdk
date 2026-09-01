@@ -91,10 +91,8 @@ def test_pretool_dry_run_capture_topology() -> None:
     assert body["capture_topology"] == "in_process_sdk"
 
 
-# === pretool fails CLOSED (exit 2) on every gate failure ===
-# Claude Code treats PreToolUse exit 1 as a non-blocking error and proceeds, only
-# exit 2 blocks (code.claude.com/docs/en/hooks). A malformed/empty event or missing
-# identity must exit 2, else the gate fails OPEN and the tool runs unsigned.
+# pretool fails CLOSED: PreToolUse exit 1 is non-blocking and only exit 2 blocks, so a
+# malformed event or missing identity must exit 2 or the gate fails OPEN and runs unsigned.
 
 
     # Empty stdin must exit 2 (block), not exit 1 (proceed unsigned).

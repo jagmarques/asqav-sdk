@@ -1,7 +1,6 @@
 /**
- * Cross-language conformance: the TypeScript fingerprint helpers must
- * agree with conformance/vectors.json byte-for-byte (which is generated
- * and also validated by the Python tests).
+ * Cross-language conformance: the TS fingerprint helpers must agree with
+ * conformance/vectors.json byte-for-byte, the same file the Python tests validate.
  */
 
 import { createHash } from "node:crypto";
@@ -25,9 +24,8 @@ const { vectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {
   vectors: Vector[];
 };
 
-// Closed Literal mirrored from the cloud SignRequest and IETF draft -04 appendix.
-// passive_telemetry is observation-only and tested separately. github_sha_pull is
-// the server-stamped authoritative code-authorship capture layer.
+// Closed Literal mirrored from the cloud SignRequest. passive_telemetry is observation-only;
+// github_sha_pull is the server-stamped authoritative code-authorship capture layer.
 const CAPTURE_TOPOLOGY_VOCABULARY = new Set([
   "in_process_sdk",
   "network_proxy",
@@ -134,5 +132,30 @@ describe("canonicalize() invariants", () => {
 
   it("rejects NaN", () => {
     expect(() => canonicalize({ x: Number.NaN })).toThrow();
+  });
+});
+
+describe("RFC 8785 astral key ordering", () => {
+  const byName = Object.fromEntries(vectors.map((v) => [v.name, v]));
+
+  it("orders supplementary-plane keys by UTF-16 code unit", () => {
+    const v = byName["asqav-24-jcs-astral-key-order"] as Vector;
+    expect(new TextDecoder().decode(canonicalize(v.input))).toBe(v.canonical);
+  });
+
+  it("never reproduces the code point ordering", () => {
+    const v = byName["asqav-24-jcs-astral-key-order-codepoint-rejected"] as Vector & {
+      non_conformant_canonical: string;
+      non_conformant_sha256: string;
+    };
+    const produced = new TextDecoder().decode(canonicalize(v.input));
+    expect(produced).not.toBe(v.non_conformant_canonical);
+    expect(createHash("sha256").update(produced).digest("hex")).not.toBe(
+      v.non_conformant_sha256,
+    );
+    // Anti-vacuous: the rejected form is a reordering of the same members.
+    expect(Object.keys(JSON.parse(produced)).sort()).toEqual(
+      Object.keys(JSON.parse(v.non_conformant_canonical)).sort(),
+    );
   });
 });

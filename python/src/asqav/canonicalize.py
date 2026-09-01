@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 from typing import Any
+
+from ._jcs import canonical_json
 
 __all__ = [
     "canonicalize",
@@ -27,15 +28,10 @@ def canonicalize_action(
     return canonicalize({"action_type": action_type, "context": context or {}})
 
 
-    # Return JCS-subset JSON bytes for ``obj``; matches the conformance vectors byte-for-byte.
+    # Return JCS JSON bytes for ``obj``; matches the conformance vectors byte-for-byte.
 def canonicalize(obj: Any) -> bytes:
-    return json.dumps(
-        obj,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    ).encode("utf-8")
+    # Delegates to the single JCS implementation so the two cannot drift apart.
+    return canonical_json(obj)
 
 
     # Return JSON pointer to the first float in ``value`` (depth-first); ``bool`` is JCS-safe.

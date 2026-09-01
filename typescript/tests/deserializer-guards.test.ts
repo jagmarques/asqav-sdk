@@ -1,10 +1,6 @@
 /**
- * Required-field deserializer guards throw AsqavResponseError, not a
- * silent `undefined`, when a cloud response omits a field the SDK
- * requires. Companion to verify-response-fields.test.ts, which pins
- * the positive case. This file pins the negative case: a sign
- * response missing action_id or signature_id must throw one typed,
- * catchable AsqavResponseError naming the field (rule 3.9).
+ * The negative half of verify-response-fields.test.ts: a sign response missing action_id or
+ * signature_id must throw one typed AsqavResponseError naming the field, never undefined.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

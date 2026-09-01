@@ -17,10 +17,12 @@ Three callable shapes, because three signers disagree on what "JCS" means:
                            canonicalization vectors. The two diverge from ``jcs``
                            on supplementary-plane keys and on non-integral or
                            large-magnitude numbers.
-  - ``asqav_jcs(obj)``   : the Asqav cloud's historical JCS WITHOUT NFC, kept
+  - ``asqav_jcs(obj)``   : the Asqav cloud's JCS WITHOUT NFC, kept
                            byte-identical to ``verify_receipt.canonical_json`` so
                            the native adapter reproduces exactly what the cloud
-                           signed.
+                           signed. Keys are UTF-16 ordered like ``jcs_rfc8785``;
+                           it differs from that one only by omitting NFC and by
+                           keeping Python's number output.
 
 INTEROP NOTE: AERF SPEC.md §5.1 and the agent-receipts spec both cite "full RFC
 8785 (JCS)", but the AERF Go reference (``verifiers/go/internal/aerf/canonical.go``)
@@ -56,9 +58,38 @@ def jcs(obj: Any) -> bytes:
 
     # Asqav cloud JCS bytes (no NFC); byte-identical to the cloud signer.
 def asqav_jcs(obj: Any) -> bytes:
+    # UTF-16 key order per RFC 8785 3.2.3, in lockstep with the cloud signer.
     return json.dumps(
-        obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        _utf16_ordered(obj),
+        sort_keys=False,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
     ).encode("utf-8")
+
+
+    # Rebuild ``obj`` with every object's members in RFC 8785 key order.
+def _utf16_ordered(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        keyed = [(k if isinstance(k, str) else _coerce_member_name(k), k) for k in obj]
+        keyed.sort(key=lambda pair: _utf16_key(pair[0]))
+        return {name: _utf16_ordered(obj[original]) for name, original in keyed}
+    if isinstance(obj, list):
+        return [_utf16_ordered(v) for v in obj]
+    return obj
+
+
+    # The member name ``json.dumps`` would emit for a non-string key.
+def _coerce_member_name(key: Any) -> str:
+    if key is True:
+        return "true"
+    if key is False:
+        return "false"
+    if key is None:
+        return "null"
+    if isinstance(key, float):
+        return repr(key)
+    return str(key)
 
 
     # Strict RFC 8785 JCS bytes (UTF-16 key sort, ECMAScript numbers) with NFC.

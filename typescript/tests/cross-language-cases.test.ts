@@ -1,10 +1,6 @@
 /**
- * Shared adversarial case table, TypeScript half.
- *
- * One JSON table drives both verifiers. Each case pins a verdict and the result
- * of every axis it names, so a rule that drifts in one language fails a suite
- * instead of waiting for a reviewer to notice. The Python half lives in
- * python/tests/test_cross_language_cases.py and reads the same file.
+ * Shared adversarial case table, TS half: one JSON table pins a verdict and every named axis
+ * for both verifiers, so a rule drifting in one language fails a suite. Python reads the same file.
  */
 
 import { readFileSync } from "node:fs";
