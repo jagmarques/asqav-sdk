@@ -63,6 +63,11 @@ class VerifyResult:
     #: In-body origin attestation (v:2 ``signer``), surfaced from the signed
     #: payload. None when the receipt carries none (v:1). Never gates the verdict.
     signer: str | None = None
+    #: The name of the earliest axis in report order that did not PASS, or None
+    #: when every axis passed. Reported so two verifiers disagreeing about WHICH
+    #: check failed first is as visible as disagreeing about the verdict; a bare
+    #: verdict hides that, and it is the divergence that costs debugging time.
+    first_failing_edge: str | None = None
 
         # Return the result for one axis, or None if it was not run.
     def axis(self, name: str) -> AxisResult | None:
@@ -132,6 +137,39 @@ def axis_failure_class(axis: str, result: str, note: str) -> str | None:
         return FAILURE_INVALID
     # issuer_key / ingest and anything unlisted: the recompute could not complete.
     return FAILURE_UNVERIFIABLE
+
+
+#: The fixed leading order every adapter's report walks, before its own
+#: format-specific extra axes. Pinned here rather than left implicit in the list
+#: literal so a refactor that reorders the checks fails a gate instead of quietly
+#: renaming which edge is "first".
+AXIS_ORDER_PREFIX = ("structure", "signature", "chain", "seq")
+
+
+def first_failing_edge(axes: list[AxisResult]) -> str | None:
+    """Name the earliest axis in report order that drove the verdict away from verified.
+
+    Walks the axes as reported, which is the fixed order `verify` builds, so the
+    answer never depends on which check happened to be evaluated first internally.
+
+    The two exclusions mirror `fold_verdict` exactly, and are the whole reason
+    this is not simply "the first non-PASS axis": the expiry axis reports on its
+    own and never folds the verdict (criterion 426), and a SKIPPED chain is
+    tolerated where any other SKIPPED blocks. Without them a verified receipt
+    that is merely expired would name an edge, reporting a failure that did not
+    happen. Kept in step by a corpus-wide gate asserting this returns None for
+    exactly the verified verdicts.
+
+    SKIPPED counts otherwise: an axis that could not be checked is where the
+    chain of reasoning stopped being clean, and naming only a FAIL would let an
+    unverifiable receipt report no failing edge at all.
+    """
+    for a in axes:
+        if a.result == crypto.FAIL and a.axis != "expiry":
+            return a.axis
+        if a.result == crypto.SKIPPED and a.axis != "chain":
+            return a.axis
+    return None
 
 
     # Fold per-axis outcomes into the public verdict + failure class (418/438).
@@ -260,7 +298,13 @@ def verify(
     if ad is None:
         axes = [_axis("structure", crypto.FAIL, "no adapter recognises this receipt")]
         verdict, failure_class = fold_verdict(axes, keyed=False)
-        return VerifyResult(fmt="unknown", axes=axes, verdict=verdict, failure_class=failure_class)
+        return VerifyResult(
+            fmt="unknown",
+            axes=axes,
+            verdict=verdict,
+            failure_class=failure_class,
+            first_failing_edge=first_failing_edge(axes),
+        )
     # An over-nested receipt would crash the recursive JCS encoder. Cap it here and
     # report unverified/unverifiable, never a verified, matching the standalone gate.
     if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
@@ -269,7 +313,11 @@ def verify(
         axes = [_axis("structure", crypto.FAIL, _TOO_DEEP_NOTE)]
         verdict, failure_class = fold_verdict(axes, keyed=False)
         return VerifyResult(
-            fmt=ad.name, axes=axes, verdict=verdict, failure_class=failure_class
+            fmt=ad.name,
+            axes=axes,
+            verdict=verdict,
+            failure_class=failure_class,
+            first_failing_edge=first_failing_edge(axes),
         )
 
     axes = [
@@ -285,7 +333,12 @@ def verify(
     verdict, failure_class = fold_verdict(axes, keyed=ad.keyed_digest(doc))
     signer = ad.attestation(doc).get("signer")
     return VerifyResult(
-        fmt=ad.name, axes=axes, verdict=verdict, failure_class=failure_class, signer=signer
+        fmt=ad.name,
+        axes=axes,
+        verdict=verdict,
+        failure_class=failure_class,
+        signer=signer,
+        first_failing_edge=first_failing_edge(axes),
     )
 
 
