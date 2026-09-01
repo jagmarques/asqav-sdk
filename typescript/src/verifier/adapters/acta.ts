@@ -1,5 +1,5 @@
 /**
- * ACTA adapter (draft-farley-acta-signed-receipts-01): Ed25519 over the JCS of `payload`, hex sig. Kept
+ * ACTA adapter (draft-farley-acta-signed-receipts-02): Ed25519 over the JCS of `payload`, hex sig. Kept
  * disjoint from Asqav-native by sig encoding and the `anchors` key; Commitment Mode is not implemented.
  */
 
