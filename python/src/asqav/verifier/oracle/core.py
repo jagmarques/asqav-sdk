@@ -82,6 +82,9 @@ _INVALID_FAIL_AXES = frozenset(
         "nonce",
         "parent_signature",
         "pdp_signature",
+        # A gap proves receipts were withheld and a malformed counter was signed as-is;
+        # both are proven defects, not a recompute that could not finish.
+        "seq",
     }
 )
 
@@ -190,6 +193,38 @@ def _chain_axis(
     return _axis("chain", crypto.FAIL, f"chain break: expected {exp}.. got {actual[:16]}..")
 
 
+def _seq_axis(
+    ad: FormatAdapter, doc: dict, adapters: list[FormatAdapter], predecessor: dict | None
+) -> AxisResult:
+    # A gap is omission evidence. Never SKIPPED: fold_verdict blocks on a non-chain
+    # SKIPPED, so a receipt with no counter would regress to unverified.
+    seq = ad.seq_of(doc)
+    if seq is None:
+        return _axis("seq", crypto.PASS, "no seq member; receipt is not part of a counted series")
+    if isinstance(seq, bool) or not isinstance(seq, int) or seq < 1:
+        return _axis("seq", crypto.FAIL, f"malformed seq: {seq!r}")
+    if predecessor is None:
+        return _axis("seq", crypto.PASS, f"seq {seq}; no predecessor supplied")
+    # A counter only means anything within one format's own series.
+    pred_ad = detect(predecessor, adapters)
+    if pred_ad is None or pred_ad.name != ad.name:
+        return _axis("seq", crypto.PASS, f"seq {seq}; predecessor is a different receipt format")
+    prev = ad.seq_of(predecessor)
+    if prev is None:
+        return _axis("seq", crypto.PASS, f"seq {seq}; predecessor carries no seq")
+    if isinstance(prev, bool) or not isinstance(prev, int) or prev < 1:
+        return _axis("seq", crypto.FAIL, f"malformed predecessor seq: {prev!r}")
+    if seq == prev + 1:
+        return _axis("seq", crypto.PASS, f"seq {seq} follows predecessor {prev}")
+    if seq <= prev:
+        return _axis("seq", crypto.FAIL, f"seq not monotonic: {seq} after predecessor {prev}")
+    return _axis(
+        "seq",
+        crypto.FAIL,
+        f"seq gap: {seq - prev - 1} receipt(s) withheld between {prev} and {seq}",
+    )
+
+
 #: Max nesting the recursive JCS encoder tolerates, mirrors the standalone verifier cap.
 MAX_NESTING_DEPTH = 200
 
@@ -241,6 +276,7 @@ def verify(
         _axis("structure", *ad.schema(doc)),
         _signature_axis(ad, doc, key_provider),
         _chain_axis(ad, doc, adapters, predecessor),
+        _seq_axis(ad, doc, adapters, predecessor),
     ]
     axes.extend(_axis(name, res, note) for name, res, note in ad.extra_axes(doc, key_provider))
 
