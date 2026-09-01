@@ -29,6 +29,8 @@ acceptor and an offline auditor cannot disagree about the same bytes.
 
 from __future__ import annotations
 
+import base64
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -37,7 +39,9 @@ from .verifier.oracle import ADAPTERS, verify
 from .verifier.oracle.core import VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED
 
 __all__ = [
+    "DEFAULT_RECEIPT_HEADER",
     "AcceptorDecision",
+    "AcceptorMiddleware",
     "check_peer_receipt",
 ]
 
@@ -188,3 +192,123 @@ def check_peer_receipt(
         failure_class=None,
         first_failing_edge=None,
     )
+
+
+# --- ASGI adapter -------------------------------------------------------------
+#
+# ASGI is a protocol, not a library, so this turns the decision into deployable
+# middleware for FastAPI/Starlette/Quart with no dependency on any of them. The
+# decision stays in check_peer_receipt: an acceptor that mounts this and one that
+# calls the function directly must refuse the same receipts.
+
+#: Header the peer presents its receipt in, JSON or base64-of-JSON.
+DEFAULT_RECEIPT_HEADER = "x-asqav-receipt"
+
+
+def _decode_receipt(raw: bytes) -> dict | None:
+    """Parse a receipt header, accepting raw JSON or base64-wrapped JSON."""
+    text = raw.decode("utf-8", errors="replace").strip()
+    for candidate in (text, None):
+        if candidate is None:
+            try:
+                text = base64.b64decode(raw, validate=True).decode("utf-8")
+            except Exception:
+                return None
+            candidate = text
+        try:
+            parsed = json.loads(candidate)
+        except (ValueError, TypeError):
+            continue
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+class AcceptorMiddleware:
+    """ASGI middleware refusing a request whose peer receipt is not admissible.
+
+    Fails CLOSED: a request carrying no receipt, or one whose header does not
+    parse, is refused. An acceptor that admitted an unsigned request while
+    refusing a badly-signed one would be strictly worse than having no middleware
+    at all, because the cheapest bypass would be to send nothing.
+
+    ``predecessor_for`` supplies the last receipt admitted from the same peer
+    chain; without it the seq and chain axes have nothing to compare against and
+    a gap cannot be detected. ``challenge_for`` supplies the nonce this acceptor
+    issued for the exchange, if any. Both take the parsed receipt and are
+    deliberately caller-supplied: where that state lives is the deployer's
+    choice, and guessing it here would be wrong for most of them.
+    """
+
+    def __init__(
+        self,
+        app: Any,
+        *,
+        key_provider: Any = None,
+        header: str = DEFAULT_RECEIPT_HEADER,
+        predecessor_for: Any = None,
+        challenge_for: Any = None,
+        status_code: int = 403,
+        exempt_paths: tuple[str, ...] = (),
+    ) -> None:
+        self.app = app
+        self.key_provider = key_provider
+        self.header = header.lower().encode("latin-1")
+        self.predecessor_for = predecessor_for
+        self.challenge_for = challenge_for
+        self.status_code = status_code
+        self.exempt_paths = exempt_paths
+
+    async def _refuse(self, send: Any, reason: str, rule: str | None) -> None:
+        body = json.dumps(
+            {"error": "peer_receipt_refused", "reason": reason, "rule": rule}
+        ).encode("utf-8")
+        await send(
+            {
+                "type": "http.response.start",
+                "status": self.status_code,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode("latin-1")),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        # Lifespan and websocket scopes carry no receipt to check; passing them
+        # through is not a bypass because no inbound ACTION rides on them.
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        if scope.get("path", "") in self.exempt_paths:
+            await self.app(scope, receive, send)
+            return
+
+        raw = None
+        for name, value in scope.get("headers") or []:
+            if name.lower() == self.header:
+                raw = value
+                break
+        if raw is None:
+            await self._refuse(send, "no peer receipt presented", "missing")
+            return
+
+        receipt = _decode_receipt(raw)
+        if receipt is None:
+            await self._refuse(send, "peer receipt header is not a JSON object", "malformed")
+            return
+
+        decision = check_peer_receipt(
+            receipt,
+            key_provider=self.key_provider,
+            predecessor=self.predecessor_for(receipt) if self.predecessor_for else None,
+            challenge=self.challenge_for(receipt) if self.challenge_for else None,
+        )
+        if not decision.accepted:
+            await self._refuse(send, decision.reason, decision.rule)
+            return
+
+        scope = dict(scope)
+        scope.setdefault("state", {})
+        scope["state"] = {**scope["state"], "asqav_acceptor_decision": decision}
+        await self.app(scope, receive, send)

@@ -37,7 +37,12 @@ from ._detectors import (
 )
 from ._jcs import canonical_json
 from ._schema import normalize_context, validate_context_schema
-from .acceptor import AcceptorDecision, check_peer_receipt
+from .acceptor import (
+    DEFAULT_RECEIPT_HEADER,
+    AcceptorDecision,
+    AcceptorMiddleware,
+    check_peer_receipt,
+)
 from .async_client import AsyncAgent
 from .attestation import (
     ATTESTATION_STATEMENT_SCHEMA,
@@ -366,6 +371,8 @@ __all__ = [
     "verify_counterparty_binding",
     # Acceptor-side admission control for an inbound peer receipt (B15)
     "AcceptorDecision",
+    "AcceptorMiddleware",
+    "DEFAULT_RECEIPT_HEADER",
     "check_peer_receipt",
     # DORA RTS JC 2024-33 Annex II vocabulary
     "DORA_INCIDENT_CLASS_NAMESPACE",
