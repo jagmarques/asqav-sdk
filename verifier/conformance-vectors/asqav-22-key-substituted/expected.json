@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "invalid",
+  "reason_code": "key_substituted",
+  "notes": "The receipt is correctly signed and the signature verifies against the key the directory publishes, so the signature axis PASSes and reports nothing wrong. The bound digest names a different key, which is what a swap under the same kid looks like from outside. A key that cannot be the one the issuer committed to is a proven binding break, so the class is invalid rather than unverifiable."
+}
