@@ -925,6 +925,36 @@
       "bytes": 764
     },
     {
+      "path": "asqav-21-key-thumbprint-binds/expected.json",
+      "sha256": "ad1da90f46d8a46638f21bf3b8b5f1b0976f0e4efbdfe4690fc1527558b880ff",
+      "bytes": 278
+    },
+    {
+      "path": "asqav-21-key-thumbprint-binds/jwks.json",
+      "sha256": "c4d9d51a5ac96dda55613c613e598b897f86b701df2c5acdbcf0ac5f043250b8",
+      "bytes": 2785
+    },
+    {
+      "path": "asqav-21-key-thumbprint-binds/receipt.json",
+      "sha256": "79387fdbd5c88c122400373b7c46bcd115cbba69fa54497731f5e1900fdcfcdb",
+      "bytes": 5201
+    },
+    {
+      "path": "asqav-22-key-substituted/expected.json",
+      "sha256": "989879fb47039d532479b0e5784972df29ef7567ddbb778118c46507b484f78a",
+      "bytes": 529
+    },
+    {
+      "path": "asqav-22-key-substituted/jwks.json",
+      "sha256": "c4d9d51a5ac96dda55613c613e598b897f86b701df2c5acdbcf0ac5f043250b8",
+      "bytes": 2785
+    },
+    {
+      "path": "asqav-22-key-substituted/receipt.json",
+      "sha256": "adfc4a91b202e14503e98a39336b9ed776d1174be6cc462aebeb284564115144",
+      "bytes": 5201
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -990,6 +1020,11 @@
       "bytes": 4733
     },
     {
+      "path": "gen_key_binding_vectors.py",
+      "sha256": "4fa88dfc8ac3f43110c13d188ce5df0fc9af54601924c6db615a8674fcdc5d91",
+      "bytes": 6860
+    },
+    {
       "path": "gen_selective_omission_vectors.py",
       "sha256": "7e3cd796f549466afe4cbcb5e23dec205e537d42041de412ea16483805ac0cde",
       "bytes": 6959
@@ -1001,8 +1036,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "6ffa041884be67b07501ca4bb35956fe9d7e62d96da0c0ac768dbb91d1c09cc4",
-      "bytes": 23030
+      "sha256": "7b59814a644ec593c2eb58efa09ae41718b34c54edb1a70e5f33aec4b21c8ac0",
+      "bytes": 23948
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1170,5 +1205,5 @@
       ]
     }
   },
-  "digest": "aec29cc3f2eefb5818214427bae1b575173a0c0119bab7c34710b9a63cf91262"
+  "digest": "1b030a79ebc34f08556877c134d320aef93317abcbf47f2d012c58a04814ba59"
 }
