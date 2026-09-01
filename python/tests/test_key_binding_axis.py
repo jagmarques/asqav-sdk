@@ -80,7 +80,6 @@ def _receipt(thumbprint=None) -> dict:
 
 # --------------------------------------------------------------------------
 # The shared cross-language table
-# --------------------------------------------------------------------------
 
 
     # A table that silently empties would make every case below vacuous.
@@ -125,7 +124,6 @@ def test_thumbprint_ignores_member_insertion_order() -> None:
 
 # --------------------------------------------------------------------------
 # Wire tests - each fails if its own call site is deleted
-# --------------------------------------------------------------------------
 
 
     # Deleting the axis from the oracle adapter's extra_axes fails here.

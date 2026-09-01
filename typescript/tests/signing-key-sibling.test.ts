@@ -1,6 +1,5 @@
-// One org, two agent keys: the entry that answers is the entry that signed
-// The TypeScript half of python/tests/test_signing_key_sibling.py carries the
-// rationale, and every directory here publishes two agent keys under one issuer
+// One org, two agent keys: the entry that answers must be the entry that signed. TS half of
+// test_signing_key_sibling.py; every directory here publishes two keys under one issuer.
 
 import { describe, expect, it } from "vitest";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";

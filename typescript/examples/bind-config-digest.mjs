@@ -1,15 +1,7 @@
-/** Bind your agent's declared configuration into the signed receipt.
- *
- * Hash whatever declares what the agent is allowed to be (an agent manifest,
- * an AGENTS.md, a container image digest, an SBOM) with SHA-256, put the digest
- * in the sign context, and pin it with a context schema. The digest then lands
- * inside the cryptographically signed receipt, so anyone can later confirm which
- * declared configuration produced a given action at the public verify endpoint.
- *
- * This uses the existing schema-validated sign context. No new wire field.
- *
- * ASQAV_API_KEY=sk_... node examples/bind-config-digest.mjs
+/** Bind an agent's declared configuration into the signed receipt: SHA-256 whatever declares
+ * what it may be (manifest, AGENTS.md, image digest, SBOM) into the schema-pinned sign context.
  */
+// No new wire field. Run: ASQAV_API_KEY=sk_... node examples/bind-config-digest.mjs
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

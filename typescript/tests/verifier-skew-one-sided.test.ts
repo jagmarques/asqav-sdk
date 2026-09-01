@@ -1,6 +1,5 @@
-// The clock-skew axis is one-sided: a stamp ahead of the wall clock past the bound
-// fails, while a backdated stamp passes, because the wall clock cannot detect a lie
-// about the past. The TypeScript half of the Python skew table pins the same bound
+// The clock-skew axis is one-sided: a stamp past the future bound fails while a backdated one
+// passes, since the wall clock cannot detect a lie about the past. Same bound as Python.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

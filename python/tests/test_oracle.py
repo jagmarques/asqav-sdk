@@ -950,12 +950,8 @@ def test_non_dict_receipt_fails_closed_never_crashes() -> None:
         assert res.failure_class == "unverifiable"
 
 
-# --- Pipelock EvidenceReceipt v2 adapter ---
-#
-# Fixture: Go reference implementation output from luckyPipewrench/pipelock-verify-python
-# commit 9eaff72a87b3b412945fac6de07739bc2bef2116 (tests/conformance/valid-evidence-proxy-decision.json).
-# Signer public key: RFC 8032 section 7.1 test-1 vector key
-# d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a (no secrets).
+# Pipelock EvidenceReceipt v2 adapter. Fixture: Go reference output from
+# luckyPipewrench/pipelock-verify-python@9eaff72; signer key is the RFC 8032 7.1 test-1 vector.
 
 from asqav.verifier.oracle.adapters.pipelock import PipelockEvidenceAdapter  # noqa: E402
 
@@ -1184,9 +1180,8 @@ def test_every_vector_reports_its_pinned_first_bad_edge() -> None:
     for entry in corpus:
         vec = _CORPUS / entry["dir"]
         try:
-            # The runner's STRICT loader, not the plain json.loads helper above:
-            # duplicate members are exactly what makes a vector terminal at ingest,
-            # and stdlib json silently keeps the last one.
+            # The runner's STRICT loader, not plain json.loads: duplicate members are what
+            # make a vector terminal at ingest, and stdlib json silently keeps the last.
             receipt = _runner_load(vec / "receipt.json")
             predecessor = _runner_load(vec / "predecessor.json")
             key_provider = _runner_key_provider(vec, entry["format"])
