@@ -5,6 +5,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Both READMEs told readers a replay control does not exist when it does.** The
+  `nonce` entry stated the cloud "runs no uniqueness check" and that "the field
+  gates no replay". The platform refuses a nonce a live signature for the same
+  agent in the same organisation already holds and answers HTTP 409. The text now
+  states what the field bounds and when the token frees, in both language halves
+  and in the four source docstrings that repeated it.
+
 ### Changed
 
 - The README section covering `protectmcp:observation` and

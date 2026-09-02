@@ -419,8 +419,9 @@ export interface SignOptions {
   /** Optional user-intent envelope. The end user signs a digest of the
    * action and the SDK passes it through to the backend verbatim. */
   userIntent?: UserIntent;
-  /** Optional opaque per-call token. The cloud stores it and checks no re-use, so
-   * it gates no replay. Bound replay with `validSeconds` or `expiresAt`. */
+  /** Optional opaque per-call token. The cloud refuses one a live signature for the
+   * same agent already holds, answering HTTP 409, so it does bound replay inside that
+   * receipt's validity window. Set the window with `validSeconds` or `expiresAt`. */
   nonce?: string;
   /** Optional validity window in seconds, setting `valid_until = signed_at + validSeconds`.
    * Mutually exclusive with `expiresAt`; passing both throws `expiry_collision_guard`. */
@@ -1544,8 +1545,9 @@ export function computeCveInventoryDigest(cveList: unknown[]): string {
   return `sha256:${hex}`;
 }
 
-/** Return a 24-hex-char value for the `nonce` wire field. The cloud stores it verbatim and
- * runs no uniqueness check, so bound replay with `validSeconds`. */
+/** Return a 24-hex-char value for the `nonce` wire field. The cloud refuses a value a live
+ * signature for the same agent already holds, answering HTTP 409; set the window it is scoped
+ * to with `validSeconds`. */
 export function generateNonce(): string {
   // Use Web Crypto (Node >=19 + browsers); avoids require("crypto") CJS shim in the .mjs bundle.
   const buf = new Uint8Array(12);
