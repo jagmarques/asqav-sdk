@@ -134,6 +134,8 @@ _client: Any = None
 # Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
 _mode: str = "full-payload"
 _org_salt: bytes | None = None
+#: Per-request HTTP timeout in seconds; init(timeout=...) overrides it.
+_timeout: float = 30.0
 #: Hash-only request metadata allowlist; mirrors the server-enforced whitelist.
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
@@ -2859,6 +2861,7 @@ def init(
     *,
     mode: str = "auto",
     org_salt: bytes | None = None,
+    timeout: float | None = None,
 ) -> None:
     """Initialize the Asqav SDK.
 
@@ -2878,6 +2881,9 @@ def init(
             Salted digests still travel labelled ``sha256``, so a third
             party recomputing per ``docs/fingerprint-spec.md`` sees a
             mismatch even though the signature verifies.
+        timeout: Per-request HTTP timeout in seconds (default 30). The
+            harness hook passes its own deadline here so a hung signer
+            cannot outlive the gate.
 
     Raises:
         AuthenticationError: If no API key is provided.
@@ -2895,7 +2901,7 @@ def init(
         # Force hash-only against a custom URL
         asqav.init(api_key="sk_...", mode="hash-only", org_salt=bytes.fromhex("..."))
     """
-    global _api_key, _api_base, _client, _mode, _org_salt
+    global _api_key, _api_base, _client, _mode, _org_salt, _timeout
 
     _api_key = resolve_api_key(api_key)
 
@@ -2916,12 +2922,13 @@ def init(
         explicit=mode,
     )
     _org_salt = org_salt
+    _timeout = float(timeout) if timeout else 30.0
 
     if _HTTPX_AVAILABLE:
         _client = httpx.Client(
             base_url=_api_base,
             headers={"X-API-Key": _api_key, "User-Agent": USER_AGENT},
-            timeout=30.0,
+            timeout=_timeout,
         )
 
 
@@ -3094,7 +3101,7 @@ def _urllib_request(
 
     def _do_request() -> dict[str, Any]:
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=_timeout) as response:
             # Strict ingest (419): a duplicated member name fails the response.
             from . import strict_json
 

@@ -5,6 +5,31 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Changed
+
+- **Harness hooks send a digest by default.** `asqav hook pretool` and `asqav hook
+  posttool` now sign in hash-only mode whatever host they talk to: the tool
+  arguments are canonicalised and hashed locally and never leave the machine.
+  `--clear-context` is the opt-in that sends them for the platform to hold, and
+  `--dry-run` prints the exact body either way. Against the Asqav cloud the SDK
+  already resolved to hash-only; self-hosted deployments sent the arguments in
+  clear, and a dry run showed clear context regardless of host.
+- **The gate has a deadline.** `asqav hook pretool` waits
+  `ASQAV_HOOK_DEADLINE_SECONDS` (default 5) for the signer and then blocks with
+  exit 2; the same value is the SDK's per-request timeout (`init(timeout=...)`
+  is new). A hung signer can no longer ride the harness's 600-second default and
+  let the tool run unsigned. The posttool hook proceeds unsigned on the same
+  deadline.
+- **The gate verifies the receipt it is handed.** Before exit 0 the pretool
+  hook runs the returned receipt through the standalone verifier against the
+  platform's published JWK Set (cached 24 hours at `~/.asqav/jwks-cache.json`);
+  a receipt that does not verify blocks the tool call.
+- The pretool hook prints `signed <id>` for the observation the cloud records
+  for in-process capture and reserves `permit <id>` for a wire decision of
+  `allow`; `hooks/README.md` states what the cloud records for an in-process
+  gate today.
+
+
 ### Fixed
 
 - **RFC 8785 member order on the two verification paths that still sorted by code
