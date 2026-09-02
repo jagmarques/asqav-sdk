@@ -222,6 +222,34 @@ describe("integers beyond +/-2**53 are refused at ingest (no cross-SDK divergenc
       /canonical integer range/,
     );
   });
+
+  // The corpus publishes documents it says are refused. Both SDKs must actually refuse
+  // them, or the corpus advertises a rule the shipped code does not implement. The Python
+  // half of this pairing lives in test_corpus_integrity.py.
+  it("refuses every document the corpus pins as refused", () => {
+    const path = resolve(__dirname, "..", "..", "conformance", "vectors.json");
+    const { vectors } = JSON.parse(readFileSync(path, "utf8")) as {
+      vectors: Array<{ name: string; input_text?: string; expected_verify: boolean }>;
+    };
+    const refused = vectors.filter((v) => typeof v.input_text === "string");
+    expect(refused.length).toBeGreaterThan(0);
+    for (const v of refused) {
+      expect(v.expected_verify).toBe(false);
+      expect(() => parseJsonPreservingFloats(v.input_text as string), v.name).toThrow();
+    }
+  });
+
+  // The boundary the corpus pins as INSIDE the range must actually parse and canonicalize.
+  it("accepts every in-range vector the corpus pins, including 2**53", () => {
+    const path = resolve(__dirname, "..", "..", "conformance", "vectors.json");
+    const { vectors } = JSON.parse(readFileSync(path, "utf8")) as {
+      vectors: Array<{ name: string; canonical?: string; input?: unknown }>;
+    };
+    const boundary = vectors.find((v) => v.name === "asqav-25-number-at-safe-range-boundary");
+    expect(boundary, "boundary vector missing from the corpus").toBeDefined();
+    const parsed = parseJsonPreservingFloats('{"n":9007199254740992}');
+    expect(dec.decode(asqavJcs(parsed))).toBe(boundary!.canonical);
+  });
 });
 
 // --- A29: ordered first-bad-edge reporting (criterion 490) ---

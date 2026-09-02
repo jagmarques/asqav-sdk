@@ -531,6 +531,47 @@
       "non_conformant_sha256": "1c314559129cce00bc1b3caa2ee37fa3e81f926aee65b34f8e4e21856b2de83b",
       "expected_verify": false,
       "reason": "Code point key order is not RFC 8785; a canonicalizer emitting non_conformant_canonical fails this vector."
+    },
+    {
+      "name": "asqav-25-number-above-safe-range-rejected",
+      "description": "A digest-covered integer with no exact IEEE-754 double. Python's json.loads keeps 9007199254740993 exactly and JavaScript's JSON.parse rounds it to 9007199254740992, neither raising, so the same document would canonicalize to two different byte strings and carry two different SHA-256 digests. A conformant implementation MUST refuse this document as a parse failure reported unverifiable, and MUST NOT round, truncate or re-serialize the value. The document is given as input_text, not as a parsed input, because a refused document has no canonical form and because a corpus file carrying the bare literal would itself be refused by the rule it describes.",
+      "input_text": "{\"n\":9007199254740993}",
+      "expected_verify": false,
+      "reason": "9007199254740993 is outside the canonical integer range +/-2**53. The check MUST read the source digits, not the parsed value: Number(\"9007199254740993\") is already 9007199254740992, so a magnitude test on the parsed number accepts the exact case the rule exists to refuse.",
+      "expected": {
+        "refused_at": "parse",
+        "bound": "+/-2**53",
+        "max_canonical_integer": 9007199254740992,
+        "positive_twin": "asqav-25-number-above-safe-range-as-string"
+      }
+    },
+    {
+      "name": "asqav-25-number-above-safe-range-as-string",
+      "description": "Positive twin of asqav-25-number-above-safe-range-rejected: the same numeric value carried the conformant way, as a JSON string. A caller with an identifier or a nanosecond timestamp above 2**53 serializes it like this, and every implementation then agrees on the bytes because no number parsing is involved.",
+      "input": {
+        "n": "9007199254740993"
+      },
+      "expected_verify": true,
+      "reason": "A string carries the digits verbatim through every JSON reader, so the canonical bytes and their digest are identical across implementations.",
+      "expected": {
+        "negative_twin": "asqav-25-number-above-safe-range-rejected"
+      },
+      "canonical": "{\"n\":\"9007199254740993\"}",
+      "sha256": "3bbb752b000e9ac58b939c07bb99307d18ccc5be92189d3c32738ec24c98579f"
+    },
+    {
+      "name": "asqav-25-number-at-safe-range-boundary",
+      "description": "2**53 = 9007199254740992 is exactly representable as an IEEE-754 double and every reader emits the same digits for it, so it is INSIDE the canonical range and MUST be accepted. The bound is deliberately one above JavaScript's Number.isSafeInteger, which is 2**53 - 1: the upstream interop vector number_2_to_53 pins this value as canonical, so a verifier using isSafeInteger as its bound fails upstream conformance.",
+      "input": {
+        "n": 9007199254740992
+      },
+      "expected_verify": true,
+      "reason": "The largest integer both implementations canonicalize identically.",
+      "expected": {
+        "negative_twin": "asqav-25-number-above-safe-range-rejected"
+      },
+      "canonical": "{\"n\":9007199254740992}",
+      "sha256": "66c87d9cb3014e05a11baa97df62282d89d425f22ee15816577c84534e2ef1bb"
     }
   ]
 }

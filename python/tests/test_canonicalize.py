@@ -25,7 +25,9 @@ VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.js
 
 
 def _load_vectors() -> list[dict]:
-    return json.loads(VECTORS_PATH.read_text())["vectors"]
+    # A refused-document vector (asqav-25) has no parsed input and so no canonical bytes
+    # for the helpers to reproduce; the refusal itself is pinned in test_strict_json.py.
+    return [v for v in json.loads(VECTORS_PATH.read_text())["vectors"] if "input" in v]
 
 
     # The SDK's canonicalize() must produce the same bytes as vectors.json.
