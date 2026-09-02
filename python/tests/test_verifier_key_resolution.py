@@ -121,3 +121,69 @@ def test_the_signed_agent_id_narrows_a_thumbprint_shared_across_agents() -> None
     jwks = {"keys": [other, _row(pk, "k-mine", thumbprint=thumb)]}
     entry = vr.match_signing_key(jwks, "", AGENT, ORG, ORG, thumb)
     assert entry is not None and entry["kid"] == "k-mine"
+
+
+# === the agent bind verifies every candidate before it picks one (448b) ===
+
+
+def _rotated_directory(old_pk: bytes, new_pk: bytes) -> dict:
+    # The live directory shape: no key_thumbprint column, the revoked key listed first.
+    return {
+        "keys": [
+            _row(old_pk, "k-old", status="revoked", revoked_at="2026-05-01T00:00:00+00:00"),
+            _row(new_pk, "k-new"),
+        ]
+    }
+
+
+def test_a_rotated_agent_verifies_against_the_key_that_signed(ml=None) -> None:
+    ml = _ml()
+    old_pk, _old_sk = ml.keygen()
+    new_pk, new_sk = ml.keygen()
+    jwks = _rotated_directory(old_pk, new_pk)
+    payload = _payload()
+    report = vr.run_structured(_envelope(payload, new_sk, ml, ORG), jwks, None)
+    axes = _axes(report)
+    assert axes["signature"]["result"] == "PASS", axes["signature"]
+    assert axes["key_status"]["result"] == "PASS", axes["key_status"]
+    assert "k-new" in axes["issuer_key"]["note"]
+
+
+def test_a_historical_receipt_still_resolves_the_revoked_key_that_signed_it() -> None:
+    ml = _ml()
+    old_pk, old_sk = ml.keygen()
+    new_pk, _new_sk = ml.keygen()
+    jwks = _rotated_directory(old_pk, new_pk)
+    payload = _payload(issued_at="2026-04-01T00:00:00+00:00")
+    report = vr.run_structured(_envelope(payload, old_sk, ml, ORG), jwks, None)
+    axes = _axes(report)
+    assert axes["signature"]["result"] == "PASS", axes["signature"]
+    # Revocation is the key_status axis's call, never the resolver's.
+    assert axes["key_status"]["result"] != "PASS", axes["key_status"]
+    assert "revoked" in axes["key_status"]["note"]
+
+
+def test_a_signature_no_candidate_verifies_reports_the_exhausted_agent_bind() -> None:
+    ml = _ml()
+    old_pk, _old_sk = ml.keygen()
+    new_pk, _new_sk = ml.keygen()
+    _stranger_pk, stranger_sk = ml.keygen()
+    jwks = _rotated_directory(old_pk, new_pk)
+    payload = _payload()
+    report = vr.run_structured(_envelope(payload, stranger_sk, ml, ORG), jwks, None)
+    axes = _axes(report)
+    assert axes["signature"]["result"] == "FAIL", axes["signature"]
+    assert "no key published for this agent verified" in axes["issuer_key"]["note"]
+
+
+def test_the_agent_candidate_set_is_bounded() -> None:
+    ml = _ml()
+    pks = [ml.keygen() for _ in range(vr._AGENT_BIND_CANDIDATE_CAP + 4)]
+    jwks = {"keys": [_row(pk, f"k-{i}") for i, (pk, _sk) in enumerate(pks)]}
+    payload = _payload()
+    msg = vr.canonical_json(payload)
+    entry, _res, exhausted = vr._select_agent_bound_key(
+        jwks, AGENT, ORG, ORG, msg, b"\x00" * 64, "ML-DSA-65"
+    )
+    assert exhausted is True
+    assert entry is not None and entry["kid"] == "k-0"

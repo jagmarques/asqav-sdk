@@ -108,16 +108,17 @@ def test_rotated_agent_resolves_by_signed_thumbprint_across_two_published_keys()
     assert axes["key_status"][0] == "PASS"
 
 
-def test_rotated_agent_without_a_thumbprint_still_lands_on_the_first_key() -> None:
-    """The documented remaining limit: without the signed thumbprint the agent bind picks by position."""
+def test_rotated_agent_without_a_thumbprint_verifies_against_the_key_that_signed() -> None:
+    """A directory publishing no thumbprint still resolves the signer: every candidate is tried."""
     ml = _ml_dsa_65()
     stale_pk, _ = ml.keygen()
     new_pk, new_sk = ml.keygen()
     payload = _payload("agt_two")
     sig = ml.sign(new_sk, v.canonical_json(payload))
     jwks = {"keys": [_key("k-stale", "agt_two", stale_pk), _key("k-new", "agt_two", new_pk)]}
-    report = v.run_structured(_envelope(payload, sig), jwks, None)
-    assert _axes(report)["signature"][0] == "FAIL"
+    axes = _axes(v.run_structured(_envelope(payload, sig), jwks, None))
+    assert axes["signature"][0] == "PASS", axes["signature"]
+    assert "k-new" in axes["issuer_key"][1]
 
 
 def test_thumbprint_naming_an_unused_key_is_reported_as_substitution() -> None:

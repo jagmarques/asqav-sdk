@@ -1391,27 +1391,57 @@ def _key_bound_to_claimant(k: dict, issuer_id, org_id=None):
     return bool(issuer_bound or org_bound)
 
 
-def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
-    """Return the first usable jwks entry for an agent key bound to a claimed issuer.
+#: Agent-bound keys a failing signature is tried against, so a rotation stays bounded work.
+_AGENT_BIND_CANDIDATE_CAP = 8
 
-    The single agent-side matcher, so the entry a signature verifies against is the
-    same entry every published field is read from. An org publishes issuer_id ==
-    org_id on every key it owns, and agent_id is unique per key, so agent_id plus
-    the claim bind names exactly one signer.
+
+def _match_keys_by_agent(jwks: dict, agent_id, issuer_id, org_id=None) -> list:
+    """Return every usable jwks entry for an agent key bound to a claimed issuer.
+
+    The single agent-side matcher, so the entry a signature verifies against is the same
+    entry every published field is read from. A rotation leaves an agent with more than
+    one published key, so this answers with the whole candidate set, not a guess.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
-        return None
+        return []
+    out = []
     for k in keys:
         if not isinstance(k, dict):
             continue
         if not (agent_id and agent_id == k.get("agent_id")):
             continue
-        if _key_bound_to_claimant(k, issuer_id, org_id):
-            if not isinstance(k.get("public_key"), str):
-                continue
-            return k
-    return None
+        if not _key_bound_to_claimant(k, issuer_id, org_id):
+            continue
+        if not isinstance(k.get("public_key"), str):
+            continue
+        out.append(k)
+    return out
+
+
+def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
+    # The first agent-bound key, for callers that resolve before they have a signature.
+    candidates = _match_keys_by_agent(jwks, agent_id, issuer_id, org_id)
+    return candidates[0] if candidates else None
+
+
+def _select_agent_bound_key(jwks: dict, agent_id, issuer_id, org_id, msg, sig, alg_hint):
+    """Return (entry, signature result, exhausted) for the agent-bound key that signed msg.
+
+    Every candidate sharing the agent bind is tried, bounded by the candidate cap, and the
+    one whose signature verifies is kept; when none does, the first is returned so the
+    report can say the whole set was tried. Revocation is never weighed here.
+    """
+    candidates = _match_keys_by_agent(jwks, agent_id, issuer_id, org_id)
+    if not candidates:
+        return None, None, False
+    last = None
+    for k in candidates[:_AGENT_BIND_CANDIDATE_CAP]:
+        res = verify_signature(_b64decode(k["public_key"]), msg, sig, k.get("alg") or alg_hint)
+        if res[0] == "PASS":
+            return k, res, False
+        last = res
+    return candidates[0], last, True
 
 
 def _match_key_by_thumbprint(jwks: dict, thumbprint, agent_id=None, kid=None):
@@ -2178,26 +2208,33 @@ def run(
         eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
         # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
+        agent_note = ""
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
-            pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
-                jwks, agent_id, payload.get("issuer_id"), org_bind
+            entry_a, sig_res_a, exhausted = _select_agent_bound_key(
+                jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig,
+                alg or jwks_alg,
             )
-            if pk_a is not None:
-                sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
-                if sig_res_a[0] == "PASS":
+            pk_a, alg_a = None, None
+            if entry_a is not None:
+                pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
+                if sig_res_a is not None and sig_res_a[0] == "PASS":
                     sig_res = sig_res_a
-                    eff_status, eff_kid = status_a, kid_a
-                    eff_issuer = issuer_a
-                    eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+                    eff_status, eff_kid = entry_a.get("status"), entry_a.get("kid")
+                    eff_issuer = key_issuer_of(entry_a)
+                    eff_revoked_at = revoked_at_of(entry_a)
                     eff_pk, eff_alg = pk_a, alg_a
+                elif exhausted:
+                    agent_note = "; no key published for this agent verified"
             if sig_res[0] != "PASS":
                 cands = [(pk, alg or jwks_alg)]
                 if pk_a is not None:
                     cands.append((pk_a, alg_a or alg or jwks_alg))
                 sig_res = _pre_cutover_diagnostic(payload, sig, cands, sig_res)
-        results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
+        results.append(
+            ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}")
+        )
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         results.append(
@@ -2376,20 +2413,25 @@ def run_structured(
         eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back,
         # mirroring run(). agent_id is attacker-controlled, so match on issuer_id.
+        agent_note = ""
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
-            pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
-                jwks, agent_id, payload.get("issuer_id"), org_bind
+            entry_a, sig_res_a, exhausted = _select_agent_bound_key(
+                jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig_bytes,
+                alg or jwks_alg,
             )
-            if pk_a is not None:
-                sig_res_a = verify_signature(pk_a, msg, sig_bytes, alg_a or alg or jwks_alg)
-                if sig_res_a[0] == "PASS":
+            pk_a, alg_a = None, None
+            if entry_a is not None:
+                pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
+                if sig_res_a is not None and sig_res_a[0] == "PASS":
                     sig_res = sig_res_a
-                    eff_status, eff_kid = status_a, kid_a
-                    eff_issuer = issuer_a
-                    eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+                    eff_status, eff_kid = entry_a.get("status"), entry_a.get("kid")
+                    eff_issuer = key_issuer_of(entry_a)
+                    eff_revoked_at = revoked_at_of(entry_a)
                     eff_pk, eff_alg = pk_a, alg_a
+                elif exhausted:
+                    agent_note = "; no key published for this agent verified"
             if sig_res[0] != "PASS":
                 cands = [(pk, alg or jwks_alg)]
                 if pk_a is not None:
@@ -2397,7 +2439,9 @@ def run_structured(
                 sig_res = _pre_cutover_diagnostic(payload, sig_bytes, cands, sig_res)
         axes.append(
             _struct_axis(
-                "issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"
+                "issuer_key",
+                "PASS",
+                f"resolved signing key {eff_kid} (status={eff_status}){agent_note}",
             )
         )
         # kid picks the key and the attacker picks the kid, so bind the key that
