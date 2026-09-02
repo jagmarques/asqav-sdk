@@ -177,6 +177,17 @@ function signatureAxis(
   }
   const msg = ad.signingInput(doc);
   const { result, note: why } = verifySignature(sm.alg, pk, msg, sm.sig);
+  if (result !== PASS) {
+    const pre = ad.preCutoverSigningInput(doc);
+    if (pre !== null && verifySignature(sm.alg, pk, pre, sm.sig).result === PASS) {
+      return axis(
+        "signature",
+        FAIL,
+        "pre-cutover dialect: the signature verifies only under code-point member order, " +
+          "which is not RFC 8785; reported unverified, never verified",
+      );
+    }
+  }
   return axis("signature", result, why);
 }
 

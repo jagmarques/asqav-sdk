@@ -31,6 +31,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "python" / "src"))
 
 from asqav._jcs import canonical_json as sdk_canonical  # noqa: E402
+from asqav.verifier.verify_receipt import canonical_json as standalone_canonical  # noqa: E402
 
     # The cloud emitter is optional: this repo does not depend on the platform.
 try:
@@ -84,16 +85,22 @@ process.stdout.write(JSON.stringify(out));
 """
 
 
-def ts_canonical_batch(docs: list) -> list[bytes] | None:
-    """Canonicalize every document with the TypeScript SDK, or None when it cannot run."""
-    dist = _ROOT / "typescript" / "dist" / "index.js"
+_TS_VERIFIER_DRIVER = """
+const {asqavJcs} = require(process.argv[2]);
+const docs = JSON.parse(require('fs').readFileSync(process.argv[3], 'utf8'));
+const out = docs.map((d) => Buffer.from(asqavJcs(d)).toString('base64'));
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _ts_batch(docs: list, dist: Path, driver_src: str) -> list[bytes] | None:
     if not dist.exists():
         return None
     with tempfile.TemporaryDirectory() as tmp:
         docs_path = Path(tmp) / "docs.json"
         docs_path.write_text(json.dumps(docs, ensure_ascii=False), encoding="utf-8")
         driver = Path(tmp) / "driver.cjs"
-        driver.write_text(_TS_DRIVER, encoding="utf-8")
+        driver.write_text(driver_src, encoding="utf-8")
         proc = subprocess.run(
             ["node", str(driver), str(dist), str(docs_path)],
             capture_output=True, text=True,
@@ -104,13 +111,25 @@ def ts_canonical_batch(docs: list) -> list[bytes] | None:
     return [base64.b64decode(x) for x in json.loads(proc.stdout)]
 
 
+def ts_canonical_batch(docs: list) -> list[bytes] | None:
+    """Canonicalize every document with the TypeScript SDK emitter, or None when it cannot run."""
+    return _ts_batch(docs, _ROOT / "typescript" / "dist" / "index.js", _TS_DRIVER)
+
+
+def ts_verifier_canonical_batch(docs: list) -> list[bytes] | None:
+    """Canonicalize with the TypeScript VERIFIER's asqav dialect (the bytes it checks signatures over)."""
+    return _ts_batch(docs, _ROOT / "typescript" / "dist" / "verifier" / "index.js", _TS_VERIFIER_DRIVER)
+
+
 def engines_available() -> list[str]:
     """Name the canonicalizers this environment can actually compare."""
-    names = ["sdk"]
+    names = ["sdk", "standalone"]
     if cloud_canonical is not None:
         names.append("cloud")
     if ts_canonical_batch([{}]) is not None:
         names.append("typescript")
+    if ts_verifier_canonical_batch([{}]) is not None:
+        names.append("typescript-verifier")
     return names
 
 
@@ -121,15 +140,19 @@ def run(iterations: int, seed: int, unsafe_numbers: bool) -> list[dict]:
     divergences: list[dict] = []
 
     sdk = [sdk_canonical(d) for d in docs]
+    standalone = [standalone_canonical(d) for d in docs]
     cloud = [cloud_canonical(d) for d in docs] if cloud_canonical else None
     ts = ts_canonical_batch(docs)
+    ts_verifier = ts_verifier_canonical_batch(docs)
 
     for i, doc in enumerate(docs):
-        seen = {"sdk": sdk[i]}
+        seen = {"sdk": sdk[i], "standalone": standalone[i]}
         if cloud is not None:
             seen["cloud"] = cloud[i]
         if ts is not None:
             seen["typescript"] = ts[i]
+        if ts_verifier is not None:
+            seen["typescript-verifier"] = ts_verifier[i]
         if len(set(seen.values())) > 1:
             divergences.append({
                 "index": i,
