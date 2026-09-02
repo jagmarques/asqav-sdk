@@ -208,3 +208,23 @@ changes to `revoked`. The verifier rejects signatures from revoked keys.
 | Ed25519 | Fully validated with real known-answer (tamper) vectors. |
 | ES256 | Fully validated with real known-answer (tamper) vectors. |
 | ML-DSA-65 | Fully proven. Known-answer conformance vector `asqav-06-mldsa65-payload-prod` was minted from a real api.asqav.com payload-mode receipt (2026-06-19, agent `agt_LBe47lJwgA0DfVom`, key `mxYqaLBR_T76ThNw0Kiekw`). Both Python (`test_verify_receipt_offline_mldsa65_real_cloud_kat`) and TypeScript test suites exercise the signature axis against this vector and assert `verified`; tamper tests assert `unverified`/`invalid`. |
+
+## Canonical member order and the dialect cutover
+
+Every signed byte string is JCS (RFC 8785): member names ordered by UTF-16 code unit
+(section 3.2.3), no whitespace, UTF-8, no NaN or Infinity. The standalone verifier's
+`canonical_json`, the SDK's `asqav._jcs.canonical_json`, the TypeScript emitter and the
+TypeScript verifier's `asqavJcs` all produce the same bytes, and the differential fuzzer
+compares all of them on every run. A verifier sorting by code point (Python's
+`json.dumps(sort_keys=True)`, Go and Rust byte order) agrees on every member name inside
+the Basic Multilingual Plane and diverges on any name containing a character above
+U+FFFF; conformance vector `asqav-24-jcs-astral-key-order` pins the difference.
+
+`JCS_UTF16_CUTOVER` (exported by both verifiers) is the instant the issuing platform
+switched to RFC 8785 order on the wire. A receipt issued before it whose member names
+reach above U+FFFF, and whose signature verifies only under the earlier code-point order,
+is reported on the signature axis as the pre-cutover dialect and the verdict stays
+`unverified`. A receipt issued after the cutover gets no such retry. No production receipt
+issued before the cutover carries such a member name (measured over the whole ledger on
+2026-09-02), so the diagnostic exists for completeness rather than for live data.
+

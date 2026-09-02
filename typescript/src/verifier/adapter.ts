@@ -93,4 +93,12 @@ export abstract class FormatAdapter {
   keyedDigest(_doc: Record<string, unknown>): boolean {
     return false;
   }
+
+  /**
+   * Bytes under the format's pre-cutover canonical dialect, or null when no dated dialect applies to
+   * `doc`. A signature passing only under these bytes is reported as that dialect, never as verified.
+   */
+  preCutoverSigningInput(_doc: Record<string, unknown>): Uint8Array | null {
+    return null;
+  }
 }

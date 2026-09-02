@@ -12,15 +12,14 @@ under ``asqav.receipt``. Every door has an inverse that returns the exact same r
 All functions are pure and offline: no signing, no network, no mutation of the input,
 no wall-clock reads. Timestamps and ids come only from the receipt itself.
 
-Cross-SDK parity scope: for inputs inside the JSON-canonicalization-safe domain the
-Python and TypeScript SDKs emit byte-identical envelope bytes for the same receipt. That
-domain is object keys within the Basic Multilingual Plane (code points up to U+FFFF) and
-integers whose magnitude stays within the IEEE-754 safe range (up to 2**53). Outside it
-the shared JCS core diverges: keys with astral-plane characters (above U+FFFF) sort by
-Python code point vs TypeScript UTF-16 code unit, and integers above 2**53 round in the
-TypeScript number path, so the two SDKs yield different bytes. This is a known limitation
-of the JSON Canonicalization Scheme core, tracked for a versioned migration and not a
-doors bug. The doors parity tests pin both the safe-domain agreement and the divergence.
+Cross-SDK parity scope: the Python and TypeScript SDKs emit byte-identical envelope bytes
+for the same receipt across every object key, including keys with characters above
+U+FFFF, because both order member names by UTF-16 code unit per RFC 8785 section 3.2.3.
+The one remaining divergence is an integer whose magnitude exceeds the IEEE-754 safe range
+(2**53): it stays exact in Python and rounds in the TypeScript number path. Such integers
+are outside the profile's canonical domain (draft section 4 requires strings or rational
+pairs for them) and every parser will reject them outright; until then the doors parity
+tests pin both the agreement and that single divergence.
 
 This is presentation only. A door does NOT re-sign; the authoritative Asqav signature
 stays inside the embedded receipt. A generic VC / C2PA verifier reads the shape but must
