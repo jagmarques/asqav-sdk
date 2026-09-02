@@ -11,13 +11,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "e2a5ef958acb0806955491cc9abcb3178542b2239bd3c1d046b8315880423bb4",
-      "bytes": 4563
+      "sha256": "846f9beba2cb837e16c83c857acba239b379815a008d918ada737318136784a0",
+      "bytes": 6815
     },
     {
       "path": "vectors.json",
-      "sha256": "15ba498bc319b7ca663279c22eca87809e5dc68df7128fa732c06279cbff57ec",
-      "bytes": 33413
+      "sha256": "67ccb14b62cc301a37872ddc81d0da0b9ab11e12dcf6a369e502935b78e3a1ae",
+      "bytes": 34440
     }
   ],
   "signing": {
@@ -35,5 +35,5 @@
     },
     "known_answer_message_note": "the 32-byte SHA-256 digest of the canonical bytes of vector 'minimal_read': the hash is what ML-DSA-65 signs"
   },
-  "digest": "de1dfb87baf517cd4b779edd253588eede636cd20ca2265f2a2c21b07a82e250"
+  "digest": "84c3f8e621539efb11169fe123c7e78b946935604acd84a91644cb4f37e4b23e"
 }
