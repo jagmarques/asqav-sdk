@@ -292,9 +292,7 @@ function matchKeyByThumbprint(
 
 /**
  * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
- * Order carries the security: the signed key_thumbprint, then the exact key id, then the agent bind,
- * then the bare-kid issuer match. A thumbprint naming a key the signature was not made with fails
- * the signature axis against that key, which is the substitution the binding exists to catch.
+ * Order carries the security: signed key_thumbprint, exact key id, agent bind, bare-kid issuer.
  */
 export function matchSigningKey(
   jwks: Record<string, unknown> | null,
@@ -470,11 +468,14 @@ function safeB64(value: unknown): boolean {
   return padded.replace(/=+$/, "").length > 0;
 }
 
-/** JCS bytes of the envelope with `anchors` removed (mirrors `envelope_minus_anchors_jcs`). */
+// JCS bytes of the two-key {payload, signature} object, the bytes every anchor commits to
+// (mirrors `envelope_minus_anchors_jcs`). An export's other top-level members were never signed.
 export function envelopeMinusAnchorsJcs(env: Record<string, unknown>): Uint8Array {
-  const e = { ...env };
-  delete e.anchors;
-  return asqavJcs(e);
+  const committed: Record<string, unknown> = {};
+  for (const k of ["payload", "signature"]) {
+    if (k in env) committed[k] = env[k];
+  }
+  return asqavJcs(committed);
 }
 
 // ISO 8601 shapes Python's fromisoformat accepts, spelled out so a lenient JS date
