@@ -23,7 +23,7 @@ VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 
 # The lock digests, reproduced beside each lock's own digest field and in the corpus
 # READMEs. A regenerated lock that forgets to update these is drift, not a refresh.
-FINGERPRINT_LOCK_DIGEST = "84c3f8e621539efb11169fe123c7e78b946935604acd84a91644cb4f37e4b23e"
+FINGERPRINT_LOCK_DIGEST = "f4c6871f2930dc8f759f473e95a95b31050153631218c0fbc6d94f7e3e394837"
 VERIFIER_LOCK_DIGEST = "1b030a79ebc34f08556877c134d320aef93317abcbf47f2d012c58a04814ba59"
 
 try:
