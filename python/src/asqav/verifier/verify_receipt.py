@@ -549,9 +549,10 @@ def is_akp_public_key(*, alg: str, public_key: bytes | None) -> bool:
     return expected is not None and len(public_key) == expected
 
 
-    # True for a `sha256:<64 lowercase hex>` string, the only comparable form.
+    # True for a `sha256:<64 lowercase hex>` string, the only comparable form. fullmatch,
+    # not match: Python's `$` also matches before a trailing newline, where the JS test does not.
 def is_well_formed(value) -> bool:
-    return isinstance(value, str) and bool(_THUMBPRINT_RE.match(value))
+    return isinstance(value, str) and _THUMBPRINT_RE.fullmatch(value) is not None
 
 
 def akp_jwk(*, alg: str, public_key: bytes) -> dict:

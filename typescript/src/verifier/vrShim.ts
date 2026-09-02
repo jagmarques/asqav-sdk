@@ -290,6 +290,12 @@ function matchKeyByThumbprint(
   return narrowed[0];
 }
 
+// The first of two identifiers that carries a value. Python falls back on falsy, so an empty
+// string is a missing identifier in both languages, not a value that suppresses the fallback.
+export function firstNonEmpty(primary: unknown, fallback: unknown): unknown {
+  return primary === undefined || primary === null || primary === "" ? fallback : primary;
+}
+
 /**
  * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
  * Order carries the security: signed key_thumbprint, exact key id, agent bind, bare-kid issuer.
