@@ -155,6 +155,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
       payload.agent_id ?? doc.agent_id,
       payload.issuer_id,
       payload.org_id ?? doc.org_id,
+      payload.key_thumbprint,
     );
   }
 
