@@ -334,9 +334,43 @@ export function jcs(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(nfc(obj), compareCodePoints, true));
 }
 
-/** Asqav cloud JCS bytes (no NFC); byte-identical to the cloud signer. */
+/**
+ * Asqav cloud JCS bytes (no NFC, producer numbers), byte-identical to the cloud signer: member names in
+ * UTF-16 code-unit order per RFC 8785 section 3.2.3, which JS string comparison already gives.
+ */
 export function asqavJcs(obj: unknown): Uint8Array {
+  return new TextEncoder().encode(serialize(obj, utf16CompareKeys, true));
+}
+
+/**
+ * Instant from which the issuing platform emits RFC 8785 member order on the wire. Pinned to the
+ * production deploy of the emitter change; receipts issued later never get the pre-cutover retry.
+ */
+export const JCS_UTF16_CUTOVER = "2026-09-02T12:00:00+00:00";
+
+/**
+ * The code-point member order the cloud emitted before JCS_UTF16_CUTOVER. Diagnostic only: a signature
+ * that verifies solely under these bytes is reported as the pre-cutover dialect, never as verified.
+ */
+export function asqavJcsPreCutover(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(obj, compareCodePoints, true));
+}
+
+/** True when any object member name, at any depth, carries a character above U+FFFF. */
+export function hasSupplementaryMemberName(obj: unknown): boolean {
+  const stack: unknown[] = [obj];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (const v of node) stack.push(v);
+    } else if (node !== null && typeof node === "object") {
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (/[\uD800-\uDBFF]/.test(k)) return true;
+        stack.push(v);
+      }
+    }
+  }
+  return false;
 }
 
 /** Strict RFC 8785 JCS bytes (UTF-16 code-unit key sort, ECMAScript numbers) with NFC. */

@@ -138,11 +138,63 @@ _BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MAX_NESTING_DEPTH = 200
 
 
-def canonical_json(obj) -> bytes:
+#: Instant from which the issuing platform emits RFC 8785 member order on the wire. Pinned to
+#: the production deploy of the emitter change; receipts issued later never get the retry below.
+JCS_UTF16_CUTOVER = "2026-09-02T12:00:00+00:00"
+
+
+def _utf16_member_order(name: str) -> bytes:
+    # Big-endian UTF-16 bytes compare in the same order as the code units they encode.
+    return name.encode("utf-16-be")
+
+
+def _member_name(key) -> str:
+    # The member name json.dumps would emit for a non-string key.
+    if key is True:
+        return "true"
+    if key is False:
+        return "false"
+    if key is None:
+        return "null"
+    if isinstance(key, float):
+        return repr(key)
+    return str(key)
+
+
+def _utf16_ordered(obj):
+    # Rebuild obj with every object's members in RFC 8785 section 3.2.3 order.
+    if isinstance(obj, dict):
+        named = [(k if isinstance(k, str) else _member_name(k), k) for k in obj]
+        named.sort(key=lambda pair: _utf16_member_order(pair[0]))
+        return {name: _utf16_ordered(obj[original]) for name, original in named}
+    if isinstance(obj, list):
+        return [_utf16_ordered(v) for v in obj]
+    return obj
+
+
+def canonical_json(obj, default=None) -> bytes:
     """JCS canonical bytes - byte-identical to the server's canonical_json.
 
-    Sorted keys, no whitespace, UTF-8, NaN/Infinity rejected. This is the exact
+    Member names in UTF-16 code-unit order (RFC 8785 section 3.2.3), no whitespace,
+    UTF-8, NaN/Infinity rejected. json.dumps(sort_keys=True) orders by code point
+    instead, which diverges above U+FFFF, so this sorts explicitly. This is the exact
     byte string the server signs and the verifier must reproduce.
+    """
+    return json.dumps(
+        _utf16_ordered(obj),
+        sort_keys=False,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+        default=default,
+    ).encode("utf-8")
+
+
+def canonical_json_pre_cutover(obj) -> bytes:
+    """The code-point member order the platform emitted before JCS_UTF16_CUTOVER.
+
+    Diagnostic only: a signature that verifies solely under these bytes is reported
+    as the pre-cutover dialect and never as verified.
     """
     return json.dumps(
         obj,
@@ -151,6 +203,50 @@ def canonical_json(obj) -> bytes:
         ensure_ascii=False,
         allow_nan=False,
     ).encode("utf-8")
+
+
+def has_supplementary_member_name(obj) -> bool:
+    """True when any object member name, at any depth, carries a character above U+FFFF."""
+    stack = [obj]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if isinstance(k, str) and any(ord(ch) > 0xFFFF for ch in k):
+                    return True
+                stack.append(v)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
+
+
+def _issued_before_cutover(payload: dict) -> bool:
+    # An unreadable issued_at earns no retry; the receipt is simply not verified.
+    issued = _parse_stamp(payload.get("issued_at", ""))
+    cutover = _parse_stamp(JCS_UTF16_CUTOVER)
+    return issued is not None and cutover is not None and issued < cutover
+
+
+def _pre_cutover_diagnostic(payload: dict, sig: bytes, candidates, sig_res):
+    """Name the pre-cutover dialect when that is the only reason a signature fails.
+
+    Runs only for a receipt issued before JCS_UTF16_CUTOVER whose member names reach
+    above U+FFFF. The result stays FAIL: the dialect is reported, never accepted.
+    """
+    if not has_supplementary_member_name(payload) or not _issued_before_cutover(payload):
+        return sig_res
+    try:
+        legacy_msg = canonical_json_pre_cutover(payload)
+    except (TypeError, ValueError, RecursionError):
+        return sig_res
+    for pk, alg in candidates:
+        if pk is not None and verify_signature(pk, legacy_msg, sig, alg)[0] == "PASS":
+            return (
+                "FAIL",
+                "pre-cutover dialect: the signature verifies only under code-point member "
+                "order, which is not RFC 8785; reported unverified, never verified",
+            )
+    return sig_res
 
 
 def _describe_value(value) -> str:
@@ -452,8 +548,7 @@ def jwk_thumbprint(jwk: dict) -> str:
     Sorting here is what RFC 7638 section 3 calls for, so the caller cannot change
     the digest by handing the members in a different order.
     """
-    canonical = json.dumps(jwk, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
+    return f"sha256:{hashlib.sha256(canonical_json(jwk)).hexdigest()}"
 
 
     # The profile's key_thumbprint value for one ML-DSA public key.
@@ -1856,6 +1951,7 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
     try:
         identity = hashlib.sha256(canonical_json(payload)).hexdigest()
     except (ValueError, TypeError, RecursionError):
+        # Internal identity for the seen-nonce index only; never externally recomputed.
         identity = hashlib.sha256(
             json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
         ).hexdigest()
@@ -1989,6 +2085,11 @@ def run(
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
                     eff_pk, eff_alg = pk_a, alg_a
+            if sig_res[0] != "PASS":
+                cands = [(pk, alg or jwks_alg)]
+                if pk_a is not None:
+                    cands.append((pk_a, alg_a or alg or jwks_alg))
+                sig_res = _pre_cutover_diagnostic(payload, sig, cands, sig_res)
         results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
@@ -2180,6 +2281,11 @@ def run_structured(
                     eff_issuer = issuer_a
                     eff_revoked_at = resolve_revoked_at(jwks, kid_a)
                     eff_pk, eff_alg = pk_a, alg_a
+            if sig_res[0] != "PASS":
+                cands = [(pk, alg or jwks_alg)]
+                if pk_a is not None:
+                    cands.append((pk_a, alg_a or alg or jwks_alg))
+                sig_res = _pre_cutover_diagnostic(payload, sig_bytes, cands, sig_res)
         axes.append(
             _struct_axis(
                 "issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"

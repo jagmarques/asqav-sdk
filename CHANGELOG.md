@@ -5,6 +5,27 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **RFC 8785 member order on the two verification paths that still sorted by code
+  point.** The standalone `verify_receipt.py` (`canonical_json`, the bytes it checks
+  every signature, chain link and carried context against) and the TypeScript
+  verifier's asqav dialect (`asqavJcs`, used by the asqav-native adapter) now order
+  member names by UTF-16 code unit, matching the SDK emitters and the platform. The
+  two agree with the emitter across the Basic Multilingual Plane and diverged for any
+  member name above U+FFFF, which no production receipt has ever carried.
+- **Dated dialect cutover.** `JCS_UTF16_CUTOVER` (Python and TypeScript) pins the
+  instant the platform switched. A receipt issued before it whose member names reach
+  above U+FFFF and whose signature verifies only under the old code-point order is
+  reported as the pre-cutover dialect on the signature axis, never as verified; a
+  receipt issued after it gets no retry.
+- `verifier/differential_fuzz.py` now compares the standalone verifier and the
+  TypeScript verifier bundle as engines, so the fuzz gate covers the bytes the
+  verifiers check rather than only the bytes the emitters produce.
+- `docs/fingerprint-spec.md`, `doors.py` and `demo.py` no longer describe or use
+  code-point key order.
+
+
 ## [0.10.5] - 2026-09-01
 
 ### Added
