@@ -94,6 +94,10 @@ PINNED_SHA256 = {
         "425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6",
     "asqav-24-jcs-astral-key-order-codepoint-rejected":
         "425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6",
+    "asqav-25-number-above-safe-range-as-string":
+        "3bbb752b000e9ac58b939c07bb99307d18ccc5be92189d3c32738ec24c98579f",
+    "asqav-25-number-at-safe-range-boundary":
+        "66c87d9cb3014e05a11baa97df62282d89d425f22ee15816577c84534e2ef1bb",
 }
 
 #: Length of each canonical string, so a published ``canonical`` cannot be swapped
@@ -121,7 +125,9 @@ PINNED_CANONICAL_LENGTH = {
     "counterparty_binding_missing_envelope_hash_rejected": 704,
     "receipt_v2_signer_canary": 873,
     "asqav-24-jcs-astral-key-order": 13,
-    "asqav-24-jcs-astral-key-order-codepoint-rejected": 13
+    "asqav-24-jcs-astral-key-order-codepoint-rejected": 13,
+    "asqav-25-number-above-safe-range-as-string": 24,
+    "asqav-25-number-at-safe-range-boundary": 22
 }
 
 #: The wire ``counterparty_binding.envelope_hash`` string, exactly as published,
@@ -215,6 +221,12 @@ PINNED_SIGNATURES = {
         "kid": "00000000000000000098",
         "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
     }
+}
+
+#: The exact document each refused-parse vector publishes, verbatim. A vector that pins a
+#: REFUSAL has no canonical form, so its contract with implementers is these bytes.
+PINNED_REFUSED_DOCUMENT = {
+    "asqav-25-number-above-safe-range-rejected": "{\"n\":9007199254740993}",
 }
 
 #: Every derived member name this file claims to pin. A derived member added to the
@@ -324,6 +336,21 @@ def test_every_counterparty_vector_names_its_originating_envelope() -> None:
         assert ref in vectors, f"{name}: originating_envelope_ref {ref!r} names no vector"
 
 
+@pytest.mark.parametrize("name,document", sorted(PINNED_REFUSED_DOCUMENT.items()))
+def test_refused_document_is_the_pinned_literal(name: str, document: str) -> None:
+    assert _vectors()[name]["input_text"] == document
+
+
+    # The corpus says these documents are refused, so the shipped parser must refuse them.
+    # Without this the corpus could publish a refusal the code does not implement.
+@pytest.mark.parametrize("name,document", sorted(PINNED_REFUSED_DOCUMENT.items()))
+def test_the_shipped_parser_actually_refuses_it(name: str, document: str) -> None:
+    from asqav import strict_json
+
+    with pytest.raises(ValueError):
+        strict_json.loads(document)
+
+
 def test_no_derived_member_escapes_a_pin() -> None:
     """A new derived member must arrive with a literal pin, not silently."""
     pinned_here = (
@@ -332,8 +359,16 @@ def test_no_derived_member_escapes_a_pin() -> None:
         | set(PINNED_PAYLOAD_MEMBERS)
         | set(PINNED_SIGNATURES)
         | set(PINNED_ENVELOPE_HASH_RENDERINGS)
+        | set(PINNED_REFUSED_DOCUMENT)
     )
     for name, vector in _vectors().items():
+        if "input_text" in vector:
+            # A refused document has no canonical form; its bytes are pinned instead.
+            assert name in PINNED_REFUSED_DOCUMENT, f"{name}: refused document not pinned"
+            assert "canonical" not in vector and "sha256" not in vector, (
+                f"{name}: a refused document must not publish a canonical form"
+            )
+            continue
         assert name in pinned_here, f"{name}: vector has no literal pin in this file"
         for member in ("canonical", "sha256"):
             assert member in vector, f"{name}: missing {member}"
