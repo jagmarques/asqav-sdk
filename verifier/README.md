@@ -48,18 +48,31 @@ This pulls `https://api.asqav.com/api/v1/verify/<id>` and
 This is a public documentation fixture. Its signing key is a reserved example
 identity that is not published in the public JWKS, so the offline verdict is
 `unverified` (issuer-key resolution cannot complete) rather than a `verified`
-outcome. Point `--id` at one of your own signed receipts, whose agent key is in
-the JWKS, to run the full cryptographic path through to `verified`.
+outcome. For a real receipt the hosted `/verify/<id>` JSON is a display
+projection without the identifier members of the signed payload, so `--id` can
+show the hosted verdict but cannot reproduce the signature; the full
+cryptographic path runs on an Audit Pack entry, as the next section shows.
 
 ## Verify fully offline
 
-Save the receipt and the key directory, then verify with no network at all:
+Offline verification needs the signed bytes, and only the Audit Pack export carries them:
+the hosted `/api/v1/verify/<id>` JSON is a display projection that omits the identifier
+members of the signed payload (`agent_id`, `org_id`, `issuer_id` and the digests), so a
+receipt saved from it can never reproduce the signature. Ask the receipt holder for an
+Audit Pack exported with `include_signed_bytes` (`POST /api/v1/audit-pack/export` with an
+API key carrying the `audit-pack:read` scope), take one entry of its `receipts` array as
+`receipt.json`, save the key directory, and verify with no network at all:
 
 ```bash
-curl https://api.asqav.com/api/v1/verify/sig_abc123 > receipt.json
-curl https://api.asqav.com/.well-known/jwks.json    > jwks.json
+curl https://api.asqav.com/.well-known/jwks.json > jwks.json
 python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json --offline
 ```
+
+The export carries more top-level members than the signer anchored; the verifier keeps
+only `payload`, `signature` and `anchors`, and every anchor is checked against
+`sha256(JCS({payload, signature}))`, the two-key object the signer committed. The
+standalone tool checks ML-DSA-65 signatures only; a receipt signed with another level
+reports the signature axis as SKIPPED with `unsupported alg`.
 
 To check the hash-chain link, also save the predecessor receipt and pass it:
 
@@ -76,8 +89,8 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 | canonical bytes | JCS reproduction | stdlib `json` (sorted keys, no whitespace, UTF-8) |
 | issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json` |
 | chain | SHA-256 link to predecessor | stdlib `hashlib` |
-| anchors | each anchor's token must commit `sha256(JCS(envelope minus anchors))`; RFC3161 TSA signature against pinned TSA key material, OpenTimestamps merkle path against supplied bitcoin headers | stdlib DER/ots parse + `dilithium-py`/`cryptography` for the TSA signature |
-| skew | `issued_at` within 300s of now | stdlib `datetime` |
+| anchors | each anchor's token must commit `sha256(JCS({payload, signature}))`, the two-key object the signer anchored; RFC3161 TSA signature against pinned TSA key material, OpenTimestamps merkle path against supplied bitcoin headers | stdlib DER/ots parse + `dilithium-py`/`cryptography` for the TSA signature |
+| skew | `issued_at` not more than 300s in the future (a forward bound only; a receipt from the past never fails here) | stdlib `datetime` |
 | structure | required fields and type namespace | stdlib |
 
 An anchor never PASSes on presence alone: a token whose check runs and fails is
