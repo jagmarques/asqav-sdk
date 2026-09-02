@@ -131,7 +131,7 @@ The envelope extensions most callers reach for:
 
 Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): cloud-issued receipts carry an ML-DSA-65 signature (locally signed receipts carry Ed25519/ES256 — the algorithm is per-receipt in `signature.alg`), JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `compliance_mode=False` if you want the older shape.
 
-### Shadow AI capture with passive_telemetry
+### Observation receipts and passive_telemetry
 
 Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
 
