@@ -33,11 +33,49 @@ Before signing, the server formats `{"action_type": ..., "context": ...}` (plus 
 
 See `vectors.json`. Each vector has:
 
-- `input`: the raw action payload.
+- `input`: the wire object. Every member here is a real wire member.
 - `canonical`: the JCS-canonical byte sequence, shown as a UTF-8 string.
 - `sha256`: the SHA-256 of the canonical bytes, hex-encoded.
+- `expected`: values that are NOT wire members - what a correct implementation should
+  produce, plus vector metadata. Do not implement a field from this block.
 
 If your implementation produces the same `canonical` and `sha256` for each `input`, you are ready to verify live Asqav records.
+
+### Counterparty binding vectors
+
+A counterparty acknowledgment carries `counterparty_binding.envelope_hash`: the SHA-256
+of the ORIGINATING envelope, base64. The scope of that digest is declared on the wire in
+`counterparty_binding.scope`:
+
+- `envelope_minus_anchors` - the digest covers the JCS bytes of `{payload, signature}`
+  only. Anchors are excluded because they are OPTIONAL and change after issuance, so a
+  digest covering them would break every acknowledgment already emitted the moment the
+  originator's timestamp was upgraded.
+- An ABSENT `scope` member means a legacy draft-04..-08 three-key binding, which a
+  verifier reports as `unverifiable, legacy scope`. A verifier MUST NOT try both scopes
+  and accept whichever matches.
+
+Each such vector names the envelope its digest is taken over in
+`expected.originating_envelope_ref`, so the value is recomputable from this file alone.
+`counterparty_binding_envelope_byte_equality` is that originating envelope and is a pure
+canonicalization fixture: its own `sha256` is the digest of the full three-key object and
+is deliberately NOT the binding value.
+
+### Derived members, and how they are kept honest
+
+`canonical`, `sha256` and the `envelope_hash` family are DERIVED - regenerate them, never
+hand-edit them:
+
+    python verifier/regen_fingerprint_vectors.py           # rewrite every derived member
+    python verifier/regen_fingerprint_vectors.py --check   # CI gate; nonzero on any drift
+    python verifier/freeze_corpus_lock.py                  # then move the pins
+
+The `--check` pass recomputes every derived member from that vector's own `input` and
+fails on any difference. It exists because the freeze below proves the file has not
+CHANGED, which is not the same as proving it is RIGHT: the counterparty `envelope_hash`
+was stale in five vectors while every pin and every test stayed green, because the only
+tests that named it built their expected value by calling the function under test.
+`python/tests/test_corpus_integrity.py` now pins each derived member as a literal string.
 
 ## Reporting mismatches
 
