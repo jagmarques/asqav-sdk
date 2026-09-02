@@ -15,6 +15,8 @@ import hashlib
 import json as json_mod
 import os
 import sys
+import threading
+import time
 from typing import Any
 
 try:
@@ -40,6 +42,54 @@ REQUIRED_SCOPE = CODE_AUTHORSHIP_WRITE_SCOPE
 _OBSERVATION = "protectmcp:observation"
 _OBSERVATION_RESULT_BOUND = "protectmcp:observation:result_bound"
 _DECISION = "protectmcp:decision"
+_LIFECYCLE = "protectmcp:lifecycle"
+
+#: Seconds the gate waits for the signer before it blocks; ASQAV_HOOK_DEADLINE_SECONDS overrides.
+_DEADLINE_ENV = "ASQAV_HOOK_DEADLINE_SECONDS"
+_DEFAULT_DEADLINE_SECONDS = 5.0
+#: Where the gate keeps the JWK Set it verifies permits against; ASQAV_HOOK_JWKS_CACHE overrides.
+_JWKS_CACHE_ENV = "ASQAV_HOOK_JWKS_CACHE"
+_JWKS_CACHE_MAX_AGE_SECONDS = 24 * 3600
+_JWKS_PAGE_CAP = 64
+
+
+class HookDeadlineExceeded(RuntimeError):
+    """The signer did not answer inside the gate's deadline."""
+
+
+def _deadline_seconds() -> float:
+    raw = os.environ.get(_DEADLINE_ENV, "").strip()
+    if not raw:
+        return _DEFAULT_DEADLINE_SECONDS
+    try:
+        value = float(raw)
+    except ValueError:
+        return _DEFAULT_DEADLINE_SECONDS
+    return value if value > 0 else _DEFAULT_DEADLINE_SECONDS
+
+
+def _call_with_deadline(fn, deadline: float, *args: Any, **kwargs: Any) -> Any:
+    """Run fn on a daemon thread and give up after deadline seconds.
+
+    A daemon thread never blocks interpreter exit, so a signer that hangs past the
+    deadline cannot hold the harness hostage until its own 600-second limit.
+    """
+    box: dict[str, Any] = {}
+
+    def _target() -> None:
+        try:
+            box["value"] = fn(*args, **kwargs)
+        except BaseException as exc:  # noqa: BLE001 - re-raised on the caller's thread
+            box["error"] = exc
+
+    worker = threading.Thread(target=_target, name="asqav-hook-sign", daemon=True)
+    worker.start()
+    worker.join(deadline)
+    if worker.is_alive():
+        raise HookDeadlineExceeded(f"signer did not answer within {deadline:g}s")
+    if "error" in box:
+        raise box["error"]
+    return box["value"]
 
 
 def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
@@ -79,16 +129,26 @@ def _build_body(
     session_id: str,
     agent_id: str,
     compliance_fields: dict[str, Any],
+    clear_context: bool = False,
 ) -> dict[str, Any]:
+    from asqav import client as _client
     from asqav.client import _build_sign_body
 
-    return _build_sign_body(
-        action_type=action_type,
-        context=context,
-        session_id=session_id or None,
-        agent_id=agent_id,
-        compliance_fields={k: v for k, v in compliance_fields.items() if v is not None} or None,
-    )
+    # The wire mode is a module global the SDK resolves at init; the hook pins it
+    # explicitly so a dry run shows the bytes the live hook sends.
+    previous = _client._mode
+    _client._mode = "full-payload" if clear_context else "hash-only"
+    try:
+        return _build_sign_body(
+            action_type=action_type,
+            context=context,
+            session_id=session_id or None,
+            agent_id=agent_id,
+            compliance_fields={k: v for k, v in compliance_fields.items() if v is not None}
+            or None,
+        )
+    finally:
+        _client._mode = previous
 
 
 def _map_event(
@@ -151,10 +211,18 @@ def _sign_event(
     compliance_fields: dict[str, Any],
     api_key: str,
     agent_id: str,
+    clear_context: bool = False,
+    timeout: float | None = None,
 ) -> Any:
     import asqav
 
-    asqav.init(api_key=api_key)
+    # Hash-only by default: the tool arguments are digested here and never leave the
+    # machine; --clear-context opts a deployment into sending them for the platform to hold.
+    asqav.init(
+        api_key=api_key,
+        mode="full-payload" if clear_context else "hash-only",
+        timeout=timeout,
+    )
     agent = asqav.Agent.get(agent_id)
     if session_id:
         agent._session_id = session_id  # type: ignore[attr-defined]
@@ -163,12 +231,141 @@ def _sign_event(
     return agent.sign(action_type, context=context, compliance_mode=True, **kwargs)
 
 
+def _jwks_url() -> str:
+    from urllib.parse import urlsplit
+
+    from asqav import client as _client
+
+    parts = urlsplit(_client._api_base)
+    return f"{parts.scheme}://{parts.netloc}/.well-known/jwks.json"
+
+
+def _jwks_cache_path() -> str:
+    return os.environ.get(_JWKS_CACHE_ENV) or os.path.join(
+        os.path.expanduser("~"), ".asqav", "jwks-cache.json"
+    )
+
+
+def _fetch_jwks(timeout: float) -> dict[str, Any]:
+    """Fetch every page of the published JWK Set from the configured API host."""
+    import urllib.request
+
+    base = _jwks_url()
+    keys: list[dict[str, Any]] = []
+    offset = 0
+    for _ in range(_JWKS_PAGE_CAP):
+        url = base if not offset else f"{base}?offset={offset}"
+        request = urllib.request.Request(url, headers={"User-Agent": "asqav-hook"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            page = json_mod.loads(response.read().decode("utf-8"))
+        keys.extend(page.get("keys") or [])
+        nxt = page.get("next_offset")
+        if not isinstance(nxt, int) or nxt <= offset:
+            break
+        offset = nxt
+    return {"keys": keys}
+
+
+def _read_jwks_cache() -> dict[str, Any] | None:
+    path = _jwks_cache_path()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json_mod.load(fh)
+    except (OSError, ValueError):
+        return None
+    fetched_at = doc.get("fetched_at")
+    if not isinstance(fetched_at, (int, float)):
+        return None
+    if time.time() - fetched_at > _JWKS_CACHE_MAX_AGE_SECONDS:
+        return None
+    keys = doc.get("keys")
+    return {"keys": keys} if isinstance(keys, list) else None
+
+
+def _write_jwks_cache(jwks: dict[str, Any]) -> None:
+    path = _jwks_cache_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json_mod.dump({"fetched_at": time.time(), "keys": jwks["keys"]}, fh)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def _load_jwks(timeout: float) -> dict[str, Any]:
+    cached = _read_jwks_cache()
+    if cached is not None:
+        return cached
+    fresh = _fetch_jwks(timeout)
+    _write_jwks_cache(fresh)
+    return fresh
+
+
+def _key_present(jwks: dict[str, Any], payload: dict[str, Any]) -> bool:
+    # A cached set may predate the agent's key; the caller refreshes once on a miss.
+    agent_id = payload.get("agent_id")
+    thumb = payload.get("key_thumbprint")
+    for key in jwks.get("keys") or []:
+        if agent_id and key.get("agent_id") == agent_id:
+            return True
+        if thumb and key.get("key_thumbprint") == thumb:
+            return True
+    return False
+
+
+#: Axes that establish the returned receipt really is a platform signature over these bytes.
+_PERMIT_AXES = ("signature", "issuer_bind", "key_status", "key_binding")
+
+
+def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
+    """Verify the receipt the signer returned against the published JWK Set.
+
+    Returns (ok, reason). The signature-related axes must all PASS; anchors and the
+    chain are outside a single receipt's reach and are not required here.
+    """
+    from asqav.verifier import verify_receipt as _vr
+
+    payload = getattr(sig, "payload", None)
+    signature = getattr(sig, "signature", None)
+    if not isinstance(payload, dict) or not isinstance(signature, dict):
+        return False, "signer returned no verifiable receipt (payload or signature missing)"
+    anchors = getattr(sig, "anchors", None) or []
+    doc = {"payload": payload, "signature": signature, "anchors": anchors}
+    jwks = _load_jwks(timeout)
+    if not _key_present(jwks, payload):
+        jwks = _fetch_jwks(timeout)
+        _write_jwks_cache(jwks)
+    report = _vr.run_structured(doc, jwks, None)
+    axes = {a["name"]: a for a in report.get("axes", [])}
+    for name in _PERMIT_AXES:
+        axis = axes.get(name)
+        if axis is None or axis["result"] != "PASS":
+            note = axis["note"] if axis else "axis missing"
+            return False, f"{name}: {note}"
+    return True, f"signature verified against the published JWK Set (kid {signature.get('kid')})"
+
+
+def _decision_label(sig: Any) -> str:
+    # The platform records in-process capture as an observation (wire decision
+    # "observation"); only a real gate decision earns the word permit.
+    payload = getattr(sig, "payload", None)
+    decision = payload.get("decision") if isinstance(payload, dict) else None
+    return "permit" if decision == "allow" else "signed"
+
+
 @hook_app.command("posttool")
 def hook_posttool(
     bind_result: bool = typer.Option(
         False,
         "--bind-result",
         help="Bind the tool result (observation:result_bound + result_digest).",
+    ),
+    clear_context: bool = typer.Option(
+        False,
+        "--clear-context",
+        help="Send the tool arguments in clear for the platform to hold (default: digest only).",
     ),
     dry_run: bool = typer.Option(
         False,
@@ -201,20 +398,29 @@ def hook_posttool(
             session_id=session_id,
             agent_id=agent_id,
             compliance_fields=fields,
+            clear_context=clear_context,
         )
         print(json_mod.dumps(body, indent=2, default=str))
         return
 
     api_key, agent_id = _require_identity()
+    deadline = _deadline_seconds()
     try:
-        sig = _sign_event(
+        sig = _call_with_deadline(
+            _sign_event,
+            deadline,
             action_type=action_type,
             context=context,
             session_id=session_id,
             compliance_fields=fields,
             api_key=api_key,
             agent_id=agent_id,
+            clear_context=clear_context,
+            timeout=deadline,
         )
+    except HookDeadlineExceeded as exc:
+        print(f"asqav hook: {exc}; proceeding unsigned", file=sys.stderr)
+        return
     except Exception as exc:
         # Fail-open: the tool already ran, so audit failure must not block work.
         print(f"asqav hook: sign failed, proceeding unsigned: {exc}", file=sys.stderr)
@@ -224,6 +430,11 @@ def hook_posttool(
 
 @hook_app.command("pretool")
 def hook_pretool(
+    clear_context: bool = typer.Option(
+        False,
+        "--clear-context",
+        help="Send the tool arguments in clear for the platform to hold (default: digest only).",
+    ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
@@ -234,10 +445,13 @@ def hook_pretool(
 
     The host shell decided before the tool ran, so this is a real decision:
     in_process_sdk + protectmcp:decision + policy_decision=permit. Exit 2 BLOCKS
-    the tool call when the signer is unreachable or signing errors. There is no
-    tool result pre-execution, so no result_digest. A malformed/empty event also
-    blocks (exit 2): the gate fails closed on every failure path, never open.
+    the tool call when the signer is unreachable, signing errors, the signer does
+    not answer inside the deadline, or the returned receipt does not verify
+    against the published JWK Set. There is no tool result pre-execution, so no
+    result_digest. A malformed/empty event also blocks (exit 2): the gate fails
+    closed on every failure path, never open.
     """
+    started = time.monotonic()
     event = _read_event(fail_code=2)
     action_type, context, session_id, fields = _map_event(
         event,
@@ -256,6 +470,7 @@ def hook_pretool(
             session_id=session_id,
             agent_id=agent_id,
             compliance_fields=fields,
+            clear_context=clear_context,
         )
         print(json_mod.dumps(body, indent=2, default=str))
         return
@@ -270,19 +485,40 @@ def hook_pretool(
             file=sys.stderr,
         )
         raise typer.Exit(code=2)
+    deadline = _deadline_seconds()
     try:
-        sig = _sign_event(
+        sig = _call_with_deadline(
+            _sign_event,
+            deadline,
             action_type=action_type,
             context=context,
             session_id=session_id,
             compliance_fields=fields,
             api_key=api_key,
             agent_id=agent_id,
+            clear_context=clear_context,
+            timeout=deadline,
         )
+    except HookDeadlineExceeded as exc:
+        print(f"asqav hook: {exc}; blocking tool call", file=sys.stderr)
+        raise typer.Exit(code=2) from exc
     except Exception as exc:
         print(f"asqav hook: signer unreachable, blocking tool call: {exc}", file=sys.stderr)
         raise typer.Exit(code=2) from exc
-    print(f"permit {sig.signature_id}", file=sys.stderr)
+
+    # The permit is only as good as its signature; verify it before letting the tool run.
+    remaining = max(deadline - (time.monotonic() - started), 0.5)
+    try:
+        ok, reason = _verify_returned_receipt(sig, remaining)
+    except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
+        ok, reason = False, f"could not verify the returned receipt: {exc}"
+    if not ok:
+        print(
+            f"asqav hook: receipt {sig.signature_id} did not verify ({reason}); blocking tool call",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2)
+    print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
 
 
 @hook_app.command("code-authorship")
