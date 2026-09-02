@@ -54,10 +54,11 @@ If you are wiring Claude Code, you want `asqav hook`. If you are writing Python 
 
 ## Mode A: PostToolUse audit (default, recommended): FAIL-OPEN
 
-PostToolUse runs **after the tool already executed**. Claude Code documents PostToolUse as firing
-"After a tool call succeeds," and notes that on PostToolUse exit 2 only "Shows stderr to Claude
-(tool already ran)". It does **not** block. So this mode can **never** gate an action. The tool
-has already run by the time the hook fires.
+PostToolUse runs **after the tool already executed**. The Claude Code hooks reference lists the
+event as firing "After a tool call succeeds", answers "No" under "Can block?" for it, and gives
+its whole effect on exit 2 as "Shows stderr to Claude; the tool already ran"
+(<https://code.claude.com/docs/en/hooks>, accessed 2026-09-02). So this mode can **never** gate an
+action. The tool has already run by the time the hook fires.
 
 That makes Mode A **fail-open**, on purpose:
 
@@ -67,9 +68,12 @@ That makes Mode A **fail-open**, on purpose:
   did. Do not market it or rely on it as enforcement.
 
 Mode A can run as a local `type: "command"` hook (recommended) or as a `type: "http"` hook that
-POSTs the event to your own endpoint. **An `http` hook also fails open**: Claude Code documents
-that for HTTP hooks a non-2xx status, a connection failure, or a timeout is a "non-blocking error,
-execution continues." So `http` can never be the hard boundary either. It is audit only.
+POSTs the event to your own endpoint. **An `http` hook also fails open**: the hooks reference
+gives a non-2xx status and a connection failure as each a "non-blocking error, execution
+continues", a timeout as "the hook is canceled", and says that "Unlike command hooks, HTTP hooks
+can't signal a blocking error through status codes alone."
+(<https://code.claude.com/docs/en/hooks>, accessed 2026-09-02). So `http` can never be the hard
+boundary either. It is audit only.
 
 ### Mode A snippet: local command (recommended)
 
@@ -120,15 +124,25 @@ receipt, not a blocked action.
 
 ## Mode B: PreToolUse gate (opt-in, hard enforcement): FAIL-CLOSED
 
-PreToolUse runs **before the tool executes** and Claude Code documents that it "Can block it."
-The block signal is **exit code 2**: Claude Code documents that exit 2 "means a blocking error"
-and for PreToolUse "Blocks the tool call." Claude Code also warns that only exit 2 blocks, exit 1
-is treated as a non-blocking error and the action proceeds, so a real gate must `exit 2`.
+PreToolUse runs **before the tool executes**: the hooks reference lists the event as "Before a
+tool call executes. Can block it", says "Exit 2 means a blocking error.", and gives the
+`PreToolUse` effect as "Blocks the tool call" (<https://code.claude.com/docs/en/hooks>, accessed
+2026-09-02). Exit 2 is the only exit code that gates: "For most hook events, exit code 2 is the
+only exit code that blocks through the code alone. Without valid JSON on stdout, Claude Code
+treats exit code 1 as a non-blocking error and proceeds with the action, even though 1 is the
+conventional Unix failure code. If your hook is meant to enforce a policy, use `exit 2`."
+(<https://code.claude.com/docs/en/hooks>, accessed 2026-09-02). The reason reaches the model: "A
+hook that blocks by exiting 2 routes the same way as `"deny"`: Claude sees the stderr message as
+the denial reason." (<https://code.claude.com/docs/en/hooks>, accessed 2026-09-02).
 
-A PreToolUse deny holds even under `bypassPermissions`. Claude Code evaluates hooks **first** in
-the permission flow, before the mode check, and documents that in `bypassPermissions` mode "Hooks
-still execute and can block operations if needed." So this gate is not bypassed by loose
-permission modes.
+A PreToolUse deny holds even under `bypassPermissions`. The hooks guide states that "`PreToolUse`
+hooks fire before any permission-mode check, in every permission mode, including `dontAsk`. A hook
+that returns `permissionDecision: "deny"` blocks the tool even in `bypassPermissions` mode or with
+`--dangerously-skip-permissions`." (<https://code.claude.com/docs/en/hooks-guide>, accessed
+2026-09-02), and the permissions page that "A hook that exits with code 2 stops the tool call
+before permission rules are evaluated, so the block applies even when an allow rule would
+otherwise let the call proceed." (<https://code.claude.com/docs/en/permissions>, accessed
+2026-09-02). So this gate is not bypassed by loose permission modes.
 
 That makes Mode B **fail-closed**: `asqav hook pretool` signs a decision receipt and `exit 2` to
 **block** when policy denies **or when it cannot reach the signer.** If asqav is unreachable, the
@@ -177,16 +191,19 @@ result.
 
 ### The gate's deadline, and why the harness timeout alone is not one
 
-Claude Code documents that "A timed-out command, http, or mcp_tool hook doesn't block the tool
-call", and its default command timeout is 600 seconds. A gate that simply waited on a hung signer
-would therefore let the tool run unsigned after ten minutes. `asqav hook pretool` carries its own
-deadline: it waits `ASQAV_HOOK_DEADLINE_SECONDS` (default 5) for the signer and then blocks with
-exit 2 and a reason on stderr; the same value is the SDK's per-request HTTP timeout. Verifying the
-returned receipt, including any JWK Set refresh, runs inside that same budget, so the gate's whole
-run is bounded by the deadline plus a half-second verification floor. Set the hook's
-`timeout` in `settings.json` a little above the deadline, as in the snippet, so the harness never
-reaches its own limit first. The posttool hook uses the same deadline and proceeds unsigned when
-it expires, which is Mode A's fail-open contract.
+The hooks reference states that "A timed-out `command`, `http`, or `mcp_tool` hook doesn't block
+the tool call. The call continues through the normal permission flow, so don't count on a stalled
+hook to act as a gate.", and gives the `timeout` field's "Defaults: 600 for `command`, `http`, and
+`mcp_tool`; 30 for `prompt`; 60 for `agent`." (<https://code.claude.com/docs/en/hooks>, accessed
+2026-09-02). A gate that simply waited on a hung signer would therefore let the tool run unsigned
+after ten minutes. `asqav hook pretool` carries its own deadline: it waits
+`ASQAV_HOOK_DEADLINE_SECONDS` (default 5) for the signer and then blocks with exit 2 and a reason
+on stderr; the same value is the SDK's per-request HTTP timeout. Verifying the returned receipt,
+including any JWK Set refresh, runs inside that same budget, so the gate's whole run is bounded by
+the deadline plus a half-second verification floor. Set the hook's `timeout` in `settings.json` a
+little above the deadline, as in the snippet, so the harness never reaches its own limit first. The
+posttool hook uses the same deadline and proceeds unsigned when it expires, which is Mode A's
+fail-open contract.
 
 ### The gate verifies the receipt it is given
 
@@ -248,6 +265,21 @@ The receipt each mode writes is labelled honestly, and the asqav cloud enforces 
 
 The rule of thumb: a hook that ran after the fact records an observation. Only a hook that could
 have blocked records a decision.
+
+---
+
+## Two things to know when you wire this into `settings.json`
+
+You do not need to restart the session after editing the hook entry: "Direct edits to hooks in
+settings files are normally picked up automatically by the file watcher."
+(<https://code.claude.com/docs/en/hooks>, accessed 2026-09-02).
+
+An organization can switch your hook off from above. "Enterprise administrators can use
+`allowManagedHooksOnly` to restrict which hooks run:", and the first item under it is "Your user,
+project, local, and plugin hooks are blocked." (<https://code.claude.com/docs/en/hooks>, accessed
+2026-09-02). Where that setting is in force, the asqav hook has to come from managed settings to
+run at all, and a Mode B gate installed anywhere else is enforcing nothing. Check for it before
+you rely on the gate.
 
 ---
 
