@@ -5,6 +5,12 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Changed
+
+- The README section covering `protectmcp:observation` and
+  `capture_topology=passive_telemetry` is titled for that wire vocabulary, so the
+  heading names the members the section documents.
+
 ## [0.10.6] - 2026-09-02
 
 ### Fixed
