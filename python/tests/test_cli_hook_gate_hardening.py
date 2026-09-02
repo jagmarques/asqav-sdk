@@ -179,3 +179,43 @@ def test_the_predicate_prefers_the_thumbprint_over_the_agent_id() -> None:
                            thumbprint=vr.thumbprint_for_key(alg="ML-DSA-65", public_key=old_pk))]}
     payload = _payload("allow", key_thumbprint=vr.thumbprint_for_key(alg="ML-DSA-65", public_key=new_pk))
     assert cli_hook._key_present(stale, payload) is False
+
+
+# === the wire decision vocabulary (447d) ===
+
+
+def _gate_for_decision(monkeypatch, decision: str):
+    ml = _ml_dsa_65()
+    pk, sk = ml.keygen()
+    payload = _payload(decision)
+    if decision != "allow":
+        payload["type"] = "protectmcp:lifecycle"
+    sig = _Sig(f"sig_{decision}", payload, _signed(payload, sk, ml), [])
+    return _gate_with(monkeypatch, sig, {"keys": [_row(pk, "k-live")]})
+
+
+def test_an_allow_receipt_prints_permit_and_exits_zero(monkeypatch) -> None:
+    result = _gate_for_decision(monkeypatch, "allow")
+    assert result.exit_code == 0, result.output
+    assert "permit sig_allow" in result.output
+
+
+def test_an_observation_receipt_prints_signed_and_exits_zero(monkeypatch) -> None:
+    result = _gate_for_decision(monkeypatch, "observation")
+    assert result.exit_code == 0, result.output
+    assert "signed sig_observation" in result.output
+    assert "permit" not in result.output
+
+
+def test_a_deny_receipt_is_announced_as_blocked_and_exits_two(monkeypatch) -> None:
+    result = _gate_for_decision(monkeypatch, "deny")
+    assert result.exit_code == 2, result.output
+    assert "blocked sig_deny: deny" in result.output
+    assert "signed" not in result.output
+
+
+def test_a_rate_limit_receipt_is_announced_as_blocked_and_exits_two(monkeypatch) -> None:
+    result = _gate_for_decision(monkeypatch, "rate_limit")
+    assert result.exit_code == 2, result.output
+    assert "blocked sig_rate_limit: rate_limit" in result.output
+    assert "signed" not in result.output

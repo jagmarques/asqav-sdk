@@ -373,12 +373,19 @@ def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
     return True, f"signature verified against the published JWK Set (kid {signature.get('kid')})"
 
 
+#: Wire decisions that deny the call; the gate must block on them, never announce a success.
+_BLOCKING_DECISIONS = ("deny", "rate_limit")
+
+
+def _wire_decision(sig: Any) -> Any:
+    payload = getattr(sig, "payload", None)
+    return payload.get("decision") if isinstance(payload, dict) else None
+
+
 def _decision_label(sig: Any) -> str:
     # The platform records in-process capture as an observation (wire decision
     # "observation"); only a real gate decision earns the word permit.
-    payload = getattr(sig, "payload", None)
-    decision = payload.get("decision") if isinstance(payload, dict) else None
-    return "permit" if decision == "allow" else "signed"
+    return "permit" if _wire_decision(sig) == "allow" else "signed"
 
 
 @hook_app.command("posttool")
@@ -543,6 +550,11 @@ def hook_pretool(
             f"asqav hook: receipt {sig.signature_id} did not verify ({reason}); blocking tool call",
             file=sys.stderr,
         )
+        raise typer.Exit(code=2)
+    decision = _wire_decision(sig)
+    if decision in _BLOCKING_DECISIONS:
+        # A verified receipt that carries a denial is still a denial; exit 2 blocks the tool.
+        print(f"blocked {sig.signature_id}: {decision}", file=sys.stderr)
         raise typer.Exit(code=2)
     print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
 
