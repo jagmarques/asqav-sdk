@@ -1414,24 +1414,35 @@ def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
     return None
 
 
-def _match_key_by_thumbprint(jwks: dict, thumbprint):
-    """Return the first usable jwks entry publishing exactly this key_thumbprint.
+def _match_key_by_thumbprint(jwks: dict, thumbprint, agent_id=None, kid=None):
+    """Return the one usable jwks entry publishing exactly this key_thumbprint.
 
     The thumbprint sits inside the signed bytes and names one key in one step, so it
-    outranks every unsigned or set-valued identifier. A directory that publishes no
-    thumbprints simply never matches here.
+    outranks every unsigned or set-valued identifier. Sibling rows can publish one key
+    under different ids and statuses, so a tie is broken by the signed agent_id and then
+    by the envelope kid; list position decides nothing on its own.
     """
     if not isinstance(thumbprint, str) or not is_well_formed(thumbprint):
         return None
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
         return None
-    for k in keys:
-        if not isinstance(k, dict):
-            continue
-        if k.get("key_thumbprint") == thumbprint and isinstance(k.get("public_key"), str):
+    matches = [
+        k
+        for k in keys
+        if isinstance(k, dict)
+        and k.get("key_thumbprint") == thumbprint
+        and isinstance(k.get("public_key"), str)
+    ]
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    narrowed = [k for k in matches if agent_id and k.get("agent_id") == agent_id] or matches
+    for k in narrowed:
+        if kid and kid == k.get("kid"):
             return k
-    return None
+    return narrowed[0]
 
 
 def match_signing_key(
@@ -1457,7 +1468,7 @@ def match_signing_key(
     against it, the agent bind finds the real signer, and key_binding reports the
     substitution.
     """
-    entry = _match_key_by_thumbprint(jwks, key_thumbprint)
+    entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
     if entry is not None:
         return entry
     entry = _match_key_by_id(jwks, kid)

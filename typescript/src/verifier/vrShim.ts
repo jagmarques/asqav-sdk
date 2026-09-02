@@ -263,19 +263,31 @@ function matchKeyByAgent(
 }
 
 // The signed key_thumbprint names one key in one step (mirrors `_match_key_by_thumbprint`), so it
-// outranks every unsigned or set-valued identifier; a directory publishing none never matches here.
+// outranks every unsigned identifier; sibling rows sharing it are narrowed by agent_id, then kid.
 function matchKeyByThumbprint(
   jwks: Record<string, unknown> | null,
   thumbprint: unknown,
+  agentId?: unknown,
+  kid?: string,
 ): Record<string, unknown> | null {
   if (typeof thumbprint !== "string" || !isWellFormedThumbprint(thumbprint)) return null;
   const keys = jwks?.keys;
   if (!Array.isArray(keys)) return null;
-  for (const k of keys as Array<Record<string, unknown>>) {
-    if (k === null || typeof k !== "object") continue;
-    if (k.key_thumbprint === thumbprint && typeof k.public_key === "string") return k;
+  const matches = (keys as Array<Record<string, unknown>>).filter(
+    (k) =>
+      k !== null &&
+      typeof k === "object" &&
+      k.key_thumbprint === thumbprint &&
+      typeof k.public_key === "string",
+  );
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+  const byAgent = matches.filter((k) => Boolean(agentId) && k.agent_id === agentId);
+  const narrowed = byAgent.length > 0 ? byAgent : matches;
+  for (const k of narrowed) {
+    if (kid && kid === k.kid) return k;
   }
-  return null;
+  return narrowed[0];
 }
 
 /**
@@ -293,7 +305,7 @@ export function matchSigningKey(
   keyThumbprint?: unknown,
 ): Record<string, unknown> | null {
   return (
-    matchKeyByThumbprint(jwks, keyThumbprint) ??
+    matchKeyByThumbprint(jwks, keyThumbprint, agentId, kid) ??
     matchKeyById(jwks, kid) ??
     matchKeyByAgent(jwks, agentId, issuerId, orgId) ??
     matchKey(jwks, kid)
