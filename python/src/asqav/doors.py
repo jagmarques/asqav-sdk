@@ -15,11 +15,15 @@ no wall-clock reads. Timestamps and ids come only from the receipt itself.
 Cross-SDK parity scope: the Python and TypeScript SDKs emit byte-identical envelope bytes
 for the same receipt across every object key, including keys with characters above
 U+FFFF, because both order member names by UTF-16 code unit per RFC 8785 section 3.2.3.
-The one remaining divergence is an integer whose magnitude exceeds the IEEE-754 safe range
-(2**53): it stays exact in Python and rounds in the TypeScript number path. Such integers
-are outside the profile's canonical domain (draft section 4 requires strings or rational
-pairs for them) and every parser will reject them outright; until then the doors parity
-tests pin both the agreement and that single divergence.
+Integers beyond +/-2**53 are REFUSED at ingest rather than canonicalised, because beyond
+that magnitude a value has no exact IEEE-754 double: Python keeps it and a JavaScript
+reader rounds it, so the same receipt would carry two different canonical byte strings and
+one digest each. An earlier note here claimed such integers were outside the canonical
+domain and that "every parser will reject them outright"; that was wrong and was the stated
+reason the divergence stayed pinned instead of fixed. No parser rejects them on its own -
+Python's json.loads keeps 9007199254740993 exactly and JavaScript's JSON.parse silently
+rounds it to 9007199254740992, neither raising - so the refusal has to be ours. The doors
+parity tests now pin that refusal in both SDKs.
 
 This is presentation only. A door does NOT re-sign; the authoritative Asqav signature
 stays inside the embedded receipt. A generic VC / C2PA verifier reads the shape but must
