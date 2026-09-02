@@ -76,7 +76,10 @@ def _call_with_deadline(fn, deadline: float, *args: Any, **kwargs: Any) -> Any:
     """Run fn on a daemon thread and give up after deadline seconds.
 
     A daemon thread never blocks interpreter exit, so a signer that hangs past the
-    deadline cannot hold the harness hostage until its own 600-second limit.
+    deadline cannot hold the harness hostage until the harness limit, which the Claude
+    Code hooks reference gives as "Defaults: 600 for `command`, `http`, and `mcp_tool`;
+    30 for `prompt`; 60 for `agent`."
+    (https://code.claude.com/docs/en/hooks, accessed 2026-09-02).
     """
     box: dict[str, Any] = {}
 
