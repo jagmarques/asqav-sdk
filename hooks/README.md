@@ -82,7 +82,8 @@ execution continues." So `http` can never be the hard boundary either. It is aud
         "hooks": [
           {
             "type": "command",
-            "command": "asqav hook posttool"
+            "command": "asqav hook posttool",
+            "timeout": 10
           }
         ]
       }
@@ -161,7 +162,8 @@ fail open (see Mode A), so they can never be the hard boundary.
         "hooks": [
           {
             "type": "command",
-            "command": "asqav hook pretool"
+            "command": "asqav hook pretool",
+            "timeout": 10
           }
         ]
       }
@@ -172,6 +174,47 @@ fail open (see Mode A), so they can never be the hard boundary.
 
 There is no `tool_response` before execution, so the pretool receipt binds the decision, not a
 result.
+
+### The gate's deadline, and why the harness timeout alone is not one
+
+Claude Code documents that "A timed-out command, http, or mcp_tool hook doesn't block the tool
+call", and its default command timeout is 600 seconds. A gate that simply waited on a hung signer
+would therefore let the tool run unsigned after ten minutes. `asqav hook pretool` carries its own
+deadline: it waits `ASQAV_HOOK_DEADLINE_SECONDS` (default 5) for the signer and then blocks with
+exit 2 and a reason on stderr; the same value is the SDK's per-request HTTP timeout. Set the hook's
+`timeout` in `settings.json` a little above the deadline, as in the snippet, so the harness never
+reaches its own limit first. The posttool hook uses the same deadline and proceeds unsigned when
+it expires, which is Mode A's fail-open contract.
+
+### The gate verifies the receipt it is given
+
+Before exiting 0, `asqav hook pretool` verifies the returned receipt's signature against the
+platform's published JWK Set with the same standalone verifier a customer runs offline (the
+signature, issuer binding, key status and key thumbprint axes must all pass). The JWK Set is
+cached at `~/.asqav/jwks-cache.json` (`ASQAV_HOOK_JWKS_CACHE` overrides) for 24 hours and
+refreshed once when the signing key is not in the cache. A receipt that does not verify, or that
+cannot be verified inside the deadline, blocks the tool call.
+
+### What leaves the machine
+
+Both hooks send a digest by default. The tool arguments are canonicalised and hashed locally
+(`hash`, `hash_algo`, `payload_size`), and only that digest, the action type, the session id and
+the compliance fields travel to the platform; the arguments themselves stay on the machine that
+ran the tool. `--clear-context` is the opt-in that sends the arguments for the platform to hold,
+for deployments whose policy wants the platform to retain them. `asqav hook pretool --dry-run`
+prints the exact body either way.
+
+### What the cloud records for an in-process gate today
+
+The platform treats every `capture_topology="in_process_sdk"` receipt as self-reported by code
+the agent controls, so it records a pretool `permit` as an observation (`protectmcp:lifecycle`,
+wire `decision: observation`, the response carrying `policy_enforcement` to say so) and rejects
+an in-process `deny` or `rate_limit` with HTTP 412. The gate therefore blocks when it cannot sign,
+and the evidence it leaves is a signed observation of every matched call, not a policy decision.
+The hook prints `signed <id>` for such a receipt and reserves `permit <id>` for a receipt whose
+wire decision is `allow`. Policy decisions through the gate need a capture topology the platform
+accepts as harness-enforced, backed by a deployment attestation; that is tracked work, not a
+flag.
 
 ---
 

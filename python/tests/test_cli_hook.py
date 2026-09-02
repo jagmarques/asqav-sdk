@@ -46,9 +46,18 @@ def test_posttool_dry_run_action_type() -> None:
     assert body["action_type"] == "tool:Bash"
 
 
-    # context carries the tool_input dict.
-def test_posttool_dry_run_context() -> None:
+    # Digest only by default: the tool arguments never leave the machine.
+def test_posttool_dry_run_sends_a_digest_not_the_arguments() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
+    assert "context" not in body
+    assert body["hash"].startswith("sha256:")
+    assert body["payload_size"] > 0
+    assert "ls" not in json.dumps(body)
+
+
+    # --clear-context is the opt-in that sends the arguments for the platform to hold.
+def test_posttool_dry_run_clear_context_sends_the_arguments() -> None:
+    body = _invoke_hook("posttool", _POSTTOOL_EVENT, ["--clear-context"])
     assert body["context"] == {"tool_input": {"command": "ls"}}
 
 
