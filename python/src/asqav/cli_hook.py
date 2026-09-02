@@ -303,16 +303,36 @@ def _load_jwks(timeout: float) -> dict[str, Any]:
     return fresh
 
 
-def _key_present(jwks: dict[str, Any], payload: dict[str, Any]) -> bool:
-    # A cached set may predate the agent's key; the caller refreshes once on a miss.
-    agent_id = payload.get("agent_id")
+def _key_absent_reason(
+    jwks: dict[str, Any], payload: dict[str, Any], signature: Any = None
+) -> str:
+    """Empty when the set names the receipt's signing key, else why it does not.
+
+    The signed thumbprint names one key, so it decides first; agent_id and kid answer for a
+    set, so they only decide when the directory publishes no thumbprint to compare against.
+    """
+    keys = [k for k in (jwks.get("keys") or []) if isinstance(k, dict)]
     thumb = payload.get("key_thumbprint")
-    for key in jwks.get("keys") or []:
-        if agent_id and key.get("agent_id") == agent_id:
-            return True
-        if thumb and key.get("key_thumbprint") == thumb:
-            return True
-    return False
+    if thumb and any(k.get("key_thumbprint") for k in keys):
+        if any(k.get("key_thumbprint") == thumb for k in keys):
+            return ""
+        return f"the published set holds no key with thumbprint {thumb}"
+    agent_id = payload.get("agent_id")
+    if agent_id:
+        if any(k.get("agent_id") == agent_id for k in keys):
+            return ""
+        return f"the published set holds no key for agent {agent_id}"
+    kid = signature.get("kid") if isinstance(signature, dict) else None
+    if kid:
+        if any(kid in (k.get("kid"), k.get("issuer_id")) for k in keys):
+            return ""
+        return f"the published set holds no key under kid {kid}"
+    return "the receipt names no key to match on (no key_thumbprint, agent_id or kid)"
+
+
+def _key_present(jwks: dict[str, Any], payload: dict[str, Any], signature: Any = None) -> bool:
+    # A cached set may predate the agent's key; the caller refreshes once on a miss.
+    return not _key_absent_reason(jwks, payload, signature)
 
 
 #: Axes that establish the returned receipt really is a platform signature over these bytes.
@@ -334,9 +354,15 @@ def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
     anchors = getattr(sig, "anchors", None) or []
     doc = {"payload": payload, "signature": signature, "anchors": anchors}
     jwks = _load_jwks(timeout)
-    if not _key_present(jwks, payload):
+    missing = _key_absent_reason(jwks, payload, signature)
+    if missing:
+        # One refresh answers a rotation; a set that still names no key ends here with the
+        # reason, instead of re-reading the whole directory on every tool call.
         jwks = _fetch_jwks(timeout)
         _write_jwks_cache(jwks)
+        missing = _key_absent_reason(jwks, payload, signature)
+        if missing:
+            return False, f"signing key not published: {missing}"
     report = _vr.run_structured(doc, jwks, None)
     axes = {a["name"]: a for a in report.get("axes", [])}
     for name in _PERMIT_AXES:
