@@ -72,14 +72,15 @@ from a bare directory after a plain copy - the exit artifact ships exactly
 this file beside the archived receipts and JWKS:
 
 ```sh
-cp /path/to/asqav/src/asqav/verifier/verify_receipt.py ./
+cp /path/to/asqav-sdk/python/src/asqav/verifier/verify_receipt.py ./
 python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline
 ```
 
 `--offline` never reaches the network; the JWKS you archived is the only
 trust input. Without `dilithium-py` installed every other axis still runs and
-the signature axis reports SKIPPED, downgrading the verdict to INCOMPLETE -
-the tool never emits a PASS it did not fully check.
+the signature axis reports SKIPPED and the verdict is `unverified` with
+`failure_class=unverifiable` - the tool never emits `verified` for a signature it
+did not check.
 
 The import surface is pinned by `python/tests/test_standalone_verifier_surface.py`
 (AST scan: stdlib plus optional dilithium only, no `asqav` import, dilithium
@@ -118,9 +119,11 @@ if (result.verdict !== "verified" && result.verdict !== "verified_keyed") {
 
 `verify_receipt_offline` / `verifyReceiptOffline` cover structure, signature and the
 hash chain. Two further axes are checked on request in both languages: anchor binding,
-and `issued_at` within 300 seconds of the wall clock. `anchors` sits outside the signed
-bytes, so that axis is the one an altered envelope can move without breaking the
-signature.
+and `issued_at` not more than 300 seconds ahead of the wall clock (a forward bound; a
+receipt from the past never fails it). `anchors` sits outside the signed bytes, so that
+axis is the one an altered envelope can move without breaking the signature; every anchor
+commits to `sha256(JCS({payload, signature}))`, the two-key object the signer anchored,
+never to the export's other top-level members.
 
 Normalise the envelope first. The Python standalone verifier does it before any axis
 runs, and an envelope that skips it digests different bytes.
