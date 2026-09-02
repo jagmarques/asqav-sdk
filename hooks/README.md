@@ -181,7 +181,9 @@ Claude Code documents that "A timed-out command, http, or mcp_tool hook doesn't 
 call", and its default command timeout is 600 seconds. A gate that simply waited on a hung signer
 would therefore let the tool run unsigned after ten minutes. `asqav hook pretool` carries its own
 deadline: it waits `ASQAV_HOOK_DEADLINE_SECONDS` (default 5) for the signer and then blocks with
-exit 2 and a reason on stderr; the same value is the SDK's per-request HTTP timeout. Set the hook's
+exit 2 and a reason on stderr; the same value is the SDK's per-request HTTP timeout. Verifying the
+returned receipt, including any JWK Set refresh, runs inside that same budget, so the gate's whole
+run is bounded by the deadline plus a half-second verification floor. Set the hook's
 `timeout` in `settings.json` a little above the deadline, as in the snippet, so the harness never
 reaches its own limit first. The posttool hook uses the same deadline and proceeds unsigned when
 it expires, which is Mode A's fail-open contract.
@@ -194,6 +196,18 @@ signature, issuer binding, key status and key thumbprint axes must all pass). Th
 cached at `~/.asqav/jwks-cache.json` (`ASQAV_HOOK_JWKS_CACHE` overrides) for 24 hours and
 refreshed once when the signing key is not in the cache. A receipt that does not verify, or that
 cannot be verified inside the deadline, blocks the tool call.
+
+The cache is a cache, not a trust anchor. Anyone who can write `$HOME` or set
+`ASQAV_HOOK_JWKS_CACHE` can put a key of their own in it and have the gate accept a receipt signed
+with that key, without any network contact, for the 24 hours the entry stays fresh. That actor
+already owns the gate by other means - the same write edits `.claude/settings.json`, points
+`ASQAV_API_BASE` at another signer, or replaces the `asqav` entry point on `PATH` - so the cache
+sits inside the existing boundary rather than outside it. Pinning a digest of the set does not
+help: `/.well-known/jwks.json` is the multi-tenant directory and its digest changes on any
+tenant's key event, so a pin would block on unrelated orgs; the per-key pin is the signed
+`key_thumbprint`, which the verifier already checks. Fetching over TLS closes a network attacker,
+which is a different threat from the local writer. The gate's guarantee is "the platform signed
+this", scoped to a machine whose `$HOME` and `settings.json` the user controls.
 
 ### What leaves the machine
 

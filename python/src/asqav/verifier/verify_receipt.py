@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import hashlib
 import json
 import math
@@ -264,11 +265,37 @@ def _describe_value(value) -> str:
     return type(value).__name__
 
 
-    # JCS bytes of the envelope with ``anchors`` removed (the anchored bytes).
+# JCS bytes of the two-key {payload, signature} object, the bytes every anchor commits to.
 def envelope_minus_anchors_jcs(env: dict) -> bytes:
-    e = dict(env)
-    e.pop("anchors", None)
-    return canonical_json(e)
+    # An Audit Pack export carries more top-level members than the signer anchored;
+    # only payload and signature were committed, so only those two are hashed.
+    return canonical_json({k: env[k] for k in ("payload", "signature") if k in env})
+
+
+# The same envelope with the signature string carried in the other base64 alphabet.
+def _sig_alphabet_twin(env: dict) -> dict | None:
+    # A local-key signer commits base64url while an export may re-encode the bytes in
+    # standard base64; the twin lets the commitment be checked against both spellings.
+    sig_obj = env.get("signature")
+    if not isinstance(sig_obj, dict) or not isinstance(sig_obj.get("sig"), str):
+        return None
+    sig = sig_obj["sig"]
+    try:
+        if "-" in sig or "_" in sig:
+            raw = base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4))
+            other = base64.b64encode(raw).decode("ascii")
+        else:
+            raw = base64.b64decode(sig + "=" * (-len(sig) % 4))
+            other = base64.urlsafe_b64encode(raw).decode("ascii")
+    except (ValueError, binascii.Error):
+        return None
+    if sig.endswith("=") is False:
+        other = other.rstrip("=")
+    if other == sig:
+        return None
+    twin = dict(env)
+    twin["signature"] = dict(sig_obj, sig=other)
+    return twin
 
 
 def _scan_shape(obj, max_depth: int | None = None) -> str | None:
@@ -522,9 +549,10 @@ def is_akp_public_key(*, alg: str, public_key: bytes | None) -> bool:
     return expected is not None and len(public_key) == expected
 
 
-    # True for a `sha256:<64 lowercase hex>` string, the only comparable form.
+    # True for a `sha256:<64 lowercase hex>` string, the only comparable form. fullmatch,
+    # not match: Python's `$` also matches before a trailing newline, where the JS test does not.
 def is_well_formed(value) -> bool:
-    return isinstance(value, str) and bool(_THUMBPRINT_RE.match(value))
+    return isinstance(value, str) and _THUMBPRINT_RE.fullmatch(value) is not None
 
 
 def akp_jwk(*, alg: str, public_key: bytes) -> dict:
@@ -1192,12 +1220,16 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     try:
         _env_jcs = envelope_minus_anchors_jcs(envelope)
         bound = hashlib.sha256(_env_jcs).digest()
+        _twin = _sig_alphabet_twin(envelope)
+        _twin_jcs = envelope_minus_anchors_jcs(_twin) if _twin is not None else None
     except RecursionError:
         # Defense in depth, same rationale as check_chain's guard above.
         return AnchorEvaluation(
             "FAIL", "envelope too deeply nested to canonicalise for anchor binding", []
         )
     lines = [f"anchors bind envelope digest sha256:{bound.hex()[:16]}.."]
+    _twin_bound = hashlib.sha256(_twin_jcs).digest() if _twin_jcs is not None else None
+    _twin_used = False
     saw_invalid = False
     saw_unverifiable = False
     trusted_times = []
@@ -1223,8 +1255,16 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
             outcome, detail, when = _check_rfc3161_anchor(
                 blob, bound, trusted_tsa_keys, _env_jcs
             )
+            if outcome == "invalid" and "different digest" in detail and _twin_bound is not None:
+                outcome, detail, when = _check_rfc3161_anchor(
+                    blob, _twin_bound, trusted_tsa_keys, _twin_jcs
+                )
+                _twin_used = _twin_used or outcome != "invalid"
         elif atype == "opentimestamps":
             outcome, detail, when = _check_ots_anchor(blob, bound, bitcoin_headers)
+            if outcome == "invalid" and "different digest" in detail and _twin_bound is not None:
+                outcome, detail, when = _check_ots_anchor(blob, _twin_bound, bitcoin_headers)
+                _twin_used = _twin_used or outcome != "invalid"
         else:
             outcome, detail, when = (
                 "unverifiable",
@@ -1241,6 +1281,11 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
         else:
             saw_unverifiable = True
             lines.append(f"    - {atype}: value present, base64-ok; unverifiable ({detail})")
+    if _twin_used:
+        lines.append(
+            "    - signature string re-encoded to the alphabet the signer committed "
+            "(the export carries the other base64 alphabet)"
+        )
     if saw_invalid:
         return AnchorEvaluation("FAIL", "; ".join(lines), trusted_times)
     if saw_unverifiable:
@@ -1257,17 +1302,19 @@ def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None
 
 
 def normalise_envelope(raw: dict) -> dict:
-    """Remap a hosted /verify response into the canonical 3-key envelope.
+    """Project any receipt shape onto the canonical 3-key envelope.
 
-    An Audit Pack already ships ``{payload, signature, anchors}``, so pass it
-    through untouched. The hosted ``/verify/{id}`` JSON nests the signed dict under
-    ``payload`` and exposes the signature object as ``signature_envelope`` (plus a
-    possibly flat-string ``signature``); rebuild from those so ``run()`` sees one shape.
+    An Audit Pack export carries ``{payload, signature, anchors}`` plus export-side
+    members (ids, base64 copies of the stored bytes); only the three canonical members
+    are kept, so no export-side member reaches an axis. The hosted ``/verify/{id}`` JSON
+    nests the signed dict under ``payload`` and exposes the signature object as
+    ``signature_envelope`` (plus a possibly flat-string ``signature``); rebuild from
+    those so ``run()`` sees one shape.
     """
-    # Already canonical: a top-level signature object plus a payload dict.
+    # A top-level signature object plus a payload dict: keep exactly the three members.
     sig = raw.get("signature")
     if isinstance(sig, dict) and isinstance(raw.get("payload"), dict):
-        return raw
+        return {"payload": raw["payload"], "signature": sig, "anchors": raw.get("anchors")}
 
     payload = raw.get("payload")
     if not isinstance(payload, dict):
@@ -1345,47 +1392,88 @@ def _key_bound_to_claimant(k: dict, issuer_id, org_id=None):
     return bool(issuer_bound or org_bound)
 
 
-def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
-    """Return the first usable jwks entry for an agent key bound to a claimed issuer.
+#: Agent-bound keys a failing signature is tried against, so a rotation stays bounded work.
+_AGENT_BIND_CANDIDATE_CAP = 8
 
-    The single agent-side matcher, so the entry a signature verifies against is the
-    same entry every published field is read from. An org publishes issuer_id ==
-    org_id on every key it owns, and agent_id is unique per key, so agent_id plus
-    the claim bind names exactly one signer.
+
+def _match_keys_by_agent(jwks: dict, agent_id, issuer_id, org_id=None) -> list:
+    """Return every usable jwks entry for an agent key bound to a claimed issuer.
+
+    The single agent-side matcher, so the entry a signature verifies against is the same
+    entry every published field is read from. A rotation leaves an agent with more than
+    one published key, so this answers with the whole candidate set, not a guess.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
-        return None
+        return []
+    out = []
     for k in keys:
         if not isinstance(k, dict):
             continue
         if not (agent_id and agent_id == k.get("agent_id")):
             continue
-        if _key_bound_to_claimant(k, issuer_id, org_id):
-            if not isinstance(k.get("public_key"), str):
-                continue
-            return k
-    return None
+        if not _key_bound_to_claimant(k, issuer_id, org_id):
+            continue
+        if not isinstance(k.get("public_key"), str):
+            continue
+        out.append(k)
+    return out
 
 
-def _match_key_by_thumbprint(jwks: dict, thumbprint):
-    """Return the first usable jwks entry publishing exactly this key_thumbprint.
+def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
+    # The first agent-bound key, for callers that resolve before they have a signature.
+    candidates = _match_keys_by_agent(jwks, agent_id, issuer_id, org_id)
+    return candidates[0] if candidates else None
+
+
+def _select_agent_bound_key(jwks: dict, agent_id, issuer_id, org_id, msg, sig, alg_hint):
+    """Return (entry, signature result, exhausted) for the agent-bound key that signed msg.
+
+    Every candidate sharing the agent bind is tried, bounded by the candidate cap, and the
+    one whose signature verifies is kept; when none does, the first is returned so the
+    report can say the whole set was tried. Revocation is never weighed here.
+    """
+    candidates = _match_keys_by_agent(jwks, agent_id, issuer_id, org_id)
+    if not candidates:
+        return None, None, False
+    last = None
+    for k in candidates[:_AGENT_BIND_CANDIDATE_CAP]:
+        res = verify_signature(_b64decode(k["public_key"]), msg, sig, k.get("alg") or alg_hint)
+        if res[0] == "PASS":
+            return k, res, False
+        last = res
+    return candidates[0], last, True
+
+
+def _match_key_by_thumbprint(jwks: dict, thumbprint, agent_id=None, kid=None):
+    """Return the one usable jwks entry publishing exactly this key_thumbprint.
 
     The thumbprint sits inside the signed bytes and names one key in one step, so it
-    outranks every unsigned or set-valued identifier. A directory that publishes no
-    thumbprints simply never matches here.
+    outranks every unsigned or set-valued identifier. Sibling rows can publish one key
+    under different ids and statuses, so a tie is broken by the signed agent_id and then
+    by the envelope kid; list position decides nothing on its own.
     """
     if not isinstance(thumbprint, str) or not is_well_formed(thumbprint):
         return None
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
         return None
-    for k in keys:
-        if not isinstance(k, dict):
-            continue
-        if k.get("key_thumbprint") == thumbprint and isinstance(k.get("public_key"), str):
+    matches = [
+        k
+        for k in keys
+        if isinstance(k, dict)
+        and k.get("key_thumbprint") == thumbprint
+        and isinstance(k.get("public_key"), str)
+    ]
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    narrowed = [k for k in matches if agent_id and k.get("agent_id") == agent_id] or matches
+    for k in narrowed:
+        if kid and kid == k.get("kid"):
             return k
-    return None
+    return narrowed[0]
 
 
 def match_signing_key(
@@ -1411,7 +1499,7 @@ def match_signing_key(
     against it, the agent bind finds the real signer, and key_binding reports the
     substitution.
     """
-    entry = _match_key_by_thumbprint(jwks, key_thumbprint)
+    entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
     if entry is not None:
         return entry
     entry = _match_key_by_id(jwks, kid)
@@ -2121,26 +2209,33 @@ def run(
         eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
         # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
+        agent_note = ""
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
-            pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
-                jwks, agent_id, payload.get("issuer_id"), org_bind
+            entry_a, sig_res_a, exhausted = _select_agent_bound_key(
+                jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig,
+                alg or jwks_alg,
             )
-            if pk_a is not None:
-                sig_res_a = verify_signature(pk_a, msg, sig, alg_a or alg or jwks_alg)
-                if sig_res_a[0] == "PASS":
+            pk_a, alg_a = None, None
+            if entry_a is not None:
+                pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
+                if sig_res_a is not None and sig_res_a[0] == "PASS":
                     sig_res = sig_res_a
-                    eff_status, eff_kid = status_a, kid_a
-                    eff_issuer = issuer_a
-                    eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+                    eff_status, eff_kid = entry_a.get("status"), entry_a.get("kid")
+                    eff_issuer = key_issuer_of(entry_a)
+                    eff_revoked_at = revoked_at_of(entry_a)
                     eff_pk, eff_alg = pk_a, alg_a
+                elif exhausted:
+                    agent_note = "; no key published for this agent verified"
             if sig_res[0] != "PASS":
                 cands = [(pk, alg or jwks_alg)]
                 if pk_a is not None:
                     cands.append((pk_a, alg_a or alg or jwks_alg))
                 sig_res = _pre_cutover_diagnostic(payload, sig, cands, sig_res)
-        results.append(("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"))
+        results.append(
+            ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}")
+        )
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         results.append(
@@ -2319,20 +2414,25 @@ def run_structured(
         eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back,
         # mirroring run(). agent_id is attacker-controlled, so match on issuer_id.
+        agent_note = ""
         if sig_res[0] != "PASS":
             agent_id = payload.get("agent_id") or envelope.get("agent_id")
             org_bind = payload.get("org_id") or envelope.get("org_id")
-            pk_a, status_a, alg_a, kid_a, issuer_a = resolve_key_by_agent_id(
-                jwks, agent_id, payload.get("issuer_id"), org_bind
+            entry_a, sig_res_a, exhausted = _select_agent_bound_key(
+                jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig_bytes,
+                alg or jwks_alg,
             )
-            if pk_a is not None:
-                sig_res_a = verify_signature(pk_a, msg, sig_bytes, alg_a or alg or jwks_alg)
-                if sig_res_a[0] == "PASS":
+            pk_a, alg_a = None, None
+            if entry_a is not None:
+                pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
+                if sig_res_a is not None and sig_res_a[0] == "PASS":
                     sig_res = sig_res_a
-                    eff_status, eff_kid = status_a, kid_a
-                    eff_issuer = issuer_a
-                    eff_revoked_at = resolve_revoked_at(jwks, kid_a)
+                    eff_status, eff_kid = entry_a.get("status"), entry_a.get("kid")
+                    eff_issuer = key_issuer_of(entry_a)
+                    eff_revoked_at = revoked_at_of(entry_a)
                     eff_pk, eff_alg = pk_a, alg_a
+                elif exhausted:
+                    agent_note = "; no key published for this agent verified"
             if sig_res[0] != "PASS":
                 cands = [(pk, alg or jwks_alg)]
                 if pk_a is not None:
@@ -2340,7 +2440,9 @@ def run_structured(
                 sig_res = _pre_cutover_diagnostic(payload, sig_bytes, cands, sig_res)
         axes.append(
             _struct_axis(
-                "issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status})"
+                "issuer_key",
+                "PASS",
+                f"resolved signing key {eff_kid} (status={eff_status}){agent_note}",
             )
         )
         # kid picks the key and the attacker picks the kid, so bind the key that
