@@ -47,10 +47,14 @@ _LIFECYCLE = "protectmcp:lifecycle"
 #: Seconds the gate waits for the signer before it blocks; ASQAV_HOOK_DEADLINE_SECONDS overrides.
 _DEADLINE_ENV = "ASQAV_HOOK_DEADLINE_SECONDS"
 _DEFAULT_DEADLINE_SECONDS = 5.0
+#: Budget the verification phase keeps even when the signer spent the whole deadline.
+_MIN_VERIFY_BUDGET_SECONDS = 0.5
 #: Where the gate keeps the JWK Set it verifies permits against; ASQAV_HOOK_JWKS_CACHE overrides.
 _JWKS_CACHE_ENV = "ASQAV_HOOK_JWKS_CACHE"
 _JWKS_CACHE_MAX_AGE_SECONDS = 24 * 3600
-_JWKS_PAGE_CAP = 64
+_JWKS_PAGE_CAP = 8
+#: Floor on any single socket timeout, so a nearly-spent budget still makes one honest attempt.
+_MIN_SOCKET_TIMEOUT_SECONDS = 0.05
 
 
 class HookDeadlineExceeded(RuntimeError):
@@ -247,16 +251,26 @@ def _jwks_cache_path() -> str:
 
 
 def _fetch_jwks(timeout: float) -> dict[str, Any]:
-    """Fetch every page of the published JWK Set from the configured API host."""
+    """Fetch the published JWK Set, spending at most timeout seconds in total.
+
+    timeout is a whole-call budget, not a per-socket one: a socket timeout multiplied by
+    the page cap is what let a paginating host run many times past the gate's deadline.
+    """
     import urllib.request
 
+    stop = time.monotonic() + timeout
     base = _jwks_url()
     keys: list[dict[str, Any]] = []
     offset = 0
     for _ in range(_JWKS_PAGE_CAP):
+        left = stop - time.monotonic()
+        if left <= 0:
+            raise HookDeadlineExceeded(f"JWK Set fetch outlived its {timeout:g}s budget")
         url = base if not offset else f"{base}?offset={offset}"
         request = urllib.request.Request(url, headers={"User-Agent": "asqav-hook"})
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(
+            request, timeout=max(min(left, timeout), _MIN_SOCKET_TIMEOUT_SECONDS)
+        ) as response:
             page = json_mod.loads(response.read().decode("utf-8"))
         keys.extend(page.get("keys") or [])
         nxt = page.get("next_offset")
@@ -303,16 +317,36 @@ def _load_jwks(timeout: float) -> dict[str, Any]:
     return fresh
 
 
-def _key_present(jwks: dict[str, Any], payload: dict[str, Any]) -> bool:
-    # A cached set may predate the agent's key; the caller refreshes once on a miss.
-    agent_id = payload.get("agent_id")
+def _key_absent_reason(
+    jwks: dict[str, Any], payload: dict[str, Any], signature: Any = None
+) -> str:
+    """Empty when the set names the receipt's signing key, else why it does not.
+
+    The signed thumbprint names one key, so it decides first; agent_id and kid answer for a
+    set, so they only decide when the directory publishes no thumbprint to compare against.
+    """
+    keys = [k for k in (jwks.get("keys") or []) if isinstance(k, dict)]
     thumb = payload.get("key_thumbprint")
-    for key in jwks.get("keys") or []:
-        if agent_id and key.get("agent_id") == agent_id:
-            return True
-        if thumb and key.get("key_thumbprint") == thumb:
-            return True
-    return False
+    if thumb and any(k.get("key_thumbprint") for k in keys):
+        if any(k.get("key_thumbprint") == thumb for k in keys):
+            return ""
+        return f"the published set holds no key with thumbprint {thumb}"
+    agent_id = payload.get("agent_id")
+    if agent_id:
+        if any(k.get("agent_id") == agent_id for k in keys):
+            return ""
+        return f"the published set holds no key for agent {agent_id}"
+    kid = signature.get("kid") if isinstance(signature, dict) else None
+    if kid:
+        if any(kid in (k.get("kid"), k.get("issuer_id")) for k in keys):
+            return ""
+        return f"the published set holds no key under kid {kid}"
+    return "the receipt names no key to match on (no key_thumbprint, agent_id or kid)"
+
+
+def _key_present(jwks: dict[str, Any], payload: dict[str, Any], signature: Any = None) -> bool:
+    # A cached set may predate the agent's key; the caller refreshes once on a miss.
+    return not _key_absent_reason(jwks, payload, signature)
 
 
 #: Axes that establish the returned receipt really is a platform signature over these bytes.
@@ -333,10 +367,23 @@ def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
         return False, "signer returned no verifiable receipt (payload or signature missing)"
     anchors = getattr(sig, "anchors", None) or []
     doc = {"payload": payload, "signature": signature, "anchors": anchors}
-    jwks = _load_jwks(timeout)
-    if not _key_present(jwks, payload):
-        jwks = _fetch_jwks(timeout)
+    stop = time.monotonic() + timeout
+    left = stop - time.monotonic()
+    if left <= 0:
+        return False, "the gate's deadline was spent before the JWK Set could be read"
+    jwks = _load_jwks(left)
+    missing = _key_absent_reason(jwks, payload, signature)
+    if missing:
+        # One refresh answers a rotation; a set that still names no key ends here with the
+        # reason, instead of re-reading the whole directory on every tool call.
+        left = stop - time.monotonic()
+        if left <= 0:
+            return False, f"the gate's deadline was spent before a refresh could answer: {missing}"
+        jwks = _fetch_jwks(left)
         _write_jwks_cache(jwks)
+        missing = _key_absent_reason(jwks, payload, signature)
+        if missing:
+            return False, f"signing key not published: {missing}"
     report = _vr.run_structured(doc, jwks, None)
     axes = {a["name"]: a for a in report.get("axes", [])}
     for name in _PERMIT_AXES:
@@ -347,12 +394,19 @@ def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
     return True, f"signature verified against the published JWK Set (kid {signature.get('kid')})"
 
 
+#: Wire decisions that deny the call; the gate must block on them, never announce a success.
+_BLOCKING_DECISIONS = ("deny", "rate_limit")
+
+
+def _wire_decision(sig: Any) -> Any:
+    payload = getattr(sig, "payload", None)
+    return payload.get("decision") if isinstance(payload, dict) else None
+
+
 def _decision_label(sig: Any) -> str:
     # The platform records in-process capture as an observation (wire decision
     # "observation"); only a real gate decision earns the word permit.
-    payload = getattr(sig, "payload", None)
-    decision = payload.get("decision") if isinstance(payload, dict) else None
-    return "permit" if decision == "allow" else "signed"
+    return "permit" if _wire_decision(sig) == "allow" else "signed"
 
 
 @hook_app.command("posttool")
@@ -507,9 +561,14 @@ def hook_pretool(
         raise typer.Exit(code=2) from exc
 
     # The permit is only as good as its signature; verify it before letting the tool run.
-    remaining = max(deadline - (time.monotonic() - started), 0.5)
+    remaining = max(deadline - (time.monotonic() - started), _MIN_VERIFY_BUDGET_SECONDS)
     try:
-        ok, reason = _verify_returned_receipt(sig, remaining)
+        ok, reason = _call_with_deadline(_verify_returned_receipt, remaining, sig, remaining)
+    except HookDeadlineExceeded:
+        ok, reason = False, (
+            f"verification did not finish inside the remaining {remaining:g}s of the "
+            f"{deadline:g}s deadline"
+        )
     except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
         ok, reason = False, f"could not verify the returned receipt: {exc}"
     if not ok:
@@ -517,6 +576,11 @@ def hook_pretool(
             f"asqav hook: receipt {sig.signature_id} did not verify ({reason}); blocking tool call",
             file=sys.stderr,
         )
+        raise typer.Exit(code=2)
+    decision = _wire_decision(sig)
+    if decision in _BLOCKING_DECISIONS:
+        # A verified receipt that carries a denial is still a denial; exit 2 blocks the tool.
+        print(f"blocked {sig.signature_id}: {decision}", file=sys.stderr)
         raise typer.Exit(code=2)
     print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
 

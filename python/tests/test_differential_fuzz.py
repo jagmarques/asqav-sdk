@@ -23,11 +23,36 @@ ITERATIONS = 250
 
 
     # One engine cannot diverge from itself, so a green run would prove nothing.
-def test_at_least_two_engines_are_compared() -> None:
+def test_at_least_two_engines_are_compared(capsys: pytest.CaptureFixture[str]) -> None:
     engines = fuzz.engines_available()
+    # Printed so a CI log records WHICH engines ran: a silently degraded roster
+    # still passes every divergence test, because fewer engines cannot disagree.
+    with capsys.disabled():
+        print(f"engines compared: {', '.join(engines)}")
     assert len(engines) >= 2, (
         f"only {engines} available; build typescript/dist so the gate is differential"
     )
+
+
+def test_a_built_typescript_bundle_joins_both_of_its_engines() -> None:
+    """With typescript/dist built, all four engines compare, verifier included.
+
+    The verifier engine is the one the SDK emitter cannot stand in for: it is the
+    canonicalizer a third party runs, so a roster missing it hides exactly the
+    divergence class the corpus exists to catch.
+    """
+    dist = (
+        Path(__file__).resolve().parents[2]
+        / "typescript"
+        / "dist"
+        / "verifier"
+        / "index.js"
+    )
+    if not dist.exists():
+        pytest.skip("typescript/dist is not built in this environment")
+    engines = fuzz.engines_available()
+    assert "typescript" in engines and "typescript-verifier" in engines, engines
+    assert len(engines) >= 4, f"built bundle but only {engines} compared"
 
 
 @pytest.mark.parametrize("seed", SEEDS)
