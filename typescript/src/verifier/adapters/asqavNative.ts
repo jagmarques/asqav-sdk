@@ -28,6 +28,7 @@ import {
   checkKeyBinding,
   checkKeyStatus,
   checkPayloadDigest,
+  firstNonEmpty,
   checkSkew,
   checkNonce,
   checkOrgBinding,
@@ -152,9 +153,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return matchSigningKey(
       jwks,
       this.extractSignature(doc).kid,
-      payload.agent_id ?? doc.agent_id,
+      firstNonEmpty(payload.agent_id, doc.agent_id),
       payload.issuer_id,
-      payload.org_id ?? doc.org_id,
+      firstNonEmpty(payload.org_id, doc.org_id),
       payload.key_thumbprint,
     );
   }
