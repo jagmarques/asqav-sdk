@@ -44,9 +44,43 @@ def _utf16_ordered(obj: Any) -> Any:
 
 
     # Return canonical JCS bytes for ``obj``, byte-identical to the cloud.
+#: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
+#: representable and both emit the same digits for it, while 2**53 + 1 has no exact
+#: double and JavaScript rounds it. One ABOVE JavaScript's Number.isSafeInteger bound,
+#: deliberately: the upstream interop vector `number_2_to_53` pins 2**53 as canonical.
+#: The bound also excludes every integer at or above 1e21, where JavaScript's toString
+#: switches to exponential notation and Python's str does not.
+MAX_CANONICAL_INTEGER = 2**53
+
+
+class UnsafeIntegerError(ValueError):
+    """An integer outside the safe range reached the canonicaliser."""
+
+
+    # Refuse an int with no exact double, at every depth, before any bytes are produced.
+def _reject_unsafe_integers(obj: Any) -> None:
+    if isinstance(obj, bool):
+        return
+    if isinstance(obj, int):
+        if not -MAX_CANONICAL_INTEGER <= obj <= MAX_CANONICAL_INTEGER:
+            raise UnsafeIntegerError(
+                f"integer outside the canonical integer range +/-2**53: {obj}; serialise it "
+                "as a JSON string or an integer-rational pair"
+            )
+        return
+    if isinstance(obj, dict):
+        for value in obj.values():
+            _reject_unsafe_integers(value)
+        return
+    if isinstance(obj, (list, tuple)):
+        for value in obj:
+            _reject_unsafe_integers(value)
+
+
 def canonical_json(obj: Any) -> bytes:
     # UTF-16 key order per RFC 8785 3.2.3; ``sort_keys=True`` is code-point
     # order, which diverges only above U+FFFF.
+    _reject_unsafe_integers(obj)
     return json.dumps(
         _utf16_ordered(obj),
         sort_keys=False,

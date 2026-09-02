@@ -192,17 +192,35 @@ describe("parseJsonPreservingFloats matches JSON.parse structure (Node 18+ safe)
   });
 });
 
-describe("integers beyond IEEE-754 safe range stay distinct (no false-PASS)", () => {
+describe("integers beyond +/-2**53 are refused at ingest (no cross-SDK divergence)", () => {
   const dec = new TextDecoder();
-  it("emits the exact source digits in every dialect, matching Python str(int)", () => {
-    const o = parseJsonPreservingFloats('{"n":9007199254740993}');
-    expect(dec.decode(asqavJcs(o))).toBe('{"n":9007199254740993}');
-    expect(dec.decode(jcsRfc8785(o))).toBe('{"n":9007199254740993}');
+
+  // These two cases used to assert that the parser PRESERVED such an integer, so that
+  // 2^53+1 and 2^53 stayed distinct. Preserving is not enough: the doors path and any
+  // caller who reaches us through JSON.parse has ALREADY rounded, and a rounded 2^53 is
+  // indistinguishable from a genuine one. Refusal at the parse boundary is the only
+  // point where the two SDKs can still be made to agree.
+  it("refuses 2^53+1, which has no exact double", () => {
+    expect(() => parseJsonPreservingFloats('{"n":9007199254740993}')).toThrow(
+      /canonical integer range/,
+    );
   });
-  it("does not collapse 2^53+1 onto 2^53", () => {
-    const a = dec.decode(asqavJcs(parseJsonPreservingFloats('{"n":9007199254740993}')));
-    const b = dec.decode(asqavJcs(parseJsonPreservingFloats('{"n":9007199254740992}')));
-    expect(a).not.toBe(b);
+
+  it("accepts 2^53 itself, which is exactly representable and pinned upstream", () => {
+    const o = parseJsonPreservingFloats('{"n":9007199254740992}');
+    expect(dec.decode(asqavJcs(o))).toBe('{"n":9007199254740992}');
+    expect(dec.decode(jcsRfc8785(o))).toBe('{"n":9007199254740992}');
+  });
+
+  it("accepts the conformant workaround: the same value as a JSON string", () => {
+    const o = parseJsonPreservingFloats('{"n":"9007199254740993"}');
+    expect(dec.decode(asqavJcs(o))).toBe('{"n":"9007199254740993"}');
+  });
+
+  it("refuses an integer at 1e21, where toString would go exponential", () => {
+    expect(() => parseJsonPreservingFloats('{"n":1000000000000000000000}')).toThrow(
+      /canonical integer range/,
+    );
   });
 });
 
