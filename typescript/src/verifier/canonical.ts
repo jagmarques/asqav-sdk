@@ -346,7 +346,7 @@ export function asqavJcs(obj: unknown): Uint8Array {
  * Instant from which the issuing platform emits RFC 8785 member order on the wire. Pinned to the
  * production deploy of the emitter change; receipts issued later never get the pre-cutover retry.
  */
-export const JCS_UTF16_CUTOVER = "2026-09-02T12:00:00+00:00";
+export const JCS_UTF16_CUTOVER = "2026-09-02T18:05:09+00:00";
 
 /**
  * The code-point member order the cloud emitted before JCS_UTF16_CUTOVER. Diagnostic only: a signature
