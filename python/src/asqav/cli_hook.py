@@ -47,10 +47,14 @@ _LIFECYCLE = "protectmcp:lifecycle"
 #: Seconds the gate waits for the signer before it blocks; ASQAV_HOOK_DEADLINE_SECONDS overrides.
 _DEADLINE_ENV = "ASQAV_HOOK_DEADLINE_SECONDS"
 _DEFAULT_DEADLINE_SECONDS = 5.0
+#: Budget the verification phase keeps even when the signer spent the whole deadline.
+_MIN_VERIFY_BUDGET_SECONDS = 0.5
 #: Where the gate keeps the JWK Set it verifies permits against; ASQAV_HOOK_JWKS_CACHE overrides.
 _JWKS_CACHE_ENV = "ASQAV_HOOK_JWKS_CACHE"
 _JWKS_CACHE_MAX_AGE_SECONDS = 24 * 3600
-_JWKS_PAGE_CAP = 64
+_JWKS_PAGE_CAP = 8
+#: Floor on any single socket timeout, so a nearly-spent budget still makes one honest attempt.
+_MIN_SOCKET_TIMEOUT_SECONDS = 0.05
 
 
 class HookDeadlineExceeded(RuntimeError):
@@ -247,16 +251,26 @@ def _jwks_cache_path() -> str:
 
 
 def _fetch_jwks(timeout: float) -> dict[str, Any]:
-    """Fetch every page of the published JWK Set from the configured API host."""
+    """Fetch the published JWK Set, spending at most timeout seconds in total.
+
+    timeout is a whole-call budget, not a per-socket one: a socket timeout multiplied by
+    the page cap is what let a paginating host run many times past the gate's deadline.
+    """
     import urllib.request
 
+    stop = time.monotonic() + timeout
     base = _jwks_url()
     keys: list[dict[str, Any]] = []
     offset = 0
     for _ in range(_JWKS_PAGE_CAP):
+        left = stop - time.monotonic()
+        if left <= 0:
+            raise HookDeadlineExceeded(f"JWK Set fetch outlived its {timeout:g}s budget")
         url = base if not offset else f"{base}?offset={offset}"
         request = urllib.request.Request(url, headers={"User-Agent": "asqav-hook"})
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(
+            request, timeout=max(min(left, timeout), _MIN_SOCKET_TIMEOUT_SECONDS)
+        ) as response:
             page = json_mod.loads(response.read().decode("utf-8"))
         keys.extend(page.get("keys") or [])
         nxt = page.get("next_offset")
@@ -353,12 +367,19 @@ def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
         return False, "signer returned no verifiable receipt (payload or signature missing)"
     anchors = getattr(sig, "anchors", None) or []
     doc = {"payload": payload, "signature": signature, "anchors": anchors}
-    jwks = _load_jwks(timeout)
+    stop = time.monotonic() + timeout
+    left = stop - time.monotonic()
+    if left <= 0:
+        return False, "the gate's deadline was spent before the JWK Set could be read"
+    jwks = _load_jwks(left)
     missing = _key_absent_reason(jwks, payload, signature)
     if missing:
         # One refresh answers a rotation; a set that still names no key ends here with the
         # reason, instead of re-reading the whole directory on every tool call.
-        jwks = _fetch_jwks(timeout)
+        left = stop - time.monotonic()
+        if left <= 0:
+            return False, f"the gate's deadline was spent before a refresh could answer: {missing}"
+        jwks = _fetch_jwks(left)
         _write_jwks_cache(jwks)
         missing = _key_absent_reason(jwks, payload, signature)
         if missing:
@@ -540,9 +561,14 @@ def hook_pretool(
         raise typer.Exit(code=2) from exc
 
     # The permit is only as good as its signature; verify it before letting the tool run.
-    remaining = max(deadline - (time.monotonic() - started), 0.5)
+    remaining = max(deadline - (time.monotonic() - started), _MIN_VERIFY_BUDGET_SECONDS)
     try:
-        ok, reason = _verify_returned_receipt(sig, remaining)
+        ok, reason = _call_with_deadline(_verify_returned_receipt, remaining, sig, remaining)
+    except HookDeadlineExceeded:
+        ok, reason = False, (
+            f"verification did not finish inside the remaining {remaining:g}s of the "
+            f"{deadline:g}s deadline"
+        )
     except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
         ok, reason = False, f"could not verify the returned receipt: {exc}"
     if not ok:

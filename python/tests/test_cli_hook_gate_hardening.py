@@ -219,3 +219,85 @@ def test_a_rate_limit_receipt_is_announced_as_blocked_and_exits_two(monkeypatch)
     assert result.exit_code == 2, result.output
     assert "blocked sig_rate_limit: rate_limit" in result.output
     assert "signed" not in result.output
+
+
+# === the verification phase runs inside the deadline (447b) ===
+
+
+def test_a_slow_jwks_phase_blocks_inside_the_deadline(monkeypatch) -> None:
+    ml = _ml_dsa_65()
+    pk, sk = ml.keygen()
+    payload = _payload("allow")
+    sig = _Sig("sig_slow", payload, _signed(payload, sk, ml), [])
+    monkeypatch.setenv(cli_hook._DEADLINE_ENV, "0.5")
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+
+    def slow_fetch(_timeout: float) -> dict:
+        time.sleep(5.0)
+        return {"keys": [_row(pk, "k-live")]}
+
+    monkeypatch.setattr(cli_hook, "_fetch_jwks", slow_fetch)
+    started = time.monotonic()
+    result = runner.invoke(app, ["hook", "pretool"], input=json.dumps(_PRETOOL_EVENT))
+    elapsed = time.monotonic() - started
+    assert result.exit_code == 2, result.output
+    assert elapsed < 3.0, f"verification ran {elapsed:.2f}s past a 0.5s deadline"
+    assert "deadline" in result.output and "blocking tool call" in result.output
+
+
+def test_the_jwks_fetch_stops_at_the_page_cap(monkeypatch) -> None:
+    assert cli_hook._JWKS_PAGE_CAP == 8
+    pages: list[str] = []
+
+    class _Resp:
+        def __init__(self, offset: int) -> None:
+            self._offset = offset
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc) -> bool:
+            return False
+
+        def read(self) -> bytes:
+            return json.dumps({"keys": [], "next_offset": self._offset + 1}).encode()
+
+    def fake_urlopen(request, timeout=None):
+        pages.append(request.full_url)
+        offset = int(request.full_url.split("offset=")[-1]) if "offset=" in request.full_url else 0
+        return _Resp(offset)
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    cli_hook._fetch_jwks(30.0)
+    assert len(pages) == cli_hook._JWKS_PAGE_CAP, f"issued {len(pages)} requests"
+
+
+def test_the_jwks_fetch_gives_up_when_its_total_budget_is_spent(monkeypatch) -> None:
+    calls: list[float] = []
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc) -> bool:
+            return False
+
+        def read(self) -> bytes:
+            return json.dumps({"keys": [], "next_offset": len(calls)}).encode()
+
+    def slow_urlopen(request, timeout=None):
+        calls.append(timeout)
+        time.sleep(0.15)
+        return _Resp()
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", slow_urlopen)
+    started = time.monotonic()
+    with pytest.raises(cli_hook.HookDeadlineExceeded):
+        cli_hook._fetch_jwks(0.3)
+    elapsed = time.monotonic() - started
+    assert elapsed < 1.0, f"the fetch ran {elapsed:.2f}s against a 0.3s budget"
+    assert max(calls) <= 0.3, f"a socket timeout above the whole budget: {calls}"
