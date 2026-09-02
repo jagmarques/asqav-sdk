@@ -29,8 +29,24 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   `allow`; `hooks/README.md` states what the cloud records for an in-process
   gate today.
 
-
 ### Fixed
+
+- **Signing-key resolution on the standalone verifier.** `verify_receipt.py`'s
+  `run()` and `run_structured()` resolved the envelope `kid` through the loose
+  issuer match, which on a multi-key organisation returns whichever sibling is
+  listed first, and only fell back to the agent bind after a signature failure.
+  A receipt whose signature could not be checked at all (an algorithm outside the
+  profile) therefore reported the sibling's revocation status and a
+  `key_substituted` binding failure that were both artefacts of the wrong entry.
+  Every path now resolves through one matcher: the signed `key_thumbprint` first
+  (it names the exact key even after a rotation leaves an agent with two published
+  keys), then the exact key id, then the agent bind, then the bare-kid issuer
+  match. The TypeScript verifier and the Python oracle adapter take the same
+  order. A thumbprint naming a key the signature was not made with is still
+  caught: the signature fails against it and `key_binding` reports the
+  substitution.
+
+
 
 - **RFC 8785 member order on the two verification paths that still sorted by code
   point.** The standalone `verify_receipt.py` (`canonical_json`, the bytes it checks
@@ -49,7 +65,6 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   verifiers check rather than only the bytes the emitters produce.
 - `docs/fingerprint-spec.md`, `doors.py` and `demo.py` no longer describe or use
   code-point key order.
-
 
 ## [0.10.5] - 2026-09-01
 
