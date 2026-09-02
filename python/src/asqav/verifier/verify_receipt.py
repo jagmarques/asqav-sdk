@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import hashlib
 import json
 import math
@@ -264,11 +265,37 @@ def _describe_value(value) -> str:
     return type(value).__name__
 
 
-    # JCS bytes of the envelope with ``anchors`` removed (the anchored bytes).
+# JCS bytes of the two-key {payload, signature} object, the bytes every anchor commits to.
 def envelope_minus_anchors_jcs(env: dict) -> bytes:
-    e = dict(env)
-    e.pop("anchors", None)
-    return canonical_json(e)
+    # An Audit Pack export carries more top-level members than the signer anchored;
+    # only payload and signature were committed, so only those two are hashed.
+    return canonical_json({k: env[k] for k in ("payload", "signature") if k in env})
+
+
+# The same envelope with the signature string carried in the other base64 alphabet.
+def _sig_alphabet_twin(env: dict) -> dict | None:
+    # A local-key signer commits base64url while an export may re-encode the bytes in
+    # standard base64; the twin lets the commitment be checked against both spellings.
+    sig_obj = env.get("signature")
+    if not isinstance(sig_obj, dict) or not isinstance(sig_obj.get("sig"), str):
+        return None
+    sig = sig_obj["sig"]
+    try:
+        if "-" in sig or "_" in sig:
+            raw = base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4))
+            other = base64.b64encode(raw).decode("ascii")
+        else:
+            raw = base64.b64decode(sig + "=" * (-len(sig) % 4))
+            other = base64.urlsafe_b64encode(raw).decode("ascii")
+    except (ValueError, binascii.Error):
+        return None
+    if sig.endswith("=") is False:
+        other = other.rstrip("=")
+    if other == sig:
+        return None
+    twin = dict(env)
+    twin["signature"] = dict(sig_obj, sig=other)
+    return twin
 
 
 def _scan_shape(obj, max_depth: int | None = None) -> str | None:
@@ -1192,12 +1219,16 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     try:
         _env_jcs = envelope_minus_anchors_jcs(envelope)
         bound = hashlib.sha256(_env_jcs).digest()
+        _twin = _sig_alphabet_twin(envelope)
+        _twin_jcs = envelope_minus_anchors_jcs(_twin) if _twin is not None else None
     except RecursionError:
         # Defense in depth, same rationale as check_chain's guard above.
         return AnchorEvaluation(
             "FAIL", "envelope too deeply nested to canonicalise for anchor binding", []
         )
     lines = [f"anchors bind envelope digest sha256:{bound.hex()[:16]}.."]
+    _twin_bound = hashlib.sha256(_twin_jcs).digest() if _twin_jcs is not None else None
+    _twin_used = False
     saw_invalid = False
     saw_unverifiable = False
     trusted_times = []
@@ -1223,8 +1254,16 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
             outcome, detail, when = _check_rfc3161_anchor(
                 blob, bound, trusted_tsa_keys, _env_jcs
             )
+            if outcome == "invalid" and "different digest" in detail and _twin_bound is not None:
+                outcome, detail, when = _check_rfc3161_anchor(
+                    blob, _twin_bound, trusted_tsa_keys, _twin_jcs
+                )
+                _twin_used = _twin_used or outcome != "invalid"
         elif atype == "opentimestamps":
             outcome, detail, when = _check_ots_anchor(blob, bound, bitcoin_headers)
+            if outcome == "invalid" and "different digest" in detail and _twin_bound is not None:
+                outcome, detail, when = _check_ots_anchor(blob, _twin_bound, bitcoin_headers)
+                _twin_used = _twin_used or outcome != "invalid"
         else:
             outcome, detail, when = (
                 "unverifiable",
@@ -1241,6 +1280,11 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
         else:
             saw_unverifiable = True
             lines.append(f"    - {atype}: value present, base64-ok; unverifiable ({detail})")
+    if _twin_used:
+        lines.append(
+            "    - signature string re-encoded to the alphabet the signer committed "
+            "(the export carries the other base64 alphabet)"
+        )
     if saw_invalid:
         return AnchorEvaluation("FAIL", "; ".join(lines), trusted_times)
     if saw_unverifiable:
@@ -1257,17 +1301,19 @@ def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None
 
 
 def normalise_envelope(raw: dict) -> dict:
-    """Remap a hosted /verify response into the canonical 3-key envelope.
+    """Project any receipt shape onto the canonical 3-key envelope.
 
-    An Audit Pack already ships ``{payload, signature, anchors}``, so pass it
-    through untouched. The hosted ``/verify/{id}`` JSON nests the signed dict under
-    ``payload`` and exposes the signature object as ``signature_envelope`` (plus a
-    possibly flat-string ``signature``); rebuild from those so ``run()`` sees one shape.
+    An Audit Pack export carries ``{payload, signature, anchors}`` plus export-side
+    members (ids, base64 copies of the stored bytes); only the three canonical members
+    are kept, so no export-side member reaches an axis. The hosted ``/verify/{id}`` JSON
+    nests the signed dict under ``payload`` and exposes the signature object as
+    ``signature_envelope`` (plus a possibly flat-string ``signature``); rebuild from
+    those so ``run()`` sees one shape.
     """
-    # Already canonical: a top-level signature object plus a payload dict.
+    # A top-level signature object plus a payload dict: keep exactly the three members.
     sig = raw.get("signature")
     if isinstance(sig, dict) and isinstance(raw.get("payload"), dict):
-        return raw
+        return {"payload": raw["payload"], "signature": sig, "anchors": raw.get("anchors")}
 
     payload = raw.get("payload")
     if not isinstance(payload, dict):
