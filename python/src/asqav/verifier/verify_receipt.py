@@ -141,7 +141,7 @@ MAX_NESTING_DEPTH = 200
 
 #: Instant from which the issuing platform emits RFC 8785 member order on the wire. Pinned to
 #: the production deploy of the emitter change; receipts issued later never get the retry below.
-JCS_UTF16_CUTOVER = "2026-09-02T12:00:00+00:00"
+JCS_UTF16_CUTOVER = "2026-09-02T18:05:09+00:00"
 
 
 def _utf16_member_order(name: str) -> bytes:
