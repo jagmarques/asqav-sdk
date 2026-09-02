@@ -262,9 +262,27 @@ function matchKeyByAgent(
   return null;
 }
 
+// The signed key_thumbprint names one key in one step (mirrors `_match_key_by_thumbprint`), so it
+// outranks every unsigned or set-valued identifier; a directory publishing none never matches here.
+function matchKeyByThumbprint(
+  jwks: Record<string, unknown> | null,
+  thumbprint: unknown,
+): Record<string, unknown> | null {
+  if (typeof thumbprint !== "string" || !isWellFormedThumbprint(thumbprint)) return null;
+  const keys = jwks?.keys;
+  if (!Array.isArray(keys)) return null;
+  for (const k of keys as Array<Record<string, unknown>>) {
+    if (k === null || typeof k !== "object") continue;
+    if (k.key_thumbprint === thumbprint && typeof k.public_key === "string") return k;
+  }
+  return null;
+}
+
 /**
  * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
- * Order carries the security: exact key id, then the agent bind, then the bare-kid issuer match.
+ * Order carries the security: the signed key_thumbprint, then the exact key id, then the agent bind,
+ * then the bare-kid issuer match. A thumbprint naming a key the signature was not made with fails
+ * the signature axis against that key, which is the substitution the binding exists to catch.
  */
 export function matchSigningKey(
   jwks: Record<string, unknown> | null,
@@ -272,8 +290,10 @@ export function matchSigningKey(
   agentId?: unknown,
   issuerId?: unknown,
   orgId?: unknown,
+  keyThumbprint?: unknown,
 ): Record<string, unknown> | null {
   return (
+    matchKeyByThumbprint(jwks, keyThumbprint) ??
     matchKeyById(jwks, kid) ??
     matchKeyByAgent(jwks, agentId, issuerId, orgId) ??
     matchKey(jwks, kid)
