@@ -5,6 +5,53 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-09-02
+
+### Fixed
+
+- **The anchors axis called genuine receipts invalid.** It hashed every top-level
+  member of an Audit Pack entry, while the signer commits
+  `sha256(JCS({payload, signature}))` over the wire signature string. An untouched
+  production receipt therefore verified as `unverified` with
+  `failure_class: invalid`, the class reserved for a binding proven broken, and
+  exited 1. The envelope is now projected to exactly the three canonical members
+  and the anchored bytes are the two committed ones. Where an export carries the
+  signature in the other base64 alphabet, the commitment is checked against the
+  alphabet the signer used and the report says which one matched; that tolerance
+  is a migration measure and never launders a tamper, because a changed payload
+  fails under both alphabets. Pinned against a real production receipt.
+- **The gate's cache predicate ignored a key rotation.** It tested the agent bind
+  before the signed key thumbprint, so a stale cache answered "present" after a
+  rotation and the gate blocked every tool call for up to a day.
+- **Receipt verification could outlive the gate's deadline.** The verification and
+  any key-set refresh now run inside the same budget, so the gate answers before
+  the harness timeout it documents.
+- **A deny or rate_limit decision read as `signed` and exited 0.** It now blocks
+  with the decision and a reason on stderr.
+- **A shared key thumbprint resolved by row order.** It is broken by the signed
+  agent id and then the envelope kid, so a receipt naming a revoked duplicate
+  still reaches the key-status axis with that row.
+- **The agent-bind fallback took the first row rather than the right one.** It now
+  keeps the candidate whose signature verifies, leaving revocation to the
+  key-status axis where it belongs.
+- **The two languages disagreed on three inputs.** The thumbprint pattern uses
+  fullmatch, an empty identifier counts as missing on both sides, and a lone
+  surrogate is no longer read as a supplementary member name.
+
+### Changed
+
+- `JCS_UTF16_CUTOVER` is pinned to `2026-09-02T18:05:09+00:00`, the measured
+  instant the platform deploy carrying the RFC 8785 emitter went live.
+- Offline verification is documented from the Audit Pack export. The hosted
+  verify response is a display projection that omits identifier members of the
+  signed payload, so a receipt saved from it can never reproduce the signature.
+- The differential fuzzer prints the engine roster it compared, because engines
+  that are absent cannot disagree and a degraded roster otherwise reads as green.
+- The JWK Set cache trust boundary is written down in the hooks guide, and every
+  quotation of the harness documentation there is verbatim with its source and
+  access date.
+
+
 ### Changed
 
 - **Harness hooks send a digest by default.** `asqav hook pretool` and `asqav hook
