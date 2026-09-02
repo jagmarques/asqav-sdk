@@ -63,6 +63,9 @@ export {
 } from "./vrShim.js";
 export {
   asqavJcs,
+  asqavJcsPreCutover,
+  hasSupplementaryMemberName,
+  JCS_UTF16_CUTOVER,
   DuplicateMemberError,
   jcs,
   jcsRfc8785,
