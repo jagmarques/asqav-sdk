@@ -108,3 +108,43 @@ def test_corpus_duplicate_member_vectors_never_verify(vec: str) -> None:
     assert outcome.actual_verdict == "unverified"
     assert outcome.actual_failure_class == "unverifiable"
     assert "terminal parse failure before any hashing" in outcome.detail
+
+
+# --- Integers outside +/-2**53, the second thing the strict door refuses (finding 8) ---
+
+
+    # An integer with no exact double would canonicalise two ways across the SDKs.
+@pytest.mark.parametrize(
+    "literal",
+    ["9007199254740993", "-9007199254740993", "1000000000000000000000"],
+)
+def test_integer_outside_the_canonical_range_rejected(literal: str) -> None:
+    with pytest.raises(strict_json.UnsafeIntegerError):
+        strict_json.loads('{"n": %s}' % literal)
+
+
+    # 2**53 itself is exactly representable and is pinned canonical by the upstream corpus.
+@pytest.mark.parametrize(
+    "literal",
+    ["9007199254740991", "9007199254740992", "-9007199254740992", "0"],
+)
+def test_integer_inside_the_canonical_range_accepted(literal: str) -> None:
+    assert strict_json.loads('{"n": %s}' % literal) == {"n": int(literal)}
+
+
+    # The conformant workaround the draft's section 4 tells callers to use.
+def test_the_same_value_as_a_json_string_is_accepted() -> None:
+    assert strict_json.loads('{"n": "9007199254740993"}') == {"n": "9007199254740993"}
+
+
+    # Nesting depth does not matter; the parse hook sees every literal.
+def test_nested_unsafe_integer_rejected() -> None:
+    with pytest.raises(strict_json.UnsafeIntegerError):
+        strict_json.loads('{"a": {"b": [1, 2, {"c": 9007199254740993}]}}')
+
+
+    # The standalone verifier ships as one file and carries its own copy of the hook.
+def test_standalone_verifier_rejects_an_unsafe_integer() -> None:
+    with pytest.raises(vr.VerifierInputError, match="canonical integer range"):
+        vr._parse_object('{"n": 9007199254740993}', "receipt")
+    assert vr._parse_object('{"n": 9007199254740992}', "receipt") == {"n": 9007199254740992}

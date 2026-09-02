@@ -51,6 +51,15 @@ function canonicalString(value: unknown): string {
 function numberToCanonical(n: number): string {
   // Map -0 to 0 so equal mathematical values produce identical bytes.
   if (n === 0) return "0";
+  // Beyond 2**53 an integer has no exact double, so whoever parsed it already rounded it and
+  // emitting it would sign bytes Python never produces. This is the layer the doors path
+  // reaches: it receives an already-parsed object and never sees the strict parser.
+  if (Number.isInteger(n) && Math.abs(n) > 9007199254740992) {
+    throw new RangeError(
+      `integer outside the canonical integer range +/-2**53: ${n}; serialise it as a ` +
+        `JSON string or an integer-rational pair`,
+    );
+  }
   // For safe integers, plain toString matches the canonical bytes byte-for-byte.
   if (Number.isInteger(n) && Number.isSafeInteger(n)) {
     return n.toString();
