@@ -71,3 +71,31 @@ def test_gate_detects_a_code_point_sorting_engine(monkeypatch: pytest.MonkeyPatc
     assert fuzz.run(iterations=ITERATIONS, seed=0, unsafe_numbers=False), (
         "the fuzz gate passed an engine sorting by code point; it has no bite"
     )
+
+
+    # The engine a customer actually runs offline must be compared, not only the emitter.
+def test_standalone_verifier_is_one_of_the_engines() -> None:
+    assert "standalone" in fuzz.engines_available()
+
+
+    # The verifier's own asqav dialect joins whenever the verifier bundle is built.
+def test_typescript_verifier_engine_joins_when_built() -> None:
+    dist = _ROOT / "typescript" / "dist" / "verifier" / "index.js"
+    if not dist.exists():
+        pytest.skip("typescript/dist/verifier not built")
+    assert "typescript-verifier" in fuzz.engines_available()
+
+
+    # A verification path sorting by code point must be caught, or the gate is blind to it.
+def test_gate_detects_a_code_point_sorting_standalone_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
+    def code_point_canonical(obj: object) -> bytes:
+        return json.dumps(
+            obj, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        ).encode("utf-8")
+
+    monkeypatch.setattr(fuzz, "standalone_canonical", code_point_canonical)
+    assert fuzz.run(iterations=ITERATIONS, seed=0, unsafe_numbers=False), (
+        "the fuzz gate passed a standalone verifier sorting by code point; it has no bite"
+    )
+
