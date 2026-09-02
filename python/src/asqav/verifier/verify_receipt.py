@@ -1368,23 +1368,52 @@ def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
     return None
 
 
-def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None):
+def _match_key_by_thumbprint(jwks: dict, thumbprint):
+    """Return the first usable jwks entry publishing exactly this key_thumbprint.
+
+    The thumbprint sits inside the signed bytes and names one key in one step, so it
+    outranks every unsigned or set-valued identifier. A directory that publishes no
+    thumbprints simply never matches here.
+    """
+    if not isinstance(thumbprint, str) or not is_well_formed(thumbprint):
+        return None
+    keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    if not isinstance(keys, list):
+        return None
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
+        if k.get("key_thumbprint") == thumbprint and isinstance(k.get("public_key"), str):
+            return k
+    return None
+
+
+def match_signing_key(
+    jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None, key_thumbprint=None
+):
     """Return the one jwks entry a receipt's signature is checked against.
 
-    Exact key id, then the agent bind, then the bare-kid issuer match. Every caller
-    resolves through here so the key that verifies a signature and the key whose
-    status and issuer the axes weigh are one entry; resolving them separately lets a
-    receipt verify against a key found one way while revocation and issuer read a
-    key found the other.
+    Signed key_thumbprint, then exact key id, then the agent bind, then the bare-kid
+    issuer match. Every caller resolves through here so the key that verifies a
+    signature and the key whose status and issuer the axes weigh are one entry;
+    resolving them separately lets a receipt verify against a key found one way
+    while revocation and issuer read a key found the other.
 
     Order carries the security. A cloud receipt puts the org id in kid and the
     directory publishes issuer_id on every key that org owns, so an org-shaped kid
     matches each sibling alike and list position picks one. Position binds nothing -
-    agent_id and issuer_id both sit inside the signed bytes - while the sibling it
-    lands on holds other key bytes, another revocation status and another agent. The
-    agent bind carries the org_id a hash-mode receipt signs, so the correct sibling
-    resolves before the loose match.
+    key_thumbprint, agent_id and issuer_id all sit inside the signed bytes - while
+    the sibling it lands on holds other key bytes, another revocation status and
+    another agent. The thumbprint names the exact key even after a rotation leaves
+    an agent with two published keys; the agent bind carries the org_id a hash-mode
+    receipt signs; both resolve before the loose match. A thumbprint that names a
+    key the signature was not made with is caught downstream: the signature fails
+    against it, the agent bind finds the real signer, and key_binding reports the
+    substitution.
     """
+    entry = _match_key_by_thumbprint(jwks, key_thumbprint)
+    if entry is not None:
+        return entry
     entry = _match_key_by_id(jwks, kid)
     if entry is not None:
         return entry
@@ -1392,6 +1421,25 @@ def match_signing_key(jwks: dict, kid: str, agent_id=None, issuer_id=None, org_i
     if entry is not None:
         return entry
     return _match_key(jwks, kid)
+
+
+def _entry_material(entry):
+    # (public_key_bytes, status, alg) of a matched entry, or three Nones for a miss.
+    if entry is None:
+        return None, None, None
+    return _b64decode(entry["public_key"]), entry.get("status"), entry.get("alg")
+
+
+def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
+    # The standalone paths resolve exactly as the oracle adapter does, one entry for every axis.
+    return match_signing_key(
+        jwks,
+        kid,
+        payload.get("agent_id") or envelope.get("agent_id"),
+        payload.get("issuer_id"),
+        payload.get("org_id") or envelope.get("org_id"),
+        payload.get("key_thumbprint"),
+    )
 
 
     # Return the issuer id a jwks entry publishes, or None when it names no string.
@@ -2054,7 +2102,8 @@ def run(
         envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
     )
 
-    pk, status, jwks_alg = resolve_key(jwks, kid)
+    entry = _signing_key_entry(jwks, kid, payload, envelope)
+    pk, status, jwks_alg = _entry_material(entry)
     # The key the signature axis actually verified against, which is what the
     # key_binding axis has to rederive the bound thumbprint from.
     eff_pk, eff_alg = None, None
@@ -2065,9 +2114,10 @@ def run(
         _raw_sig = sig_obj.get("sig", "")
         sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
-        eff_status, eff_kid = status, kid
-        eff_issuer = resolve_key_issuer(jwks, kid)
-        eff_revoked_at = resolve_revoked_at(jwks, kid)
+        eff_status = status
+        eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
+        eff_issuer = key_issuer_of(entry)
+        eff_revoked_at = revoked_at_of(entry)
         eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
         # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
@@ -2250,7 +2300,8 @@ def run_structured(
         envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
     )
 
-    pk, status, jwks_alg = resolve_key(jwks, kid)
+    entry = _signing_key_entry(jwks, kid, payload, envelope)
+    pk, status, jwks_alg = _entry_material(entry)
     # The key the signature axis actually verified against, which is what the
     # key_binding axis has to rederive the bound thumbprint from.
     eff_pk, eff_alg = None, None
@@ -2261,9 +2312,10 @@ def run_structured(
         _raw_sig = sig_obj.get("sig", "")
         sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
         sig_res = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
-        eff_status, eff_kid = status, kid
-        eff_issuer = resolve_key_issuer(jwks, kid)
-        eff_revoked_at = resolve_revoked_at(jwks, kid)
+        eff_status = status
+        eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
+        eff_issuer = key_issuer_of(entry)
+        eff_revoked_at = revoked_at_of(entry)
         eff_pk, eff_alg = pk, jwks_alg
         # Cloud receipts sign with the agent key though kid is the issuer id; fall back,
         # mirroring run(). agent_id is attacker-controlled, so match on issuer_id.

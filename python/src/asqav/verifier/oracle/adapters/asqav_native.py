@@ -160,6 +160,7 @@ class AsqavNativeAdapter(FormatAdapter):
             payload.get("agent_id") or doc.get("agent_id"),
             payload.get("issuer_id"),
             payload.get("org_id") or doc.get("org_id"),
+            payload.get("key_thumbprint"),
         )
 
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
