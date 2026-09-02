@@ -32,17 +32,29 @@ function isRawFloat(v: unknown): v is RawFloat {
  * An integer beyond IEEE-754 safe range, kept as exact source digits. Collapsing it to the nearest
  * double would let two distinct integers share one signature and a tampered receipt verify.
  */
-export class RawBigInt {
-  constructor(public readonly source: string) {}
+/**
+ * Largest integer magnitude both SDKs canonicalise identically. 2**53 is exactly
+ * representable and both emit the same digits for it; 2**53 + 1 has no exact double and
+ * JavaScript rounds it. Deliberately ONE ABOVE Number.isSafeInteger: the upstream interop
+ * vector `number_2_to_53` pins 2**53 as canonical. The bound also excludes every integer
+ * at or above 1e21, where toString switches to exponential notation and Python's str
+ * does not.
+ */
+export const MAX_CANONICAL_INTEGER = 9007199254740992;
 
-  // JSON.stringify collapses exactly like JSON.parse would (nearest double).
-  toJSON(): number {
-    return Number(this.source);
+/** The same bound as an exact integer, for comparing against source digits. */
+const MAX_CANONICAL_INTEGER_EXACT = 9007199254740992n;
+
+/**
+ * A digest-covered integer with no exact double. JavaScript rounds it and Python does not,
+ * so the same receipt canonicalises two ways and its signature verifies in one SDK and fails
+ * in the other. Refusing it is what keeps a verdict meaningful.
+ */
+export class UnsafeIntegerError extends SyntaxError {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsafeIntegerError";
   }
-}
-
-function isRawBigInt(v: unknown): v is RawBigInt {
-  return v instanceof RawBigInt;
 }
 
 /**
@@ -68,8 +80,9 @@ function floatToString(n: number): string {
 }
 
 /**
- * Parse JSON preserving float literals as `RawFloat` and out-of-safe-range integers as `RawBigInt`,
- * mirroring Python's `json.load`. Strict: a duplicated member at any depth throws (criterion 419).
+ * Parse JSON preserving float literals as `RawFloat`, mirroring Python's `json.load`. Strict on two
+ * counts: a duplicated member at any depth throws, and so does an integer outside +/-2**53,
+ * which no two readers canonicalise alike.
  */
 export function parseJsonPreservingFloats(text: string): unknown {
   let i = 0;
@@ -153,7 +166,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
   const digits = (): void => {
     while (i < text.length && digit()) i++;
   };
-  const num = (): RawFloat | RawBigInt | number => {
+  const num = (): RawFloat | number => {
     // Strict RFC 8259 number grammar, matching Python json.loads (no leading zero,
     // a digit required after '.' and after the exponent marker, no bare '-').
     const start = i;
@@ -180,7 +193,16 @@ export function parseJsonPreservingFloats(text: string): unknown {
     const lexeme = text.slice(start, i);
     const parsed = Number(lexeme);
     if (isFloat) return new RawFloat(parsed);
-    if (!Number.isSafeInteger(parsed)) return new RawBigInt(lexeme);
+    // Test the SOURCE DIGITS, never the parsed double: Number("9007199254740993") is
+    // already 9007199254740992, so a magnitude check on `parsed` would wave through the
+    // exact value this rule exists to refuse.
+    const exact = BigInt(lexeme);
+    if (exact > MAX_CANONICAL_INTEGER_EXACT || exact < -MAX_CANONICAL_INTEGER_EXACT) {
+      throw new UnsafeIntegerError(
+        `integer outside the canonical integer range +/-2**53: ${lexeme}; serialise it as ` +
+          `a JSON string or an integer-rational pair`,
+      );
+    }
     return parsed;
   };
   const result = value();
@@ -190,12 +212,11 @@ export function parseJsonPreservingFloats(text: string): unknown {
 }
 
 /**
- * Strip the `RawFloat` / `RawBigInt` wrappers back to the exact shapes `JSON.parse` produces.
+ * Strip the `RawFloat` wrapper back to the exact shape `JSON.parse` produces.
  * Canonicalising callers keep the wrappers; callers needing the plain wire shape unwrap them.
  */
 export function unwrapPreservedFloats(value: unknown): unknown {
   if (isRawFloat(value)) return value.value;
-  if (isRawBigInt(value)) return Number(value.source);
   if (Array.isArray(value)) return value.map(unwrapPreservedFloats);
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
@@ -218,7 +239,7 @@ export function parseJsonStrict(text: string): unknown {
 /** Recursively NFC-normalise every string key and value (mirrors `_nfc`). */
 function nfc(obj: unknown): unknown {
   if (typeof obj === "string") return obj.normalize("NFC");
-  if (isRawFloat(obj) || isRawBigInt(obj)) return obj;
+  if (isRawFloat(obj)) return obj;
   if (Array.isArray(obj)) return obj.map(nfc);
   if (obj !== null && typeof obj === "object") {
     const out: Record<string, unknown> = {};
@@ -309,7 +330,6 @@ function serialize(
   if (isRawFloat(value)) return honorFloat ? floatToString(value.value) : numberToString(value.value);
   // A >2^53 integer: emit exact source digits in every dialect (Python str(int)
   // parity) so distinct ints stay distinct.
-  if (isRawBigInt(value)) return value.source;
   if (typeof value === "number") return numberToString(value);
   if (typeof value === "string") return jsonString(value);
   if (Array.isArray(value)) {
