@@ -1443,10 +1443,11 @@ def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
 def _generate_nonce() -> str:
     """Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
 
-    The cloud stores the value verbatim and runs no uniqueness check, so
-    re-sending one produces a second accepted signature. The enforced
-    control is the validity window (`valid_seconds` / `expires_at`), which
-    makes verify return `signature_expired` once it passes.
+    The cloud refuses a nonce a live signature for the same agent in the same
+    organisation already holds, answering HTTP 409, so the field bounds replay
+    while that earlier receipt is inside its validity window. The window itself
+    is set by `valid_seconds` / `expires_at`, which makes verify return
+    `signature_expired` once it passes and frees the token for re-use.
     """
     import secrets as _secrets
 
@@ -2274,7 +2275,7 @@ class Agent:
         # and builds the signed authorized_under_mandate attestation server-side.
         if mandate_id is not None:
             body["mandate_id"] = mandate_id
-        # Opaque caller token. The cloud stores it and checks no re-use.
+        # Opaque caller token; the cloud answers 409 if a live signature already holds it.
         if nonce is not None:
             body["nonce"] = nonce
         if valid_seconds is not None:
