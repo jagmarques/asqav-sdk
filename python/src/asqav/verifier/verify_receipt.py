@@ -450,6 +450,24 @@ class DuplicateMemberError(ValueError):
     """
 
 
+#: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
+#: representable and both emit the same digits for it, while 2**53 + 1 has no exact
+#: double and JavaScript rounds it. One ABOVE JavaScript's Number.isSafeInteger bound,
+#: deliberately: the upstream interop vector `number_2_to_53` pins 2**53 as canonical.
+#: The bound also excludes every integer at or above 1e21, where JavaScript's toString
+#: switches to exponential notation and Python's str does not.
+MAX_CANONICAL_INTEGER = 2**53
+
+
+class UnsafeIntegerError(ValueError):
+    """An integer with no exact double; two readers would canonicalise it differently.
+
+    A JavaScript reader rounds such a value while Python keeps it, so the same
+    receipt produces two byte strings and one digest each. Refusing it at ingest is
+    what keeps a verdict meaningful. Mirrors ``asqav/strict_json.py``.
+    """
+
+
     # object_pairs_hook: reject a repeated member name at any depth (419).
 def _reject_duplicate_members(pairs):
     out = {}
@@ -460,18 +478,34 @@ def _reject_duplicate_members(pairs):
     return out
 
 
+    # parse_int: refuse an integer literal with no exact double.
+def _reject_unsafe_integer(literal):
+    value = int(literal)
+    if not -MAX_CANONICAL_INTEGER <= value <= MAX_CANONICAL_INTEGER:
+        raise UnsafeIntegerError(
+            f"integer outside the canonical integer range +/-2**53: {literal}; serialise "
+            "it as a JSON string or an integer-rational pair"
+        )
+    return value
+
+
 def _parse_object(text: str, source: str) -> dict:
     """Parse ``text`` as a JSON object, or raise VerifierInputError.
 
     Rejects empty input, any non-object (array/string/number/null), and any
     duplicated member name at any depth (419), so a later ``.get`` never lands
-    on a non-dict and last-wins bytes never reach the canonicaliser.
+    on a non-dict and last-wins bytes never reach the canonicaliser. Also rejects an
+    integer outside +/-2**53, which no two readers canonicalise alike.
     """
     if not text or not text.strip():
         raise VerifierInputError(f"{source}: empty input, expected a JSON object")
     try:
-        value = json.loads(text, object_pairs_hook=_reject_duplicate_members)
-    except DuplicateMemberError as exc:
+        value = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_members,
+            parse_int=_reject_unsafe_integer,
+        )
+    except (DuplicateMemberError, UnsafeIntegerError) as exc:
         raise VerifierInputError(f"{source}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise VerifierInputError(f"{source}: not valid JSON ({exc})") from exc
