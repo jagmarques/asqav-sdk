@@ -356,7 +356,8 @@ export function asqavJcsPreCutover(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(obj, compareCodePoints, true));
 }
 
-/** True when any object member name, at any depth, carries a character above U+FFFF. */
+// True when any object member name, at any depth, carries a character above U+FFFF. A lone
+// surrogate encodes no such character, so only a full surrogate pair counts (mirrors Python).
 export function hasSupplementaryMemberName(obj: unknown): boolean {
   const stack: unknown[] = [obj];
   while (stack.length > 0) {
@@ -365,7 +366,7 @@ export function hasSupplementaryMemberName(obj: unknown): boolean {
       for (const v of node) stack.push(v);
     } else if (node !== null && typeof node === "object") {
       for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-        if (/[\uD800-\uDBFF]/.test(k)) return true;
+        if (/[\uD800-\uDBFF][\uDC00-\uDFFF]/.test(k)) return true;
         stack.push(v);
       }
     }
