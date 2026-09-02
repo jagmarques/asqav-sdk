@@ -11,7 +11,12 @@ import {
   type KeyProvider,
   type SignatureMaterial,
 } from "../adapter.js";
-import { asqavJcs } from "../canonical.js";
+import {
+  JCS_UTF16_CUTOVER,
+  asqavJcs,
+  asqavJcsPreCutover,
+  hasSupplementaryMemberName,
+} from "../canonical.js";
 import { sha256Hex } from "../crypto.js";
 import { isLowerHex } from "./acta.js";
 import {
@@ -177,6 +182,17 @@ export class AsqavNativeAdapter extends FormatAdapter {
     }
     // Asqav signs the canonical bytes of the payload directly, no pre-hash.
     return asqavJcs(payloadOf(doc));
+  }
+
+  // Only a payload-mode receipt issued before the cutover with a member name above U+FFFF has
+  // a dated dialect; hash-mode members are ASCII, so both orders coincide there.
+  preCutoverSigningInput(doc: Record<string, unknown>): Uint8Array | null {
+    if (isHashMode(doc)) return null;
+    const payload = payloadOf(doc);
+    if (!hasSupplementaryMemberName(payload)) return null;
+    const issued = Date.parse(String(payload.issued_at ?? ""));
+    if (Number.isNaN(issued) || issued >= Date.parse(JCS_UTF16_CUTOVER)) return null;
+    return asqavJcsPreCutover(payload);
   }
 
   private hashModeSigningInput(doc: Record<string, unknown>): Uint8Array {

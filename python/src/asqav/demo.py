@@ -27,6 +27,8 @@ import webbrowser
 from dataclasses import dataclass, field
 from typing import Any
 
+from asqav._jcs import canonical_json as _jcs_canonical
+
 # === Pre-loaded scenarios ===
 
 SCENARIOS: list[dict[str, Any]] = [
@@ -143,13 +145,13 @@ class DemoState:
 
 
 def _canonical(obj: Any) -> bytes:
-    """JCS-style canonical JSON.
+    """JCS canonical JSON, the same bytes production asqav signs.
 
-    We use json.dumps(sort_keys=True) here to keep the demo dependency-free.
-    Production asqav uses the jcs library; behavior matches for the simple
-    JSON-native payloads this demo uses.
+    Delegates to ``asqav._jcs.canonical_json`` (stdlib only), which orders member
+    names by UTF-16 code unit per RFC 8785; ``json.dumps(sort_keys=True)`` would
+    diverge for a key above U+FFFF.
     """
-    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return _jcs_canonical(obj)
 
 
 def _sign(state: DemoState, payload: dict[str, Any]) -> dict[str, Any]:

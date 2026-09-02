@@ -46,7 +46,7 @@ The fingerprint is computed over the combined object `{"action_type": ..., "cont
 
 The same rules expressed in any language:
 
-- **Object keys**: sorted lexicographically by Unicode code point, which is Python's `sorted()` default.
+- **Object keys**: sorted by UTF-16 code unit, as RFC 8785 section 3.2.3 requires. Python's `sorted()` and `json.dumps(sort_keys=True)` order by code point instead, which agrees across the Basic Multilingual Plane and diverges for any key containing a character above U+FFFF; use `asqav._jcs.canonical_json`, which sorts by `key.encode("utf-16-be")`. Example: the keys `＠` (U+FF20) and `😀` (U+1F600) canonicalize to `{"😀":1,"＠":1}` with SHA-256 `425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6`; the code-point order `{"＠":1,"😀":1}` (SHA-256 `1c314559129cce00bc1b3caa2ee37fa3e81f926aee65b34f8e4e21856b2de83b`) is not conformant. This is conformance vector `asqav-24-jcs-astral-key-order`.
 - **Whitespace**: none, anywhere.
 - **Strings**: emitted verbatim as UTF-8, with no `\uXXXX` escaping for characters above U+001F.
 - **Numbers**: serialized via Python's `json` module rules. Integers stay integers like `42`, and floats use the shortest round-trip form, so `1.5` not `1.50`.
