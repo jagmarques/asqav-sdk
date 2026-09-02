@@ -20,9 +20,13 @@ interface Vector {
 }
 
 const vectorsPath = resolve(__dirname, "..", "..", "conformance", "vectors.json");
-const { vectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {
+const { vectors: allVectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {
   vectors: Vector[];
 };
+// A refused-document vector (asqav-25) carries `input_text` and no parsed `input`, so it
+// has no canonical bytes for these helpers to reproduce. Its refusal is pinned in
+// verifier-parity.test.ts instead.
+const vectors = allVectors.filter((v) => "input" in v);
 
 // Closed Literal mirrored from the cloud SignRequest. passive_telemetry is observation-only;
 // github_sha_pull is the server-stamped authoritative code-authorship capture layer.
