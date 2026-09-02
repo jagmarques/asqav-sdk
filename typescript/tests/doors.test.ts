@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { canonicalJson } from "../src/jcs.js";
+import { parseJsonStrict } from "../src/verifier/canonical.js";
 import * as doors from "../src/doors.js";
 
 const PARITY = resolve(__dirname, "..", "..", "verifier", "doors-parity");
@@ -155,27 +156,32 @@ describe("cross-language parity", () => {
     expect(Object.keys(fixture).some((k) => [...k].some((c) => c.charCodeAt(0) > 0x7f))).toBe(true);
   });
 
-  // The key-ordering cause is CLOSED (Python now sorts by UTF-16 per RFC 8785 3.2.3);
-  // only the above-2**53 number path still divides the two SDKs.
-  it("records the known divergence outside the safe domain", () => {
-    const fixture = JSON.parse(readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8"));
-    const tsBytes = jcs(fixture);
-    const tsGolden = readFileSync(resolve(PARITY, "divergence-typescript.jcs"), "utf-8");
-    const pyGolden = readFileSync(resolve(PARITY, "divergence-python.jcs"), "utf-8");
+  // Both causes are now CLOSED. Key ordering was fixed when Python moved to UTF-16
+  // member order; the number path is fixed by refusing the value rather than rounding it.
+  it("refuses the out-of-domain fixture at the parse boundary, in both SDKs", () => {
+    const text = readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8");
+    expect(() => parseJsonStrict(text)).toThrow(/canonical integer range/);
+  });
 
-    expect(tsBytes).toBe(tsGolden); // TS output pinned
-    expect(tsGolden).not.toBe(pyGolden); // one cause still divides them
+  const dec = (b: Uint8Array | string) => (typeof b === "string" ? b : new TextDecoder().decode(b));
 
-    // OPEN cause: an integer above 2**53 rounds in the TS number path, exact in Python.
-    expect(tsGolden).toContain("9007199254740992");
-    expect(pyGolden).toContain("9007199254740993");
+  it("shows why the canonicaliser alone cannot catch this fixture", () => {
+    // JSON.parse has already rounded 2^53+1 to 2^53 by the time any canonicaliser runs,
+    // and a rounded 2^53 is indistinguishable from a genuine one. JavaScript cannot even
+    // hold 2^53+1: the literal IS 2^53. So the rule has to live at the parse boundary,
+    // where the source digits still exist; this guard is defence in depth for the values
+    // JS CAN represent above the bound.
+    const rounded = JSON.parse(readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8"));
+    expect(rounded.n).toBe(9007199254740992);
+    expect(9007199254740993).toBe(9007199254740992); // the language, not a typo
+    expect(() => jcs({ n: 2 ** 54 })).toThrow(/canonical integer range/);
+    expect(() => jcs({ n: 1e21 })).toThrow(/canonical integer range/);
+    expect(dec(jcs({ n: 2 ** 53 }))).toBe('{"n":9007199254740992}');
+  });
 
-    // CLOSED cause: the astral key (U+10000) now sorts BEFORE U+FFFF in BOTH, since its
-    // UTF-16 form leads with a surrogate. Asserting both keeps the Python fix pinned here.
-    expect(tsGolden.indexOf("\u{10000}")).toBeLessThan(tsGolden.indexOf("￿"));
-    expect(pyGolden.indexOf("\u{10000}")).toBeLessThan(pyGolden.indexOf("￿"));
-
-    // The remaining difference is the number alone.
-    expect(pyGolden.replace("9007199254740993", "9007199254740992")).toBe(tsGolden);
+  it("still agrees on astral key order, the cause that was genuinely closed", () => {
+    const safe = { "\u{10000}": "astral-key", "\uFFFF": "bmp-max" };
+    const out = jcs(safe);
+    expect(out.indexOf("\u{10000}")).toBeLessThan(out.indexOf("\uFFFF"));
   });
 });

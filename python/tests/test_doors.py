@@ -4,15 +4,18 @@ Pins three properties per door:
   1. each wrapper yields a valid schema-shaped envelope containing the exact receipt,
   2. the round-trip inverse extracts the identical inner receipt,
   3. Python and TypeScript emit the same JCS bytes for the same input across the
-     JSON-canonicalization-safe domain (BMP keys, integers up to 2**53), with the
-     known astral-plane / big-integer divergence pinned as a documented limit.
+     JSON-canonicalization-safe domain (BMP keys, integers up to 2**53), with anything
+     outside that domain refused at ingest rather than canonicalised two ways.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from asqav import doors
+import pytest
+
+from asqav import doors, strict_json
+from asqav._jcs import UnsafeIntegerError
 
 _ROOT = Path(__file__).resolve().parents[2]
 _PARITY = _ROOT / "verifier" / "doors-parity"
@@ -175,33 +178,28 @@ def test_parity_safe_domain_matches_shared_golden() -> None:
     assert fixture["big"] == 9007199254740991  # integer inside the safe range
 
 
-def test_known_canonicalization_divergence_outside_safe_domain() -> None:
-    """Pin what still diverges between the Python and TS canonicalizers, and what no longer does.
+def test_out_of_domain_fixture_is_refused_at_the_parse_boundary() -> None:
+    """The number path is CLOSED: the value is refused, not rounded.
 
-    This guard used to record TWO causes. The key-ordering one is now CLOSED: Python
-    orders member names by UTF-16 code unit per RFC 8785 3.2.3, so it agrees with TS on
-    astral keys. The number path is still open, and this test now says exactly that
-    rather than claiming a divergence that has been fixed.
+    This guard used to record a divergence. Both causes are now shut. Key ordering was
+    fixed when Python moved to UTF-16 member order; the number path is fixed here,
+    because an integer beyond +/-2**53 has no exact double and the two SDKs would
+    canonicalise it differently. The refusal happens at ingest, before any hashing.
     """
-    fixture = json.loads((_PARITY / "divergence-input.json").read_text(encoding="utf-8"))
-    py_bytes = doors.canonical_json(fixture)
-    py_golden = (_PARITY / "divergence-python.jcs").read_bytes()
-    ts_golden = (_PARITY / "divergence-typescript.jcs").read_bytes()
+    text = (_PARITY / "divergence-input.json").read_text(encoding="utf-8")
+    with pytest.raises(strict_json.UnsafeIntegerError, match="canonical integer range"):
+        strict_json.loads(text)
 
-    assert py_bytes == py_golden  # Python output pinned
-    assert py_golden != ts_golden  # one cause still divides them
 
-    # OPEN cause: an integer above 2**53 stays exact in Python and rounds in the TS
-    # number path. Closing it needs a versioned migration, out of scope for doors.
-    assert b"9007199254740993" in py_golden
-    assert b"9007199254740992" in ts_golden
+def test_canonicaliser_also_refuses_a_value_built_in_process() -> None:
+    """Defence in depth for a value that never went through the parser."""
+    with pytest.raises(UnsafeIntegerError, match="canonical integer range"):
+        doors.canonical_json({"n": 2**53 + 1})
+    # 2**53 itself is exactly representable and is pinned canonical upstream.
+    assert doors.canonical_json({"n": 2**53}) == b'{"n":9007199254740992}'
 
-    # CLOSED cause: the astral key (U+10000) now sorts BEFORE U+FFFF in BOTH, because
-    # its UTF-16 form leads with a surrogate in 0xD800..0xDBFF. Python sorted it after
-    # while it used code-point order; asserting both directions keeps the fix pinned.
-    astral, bmp_max = "\U00010000".encode("utf-8"), "￿".encode("utf-8")
-    assert py_golden.index(astral) < py_golden.index(bmp_max)
-    assert ts_golden.index(astral) < ts_golden.index(bmp_max)
 
-    # The remaining difference is the number alone: neutralise it and the bytes match.
-    assert py_golden.replace(b"9007199254740993", b"9007199254740992") == ts_golden
+def test_astral_key_order_stays_closed() -> None:
+    """The cause that was genuinely fixed, kept pinned."""
+    out = doors.canonical_json({"\U00010000": "astral-key", "\uffff": "bmp-max"}).decode()
+    assert out.index("\U00010000") < out.index("\uffff")
