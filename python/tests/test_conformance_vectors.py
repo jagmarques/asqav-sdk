@@ -55,9 +55,35 @@ def test_vectors_schema_metadata() -> None:
     assert len(d["vectors"]) >= 3
 
 
-def test_each_vector_canonical_matches_input() -> None:
+
+    # A vector whose DOCUMENT is refused (asqav-25) carries `input_text` and no parsed
+    # `input`, because a document that never parses has no canonical form to pin.
+def _canonicalizing_vectors(d: dict) -> list[dict]:
+    out = [v for v in d["vectors"] if "input" in v]
+    assert out, "no canonicalizing vectors found"
+    return out
+
+
+    # Every vector carries exactly one of `input` or `input_text`, never both, never neither.
+def test_every_vector_declares_its_input_form() -> None:
     d = json.loads(VECTORS_PATH.read_text())
     for v in d["vectors"]:
+        has_parsed = "input" in v
+        has_text = "input_text" in v
+        assert has_parsed != has_text, (
+            f"{v['name']}: needs exactly one of input / input_text"
+        )
+        if has_text:
+            assert v["expected_verify"] is False, (
+                f"{v['name']}: an input_text vector pins a refusal, so expected_verify is False"
+            )
+            assert "canonical" not in v and "sha256" not in v, (
+                f"{v['name']}: a refused document has no canonical form"
+            )
+
+def test_each_vector_canonical_matches_input() -> None:
+    d = json.loads(VECTORS_PATH.read_text())
+    for v in _canonicalizing_vectors(d):
         expected_canon = _jcs(v["input"])
         assert v["canonical"] == expected_canon, (
             f"{v['name']}: canonical drift. Regenerate vectors.json."
@@ -66,7 +92,7 @@ def test_each_vector_canonical_matches_input() -> None:
 
 def test_each_vector_sha256_matches_canonical() -> None:
     d = json.loads(VECTORS_PATH.read_text())
-    for v in d["vectors"]:
+    for v in _canonicalizing_vectors(d):
         expected_hash = hashlib.sha256(v["canonical"].encode("utf-8")).hexdigest()
         assert v["sha256"] == expected_hash, (
             f"{v['name']}: sha256 drift. Regenerate vectors.json."
