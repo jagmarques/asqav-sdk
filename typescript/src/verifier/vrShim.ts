@@ -160,7 +160,7 @@ export function checkNonce(
   if (seenNonces === undefined) {
     return [
       "PASS",
-      "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false (cloud passthrough axis, draft 10.3)",
+      "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false (cloud passthrough axis, draft 10.4)",
     ];
   }
   let identity: string;
