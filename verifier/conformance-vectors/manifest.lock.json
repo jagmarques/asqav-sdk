@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 7,
+  "corpus_version": 8,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -38,6 +38,11 @@
       "version": 6,
       "files": 234,
       "digest": "0ada6d7e636b3fadae689e52b539b55b937cc6792f7a846799cd45c2955d3734"
+    },
+    {
+      "version": 7,
+      "files": 234,
+      "digest": "f9c5c90f4329caf651e2c3b2b2a3b309c3f01c0a73cbd916c40249a8694a5cb9"
     }
   ],
   "files": [
@@ -1107,6 +1112,11 @@
       "bytes": 730
     },
     {
+      "path": "requirement-map.json",
+      "sha256": "92b258ea6aae74b2f6b0ef6d6944e4eeebf92e3ba529e5be1ef9af578fb9355b",
+      "bytes": 35824
+    },
+    {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
       "sha256": "696b6045b08c96348fe563d15b49a54d2383d68c83ea7ed45aeb93979aac3763",
       "bytes": 505
@@ -1242,5 +1252,5 @@
       ]
     }
   },
-  "digest": "f9c5c90f4329caf651e2c3b2b2a3b309c3f01c0a73cbd916c40249a8694a5cb9"
+  "digest": "e5cb2fa08935333a5e97c577562f558af4036b8885d6f9d201b5f7ffe647f657"
 }
