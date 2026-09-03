@@ -1,8 +1,45 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 1,
-  "frozen": true,
+  "corpus_version": 7,
+  "rolling": true,
   "digest_algorithm": "SHA-256",
+  "version_history": [
+    {
+      "version": 1,
+      "date": "2026-08-10",
+      "files": 170,
+      "digest": "3206eaf283ef84c3e54ea5d860ecc08a792fbd316daec04ea64072d9b6e05503"
+    },
+    {
+      "version": 2,
+      "date": "2026-08-12",
+      "files": 176,
+      "digest": "37fdb7564b54303dde937e6f3324321e108dcd3710367ca6b0cf19906d029103"
+    },
+    {
+      "version": 3,
+      "date": "2026-08-27",
+      "files": 197,
+      "digest": "8a8904f0b496b0ecb2580212f9cc59d3edd27e5292eaa0a15a5ba1f7bf4ee3b9"
+    },
+    {
+      "version": 4,
+      "date": "2026-08-30",
+      "files": 210,
+      "digest": "525b0b407d6bf752e51d6bde74e384fd65020362aadf186ab73ed53013229653"
+    },
+    {
+      "version": 5,
+      "date": "2026-09-01",
+      "files": 227,
+      "digest": "aec29cc3f2eefb5818214427bae1b575173a0c0119bab7c34710b9a63cf91262"
+    },
+    {
+      "version": 6,
+      "files": 234,
+      "digest": "0ada6d7e636b3fadae689e52b539b55b937cc6792f7a846799cd45c2955d3734"
+    }
+  ],
   "files": [
     {
       "path": "README.md",
@@ -656,8 +693,8 @@
     },
     {
       "path": "asqav-05-hash-mode-prod/receipt.json",
-      "sha256": "3afc65403a5076d2551c002f985a2f62dfaad0bdf4fab634b61e076f401e1747",
-      "bytes": 5003
+      "sha256": "d2f1baad9be60bdf3a2941c4e9a99e6e63d1bc7efe88c571e3f581d8db52354f",
+      "bytes": 5001
     },
     {
       "path": "asqav-05-hash-mode-prod/signed_message.bytes",
@@ -736,8 +773,8 @@
     },
     {
       "path": "asqav-10-hash-mode-multikey/receipt.json",
-      "sha256": "ea6345cd0a34601e764ce0456fd3ee0b23812f4e5a1fe40b9e2915b1a50d314c",
-      "bytes": 603
+      "sha256": "1cbcbba803be7a5a7cc4f62ccadcde293b82a1d97f5384272e187d1be2b7143f",
+      "bytes": 601
     },
     {
       "path": "asqav-11-dup-member-toplevel/expected.json",
@@ -1205,5 +1242,5 @@
       ]
     }
   },
-  "digest": "1b030a79ebc34f08556877c134d320aef93317abcbf47f2d012c58a04814ba59"
+  "digest": "f9c5c90f4329caf651e2c3b2b2a3b309c3f01c0a73cbd916c40249a8694a5cb9"
 }
