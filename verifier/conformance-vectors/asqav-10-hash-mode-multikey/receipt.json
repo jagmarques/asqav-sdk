@@ -14,5 +14,5 @@
   "algorithm": "Ed25519",
   "key_id": "org_multikey_vec",
   "signature_b64": "E7mmk0lw7mzAjFkdfMfLg04BAnnIybu60r/AaCGtm/imVyZINRtvjyCQXXFT6Rmqb+hrQszXMpuVHDZGDo5FAA==",
-  "anchors": null
+  "anchors": []
 }
