@@ -47,6 +47,7 @@ from pathlib import Path
 import pytest
 
 VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.json"
+_VECTOR_ROOT = Path(__file__).parent.parent.parent / "verifier" / "conformance-vectors"
 
 
 def _vectors() -> dict[str, dict]:
@@ -373,3 +374,32 @@ def test_no_derived_member_escapes_a_pin() -> None:
         for member in ("canonical", "sha256"):
             assert member in vector, f"{name}: missing {member}"
         assert name in PINNED_SHA256, f"{name}: sha256 is not pinned"
+
+
+class TestTheCorpusSpellsNoAnchorsOneWay:
+    """The corpus carried two spellings of the same fact: null and an empty array.
+
+    The verifier maps absent, null and empty to the identical SKIPPED result, so this
+    never changed a verdict, but a corpus that states one fact two ways invites a
+    reader to infer a distinction that is not there.
+    """
+
+    def test_no_asqav_vector_uses_null_for_no_anchors(self) -> None:
+        """One spelling, pinned, so the corpus cannot drift back to carrying both."""
+        offenders = []
+        for vector_dir in sorted(_VECTOR_ROOT.glob("asqav-*")):
+            if not vector_dir.is_dir():
+                continue
+            receipt = json.loads((vector_dir / "receipt.json").read_text())
+            if "anchors" in receipt and receipt["anchors"] is None:
+                offenders.append(vector_dir.name)
+        assert offenders == [], f"anchors null instead of []: {offenders}"
+
+    def test_every_anchors_member_is_a_list(self) -> None:
+        """A non-list anchors value is malformed: the verifier FAILs it, never laundered."""
+        for vector_dir in sorted(_VECTOR_ROOT.glob("asqav-*")):
+            if not vector_dir.is_dir():
+                continue
+            receipt = json.loads((vector_dir / "receipt.json").read_text())
+            if "anchors" in receipt:
+                assert isinstance(receipt["anchors"], list), vector_dir.name
