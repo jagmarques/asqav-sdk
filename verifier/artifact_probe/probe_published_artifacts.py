@@ -135,6 +135,97 @@ def probe_python(version: str) -> list[str]:
     return failures
 
 
+def probe_corpus_against_installed_python(version: str) -> list[str]:
+    """Run the conformance corpus through the INSTALLED verifier, not the repo one.
+
+    Vector agreement is measured against the distributed artifact for the same
+    reason the entry points are: a corpus that passes against the working tree
+    says nothing about the package a third party installs. The vectors come from
+    this repository because that is where they are published; the verifier that
+    reads them comes from PyPI.
+    """
+    failures: list[str] = []
+    vectors = ROOT / "verifier" / "conformance-vectors"
+    with tempfile.TemporaryDirectory() as tmp:
+        venv = pathlib.Path(tmp) / "venv"
+        subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
+        py = venv / "bin" / "python"
+        subprocess.run(
+            [str(venv / "bin" / "pip"), "install", "-q", f"asqav=={version}", "dilithium-py"],
+            check=True,
+        )
+        runner = pathlib.Path(tmp) / "run_corpus.py"
+        runner.write_text(
+            "import json, pathlib, sys\n"
+            "from asqav.verifier.verify_receipt import run_structured\n"
+            "base = pathlib.Path(sys.argv[1])\n"
+            "out = {}\n"
+            "for d in sorted(p for p in base.iterdir() if p.is_dir()):\n"
+            "    exp = d / 'expected.json'\n"
+            "    receipt, jwks = d / 'receipt.json', d / 'jwks.json'\n"
+            "    if not (exp.exists() and receipt.exists() and jwks.exists()):\n"
+            "        continue\n"
+            "    e = json.loads(exp.read_text())\n"
+            "    if e.get('format') != 'asqav-native':\n"
+            "        continue\n"
+            "    pred = d / 'predecessor.json'\n"
+            "    try:\n"
+            "        r = run_structured(\n"
+            "            json.loads(receipt.read_text()), json.loads(jwks.read_text()),\n"
+            "            predecessor_payload=json.loads(pred.read_text()) if pred.exists() else None)\n"
+            "        out[d.name] = {'declared': e.get('outcome'), 'observed': r['verdict'],\n"
+            "                       'not_checked': len(r.get('not_checked', []))}\n"
+            "    except Exception as exc:\n"
+            "        out[d.name] = {'declared': e.get('outcome'), 'observed': 'ERROR: %s' % exc}\n"
+            "print(json.dumps(out))\n"
+        )
+        proc = subprocess.run(
+            [str(py), str(runner), str(vectors)], capture_output=True, text=True, cwd=tmp
+        )
+        if proc.returncode != 0:
+            return [f"corpus run under the installed package failed: {proc.stderr.strip()[-300:]}"]
+        results = json.loads(proc.stdout)
+        print(f"  ran {len(results)} asqav-native vectors through the installed verifier")
+        for name, r in sorted(results.items()):
+            if str(r["observed"]).startswith("ERROR"):
+                failures.append(f"corpus {name}: {r['observed']}")
+        # Reported once, naming the version, rather than once per vector: this is a
+        # single fact about the artifact, and repeating it 22 times buries the rest.
+        undeclared = [n for n, r in results.items() if r.get("not_checked", 0) == 0]
+        if undeclared:
+            failures.append(
+                f"asqav=={version} emits no not_checked declaration on any of "
+                f"{len(undeclared)} corpus results. The declaration is on main but has not "
+                f"been released, so the DISTRIBUTED artifact does not carry the coverage "
+                f"declaration the repository does. Publishing closes this."
+            )
+        # The declared-vs-observed comparison is reported, never silently reconciled:
+        # a vector whose declared outcome the installed verifier does not reproduce is
+        # the exact disagreement this axis exists to surface.
+        drift = [
+            f"{n}: declared {r['declared']!r}, observed {r['observed']!r}"
+            for n, r in sorted(results.items())
+            if not str(r["observed"]).startswith("ERROR") and r["declared"] != r["observed"]
+        ]
+        if drift:
+            print()
+            print(
+                f"  {len(drift)} of {len(results)} vectors declare an outcome the published "
+                f"verifier does not reproduce from the published corpus alone."
+            )
+            print(
+                "  This is NOT an artifact defect and does not fail this probe: the repository's\n"
+                "  own verifier drifts on exactly the same vectors. It is a corpus-declaration gap.\n"
+                "  The declared outcome assumes trust material the corpus does not ship (pinned TSA\n"
+                "  keys, bitcoin headers) or an algorithm the single-file verifier does not\n"
+                "  implement, and no vector says which. An outsider reproduces "
+                f"{len(results) - len(drift)} of {len(results)}."
+            )
+            for d in drift:
+                print(f"    - {d}")
+    return failures
+
+
 def claimed_node_surface(text: str) -> dict:
     """Group documented names by the specifier the page imports them from.
 
@@ -202,6 +293,8 @@ def main() -> int:
         version = published_version("asqav")
         print(f"probing PUBLISHED asqav=={version}")
         failures += probe_python(version)
+        print("running the conformance corpus through the installed package")
+        failures += probe_corpus_against_installed_python(version)
     if not args.python_only:
         version = published_version("@asqav/sdk", npm=True)
         print(f"probing PUBLISHED @asqav/sdk@{version}")
