@@ -23,8 +23,8 @@ VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 
 # The lock digests, reproduced beside each lock's own digest field and in the corpus
 # READMEs. A regenerated lock that forgets to update these is drift, not a refresh.
-FINGERPRINT_LOCK_DIGEST = "f4c6871f2930dc8f759f473e95a95b31050153631218c0fbc6d94f7e3e394837"
-VERIFIER_LOCK_DIGEST = "1b030a79ebc34f08556877c134d320aef93317abcbf47f2d012c58a04814ba59"
+FINGERPRINT_LOCK_DIGEST = "2a4996574669abcb65f4ae6942984a8108b4f0da4043d3042ca87b29d866e397"
+VERIFIER_LOCK_DIGEST = "0ada6d7e636b3fadae689e52b539b55b937cc6792f7a846799cd45c2955d3734"
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -58,15 +58,31 @@ def _locks() -> list[tuple[Path, Path, str]]:
         (VERIFIER_ROOT, VERIFIER_LOCK, VERIFIER_LOCK_DIGEST),
     ]
 
+    # The rolling lock is the contract: a version that moves with the bytes, and named
 
-    # The freeze is the contract: v1, frozen, and named
+
 @pytest.mark.parametrize("root,lock_path,pinned", _locks(), ids=["fingerprint", "verifier"])
-def test_lock_declares_the_v1_freeze(root, lock_path, pinned) -> None:
+def test_lock_declares_a_rolling_version(root, lock_path, pinned) -> None:
     lock = _load_lock(lock_path)
-    assert lock["corpus_version"] == 1, lock_path
-    assert lock["frozen"] is True, lock_path
+    assert lock["rolling"] is True, lock_path
+    assert isinstance(lock["corpus_version"], int), lock_path
+    assert lock["corpus_version"] >= 1, lock_path
     assert lock["digest_algorithm"] == "SHA-256", lock_path
     assert lock["corpus"], lock_path
+
+
+# A version that never moved while the bytes did is the defect this pins against
+@pytest.mark.parametrize("root,lock_path,pinned", _locks(), ids=["fingerprint", "verifier"])
+def test_history_records_every_completed_cut(root, lock_path, pinned) -> None:
+    lock = _load_lock(lock_path)
+    history = lock["version_history"]
+    assert len(history) == lock["corpus_version"] - 1, lock_path
+    assert [e["version"] for e in history] == list(range(1, lock["corpus_version"])), lock_path
+    for entry in history:
+        assert len(entry["digest"]) == 64, lock_path
+        assert entry["files"] >= 1, lock_path
+    # The current cut's digest is the lock's own, so it is never inside its own preimage
+    assert all(e["digest"] != lock["digest"] for e in history), lock_path
 
 
 @pytest.mark.parametrize("root,lock_path,pinned", _locks(), ids=["fingerprint", "verifier"])
@@ -106,8 +122,9 @@ def test_lock_digest_rederives_and_matches_the_repo_pin(root, lock_path, pinned)
         f"{lock_path}: digest changed; update the README and the test constant together"
     )
 
-
     # The published Ed25519 seed regenerates the ACTA vectors' public key
+
+
 @pytest.mark.skipif(not _CRYPTOGRAPHY_AVAILABLE, reason="cryptography not installed")
 def test_ed25519_corpus_seed_rederives_the_public_key() -> None:
     lock = _load_lock(VERIFIER_LOCK)
@@ -120,9 +137,10 @@ def test_ed25519_corpus_seed_rederives_the_public_key() -> None:
     )
     assert pub == acta["public_key_hex"], "published Ed25519 seed does not match its key"
 
-
     # The published ML-DSA-65 seed regenerates the key and the pinned KAT signature
     # byte for byte (dilithium-py deterministic=True, the FIPS 204 pure variant)
+
+
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 @pytest.mark.parametrize(
     "lock_path", [FINGERPRINT_LOCK, VERIFIER_LOCK], ids=["fingerprint", "verifier"]
@@ -142,8 +160,9 @@ def test_mldsa_corpus_seed_gives_signature_byte_parity(lock_path) -> None:
     )
     assert ML_DSA_65.verify(pk, message, signature) is True
 
-
     # Both locks publish the same ML-DSA-65 corpus seed
+
+
 def test_the_mldsa_seed_is_one_published_value() -> None:
     fp = _load_lock(FINGERPRINT_LOCK)["signing"]["mldsa65"]
     vv = _load_lock(VERIFIER_LOCK)["signing"]["mldsa65"]
@@ -151,8 +170,9 @@ def test_the_mldsa_seed_is_one_published_value() -> None:
     assert fp["public_key_hex"] == vv["public_key_hex"]
     assert fp["known_answer"] == vv["known_answer"]
 
-
     # The KAT message is the pinned SHA-256 of the named fingerprint vector
+
+
 def test_kat_message_is_the_fingerprint_vector_digest() -> None:
     lock = _load_lock(FINGERPRINT_LOCK)
     message_hex = lock["signing"]["mldsa65"]["known_answer"]["message_hex"]
@@ -161,9 +181,10 @@ def test_kat_message_is_the_fingerprint_vector_digest() -> None:
     assert message_hex == kat["sha256"]
     assert hashlib.sha256(kat["canonical"].encode("utf-8")).hexdigest() == kat["sha256"]
 
-
     # The walkthrough fixtures are byte copies of locked corpus files, so the
     # auditor-facing artifacts cannot drift from the corpus pins
+
+
 def test_walkthrough_fixtures_are_locked_corpus_bytes() -> None:
     fixtures = _REPO_ROOT / "verifier" / "docs" / "fixtures"
     pairs = {

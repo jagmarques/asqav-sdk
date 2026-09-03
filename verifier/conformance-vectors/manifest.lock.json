@@ -1,8 +1,40 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 1,
-  "frozen": true,
+  "corpus_version": 6,
+  "rolling": true,
   "digest_algorithm": "SHA-256",
+  "version_history": [
+    {
+      "version": 1,
+      "date": "2026-08-10",
+      "files": 170,
+      "digest": "3206eaf283ef84c3e54ea5d860ecc08a792fbd316daec04ea64072d9b6e05503"
+    },
+    {
+      "version": 2,
+      "date": "2026-08-12",
+      "files": 176,
+      "digest": "37fdb7564b54303dde937e6f3324321e108dcd3710367ca6b0cf19906d029103"
+    },
+    {
+      "version": 3,
+      "date": "2026-08-27",
+      "files": 197,
+      "digest": "8a8904f0b496b0ecb2580212f9cc59d3edd27e5292eaa0a15a5ba1f7bf4ee3b9"
+    },
+    {
+      "version": 4,
+      "date": "2026-08-30",
+      "files": 210,
+      "digest": "525b0b407d6bf752e51d6bde74e384fd65020362aadf186ab73ed53013229653"
+    },
+    {
+      "version": 5,
+      "date": "2026-09-01",
+      "files": 227,
+      "digest": "aec29cc3f2eefb5818214427bae1b575173a0c0119bab7c34710b9a63cf91262"
+    }
+  ],
   "files": [
     {
       "path": "README.md",
@@ -1205,5 +1237,5 @@
       ]
     }
   },
-  "digest": "1b030a79ebc34f08556877c134d320aef93317abcbf47f2d012c58a04814ba59"
+  "digest": "0ada6d7e636b3fadae689e52b539b55b937cc6792f7a846799cd45c2955d3734"
 }
