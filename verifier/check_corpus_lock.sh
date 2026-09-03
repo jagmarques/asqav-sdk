@@ -119,4 +119,4 @@ check_lock "$ROOT/verifier/conformance-vectors" || status=1
 if [[ "$status" -ne 0 ]]; then
   exit "$status"
 fi
-echo "corpus lock: both corpora match their frozen v1 pins"
+echo "corpus lock: both corpora match the pins of their current rolling version"
