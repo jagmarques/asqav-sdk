@@ -2463,8 +2463,15 @@ import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index
 import type { VerifyResult } from "./verifier/core.js";
 
 /**
- * Verify a receipt fully offline against an in-memory JWKS snapshot, running the full oracle
+ * Verify a receipt fully offline against an in-memory JWKS snapshot, running the oracle axes
  * (structure, signature, hash-chain link). No network call is made.
+ *
+ * The anchor-binding and clock-skew axes are NOT evaluated here, by design and identically in the
+ * Python `verify_receipt_offline`, so the two languages report the same axes. A `verified` verdict
+ * therefore means the axes above passed, NOT that the receipt's anchors were checked: `anchors`
+ * sits outside the signed bytes, so an altered envelope can move it without breaking the
+ * signature. Run `checkAnchors` and `checkSkew` from the verifier entry point on the normalised
+ * envelope when you need them. See docs/offline-verification.md.
  */
 export function verifyReceiptOffline(
   receipt: Record<string, unknown>,

@@ -422,10 +422,20 @@ def verify_receipt_offline(
 ) -> dict:
     """Verify a receipt fully offline against an in-memory JWKS snapshot.
 
-    Runs the full oracle: structure, signature (Ed25519/ES256/ML-DSA-65),
+    Runs the oracle axes: structure, signature (Ed25519/ES256/ML-DSA-65),
     hash-chain link. No network call is made; all crypto happens in-process.
     ML-DSA-65 requires ``pip install asqav[verify]``; without it the signature
     axis is SKIPPED and the verdict is unverified/unverifiable, never verified.
+
+    THE ANCHOR-BINDING AND CLOCK-SKEW AXES ARE NOT EVALUATED HERE, by design and
+    identically in the TypeScript ``verifyReceiptOffline``, so the two languages
+    report the same axes. A ``verified`` verdict from this function therefore
+    means the axes above passed, NOT that the receipt's anchors were checked:
+    ``anchors`` sits outside the signed bytes, so an altered envelope can move it
+    without breaking the signature. Run ``check_anchors`` and ``check_skew`` from
+    ``asqav.verifier.verify_receipt`` on the normalised envelope when you need
+    them, or use the standalone verifier, which reports every axis. See
+    docs/offline-verification.md.
 
     Args:
         receipt: Parsed receipt envelope dict (``{payload, signature, anchors}``).
