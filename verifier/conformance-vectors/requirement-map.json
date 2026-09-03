@@ -1,0 +1,1061 @@
+{
+  "generated_by": "verifier/build_requirement_map.py",
+  "how": "Each asqav-native vector is run through the offline verifier and the axes it actually exercises are read off the result. A SKIPPED axis is not coverage, whatever a vector's notes claim.",
+  "requirements": {
+    "REQ-SIGNATURE": {
+      "section": "mandatory-checks",
+      "statement": "Verify the signature over the canonical signed bytes under the declared algorithm.",
+      "axis": "signature"
+    },
+    "REQ-KEY-RESOLUTION": {
+      "section": "mandatory-checks",
+      "statement": "Resolve the verification key by kid to exactly one key, never from the envelope.",
+      "axis": "issuer_key"
+    },
+    "REQ-ISSUER-BIND": {
+      "section": "issuer-id",
+      "statement": "The resolved key is published under the issuer_id the receipt claims.",
+      "axis": "issuer_bind"
+    },
+    "REQ-KEY-STATUS": {
+      "section": "mandatory-checks",
+      "statement": "A receipt signed by a revoked key is not reported verified on key status alone.",
+      "axis": "key_status"
+    },
+    "REQ-KEY-THUMBPRINT": {
+      "section": "key-thumbprint",
+      "statement": "Recompute the RFC 7638 thumbprint of the resolved key and require equality.",
+      "axis": "key_binding"
+    },
+    "REQ-CHAIN": {
+      "section": "hash-chain",
+      "statement": "Re-walk the SHA-256 link to the predecessor receipt.",
+      "axis": "chain"
+    },
+    "REQ-ANCHOR": {
+      "section": "anchoring",
+      "statement": "Cryptographically re-verify each anchor against the committed bytes; presence never suffices.",
+      "axis": "anchors"
+    },
+    "REQ-SKEW": {
+      "section": "issued-at",
+      "statement": "Enforce the future-skew bound on issued_at; past skew is not a failure.",
+      "axis": "skew"
+    },
+    "REQ-EXPIRY": {
+      "section": "result-bound",
+      "statement": "Report expires_at on its own axis without folding the receipt-level verdict.",
+      "axis": "expiry"
+    },
+    "REQ-NONCE": {
+      "section": "result-bound",
+      "statement": "Flag a duplicate nonce under one issuer_id as a replay candidate.",
+      "axis": "nonce"
+    },
+    "REQ-PAYLOAD-DIGEST": {
+      "section": "mandatory-checks",
+      "statement": "Where context and payload_digest are both carried, recompute the digest and the size.",
+      "axis": "payload_digest"
+    },
+    "REQ-COUNTERPARTY": {
+      "section": "counterparty-binding",
+      "statement": "Weigh a counterparty_binding rather than letting the corroboration claim ride unchecked.",
+      "axis": "counterparty"
+    },
+    "REQ-STRUCTURE": {
+      "section": "field-profile",
+      "statement": "Required members are present and well-formed, and the type is a registered namespace.",
+      "axis": "structure"
+    }
+  },
+  "vectors": {
+    "asqav-01-genesis-permit": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-02-genesis-deny": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-03-chain-link": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-04-tamper-sig": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-05-hash-mode-prod": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ]
+    },
+    "asqav-06-mldsa65-payload-prod": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-07-revoked-key": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-08-v2-signer-canary": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-09-v2-signer-tampered": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-10-hash-mode-multikey": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ]
+    },
+    "asqav-11-dup-member-toplevel": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-12-time-edge-expiry": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-13-dup-member-nested": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-14-omitted-action-chain": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-15-unsigned-gap": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-16-chain-emission-blocked": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-17-seq-contiguous": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-18-seq-gap": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-19-seq-non-monotonic": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-20-seq-absent": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-21-key-thumbprint-binds": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-22-key-substituted": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    }
+  },
+  "interop_fixtures": {
+    "acta-01-genesis": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-02-chain-link": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-03-tamper-sig": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-05-commitment-mode-unsupported": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-up-01-a2a-trusted-attestation": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-up-02-a2a-trajectory-endpoint": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-up-03-a2a-tampered-sig": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-01-genesis": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-02-chain-link": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-03-tamper-evidence": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-04-tamper-chain": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-01-genesis-happy-path": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-02-chain-happy-path": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-03-tamper-evidence": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-04-tamper-chain": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-05-impact-no-parent-sig": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-06-impact-with-parent-sig": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-07-pdp-binding-valid": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-08-pdp-binding-split-context": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-11-tag-stripped-known-limit": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "aerf-up-12-common-mode-known-limit": {
+      "format": "aerf",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-01-didkey-genesis": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-02-didkey-chain-link": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-03-tamper-payload": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-04-tamper-proofvalue": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-05-genesis-missing-prev-hash": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-06-wrong-key": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-00-valid-resigned": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-01-wrong-proof-type": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-02-mutated-action-type": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-03-mutated-principal-id": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-04-truncated-proof-value": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-05-wrong-multibase-prefix": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-06-flipped-proof-byte": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-07-tampered-mid-chain": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "agentreceipts-up-08-valid-chain-link": {
+      "format": "agentreceipts",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "authproof-01-genesis-real-sdk": {
+      "format": "authproof",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "authproof-02-forged-sig": {
+      "format": "authproof",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "authproof-03-tampered-scope": {
+      "format": "authproof",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "dsse-attestation-ml-dsa-65": {
+      "format": "dsse-attestation",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "pipelock-ev2-01-proxy-decision": {
+      "format": "pipelock-evidence-v2",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "pipelock-ev2-02-tamper-payload": {
+      "format": "pipelock-evidence-v2",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-01-didweb-happy-path": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-02-tamper-subject": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-03-tamper-proofvalue": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-04-wrong-key-injected": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-05-no-did-document": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-06-expired": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-07-dup-member": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "w3c-vc-08-didkey-happy-path": {
+      "format": "w3c-vc",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    }
+  },
+  "coverage": {
+    "REQ-SIGNATURE": [
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-12-time-edge-expiry",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-KEY-RESOLUTION": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-ISSUER-BIND": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-KEY-STATUS": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-KEY-THUMBPRINT": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-CHAIN": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-ANCHOR": [],
+    "REQ-SKEW": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-EXPIRY": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-NONCE": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-PAYLOAD-DIGEST": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-COUNTERPARTY": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ],
+    "REQ-STRUCTURE": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted"
+    ]
+  },
+  "unmapped_requirements": [
+    "REQ-ANCHOR"
+  ],
+  "unmapped_detail": {
+    "REQ-ANCHOR": {
+      "axis": "anchors",
+      "results_seen_across_vectors": [
+        "(absent)",
+        "SKIPPED"
+      ],
+      "sample_notes": [
+        "anchors bind envelope digest sha256:1252c422e91062da..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature);     - opentimestamps: value present, base64-ok; status pending, not an anchored proof",
+        "anchors bind envelope digest sha256:bfd636c1fd4154dd..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)",
+        "no anchors on this receipt"
+      ]
+    }
+  },
+  "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
+  "counts": {
+    "asqav_native_vectors": 22,
+    "interop_fixtures": 50,
+    "requirements": 13,
+    "requirements_covered": 12,
+    "requirements_unmapped": 1
+  }
+}
