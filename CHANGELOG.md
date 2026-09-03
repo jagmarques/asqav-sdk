@@ -5,6 +5,30 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-09-03
+
+### Changed
+
+- **A whole-number value outside the canonical range is refused rather than
+  reshaped.** The two halves canonicalized such a value differently: Python kept
+  every digit, JavaScript rounded to the nearest representable double, and the
+  disagreement was pinned as an expected divergence. A receipt carrying one
+  therefore produced two different canonical byte strings and two different
+  digests, so its signature verified in one implementation and failed in the
+  other. Both halves now refuse the value where the document is parsed, beside
+  the duplicate-member door, and both canonicalizers refuse it again for values
+  assembled in process. The check reads the digits as written, never the parsed
+  double, so a value that arrives already rounded cannot pass as exact. The bound
+  is the closed range plus or minus two to the fifty-third, one above the
+  JavaScript safe-integer limit, because that endpoint is exactly representable,
+  both languages print it identically, and the upstream interop corpus pins it as
+  canonical. **Callers who send a nanosecond timestamp or a Snowflake-style
+  identifier as a bare number will now see a refusal at the parse boundary; send
+  the value as a JSON string instead.**
+- The README section covering `protectmcp:observation` and
+  `capture_topology=passive_telemetry` is titled for that wire vocabulary, so the
+  heading names the members the section documents.
+
 ### Fixed
 
 - **Both READMEs told readers a replay control does not exist when it does.** The
@@ -13,12 +37,31 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   agent in the same organisation already holds and answers HTTP 409. The text now
   states what the field bounds and when the token frees, in both language halves
   and in the four source docstrings that repeated it.
+- **The published counterparty digest was unreproducible in five vectors.** The
+  value on the wire was taken over the three-key object while the chain seed was
+  still in its prefixed form; the change that moved the seed to bare hex
+  regenerated the canonical bytes and their digest and left the derived value
+  behind, so it matched neither scope and an outside implementer could not
+  reproduce it under any reading. It is re-pinned to the envelope-minus-anchors
+  scope, and every binding that carries one declares `scope` on the wire so the
+  value is read under the scope it was taken over. Nothing caught this because
+  both tests naming the member built their expectation by calling the production
+  helper against a locally built envelope, so neither read the published file; a
+  corpus integrity gate now checks the published inputs against their own
+  canonical forms and digests.
 
-### Changed
+### Added
 
-- The README section covering `protectmcp:observation` and
-  `capture_topology=passive_telemetry` is titled for that wire vocabulary, so the
-  heading names the members the section documents.
+- Worked forms for the canonical-range rule in the conformance corpus, so an
+  implementer can copy what a conformant document looks like instead of reading
+  only a prohibition: the document that must be refused, carried as text because
+  a document that never parses has no canonical form to pin; the same numeric
+  value carried the conformant way, as a JSON string; and the boundary value
+  itself pinned as accepted. A corpus check requires each vector to carry exactly
+  one of a parsed input or a text input, and requires a text-input vector to pin
+  a refusal and publish no canonical form. Tests assert the published document as
+  a literal and require the shipped parser to refuse it, in both languages, so
+  the corpus cannot advertise a rule the code does not implement.
 
 ## [0.10.6] - 2026-09-02
 
