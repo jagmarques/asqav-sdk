@@ -2116,7 +2116,7 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
         return "PASS", (
             "nonce present; this surface holds no seen-nonce index, so "
             "duplicate_emission_candidate stays false (cloud passthrough axis, "
-            "draft 10.3)"
+            "draft 10.4)"
         )
     try:
         identity = hashlib.sha256(canonical_json(payload)).hexdigest()
@@ -2337,11 +2337,16 @@ def run_structured(
     trusted_tsa_keys=None,
     bitcoin_headers=None,
     counterparty: dict | None = None,
+    seen_nonces: set | None = None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
     Same logic as ``run()`` but returns a dict instead of printing and exiting; the
     public SDK uses the oracle adapter path for multi-format support.
+
+    ``seen_nonces`` is the caller's replay index, exactly as ``run()`` takes it: pass
+    one to have the nonce axis flag a different receipt reusing an (issuer_id, nonce)
+    pair. Without it the axis still reports, and says it holds no index.
 
     Keys: ``verdict`` ("verified" | "unverified", criteria 418/438);
     ``failure_class`` ("invalid" | "unverifiable" when unverified, else None - the
@@ -2423,6 +2428,7 @@ def run_structured(
 
     axes: list[dict] = []
     axes.append(_struct_axis("structure", *check_structure(payload)))
+    axes.append(_struct_axis("nonce", *check_nonce(payload, seen_nonces)))
     # Evaluated once, up front: the anchors axis reports it, and the key_status
     # axis weighs its cryptographically-proven timing against any revoked_at.
     anchor_eval = evaluate_anchors(
