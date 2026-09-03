@@ -23,6 +23,7 @@ python/tests/test_corpus_lock.py (hashlib) and verifier/check_corpus_lock.sh
 (sha256sum). Re-running this script after an intentional corpus edit is the
 only way the pins move; the freeze then bumps nothing but the pins.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -37,7 +38,9 @@ _ROOT = _HERE.parent
 LOCK_NAME = "manifest.lock.json"
 
 #: Published Ed25519 seed the ACTA vectors sign with; mirrors gen_acta_vectors.py
-ACTA_ED25519_SEED_HEX = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+ACTA_ED25519_SEED_HEX = (
+    "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+)
 
 #: Published ML-DSA-65 seed; the derivation phrase is the nothing-up-my-sleeve pin
 MLDSA_SEED_PHRASE = b"asqav conformance corpus v1 ML-DSA-65 signing seed"
@@ -51,8 +54,9 @@ def _jcs_bytes(obj: object) -> bytes:
         obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     ).encode("utf-8")
 
-
     # Pin every file under the corpus root except the lock being written
+
+
 def _file_pins(root: Path) -> list[dict]:
     pins = []
     for path in sorted(root.rglob("*")):
@@ -90,6 +94,33 @@ def _mldsa_signing_section(message_hex: str, signature_hex: str) -> dict:
     }
 
 
+def _rolling_version(root: Path, files: list[dict]) -> tuple[int, list[dict]]:
+    """Carry the lock's own history forward and advance the version on a real re-cut.
+
+    The corpus was pinned as frozen at v1 and then re-cut repeatedly while the version
+    stayed at 1, so the lock asserted a fixed byte set it no longer named. History holds
+    the COMPLETED versions only, each with the digest it published; the current version's
+    digest is the lock's own `digest` field, which keeps the record out of its own preimage.
+    A cut whose file pins are unchanged keeps its version, so re-running this is idempotent.
+    """
+    existing = root / LOCK_NAME
+    if not existing.exists():
+        return 1, []
+    prior = json.loads(existing.read_text())
+    history = list(prior.get("version_history") or [])
+    version = int(prior.get("corpus_version") or 1)
+    if prior.get("files") == files:
+        return version, history
+    history.append(
+        {
+            "version": version,
+            "files": len(prior.get("files") or []),
+            "digest": prior.get("digest", ""),
+        }
+    )
+    return version + 1, history
+
+
 def freeze_fingerprint_corpus() -> str:
     root = _ROOT / "conformance"
     vectors = json.loads((root / "vectors.json").read_text())
@@ -98,12 +129,15 @@ def freeze_fingerprint_corpus() -> str:
     seed = hashlib.sha256(MLDSA_SEED_PHRASE).digest()
     _pk, sk = ML_DSA_65.key_derive(seed)
     signature = ML_DSA_65.sign(sk, message, deterministic=True)
+    files = _file_pins(root)
+    version, history = _rolling_version(root, files)
     lock = {
         "corpus": "asqav-fingerprint-corpus",
-        "corpus_version": 1,
-        "frozen": True,
+        "corpus_version": version,
+        "rolling": True,
         "digest_algorithm": "SHA-256",
-        "files": _file_pins(root),
+        "version_history": history,
+        "files": files,
         "signing": {
             "note": (
                 "The fingerprint corpus pins canonical bytes and their SHA-256; the server "
@@ -130,7 +164,9 @@ def freeze_fingerprint_corpus() -> str:
 
 def freeze_verifier_corpus() -> str:
     root = _HERE / "conformance-vectors"
-    vectors = json.loads((root.parent.parent / "conformance" / "vectors.json").read_text())
+    vectors = json.loads(
+        (root.parent.parent / "conformance" / "vectors.json").read_text()
+    )
     kat = next(v for v in vectors["vectors"] if v["name"] == KAT_VECTOR_NAME)
     message = bytes.fromhex(kat["sha256"])
     seed = hashlib.sha256(MLDSA_SEED_PHRASE).digest()
@@ -142,12 +178,15 @@ def freeze_verifier_corpus() -> str:
         .public_bytes_raw()
         .hex()
     )
+    files = _file_pins(root)
+    version, history = _rolling_version(root, files)
     lock = {
         "corpus": "asqav-verifier-conformance-vectors",
-        "corpus_version": 1,
-        "frozen": True,
+        "corpus_version": version,
+        "rolling": True,
         "digest_algorithm": "SHA-256",
-        "files": _file_pins(root),
+        "version_history": history,
+        "files": files,
         "signing": {
             "note": (
                 "Locally regenerated vectors sign with the published seeds below, so their "
