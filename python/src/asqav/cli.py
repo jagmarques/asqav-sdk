@@ -1564,6 +1564,12 @@ def audit_pack_export(
         "--only-compliance/--no-only-compliance",
         help="When true (default), only IETF Compliance Receipts are exported.",
     ),
+    include_signed_bytes: bool = typer.Option(
+        False,
+        "--include-signed-bytes",
+        help="Include each receipt's signed bytes so the pack's signatures can be verified. "
+        "Off by default: the pack then carries digests only and no signature in it is checkable.",
+    ),
     output_file: str = typer.Option(
         ..., "--output-file", help="Path to write the signed bundle JSON."
     ),
@@ -1573,6 +1579,15 @@ def audit_pack_export(
     Calls POST `/audit-pack/export`. The bundle is signed with the org's
     most-recent active agent key over the JCS-canonical bundle bytes, so
     a verifier can rederive the digest and check the signature offline.
+
+    THE BUNDLE SIGNATURE AND THE RECEIPT SIGNATURES ARE DIFFERENT THINGS. By
+    default every receipt's signed bytes are withheld and `content_disclosure.mode`
+    reads `digest_only`, so a recipient can check the bundle's own signature but
+    cannot verify a single receipt inside it: the preimage is absent. Pass
+    ``--include-signed-bytes`` when the recipient is expected to verify the
+    receipts themselves, which is the usual reason for sending a pack to an
+    auditor. Content minimisation is the reason for the default, so choose it
+    deliberately rather than by omission.
     """
     import json as json_mod
 
@@ -1583,6 +1598,7 @@ def audit_pack_export(
         "start": start,
         "end": end,
         "only_compliance": only_compliance,
+        "include_signed_bytes": include_signed_bytes,
     }
     if organization_id:
         body["organization_id"] = organization_id
