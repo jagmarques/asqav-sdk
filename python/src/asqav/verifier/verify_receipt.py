@@ -1866,6 +1866,110 @@ def check_skew(issued_at: str):
     return "PASS", f"skew {skew:.0f}s within bound"
 
 
+#: What this verifier does NOT check, declared in the output rather than in a document.
+#:
+#: A verifier that reports only what it checked lets a reader mistake silence for
+#: coverage. Every result carries this list, passing results included, so the
+#: reader sees the boundary of the claim beside the claim itself instead of having
+#: to find it in a README that ships separately from the tool.
+#:
+#: `condition` is None when the check is never performed at any invocation, and
+#: names the input that would enable it when the gap is one this caller can close.
+NOT_CHECKED = (
+    {
+        "check": "tsa_certificate_path",
+        "requirement": "anchor trust",
+        "reason": (
+            "no X.509 chain walk from the RFC 3161 signing certificate to a public "
+            "root; offline trust comes only from the TSA keys the caller pins"
+        ),
+        "condition": "--tsa-key pins the key this tool will trust; it does not build a path to it",
+    },
+    {
+        "check": "tsa_certificate_revocation",
+        "requirement": "anchor trust",
+        "reason": "no CRL or OCSP lookup, so a revoked TSA certificate is not detected",
+        "condition": None,
+    },
+    {
+        "check": "policy_digest_resolution",
+        "requirement": "verifier check on policy_digest",
+        "reason": (
+            "the referenced policy artefact is not fetched or rehashed; the digest is "
+            "checked for shape only, and resolving it needs the Audit Pack manifest"
+        ),
+        "condition": None,
+    },
+    {
+        "check": "aggregate_anchor_inclusion",
+        "requirement": "aggregate anchoring",
+        "reason": (
+            "where an anchor covers a batch rather than this receipt, the inclusion "
+            "proof linking this receipt to that aggregate is not walked"
+        ),
+        "condition": None,
+    },
+    {
+        "check": "framework_mapping_claims",
+        "requirement": "taxonomy extension fields",
+        "reason": (
+            "the caller-supplied taxonomy lists are carried under the signature but "
+            "their content is not evaluated against any framework; a receipt can "
+            "name a control it never satisfied and this tool will not say so"
+        ),
+        "condition": None,
+    },
+    {
+        "check": "receipt_set_completeness",
+        "requirement": "selective omission",
+        "reason": (
+            "this tool verifies the receipt it is handed; it cannot tell that a "
+            "receipt was withheld from the set it belongs to"
+        ),
+        "condition": "the seq axis detects a gap only when the predecessor is supplied",
+    },
+    {
+        "check": "key_revocation_freshness",
+        "requirement": "key resolution",
+        "reason": (
+            "revocation state is read from the key directory as supplied; the tool "
+            "does not re-fetch it, so a key revoked after that snapshot reads current"
+        ),
+        "condition": "--jwks is trusted as given",
+    },
+    {
+        "check": "opentimestamps_block_placement",
+        "requirement": "anchor cryptographic re-verification",
+        "reason": "the merkle path is not landed in a bitcoin block without a header source",
+        "condition": "--bitcoin-headers",
+    },
+    {
+        "check": "counterparty_receipt_resolution",
+        "requirement": "counterparty binding",
+        "reason": (
+            "the bound peer envelope is not resolved from any store; without it the "
+            "axis reports the claim unverifiable rather than checking the digest"
+        ),
+        "condition": "the counterparty envelope passed by the caller",
+    },
+    {
+        "check": "chain_predecessor_retrieval",
+        "requirement": "hash-chain linkage",
+        "reason": "the predecessor receipt is not fetched; the link is checked only against one supplied",
+        "condition": "the predecessor payload passed by the caller",
+    },
+)
+
+
+def not_checked_declaration() -> list:
+    """Return the non-coverage declaration as a fresh list of fresh dicts.
+
+    Copied on every call so a caller mutating a result cannot edit the module
+    constant and quietly narrow what every later result declares.
+    """
+    return [dict(entry) for entry in NOT_CHECKED]
+
+
 def check_payload_digest(payload: dict):
     """Recompute payload_digest from the context carried in the same receipt.
 
@@ -2357,6 +2461,7 @@ def run_structured(
     """
     if not isinstance(envelope, dict):
         return {
+            "not_checked": not_checked_declaration(),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
             "axes": [
@@ -2374,6 +2479,7 @@ def run_structured(
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
         return {
+            "not_checked": not_checked_declaration(),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
             "axes": [
@@ -2394,6 +2500,7 @@ def run_structured(
         shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
     if shape is not None:
         return {
+            "not_checked": not_checked_declaration(),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
             "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])],
@@ -2418,6 +2525,7 @@ def run_structured(
     except RecursionError:
         # Defense in depth; the shape gate above should already have caught this.
         return {
+            "not_checked": not_checked_declaration(),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
             "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])],
@@ -2520,6 +2628,7 @@ def run_structured(
     )
 
     return {
+        "not_checked": not_checked_declaration(),
         "verdict": verdict,
         "failure_class": failure_class,
         "axes": axes,
