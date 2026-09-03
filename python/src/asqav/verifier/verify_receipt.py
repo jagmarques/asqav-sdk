@@ -2116,7 +2116,7 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
         return "PASS", (
             "nonce present; this surface holds no seen-nonce index, so "
             "duplicate_emission_candidate stays false (cloud passthrough axis, "
-            "draft 10.3)"
+            "draft 10.4)"
         )
     try:
         identity = hashlib.sha256(canonical_json(payload)).hexdigest()
