@@ -149,6 +149,16 @@ the file's purpose line says so. A test keeps the list honest: it refuses an
 entry whose pinned asqav-sdk commit is not in this repository's history or
 whose vector names are not directories in the corpus at that commit.
 
+## The published artifact, probed
+
+`artifact_probe/probe_published_artifacts.py` installs the PUBLISHED wheel and
+the PUBLISHED npm package into throwaway environments with the source tree off
+the path, and checks every entry point the packaged READMEs document — the
+repository's own tests prove the repository, not the artifact a user installs.
+The `Artifact probe` workflow (`.github/workflows/artifact-probe.yml`) runs it
+weekly, on demand, and after every successful Publish, failing when the probe
+exits non-zero and uploading the probe's output as a job artifact.
+
 ## The same axes from TypeScript
 
 This file is Python. The TypeScript SDK reaches the same axes through
