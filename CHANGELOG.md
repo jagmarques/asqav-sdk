@@ -5,6 +5,26 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-09-04
+
+### Added
+
+- **Non-coverage is declared in the output, on every result including passing
+  ones.** Each verification result carries a machine-readable `not_checked` array
+  naming every check the tool does not perform, with the requirement it belongs
+  to, why it is skipped, and the input that would enable it where the caller can
+  close the gap. A verifier that reports only what it checked lets a reader
+  mistake silence for coverage, and a README does not travel with the result.
+- **A published vector-to-requirement mapping**, with the requirements no vector
+  exercises published beside it (`conformance-vectors/requirement-map.json`).
+  Coverage is derived by running each vector and reading the axes off the result,
+  so an axis the verifier skipped is not counted whatever a vector's notes claim.
+  It reports one gap on generation: no vector exercises the anchoring requirement,
+  because the corpus ships no pinned TSA key material.
+- **A probe that checks the published packages**, not the working tree, for every
+  entry point their own pages document, and runs the conformance corpus through
+  the installed package (`verifier/artifact_probe/`).
+
 ## [0.10.7] - 2026-09-03
 
 ### Changed
