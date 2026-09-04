@@ -747,6 +747,8 @@ _ML_DSA_SIG_OIDS = {
     "2.16.840.1.101.3.4.3.19": "ML_DSA_87",
 }
 _OID_ED25519 = "1.3.101.112"
+#: Bare rsaEncryption (RFC 5652): the SignerInfo digestAlgorithm names the hash.
+_OID_RSA_ENCRYPTION = "1.2.840.113549.1.1.1"
 #: RSA/ECDSA signature OIDs verified via cryptography (pinned X.509 certs).
 _RSA_SIG_OIDS = {
     "1.2.840.113549.1.1.11": "sha256",
@@ -937,11 +939,19 @@ def _tsa_key_candidates(trusted_tsa_keys):
     return raw, pkeys
 
 
-def _verify_tsa_signature(sig_alg: str, signed: bytes, signature: bytes, trusted_tsa_keys) -> str:
+def _verify_tsa_signature(
+    sig_alg: str,
+    signed: bytes,
+    signature: bytes,
+    trusted_tsa_keys,
+    digest_alg: str | None = None,
+) -> str:
     """Verify the TSA signature against pinned key material only.
 
     Returns "verified", "invalid" (a usable key was present and no signature
     verified), or "unverifiable" (no usable key material or optional dep).
+    ``digest_alg`` is consulted only under the bare rsaEncryption OID, which
+    names no hash of its own; an unknown digest there reads unverifiable.
     """
     raw_keys, pkeys = _tsa_key_candidates(trusted_tsa_keys)
     usable = False
@@ -982,21 +992,32 @@ def _verify_tsa_signature(sig_alg: str, signed: bytes, signature: bytes, trusted
                 return "verified"
             except Exception:
                 continue
-    elif sig_alg in _RSA_SIG_OIDS or sig_alg in _ECDSA_SIG_OIDS:
+    elif (
+        sig_alg in _RSA_SIG_OIDS
+        or sig_alg in _ECDSA_SIG_OIDS
+        or sig_alg == _OID_RSA_ENCRYPTION
+    ):
         try:
             from cryptography.hazmat.primitives import hashes
             from cryptography.hazmat.primitives.asymmetric import ec, padding
         except ImportError:
             return "unverifiable"
-        table = _RSA_SIG_OIDS if sig_alg in _RSA_SIG_OIDS else _ECDSA_SIG_OIDS
-        hash_alg = getattr(hashes, table[sig_alg].upper())()
+        if sig_alg == _OID_RSA_ENCRYPTION:
+            # Bare rsaEncryption: the SignerInfo digestAlgorithm names the hash.
+            hash_name = _DIGEST_OIDS.get(digest_alg or "")
+            if hash_name is None:
+                return "unverifiable"
+        else:
+            table = _RSA_SIG_OIDS if sig_alg in _RSA_SIG_OIDS else _ECDSA_SIG_OIDS
+            hash_name = table[sig_alg]
+        hash_alg = getattr(hashes, hash_name.upper())()
         for pk in pkeys:
             usable = True
             try:
-                if sig_alg in _RSA_SIG_OIDS:
-                    pk.verify(signature, signed, padding.PKCS1v15(), hash_alg)
-                else:
+                if sig_alg in _ECDSA_SIG_OIDS:
                     pk.verify(signature, signed, ec.ECDSA(hash_alg))
+                else:
+                    pk.verify(signature, signed, padding.PKCS1v15(), hash_alg)
                 return "verified"
             except Exception:
                 continue
@@ -1046,7 +1067,11 @@ def _check_rfc3161_anchor(
         if not _cms_message_digest_ok(info):
             return "invalid", "signedAttrs messageDigest does not commit the TSTInfo bytes", None
         sig_state = _verify_tsa_signature(
-            info["sig_alg"], _cms_signed_bytes(info), info["signature"], trusted_tsa_keys
+            info["sig_alg"],
+            _cms_signed_bytes(info),
+            info["signature"],
+            trusted_tsa_keys,
+            digest_alg=info.get("digest_alg"),
         )
     except _AnchorParseError:
         # Shared note with the TypeScript shim, which runs no DER parse; the
