@@ -144,6 +144,11 @@ def main() -> int:
             continue
 
         predecessor = _load(directory, "predecessor.json")
+        # run_structured hashes what it is given as the predecessor PAYLOAD, but the
+        # corpus ships full envelopes; unwrap to the payload member. A bare payload
+        # passes through unchanged.
+        if isinstance(predecessor, dict) and isinstance(predecessor.get("payload"), dict):
+            predecessor = predecessor["payload"]
         result = run_structured(receipt, jwks, predecessor_payload=predecessor)
         results = {axis["name"]: axis["result"] for axis in result["axes"]}
         axis_results[directory.name] = results
@@ -193,6 +198,10 @@ def main() -> int:
             "axes it actually exercises are read off the result. A SKIPPED axis is "
             "not coverage, whatever a vector's notes claim."
         ),
+        # The per-vector axis evidence the coverage lists are derived from, published
+        # so a reader can check the derivation rather than trust it. Results only:
+        # the notes embed wall-clock seconds (skew, expiry), which never reproduce.
+        "axis_results": axis_results,
         "requirements": REQUIREMENTS,
         "vectors": by_vector,
         "interop_fixtures": interop,
