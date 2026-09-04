@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 13,
+  "corpus_version": 14,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -68,6 +68,11 @@
       "version": 12,
       "files": 257,
       "digest": "da40f506f477b438087358a1f30c34043cb864d299a47aeef6a54fb878f5ab7f"
+    },
+    {
+      "version": 13,
+      "files": 257,
+      "digest": "bf948b76adda5d7a69de3f7d234218181e744f7cd7963f1a3036ef7dca983f6f"
     }
   ],
   "files": [
@@ -1077,6 +1082,16 @@
       "bytes": 888
     },
     {
+      "path": "asqav-24-anchor-block-hash-prod/ANCHOR-MATERIAL.md",
+      "sha256": "9c75aa2de7573f2297205289c77e3de63672d561e9aa202aeccb359cfb69a896",
+      "bytes": 2597
+    },
+    {
+      "path": "asqav-24-anchor-block-hash-prod/bitcoin_headers.json",
+      "sha256": "c9ef4a03f1a8e1c0fd4eaf8ca4ce611b909304806e94854559179879b51bffa7",
+      "bytes": 224
+    },
+    {
       "path": "asqav-24-anchor-block-hash-prod/expected.json",
       "sha256": "bf709720bba281f1c14b543fc36d5f3c678ac8fcd602402f6796533fab2384e9",
       "bytes": 879
@@ -1095,6 +1110,11 @@
       "path": "asqav-24-anchor-block-hash-prod/receipt.json",
       "sha256": "02e529aeb56128a6e43edf3df74780408e0482433fce8aa2c55e39a27517e6d2",
       "bytes": 14274
+    },
+    {
+      "path": "asqav-24-anchor-block-hash-prod/tsa_trust.pem",
+      "sha256": "d04550215beb76d072d659b229dc6d14e7b7c20f68e46f09bd741954176b5e8c",
+      "bytes": 5134
     },
     {
       "path": "asqav-25-payload-digest-rederives/expected.json",
@@ -1248,8 +1268,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "e48a893ba19010b94aa63fe2c2a22b36b2cf04b6405b983fb0484f81fd2d9d2b",
-      "bytes": 50159
+      "sha256": "7c898c624ed903aa95ef3a2f1cb77b3dc72a2a4fe3d0e280182707609917cf3a",
+      "bytes": 49172
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -1387,5 +1407,5 @@
       ]
     }
   },
-  "digest": "bf948b76adda5d7a69de3f7d234218181e744f7cd7963f1a3036ef7dca983f6f"
+  "digest": "7ffa11fa811fedc569886ff5ed9341e58f4fc344166f375c4b288b05f4ad71c9"
 }
