@@ -255,7 +255,7 @@
         "action_ref": "act_01HVZA_ORIGINATOR_0001",
         "agent_id": "agt_acknowledger_B",
         "counterparty_binding": {
-          "envelope_hash": "pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=",
+          "envelope_hash": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
           "expect_ack_from": "00000000000000000098",
           "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
           "transport_label": "mcp",
@@ -266,8 +266,8 @@
         "issuer_id": "00000000000000000098",
         "org_id": "org_demo",
         "payload_digest": {
-          "alg": "SHA-256",
-          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
         },
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -276,13 +276,13 @@
         "type": "protectmcp:acknowledgment",
         "v": 1
       },
-      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0001\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
-      "sha256": "fd7281c6911144af8b74d2782405d1ca40e1fabccc6df41ab1be99639de8cabe",
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0001\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "de1ef9618ba63f73251f6b1a439e29599b8b1ab1a037ada81026857d57c7b871",
       "expected_verify": true,
       "reason": "Happy path: B emits counterparty_binding over A's signed envelope under the envelope_minus_anchors scope; verifier resolves receipt_ref, recomputes the digest over {payload, signature}, equality holds.",
       "expected": {
-        "envelope_hash_base64": "pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=",
-        "envelope_hash_hex": "a4504d771dd14c5ef6de2edcfd2f44544f54afcfd7756921412584f8aaea0abd",
+        "envelope_hash_base64": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
+        "envelope_hash_hex": "0da13f574caf75108a20605a00c615f6308c7844cc892779330e87656b31d8f9",
         "originating_envelope_ref": "counterparty_binding_envelope_byte_equality"
       }
     },
@@ -306,8 +306,8 @@
           "issuer_id": "00000000000000000098",
           "org_id": "org_demo",
           "payload_digest": {
-            "alg": "SHA-256",
-            "value": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
           },
           "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
           "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -322,13 +322,13 @@
           "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
         }
       },
-      "canonical": "{\"anchors\":[{\"tsa_url\":\"https://tsa.example/timestamp\",\"type\":\"rfc3161\",\"value\":\"AAAA_synthetic_tsr_base64_placeholder_AAAA\"}],\"payload\":{\"action_id\":\"act_01HVZA_ORIGINATOR_0001\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_originator_A\",\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:00+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:action\",\"v\":1},\"signature\":{\"alg\":\"ML-DSA-65\",\"kid\":\"00000000000000000098\",\"sig\":\"AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA\"}}",
-      "sha256": "e89bf2fe64bd7dab3a606ea265ca14f88f4d161ec0485062a7facee4902c655f",
+      "canonical": "{\"anchors\":[{\"tsa_url\":\"https://tsa.example/timestamp\",\"type\":\"rfc3161\",\"value\":\"AAAA_synthetic_tsr_base64_placeholder_AAAA\"}],\"payload\":{\"action_id\":\"act_01HVZA_ORIGINATOR_0001\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_originator_A\",\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:00+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:action\",\"v\":1},\"signature\":{\"alg\":\"ML-DSA-65\",\"kid\":\"00000000000000000098\",\"sig\":\"AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA\"}}",
+      "sha256": "f3b138b08bd91a5a7cf20d3873bbf8949048fdb0a77925cb739d363b48343de6",
       "expected_verify": true,
       "reason": "Envelope byte-equality: JCS-canonical bytes of A's full envelope reproduce the same SHA-256 across implementations. This vector pins canonicalization, not the binding scope.",
       "expected": {
-        "envelope_hash_base64": "pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=",
-        "envelope_hash_base64url": "pFBNdx3RTF723i7c_S9EVE9Ur8_XdWkhQSWE-KrqCr0=",
+        "envelope_hash_base64": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
+        "envelope_hash_base64url": "DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
         "originating_envelope_ref": "counterparty_binding_envelope_byte_equality"
       }
     },
@@ -340,7 +340,7 @@
         "action_ref": "act_01HVZA_ORIGINATOR_0001",
         "agent_id": "agt_acknowledger_B",
         "counterparty_binding": {
-          "envelope_hash": "pFBNdx3RTF723i7c_S9EVE9Ur8_XdWkhQSWE-KrqCr0=",
+          "envelope_hash": "DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
           "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
           "scope": "envelope_minus_anchors"
         },
@@ -349,8 +349,8 @@
         "issuer_id": "00000000000000000098",
         "org_id": "org_demo",
         "payload_digest": {
-          "alg": "SHA-256",
-          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
         },
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -359,13 +359,13 @@
         "type": "protectmcp:acknowledgment",
         "v": 1
       },
-      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0003\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"pFBNdx3RTF723i7c_S9EVE9Ur8_XdWkhQSWE-KrqCr0=\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
-      "sha256": "1a640f2d7c805152b85f706a498f0727d8d60402083eddcabba6e9d3627eb9d3",
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0003\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "fc60e93117ae77a5bc533577fcd06cfe55bd9eabd8ee01a9a1e8bf76690814d2",
       "expected_verify": true,
       "reason": "base64 / base64url tolerance: both encodings of the same envelope_minus_anchors digest MUST verify-equal against the recomputed digest of A's {payload, signature}.",
       "expected": {
-        "envelope_hash_base64url": "pFBNdx3RTF723i7c_S9EVE9Ur8_XdWkhQSWE-KrqCr0=",
-        "envelope_hash_base64": "pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=",
+        "envelope_hash_base64url": "DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
+        "envelope_hash_base64": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
         "originating_envelope_ref": "counterparty_binding_envelope_byte_equality"
       }
     },
@@ -377,7 +377,7 @@
         "action_ref": "act_01HVZA_ORIGINATOR_0001",
         "agent_id": "agt_acknowledger_B",
         "counterparty_binding": {
-          "envelope_hash": "pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=",
+          "envelope_hash": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
           "receipt_ref": "urn:uuid:12345678-1234-5678-1234-567812345678#segment[0]",
           "scope": "envelope_minus_anchors"
         },
@@ -386,8 +386,8 @@
         "issuer_id": "00000000000000000098",
         "org_id": "org_demo",
         "payload_digest": {
-          "alg": "SHA-256",
-          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
         },
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -396,8 +396,8 @@
         "type": "protectmcp:acknowledgment",
         "v": 1
       },
-      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0004\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=\",\"receipt_ref\":\"urn:uuid:12345678-1234-5678-1234-567812345678#segment[0]\",\"scope\":\"envelope_minus_anchors\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:02+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
-      "sha256": "e1b5c0808a0c243ea70e06d53ed5bf102d9fd98fed95c37632916a345b0ac0eb",
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0004\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=\",\"receipt_ref\":\"urn:uuid:12345678-1234-5678-1234-567812345678#segment[0]\",\"scope\":\"envelope_minus_anchors\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:02+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "d00104822d5d45ce23755bd3bf4c3b06df54ddba04405f5c345f163fba73896e",
       "expected_verify": true,
       "reason": "receipt_ref is an opaque resolvable locator; verifier MUST NOT interpret its structure, only resolve it. Round-trip equality is preserved by JCS.",
       "expected": {
@@ -413,7 +413,7 @@
         "action_ref": "act_01HVZA_ORIGINATOR_0001",
         "agent_id": "agt_acknowledger_B",
         "counterparty_binding": {
-          "envelope_hash": "pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=",
+          "envelope_hash": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
           "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
           "transport_label": "http",
           "scope": "envelope_minus_anchors"
@@ -423,8 +423,8 @@
         "issuer_id": "00000000000000000098",
         "org_id": "org_demo",
         "payload_digest": {
-          "alg": "SHA-256",
-          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
         },
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -433,8 +433,8 @@
         "type": "protectmcp:acknowledgment",
         "v": 1
       },
-      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0005\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"pFBNdx3RTF723i7c/S9EVE9Ur8/XdWkhQSWE+KrqCr0=\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"http\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:03+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
-      "sha256": "edb5cb72894c37430298b31596fbb50318cdeddf3eaca7e3d3856909bdde8c93",
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0005\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"http\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:03+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "49265cb5659fb7eff6327353a48462e6be4fb174e0417e03ad931df454435546",
       "expected_verify": true,
       "reason": "transport_label is operational only; verifiers MUST NOT derive trust from it. Binding still resolves on envelope_hash equality regardless of declared label.",
       "expected": {
@@ -458,8 +458,8 @@
         "issuer_id": "00000000000000000098",
         "org_id": "org_demo",
         "payload_digest": {
-          "alg": "SHA-256",
-          "value": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
         },
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -468,8 +468,8 @@
         "type": "protectmcp:acknowledgment",
         "v": 1
       },
-      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0006\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:04+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"alg\":\"SHA-256\",\"value\":\"sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\"},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
-      "sha256": "70a004037ffb928a8a4380ee93a1367f75b4ee1b2012d0f84f53891eeebe36c4",
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0006\",\"action_ref\":\"act_01HVZA_ORIGINATOR_0001\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:04+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "c96c3ba5b53524ba304a141a754284628123765581acdb09229adc10e34fe2bc",
       "counterparty_binding_member_missing": "envelope_hash",
       "expected_verify": false,
       "reason": "envelope_hash is REQUIRED on counterparty_binding; absence breaks the cross-agent byte-equality guarantee and MUST cause the acknowledging receipt to be reported non-conformant."
