@@ -76,3 +76,14 @@ def test_interop_fixtures_are_not_counted_as_profile_coverage(document):
     for req, hits in document["coverage"].items():
         for vector in hits:
             assert vector in document["vectors"], f"{req} credits a non-asqav vector {vector}"
+
+
+def test_seq_chain_vector_chain_axis_is_pass_in_the_committed_map(document):
+    """asqav-17's chain link rederives, and the published axis evidence says so.
+
+    The builder hands run_structured the predecessor's payload, not its
+    envelope; a chain FAIL in this entry would mean the map derived REQ-CHAIN
+    coverage from a false chain break over the envelope bytes.
+    """
+    axes = document["axis_results"]["asqav-17-seq-contiguous"]
+    assert axes["chain"] == "PASS"
