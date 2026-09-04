@@ -1,0 +1,6 @@
+{
+  "format": "acta",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "ACTA -03 \u00a76.7 chain form: previousReceiptHash carries the 'sha256:' prefix over SHA-256 of the JCS of the full signed predecessor. Both receipts are Ed25519-signed by the corpus seed key; the adapter reads the form from the carried value and verifies."
+}

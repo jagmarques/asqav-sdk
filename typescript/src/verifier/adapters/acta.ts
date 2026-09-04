@@ -88,10 +88,16 @@ export class ActaAdapter extends FormatAdapter {
     const prev = payload.previousReceiptHash;
     const isGenesis = !("previousReceiptHash" in payload);
     // Chain hash covers the full predecessor receipt, signature included.
+    // The carried value selects the recomputed form: ACTA -03 §6.7 carries
+    // "sha256:" + hex, -02 the bare hex. An unknown prefix never normalises
+    // into a pass - the comparison just fails, as a wrong digest does.
     return {
       prevField: (prev as string | null) ?? null,
       isGenesis,
-      recompute: (pred) => sha256Hex(jcs(pred)),
+      recompute: (pred) => {
+        const hex = sha256Hex(jcs(pred));
+        return typeof prev === "string" && prev.startsWith("sha256:") ? `sha256:${hex}` : hex;
+      },
     };
   }
 
