@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "invalid",
+  "reason_code": "payload_digest_mismatch",
+  "notes": "The asqav-25 receipt with only payload_digest.hash changed: it commits to a DIFFERENT context ({'n': 3}) than the one carried, and the receipt is re-signed over the lying payload, so the signature axis PASSes and the digest is the only lie. The payload_digest axis recomputes from the carried context and FAILs - a proven internal inconsistency, so the class is invalid, not unverifiable."
+}

@@ -72,6 +72,8 @@
     "asqav-19-seq-non-monotonic": "seq",
     "asqav-20-seq-absent": null,
     "asqav-21-key-thumbprint-binds": null,
-    "asqav-22-key-substituted": "key_binding"
+    "asqav-22-key-substituted": "key_binding",
+    "asqav-25-payload-digest-rederives": null,
+    "asqav-26-payload-digest-mismatch": "payload_digest"
   }
 }
