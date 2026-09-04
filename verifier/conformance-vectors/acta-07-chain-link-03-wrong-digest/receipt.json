@@ -1,0 +1,16 @@
+{
+  "payload": {
+    "type": "protectmcp:decision",
+    "issued_at": "2026-05-04T12:00:00+00:00",
+    "issuer_id": "sb:issuer:acta-oracle-vec-key",
+    "agent_id": "agt_acta_006",
+    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "decision": "allow",
+    "previousReceiptHash": "sha256:0ac1941ca92e32ca8f5599f6acfabe3b7ca338b258734716fad1c7ddba70b28a"
+  },
+  "signature": {
+    "alg": "EdDSA",
+    "kid": "sb:issuer:acta-oracle-vec-key",
+    "sig": "858782511055b721c6dff7a4d35f0b5e6d32f1e94c4f25de6991c87af1ddc1a0a30a3812dbdb2b960ba2e1cf71f9078d375b04518a8b650286cb3bb8587cb60d"
+  }
+}
