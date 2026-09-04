@@ -529,6 +529,48 @@
         "REQ-ANCHOR"
       ]
     },
+    "asqav-23-anchor-status-pending": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-24-anchor-block-hash-prod": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
     "asqav-25-payload-digest-rederives": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
@@ -829,7 +871,8 @@
       "asqav-06-mldsa65-payload-prod",
       "asqav-12-time-edge-expiry",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-24-anchor-block-hash-prod"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -852,6 +895,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -876,6 +921,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -900,6 +947,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -924,6 +973,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -948,6 +999,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -973,6 +1026,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -997,6 +1052,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -1021,6 +1078,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -1045,6 +1104,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -1069,6 +1130,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
@@ -1093,6 +1156,8 @@
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ]
@@ -1109,14 +1174,14 @@
       ],
       "sample_notes": [
         "anchors bind envelope digest sha256:1252c422e91062da..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature);     - opentimestamps: value present, base64-ok; status pending, not an anchored proof",
-        "anchors bind envelope digest sha256:bfd636c1fd4154dd..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete)",
-        "no anchors on this receipt"
+        "anchors bind envelope digest sha256:17162c2e0183d7b9..;     - opentimestamps: value present, base64-ok; status pending, not an anchored proof",
+        "anchors bind envelope digest sha256:a35db69bd8171cef..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature);     - opentimestamps: value present, base64-ok; unverifiable (offline OpenTimestamps check did not complete)"
       ]
     }
   },
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 24,
+    "asqav_native_vectors": 26,
     "interop_fixtures": 50,
     "requirements": 13,
     "requirements_covered": 12,

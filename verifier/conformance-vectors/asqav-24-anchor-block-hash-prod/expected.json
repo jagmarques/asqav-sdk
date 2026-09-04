@@ -1,0 +1,6 @@
+{
+ "format": "asqav-native",
+ "outcome": "verified",
+ "reason_code": "",
+ "notes": "Production receipt sig_XcmE-To6pSVUUJI6SUGx9g (the issuing platform's own org f94f66c0), ML-DSA-65 hash-mode protectmcp:lifecycle, seq 63; the predecessor.json is the seq-62 receipt from the same agent, so the chain and seq axes exercise for real. Its OpenTimestamps entry carries status anchored and the anchor_block_hash member exactly as the draft anchors[] schema defines it: the Bitcoin block hash the commitment upgraded at (height 965451, hash per blockstream.info and mempool.space, both fetched 2026-09-04). The signature, key thumbprint and chain all verify offline; the anchors axis SKIPs because completing it needs TSA key material and Bitcoin headers, which the corpus does not ship. The signature string is base64url unpadded; a 3309-byte ML-DSA-65 signature needs no padding."
+}
