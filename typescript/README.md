@@ -304,7 +304,9 @@ writeFileSync("jwks.json", JSON.stringify(jwks));
 const receipt = JSON.parse(readFileSync("receipt.json", "utf8"));
 const jwksSnap = JSON.parse(readFileSync("jwks.json", "utf8"));
 const result = await verifyReceiptOffline(receipt, jwksSnap);
-if (result.verdict !== "PASS") throw new Error(JSON.stringify(result.axes));
+// verdict is "verified" | "verified_keyed" | "unverified"; "verified_keyed" means a
+// keyed digest (internally consistent, not third-party re-derivable) and is also a pass
+if (result.verdict === "unverified") throw new Error(JSON.stringify(result.axes));
 ```
 
 Supply a predecessor receipt to check the hash-chain link:
@@ -352,10 +354,11 @@ A standalone offline verifier for agent receipts across formats ships as a subpa
 import { verify, ADAPTERS } from "@asqav/sdk/verifier";
 
 const result = verify(receipt, ADAPTERS, keyProvider);
-// result.verdict is "PASS", "FAIL", or "INCOMPLETE"
+// result.verdict is "verified", "verified_keyed", or "unverified"; "verified_keyed"
+// means a keyed digest (internally consistent, not third-party re-derivable)
 ```
 
-It verifies the issuer signature over the canonical bytes, the hash-chain link, and structural presence across the asqav-native, AERF, ACTA, agent-receipts, and Authproof formats. It never attests the behaviour of the recorded action, and no account is required. Ed25519 and ES256 verify in-process via `node:crypto`. ML-DSA-65 downgrades to `INCOMPLETE` rather than ever returning a false `PASS`. This is the TypeScript port of the Python `asqav.verifier.oracle`, held to verdict parity by a shared conformance corpus.
+It verifies the issuer signature over the canonical bytes, the hash-chain link, and structural presence across the asqav-native, AERF, ACTA, agent-receipts, and Authproof formats. It never attests the behaviour of the recorded action, and no account is required. Ed25519 and ES256 verify in-process via `node:crypto`, and ML-DSA-65 verifies in-process via `@noble/post-quantum`, byte-compatible with the Python verifier. This is the TypeScript port of the Python `asqav.verifier.oracle`, held to verdict parity by a shared conformance corpus.
 
 ## Structured receipts (optional schema)
 
