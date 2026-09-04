@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-payload-digest-vec-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "Ue6hnp+1BaIOW/U9+SrZCN1PwZFUtvG4phowntuHJtE="
+    }
+  ]
+}
