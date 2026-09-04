@@ -17,8 +17,6 @@ import hashlib
 import json
 from pathlib import Path
 
-from asn1crypto import tsp
-
 from asqav.verifier import verify_receipt as v
 from asqav.verifier.verify_receipt import envelope_minus_anchors_jcs
 
@@ -38,9 +36,7 @@ def _token() -> bytes:
 
 def _embedded_cert_ders() -> list[bytes]:
     """DER of each certificate embedded in the token (the TSA's own chain)."""
-    resp = tsp.TimeStampResp.load(_token())
-    certs = resp["time_stamp_token"]["content"]["certificates"]
-    return [c.chosen.dump() for c in certs]
+    return v._parse_time_stamp_resp(_token())["certs"]
 
 
 def _envelope() -> dict:
@@ -97,12 +93,11 @@ def test_wrong_rsa_key_is_invalid_not_unverifiable() -> None:
 
 def test_flipped_cms_signature_byte_is_invalid() -> None:
     """One flipped byte in the CMS signature breaks it, correct key or not."""
-    resp = tsp.TimeStampResp.load(_token())
-    si = resp["time_stamp_token"]["content"]["signer_infos"][0]
-    sig = bytearray(si["signature"].native)
-    sig[0] ^= 0x01
-    si["signature"] = bytes(sig)
-    tampered = resp.dump()
+    token = _token()
+    sig = v._parse_time_stamp_resp(token)["signature"]
+    off = token.find(sig)
+    assert off != -1 and token.count(sig) == 1
+    tampered = token[:off] + bytes([token[off] ^ 0x01]) + token[off + 1 :]
 
     bound, env_jcs = _bound_and_env_jcs()
     outcome, detail, _ = v._check_rfc3161_anchor(
