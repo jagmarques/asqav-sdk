@@ -112,6 +112,21 @@
     "notes": "Commitment-mode receipt (signs SHA-256(JCS)) fails the baseline JCS verifier - honest, never a false pass."
   },
   {
+    "dir": "acta-06-chain-link-03-prefixed",
+    "format": "acta",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "ACTA -03 \u00a76.7 chain form: previousReceiptHash carries the 'sha256:' prefix over SHA-256 of the JCS of the full signed predecessor; verifies in both languages."
+  },
+  {
+    "dir": "acta-07-chain-link-03-wrong-digest",
+    "format": "acta",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "chain",
+    "notes": "The -03 prefixed form with one wrong hex nibble, re-signed so the signature PASSes and the chain axis FAILs. Proven break: invalid."
+  },
+  {
     "dir": "acta-up-01-a2a-trusted-attestation",
     "format": "acta",
     "outcome": "verified",
