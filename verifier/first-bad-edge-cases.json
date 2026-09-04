@@ -74,6 +74,8 @@
     "asqav-21-key-thumbprint-binds": null,
     "asqav-22-key-substituted": "key_binding",
     "asqav-25-payload-digest-rederives": null,
-    "asqav-26-payload-digest-mismatch": "payload_digest"
+    "asqav-26-payload-digest-mismatch": "payload_digest",
+    "asqav-23-anchor-status-pending": null,
+    "asqav-24-anchor-block-hash": null
   }
 }

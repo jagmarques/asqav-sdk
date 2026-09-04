@@ -547,5 +547,19 @@
     "failure_class": "invalid",
     "reason_code": "payload_digest_mismatch",
     "notes": "The asqav-25 receipt with only payload_digest.hash changed - it commits to a different context than the one carried, and the receipt is re-signed over the lying payload, so the signature axis PASSes and the payload_digest axis is what FAILs. A proven internal inconsistency: unverified, invalid."
+  },
+  {
+    "dir": "asqav-23-anchor-status-pending",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "asqav-01's valid genesis receipt plus one opentimestamps anchor entry carrying the optional informational `status` member (draft anchors[] schema): pending is never a trusted anchor, so the full verifier's anchors axis reports SKIPPED while the oracle verdict stays verified (anchors sit outside the signed bytes)."
+  },
+  {
+    "dir": "asqav-24-anchor-block-hash",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "asqav-01's valid genesis receipt plus one opentimestamps anchor entry carrying the optional informational `anchor_block_hash` member (draft anchors[] schema), SHA-256 of 'asqav conformance fixture block hash' as fixture data. The oracle verdict stays verified; the full verifier reports the anchors axis SKIPPED (offline OTS check incomplete) with the member carried and ignored."
   }
 ]
