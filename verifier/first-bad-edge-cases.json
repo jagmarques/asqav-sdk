@@ -76,6 +76,8 @@
     "asqav-25-payload-digest-rederives": null,
     "asqav-26-payload-digest-mismatch": "payload_digest",
     "asqav-23-anchor-status-pending": null,
-    "asqav-24-anchor-block-hash-prod": null
+    "asqav-24-anchor-block-hash-prod": null,
+    "acta-06-chain-link-03-prefixed": null,
+    "acta-07-chain-link-03-wrong-digest": "chain"
   }
 }

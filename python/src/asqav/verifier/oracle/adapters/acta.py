@@ -23,11 +23,14 @@ asqav-native adapter also imports so neither claims the other's receipts.
 
 The chain field previousReceiptHash is SHA-256 of the JCS of the FULL predecessor
 receipt INCLUDING its signature (the inverse of AERF, which excludes the
-signature). It lives inside `payload`, so it is covered by the signature; removing
-or altering it breaks the signature. Genesis OMITS the field; a present
-`previousReceiptHash: null` is a malformed genesis, not a link. Keys resolve from
-an injected JWK Set (OKP/Ed25519, base64url `x`), the same no-live-fetch model the
-other adapters use.
+signature). Two carried forms verify: bare lowercase hex (draft -02) and, per
+ACTA -03 §6.7, the string "sha256:" followed by that hex; the carried value
+selects the recomputed form, and any other prefix fails the comparison rather
+than being normalised into a pass. It lives inside `payload`, so it is covered
+by the signature; removing or altering it breaks the signature. Genesis OMITS
+the field; a present `previousReceiptHash: null` is a malformed genesis, not a
+link. Keys resolve from an injected JWK Set (OKP/Ed25519, base64url `x`), the
+same no-live-fetch model the other adapters use.
 """
 from __future__ import annotations
 
@@ -108,10 +111,17 @@ class ActaAdapter(FormatAdapter):
         prev = payload.get("previousReceiptHash")
         is_genesis = "previousReceiptHash" not in payload
         # Chain hash covers the full predecessor receipt, signature included.
+        # The carried value selects the recomputed form: ACTA -03 §6.7 carries
+        # "sha256:" + hex, -02 the bare hex. An unknown prefix never normalises
+        # into a pass - the comparison just fails, as a wrong digest does.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,
-            recompute=lambda pred: sha256_hex(jcs(pred)),
+            recompute=lambda pred: (
+                "sha256:" + sha256_hex(jcs(pred))
+                if isinstance(prev, str) and prev.startswith("sha256:")
+                else sha256_hex(jcs(pred))
+            ),
         )
 
     def schema(self, doc: dict) -> tuple[str, str]:
