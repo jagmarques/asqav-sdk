@@ -1,0 +1,7 @@
+{
+  "format": "acta",
+  "outcome": "unverified",
+  "reason_code": "chain",
+  "notes": "The -03 prefixed form with one wrong hex nibble, re-signed so the signature PASSes and the chain axis is what FAILs. A proven break, so the class is invalid; the reason code is the corpus's 'chain' token (aerf-04's), the acta family having no older broken-link vector.",
+  "failure_class": "invalid"
+}
