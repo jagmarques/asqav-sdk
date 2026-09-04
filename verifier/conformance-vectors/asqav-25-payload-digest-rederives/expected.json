@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Payload-mode genesis carrying BOTH context and payload_digest, the one pair no other vector has: hash is SHA-256 over the JCS of the carried context and size its byte length (25), so the payload_digest axis recomputes and PASSes rather than passing on absence. The digest is computed with stdlib json.dumps in JCS shape, never through the verifier's canonical_json."
+}

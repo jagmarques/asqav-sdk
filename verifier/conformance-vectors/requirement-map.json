@@ -528,6 +528,48 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-25-payload-digest-rederives": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-26-payload-digest-mismatch": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     }
   },
   "interop_fixtures": {
@@ -809,7 +851,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -831,7 +875,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -853,7 +899,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -875,7 +923,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -897,7 +947,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-ANCHOR": [],
     "REQ-SKEW": [
@@ -920,7 +972,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -942,7 +996,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -964,7 +1020,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-PAYLOAD-DIGEST": [
       "asqav-01-genesis-permit",
@@ -986,7 +1044,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-COUNTERPARTY": [
       "asqav-01-genesis-permit",
@@ -1008,7 +1068,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -1030,7 +1092,9 @@
       "asqav-19-seq-non-monotonic",
       "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted"
+      "asqav-22-key-substituted",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ]
   },
   "unmapped_requirements": [
@@ -1052,7 +1116,7 @@
   },
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 22,
+    "asqav_native_vectors": 24,
     "interop_fixtures": 50,
     "requirements": 13,
     "requirements_covered": 12,
