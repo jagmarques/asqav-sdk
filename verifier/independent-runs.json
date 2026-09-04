@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "purpose": "Outside recomputations of this corpus, one entry per run, append-only. An entry records what a third party reproduced from the published text alone, at which commit, and what it does not claim. No entry is a claim by Asqav.",
+  "rules": ["append only; never edit or remove an entry", "asqav_sdk_commit must exist in this repository's history", "every vector name must exist in the corpus at that commit"],
+  "runs": [
+    {
+      "id": "2026-09-04-t-trace-pr38",
+      "date": "2026-09-04",
+      "runner": {"repository": "https://github.com/safal207/T-Trace", "evidence": "https://github.com/safal207/T-Trace/pull/38", "merge_commit": "3126937608ab5c8164ace103f3cfb08e2ad852b6", "head_commit": "6150ffb89bd802b683ee883c641d92958f0734d5"},
+      "asqav_sdk_commit": "17c814f9e2e51f005faa707d44adec0316534da8",
+      "corpus": "verifier/conformance-vectors",
+      "vectors": ["asqav-14-omitted-action-chain", "asqav-15-unsigned-gap", "asqav-16-chain-emission-blocked"],
+      "algorithms": ["Ed25519"],
+      "uses_asqav_code": false,
+      "independent_checks": ["Ed25519 signature over the canonical predecessor payload", "Ed25519 signature over the canonical receipt payload", "SHA-256 previousReceiptHash linkage", "presence and shape of the vector-specific observability marker"],
+      "result": "3/3 agree: local_outcome equals expected_outcome (verified) on every vector",
+      "not_proved": ["global capture completeness", "deployment-level non-bypassability", "policy evaluation of unsigned actions", "absence of effects outside the receipt path", "endorsement by the upstream author"],
+      "non_claims_text": "This is bounded interoperability and claim-ceiling evidence. It does not prove global capture completeness, deployment-level non-bypassability, policy evaluation of unsigned actions, absence of effects outside the receipt path, or endorsement by Asqav."
+    }
+  ]
+}

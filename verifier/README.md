@@ -139,6 +139,16 @@ vector through this verifier and reading the axes off the result: an axis the
 verifier skipped is not coverage, whatever a vector'"'"'s notes say. A test fails if
 the committed map drifts from the corpus.
 
+## Outside recomputations
+
+`independent-runs.json` records recomputations of this corpus run by third
+parties from the published text alone, one entry per run. The file is
+append-only: an entry is never edited or removed. An entry is the runner's own
+claim, with the runner's own non-claims — it is not an Asqav endorsement, and
+the file's purpose line says so. A test keeps the list honest: it refuses an
+entry whose pinned asqav-sdk commit is not in this repository's history or
+whose vector names are not directories in the corpus at that commit.
+
 ## The same axes from TypeScript
 
 This file is Python. The TypeScript SDK reaches the same axes through
