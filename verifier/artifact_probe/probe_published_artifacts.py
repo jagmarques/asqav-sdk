@@ -83,9 +83,22 @@ def probe_python(version: str) -> list[str]:
         # Install what the page tells the reader to install. The CLI lives behind
         # the documented `[cli]` extra, so probing the base install for CLI verbs
         # would report a gap the page never claimed to close.
-        subprocess.run(
-            [str(pip), "install", "-q", f"asqav[cli]=={version}"], check=True
+        install = subprocess.run(
+            [str(pip), "install", "-q", f"asqav[cli]=={version}"],
+            capture_output=True,
+            text=True,
         )
+        if install.returncode != 0:
+            tail = (install.stderr or install.stdout).strip().splitlines()[-1:]
+            # A version the JSON API already reports can still be absent from the
+            # simple index pip reads, for minutes after a publish. That is CDN lag,
+            # not a missing artifact, and it deserves a sentence rather than a
+            # stack trace that reads like the release failed.
+            return [
+                f"could not install asqav[cli]=={version} from PyPI: {' '.join(tail)}. "
+                "If this version was just published, the simple index has not propagated "
+                "yet; wait and re-run rather than treating it as a failed release."
+            ]
         print(f"  installed asqav[cli]=={version} from PyPI into a clean venv")
 
         # cwd is the temp dir and PYTHONPATH is cleared, so the source tree cannot
