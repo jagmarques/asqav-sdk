@@ -532,5 +532,20 @@
     "failure_class": "invalid",
     "reason_code": "key_substituted",
     "notes": "The receipt is correctly signed and the signature verifies against the key the directory publishes, so the signature axis PASSes and reports nothing wrong. The bound digest names a different key, which is what a swap under the same kid looks like from outside. A key that cannot be the one the issuer committed to is a proven binding break, so the class is invalid rather than unverifiable."
+  },
+  {
+    "dir": "asqav-25-payload-digest-rederives",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Payload-mode genesis carrying BOTH context and payload_digest (the pair no other vector has): hash is SHA-256 over the JCS of the carried context, size its byte length, so the payload_digest axis recomputes and PASSes rather than passing on absence. Minted by gen_payload_digest_vectors.py from a published seed phrase."
+  },
+  {
+    "dir": "asqav-26-payload-digest-mismatch",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "invalid",
+    "reason_code": "payload_digest_mismatch",
+    "notes": "The asqav-25 receipt with only payload_digest.hash changed - it commits to a different context than the one carried, and the receipt is re-signed over the lying payload, so the signature axis PASSes and the payload_digest axis is what FAILs. A proven internal inconsistency: unverified, invalid."
   }
 ]
