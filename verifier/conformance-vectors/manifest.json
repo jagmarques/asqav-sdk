@@ -556,10 +556,10 @@
     "notes": "asqav-01's valid genesis receipt plus one opentimestamps anchor entry carrying the optional informational `status` member (draft anchors[] schema): pending is never a trusted anchor, so the full verifier's anchors axis reports SKIPPED while the oracle verdict stays verified (anchors sit outside the signed bytes)."
   },
   {
-    "dir": "asqav-24-anchor-block-hash",
+    "dir": "asqav-24-anchor-block-hash-prod",
     "format": "asqav-native",
     "outcome": "verified",
     "reason_code": "",
-    "notes": "asqav-01's valid genesis receipt plus one opentimestamps anchor entry carrying the optional informational `anchor_block_hash` member (draft anchors[] schema), SHA-256 of 'asqav conformance fixture block hash' as fixture data. The oracle verdict stays verified; the full verifier reports the anchors axis SKIPPED (offline OTS check incomplete) with the member carried and ignored."
+    "notes": "Production receipt (ML-DSA-65, hash-mode, seq 63 with its seq-62 predecessor) whose opentimestamps entry carries status anchored and anchor_block_hash - the real Bitcoin block hash at which the commitment upgraded (height 965451). Signature, key thumbprint and chain verify offline; the anchors axis SKIPs for want of TSA key material and Bitcoin headers, which the corpus does not ship."
   }
 ]

@@ -1,6 +1,0 @@
-{
- "format": "asqav-native",
- "outcome": "verified",
- "reason_code": "",
- "notes": "asqav-01's valid genesis receipt with one anchor entry carrying the optional informational `anchor_block_hash` member (draft anchors[] schema): the declared block identity rides alongside the proof and the verifier does not re-verify it. The member value is SHA-256 of the ASCII phrase 'asqav conformance fixture block hash' - fixture data, not a real Bitcoin block. The signature is untouched (anchors sit outside the signed bytes), so the oracle verdict stays verified; under the full verifier the anchors axis reports SKIPPED (the offline OpenTimestamps check cannot complete on the fixture blob), with the member carried and ignored."
-}
