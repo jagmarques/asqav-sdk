@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 11,
+  "corpus_version": 13,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -58,6 +58,16 @@
       "version": 10,
       "files": 249,
       "digest": "2c8d871648474b3fc000d3afce7e3de8d840be12daeca9df9c1e2aa5d64d737b"
+    },
+    {
+      "version": 11,
+      "files": 249,
+      "digest": "bd51a3f9f0c606e9df151e9cc01c2fb6cfc96a869bc3b86f1625bd0698f4ceaa"
+    },
+    {
+      "version": 12,
+      "files": 257,
+      "digest": "da40f506f477b438087358a1f30c34043cb864d299a47aeef6a54fb878f5ab7f"
     }
   ],
   "files": [
@@ -135,6 +145,46 @@
       "path": "acta-05-commitment-mode-unsupported/receipt.json",
       "sha256": "ced1fe77d143f8077c0cb2f0c73c5d70034b2725c05e2c6cc24a751467badd08",
       "bytes": 534
+    },
+    {
+      "path": "acta-06-chain-link-03-prefixed/acta-keys.json",
+      "sha256": "4f3dafaf1e2db10e23a389c7d85035b1e09a4308509e2314b464228b258445b6",
+      "bytes": 179
+    },
+    {
+      "path": "acta-06-chain-link-03-prefixed/expected.json",
+      "sha256": "1e8a665bd67d401c4d1abca782a4c11fadfe45d423b5341b24d39c6515bf2245",
+      "bytes": 340
+    },
+    {
+      "path": "acta-06-chain-link-03-prefixed/predecessor.json",
+      "sha256": "3dc3b36962eb8b27efc56d53b2b87fe75b88781c00111b660aad4808d8f4706d",
+      "bytes": 531
+    },
+    {
+      "path": "acta-06-chain-link-03-prefixed/receipt.json",
+      "sha256": "1bbc26dd4a89513f25215798e0c66b7bc5cbe24765938a0b2ee1d6c64990c8f9",
+      "bytes": 633
+    },
+    {
+      "path": "acta-07-chain-link-03-wrong-digest/acta-keys.json",
+      "sha256": "4f3dafaf1e2db10e23a389c7d85035b1e09a4308509e2314b464228b258445b6",
+      "bytes": 179
+    },
+    {
+      "path": "acta-07-chain-link-03-wrong-digest/expected.json",
+      "sha256": "70d1e7d14ea1e9ccb857962464c03da9da9903a6875c3779df581d0d3b93844c",
+      "bytes": 389
+    },
+    {
+      "path": "acta-07-chain-link-03-wrong-digest/predecessor.json",
+      "sha256": "3dc3b36962eb8b27efc56d53b2b87fe75b88781c00111b660aad4808d8f4706d",
+      "bytes": 531
+    },
+    {
+      "path": "acta-07-chain-link-03-wrong-digest/receipt.json",
+      "sha256": "eab852c676053326f792b23822587856f094f5a3593fef1749c3a7b77e96d204",
+      "bytes": 633
     },
     {
       "path": "acta-up-01-a2a-trusted-attestation/acta-keys.json",
@@ -1138,8 +1188,8 @@
     },
     {
       "path": "gen_acta_vectors.py",
-      "sha256": "5b0185e9cfe4a27899adbefb8c08b97bbd428dc7ac9e4dd19a25af1a1df9e4fc",
-      "bytes": 4733
+      "sha256": "831fec25de5d0e352f75876fe91db5625c596294028695a5caeffda1828a6e54",
+      "bytes": 9809
     },
     {
       "path": "gen_key_binding_vectors.py",
@@ -1163,8 +1213,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "9485cae038de3e70bd5b1ca5133efc5ec3483433cc1c1af1b07edb245b0b2c57",
-      "bytes": 25926
+      "sha256": "eeb632ee4d783299167ff9ba50797a5b81d0911473a11a15b8fc762a7d61cc09",
+      "bytes": 26547
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1198,8 +1248,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "61c00432d8cfaa850ecddbff4b3766b6ca12fe87a17230ab543349f16af769a6",
-      "bytes": 40054
+      "sha256": "e48a893ba19010b94aa63fe2c2a22b36b2cf04b6405b983fb0484f81fd2d9d2b",
+      "bytes": 50159
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -1337,5 +1387,5 @@
       ]
     }
   },
-  "digest": "bd51a3f9f0c606e9df151e9cc01c2fb6cfc96a869bc3b86f1625bd0698f4ceaa"
+  "digest": "bf948b76adda5d7a69de3f7d234218181e744f7cd7963f1a3036ef7dca983f6f"
 }

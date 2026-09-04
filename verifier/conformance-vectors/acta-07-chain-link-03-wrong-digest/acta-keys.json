@@ -1,0 +1,10 @@
+{
+  "keys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "kid": "sb:issuer:acta-oracle-vec-key",
+      "x": "PM0kHP_Js2GARLl9A22GFFk9iwF8NA8d7odzOFUXZUs"
+    }
+  ]
+}
