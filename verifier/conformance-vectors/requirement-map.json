@@ -635,6 +635,16 @@
       "exercises_profile_requirements": false,
       "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
     },
+    "acta-06-chain-link-03-prefixed": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
+    "acta-07-chain-link-03-wrong-digest": {
+      "format": "acta",
+      "exercises_profile_requirements": false,
+      "note": "interoperability fixture for another specification; it is not evidence about this profile's normative requirements"
+    },
     "acta-up-01-a2a-trusted-attestation": {
       "format": "acta",
       "exercises_profile_requirements": false,
@@ -1182,7 +1192,7 @@
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
     "asqav_native_vectors": 26,
-    "interop_fixtures": 50,
+    "interop_fixtures": 52,
     "requirements": 13,
     "requirements_covered": 12,
     "requirements_unmapped": 1
