@@ -5,6 +5,7 @@
 
 import type { FormatAdapter, KeyProvider } from "./adapter.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
+import { notCheckedDeclaration, type NotCheckedEntry } from "./not-checked.js";
 
 /**
  * Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
@@ -55,6 +56,8 @@ export interface VerifyResult {
    * disagreeing about WHICH check failed first is as visible as disagreeing about the verdict.
    */
   firstFailingEdge: string | null;
+  /** The checks this result does not claim, beside the claim it makes. */
+  notChecked: NotCheckedEntry[];
 }
 
 /** Axes whose FAIL proves a cryptographic/policy binding failure (invalid). */
@@ -296,6 +299,7 @@ export function verify(
       failureClass,
       signer: null,
       firstFailingEdge: firstFailingEdge(axes),
+      notChecked: notCheckedDeclaration(),
     };
   }
   // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
@@ -306,7 +310,7 @@ export function verify(
   ) {
     const axes = [axis("structure", FAIL, TOO_DEEP_NOTE)];
     const [verdict, failureClass] = foldVerdict(axes, false);
-    return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes) };
+    return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration() };
   }
 
   const [structResult, structNote] = ad.schema(doc);
@@ -325,5 +329,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes) };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration() };
 }

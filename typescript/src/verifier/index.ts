@@ -51,6 +51,8 @@ export {
   verify,
 } from "./core.js";
 export type { AxisResult, FailureClass, Verdict, VerifyResult } from "./core.js";
+export { NOT_CHECKED, notCheckedDeclaration } from "./not-checked.js";
+export type { NotCheckedEntry } from "./not-checked.js";
 // The axes the oracle leaves out by design, so a TypeScript caller runs what a
 // Python caller runs. normaliseEnvelope ships too: skip it and you digest other bytes.
 export {
