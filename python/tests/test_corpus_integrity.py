@@ -377,18 +377,25 @@ def test_no_derived_member_escapes_a_pin() -> None:
 
 
 class TestTheCorpusSpellsNoAnchorsOneWay:
-    """The corpus carried two spellings of the same fact: null and an empty array.
+    """The corpus states no-anchors one way: the member absent or an empty array.
 
-    The verifier maps absent, null and empty to the identical SKIPPED result, so this
-    never changed a verdict, but a corpus that states one fact two ways invites a
-    reader to infer a distinction that is not there.
+    Absent and [] are the two conformant spellings of the same fact and the
+    engines treat them identically; a JSON null is a third, malformed spelling
+    that the structure axis FAILs. asqav-28-anchors-null-malformed exists to pin
+    that malformed shape, so it is the one vector the rule below names - every
+    other asqav vector stays under it.
     """
+
+    #: The one vector that pins the malformed null shape; any other null is drift.
+    _MALFORMED_ANCHORS_VECTORS = frozenset({"asqav-28-anchors-null-malformed"})
 
     def test_no_asqav_vector_uses_null_for_no_anchors(self) -> None:
         """One spelling, pinned, so the corpus cannot drift back to carrying both."""
         offenders = []
         for vector_dir in sorted(_VECTOR_ROOT.glob("asqav-*")):
             if not vector_dir.is_dir():
+                continue
+            if vector_dir.name in self._MALFORMED_ANCHORS_VECTORS:
                 continue
             receipt = json.loads((vector_dir / "receipt.json").read_text())
             if "anchors" in receipt and receipt["anchors"] is None:
@@ -399,6 +406,9 @@ class TestTheCorpusSpellsNoAnchorsOneWay:
         """A non-list anchors value is malformed: the verifier FAILs it, never laundered."""
         for vector_dir in sorted(_VECTOR_ROOT.glob("asqav-*")):
             if not vector_dir.is_dir():
+                continue
+            if vector_dir.name in self._MALFORMED_ANCHORS_VECTORS:
+                # asqav-28 pins exactly the malformed shape this test forbids.
                 continue
             receipt = json.loads((vector_dir / "receipt.json").read_text())
             if "anchors" in receipt:

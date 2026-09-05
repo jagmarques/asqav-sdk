@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "unverifiable",
+  "reason_code": "malformed_member",
+  "notes": "asqav-17's receipt with the anchors member present as a JSON null: a third spelling of no anchors found in the wild, and a malformed one - the structure axis FAILs, naming the member and the shape, and the verdict reads unverified/unverifiable rather than reading null as absent. Nothing cryptographic was disproved, so the class is unverifiable, not invalid (same family as duplicate_member: the receipt's own bytes are malformed)."
+}

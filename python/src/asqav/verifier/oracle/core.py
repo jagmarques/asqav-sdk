@@ -198,6 +198,26 @@ def _axis(axis: str, result: str, note: str) -> AxisResult:
     return AxisResult(axis, result, note, axis_failure_class(axis, result, note))
 
 
+#: Structure-axis note for the malformed third spelling of "no anchors": the member
+#: absent and the member present as an empty array are the conformant spellings; a
+#: JSON null is found in the wild and is malformed, reported unverifiable rather
+#: than read as either. Verbatim in all three engines; a wording drift fails the
+#: cross-language anchor-shape tests.
+_ANCHORS_NULL_NOTE = (
+    "anchors is null: malformed; absent or [] is the conformant spelling of no anchors"
+)
+
+
+    # The structure axis: the adapter schema, plus the one envelope-member shape rule
+    # the schema cannot see - anchors sits beside the signed payload, so no adapter
+    # schema reads it. Caught here, on the document as parsed.
+def _structure_axis(ad: FormatAdapter, doc: dict) -> AxisResult:
+    res, note = ad.schema(doc)
+    if res == crypto.PASS and "anchors" in doc and doc["anchors"] is None:
+        return _axis("structure", crypto.FAIL, _ANCHORS_NULL_NOTE)
+    return _axis("structure", res, note)
+
+
 def _signature_axis(ad: FormatAdapter, doc: dict, key_provider: Any) -> AxisResult:
     sm = ad.extract_signature(doc)
     pk, note = ad.resolve_key(doc, key_provider)
@@ -317,7 +337,7 @@ def verify(
         )
 
     axes = [
-        _axis("structure", *ad.schema(doc)),
+        _structure_axis(ad, doc),
         _signature_axis(ad, doc, key_provider),
         _chain_axis(ad, doc, adapters, predecessor),
         _seq_axis(ad, doc, adapters, predecessor),
