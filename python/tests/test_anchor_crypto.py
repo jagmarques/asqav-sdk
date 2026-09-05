@@ -176,12 +176,18 @@ def test_published_fixture_imprint_matches_but_tsa_untrusted() -> None:
 
 
 def _varuint(n: int) -> bytes:
-    out = bytearray([n & 0x7F])
-    n >>= 7
-    while n:
-        out.insert(0, 0x80 | (n & 0x7F))
+    # OTS varuints are LEB128: low 7 bits first, the high bit continues.
+    out = bytearray()
+    while True:
+        byte = n & 0x7F
         n >>= 7
-    return bytes(out)
+        out.append(byte | 0x80 if n else byte)
+        if not n:
+            return bytes(out)
+
+
+def _varbytes(payload: bytes) -> bytes:
+    return _varuint(len(payload)) + payload
 
 
 def _mint_ots(digest32: bytes, height: int) -> tuple[str, bytes]:
@@ -194,7 +200,7 @@ def _mint_ots(digest32: bytes, height: int) -> tuple[str, bytes]:
         + b"\x08"  # OpSHA256
         + b"\x00"  # attestation marker
         + bytes.fromhex("0588960d73d71901")
-        + _varuint(height)
+        + _varbytes(_varuint(height))
     )
     blob = v._OTS_MAGIC + b"\x01\x08" + digest32 + body
     return base64.b64encode(blob).decode(), root

@@ -100,6 +100,16 @@ status, an unknown type) reports `unverifiable`. A verified anchor whose proven
 time lands at or before a key's `revoked_at` lets a pre-revocation receipt pass
 the `key_status` axis; a forged or unverifiable one never does.
 
+A vector directory may carry the material those inputs need:
+`tsa_trust.pem` (PEM certificates the offline verifier trusts for that
+vector's timestamp-authority token) and `bitcoin_headers.json` (block headers
+keyed by height, each with `hash`, `merkle_root` and `time`). Both are public
+material — the certificates are embedded in the token itself, the headers are
+Bitcoin public data; `conformance-vectors/asqav-24-anchor-block-hash-prod`
+ships them, and `ANCHOR-MATERIAL.md` there records the two independent header
+sources. A vector without them keeps its anchors axis SKIPPED by design, and
+the requirement map says so.
+
 ## What it does not check
 
 The list below is **not** the authority. Every verification result carries a
