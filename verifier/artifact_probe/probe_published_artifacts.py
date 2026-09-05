@@ -148,6 +148,48 @@ def probe_python(version: str) -> list[str]:
     return failures
 
 
+#: The corpus loop executed inside the throwaway venv against the INSTALLED package.
+#: One module-level constant so the repository test runs these exact bytes against
+#: the source package instead of a paraphrase of them. stdlib + the installed
+#: package only - the venv has nothing else. Inputs mirror the requirement-map
+#: builder exactly: the predecessor file unwraps to its payload, and a vector's own
+#: tsa_trust.pem / bitcoin_headers.json pass in the builder's shapes (parsed JSON
+#: for the headers, a bytes list for the TSA trust material).
+_CORPUS_RUNNER_SOURCE = (
+    "import json, pathlib, sys\n"
+    "from asqav.verifier.verify_receipt import run_structured\n"
+    "base = pathlib.Path(sys.argv[1])\n"
+    "out = {}\n"
+    "for d in sorted(p for p in base.iterdir() if p.is_dir()):\n"
+    "    exp = d / 'expected.json'\n"
+    "    receipt, jwks = d / 'receipt.json', d / 'jwks.json'\n"
+    "    if not (exp.exists() and receipt.exists() and jwks.exists()):\n"
+    "        continue\n"
+    "    e = json.loads(exp.read_text())\n"
+    "    if e.get('format') != 'asqav-native':\n"
+    "        continue\n"
+    "    pred = d / 'predecessor.json'\n"
+    "    tsa = d / 'tsa_trust.pem'\n"
+    "    bh = d / 'bitcoin_headers.json'\n"
+    "    try:\n"
+    "        pred_doc = json.loads(pred.read_text()) if pred.exists() else None\n"
+    "        if isinstance(pred_doc, dict) and isinstance(pred_doc.get('payload'), dict):\n"
+    "            pred_doc = pred_doc['payload']\n"
+    "        r = run_structured(\n"
+    "            json.loads(receipt.read_text()), json.loads(jwks.read_text()),\n"
+    "            predecessor_payload=pred_doc,\n"
+    "            trusted_tsa_keys=[tsa.read_bytes()] if tsa.exists() else None,\n"
+    "            bitcoin_headers=json.loads(bh.read_text()) if bh.exists() else None)\n"
+    "        first = next((a for a in r['axes'] if a['result'] != 'PASS'), None)\n"
+    "        out[d.name] = {'declared': e.get('outcome'), 'observed': r['verdict'],\n"
+    "                       'first_nonpass': first,\n"
+    "                       'not_checked': len(r.get('not_checked', []))}\n"
+    "    except Exception as exc:\n"
+    "        out[d.name] = {'declared': e.get('outcome'), 'observed': 'ERROR: %s' % exc}\n"
+    "print(json.dumps(out))\n"
+)
+
+
 def probe_corpus_against_installed_python(version: str) -> list[str]:
     """Run the conformance corpus through the INSTALLED verifier, not the repo one.
 
@@ -168,30 +210,7 @@ def probe_corpus_against_installed_python(version: str) -> list[str]:
             check=True,
         )
         runner = pathlib.Path(tmp) / "run_corpus.py"
-        runner.write_text(
-            "import json, pathlib, sys\n"
-            "from asqav.verifier.verify_receipt import run_structured\n"
-            "base = pathlib.Path(sys.argv[1])\n"
-            "out = {}\n"
-            "for d in sorted(p for p in base.iterdir() if p.is_dir()):\n"
-            "    exp = d / 'expected.json'\n"
-            "    receipt, jwks = d / 'receipt.json', d / 'jwks.json'\n"
-            "    if not (exp.exists() and receipt.exists() and jwks.exists()):\n"
-            "        continue\n"
-            "    e = json.loads(exp.read_text())\n"
-            "    if e.get('format') != 'asqav-native':\n"
-            "        continue\n"
-            "    pred = d / 'predecessor.json'\n"
-            "    try:\n"
-            "        r = run_structured(\n"
-            "            json.loads(receipt.read_text()), json.loads(jwks.read_text()),\n"
-            "            predecessor_payload=json.loads(pred.read_text()) if pred.exists() else None)\n"
-            "        out[d.name] = {'declared': e.get('outcome'), 'observed': r['verdict'],\n"
-            "                       'not_checked': len(r.get('not_checked', []))}\n"
-            "    except Exception as exc:\n"
-            "        out[d.name] = {'declared': e.get('outcome'), 'observed': 'ERROR: %s' % exc}\n"
-            "print(json.dumps(out))\n"
-        )
+        runner.write_text(_CORPUS_RUNNER_SOURCE)
         proc = subprocess.run(
             [str(py), str(runner), str(vectors)], capture_output=True, text=True, cwd=tmp
         )
@@ -203,7 +222,7 @@ def probe_corpus_against_installed_python(version: str) -> list[str]:
             if str(r["observed"]).startswith("ERROR"):
                 failures.append(f"corpus {name}: {r['observed']}")
         # Reported once, naming the version, rather than once per vector: this is a
-        # single fact about the artifact, and repeating it 22 times buries the rest.
+        # single fact about the artifact, and repeating it once per vector buries the rest.
         undeclared = [n for n, r in results.items() if r.get("not_checked", 0) == 0]
         if undeclared:
             failures.append(
@@ -214,12 +233,24 @@ def probe_corpus_against_installed_python(version: str) -> list[str]:
             )
         # The declared-vs-observed comparison is reported, never silently reconciled:
         # a vector whose declared outcome the installed verifier does not reproduce is
-        # the exact disagreement this axis exists to surface.
-        drift = [
-            f"{n}: declared {r['declared']!r}, observed {r['observed']!r}"
-            for n, r in sorted(results.items())
-            if not str(r["observed"]).startswith("ERROR") and r["declared"] != r["observed"]
-        ]
+        # the exact disagreement this axis exists to surface. Each line names the first
+        # non-PASS axis and its note as read off the run, so the reason printed is
+        # derived from the result, not typed.
+        drift = []
+        for n, r in sorted(results.items()):
+            if str(r["observed"]).startswith("ERROR") or r["declared"] == r["observed"]:
+                continue
+            first = r.get("first_nonpass")
+            if first:
+                drift.append(
+                    f"{n}: declared {r['declared']!r}, observed {r['observed']!r}"
+                    f" — {first['name']}: {first['result']} — {first['note']}"
+                )
+            else:
+                drift.append(
+                    f"{n}: declared {r['declared']!r}, observed {r['observed']!r}"
+                    " — every reported axis PASSes"
+                )
         if drift:
             print()
             print(
@@ -229,9 +260,8 @@ def probe_corpus_against_installed_python(version: str) -> list[str]:
             print(
                 "  This is NOT an artifact defect and does not fail this probe: the repository's\n"
                 "  own verifier drifts on exactly the same vectors. It is a corpus-declaration gap.\n"
-                "  The declared outcome assumes trust material the corpus does not ship (pinned TSA\n"
-                "  keys, bitcoin headers) or an algorithm the single-file verifier does not\n"
-                "  implement, and no vector says which. An outsider reproduces "
+                "  Each line names the first non-PASS axis and its note as read off the run.\n"
+                "  An outsider reproduces "
                 f"{len(results) - len(drift)} of {len(results)}."
             )
             for d in drift:
