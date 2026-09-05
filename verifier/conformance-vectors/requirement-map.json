@@ -367,6 +367,24 @@
       "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
+    },
+    "asqav-27-anchors-absent": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-28-anchors-null-malformed": {
+      "structure": "FAIL"
     }
   },
   "requirements": {
@@ -979,6 +997,48 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-27-anchors-absent": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-28-anchors-null-malformed": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW"
+      ]
     }
   },
   "interop_fixtures": {
@@ -1268,7 +1328,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -1294,7 +1355,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -1320,7 +1382,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -1346,7 +1409,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -1372,7 +1436,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -1398,7 +1463,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-ANCHOR": [
       "asqav-24-anchor-block-hash-prod"
@@ -1427,7 +1493,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -1453,7 +1520,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -1479,7 +1547,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-PAYLOAD-DIGEST": [
       "asqav-01-genesis-permit",
@@ -1505,7 +1574,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-COUNTERPARTY": [
       "asqav-01-genesis-permit",
@@ -1531,7 +1601,8 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -1557,14 +1628,16 @@
       "asqav-23-anchor-status-pending",
       "asqav-24-anchor-block-hash-prod",
       "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch"
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent",
+      "asqav-28-anchors-null-malformed"
     ]
   },
   "unmapped_requirements": [],
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 26,
+    "asqav_native_vectors": 28,
     "interop_fixtures": 52,
     "requirements": 13,
     "requirements_covered": 13,
