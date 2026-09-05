@@ -58,17 +58,15 @@ to no key, so the verifier returns `verified: false` instead of waving it throug
 `signature_id` of your own for a receipt that passes. A verifier that says no when the
 evidence is absent is the only kind worth having.
 
-From the shell:
+From the shell (`npm install -g @asqav/sdk` provides the `asqav` command):
 
 ```bash
 asqav verify <your_signature_id>
 ```
 
-The verifier re-derives the signature, the chain link, the payload digest and the anchors
-from the RFC 8785 canonical bytes, and reports a verdict per axis. It never asks Asqav to
-vouch for anything.
-
-Offline or air-gapped, snapshot the keys once and verify with no network at all:
+Offline or air-gapped, snapshot the keys once and verify with no network at all. This
+re-derives the signature itself from the RFC 8785 canonical bytes and reports a verdict per
+axis, so it never asks Asqav to vouch for anything:
 
 ```ts
 import { fetchJwks, verifyReceiptOffline } from "@asqav/sdk";

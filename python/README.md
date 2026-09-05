@@ -58,18 +58,21 @@ to no key, so the verifier returns `verified: false` instead of waving it throug
 `signature_id` of your own for a receipt that passes. A verifier that says no when the
 evidence is absent is the only kind worth having.
 
-From the shell:
+From the shell (the `cli` extra provides the `asqav` command):
 
 ```bash
-pip install "asqav[verify]"
+pip install "asqav[cli]"
 asqav verify <your_signature_id>
 ```
 
-The verifier re-derives the signature, the chain link, the payload digest and the anchors
-from the RFC 8785 canonical bytes, and reports a verdict per axis. It never asks Asqav to
-vouch for anything.
+Offline or air-gapped, snapshot the keys once and verify with no network at all. This
+re-derives the signature itself, so it needs the `verify` extra
+(`dilithium-py` for ML-DSA-65, `cryptography` for the Ed25519 and ES256 axes — without it
+those signatures report INCOMPLETE rather than verifying):
 
-Offline or air-gapped, snapshot the keys once and verify with no network at all:
+```bash
+pip install "asqav[verify]"
+```
 
 ```python
 import asqav, json
