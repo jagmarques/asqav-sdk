@@ -11,8 +11,9 @@
       "size": 0
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "previousReceiptHash": "698ed6b67b05918661a9a781bdb7d58cbb7b7e053366cafc80b2c3b71ec398ce",
+    "previousReceiptHash": "62f2f42d8af720b8a49a8bd23541c5436a9e24b010be8754b2bc0bf6d7094292",
     "decision": "allow",
+    "mode": "payload",
     "tool_name": "demo.action",
     "unsigned_gap": {
       "count": 2,
@@ -23,7 +24,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-omission-vec-key",
-    "sig": "J3qJB822PkS88nb8e1Z57yZohkBsucd/Aj3lLhupH+OdP7OWDCB/rOR7bhFw/Ecb0549IC4rTvaroIdXjIVtAQ=="
+    "sig": "5bS4rLxX6D7a85pTIT82cL0mYiadsGneP2nBwWGqcFGmi3dTJyBAAiKhf5NXlF/7KsUcZlvVYCiVR2U0yI29Cg=="
   },
   "anchors": []
 }

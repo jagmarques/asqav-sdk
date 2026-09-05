@@ -81,6 +81,7 @@ def _payload(previous: str, **extra) -> dict:
         "policy_digest": f"sha256:{_ZERO_DIGEST}",
         "previousReceiptHash": previous,
         "decision": "allow",
+        "mode": "payload",
         "tool_name": "demo.action",
     }
     payload.update(extra)

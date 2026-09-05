@@ -13,12 +13,13 @@
     "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
     "decision": "deny",
+    "mode": "payload",
     "tool_name": "demo.action"
   },
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-oracle-vec-key",
-    "sig": "gblVUpd0vUNVpHVqwwrXPSukB6xgYiGgapMFHLrbl+SxMBitvowkEsBoEWjhWaYJP17Wkrwyn5GtfYNYjsR6Ag=="
+    "sig": "ONDUf8H2DS7v81rvhgli4HVX3rThO2FaE5i2SurVcl30+bKuWPbRb+xTVQ8OJ9UTfPl3YIGHvayqhzkA4DEZDw=="
   },
   "anchors": []
 }

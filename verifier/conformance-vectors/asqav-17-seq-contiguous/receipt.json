@@ -11,15 +11,16 @@
       "size": 0
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "previousReceiptHash": "9f37d3bb18600ed7038b3386934fc05e22612c633258d37c56c2038af744d72f",
+    "previousReceiptHash": "9194cc26c263f76a20340a95b103717a54b9f6aa79ba5b0a219261bc2b031bd5",
     "decision": "allow",
+    "mode": "payload",
     "tool_name": "demo.action",
     "seq": 8
   },
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "Q2LY8Aii7oLpp3CCsTvVOV++f6XIkaERk0R4wkZvj/VgMqVXe0YyLEo21piLF8v9c4WWvm/FqPiAOKpSV6nNDg=="
+    "sig": "nmKwlNrKi+EPaCIYAz6BB6WGJSv9pfNR8WPQ9F5CVUim4BfQynFsV+8wUf19h3ZuLWc38rKj19X8k6XggDHwBg=="
   },
   "anchors": []
 }

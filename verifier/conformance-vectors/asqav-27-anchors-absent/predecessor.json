@@ -13,13 +13,14 @@
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
     "decision": "allow",
+    "mode": "payload",
     "tool_name": "demo.action",
     "seq": 7
   },
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "pPVKLlzX5RUR/tpnM6YSTxxVI2MzECsy3zF9lOp0I+CZZflYXkNM2hNk9CfNAezda+rgzkCkreah5guAzq5WAA=="
+    "sig": "IvoZu7uDdIMviB6FtWT5d/ev8kTqI6VL9fR5ujXpZLEhSeC975u/DRa8iUSGuJdYr3MUoghYIj/7Go+k/kLqAg=="
   },
   "anchors": []
 }

@@ -113,6 +113,7 @@ def _demo_payload(**extra) -> dict:
         "policy_digest": POLICY_DIGEST,
         "previousReceiptHash": "0" * 64,
         "decision": "allow",
+        "mode": "payload",
         "tool_name": "demo.action",
     }
     payload.update(extra)
