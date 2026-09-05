@@ -232,9 +232,9 @@ def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
         "anchors": [],
     }
     code = v.run(envelope, jwks, None)
-    # The standalone surface only checks ML-DSA-65, so the Ed25519 signature axis
-    # SKIPs and the verdict is unverified/unverifiable (exit 2), never verified.
-    assert code == 2
+    # The Ed25519 signature axis now runs: signed by a different key it FAILs,
+    # so the verdict is unverified/invalid (exit 1), never verified.
+    assert code == 1
 
 
 # === agent_id fallback must bind the resolved key to the claimed issuer ===
