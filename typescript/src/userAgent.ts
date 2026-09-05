@@ -3,7 +3,7 @@
  * added under Node, since browsers forbid setting User-Agent on fetch.
  */
 
-export const SDK_VERSION = "0.10.9";
+export const SDK_VERSION = "0.10.10";
 
 export const USER_AGENT = `asqav-js/${SDK_VERSION} (+https://www.asqav.com)`;
 
