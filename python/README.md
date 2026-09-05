@@ -2,7 +2,13 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social)](https://github.com/jagmarques/asqav-sdk)
 
-Python SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents. Sign every agent action with ML-DSA-65 (FIPS 204), enforce policies before execution, and produce regulator-ready audit trails. All cryptography runs server-side, and the package has zero native dependencies.
+Python SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents.
+
+Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65 (FIPS 204,
+post-quantum), timestamped against independent witnesses, and verifiable by anyone —
+auditor, counterparty, regulator — **without an Asqav account and without trusting us**.
+
+Zero native dependencies. Cryptography runs server-side.
 
 ## Install
 
@@ -12,533 +18,185 @@ pip install asqav
 
 ## Quick start
 
-Get an API key at [asqav.com](https://asqav.com). The fastest path is the CLI:
-
 ```bash
 pip install "asqav[cli]"
 asqav login        # validates your key, saves it to ~/.asqav/credentials
-asqav init         # prints a ready-to-paste snippet for your project
 ```
-
-`asqav login` saves your key so the SDK and CLI resolve it automatically (no `ASQAV_API_KEY` needed). Then sign your first agent action:
 
 ```python
 import asqav
 
-# govern() is a one-call setup: init() + Agent.create() in one line
+# govern() = init() + Agent.create() in one call
 agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
 
 sig = agent.sign("api:openai:chat", {"model": "gpt-4o"})
 
 print(sig.action_ref)             # "sha256:..." over the JCS-canonical action
-print(sig.previous_receipt_hash)  # 64 hex; "0"*64 on the first record per agent
-print(sig.verification_url)
+print(sig.previous_receipt_hash)  # 64 hex; "0"*64 on this agent's first receipt
+print(sig.verification_url)       # anyone can open this
 ```
 
-That's it. One install, one govern call, one sign call. The receipt lands on the Asqav cloud under [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): ML-DSA-65 (FIPS 204) signature, chain hash, retained `policy_digest`, fail-closed anchoring, and a public verification URL.
+One install, one `govern`, one `sign`. `asqav.init()` + `asqav.Agent.create()` remain
+available when you want control over `algorithm`, `capabilities` and other agent options.
 
-Prefer the lower-level building blocks? `asqav.init(api_key=...)` followed by `asqav.Agent.create("my-agent")` still works and gives more control over `algorithm`, `capabilities`, and other agent options.
+## Verify it without an account
 
-### No account? Offline path
+This is the point of the whole thing — the receipt stands on its own:
 
-If you need to record actions without a network call or an API key, use `local_sign`. Actions queue to disk and can be synced later:
+Run this right now, with no key and no signup:
+
+```python
+import asqav
+
+result = asqav.verify("sig_example_regulator_cold_verify_2026")
+print(result["verified"])     # False -- and that is the point, see below
+print(result["chain_hash"])   # recomputed on your machine from the canonical bytes
+```
+
+That id is a **shape example**: its signature bytes are placeholders and its `kid` resolves
+to no key, so the verifier returns `verified: false` instead of waving it through. Swap in a
+`signature_id` of your own for a receipt that passes. A verifier that says no when the
+evidence is absent is the only kind worth having.
+
+From the shell (the `cli` extra provides the `asqav` command):
+
+```bash
+pip install "asqav[cli]"
+asqav verify <your_signature_id>
+```
+
+Offline or air-gapped, snapshot the keys once and verify with no network at all. This
+re-derives the signature itself, so it needs the `verify` extra
+(`dilithium-py` for ML-DSA-65, `cryptography` for the Ed25519 and ES256 axes — without it
+those signatures report INCOMPLETE rather than verifying):
+
+```bash
+pip install "asqav[verify]"
+```
+
+```python
+import asqav, json
+
+jwks = asqav.fetch_jwks()                     # online, once
+json.dump(jwks, open("jwks.json", "w"))
+
+receipt = json.load(open("receipt.json"))     # offline from here
+result  = asqav.verify_receipt_offline(receipt, json.load(open("jwks.json")))
+assert result["verdict"] == "PASS", result["axes"]
+```
+
+Pass `predecessor=prev_receipt` to check the hash-chain link too.
+Guide: [offline and air-gapped verification](https://asqav.com/docs/offline-air-gapped-verification).
+
+## No account? Queue locally
 
 ```python
 from asqav.local import local_sign, LocalQueue
 
-item_id = local_sign("my-agent", "api:openai:chat", {"model": "gpt-4o"})
-# Writes a pending JSON item to ~/.asqav/queue/
+local_sign("my-agent", "api:openai:chat", {"model": "gpt-4o"})  # -> ~/.asqav/queue/
 
-# When back online, init with your key then sync:
 import asqav
-asqav.init(api_key="sk_...")   # or set ASQAV_API_KEY in the environment
-result = LocalQueue().sync()   # uploads queued items, returns {"synced": N, "failed": M}
+asqav.init(api_key="sk_...")
+LocalQueue().sync()            # {"synced": N, "failed": M}
 ```
-
-Pass `compliance_mode=False` on any `agent.sign(...)` call if you want a non-Compliance receipt.
-
-## CLI
-
-The package ships an `asqav` CLI mirroring the Python API. Start with `asqav login` (or set `ASQAV_API_KEY`) and run:
-
-```bash
-asqav login                                  # save your key to ~/.asqav/credentials
-asqav whoami                                 # show the active key source + validate it
-asqav init                                   # print a ready-to-paste snippet
-asqav verify <signature_id> [--output json]   # IETF axes when present
-asqav sign --agent-id ID --action-type T --action-json action.json \
-           --compliance-mode --receipt-type protectmcp:decision \
-           --risk-class high --issuer-id legal:Acme
-asqav agents list / create / revoke
-asqav sessions list / end <session_id>
-asqav replay <agent_id> <session_id>
-asqav replay-verify <agent_id> <session_id> [--strict]     # IETF chain
-asqav preflight <agent_id> <action_type>
-asqav budget check / record
-asqav approve <session_id> <entity_id>
-asqav compliance frameworks / export
-asqav audit-pack export --start ISO --end ISO --output-file bundle.json
-asqav audit-pack policy <sha256:hex>
-asqav payloads erase <signature_id>                        # P4 right-to-erasure
-asqav org set-compliance-strict <org_id> --enable|--disable
-asqav keys generate --algorithm ed25519|es256 [--out priv.pem]
-asqav migrate run v3-20|v3-21|v3-22                        # X-Maintenance-Key required
-asqav policies / webhooks list / create / delete
-```
-
-Every command listed here works on the free tier. The Asqav cloud is the source of truth for what your key may do.
 
 ## Data handling modes
 
-The SDK auto-detects whether you're pointing at the Asqav cloud or a self-hosted deployment and selects the safer default for each:
+The SDK picks the safer default for where you point it:
 
-- **Cloud (`*.asqav.com`)**: hash-only by default. The SDK builds a fingerprint of your action context, computes a SHA-256 hash locally, and sends only the hash plus a small metadata bag of `action_type`, `agent_id`, `session_id`, `model_name`, and `tool_name`. Raw prompts and tool arguments stay on your side.
-- **Self-hosted**: full-payload by default. The server can run policy checks, PII redaction, and richer audit. Recommended when you control the deployment.
-
-Override anytime:
+- **Cloud (`*.asqav.com`)** — hash-only. A SHA-256 fingerprint is computed locally and only
+  the hash plus `action_type`, `agent_id`, `session_id`, `model_name`, `tool_name` is sent.
+  Prompts and tool arguments never leave your side.
+- **Self-hosted** — full payload, so the server can run policy checks and richer audit.
 
 ```python
 asqav.init(api_key="...", base_url="https://api.asqav.com", mode="hash-only")
 ```
 
-The fingerprint format is sorted JSON with no whitespace per JCS, hashed with SHA-256. See `docs/fingerprint-spec.md` and `conformance/vectors.json` for the spec and cross-language test vectors.
+## High-value actions
 
-## Advanced / high-value actions
-
-Once you have the basics working, you can pass compliance envelope fields for regulated or high-risk actions. The full parameter set is useful for things like large financial transfers, healthcare decisions, or anything that needs an auditor-facing trail.
+For regulated or high-risk actions, pass envelope fields that an auditor will look for:
 
 ```python
 sig = agent.sign(
     "payment.wire_transfer",
     {"amount_eur": 850000, "beneficiary_iban": "DE89370400440532013000"},
     receipt_type="protectmcp:decision",
-    risk_class="high",
-    issuer_id="legal:Acme GmbH",
-    iteration_id="task-2026-Q2-4821",
+    risk_class="high",                 # low | medium | high | unknown
+    issuer_id="legal:Acme GmbH",       # LEI, EIN, CIK or W3C DID
+    iteration_id="task-2026-Q2-4821",  # logical task, distinct from session
 )
 ```
 
-The envelope extensions most callers reach for:
-
-- `receipt_type` - `protectmcp:decision`, `protectmcp:restraint`, `protectmcp:lifecycle`, `protectmcp:lifecycle:configuration_change`, `protectmcp:acknowledgment`, `protectmcp:observation`, or `protectmcp:observation:result_bound`, which is an observation receipt that binds tool output via `result_digest`.
-- `risk_class` - controlled vocabulary: `low | medium | high | unknown`.
-- `iteration_id` - logical task id, distinct from session.
-- `sandbox_state` - `enabled | disabled | unavailable` for high-risk gating.
-- `incident_class` - DORA / NYDFS / CIRCIA token, or an array of tokens.
-- `issuer_id` - LEI per ISO 17442, EIN, CIK, or a W3C DID for non-LEI deployers.
-
-## Compliance receipts: the IETF profile
-
-Compliance Receipts are the SDK default. Each `agent.sign(...)` call produces a receipt that conforms to [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/): cloud-issued receipts carry an ML-DSA-65 signature (locally signed receipts carry Ed25519/ES256 — the algorithm is per-receipt in `signature.alg`), JCS canonicalization, retained `policy_digest`, hash-chained `previous_receipt_hash`, OpenTimestamps anchoring. Opt out with `compliance_mode=False` if you want the older shape.
-
-### Observation receipts and passive_telemetry
-
-Two `receipt_type` values cover the gating axis: `protectmcp:decision` records that a policy ran and gated the action. `protectmcp:observation` records that a passive monitor saw the event without gating it. Pick `observation` when the producer never had the option to block, such as a SIEM forwarder, a browser extension in observe-only mode, or a NetFlow-style proxy with no enforcement hook.
-
-Set `capture_topology='passive_telemetry'` to declare the producer is observing after the fact. The SDK client-side check pre-flights the Asqav cloud's full rule 8 gate: a `capture_topology='passive_telemetry'` receipt MUST use `receipt_type='protectmcp:observation'`. Any other receipt_type paired with `passive_telemetry`, namely `:decision`, `:restraint`, `:lifecycle`, `:lifecycle:configuration_change`, or `:acknowledgment`, raises `ValueError` with the verbatim `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :<offending> (rule 8)` message before the HTTP roundtrip. The guard lives as `false_attestation_guard` in `python/src/asqav/client.py`.
-
-```python
-sig = agent.sign(
-    "mcp:tool_call",
-    {"server": "filesystem", "tool": "read"},
-    receipt_type="protectmcp:observation",
-    capture_topology="passive_telemetry",
-    issuer_id="legal:Acme GmbH",
-)
-```
-
-`capture_topology` is stamped on the audit-pack manifest entry but never on the signed payload. The other accepted topologies are `in_process_sdk`, `network_proxy`, `browser_extension`, `mcp_proxy`, and `github_sha_pull`. A client-supplied `capture_topology` is advisory: the server stamps the authoritative value from the ingress route, and for code-authorship that authoritative value is `github_sha_pull`, set only after the server re-fetches the commit and recomputes the diff. Only `passive_telemetry` triggers the false-attestation guard. The full topology semantics live in the cloud's `docs/capture-topology.md`, and the wire vocabulary is published live at `https://api.asqav.com/.well-known/governance.json` for discovery.
-
-### Configuration change receipts, rule 9
-
-A `receipt_type='protectmcp:lifecycle:configuration_change'` receipt declares the agent's runtime configuration was mutated. The SDK pre-flights the Asqav cloud's rule 9 cross-field gate for NSA CSI U/OO/6030316-26 alignment: the receipt MUST carry `config_manifest_digest`. Omitting it raises `ValueError` with the verbatim `configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).` message before the HTTP roundtrip.
-
-```python
-sig = agent.sign(
-    "mcp:config_update",
-    {"server": "filesystem", "delta": "tool_added"},
-    receipt_type="protectmcp:lifecycle:configuration_change",
-    policy_decision="none",
-    config_manifest_digest="sha256:<hex of manifest>",
-    cve_inventory_digest="sha256:<hex of cve snapshot>",
-)
-```
-
-### Expiry precedence, rule 10
-
-The legacy `valid_seconds`, where the server computes `valid_until = signed_at + valid_seconds`, and the caller-supplied horizon `expires_at` are mutually exclusive. Pass exactly one of the two: `valid_seconds=3600` for "expire one hour after signing", or `expires_at="2026-06-01T00:00:00Z"` for an explicit horizon. Passing both raises `ValueError` with the verbatim `expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)` message before the HTTP roundtrip. Passing neither falls back to the server-side default of `valid_seconds=86400`.
-
-### Digest format, rule 11
-
-Every caller-supplied self-describing digest field, namely `config_manifest_digest`, `cve_inventory_digest`, `executable_hash`, and `sbom_digest`, MUST match the regex `^sha256:[a-f0-9]{64}$`. `tool_fingerprint` is the exception: it uses the cloud wire form of 32 bare lowercase hex chars, SHA-256[:32], matching `^[0-9a-f]{32}$` with no `sha256:` prefix. Anything else raises `ValueError` with the verbatim `tool_fingerprint_not_32_hex_chars: must be 32 lowercase hex chars (SHA-256[:32]).` guard. The two URL pointer fields `slsa_provenance_pointer` and `supply_chain_pointer` MUST start with `http://` or `https://`. Anything else raises `ValueError` with a verbatim guard message before the HTTP roundtrip. To avoid wire drift, use the SDK's deterministic helpers, each byte-deterministic under JCS:
-
-```python
-from asqav.client import (
-    _compute_tool_fingerprint,
-    _compute_config_manifest_digest,
-    _compute_cve_inventory_digest,
-)
-
-fp = _compute_tool_fingerprint("search", {"args": {"q": "string"}})
-cfg = _compute_config_manifest_digest({"server": "filesystem", "tools": ["read"]})
-cve = _compute_cve_inventory_digest([{"id": "CVE-2026-0001", "severity": "high"}])
-```
-
-## NSA-aligned receipt fields
-
-Six wire fields on `agent.sign(...)` carry the NSA CSI U/OO/6030316-26 alignment for MCP server lifecycle and tool output binding:
-
-- `result_digest` - `sha256:<hex>` of the tool output, binds the receipt to a specific result. See <https://www.asqav.com/docs/result-digest>.
-- `expires_at` - explicit ISO-8601 or POSIX validity horizon. Converted client-side to `valid_seconds` and sent as a duration, since the cloud owns absolute time-binding. Mutually exclusive with `valid_seconds`. See <https://www.asqav.com/docs/time-bound-receipts>.
-- `nonce` - 12 random bytes auto-generated when omitted, carried as an opaque per-call token. The cloud rejects a re-used value: a nonce already held by a live signature for the same agent in the same organisation is refused with HTTP 409, so the field does bound replay for as long as the earlier receipt is inside its validity window. A record whose `valid_until` has passed frees its token, and one signed with no expiry keeps it. Pair it with `valid_seconds` or `expires_at` to bound the window itself, which the verifier enforces by returning `signature_expired`.
-- `tool_fingerprint` - 32 bare lowercase hex chars, SHA-256[:32], over `{tool_name, schema}`, auto-derived when `tool_name` + `tool_schema` are present. See <https://www.asqav.com/docs/tool-fingerprint>.
-- `config_manifest_digest` - `sha256:<hex>` of the agent's runtime configuration snapshot. Required on configuration_change receipts. See <https://www.asqav.com/docs/configuration-change-receipts>.
-- `cve_inventory_digest` - `sha256:<hex>` over the CVE snapshot at sign time. See <https://www.asqav.com/docs/cve-inventory>.
-
-The `protectmcp:observation:result_bound` `receipt_type` variant carries `result_digest` and lets observation receipts bind to a specific tool result without claiming the policy gated the call.
-
-### Build-provenance 4-tuple
-
-Four optional wire fields bind build-side provenance into the signed receipt:
-
-- `executable_hash` - `sha256:<hex>` of the executable that invoked the action.
-- `sbom_digest` - `sha256:<hex>` of the canonical CycloneDX or SPDX SBOM document.
-- `slsa_provenance_pointer` - https URL to the SLSA attestation envelope.
-- `supply_chain_pointer` - https URL to the in-toto, Sigstore, or Rekor entry.
-
-```python
-sig = agent.sign(
-    "build:provenance",
-    {"image": "asqav/cloud:0.5.1"},
-    compliance_mode=True,
-    executable_hash="sha256:<hex of executable>",
-    sbom_digest="sha256:<hex of SBOM>",
-    slsa_provenance_pointer="https://attestations.example.com/slsa/build-1.intoto.jsonl",
-    supply_chain_pointer="https://rekor.sigstore.dev/api/v1/log/entries/abc",
-)
-```
-
-See <https://www.asqav.com/docs/executable-hash-and-sbom-provenance>.
-
-## Optional threat-framework mappings
-
-Seven optional wire fields let a caller pin the receipt to industry threat-and-control taxonomies. Each list is caller-supplied and Asqav-preserved verbatim. The cloud sets `framework_mappings_self_declared=true` on the receipt whenever any of the six list fields is populated, so verifiers can tell self-declared classifications apart from cloud-verified ones.
-
-- `mitre_techniques` - list of MITRE ATT&CK technique ids, for example `["T1059", "T1078"]`.
-- `mitre_atlas` - list of MITRE ATLAS ids for AI-system threats, for example `["AML.T0051"]`.
-- `owasp_llm_top10` - list of OWASP Top 10 for LLM ids, for example `["LLM01", "LLM02"]`.
-- `nist_ai_rmf` - list of NIST AI RMF function ids, for example `["GOVERN-1.1", "MEASURE-2.7"]`.
-- `iso_42001` - list of ISO/IEC 42001 control ids, for example `["A.6.2.6"]`.
-- `eu_ai_act_articles` - list of EU AI Act article ids, for example `["Article-12", "Article-15"]`.
-- `rfc3161_timestamp` - caller-supplied base64-encoded RFC 3161 TimeStampResp in DER.
-
-```python
-sig = agent.sign(
-    "api:call",
-    {"user": "..."},
-    compliance_mode=True,
-    mitre_techniques=["T1059", "T1078"],
-    owasp_llm_top10=["LLM01"],
-    nist_ai_rmf=["GOVERN-1.1", "MEASURE-2.7"],
-    eu_ai_act_articles=["Article-12"],
-)
-```
-
-Each list must be a non-empty list of strings, each entry up to 128 characters. Empty lists, non-string entries, or oversize entries raise `ValueError` with the verbatim guard messages `<field>_must_be_non_empty_list` or `<field>_entry_invalid` and skip the HTTP roundtrip. The `rfc3161_timestamp` must be valid base64 or raises `rfc3161_timestamp_not_base64`.
-
-See <https://www.asqav.com/docs/threat-framework-mapping>.
-
-## Optional witness policy
-
-`witness_policy` lets a caller declare an N-of-M durable-anchoring quorum on the receipt. The receipt reaches `witness_quorum_met` only when `required` witnesses hold a real inclusion proof.
-
-- Shape: `{"required": int, "witnesses": [<subset of "rfc3161", "opentimestamps">]}`.
-- `required` must be in `[1, len(witnesses)]`.
-- `witnesses` must be a non-empty subset of the two shipped witnesses: `rfc3161` and `opentimestamps`.
-- `rekor` is rejected. It is not a shipped witness.
-- `rfc3161` confirmation is available on the Pro and Enterprise tiers. On the Free tier, `opentimestamps` is the witness that produces an inclusion proof; a policy requiring only `rfc3161` will not reach `witness_quorum_met` on Free.
-
-```python
-sig = agent.sign(
-    "deploy:release",
-    {"build": "..."},
-    compliance_mode=True,
-    witness_policy={"required": 1, "witnesses": ["rfc3161", "opentimestamps"]},
-)
-```
-
-Bad input raises `ValueError` with a verbatim guard message before the HTTP roundtrip: `witness_policy_unknown_witness` for an entry like `rekor`, `witness_policy_required_out_of_range`, `witness_policy_witnesses_must_be_non_empty_list`, `witness_policy_required_must_be_int`, or `witness_policy_duplicate_witness`. Omit the field for today's behaviour.
-
-### Audit Pack export
-
-The cloud signs a Compliance Audit Pack over a window of receipts. The SDK wraps the endpoint:
-
-```python
-pack = asqav.fetch_audit_pack(start="2026-05-01T00:00Z", end="2026-06-01T00:00Z")
-print(pack["bundle_digest"])              # sha256:<hex>
-print(pack["bundle_signature"])           # base64 ML-DSA-65 sig over the bundle
-print(pack["regime_mapping"])             # {regime_token: [record_id, ...]}
-print(pack["algorithm_registry_version"]) # registry version pinned at issuance
-```
-
-`asqav.export_bundle(signatures, framework="dora")` is the offline alternative for air-gapped flows: it computes a Merkle root over an in-memory list of receipts without calling the cloud. Use `fetch_audit_pack` whenever the cloud is reachable, since only the cloud signature gives the auditor a tamper-evident manifest.
-
-Local-side sanity checks, covering presence of REQUIRED fields, namespace, the 300s skew bound, and predecessor rederivation, are available as `asqav.verify_compliance_receipt(envelope, predecessor_envelope=...)`. The cloud is the authoritative verifier. This helper is a convenience.
-
-`asqav.SUPPORTED_ALGORITHMS` is the set `asqav.generate_local_keypair(...)` can mint locally: `{ed25519, es256}`. It does not list the cloud agent-signing algorithms. `Agent.create(...)` sends its `algorithm` to the Asqav cloud, which accepts `ml-dsa-44`, `ml-dsa-65` (default), and `ml-dsa-87`. `ed25519` and `es256` are for local keypair generation only, so passing either to `Agent.create(...)` returns a 400 from the cloud.
-
-## Offline / air-gapped verification
-
-Receipts can be verified without calling the Asqav API once you have a JWKS snapshot.
-Full guide: [`docs/offline-verification.md`](../docs/offline-verification.md).
-
-Install the `verify` extra, which adds `dilithium-py` (ML-DSA-65) and `cryptography`
-(Ed25519, ES256):
+## CLI
 
 ```bash
-pip install "asqav[verify]"
+asqav whoami                       # active key source, validated
+asqav init                         # print a ready-to-paste snippet
+asqav verify <signature_id>        # verify a receipt (no key needed)
+asqav sign --agent-id ID --action-type T --action-json action.json
+asqav agents list | create | revoke
+asqav replay-verify <agent_id> <session_id> [--strict]
+asqav audit-pack export --start ISO --end ISO --output-file bundle.json
+asqav payloads erase <signature_id>          # right-to-erasure
 ```
 
-Snapshot the JWKS while you have network access, then verify offline:
+Full command reference: [asqav.com/docs/cli](https://asqav.com/docs/cli).
 
-```python
-import asqav, json
+## Framework integrations
 
-# online: snapshot the keys
-jwks = asqav.fetch_jwks()
-json.dump(jwks, open("jwks.json", "w"))
+Native callbacks under `asqav.extras.*` for **LangChain**, **CrewAI**, **LiteLLM**,
+**OpenAI Agents** and others, plus a pytest plugin. Adapters install behind documented
+extras (`asqav[langchain]`, `asqav[litellm]`, `asqav[openai-agents]`).
+See [integrations](https://asqav.com/docs/integrations) and
+[pytest plugin](https://asqav.com/docs/pytest-plugin).
 
-# offline: verify any receipt
-receipt = json.load(open("receipt.json"))
-jwks    = json.load(open("jwks.json"))
-result  = asqav.verify_receipt_offline(receipt, jwks)
-assert result["verdict"] == "PASS", result["axes"]
-```
+## What a receipt does not prove
 
-Supply a predecessor receipt to check the hash-chain link:
+Stated plainly, because an auditor will ask:
 
-```python
-result = asqav.verify_receipt_offline(receipt, jwks, predecessor=prev_receipt)
-```
+- **Not that the action ran, or ran once.** A receipt records a decision and the bytes that
+  passed through, never the effect. A retry produces a second receipt.
+- **Not that the policy was correct.** `policy_digest` proves which policy artefact existed,
+  not that it was the right one.
+- **Not that the environment was intact.** No field here carries a remote attestation result.
+- **Tamper-evident, not tamper-proof.** Modification is detectable, not prevented.
 
-## Integrations
+The full list is in the IETF profile under "What a Compliance Receipt Does Not Prove".
 
-The SDK ships native callbacks and adapters for common agent frameworks under `asqav.extras.*`:
+## Reference
 
-- **LangChain** - `from asqav.extras.langchain import AsqavCallbackHandler`, pass to a chain's `callbacks=[handler]`. Signs each chain, tool, and LLM lifecycle event.
-- **CrewAI** - `from asqav.extras.crewai import AsqavCrewHook, AsqavGuardrailProvider`, attach the hook to the Crew so every task and agent step signs through Asqav.
-- **LiteLLM** - `from asqav.extras.litellm import AsqavGuardrail`, register on `litellm.callbacks`. Signs every completion across providers.
-- **OpenAI Agents SDK** - `from asqav.extras.openai_agents import AsqavGuardrail, AsqavTracingProcessor`, attaches to the runner and signs tool calls plus tracer spans.
-- **LlamaIndex**, **Haystack**, **smolagents**, **DSPy**, **Letta**, **Strands**, **Instructor** - same pattern via `asqav.extras.<framework>`, each exposing one `AsqavAdapter` subclass.
-- **pytest** - run `pytest --asqav --asqav-agent=test-runner` with `ASQAV_API_KEY` set. Each test result signs and a Merkle-rooted compliance bundle emits on session finish.
-
-Cookbooks for FastAPI middleware, AutoGen, and reasoning-trace capture live under `python/examples/`. See <https://asqav.com/docs/integrations> for the per-framework guide.
-
-## Errors
-
-All raised exceptions extend `AsqavError`. `AuthenticationError` for 401, `RateLimitError` for 429, and `APIError` carrying `status_code` are exported for fine-grained handling:
-
-```python
-from asqav import AsqavError, AuthenticationError, RateLimitError, APIError
-
-try:
-    agent.sign("api:call", {"model": "gpt-4"})
-except AuthenticationError:
-    # rotate ASQAV_API_KEY
-    raise
-except RateLimitError as exc:
-    # exc.retry_after holds the cooldown in seconds
-    raise
-except APIError as exc:
-    # exc.status_code holds the HTTP status
-    raise
-```
-
-`ValueError` is raised before the HTTP roundtrip for the verbatim rule 8 / 9 / 10 / 11 guards listed above. Catch `ValueError` separately so guard violations surface as developer errors, not API errors.
-
-## Structured receipts (optional schema)
-
-Pass a `context_schema` to `Agent.sign()` to validate and normalise the
-`context` dict before it is signed. This keeps every receipt in your audit
-trail in a consistent, queryable shape.
-
-```python
-import asqav
-from asqav import AsqavValidationError
-
-PAYMENT_SCHEMA = {
-    "user_id":  {"type": "string", "required": True},
-    "amount":   {"type": "number", "required": True},
-    "currency": {"type": "string", "required": True},
-}
-
-asqav.init(api_key="sk_...")
-agent = asqav.Agent.create("my-agent")
-
-# Valid context: keys are sorted before signing (consistent hash order).
-sig = agent.sign(
-    "payment:initiate",
-    {"user_id": "u1", "currency": "EUR", "amount": 49.95},
-    context_schema=PAYMENT_SCHEMA,
-)
-
-# Missing required field: raises AsqavValidationError BEFORE the network call.
-try:
-    agent.sign(
-        "payment:initiate",
-        {"amount": 100},          # user_id missing, currency missing
-        context_schema=PAYMENT_SCHEMA,
-    )
-except AsqavValidationError as exc:
-    print(exc)            # context_schema_error: field 'user_id' is required but missing
-    print(exc.docs_url)   # https://asqav.com/docs/structured-receipts
-```
-
-Field descriptor keys:
-- `type` (required) - one of `"string"`, `"number"`, `"boolean"`, `"object"`, `"array"`.
-- `required` (optional, default `False`) - whether the field must be present.
-
-`"number"` rejects `bool` values; `"array"` rejects plain dicts.
-No schema means today's exact behaviour (zero behaviour change).
-
-You can also pass a callable for full JSON Schema validation (no new
-mandatory dependencies needed in the core package):
-
-```python
-def my_validator(ctx: dict) -> None:
-    import jsonschema
-    jsonschema.validate(ctx, MY_FULL_SCHEMA)
-
-agent.sign("action", context, context_schema=my_validator)
-```
-
-See `examples/schema_receipts_example.py` for a runnable demo.
-
-## Bind your agent's declared configuration into the receipt
-
-A signed action is more useful when the receipt also proves *which declared
-configuration* the agent was running when it acted. You can bind that today
-with the sign context, no extra API surface:
-
-1. Hash whatever declares the agent: an agent manifest, an `AGENTS.md`, a
-   container image digest, or an SBOM. Any bytes on disk work.
-2. Put the digest in the `context` under your own keys (for example
-   `config_digest` plus `config_kind`).
-3. Optionally pin those keys with a `context_schema` so a receipt that claims a
-   config always carries both fields.
-
-```python
-import hashlib
-from pathlib import Path
-
-import asqav
-
-def config_digest(path: Path) -> str:
-    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
-
-CONFIG_BINDING_SCHEMA = {
-    "config_digest": {"type": "string", "required": True},
-    "config_kind":   {"type": "string", "required": True},
-}
-
-asqav.init(api_key="sk_...")
-agent = asqav.Agent.create("my-agent")
-
-digest = config_digest(Path("AGENTS.md"))
-
-sig = agent.sign(
-    "payment:refund",
-    {
-        "amount": 49.95,
-        "currency": "EUR",
-        "config_digest": digest,        # sha256:<hex> of your declaration
-        "config_kind": "agents-md",     # name the artifact you hashed
-    },
-    context_schema=CONFIG_BINDING_SCHEMA,
-)
-print(sig.verification_url)             # digest is inside the signed receipt
-```
-
-The digest is part of the signed body, so anyone can fetch the receipt at the
-public verify endpoint and confirm the action ran under that exact declaration.
-The key names and the artifact kind are yours to choose, which keeps the pattern
-generic across any declaration format.
-
-For a couple of common cases there are dedicated wire fields instead of context
-keys (`config_manifest_digest` for a runtime config snapshot, `sbom_digest` for
-an SBOM). The context recipe above is the general form for any other declaration
-you want to bind.
-
-See `examples/bind_config_digest.py` for a runnable demo.
-
-## Pluggable detectors (bring-your-own DLP/policy)
-
-asqav owns the enforce + signed-proof spine; detection is pluggable. Register a
-detector and it runs inside every `Agent.sign()`, after the context is normalised
-and before the network call. Its verdict is recorded in the signed receipt (under
-`_detectors`), so the audit trail proves which detector saw the action and why. A
-deny raises `DetectorBlockedError` and no signature is created.
-
-```python
-import asqav
-from asqav import DetectorBlockedError, DetectorResult, register_detector
-
-class SsnDetector:
-    name = "ssn-regex"
-    def inspect(self, action_type: str, context: dict) -> DetectorResult:
-        if "123-45-6789" in str(context):
-            return DetectorResult(allow=False, labels=["US_SSN"], reason="SSN in context")
-        return DetectorResult(allow=True)
-
-asqav.init(api_key="sk_...")
-agent = asqav.Agent.create("my-agent")
-register_detector(SsnDetector())            # fail_open defaults to False
-
-try:
-    agent.sign("email:send", {"body": "ssn 123-45-6789"})
-except DetectorBlockedError as exc:
-    print(exc.detector_name, exc.result.labels)   # ssn-regex ['US_SSN']
-```
-
-- **Fail-closed by default**: if `inspect()` raises, sign blocks. Opt out per
-  detector with `register_detector(d, fail_open=True)`.
-- **Additive**: with no detector registered, the signed body is byte-identical
-  to today (zero behaviour change).
-- **Reference detectors** ship in `asqav.extras` behind optional extras:
-  `PresidioDetector` (PII, `pip install asqav[presidio]`) and `OpaDetector`
-  (Open Policy Agent policy-as-code, no extra deps). Any classifier or policy
-  engine can feed the signed preflight decision this way.
-
-See `examples/detector_plugin_example.py` for a runnable demo.
+| Topic | Docs |
+|---|---|
+| Threat-framework mappings (MITRE, OWASP, NIST AI RMF, ISO 42001, EU AI Act) | [threat-framework-mapping](https://asqav.com/docs/threat-framework-mapping) |
+| NSA CSI U/OO/6030316-26 receipt fields | [nsa-mcp-csi-alignment](https://asqav.com/docs/nsa-mcp-csi-alignment) |
+| Build provenance (`executable_hash`, `sbom_digest`, SLSA) | [executable-hash-and-sbom-provenance](https://asqav.com/docs/executable-hash-and-sbom-provenance) |
+| Witness policy and multi-witness anchoring | [multi-witness-anchoring](https://asqav.com/docs/multi-witness-anchoring) |
+| Binding tool output (`result_digest`) | [result-digest](https://asqav.com/docs/result-digest) |
+| Configuration-change receipts | [configuration-change-receipts](https://asqav.com/docs/configuration-change-receipts) |
+| Code-authorship receipts | [code-authorship-receipts](https://asqav.com/docs/code-authorship-receipts) |
+| Structured receipts (optional schema) | [structured-receipts](https://asqav.com/docs/structured-receipts) |
+| Bring-your-own DLP / policy detectors | [scanning](https://asqav.com/docs/scanning) |
+| Audit Pack export | [compliance](https://asqav.com/docs/compliance) |
+| Independent verification protocol | [independent-verification](https://asqav.com/docs/independent-verification) |
 
 ## Requirements
 
-Python 3.10 or newer. Uses `httpx` for the API client. Zero native dependencies. ML-DSA cryptography runs server-side.
+Python 3.10+. Uses `httpx`. Zero native dependencies.
 
 ## Standards
 
-Asqav's compliance receipts are profiled in IETF Internet-Draft [`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/), an Independent Submission that profiles [`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/) for EU AI Act Articles 12 and 26, and DORA Article 17 bindings. The SDK aligns with NIST FIPS 204 (ML-DSA), JCS canonicalization, and the NSA Cybersecurity Information Sheet U/OO/6030316-26 on MCP server lifecycle telemetry.
+Profiled in the IETF Internet-Draft
+[`draft-marques-asqav-compliance-receipts`](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/),
+an Independent Submission profiling
+[`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/).
+Aligns with NIST FIPS 204 (ML-DSA), RFC 8785 (JCS) and NSA CSI U/OO/6030316-26.
 
-## Roadmap
+## Links
 
-What ships on Asqav today. Each item is available on `main`:
-
-- Hash-only mode for cloud - default for `*.asqav.com`.
-- Self-hosted signer with split-trust - compose file in the Asqav backend repo.
-- Bring-your-own KMS for AWS KMS or GCP KMS - Enterprise tier.
-- Customer-owned storage - self-hosted, with the relay payload allowlist enforced in code.
-- SCITT / COSE_Sign1 receipt export - public `GET /api/v1/signatures/{id}/cose` returns `application/cose`.
-- Air-gapped / on-prem mode - offline license + zero-egress. See the backend repo `docs/airgapped-mode.md`.
-
-See <https://asqav.com/docs> for the live feature set.
-
-## Documentation
-
-- Repository: <https://github.com/jagmarques/asqav-sdk>
-- Full docs: <https://asqav.com/docs>
-- SDK guide: <https://asqav.com/docs/sdk>
-- IETF profile: <https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/>
-- Discovery descriptor: <https://asqav.com/.well-known/governance.json>
+[Docs](https://asqav.com/docs) · [SDK guide](https://asqav.com/docs/sdk) ·
+[Repository](https://github.com/jagmarques/asqav-sdk) ·
+[Discovery descriptor](https://asqav.com/.well-known/governance.json)
 
 ## License
 
