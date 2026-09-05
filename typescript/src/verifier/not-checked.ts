@@ -127,3 +127,75 @@ export const NOT_CHECKED: readonly NotCheckedEntry[] = [
 export function notCheckedDeclaration(): NotCheckedEntry[] {
   return NOT_CHECKED.map((entry) => ({ ...entry }));
 }
+
+/**
+ * The axis order verify() reports on the normal path for this profile's native
+ * format (the prefix, then the adapter's extras in order). The coverage block
+ * measures "not reached" against this sequence.
+ */
+export const AXIS_ORDER = [
+  "structure",
+  "signature",
+  "chain",
+  "seq",
+  "expiry",
+  "nonce",
+  "key_binding",
+  "counterparty",
+  "payload_digest",
+  "skew",
+  "key_status",
+  "issuer_bind",
+] as const;
+
+/** One entry of the coverage block: a check that did not run, with why. */
+export interface CoverageEntry {
+  /** The check (a NOT_CHECKED row's `check`, or an axis name). */
+  id: string;
+  /** not_implemented: declared and never evaluated; not_reached: evaluation stopped first. */
+  reason: "not_implemented" | "not_reached";
+  /** Whether the tool implements the check at all. */
+  status: "not_implemented" | "implemented";
+  /** The requirement family, on not_implemented entries. */
+  requirement?: string;
+  /** The caller input that would enable the check, on not_implemented entries. */
+  condition?: string | null;
+}
+
+/**
+ * The coverage block every result carries beside `notChecked`. A wire block
+ * mirrored from the reviewer's tool, so the keys stay snake_case deliberately.
+ */
+export interface Coverage {
+  /** null when the full axis sequence ran; else the axis evaluation stopped at. */
+  stopped_at: string | null;
+  /** not_implemented entries first (table order), then not_reached axes in axis order. */
+  checks_not_evaluated: CoverageEntry[];
+}
+
+/**
+ * Build the coverage declaration for one result's axes. The early returns in
+ * verify() stop at the structure gate, so stopped_at reads "structure" there;
+ * a run whose axes end at the last axis of AXIS_ORDER ran to the end.
+ */
+export function coverageDeclaration(axes: ReadonlyArray<{ axis: string }>): Coverage {
+  const entries: CoverageEntry[] = NOT_CHECKED.map((row) => ({
+    id: row.check,
+    reason: "not_implemented",
+    status: "not_implemented",
+    requirement: row.requirement,
+    condition: row.condition,
+  }));
+  const names = axes.map((a) => a.axis);
+  if (names.length > 0 && names[names.length - 1] === AXIS_ORDER[AXIS_ORDER.length - 1]) {
+    return { stopped_at: null, checks_not_evaluated: entries };
+  }
+  const stoppedAt = "structure";
+  const after = AXIS_ORDER.slice(AXIS_ORDER.indexOf(stoppedAt) + 1);
+  for (const name of after) {
+    if (!names.includes(name)) {
+      entries.push({ id: name, reason: "not_reached", status: "implemented" });
+    }
+  }
+  return { stopped_at: stoppedAt, checks_not_evaluated: entries };
+}
