@@ -19,6 +19,7 @@ import pytest
 
 from asqav.verifier.verify_receipt import (
     NOT_CHECKED,
+    coverage_declaration,
     not_checked_declaration,
     run_structured,
 )
@@ -104,4 +105,87 @@ def test_every_return_path_of_run_structured_declares_it():
         keys = {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
         assert "not_checked" in keys, (
             f"run_structured returns at line {node.lineno} without not_checked"
+        )
+
+
+#: The twelve axes after the structure gate on the normal path, pinned verbatim so
+#: a reorder of the verifier's sequence fails here instead of editing the pin.
+_AXES_AFTER_STRUCTURE = (
+    "nonce", "issuer_key", "issuer_bind", "key_status", "signature", "key_binding",
+    "counterparty", "payload_digest", "chain", "anchors", "skew", "expiry",
+)
+
+
+def test_coverage_block_on_a_full_run():
+    """A receipt that runs the whole sequence reports stopped_at null and the table."""
+    receipt, jwks = _vector("asqav-01-genesis-permit")
+    result = run_structured(receipt, jwks)
+    # The pin is the live axis sequence itself: the coverage constant must track it.
+    assert [a["name"] for a in result["axes"]] == ["structure", *_AXES_AFTER_STRUCTURE]
+    cov = result["coverage"]
+    assert cov["stopped_at"] is None
+    entries = cov["checks_not_evaluated"]
+    assert [e["id"] for e in entries] == [e["check"] for e in NOT_CHECKED]
+    for entry in entries:
+        assert entry["reason"] == "not_implemented", entry
+        assert entry["status"] == "not_implemented", entry
+        assert list(entry)[:3] == ["id", "reason", "status"], entry
+        assert entry["requirement"] and "condition" in entry, entry
+
+
+def test_coverage_block_on_the_early_returns():
+    """The structure gate stops evaluation; the other axes read not_reached."""
+    for bad in ("not an envelope", {"payload": "not a dict"}):
+        result = run_structured(bad, {})
+        cov = result["coverage"]
+        assert cov["stopped_at"] == "structure", bad
+        entries = cov["checks_not_evaluated"]
+        not_impl = [e for e in entries if e["reason"] == "not_implemented"]
+        not_reached = [e for e in entries if e["reason"] == "not_reached"]
+        # not_implemented entries come first, in NOT_CHECKED table order.
+        assert [e["id"] for e in not_impl] == [e["check"] for e in NOT_CHECKED]
+        assert [e["id"] for e in not_reached] == list(_AXES_AFTER_STRUCTURE)
+        for entry in not_reached:
+            assert entry["status"] == "implemented", entry
+            assert list(entry) == ["id", "reason", "status"], entry
+
+
+def test_coverage_not_implemented_ids_match_the_table_in_order():
+    """Parity: the block's not_implemented ids ARE this language's table, in order."""
+    for axes in ([], [{"name": "expiry"}]):
+        entries = coverage_declaration(axes)["checks_not_evaluated"]
+        not_impl = [e["id"] for e in entries if e["reason"] == "not_implemented"]
+        assert not_impl == [e["check"] for e in NOT_CHECKED]
+
+
+def test_a_caller_cannot_narrow_the_coverage_block_of_later_results():
+    """Each result gets its own block; mutation does not reach the helper."""
+    first = run_structured("not an envelope", {})
+    first["coverage"]["checks_not_evaluated"].clear()
+    fresh = run_structured("not an envelope", {})["coverage"]
+    assert len(fresh["checks_not_evaluated"]) == len(NOT_CHECKED) + len(_AXES_AFTER_STRUCTURE)
+
+
+def test_every_return_path_of_run_structured_carries_coverage():
+    """The anti-regression gate for the coverage block, parsed from source.
+
+    Same construction as the not_checked gate above: a return path no test
+    reaches is exactly the one that would ship without the block.
+    """
+    source = pathlib.Path(
+        __import__("asqav.verifier.verify_receipt", fromlist=["_"]).__file__
+    ).read_text()
+    tree = ast.parse(source)
+    fn = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "run_structured"
+    )
+    returns = [n for n in ast.walk(fn) if isinstance(n, ast.Return)]
+    assert returns, "run_structured has no return statements; the gate is vacuous"
+    for node in returns:
+        assert isinstance(node.value, ast.Dict), "a non-dict return cannot carry coverage"
+        keys = {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
+        assert "coverage" in keys, (
+            f"run_structured returns at line {node.lineno} without coverage"
         )
