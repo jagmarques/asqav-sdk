@@ -5,6 +5,56 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-09-05
+
+### Added
+
+- **The full verifier verifies Ed25519 and ES256 signatures natively**, beside
+  ML-DSA-65, through the optional `cryptography` dependency it already declares;
+  the standalone file still imports nothing from the package. The published
+  requirement map lists the signature requirement as exercised by every
+  asqav-native vector rather than by the four post-quantum ones. (#477)
+- **Every result carries a `coverage` block in the shape the reviewer's public
+  tool emits** (`stopped_at`, `checks_not_evaluated[{id, reason, status}]`),
+  derived from the same table as `not_checked`, so the two tools' declarations
+  read side by side. Both languages. (#475)
+- **Per-vector anchor material.** A vector directory may ship `tsa_trust.pem`
+  and `bitcoin_headers.json`; the requirement-map builder passes them through.
+  asqav-24 ships both, so the anchoring requirement is exercised offline and
+  `unmapped_requirements` is empty. (#478)
+- **A machine-readable registry of outside recomputations**
+  (`verifier/independent-runs.json`), each pinned to a commit and the vectors it
+  re-derived, with a test that every pinned commit and vector exists. (#474)
+- **Vectors** for the anchor `status` and `anchor_block_hash` members (#468),
+  for receipts carrying both `context` and `payload_digest` (#465), and for the
+  counterparty binding's profile `payload_digest` shape (#473).
+- **A scheduled artifact probe** runs the published-package probe weekly, on
+  dispatch, and after every successful publish, uploading its output as a job
+  artifact. (#476)
+- The TypeScript verifier declares its non-coverage (`notChecked`) on every
+  result, in parity with Python. (#464)
+
+### Fixed
+
+- **The OpenTimestamps attestation parser reads the reference framing.** An
+  attestation is tag + varbytes(payload), with the block height a little-endian
+  (LEB128) varuint inside the payload. The production proof in asqav-24 lands in
+  block 965451 and parses to its last byte. (#478)
+- **The ACTA -03 chain-link form verifies alongside the -02 one.** (#469)
+- **Timestamp-authority tokens signed under the bare `rsaEncryption` algorithm
+  identifier verify.** (#470)
+- **The requirement-map builder hands the verifier the predecessor payload**, so
+  the chain axes in the published map reflect a real run. (#471)
+- A PEM file with several certificate blocks yields one trusted TSA key per
+  block. (#478)
+- The artifact probe reports PyPI simple-index lag as a sentence rather than a
+  traceback. (#466)
+
+### Changed
+
+- The TypeScript README states the verifier's shipped verdict vocabulary (#467);
+  every README states the three plans and their real limits (#472).
+
 ## [0.10.8] - 2026-09-04
 
 ### Added
