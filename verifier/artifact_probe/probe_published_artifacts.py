@@ -206,7 +206,7 @@ def probe_corpus_against_installed_python(version: str) -> list[str]:
         subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
         py = venv / "bin" / "python"
         subprocess.run(
-            [str(venv / "bin" / "pip"), "install", "-q", f"asqav=={version}", "dilithium-py"],
+            [str(venv / "bin" / "pip"), "install", "-q", f"asqav=={version}", "dilithium-py", "cryptography"],
             check=True,
         )
         runner = pathlib.Path(tmp) / "run_corpus.py"
