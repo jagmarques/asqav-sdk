@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "asqav-17's receipt with the anchors member absent entirely: absent and an empty array are the two conformant spellings of no anchors, so the outcome and every axis result must equal asqav-17's. The signature covers the payload only, so removing the envelope-level member keeps it valid."
+}

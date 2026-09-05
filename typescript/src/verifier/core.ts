@@ -121,6 +121,29 @@ function axis(axis: string, result: VerifyState, note: string): AxisResult {
 }
 
 /**
+ * Structure-axis note for the malformed third spelling of "no anchors": the member
+ * absent and the member present as an empty array are the conformant spellings; a
+ * JSON null is found in the wild and is malformed, reported unverifiable rather than
+ * read as either. Verbatim in all three engines; a wording drift fails the
+ * cross-language anchor-shape tests.
+ */
+const ANCHORS_NULL_NOTE =
+  "anchors is null: malformed; absent or [] is the conformant spelling of no anchors";
+
+/**
+ * The structure axis: the adapter schema, plus the one envelope-member shape rule the
+ * schema cannot see - anchors sits beside the signed payload, so no adapter schema
+ * reads it. Caught here, on the document as parsed.
+ */
+function structureAxis(ad: FormatAdapter, doc: Record<string, unknown>): AxisResult {
+  const [res, note] = ad.schema(doc);
+  if (res === PASS && "anchors" in doc && doc.anchors === null) {
+    return axis("structure", FAIL, ANCHORS_NULL_NOTE);
+  }
+  return axis("structure", res, note);
+}
+
+/**
  * Fixed leading axis order every adapter walks, before its format-specific extras.
  * Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
  */
@@ -316,9 +339,8 @@ export function verify(
     return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
   }
 
-  const [structResult, structNote] = ad.schema(doc);
   const axes: AxisResult[] = [
-    axis("structure", structResult, structNote),
+    structureAxis(ad, doc),
     signatureAxis(ad, doc, keyProvider),
     chainAxis(ad, doc, adapters, predecessor),
     seqAxis(ad, doc, adapters, predecessor),
