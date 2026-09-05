@@ -149,7 +149,19 @@ def main() -> int:
         # passes through unchanged.
         if isinstance(predecessor, dict) and isinstance(predecessor.get("payload"), dict):
             predecessor = predecessor["payload"]
-        result = run_structured(receipt, jwks, predecessor_payload=predecessor)
+        # Per-vector anchor material, when the vector ships it: public trust
+        # material (pinned TSA certificates, bitcoin block headers) that lets the
+        # anchors axis complete offline. A vector without them keeps it SKIPPED.
+        tsa_trust = directory / "tsa_trust.pem"
+        trusted_tsa_keys = [tsa_trust.read_bytes()] if tsa_trust.exists() else None
+        bitcoin_headers = _load(directory, "bitcoin_headers.json")
+        result = run_structured(
+            receipt,
+            jwks,
+            predecessor_payload=predecessor,
+            trusted_tsa_keys=trusted_tsa_keys,
+            bitcoin_headers=bitcoin_headers,
+        )
         results = {axis["name"]: axis["result"] for axis in result["axes"]}
         axis_results[directory.name] = results
         axis_notes[directory.name] = {a["name"]: a.get("note", "") for a in result["axes"]}
