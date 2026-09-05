@@ -79,17 +79,17 @@ PINNED_SHA256 = {
     "capture_topology_unknown_value_rejected":
         "d2a306e1c437b467c431b7d1b4a70c1190aec10642e43ac002c55bb84dd3e617",
     "counterparty_binding_happy_path":
-        "de1ef9618ba63f73251f6b1a439e29599b8b1ab1a037ada81026857d57c7b871",
+        "c3d000e0a3bde647754dd6562fe2ca4dff2bde2aa1dac6aa288863ac506287f4",
     "counterparty_binding_envelope_byte_equality":
-        "f3b138b08bd91a5a7cf20d3873bbf8949048fdb0a77925cb739d363b48343de6",
+        "66a247f6fa12575ff47f58cc84649b597bbb571921085d68217a80113a008551",
     "counterparty_binding_base64url_tolerance":
-        "fc60e93117ae77a5bc533577fcd06cfe55bd9eabd8ee01a9a1e8bf76690814d2",
+        "85fb8c26e0b56f1f8c6552052b7542235e9ade557e4049a445f005f51e68b1d4",
     "counterparty_binding_opaque_receipt_ref":
-        "d00104822d5d45ce23755bd3bf4c3b06df54ddba04405f5c345f163fba73896e",
+        "8b665e8c123c722dff34e2490f3d2ea90041b0b54db587a59cc47a5abdcb0855",
     "counterparty_binding_transport_label_non_trust":
-        "49265cb5659fb7eff6327353a48462e6be4fb174e0417e03ad931df454435546",
+        "58c787ae9c9e9ed9bf4aeaab066f1a3c6eadade8bc5db0a4d60542390ec7097d",
     "counterparty_binding_missing_envelope_hash_rejected":
-        "c96c3ba5b53524ba304a141a754284628123765581acdb09229adc10e34fe2bc",
+        "6fee77a7aa44a4f17c0df1830ad520c2679e581e9b4fa24693b62fa7c11b9b4d",
     "receipt_v2_signer_canary": "dbb9fa8b319830814d2e6cc5b9c6a33f9c8f45e3223f75096d9c520aa9be55d4",
     "asqav-24-jcs-astral-key-order":
         "425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6",
@@ -118,12 +118,12 @@ PINNED_CANONICAL_LENGTH = {
     "capture_topology_github_sha_pull": 112,
     "capture_topology_mcp_proxy": 106,
     "capture_topology_unknown_value_rejected": 104,
-    "counterparty_binding_happy_path": 850,
-    "counterparty_binding_envelope_byte_equality": 872,
-    "counterparty_binding_base64url_tolerance": 785,
-    "counterparty_binding_opaque_receipt_ref": 791,
-    "counterparty_binding_transport_label_non_trust": 810,
-    "counterparty_binding_missing_envelope_hash_rejected": 689,
+    "counterparty_binding_happy_path": 895,
+    "counterparty_binding_envelope_byte_equality": 917,
+    "counterparty_binding_base64url_tolerance": 830,
+    "counterparty_binding_opaque_receipt_ref": 836,
+    "counterparty_binding_transport_label_non_trust": 855,
+    "counterparty_binding_missing_envelope_hash_rejected": 734,
     "receipt_v2_signer_canary": 873,
     "asqav-24-jcs-astral-key-order": 13,
     "asqav-24-jcs-astral-key-order-codepoint-rejected": 13,
@@ -134,26 +134,26 @@ PINNED_CANONICAL_LENGTH = {
 #: The wire ``counterparty_binding.envelope_hash`` string, exactly as published,
 #: in the alphabet each vector exercises.
 PINNED_ENVELOPE_HASH = {
-    "counterparty_binding_happy_path": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
-    "counterparty_binding_base64url_tolerance": "DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
-    "counterparty_binding_opaque_receipt_ref": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
+    "counterparty_binding_happy_path": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_base64url_tolerance": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_opaque_receipt_ref": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_transport_label_non_trust":
-        "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
+        "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
 }
 
 #: The non-wire renderings of the same digest carried under ``expected``.
 PINNED_ENVELOPE_HASH_RENDERINGS = {
     "counterparty_binding_happy_path": {
-        "envelope_hash_base64": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
-        "envelope_hash_hex": "0da13f574caf75108a20605a00c615f6308c7844cc892779330e87656b31d8f9"
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
     },
     "counterparty_binding_envelope_byte_equality": {
-        "envelope_hash_base64": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
-        "envelope_hash_base64url": "DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk="
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_base64url": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8="
     },
     "counterparty_binding_base64url_tolerance": {
-        "envelope_hash_base64": "DaE/V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk=",
-        "envelope_hash_base64url": "DaE_V0yvdRCKIGBaAMYV9jCMeETMiSd5Mw6HZWsx2Pk="
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_base64url": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8="
     }
 }
 
@@ -162,7 +162,7 @@ PINNED_PAYLOAD_MEMBERS = {
     "counterparty_binding_happy_path": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
-        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "payload_digest": {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "size": 0
@@ -171,7 +171,7 @@ PINNED_PAYLOAD_MEMBERS = {
     "counterparty_binding_base64url_tolerance": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
-        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "payload_digest": {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "size": 0
@@ -180,7 +180,7 @@ PINNED_PAYLOAD_MEMBERS = {
     "counterparty_binding_opaque_receipt_ref": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
-        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "payload_digest": {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "size": 0
@@ -189,7 +189,7 @@ PINNED_PAYLOAD_MEMBERS = {
     "counterparty_binding_transport_label_non_trust": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
-        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "payload_digest": {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "size": 0
@@ -198,7 +198,7 @@ PINNED_PAYLOAD_MEMBERS = {
     "counterparty_binding_missing_envelope_hash_rejected": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
-        "action_ref": "act_01HVZA_ORIGINATOR_0001",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "payload_digest": {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "size": 0

@@ -4,7 +4,7 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_seq_001",
-    "action_ref": "act_20",
+    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "payload_digest": {
       "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size": 0
@@ -18,7 +18,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "4PkFYPAjLYfN8xpTvP/buPIyYrMDBRBNSxEpRUXgkmj8i/coIt3uPixIzSkVXgLBfULLXdzRvAdXZjyTF2WeAg=="
+    "sig": "TGonHjWrXL0BWCft3FOVtWNqNj5psGcfZyz6hUcofzzzgn+RQOFI6IbzyMZQzBIatKc/eLaUXEdWv1264daVAA=="
   },
   "anchors": []
 }
