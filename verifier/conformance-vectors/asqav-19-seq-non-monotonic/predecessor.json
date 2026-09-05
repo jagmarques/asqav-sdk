@@ -1,6 +1,7 @@
 {
   "payload": {
     "type": "protectmcp:decision",
+    "v": 1,
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_seq_001",
@@ -18,7 +19,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "TGonHjWrXL0BWCft3FOVtWNqNj5psGcfZyz6hUcofzzzgn+RQOFI6IbzyMZQzBIatKc/eLaUXEdWv1264daVAA=="
+    "sig": "OyB1AfLi1xO1vZ7klyu5FNLtqc83iENGK+mxEgX1361+JerquD8uThkU3QV4g96VSNMK8jJQA117RQza86dJDw=="
   },
   "anchors": []
 }

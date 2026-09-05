@@ -5,7 +5,7 @@
       "issuer_id": "asqav-revoked-vec-key",
       "alg": "Ed25519",
       "status": "revoked",
-      "public_key": "/PBBLcxOwjAyUBqghZxoG/xgjfxcbQWS+koNDeRa4Fk="
+      "public_key": "s+DiaggD1+RAGrEasdnQIlNwNQc/HG4Z0lXE/i9dy6k="
     }
   ]
 }

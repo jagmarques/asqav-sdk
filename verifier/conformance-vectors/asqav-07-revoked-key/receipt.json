@@ -1,6 +1,7 @@
 {
   "payload": {
     "type": "protectmcp:decision",
+    "v": 1,
     "issued_at": "2026-06-01T12:00:00+00:00",
     "issuer_id": "asqav-revoked-vec-key",
     "agent_id": "agt_revoked_001",
@@ -17,7 +18,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-revoked-vec-key",
-    "sig": "qoWTP3Y4tdtaMsrvX84P+BnsdxMszFUMfNaEgkJM/ZWtK5bgRp8Nadq/cRGeEgmrLSKz23oZtqTlKYzAFPIWCQ=="
+    "sig": "wJX1929Ts3mZamO+nscqgKWj51vGX0IWZiWLlgS7bKroxWclGOhMH25Q/OAlG5t+gO8WexDFBDsFwiQdoM9cCA=="
   },
   "anchors": []
 }

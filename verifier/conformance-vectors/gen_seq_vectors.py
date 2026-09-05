@@ -80,6 +80,7 @@ def _chain_hash(payload: dict) -> str:
 def _payload(previous: str, **extra) -> dict:
     payload = {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_seq_001",

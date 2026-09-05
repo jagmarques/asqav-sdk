@@ -82,6 +82,7 @@ def _thumbprint(public_key: bytes) -> str:
 def _payload(previous: str, thumbprint: str) -> dict:
     return {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_keybind_001",
