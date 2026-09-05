@@ -898,13 +898,18 @@ def _cms_message_digest_ok(info: dict) -> bool:
     return digest_ok and content_type_ok
 
 
+#: One PEM block, header line through footer line. A trust file can hold a chain.
+_PEM_BLOCK_RE = re.compile(rb"-----BEGIN [^-]+-----.*?-----END [^-]+-----\s*", re.S)
+
+
 def _tsa_key_candidates(trusted_tsa_keys):
     """Split pinned TSA material into (raw key bytes, cryptography public keys).
 
     A PEM/DER X.509 certificate or public key needs ``cryptography`` to decode;
     without it those entries are unusable and the caller's axis reports
     unverifiable rather than trusting anything. Raw bytes pass through for the
-    ML-DSA / Ed25519 paths.
+    ML-DSA / Ed25519 paths. A PEM file may carry several blocks (a chain): one
+    candidate per block, so a bundle is not one unusable entry.
     """
     raw, pkeys = [], []
     try:
@@ -920,21 +925,28 @@ def _tsa_key_candidates(trusted_tsa_keys):
             continue
         blob = bytes(entry)
         if x509 is not None:
-            try:
-                if blob.startswith(b"-----BEGIN"):
-                    try:
-                        pkeys.append(x509.load_pem_x509_certificate(blob).public_key())
-                    except ValueError:
-                        pkeys.append(load_pem_public_key(blob))
+            if blob.startswith(b"-----BEGIN"):
+                blocks = _PEM_BLOCK_RE.findall(blob)
+                if blocks:
+                    for block in blocks:
+                        try:
+                            pkeys.append(x509.load_pem_x509_certificate(block).public_key())
+                        except ValueError:
+                            try:
+                                pkeys.append(load_pem_public_key(block))
+                            except ValueError:
+                                raw.append(block)
                     continue
-                pkeys.append(x509.load_der_x509_certificate(blob).public_key())
-                continue
-            except ValueError:
+            else:
                 try:
-                    pkeys.append(load_der_public_key(blob))
+                    pkeys.append(x509.load_der_x509_certificate(blob).public_key())
                     continue
                 except ValueError:
-                    pass
+                    try:
+                        pkeys.append(load_der_public_key(blob))
+                        continue
+                    except ValueError:
+                        pass
         raw.append(blob)
     return raw, pkeys
 
@@ -1129,7 +1141,8 @@ def _ots_varuint(buf: bytes, off: int) -> tuple[int, int]:
             raise _AnchorParseError("ots varuint exceeds the supported width")
         byte = buf[off]
         off += 1
-        val = (val << 7) | (byte & 0x7F)
+        # OTS varuints are LEB128: low 7 bits first, the high bit continues.
+        val |= (byte & 0x7F) << (7 * (groups - 1))
         if not byte & 0x80:
             return val, off
 
@@ -1148,7 +1161,13 @@ def _ots_item(tag: int, buf: bytes, off: int, msg: bytes, depth: int, state: _Ot
             raise _AnchorParseError("truncated ots attestation tag")
         off += 8
         if atag == _OTS_BITCOIN_TAG:
-            height, off = _ots_varuint(buf, off)
+            # The attestation payload is a varbytes: a length prefix, then the
+            # block height as a varuint inside it (TimeAttestation.deserialize
+            # reads the payload first). The height must consume it exactly.
+            payload, off = _ots_varbytes(buf, off)
+            height, hend = _ots_varuint(payload, 0)
+            if hend != len(payload):
+                raise _AnchorParseError("ots bitcoin attestation payload has trailing bytes")
             state.attestations.append((height, msg))
         else:
             _payload, off = _ots_varbytes(buf, off)

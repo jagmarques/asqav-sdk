@@ -334,7 +334,7 @@
       "counterparty": "PASS",
       "payload_digest": "PASS",
       "chain": "PASS",
-      "anchors": "SKIPPED",
+      "anchors": "PASS",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -920,8 +920,9 @@
     },
     "asqav-24-anchor-block-hash-prod": {
       "declared_outcome": "verified",
-      "observed_verdict": "unverified",
+      "observed_verdict": "verified",
       "exercises": [
+        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -935,9 +936,7 @@
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": [
-        "REQ-ANCHOR"
-      ]
+      "not_exercised": []
     },
     "asqav-25-payload-digest-rederives": {
       "declared_outcome": "verified",
@@ -1401,7 +1400,9 @@
       "asqav-25-payload-digest-rederives",
       "asqav-26-payload-digest-mismatch"
     ],
-    "REQ-ANCHOR": [],
+    "REQ-ANCHOR": [
+      "asqav-24-anchor-block-hash-prod"
+    ],
     "REQ-SKEW": [
       "asqav-01-genesis-permit",
       "asqav-02-genesis-deny",
@@ -1559,29 +1560,14 @@
       "asqav-26-payload-digest-mismatch"
     ]
   },
-  "unmapped_requirements": [
-    "REQ-ANCHOR"
-  ],
-  "unmapped_detail": {
-    "REQ-ANCHOR": {
-      "axis": "anchors",
-      "results_seen_across_vectors": [
-        "(absent)",
-        "SKIPPED"
-      ],
-      "sample_notes": [
-        "anchors bind envelope digest sha256:1252c422e91062da..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature);     - opentimestamps: value present, base64-ok; status pending, not an anchored proof",
-        "anchors bind envelope digest sha256:17162c2e0183d7b9..;     - opentimestamps: value present, base64-ok; status pending, not an anchored proof",
-        "anchors bind envelope digest sha256:a35db69bd8171cef..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature);     - opentimestamps: value present, base64-ok; unverifiable (offline OpenTimestamps check did not complete)"
-      ]
-    }
-  },
+  "unmapped_requirements": [],
+  "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
     "asqav_native_vectors": 26,
     "interop_fixtures": 52,
     "requirements": 13,
-    "requirements_covered": 12,
-    "requirements_unmapped": 1
+    "requirements_covered": 13,
+    "requirements_unmapped": 0
   }
 }
