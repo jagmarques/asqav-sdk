@@ -1287,8 +1287,11 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     declared ``status: pending``/``failed`` never count as trusted anchors.
     """
     anchors = envelope.get("anchors")
-    # Absent/null is a legitimate no-anchors receipt (SKIPPED); a present
-    # non-list value ({} / "" / 0) is malformed and FAILs, never laundered to [].
+    # Absent is a legitimate no-anchors receipt (SKIPPED); a present non-list
+    # value ({} / "" / 0) is malformed and FAILs, never laundered to []. A wire
+    # "anchors": null reaches here only from a direct caller: run_structured FAILs
+    # it at the structure gate, and normalise_envelope projects absent and null to
+    # the same None, so this layer cannot tell the two spellings apart.
     if anchors is None:
         return AnchorEvaluation("SKIPPED", "no anchors on this receipt", [])
     if not isinstance(anchors, list):
@@ -2570,6 +2573,16 @@ def _struct_axis(name: str, result: str, note: str) -> dict:
     }
 
 
+#: Structure-axis note for the malformed third spelling of "no anchors": the member
+#: absent and the member present as an empty array are the conformant spellings; a
+#: JSON null is found in the wild and is malformed, reported unverifiable rather
+#: than read as either. Verbatim in all three engines; a wording drift fails the
+#: cross-language anchor-shape tests.
+_ANCHORS_NULL_NOTE = (
+    "anchors is null: malformed; absent or [] is the conformant spelling of no anchors"
+)
+
+
 def run_structured(
     envelope: dict,
     jwks: dict,
@@ -2604,6 +2617,22 @@ def run_structured(
                 f"expected a JSON object receipt, got {type(envelope).__name__}",
             )
         ]
+        return {
+            "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
+            "axes": axes,
+            "canonical_sha256": None,
+            "kid": None,
+            "alg": None,
+        }
+    # A wire "anchors": null is the malformed third spelling of "no anchors"
+    # (absent and [] are the conformant two). The gate reads the raw envelope:
+    # normalise_envelope projects absent and null to the same None, so after it
+    # the two spellings are indistinguishable.
+    if "anchors" in envelope and envelope["anchors"] is None:
+        axes = [_struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)]
         return {
             "not_checked": not_checked_declaration(),
             "coverage": coverage_declaration(axes),

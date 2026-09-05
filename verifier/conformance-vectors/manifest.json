@@ -576,5 +576,20 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "Production receipt (ML-DSA-65, hash-mode, seq 63 with its seq-62 predecessor) whose opentimestamps entry carries status anchored and anchor_block_hash - the real Bitcoin block hash at which the commitment upgraded (height 965451). Signature, key thumbprint and chain verify offline; the anchors axis SKIPs for want of TSA key material and Bitcoin headers, which the corpus does not ship."
+  },
+  {
+    "dir": "asqav-27-anchors-absent",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "asqav-17's receipt with the anchors member absent entirely: absent and an empty array are the two conformant spellings of no anchors, so the outcome and every axis result must equal asqav-17's. The signature covers the payload only, so removing the envelope-level member keeps it valid."
+  },
+  {
+    "dir": "asqav-28-anchors-null-malformed",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "malformed_member",
+    "notes": "asqav-17's receipt with the anchors member present as a JSON null: a third spelling of no anchors found in the wild, and a malformed one - the structure axis FAILs, naming the member and the shape, and the verdict reads unverified/unverifiable rather than reading null as absent. Nothing cryptographic was disproved, so the class is unverifiable, not invalid (same family as duplicate_member: the receipt's own bytes are malformed)."
   }
 ]
