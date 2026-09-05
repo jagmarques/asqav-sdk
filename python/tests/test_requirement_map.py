@@ -87,3 +87,16 @@ def test_seq_chain_vector_chain_axis_is_pass_in_the_committed_map(document):
     """
     axes = document["axis_results"]["asqav-17-seq-contiguous"]
     assert axes["chain"] == "PASS"
+
+
+def test_anchor_material_vector_exercises_req_anchor(document):
+    """asqav-24 ships public anchor material, so the committed map shows the axis PASS.
+
+    The builder hands run_structured the vector's tsa_trust.pem and
+    bitcoin_headers.json; without that pass-through the anchors axis SKIPs and
+    REQ-ANCHOR stays unmapped.
+    """
+    axes = document["axis_results"]["asqav-24-anchor-block-hash-prod"]
+    assert axes["anchors"] == "PASS"
+    assert document["coverage"]["REQ-ANCHOR"] == ["asqav-24-anchor-block-hash-prod"]
+    assert document["unmapped_requirements"] == []

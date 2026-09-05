@@ -898,13 +898,18 @@ def _cms_message_digest_ok(info: dict) -> bool:
     return digest_ok and content_type_ok
 
 
+#: One PEM block, header line through footer line. A trust file can hold a chain.
+_PEM_BLOCK_RE = re.compile(rb"-----BEGIN [^-]+-----.*?-----END [^-]+-----\s*", re.S)
+
+
 def _tsa_key_candidates(trusted_tsa_keys):
     """Split pinned TSA material into (raw key bytes, cryptography public keys).
 
     A PEM/DER X.509 certificate or public key needs ``cryptography`` to decode;
     without it those entries are unusable and the caller's axis reports
     unverifiable rather than trusting anything. Raw bytes pass through for the
-    ML-DSA / Ed25519 paths.
+    ML-DSA / Ed25519 paths. A PEM file may carry several blocks (a chain): one
+    candidate per block, so a bundle is not one unusable entry.
     """
     raw, pkeys = [], []
     try:
@@ -920,21 +925,28 @@ def _tsa_key_candidates(trusted_tsa_keys):
             continue
         blob = bytes(entry)
         if x509 is not None:
-            try:
-                if blob.startswith(b"-----BEGIN"):
-                    try:
-                        pkeys.append(x509.load_pem_x509_certificate(blob).public_key())
-                    except ValueError:
-                        pkeys.append(load_pem_public_key(blob))
+            if blob.startswith(b"-----BEGIN"):
+                blocks = _PEM_BLOCK_RE.findall(blob)
+                if blocks:
+                    for block in blocks:
+                        try:
+                            pkeys.append(x509.load_pem_x509_certificate(block).public_key())
+                        except ValueError:
+                            try:
+                                pkeys.append(load_pem_public_key(block))
+                            except ValueError:
+                                raw.append(block)
                     continue
-                pkeys.append(x509.load_der_x509_certificate(blob).public_key())
-                continue
-            except ValueError:
+            else:
                 try:
-                    pkeys.append(load_der_public_key(blob))
+                    pkeys.append(x509.load_der_x509_certificate(blob).public_key())
                     continue
                 except ValueError:
-                    pass
+                    try:
+                        pkeys.append(load_der_public_key(blob))
+                        continue
+                    except ValueError:
+                        pass
         raw.append(blob)
     return raw, pkeys
 
@@ -1129,7 +1141,8 @@ def _ots_varuint(buf: bytes, off: int) -> tuple[int, int]:
             raise _AnchorParseError("ots varuint exceeds the supported width")
         byte = buf[off]
         off += 1
-        val = (val << 7) | (byte & 0x7F)
+        # OTS varuints are LEB128: low 7 bits first, the high bit continues.
+        val |= (byte & 0x7F) << (7 * (groups - 1))
         if not byte & 0x80:
             return val, off
 
@@ -1148,7 +1161,13 @@ def _ots_item(tag: int, buf: bytes, off: int, msg: bytes, depth: int, state: _Ot
             raise _AnchorParseError("truncated ots attestation tag")
         off += 8
         if atag == _OTS_BITCOIN_TAG:
-            height, off = _ots_varuint(buf, off)
+            # The attestation payload is a varbytes: a length prefix, then the
+            # block height as a varuint inside it (TimeAttestation.deserialize
+            # reads the payload first). The height must consume it exactly.
+            payload, off = _ots_varbytes(buf, off)
+            height, hend = _ots_varuint(payload, 0)
+            if hend != len(payload):
+                raise _AnchorParseError("ots bitcoin attestation payload has trailing bytes")
             state.attestations.append((height, msg))
         else:
             _payload, off = _ots_varbytes(buf, off)
@@ -1795,10 +1814,60 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
 
 
-    # ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.
+    # ML-DSA-65 / Ed25519 / ES256 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.
 def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
-    if (alg if isinstance(alg, str) else "").upper() != "ML-DSA-65":
-        return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65)"
+    token = (alg if isinstance(alg, str) else "").upper()
+    if token in ("ED25519", "ES256"):
+        display = "Ed25519" if token == "ED25519" else "ES256"
+        # Lazy import: cryptography is an optional dep and must never load at
+        # module level (the standalone surface pins that).
+        try:
+            from cryptography.exceptions import InvalidSignature
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric.ec import (
+                ECDSA,
+                SECP256R1,
+                EllipticCurvePublicKey,
+            )
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+            from cryptography.hazmat.primitives.asymmetric.utils import (
+                encode_dss_signature,
+            )
+        except ImportError:
+            return "SKIPPED", f"run 'pip install cryptography' for the {display} check"
+        # The same key and signature forms the oracle verifies: a raw 32-byte
+        # Ed25519 key; a 65-byte uncompressed P-256 point and the 64-byte raw
+        # r||s signature (converted to DER for the library).
+        if token == "ED25519":
+            try:
+                key = Ed25519PublicKey.from_public_bytes(pk)
+            except Exception as exc:  # malformed key bytes
+                return "FAIL", f"bad Ed25519 public key: {exc}"
+            try:
+                key.verify(sig, msg)
+                return "PASS", "signature valid"
+            except InvalidSignature:
+                return "FAIL", "signature mismatch"
+            except Exception as exc:  # malformed signature bytes
+                return "FAIL", f"verify error: {exc}"
+        try:
+            key = EllipticCurvePublicKey.from_encoded_point(SECP256R1(), pk)
+        except Exception as exc:  # malformed point bytes
+            return "FAIL", f"bad P-256 public key: {exc}"
+        if len(sig) != 64:
+            return "FAIL", f"ES256 signature must be 64-byte raw r||s, got {len(sig)}"
+        der = encode_dss_signature(
+            int.from_bytes(sig[:32], "big"), int.from_bytes(sig[32:], "big")
+        )
+        try:
+            key.verify(der, msg, ECDSA(hashes.SHA256()))
+            return "PASS", "signature valid"
+        except InvalidSignature:
+            return "FAIL", "signature mismatch"
+        except Exception as exc:  # malformed signature bytes
+            return "FAIL", f"verify error: {exc}"
+    if token != "ML-DSA-65":
+        return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65, Ed25519, ES256)"
     try:
         from dilithium_py.ml_dsa import ML_DSA_65
     except ImportError:
@@ -1993,6 +2062,49 @@ def not_checked_declaration() -> list:
     constant and quietly narrow what every later result declares.
     """
     return [dict(entry) for entry in NOT_CHECKED]
+
+
+#: The axis order run_structured reports on the normal path, structure first and
+#: expiry last. The coverage block measures "not reached" against this sequence.
+_FULL_AXIS_ORDER = (
+    "structure", "nonce", "issuer_key", "issuer_bind", "key_status", "signature",
+    "key_binding", "counterparty", "payload_digest", "chain", "anchors", "skew",
+    "expiry",
+)
+
+
+def coverage_declaration(axes: list) -> dict:
+    """The coverage block every result carries beside its non-coverage list.
+
+    The shape mirrors the reviewer's tool so the two read side by side:
+    stopped_at is None when evaluation ran the full axis sequence (the normal
+    path always ends at expiry); the early returns stop at the structure gate
+    (their axes name the failing input member), so it reads "structure" there.
+    checks_not_evaluated lists one not_implemented entry per NOT_CHECKED row,
+    then — on an early return — one not_reached entry per axis of the full
+    order after the stop point that the result does not carry.
+    """
+    entries = [
+        {
+            "id": row["check"],
+            "reason": "not_implemented",
+            "status": "not_implemented",
+            "requirement": row["requirement"],
+            "condition": row["condition"],
+        }
+        for row in NOT_CHECKED
+    ]
+    names = [a["name"] for a in axes]
+    if names and names[-1] == _FULL_AXIS_ORDER[-1]:
+        return {"stopped_at": None, "checks_not_evaluated": entries}
+    stopped_at = "structure"
+    after = _FULL_AXIS_ORDER[_FULL_AXIS_ORDER.index(stopped_at) + 1 :]
+    entries += [
+        {"id": name, "reason": "not_reached", "status": "implemented"}
+        for name in after
+        if name not in names
+    ]
+    return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
 
 
 def check_payload_digest(payload: dict):
@@ -2485,17 +2597,19 @@ def run_structured(
     wire (ML-DSA-65 cloud-issued, Ed25519/ES256 local).
     """
     if not isinstance(envelope, dict):
+        axes = [
+            _struct_axis(
+                "input",
+                "FAIL",
+                f"expected a JSON object receipt, got {type(envelope).__name__}",
+            )
+        ]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [
-                _struct_axis(
-                    "input",
-                    "FAIL",
-                    f"expected a JSON object receipt, got {type(envelope).__name__}",
-                )
-            ],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2503,19 +2617,21 @@ def run_structured(
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
+        axes = [
+            _struct_axis(
+                "payload",
+                "FAIL",
+                "receipt payload not available from this surface "
+                f"(got {_describe_value(payload)} instead of an object). "
+                "Verify with a saved receipt instead.",
+            )
+        ]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [
-                _struct_axis(
-                    "payload",
-                    "FAIL",
-                    "receipt payload not available from this surface "
-                    f"(got {_describe_value(payload)} instead of an object). "
-                    "Verify with a saved receipt instead.",
-                )
-            ],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2524,11 +2640,13 @@ def run_structured(
     if shape is None:
         shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
     if shape is not None:
+        axes = [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2549,11 +2667,13 @@ def run_structured(
         msg = canonical_json(payload)
     except RecursionError:
         # Defense in depth; the shape gate above should already have caught this.
+        axes = [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2654,6 +2774,7 @@ def run_structured(
 
     return {
         "not_checked": not_checked_declaration(),
+        "coverage": coverage_declaration(axes),
         "verdict": verdict,
         "failure_class": failure_class,
         "axes": axes,

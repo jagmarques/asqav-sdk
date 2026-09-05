@@ -100,6 +100,16 @@ status, an unknown type) reports `unverifiable`. A verified anchor whose proven
 time lands at or before a key's `revoked_at` lets a pre-revocation receipt pass
 the `key_status` axis; a forged or unverifiable one never does.
 
+A vector directory may carry the material those inputs need:
+`tsa_trust.pem` (PEM certificates the offline verifier trusts for that
+vector's timestamp-authority token) and `bitcoin_headers.json` (block headers
+keyed by height, each with `hash`, `merkle_root` and `time`). Both are public
+material — the certificates are embedded in the token itself, the headers are
+Bitcoin public data; `conformance-vectors/asqav-24-anchor-block-hash-prod`
+ships them, and `ANCHOR-MATERIAL.md` there records the two independent header
+sources. A vector without them keeps its anchors axis SKIPPED by design, and
+the requirement map says so.
+
 ## What it does not check
 
 The list below is **not** the authority. Every verification result carries a
@@ -117,14 +127,28 @@ travels with the claim instead of living in this file:
      "reason": "no X.509 chain walk from the RFC 3161 signing certificate to a public root; offline trust comes only from the TSA keys the caller pins",
      "condition": "--tsa-key pins the key this tool will trust; it does not build a path to it"},
     ...
-  ]
+  ],
+  "coverage": {
+    "stopped_at": null,
+    "checks_not_evaluated": [
+      {"id": "tsa_certificate_path", "reason": "not_implemented", "status": "not_implemented",
+       "requirement": "anchor trust",
+       "condition": "--tsa-key pins the key this tool will trust; it does not build a path to it"},
+      ...
+    ]
+  }
 }
 ```
 
 `condition` is `null` when the check is never performed at any invocation, and
 names the input that would enable it when the gap is one you can close. Read the
 current list from `asqav.verifier.verify_receipt.NOT_CHECKED`, or from any
-result. The headline gaps are the TSA certificate path and its revocation state,
+result. The `coverage` block carries the same boundary in the shape the
+reviewer's verifier publishes, so the two tools read side by side: `stopped_at`
+is `null` when the full axis sequence ran, and names the axis evaluation stopped
+at otherwise; `checks_not_evaluated` lists one `not_implemented` entry per
+declared gap, then any axes evaluation stopped short of as `not_reached`. The
+headline gaps are the TSA certificate path and its revocation state,
 `policy_digest` artefact resolution, aggregate-anchor inclusion proofs, and the
 caller-supplied framework taxonomies, which are carried under the signature but
 never evaluated. For those, use the hosted `/verify` endpoint or the full SDK.
