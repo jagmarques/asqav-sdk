@@ -1795,10 +1795,60 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
 
 
-    # ML-DSA-65 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.
+    # ML-DSA-65 / Ed25519 / ES256 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.
 def verify_signature(pk: bytes, msg: bytes, sig: bytes, alg: object):
-    if (alg if isinstance(alg, str) else "").upper() != "ML-DSA-65":
-        return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65)"
+    token = (alg if isinstance(alg, str) else "").upper()
+    if token in ("ED25519", "ES256"):
+        display = "Ed25519" if token == "ED25519" else "ES256"
+        # Lazy import: cryptography is an optional dep and must never load at
+        # module level (the standalone surface pins that).
+        try:
+            from cryptography.exceptions import InvalidSignature
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric.ec import (
+                ECDSA,
+                SECP256R1,
+                EllipticCurvePublicKey,
+            )
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+            from cryptography.hazmat.primitives.asymmetric.utils import (
+                encode_dss_signature,
+            )
+        except ImportError:
+            return "SKIPPED", f"run 'pip install cryptography' for the {display} check"
+        # The same key and signature forms the oracle verifies: a raw 32-byte
+        # Ed25519 key; a 65-byte uncompressed P-256 point and the 64-byte raw
+        # r||s signature (converted to DER for the library).
+        if token == "ED25519":
+            try:
+                key = Ed25519PublicKey.from_public_bytes(pk)
+            except Exception as exc:  # malformed key bytes
+                return "FAIL", f"bad Ed25519 public key: {exc}"
+            try:
+                key.verify(sig, msg)
+                return "PASS", "signature valid"
+            except InvalidSignature:
+                return "FAIL", "signature mismatch"
+            except Exception as exc:  # malformed signature bytes
+                return "FAIL", f"verify error: {exc}"
+        try:
+            key = EllipticCurvePublicKey.from_encoded_point(SECP256R1(), pk)
+        except Exception as exc:  # malformed point bytes
+            return "FAIL", f"bad P-256 public key: {exc}"
+        if len(sig) != 64:
+            return "FAIL", f"ES256 signature must be 64-byte raw r||s, got {len(sig)}"
+        der = encode_dss_signature(
+            int.from_bytes(sig[:32], "big"), int.from_bytes(sig[32:], "big")
+        )
+        try:
+            key.verify(der, msg, ECDSA(hashes.SHA256()))
+            return "PASS", "signature valid"
+        except InvalidSignature:
+            return "FAIL", "signature mismatch"
+        except Exception as exc:  # malformed signature bytes
+            return "FAIL", f"verify error: {exc}"
+    if token != "ML-DSA-65":
+        return "SKIPPED", f"unsupported alg {alg!r} (this tool checks ML-DSA-65, Ed25519, ES256)"
     try:
         from dilithium_py.ml_dsa import ML_DSA_65
     except ImportError:
