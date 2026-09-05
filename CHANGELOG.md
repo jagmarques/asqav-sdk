@@ -5,6 +5,33 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.10] - 2026-09-05
+
+### Changed
+
+- **The package pages are shorter and lead with what a reader can check themselves.**
+  `python/README.md` (rendered on PyPI) goes from 545 lines to 200 and
+  `typescript/README.md` (rendered on npm) from 560 to 214, mirroring each other
+  section for section. Reference material moves to a linked table pointing at
+  `asqav.com/docs`; every link was checked to resolve.
+
+### Fixed
+
+- **The documented verification example no longer fails when you run it.** The pages
+  told readers to assert `verified` on the public example id
+  `sig_example_regulator_cold_verify_2026`. That receipt is a shape example whose
+  signature bytes are placeholders and whose `kid` resolves to no key, so the API
+  reports `verified: false` by design and the snippet raised `AssertionError` for
+  anyone who pasted it. Both languages now print the real value and explain that a
+  verifier reporting `false` on absent evidence is the intended behaviour.
+- **The install line beside the `asqav verify` example names the extra that provides
+  the command.** It said `asqav[verify]`, which carries the offline crypto; the
+  command comes from `asqav[cli]`. Following the page left the reader without the
+  binary it then told them to run.
+- **Two links that resolved only on GitHub.** `../docs/offline-verification.md` is
+  dead on PyPI and npm, which render the README standalone; both now point at the
+  live docs page.
+
 ## [0.10.9] - 2026-09-05
 
 ### Added
