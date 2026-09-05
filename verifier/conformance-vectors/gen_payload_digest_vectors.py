@@ -84,7 +84,7 @@ def _payload(digest: dict) -> dict:
         "issued_at": "2026-09-01T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_pd_001",
-        "action_ref": "act_pd_1",
+        "action_ref": f"sha256:{digest['hash']}",
         "mode": "payload",
         "context": HONEST_CONTEXT,
         "payload_digest": digest,

@@ -36,6 +36,9 @@ KID = "asqav-omission-vec-key"
 ISSUER = "Asqav Ltd"
 _ZERO_DIGEST = hashlib.sha256(b"").hexdigest()
 
+#: The one wire form (-09 §5.1.5): the prefixed rendering of payload_digest.hash.
+ACTION_REF = f"sha256:{_ZERO_DIGEST}"
+
 
 def _jcs(obj: object) -> bytes:
     """Canonical JSON bytes, matching the oracle's asqav_jcs."""
@@ -66,13 +69,13 @@ def _chain_hash(payload: dict) -> str:
     return hashlib.sha256(_jcs(payload)).hexdigest()
 
 
-def _payload(action_ref: str, previous: str, **extra) -> dict:
+def _payload(previous: str, **extra) -> dict:
     payload = {
         "type": "protectmcp:decision",
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_omission_001",
-        "action_ref": action_ref,
+        "action_ref": ACTION_REF,
         "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
         "policy_digest": f"sha256:{_ZERO_DIGEST}",
         "previousReceiptHash": previous,
@@ -112,8 +115,8 @@ def main() -> int:
 
     # Action 1 is receipted, Action 2 happens with the signer never reached, and
     # Action 3 is receipted linking straight back to Action 1's receipt
-    first = _payload("act_1", genesis_prev)
-    third = _payload("act_3", _chain_hash(first))
+    first = _payload(genesis_prev)
+    third = _payload(_chain_hash(first))
     _write(
         "asqav-14-omitted-action-chain",
         {
@@ -136,9 +139,8 @@ def main() -> int:
 
     # The signer was unavailable for two Actions; the next receipt that signs
     # carries the tally so the gap is evidenced rather than silent
-    gap_prev = _payload("act_10", genesis_prev)
+    gap_prev = _payload(genesis_prev)
     gap = _payload(
-        "act_13",
         _chain_hash(gap_prev),
         unsigned_gap={
             "count": 2,
@@ -167,9 +169,8 @@ def main() -> int:
 
     # A predecessor-lookup timeout blocked emission; the lifecycle receipt
     # naming it is itself a Compliance Receipt and links into the chain
-    blocked_prev = _payload("act_20", genesis_prev)
+    blocked_prev = _payload(genesis_prev)
     blocked = _payload(
-        "act_21",
         _chain_hash(blocked_prev),
         type="protectmcp:lifecycle",
         decision="deny",
