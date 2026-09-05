@@ -1,0 +1,42 @@
+name: Artifact probe
+
+# Runs the published-artifact probe (verifier/artifact_probe/probe_published_artifacts.py):
+# the PUBLISHED wheel and npm package, installed into throwaway environments with the source
+# tree off the path, checked against every entry point the packaged READMEs document. The
+# probe's exit code is the job's verdict; its output uploads either way.
+# ('on' is quoted so YAML 1.1 parsers read the string key, not boolean true.)
+'on':
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_run:
+    workflows: ['Publish']
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    # A publish that failed produced no new artifact to probe.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe the published artifacts
+        run: |
+          set -o pipefail
+          python3 verifier/artifact_probe/probe_published_artifacts.py 2>&1 | tee probe-output.txt
+      - name: Upload the probe output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-probe-output
+          path: probe-output.txt
+          retention-days: 30
