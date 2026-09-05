@@ -8,7 +8,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -23,7 +23,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -38,7 +38,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -53,7 +53,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "FAIL",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -86,7 +86,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "FAIL",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -101,7 +101,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -116,7 +116,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "FAIL",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -134,7 +134,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "FAIL",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -164,7 +164,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "FAIL",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -179,7 +179,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -194,7 +194,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -209,7 +209,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -224,7 +224,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -239,7 +239,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -254,7 +254,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -269,7 +269,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -314,7 +314,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -344,7 +344,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -359,7 +359,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "SKIPPED",
+      "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "FAIL",
@@ -450,12 +450,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-02-genesis-deny": {
@@ -471,12 +471,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-03-chain-link": {
@@ -492,12 +492,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-04-tamper-sig": {
@@ -513,12 +513,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-05-hash-mode-prod": {
@@ -575,12 +575,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-08-v2-signer-canary": {
@@ -596,12 +596,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-09-v2-signer-tampered": {
@@ -617,12 +617,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-10-hash-mode-multikey": {
@@ -658,12 +658,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-12-time-edge-expiry": {
@@ -700,12 +700,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-14-omitted-action-chain": {
@@ -721,12 +721,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-15-unsigned-gap": {
@@ -742,12 +742,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-16-chain-emission-blocked": {
@@ -763,12 +763,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-17-seq-contiguous": {
@@ -784,12 +784,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-18-seq-gap": {
@@ -805,12 +805,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-19-seq-non-monotonic": {
@@ -826,12 +826,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-20-seq-absent": {
@@ -847,12 +847,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-21-key-thumbprint-binds": {
@@ -910,12 +910,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-24-anchor-block-hash-prod": {
@@ -952,12 +952,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     },
     "asqav-26-payload-digest-mismatch": {
@@ -973,12 +973,12 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR",
-        "REQ-SIGNATURE"
+        "REQ-ANCHOR"
       ]
     }
   },
@@ -1246,11 +1246,30 @@
   },
   "coverage": {
     "REQ-SIGNATURE": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
       "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
       "asqav-21-key-thumbprint-binds",
       "asqav-22-key-substituted",
-      "asqav-24-anchor-block-hash-prod"
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
