@@ -4,7 +4,7 @@
     "issued_at": "2026-09-01T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_pd_001",
-    "action_ref": "act_pd_1",
+    "action_ref": "sha256:86d65b5861dc755628c20ccd0fe8c3015af78e2856d614557e3427264f294ca9",
     "mode": "payload",
     "context": {
       "probe": "criterion-462"
@@ -21,7 +21,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-payload-digest-vec-key",
-    "sig": "ABsGHN1qPXiAhrRf/TGu2V0ISov0Uh4I5Fe7c7KI3Refe2GdFmp+BNY1AG5onPuPFiy2fjgUjyVs8FlBUa+EBw=="
+    "sig": "Jw28KHekIx+JhOfbfM1rJ2oyv6vjqDiDPBsa8TxyTSAGi03HUVbTHNBxL+7FqofKHKF2qDpUGfBogG4vPC2iCw=="
   },
   "anchors": []
 }

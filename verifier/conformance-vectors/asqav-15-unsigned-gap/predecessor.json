@@ -4,7 +4,7 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_omission_001",
-    "action_ref": "act_10",
+    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "payload_digest": {
       "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size": 0
@@ -17,7 +17,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-omission-vec-key",
-    "sig": "BjvrFAX81FRblLgeitgqSPSx4ihGwO2qYFq/LIlBAHl+5ABfrpPZUT6E6/xEzvsNHmMg4l7ECcFTg47EJKP6Cw=="
+    "sig": "Z0wgxlWvxZlKfs//cn7MrS4xWg8Hh6KS4DWrlIZZDhJp136TYoVp6x3c9knRmVzVSdW7uWWO6K2OKz2dAUV1BQ=="
   },
   "anchors": []
 }
