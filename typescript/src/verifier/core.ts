@@ -5,7 +5,7 @@
 
 import type { FormatAdapter, KeyProvider } from "./adapter.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
-import { notCheckedDeclaration, type NotCheckedEntry } from "./not-checked.js";
+import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 
 /**
  * Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
@@ -58,6 +58,8 @@ export interface VerifyResult {
   firstFailingEdge: string | null;
   /** The checks this result does not claim, beside the claim it makes. */
   notChecked: NotCheckedEntry[];
+  /** The coverage block, mirrored from the reviewer's tool: snake_case keys are deliberate. */
+  coverage: Coverage;
 }
 
 /** Axes whose FAIL proves a cryptographic/policy binding failure (invalid). */
@@ -300,6 +302,7 @@ export function verify(
       signer: null,
       firstFailingEdge: firstFailingEdge(axes),
       notChecked: notCheckedDeclaration(),
+      coverage: coverageDeclaration(axes),
     };
   }
   // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
@@ -310,7 +313,7 @@ export function verify(
   ) {
     const axes = [axis("structure", FAIL, TOO_DEEP_NOTE)];
     const [verdict, failureClass] = foldVerdict(axes, false);
-    return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration() };
+    return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
   }
 
   const [structResult, structNote] = ad.schema(doc);
@@ -329,5 +332,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration() };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
 }
