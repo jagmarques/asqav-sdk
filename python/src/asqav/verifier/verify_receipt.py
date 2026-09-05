@@ -1995,6 +1995,49 @@ def not_checked_declaration() -> list:
     return [dict(entry) for entry in NOT_CHECKED]
 
 
+#: The axis order run_structured reports on the normal path, structure first and
+#: expiry last. The coverage block measures "not reached" against this sequence.
+_FULL_AXIS_ORDER = (
+    "structure", "nonce", "issuer_key", "issuer_bind", "key_status", "signature",
+    "key_binding", "counterparty", "payload_digest", "chain", "anchors", "skew",
+    "expiry",
+)
+
+
+def coverage_declaration(axes: list) -> dict:
+    """The coverage block every result carries beside its non-coverage list.
+
+    The shape mirrors the reviewer's tool so the two read side by side:
+    stopped_at is None when evaluation ran the full axis sequence (the normal
+    path always ends at expiry); the early returns stop at the structure gate
+    (their axes name the failing input member), so it reads "structure" there.
+    checks_not_evaluated lists one not_implemented entry per NOT_CHECKED row,
+    then — on an early return — one not_reached entry per axis of the full
+    order after the stop point that the result does not carry.
+    """
+    entries = [
+        {
+            "id": row["check"],
+            "reason": "not_implemented",
+            "status": "not_implemented",
+            "requirement": row["requirement"],
+            "condition": row["condition"],
+        }
+        for row in NOT_CHECKED
+    ]
+    names = [a["name"] for a in axes]
+    if names and names[-1] == _FULL_AXIS_ORDER[-1]:
+        return {"stopped_at": None, "checks_not_evaluated": entries}
+    stopped_at = "structure"
+    after = _FULL_AXIS_ORDER[_FULL_AXIS_ORDER.index(stopped_at) + 1 :]
+    entries += [
+        {"id": name, "reason": "not_reached", "status": "implemented"}
+        for name in after
+        if name not in names
+    ]
+    return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
+
+
 def check_payload_digest(payload: dict):
     """Recompute payload_digest from the context carried in the same receipt.
 
@@ -2485,17 +2528,19 @@ def run_structured(
     wire (ML-DSA-65 cloud-issued, Ed25519/ES256 local).
     """
     if not isinstance(envelope, dict):
+        axes = [
+            _struct_axis(
+                "input",
+                "FAIL",
+                f"expected a JSON object receipt, got {type(envelope).__name__}",
+            )
+        ]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [
-                _struct_axis(
-                    "input",
-                    "FAIL",
-                    f"expected a JSON object receipt, got {type(envelope).__name__}",
-                )
-            ],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2503,19 +2548,21 @@ def run_structured(
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
+        axes = [
+            _struct_axis(
+                "payload",
+                "FAIL",
+                "receipt payload not available from this surface "
+                f"(got {_describe_value(payload)} instead of an object). "
+                "Verify with a saved receipt instead.",
+            )
+        ]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [
-                _struct_axis(
-                    "payload",
-                    "FAIL",
-                    "receipt payload not available from this surface "
-                    f"(got {_describe_value(payload)} instead of an object). "
-                    "Verify with a saved receipt instead.",
-                )
-            ],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2524,11 +2571,13 @@ def run_structured(
     if shape is None:
         shape = _scan_shape(predecessor_payload, max_depth=MAX_NESTING_DEPTH)
     if shape is not None:
+        axes = [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES[shape])],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2549,11 +2598,13 @@ def run_structured(
         msg = canonical_json(payload)
     except RecursionError:
         # Defense in depth; the shape gate above should already have caught this.
+        axes = [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])]
         return {
             "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
             "verdict": VERDICT_UNVERIFIED,
             "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])],
+            "axes": axes,
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
@@ -2654,6 +2705,7 @@ def run_structured(
 
     return {
         "not_checked": not_checked_declaration(),
+        "coverage": coverage_declaration(axes),
         "verdict": verdict,
         "failure_class": failure_class,
         "axes": axes,
