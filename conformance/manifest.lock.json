@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-fingerprint-corpus",
-  "corpus_version": 5,
+  "corpus_version": 6,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -26,6 +26,11 @@
       "version": 4,
       "files": 3,
       "digest": "2a4996574669abcb65f4ae6942984a8108b4f0da4043d3042ca87b29d866e397"
+    },
+    {
+      "version": 5,
+      "files": 3,
+      "digest": "1ef6d34d3f9515f2442218e8bf1e1370dd3b0cf1cb1dd143e121b0ff8384732f"
     }
   ],
   "files": [
@@ -41,8 +46,8 @@
     },
     {
       "path": "vectors.json",
-      "sha256": "05fc1d8a2521e5dac3e9fed20358c46278a4174989fd43ee79c555133ffc31e1",
-      "bytes": 37383
+      "sha256": "7beebf7661c02b1e70045aa956ba49836c968edd9b24ecd4ebfb893cca7c6341",
+      "bytes": 37923
     }
   ],
   "signing": {
@@ -60,5 +65,5 @@
     },
     "known_answer_message_note": "the 32-byte SHA-256 digest of the canonical bytes of vector 'minimal_read': the hash is what ML-DSA-65 signs"
   },
-  "digest": "1ef6d34d3f9515f2442218e8bf1e1370dd3b0cf1cb1dd143e121b0ff8384732f"
+  "digest": "1857cd565c62e99146389a70ef135378d9ed2eed3fdc123d5ab839d6fc568094"
 }
