@@ -1746,7 +1746,7 @@ def _validate_sign_extensions(
                 )
             if _name == "owasp_agentic_top10" and _item not in _OWASP_AGENTIC_TOP10_IDS:
                 raise ValueError(
-                    f"{_name}_entry_invalid: use bare ASI01 through ASI10 without an edition suffix."
+                    f"{_name}_entry_invalid: use bare ASI01 through ASI10; no edition suffix."
                 )
 
 
