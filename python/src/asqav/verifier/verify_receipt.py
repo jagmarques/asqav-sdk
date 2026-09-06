@@ -2914,6 +2914,11 @@ def main() -> int:
         "\"time\": <ISO-8601>} for the OpenTimestamps block check; without it the "
         "block portion reports unverifiable",
     )
+    p.add_argument(
+        "--counterparty",
+        metavar="FILE",
+        help="complete originating signing envelope JSON for the counterparty binding check",
+    )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
 
@@ -2941,6 +2946,7 @@ def main() -> int:
 
         trusted_tsa_keys = _load_tsa_keys(args.tsa_key)
         bitcoin_headers = _load(args.bitcoin_headers) if args.bitcoin_headers else None
+        counterparty = _load(args.counterparty) if args.counterparty else None
     except VerifierInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -2951,6 +2957,7 @@ def main() -> int:
         predecessor_payload,
         trusted_tsa_keys=trusted_tsa_keys,
         bitcoin_headers=bitcoin_headers,
+        counterparty=counterparty,
     )
 
 

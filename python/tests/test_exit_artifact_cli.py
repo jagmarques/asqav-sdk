@@ -223,3 +223,123 @@ def test_the_verifier_file_stands_alone() -> None:
         if line.startswith(("import ", "from ")) and (" asqav" in line or line.startswith("from ."))
     ]
     assert intra_package == [], intra_package
+
+
+# Real signed counterparty vectors reach the copied argparse entry point. Their
+# origin anchors are preserved; the binding projects its own two signed members.
+_COUNTERPARTY_VECTORS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
+
+
+@pytest.fixture
+def counterparty_artifact(tmp_path: Path):
+    from tests.test_standalone_verifier_surface import SITECUSTOMIZE as ISOLATION
+
+    shutil.copy(VERIFIER_SOURCE, tmp_path / "verify_receipt.py")
+    (tmp_path / "sitecustomize.py").write_text(ISOLATION)
+    return tmp_path
+
+
+def _counterparty_case(root: Path, case: str = "asqav-31-counterparty-scope-match") -> None:
+    for name in ("receipt.json", "jwks.json", "originating_envelope.json", "tsa_trust.pem"):
+        shutil.copy(_COUNTERPARTY_VECTORS / case / name, root / name)
+
+
+def _counterparty_cli(root: Path, *, supply_origin: bool = True):
+    inputs = {p.name: p.read_bytes() for p in root.iterdir() if p.is_file()}
+    extra = ["--tsa-key", "tsa_trust.pem"]
+    if supply_origin:
+        extra += ["--counterparty", "originating_envelope.json"]
+    result = _run_documented_command(root, *extra)
+    assert {name: (root / name).read_bytes() for name in inputs} == inputs
+    assert (root / "verify_receipt.py").read_bytes() == VERIFIER_SOURCE.read_bytes()
+    return result
+
+
+@pytest.mark.parametrize(
+    ("case", "code", "axis", "reason"),
+    [
+        ("asqav-31-counterparty-scope-match", 0, "[  ok]", ""),
+        ("asqav-32-counterparty-anchors-included", 1, "[FAIL]", "mismatch"),
+        ("asqav-33-counterparty-scope-absent", 2, "[skip]", "legacy_scope"),
+        ("asqav-34-counterparty-scope-unknown", 2, "[skip]", "unrecognised_scope"),
+    ],
+)
+def test_copied_counterparty_cli_signed_cases(counterparty_artifact, case, code, axis, reason):
+    root = counterparty_artifact
+    _counterparty_case(root, case)
+    result = _counterparty_cli(root)
+    assert result.returncode == code, result.stdout + result.stderr
+    assert "[  ok] signature" in result.stdout
+    assert "[  ok] anchors" in result.stdout
+    assert f"{axis} counterparty" in result.stdout
+    assert reason in result.stdout
+    verdict = {0: "=> verified", 1: "=> unverified (failure_class: invalid)",
+               2: "=> unverified (failure_class: unverifiable; never reported verified)"}[code]
+    assert verdict in result.stdout
+
+
+def test_copied_counterparty_cli_requires_the_origin(counterparty_artifact):
+    _counterparty_case(counterparty_artifact)
+    result = _counterparty_cli(counterparty_artifact, supply_origin=False)
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "[skip] counterparty" in result.stdout and "unresolved" in result.stdout
+    assert "=> unverified (failure_class: unverifiable; never reported verified)" in result.stdout
+
+
+@pytest.mark.parametrize("change", ["signed-payload", "export-only"])
+def test_copied_counterparty_cli_projects_the_full_origin(counterparty_artifact, change):
+    root = counterparty_artifact
+    _counterparty_case(root)
+    path = root / "originating_envelope.json"
+    origin = json.loads(path.read_text())
+    if change == "signed-payload":
+        origin["payload"]["action_type"] = "changed:action"
+    else:
+        origin["anchors"] = []
+        origin["export_note"] = "unsigned transport metadata"
+    path.write_text(json.dumps(origin))
+    result = _counterparty_cli(root)
+    expected_code = 1 if change == "signed-payload" else 0
+    assert result.returncode == expected_code, result.stdout + result.stderr
+    assert "[  ok] signature" in result.stdout and "[  ok] anchors" in result.stdout
+    expected = "[FAIL] counterparty" if change == "signed-payload" else "[  ok] counterparty"
+    assert expected in result.stdout
+
+
+@pytest.mark.parametrize("text", [None, "{", "[]", '{"payload":{"x":1,"x":2}}'])
+def test_copied_counterparty_cli_file_errors_are_clean(counterparty_artifact, text):
+    root = counterparty_artifact
+    _counterparty_case(root)
+    path = root / "originating_envelope.json"
+    if text is None:
+        path.unlink()
+    else:
+        path.write_text(text)
+    result = _counterparty_cli(root)
+    assert result.returncode == 2
+    assert result.stderr.startswith("error:")
+    assert "Traceback" not in result.stderr and "=>" not in result.stdout
+
+
+def test_copied_counterparty_cli_help_and_isolation(counterparty_artifact):
+    root = counterparty_artifact
+    result = subprocess.run([sys.executable, "verify_receipt.py", "--help"],
+                            cwd=root, env=_child_env(root), capture_output=True, text=True)
+    assert result.returncode == 0 and "--counterparty FILE" in result.stdout
+    for program, diagnostic in [
+        ("import asqav", "refused: standalone check"),
+        ("import socket; socket.create_connection(('example.invalid',443))",
+         "outbound network blocked"),
+    ]:
+        result = subprocess.run([sys.executable, "-c", program], cwd=root,
+                                env=_child_env(root), capture_output=True, text=True)
+        assert result.returncode != 0 and diagnostic in result.stderr
+
+
+def test_copied_counterparty_cli_unbound_receipt_still_passes(counterparty_artifact):
+    root = counterparty_artifact
+    _counterparty_case(root)
+    shutil.copy(root / "originating_envelope.json", root / "receipt.json")
+    result = _counterparty_cli(root, supply_origin=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "=> verified" in result.stdout and "[  ok] signature" in result.stdout
