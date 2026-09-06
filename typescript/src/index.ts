@@ -533,6 +533,9 @@ export interface SignOptions {
    * (e.g. `["LLM01", "LLM02"]`). Self-declared. */
   owaspLlmTop10?: string[];
 
+  /** Caller-supplied OWASP Agentic Top 10 ids ASI01 through ASI10, without an edition suffix. Self-declared. */
+  owaspAgenticTop10?: string[];
+
   /** Caller-supplied list of NIST AI RMF function ids and subcategories
    * (e.g. `["GOVERN-1.1", "MEASURE-2.7"]`). Self-declared. */
   nistAiRmf?: string[];
@@ -1076,6 +1079,10 @@ function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown>
  * Fail-fast vocabulary checks before the HTTP roundtrip; the cloud stays source of truth.
  * Throws AsqavError on the first offending field.
  */
+const OWASP_AGENTIC_TOP10_IDS = new Set([
+  "ASI01", "ASI02", "ASI03", "ASI04", "ASI05", "ASI06", "ASI07", "ASI08", "ASI09", "ASI10",
+]);
+
 function validateSignExtensions(options: SignOptions): void {
   // Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
   const _digestChecks: Array<[string, string | undefined]> = [
@@ -1113,6 +1120,7 @@ function validateSignExtensions(options: SignOptions): void {
     ["mitre_techniques", options.mitreTechniques],
     ["mitre_atlas", options.mitreAtlas],
     ["owasp_llm_top10", options.owaspLlmTop10],
+    ["owasp_agentic_top10", options.owaspAgenticTop10],
     ["nist_ai_rmf", options.nistAiRmf],
     ["iso_42001", options.iso42001],
     ["eu_ai_act_articles", options.euAiActArticles],
@@ -1125,7 +1133,8 @@ function validateSignExtensions(options: SignOptions): void {
       );
     }
     for (const item of value) {
-      if (typeof item !== "string" || item.length === 0 || item.length > 128) {
+      if (typeof item !== "string" || item.length === 0 || item.length > 128
+          || (name === "owasp_agentic_top10" && !OWASP_AGENTIC_TOP10_IDS.has(item))) {
         throw new AsqavError(
           `${name}_entry_invalid: each entry must be a non-empty string of length <= 128.`,
         );
@@ -1643,6 +1652,7 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "mitre_techniques", read: (o) => o.mitreTechniques },
   { wire: "mitre_atlas", read: (o) => o.mitreAtlas },
   { wire: "owasp_llm_top10", read: (o) => o.owaspLlmTop10 },
+  { wire: "owasp_agentic_top10", read: (o) => o.owaspAgenticTop10 },
   { wire: "nist_ai_rmf", read: (o) => o.nistAiRmf },
   { wire: "iso_42001", read: (o) => o.iso42001 },
   { wire: "eu_ai_act_articles", read: (o) => o.euAiActArticles },
