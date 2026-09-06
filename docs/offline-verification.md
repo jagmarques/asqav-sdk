@@ -115,6 +115,64 @@ if (result.verdict !== "verified" && result.verdict !== "verified_keyed") {
 }
 ```
 
+## Counterparty bindings
+
+Supply the complete originating signing envelope to check an acknowledgment's byte
+commitment. Python accepts `originating_envelope` as a keyword; TypeScript accepts it
+after the predecessor argument. Both APIs keep this input within the verification call.
+
+```python
+result = asqav.verify_receipt_offline(
+    receipt, jwks, originating_envelope=originating_envelope,
+)
+```
+
+```typescript
+const result = verifyReceiptOffline(receipt, jwksSaved, null, originatingEnvelope);
+```
+
+The standalone CLI accepts `--counterparty originating-envelope.json`. Direct oracle
+callers pass `VerificationContext(originating_envelope=...)` in Python, or a context
+with `originatingEnvelope` in TypeScript.
+
+The `envelope_minus_anchors` scope hashes JCS UTF-8 of exactly `{payload, signature}`.
+It preserves every signature member and the signature string's spelling. Anchors and
+export metadata can change without changing this commitment. Re-encoding the signature
+string can change it, even when the decoded signature bytes stay equal.
+
+| Binding evidence | Binding result | Failure class if other checks pass |
+|---|---|---|
+| Matching digest and expected acknowledging `signature.kid` | `matches` | none |
+| Digest or acknowledging kid differs | `mismatch` or `kid_mismatch` | `invalid` |
+| Scope is absent | `legacy_scope` | `unverifiable` |
+| Scope is null or unsupported | `unrecognised_scope` | `unverifiable` |
+| Supported scope, origin bytes unavailable | `unresolved` | `unverifiable` |
+| Malformed binding or required digest/reference | `malformed` | `invalid` |
+
+The scope check runs before origin lookup or hashing. An absent binding has no effect
+on verification. An applicable unknown binding blocks a pass; a demonstrated integrity
+failure on another axis still makes the overall result `invalid`.
+
+For hosted signing, build the binding from the envelope supplied by the peer:
+
+```python
+from asqav.counterparty import compute_counterparty_binding
+
+binding = compute_counterparty_binding(
+    originating_envelope, receipt_ref=originating_signature_id,
+).to_wire()
+```
+
+Pass the originating `signature_id` explicitly. The helper's `payload.action_id`
+fallback is an opaque offline reference; the signing endpoint resolves `signature_id`.
+The redacted public verification response does not supply the original signing bytes.
+The server admits a binding only after resolving a visible compliance receipt and
+recomputing the digest. Manually constructed bindings acquire no scope by default.
+
+These checks establish byte equality. They do not independently verify the origin's
+signature, fetch an origin over the network, or add anchor verification to the public
+offline APIs. Evaluate those trust inputs separately.
+
 ## Anchor binding and clock skew
 
 `verify_receipt_offline` / `verifyReceiptOffline` cover structure, signature and the
@@ -230,4 +288,3 @@ is reported on the signature axis as the pre-cutover dialect and the verdict sta
 `unverified`. A receipt issued after the cutover gets no such retry. No production receipt
 issued before the cutover carries such a member name (measured over the whole ledger on
 2026-09-02), so the diagnostic exists for completeness rather than for live data.
-
