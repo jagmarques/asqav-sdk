@@ -1,7 +1,7 @@
 """The standalone verifier artifact carries zero asqav producer dependency (421).
 
-verify_receipt.py is the exit-artifact tool: one file, stdlib plus one optional
-signature dependency, no asqav producer module. The AST pins the import
+verify_receipt.py is the exit-artifact tool: one file, stdlib plus optional
+cryptographic dependencies, no asqav producer module. The AST pins the import
 surface, and a subprocess runs the copied file in a bare directory with the
 asqav package refused at import time, against the published ML-DSA-65 receipt.
 """
