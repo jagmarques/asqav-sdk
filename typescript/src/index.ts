@@ -1133,10 +1133,14 @@ function validateSignExtensions(options: SignOptions): void {
       );
     }
     for (const item of value) {
-      if (typeof item !== "string" || item.length === 0 || item.length > 128
-          || (name === "owasp_agentic_top10" && !OWASP_AGENTIC_TOP10_IDS.has(item))) {
+      if (typeof item !== "string" || item.length === 0 || item.length > 128) {
         throw new AsqavError(
           `${name}_entry_invalid: each entry must be a non-empty string of length <= 128.`,
+        );
+      }
+      if (name === "owasp_agentic_top10" && !OWASP_AGENTIC_TOP10_IDS.has(item)) {
+        throw new AsqavError(
+          `${name}_entry_invalid: use bare ASI01 through ASI10 without an edition suffix.`,
         );
       }
     }

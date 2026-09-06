@@ -1739,13 +1739,14 @@ def _validate_sign_extensions(
                 "list of strings or omit the field."
             )
         for _item in _value:
-            if (
-                not isinstance(_item, str) or not _item or len(_item) > 128
-                or (_name == "owasp_agentic_top10" and _item not in _OWASP_AGENTIC_TOP10_IDS)
-            ):
+            if not isinstance(_item, str) or not _item or len(_item) > 128:
                 raise ValueError(
                     f"{_name}_entry_invalid: each entry must be a "
                     "non-empty string of length <= 128."
+                )
+            if _name == "owasp_agentic_top10" and _item not in _OWASP_AGENTIC_TOP10_IDS:
+                raise ValueError(
+                    f"{_name}_entry_invalid: use bare ASI01 through ASI10 without an edition suffix."
                 )
 
 
