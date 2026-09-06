@@ -1,7 +1,9 @@
 # Offline / Air-Gapped Receipt Verification
 
-Asqav receipts can be verified entirely offline once you have a JWKS snapshot.
-No network call is made during verification; all crypto runs in-process.
+Verification can run offline using the complete signed receipt, a saved signer
+JWKS and the inputs required by each check. Anchor verification in the standalone
+tool also needs caller-selected TSA keys or Bitcoin block data, as described below.
+No network call is made during offline verification.
 
 ## Python
 
@@ -12,8 +14,9 @@ pip install "asqav[verify]"
 ```
 
 The `verify` extra adds `dilithium-py` (ML-DSA-65) and `cryptography` (Ed25519, ES256).
-Without it, the signature axis reports `SKIPPED` and the verdict is `unverified`
-(`failure_class=unverifiable`), never a false `verified`.
+Without the dependency required by the receipt's signature algorithm, that check
+reports `SKIPPED` and prevents a passing verdict. Dependencies installed separately
+also work. An independent demonstrated failure can still make the failure class `invalid`.
 
 ### 2. Snapshot the JWKS while online
 
@@ -49,8 +52,8 @@ result = asqav.verify_receipt_offline(receipt, jwks, predecessor=prev_receipt)
 
 | Verdict          | Meaning                                                    |
 |------------------|------------------------------------------------------------|
-| `verified`       | All axes checked and passed.                               |
-| `verified_keyed` | All axes passed, but the digest is keyed (e.g. HMAC-SHA256) and not third-party re-derivable. Never reported as plain `verified`. |
+| `verified`       | The verifier reports a pass for its evaluated checks; inspect the axes and documented limits.                               |
+| `verified_keyed` | Passing result, but the digest is keyed (e.g. HMAC-SHA256) and not third-party re-derivable. Never reported as plain `verified`. |
 | `unverified`     | Not verified; carries `failure_class` `invalid` or `unverifiable`. |
 
 Every `unverified` verdict names its `failure_class`, and the two are never collapsed:
@@ -64,30 +67,40 @@ Every `unverified` verdict names its `failure_class`, and the two are never coll
 
 ## Standalone single-file verifier (no asqav install)
 
-`python/src/asqav/verifier/verify_receipt.py` is a deliberately standalone
-artifact (criterion 421): one Apache-2.0 file whose import surface is the
-Python stdlib plus one optional dependency (`dilithium-py`, imported lazily
-inside the ML-DSA-65 check). It imports no asqav producer module, so it runs
-from a bare directory after a plain copy - the exit artifact ships exactly
-this file beside the archived receipts and JWKS:
+`python/src/asqav/verifier/verify_receipt.py` is one Apache-2.0 file that runs
+without the Asqav package. Its imports are the Python standard library and two
+optional dependencies, both loaded inside the checks that use them:
+
+- `dilithium-py` verifies ML-DSA-65 receipt and timestamp signatures.
+- `cryptography` verifies Ed25519/ES256 receipts, decodes TSA certificates and
+  keys, and verifies supported classical TSA signatures.
+
+Copy the file and install the dependencies before entering the offline environment:
 
 ```sh
 cp /path/to/asqav-sdk/python/src/asqav/verifier/verify_receipt.py ./
+python -m pip install dilithium-py cryptography
 python verify_receipt.py --receipt receipt.json --jwks jwks.json --offline
 ```
 
-`--offline` never reaches the network; the JWKS you archived is the only
-trust input. Without `dilithium-py` installed every other axis still runs and
-the signature axis reports SKIPPED and the verdict is `unverified` with
-`failure_class=unverifiable` - the tool never emits `verified` for a signature it
-did not check.
+`--offline` prevents network access. The JWKS identifies receipt-signing keys;
+applicable checks can need further inputs. `--predecessor FILE` supplies chain
+bytes, `--tsa-key FILE` supplies a caller-pinned TSA public key or certificate
+(PEM, DER or base64), and `--bitcoin-headers FILE` supplies a JSON map from block
+height to block data containing `merkle_root` and `time` for OpenTimestamps.
+Archive those inputs through a source you trust. The tool does not build a TSA
+certificate path to a public root or validate Bitcoin consensus and chain history.
 
-The import surface is pinned by `python/tests/test_standalone_verifier_surface.py`
-(AST scan: stdlib plus optional dilithium only, no `asqav` import, dilithium
-imported lazily) and by a subprocess run of the copied file that refuses any
-`asqav` import and any outbound socket in the child. For a toolchain that
-cannot install Python at all, `docs/openssl-jq-walkthrough.md` verifies the
-same published receipt with only `openssl`, `jq`, and `sha256sum`.
+An applicable check lacking its required dependency or trust input reports
+`SKIPPED` and prevents a passing verdict; another proven failure can still make
+the failure class `invalid`. Missing `dilithium-py` does not disable Ed25519 or
+ES256 verification when `cryptography` is installed. A signature pass alone does
+not establish that the receipt's anchors passed.
+
+`python/tests/test_standalone_verifier_surface.py` checks the import surface and
+lazy loading of both dependencies. It also executes a copied file with Asqav
+imports and outbound sockets refused. The OpenSSL alternative is documented in
+[the walkthrough](openssl-jq-walkthrough.md), including its algorithm requirements.
 
 ## TypeScript / Node
 
@@ -160,9 +173,9 @@ without a successful cryptographic check. The Python verifier therefore evaluate
 token itself: an RFC 3161 anchor PASSes only when its `messageImprint` commits
 `sha256(JCS(envelope minus anchors))` AND the TSA signature verifies against
 caller-pinned TSA key material (`trusted_tsa_keys`, or `--tsa-key` on the CLI);
-an OpenTimestamps anchor PASSes only when the proof commits the same digest and,
-when bitcoin headers are supplied (`bitcoin_headers` / `--bitcoin-headers`), its
-merkle path lands in the stated block. A token whose check runs and fails reports
+an OpenTimestamps anchor PASSes only when the proof commits the same digest and
+its merkle path matches caller-supplied block data (`bitcoin_headers` /
+`--bitcoin-headers`). Without usable supplied block data, placement is unverifiable; a supplied root that disagrees makes it invalid. A token whose check runs and fails reports
 FAIL (`invalid`); one the check cannot complete offline — junk token, no pinned TSA
 key, no header source, `status: pending`/`failed`, unknown type — reports SKIPPED
 (`unverifiable`), never PASS. The TypeScript shim carries no CMS/ots evaluation, so
@@ -208,9 +221,9 @@ changes to `revoked`. The verifier rejects signatures from revoked keys.
 
 | Algorithm | Status |
 |-----------|--------|
-| Ed25519 | Fully validated with real known-answer (tamper) vectors. |
-| ES256 | Fully validated with real known-answer (tamper) vectors. |
-| ML-DSA-65 | Fully proven. Known-answer conformance vector `asqav-06-mldsa65-payload-prod` was minted from a real api.asqav.com payload-mode receipt (2026-06-19, agent `agt_LBe47lJwgA0DfVom`, key `mxYqaLBR_T76ThNw0Kiekw`). Both Python (`test_verify_receipt_offline_mldsa65_real_cloud_kat`) and TypeScript test suites exercise the signature axis against this vector and assert `verified`; tamper tests assert `unverified`/`invalid`. |
+| Ed25519 | Signature checked against known-answer and tamper vectors. |
+| ES256 | Signature checked against known-answer and tamper vectors. |
+| ML-DSA-65 | Signature checked against known-answer conformance vector `asqav-06-mldsa65-payload-prod`, which was minted from a real api.asqav.com payload-mode receipt (2026-06-19, agent `agt_LBe47lJwgA0DfVom`, key `mxYqaLBR_T76ThNw0Kiekw`). Both Python (`test_verify_receipt_offline_mldsa65_real_cloud_kat`) and TypeScript test suites exercise the signature axis against this vector and assert `verified`; tamper tests assert `unverified`/`invalid`. |
 
 ## Canonical member order and the dialect cutover
 
