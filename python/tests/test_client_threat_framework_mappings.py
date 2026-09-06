@@ -1,13 +1,13 @@
 """SDK parity for the threat-framework taxonomy wire fields.
 
-The cloud accepts seven optional fields on the signed Compliance
-Receipt: ``mitre_techniques``, ``mitre_atlas``, ``owasp_llm_top10``,
+The cloud accepts optional fields on the signed Compliance
+Receipt: ``mitre_techniques``, ``mitre_atlas``, ``owasp_llm_top10``, ``owasp_agentic_top10``,
 ``nist_ai_rmf``, ``iso_42001``, ``eu_ai_act_articles``, and
 ``rfc3161_timestamp``. The SDK forwards each verbatim, validates each
 list field as a non-empty list of strings (each entry <= 128 chars),
 and validates ``rfc3161_timestamp`` as base64. The cloud auto-flips
 ``framework_mappings_self_declared`` to ``true`` whenever any of the
-six list fields is populated; the SDK does not need to set the flag.
+list fields is populated; the SDK does not need to set the flag.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from asqav.client import Agent
 GOOD_MITRE_TECHNIQUES = ["T1059", "T1078"]
 GOOD_MITRE_ATLAS = ["AML.T0051", "AML.T0043"]
 GOOD_OWASP_LLM = ["LLM01", "LLM02"]
+GOOD_OWASP_AGENTIC = ["ASI01", "ASI10"]
 GOOD_NIST_AI_RMF = ["GOVERN-1.1", "MEASURE-2.7"]
 GOOD_ISO_42001 = ["A.6.2.6"]
 GOOD_EU_AI_ACT = ["Article-12", "Article-15"]
@@ -65,6 +66,7 @@ def _ok_response() -> dict:
         ("mitre_techniques", GOOD_MITRE_TECHNIQUES),
         ("mitre_atlas", GOOD_MITRE_ATLAS),
         ("owasp_llm_top10", GOOD_OWASP_LLM),
+        ("owasp_agentic_top10", GOOD_OWASP_AGENTIC),
         ("nist_ai_rmf", GOOD_NIST_AI_RMF),
         ("iso_42001", GOOD_ISO_42001),
         ("eu_ai_act_articles", GOOD_EU_AI_ACT),
@@ -104,7 +106,7 @@ def test_rfc3161_timestamp_forwarded_to_wire() -> None:
     assert captured["body"]["rfc3161_timestamp"] == GOOD_RFC3161_B64
 
 
-def test_all_seven_fields_forwarded_together() -> None:
+def test_all_fields_forwarded_together() -> None:
     captured: dict = {}
 
     def fake_post(path: str, body: dict) -> dict:
@@ -119,6 +121,7 @@ def test_all_seven_fields_forwarded_together() -> None:
             mitre_techniques=GOOD_MITRE_TECHNIQUES,
             mitre_atlas=GOOD_MITRE_ATLAS,
             owasp_llm_top10=GOOD_OWASP_LLM,
+            owasp_agentic_top10=GOOD_OWASP_AGENTIC,
             nist_ai_rmf=GOOD_NIST_AI_RMF,
             iso_42001=GOOD_ISO_42001,
             eu_ai_act_articles=GOOD_EU_AI_ACT,
@@ -128,6 +131,7 @@ def test_all_seven_fields_forwarded_together() -> None:
     assert body["mitre_techniques"] == GOOD_MITRE_TECHNIQUES
     assert body["mitre_atlas"] == GOOD_MITRE_ATLAS
     assert body["owasp_llm_top10"] == GOOD_OWASP_LLM
+    assert body["owasp_agentic_top10"] == GOOD_OWASP_AGENTIC
     assert body["nist_ai_rmf"] == GOOD_NIST_AI_RMF
     assert body["iso_42001"] == GOOD_ISO_42001
     assert body["eu_ai_act_articles"] == GOOD_EU_AI_ACT
@@ -140,6 +144,7 @@ def test_all_seven_fields_forwarded_together() -> None:
         "mitre_techniques",
         "mitre_atlas",
         "owasp_llm_top10",
+        "owasp_agentic_top10",
         "nist_ai_rmf",
         "iso_42001",
         "eu_ai_act_articles",
@@ -210,6 +215,7 @@ def test_no_taxonomy_fields_omitted_from_wire() -> None:
         "mitre_techniques",
         "mitre_atlas",
         "owasp_llm_top10",
+        "owasp_agentic_top10",
         "nist_ai_rmf",
         "iso_42001",
         "eu_ai_act_articles",
