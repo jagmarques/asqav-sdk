@@ -18,12 +18,12 @@
 # exception to the Elastic-License-2.0 SDK) so it can ship in the exit artifact
 # as a permanently free, dependency-light tool a customer runs offline forever.
 
-"""Standalone Asqav receipt verifier - one dependency, mostly stdlib.
+"""Standalone Asqav receipt verifier - stdlib with optional cryptographic dependencies.
 
 Verify an Asqav Compliance Receipt yourself, without the Asqav SDK or liboqs.
 
 CHECKS (independently, on your machine):
-  - ML-DSA-65 (FIPS 204) signature over the receipt's canonical bytes
+  - ML-DSA-65 (FIPS 204), Ed25519 or ES256 receipt signature over canonical bytes
   - canonical-bytes integrity (JCS / RFC8785 reproduction, stdlib json)
   - hash-chain link to a predecessor receipt
   - expiry (the expires_at the signer committed to inside the signed bytes)
@@ -40,12 +40,12 @@ certificate-chain walk to a public root - offline trust comes only from the TSA
 keys you pin, never from the unsigned envelope; OpenTimestamps block placement
 without a caller-supplied header source; policy_digest artefact resolution.
 
-Only the signature checks need non-stdlib code:
-  pip install dilithium-py        (pure python; verify path uses stdlib SHAKE)
-  pip install cryptography        (pinned RSA/ECDSA/Ed25519 TSA certificates)
-Without either, the matching axis reports SKIPPED and the verdict is INCOMPLETE:
-this tool never emits a PASS on an unverified post-quantum signature, nor on
-anchor presence alone. dilithium-py is not constant-time, which is fine for a
+Optional dependencies are loaded inside the checks that require them:
+  pip install dilithium-py        (ML-DSA-65 receipt and timestamp signatures)
+  pip install cryptography        (Ed25519/ES256 receipts, TSA keys/certificates)
+A missing required dependency leaves that check SKIPPED and prevents a passing
+verdict; independent demonstrated failures still make the receipt invalid.
+The tool never passes a signature it did not check or an anchor on presence alone. dilithium-py is not constant-time, which is fine for a
 verify-only tool: it touches only public data (public key, signature, message),
 so there is no secret to leak through timing.
 
