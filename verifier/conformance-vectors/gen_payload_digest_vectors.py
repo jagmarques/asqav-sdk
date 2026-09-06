@@ -81,6 +81,7 @@ def _payload(digest: dict) -> dict:
     """A genesis payload-mode receipt carrying BOTH context and payload_digest."""
     return {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-09-01T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_pd_001",
