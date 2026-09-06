@@ -85,9 +85,11 @@ export function runOne(
   let receipt: Record<string, unknown>;
   let predecessor: Record<string, unknown> | null;
   let keyProvider: KeyProvider;
+  let originatingEnvelope: Record<string, unknown> | null;
   try {
     receipt = loadJson(join(vecDir, "receipt.json")) ?? {};
     predecessor = loadJson(join(vecDir, "predecessor.json"));
+    originatingEnvelope = loadJson(join(vecDir, "originating_envelope.json"));
     keyProvider = keyProviderFor(vecDir, fmt);
   } catch (exc) {
     if (exc instanceof SyntaxError) {
@@ -96,7 +98,7 @@ export function runOne(
     }
     throw exc;
   }
-  const result = verify(receipt, ADAPTERS, keyProvider, predecessor);
+  const result = verify(receipt, ADAPTERS, keyProvider, predecessor, Object.freeze({ originatingEnvelope }));
 
   let ok = result.verdict === expectedOutcome;
   const actualFailureClass = result.failureClass ?? "";

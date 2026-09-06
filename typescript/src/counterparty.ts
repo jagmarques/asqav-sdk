@@ -8,14 +8,14 @@ import { createHash } from "node:crypto";
 import { canonicalJson } from "./jcs.js";
 
 /**
- * Cross-agent byte-equality binding to an originating receipt: `envelope_hash` over A's full canonical
- * signed envelope, `receipt_ref` to fetch it. `transport_label` is operational, never a basis for trust.
+ * Byte binding over payload and the exact signature object; transport_label is an operational hint.
  */
 export interface CounterpartyBinding {
   envelope_hash: string;
   receipt_ref: string;
   expect_ack_from?: string;
   transport_label?: string;
+  scope?: string;
 }
 
 /**
@@ -23,27 +23,44 @@ export interface CounterpartyBinding {
  * unresolved | kid_mismatch, mirroring the cloud's `counterparty_binding_verified` axis.
  */
 export interface CounterpartyBindingVerification {
-  valid: boolean;
-  envelopeHashMatches: boolean;
+  valid: boolean | null;
+  envelopeHashMatches: boolean | null;
   kidMatches: boolean | null;
-  label: "matches" | "mismatch" | "unresolved" | "kid_mismatch";
+  label: "matches" | "mismatch" | "unresolved" | "kid_mismatch" | "malformed" | "legacy_scope" | "unrecognised_scope" | null;
 }
 
-/**
- * Base64 SHA-256 of the originating envelope's full JCS bytes, mirroring the cloud's
- * `compute_envelope_hash` so acknowledger, verifier and cloud produce byte-identical digests.
- */
+export const BINDING_SCOPE = "envelope_minus_anchors";
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Hash exactly payload and signature, preserving the encoded signature spelling. */
 export function computeEnvelopeHash(
-  envelope: Record<string, unknown>,
+  envelope: unknown,
 ): string {
-  return createHash("sha256").update(canonicalJson(envelope)).digest("base64");
+  if (!isObject(envelope) || !isObject(envelope.payload) || !isObject(envelope.signature)) {
+    throw new Error("counterparty_origin_unavailable: signing envelope required");
+  }
+  const signature = envelope.signature;
+  if (["alg", "kid", "sig"].some(key => typeof signature[key] !== "string" || !signature[key])) {
+    throw new Error("counterparty_origin_unavailable: signature object is incomplete");
+  }
+  const projection = { payload: envelope.payload, signature };
+  const stack: [unknown, number][] = [[projection, 0]];
+  while (stack.length) {
+    const [node, depth] = stack.pop()!;
+    if (depth > 200) throw new Error("counterparty_origin_unavailable: nesting exceeds 200 levels");
+    const children = isObject(node) ? Object.values(node) : Array.isArray(node) ? node : [];
+    for (const child of children) stack.push([child, depth + 1]);
+  }
+  return createHash("sha256").update(canonicalJson(projection)).digest("base64");
 }
 
 /** Options for {@link computeCounterpartyBinding}. */
 export interface ComputeCounterpartyBindingOptions {
   /**
-   * Resolvable locator for A's receipt, defaulting to `payload.action_id` then `signature_id`. Pass an
-   * explicit value when the Audit Pack uses a different identifier scheme.
+   * Pass the originating signature_id for hosted admission; action_id is an offline fallback.
    */
   receiptRef?: string;
   /** Optional declared acknowledger identifier; the verifier cross-checks
@@ -54,8 +71,7 @@ export interface ComputeCounterpartyBindingOptions {
 }
 
 /**
- * Build a {@link CounterpartyBinding} over the canonical bytes of the dict as-passed; callers MUST pass
- * the bytes B actually received, not a re-canonicalization, so intermediary tampering is detectable.
+ * Build from the peer's original signing envelope, retaining the signature object as received.
  */
 export function computeCounterpartyBinding(
   originatingEnvelope: Record<string, unknown>,
@@ -80,6 +96,7 @@ export function computeCounterpartyBinding(
   const binding: CounterpartyBinding = {
     envelope_hash: computeEnvelopeHash(originatingEnvelope),
     receipt_ref: receiptRef,
+    scope: BINDING_SCOPE,
   };
   if (options.expectAckFrom !== undefined) {
     binding.expect_ack_from = options.expectAckFrom;
@@ -96,20 +113,30 @@ export function computeCounterpartyBinding(
  */
 export function verifyCounterpartyBinding(
   acknowledgmentEnvelope: Record<string, unknown>,
-  originatingEnvelope: Record<string, unknown>,
+  originatingEnvelope: unknown = null,
 ): CounterpartyBindingVerification {
-  const payload = acknowledgmentEnvelope.payload;
-  if (!payload || typeof payload !== "object") {
-    return { valid: false, envelopeHashMatches: false, kidMatches: null, label: "unresolved" };
+  const result = (valid: boolean | null, label: CounterpartyBindingVerification["label"]): CounterpartyBindingVerification =>
+    ({ valid, envelopeHashMatches: valid, kidMatches: null, label });
+  const payload = acknowledgmentEnvelope?.payload;
+  if (!isObject(payload)) {
+    return result(false, "malformed");
   }
-  const binding = (payload as Record<string, unknown>).counterparty_binding;
-  if (!binding || typeof binding !== "object") {
-    return { valid: false, envelopeHashMatches: false, kidMatches: null, label: "unresolved" };
+  if (!Object.hasOwn(payload, "counterparty_binding")) {
+    return result(null, null);
   }
-  const b = binding as Record<string, unknown>;
-  const expectedHash = typeof b.envelope_hash === "string" ? b.envelope_hash : undefined;
-  const actualHash = computeEnvelopeHash(originatingEnvelope);
-  const envelopeHashMatches = expectedHash === actualHash;
+  const b = payload.counterparty_binding;
+  if (!isObject(b)) return result(false, "malformed");
+  if (!Object.hasOwn(b, "scope")) return result(null, "legacy_scope");
+  if (b.scope !== BINDING_SCOPE) return result(null, "unrecognised_scope");
+  const expectedHash = bindingDigest(b);
+  if (expectedHash === null) return result(false, "malformed");
+  let actualHash: Buffer;
+  try {
+    actualHash = Buffer.from(computeEnvelopeHash(originatingEnvelope), "base64");
+  } catch {
+    return result(null, "unresolved");
+  }
+  const envelopeHashMatches = expectedHash.equals(actualHash);
 
   const expectAckFrom = typeof b.expect_ack_from === "string" ? b.expect_ack_from : undefined;
   let kidMatches: boolean | null = null;
@@ -129,4 +156,13 @@ export function verifyCounterpartyBinding(
     return { valid: false, envelopeHashMatches: true, kidMatches: false, label: "kid_mismatch" };
   }
   return { valid: true, envelopeHashMatches: true, kidMatches, label: "matches" };
+}
+
+function bindingDigest(binding: Record<string, unknown>): Buffer | null {
+  if (typeof binding.receipt_ref !== "string" || !binding.receipt_ref) return null;
+  if (["expect_ack_from", "transport_label"].some(key => binding[key] != null && typeof binding[key] !== "string")) return null;
+  const value = binding.envelope_hash;
+  if (typeof value !== "string" || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(value) || (value.includes("=") && value.length % 4 !== 0)) return null;
+  const decoded = Buffer.from(value, "base64");
+  return decoded.length === 32 ? decoded : null;
 }

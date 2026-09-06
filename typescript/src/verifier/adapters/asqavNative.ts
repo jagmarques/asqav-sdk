@@ -10,6 +10,7 @@ import {
   type ExtraAxis,
   type KeyProvider,
   type SignatureMaterial,
+  type VerificationContext,
 } from "../adapter.js";
 import {
   JCS_UTF16_CUTOVER,
@@ -25,6 +26,7 @@ import {
   checkExpiry,
   checkIssuerBinding,
   checkCounterpartyBinding,
+  boundCounterpartyKid,
   checkKeyBinding,
   checkKeyStatus,
   checkPayloadDigest,
@@ -251,6 +253,21 @@ export class AsqavNativeAdapter extends FormatAdapter {
 
   // Gate on expiry, signing key revocation status, and its issuer (mirrors Python extra_axes).
   // The key axes are a no-op when the key is absent; the signature axis handles that.
+  extraAxesWithContext(
+    doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext,
+  ): ExtraAxis[] {
+    const axes = this.extraAxes(doc, keyProvider);
+    if (context.originatingEnvelope == null) return axes;
+    const signed = isHashMode(doc) ? {} : payloadOf(doc);
+    const signature = isRecord(doc.signature) ? doc.signature : isRecord(doc.signature_envelope) ? doc.signature_envelope : {};
+    const baseline = checkCounterpartyBinding(signed, undefined, signature.kid ?? null);
+    const entry = this.signingKeyEntry(doc, (keyProvider ?? { keys: [] }) as Record<string, unknown>);
+    const kid = entry === null ? signature.kid ?? null : boundCounterpartyKid(signature.kid, entry.kid, keyIssuerOf(entry));
+    const outcome = checkCounterpartyBinding(signed, context.originatingEnvelope, kid);
+    return axes.map(axis => axis[0] === "counterparty" && axis[1] === baseline[0] && axis[2] === baseline[1]
+      ? ["counterparty", ...outcome] : axis);
+  }
+
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
     const hashMode = isHashMode(doc);
     // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
@@ -266,7 +283,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
     axes.push(["key_binding", ...checkKeyBinding(signedUnit, boundAlg, boundPk)]);
     // No database offline, so a claimed binding reports unresolved rather than
     // riding along as corroboration nobody checked
-    axes.push(["counterparty", ...checkCounterpartyBinding(signedUnit)]);
+    const signature = isRecord(doc.signature) ? doc.signature : isRecord(doc.signature_envelope) ? doc.signature_envelope : {};
+    axes.push(["counterparty", ...checkCounterpartyBinding(signedUnit, undefined, signature.kid ?? null)]);
     axes.push(["payload_digest", ...checkPayloadDigest(signedUnit)]);
     // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
