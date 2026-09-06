@@ -1,4 +1,4 @@
-# Verify an Asqav receipt yourself, one dependency
+# Verify an Asqav receipt yourself
 
 `verify_receipt.py` is a single readable file that verifies an Asqav
 Compliance Receipt on your own machine, without liboqs. It ships inside the
@@ -6,28 +6,25 @@ Compliance Receipt on your own machine, without liboqs. It ships inside the
 gives you the module and you can still copy that one file into an audit
 environment and read every line.
 
-It does the check that actually matters for third-party trust: it verifies the
-post-quantum **ML-DSA-65 (FIPS 204)** signature over the receipt's canonical
-bytes, resolves the issuer's public key from Asqav's public
-`/.well-known/jwks.json` (so you never take our word for which key signed),
-re-walks the SHA-256 hash chain, and reports the anchor binding and timestamp
-skew. Everything except the signature math is Python standard library.
+The tool verifies supported receipt signatures, resolves their keys from a
+JWKS, checks chain links and evaluates anchor proofs with caller-supplied trust
+material. Read each axis and the `not_checked` fields to see the result's limits.
 
 ## Install
 
-Standard library covers structure, canonical bytes, the hash chain, the anchor
-binding, and the skew check with zero installs. The single dependency is the
-post-quantum signature verify:
+The standard library handles structure, canonical bytes, chain links and proof
+parsing. Install the optional cryptographic dependencies for the checks you need:
 
 ```bash
-pip install dilithium-py
+python -m pip install dilithium-py cryptography
 ```
 
-`dilithium-py` is a pure-python FIPS 204 implementation; its verify path uses
-only stdlib SHAKE, so nothing compiles. If you skip it, every other check still
-runs and the signature axis reports `SKIPPED`; the overall verdict is then
-`unverified` with `failure_class=unverifiable`. The tool never reports
-`verified` unless the signature was actually verified.
+`dilithium-py` verifies ML-DSA-65 receipt and timestamp signatures.
+`cryptography` verifies Ed25519/ES256 receipt signatures, decodes TSA keys and
+certificates, and verifies supported classical TSA signatures. Both are imported
+lazily. Missing a dependency required by an applicable check leaves that axis
+`SKIPPED` and prevents a passing verdict. Other checks still run, and a proven
+failure can make the overall failure class `invalid`.
 
 ## Verify a live receipt
 
@@ -55,7 +52,7 @@ cryptographic path runs on an Audit Pack entry, as the next section shows.
 
 ## Verify fully offline
 
-Offline verification needs the signed bytes, and only the Audit Pack export carries them:
+Offline verification needs the complete signed bytes. An Audit Pack export can carry them:
 the hosted `/api/v1/verify/<id>` JSON is a display projection that omits the identifier
 members of the signed payload (`agent_id`, `org_id`, `issuer_id` and the digests), so a
 receipt saved from it can never reproduce the signature. Ask the receipt holder for an
@@ -71,8 +68,8 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 The export carries more top-level members than the signer anchored; the verifier keeps
 only `payload`, `signature` and `anchors`, and every anchor is checked against
 `sha256(JCS({payload, signature}))`, the two-key object the signer committed. The
-standalone tool checks ML-DSA-65 signatures only; a receipt signed with another level
-reports the signature axis as SKIPPED with `unsupported alg`.
+standalone tool supports ML-DSA-65, Ed25519 and ES256 receipt signatures. Other
+algorithm identifiers report the signature axis as SKIPPED with `unsupported alg`.
 
 To check the hash-chain link, also save the predecessor receipt and pass it:
 
@@ -85,7 +82,7 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 
 | Axis | Checked | How |
 |---|---|---|
-| signature | ML-DSA-65 over canonical bytes | `dilithium-py` against the jwks public key |
+| signature | ML-DSA-65, Ed25519 or ES256 over canonical bytes | `dilithium-py` or `cryptography` against the JWKS public key |
 | canonical bytes | JCS reproduction | stdlib `json` (sorted keys, no whitespace, UTF-8) |
 | issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json` |
 | chain | SHA-256 link to predecessor | stdlib `hashlib` |
@@ -104,8 +101,8 @@ A vector directory may carry the material those inputs need:
 `tsa_trust.pem` (PEM certificates the offline verifier trusts for that
 vector's timestamp-authority token) and `bitcoin_headers.json` (block headers
 keyed by height, each with `hash`, `merkle_root` and `time`). Both are public
-material — the certificates are embedded in the token itself, the headers are
-Bitcoin public data; `conformance-vectors/asqav-24-anchor-block-hash-prod`
+material. Being public or embedded in a token does not establish trust: the caller
+selects TSA keys and Bitcoin block data through a trusted source; `conformance-vectors/asqav-24-anchor-block-hash-prod`
 ships them, and `ANCHOR-MATERIAL.md` there records the two independent header
 sources. A vector without them keeps its anchors axis SKIPPED by design, and
 the requirement map says so.
@@ -151,7 +148,7 @@ declared gap, then any axes evaluation stopped short of as `not_reached`. The
 headline gaps are the TSA certificate path and its revocation state,
 `policy_digest` artefact resolution, aggregate-anchor inclusion proofs, and the
 caller-supplied framework taxonomies, which are carried under the signature but
-never evaluated. For those, use the hosted `/verify` endpoint or the full SDK.
+never evaluated. Assess those requirements separately; another verification entry point does not by itself establish that they were checked.
 
 ## Which requirements the corpus exercises
 
@@ -160,7 +157,7 @@ normative requirements it exercises, and publishes the requirements **no** vecto
 exercises alongside it. Both halves are generated by
 `verifier/build_requirement_map.py`, which derives coverage by running each
 vector through this verifier and reading the axes off the result: an axis the
-verifier skipped is not coverage, whatever a vector'"'"'s notes say. A test fails if
+verifier skipped is not coverage, whatever a vector's notes say. A test fails if
 the committed map drifts from the corpus.
 
 ## Outside recomputations
