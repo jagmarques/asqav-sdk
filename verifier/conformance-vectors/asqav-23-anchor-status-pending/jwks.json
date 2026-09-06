@@ -1,11 +1,11 @@
 {
-  "keys": [
-    {
-      "kid": "asqav-oracle-vec-key",
-      "issuer_id": "Asqav Ltd",
-      "alg": "Ed25519",
-      "status": "active",
-      "public_key": "oJql9HpnWYAv+VX43C0qFKXJnSO+l/hkEn/5ODRVpPA="
-    }
-  ]
+ "keys": [
+  {
+   "kid": "asqav-oracle-vec-key",
+   "issuer_id": "Asqav Ltd",
+   "alg": "Ed25519",
+   "status": "active",
+   "public_key": "D2Giy5pvLMtoWzbwo6rV6lVV32saRd+fZLA35CaiiSM="
+  }
+ ]
 }
