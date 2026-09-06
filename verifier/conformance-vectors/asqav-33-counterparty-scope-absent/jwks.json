@@ -1,0 +1,18 @@
+{
+  "keys": [
+    {
+      "kid": "origin",
+      "issuer_id": "origin",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "PgrKJoR9TZf8UL7DpBhpb0F9FJKXj2nmgMcUmvYkH5c="
+    },
+    {
+      "kid": "ack",
+      "issuer_id": "ack",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "48k2YvFNjBbQ0tgB+Yy8b1yE9jmg+N4XWFvXLwLfsgA="
+    }
+  ]
+}

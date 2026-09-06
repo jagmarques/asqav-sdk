@@ -18,6 +18,13 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class VerificationContext:
+    """Caller-supplied comparison input for one invocation; never key material."""
+
+    originating_envelope: Any = None
+
+
+@dataclass(frozen=True)
 class SignatureMaterial:
     """The bytes and metadata needed to check one issuer signature.
 
@@ -112,6 +119,12 @@ class FormatAdapter(ABC):
         # Raw so the axis can report a malformed counter; extra_axes never sees the
         # predecessor continuity needs, so the counter is read here instead.
         return None
+
+    def extra_axes_with_context(
+        self, doc: dict, key_provider: Any, context: VerificationContext,
+    ) -> list[tuple[str, str, str]]:
+        """Preserve adapters implementing the two-argument extra-axis hook."""
+        return self.extra_axes(doc, key_provider)
 
     def attestation(self, doc: dict) -> dict[str, Any]:
         """In-body attestation fields surfaced in the verdict (e.g. ``signer``).

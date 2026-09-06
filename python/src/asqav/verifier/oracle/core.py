@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import crypto
-from .adapter import FormatAdapter
+from .adapter import FormatAdapter, VerificationContext
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
@@ -309,6 +309,8 @@ def verify(
     adapters: list[FormatAdapter],
     key_provider: Any = None,
     predecessor: dict | None = None,
+    *,
+    context: VerificationContext | None = None,
 ) -> VerifyResult:
     ad = detect(doc, adapters)
     if ad is None:
@@ -342,7 +344,8 @@ def verify(
         _chain_axis(ad, doc, adapters, predecessor),
         _seq_axis(ad, doc, adapters, predecessor),
     ]
-    axes.extend(_axis(name, res, note) for name, res, note in ad.extra_axes(doc, key_provider))
+    axes.extend(_axis(name, res, note) for name, res, note in
+                ad.extra_axes_with_context(doc, key_provider, context or VerificationContext()))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426);
     # a keyed digest reports verified_keyed, never plain verified (criterion 438).

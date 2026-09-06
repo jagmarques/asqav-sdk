@@ -2163,16 +2163,38 @@ def check_payload_digest(payload: dict):
 
 
 def _envelope_hash(envelope: dict) -> str:
-    """Base64 SHA-256 over the originating envelope's full canonical bytes.
+    """Hash payload and the exact signature object, excluding all outer export members."""
+    if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), dict):
+        raise ValueError("originating payload is unavailable")
+    signature = envelope.get("signature")
+    if not isinstance(signature, dict) or any(
+        not isinstance(signature.get(key), str) or not signature[key]
+        for key in ("alg", "kid", "sig")
+    ):
+        raise ValueError("originating signature object is unavailable")
+    projection = {"payload": envelope["payload"], "signature": signature}
+    if _scan_shape(projection, max_depth=MAX_NESTING_DEPTH) is not None:
+        raise ValueError("originating canonical bytes are unavailable")
+    return base64.b64encode(hashlib.sha256(canonical_json(projection)).digest()).decode()
 
-    Scope includes the originator's signature bytes, which is the rule that stops a
-    re-signing intermediary from escaping detection. Mirrors the cloud's
-    core/envelope.py compute_envelope_hash.
-    """
-    return base64.b64encode(hashlib.sha256(canonical_json(envelope)).digest()).decode()
+
+_COUNTERPARTY_KID_UNSET = object()
 
 
-def check_counterparty_binding(payload: dict, originator: dict | None = None):
+def counterparty_acknowledging_kid(envelope: dict):
+    """Read an actual wire kid, without normalization's synthesized issuer fallback."""
+    signature = envelope.get("signature")
+    if not isinstance(signature, dict):
+        signature = envelope.get("signature_envelope")
+    return signature.get("kid") if isinstance(signature, dict) else None
+
+
+def bound_counterparty_kid(kid, signing_kid, signing_issuer):
+    """Require the advertised identifier to name the directory's selected signing key."""
+    return kid if isinstance(kid, str) and kid in (signing_kid, signing_issuer) else None
+
+
+def check_counterparty_binding(payload: dict, originator: dict | None = None, *, acknowledging_kid=_COUNTERPARTY_KID_UNSET):
     """Weigh a claimed cross-agent binding instead of letting it ride unchecked.
 
     counterparty_binding is caller-supplied: an issuer can attach one asserting
@@ -2191,10 +2213,14 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None):
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no counterparty binding to check"
     cpb = payload.get("counterparty_binding")
-    if cpb is None:
+    if "counterparty_binding" not in payload:
         return "PASS", "no counterparty binding; content is unilaterally asserted"
     if not isinstance(cpb, dict):
         return "FAIL", f"counterparty_binding is {type(cpb).__name__}, not an object"
+    if "scope" not in cpb:
+        return "SKIPPED", "legacy_scope: the signed binding omits its digest scope"
+    if cpb["scope"] != "envelope_minus_anchors":
+        return "SKIPPED", "unrecognised_scope: the signed digest scope is unsupported"
 
     receipt_ref = cpb.get("receipt_ref")
     envelope_hash = cpb.get("envelope_hash")
@@ -2203,7 +2229,8 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None):
     if not isinstance(envelope_hash, str) or not envelope_hash:
         return "FAIL", "counterparty_binding.envelope_hash missing or not a string"
     try:
-        raw = base64.b64decode(envelope_hash, validate=True)
+        normalized = envelope_hash.replace("-", "+").replace("_", "/")
+        raw = base64.b64decode(normalized + "=" * (-len(normalized) % 4), validate=True)
     except Exception:
         return "FAIL", f"counterparty_binding.envelope_hash {envelope_hash!r} is not base64"
     if len(raw) != 32:
@@ -2214,24 +2241,30 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None):
     expect_ack_from = cpb.get("expect_ack_from")
     if expect_ack_from is not None and not isinstance(expect_ack_from, str):
         return "FAIL", "counterparty_binding.expect_ack_from is not a string"
+    if cpb.get("transport_label") is not None and not isinstance(cpb["transport_label"], str):
+        return "FAIL", "counterparty_binding.transport_label is not a string"
 
     if not isinstance(originator, dict):
         # Structurally sound but nothing here corroborates it; blocking on purpose
         return "SKIPPED", (
-            f"counterparty binding claims {receipt_ref}; no originating receipt supplied, "
+            f"unresolved: counterparty binding claims {receipt_ref}; no originating receipt supplied, "
             "so the corroboration is unchecked"
         )
 
-    actual = _envelope_hash(originator)
-    if actual != envelope_hash:
+    try:
+        actual = _envelope_hash(originator)
+    except (TypeError, ValueError, RecursionError, UnicodeError):
+        return "SKIPPED", "unresolved: exact originating canonical bytes are unavailable"
+    if base64.b64decode(actual) != raw:
         return "FAIL", (
             f"counterparty_mismatch: binding commits {envelope_hash[:16]}.., "
             f"supplied originator hashes to {actual[:16]}.."
         )
-    if expect_ack_from is not None and payload.get("issuer_id") != expect_ack_from:
+    kid = payload.get("issuer_id") if acknowledging_kid is _COUNTERPARTY_KID_UNSET else acknowledging_kid
+    if expect_ack_from is not None and kid != expect_ack_from:
         return "FAIL", (
-            f"counterparty_mismatch: binding expects an acknowledgment from "
-            f"{expect_ack_from}, this receipt is issued by {payload.get('issuer_id')!r}"
+            f"kid_mismatch: binding expects an acknowledgment from "
+            f"{expect_ack_from}, this receipt names signature.kid {kid!r}"
         )
     return "PASS", f"counterparty binding rederives from the supplied {receipt_ref}"
 
@@ -2414,6 +2447,7 @@ def run(
         )
         print("\n  => unverified (failure_class: unverifiable; no receipt object to verify)")
         return 2
+    acknowledging_kid = counterparty_acknowledging_kid(envelope)
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -2528,11 +2562,12 @@ def run(
             ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor))
         )
         results.append(("signature", *sig_res))
+        acknowledging_kid = bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
-    results.append(("counterparty", *check_counterparty_binding(payload, counterparty)))
+    results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
     results.append(("payload_digest", *check_payload_digest(payload)))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
@@ -2643,6 +2678,7 @@ def run_structured(
             "kid": None,
             "alg": None,
         }
+    acknowledging_kid = counterparty_acknowledging_kid(envelope)
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -2782,12 +2818,13 @@ def run_structured(
             )
         )
         axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
+        acknowledging_kid = bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     axes.append(
-        _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty))
+        _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
     axes.append(_struct_axis("payload_digest", *check_payload_digest(payload)))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
