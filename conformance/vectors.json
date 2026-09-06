@@ -445,13 +445,14 @@
     },
     {
       "name": "counterparty_binding_missing_envelope_hash_rejected",
-      "description": "counterparty_binding is present but envelope_hash member is absent. envelope_hash is REQUIRED in draft-04; this vector MUST be reported non-conformant by a verifier.",
+      "description": "A supported-scope binding without its required envelope_hash is malformed.",
       "input": {
         "action_id": "act_01HVZB_ACK_0006",
         "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "agent_id": "agt_acknowledger_B",
         "counterparty_binding": {
-          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001"
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "scope": "envelope_minus_anchors"
         },
         "decision": "allow",
         "issued_at": "2026-05-18T20:00:04+00:00",
@@ -468,8 +469,8 @@
         "type": "protectmcp:acknowledgment",
         "v": 1
       },
-      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0006\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:04+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
-      "sha256": "6fee77a7aa44a4f17c0df1830ad520c2679e581e9b4fa24693b62fa7c11b9b4d",
+      "canonical": "{\"action_id\":\"act_01HVZB_ACK_0006\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:04+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "fdf867b3c2cc86acd1423818ce4b56e8e0f17b5a4ce1862444dd67f7cbbe7ed3",
       "counterparty_binding_member_missing": "envelope_hash",
       "expected_verify": false,
       "reason": "envelope_hash is REQUIRED on counterparty_binding; absence breaks the cross-agent byte-equality guarantee and MUST cause the acknowledging receipt to be reported non-conformant."
@@ -572,6 +573,249 @@
       },
       "canonical": "{\"n\":9007199254740992}",
       "sha256": "66c87d9cb3014e05a11baa97df62282d89d425f22ee15816577c84534e2ef1bb"
+    },
+    {
+      "name": "counterparty_binding_origin_two_anchors",
+      "description": "Pure canonicalization of an originating envelope with two replaceable anchors; binding recipes project the payload and signature separately.",
+      "input": {
+        "anchors": [
+          {
+            "tsa_url": "https://tsa.example/timestamp",
+            "type": "rfc3161",
+            "value": "AAAA_synthetic_tsr_base64_placeholder_AAAA"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "synthetic_upgradeable_timestamp"
+          }
+        ],
+        "payload": {
+          "action_id": "act_01HVZA_ORIGINATOR_0001",
+          "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_id": "agt_originator_A",
+          "decision": "allow",
+          "issued_at": "2026-05-18T20:00:00+00:00",
+          "issuer_id": "00000000000000000098",
+          "org_id": "org_demo",
+          "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+          "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sandbox_state": "live",
+          "tool_name": "database.query",
+          "type": "protectmcp:action",
+          "v": 1
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "00000000000000000098",
+          "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
+        }
+      },
+      "expected_verify": true,
+      "reason": "Envelope byte-equality: JCS-canonical bytes of A's full envelope reproduce the same SHA-256 across implementations. This vector pins canonicalization, not the binding scope.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_base64url": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors"
+      },
+      "canonical": "{\"anchors\":[{\"tsa_url\":\"https://tsa.example/timestamp\",\"type\":\"rfc3161\",\"value\":\"AAAA_synthetic_tsr_base64_placeholder_AAAA\"},{\"type\":\"opentimestamps\",\"value\":\"synthetic_upgradeable_timestamp\"}],\"payload\":{\"action_id\":\"act_01HVZA_ORIGINATOR_0001\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_originator_A\",\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:00+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:action\",\"v\":1},\"signature\":{\"alg\":\"ML-DSA-65\",\"kid\":\"00000000000000000098\",\"sig\":\"AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA\"}}",
+      "sha256": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4"
+    },
+    {
+      "name": "counterparty_binding_scope_minus_anchors",
+      "description": "Counterparty fixture with binding outcome matches; its generation recipe is independent of the asserted wire scope.",
+      "input": {
+        "action_id": "act_counterparty_scope_minus_anchors",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp",
+          "scope": "envelope_minus_anchors"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": true,
+      "reason": "The binding axis returns matches.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": true,
+        "binding_label": "matches",
+        "failure_class": null
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_scope_minus_anchors\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "e6a6b09958c64686de4ef7dd2494690ee0ed7d039da92e2e78b550190d5fe931"
+    },
+    {
+      "name": "counterparty_binding_anchors_included_rejected",
+      "description": "Counterparty fixture with binding outcome mismatch; its generation recipe is independent of the asserted wire scope.",
+      "input": {
+        "action_id": "act_counterparty_anchors_included_rejected",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp",
+          "scope": "envelope_minus_anchors"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns mismatch.",
+      "expected": {
+        "envelope_hash_base64": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+        "envelope_hash_hex": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": false,
+        "binding_label": "mismatch",
+        "failure_class": "invalid"
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature",
+          "anchors"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_anchors_included_rejected\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "85004158dcf9345ef58eed4178bbfea481a38f0b8cb2a1970785d892980695dc"
+    },
+    {
+      "name": "counterparty_binding_legacy_scope_absent",
+      "description": "Counterparty fixture with binding outcome legacy_scope; its generation recipe is independent of the asserted wire scope.",
+      "input": {
+        "action_id": "act_counterparty_legacy_scope_absent",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns legacy_scope.",
+      "expected": {
+        "envelope_hash_base64": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+        "envelope_hash_hex": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": null,
+        "binding_label": "legacy_scope",
+        "failure_class": "unverifiable"
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature",
+          "anchors"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_legacy_scope_absent\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "9ea6a8cfad32136b496f8aff707dedf53e40f7bc13499f23d8acf598ced6e945"
+    },
+    {
+      "name": "counterparty_binding_unrecognised_scope",
+      "description": "Counterparty fixture with binding outcome unrecognised_scope; its generation recipe is independent of the asserted wire scope.",
+      "input": {
+        "action_id": "act_counterparty_unrecognised_scope",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp",
+          "scope": "unsupported_fixture_scope"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns unrecognised_scope.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": null,
+        "binding_label": "unrecognised_scope",
+        "failure_class": "unverifiable"
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_unrecognised_scope\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"unsupported_fixture_scope\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "8f008eafa83e78228aa107d8d819d866f2ca94a017cdd01dd168ee2c19c2ad09"
     }
   ]
 }

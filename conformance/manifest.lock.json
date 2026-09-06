@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-fingerprint-corpus",
-  "corpus_version": 6,
+  "corpus_version": 7,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -31,6 +31,11 @@
       "version": 5,
       "files": 3,
       "digest": "1ef6d34d3f9515f2442218e8bf1e1370dd3b0cf1cb1dd143e121b0ff8384732f"
+    },
+    {
+      "version": 6,
+      "files": 3,
+      "digest": "1857cd565c62e99146389a70ef135378d9ed2eed3fdc123d5ab839d6fc568094"
     }
   ],
   "files": [
@@ -41,13 +46,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "846f9beba2cb837e16c83c857acba239b379815a008d918ada737318136784a0",
-      "bytes": 6815
+      "sha256": "c8469c5acc7217b82df7ba11515c5765eec805412552527c5c0d1bcc73e702ca",
+      "bytes": 7279
     },
     {
       "path": "vectors.json",
-      "sha256": "7beebf7661c02b1e70045aa956ba49836c968edd9b24ecd4ebfb893cca7c6341",
-      "bytes": 37923
+      "sha256": "958db758bcbae35879fe869edd21693355d634f79ade36006d92abd1a9004faf",
+      "bytes": 53670
     }
   ],
   "signing": {
@@ -65,5 +70,5 @@
     },
     "known_answer_message_note": "the 32-byte SHA-256 digest of the canonical bytes of vector 'minimal_read': the hash is what ML-DSA-65 signs"
   },
-  "digest": "1857cd565c62e99146389a70ef135378d9ed2eed3fdc123d5ab839d6fc568094"
+  "digest": "1613e731567a8e65857eb3abe55e2c88203d9d94e02a122ff3cf131ef58e9190"
 }

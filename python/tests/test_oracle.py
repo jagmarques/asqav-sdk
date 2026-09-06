@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from asqav.verifier.oracle import VerificationContext
 from asqav.verifier.oracle import ADAPTERS, crypto, verify
 from asqav.verifier.oracle.adapters.aerf import AerfAdapter
 from asqav.verifier.oracle.adapters.agentreceipts import AgentReceiptsAdapter
@@ -240,7 +241,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 79
+    assert len(results) == 83
     # asqav-05 (unverified) upgrades to verified when dilithium-py is present.
     def _tol(r):
         return r.ok or (
@@ -1189,7 +1190,8 @@ def test_every_vector_reports_its_pinned_first_bad_edge() -> None:
             got = "__ingest_error__"
         else:
             got = verify(
-                receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor
+                receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor,
+                context=VerificationContext(_runner_load(vec / "originating_envelope.json")),
             ).first_failing_edge
         want = table[entry["dir"]]
         if got != want:
@@ -1219,6 +1221,7 @@ def test_an_edge_is_named_for_exactly_the_unverified_verdicts() -> None:
                 ADAPTERS,
                 key_provider=_runner_key_provider(vec, entry["format"]),
                 predecessor=_runner_load(vec / "predecessor.json"),
+                context=VerificationContext(_runner_load(vec / "originating_envelope.json")),
             )
         except Exception:
             continue  # terminal at ingest; never produces a VerifyResult
@@ -1248,6 +1251,7 @@ def test_the_named_edge_is_an_axis_the_report_actually_carries() -> None:
                 ADAPTERS,
                 key_provider=_runner_key_provider(vec, entry["format"]),
                 predecessor=_runner_load(vec / "predecessor.json"),
+                context=VerificationContext(_runner_load(vec / "originating_envelope.json")),
             )
         except Exception:
             continue

@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 20,
+  "corpus_version": 21,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -103,13 +103,18 @@
       "version": 19,
       "files": 269,
       "digest": "9a7dd7b2b9884ca0d959e85d6941413c77ca0ace6da10cb5a95bc6f1fa0629d8"
+    },
+    {
+      "version": 20,
+      "files": 289,
+      "digest": "c7b1986457f64202da08be152edfcb91f5a33c4464f6838b93182f59663763b7"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "69a8a270ca655b3e8f5cf8f1237ca43f257871169558f28443f5747d3aa76eb3",
-      "bytes": 8964
+      "sha256": "554a4675eb2677c8e86381eca1151d56ccee1c9064149f49480431a101c4186f",
+      "bytes": 9594
     },
     {
       "path": "UPSTREAM.md",
@@ -1408,8 +1413,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "bfa5054bf2102a9ae53e04548daa3e098f3cae119921aca8703e42844c4a86d2",
-      "bytes": 27614
+      "sha256": "b8a388ad77925168df601596f9931927661825be1cf0516a23e5533637c1e920",
+      "bytes": 28768
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1582,5 +1587,5 @@
       ]
     }
   },
-  "digest": "c7b1986457f64202da08be152edfcb91f5a33c4464f6838b93182f59663763b7"
+  "digest": "a464a151b7faf2b75c36dbd9dc3ff12230f59738474b604307c15064558e2cd4"
 }

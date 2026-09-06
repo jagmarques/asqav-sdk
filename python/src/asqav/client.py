@@ -3512,8 +3512,8 @@ class ComplianceReceiptVerification:
     show the user which clause failed. Codes mirror the cloud's
     `validation_label` vocabulary in `routes/verify.py`.
 
-    `counterparty_binding_verified` is None when the receipt carries no
-    ``counterparty_binding`` field; True/False when the originating
+    `counterparty_binding_verified` is None when the binding is absent or its
+    scope/origin bytes are unavailable; True/False when the originating
     envelope was supplied and the recomputed digest was compared.
     """
 
@@ -3526,44 +3526,8 @@ class ComplianceReceiptVerification:
     counterparty_binding_verified: bool | None = None
 
 
-def verify_compliance_receipt(
-    envelope: dict[str, Any],
-    *,
-    predecessor_envelope: dict[str, Any] | None = None,
-    originating_envelope: dict[str, Any] | None = None,
-    now: float | None = None,
-) -> ComplianceReceiptVerification:
-    """Local sanity-check on a Compliance Receipt envelope: REQUIRED fields, namespace,
-    freshness skew, chain-link rederivation, and counterparty binding when supplied.
-    Cloud is authoritative for signature checks, policy_digest resolution, and anchors.
-    """
+def _compliance_receipt_skew(signed: dict[str, Any], now: float | None, errors: list[str]) -> bool:
     from datetime import datetime
-
-    from ._jcs import canonical_json
-    from .replay import FIRST_RECEIPT_SEED
-
-    errors: list[str] = []
-
-    # Canonical wire envelope {payload, signature, anchors}: the signed fields
-    # live inside the payload member; flat bundles keep them top-level.
-    _inner = envelope.get("payload")
-    if isinstance(_inner, dict) and ("signature" in envelope or "anchors" in envelope):
-        signed = _inner
-    else:
-        signed = envelope
-
-    # 1. REQUIRED fields present.
-    missing = [f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in signed]
-    fields_present = not missing
-    if missing:
-        errors.append(f"missing_fields:{','.join(missing)}")
-
-    # 2. ``type`` namespace. Wire field is ``type``; ``receipt_type`` accepted too.
-    rt = signed.get("type") or signed.get("receipt_type")
-    receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
-    if not receipt_type_in_namespace:
-        errors.append("invalid_receipt_type")
-
     # 3. 300-second skew bound.
     issued_at = signed.get("issued_at") or signed.get("signed_at")
     skew_within_bound = False
@@ -3585,7 +3549,14 @@ def verify_compliance_receipt(
                 errors.append("signed_at_skew")
         except (ValueError, TypeError):
             errors.append("invalid_issued_at")
+    return skew_within_bound
 
+
+def _compliance_receipt_chain(
+    envelope: dict[str, Any], predecessor_envelope: dict[str, Any] | None, errors: list[str],
+) -> bool:
+    from ._jcs import canonical_json
+    from .replay import FIRST_RECEIPT_SEED
     # 4. Chain link rederives. Only checked when caller supplies the
     # predecessor envelope; first-record seeds skip this.
     chain_link_rederives = True
@@ -3607,62 +3578,38 @@ def verify_compliance_receipt(
             chain_link_rederives = False
             errors.append("chain_link_mismatch")
     # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
+    return chain_link_rederives
 
-    # 5. Conditional MUSTs: sandbox_state, reason on deny/rate_limit, anchors[].value.
-    _payload = signed
-    if isinstance(_payload, dict):
-        _sandbox = _payload.get("sandbox_state")
-        if _sandbox is not None and _sandbox not in SANDBOX_STATE_NAMESPACE:
-            errors.append("invalid_sandbox_state")
-        _decision = _payload.get("decision")
-        if _decision in {"deny", "rate_limit"} and not _payload.get("reason"):
-            errors.append("missing_reason_on_deny_or_rate_limit")
-    _anchors = envelope.get("anchors")
-    if isinstance(_anchors, list):
-        for _i, _entry in enumerate(_anchors):
-            if not isinstance(_entry, dict):
-                continue
-            if not _entry.get("value"):
-                errors.append(f"anchor_missing_value:{_i}")
 
+def _compliance_receipt_counterparty(
+    envelope: dict[str, Any], originating_envelope: dict[str, Any] | None, errors: list[str],
+) -> tuple[bool, bool | None]:
     counterparty_binding_verified: bool | None = None
     payload_obj = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
-    has_binding = isinstance(payload_obj, dict) and isinstance(
-        payload_obj.get("counterparty_binding"), dict
-    )
-    if has_binding and originating_envelope is not None:
+    has_binding = isinstance(payload_obj, dict) and "counterparty_binding" in payload_obj
+    if has_binding:
         from .counterparty import verify_counterparty_binding
 
         binding_obj = payload_obj["counterparty_binding"]
         has_full_envelope = "payload" in envelope
-        expects_ack_kid = isinstance(binding_obj.get("expect_ack_from"), str)
-        if expects_ack_kid and not has_full_envelope:
+        ack_env = envelope if has_full_envelope else {"payload": payload_obj}
+        outcome = verify_counterparty_binding(ack_env, originating_envelope)
+        expects_ack_kid = (
+            isinstance(binding_obj, dict) and isinstance(binding_obj.get("expect_ack_from"), str)
+        )
+        if outcome.label == "kid_mismatch" and expects_ack_kid and not has_full_envelope:
             # Payload-only input cannot supply ``signature.kid``; surface a
             # clear outcome instead of a silent kid-axis false negative.
             counterparty_binding_verified = False
             errors.append("counterparty_binding_requires_full_envelope")
         else:
-            ack_env = envelope if has_full_envelope else {"payload": payload_obj}
-            outcome = verify_counterparty_binding(ack_env, originating_envelope)
             counterparty_binding_verified = outcome.valid
             if not outcome.valid:
                 errors.append(f"counterparty_binding_{outcome.label}")
+    return has_binding, counterparty_binding_verified
 
-    # Reject a malformed authorized_under_mandate (lockstep with false_mandate_attestation_guard).
-    if isinstance(_payload, dict):
-        _aum = _payload.get("authorized_under_mandate")
-        if _aum is not None:
-            _scope_digest = _aum.get("scope_digest") if isinstance(_aum, dict) else None
-            if (
-                not isinstance(_aum, dict)
-                or not _aum.get("mandate_id")
-                or not _aum.get("issuer_id")
-                or _aum.get("verified") is not True
-                or not isinstance(_scope_digest, str)
-                or not _SHA256_HEX_RE.match(_scope_digest)
-            ):
-                errors.append("false_mandate_attestation_guard")
 
+def _compliance_receipt_controls(_payload: dict[str, Any], errors: list[str]) -> None:
     # Reject a malformed controls_evaluated (lockstep with false_control_attestation_guard).
     if isinstance(_payload, dict):
         _ce = _payload.get("controls_evaluated")
@@ -3694,6 +3641,86 @@ def verify_compliance_receipt(
                     ):
                         errors.append("false_control_attestation_guard")
 
+
+def _compliance_receipt_mandate(_payload: dict[str, Any], errors: list[str]) -> None:
+    # Reject a malformed authorized_under_mandate (lockstep with false_mandate_attestation_guard).
+    if isinstance(_payload, dict):
+        _aum = _payload.get("authorized_under_mandate")
+        if _aum is not None:
+            _scope_digest = _aum.get("scope_digest") if isinstance(_aum, dict) else None
+            if (
+                not isinstance(_aum, dict)
+                or not _aum.get("mandate_id")
+                or not _aum.get("issuer_id")
+                or _aum.get("verified") is not True
+                or not isinstance(_scope_digest, str)
+                or not _SHA256_HEX_RE.match(_scope_digest)
+            ):
+                errors.append("false_mandate_attestation_guard")
+
+
+def verify_compliance_receipt(
+    envelope: dict[str, Any],
+    *,
+    predecessor_envelope: dict[str, Any] | None = None,
+    originating_envelope: dict[str, Any] | None = None,
+    now: float | None = None,
+) -> ComplianceReceiptVerification:
+    """Local sanity-check on a Compliance Receipt envelope: REQUIRED fields, namespace,
+    freshness skew, chain-link rederivation, and counterparty binding when supplied.
+    Cloud is authoritative for signature checks, policy_digest resolution, and anchors.
+    """
+    errors: list[str] = []
+
+    # Canonical wire envelope {payload, signature, anchors}: the signed fields
+    # live inside the payload member; flat bundles keep them top-level.
+    _inner = envelope.get("payload")
+    if isinstance(_inner, dict) and ("signature" in envelope or "anchors" in envelope):
+        signed = _inner
+    else:
+        signed = envelope
+
+    # 1. REQUIRED fields present.
+    missing = [f for f in _COMPLIANCE_REQUIRED_FIELDS if f not in signed]
+    fields_present = not missing
+    if missing:
+        errors.append(f"missing_fields:{','.join(missing)}")
+
+    # 2. ``type`` namespace. Wire field is ``type``; ``receipt_type`` accepted too.
+    rt = signed.get("type") or signed.get("receipt_type")
+    receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
+    if not receipt_type_in_namespace:
+        errors.append("invalid_receipt_type")
+
+    skew_within_bound = _compliance_receipt_skew(signed, now, errors)
+
+    chain_link_rederives = _compliance_receipt_chain(envelope, predecessor_envelope, errors)
+
+    # 5. Conditional MUSTs: sandbox_state, reason on deny/rate_limit, anchors[].value.
+    _payload = signed
+    if isinstance(_payload, dict):
+        _sandbox = _payload.get("sandbox_state")
+        if _sandbox is not None and _sandbox not in SANDBOX_STATE_NAMESPACE:
+            errors.append("invalid_sandbox_state")
+        _decision = _payload.get("decision")
+        if _decision in {"deny", "rate_limit"} and not _payload.get("reason"):
+            errors.append("missing_reason_on_deny_or_rate_limit")
+    _anchors = envelope.get("anchors")
+    if isinstance(_anchors, list):
+        for _i, _entry in enumerate(_anchors):
+            if not isinstance(_entry, dict):
+                continue
+            if not _entry.get("value"):
+                errors.append(f"anchor_missing_value:{_i}")
+
+    has_binding, counterparty_binding_verified = _compliance_receipt_counterparty(
+        envelope, originating_envelope, errors,
+    )
+
+    _compliance_receipt_mandate(_payload, errors)
+
+    _compliance_receipt_controls(_payload, errors)
+
     # Conditional-MUST failures surface through `errors` and `valid` only (no per-axis flag).
     _conditional_must_fail = any(
         e.startswith(
@@ -3713,7 +3740,7 @@ def verify_compliance_receipt(
         and skew_within_bound
         and chain_link_rederives
         and not _conditional_must_fail
-        and (counterparty_binding_verified is not False)
+        and (not has_binding or counterparty_binding_verified is True)
     )
     return ComplianceReceiptVerification(
         valid=valid,

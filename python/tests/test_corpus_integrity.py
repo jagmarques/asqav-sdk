@@ -57,6 +57,11 @@ def _vectors() -> dict[str, dict]:
 #: SHA-256 of each vector's canonical bytes, verbatim from the published file.
 #: Pinning this pins ``canonical`` transitively: no other byte string has this digest.
 PINNED_SHA256 = {
+    "counterparty_binding_origin_two_anchors": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4",
+    "counterparty_binding_scope_minus_anchors": "e6a6b09958c64686de4ef7dd2494690ee0ed7d039da92e2e78b550190d5fe931",
+    "counterparty_binding_anchors_included_rejected": "85004158dcf9345ef58eed4178bbfea481a38f0b8cb2a1970785d892980695dc",
+    "counterparty_binding_legacy_scope_absent": "9ea6a8cfad32136b496f8aff707dedf53e40f7bc13499f23d8acf598ced6e945",
+    "counterparty_binding_unrecognised_scope": "8f008eafa83e78228aa107d8d819d866f2ca94a017cdd01dd168ee2c19c2ad09",
     "minimal_read": "991033e23a3e0939c258e10f2f8f88183d9bcdb08de62ef02446e11e0819c671",
     "tool_call_with_counterparty":
         "a6c39c3b6e09761a141148c0862edbeaeb59642b4e0a1e4a85d6fba63f634ff4",
@@ -89,7 +94,7 @@ PINNED_SHA256 = {
     "counterparty_binding_transport_label_non_trust":
         "58c787ae9c9e9ed9bf4aeaab066f1a3c6eadade8bc5db0a4d60542390ec7097d",
     "counterparty_binding_missing_envelope_hash_rejected":
-        "6fee77a7aa44a4f17c0df1830ad520c2679e581e9b4fa24693b62fa7c11b9b4d",
+        "fdf867b3c2cc86acd1423818ce4b56e8e0f17b5a4ce1862444dd67f7cbbe7ed3",
     "receipt_v2_signer_canary": "dbb9fa8b319830814d2e6cc5b9c6a33f9c8f45e3223f75096d9c520aa9be55d4",
     "asqav-24-jcs-astral-key-order":
         "425159f5c1f0575fbcbf9d05a8f60cde3d040eae5166aa2136657564048651b6",
@@ -104,6 +109,11 @@ PINNED_SHA256 = {
 #: Length of each canonical string, so a published ``canonical`` cannot be swapped
 #: for a different one that happens to carry the pinned digest in its ``sha256``.
 PINNED_CANONICAL_LENGTH = {
+    "counterparty_binding_origin_two_anchors": 985,
+    "counterparty_binding_scope_minus_anchors": 912,
+    "counterparty_binding_anchors_included_rejected": 918,
+    "counterparty_binding_legacy_scope_absent": 879,
+    "counterparty_binding_unrecognised_scope": 914,
     "minimal_read": 40,
     "tool_call_with_counterparty": 212,
     "traced_child_action": 130,
@@ -123,7 +133,7 @@ PINNED_CANONICAL_LENGTH = {
     "counterparty_binding_base64url_tolerance": 830,
     "counterparty_binding_opaque_receipt_ref": 836,
     "counterparty_binding_transport_label_non_trust": 855,
-    "counterparty_binding_missing_envelope_hash_rejected": 734,
+    "counterparty_binding_missing_envelope_hash_rejected": 767,
     "receipt_v2_signer_canary": 873,
     "asqav-24-jcs-astral-key-order": 13,
     "asqav-24-jcs-astral-key-order-codepoint-rejected": 13,
@@ -134,6 +144,10 @@ PINNED_CANONICAL_LENGTH = {
 #: The wire ``counterparty_binding.envelope_hash`` string, exactly as published,
 #: in the alphabet each vector exercises.
 PINNED_ENVELOPE_HASH = {
+    "counterparty_binding_scope_minus_anchors": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_anchors_included_rejected": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+    "counterparty_binding_legacy_scope_absent": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+    "counterparty_binding_unrecognised_scope": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_happy_path": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_base64url_tolerance": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_opaque_receipt_ref": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
@@ -143,6 +157,26 @@ PINNED_ENVELOPE_HASH = {
 
 #: The non-wire renderings of the same digest carried under ``expected``.
 PINNED_ENVELOPE_HASH_RENDERINGS = {
+    "counterparty_binding_scope_minus_anchors": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_anchors_included_rejected": {
+        "envelope_hash_base64": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+        "envelope_hash_hex": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4"
+    },
+    "counterparty_binding_legacy_scope_absent": {
+        "envelope_hash_base64": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
+        "envelope_hash_hex": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4"
+    },
+    "counterparty_binding_unrecognised_scope": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_origin_two_anchors": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_base64url": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8="
+    },
     "counterparty_binding_happy_path": {
         "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
         "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
@@ -319,9 +353,12 @@ def test_every_counterparty_digest_declares_its_scope() -> None:
     for name, vector in _vectors().items():
         binding = vector.get("input", {}).get("counterparty_binding")
         if isinstance(binding, dict) and "envelope_hash" in binding:
-            assert binding.get("scope") == "envelope_minus_anchors", (
-                f"{name}: carries an envelope_hash with no declared scope"
-            )
+            if name == "counterparty_binding_legacy_scope_absent":
+                assert "scope" not in binding  # Named historical absence fixture.
+            elif name == "counterparty_binding_unrecognised_scope":
+                assert binding["scope"] == "unsupported_fixture_scope"  # Named unsupported-scope fixture.
+            else:
+                assert binding.get("scope") == "envelope_minus_anchors", name
 
 
     # Every derived digest must name the envelope it was taken over, so the corpus is

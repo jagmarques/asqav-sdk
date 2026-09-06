@@ -591,5 +591,36 @@
     "failure_class": "unverifiable",
     "reason_code": "malformed_member",
     "notes": "asqav-17's receipt with the anchors member present as a JSON null: a third spelling of no anchors found in the wild, and a malformed one - the structure axis FAILs, naming the member and the shape, and the verdict reads unverified/unverifiable rather than reading null as absent. Nothing cryptographic was disproved, so the class is unverifiable, not invalid (same family as duplicate_member: the receipt's own bytes are malformed)."
+  },
+  {
+    "dir": "asqav-31-counterparty-scope-match",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Signed acknowledgment with binding result matches; signature and local TSA verify."
+  },
+  {
+    "dir": "asqav-32-counterparty-anchors-included",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_mismatch",
+    "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
+    "dir": "asqav-33-counterparty-scope-absent",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_legacy_scope",
+    "notes": "Signed acknowledgment with binding result legacy_scope; signature and local TSA verify.",
+    "failure_class": "unverifiable"
+  },
+  {
+    "dir": "asqav-34-counterparty-scope-unknown",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_unrecognised_scope",
+    "notes": "Signed acknowledgment with binding result unrecognised_scope; signature and local TSA verify.",
+    "failure_class": "unverifiable"
   }
 ]
