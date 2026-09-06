@@ -1621,13 +1621,6 @@ def _prepare_sign_context(
     *,
     action_type: str,
     context: dict[str, Any] | None,
-    context_schema: 'dict[str, Any] | Callable[[dict[str, Any]], None] | None' = None,
-    system_prompt_hash: str | None = None,
-    model_params: dict | None = None,
-    tool_inputs_hash: str | None = None,
-    trace_id: str | None = None,
-    parent_id: str | None = None,
-    counterparty: dict[str, Any] | None = None,
     tool_name: str | None = None,
     model_name: str | None = None,
 ) -> tuple[str, dict[str, Any] | None]:
@@ -1635,7 +1628,6 @@ def _prepare_sign_context(
 
     Shared with the PreToolUse gate so its digest matches the POSTed body.
     """
-    action_type = resolve_pattern(action_type)
     if (
         system_prompt_hash
         or model_params
@@ -1691,7 +1683,7 @@ def _prepare_sign_context(
     if _detector_records:
         # Stamp verdicts into context so they travel inside the signed body.
         context = dict(context) if context else {}
-        context["_detectors"] = _detector_records
+          context["_detectors"] = _detector_records
     return action_type, context
 
 
