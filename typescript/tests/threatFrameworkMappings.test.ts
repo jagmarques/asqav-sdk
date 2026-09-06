@@ -1,5 +1,5 @@
 /**
- * SDK parity for the seven threat-framework taxonomy fields: each forwarded verbatim, list
+ * SDK parity for the threat-framework taxonomy fields: each forwarded verbatim, list
  * fields validated as non-empty string arrays (<=128 chars), rfc3161Timestamp as base64.
  */
 
@@ -10,6 +10,7 @@ import { Agent, _resetForTests, init } from "../src/index.js";
 const GOOD_MITRE_TECHNIQUES = ["T1059", "T1078"];
 const GOOD_MITRE_ATLAS = ["AML.T0051", "AML.T0043"];
 const GOOD_OWASP_LLM = ["LLM01", "LLM02"];
+const GOOD_OWASP_AGENTIC = ["ASI01", "ASI10"];
 const GOOD_NIST_AI_RMF = ["GOVERN-1.1", "MEASURE-2.7"];
 const GOOD_ISO_42001 = ["A.6.2.6"];
 const GOOD_EU_AI_ACT = ["Article-12", "Article-15"];
@@ -65,6 +66,7 @@ describe("threat-framework taxonomy wire forwarding", () => {
     ["mitre_techniques", "mitreTechniques", GOOD_MITRE_TECHNIQUES],
     ["mitre_atlas", "mitreAtlas", GOOD_MITRE_ATLAS],
     ["owasp_llm_top10", "owaspLlmTop10", GOOD_OWASP_LLM],
+    ["owasp_agentic_top10", "owaspAgenticTop10", GOOD_OWASP_AGENTIC],
     ["nist_ai_rmf", "nistAiRmf", GOOD_NIST_AI_RMF],
     ["iso_42001", "iso42001", GOOD_ISO_42001],
     ["eu_ai_act_articles", "euAiActArticles", GOOD_EU_AI_ACT],
@@ -92,7 +94,7 @@ describe("threat-framework taxonomy wire forwarding", () => {
     expect(body.rfc3161_timestamp).toBe(GOOD_RFC3161_B64);
   });
 
-  it("forwards all seven fields together", async () => {
+  it("forwards all fields together", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(okBody()));
     await fakeAgent().sign({
       actionType: "api:call",
@@ -101,6 +103,7 @@ describe("threat-framework taxonomy wire forwarding", () => {
       mitreTechniques: GOOD_MITRE_TECHNIQUES,
       mitreAtlas: GOOD_MITRE_ATLAS,
       owaspLlmTop10: GOOD_OWASP_LLM,
+      owaspAgenticTop10: GOOD_OWASP_AGENTIC,
       nistAiRmf: GOOD_NIST_AI_RMF,
       iso42001: GOOD_ISO_42001,
       euAiActArticles: GOOD_EU_AI_ACT,
@@ -110,13 +113,14 @@ describe("threat-framework taxonomy wire forwarding", () => {
     expect(body.mitre_techniques).toEqual(GOOD_MITRE_TECHNIQUES);
     expect(body.mitre_atlas).toEqual(GOOD_MITRE_ATLAS);
     expect(body.owasp_llm_top10).toEqual(GOOD_OWASP_LLM);
+    expect(body.owasp_agentic_top10).toEqual(GOOD_OWASP_AGENTIC);
     expect(body.nist_ai_rmf).toEqual(GOOD_NIST_AI_RMF);
     expect(body.iso_42001).toEqual(GOOD_ISO_42001);
     expect(body.eu_ai_act_articles).toEqual(GOOD_EU_AI_ACT);
     expect(body.rfc3161_timestamp).toBe(GOOD_RFC3161_B64);
   });
 
-  it("omits all seven fields from the wire when caller passes none", async () => {
+  it("omits all fields from the wire when caller passes none", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(okBody()));
     await fakeAgent().sign({
       actionType: "api:call",
@@ -128,6 +132,7 @@ describe("threat-framework taxonomy wire forwarding", () => {
       "mitre_techniques",
       "mitre_atlas",
       "owasp_llm_top10",
+      "owasp_agentic_top10",
       "nist_ai_rmf",
       "iso_42001",
       "eu_ai_act_articles",
@@ -140,9 +145,33 @@ describe("threat-framework taxonomy wire forwarding", () => {
 
 describe("threat-framework taxonomy validation", () => {
   it.each([
+    "ASI00", "ASI11", "ASI1", "asi01", "ASI01:2026", "ASI01-2026",
+    "ASI01\n", " ASI01", "ASI01 ", "", 42, true, null, {}, ["ASI01"], "A".repeat(129),
+  ].map(value => ({ value })))("rejects invalid agentic identifier $value before HTTP", async ({ value }) => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(okBody()));
+    await expect(fakeAgent().sign({
+      actionType: "api:call", context: {}, owaspAgenticTop10: [value as any],
+    })).rejects.toThrow("owasp_agentic_top10_entry_invalid");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])("serializes bare agentic ids with compliance=%s", async complianceMode => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(okBody()));
+    const values = Array.from({ length: 10 }, (_, n) => `ASI${String(n + 1).padStart(2, "0")}`).concat("ASI01");
+    await fakeAgent().sign({ actionType: "api:call", context: {}, owaspAgenticTop10: values,
+      owaspLlmTop10: ["LLM01"], complianceMode });
+    const body = readBody(spy);
+    // TypeScript forwards populated taxonomy fields in both compliance modes.
+    expect(body.owasp_llm_top10).toEqual(["LLM01"]);
+    expect(body.owasp_agentic_top10).toEqual(values);
+    expect(body.framework_mappings_self_declared).toBeUndefined();
+  });
+
+  it.each([
     ["mitre_techniques", "mitreTechniques"],
     ["mitre_atlas", "mitreAtlas"],
     ["owasp_llm_top10", "owaspLlmTop10"],
+    ["owasp_agentic_top10", "owaspAgenticTop10"],
     ["nist_ai_rmf", "nistAiRmf"],
     ["iso_42001", "iso42001"],
     ["eu_ai_act_articles", "euAiActArticles"],
