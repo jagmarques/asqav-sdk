@@ -39,6 +39,16 @@ console.log(sig.verificationUrl);      // anyone can open this
 One install, one `govern`, one `sign`. `init({ apiKey })` + `Agent.create({ name })` remain
 available when you want control over `algorithm`, `capabilities` and other agent options.
 
+Each Agent keeps the API key and base URL selected when its creation or retrieval starts.
+Its signing mode and a copy of the supplied salt stay with it too. A later `init` or `govern`
+configures future Agents; it does not retarget an existing Agent, even during an awaited operation.
+To rotate a key, call `init` with the new configuration and obtain a new Agent with `Agent.get(id)`.
+Hooks and detector registrations continue to apply to existing Agents when they sign.
+
+Module helpers such as `request` and `verifySignature` use the current default configuration.
+Integrations that create an Agent lazily through the static API also use the default at that time;
+storing configuration in another object does not give that object an isolated SDK connection.
+
 ## Verify it without an account
 
 This is the point of the whole thing — the receipt stands on its own:
