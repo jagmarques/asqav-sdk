@@ -589,6 +589,10 @@ export interface SignOptions {
    * numeric without `snapshotSource` is rejected so it is never read as an Asqav score. */
   riskSnapshot?: RiskSnapshot;
 
+  /** Invocation pointer (`invocation_ref`), producer-asserted and unfenced:
+   * names one invocation only, promises nothing about uniqueness or exactly-once. */
+  invocationRef?: string;
+
   /** Code-authorship receipt: opaque repository pointer, REQUIRED on
    * `protectmcp:lifecycle:code_authorship`. Recorded, never resolved by Asqav. */
   repoRef?: string;
@@ -1672,6 +1676,8 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "finding_ref", read: (o) => o.findingRef },
   { wire: "approval_ref", read: (o) => o.approvalRef },
   { wire: "risk_snapshot", read: (o) => riskSnapshotToWire(o.riskSnapshot) },
+  // Unfenced invocation pointer (see SignOptions comment).
+  { wire: "invocation_ref", read: (o) => o.invocationRef },
   // Code-authorship receipt extension fields (fenced to the receipt type).
   { wire: "repo_ref", read: (o) => o.repoRef },
   { wire: "commit_sha", read: (o) => o.commitSha },
