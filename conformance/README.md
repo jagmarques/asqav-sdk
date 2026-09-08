@@ -115,4 +115,4 @@ deterministic known-answer signature:
 
 ## License
 
-These vectors are public domain (CC0).
+The [initial corpus README](https://github.com/jagmarques/asqav-sdk/blob/0afe7d803026e0d39f18a0986b534f1dedd0dc93/conformance/README.md) states: "These vectors are public domain (CC0)." The corpus license notice names Apache License 2.0. [NOTICE](NOTICE) preserves both grant records and the Asqav copyright application; [LICENSE](LICENSE) contains the standard Apache text. This update does not withdraw existing grants or declare an exclusive precedence between them. Third-party fixtures retain their [upstream licenses and notices](../verifier/conformance-vectors/UPSTREAM.md).
