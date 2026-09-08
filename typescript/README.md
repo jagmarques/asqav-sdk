@@ -220,7 +220,7 @@ The full list is in the IETF profile under "What a Compliance Receipt Does Not P
 
 ## Requirements
 
-Node 20+. Uses the built-in `fetch`. Zero native dependencies.
+Node 20.19 through 20.x, or Node 22.12 and later. Uses the built-in `fetch`. Zero native dependencies.
 
 ## Standards
 
