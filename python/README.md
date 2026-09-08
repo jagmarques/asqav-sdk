@@ -125,6 +125,7 @@ sig = agent.sign(
     risk_class="high",                 # low | medium | high | unknown
     issuer_id="legal:Acme GmbH",       # LEI, EIN, CIK or W3C DID
     iteration_id="task-2026-Q2-4821",  # logical task, distinct from session
+    invocation_ref="toolu_abc123",  # one tool invocation; no uniqueness, de-dup, or exactly-once
 )
 ```
 
