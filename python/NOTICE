@@ -1,0 +1,13 @@
+Asqav Python distribution
+
+The SDK uses the Elastic License 2.0 terms in LICENSE.
+The file-level exception is asqav/verifier/verify_receipt.py
+(src/asqav/verifier/verify_receipt.py in the source distribution), whose
+header specifies the Apache License 2.0 and retains this notice:
+
+Copyright 2026 Asqav
+
+The Apache terms for that file are in licenses/Apache-2.0.txt. The broader
+verifier package and its oracle remain under the SDK's Elastic terms.
+The distribution's combined license expression describes these file scopes;
+it does not offer a choice of licenses for the SDK.
