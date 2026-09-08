@@ -90,6 +90,18 @@ jobs:
       - run: ruff check python/src
       - run: pytest python/tests -v --tb=short --continue-on-collection-errors
 
+  wire-vocabulary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: python -m pip install -r tools/wire-vocabulary-requirements.txt
+      - run: python tools/sync_wire_vocabulary.py --check
+      - run: python -m unittest discover -s tests -p test_wire_vocabulary_generation.py
+
   python-distributions:
     needs: changes
     if: needs.changes.outputs.python == 'true'
@@ -215,11 +227,12 @@ jobs:
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, python-distributions, typescript, verifier, actions]
+    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
+          [[ "${{ needs.wire-vocabulary.result }}" == "success" ]] || exit 1
           echo "python=${{ needs.python.result }}"
           echo "python-distributions=${{ needs.python-distributions.result }}"
           echo "typescript=${{ needs.typescript.result }}"
