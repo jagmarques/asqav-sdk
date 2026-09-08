@@ -1089,75 +1089,7 @@ function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown>
  * Fail-fast vocabulary checks before the HTTP roundtrip; the cloud stays source of truth.
  * Throws AsqavError on the first offending field.
  */
-function validateSignOptions(options: SignOptions, complianceMode: boolean): void {
-  if (
-    options.receiptType !== undefined
-    && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)
-  ) {
-    throw new AsqavError(
-      `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
-    );
-  }
-  if (
-    (options.policyDecision === "deny" || options.policyDecision === "rate_limit")
-    && !options.reason
-  ) {
-    throw new AsqavError(
-      "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
-    );
-  }
-  if (
-    options.sandboxState !== undefined
-    && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
-  ) {
-    throw new AsqavError(
-      `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
-    );
-  }
-  if (
-    options.captureTopology !== undefined
-    && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
-  ) {
-    throw new AsqavError(
-      `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
-    );
-  }
-  // Rule 8 lockstep with the cloud SignRequest validator: passive_telemetry
-  // pairs only with protectmcp:observation or protectmcp:observation:result_bound.
-  if (
-    options.captureTopology === "passive_telemetry"
-    && options.receiptType !== undefined
-    && options.receiptType !== "protectmcp:observation"
-    && options.receiptType !== "protectmcp:observation:result_bound"
-  ) {
-    const offending = options.receiptType.split(":").slice(1).join(":") || options.receiptType;
-    throw new AsqavError(
-      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :${offending} (rule 8)`,
-    );
-  }
-  // Rule 9 lockstep with the cloud SignRequest cross-field validator.
-  if (
-    options.receiptType === "protectmcp:lifecycle:configuration_change"
-    && options.configManifestDigest === undefined
-  ) {
-    throw new AsqavError(
-      "configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).",
-    );
-  }
-  if (
-    options.receiptType === "protectmcp:observation:result_bound"
-    && options.resultDigest === undefined
-  ) {
-    throw new AsqavError(
-      "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
-    );
-  }
-  // Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
-  if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
-    throw new AsqavError(
-      "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
-    );
-  }
+function validateSignExtensions(options: SignOptions): void {
   // Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
   const _digestChecks: Array<[string, string | undefined]> = [
     ["config_manifest_digest", options.configManifestDigest],
@@ -1243,6 +1175,78 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       );
     }
   }
+}
+
+function validateSignOptions(options: SignOptions, complianceMode: boolean): void {
+  if (
+    options.receiptType !== undefined
+    && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)
+  ) {
+    throw new AsqavError(
+      `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    (options.policyDecision === "deny" || options.policyDecision === "rate_limit")
+    && !options.reason
+  ) {
+    throw new AsqavError(
+      "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
+    );
+  }
+  if (
+    options.sandboxState !== undefined
+    && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
+  ) {
+    throw new AsqavError(
+      `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    options.captureTopology !== undefined
+    && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
+  ) {
+    throw new AsqavError(
+      `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
+    );
+  }
+  // Rule 8 lockstep with the cloud SignRequest validator: passive_telemetry
+  // pairs only with protectmcp:observation or protectmcp:observation:result_bound.
+  if (
+    options.captureTopology === "passive_telemetry"
+    && options.receiptType !== undefined
+    && options.receiptType !== "protectmcp:observation"
+    && options.receiptType !== "protectmcp:observation:result_bound"
+  ) {
+    const offending = options.receiptType.split(":").slice(1).join(":") || options.receiptType;
+    throw new AsqavError(
+      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :${offending} (rule 8)`,
+    );
+  }
+  // Rule 9 lockstep with the cloud SignRequest cross-field validator.
+  if (
+    options.receiptType === "protectmcp:lifecycle:configuration_change"
+    && options.configManifestDigest === undefined
+  ) {
+    throw new AsqavError(
+      "configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).",
+    );
+  }
+  if (
+    options.receiptType === "protectmcp:observation:result_bound"
+    && options.resultDigest === undefined
+  ) {
+    throw new AsqavError(
+      "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
+    );
+  }
+  // Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
+  if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
+    throw new AsqavError(
+      "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
+    );
+  }
+  validateSignExtensions(options);
   validateWitnessPolicy(options.witnessPolicy);
   validateIncidentClass(options.incidentClass);
   // Risk-acceptance receipt: shape + namespace fence + no-policy opt-out +
