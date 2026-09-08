@@ -21,6 +21,7 @@ jobs:
           filters: |
             python:
               - 'python/**'
+              - 'LICENSE'
               - 'conformance/**'
               # The shared case tables gate both verifiers, so editing one must run
               # the jobs that consume it or the gate could be weakened unseen.
@@ -88,6 +89,22 @@ jobs:
       - run: pip install -e "./python[all,dev]" pytest ruff
       - run: ruff check python/src
       - run: pytest python/tests -v --tb=short --continue-on-collection-errors
+
+  python-distributions:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: python -m pip install build
+      - run: cmp LICENSE python/LICENSE
+      # The default build creates a source archive, then builds its wheel.
+      - run: python -m build python --outdir python/dist
+      - run: python python/scripts/check_distribution_licenses.py python/dist/*.whl python/dist/*.tar.gz
+      - run: python python/scripts/test_distribution_licenses.py python/dist/*.whl python/dist/*.tar.gz
 
   typescript:
     needs: changes
@@ -164,16 +181,18 @@ jobs:
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, typescript, verifier, actions]
+    needs: [python, python-distributions, typescript, verifier, actions]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
           echo "python=${{ needs.python.result }}"
+          echo "python-distributions=${{ needs.python-distributions.result }}"
           echo "typescript=${{ needs.typescript.result }}"
           echo "verifier=${{ needs.verifier.result }}"
           echo "actions=${{ needs.actions.result }}"
           [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.python-distributions.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.actions.result }}"    =~ ^(success|skipped)$ ]] || exit 1
