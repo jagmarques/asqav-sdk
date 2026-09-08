@@ -49,6 +49,25 @@ Module helpers such as `request` and `verifySignature` use the current default c
 Integrations that create an Agent lazily through the static API also use the default at that time;
 storing configuration in another object does not give that object an isolated SDK connection.
 
+Use `AsqavClient` when each caller needs its own connection before creating an Agent:
+
+```ts
+import { AsqavClient } from "@asqav/sdk";
+
+const first = new AsqavClient({ apiKey: process.env.FIRST_ASQAV_API_KEY });
+const second = new AsqavClient({ apiKey: process.env.SECOND_ASQAV_API_KEY });
+// Neither constructor sends an API request.
+const firstAgent = await first.createAgent({ name: "first-agent" });
+const secondAgent = await second.getAgent("agt_existing");
+await firstAgent.sign({ actionType: "api:call", context: { task: "first" } });
+```
+
+Clients keep their construction-time configuration and never change the module default.
+An omitted `baseUrl` uses `ASQAV_API_URL` at construction, or the SDK cloud URL when unset;
+it does not inherit another caller's `init`. Mode resolution follows the same rules as `init`.
+The client owns a copy of the supplied salt. Create a new client and Agent to rotate credentials.
+Hooks and detectors still apply across clients. The returned objects are ordinary Agents.
+
 ## Verify it without an account
 
 This is the point of the whole thing — the receipt stands on its own:
