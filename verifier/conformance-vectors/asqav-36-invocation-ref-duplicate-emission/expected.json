@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Two pre-action receipts carry the same invocation_ref: the duplicate-emission shape a harness produces when it fires the hook twice for one invocation. Both receipts verify, because invocation_ref exists so a reader can SEE the duplicate, never to reject it. A verifier that refuses this pair is wrong, not strict."
+}

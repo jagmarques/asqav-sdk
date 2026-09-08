@@ -171,10 +171,13 @@ def _map_event(
     Field map (snake_case keys confirmed against code.claude.com/docs/en/hooks):
     action_type=tool:<tool_name>; context={tool_input}; session_id and trace_id
     from session_id. result_digest is added only when binding a tool result.
+    invocation_ref forwards a nonempty string tool_use_id verbatim, else is
+    omitted (never synthesized, never falls back to session_id: the trace).
     """
     tool_name = event.get("tool_name", "unknown")
     tool_input = event.get("tool_input", {})
     session_id = event.get("session_id", "") or ""
+    tool_use_id = event.get("tool_use_id")
 
     action_type = f"tool:{tool_name}"
     context = {"tool_input": tool_input}
@@ -185,6 +188,8 @@ def _map_event(
         "capture_topology": capture_topology,
         "trace_id": session_id or None,
     }
+    if isinstance(tool_use_id, str) and tool_use_id != "":
+        compliance_fields["invocation_ref"] = tool_use_id
     if bind_result:
         compliance_fields["result_digest"] = _result_digest(event.get("tool_response"))
     return action_type, context, session_id, compliance_fields

@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 20,
+  "corpus_version": 21,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -103,6 +103,11 @@
       "version": 19,
       "files": 269,
       "digest": "9a7dd7b2b9884ca0d959e85d6941413c77ca0ace6da10cb5a95bc6f1fa0629d8"
+    },
+    {
+      "version": 20,
+      "files": 270,
+      "digest": "bb3e2e68cbb6914aa323f1e23e653c7d4606826bd0399dc0d191b7cd273d7d2b"
     }
   ],
   "files": [
@@ -1222,6 +1227,46 @@
       "bytes": 880
     },
     {
+      "path": "asqav-35-invocation-ref-binds-pre-post/expected.json",
+      "sha256": "55afa16c0f9d18b3069d59ff2f4b77e63a190b6a21fa2db81f4ec24ff4e978d9",
+      "bytes": 373
+    },
+    {
+      "path": "asqav-35-invocation-ref-binds-pre-post/jwks.json",
+      "sha256": "a00b3fe84d8c84f58ff8a012b448b302b3e85b57f280e6f2a269285122cfd717",
+      "bytes": 226
+    },
+    {
+      "path": "asqav-35-invocation-ref-binds-pre-post/predecessor.json",
+      "sha256": "b2b7b0dadc9e3ef08a418367773fa37f3afc5f8e79f8f637686ce76d8873322d",
+      "bytes": 956
+    },
+    {
+      "path": "asqav-35-invocation-ref-binds-pre-post/receipt.json",
+      "sha256": "e7e4e261851ed167ffd5bf06300e45451be2090d04929a8337fb944aba5cc44c",
+      "bytes": 966
+    },
+    {
+      "path": "asqav-36-invocation-ref-duplicate-emission/expected.json",
+      "sha256": "570f043a77764ad116d7d2a39b77a678acb9d10e42724e92fe42b48b66c1d729",
+      "bytes": 406
+    },
+    {
+      "path": "asqav-36-invocation-ref-duplicate-emission/jwks.json",
+      "sha256": "a00b3fe84d8c84f58ff8a012b448b302b3e85b57f280e6f2a269285122cfd717",
+      "bytes": 226
+    },
+    {
+      "path": "asqav-36-invocation-ref-duplicate-emission/predecessor.json",
+      "sha256": "b2b7b0dadc9e3ef08a418367773fa37f3afc5f8e79f8f637686ce76d8873322d",
+      "bytes": 956
+    },
+    {
+      "path": "asqav-36-invocation-ref-duplicate-emission/receipt.json",
+      "sha256": "d8256169056afc141ed47b15d0a4558e731e511710814f96e1c6509c137310d8",
+      "bytes": 956
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -1287,6 +1332,11 @@
       "bytes": 9809
     },
     {
+      "path": "gen_invocation_ref_vectors.py",
+      "sha256": "ab18b63d5a336d652ba0b638052a67a1b72298e52a7473b784705e71cea35c6f",
+      "bytes": 6265
+    },
+    {
       "path": "gen_key_binding_vectors.py",
       "sha256": "7cb9d35fb67819347f1da3505532b42e2d429ea77554f71f5a07c99405d7e7f8",
       "bytes": 6984
@@ -1313,8 +1363,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "bfa5054bf2102a9ae53e04548daa3e098f3cae119921aca8703e42844c4a86d2",
-      "bytes": 27614
+      "sha256": "7d0cf18a4e47eebb024f2360efbe50b5c5b5fcc5042459d0ab578d8489a30d9c",
+      "bytes": 28529
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1348,8 +1398,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "3d7263a4acf0e75bc805d7d5ccae3bdc9dc0677edd8f9e234eb0e2e164eb40bb",
-      "bytes": 51695
+      "sha256": "ca69d390ef205b735586a8b68a8bc7b8c637cf572278aa8ee40a49841389c357",
+      "bytes": 54753
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -1487,5 +1537,5 @@
       ]
     }
   },
-  "digest": "bb3e2e68cbb6914aa323f1e23e653c7d4606826bd0399dc0d191b7cd273d7d2b"
+  "digest": "813d051f865ea2b05d96e1ee23ed98eaa8bb4d7f240551dda981ebbd595ea4b0"
 }

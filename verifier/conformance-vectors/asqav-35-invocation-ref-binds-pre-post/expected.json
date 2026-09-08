@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "A pre-action receipt and its post-action receipt carry the same invocation_ref, so a reader binds them to one tool invocation without trusting timestamps. Both receipts are correctly signed and the chain link rederives. The shared member is pure correlation: it changes no verdict."
+}
