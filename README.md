@@ -16,7 +16,7 @@ Zero native dependencies in either SDK. Cryptography runs server-side.
 
 ```bash
 pip install asqav            # Python 3.10+
-npm install @asqav/sdk       # Node 20+
+npm install @asqav/sdk       # Node 20.19 through 20.x, or 22.12 and later
 ```
 
 ## Sign an action
