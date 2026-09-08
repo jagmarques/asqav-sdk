@@ -1,0 +1,25 @@
+NOTICE: Asqav Compliance Receipts Registries License
+
+The contents of this repository - the registry data files under registry/,
+their JSON Schemas, validate.py, and the registration documentation - are
+licensed under the Apache License, Version 2.0.
+
+These registries are the definitional surface of the Compliance Receipts
+profile. Every conformant verifier has to vendor them: an unregistered
+protectmcp namespace is a non-conformance, and a registered extension field
+carrying the wrong scope tag is a non-conformance, so a verifier that cannot
+lawfully embed these files cannot be built at all. A restrictively licensed
+registry would make the format one that only Asqav can implement, which is not
+a registry and not a standard. It is kept permissively licensed for the same
+reason the conformance vectors are: so that any implementation can
+independently verify receipt formats.
+
+Apache 2.0 rather than a data-only licence because this repository mixes data
+with code (the schemas and validate.py), and because Apache 2.0 carries an
+express patent grant, which a public wire-format registry should have and
+which CC0 explicitly withholds. It also matches the licence on the conformance
+vectors in the asqav-sdk repository, so the two artefacts a third-party
+verifier must vendor answer to one licence rather than two.
+
+The asqav-sdk implementation remains under the Elastic License 2.0. That is a
+product; this is a reference. Nothing here contains an implementation.
