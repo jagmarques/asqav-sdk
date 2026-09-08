@@ -899,6 +899,10 @@ export interface PreflightResult {
 // === init ===
 
 export function init(options: InitOptions = {}): void {
+  config = resolveConnection(options, config.baseUrl);
+}
+
+function resolveConnection(options: InitOptions, fallbackBase: string): Config {
   const apiKey = resolveApiKey(options.apiKey);
   if (!apiKey) {
     throw new AuthenticationError(
@@ -906,14 +910,14 @@ export function init(options: InitOptions = {}): void {
         "to init(). A saved key is read from ~/.asqav/credentials. Get yours at asqav.com",
     );
   }
-  const baseUrl = options.baseUrl ?? config.baseUrl ?? DEFAULT_BASE_URL;
+  const baseUrl = options.baseUrl ?? fallbackBase;
   const mode = resolveMode(
     baseUrl,
     process.env.ASQAV_MODE ?? null,
     options.mode ?? "auto",
   );
   const orgSalt = options.orgSalt == null ? null : new Uint8Array(options.orgSalt);
-  config = Object.freeze({ apiKey, baseUrl, mode, orgSalt });
+  return Object.freeze({ apiKey, baseUrl, mode, orgSalt });
 }
 
 function ensureInitialized(connection: Config): void {
@@ -1893,6 +1897,28 @@ interface AgentData {
 }
 
 
+let constructAgent: (data: AgentData, connection: Config) => Agent;
+
+async function createAgentWithConnection(connection: Config, options: AgentCreateOptions): Promise<Agent> {
+  const algorithm = options.algorithm ?? "ml-dsa-65";
+  if (!isSupportedAlgorithm(algorithm)) {
+    throw new AsqavError(
+      `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
+    );
+  }
+  const data = await requestWithConnection<AgentData>(connection, "POST", "/agents/create", {
+    name: options.name,
+    algorithm,
+    capabilities: options.capabilities ?? [],
+  });
+  return constructAgent(data, connection);
+}
+
+async function getAgentWithConnection(connection: Config, agentId: string): Promise<Agent> {
+  const data = await requestWithConnection<AgentData>(connection, "GET", `/agents/${agentId}`);
+  return constructAgent(data, connection);
+}
+
 function preflightExplanation(
   cleared: boolean, checksComplete: boolean, agentActive: boolean,
   policyAllowed: boolean, reasons: string[],
@@ -1916,6 +1942,10 @@ function preflightExplanation(
 }
 
 export class Agent {
+  static {
+    constructAgent = (data, connection) => new Agent(data, connection);
+  }
+
   readonly #connection: Config;
   readonly agentId: string;
   readonly name: string;
@@ -1943,26 +1973,11 @@ export class Agent {
   }
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
-    const connection = config;
-    const algorithm = options.algorithm ?? "ml-dsa-65";
-    // Cloud accepts ml-dsa-{44,65,87}; ed25519/es256 are local-signing only.
-    if (!isSupportedAlgorithm(algorithm)) {
-      throw new AsqavError(
-        `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
-      );
-    }
-    const data = await requestWithConnection<AgentData>(connection, "POST", "/agents/create", {
-      name: options.name,
-      algorithm,
-      capabilities: options.capabilities ?? [],
-    });
-    return new Agent(data, connection);
+    return createAgentWithConnection(config, options);
   }
 
   static async get(agentId: string): Promise<Agent> {
-    const connection = config;
-    const data = await requestWithConnection<AgentData>(connection, "GET", `/agents/${agentId}`);
-    return new Agent(data, connection);
+    return getAgentWithConnection(config, agentId);
   }
 
   async sign(options: SignOptions): Promise<SignatureResponse> {
@@ -2171,6 +2186,24 @@ export class Agent {
     const explanation = preflightExplanation(cleared, checksComplete, agentActive, policyAllowed, reasons);
 
     return { cleared, agentActive, policyAllowed, reasons, explanation, checksComplete };
+  }
+}
+
+/** Create Agents with one connection without changing the module default. */
+export class AsqavClient {
+  readonly #connection: Config;
+
+  /** Resolve local configuration; Agent methods perform HTTP. */
+  constructor(options: InitOptions = {}) {
+    this.#connection = resolveConnection(options, process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL);
+  }
+
+  createAgent(options: AgentCreateOptions): Promise<Agent> {
+    return createAgentWithConnection(this.#connection, options);
+  }
+
+  getAgent(agentId: string): Promise<Agent> {
+    return getAgentWithConnection(this.#connection, agentId);
   }
 }
 
