@@ -591,5 +591,19 @@
     "failure_class": "unverifiable",
     "reason_code": "malformed_member",
     "notes": "asqav-17's receipt with the anchors member present as a JSON null: a third spelling of no anchors found in the wild, and a malformed one - the structure axis FAILs, naming the member and the shape, and the verdict reads unverified/unverifiable rather than reading null as absent. Nothing cryptographic was disproved, so the class is unverifiable, not invalid (same family as duplicate_member: the receipt's own bytes are malformed)."
+  },
+  {
+    "dir": "asqav-35-invocation-ref-binds-pre-post",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "A pre-action receipt and its post-action receipt carry the same invocation_ref, so a reader binds them to one tool invocation without trusting timestamps. Both receipts are correctly signed and the chain link rederives. The shared member is pure correlation: it changes no verdict."
+  },
+  {
+    "dir": "asqav-36-invocation-ref-duplicate-emission",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Two pre-action receipts carry the same invocation_ref: the duplicate-emission shape a harness produces when it fires the hook twice for one invocation. Both receipts verify, because invocation_ref exists so a reader can SEE the duplicate, never to reject it. A verifier that refuses this pair is wrong, not strict."
   }
 ]
