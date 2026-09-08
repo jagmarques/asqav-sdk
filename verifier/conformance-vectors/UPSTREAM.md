@@ -17,7 +17,9 @@ verbatim from `cross-sdk-tests/canonicalization_vectors.json`; our
 its 32 `canonicalization_vectors` entries, asserted directly in the oracle test
 suite. `agentreceipts-upstream-interop/did_key_vectors.json` is reproduced from
 `spec/test-vectors/did-key/vectors.json`; the shared DID resolver decodes each
-to the expected raw Ed25519 key.
+to the expected raw Ed25519 key. Its MIT copyright and permission notice is
+included in [LICENSE-MIT](agentreceipts-upstream-interop/LICENSE-MIT), copied
+from the [pinned spec license](https://github.com/agent-receipts/ar/blob/16772507e6d00b1dfea6f079ea0e0980d324993f/spec/LICENSE).
 
 The `agentreceipts-up-*` FAIL directories reproduce the six single-field
 mutations from `cross-sdk-tests/malformed_vectors.json` (receipts every SDK MUST
@@ -45,8 +47,8 @@ the upstream AERF signature on `vectors/01-genesis-happy-path` verifies under th
 verbatim-number canonicaliser and fails under the strict one, while all 32
 agent-receipts canonicalization vectors byte-match only under the strict one.
 
-The upstream code and vector data are licensed Apache-2.0; the upstream
-prose is licensed CC-BY. The receipt artifacts and public keys are
+The AERF code and vector data are licensed Apache-2.0; the AERF
+prose is licensed CC-BY 4.0. The receipt artifacts and public keys are
 reproduced from that corpus. Each upstream public key (SPKI PEM) is
 translated into our `keys.json` key map as raw Ed25519 hex, keyed by the
 upstream `key_id` (the leading 16 hex characters of the SHA-256 of the
