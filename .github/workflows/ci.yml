@@ -125,6 +125,11 @@ jobs:
     strategy:
       matrix:
         node-version: ['20', '22']
+        include:
+          - node-version: '20'
+            minimum-version: '20.19.0'
+          - node-version: '22'
+            minimum-version: '22.12.0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -142,6 +147,35 @@ jobs:
       # npm run build (dts included) compiles. Publish runs the same command.
       - run: npm run build
         working-directory: typescript
+      - name: Pack the SDK
+        run: npm pack --pack-destination "${{ runner.temp }}"
+        working-directory: typescript
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.minimum-version }}
+      - name: Check installed exports at the minimum Node version
+        env:
+          SDK_CONSUMER: ${{ runner.temp }}/sdk-consumer
+        run: |
+          mkdir "$SDK_CONSUMER"
+          cd "$SDK_CONSUMER"
+          npm init -y
+          npm install --engine-strict "${{ runner.temp }}"/asqav-sdk-*.tgz
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createRequire } from 'node:module';
+          const require = createRequire(import.meta.url);
+          for (const load of [specifier => import(specifier), specifier => require(specifier)]) {
+            const sdk = await load('@asqav/sdk');
+            const verifier = await load('@asqav/sdk/verifier');
+            const cli = await load('@asqav/sdk/cli');
+            assert.equal(typeof sdk.Agent, 'function');
+            assert.equal(typeof sdk.AsqavClient, 'function');
+            assert.equal(verifier.verify({}, verifier.ADAPTERS).verdict, 'unverified');
+            await cli.runCli(['--version']);
+          }
+          JS
+          node node_modules/.bin/asqav --version
 
   verifier:
     needs: changes
