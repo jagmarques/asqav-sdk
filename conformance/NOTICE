@@ -1,0 +1,42 @@
+Asqav conformance corpus notices
+
+Copyright (c) 2026 Asqav
+
+The Asqav corpus license notice names Apache License 2.0 for
+conformance/vectors.json and Asqav-authored material under
+verifier/conformance-vectors/. LICENSE contains the unmodified standard text.
+Third-party fixtures retain their upstream licenses and notices, identified
+in verifier/conformance-vectors/UPSTREAM.md.
+
+The corpus grant records include the CC0 statement in the initial README:
+https://github.com/jagmarques/asqav-sdk/blob/0afe7d803026e0d39f18a0986b534f1dedd0dc93/conformance/README.md
+and the Apache notice at:
+https://github.com/jagmarques/asqav-sdk/blob/35817291e4226fe3cf31503c35355a876c7b2d82/conformance/LICENSE
+This update preserves those records and does not withdraw rights already
+granted or declare an exclusive precedence between them.
+
+The bundled license at the second link differs from the standard text it
+names. Its exact SHA256 is:
+9695f0d76c90f310620759504219c136bb5f41d5aa1d54531bfc30c63b18d617
+The reference text in LICENSE matches https://www.apache.org/licenses/LICENSE-2.0.txt
+with SHA256:
+cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+The SDK implementation's license scope is described by the repository LICENSE
+and python/NOTICE. This corpus notice does not extend its grant to SDK code.
+
+The Asqav copyright application retained from the corpus notice is:
+
+Copyright (c) 2026 Asqav
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
