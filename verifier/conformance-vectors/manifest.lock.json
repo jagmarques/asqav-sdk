@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 19,
+  "corpus_version": 20,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -98,6 +98,11 @@
       "version": 18,
       "files": 269,
       "digest": "2e7efb7d3d991dbb25dcaa1fa95d9b261893d488a549f9a8e3c439dd34306ddd"
+    },
+    {
+      "version": 19,
+      "files": 269,
+      "digest": "9a7dd7b2b9884ca0d959e85d6941413c77ca0ace6da10cb5a95bc6f1fa0629d8"
     }
   ],
   "files": [
@@ -108,8 +113,8 @@
     },
     {
       "path": "UPSTREAM.md",
-      "sha256": "3871247438dc9d65e71b2bd2a0d73b19adf096876478c8f6a90f08a2ab05b748",
-      "bytes": 11388
+      "sha256": "7554dbe6fa727a17abd532c0422393233d0c6a9f4def0d3732b308e3a53f8b11",
+      "bytes": 11634
     },
     {
       "path": "acta-01-genesis/acta-keys.json",
@@ -705,6 +710,11 @@
       "path": "agentreceipts-up-08-valid-chain-link/receipt.json",
       "sha256": "e738ffa8474c8450ca8fe3b43b9a7fc1ac12bfb2955c97c22d44257627f4dba2",
       "bytes": 1132
+    },
+    {
+      "path": "agentreceipts-upstream-interop/LICENSE-MIT",
+      "sha256": "8e763ed5465f23ff5c751a9ecd4999190ee0deb00d33214633994fc5d17fd40a",
+      "bytes": 1066
     },
     {
       "path": "agentreceipts-upstream-interop/canonicalization_vectors.json",
@@ -1477,5 +1487,5 @@
       ]
     }
   },
-  "digest": "9a7dd7b2b9884ca0d959e85d6941413c77ca0ace6da10cb5a95bc6f1fa0629d8"
+  "digest": "bb3e2e68cbb6914aa323f1e23e653c7d4606826bd0399dc0d191b7cd273d7d2b"
 }
