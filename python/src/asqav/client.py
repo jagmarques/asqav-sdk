@@ -2021,6 +2021,9 @@ class Agent:
         finding_ref: str | None = None,
         approval_ref: str | None = None,
         risk_snapshot: "RiskSnapshot | dict[str, Any] | None" = None,
+        # Invocation pointer, producer-asserted and unfenced: names one
+        # invocation only, promises nothing about uniqueness or exactly-once.
+        invocation_ref: str | None = None,
         # Code-authorship receipt extension fields. Valid only on
         # receipt_type=protectmcp:lifecycle:code_authorship (fenced below).
         repo_ref: str | None = None,
@@ -2345,6 +2348,8 @@ class Agent:
                 ("finding_ref", finding_ref),
                 ("approval_ref", approval_ref),
                 ("risk_snapshot", risk_snapshot),
+                # Unfenced invocation pointer (see signature comment).
+                ("invocation_ref", invocation_ref),
                 # Code-authorship extension fields (fenced to the receipt type).
                 ("repo_ref", repo_ref),
                 ("commit_sha", commit_sha),

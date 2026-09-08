@@ -1,0 +1,27 @@
+{
+  "payload": {
+    "type": "protectmcp:decision",
+    "v": 1,
+    "issued_at": "2026-09-07T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_invocation_001",
+    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "payload_digest": {
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "allow",
+    "mode": "payload",
+    "tool_name": "demo.action",
+    "hook_event": "PreToolUse",
+    "invocation_ref": "toolu_vec_shared"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "asqav-invocation-ref-vec-key",
+    "sig": "kQPYfMDIAv0o31r9AA/vN49nJt/U3mpdRnuJ9ySbvY9ZnJ9ZI+IS27Rw4l2dWJnVESae6AHEadFZXDRiTsHqCQ=="
+  },
+  "anchors": []
+}
