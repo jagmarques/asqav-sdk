@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import crypto
-from .adapter import FormatAdapter
+from .adapter import FormatAdapter, VerificationContext
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
@@ -303,12 +303,27 @@ def _exceeds_depth(obj: Any, max_depth: int) -> bool:
     return False
 
 
+    # One-axis unverified result for a pre-axis input refusal (depth, profile range).
+def _early_unverified(fmt: str, note: str) -> VerifyResult:
+    axes = [_axis("structure", crypto.FAIL, note)]
+    verdict, failure_class = fold_verdict(axes, keyed=False)
+    return VerifyResult(
+        fmt=fmt,
+        axes=axes,
+        verdict=verdict,
+        failure_class=failure_class,
+        first_failing_edge=first_failing_edge(axes),
+    )
+
+
     # Verify one parsed receipt and return a structured ``VerifyResult``.
 def verify(
     doc: dict,
     adapters: list[FormatAdapter],
     key_provider: Any = None,
     predecessor: dict | None = None,
+    *,
+    context: VerificationContext | None = None,
 ) -> VerifyResult:
     ad = detect(doc, adapters)
     if ad is None:
@@ -326,15 +341,15 @@ def verify(
     if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
     ):
-        axes = [_axis("structure", crypto.FAIL, _TOO_DEEP_NOTE)]
-        verdict, failure_class = fold_verdict(axes, keyed=False)
-        return VerifyResult(
-            fmt=ad.name,
-            axes=axes,
-            verdict=verdict,
-            failure_class=failure_class,
-            first_failing_edge=first_failing_edge(axes),
-        )
+        return _early_unverified(ad.name, _TOO_DEEP_NOTE)
+    pred_ad = detect(predecessor, adapters) if predecessor is not None else None
+    refusal = ad.profile_precheck(
+        doc,
+        predecessor=predecessor,
+        predecessor_fmt=pred_ad.name if pred_ad is not None else None,
+    )
+    if refusal is not None:
+        return _early_unverified(ad.name, refusal)
 
     axes = [
         _structure_axis(ad, doc),
@@ -342,7 +357,8 @@ def verify(
         _chain_axis(ad, doc, adapters, predecessor),
         _seq_axis(ad, doc, adapters, predecessor),
     ]
-    axes.extend(_axis(name, res, note) for name, res, note in ad.extra_axes(doc, key_provider))
+    axes.extend(_axis(name, res, note) for name, res, note in
+                ad.extra_axes_with_context(doc, key_provider, context or VerificationContext()))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426);
     # a keyed digest reports verified_keyed, never plain verified (criterion 438).

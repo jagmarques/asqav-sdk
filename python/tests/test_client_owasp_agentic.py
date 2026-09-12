@@ -46,3 +46,11 @@ def test_agentic_serialized_bytes_and_omission(monkeypatch, compliance):
         assert "owasp_agentic_top10" not in requests[0]
     assert "owasp_agentic_top10" not in requests[1]
     assert all("framework_mappings_self_declared" not in request for request in requests)
+
+
+@pytest.mark.parametrize("value", ["ASI01", 42, {"ids": ["ASI01"]}])
+def test_agentic_non_list_rejected_before_http(value):
+    with patch("asqav.client._post", return_value=_ok_response()) as post:
+        with pytest.raises(ValueError, match="owasp_agentic_top10_must_be_non_empty_list"):
+            _agent().sign("api:call", {}, owasp_agentic_top10=value)
+        post.assert_not_called()

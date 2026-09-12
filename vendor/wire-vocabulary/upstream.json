@@ -1,0 +1,12 @@
+{
+  "repository": "jagmarques/asqav-registry",
+  "commit": "79f5d28fd132c97bc4a5eae02a2bafce72b145af",
+  "files": {
+    "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE": "c5945b5627d32c54ec67b2f991c2501b655c419fbbb37029300be138b27f4624",
+    "vocabulary/wire.json": "d0b75824410c1e45f505ae67982b97c56b6da36b8a735920842eeeebd20c45da",
+    "vocabulary/wire.schema.json": "afebf3c43f215b200a07e4363ec65740232b62324aa0ae5f3ee402461ef9be12",
+    "vocabulary/validate.py": "a742b0d017770c8e8e886a373c6116ba79482379bd3e530d8fec6dd6d467fea2",
+    "tools/wire_vocabulary.py": "545d057d561d93f1e9e57b9e296a5b788bbff051059fdd93ed351491794ebe3a"
+  }
+}

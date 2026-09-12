@@ -10,12 +10,15 @@ import {
   type ExtraAxis,
   type KeyProvider,
   type SignatureMaterial,
+  type VerificationContext,
 } from "../adapter.js";
 import {
   JCS_UTF16_CUTOVER,
   asqavJcs,
   asqavJcsPreCutover,
   hasSupplementaryMemberName,
+  isCurrentProfileVersion,
+  profileRangeNote,
 } from "../canonical.js";
 import { sha256Hex } from "../crypto.js";
 import { isLowerHex } from "./acta.js";
@@ -25,6 +28,7 @@ import {
   checkExpiry,
   checkIssuerBinding,
   checkCounterpartyBinding,
+  boundCounterpartyKid,
   checkKeyBinding,
   checkKeyStatus,
   checkPayloadDigest,
@@ -91,6 +95,28 @@ function payloadOf(doc: Record<string, unknown>): Record<string, unknown> {
   const env = normaliseEnvelope(doc);
   const p = env.payload;
   return isRecord(p) ? p : env;
+}
+
+/** Flat object the cloud hash-mode path signs, before canonicalisation */
+function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown> {
+  return {
+    v: 1,
+    mode: "hash",
+    hash: doc.hash ?? null,
+    hash_algo: doc.hash_algo ?? "sha256",
+    metadata: doc.metadata ?? {},
+    server_timestamp: doc.server_timestamp ?? null,
+    action_id: doc.action_id ?? null,
+    agent_id: doc.agent_id ?? null,
+    org_id: doc.org_id ?? null,
+    policy_digest: doc.policy_digest ?? null,
+    policy_decision: doc.policy_decision ?? null,
+  };
+}
+
+/** Own-member read; inherited prototype members never select or validate. */
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 /** Decode signature material; empty on malformed input so verify FAILs, never crashes. */
@@ -198,20 +224,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
   }
 
   private hashModeSigningInput(doc: Record<string, unknown>): Uint8Array {
-    const flat = {
-      v: 1,
-      mode: "hash",
-      hash: doc.hash ?? null,
-      hash_algo: doc.hash_algo ?? "sha256",
-      metadata: doc.metadata ?? {},
-      server_timestamp: doc.server_timestamp ?? null,
-      action_id: doc.action_id ?? null,
-      agent_id: doc.agent_id ?? null,
-      org_id: doc.org_id ?? null,
-      policy_digest: doc.policy_digest ?? null,
-      policy_decision: doc.policy_decision ?? null,
-    };
-    return asqavJcs(flat);
+    return asqavJcs(flatSignedFields(doc));
   }
 
   chainStep(doc: Record<string, unknown>): ChainStep {
@@ -251,6 +264,21 @@ export class AsqavNativeAdapter extends FormatAdapter {
 
   // Gate on expiry, signing key revocation status, and its issuer (mirrors Python extra_axes).
   // The key axes are a no-op when the key is absent; the signature axis handles that.
+  extraAxesWithContext(
+    doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext,
+  ): ExtraAxis[] {
+    const axes = this.extraAxes(doc, keyProvider);
+    if (context.originatingEnvelope == null) return axes;
+    const signed = isHashMode(doc) ? {} : payloadOf(doc);
+    const signature = isRecord(doc.signature) ? doc.signature : isRecord(doc.signature_envelope) ? doc.signature_envelope : {};
+    const baseline = checkCounterpartyBinding(signed, undefined, signature.kid ?? null);
+    const entry = this.signingKeyEntry(doc, (keyProvider ?? { keys: [] }) as Record<string, unknown>);
+    const kid = entry === null ? signature.kid ?? null : boundCounterpartyKid(signature.kid, entry.kid, keyIssuerOf(entry));
+    const outcome = checkCounterpartyBinding(signed, context.originatingEnvelope, kid);
+    return axes.map(axis => axis[0] === "counterparty" && axis[1] === baseline[0] && axis[2] === baseline[1]
+      ? ["counterparty", ...outcome] : axis);
+  }
+
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
     const hashMode = isHashMode(doc);
     // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
@@ -266,7 +294,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
     axes.push(["key_binding", ...checkKeyBinding(signedUnit, boundAlg, boundPk)]);
     // No database offline, so a claimed binding reports unresolved rather than
     // riding along as corroboration nobody checked
-    axes.push(["counterparty", ...checkCounterpartyBinding(signedUnit)]);
+    const signature = isRecord(doc.signature) ? doc.signature : isRecord(doc.signature_envelope) ? doc.signature_envelope : {};
+    axes.push(["counterparty", ...checkCounterpartyBinding(signedUnit, undefined, signature.kid ?? null)]);
     axes.push(["payload_digest", ...checkPayloadDigest(signedUnit)]);
     // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
@@ -313,5 +342,31 @@ export class AsqavNativeAdapter extends FormatAdapter {
    */
   keyedDigest(doc: Record<string, unknown>): boolean {
     return isHashMode(doc) && doc.hash_algo === "hmac-sha256";
+  }
+
+  /** Refuse current-profile digest inputs outside the range, else null. */
+  profilePrecheck(
+    doc: Record<string, unknown>,
+    predecessor: Record<string, unknown> | null = null,
+    predecessorFmt: string | null = null,
+  ): string | null {
+    if (isHashMode(doc)) {
+      const topV = hasOwn(doc, "v") ? doc.v : undefined;
+      if (!isCurrentProfileVersion(topV)) return null;
+      return profileRangeNote(flatSignedFields(doc));
+    }
+    const signed = payloadOf(doc);
+    const v = hasOwn(signed, "v") ? signed.v : undefined;
+    if (!isCurrentProfileVersion(v)) return null;
+    const note = profileRangeNote(signed);
+    if (note !== null) return note;
+    if (
+      predecessor !== null &&
+      predecessorFmt === this.name &&
+      signed.previousReceiptHash !== FIRST_RECEIPT_SEED
+    ) {
+      return profileRangeNote(payloadOf(predecessor));
+    }
+    return null;
   }
 }

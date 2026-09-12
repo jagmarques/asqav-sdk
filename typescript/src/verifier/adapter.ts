@@ -37,6 +37,11 @@ export type ExtraAxis = readonly [string, VerifyState, string];
 /** Format-shaped key material the runner injects (a JWKS dict, a key map, or null). */
 export type KeyProvider = Record<string, unknown> | null;
 
+/** Comparison input local to one invocation; never a key provider. */
+export interface VerificationContext {
+  readonly originatingEnvelope?: unknown;
+}
+
 /**
  * One receipt format's binding to the shared verification core. `name` labels the format in results and
  * the manifest; `detect` is a cheap structural fingerprint with no crypto.
@@ -74,6 +79,12 @@ export abstract class FormatAdapter {
     return [];
   }
 
+  extraAxesWithContext(
+    doc: Record<string, unknown>, keyProvider: KeyProvider, _context: VerificationContext,
+  ): ExtraAxis[] {
+    return this.extraAxes(doc, keyProvider);
+  }
+
   // Raw so the axis can report a malformed counter; extraAxes never sees the
   // predecessor continuity needs, so the counter is read here instead.
   seqOf(_doc: Record<string, unknown>): unknown {
@@ -99,6 +110,15 @@ export abstract class FormatAdapter {
    * `doc`. A signature passing only under these bytes is reported as that dialect, never as verified.
    */
   preCutoverSigningInput(_doc: Record<string, unknown>): Uint8Array | null {
+    return null;
+  }
+
+  /** Refusal note or null; default no-op, the core reports a note early. */
+  profilePrecheck(
+    _doc: Record<string, unknown>,
+    _predecessor: Record<string, unknown> | null = null,
+    _predecessorFmt: string | null = null,
+  ): string | null {
     return null;
   }
 }

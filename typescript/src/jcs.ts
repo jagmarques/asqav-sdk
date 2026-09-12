@@ -48,16 +48,18 @@ function canonicalString(value: unknown): string {
   throw new TypeError(`Not JSON-serializable: ${typeof value}`);
 }
 
+/** Largest integer magnitude the Asqav profile admits (draft Section 4). */
+export const MAX_PROFILE_INTEGER = 9007199254740991;
+
 function numberToCanonical(n: number): string {
   // Map -0 to 0 so equal mathematical values produce identical bytes.
   if (n === 0) return "0";
-  // Beyond 2**53 an integer has no exact double, so whoever parsed it already rounded it and
-  // emitting it would sign bytes Python never produces. This is the layer the doors path
-  // reaches: it receives an already-parsed object and never sees the strict parser.
-  if (Number.isInteger(n) && Math.abs(n) > 9007199254740992) {
+  // The profile ends at 2**53 - 1: a parsed 2**53 is refused although it
+  // round-trips, because a rounded 2**53+1 is indistinguishable from it here
+  if (Number.isInteger(n) && Math.abs(n) > MAX_PROFILE_INTEGER) {
     throw new RangeError(
-      `integer outside the canonical integer range +/-2**53: ${n}; serialise it as a ` +
-        `JSON string or an integer-rational pair`,
+      `integer outside the Asqav profile range +/-(2**53 - 1): ${n}; serialise ` +
+        `it as a JSON string or an integer-rational pair`,
     );
   }
   // For safe integers, plain toString matches the canonical bytes byte-for-byte.

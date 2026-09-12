@@ -27,7 +27,7 @@ from typing import Any
 
 from asqav.verifier import verify_receipt as _vr
 
-from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
+from ..adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
 from ..canonical import asqav_jcs
 from ..core import sha256_hex
 from .acta import _is_lower_hex
@@ -91,6 +91,23 @@ def _payload(doc: dict) -> dict:
     env = _vr.normalise_envelope(doc)
     payload = env.get("payload")
     return payload if isinstance(payload, dict) else env
+
+
+    # The flat object the cloud's hash-mode path signs, before canonicalisation.
+def _flat_signed_fields(doc: dict) -> dict:
+    return {
+        "v": 1,
+        "mode": "hash",
+        "hash": doc.get("hash"),
+        "hash_algo": doc.get("hash_algo") or "sha256",
+        "metadata": doc.get("metadata") or {},
+        "server_timestamp": doc.get("server_timestamp"),
+        "action_id": doc.get("action_id"),
+        "agent_id": doc.get("agent_id"),
+        "org_id": doc.get("org_id"),
+        "policy_digest": doc.get("policy_digest"),
+        "policy_decision": doc.get("policy_decision"),
+    }
 
 
     # Decode signature material; b'' on any malformed input so verify FAILs, never crashes.
@@ -187,20 +204,7 @@ class AsqavNativeAdapter(FormatAdapter):
         Mirrors ``agents.py::_build_signing_message`` hash-mode branch field-for-field;
         ``asqav_jcs`` sorts the keys, so insertion order is cosmetic but kept aligned.
         """
-        flat = {
-            "v": 1,
-            "mode": "hash",
-            "hash": doc.get("hash"),
-            "hash_algo": doc.get("hash_algo") or "sha256",
-            "metadata": doc.get("metadata") or {},
-            "server_timestamp": doc.get("server_timestamp"),
-            "action_id": doc.get("action_id"),
-            "agent_id": doc.get("agent_id"),
-            "org_id": doc.get("org_id"),
-            "policy_digest": doc.get("policy_digest"),
-            "policy_decision": doc.get("policy_decision"),
-        }
-        return asqav_jcs(flat)
+        return asqav_jcs(_flat_signed_fields(doc))
 
     def chain_step(self, doc: dict) -> ChainStep:
         if _is_hash_mode(doc):
@@ -234,6 +238,21 @@ class AsqavNativeAdapter(FormatAdapter):
         # Shared per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7).
         self._seen_nonces: set[str] = set()
 
+    def extra_axes_with_context(
+        self, doc: dict, key_provider: Any, context: VerificationContext,
+    ) -> list[tuple[str, str, str]]:
+        axes = self.extra_axes(doc, key_provider)
+        if context.originating_envelope is None:
+            return axes
+        signed = {} if _is_hash_mode(doc) else _payload(doc)
+        kid = _vr.counterparty_acknowledging_kid(doc)
+        baseline = ("counterparty", *_vr.check_counterparty_binding(signed, acknowledging_kid=kid))
+        entry = self._signing_key_entry(doc, key_provider or {"keys": []})
+        if entry is not None:
+            kid = _vr.bound_counterparty_kid(kid, entry.get("kid"), _vr.key_issuer_of(entry))
+        outcome = _vr.check_counterparty_binding(signed, context.originating_envelope, acknowledging_kid=kid)
+        return [("counterparty", *outcome) if axis == baseline else axis for axis in axes]
+
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
@@ -262,7 +281,8 @@ class AsqavNativeAdapter(FormatAdapter):
         axes.append(("key_binding", *_vr.check_key_binding(signed, bound_alg, bound_pk)))
         # No database offline, so a claimed binding reports unresolved rather than
         # riding along as corroboration nobody checked
-        axes.append(("counterparty", *_vr.check_counterparty_binding(signed)))
+        kid = _vr.counterparty_acknowledging_kid(doc)
+        axes.append(("counterparty", *_vr.check_counterparty_binding(signed, acknowledging_kid=kid)))
         axes.append(("payload_digest", *_vr.check_payload_digest(signed)))
         # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.
@@ -312,3 +332,25 @@ class AsqavNativeAdapter(FormatAdapter):
         plain verified. Read from the signed field set only.
         """
         return _is_hash_mode(doc) and doc.get("hash_algo") == "hmac-sha256"
+
+    def profile_precheck(
+        self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None
+    ) -> str | None:
+        """Refuse current-profile digest inputs outside the range, else None."""
+        if _is_hash_mode(doc):
+            if not _vr.is_current_profile_version(doc.get("v")):
+                return None
+            return _vr.profile_range_note(_flat_signed_fields(doc))
+        signed = _payload(doc)
+        if not _vr.is_current_profile_version(signed.get("v")):
+            return None
+        note = _vr.profile_range_note(signed)
+        if note is not None:
+            return note
+        if (
+            isinstance(predecessor, dict)
+            and predecessor_fmt == self.name
+            and signed.get("previousReceiptHash") != _vr.FIRST_RECEIPT_SEED
+        ):
+            return _vr.profile_range_note(_payload(predecessor))
+        return None

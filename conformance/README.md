@@ -51,9 +51,16 @@ of the ORIGINATING envelope, base64. The scope of that digest is declared on the
   only. Anchors are excluded because they are OPTIONAL and change after issuance, so a
   digest covering them would break every acknowledgment already emitted the moment the
   originator's timestamp was upgraded.
-- An ABSENT `scope` member means a legacy draft-04..-08 three-key binding, which a
-  verifier reports as `unverifiable, legacy scope`. A verifier MUST NOT try both scopes
-  and accept whichever matches.
+- An absent `scope` reports `unverifiable` with reason `legacy_scope`. A null or
+  unsupported scope reports `unverifiable` with reason `unrecognised_scope`.
+  Verifiers dispatch scope before examining the origin and never try both scopes.
+
+The projection preserves the complete signature object and its encoded string. It
+excludes every other export member. The two-anchor fixtures cover four cases: a matching digest; a three-key
+digest under the supported scope; a missing scope member; and a scope this
+profile does not define.
+`generation.counterparty_digest_members` selects the fixture's hash recipe independently
+of the scope it claims, so regeneration preserves the deliberate negative cases.
 
 Each such vector names the envelope its digest is taken over in
 `expected.originating_envelope_ref`, so the value is recomputable from this file alone.
@@ -81,11 +88,12 @@ tests that named it built their expected value by calling the function under tes
 
 If your implementation produces a different `canonical` or `sha256` for one of the provided inputs, open an issue at https://github.com/jagmarques/asqav-sdk/issues with your implementation, language, and JCS library name.
 
-## Corpus freeze at v1 (criterion 420)
+## Rolling corpus lock (criterion 420)
 
-This corpus is frozen at version 1. `manifest.lock.json` pins every corpus
-file by SHA-256 and byte length, and carries the digest of the lock itself;
-any drift fails CI.
+This corpus carries a rolling lock. `manifest.lock.json` records the current
+`corpus_version` with its completed-cut history, pins every corpus file by
+SHA-256 and byte length, and carries the digest of the lock itself; any
+drift fails CI.
 
 - Lock digest: pinned in the lock's own `digest` field and reproduced in the
   repo as the `FINGERPRINT_LOCK_DIGEST` constant in
@@ -115,4 +123,4 @@ deterministic known-answer signature:
 
 ## License
 
-These vectors are public domain (CC0).
+The [initial corpus README](https://github.com/jagmarques/asqav-sdk/blob/0afe7d803026e0d39f18a0986b534f1dedd0dc93/conformance/README.md) states: "These vectors are public domain (CC0)." The corpus license notice names Apache License 2.0. [NOTICE](NOTICE) preserves both grant records and the Asqav copyright application; [LICENSE](LICENSE) contains the standard Apache text. This update does not withdraw existing grants or declare an exclusive precedence between them. Third-party fixtures retain their [upstream licenses and notices](../verifier/conformance-vectors/UPSTREAM.md).

@@ -21,6 +21,7 @@ jobs:
           filters: |
             python:
               - 'python/**'
+              - 'LICENSE'
               - 'conformance/**'
               # The shared case tables gate both verifiers, so editing one must run
               # the jobs that consume it or the gate could be weakened unseen.
@@ -52,6 +53,7 @@ jobs:
               - 'verifier/check_corpus_lock.sh'
               - 'verifier/freeze_corpus_lock.py'
               - 'verifier/regen_fingerprint_vectors.py'
+              - 'verifier/regen_conformance_vectors.py'
               - 'conformance/**'
               - 'verifier/docs/**'
               - '.github/workflows/ci.yml'
@@ -89,6 +91,34 @@ jobs:
       - run: ruff check python/src
       - run: pytest python/tests -v --tb=short --continue-on-collection-errors
 
+  wire-vocabulary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: python -m pip install -r tools/wire-vocabulary-requirements.txt
+      - run: python tools/sync_wire_vocabulary.py --check
+      - run: python -m unittest discover -s tests -p test_wire_vocabulary_generation.py
+
+  python-distributions:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: python -m pip install build
+      - run: cmp LICENSE python/LICENSE
+      # The default build creates a source archive, then builds its wheel.
+      - run: python -m build python --outdir python/dist
+      - run: python python/scripts/check_distribution_licenses.py python/dist/*.whl python/dist/*.tar.gz
+      - run: python python/scripts/test_distribution_licenses.py python/dist/*.whl python/dist/*.tar.gz
+
   typescript:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
@@ -96,6 +126,11 @@ jobs:
     strategy:
       matrix:
         node-version: ['20', '22']
+        include:
+          - node-version: '20'
+            minimum-version: '20.19.0'
+          - node-version: '22'
+            minimum-version: '22.12.0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -113,6 +148,35 @@ jobs:
       # npm run build (dts included) compiles. Publish runs the same command.
       - run: npm run build
         working-directory: typescript
+      - name: Pack the SDK
+        run: npm pack --pack-destination "${{ runner.temp }}"
+        working-directory: typescript
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.minimum-version }}
+      - name: Check installed exports at the minimum Node version
+        env:
+          SDK_CONSUMER: ${{ runner.temp }}/sdk-consumer
+        run: |
+          mkdir "$SDK_CONSUMER"
+          cd "$SDK_CONSUMER"
+          npm init -y
+          npm install --engine-strict "${{ runner.temp }}"/asqav-sdk-*.tgz
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createRequire } from 'node:module';
+          const require = createRequire(import.meta.url);
+          for (const load of [specifier => import(specifier), specifier => require(specifier)]) {
+            const sdk = await load('@asqav/sdk');
+            const verifier = await load('@asqav/sdk/verifier');
+            const cli = await load('@asqav/sdk/cli');
+            assert.equal(typeof sdk.Agent, 'function');
+            assert.equal(typeof sdk.AsqavClient, 'function');
+            assert.equal(verifier.verify({}, verifier.ADAPTERS).verdict, 'unverified');
+            await cli.runCli(['--version']);
+          }
+          JS
+          node node_modules/.bin/asqav --version
 
   verifier:
     needs: changes
@@ -139,12 +203,17 @@ jobs:
       # derived member - the counterparty envelope_hash was stale in five vectors -
       # passes the freeze and fails here.
       - run: python3 verifier/regen_fingerprint_vectors.py --check
+      # Corpus-B INTEGRITY (criterion 693): the corpus-B half of the above.
+      # Every re-derivable member of verifier/conformance-vectors is recomputed
+      # from its own input under its format's own chain rule; reason-coded
+      # tamper vectors are skipped by expected.json, never by name.
+      - run: python3 verifier/regen_conformance_vectors.py --check
       # Criterion 421 walkthrough: jq/sha256sum/openssl verification of the
       # published receipt. ubuntu-latest ships OpenSSL 3.0 without ML-DSA, so
       # the ML-DSA step is declared document-only; every other step executes
       # and asserts its pinned value.
       - run: bash verifier/docs/openssl-jq-verify.sh --mldsa-document-only
-      - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py python/tests/test_verify_receipt_revoked_key.py python/tests/test_verify_receipt_failclean.py python/tests/test_offline_verify.py python/tests/test_cross_language_cases.py python/tests/test_axis_parity_cases.py python/tests/test_anchor_value_cases.py python/tests/test_anchor_forged_value.py python/tests/test_oracle_kid_shared_resolution.py python/tests/test_signing_key_sibling.py python/tests/test_exit_artifact_cli.py python/tests/test_corpus_lock.py python/tests/test_corpus_integrity.py python/tests/test_time_edge_vectors.py python/tests/test_standalone_verifier_surface.py -v --tb=short
+      - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py python/tests/test_verify_receipt_revoked_key.py python/tests/test_verify_receipt_failclean.py python/tests/test_offline_verify.py python/tests/test_cross_language_cases.py python/tests/test_axis_parity_cases.py python/tests/test_anchor_value_cases.py python/tests/test_anchor_forged_value.py python/tests/test_oracle_kid_shared_resolution.py python/tests/test_signing_key_sibling.py python/tests/test_exit_artifact_cli.py python/tests/test_corpus_lock.py python/tests/test_corpus_integrity.py python/tests/test_corpus_b_integrity.py python/tests/test_time_edge_vectors.py python/tests/test_standalone_verifier_surface.py -v --tb=short
 
   actions:
     needs: changes
@@ -164,16 +233,19 @@ jobs:
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, typescript, verifier, actions]
+    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
+          [[ "${{ needs.wire-vocabulary.result }}" == "success" ]] || exit 1
           echo "python=${{ needs.python.result }}"
+          echo "python-distributions=${{ needs.python-distributions.result }}"
           echo "typescript=${{ needs.typescript.result }}"
           echo "verifier=${{ needs.verifier.result }}"
           echo "actions=${{ needs.actions.result }}"
           [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.python-distributions.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.actions.result }}"    =~ ^(success|skipped)$ ]] || exit 1

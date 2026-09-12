@@ -21,7 +21,7 @@ import json
 from pathlib import Path
 
 from asqav.verifier import verify_receipt as vr
-from asqav.verifier.oracle import ADAPTERS
+from asqav.verifier.oracle import ADAPTERS, VerificationContext
 from asqav.verifier.oracle import verify as oracle_verify
 from asqav.verifier.oracle.core import _INVALID_FAIL_AXES as ORACLE_INVALID_FAIL_AXES
 
@@ -93,24 +93,34 @@ def test_payload_digest_table() -> None:
 
 def test_counterparty_binding_table() -> None:
     for case in TABLE["counterparty_binding"]:
-        result, note = vr.check_counterparty_binding(case["payload"])
+        kid = case.get("acknowledging_kid", case["payload"].get("issuer_id"))
+        result, note = vr.check_counterparty_binding(case["payload"], case.get("originating_envelope"), acknowledging_kid=kid)
         assert result == case["expect"]["result"], f"{case['name']}: {note}"
         assert case["expect"]["note_contains"] in note, f"{case['name']}: {note}"
+        assert {"PASS": True, "FAIL": False, "SKIPPED": None}[result] is case["expect"]["valid"]
+        doc = _receipt(**case["payload"])
+        doc["signature"]["kid"] = kid
+        provider = _jwks()
+        provider["keys"][0].update(kid=kid, issuer_id=doc["payload"]["issuer_id"])
+        report = oracle_verify(doc, ADAPTERS, provider, context=VerificationContext(case.get("originating_envelope")))
+        axis = next(a for a in report.axes if a.axis == "counterparty")
+        assert axis.result == result, case["name"]
+        assert axis.failure_class == case["expect"]["failure_class"], case["name"]
 
 
-    # The originator path the table cannot carry: a real recompute, both directions.
+    # Independently compute the digest, then exercise both comparisons.
 def test_counterparty_binding_resolves_against_a_supplied_originator() -> None:
     originator = _receipt()
-    good = base64.b64encode(hashlib.sha256(vr.canonical_json(originator)).digest()).decode()
+    good = base64.b64encode(hashlib.sha256(vr.canonical_json({k: originator[k] for k in ("payload", "signature")})).digest()).decode()
 
     payload = _receipt(
-        counterparty_binding={"receipt_ref": "sig_orig", "envelope_hash": good}
+        counterparty_binding={"scope": "envelope_minus_anchors", "receipt_ref": "sig_orig", "envelope_hash": good}
     )["payload"]
     assert vr.check_counterparty_binding(payload, originator)[0] == "PASS"
 
     wrong = base64.b64encode(b"\x00" * 32).decode()
     payload = _receipt(
-        counterparty_binding={"receipt_ref": "sig_orig", "envelope_hash": wrong}
+        counterparty_binding={"scope": "envelope_minus_anchors", "receipt_ref": "sig_orig", "envelope_hash": wrong}
     )["payload"]
     result, note = vr.check_counterparty_binding(payload, originator)
     assert result == "FAIL"
@@ -118,6 +128,7 @@ def test_counterparty_binding_resolves_against_a_supplied_originator() -> None:
 
     payload = _receipt(
         counterparty_binding={
+            "scope": "envelope_minus_anchors",
             "receipt_ref": "sig_orig",
             "envelope_hash": good,
             "expect_ack_from": "somebody_else",
@@ -159,6 +170,7 @@ def test_a_fabricated_counterparty_binding_cannot_read_as_corroborated() -> None
     assert "counterparty" in ORACLE_INVALID_FAIL_AXES
     assert "counterparty" in vr._INVALID_FAIL_AXES
     forged = {
+        "scope": "envelope_minus_anchors",
         "receipt_ref": "sig_NEVER_EXISTED",
         "envelope_hash": base64.b64encode(b"\x00" * 32).decode(),
     }
@@ -168,6 +180,7 @@ def test_a_fabricated_counterparty_binding_cannot_read_as_corroborated() -> None
     # SKIPPED blocks the verdict, so the claim never rides along as corroboration
     assert axis.result == "SKIPPED", axis.note
     assert axis.failure_class == "unverifiable"
+    assert "unresolved:" in axis.note
 
 
 def test_the_oracle_refuses_a_postdated_receipt() -> None:
@@ -189,3 +202,71 @@ def test_absence_of_both_claims_does_not_block() -> None:
         axis = result.axis(name)
         assert axis.result == "PASS", f"{name}: {axis.note}"
         assert axis.failure_class is None
+
+
+def _genuinely_signed(payload_digest: dict | None) -> tuple[dict, dict]:
+    """A receipt genuinely Ed25519-signed over its final payload (criterion 727)."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    payload = _receipt()["payload"]
+    if payload_digest is None:
+        payload.pop("payload_digest", None)
+    else:
+        payload["payload_digest"] = payload_digest
+    key = Ed25519PrivateKey.generate()
+    sig = key.sign(vr.canonical_json(payload))
+    doc = {
+        "payload": payload,
+        "signature": {
+            "alg": "Ed25519",
+            "kid": "ed_1",
+            "sig": base64.b64encode(sig).decode(),
+        },
+        "anchors": {},
+    }
+    jwks = {
+        "keys": [
+            {
+                "kid": "ed_1",
+                "issuer_id": payload["issuer_id"],
+                "agent_id": payload["agent_id"],
+                "alg": "Ed25519",
+                "status": "active",
+                "public_key": base64.b64encode(
+                    key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+                ).decode(),
+            }
+        ]
+    }
+    return doc, jwks
+
+
+def test_null_size_is_malformed_end_to_end() -> None:
+    digest = {"hash": HONEST, "size": None}
+    doc, jwks = _genuinely_signed(digest)
+    structured = vr.run_structured(doc, jwks)
+    axes = {a["name"]: a for a in structured["axes"]}
+    assert axes["signature"]["result"] == "PASS", axes["signature"]["note"]
+    assert axes["payload_digest"]["result"] == "FAIL", axes["payload_digest"]["note"]
+    assert axes["payload_digest"]["failure_class"] == "invalid"
+    assert "non-negative integer" in axes["payload_digest"]["note"]
+    assert structured["verdict"] == "unverified"
+    result = oracle_verify(doc, ADAPTERS, jwks)
+    assert result.axis("signature").result == "PASS"
+    axis = result.axis("payload_digest")
+    assert (axis.result, axis.failure_class) == ("FAIL", "invalid"), axis.note
+    assert "non-negative integer" in axis.note
+    assert result.verdict == "unverified"
+
+
+def test_absent_size_control_stays_passing_end_to_end() -> None:
+    digest = {"hash": HONEST}
+    doc, jwks = _genuinely_signed(digest)
+    structured = vr.run_structured(doc, jwks)
+    axes = {a["name"]: a for a in structured["axes"]}
+    assert axes["signature"]["result"] == "PASS", axes["signature"]["note"]
+    assert axes["payload_digest"]["result"] == "PASS", axes["payload_digest"]["note"]
+    result = oracle_verify(doc, ADAPTERS, jwks)
+    assert result.axis("signature").result == "PASS"
+    assert result.axis("payload_digest").result == "PASS", result.axis("payload_digest").note

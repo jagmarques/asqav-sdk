@@ -30,6 +30,7 @@ export type {
   ExtraAxis,
   KeyProvider,
   SignatureMaterial,
+  VerificationContext,
 } from "./adapter.js";
 export { ActaAdapter } from "./adapters/acta.js";
 export { AerfAdapter } from "./adapters/aerf.js";
@@ -101,3 +102,4 @@ export {
   runOne,
   type VectorOutcome,
 } from "./runner.js";
+export { counterpartyEnvelopeHash } from "./vrShim.js";

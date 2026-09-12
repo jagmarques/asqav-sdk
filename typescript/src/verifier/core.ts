@@ -3,7 +3,7 @@
  * oracle's `core.py`. It proves only what the bytes prove, never the behaviour of the recorded action.
  */
 
-import type { FormatAdapter, KeyProvider } from "./adapter.js";
+import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 
@@ -306,12 +306,20 @@ function exceedsDepth(obj: unknown, maxDepth: number): boolean {
   return false;
 }
 
+/** One-axis unverified result for a pre-axis refusal (depth, profile range) */
+function earlyUnverified(fmt: string, note: string): VerifyResult {
+  const axes = [axis("structure", FAIL, note)];
+  const [verdict, failureClass] = foldVerdict(axes, false);
+  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
+}
+
 /** Verify one parsed receipt and return a structured `VerifyResult`. */
 export function verify(
   doc: Record<string, unknown>,
   adapters: FormatAdapter[],
   keyProvider: KeyProvider = null,
   predecessor: Record<string, unknown> | null = null,
+  context: VerificationContext = {},
 ): VerifyResult {
   const ad = detect(doc, adapters);
   if (ad === null) {
@@ -330,13 +338,28 @@ export function verify(
   }
   // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
   // report unverified/unverifiable, never a verified, matching the Python gate.
+  let earlyNote: string | null = null;
   if (
     exceedsDepth(doc, MAX_NESTING_DEPTH) ||
     (predecessor !== null && exceedsDepth(predecessor, MAX_NESTING_DEPTH))
   ) {
-    const axes = [axis("structure", FAIL, TOO_DEEP_NOTE)];
-    const [verdict, failureClass] = foldVerdict(axes, false);
-    return { fmt: ad.name, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
+    earlyNote = TOO_DEEP_NOTE;
+  } else {
+    const predAd = predecessor === null ? null : detect(predecessor, adapters);
+    earlyNote = ad.profilePrecheck(doc, predecessor, predAd === null ? null : predAd.name);
+  }
+  if (earlyNote !== null) {
+    const early = earlyUnverified(ad.name, earlyNote);
+    return {
+      fmt: early.fmt,
+      axes: early.axes,
+      verdict: early.verdict,
+      failureClass: early.failureClass,
+      signer: early.signer,
+      firstFailingEdge: early.firstFailingEdge,
+      notChecked: early.notChecked,
+      coverage: early.coverage,
+    };
   }
 
   const axes: AxisResult[] = [
@@ -345,7 +368,7 @@ export function verify(
     chainAxis(ad, doc, adapters, predecessor),
     seqAxis(ad, doc, adapters, predecessor),
   ];
-  for (const [name, res, note] of ad.extraAxes(doc, keyProvider)) {
+  for (const [name, res, note] of ad.extraAxesWithContext(doc, keyProvider, context)) {
     axes.push(axis(name, res, note));
   }
 

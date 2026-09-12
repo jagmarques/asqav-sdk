@@ -267,23 +267,23 @@ describe("Agent.sign body shape across modes", () => {
   });
 
   it("hash-only with org salt produces a different hash than without", async () => {
-    const agent = await makeAgent();
-
     _setModeForTests("hash-only");
+    const plainAgent = await makeAgent();
     let fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
-    await agent.sign({ actionType: "api:call", context: { k: 3 } });
+    await plainAgent.sign({ actionType: "api:call", context: { k: 3 } });
     const plain = JSON.parse(
       (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
     ).hash;
     fetchSpy.mockRestore();
 
     _setModeForTests("hash-only", new Uint8Array(32).fill(1));
+    const saltedAgent = await makeAgent();
     fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
-    await agent.sign({ actionType: "api:call", context: { k: 3 } });
+    await saltedAgent.sign({ actionType: "api:call", context: { k: 3 } });
     const salted = JSON.parse(
       (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
     ).hash;
@@ -294,23 +294,23 @@ describe("Agent.sign body shape across modes", () => {
   });
 
   it("hash-only labels a keyed digest hmac-sha256, not sha256", async () => {
-    const agent = await makeAgent();
-
     _setModeForTests("hash-only");
+    const plainAgent = await makeAgent();
     let fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
-    await agent.sign({ actionType: "api:call", context: { k: 3 } });
+    await plainAgent.sign({ actionType: "api:call", context: { k: 3 } });
     const plainBody = JSON.parse(
       (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
     );
     fetchSpy.mockRestore();
 
     _setModeForTests("hash-only", new Uint8Array(32).fill(1));
+    const saltedAgent = await makeAgent();
     fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(mockJsonResponse(SIGN_RESPONSE));
-    await agent.sign({ actionType: "api:call", context: { k: 3 } });
+    await saltedAgent.sign({ actionType: "api:call", context: { k: 3 } });
     const saltedBody = JSON.parse(
       (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
     );

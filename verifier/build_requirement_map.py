@@ -159,6 +159,7 @@ def main() -> int:
             receipt,
             jwks,
             predecessor_payload=predecessor,
+            counterparty=_load(directory, "originating_envelope.json"),
             trusted_tsa_keys=trusted_tsa_keys,
             bitcoin_headers=bitcoin_headers,
         )

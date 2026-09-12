@@ -458,6 +458,10 @@ class DuplicateMemberError(ValueError):
 #: switches to exponential notation and Python's str does not.
 MAX_CANONICAL_INTEGER = 2**53
 
+#: Asqav profile bound: draft Section 4 ends the safe interval at 2**53 - 1.
+#: The profile precheck refuses exactly representable 2**53; shared ingest keeps it.
+MAX_PROFILE_INTEGER = 2**53 - 1
+
 
 class UnsafeIntegerError(ValueError):
     """An integer with no exact double; two readers would canonicalise it differently.
@@ -480,13 +484,53 @@ def _reject_duplicate_members(pairs):
 
     # parse_int: refuse an integer literal with no exact double.
 def _reject_unsafe_integer(literal):
-    value = int(literal)
+    # int() itself raises past the interpreter digit cap, so judge the
+    # literal first: leading zeros never count toward the value's size.
+    digits = literal[1:] if literal[:1] == "-" else literal
+    significant = digits.lstrip("0") or "0"
+    if _decimal_digits_exceed_str_limit(len(significant)):
+        raise UnsafeIntegerError(
+            f"integer outside the canonical integer range +/-2**53: "
+            f"<{len(significant)}-digit integer>; serialise it as a JSON "
+            "string or an integer-rational pair"
+        )
+    signed = literal[:1] + significant if literal[:1] == "-" else significant
+    value = int(signed)
     if not -MAX_CANONICAL_INTEGER <= value <= MAX_CANONICAL_INTEGER:
         raise UnsafeIntegerError(
             f"integer outside the canonical integer range +/-2**53: {literal}; serialise "
             "it as a JSON string or an integer-rational pair"
         )
     return value
+
+
+def _decimal_digits_exceed_str_limit(count: int) -> bool:
+    """True when a decimal literal of ``count`` digits defeats int()."""
+    get_limit = getattr(sys, "get_int_max_str_digits", None)
+    if get_limit is None:
+        return False
+    limit = get_limit()
+    return bool(limit) and count > limit
+
+
+def _int_exceeds_str_limit(node: int) -> bool:
+    """True when str(node) would breach the interpreter digit cap."""
+    get_limit = getattr(sys, "get_int_max_str_digits", None)
+    if get_limit is None:
+        return False
+    limit = get_limit()
+    return bool(limit) and abs(node) >= 10**limit
+
+
+def _int_digit_count(node: int) -> int:
+    """Exact decimal digit count via bit_length, never via str()."""
+    magnitude = abs(node)
+    digits = (magnitude.bit_length() * 30103) // 100000 + 1
+    while 10**digits <= magnitude:
+        digits += 1
+    while digits > 1 and 10 ** (digits - 1) > magnitude:
+        digits -= 1
+    return digits
 
 
 def _parse_object(text: str, source: str) -> dict:
@@ -2135,7 +2179,8 @@ def check_payload_digest(payload: dict):
     if not isinstance(claimed, str) or not re.fullmatch(r"[0-9a-f]{64}", claimed):
         return "FAIL", f"payload_digest.hash {claimed!r} is not 64 lowercase hex"
     claimed_size = digest.get("size")
-    if claimed_size is not None and (
+    # Absence stays allowed; a present null is malformed, not a missing length.
+    if "size" in digest and (
         not isinstance(claimed_size, int) or isinstance(claimed_size, bool) or claimed_size < 0
     ):
         return "FAIL", f"payload_digest.size {claimed_size!r} is not a non-negative integer"
@@ -2163,16 +2208,38 @@ def check_payload_digest(payload: dict):
 
 
 def _envelope_hash(envelope: dict) -> str:
-    """Base64 SHA-256 over the originating envelope's full canonical bytes.
+    """Hash payload and the exact signature object, excluding all outer export members."""
+    if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), dict):
+        raise ValueError("originating payload is unavailable")
+    signature = envelope.get("signature")
+    if not isinstance(signature, dict) or any(
+        not isinstance(signature.get(key), str) or not signature[key]
+        for key in ("alg", "kid", "sig")
+    ):
+        raise ValueError("originating signature object is unavailable")
+    projection = {"payload": envelope["payload"], "signature": signature}
+    if _scan_shape(projection, max_depth=MAX_NESTING_DEPTH) is not None:
+        raise ValueError("originating canonical bytes are unavailable")
+    return base64.b64encode(hashlib.sha256(canonical_json(projection)).digest()).decode()
 
-    Scope includes the originator's signature bytes, which is the rule that stops a
-    re-signing intermediary from escaping detection. Mirrors the cloud's
-    core/envelope.py compute_envelope_hash.
-    """
-    return base64.b64encode(hashlib.sha256(canonical_json(envelope)).digest()).decode()
+
+_COUNTERPARTY_KID_UNSET = object()
 
 
-def check_counterparty_binding(payload: dict, originator: dict | None = None):
+def counterparty_acknowledging_kid(envelope: dict):
+    """Read an actual wire kid, without normalization's synthesized issuer fallback."""
+    signature = envelope.get("signature")
+    if not isinstance(signature, dict):
+        signature = envelope.get("signature_envelope")
+    return signature.get("kid") if isinstance(signature, dict) else None
+
+
+def bound_counterparty_kid(kid, signing_kid, signing_issuer):
+    """Require the advertised identifier to name the directory's selected signing key."""
+    return kid if isinstance(kid, str) and kid in (signing_kid, signing_issuer) else None
+
+
+def check_counterparty_binding(payload: dict, originator: dict | None = None, *, acknowledging_kid=_COUNTERPARTY_KID_UNSET):
     """Weigh a claimed cross-agent binding instead of letting it ride unchecked.
 
     counterparty_binding is caller-supplied: an issuer can attach one asserting
@@ -2191,10 +2258,14 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None):
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no counterparty binding to check"
     cpb = payload.get("counterparty_binding")
-    if cpb is None:
+    if "counterparty_binding" not in payload:
         return "PASS", "no counterparty binding; content is unilaterally asserted"
     if not isinstance(cpb, dict):
         return "FAIL", f"counterparty_binding is {type(cpb).__name__}, not an object"
+    if "scope" not in cpb:
+        return "SKIPPED", "legacy_scope: the signed binding omits its digest scope"
+    if cpb["scope"] != "envelope_minus_anchors":
+        return "SKIPPED", "unrecognised_scope: the signed digest scope is unsupported"
 
     receipt_ref = cpb.get("receipt_ref")
     envelope_hash = cpb.get("envelope_hash")
@@ -2203,7 +2274,8 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None):
     if not isinstance(envelope_hash, str) or not envelope_hash:
         return "FAIL", "counterparty_binding.envelope_hash missing or not a string"
     try:
-        raw = base64.b64decode(envelope_hash, validate=True)
+        normalized = envelope_hash.replace("-", "+").replace("_", "/")
+        raw = base64.b64decode(normalized + "=" * (-len(normalized) % 4), validate=True)
     except Exception:
         return "FAIL", f"counterparty_binding.envelope_hash {envelope_hash!r} is not base64"
     if len(raw) != 32:
@@ -2214,24 +2286,30 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None):
     expect_ack_from = cpb.get("expect_ack_from")
     if expect_ack_from is not None and not isinstance(expect_ack_from, str):
         return "FAIL", "counterparty_binding.expect_ack_from is not a string"
+    if cpb.get("transport_label") is not None and not isinstance(cpb["transport_label"], str):
+        return "FAIL", "counterparty_binding.transport_label is not a string"
 
     if not isinstance(originator, dict):
         # Structurally sound but nothing here corroborates it; blocking on purpose
         return "SKIPPED", (
-            f"counterparty binding claims {receipt_ref}; no originating receipt supplied, "
+            f"unresolved: counterparty binding claims {receipt_ref}; no originating receipt supplied, "
             "so the corroboration is unchecked"
         )
 
-    actual = _envelope_hash(originator)
-    if actual != envelope_hash:
+    try:
+        actual = _envelope_hash(originator)
+    except (TypeError, ValueError, RecursionError, UnicodeError):
+        return "SKIPPED", "unresolved: exact originating canonical bytes are unavailable"
+    if base64.b64decode(actual) != raw:
         return "FAIL", (
             f"counterparty_mismatch: binding commits {envelope_hash[:16]}.., "
             f"supplied originator hashes to {actual[:16]}.."
         )
-    if expect_ack_from is not None and payload.get("issuer_id") != expect_ack_from:
+    kid = payload.get("issuer_id") if acknowledging_kid is _COUNTERPARTY_KID_UNSET else acknowledging_kid
+    if expect_ack_from is not None and kid != expect_ack_from:
         return "FAIL", (
-            f"counterparty_mismatch: binding expects an acknowledgment from "
-            f"{expect_ack_from}, this receipt is issued by {payload.get('issuer_id')!r}"
+            f"kid_mismatch: binding expects an acknowledgment from "
+            f"{expect_ack_from}, this receipt names signature.kid {kid!r}"
         )
     return "PASS", f"counterparty binding rederives from the supplied {receipt_ref}"
 
@@ -2396,6 +2474,161 @@ def check_structure(payload: dict):
     return "PASS", f"required fields present; type {rt}"
 
 
+def is_current_profile_version(value) -> bool:
+    """True for numeric v=1 (1.0 selects too); booleans, v2, missing never select."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return value == 1
+    return isinstance(value, float) and value == 1.0
+
+
+def profile_range_note(obj) -> str | None:
+    """Note when ``obj`` carries a number beyond +/-(2**53 - 1), else None."""
+    stack = [(obj, "$", False)]
+    active: set[int] = set()
+    done: dict[int, object] = {}
+    while stack:
+        node, path, exiting = stack.pop()
+        if isinstance(node, bool):
+            continue
+        if isinstance(node, int):
+            if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
+                # str() itself raises past the interpreter digit cap, so an
+                # unformattable magnitude is refused by digit count instead.
+                if _int_exceeds_str_limit(node):
+                    digits = _int_digit_count(node)
+                    return (
+                        f"Asqav profile range +/-(2**53 - 1) excludes "
+                        f"a {digits}-digit integer at {path}"
+                    )
+                return (
+                    f"Asqav profile range +/-(2**53 - 1) excludes integer "
+                    f"{node} at {path}"
+                )
+            continue
+        if isinstance(node, float) and node.is_integer():
+            if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
+                return (
+                    f"Asqav profile range +/-(2**53 - 1) excludes number "
+                    f"{node!r} at {path}"
+                )
+            continue
+        if isinstance(node, (dict, list, tuple)):
+            if exiting:
+                # The dict holds each skipped container alive, so a freed id
+                # can never be recycled onto an unchecked container (D2)
+                active.discard(id(node))
+                done[id(node)] = node
+                continue
+            # Only a container met again while still expanding on the current
+            # path is a cycle; a fully checked one is shared and known clean
+            # (the walk returns at the first violation), so skip it once.
+            if id(node) in done:
+                continue
+            if id(node) in active:
+                return (
+                    "Asqav profile range +/-(2**53 - 1) unverifiable: "
+                    f"cyclic reference at {path}"
+                )
+            active.add(id(node))
+            stack.append((node, path, True))
+            if isinstance(node, dict):
+                stack.extend((v, f"{path}.{k}", False) for k, v in node.items())
+            else:
+                stack.extend(
+                    (v, f"{path}[{i}]", False) for i, v in enumerate(node)
+                )
+    return None
+
+
+def _counterparty_commitment_reached(payload, counterparty) -> bool:
+    """True when the counterparty path reaches its envelope commitment."""
+    cpb = payload.get("counterparty_binding")
+    if not isinstance(cpb, dict):
+        return False
+    receipt_ref = cpb.get("receipt_ref")
+    if not isinstance(receipt_ref, str) or not receipt_ref:
+        return False
+    digest = cpb.get("envelope_hash")
+    if not isinstance(digest, str) or not digest:
+        return False
+    try:
+        raw = base64.b64decode(digest, validate=True)
+    except Exception:
+        return False
+    if len(raw) != 32:
+        return False
+    ack = cpb.get("expect_ack_from")
+    if ack is not None and not isinstance(ack, str):
+        return False
+    return isinstance(counterparty, dict)
+
+
+    # Refusal note when current-profile digest inputs violate the range, else None.
+def _profile_range_refusal(payload, sig_obj, predecessor_payload, counterparty, anchors):
+    if not is_current_profile_version(payload.get("v")):
+        return None
+    note = profile_range_note(payload)
+    if note is not None:
+        return note
+    if isinstance(anchors, list) and anchors and isinstance(sig_obj, dict):
+        note = profile_range_note(sig_obj)
+        if note is not None:
+            return note
+    # check_chain canonicalizes any supplied predecessor for a non-genesis
+    # current link, so the precheck walks it under the same condition: no
+    # required-member or registry test on this standalone path.
+    if (
+        predecessor_payload is not None
+        and payload.get("previousReceiptHash") != FIRST_RECEIPT_SEED
+    ):
+        note = profile_range_note(predecessor_payload)
+        if note is not None:
+            return note
+    if _counterparty_commitment_reached(payload, counterparty):
+        note = profile_range_note(counterparty)
+        if note is not None:
+            return note
+    return None
+
+
+def _agent_fallback_signature(
+    jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
+):
+    """Adopt a verifying agent key, else note exhaustion; returns updated state."""
+    # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
+    # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
+    agent_id = payload.get("agent_id") or envelope.get("agent_id")
+    org_bind = payload.get("org_id") or envelope.get("org_id")
+    entry_a, sig_res_a, exhausted = _select_agent_bound_key(
+        jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig,
+        alg or jwks_alg,
+    )
+    pk_a, alg_a = None, None
+    agent_note = ""
+    if entry_a is not None:
+        pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
+        if sig_res_a is not None and sig_res_a[0] == "PASS":
+            sig_res = sig_res_a
+            eff = (
+                entry_a.get("status"),
+                entry_a.get("kid"),
+                key_issuer_of(entry_a),
+                revoked_at_of(entry_a),
+                pk_a,
+                alg_a,
+            )
+        elif exhausted:
+            agent_note = "; no key published for this agent verified"
+    if sig_res[0] != "PASS":
+        cands = [(pk, alg or jwks_alg)]
+        if pk_a is not None:
+            cands.append((pk_a, alg_a or alg or jwks_alg))
+        sig_res = _pre_cutover_diagnostic(payload, sig, cands, sig_res)
+    return sig_res, eff, agent_note
+
+
 def run(
     envelope: dict,
     jwks: dict,
@@ -2414,6 +2647,7 @@ def run(
         )
         print("\n  => unverified (failure_class: unverifiable; no receipt object to verify)")
         return 2
+    acknowledging_kid = counterparty_acknowledging_kid(envelope)
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -2449,6 +2683,14 @@ def run(
         sig_obj = {}
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
+    refusal = _profile_range_refusal(
+        payload, sig_obj, predecessor_payload, counterparty, envelope.get("anchors")
+    )
+    if refusal is not None:
+        print("Asqav receipt verification")
+        print(f"  [FAIL] input       {refusal}")
+        print("\n  => unverified (failure_class: unverifiable; never reported verified)")
+        return 2
     try:
         msg = canonical_json(payload)
     except RecursionError:
@@ -2485,32 +2727,13 @@ def run(
         eff_issuer = key_issuer_of(entry)
         eff_revoked_at = revoked_at_of(entry)
         eff_pk, eff_alg = pk, jwks_alg
-        # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
-        # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
         agent_note = ""
         if sig_res[0] != "PASS":
-            agent_id = payload.get("agent_id") or envelope.get("agent_id")
-            org_bind = payload.get("org_id") or envelope.get("org_id")
-            entry_a, sig_res_a, exhausted = _select_agent_bound_key(
-                jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig,
-                alg or jwks_alg,
+            eff = (eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg)
+            sig_res, eff, agent_note = _agent_fallback_signature(
+                jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
             )
-            pk_a, alg_a = None, None
-            if entry_a is not None:
-                pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
-                if sig_res_a is not None and sig_res_a[0] == "PASS":
-                    sig_res = sig_res_a
-                    eff_status, eff_kid = entry_a.get("status"), entry_a.get("kid")
-                    eff_issuer = key_issuer_of(entry_a)
-                    eff_revoked_at = revoked_at_of(entry_a)
-                    eff_pk, eff_alg = pk_a, alg_a
-                elif exhausted:
-                    agent_note = "; no key published for this agent verified"
-            if sig_res[0] != "PASS":
-                cands = [(pk, alg or jwks_alg)]
-                if pk_a is not None:
-                    cands.append((pk_a, alg_a or alg or jwks_alg))
-                sig_res = _pre_cutover_diagnostic(payload, sig, cands, sig_res)
+            eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
         results.append(
             ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}")
         )
@@ -2528,11 +2751,12 @@ def run(
             ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor))
         )
         results.append(("signature", *sig_res))
+        acknowledging_kid = bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
-    results.append(("counterparty", *check_counterparty_binding(payload, counterparty)))
+    results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
     results.append(("payload_digest", *check_payload_digest(payload)))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
@@ -2643,6 +2867,7 @@ def run_structured(
             "kid": None,
             "alg": None,
         }
+    acknowledging_kid = counterparty_acknowledging_kid(envelope)
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -2692,6 +2917,21 @@ def run_structured(
         sig_obj = {}  # non-object signature: no usable kid/sig, key resolution FAILs cleanly
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
+    refusal = _profile_range_refusal(
+        payload, sig_obj, predecessor_payload, counterparty, envelope.get("anchors")
+    )
+    if refusal is not None:
+        axes = [_struct_axis("input", "FAIL", refusal)]
+        return {
+            "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
+            "axes": axes,
+            "canonical_sha256": None,
+            "kid": None,
+            "alg": None,
+        }
     try:
         msg = canonical_json(payload)
     except RecursionError:
@@ -2734,32 +2974,14 @@ def run_structured(
         eff_issuer = key_issuer_of(entry)
         eff_revoked_at = revoked_at_of(entry)
         eff_pk, eff_alg = pk, jwks_alg
-        # Cloud receipts sign with the agent key though kid is the issuer id; fall back,
-        # mirroring run(). agent_id is attacker-controlled, so match on issuer_id.
         agent_note = ""
         if sig_res[0] != "PASS":
-            agent_id = payload.get("agent_id") or envelope.get("agent_id")
-            org_bind = payload.get("org_id") or envelope.get("org_id")
-            entry_a, sig_res_a, exhausted = _select_agent_bound_key(
-                jwks, agent_id, payload.get("issuer_id"), org_bind, msg, sig_bytes,
-                alg or jwks_alg,
+            eff = (eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg)
+            sig_res, eff, agent_note = _agent_fallback_signature(
+                jwks, payload, envelope, msg, sig_bytes, alg, jwks_alg, pk,
+                sig_res, eff,
             )
-            pk_a, alg_a = None, None
-            if entry_a is not None:
-                pk_a, alg_a = _b64decode(entry_a["public_key"]), entry_a.get("alg")
-                if sig_res_a is not None and sig_res_a[0] == "PASS":
-                    sig_res = sig_res_a
-                    eff_status, eff_kid = entry_a.get("status"), entry_a.get("kid")
-                    eff_issuer = key_issuer_of(entry_a)
-                    eff_revoked_at = revoked_at_of(entry_a)
-                    eff_pk, eff_alg = pk_a, alg_a
-                elif exhausted:
-                    agent_note = "; no key published for this agent verified"
-            if sig_res[0] != "PASS":
-                cands = [(pk, alg or jwks_alg)]
-                if pk_a is not None:
-                    cands.append((pk_a, alg_a or alg or jwks_alg))
-                sig_res = _pre_cutover_diagnostic(payload, sig_bytes, cands, sig_res)
+            eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
         axes.append(
             _struct_axis(
                 "issuer_key",
@@ -2782,12 +3004,13 @@ def run_structured(
             )
         )
         axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
+        acknowledging_kid = bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     axes.append(
-        _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty))
+        _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
     axes.append(_struct_axis("payload_digest", *check_payload_digest(payload)))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
@@ -2877,6 +3100,11 @@ def main() -> int:
         "\"time\": <ISO-8601>} for the OpenTimestamps block check; without it the "
         "block portion reports unverifiable",
     )
+    p.add_argument(
+        "--counterparty",
+        metavar="FILE",
+        help="complete originating signing envelope JSON for the counterparty binding check",
+    )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
 
@@ -2904,6 +3132,7 @@ def main() -> int:
 
         trusted_tsa_keys = _load_tsa_keys(args.tsa_key)
         bitcoin_headers = _load(args.bitcoin_headers) if args.bitcoin_headers else None
+        counterparty = _load(args.counterparty) if args.counterparty else None
     except VerifierInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -2914,6 +3143,7 @@ def main() -> int:
         predecessor_payload,
         trusted_tsa_keys=trusted_tsa_keys,
         bitcoin_headers=bitcoin_headers,
+        counterparty=counterparty,
     )
 
 

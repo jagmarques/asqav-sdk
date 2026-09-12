@@ -662,7 +662,7 @@
         "anchors": [
           {
             "type": "rfc3161",
-            "value": "MTIzN\u0410=="
+            "value": "MTIzNА=="
           }
         ]
       },
@@ -2296,6 +2296,66 @@
         "result": "FAIL",
         "note_contains": "non-negative integer"
       }
+    },
+    {
+      "name": "size null with matching context is malformed",
+      "payload": {
+        "context": {
+          "amount": 100,
+          "currency": "EUR"
+        },
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+          "size": null
+        }
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "non-negative integer"
+      }
+    },
+    {
+      "name": "size absent with matching context stays allowed",
+      "payload": {
+        "context": {
+          "amount": 100,
+          "currency": "EUR"
+        },
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e"
+        }
+      },
+      "expect": {
+        "result": "PASS",
+        "note_contains": "rederives from the carried context"
+      }
+    },
+    {
+      "name": "size null with context absent is still malformed",
+      "payload": {
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+          "size": null
+        }
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "non-negative integer"
+      }
+    },
+    {
+      "name": "size null with explicit null context is still malformed",
+      "payload": {
+        "context": null,
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+          "size": null
+        }
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "non-negative integer"
+      }
     }
   ],
   "counterparty_binding": [
@@ -2304,7 +2364,9 @@
       "payload": {},
       "expect": {
         "result": "PASS",
-        "note_contains": "unilaterally asserted"
+        "note_contains": "unilaterally asserted",
+        "valid": true,
+        "failure_class": null
       }
     },
     {
@@ -2312,12 +2374,15 @@
       "payload": {
         "counterparty_binding": {
           "receipt_ref": "sig_X",
-          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "SKIPPED",
-        "note_contains": "corroboration is unchecked"
+        "note_contains": "corroboration is unchecked",
+        "valid": null,
+        "failure_class": "unverifiable"
       }
     },
     {
@@ -2327,31 +2392,39 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not an object"
+        "note_contains": "not an object",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
       "name": "receipt_ref missing",
       "payload": {
         "counterparty_binding": {
-          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "receipt_ref missing"
+        "note_contains": "receipt_ref missing",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
       "name": "envelope_hash missing",
       "payload": {
         "counterparty_binding": {
-          "receipt_ref": "sig_X"
+          "receipt_ref": "sig_X",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "envelope_hash missing"
+        "note_contains": "envelope_hash missing",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
@@ -2359,12 +2432,15 @@
       "payload": {
         "counterparty_binding": {
           "receipt_ref": "sig_X",
-          "envelope_hash": "!!!not-b64!!!"
+          "envelope_hash": "!!!not-b64!!!",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "is not base64"
+        "note_contains": "is not base64",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
@@ -2372,12 +2448,15 @@
       "payload": {
         "counterparty_binding": {
           "receipt_ref": "sig_X",
-          "envelope_hash": "c2hvcnQ="
+          "envelope_hash": "c2hvcnQ=",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not a sha-256"
+        "note_contains": "not a sha-256",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
@@ -2386,12 +2465,360 @@
         "counterparty_binding": {
           "receipt_ref": "sig_X",
           "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-          "expect_ack_from": 7
+          "expect_ack_from": 7,
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "expect_ack_from is not a string"
+        "note_contains": "expect_ack_from is not a string",
+        "valid": false,
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "name": "two-key anchored match",
+      "payload": {
+        "issuer_id": "issuer",
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": "envelope_minus_anchors",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "acknowledging_kid": "ack-key",
+      "expect": {
+        "result": "PASS",
+        "note_contains": "rederives",
+        "valid": true,
+        "failure_class": null
+      }
+    },
+    {
+      "name": "three-key digest rejected",
+      "payload": {
+        "issuer_id": "issuer",
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": "envelope_minus_anchors",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "3ZKOTzYoC4qPBv+9z5qUOkKNU+kljGfv82t0cTA+inc="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "acknowledging_kid": "ack-key",
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "counterparty_mismatch",
+        "valid": false,
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "name": "different acknowledging kid",
+      "payload": {
+        "issuer_id": "issuer",
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": "envelope_minus_anchors",
+          "expect_ack_from": "issuer",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "acknowledging_kid": "ack-key",
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "kid_mismatch",
+        "valid": false,
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "name": "scope absent with origin True",
+      "payload": {
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "legacy_scope:",
+        "valid": null,
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "name": "scope absent with origin False",
+      "payload": {
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": null,
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "legacy_scope:",
+        "valid": null,
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "name": "scope None with origin True",
+      "payload": {
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": null,
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "unrecognised_scope:",
+        "valid": null,
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "name": "scope None with origin False",
+      "payload": {
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": null,
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": null,
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "unrecognised_scope:",
+        "valid": null,
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "name": "scope unsupported with origin True",
+      "payload": {
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": "unsupported",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "unrecognised_scope:",
+        "valid": null,
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "name": "scope unsupported with origin False",
+      "payload": {
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": "unsupported",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94="
+        }
+      },
+      "originating_envelope": null,
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "unrecognised_scope:",
+        "valid": null,
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "name": "explicit null binding is malformed",
+      "payload": {
+        "counterparty_binding": null
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "not an object",
+        "valid": false,
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "name": "overpadded SHA-256 digest is malformed",
+      "payload": {
+        "issuer_id": "issuer",
+        "counterparty_binding": {
+          "receipt_ref": "sig_origin",
+          "scope": "envelope_minus_anchors",
+          "expect_ack_from": "ack-key",
+          "envelope_hash": "yPbSdOVGwzzsNGZmIArWY/PviQOyWU/BDxSra4TvK94=="
+        }
+      },
+      "originating_envelope": {
+        "payload": {
+          "v": 1,
+          "type": "protectmcp:decision",
+          "issuer_id": "origin"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "origin-key",
+          "sig": "+/8="
+        },
+        "anchors": [
+          {
+            "type": "rfc3161",
+            "value": "first"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "second"
+          }
+        ]
+      },
+      "acknowledging_kid": "ack-key",
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "is not base64",
+        "valid": false,
+        "failure_class": "invalid"
       }
     }
   ]

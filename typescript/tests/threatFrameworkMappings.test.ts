@@ -155,13 +155,21 @@ describe("threat-framework taxonomy validation", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it.each(["ASI01", 42, { ids: ["ASI01"] }])("rejects non-list agentic value %s before HTTP", async (value) => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(okBody()));
+    await expect(fakeAgent().sign({
+      actionType: "api:call", context: {}, owaspAgenticTop10: value as any,
+    })).rejects.toThrow("owasp_agentic_top10_must_be_non_empty_list");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it.each([true, false])("serializes bare agentic ids with compliance=%s", async complianceMode => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(okBody()));
     const values = Array.from({ length: 10 }, (_, n) => `ASI${String(n + 1).padStart(2, "0")}`).concat("ASI01");
     await fakeAgent().sign({ actionType: "api:call", context: {}, owaspAgenticTop10: values,
       owaspLlmTop10: ["LLM01"], complianceMode });
     const body = readBody(spy);
-    // TypeScript forwards populated taxonomy fields in both compliance modes.
+    // TypeScript forwards populated taxonomy fields in both compliance modes
     expect(body.owasp_llm_top10).toEqual(["LLM01"]);
     expect(body.owasp_agentic_top10).toEqual(values);
     expect(body.framework_mappings_self_declared).toBeUndefined();

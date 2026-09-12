@@ -165,18 +165,17 @@ describe("cross-language parity", () => {
 
   const dec = (b: Uint8Array | string) => (typeof b === "string" ? b : new TextDecoder().decode(b));
 
-  it("shows why the canonicaliser alone cannot catch this fixture", () => {
-    // JSON.parse has already rounded 2^53+1 to 2^53 by the time any canonicaliser runs,
-    // and a rounded 2^53 is indistinguishable from a genuine one. JavaScript cannot even
-    // hold 2^53+1: the literal IS 2^53. So the rule has to live at the parse boundary,
-    // where the source digits still exist; this guard is defence in depth for the values
-    // JS CAN represent above the bound.
+  it("refuses the whole excluded boundary, rounded values included", () => {
+    // JSON.parse rounded 2^53+1 to 2^53, indistinguishable from genuine; the
+    // profile refuses the whole boundary value; its digits stay unrecoverable
     const rounded = JSON.parse(readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8"));
     expect(rounded.n).toBe(9007199254740992);
     expect(9007199254740993).toBe(9007199254740992); // the language, not a typo
-    expect(() => jcs({ n: 2 ** 54 })).toThrow(/canonical integer range/);
-    expect(() => jcs({ n: 1e21 })).toThrow(/canonical integer range/);
-    expect(dec(jcs({ n: 2 ** 53 }))).toBe('{"n":9007199254740992}');
+    expect(() => jcs(rounded)).toThrow(/Asqav profile range/);
+    expect(() => jcs({ n: 2 ** 54 })).toThrow(/Asqav profile range/);
+    expect(() => jcs({ n: 1e21 })).toThrow(/Asqav profile range/);
+    expect(() => jcs({ n: 2 ** 53 })).toThrow(/Asqav profile range/);
+    expect(jcs({ n: 2 ** 53 - 1 })).toBe('{"n":9007199254740991}');
   });
 
   it("still agrees on astral key order, the cause that was genuinely closed", () => {
