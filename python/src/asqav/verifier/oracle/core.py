@@ -303,6 +303,19 @@ def _exceeds_depth(obj: Any, max_depth: int) -> bool:
     return False
 
 
+    # One-axis unverified result for a pre-axis input refusal (depth, profile range).
+def _early_unverified(fmt: str, note: str) -> VerifyResult:
+    axes = [_axis("structure", crypto.FAIL, note)]
+    verdict, failure_class = fold_verdict(axes, keyed=False)
+    return VerifyResult(
+        fmt=fmt,
+        axes=axes,
+        verdict=verdict,
+        failure_class=failure_class,
+        first_failing_edge=first_failing_edge(axes),
+    )
+
+
     # Verify one parsed receipt and return a structured ``VerifyResult``.
 def verify(
     doc: dict,
@@ -326,15 +339,15 @@ def verify(
     if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
     ):
-        axes = [_axis("structure", crypto.FAIL, _TOO_DEEP_NOTE)]
-        verdict, failure_class = fold_verdict(axes, keyed=False)
-        return VerifyResult(
-            fmt=ad.name,
-            axes=axes,
-            verdict=verdict,
-            failure_class=failure_class,
-            first_failing_edge=first_failing_edge(axes),
-        )
+        return _early_unverified(ad.name, _TOO_DEEP_NOTE)
+    pred_ad = detect(predecessor, adapters) if predecessor is not None else None
+    refusal = ad.profile_precheck(
+        doc,
+        predecessor=predecessor,
+        predecessor_fmt=pred_ad.name if pred_ad is not None else None,
+    )
+    if refusal is not None:
+        return _early_unverified(ad.name, refusal)
 
     axes = [
         _structure_axis(ad, doc),

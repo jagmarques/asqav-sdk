@@ -148,3 +148,64 @@ def test_standalone_verifier_rejects_an_unsafe_integer() -> None:
     with pytest.raises(vr.VerifierInputError, match="canonical integer range"):
         vr._parse_object('{"n": 9007199254740993}', "receipt")
     assert vr._parse_object('{"n": 9007199254740992}', "receipt") == {"n": 9007199254740992}
+
+
+# --- Asqav profile range +/-(2**53 - 1): explicit entry, shared loads unchanged ---
+
+
+    # The profile admits the largest safe integer on both signs, nested or not.
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"n": 9007199254740991}',
+        '{"n": -9007199254740991}',
+        '{"a": {"b": [1, {"c": 9007199254740991}]}}',
+    ],
+)
+def test_profile_ingest_accepts_the_safe_interval(text: str) -> None:
+    assert strict_json.loads_profile(text) == strict_json.loads(text)
+
+
+    # Exactly representable +/-2**53 is outside the profile interval and refuses.
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"n": 9007199254740992}',
+        '{"n": -9007199254740992}',
+        '{"a": {"b": [1, {"c": -9007199254740992}]}}',
+    ],
+)
+def test_profile_ingest_refuses_the_excluded_boundary(text: str) -> None:
+    with pytest.raises(
+        strict_json.ProfileIntegerError, match=r"profile range \+/-\(2\*\*53 - 1\)"
+    ):
+        strict_json.loads_profile(text)
+
+
+    # Values with no exact double refuse first at the shared guard underneath.
+@pytest.mark.parametrize("literal", ["9007199254740993", "-9007199254740993"])
+def test_profile_ingest_refuses_beyond_the_boundary(literal: str) -> None:
+    with pytest.raises(strict_json.UnsafeIntegerError):
+        strict_json.loads_profile('{"n": %s}' % literal)
+
+
+    # Decimal/exponent spellings of the excluded boundary cannot bypass the check.
+@pytest.mark.parametrize("literal", ["9007199254740992.0", "9.007199254740992e15"])
+def test_profile_ingest_refuses_float_spellings_of_the_boundary(literal: str) -> None:
+    with pytest.raises(strict_json.ProfileIntegerError):
+        strict_json.loads_profile('{"n": %s}' % literal)
+
+
+    # The string twin, booleans and fractional floats keep their existing behavior.
+def test_profile_ingest_keeps_strings_booleans_and_fractions() -> None:
+    assert strict_json.loads_profile('{"n": "9007199254740993"}') == {
+        "n": "9007199254740993"
+    }
+    assert strict_json.loads_profile('{"a": true, "b": 3.14}') == {"a": True, "b": 3.14}
+    assert strict_json.loads_profile('{"n": 5.0}') == {"n": 5.0}
+
+
+    # The shared generic entry still accepts +/-2**53: foreign compatibility control.
+@pytest.mark.parametrize("literal", ["9007199254740992", "-9007199254740992"])
+def test_generic_ingest_still_accepts_the_excluded_boundary(literal: str) -> None:
+    assert strict_json.loads('{"n": %s}' % literal) == {"n": int(literal)}

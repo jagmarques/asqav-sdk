@@ -1256,3 +1256,199 @@ def test_the_named_edge_is_an_axis_the_report_actually_carries() -> None:
                 f"{entry['dir']} names edge {result.first_failing_edge!r} "
                 f"but the report carries no such axis"
             )
+
+
+# --- Asqav profile safe-integer precheck: current v=1 refuses before crypto ---
+
+
+def _bomb(*args, **kwargs):
+    raise AssertionError("crypto callback must not run after a profile refusal")
+
+
+def _profile_spies(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asqav.verifier.oracle.core as core_mod
+
+    monkeypatch.setattr(AsqavNativeAdapter, "signing_input", _bomb)
+    monkeypatch.setattr(AsqavNativeAdapter, "resolve_key", _bomb)
+    monkeypatch.setattr(core_mod.crypto, "verify_signature", _bomb)
+
+
+def test_profile_nested_excluded_number_refuses_before_crypto(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _profile_spies(monkeypatch)
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    doc["payload"]["score"] = 2**53
+    res = verify(doc, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native"))
+    assert res.fmt == "asqav-native"
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
+    assert len(res.axes) == 1
+    assert res.axes[0].axis == "structure"
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+    assert res.first_failing_edge == "structure"
+
+
+def test_profile_nested_inner_hash_mode_still_refuses() -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    doc["payload"]["mode"] = "hash"
+    doc["payload"]["score"] = -(2**53)
+    res = verify(doc, ADAPTERS)
+    assert res.verdict == "unverified"
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+
+
+def test_profile_bare_payload_refuses() -> None:
+    doc = {
+        "previousReceiptHash": "1" * 64,
+        "issuer_id": "kid-x",
+        "v": 1,
+        "score": 2**53,
+    }
+    res = verify(doc, ADAPTERS)
+    assert res.fmt == "asqav-native"
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+
+
+def test_profile_flat_excluded_metadata_refuses_before_crypto(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _profile_spies(monkeypatch)
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    doc["metadata"] = {"batch": 2**53}
+    res = verify(doc, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
+    assert res.verdict == "unverified"
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+
+
+def test_profile_flat_missing_v_keeps_schema_outcome() -> None:
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    del doc["v"]
+    doc["metadata"] = {"batch": 2**53}
+    res = verify(doc, ADAPTERS)
+    assert all("profile range" not in a.note for a in res.axes)
+    assert res.axis("structure").result == crypto.FAIL
+
+
+def test_profile_clean_v1_reaches_real_crypto(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asqav.verifier.oracle.core as core_mod
+
+    calls: list = []
+    orig = core_mod.crypto.verify_signature
+
+    def spy(alg, pk, msg, sig):
+        calls.append((alg, pk, msg, sig))
+        return orig(alg, pk, msg, sig)
+
+    monkeypatch.setattr(core_mod.crypto, "verify_signature", spy)
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    verify(doc, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit", "asqav-native"))
+    assert calls, "a clean v=1 receipt must reach the signature check"
+
+
+@pytest.mark.parametrize("version", [None, 2, True, "1"])
+def test_profile_non_current_versions_skip_the_precheck(version) -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    if version is None:
+        del doc["payload"]["v"]
+    else:
+        doc["payload"]["v"] = version
+    doc["payload"]["score"] = 2**53
+    res = verify(doc, ADAPTERS)
+    assert all("profile range" not in a.note for a in res.axes)
+
+
+def test_profile_float_1_0_selects_the_current_profile() -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    doc["payload"]["v"] = 1.0
+    doc["payload"]["score"] = 2**53
+    res = verify(doc, ADAPTERS)
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+
+
+def test_profile_outer_v_cannot_activate_nested_payload() -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    del doc["payload"]["v"]
+    doc["payload"]["score"] = 2**53
+    doc["v"] = 1
+    res = verify(doc, ADAPTERS)
+    assert all("profile range" not in a.note for a in res.axes)
+
+
+def test_profile_bad_predecessor_refuses_without_its_v() -> None:
+    doc = _load("asqav-03-chain-link", "receipt.json")
+    pred = _load("asqav-03-chain-link", "predecessor.json")
+    pred["payload"]["score"] = 2**53
+    del pred["payload"]["v"]
+    res = verify(doc, ADAPTERS, predecessor=pred)
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+
+
+def test_profile_genesis_skips_predecessor_numbers() -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    pred = _load("asqav-03-chain-link", "predecessor.json")
+    pred["payload"]["score"] = 2**53
+    res = verify(doc, ADAPTERS, predecessor=pred)
+    assert all("profile range" not in a.note for a in res.axes)
+
+
+def test_profile_foreign_predecessor_keeps_chain_result() -> None:
+    doc = _load("asqav-03-chain-link", "receipt.json")
+    pred = _load("aerf-01-genesis", "receipt.json")
+    res = verify(doc, ADAPTERS, predecessor=pred)
+    assert all("profile range" not in a.note for a in res.axes)
+    assert res.axis("chain").result == crypto.FAIL
+    assert res.failure_class == "invalid"
+
+
+def test_profile_unsigned_top_level_metadata_is_not_checked() -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    doc["export_seq"] = 2**53
+    res = verify(doc, ADAPTERS)
+    assert all("profile range" not in a.note for a in res.axes)
+
+
+def test_profile_jwks_at_generic_boundary_is_not_checked() -> None:
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    provider = _provider("asqav-01-genesis-permit", "asqav-native")
+    provider["max_seen"] = 2**53
+    res = verify(doc, ADAPTERS, key_provider=provider)
+    assert all("profile range" not in a.note for a in res.axes)
+
+
+def test_foreign_formats_have_no_profile_precheck() -> None:
+    doc = _load("aerf-01-genesis", "receipt.json")
+    assert AerfAdapter().profile_precheck(doc) is None
+    res = verify(doc, ADAPTERS, key_provider=_provider("aerf-01-genesis", "aerf"))
+    assert all("profile range" not in a.note for a in res.axes)
+
+
+def _dual_detect_predecessor(value: int) -> dict:
+    return {
+        "type": "notarised_evidence",
+        "evidence_hash_sha512": "0" * 128,
+        "previousReceiptHash": "1" * 64,
+        "issuer_id": "review",
+        "n": value,
+    }
+
+
+@pytest.mark.parametrize("value", [1, 2**53])
+def test_profile_predecessor_follows_registry_foreign_first(value: int) -> None:
+    doc = _load("asqav-03-chain-link", "receipt.json")
+    pred = _dual_detect_predecessor(value)
+    adapters = [AerfAdapter(), AsqavNativeAdapter()]
+    assert AsqavNativeAdapter().detect(pred) is True
+    res = verify(doc, adapters, predecessor=pred)
+    assert all("profile range" not in a.note for a in res.axes)
+    assert res.axis("chain").result == crypto.FAIL
+    assert res.axis("chain").note == "predecessor is a different receipt format"
+    assert res.failure_class == "invalid"
+
+
+def test_profile_predecessor_follows_registry_native_first() -> None:
+    doc = _load("asqav-03-chain-link", "receipt.json")
+    pred = _dual_detect_predecessor(2**53)
+    res = verify(doc, [AsqavNativeAdapter(), AerfAdapter()], predecessor=pred)
+    assert "profile range +/-(2**53 - 1)" in res.axes[0].note
+    assert res.failure_class == "unverifiable"

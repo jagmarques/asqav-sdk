@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-fingerprint-corpus",
-  "corpus_version": 7,
+  "corpus_version": 10,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -36,6 +36,21 @@
       "version": 6,
       "files": 3,
       "digest": "1857cd565c62e99146389a70ef135378d9ed2eed3fdc123d5ab839d6fc568094"
+    },
+    {
+      "version": 7,
+      "files": 4,
+      "digest": "e5a3b808981265b808487b12d9ce029013bbab34fcea2f079bbcff8b893e1c7b"
+    },
+    {
+      "version": 8,
+      "files": 4,
+      "digest": "88e8ec15c6c95628ee7b02cc9ca0faba3f0903d1c0f0316cfdfbce37cc7fc5c6"
+    },
+    {
+      "version": 9,
+      "files": 4,
+      "digest": "2d828921b77606e48162da16ce191e8f396257790816cdc87717f647ac8af6df"
     }
   ],
   "files": [
@@ -51,13 +66,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "3970a3ec91039a5b034dc074ac7bd147d3f893237a8c66c3b7cdca463448d4db",
-      "bytes": 7358
+      "sha256": "863f3546f676b610ed2ac816c6b15af0c794644f29d2692622ee5b35603b87f2",
+      "bytes": 7427
     },
     {
       "path": "vectors.json",
-      "sha256": "7beebf7661c02b1e70045aa956ba49836c968edd9b24ecd4ebfb893cca7c6341",
-      "bytes": 37923
+      "sha256": "c473ac3ed8414ba27ee0fdb1b2162eb3a275232c3c8ff19dc9cb8812ace97559",
+      "bytes": 39157
     }
   ],
   "signing": {
@@ -75,5 +90,5 @@
     },
     "known_answer_message_note": "the 32-byte SHA-256 digest of the canonical bytes of vector 'minimal_read': the hash is what ML-DSA-65 signs"
   },
-  "digest": "e5a3b808981265b808487b12d9ce029013bbab34fcea2f079bbcff8b893e1c7b"
+  "digest": "ad2c44c61cf2191cfe628b0628aa4e3ce560dba33be9e83bc584b57606ffdfbc"
 }
