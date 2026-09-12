@@ -79,6 +79,8 @@
     "asqav-24-anchor-block-hash-prod": null,
     "asqav-27-anchors-absent": null,
     "asqav-28-anchors-null-malformed": "structure",
+    "asqav-35-invocation-ref-binds-pre-post": null,
+    "asqav-36-invocation-ref-duplicate-emission": null,
     "acta-06-chain-link-03-prefixed": null,
     "acta-07-chain-link-03-wrong-digest": "chain"
   }

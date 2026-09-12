@@ -8,9 +8,17 @@ import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { asqavJcs, jcsRfc8785, parseJsonPreservingFloats } from "../src/verifier/canonical.js";
+import {
+  ProfileIntegerError,
+  asqavJcs,
+  jcsRfc8785,
+  parseJsonPreservingFloats,
+  parseProfileJson,
+} from "../src/verifier/canonical.js";
 import { AXIS_ORDER_PREFIX, verify } from "../src/verifier/core.js";
 import { ADAPTERS } from "../src/verifier/index.js";
+import { AsqavNativeAdapter } from "../src/verifier/adapters/asqavNative.js";
+import { AerfAdapter } from "../src/verifier/adapters/aerf.js";
 import {
   keyProviderFor,
   loadJson as runnerLoadJson,
@@ -28,7 +36,7 @@ function loadJson(path: string): Record<string, unknown> {
 }
 
 describe("verifier parity gate (THE GATE)", () => {
-  it("matches every manifest outcome across all 79 corpus vectors", () => {
+  it("matches every manifest outcome across all 81 corpus vectors", () => {
     const results = runCorpus(CORPUS_ROOT);
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
@@ -45,9 +53,9 @@ describe("verifier parity gate (THE GATE)", () => {
     // eslint-disable-next-line no-console
     console.log(`\n${report}\n\n  => ${passed}/${results.length} vectors matched expected outcome\n`);
 
-    expect(results.length).toBe(79);
+    expect(results.length).toBe(81);
     expect(mismatches, `mismatched vectors: ${mismatches.map((m) => m.dir).join(", ")}`).toEqual([]);
-    expect(passed).toBe(79);
+    expect(passed).toBe(81);
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
@@ -136,7 +144,7 @@ describe("canonical-bytes cross-check (TS signing_input sha256 == Python)", () =
     },
     "asqav-01-genesis-permit": {
       fmt: "asqav-native",
-      sha: "508fc8f96b76316c69487b736829b1040d185bd68df10cecf105e0214c95654f",
+      sha: "5614b581dabab8e71114137531342161ac0512cf326fe002130aa69906e078da",
     },
   };
   for (const [vec, { fmt, sha }] of Object.entries(pinned)) {
@@ -206,10 +214,25 @@ describe("integers beyond +/-2**53 are refused at ingest (no cross-SDK divergenc
     );
   });
 
-  it("accepts 2^53 itself, which is exactly representable and pinned upstream", () => {
+  it("keeps 2^53 accepted on the shared generic path (upstream compatibility)", () => {
     const o = parseJsonPreservingFloats('{"n":9007199254740992}');
     expect(dec.decode(asqavJcs(o))).toBe('{"n":9007199254740992}');
     expect(dec.decode(jcsRfc8785(o))).toBe('{"n":9007199254740992}');
+  });
+
+  it("refuses 2^53 on the explicit Asqav profile entry", () => {
+    expect(() => parseProfileJson('{"n":9007199254740992}')).toThrow(ProfileIntegerError);
+    expect(() => parseProfileJson('{"n":-9007199254740992}')).toThrow(
+      /Asqav profile range/,
+    );
+    expect(parseProfileJson('{"n":9007199254740991}')).toEqual({ n: 9007199254740991 });
+  });
+
+  it("refuses float spellings of the excluded boundary on the profile entry", () => {
+    expect(() => parseProfileJson('{"n":9007199254740992.0}')).toThrow(ProfileIntegerError);
+    expect(() => parseProfileJson('{"n":9.007199254740992e15}')).toThrow(
+      ProfileIntegerError,
+    );
   });
 
   it("accepts the conformant workaround: the same value as a JSON string", () => {
@@ -223,9 +246,8 @@ describe("integers beyond +/-2**53 are refused at ingest (no cross-SDK divergenc
     );
   });
 
-  // The corpus publishes documents it says are refused. Both SDKs must actually refuse
-  // them, or the corpus advertises a rule the shipped code does not implement. The Python
-  // half of this pairing lives in test_corpus_integrity.py.
+  // Refused corpus documents must fail via the explicit profile entry (Python
+  // half: test_corpus_integrity.py), or corpus advertises an unimplemented rule
   it("refuses every document the corpus pins as refused", () => {
     const path = resolve(__dirname, "..", "..", "conformance", "vectors.json");
     const { vectors } = JSON.parse(readFileSync(path, "utf8")) as {
@@ -235,19 +257,20 @@ describe("integers beyond +/-2**53 are refused at ingest (no cross-SDK divergenc
     expect(refused.length).toBeGreaterThan(0);
     for (const v of refused) {
       expect(v.expected_verify).toBe(false);
-      expect(() => parseJsonPreservingFloats(v.input_text as string), v.name).toThrow();
+      expect(() => parseProfileJson(v.input_text as string), v.name).toThrow();
     }
   });
 
-  // The boundary the corpus pins as INSIDE the range must actually parse and canonicalize.
-  it("accepts every in-range vector the corpus pins, including 2**53", () => {
+  // The boundary the corpus pins as INSIDE the profile range must parse there
+  it("accepts the in-range boundary vector the corpus pins, at 2**53 - 1", () => {
     const path = resolve(__dirname, "..", "..", "conformance", "vectors.json");
     const { vectors } = JSON.parse(readFileSync(path, "utf8")) as {
       vectors: Array<{ name: string; canonical?: string; input?: unknown }>;
     };
     const boundary = vectors.find((v) => v.name === "asqav-25-number-at-safe-range-boundary");
     expect(boundary, "boundary vector missing from the corpus").toBeDefined();
-    const parsed = parseJsonPreservingFloats('{"n":9007199254740992}');
+    expect(boundary!.input).toEqual({ n: 9007199254740991 });
+    const parsed = parseProfileJson('{"n":9007199254740991}');
     expect(dec.decode(asqavJcs(parsed))).toBe(boundary!.canonical);
   });
 });
@@ -320,5 +343,237 @@ describe("first-bad-edge parity (criterion 490)", () => {
 
   it("pins the shared axis prefix order", () => {
     expect([...AXIS_ORDER_PREFIX]).toEqual(["structure", "signature", "chain", "seq"]);
+  });
+});
+
+describe("Asqav profile safe-integer precheck (current v=1 refuses before crypto)", () => {
+  const load = (vec: string, name = "receipt.json"): Record<string, unknown> =>
+    loadJson(join(CORPUS_ROOT, vec, name));
+  const providerFor = (vec: string) => keyProviderFor(join(CORPUS_ROOT, vec), "asqav-native");
+  const bomb = (..._args: never[]): never => {
+    throw new Error("crypto callback must not run after a profile refusal");
+  };
+  function spiedAdapter(): AsqavNativeAdapter {
+    const ad = new AsqavNativeAdapter();
+    ad.signingInput = bomb;
+    ad.resolveKey = bomb;
+    ad.schema = bomb;
+    ad.chainStep = bomb;
+    return ad;
+  }
+  const notes = (res: { axes: Array<{ note: string }> }) => res.axes.map((a) => a.note);
+
+  it("refuses a nested excluded number before any crypto callback", () => {
+    const ad = spiedAdapter();
+    const doc = load("asqav-01-genesis-permit");
+    (doc.payload as Record<string, unknown>).score = 2 ** 53;
+    const res = verify(doc, [ad], providerFor("asqav-01-genesis-permit"));
+    expect(res.fmt).toBe("asqav-native");
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("unverifiable");
+    expect(res.axes).toHaveLength(1);
+    expect(res.axes[0].axis).toBe("structure");
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+    expect(res.firstFailingEdge).toBe("structure");
+  });
+
+  it("still refuses when the nested payload carries inner hash mode", () => {
+    const doc = load("asqav-01-genesis-permit");
+    const payload = doc.payload as Record<string, unknown>;
+    payload.mode = "hash";
+    payload.score = -(2 ** 53);
+    const res = verify(doc, ADAPTERS);
+    expect(res.verdict).toBe("unverified");
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+  });
+
+  it("refuses a bare current payload", () => {
+    const res = verify(
+      { previousReceiptHash: "1".repeat(64), issuer_id: "kid-x", v: 1, score: 2 ** 53 },
+      ADAPTERS,
+    );
+    expect(res.fmt).toBe("asqav-native");
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+  });
+
+  it("refuses flat excluded metadata before any crypto callback", () => {
+    const ad = spiedAdapter();
+    const doc = load("asqav-05-hash-mode-prod");
+    doc.metadata = { batch: 2 ** 53 };
+    const res = verify(doc, [ad], providerFor("asqav-05-hash-mode-prod"));
+    expect(res.verdict).toBe("unverified");
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+  });
+
+  it("flat missing-v keeps the schema outcome, not a profile refusal", () => {
+    const doc = load("asqav-05-hash-mode-prod");
+    delete doc.v;
+    doc.metadata = { batch: 2 ** 53 };
+    const res = verify(doc, ADAPTERS);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+    expect(res.axes.find((a) => a.axis === "structure")!.result).toBe("FAIL");
+  });
+
+  it("a clean v=1 receipt reaches the signing-input callback", () => {
+    const ad = new AsqavNativeAdapter();
+    const calls: unknown[][] = [];
+    const orig = AsqavNativeAdapter.prototype.signingInput;
+    ad.signingInput = (doc) => {
+      calls.push([doc]);
+      return orig.call(ad, doc);
+    };
+    verify(load("asqav-01-genesis-permit"), [ad], providerFor("asqav-01-genesis-permit"));
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it.each([[undefined], [2], [true], ["1"]])(
+    "non-current version %p skips the precheck",
+    (version) => {
+      const doc = load("asqav-01-genesis-permit");
+      const payload = doc.payload as Record<string, unknown>;
+      if (version === undefined) delete payload.v;
+      else payload.v = version as number;
+      payload.score = 2 ** 53;
+      const res = verify(doc, ADAPTERS);
+      expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+    },
+  );
+
+  it("outer v cannot activate a nested payload missing v", () => {
+    const doc = load("asqav-01-genesis-permit");
+    const payload = doc.payload as Record<string, unknown>;
+    delete payload.v;
+    payload.score = 2 ** 53;
+    doc.v = 1;
+    const res = verify(doc, ADAPTERS);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it("a bad predecessor refuses even without its own v", () => {
+    const doc = load("asqav-03-chain-link");
+    const pred = load("asqav-03-chain-link", "predecessor.json");
+    const payload = pred.payload as Record<string, unknown>;
+    payload.score = 2 ** 53;
+    delete payload.v;
+    const res = verify(doc, ADAPTERS, null, pred);
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+  });
+
+  it("genesis skips predecessor numbers", () => {
+    const doc = load("asqav-01-genesis-permit");
+    const pred = load("asqav-03-chain-link", "predecessor.json");
+    (pred.payload as Record<string, unknown>).score = 2 ** 53;
+    const res = verify(doc, ADAPTERS, null, pred);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it("a foreign predecessor keeps the chain result", () => {
+    const doc = load("asqav-03-chain-link");
+    const pred = loadJson(join(CORPUS_ROOT, "aerf-01-genesis", "receipt.json"));
+    const res = verify(doc, ADAPTERS, null, pred);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+    expect(res.axes.find((a) => a.axis === "chain")!.result).toBe("FAIL");
+    expect(res.failureClass).toBe("invalid");
+  });
+
+  it("unsigned top-level metadata and JWKS numbers are not checked", () => {
+    const doc = load("asqav-01-genesis-permit");
+    doc.export_seq = 2 ** 53;
+    const provider = providerFor("asqav-01-genesis-permit") as Record<string, unknown>;
+    provider.max_seen = 2 ** 53;
+    const res = verify(doc, ADAPTERS, provider);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it("foreign formats have no profile precheck", () => {
+    const doc = loadJson(join(CORPUS_ROOT, "aerf-01-genesis", "receipt.json"));
+    expect(new AerfAdapter().profilePrecheck(doc)).toBeNull();
+  });
+});
+
+describe("profile selection reads own members only (no prototype activation)", () => {
+  const td = new TextDecoder();
+  const load = (vec: string, name = "receipt.json"): Record<string, unknown> =>
+    loadJson(join(CORPUS_ROOT, vec, name));
+  const notes = (res: { axes: Array<{ note: string }> }) => res.axes.map((a) => a.note);
+
+  it("an inherited v=1 cannot select the neutral precheck", () => {
+    const versionText = `{"payload":{"__proto__":{"v":1},"previousReceiptHash":"${"0".repeat(64)}","issuer_id":"review","n":9007199254740992},"signature":{"sig":"AAAA"}}`;
+    const parsed = parseJsonPreservingFloats(versionText) as Record<string, unknown>;
+    const payload = parsed.payload as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(parsed, "v")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(payload, "v")).toBe(false);
+    expect(() => parseProfileJson(versionText)).toThrow(ProfileIntegerError);
+    const res = verify(parsed, ADAPTERS);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it("a direct nested object with prototype v stays unselected", () => {
+    const payload = Object.assign(Object.create({ v: 1 }), {
+      previousReceiptHash: "1".repeat(64),
+      issuer_id: "kid-x",
+      score: 2 ** 53,
+    });
+    const res = verify({ payload, signature: { sig: "AAAA" } }, ADAPTERS);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it("a direct flat object with prototype v stays unselected", () => {
+    const doc = Object.assign(Object.create({ v: 1 }), {
+      mode: "hash",
+      metadata: { batch: 2 ** 53 },
+    });
+    const res = verify(doc, ADAPTERS);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it("an own v=1 still selects after the guard", () => {
+    const doc = load("asqav-01-genesis-permit");
+    (doc.payload as Record<string, unknown>).score = 2 ** 53;
+    const res = verify(doc, ADAPTERS);
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+  });
+
+  it("the upstream 2^53 vector stays generic while the profile refuses it", () => {
+    const vec = loadJson(join(CORPUS_ROOT, "agentreceipts-upstream-interop", "canonicalization_vectors.json")) as {
+      canonicalization_vectors: Array<{ name: string; input: unknown; canonical: string }>;
+    };
+    const pinned = vec.canonicalization_vectors.find((v) => v.name === "number_2_to_53")!;
+    expect(td.decode(jcsRfc8785(pinned.input))).toBe(pinned.canonical);
+    expect(() => parseProfileJson(JSON.stringify(pinned.input))).toThrow(ProfileIntegerError);
+  });
+
+  it("a dual-detect predecessor follows the registry, foreign first", () => {
+    const doc = load("asqav-03-chain-link");
+    for (const value of [1, 2 ** 53]) {
+      const pred = {
+        type: "notarised_evidence",
+        evidence_hash_sha512: "0".repeat(128),
+        previousReceiptHash: "1".repeat(64),
+        issuer_id: "review",
+        n: value,
+      };
+      expect(new AsqavNativeAdapter().detect(pred)).toBe(true);
+      const res = verify(doc, [new AerfAdapter(), new AsqavNativeAdapter()], null, pred);
+      expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+      expect(res.axes.find((a) => a.axis === "chain")!.note).toBe(
+        "predecessor is a different receipt format",
+      );
+      expect(res.failureClass).toBe("invalid");
+    }
+  });
+
+  it("a dual-detect predecessor follows the registry, native first", () => {
+    const doc = load("asqav-03-chain-link");
+    const pred = {
+      type: "notarised_evidence",
+      evidence_hash_sha512: "0".repeat(128),
+      previousReceiptHash: "1".repeat(64),
+      issuer_id: "review",
+      n: 2 ** 53,
+    };
+    const res = verify(doc, [new AsqavNativeAdapter(), new AerfAdapter()], null, pred);
+    expect(res.axes[0].note).toContain("profile range +/-(2**53 - 1)");
+    expect(res.failureClass).toBe("unverifiable");
   });
 });

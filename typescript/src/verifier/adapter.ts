@@ -112,4 +112,13 @@ export abstract class FormatAdapter {
   preCutoverSigningInput(_doc: Record<string, unknown>): Uint8Array | null {
     return null;
   }
+
+  /** Refusal note or null; default no-op, the core reports a note early. */
+  profilePrecheck(
+    _doc: Record<string, unknown>,
+    _predecessor: Record<string, unknown> | null = null,
+    _predecessorFmt: string | null = null,
+  ): string | null {
+    return null;
+  }
 }

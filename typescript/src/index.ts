@@ -288,20 +288,20 @@ const HASH_ONLY_METADATA_WHITELIST = new Set<string>([
 ]);
 
 interface Config {
-  apiKey: string | null;
-  baseUrl: string;
-  mode: Mode;
-  orgSalt: Uint8Array | null;
+  readonly apiKey: string | null;
+  readonly baseUrl: string;
+  readonly mode: Mode;
+  readonly orgSalt: Uint8Array | null;
 }
 
-const config: Config = {
+let config: Config = Object.freeze({
   apiKey: null,
   // Seed the base URL from ASQAV_API_URL, matching the Python half's module-level
   // _api_base, so keyless verify() honors the env without an init() call.
   baseUrl: process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL,
   mode: "full-payload",
   orgSalt: null,
-};
+});
 
 // === Errors ===
 
@@ -588,6 +588,10 @@ export interface SignOptions {
   /** Risk-acceptance receipt: producer-asserted risk snapshot, wired as `risk_snapshot`. A
    * numeric without `snapshotSource` is rejected so it is never read as an Asqav score. */
   riskSnapshot?: RiskSnapshot;
+
+  /** Invocation pointer (`invocation_ref`), producer-asserted and unfenced:
+   * names one invocation only, no uniqueness or exactly-once promise */
+  invocationRef?: string;
 
   /** Code-authorship receipt: opaque repository pointer, REQUIRED on
    * `protectmcp:lifecycle:code_authorship`. Recorded, never resolved by Asqav. */
@@ -899,6 +903,10 @@ export interface PreflightResult {
 // === init ===
 
 export function init(options: InitOptions = {}): void {
+  config = resolveConnection(options, config.baseUrl);
+}
+
+function resolveConnection(options: InitOptions, fallbackBase: string): Config {
   const apiKey = resolveApiKey(options.apiKey);
   if (!apiKey) {
     throw new AuthenticationError(
@@ -906,18 +914,18 @@ export function init(options: InitOptions = {}): void {
         "to init(). A saved key is read from ~/.asqav/credentials. Get yours at asqav.com",
     );
   }
-  config.apiKey = apiKey;
-  config.baseUrl = options.baseUrl ?? config.baseUrl ?? DEFAULT_BASE_URL;
-  config.mode = resolveMode(
-    config.baseUrl,
+  const baseUrl = options.baseUrl ?? fallbackBase;
+  const mode = resolveMode(
+    baseUrl,
     process.env.ASQAV_MODE ?? null,
     options.mode ?? "auto",
   );
-  config.orgSalt = options.orgSalt ?? null;
+  const orgSalt = options.orgSalt == null ? null : new Uint8Array(options.orgSalt);
+  return Object.freeze({ apiKey, baseUrl, mode, orgSalt });
 }
 
-function ensureInitialized(): void {
-  if (!config.apiKey) {
+function ensureInitialized(connection: Config): void {
+  if (!connection.apiKey) {
     throw new AuthenticationError("Call init() first. Get your API key at asqav.com");
   }
 }
@@ -979,11 +987,20 @@ export async function request<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  ensureInitialized();
+  return requestWithConnection<T>(config, method, path, body);
+}
 
-  const url = config.baseUrl.replace(/\/+$/, "") + (path.startsWith("/") ? path : `/${path}`);
+async function requestWithConnection<T>(
+  connection: Config,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  ensureInitialized(connection);
+
+  const url = connection.baseUrl.replace(/\/+$/, "") + (path.startsWith("/") ? path : `/${path}`);
   const headers: Record<string, string> = {
-    "X-API-Key": config.apiKey as string,
+    "X-API-Key": connection.apiKey as string,
     "Content-Type": "application/json",
     Accept: "application/json",
     ...userAgentHeaders(),
@@ -1076,75 +1093,7 @@ function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown>
  * Fail-fast vocabulary checks before the HTTP roundtrip; the cloud stays source of truth.
  * Throws AsqavError on the first offending field.
  */
-function validateSignOptions(options: SignOptions, complianceMode: boolean): void {
-  if (
-    options.receiptType !== undefined
-    && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)
-  ) {
-    throw new AsqavError(
-      `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
-    );
-  }
-  if (
-    (options.policyDecision === "deny" || options.policyDecision === "rate_limit")
-    && !options.reason
-  ) {
-    throw new AsqavError(
-      "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
-    );
-  }
-  if (
-    options.sandboxState !== undefined
-    && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
-  ) {
-    throw new AsqavError(
-      `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
-    );
-  }
-  if (
-    options.captureTopology !== undefined
-    && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
-  ) {
-    throw new AsqavError(
-      `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
-    );
-  }
-  // Rule 8 lockstep with the cloud SignRequest validator: passive_telemetry
-  // pairs only with protectmcp:observation or protectmcp:observation:result_bound.
-  if (
-    options.captureTopology === "passive_telemetry"
-    && options.receiptType !== undefined
-    && options.receiptType !== "protectmcp:observation"
-    && options.receiptType !== "protectmcp:observation:result_bound"
-  ) {
-    const offending = options.receiptType.split(":").slice(1).join(":") || options.receiptType;
-    throw new AsqavError(
-      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :${offending} (rule 8)`,
-    );
-  }
-  // Rule 9 lockstep with the cloud SignRequest cross-field validator.
-  if (
-    options.receiptType === "protectmcp:lifecycle:configuration_change"
-    && options.configManifestDigest === undefined
-  ) {
-    throw new AsqavError(
-      "configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).",
-    );
-  }
-  if (
-    options.receiptType === "protectmcp:observation:result_bound"
-    && options.resultDigest === undefined
-  ) {
-    throw new AsqavError(
-      "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
-    );
-  }
-  // Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
-  if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
-    throw new AsqavError(
-      "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
-    );
-  }
+function validateSignExtensions(options: SignOptions): void {
   // Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
   const _digestChecks: Array<[string, string | undefined]> = [
     ["config_manifest_digest", options.configManifestDigest],
@@ -1230,6 +1179,78 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       );
     }
   }
+}
+
+function validateSignOptions(options: SignOptions, complianceMode: boolean): void {
+  if (
+    options.receiptType !== undefined
+    && !(RECEIPT_TYPE_NAMESPACE as readonly string[]).includes(options.receiptType)
+  ) {
+    throw new AsqavError(
+      `invalid_receipt_type: must be one of ${RECEIPT_TYPE_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    (options.policyDecision === "deny" || options.policyDecision === "rate_limit")
+    && !options.reason
+  ) {
+    throw new AsqavError(
+      "missing_reason: policy_decision=deny|rate_limit requires a `reason` code",
+    );
+  }
+  if (
+    options.sandboxState !== undefined
+    && !(SANDBOX_STATE_NAMESPACE as readonly string[]).includes(options.sandboxState)
+  ) {
+    throw new AsqavError(
+      `invalid_sandbox_state: '${options.sandboxState}' must be one of ${SANDBOX_STATE_NAMESPACE.join(", ")}`,
+    );
+  }
+  if (
+    options.captureTopology !== undefined
+    && !(CAPTURE_TOPOLOGY_NAMESPACE as readonly string[]).includes(options.captureTopology)
+  ) {
+    throw new AsqavError(
+      `invalid_capture_topology: '${options.captureTopology}' must be one of ${CAPTURE_TOPOLOGY_NAMESPACE.join(", ")}`,
+    );
+  }
+  // Rule 8 lockstep with the cloud SignRequest validator: passive_telemetry
+  // pairs only with protectmcp:observation or its result_bound form
+  if (
+    options.captureTopology === "passive_telemetry"
+    && options.receiptType !== undefined
+    && options.receiptType !== "protectmcp:observation"
+    && options.receiptType !== "protectmcp:observation:result_bound"
+  ) {
+    const offending = options.receiptType.split(":").slice(1).join(":") || options.receiptType;
+    throw new AsqavError(
+      `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :${offending} (rule 8)`,
+    );
+  }
+  // Rule 9 lockstep with the cloud SignRequest cross-field validator
+  if (
+    options.receiptType === "protectmcp:lifecycle:configuration_change"
+    && options.configManifestDigest === undefined
+  ) {
+    throw new AsqavError(
+      "configuration_change_missing_config_manifest_digest: receipt_type=protectmcp:lifecycle:configuration_change requires config_manifest_digest (sha256:<64 hex>).",
+    );
+  }
+  if (
+    options.receiptType === "protectmcp:observation:result_bound"
+    && options.resultDigest === undefined
+  ) {
+    throw new AsqavError(
+      "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
+    );
+  }
+  // Rule 10: an absolute horizon plus a duration is ambiguous; reject both
+  if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
+    throw new AsqavError(
+      "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
+    );
+  }
+  validateSignExtensions(options);
   validateWitnessPolicy(options.witnessPolicy);
   validateIncidentClass(options.incidentClass);
   // Risk-acceptance receipt: shape + namespace fence + no-policy opt-out +
@@ -1655,6 +1676,8 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "finding_ref", read: (o) => o.findingRef },
   { wire: "approval_ref", read: (o) => o.approvalRef },
   { wire: "risk_snapshot", read: (o) => riskSnapshotToWire(o.riskSnapshot) },
+  // Unfenced invocation pointer (see SignOptions comment)
+  { wire: "invocation_ref", read: (o) => o.invocationRef },
   // Code-authorship receipt extension fields (fenced to the receipt type).
   { wire: "repo_ref", read: (o) => o.repoRef },
   { wire: "commit_sha", read: (o) => o.commitSha },
@@ -1796,11 +1819,11 @@ interface BuildSignBodyArgs {
   userIntent?: UserIntent;
 }
 
-async function buildSignBody(args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
-  if (config.mode === "hash-only") {
+async function buildSignBody(connection: Config, args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
+  if (connection.mode === "hash-only") {
     const canonical = canonicalizeAction(args.actionType, args.context);
     const payloadSize = canonical.byteLength;
-    const salt = config.orgSalt ?? undefined;
+    const salt = connection.orgSalt ?? undefined;
     const hex = salt
       ? createHmac("sha256", Buffer.from(salt)).update(canonical).digest("hex")
       : createHash("sha256").update(canonical).digest("hex");
@@ -1883,7 +1906,57 @@ interface AgentData {
   created_at: string | number;
 }
 
+
+let constructAgent: (data: AgentData, connection: Config) => Agent;
+
+async function createAgentWithConnection(connection: Config, options: AgentCreateOptions): Promise<Agent> {
+  const algorithm = options.algorithm ?? "ml-dsa-65";
+  if (!isSupportedAlgorithm(algorithm)) {
+    throw new AsqavError(
+      `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
+    );
+  }
+  const data = await requestWithConnection<AgentData>(connection, "POST", "/agents/create", {
+    name: options.name,
+    algorithm,
+    capabilities: options.capabilities ?? [],
+  });
+  return constructAgent(data, connection);
+}
+
+async function getAgentWithConnection(connection: Config, agentId: string): Promise<Agent> {
+  const data = await requestWithConnection<AgentData>(connection, "GET", `/agents/${agentId}`);
+  return constructAgent(data, connection);
+}
+
+function preflightExplanation(
+  cleared: boolean, checksComplete: boolean, agentActive: boolean,
+  policyAllowed: boolean, reasons: string[],
+): string {
+  let explanation: string;
+  if (cleared) {
+    explanation = "Allowed: agent is active and action is permitted by policy";
+  } else if (!checksComplete) {
+    explanation = `Blocked: could not verify (${reasons.join("; ")})`;
+  } else if (!agentActive && reasons.includes("agent is revoked")) {
+    explanation = "Blocked: agent has been revoked";
+  } else if (!agentActive && reasons.some((r) => r.startsWith("agent is suspended"))) {
+    const suspendReason = reasons.find((r) => r.startsWith("agent is suspended")) ?? "";
+    explanation = `Blocked: ${suspendReason}`;
+  } else if (!policyAllowed) {
+    explanation = "Blocked: action not permitted by current policy rules";
+  } else {
+    explanation = reasons.length ? `Blocked: ${reasons.join("; ")}` : "Blocked";
+  }
+  return explanation;
+}
+
 export class Agent {
+  static {
+    constructAgent = (data, connection) => new Agent(data, connection);
+  }
+
+  readonly #connection: Config;
   readonly agentId: string;
   readonly name: string;
   readonly publicKey: string;
@@ -1893,7 +1966,8 @@ export class Agent {
   readonly createdAt: string | number;
   private sessionId: string | null = null;
 
-  private constructor(data: AgentData) {
+  private constructor(data: AgentData, connection: Config) {
+    this.#connection = connection;
     this.agentId = requireField<string>(data, "agent_id");
     this.name = requireField<string>(data, "name");
     this.publicKey = requireField<string>(data, "public_key");
@@ -1905,31 +1979,19 @@ export class Agent {
 
   /** Internal: rebuild an Agent from a server payload. */
   static attach(data: AgentData): Agent {
-    return new Agent(data);
+    return new Agent(data, config);
   }
 
   static async create(options: AgentCreateOptions): Promise<Agent> {
-    const algorithm = options.algorithm ?? "ml-dsa-65";
-    // Cloud accepts ml-dsa-{44,65,87}; ed25519/es256 are local-signing only.
-    if (!isSupportedAlgorithm(algorithm)) {
-      throw new AsqavError(
-        `unsupported_algorithm: '${algorithm}'. Use one of: ${SUPPORTED_ALGORITHMS.join(", ")}`,
-      );
-    }
-    const data = await request<AgentData>("POST", "/agents/create", {
-      name: options.name,
-      algorithm,
-      capabilities: options.capabilities ?? [],
-    });
-    return new Agent(data);
+    return createAgentWithConnection(config, options);
   }
 
   static async get(agentId: string): Promise<Agent> {
-    const data = await request<AgentData>("GET", `/agents/${agentId}`);
-    return new Agent(data);
+    return getAgentWithConnection(config, agentId);
   }
 
   async sign(options: SignOptions): Promise<SignatureResponse> {
+    const connection = this.#connection;
     const initialContext = surfaceKwargsIntoContext(options);
     const afterHookContext = _dispatchBefore(options.actionType, initialContext);
     const complianceMode = options.complianceMode !== false;
@@ -1964,7 +2026,7 @@ export class Agent {
       finalContext,
     );
 
-    const body = await buildSignBody({
+    const body = await buildSignBody(connection, {
       actionType: options.actionType,
       context: finalContext,
       sessionId: this.sessionId,
@@ -1974,7 +2036,8 @@ export class Agent {
     applyOptionalWireFields(body, options);
     applyComplianceFields(body, options, complianceMode, actionRef);
 
-    const data = await request<SignWireResponse>(
+    const data = await requestWithConnection<SignWireResponse>(
+      connection,
       "POST",
       `/agents/${this.agentId}/sign`,
       body,
@@ -1985,7 +2048,7 @@ export class Agent {
   }
 
   async countersign(signatureId: string): Promise<SignatureResponse> {
-    const data = await request<{
+    const data = await requestWithConnection<{
       signature: string;
       signature_id: string;
       action_id: string;
@@ -1998,7 +2061,7 @@ export class Agent {
       co_signatures?: Array<{ agent_id: string; signature: string; signed_at: string }>;
       countersign_url?: string;
       user_intent_verified?: boolean;
-    }>("POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
+    }>(this.#connection, "POST", `/agents/${this.agentId}/countersign/${signatureId}`, {});
 
     return {
       signature: requireField<string>(data, "signature"),
@@ -2020,12 +2083,12 @@ export class Agent {
   }
 
   async startSession(): Promise<SessionResponse> {
-    const data = await request<{
+    const data = await requestWithConnection<{
       session_id: string;
       agent_id: string;
       status: string;
       started_at: string;
-    }>("POST", "/sessions/", { agent_id: this.agentId });
+    }>(this.#connection, "POST", "/sessions/", { agent_id: this.agentId });
     this.sessionId = data.session_id;
     return {
       sessionId: data.session_id,
@@ -2040,12 +2103,12 @@ export class Agent {
       throw new AsqavError("No active session");
     }
     const sessionId = this.sessionId;
-    const data = await request<{
+    const data = await requestWithConnection<{
       agent_id: string;
       status: string;
       started_at: string;
       ended_at?: string;
-    }>("PATCH", `/sessions/${sessionId}`, { status: options.status ?? "completed" });
+    }>(this.#connection, "PATCH", `/sessions/${sessionId}`, { status: options.status ?? "completed" });
     this.sessionId = null;
     return {
       sessionId,
@@ -2057,7 +2120,7 @@ export class Agent {
   }
 
   async revoke(options: { reason?: string } = {}): Promise<void> {
-    await request("POST", `/agents/${this.agentId}/revoke`, {
+    await requestWithConnection(this.#connection, "POST", `/agents/${this.agentId}/revoke`, {
       reason: options.reason ?? "manual",
     });
   }
@@ -2073,7 +2136,8 @@ export class Agent {
     const reasons: string[] = [];
 
     try {
-      const status = await request<{ revoked?: boolean; suspended?: boolean; suspended_reason?: string }>(
+      const status = await requestWithConnection<{ revoked?: boolean; suspended?: boolean; suspended_reason?: string }>(
+        this.#connection,
         "GET",
         `/agents/${this.agentId}/status`,
       );
@@ -2100,12 +2164,12 @@ export class Agent {
     }
 
     try {
-      const policies = await request<Array<{
+      const policies = await requestWithConnection<Array<{
         is_active?: boolean;
         action_pattern?: string;
         action?: string;
         name?: string;
-      }>>("GET", "/policies");
+      }>>(this.#connection, "GET", "/policies");
       if (!Array.isArray(policies)) {
         // A non-list response is anomalous, so fail closed instead of
         // silently clearing on an empty iteration.
@@ -2129,23 +2193,27 @@ export class Agent {
     }
 
     const cleared = agentActive && policyAllowed && checksComplete;
-    let explanation: string;
-    if (cleared) {
-      explanation = "Allowed: agent is active and action is permitted by policy";
-    } else if (!checksComplete) {
-      explanation = `Blocked: could not verify (${reasons.join("; ")})`;
-    } else if (!agentActive && reasons.includes("agent is revoked")) {
-      explanation = "Blocked: agent has been revoked";
-    } else if (!agentActive && reasons.some((r) => r.startsWith("agent is suspended"))) {
-      const suspendReason = reasons.find((r) => r.startsWith("agent is suspended")) ?? "";
-      explanation = `Blocked: ${suspendReason}`;
-    } else if (!policyAllowed) {
-      explanation = "Blocked: action not permitted by current policy rules";
-    } else {
-      explanation = reasons.length ? `Blocked: ${reasons.join("; ")}` : "Blocked";
-    }
+    const explanation = preflightExplanation(cleared, checksComplete, agentActive, policyAllowed, reasons);
 
     return { cleared, agentActive, policyAllowed, reasons, explanation, checksComplete };
+  }
+}
+
+/** Create Agents with one connection without changing the module default. */
+export class AsqavClient {
+  readonly #connection: Config;
+
+  /** Resolve local configuration; Agent methods perform HTTP. */
+  constructor(options: InitOptions = {}) {
+    this.#connection = resolveConnection(options, process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL);
+  }
+
+  createAgent(options: AgentCreateOptions): Promise<Agent> {
+    return createAgentWithConnection(this.#connection, options);
+  }
+
+  getAgent(agentId: string): Promise<Agent> {
+    return getAgentWithConnection(this.#connection, agentId);
   }
 }
 
@@ -2486,16 +2554,17 @@ export function verifyReceiptOffline(
 
 /** @internal - reset module state. Used in tests. */
 export function _resetForTests(): void {
-  config.apiKey = null;
-  config.baseUrl = process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL;
-  config.mode = "full-payload";
-  config.orgSalt = null;
+  config = Object.freeze({
+    apiKey: null,
+    baseUrl: process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL,
+    mode: "full-payload",
+    orgSalt: null,
+  });
 }
 
 /** @internal - inspect or override mode in tests. */
 export function _setModeForTests(mode: Mode, orgSalt?: Uint8Array | null): void {
-  config.mode = mode;
-  config.orgSalt = orgSalt ?? null;
+  config = Object.freeze({ ...config, mode, orgSalt: orgSalt == null ? null : new Uint8Array(orgSalt) });
 }
 
 /** @internal - read current mode in tests. */

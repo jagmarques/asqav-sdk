@@ -125,6 +125,7 @@ sig = agent.sign(
     risk_class="high",                 # low | medium | high | unknown
     issuer_id="legal:Acme GmbH",       # LEI, EIN, CIK or W3C DID
     iteration_id="task-2026-Q2-4821",  # logical task, distinct from session
+    invocation_ref="toolu_abc123",  # one tool invocation; no uniqueness, de-dup, or exactly-once
 )
 ```
 
@@ -200,4 +201,11 @@ Aligns with NIST FIPS 204 (ML-DSA), RFC 8785 (JCS) and NSA CSI U/OO/6030316-26.
 
 ## License
 
-Elastic License 2.0. Get an API key at [asqav.com](https://asqav.com).
+The SDK uses [Elastic License 2.0](LICENSE). The standalone
+`asqav/verifier/verify_receipt.py` file has an Apache-2.0 header;
+its terms are included in [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt).
+The broader verifier package and oracle remain under Elastic terms.
+
+Wheels and source distributions include these terms and the file-scope
+[NOTICE](NOTICE). Their combined license expression describes the separate
+file scopes; it does not offer a choice of licenses for the SDK.
