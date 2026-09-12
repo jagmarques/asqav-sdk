@@ -14,7 +14,7 @@ Public surface:
 """
 from __future__ import annotations
 
-from .adapter import ChainStep, FormatAdapter, SignatureMaterial
+from .adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
 from .adapters.acta import ActaAdapter
 from .adapters.aerf import AerfAdapter
 from .adapters.agentreceipts import AgentReceiptsAdapter
@@ -48,6 +48,7 @@ __all__ = [
     "PipelockEvidenceAdapter",
     "SignatureMaterial",
     "VerifyResult",
+    "VerificationContext",
     "W3cVcAdapter",
     "verify",
 ]
