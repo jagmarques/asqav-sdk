@@ -537,11 +537,11 @@
       "description": "A digest-covered integer with no exact IEEE-754 double. Python's json.loads keeps 9007199254740993 exactly and JavaScript's JSON.parse rounds it to 9007199254740992, neither raising, so the same document would canonicalize to two different byte strings and carry two different SHA-256 digests. A conformant implementation MUST refuse this document as a parse failure reported unverifiable, and MUST NOT round, truncate or re-serialize the value. The document is given as input_text, not as a parsed input, because a refused document has no canonical form and because a corpus file carrying the bare literal would itself be refused by the rule it describes.",
       "input_text": "{\"n\":9007199254740993}",
       "expected_verify": false,
-      "reason": "9007199254740993 is outside the canonical integer range +/-2**53. The check MUST read the source digits, not the parsed value: Number(\"9007199254740993\") is already 9007199254740992, so a magnitude test on the parsed number accepts the exact case the rule exists to refuse.",
+      "reason": "9007199254740993 has no exact IEEE-754 double, so the generic source-digit guard refuses it before parsing loses precision. The narrowed profile bound +/-(2**53 - 1) would also refuse the parsed rounded value 9007199254740992 on magnitude, but a magnitude test on parsed digits cannot recover the lost original, so the source-digit check stays mandatory. 992 itself round-trips exactly (see the boundary-rejected twin); 993 is refused because the two languages disagree on the digits.",
       "expected": {
         "refused_at": "parse",
-        "bound": "+/-2**53",
-        "max_canonical_integer": 9007199254740992,
+        "bound": "+/-(2**53 - 1)",
+        "max_canonical_integer": 9007199254740991,
         "positive_twin": "asqav-25-number-above-safe-range-as-string"
       }
     },
@@ -561,17 +561,28 @@
     },
     {
       "name": "asqav-25-number-at-safe-range-boundary",
-      "description": "2**53 = 9007199254740992 is exactly representable as an IEEE-754 double and every reader emits the same digits for it, so it is INSIDE the canonical range and MUST be accepted. The bound is deliberately one above JavaScript's Number.isSafeInteger, which is 2**53 - 1: the upstream interop vector number_2_to_53 pins this value as canonical, so a verifier using isSafeInteger as its bound fails upstream conformance.",
+      "description": "2**53 - 1 = 9007199254740991 is the largest integer inside the Asqav profile safe interval: n and n+1 are still distinguishable there, and every reader emits the same digits, so it MUST be accepted. 2**53 is excluded not because it fails to round-trip (it round-trips exactly) but because the safe-integer property fails there.",
       "input": {
-        "n": 9007199254740992
+        "n": 9007199254740991
       },
       "expected_verify": true,
-      "reason": "The largest integer both implementations canonicalize identically.",
+      "reason": "The largest integer inside the Asqav profile safe interval +/-(2**53 - 1).",
       "expected": {
         "negative_twin": "asqav-25-number-above-safe-range-rejected"
       },
-      "canonical": "{\"n\":9007199254740992}",
-      "sha256": "66c87d9cb3014e05a11baa97df62282d89d425f22ee15816577c84534e2ef1bb"
+      "canonical": "{\"n\":9007199254740991}",
+      "sha256": "e1da48c6a6089f06ecb4e0a2259e658e3786b2420f52baccdf929ec6460d7b41"
+    },
+    {
+      "name": "asqav-25-number-above-safe-range-boundary-rejected",
+      "description": "2**53 = 9007199254740992 is exactly representable and every reader emits the same digits for it, yet it sits outside the closed Asqav profile interval of draft Section 4, which ends at 2**53 - 1. A conformant profile implementation MUST refuse this document as a parse failure reported unverifiable. The document is given as input_text, not as a parsed input, because a refused document has no canonical form.",
+      "input_text": "{\"n\":9007199254740992}",
+      "expected_verify": false,
+      "reason": "9007199254740992 round-trips identically in both languages but lies outside the profile safe interval +/-(2**53 - 1): at 2**53 the safe-integer property (n and n+1 distinguishable) already fails. This is a different rejection from asqav-25-number-above-safe-range-rejected (9007199254740993), which is refused because the two languages disagree on the digits.",
+      "expected": {
+        "refused_at": "parse",
+        "positive_twin": "asqav-25-number-at-safe-range-boundary"
+      }
     }
   ]
 }

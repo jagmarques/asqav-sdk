@@ -25,10 +25,14 @@ from typing import Any
 __all__ = [
     "DuplicateMemberError",
     "UnsafeIntegerError",
+    "ProfileIntegerError",
     "MAX_CANONICAL_INTEGER",
+    "MAX_PROFILE_INTEGER",
     "reject_duplicate_members",
     "reject_unsafe_integer",
     "loads",
+    "loads_profile",
+    "assert_profile_integers",
 ]
 
 #: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
@@ -39,6 +43,10 @@ __all__ = [
 #: switches to exponential notation and Python's str does not.
 MAX_CANONICAL_INTEGER = 2**53
 
+#: Largest integer magnitude the Asqav profile admits: draft Section 4 ends the
+#: safe interval at 2**53 - 1, one below the shared generic bound above.
+MAX_PROFILE_INTEGER = 2**53 - 1
+
 
 class DuplicateMemberError(ValueError):
     """A JSON object repeated a member name; last-wins ingest is never allowed."""
@@ -46,6 +54,10 @@ class DuplicateMemberError(ValueError):
 
 class UnsafeIntegerError(ValueError):
     """An integer outside the safe range; the two SDKs would canonicalise it differently."""
+
+
+class ProfileIntegerError(ValueError):
+    """An integer the Asqav profile refuses; exactly representable yet out of range."""
 
 
     # object_pairs_hook: reject a repeated member name, else build the object.
@@ -80,3 +92,37 @@ def loads(text: str | bytes, **kwargs: Any) -> Any:
         parse_int=reject_unsafe_integer,
         **kwargs,
     )
+
+
+    # Refuse any parsed int or integer-valued float outside the profile interval.
+def assert_profile_integers(obj: Any) -> None:
+    stack: list[tuple[Any, str]] = [(obj, "$")]
+    while stack:
+        node, path = stack.pop()
+        if isinstance(node, bool):
+            continue
+        if isinstance(node, int):
+            if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
+                raise ProfileIntegerError(
+                    f"integer outside the Asqav profile range +/-(2**53 - 1): "
+                    f"{node} at {path}; serialise it as a JSON string"
+                )
+            continue
+        if isinstance(node, float) and node.is_integer():
+            if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
+                raise ProfileIntegerError(
+                    f"number outside the Asqav profile range +/-(2**53 - 1): "
+                    f"{node!r} at {path}; serialise it as a JSON string"
+                )
+            continue
+        if isinstance(node, dict):
+            stack.extend((v, f"{path}.{k}") for k, v in node.items())
+        elif isinstance(node, (list, tuple)):
+            stack.extend((v, f"{path}[{i}]") for i, v in enumerate(node))
+
+
+    # Strict ingest plus the narrower Asqav profile range; shared loads unchanged.
+def loads_profile(text: str | bytes, **kwargs: Any) -> Any:
+    obj = loads(text, **kwargs)
+    assert_profile_integers(obj)
+    return obj
