@@ -6,10 +6,15 @@
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_demo_001",
     "action_id": "act_v2_demo_0001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:878424356da5097e208bf5115339777cca7a1d5c74cca70ee0499535cea0a614",
+    "context": {
+      "subject": "v2-signer-canary",
+      "signer": "https://api.asqav.com",
+      "tid": "4d9a220e3f0b7c35c932d1e85bd4e081fb702c0a47caa046fb18b88bc9246a7f"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "878424356da5097e208bf5115339777cca7a1d5c74cca70ee0499535cea0a614",
+      "size": 136
     },
     "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -26,7 +31,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-oracle-v2-key",
-    "sig": "csRi1sPm4SBl1ggcyzoCLZep0SYOwF02RJOuIzyiAxfyNeZDatvphygPQHW+ZeMdfqhlrhNjf60gQNYx4wxzBw=="
+    "sig": "cAW3k5BYklv+DnC3rrkHFKQOQTZoNiUVKNzJ1Ch5BXbqtE0GM4az20l/cV6C8iqO/QK8cnQIQG8Yw2zH8Zs9DQ=="
   },
   "anchors": []
 }
