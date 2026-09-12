@@ -301,7 +301,7 @@ describe("first-bad-edge parity (criterion 490)", () => {
         const receipt = runnerLoadJson(join(vecDir, "receipt.json")) ?? {};
         const predecessor = runnerLoadJson(join(vecDir, "predecessor.json"));
         const keyProvider = keyProviderFor(vecDir, entry.format);
-        got = verify(receipt, ADAPTERS, keyProvider, predecessor).firstFailingEdge;
+        got = verify(receipt, ADAPTERS, keyProvider, predecessor, { originatingEnvelope: runnerLoadJson(join(vecDir, "originating_envelope.json")) }).firstFailingEdge;
       } catch {
         // Terminal at ingest. Both halves must agree on WHICH vectors these are,
         // so a parser-strictness divergence fails here too.
@@ -326,7 +326,7 @@ describe("first-bad-edge parity (criterion 490)", () => {
       try {
         const receipt = runnerLoadJson(join(vecDir, "receipt.json")) ?? {};
         const predecessor = runnerLoadJson(join(vecDir, "predecessor.json"));
-        result = verify(receipt, ADAPTERS, keyProviderFor(vecDir, entry.format), predecessor);
+        result = verify(receipt, ADAPTERS, keyProviderFor(vecDir, entry.format), predecessor, { originatingEnvelope: runnerLoadJson(join(vecDir, "originating_envelope.json")) });
       } catch {
         continue;
       }
