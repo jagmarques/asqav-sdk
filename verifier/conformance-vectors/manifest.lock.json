@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 24,
+  "corpus_version": 25,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -123,6 +123,11 @@
       "version": 23,
       "files": 280,
       "digest": "1a6cfbc03d79ade034580797afb0d0bc8fe95d9d930102bd6f2e2e44788db4b7"
+    },
+    {
+      "version": 24,
+      "files": 300,
+      "digest": "3b003d4b4a6a3a8fa4a3d2ec1f17fb60805fbdbea441102238a87483ab3b2f99"
     }
   ],
   "files": [
@@ -1173,8 +1178,8 @@
     },
     {
       "path": "asqav-25-payload-digest-rederives/expected.json",
-      "sha256": "5aeb74111a4e430cd1f8a67fc0083d88474ff68ce5f083d39cd1d99105e59dba",
-      "bytes": 457
+      "sha256": "7aba608ffda2cd500c908da93a4e77a6657a8d35e82dd09b4d96244fe65739a2",
+      "bytes": 554
     },
     {
       "path": "asqav-25-payload-digest-rederives/jwks.json",
@@ -1463,8 +1468,8 @@
     },
     {
       "path": "gen_payload_digest_vectors.py",
-      "sha256": "d77b2dd04ab3d9a1b5523ec4d40f0090847247e95c224a4a09a6fd07123ae3ee",
-      "bytes": 6439
+      "sha256": "9e2b2ec63302f99f94dfdfc19d66c7b3da0e0a476596ee6acbb9e189834b54b8",
+      "bytes": 6794
     },
     {
       "path": "gen_selective_omission_vectors.py",
@@ -1657,5 +1662,5 @@
       ]
     }
   },
-  "digest": "3b003d4b4a6a3a8fa4a3d2ec1f17fb60805fbdbea441102238a87483ab3b2f99"
+  "digest": "654725d071c89dc1104e6201d91eaa85a0fdce93b5e5b56eff2b054c08cae3b1"
 }
