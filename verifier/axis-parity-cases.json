@@ -2304,7 +2304,9 @@
       "payload": {},
       "expect": {
         "result": "PASS",
-        "note_contains": "unilaterally asserted"
+        "note_contains": "unilaterally asserted",
+        "valid": true,
+        "failure_class": null
       }
     },
     {
@@ -2312,12 +2314,15 @@
       "payload": {
         "counterparty_binding": {
           "receipt_ref": "sig_X",
-          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "SKIPPED",
-        "note_contains": "corroboration is unchecked"
+        "note_contains": "corroboration is unchecked",
+        "valid": null,
+        "failure_class": "unverifiable"
       }
     },
     {
@@ -2327,31 +2332,39 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not an object"
+        "note_contains": "not an object",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
       "name": "receipt_ref missing",
       "payload": {
         "counterparty_binding": {
-          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "receipt_ref missing"
+        "note_contains": "receipt_ref missing",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
       "name": "envelope_hash missing",
       "payload": {
         "counterparty_binding": {
-          "receipt_ref": "sig_X"
+          "receipt_ref": "sig_X",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "envelope_hash missing"
+        "note_contains": "envelope_hash missing",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
@@ -2359,12 +2372,15 @@
       "payload": {
         "counterparty_binding": {
           "receipt_ref": "sig_X",
-          "envelope_hash": "!!!not-b64!!!"
+          "envelope_hash": "!!!not-b64!!!",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "is not base64"
+        "note_contains": "is not base64",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
@@ -2372,12 +2388,15 @@
       "payload": {
         "counterparty_binding": {
           "receipt_ref": "sig_X",
-          "envelope_hash": "c2hvcnQ="
+          "envelope_hash": "c2hvcnQ=",
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not a sha-256"
+        "note_contains": "not a sha-256",
+        "valid": false,
+        "failure_class": "invalid"
       }
     },
     {
@@ -2386,12 +2405,15 @@
         "counterparty_binding": {
           "receipt_ref": "sig_X",
           "envelope_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-          "expect_ack_from": 7
+          "expect_ack_from": 7,
+          "scope": "envelope_minus_anchors"
         }
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "expect_ack_from is not a string"
+        "note_contains": "expect_ack_from is not a string",
+        "valid": false,
+        "failure_class": "invalid"
       }
     }
   ]

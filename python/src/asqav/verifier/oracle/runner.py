@@ -116,13 +116,17 @@ def run_one(
     try:
         receipt = _load(vec_dir / "receipt.json")
         predecessor = _load(vec_dir / "predecessor.json")
+        originating_envelope = _load(vec_dir / "originating_envelope.json")
         key_provider = _key_provider(vec_dir, fmt)
     except (strict_json.DuplicateMemberError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         # Terminal ingest failure (419): nothing is hashed, checked, or verified.
         return _parse_failure_outcome(
             vec_dir.name, expected_outcome, expected_failure_class, reason_code, exc
         )
-    result = verify(receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor)
+    from .adapter import VerificationContext
+
+    result = verify(receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor,
+                    context=VerificationContext(originating_envelope))
 
     want_verdict = _OUTCOME_TO_VERDICT.get(expected_outcome)
     ok = want_verdict is not None and result.verdict == want_verdict

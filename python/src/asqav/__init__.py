@@ -419,6 +419,7 @@ def verify_receipt_offline(
     jwks: dict,
     *,
     predecessor: dict | None = None,
+    originating_envelope: dict | None = None,
 ) -> dict:
     """Verify a receipt fully offline against an in-memory JWKS snapshot.
 
@@ -442,6 +443,8 @@ def verify_receipt_offline(
         jwks: JWKS dict previously fetched via ``fetch_jwks()``.
         predecessor: Parsed predecessor receipt dict for the chain check
             (optional; chain axis is SKIPPED when not supplied).
+        originating_envelope: Full peer signing envelope for the binding check.
+            Optional, with no lookup or added anchor verification.
 
     Returns:
         dict with keys:
@@ -459,11 +462,14 @@ def verify_receipt_offline(
         result = asqav.verify_receipt_offline(receipt, jwks)
         assert result["verdict"] == "verified"
     """
+    from .verifier.oracle import VerificationContext
+
     predecessor_payload = None
     if predecessor is not None:
         predecessor_payload = predecessor.get("payload", predecessor)
     vr = _oracle_verify(
-        receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload
+        receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload,
+        context=VerificationContext(originating_envelope=originating_envelope),
     )
     return {
         "verdict": vr.verdict,
