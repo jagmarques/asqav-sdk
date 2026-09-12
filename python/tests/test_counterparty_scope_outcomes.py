@@ -248,3 +248,14 @@ def test_acknowledging_kid_names_the_resolved_signing_key(kid, status, capsys):
     mark = "  ok" if status == "PASS" else "FAIL"
     assert f"[{mark}] counterparty" in output
 
+
+@pytest.mark.parametrize("binding,label", [({}, "legacy_scope"), ({"scope": None}, "unrecognised_scope"),
+                                           ({"scope": "other"}, "unrecognised_scope")])
+def test_client_unknown_binding_blocks_overall_pass_without_origin(binding, label):
+    from asqav.client import verify_compliance_receipt
+    receipt, _, _ = fixture()
+    receipt["payload"]["counterparty_binding"] = binding
+    result = verify_compliance_receipt(receipt)
+    assert result.counterparty_binding_verified is None
+    assert result.valid is False
+    assert f"counterparty_binding_{label}" in result.errors
