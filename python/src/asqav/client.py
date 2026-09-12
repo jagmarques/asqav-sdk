@@ -50,6 +50,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 logger = logging.getLogger("asqav")
 
+_OWASP_AGENTIC_TOP10_IDS = frozenset(f"ASI{number:02d}" for number in range(1, 11))
+
 # Retry configuration for API calls
 _MAX_RETRIES = 5
 _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
@@ -1691,6 +1693,7 @@ def _validate_sign_extensions(
     mitre_techniques: list[str] | None,
     mitre_atlas: list[str] | None,
     owasp_llm_top10: list[str] | None,
+    owasp_agentic_top10: list[str] | None,
     nist_ai_rmf: list[str] | None,
     iso_42001: list[str] | None,
     eu_ai_act_articles: list[str] | None,
@@ -1723,6 +1726,7 @@ def _validate_sign_extensions(
         ("mitre_techniques", mitre_techniques),
         ("mitre_atlas", mitre_atlas),
         ("owasp_llm_top10", owasp_llm_top10),
+        ("owasp_agentic_top10", owasp_agentic_top10),
         ("nist_ai_rmf", nist_ai_rmf),
         ("iso_42001", iso_42001),
         ("eu_ai_act_articles", eu_ai_act_articles),
@@ -1739,6 +1743,11 @@ def _validate_sign_extensions(
                 raise ValueError(
                     f"{_name}_entry_invalid: each entry must be a "
                     "non-empty string of length <= 128."
+                )
+            if _name == "owasp_agentic_top10" and _item not in _OWASP_AGENTIC_TOP10_IDS:
+                raise ValueError(
+                    f'{_name}_entry_invalid: "{_item}" is not a bare '
+                    "ASI01 through ASI10 id; no edition suffix."
                 )
 
 
@@ -2005,6 +2014,7 @@ class Agent:
         mitre_techniques: list[str] | None = None,
         mitre_atlas: list[str] | None = None,
         owasp_llm_top10: list[str] | None = None,
+        owasp_agentic_top10: list[str] | None = None,
         nist_ai_rmf: list[str] | None = None,
         iso_42001: list[str] | None = None,
         eu_ai_act_articles: list[str] | None = None,
@@ -2166,6 +2176,8 @@ class Agent:
                 Self-declared; never Asqav-verified.
             owasp_llm_top10: Caller-supplied list of OWASP Top 10 for LLM
                 ids (e.g. ``["LLM01", "LLM02"]``). Self-declared.
+            owasp_agentic_top10: Caller-supplied list of OWASP Agentic Top 10
+                ids (e.g. ``["ASI01", "ASI10"]``). Self-declared.
             nist_ai_rmf: Caller-supplied list of NIST AI RMF function ids
                 (e.g. ``["GOVERN-1.1", "MEASURE-2.7"]``). Self-declared.
             iso_42001: Caller-supplied list of ISO/IEC 42001 control ids
@@ -2283,6 +2295,7 @@ class Agent:
             mitre_techniques=mitre_techniques,
             mitre_atlas=mitre_atlas,
             owasp_llm_top10=owasp_llm_top10,
+            owasp_agentic_top10=owasp_agentic_top10,
             nist_ai_rmf=nist_ai_rmf,
             iso_42001=iso_42001,
             eu_ai_act_articles=eu_ai_act_articles,
@@ -2333,6 +2346,7 @@ class Agent:
                 ("mitre_techniques", mitre_techniques),
                 ("mitre_atlas", mitre_atlas),
                 ("owasp_llm_top10", owasp_llm_top10),
+                ("owasp_agentic_top10", owasp_agentic_top10),
                 ("nist_ai_rmf", nist_ai_rmf),
                 ("iso_42001", iso_42001),
                 ("eu_ai_act_articles", eu_ai_act_articles),
