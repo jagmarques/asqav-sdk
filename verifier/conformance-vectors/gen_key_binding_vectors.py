@@ -51,10 +51,6 @@ KID = "asqav-key-binding-vec-key"
 ISSUER = "Asqav Ltd"
 _ZERO_DIGEST = hashlib.sha256(b"").hexdigest()
 
-#: The one wire form (-09 §5.1.5): the prefixed rendering of payload_digest.hash.
-ACTION_REF = f"sha256:{_ZERO_DIGEST}"
-
-
 def _jcs(obj: object) -> bytes:
     """Canonical JSON bytes, matching the oracle's asqav_jcs."""
     return json.dumps(
@@ -79,15 +75,28 @@ def _thumbprint(public_key: bytes) -> str:
     return f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
 
 
-def _payload(previous: str, thumbprint: str) -> dict:
+def _digest_of(context: dict) -> dict:
+    """payload_digest over `context`, computed independently of the verifier."""
+    encoded = _jcs(context)
+    return {"hash": hashlib.sha256(encoded).hexdigest(), "size": len(encoded)}
+
+
+def _payload(previous: str, thumbprint: str, context: dict) -> dict:
+    """A key-binding payload carrying its own real context.
+
+    action_ref is the one wire form (-09 §5.1.5): the prefixed rendering of
+    payload_digest.hash, which proves the -10 §10.2 recomputation.
+    """
+    digest = _digest_of(context)
     return {
         "type": "protectmcp:decision",
         "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_keybind_001",
-        "action_ref": ACTION_REF,
-        "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
+        "action_ref": f"sha256:{digest['hash']}",
+        "context": context,
+        "payload_digest": digest,
         "policy_digest": f"sha256:{_ZERO_DIGEST}",
         "previousReceiptHash": previous,
         "decision": "allow",
@@ -146,7 +155,18 @@ def main() -> int:
     _write(
         "asqav-21-key-thumbprint-binds",
         {
-            "receipt.json": _sign(_payload("0" * 64, signer_tp), signer_sk),
+            "receipt.json": _sign(
+                _payload(
+                    "0" * 64,
+                    signer_tp,
+                    {
+                        "subject": "key-binding-control",
+                        "kid": KID,
+                        "bound": "resolved-key",
+                    },
+                ),
+                signer_sk,
+            ),
             "jwks.json": _jwks(signer_pk),
             "expected.json": {
                 "format": "asqav-native",
@@ -164,7 +184,18 @@ def main() -> int:
     _write(
         "asqav-22-key-substituted",
         {
-            "receipt.json": _sign(_payload("0" * 64, other_tp), signer_sk),
+            "receipt.json": _sign(
+                _payload(
+                    "0" * 64,
+                    other_tp,
+                    {
+                        "subject": "key-substitution-attack",
+                        "kid": KID,
+                        "bound": "other-key",
+                    },
+                ),
+                signer_sk,
+            ),
             "jwks.json": _jwks(signer_pk),
             "expected.json": {
                 "format": "asqav-native",

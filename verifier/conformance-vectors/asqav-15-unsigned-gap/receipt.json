@@ -5,13 +5,18 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_omission_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:99e35b1c67fa07c7a68882d06c15527efea432fb0c579ad10d179907ea460973",
+    "context": {
+      "subject": "signer-outage-tally",
+      "unsigned_count": 2,
+      "role": "successor"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "99e35b1c67fa07c7a68882d06c15527efea432fb0c579ad10d179907ea460973",
+      "size": 71
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "previousReceiptHash": "62f2f42d8af720b8a49a8bd23541c5436a9e24b010be8754b2bc0bf6d7094292",
+    "previousReceiptHash": "195d3a7961db5ff24efab51496b4b3f18037423270b6940a257d2f1128fc0b25",
     "decision": "allow",
     "mode": "payload",
     "tool_name": "demo.action",
@@ -24,7 +29,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-omission-vec-key",
-    "sig": "5bS4rLxX6D7a85pTIT82cL0mYiadsGneP2nBwWGqcFGmi3dTJyBAAiKhf5NXlF/7KsUcZlvVYCiVR2U0yI29Cg=="
+    "sig": "jTKxSHtEhJoip30s6i7tpTWgvlSheeYwMU/h40xOd5BttiVkwpL37RaYPTSe3Mxo+91fhbykjaX7KBEU1Co+Aw=="
   },
   "anchors": []
 }

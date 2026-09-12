@@ -5,10 +5,14 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_seq_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:89a66376d62626659dce0957928301335a4632e92c0b3e830aba1375de2dd9a2",
+    "context": {
+      "subject": "pre-counter-receipt",
+      "role": "predecessor"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "89a66376d62626659dce0957928301335a4632e92c0b3e830aba1375de2dd9a2",
+      "size": 54
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -19,7 +23,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "BcGNWwDZ4T6cFKDI21lJRfYMDYmEjLen9DohLmoISYCq1zBCMOW6n2/Z83bWyXC+15+6xxw+2ujV2xfhmuErAw=="
+    "sig": "czKsPnO/gESNGKkJF/f2D6gkkssF+X+j0SNTIiYK9iYL6MpBtP7S38rM8MD2arguB62YEbgo4L0+sAQBuwptBA=="
   },
   "anchors": []
 }
