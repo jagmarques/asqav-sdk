@@ -93,6 +93,23 @@ def _payload(doc: dict) -> dict:
     return payload if isinstance(payload, dict) else env
 
 
+    # The flat object the cloud's hash-mode path signs, before canonicalisation.
+def _flat_signed_fields(doc: dict) -> dict:
+    return {
+        "v": 1,
+        "mode": "hash",
+        "hash": doc.get("hash"),
+        "hash_algo": doc.get("hash_algo") or "sha256",
+        "metadata": doc.get("metadata") or {},
+        "server_timestamp": doc.get("server_timestamp"),
+        "action_id": doc.get("action_id"),
+        "agent_id": doc.get("agent_id"),
+        "org_id": doc.get("org_id"),
+        "policy_digest": doc.get("policy_digest"),
+        "policy_decision": doc.get("policy_decision"),
+    }
+
+
     # Decode signature material; b'' on any malformed input so verify FAILs, never crashes.
 def _safe_b64(value: Any) -> bytes:
     if not isinstance(value, str):
@@ -187,20 +204,7 @@ class AsqavNativeAdapter(FormatAdapter):
         Mirrors ``agents.py::_build_signing_message`` hash-mode branch field-for-field;
         ``asqav_jcs`` sorts the keys, so insertion order is cosmetic but kept aligned.
         """
-        flat = {
-            "v": 1,
-            "mode": "hash",
-            "hash": doc.get("hash"),
-            "hash_algo": doc.get("hash_algo") or "sha256",
-            "metadata": doc.get("metadata") or {},
-            "server_timestamp": doc.get("server_timestamp"),
-            "action_id": doc.get("action_id"),
-            "agent_id": doc.get("agent_id"),
-            "org_id": doc.get("org_id"),
-            "policy_digest": doc.get("policy_digest"),
-            "policy_decision": doc.get("policy_decision"),
-        }
-        return asqav_jcs(flat)
+        return asqav_jcs(_flat_signed_fields(doc))
 
     def chain_step(self, doc: dict) -> ChainStep:
         if _is_hash_mode(doc):
@@ -312,3 +316,25 @@ class AsqavNativeAdapter(FormatAdapter):
         plain verified. Read from the signed field set only.
         """
         return _is_hash_mode(doc) and doc.get("hash_algo") == "hmac-sha256"
+
+    def profile_precheck(
+        self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None
+    ) -> str | None:
+        """Refuse current-profile digest inputs outside the range, else None."""
+        if _is_hash_mode(doc):
+            if not _vr.is_current_profile_version(doc.get("v")):
+                return None
+            return _vr.profile_range_note(_flat_signed_fields(doc))
+        signed = _payload(doc)
+        if not _vr.is_current_profile_version(signed.get("v")):
+            return None
+        note = _vr.profile_range_note(signed)
+        if note is not None:
+            return note
+        if (
+            isinstance(predecessor, dict)
+            and predecessor_fmt == self.name
+            and signed.get("previousReceiptHash") != _vr.FIRST_RECEIPT_SEED
+        ):
+            return _vr.profile_range_note(_payload(predecessor))
+        return None
