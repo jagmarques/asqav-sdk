@@ -2296,6 +2296,66 @@
         "result": "FAIL",
         "note_contains": "non-negative integer"
       }
+    },
+    {
+      "name": "size null with matching context is malformed",
+      "payload": {
+        "context": {
+          "amount": 100,
+          "currency": "EUR"
+        },
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+          "size": null
+        }
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "non-negative integer"
+      }
+    },
+    {
+      "name": "size absent with matching context stays allowed",
+      "payload": {
+        "context": {
+          "amount": 100,
+          "currency": "EUR"
+        },
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e"
+        }
+      },
+      "expect": {
+        "result": "PASS",
+        "note_contains": "rederives from the carried context"
+      }
+    },
+    {
+      "name": "size null with context absent is still malformed",
+      "payload": {
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+          "size": null
+        }
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "non-negative integer"
+      }
+    },
+    {
+      "name": "size null with explicit null context is still malformed",
+      "payload": {
+        "context": null,
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+          "size": null
+        }
+      },
+      "expect": {
+        "result": "FAIL",
+        "note_contains": "non-negative integer"
+      }
     }
   ],
   "counterparty_binding": [
