@@ -44,28 +44,32 @@ def _utf16_ordered(obj: Any) -> Any:
 
 
     # Return canonical JCS bytes for ``obj``, byte-identical to the cloud.
-#: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
-#: representable and both emit the same digits for it, while 2**53 + 1 has no exact
-#: double and JavaScript rounds it. One ABOVE JavaScript's Number.isSafeInteger bound,
-#: deliberately: the upstream interop vector `number_2_to_53` pins 2**53 as canonical.
-#: The bound also excludes every integer at or above 1e21, where JavaScript's toString
-#: switches to exponential notation and Python's str does not.
-MAX_CANONICAL_INTEGER = 2**53
+#: Asqav profile bound: draft Section 4 ends the safe interval at 2**53 - 1.
+#: Exactly representable 2**53 is refused here; generic JCS keeps accepting it.
+MAX_PROFILE_INTEGER = 2**53 - 1
 
 
 class UnsafeIntegerError(ValueError):
     """An integer outside the safe range reached the canonicaliser."""
 
 
-    # Refuse an int with no exact double, at every depth, before any bytes are produced.
+    # Refuse an int or integer-valued float outside the profile range, at every
+    # depth, before any bytes are produced.
 def _reject_unsafe_integers(obj: Any) -> None:
     if isinstance(obj, bool):
         return
     if isinstance(obj, int):
-        if not -MAX_CANONICAL_INTEGER <= obj <= MAX_CANONICAL_INTEGER:
+        if not -MAX_PROFILE_INTEGER <= obj <= MAX_PROFILE_INTEGER:
             raise UnsafeIntegerError(
-                f"integer outside the canonical integer range +/-2**53: {obj}; serialise it "
-                "as a JSON string or an integer-rational pair"
+                f"integer outside the Asqav profile range +/-(2**53 - 1): {obj}; "
+                "serialise it as a JSON string or an integer-rational pair"
+            )
+        return
+    if isinstance(obj, float) and obj.is_integer():
+        if not -MAX_PROFILE_INTEGER <= obj <= MAX_PROFILE_INTEGER:
+            raise UnsafeIntegerError(
+                f"number outside the Asqav profile range +/-(2**53 - 1): {obj!r}; "
+                "serialise it as a JSON string or an integer-rational pair"
             )
         return
     if isinstance(obj, dict):

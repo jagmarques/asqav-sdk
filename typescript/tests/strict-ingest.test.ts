@@ -8,8 +8,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   DuplicateMemberError,
+  ProfileIntegerError,
+  RawFloat,
   parseJsonPreservingFloats,
   parseJsonStrict,
+  parseProfileJson,
 } from "../src/verifier/canonical.js";
 import { receiptFromOtelGenaiAttributes, OTEL_RECEIPT_ATTR } from "../src/doors.js";
 import { runOne } from "../src/verifier/runner.js";
@@ -89,5 +92,69 @@ describe("corpus duplicate-member vectors never verify (criteria 419/418)", () =
       expect(r.actualFailureClass).toBe("unverifiable");
       expect(r.detail).toContain("terminal parse failure before any hashing");
     }
+  });
+});
+
+describe("explicit Asqav profile ingest (shared parser unchanged)", () => {
+  it("accepts the safe interval on both signs, nested or not", () => {
+    expect(parseProfileJson('{"n":9007199254740991}')).toEqual({ n: 9007199254740991 });
+    expect(parseProfileJson('{"a":{"b":[1,{"c":-9007199254740991}]}}')).toEqual({
+      a: { b: [1, { c: -9007199254740991 }] },
+    });
+  });
+
+  it("refuses the excluded boundary on both signs, nested or not", () => {
+    for (const text of [
+      '{"n":9007199254740992}',
+      '{"n":-9007199254740992}',
+      '{"a":{"b":[1,{"c":9007199254740992}]}}',
+    ]) {
+      expect(() => parseProfileJson(text)).toThrow(ProfileIntegerError);
+    }
+  });
+
+  it("refuses float spellings of the excluded boundary", () => {
+    expect(() => parseProfileJson('{"n":9007199254740992.0}')).toThrow(ProfileIntegerError);
+    expect(() => parseProfileJson('{"n":9.007199254740992e15}')).toThrow(ProfileIntegerError);
+  });
+
+  it("keeps string twins, booleans and fractions unchanged", () => {
+    expect(parseProfileJson('{"n":"9007199254740993"}')).toEqual({ n: "9007199254740993" });
+    const parsed = parseProfileJson('{"a":true,"b":3.14}') as {
+      a: boolean;
+      b: RawFloat;
+    };
+    expect(parsed.a).toBe(true);
+    expect(parsed.b).toBeInstanceOf(RawFloat);
+    expect(parsed.b.value).toBe(3.14);
+  });
+
+  it("shared generic ingest still accepts the excluded boundary", () => {
+    expect(parseJsonPreservingFloats('{"n":9007199254740992}')).toEqual({ n: 9007199254740992 });
+  });
+});
+
+describe("decoded __proto__ keys stay own data members", () => {
+  it("keeps __proto__ own and enumerable with its original value", () => {
+    const parsed = parseJsonPreservingFloats('{"__proto__":{"v":1},"n":1}') as Record<
+      string,
+      unknown
+    >;
+    expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(true);
+    expect(Object.entries(parsed).some(([k]) => k === "__proto__")).toBe(true);
+    expect(parsed.__proto__).toEqual({ v: 1 });
+    expect({}.hasOwnProperty.call(parsed, "v")).toBe(false);
+  });
+
+  it("preserves __proto__ through the strict unwrap path", () => {
+    const parsed = parseJsonStrict('{"__proto__":{"v":1},"n":1}') as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(true);
+    expect(parsed.__proto__).toEqual({ v: 1 });
+  });
+
+  it("still detects a duplicated __proto__ member", () => {
+    expect(() => parseJsonPreservingFloats('{"__proto__":1,"__proto__":2}')).toThrow(
+      DuplicateMemberError,
+    );
   });
 });

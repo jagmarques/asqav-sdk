@@ -193,10 +193,21 @@ def test_out_of_domain_fixture_is_refused_at_the_parse_boundary() -> None:
 
 def test_canonicaliser_also_refuses_a_value_built_in_process() -> None:
     """Defence in depth for a value that never went through the parser."""
-    with pytest.raises(UnsafeIntegerError, match="canonical integer range"):
+    with pytest.raises(UnsafeIntegerError, match=r"profile range \+/-\(2\*\*53 - 1\)"):
         doors.canonical_json({"n": 2**53 + 1})
-    # 2**53 itself is exactly representable and is pinned canonical upstream.
-    assert doors.canonical_json({"n": 2**53}) == b'{"n":9007199254740992}'
+    # The profile ends at 2**53 - 1 even though 2**53 round-trips exactly;
+    # generic JCS keeps the upstream-pinned value, the profile producer refuses it.
+    with pytest.raises(UnsafeIntegerError, match=r"profile range \+/-\(2\*\*53 - 1\)"):
+        doors.canonical_json({"n": 2**53})
+    assert doors.canonical_json({"n": 2**53 - 1}) == b'{"n":9007199254740991}'
+
+
+def test_profile_producer_refuses_integer_valued_floats_outside_the_range() -> None:
+    """Float spellings of excluded integers refuse; in-range floats pass."""
+    with pytest.raises(UnsafeIntegerError, match=r"profile range \+/-\(2\*\*53 - 1\)"):
+        doors.canonical_json({"n": float(2**53)})
+    assert doors.canonical_json({"n": 5.0}) == b'{"n":5.0}'
+    assert doors.canonical_json({"n": 3.14}) == b'{"n":3.14}'
 
 
 def test_astral_key_order_stays_closed() -> None:
