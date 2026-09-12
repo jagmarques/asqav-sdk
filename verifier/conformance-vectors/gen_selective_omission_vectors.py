@@ -36,10 +36,6 @@ KID = "asqav-omission-vec-key"
 ISSUER = "Asqav Ltd"
 _ZERO_DIGEST = hashlib.sha256(b"").hexdigest()
 
-#: The one wire form (-09 §5.1.5): the prefixed rendering of payload_digest.hash.
-ACTION_REF = f"sha256:{_ZERO_DIGEST}"
-
-
 def _jcs(obj: object) -> bytes:
     """Canonical JSON bytes, matching the oracle's asqav_jcs."""
     return json.dumps(
@@ -69,15 +65,28 @@ def _chain_hash(payload: dict) -> str:
     return hashlib.sha256(_jcs(payload)).hexdigest()
 
 
-def _payload(previous: str, **extra) -> dict:
+def _digest_of(context: dict) -> dict:
+    """payload_digest over `context`, computed independently of the verifier."""
+    encoded = _jcs(context)
+    return {"hash": hashlib.sha256(encoded).hexdigest(), "size": len(encoded)}
+
+
+def _payload(previous: str, context: dict, **extra) -> dict:
+    """An omission payload carrying its own real context.
+
+    action_ref is the one wire form (-09 §5.1.5): the prefixed rendering of
+    payload_digest.hash, which proves the -10 §10.2 recomputation.
+    """
+    digest = _digest_of(context)
     payload = {
         "type": "protectmcp:decision",
         "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_omission_001",
-        "action_ref": ACTION_REF,
-        "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
+        "action_ref": f"sha256:{digest['hash']}",
+        "context": context,
+        "payload_digest": digest,
         "policy_digest": f"sha256:{_ZERO_DIGEST}",
         "previousReceiptHash": previous,
         "decision": "allow",
@@ -117,8 +126,19 @@ def main() -> int:
 
     # Action 1 is receipted, Action 2 happens with the signer never reached, and
     # Action 3 is receipted linking straight back to Action 1's receipt
-    first = _payload(genesis_prev)
-    third = _payload(_chain_hash(first))
+    first = _payload(
+        genesis_prev,
+        {"subject": "omitted-action-chain", "action": 1, "role": "predecessor"},
+    )
+    third = _payload(
+        _chain_hash(first),
+        {
+            "subject": "omitted-action-chain",
+            "action": 3,
+            "role": "successor",
+            "omitted_action": 2,
+        },
+    )
     _write(
         "asqav-14-omitted-action-chain",
         {
@@ -141,9 +161,13 @@ def main() -> int:
 
     # The signer was unavailable for two Actions; the next receipt that signs
     # carries the tally so the gap is evidenced rather than silent
-    gap_prev = _payload(genesis_prev)
+    gap_prev = _payload(
+        genesis_prev,
+        {"subject": "signer-outage-tally", "role": "predecessor"},
+    )
     gap = _payload(
         _chain_hash(gap_prev),
+        {"subject": "signer-outage-tally", "unsigned_count": 2, "role": "successor"},
         unsigned_gap={
             "count": 2,
             "from": "2026-08-30T11:58:00+00:00",
@@ -171,9 +195,17 @@ def main() -> int:
 
     # A predecessor-lookup timeout blocked emission; the lifecycle receipt
     # naming it is itself a Compliance Receipt and links into the chain
-    blocked_prev = _payload(genesis_prev)
+    blocked_prev = _payload(
+        genesis_prev,
+        {"subject": "emission-blocked", "role": "predecessor"},
+    )
     blocked = _payload(
         _chain_hash(blocked_prev),
+        {
+            "subject": "emission-blocked",
+            "reason": "chain_emission_blocked",
+            "role": "successor",
+        },
         type="protectmcp:lifecycle",
         decision="deny",
         reason="chain_emission_blocked",

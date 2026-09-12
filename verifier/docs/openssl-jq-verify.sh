@@ -91,7 +91,7 @@ pin_check "published-receipt.json" "$FIX/published-receipt.json" \
 pin_check "published-jwks.json" "$FIX/published-jwks.json" \
   2ca81e3233f23ebdfa9f230c6914025f0dfd30a90c9cf322f70198c61d098bc4 2851
 pin_check "ed25519-receipt.json" "$FIX/ed25519-receipt.json" \
-  20eb7066b11ddb82d52d003670105f30e0ed3129e77baf2e0c088cbb5958f235 868
+  a04803fd954195371caa827e1e1b59a401ab16a45b4c3805495dc30c555dfd1e 983
 pin_check "ed25519-jwks.json" "$FIX/ed25519-jwks.json" \
   9ae219e656fa81e03cb8ab0074adc3c580ae618b3f1f652f6a3dfabeed5a1615 218
 echo
@@ -175,7 +175,7 @@ echo "part B: Ed25519 receipt (asqav-native conformance vector)"
 
 jq -cjS '.payload' "$FIX/ed25519-receipt.json" > "$WORK/b_canonical.bin"
 pin_check "B.1 canonical payload (jq -cjS .payload)" "$WORK/b_canonical.bin" \
-  508fc8f96b76316c69487b736829b1040d185bd68df10cecf105e0214c95654f 556
+  5614b581dabab8e71114137531342161ac0512cf326fe002130aa69906e078da 636
 
 jq -r '.signature.sig' "$FIX/ed25519-receipt.json" | base64 -d > "$WORK/b_sig.bin"
 [[ "$(byte_size "$WORK/b_sig.bin")" == "64" ]] || fail "B.2: Ed25519 signature must be 64 bytes"

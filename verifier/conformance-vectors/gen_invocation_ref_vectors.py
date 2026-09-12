@@ -35,9 +35,6 @@ KID = "asqav-invocation-ref-vec-key"
 ISSUER = "Asqav Ltd"
 _ZERO_DIGEST = hashlib.sha256(b"").hexdigest()
 
-#: The prefixed rendering of payload_digest.hash.
-ACTION_REF = f"sha256:{_ZERO_DIGEST}"
-
 #: The shared invocation both vectors revolve around (fixed: minting is deterministic).
 INVOCATION_REF = "toolu_vec_shared"
 
@@ -71,17 +68,32 @@ def _chain_hash(payload: dict) -> str:
     return hashlib.sha256(_jcs(payload)).hexdigest()
 
 
-def _payload(previous: str, hook_event: str, receipt_type: str, decision: str) -> dict:
+def _digest_of(context: dict) -> dict:
+    """payload_digest over `context`, computed independently of the verifier."""
+    encoded = _jcs(context)
+    return {"hash": hashlib.sha256(encoded).hexdigest(), "size": len(encoded)}
+
+
+def _payload(
+    previous: str, hook_event: str, receipt_type: str, decision: str, context: dict
+) -> dict:
+    """An invocation payload carrying its own real context.
+
+    action_ref is the one wire form (-09 §5.1.5): the prefixed rendering of
+    payload_digest.hash, which proves the -10 §10.2 recomputation.
+    """
     # Real posttool emits observation, pretool emits decision. The decision
     # member stays present on both: required, and "observation" claims nothing.
+    digest = _digest_of(context)
     return {
         "type": receipt_type,
         "v": 1,
         "issued_at": "2026-09-07T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_invocation_001",
-        "action_ref": ACTION_REF,
-        "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
+        "action_ref": f"sha256:{digest['hash']}",
+        "context": context,
+        "payload_digest": digest,
         "policy_digest": f"sha256:{_ZERO_DIGEST}",
         "previousReceiptHash": previous,
         "decision": decision,
@@ -118,9 +130,27 @@ def _write(name: str, files: dict[str, object]) -> None:
 def main() -> int:
     sk = _signing_key()
 
-    pre = _payload("0" * 64, "PreToolUse", "protectmcp:decision", "allow")
+    pre = _payload(
+        "0" * 64,
+        "PreToolUse",
+        "protectmcp:decision",
+        "allow",
+        {
+            "subject": "invocation-pre-post",
+            "hook_event": "PreToolUse",
+            "invocation_ref": INVOCATION_REF,
+        },
+    )
     post = _payload(
-        _chain_hash(pre), "PostToolUse", "protectmcp:observation", "observation"
+        _chain_hash(pre),
+        "PostToolUse",
+        "protectmcp:observation",
+        "observation",
+        {
+            "subject": "invocation-pre-post",
+            "hook_event": "PostToolUse",
+            "invocation_ref": INVOCATION_REF,
+        },
     )
     _write(
         "asqav-35-invocation-ref-binds-pre-post",
@@ -143,9 +173,19 @@ def main() -> int:
         },
     )
 
-    first = _payload("0" * 64, "PreToolUse", "protectmcp:decision", "allow")
+    first = _payload(
+        "0" * 64,
+        "PreToolUse",
+        "protectmcp:decision",
+        "allow",
+        {"subject": "duplicate-emission", "hook_event": "PreToolUse", "emission": 1},
+    )
     second = _payload(
-        _chain_hash(first), "PreToolUse", "protectmcp:decision", "allow"
+        _chain_hash(first),
+        "PreToolUse",
+        "protectmcp:decision",
+        "allow",
+        {"subject": "duplicate-emission", "hook_event": "PreToolUse", "emission": 2},
     )
     _write(
         "asqav-36-invocation-ref-duplicate-emission",
