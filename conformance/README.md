@@ -81,11 +81,12 @@ tests that named it built their expected value by calling the function under tes
 
 If your implementation produces a different `canonical` or `sha256` for one of the provided inputs, open an issue at https://github.com/jagmarques/asqav-sdk/issues with your implementation, language, and JCS library name.
 
-## Corpus freeze at v1 (criterion 420)
+## Rolling corpus lock (criterion 420)
 
-This corpus is frozen at version 1. `manifest.lock.json` pins every corpus
-file by SHA-256 and byte length, and carries the digest of the lock itself;
-any drift fails CI.
+This corpus carries a rolling lock. `manifest.lock.json` records the current
+`corpus_version` with its completed-cut history, pins every corpus file by
+SHA-256 and byte length, and carries the digest of the lock itself; any
+drift fails CI.
 
 - Lock digest: pinned in the lock's own `digest` field and reproduced in the
   repo as the `FINGERPRINT_LOCK_DIGEST` constant in
@@ -115,4 +116,4 @@ deterministic known-answer signature:
 
 ## License
 
-These vectors are public domain (CC0).
+The [initial corpus README](https://github.com/jagmarques/asqav-sdk/blob/0afe7d803026e0d39f18a0986b534f1dedd0dc93/conformance/README.md) states: "These vectors are public domain (CC0)." The corpus license notice names Apache License 2.0. [NOTICE](NOTICE) preserves both grant records and the Asqav copyright application; [LICENSE](LICENSE) contains the standard Apache text. This update does not withdraw existing grants or declare an exclusive precedence between them. Third-party fixtures retain their [upstream licenses and notices](../verifier/conformance-vectors/UPSTREAM.md).

@@ -39,6 +39,35 @@ console.log(sig.verificationUrl);      // anyone can open this
 One install, one `govern`, one `sign`. `init({ apiKey })` + `Agent.create({ name })` remain
 available when you want control over `algorithm`, `capabilities` and other agent options.
 
+Each Agent keeps the API key and base URL selected when its creation or retrieval starts.
+Its signing mode and a copy of the supplied salt stay with it too. A later `init` or `govern`
+configures future Agents; it does not retarget an existing Agent, even during an awaited operation.
+To rotate a key, call `init` with the new configuration and obtain a new Agent with `Agent.get(id)`.
+Hooks and detector registrations continue to apply to existing Agents when they sign.
+
+Module helpers such as `request` and `verifySignature` use the current default configuration.
+Integrations that create an Agent lazily through the static API also use the default at that time;
+storing configuration in another object does not give that object an isolated SDK connection.
+
+Use `AsqavClient` when each caller needs its own connection before creating an Agent:
+
+```ts
+import { AsqavClient } from "@asqav/sdk";
+
+const first = new AsqavClient({ apiKey: process.env.FIRST_ASQAV_API_KEY });
+const second = new AsqavClient({ apiKey: process.env.SECOND_ASQAV_API_KEY });
+// Neither constructor sends an API request.
+const firstAgent = await first.createAgent({ name: "first-agent" });
+const secondAgent = await second.getAgent("agt_existing");
+await firstAgent.sign({ actionType: "api:call", context: { task: "first" } });
+```
+
+Clients keep their construction-time configuration and never change the module default.
+An omitted `baseUrl` uses `ASQAV_API_URL` at construction, or the SDK cloud URL when unset;
+it does not inherit another caller's `init`. Mode resolution follows the same rules as `init`.
+The client owns a copy of the supplied salt. Create a new client and Agent to rotate credentials.
+Hooks and detectors still apply across clients. The returned objects are ordinary Agents.
+
 ## Verify it without an account
 
 This is the point of the whole thing — the receipt stands on its own:
@@ -191,7 +220,7 @@ The full list is in the IETF profile under "What a Compliance Receipt Does Not P
 
 ## Requirements
 
-Node 20+. Uses the built-in `fetch`. Zero native dependencies.
+Node 20.19 through 20.x, or Node 22.12 and later. Uses the built-in `fetch`. Zero native dependencies.
 
 ## Standards
 

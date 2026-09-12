@@ -5,10 +5,15 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_seq_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:ede15dd0cbc7bf5d00fa914559326482ddd7f1bbde0696b85eac63715c42467e",
+    "context": {
+      "subject": "seq-baseline",
+      "seq": 7,
+      "role": "predecessor"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "ede15dd0cbc7bf5d00fa914559326482ddd7f1bbde0696b85eac63715c42467e",
+      "size": 55
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -20,7 +25,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "IvoZu7uDdIMviB6FtWT5d/ev8kTqI6VL9fR5ujXpZLEhSeC975u/DRa8iUSGuJdYr3MUoghYIj/7Go+k/kLqAg=="
+    "sig": "V9KLS/XxnfecCX1Gx5CAI02uLK+wiJMCnB/xkA1Z3RdM9OKgSfMH0k/jo+JAwpcVYwWAYgUQxST6akL0OVTiAQ=="
   },
   "anchors": []
 }

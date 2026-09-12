@@ -142,3 +142,9 @@ class FormatAdapter(ABC):
         ``verified_keyed``, never plain ``verified``. Default is False.
         """
         return False
+
+    def profile_precheck(
+        self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None
+    ) -> str | None:
+        """Refusal note or None; default no-op, the core reports a note early."""
+        return None
