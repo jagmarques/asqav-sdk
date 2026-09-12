@@ -8,7 +8,8 @@ import { createHash } from "node:crypto";
 import { canonicalJson } from "./jcs.js";
 
 /**
- * Byte binding over payload and the exact signature object; transport_label is an operational hint.
+ * Byte binding over payload and the exact signature object.
+ * transport_label is an operational hint.
  */
 export interface CounterpartyBinding {
   envelope_hash: string;
@@ -35,7 +36,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** Hash exactly payload and signature, preserving the encoded signature spelling. */
+/** Hash payload and signature only, keeping the encoded signature spelling. */
 export function computeEnvelopeHash(
   envelope: unknown,
 ): string {
@@ -60,7 +61,8 @@ export function computeEnvelopeHash(
 /** Options for {@link computeCounterpartyBinding}. */
 export interface ComputeCounterpartyBindingOptions {
   /**
-   * Pass the originating signature_id for hosted admission; action_id is an offline fallback.
+   * Pass the originating signature_id for hosted admission;
+   * action_id is an offline fallback.
    */
   receiptRef?: string;
   /** Optional declared acknowledger identifier; the verifier cross-checks
@@ -71,7 +73,8 @@ export interface ComputeCounterpartyBindingOptions {
 }
 
 /**
- * Build from the peer's original signing envelope, retaining the signature object as received.
+ * Build from the peer's original signing envelope, retaining the
+ * signature object as received.
  */
 export function computeCounterpartyBinding(
   originatingEnvelope: Record<string, unknown>,
