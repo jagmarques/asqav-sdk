@@ -73,7 +73,7 @@ describe("computeEnvelopeHash", () => {
   it("returns base64 SHA-256 of the JCS bytes", () => {
     const env = origEnvelope();
     const expected = createHash("sha256")
-      .update(canonicalJson(env))
+      .update(canonicalJson({ payload: env.payload, signature: env.signature }))
       .digest("base64");
     expect(computeEnvelopeHash(env)).toBe(expected);
   });
@@ -133,12 +133,12 @@ describe("verifyCounterpartyBinding", () => {
     expect(outcome.kidMatches).toBe(false);
   });
 
-  it("returns unresolved when no counterparty_binding present", () => {
+  it("returns not applicable when no counterparty_binding is present", () => {
     const orig = origEnvelope();
     const ack = { payload: { ...(orig.payload as object) }, signature: { kid: "x" } };
     const outcome = verifyCounterpartyBinding(ack, orig);
-    expect(outcome.valid).toBe(false);
-    expect(outcome.label).toBe("unresolved");
+    expect(outcome.valid).toBeNull();
+    expect(outcome.label).toBeNull();
   });
 });
 
@@ -153,7 +153,7 @@ describe("cross-sdk byte-stability", () => {
     const env = origEnvelope();
     const binding: CounterpartyBinding = computeCounterpartyBinding(env);
     const recomputed = createHash("sha256")
-      .update(canonicalJson(env))
+      .update(canonicalJson({ payload: env.payload, signature: env.signature }))
       .digest("base64");
     expect(binding.envelope_hash).toBe(recomputed);
   });
