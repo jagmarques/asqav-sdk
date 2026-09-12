@@ -98,7 +98,7 @@ PINNED_SHA256 = {
     "asqav-25-number-above-safe-range-as-string":
         "3bbb752b000e9ac58b939c07bb99307d18ccc5be92189d3c32738ec24c98579f",
     "asqav-25-number-at-safe-range-boundary":
-        "66c87d9cb3014e05a11baa97df62282d89d425f22ee15816577c84534e2ef1bb",
+        "e1da48c6a6089f06ecb4e0a2259e658e3786b2420f52baccdf929ec6460d7b41",
 }
 
 #: Length of each canonical string, so a published ``canonical`` cannot be swapped
@@ -228,6 +228,7 @@ PINNED_SIGNATURES = {
 #: REFUSAL has no canonical form, so its contract with implementers is these bytes.
 PINNED_REFUSED_DOCUMENT = {
     "asqav-25-number-above-safe-range-rejected": "{\"n\":9007199254740993}",
+    "asqav-25-number-above-safe-range-boundary-rejected": "{\"n\":9007199254740992}",
 }
 
 #: Every derived member name this file claims to pin. A derived member added to the
@@ -342,14 +343,14 @@ def test_refused_document_is_the_pinned_literal(name: str, document: str) -> Non
     assert _vectors()[name]["input_text"] == document
 
 
-    # The corpus says these documents are refused, so the shipped parser must refuse them.
-    # Without this the corpus could publish a refusal the code does not implement.
+    # Refused corpus documents must fail through the shipped profile ingest,
+    # or the corpus advertises a refusal the code does not implement.
 @pytest.mark.parametrize("name,document", sorted(PINNED_REFUSED_DOCUMENT.items()))
 def test_the_shipped_parser_actually_refuses_it(name: str, document: str) -> None:
     from asqav import strict_json
 
     with pytest.raises(ValueError):
-        strict_json.loads(document)
+        strict_json.loads_profile(document)
 
 
 def test_no_derived_member_escapes_a_pin() -> None:
