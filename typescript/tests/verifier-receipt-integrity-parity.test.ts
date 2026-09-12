@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 
 import {
   checkCounterpartyBinding,
@@ -145,5 +145,51 @@ describe("receipt-internal integrity parity", () => {
       expect(axis.result, `${name}: ${axis.note}`).toBe("PASS");
       expect(axis.failureClass).toBeNull();
     }
+  });
+
+  // Genuinely Ed25519-signed over its final payload (criterion 727)
+  function genuinelySigned(digest: Record<string, unknown>): {
+    doc: Record<string, unknown>;
+    provider: Record<string, unknown>;
+  } {
+    const doc = receipt({ payload_digest: digest });
+    const payload = doc.payload as Record<string, unknown>;
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const sig = sign(null, Buffer.from(asqavJcs(payload)), privateKey).toString("base64");
+    doc.signature = { alg: "Ed25519", kid: "ed_1", sig };
+    const exported = publicKey.export({ format: "der", type: "spki" }) as Buffer;
+    const raw = exported.subarray(-32).toString("base64");
+    const provider = {
+      keys: [
+        {
+          kid: "ed_1",
+          issuer_id: payload.issuer_id,
+          agent_id: payload.agent_id,
+          alg: "Ed25519",
+          status: "active",
+          public_key: raw,
+        },
+      ],
+    };
+    return { doc, provider };
+  }
+
+  it("treats a null size as malformed end to end", () => {
+    const { doc, provider } = genuinelySigned({ hash: HONEST, size: null });
+    const r = verify(doc, ADAPTERS, provider);
+    expect(r.axes.find((a) => a.axis === "signature")!.result).toBe("PASS");
+    const axis = r.axes.find((a) => a.axis === "payload_digest")!;
+    expect(axis.result).toBe("FAIL");
+    expect(axis.failureClass).toBe("invalid");
+    expect(axis.note).toContain("non-negative integer");
+    expect(r.verdict).toBe("unverified");
+  });
+
+  it("keeps an absent-size control passing end to end", () => {
+    const { doc, provider } = genuinelySigned({ hash: HONEST });
+    const r = verify(doc, ADAPTERS, provider);
+    expect(r.axes.find((a) => a.axis === "signature")!.result).toBe("PASS");
+    const axis = r.axes.find((a) => a.axis === "payload_digest")!;
+    expect(axis.result, axis.note).toBe("PASS");
   });
 });
