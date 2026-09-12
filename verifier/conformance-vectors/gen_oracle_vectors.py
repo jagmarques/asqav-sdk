@@ -58,9 +58,6 @@ MLDSA_KID = "asqav-corpus-mldsa-time-edge-key"
 ISSUER = "Asqav Ltd"
 _ZERO_DIGEST = hashlib.sha256(b"").hexdigest()
 
-#: The one wire form (-09 §5.1.5): the prefixed rendering of payload_digest.hash.
-ACTION_REF = f"sha256:{_ZERO_DIGEST}"
-
 #: The fixed policy digest the demo receipts commit to.
 POLICY_DIGEST = "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7"
 
@@ -100,16 +97,29 @@ def _chain_hash(payload: dict) -> str:
     return hashlib.sha256(_jcs(payload)).hexdigest()
 
 
-def _demo_payload(**extra) -> dict:
-    """The shared demo payload shape; v: 1 is the wire version (-09 §5.1.1)."""
+def _digest_of(context: dict) -> dict:
+    """payload_digest over `context`, computed independently of the verifier."""
+    encoded = _jcs(context)
+    return {"hash": hashlib.sha256(encoded).hexdigest(), "size": len(encoded)}
+
+
+def _demo_payload(context: dict, **extra) -> dict:
+    """The shared demo payload shape; v: 1 is the wire version (-09 §5.1.1).
+
+    Every payload carries its own real context, so payload_digest proves the
+    -10 §10.2 recomputation instead of passing on emptiness. action_ref is the
+    one wire form (-09 §5.1.5): the prefixed rendering of payload_digest.hash.
+    """
+    digest = _digest_of(context)
     payload = {
         "type": "protectmcp:decision",
         "v": 1,
         "issued_at": "2026-05-04T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_demo_001",
-        "action_ref": ACTION_REF,
-        "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
+        "action_ref": f"sha256:{digest['hash']}",
+        "context": context,
+        "payload_digest": digest,
         "policy_digest": POLICY_DIGEST,
         "previousReceiptHash": "0" * 64,
         "decision": "allow",
@@ -118,6 +128,29 @@ def _demo_payload(**extra) -> dict:
     }
     payload.update(extra)
     return payload
+
+
+def _legacy_demo_payload() -> dict:
+    """The pre-remint demo payload bytes, pinned for asqav-13 only.
+
+    asqav-13's parsed payload_digest.hash is the spliced f-word, not the empty
+    digest, so it is outside the re-mint and must stay byte-identical: it keeps
+    the exact payload (and signature) it shipped with.
+    """
+    return {
+        "type": "protectmcp:decision",
+        "v": 1,
+        "issued_at": "2026-05-04T12:00:00+00:00",
+        "issuer_id": ISSUER,
+        "agent_id": "agt_demo_001",
+        "action_ref": f"sha256:{_ZERO_DIGEST}",
+        "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
+        "policy_digest": POLICY_DIGEST,
+        "previousReceiptHash": "0" * 64,
+        "decision": "allow",
+        "mode": "payload",
+        "tool_name": "demo.action",
+    }
 
 
 def _jwks(kid: str, issuer_id: str, pub_b64: str, status: str = "active") -> dict:
@@ -193,8 +226,16 @@ def main() -> int:
     revoked_jwks = _jwks(REVOKED_KID, REVOKED_KID, _ed_pub_b64(revoked_sk), status="revoked")
 
     # asqav-01: the genesis permit every tamper/dup/anchor twin is measured against.
-    p01 = _demo_payload()
+    p01 = _demo_payload(
+        {"subject": "genesis-permit", "tool": "demo.action", "decision": "allow"}
+    )
     env01 = _sign_ed(p01, sk)
+    # asqav-02's payload, shared with asqav-04's tampered twin and asqav-11's
+    # second copy: the same deny bytes under three different envelopes.
+    p02 = _demo_payload(
+        {"subject": "genesis-deny", "tool": "demo.action", "decision": "deny"},
+        decision="deny",
+    )
     _write(
         "asqav-01-genesis-permit",
         {
@@ -216,7 +257,7 @@ def main() -> int:
     _write(
         "asqav-02-genesis-deny",
         {
-            "receipt.json": _sign_ed(_demo_payload(decision="deny"), sk),
+            "receipt.json": _sign_ed(p02, sk),
             "jwks.json": ed_jwks,
             "expected.json": {
                 "format": "asqav-native",
@@ -228,7 +269,11 @@ def main() -> int:
     )
 
     # asqav-03: 01's successor; the link is over 01's canonical payload bytes.
-    p03 = _demo_payload(previousReceiptHash=_chain_hash(p01), tool_name="demo.action.2")
+    p03 = _demo_payload(
+        {"subject": "chain-link", "tool": "demo.action.2", "position": "successor"},
+        previousReceiptHash=_chain_hash(p01),
+        tool_name="demo.action.2",
+    )
     _write(
         "asqav-03-chain-link",
         {
@@ -251,7 +296,7 @@ def main() -> int:
     # after signing. Signed over allow; carries deny. Stays tampered by
     # construction: nothing re-signs the carried payload.
     env04 = {
-        "payload": _demo_payload(decision="deny"),
+        "payload": p02,
         "signature": env01["signature"],
         "anchors": [],
     }
@@ -275,6 +320,11 @@ def main() -> int:
 
     # asqav-07: a valid signature whose directory key is revoked.
     p07 = _demo_payload(
+        {
+            "subject": "revoked-key",
+            "agent": "agt_revoked_001",
+            "kid": REVOKED_KID,
+        },
         issued_at="2026-06-01T12:00:00+00:00",
         issuer_id=REVOKED_KID,
         agent_id="agt_revoked_001",
@@ -299,9 +349,7 @@ def main() -> int:
 
     # asqav-11: the valid genesis receipt with the top-level 'payload' member
     # twice (allow, then deny); strict ingest rejects it before any hashing.
-    _write_dup_toplevel(
-        "asqav-11-dup-member-toplevel", p01, _demo_payload(decision="deny"), env01
-    )
+    _write_dup_toplevel("asqav-11-dup-member-toplevel", p01, p02, env01)
     _write(
         "asqav-11-dup-member-toplevel",
         {
@@ -321,8 +369,11 @@ def main() -> int:
     )
 
     # asqav-13: the valid genesis receipt with payload_digest.hash duplicated
-    # two levels down; same terminal parse failure.
-    _write_dup_nested("asqav-13-dup-member-nested", env01)
+    # two levels down; same terminal parse failure. Pinned to the legacy
+    # payload so the re-mint leaves its bytes untouched.
+    _write_dup_nested(
+        "asqav-13-dup-member-nested", _sign_ed(_legacy_demo_payload(), sk)
+    )
     _write(
         "asqav-13-dup-member-nested",
         {

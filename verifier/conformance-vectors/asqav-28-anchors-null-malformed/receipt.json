@@ -5,13 +5,18 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_seq_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:9efa87338718d31179cf3209c7cf366ffc1cb971cdd96c6bb2509469abb33f9a",
+    "context": {
+      "subject": "seq-baseline",
+      "seq": 8,
+      "role": "successor"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "9efa87338718d31179cf3209c7cf366ffc1cb971cdd96c6bb2509469abb33f9a",
+      "size": 53
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "previousReceiptHash": "9194cc26c263f76a20340a95b103717a54b9f6aa79ba5b0a219261bc2b031bd5",
+    "previousReceiptHash": "de39f69ae25ae6c2567895c5ed05a8f232fa7c690c3fbd061a2da390b3b63466",
     "decision": "allow",
     "mode": "payload",
     "tool_name": "demo.action",
@@ -20,7 +25,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "nmKwlNrKi+EPaCIYAz6BB6WGJSv9pfNR8WPQ9F5CVUim4BfQynFsV+8wUf19h3ZuLWc38rKj19X8k6XggDHwBg=="
+    "sig": "m9G3uH0wVJbHgP8Vc+SHs+dD8Snyk87rkfm43moqWxwajoXnQOrHMHQsA+2Ch8ot0l+DhNruaPxzBDtfD6H7BQ=="
   },
   "anchors": null
 }
