@@ -3,7 +3,7 @@
  * oracle's `core.py`. It proves only what the bytes prove, never the behaviour of the recorded action.
  */
 
-import type { FormatAdapter, KeyProvider } from "./adapter.js";
+import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 
@@ -319,6 +319,7 @@ export function verify(
   adapters: FormatAdapter[],
   keyProvider: KeyProvider = null,
   predecessor: Record<string, unknown> | null = null,
+  context: VerificationContext = {},
 ): VerifyResult {
   const ad = detect(doc, adapters);
   if (ad === null) {
@@ -367,7 +368,7 @@ export function verify(
     chainAxis(ad, doc, adapters, predecessor),
     seqAxis(ad, doc, adapters, predecessor),
   ];
-  for (const [name, res, note] of ad.extraAxes(doc, keyProvider)) {
+  for (const [name, res, note] of ad.extraAxesWithContext(doc, keyProvider, context)) {
     axes.push(axis(name, res, note));
   }
 

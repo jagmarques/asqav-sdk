@@ -2545,8 +2545,9 @@ export function verifyReceiptOffline(
   receipt: Record<string, unknown>,
   jwks: Record<string, unknown>,
   predecessor?: Record<string, unknown> | null,
+  originatingEnvelope?: Record<string, unknown> | null,
 ): VerifyResult {
-  return _oracleVerify(receipt, _ADAPTERS, jwks, predecessor ?? null);
+  return _oracleVerify(receipt, _ADAPTERS, jwks, predecessor ?? null, Object.freeze({ originatingEnvelope }));
 }
 
 // === Internal config exposure for tests only ===
