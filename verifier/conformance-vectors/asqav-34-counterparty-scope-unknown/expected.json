@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "counterparty_unrecognised_scope",
+  "notes": "Signed acknowledgment with binding result unrecognised_scope; signature and local TSA verify.",
+  "failure_class": "unverifiable"
+}

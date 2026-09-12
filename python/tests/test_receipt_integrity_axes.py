@@ -21,7 +21,7 @@ import json
 from pathlib import Path
 
 from asqav.verifier import verify_receipt as vr
-from asqav.verifier.oracle import ADAPTERS
+from asqav.verifier.oracle import ADAPTERS, VerificationContext
 from asqav.verifier.oracle import verify as oracle_verify
 from asqav.verifier.oracle.core import _INVALID_FAIL_AXES as ORACLE_INVALID_FAIL_AXES
 
@@ -93,24 +93,34 @@ def test_payload_digest_table() -> None:
 
 def test_counterparty_binding_table() -> None:
     for case in TABLE["counterparty_binding"]:
-        result, note = vr.check_counterparty_binding(case["payload"])
+        kid = case.get("acknowledging_kid", case["payload"].get("issuer_id"))
+        result, note = vr.check_counterparty_binding(case["payload"], case.get("originating_envelope"), acknowledging_kid=kid)
         assert result == case["expect"]["result"], f"{case['name']}: {note}"
         assert case["expect"]["note_contains"] in note, f"{case['name']}: {note}"
+        assert {"PASS": True, "FAIL": False, "SKIPPED": None}[result] is case["expect"]["valid"]
+        doc = _receipt(**case["payload"])
+        doc["signature"]["kid"] = kid
+        provider = _jwks()
+        provider["keys"][0].update(kid=kid, issuer_id=doc["payload"]["issuer_id"])
+        report = oracle_verify(doc, ADAPTERS, provider, context=VerificationContext(case.get("originating_envelope")))
+        axis = next(a for a in report.axes if a.axis == "counterparty")
+        assert axis.result == result, case["name"]
+        assert axis.failure_class == case["expect"]["failure_class"], case["name"]
 
 
-    # The originator path the table cannot carry: a real recompute, both directions.
+    # Independently compute the digest, then exercise both comparisons.
 def test_counterparty_binding_resolves_against_a_supplied_originator() -> None:
     originator = _receipt()
-    good = base64.b64encode(hashlib.sha256(vr.canonical_json(originator)).digest()).decode()
+    good = base64.b64encode(hashlib.sha256(vr.canonical_json({k: originator[k] for k in ("payload", "signature")})).digest()).decode()
 
     payload = _receipt(
-        counterparty_binding={"receipt_ref": "sig_orig", "envelope_hash": good}
+        counterparty_binding={"scope": "envelope_minus_anchors", "receipt_ref": "sig_orig", "envelope_hash": good}
     )["payload"]
     assert vr.check_counterparty_binding(payload, originator)[0] == "PASS"
 
     wrong = base64.b64encode(b"\x00" * 32).decode()
     payload = _receipt(
-        counterparty_binding={"receipt_ref": "sig_orig", "envelope_hash": wrong}
+        counterparty_binding={"scope": "envelope_minus_anchors", "receipt_ref": "sig_orig", "envelope_hash": wrong}
     )["payload"]
     result, note = vr.check_counterparty_binding(payload, originator)
     assert result == "FAIL"
@@ -118,6 +128,7 @@ def test_counterparty_binding_resolves_against_a_supplied_originator() -> None:
 
     payload = _receipt(
         counterparty_binding={
+            "scope": "envelope_minus_anchors",
             "receipt_ref": "sig_orig",
             "envelope_hash": good,
             "expect_ack_from": "somebody_else",
@@ -159,6 +170,7 @@ def test_a_fabricated_counterparty_binding_cannot_read_as_corroborated() -> None
     assert "counterparty" in ORACLE_INVALID_FAIL_AXES
     assert "counterparty" in vr._INVALID_FAIL_AXES
     forged = {
+        "scope": "envelope_minus_anchors",
         "receipt_ref": "sig_NEVER_EXISTED",
         "envelope_hash": base64.b64encode(b"\x00" * 32).decode(),
     }
@@ -168,6 +180,7 @@ def test_a_fabricated_counterparty_binding_cannot_read_as_corroborated() -> None
     # SKIPPED blocks the verdict, so the claim never rides along as corroboration
     assert axis.result == "SKIPPED", axis.note
     assert axis.failure_class == "unverifiable"
+    assert "unresolved:" in axis.note
 
 
 def test_the_oracle_refuses_a_postdated_receipt() -> None:

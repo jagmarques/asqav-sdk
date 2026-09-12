@@ -5,7 +5,7 @@ Covers:
 * envelope_hash byte-stability (matches the cloud's compute_envelope_hash).
 * compute_counterparty_binding default and explicit-locator paths.
 * verify_counterparty_binding matches / mismatch / kid-mismatch / unresolved labels.
-* verify_compliance_receipt fifth check fires only when originating_envelope is supplied.
+* verify_compliance_receipt binding presence blocks passing when scope or originating bytes are unavailable.
 
 The cloud is the authoritative verifier; these tests pin the SDK's local
 sanity-check semantics so customer-side reproduction stays byte-stable.
@@ -59,7 +59,7 @@ def _orig_envelope() -> dict:
 def test_envelope_hash_is_base64_sha256_of_jcs():
     env = _orig_envelope()
     binding = compute_counterparty_binding(env)
-    expected = base64.b64encode(hashlib.sha256(canonical_json(env)).digest()).decode()
+    expected = base64.b64encode(hashlib.sha256(canonical_json({"payload": env["payload"], "signature": env["signature"]})).digest()).decode()
     assert binding.envelope_hash == expected
 
 
@@ -160,12 +160,12 @@ def test_verify_counterparty_binding_kid_mismatch():
     assert outcome.kid_matches is False
 
 
-def test_verify_counterparty_binding_unresolved_no_binding_field():
+def test_verify_counterparty_binding_absent_is_not_applicable():
     orig = _orig_envelope()
     ack = {"payload": dict(orig["payload"]), "signature": {"kid": "x"}}
     outcome = verify_counterparty_binding(ack, orig)
-    assert outcome.valid is False
-    assert outcome.label == "unresolved"
+    assert outcome.valid is None
+    assert outcome.label is None
 
 
 def test_verify_compliance_receipt_fifth_check_fires_with_originating_envelope():
