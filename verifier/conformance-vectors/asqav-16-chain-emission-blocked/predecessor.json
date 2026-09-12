@@ -5,10 +5,14 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_omission_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:14e02333d85537416839352fb8821f309b8bca39e3e4da6aafc513713b4e1078",
+    "context": {
+      "subject": "emission-blocked",
+      "role": "predecessor"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "14e02333d85537416839352fb8821f309b8bca39e3e4da6aafc513713b4e1078",
+      "size": 51
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -19,7 +23,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-omission-vec-key",
-    "sig": "V57TmG5aBmwd/Ccx4U/0CiNr90w1NCcyGCfNGHCDQzDe2bCGuKazhDn/34g98UA5ZOYRGKo5vuxiVWGm1WaoCQ=="
+    "sig": "qQrLkaHOa3107IU07f2SfO7CiYXtruK5pjQJjuXP264zV9n9cmcwIEQ2ZAjqf+ytG3CLGGOkOKNg1l/ZaUTdBw=="
   },
   "anchors": []
 }

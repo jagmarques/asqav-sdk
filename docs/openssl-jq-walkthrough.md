@@ -41,7 +41,7 @@ Pinned output (file order may vary):
 
 ```
 9ae219e656fa81e03cb8ab0074adc3c580ae618b3f1f652f6a3dfabeed5a1615  ed25519-jwks.json      (218 bytes)
-20eb7066b11ddb82d52d003670105f30e0ed3129e77baf2e0c088cbb5958f235  ed25519-receipt.json   (868 bytes)
+a04803fd954195371caa827e1e1b59a401ab16a45b4c3805495dc30c555dfd1e  ed25519-receipt.json   (983 bytes)
 2ca81e3233f23ebdfa9f230c6914025f0dfd30a90c9cf322f70198c61d098bc4  published-jwks.json    (2851 bytes)
 e5c81f01d570a9a1cf0aca8f6c773feba8ce01b9580d44ffac3a26dddbf22e63  published-receipt.json (11222 bytes)
 ```
@@ -146,7 +146,7 @@ never claimed. The A.4 imprint check is the part that runs fully offline.
 
 ```sh
 jq -cjS '.payload' verifier/docs/fixtures/ed25519-receipt.json > canonical.bin
-sha256sum canonical.bin          # 508fc8f96b76316c69487b736829b1040d185bd68df10cecf105e0214c95654f (556 bytes)
+sha256sum canonical.bin          # 5614b581dabab8e71114137531342161ac0512cf326fe002130aa69906e078da (636 bytes)
 
 jq -r '.signature.sig' verifier/docs/fixtures/ed25519-receipt.json | base64 -d > sig.bin   # 64 bytes
 jq -r '.keys[0].public_key' verifier/docs/fixtures/ed25519-jwks.json | base64 -d > pk.raw  # 32 bytes

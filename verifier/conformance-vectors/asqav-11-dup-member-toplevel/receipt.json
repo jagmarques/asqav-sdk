@@ -5,10 +5,15 @@
     "issued_at": "2026-05-04T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_demo_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:9632ae3c8d6b7da7ca90d0edec7467c0097799bb2954cde5bf66e5a0b101c2e1",
+    "context": {
+      "subject": "genesis-permit",
+      "tool": "demo.action",
+      "decision": "allow"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "9632ae3c8d6b7da7ca90d0edec7467c0097799bb2954cde5bf66e5a0b101c2e1",
+      "size": 68
     },
     "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -22,10 +27,15 @@
     "issued_at": "2026-05-04T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_demo_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:ac22162b9420086a2921a65d4bf11c7cf58926e253c4b13b35d47beb891d376f",
+    "context": {
+      "subject": "genesis-deny",
+      "tool": "demo.action",
+      "decision": "deny"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "ac22162b9420086a2921a65d4bf11c7cf58926e253c4b13b35d47beb891d376f",
+      "size": 65
     },
     "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -36,7 +46,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-oracle-vec-key",
-    "sig": "ErR7FVpg+DRPVHby+dWwKiBQEgSrOHGGXqCb7DwCFGb34JxLOvqN9qoAlQEufARW5aSEWMNDNuKn0N/oXoMpBg=="
+    "sig": "MyogkzE35Nql5OI4MOlWMcx/rLsEodi7UBO8NYoYnlMd9s37rBkf6BTCBvKLcmHXEgXPrpBNIbzyZfLBMPjZAw=="
   },
   "anchors": []
 }
