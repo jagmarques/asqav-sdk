@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 22,
+  "corpus_version": 23,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -113,6 +113,11 @@
       "version": 21,
       "files": 279,
       "digest": "813d051f865ea2b05d96e1ee23ed98eaa8bb4d7f240551dda981ebbd595ea4b0"
+    },
+    {
+      "version": 22,
+      "files": 279,
+      "digest": "66f8027c58589fc8af36bc6bbfc3b9dcada6d4cfb623deb1d1528a85dac66ca7"
     }
   ],
   "files": [
@@ -858,13 +863,13 @@
     },
     {
       "path": "asqav-08-v2-signer-canary/jwks.json",
-      "sha256": "e17d089be1858ed2775bdd2d5e4bb4d790c320fa835b1928991a08d5c9e9df9b",
+      "sha256": "ac7bb4db46eb8208b16f0eb805dcf32d42ea21af4bf5fa4287321fd971515205",
       "bytes": 217
     },
     {
       "path": "asqav-08-v2-signer-canary/receipt.json",
-      "sha256": "df505e0230ac00527f74c5c4c51029c208a789c3584c035ff229220b56bb7a96",
-      "bytes": 1226
+      "sha256": "dfc15b1cf72c4bb5c061567fb0efda699b733735e9f1a43c9b760048fa195fd2",
+      "bytes": 1410
     },
     {
       "path": "asqav-09-v2-signer-tampered/expected.json",
@@ -873,13 +878,13 @@
     },
     {
       "path": "asqav-09-v2-signer-tampered/jwks.json",
-      "sha256": "e17d089be1858ed2775bdd2d5e4bb4d790c320fa835b1928991a08d5c9e9df9b",
+      "sha256": "ac7bb4db46eb8208b16f0eb805dcf32d42ea21af4bf5fa4287321fd971515205",
       "bytes": 217
     },
     {
       "path": "asqav-09-v2-signer-tampered/receipt.json",
-      "sha256": "a256fd44b6e140cd26f60132bb827acb08e785dc8cb34600b6602216e947e45b",
-      "bytes": 1233
+      "sha256": "3d6abfdd2e28b0ecd1665d77eb31f982351170f1a5423e2677ee0a1011c45e2a",
+      "bytes": 1417
     },
     {
       "path": "asqav-10-hash-mode-multikey/expected.json",
@@ -1367,6 +1372,11 @@
       "bytes": 11279
     },
     {
+      "path": "gen_v2_signer_vectors.py",
+      "sha256": "54b4a6b07b157016cb3d9ce315bc6b6ced34d7f142739daa0058bdc4ebaeacda",
+      "bytes": 6757
+    },
+    {
       "path": "manifest.json",
       "sha256": "7d0cf18a4e47eebb024f2360efbe50b5c5b5fcc5042459d0ab578d8489a30d9c",
       "bytes": 28529
@@ -1542,5 +1552,5 @@
       ]
     }
   },
-  "digest": "66f8027c58589fc8af36bc6bbfc3b9dcada6d4cfb623deb1d1528a85dac66ca7"
+  "digest": "1a6cfbc03d79ade034580797afb0d0bc8fe95d9d930102bd6f2e2e44788db4b7"
 }
