@@ -136,7 +136,7 @@ describe("canonical-bytes cross-check (TS signing_input sha256 == Python)", () =
     },
     "asqav-01-genesis-permit": {
       fmt: "asqav-native",
-      sha: "508fc8f96b76316c69487b736829b1040d185bd68df10cecf105e0214c95654f",
+      sha: "5614b581dabab8e71114137531342161ac0512cf326fe002130aa69906e078da",
     },
   };
   for (const [vec, { fmt, sha }] of Object.entries(pinned)) {

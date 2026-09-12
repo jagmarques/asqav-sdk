@@ -44,10 +44,6 @@ KID = "asqav-seq-vec-key"
 ISSUER = "Asqav Ltd"
 _ZERO_DIGEST = hashlib.sha256(b"").hexdigest()
 
-#: The one wire form (-09 §5.1.5): the prefixed rendering of payload_digest.hash.
-ACTION_REF = f"sha256:{_ZERO_DIGEST}"
-
-
 def _jcs(obj: object) -> bytes:
     """Canonical JSON bytes, matching the oracle's asqav_jcs."""
     return json.dumps(
@@ -77,15 +73,28 @@ def _chain_hash(payload: dict) -> str:
     return hashlib.sha256(_jcs(payload)).hexdigest()
 
 
-def _payload(previous: str, **extra) -> dict:
+def _digest_of(context: dict) -> dict:
+    """payload_digest over `context`, computed independently of the verifier."""
+    encoded = _jcs(context)
+    return {"hash": hashlib.sha256(encoded).hexdigest(), "size": len(encoded)}
+
+
+def _payload(previous: str, context: dict, **extra) -> dict:
+    """A seq payload carrying its own real context.
+
+    action_ref is the one wire form (-09 §5.1.5): the prefixed rendering of
+    payload_digest.hash, which proves the -10 §10.2 recomputation.
+    """
+    digest = _digest_of(context)
     payload = {
         "type": "protectmcp:decision",
         "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": ISSUER,
         "agent_id": "agt_seq_001",
-        "action_ref": ACTION_REF,
-        "payload_digest": {"hash": _ZERO_DIGEST, "size": 0},
+        "action_ref": f"sha256:{digest['hash']}",
+        "context": context,
+        "payload_digest": digest,
         "policy_digest": f"sha256:{_ZERO_DIGEST}",
         "previousReceiptHash": previous,
         "decision": "allow",
@@ -119,21 +128,27 @@ def _write(name: str, files: dict[str, object]) -> None:
     print(f"wrote {name}")
 
 
-def _pair(sk, first_extra: dict, second_extra: dict):
+def _pair(sk, first_context: dict, first_extra: dict, second_context: dict, second_extra: dict):
     """A predecessor and the successor that links to it, both properly signed.
 
     Both are signed over their real bytes, so a vector never depends on a broken
     signature to reach its outcome - the seq axis has to be what decides it.
     """
-    first = _payload("0" * 64, **first_extra)
-    second = _payload(_chain_hash(first), **second_extra)
+    first = _payload("0" * 64, first_context, **first_extra)
+    second = _payload(_chain_hash(first), second_context, **second_extra)
     return _sign(first, sk), _sign(second, sk)
 
 
 def main() -> int:
     sk = _signing_key()
 
-    pred, rec = _pair(sk, {"seq": 7}, {"seq": 8})
+    pred, rec = _pair(
+        sk,
+        {"subject": "seq-baseline", "seq": 7, "role": "predecessor"},
+        {"seq": 7},
+        {"subject": "seq-baseline", "seq": 8, "role": "successor"},
+        {"seq": 8},
+    )
     _write(
         "asqav-17-seq-contiguous",
         {
@@ -203,7 +218,13 @@ def main() -> int:
         },
     )
 
-    pred, rec = _pair(sk, {"seq": 7}, {"seq": 11})
+    pred, rec = _pair(
+        sk,
+        {"subject": "seq-gap", "seq": 7, "role": "predecessor"},
+        {"seq": 7},
+        {"subject": "seq-gap", "seq": 11, "role": "successor", "withheld": 3},
+        {"seq": 11},
+    )
     _write(
         "asqav-18-seq-gap",
         {
@@ -227,7 +248,13 @@ def main() -> int:
         },
     )
 
-    pred, rec = _pair(sk, {"seq": 9}, {"seq": 4})
+    pred, rec = _pair(
+        sk,
+        {"subject": "seq-non-monotonic", "seq": 9, "role": "predecessor"},
+        {"seq": 9},
+        {"subject": "seq-non-monotonic", "seq": 4, "role": "successor"},
+        {"seq": 4},
+    )
     _write(
         "asqav-19-seq-non-monotonic",
         {
@@ -249,7 +276,13 @@ def main() -> int:
         },
     )
 
-    pred, rec = _pair(sk, {}, {})
+    pred, rec = _pair(
+        sk,
+        {"subject": "pre-counter-receipt", "role": "predecessor"},
+        {},
+        {"subject": "pre-counter-receipt", "role": "successor"},
+        {},
+    )
     _write(
         "asqav-20-seq-absent",
         {
