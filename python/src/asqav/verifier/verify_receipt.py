@@ -2179,7 +2179,8 @@ def check_payload_digest(payload: dict):
     if not isinstance(claimed, str) or not re.fullmatch(r"[0-9a-f]{64}", claimed):
         return "FAIL", f"payload_digest.hash {claimed!r} is not 64 lowercase hex"
     claimed_size = digest.get("size")
-    if claimed_size is not None and (
+    # Absence stays allowed; a present null is malformed, not a missing length.
+    if "size" in digest and (
         not isinstance(claimed_size, int) or isinstance(claimed_size, bool) or claimed_size < 0
     ):
         return "FAIL", f"payload_digest.size {claimed_size!r} is not a non-negative integer"
