@@ -124,3 +124,51 @@ def test_gate_detects_a_code_point_sorting_standalone_verifier(monkeypatch: pyte
         "the fuzz gate passed a standalone verifier sorting by code point; it has no bite"
     )
 
+
+@pytest.mark.parametrize("missing", sorted(fuzz.REQUIRED_ENGINES))
+def test_binding_gate_refuses_any_missing_engine(monkeypatch, missing):
+    monkeypatch.setattr(fuzz, "engines_available", lambda: sorted(fuzz.REQUIRED_ENGINES - {missing}))
+    with pytest.raises(RuntimeError, match="five binding engines required"):
+        fuzz.run_bindings(1, 0)
+
+
+def test_binding_gate_refuses_empty_cases(monkeypatch):
+    monkeypatch.setattr(fuzz, "engines_available", lambda: sorted(fuzz.REQUIRED_ENGINES))
+    monkeypatch.setattr(fuzz, "cloud_binding_check", lambda *args: (True, "matches"))
+    with pytest.raises(RuntimeError, match="nonzero count"):
+        fuzz.run_bindings(0, 0)
+
+
+def test_binding_case_expectations_cover_all_three_states():
+    cases = fuzz.binding_cases(2, 0)
+    assert {c["name"] for c in cases} == set(fuzz.BINDING_CASES)
+    assert {c["expected"][0] for c in cases} == {True, False, None}
+
+
+def test_standalone_state_cannot_be_erased_by_its_note(monkeypatch):
+    monkeypatch.setattr(fuzz, "check_counterparty_binding", lambda *args, **kwargs: ("PASS", "legacy_scope: wrong pass"))
+    case = next(c for c in fuzz.binding_cases(1, 0) if c["name"] == "scope_absent")
+    assert fuzz._standalone_binding(case) == (True, "legacy_scope")
+
+
+def test_five_binding_engines_agree_with_expected_outcomes():
+    if fuzz.cloud_binding_check is None:
+        pytest.skip("The public SDK checkout has no private cloud source; the mandatory joint-workspace CLI requires all five engines")
+    report = fuzz.run_bindings(50, 0)
+    assert set(report["engines"]) == fuzz.REQUIRED_ENGINES
+    assert set(report["counts"]) == set(fuzz.BINDING_CASES)
+    assert all(count > 0 for count in report["counts"].values())
+    assert not report["divergences"], report["divergences"][:1]
+
+
+def test_binding_gate_compares_agreement_to_expected_outcome(monkeypatch):
+    if fuzz.cloud_binding_check is None:
+        pytest.skip("This differential guard proof requires the private cloud source")
+    cases = fuzz.binding_cases(1, 0)
+    changed = next(case for case in cases if case["name"] == "scope_absent")
+    assert changed["expected"] == (None, "legacy_scope")
+    changed["expected"] = (True, "matches")
+    monkeypatch.setattr(fuzz, "binding_cases", lambda *args: cases)
+    report = fuzz.run_bindings(1, 0)
+    assert [item["case"]["name"] for item in report["divergences"]] == ["scope_absent"]
+    assert {engine["valid"] for engine in report["divergences"][0]["engines"].values()} == {None}
