@@ -5,10 +5,15 @@
     "issued_at": "2026-06-01T12:00:00+00:00",
     "issuer_id": "asqav-revoked-vec-key",
     "agent_id": "agt_revoked_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:2e0238353b3c789cd9b340ebca1f8de5caf1503a76dcbe3abf9ee8508b78b61b",
+    "context": {
+      "subject": "revoked-key",
+      "agent": "agt_revoked_001",
+      "kid": "asqav-revoked-vec-key"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "2e0238353b3c789cd9b340ebca1f8de5caf1503a76dcbe3abf9ee8508b78b61b",
+      "size": 81
     },
     "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
     "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -19,7 +24,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-revoked-vec-key",
-    "sig": "paxTUuzvZEexedNd7MMKnxuwz4yPQdty4LeezL6Mx3Hh7aYzXC1QyyD0Dqm8q9f49oehGxKJRoqtGoXHsz6rDA=="
+    "sig": "S2iwILI8OZzkAs3bbWNvfqTqV8f/krTqbCaubNfl+I8frSeC5h7FbNtdm4eAo0g9OC2ZX866n7ohpnlaegSdDQ=="
   },
   "anchors": []
 }

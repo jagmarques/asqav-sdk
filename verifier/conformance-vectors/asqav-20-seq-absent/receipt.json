@@ -5,13 +5,17 @@
     "issued_at": "2026-08-30T12:00:00+00:00",
     "issuer_id": "Asqav Ltd",
     "agent_id": "agt_seq_001",
-    "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "action_ref": "sha256:4dabb43c1a5b9051f17ef59c659d61537b5310be87300bc981d308bddbfe2b56",
+    "context": {
+      "subject": "pre-counter-receipt",
+      "role": "successor"
+    },
     "payload_digest": {
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "size": 0
+      "hash": "4dabb43c1a5b9051f17ef59c659d61537b5310be87300bc981d308bddbfe2b56",
+      "size": 52
     },
     "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "previousReceiptHash": "759f9a4cd67205cfb2348789e8b3fb8635cc86581021f3da62ef81805a75e116",
+    "previousReceiptHash": "5dc33ba012c9e4aad194cb5d65217d8f1558e35f84ec8ec0d091d29373372cda",
     "decision": "allow",
     "mode": "payload",
     "tool_name": "demo.action"
@@ -19,7 +23,7 @@
   "signature": {
     "alg": "Ed25519",
     "kid": "asqav-seq-vec-key",
-    "sig": "uf/PJdil/tB9bbJ3/Q51tZbKDVFcsGCOCeSBIIwDalvlP0s+cfRyxyjapmVeLEKy7y687sNl+SeFKHwd1PnbAg=="
+    "sig": "O0/TyhSAwLALPJ8fatTmptx8KIArtJbJaOz8HJf10wxiwEq0O204hf6/VsSeixpIANmewD4i6CbPWRLjgxoDCw=="
   },
   "anchors": []
 }
