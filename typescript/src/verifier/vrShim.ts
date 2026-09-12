@@ -813,17 +813,46 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
  * Weigh a claimed cross-agent binding instead of letting it ride unchecked. Absence PASSes, an
  * unresolvable claim SKIPs and blocks, and malformed or mismatched FAILs.
  */
+export function counterpartyEnvelopeHash(originator: unknown): string {
+  if (!isRecord(originator)) throw new Error("originating envelope is unavailable");
+  const signature = originator.signature;
+  if (!isRecord(originator.payload) || !isRecord(signature) ||
+      ["alg", "kid", "sig"].some(key => typeof signature[key] !== "string" || !signature[key])) {
+    throw new Error("originating signing bytes are unavailable");
+  }
+  const projection = { payload: originator.payload, signature };
+  const stack: [unknown, number][] = [[projection, 0]];
+  while (stack.length) {
+    const [node, depth] = stack.pop()!;
+    if (depth > 200) throw new Error("originating nesting exceeds 200 levels");
+    const children = isRecord(node) ? Object.values(node) : Array.isArray(node) ? node : [];
+    for (const child of children) stack.push([child, depth + 1]);
+  }
+  return Buffer.from(sha256Hex(asqavJcs(projection)), "hex").toString("base64");
+}
+
+export function boundCounterpartyKid(kid: unknown, signingKid: unknown, signingIssuer: unknown): unknown {
+  return typeof kid === "string" && (kid === signingKid || kid === signingIssuer) ? kid : null;
+}
+
 export function checkCounterpartyBinding(
   payload: unknown,
-  originator?: Record<string, unknown> | null,
+  originator?: unknown,
+  acknowledgingKid?: unknown,
 ): readonly [VerifyState, string] {
   if (!isRecord(payload)) return ["PASS", "no signed payload; no counterparty binding to check"];
   const cpb = payload.counterparty_binding;
-  if (cpb === undefined || cpb === null) {
+  if (!Object.hasOwn(payload, "counterparty_binding")) {
     return ["PASS", "no counterparty binding; content is unilaterally asserted"];
   }
   if (!isRecord(cpb)) {
     return ["FAIL", `counterparty_binding is ${pyTypeName(cpb)}, not an object`];
+  }
+  if (!Object.hasOwn(cpb, "scope")) {
+    return ["SKIPPED", "legacy_scope: the signed binding omits its digest scope"];
+  }
+  if (cpb.scope !== "envelope_minus_anchors") {
+    return ["SKIPPED", "unrecognised_scope: the signed digest scope is unsupported"];
   }
   const receiptRef = cpb.receipt_ref;
   const envelopeHash = cpb.envelope_hash;
@@ -836,7 +865,7 @@ export function checkCounterpartyBinding(
   let raw: Buffer;
   try {
     raw = Buffer.from(envelopeHash, "base64");
-    if (raw.toString("base64").replace(/=+$/, "") !== envelopeHash.replace(/=+$/, "")) {
+    if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(envelopeHash) || (envelopeHash.includes("=") && envelopeHash.length % 4 !== 0)) {
       return ["FAIL", `counterparty_binding.envelope_hash ${pyRepr(envelopeHash)} is not base64`];
     }
   } catch {
@@ -852,15 +881,23 @@ export function checkCounterpartyBinding(
   if (expectAckFrom !== undefined && expectAckFrom !== null && typeof expectAckFrom !== "string") {
     return ["FAIL", "counterparty_binding.expect_ack_from is not a string"];
   }
+  if (cpb.transport_label != null && typeof cpb.transport_label !== "string") {
+    return ["FAIL", "counterparty_binding.transport_label is not a string"];
+  }
   if (!isRecord(originator)) {
     return [
       "SKIPPED",
-      `counterparty binding claims ${receiptRef}; no originating receipt supplied, ` +
+      `unresolved: counterparty binding claims ${receiptRef}; no originating receipt supplied, ` +
         "so the corroboration is unchecked",
     ];
   }
-  const actual = Buffer.from(sha256Hex(asqavJcs(originator)), "hex").toString("base64");
-  if (actual !== envelopeHash) {
+  let actual: string;
+  try {
+    actual = counterpartyEnvelopeHash(originator);
+  } catch {
+    return ["SKIPPED", "unresolved: exact originating canonical bytes are unavailable"];
+  }
+  if (!Buffer.from(actual, "base64").equals(raw)) {
     return [
       "FAIL",
       `counterparty_mismatch: binding commits ${envelopeHash.slice(0, 16)}.., ` +
@@ -870,12 +907,12 @@ export function checkCounterpartyBinding(
   if (
     expectAckFrom !== undefined &&
     expectAckFrom !== null &&
-    payload.issuer_id !== expectAckFrom
+    (acknowledgingKid === undefined ? payload.issuer_id : acknowledgingKid) !== expectAckFrom
   ) {
     return [
       "FAIL",
-      `counterparty_mismatch: binding expects an acknowledgment from ${expectAckFrom}, ` +
-        `this receipt is issued by ${pyRepr(payload.issuer_id)}`,
+      `kid_mismatch: binding expects an acknowledgment from ${expectAckFrom}, ` +
+        `this receipt names signature.kid ${pyRepr(acknowledgingKid === undefined ? payload.issuer_id : acknowledgingKid)}`,
     ];
   }
   return ["PASS", `counterparty binding rederives from the supplied ${receiptRef}`];
