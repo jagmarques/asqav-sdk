@@ -590,7 +590,7 @@ export interface SignOptions {
   riskSnapshot?: RiskSnapshot;
 
   /** Invocation pointer (`invocation_ref`), producer-asserted and unfenced:
-   * names one invocation only, promises nothing about uniqueness or exactly-once. */
+   * names one invocation only, no uniqueness or exactly-once promise */
   invocationRef?: string;
 
   /** Code-authorship receipt: opaque repository pointer, REQUIRED on
@@ -1215,7 +1215,7 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
     );
   }
   // Rule 8 lockstep with the cloud SignRequest validator: passive_telemetry
-  // pairs only with protectmcp:observation or protectmcp:observation:result_bound.
+  // pairs only with protectmcp:observation or its result_bound form
   if (
     options.captureTopology === "passive_telemetry"
     && options.receiptType !== undefined
@@ -1227,7 +1227,7 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       `false_attestation_guard: capture_topology=passive_telemetry receipts must use receipt_type=protectmcp:observation[:result_bound], not :${offending} (rule 8)`,
     );
   }
-  // Rule 9 lockstep with the cloud SignRequest cross-field validator.
+  // Rule 9 lockstep with the cloud SignRequest cross-field validator
   if (
     options.receiptType === "protectmcp:lifecycle:configuration_change"
     && options.configManifestDigest === undefined
@@ -1244,7 +1244,7 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
       "result_bound_missing_result_digest: receipt_type=protectmcp:observation:result_bound requires result_digest (sha256:<64 hex>).",
     );
   }
-  // Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
+  // Rule 10: an absolute horizon plus a duration is ambiguous; reject both
   if (options.validSeconds !== undefined && options.expiresAt !== undefined) {
     throw new AsqavError(
       "expiry_collision_guard: pass either valid_seconds or expires_at, not both (rule 10)",
@@ -1676,7 +1676,7 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "finding_ref", read: (o) => o.findingRef },
   { wire: "approval_ref", read: (o) => o.approvalRef },
   { wire: "risk_snapshot", read: (o) => riskSnapshotToWire(o.riskSnapshot) },
-  // Unfenced invocation pointer (see SignOptions comment).
+  // Unfenced invocation pointer (see SignOptions comment)
   { wire: "invocation_ref", read: (o) => o.invocationRef },
   // Code-authorship receipt extension fields (fenced to the receipt type).
   { wire: "repo_ref", read: (o) => o.repoRef },
