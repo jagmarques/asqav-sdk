@@ -605,5 +605,36 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "Two pre-action receipts carry the same invocation_ref: the duplicate-emission shape a harness produces when it fires the hook twice for one invocation. Both receipts verify, because invocation_ref exists so a reader can SEE the duplicate, never to reject it. A verifier that refuses this pair is wrong, not strict."
+  },
+  {
+    "dir": "asqav-31-counterparty-scope-match",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Signed acknowledgment with binding result matches; signature and local TSA verify."
+  },
+  {
+    "dir": "asqav-32-counterparty-anchors-included",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_mismatch",
+    "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
+    "dir": "asqav-33-counterparty-scope-absent",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_legacy_scope",
+    "notes": "Signed acknowledgment with binding result legacy_scope; signature and local TSA verify.",
+    "failure_class": "unverifiable"
+  },
+  {
+    "dir": "asqav-34-counterparty-scope-unknown",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_unrecognised_scope",
+    "notes": "Signed acknowledgment with binding result unrecognised_scope; signature and local TSA verify.",
+    "failure_class": "unverifiable"
   }
 ]

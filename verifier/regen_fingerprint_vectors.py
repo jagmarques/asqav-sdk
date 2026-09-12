@@ -29,8 +29,8 @@ Derived members this script owns, per vector:
 * ``sha256``     - SHA-256 of those bytes, hex
 * ``input.counterparty_binding.envelope_hash`` and the ``expected``
   ``envelope_hash_*`` renderings - the digest of the ORIGINATING envelope named
-  by ``expected.originating_envelope_ref``, taken under the scope declared in
-  ``input.counterparty_binding.scope``
+  by ``expected.originating_envelope_ref``, using the independent
+  ``generation.counterparty_digest_members`` recipe (two members by default)
 
 Everything else in a vector is authored, not derived, and is left untouched.
 
@@ -52,10 +52,6 @@ from typing import Any
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 VECTORS_PATH = _ROOT / "conformance" / "vectors.json"
-
-#: The only counterparty digest scope this revision emits. An absent scope member
-#: means a legacy -04..-08 three-key binding and is reported, never silently retried.
-SCOPE_MINUS_ANCHORS = "envelope_minus_anchors"
 
 #: Envelope members the minus-anchors scope covers, in the order the draft states them.
 MINUS_ANCHORS_MEMBERS = ("payload", "signature")
@@ -92,14 +88,14 @@ def _serialize(obj: Any) -> str:
     raise TypeError(f"not canonicalizable: {type(obj).__name__}")
 
 
-def envelope_digest(envelope: dict[str, Any], scope: str) -> bytes:
-    """Raw SHA-256 of the originating envelope under ``scope``."""
-    if scope != SCOPE_MINUS_ANCHORS:
-        raise ValueError(f"unknown counterparty binding scope: {scope!r}")
-    missing = [m for m in MINUS_ANCHORS_MEMBERS if m not in envelope]
+def envelope_digest(envelope: dict[str, Any], members: tuple[str, ...]) -> bytes:
+    """A fixture recipe is separate from the scope assertion carried on its wire."""
+    if members not in (MINUS_ANCHORS_MEMBERS, ("payload", "signature", "anchors")):
+        raise ValueError(f"unknown counterparty digest recipe: {members!r}")
+    missing = [m for m in members if m not in envelope]
     if missing:
         raise ValueError(f"originating envelope is missing {missing}")
-    scoped = {m: envelope[m] for m in MINUS_ANCHORS_MEMBERS}
+    scoped = {m: envelope[m] for m in members}
     return hashlib.sha256(canonical_json(scoped)).digest()
 
 
@@ -131,13 +127,13 @@ def regenerate(doc: dict) -> list[str]:
             raise KeyError(f"{vector['name']}: originating_envelope_ref {ref!r} names no vector")
 
         binding = vector.get("input", {}).get("counterparty_binding")
+        members = tuple(vector.get("generation", {}).get("counterparty_digest_members", MINUS_ANCHORS_MEMBERS))
+        digest = envelope_digest(origin["input"], members)
         if not isinstance(binding, dict) or "envelope_hash" not in binding:
             # A vector that deliberately omits envelope_hash still names its origin
             # so the renderings below stay derivable; nothing to re-pin on the wire.
-            digest = envelope_digest(origin["input"], SCOPE_MINUS_ANCHORS)
+            pass
         else:
-            scope = binding.get("scope", SCOPE_MINUS_ANCHORS)
-            digest = envelope_digest(origin["input"], scope)
             # The wire value keeps whichever alphabet the vector is exercising.
             old_hash = binding["envelope_hash"]
             urlsafe = "-" in old_hash or "_" in old_hash
