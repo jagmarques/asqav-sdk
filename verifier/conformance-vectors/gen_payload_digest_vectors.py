@@ -4,8 +4,11 @@
 
 -09 §10.2: a receipt carrying BOTH `context` and `payload_digest` is checkable
 from its own bytes - `hash` is SHA-256 over the JCS canonicalisation of the
-carried context, `size` that canonical form's byte length. Every other
-digest-carrying vector omits the context, so the recompute path had no fixture.
+carried context, `size` that canonical form's byte length. Carrying a digest
+and carrying the context it commits to are independent: three asqav-native
+vectors carry a `payload_digest` with no `context` member. This pair pins the
+recompute path at both ends: the honest digest beside its context, and the
+same receipt signed over a digest of a different context.
 
 Two vectors, minted as asqav-25/26 because asqav-23/24 were minted by the
 anchor-entry task ahead of this one (next free id at mint time, never reused):
@@ -134,12 +137,14 @@ def main() -> int:
                 "outcome": "verified",
                 "reason_code": "",
                 "notes": (
-                    "Payload-mode genesis carrying BOTH context and payload_digest, the "
-                    "one pair no other vector has: hash is SHA-256 over the JCS of the "
-                    "carried context and size its byte length (25), so the payload_digest "
-                    "axis recomputes and PASSes rather than passing on absence. The digest "
-                    "is computed with stdlib json.dumps in JCS shape, never through the "
-                    "verifier's canonical_json."
+                    "Payload-mode genesis carrying BOTH context and payload_digest: hash "
+                    "is SHA-256 over the JCS of the carried context and size its byte "
+                    "length (25), so the payload_digest axis recomputes and PASSes rather "
+                    "than passing on absence. The dedicated honest half of the "
+                    "rederives/mismatch pair with asqav-26, which commits to a different "
+                    "context than the one carried. The digest is computed with stdlib "
+                    "json.dumps in JCS shape, never through the verifier's "
+                    "canonical_json."
                 ),
             },
         },
