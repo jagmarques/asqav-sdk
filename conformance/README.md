@@ -51,9 +51,16 @@ of the ORIGINATING envelope, base64. The scope of that digest is declared on the
   only. Anchors are excluded because they are OPTIONAL and change after issuance, so a
   digest covering them would break every acknowledgment already emitted the moment the
   originator's timestamp was upgraded.
-- An ABSENT `scope` member means a legacy draft-04..-08 three-key binding, which a
-  verifier reports as `unverifiable, legacy scope`. A verifier MUST NOT try both scopes
-  and accept whichever matches.
+- An absent `scope` reports `unverifiable` with reason `legacy_scope`. A null or
+  unsupported scope reports `unverifiable` with reason `unrecognised_scope`.
+  Verifiers dispatch scope before examining the origin and never try both scopes.
+
+The projection preserves the complete signature object and its encoded string. It
+excludes every other export member. The two-anchor fixtures cover four cases: a matching digest; a three-key
+digest under the supported scope; a missing scope member; and a scope this
+profile does not define.
+`generation.counterparty_digest_members` selects the fixture's hash recipe independently
+of the scope it claims, so regeneration preserves the deliberate negative cases.
 
 Each such vector names the envelope its digest is taken over in
 `expected.originating_envelope_ref`, so the value is recomputable from this file alone.
