@@ -1,7 +1,11 @@
-# Secret scanning keeps the default ruleset; one corpus path is exempt.
+# Secret scanning keeps the default ruleset; two corpus paths are exempt.
 [extend]
 useDefault = true
 
 [[allowlists]]
 description = "Parity corpus holds ML-DSA-65 public keys, signatures and SHA-384 digests only"
 paths = ['''verifier/axis-parity-cases\.json''']
+
+[[allowlists]]
+description = "Corpus-B pin test holds published corpus bytes only: Ed25519/ML-DSA signatures, digests and thumbprints copied from verifier/conformance-vectors, no secrets"
+paths = ['''python/tests/test_corpus_b_integrity\.py''']
