@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 25,
+  "corpus_version": 26,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -128,13 +128,18 @@
       "version": 24,
       "files": 300,
       "digest": "3b003d4b4a6a3a8fa4a3d2ec1f17fb60805fbdbea441102238a87483ab3b2f99"
+    },
+    {
+      "version": 25,
+      "files": 300,
+      "digest": "654725d071c89dc1104e6201d91eaa85a0fdce93b5e5b56eff2b054c08cae3b1"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "69a8a270ca655b3e8f5cf8f1237ca43f257871169558f28443f5747d3aa76eb3",
-      "bytes": 8964
+      "sha256": "fb73ce26100a518109a829095dd46e7e506121ddd15f1fd9c56664bcaa4bcee7",
+      "bytes": 9629
     },
     {
       "path": "UPSTREAM.md",
@@ -1488,8 +1493,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "7d0cf18a4e47eebb024f2360efbe50b5c5b5fcc5042459d0ab578d8489a30d9c",
-      "bytes": 28529
+      "sha256": "6a1abdfca7dd49981dc64fb6a123992244ea61bc11993be3e4044a973fc27960",
+      "bytes": 29683
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1662,5 +1667,5 @@
       ]
     }
   },
-  "digest": "654725d071c89dc1104e6201d91eaa85a0fdce93b5e5b56eff2b054c08cae3b1"
+  "digest": "4d9a4eeb0c7a6ab77c40583c2f915b65c1b00159891d19a6802c9677abf9fcc6"
 }
