@@ -1,6 +1,7 @@
 /**
- * SDK parity for the threat-framework taxonomy fields: each forwarded verbatim, list
- * fields validated as non-empty string arrays (<=128 chars), rfc3161Timestamp as base64.
+ * SDK parity for the threat-framework taxonomy fields: each forwarded
+ * verbatim, list fields validated as non-empty string arrays (<=128
+ * chars), rfc3161Timestamp as base64
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
