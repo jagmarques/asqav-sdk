@@ -202,3 +202,71 @@ def test_absence_of_both_claims_does_not_block() -> None:
         axis = result.axis(name)
         assert axis.result == "PASS", f"{name}: {axis.note}"
         assert axis.failure_class is None
+
+
+def _genuinely_signed(payload_digest: dict | None) -> tuple[dict, dict]:
+    """A receipt genuinely Ed25519-signed over its final payload (criterion 727)."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    payload = _receipt()["payload"]
+    if payload_digest is None:
+        payload.pop("payload_digest", None)
+    else:
+        payload["payload_digest"] = payload_digest
+    key = Ed25519PrivateKey.generate()
+    sig = key.sign(vr.canonical_json(payload))
+    doc = {
+        "payload": payload,
+        "signature": {
+            "alg": "Ed25519",
+            "kid": "ed_1",
+            "sig": base64.b64encode(sig).decode(),
+        },
+        "anchors": {},
+    }
+    jwks = {
+        "keys": [
+            {
+                "kid": "ed_1",
+                "issuer_id": payload["issuer_id"],
+                "agent_id": payload["agent_id"],
+                "alg": "Ed25519",
+                "status": "active",
+                "public_key": base64.b64encode(
+                    key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+                ).decode(),
+            }
+        ]
+    }
+    return doc, jwks
+
+
+def test_null_size_is_malformed_end_to_end() -> None:
+    digest = {"hash": HONEST, "size": None}
+    doc, jwks = _genuinely_signed(digest)
+    structured = vr.run_structured(doc, jwks)
+    axes = {a["name"]: a for a in structured["axes"]}
+    assert axes["signature"]["result"] == "PASS", axes["signature"]["note"]
+    assert axes["payload_digest"]["result"] == "FAIL", axes["payload_digest"]["note"]
+    assert axes["payload_digest"]["failure_class"] == "invalid"
+    assert "non-negative integer" in axes["payload_digest"]["note"]
+    assert structured["verdict"] == "unverified"
+    result = oracle_verify(doc, ADAPTERS, jwks)
+    assert result.axis("signature").result == "PASS"
+    axis = result.axis("payload_digest")
+    assert (axis.result, axis.failure_class) == ("FAIL", "invalid"), axis.note
+    assert "non-negative integer" in axis.note
+    assert result.verdict == "unverified"
+
+
+def test_absent_size_control_stays_passing_end_to_end() -> None:
+    digest = {"hash": HONEST}
+    doc, jwks = _genuinely_signed(digest)
+    structured = vr.run_structured(doc, jwks)
+    axes = {a["name"]: a for a in structured["axes"]}
+    assert axes["signature"]["result"] == "PASS", axes["signature"]["note"]
+    assert axes["payload_digest"]["result"] == "PASS", axes["payload_digest"]["note"]
+    result = oracle_verify(doc, ADAPTERS, jwks)
+    assert result.axis("signature").result == "PASS"
+    assert result.axis("payload_digest").result == "PASS", result.axis("payload_digest").note
