@@ -775,9 +775,9 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
     return ["FAIL", `payload_digest.hash ${pyRepr(claimed)} is not 64 lowercase hex`];
   }
   const claimedSize = digest.size;
+  // Absence stays allowed; a present null is malformed, not a missing length
   if (
     claimedSize !== undefined &&
-    claimedSize !== null &&
     (typeof claimedSize !== "number" || !Number.isInteger(claimedSize) || claimedSize < 0)
   ) {
     return ["FAIL", `payload_digest.size ${pyRepr(claimedSize)} is not a non-negative integer`];
