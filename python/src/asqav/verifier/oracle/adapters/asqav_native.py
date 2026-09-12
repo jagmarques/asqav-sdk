@@ -27,7 +27,7 @@ from typing import Any
 
 from asqav.verifier import verify_receipt as _vr
 
-from ..adapter import ChainStep, FormatAdapter, SignatureMaterial
+from ..adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
 from ..canonical import asqav_jcs
 from ..core import sha256_hex
 from .acta import _is_lower_hex
@@ -238,6 +238,21 @@ class AsqavNativeAdapter(FormatAdapter):
         # Shared per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7).
         self._seen_nonces: set[str] = set()
 
+    def extra_axes_with_context(
+        self, doc: dict, key_provider: Any, context: VerificationContext,
+    ) -> list[tuple[str, str, str]]:
+        axes = self.extra_axes(doc, key_provider)
+        if context.originating_envelope is None:
+            return axes
+        signed = {} if _is_hash_mode(doc) else _payload(doc)
+        kid = _vr.counterparty_acknowledging_kid(doc)
+        baseline = ("counterparty", *_vr.check_counterparty_binding(signed, acknowledging_kid=kid))
+        entry = self._signing_key_entry(doc, key_provider or {"keys": []})
+        if entry is not None:
+            kid = _vr.bound_counterparty_kid(kid, entry.get("kid"), _vr.key_issuer_of(entry))
+        outcome = _vr.check_counterparty_binding(signed, context.originating_envelope, acknowledging_kid=kid)
+        return [("counterparty", *outcome) if axis == baseline else axis for axis in axes]
+
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
@@ -266,7 +281,8 @@ class AsqavNativeAdapter(FormatAdapter):
         axes.append(("key_binding", *_vr.check_key_binding(signed, bound_alg, bound_pk)))
         # No database offline, so a claimed binding reports unresolved rather than
         # riding along as corroboration nobody checked
-        axes.append(("counterparty", *_vr.check_counterparty_binding(signed)))
+        kid = _vr.counterparty_acknowledging_kid(doc)
+        axes.append(("counterparty", *_vr.check_counterparty_binding(signed, acknowledging_kid=kid)))
         axes.append(("payload_digest", *_vr.check_payload_digest(signed)))
         # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.

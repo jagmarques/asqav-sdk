@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "counterparty_mismatch",
+  "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
+  "failure_class": "invalid"
+}

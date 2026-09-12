@@ -98,5 +98,9 @@ def test_anchor_material_vector_exercises_req_anchor(document):
     """
     axes = document["axis_results"]["asqav-24-anchor-block-hash-prod"]
     assert axes["anchors"] == "PASS"
-    assert document["coverage"]["REQ-ANCHOR"] == ["asqav-24-anchor-block-hash-prod"]
+    assert document["coverage"]["REQ-ANCHOR"] == [
+        "asqav-24-anchor-block-hash-prod", "asqav-31-counterparty-scope-match",
+        "asqav-32-counterparty-anchors-included", "asqav-33-counterparty-scope-absent",
+        "asqav-34-counterparty-scope-unknown",
+    ]
     assert document["unmapped_requirements"] == []

@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Signed acknowledgment with binding result matches; signature and local TSA verify."
+}
