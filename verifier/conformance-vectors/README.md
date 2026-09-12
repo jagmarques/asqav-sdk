@@ -12,6 +12,7 @@ manifest.json                  array of {dir, format, outcome, failure_class, re
   receipt.json                 the receipt under test
   expected.json                {format, outcome, failure_class, reason_code, notes}
   predecessor.json             (chain vectors only) the prior receipt
+  originating_envelope.json    (counterparty vectors) full originating envelope
   jwks.json                    (asqav-native) issuer key directory
   keys.json                    (aerf) {key_id: ed25519_pubkey_hex}
   acta-keys.json               (acta) JWKS-shaped key set
@@ -110,6 +111,15 @@ python -m oracle.runner          # from the verifier/ directory
   rejects the duplicate at parse time (criterion 419).
 - `w3c-vc-08-didkey-happy-path` - a did:key issuer self-resolves inline from
   the multicodec frame; no key file needed.
+
+`asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;
+an incorrect three-key digest; a missing scope member; and a scope this profile
+does not define. Each acknowledgment
+has a valid signature and timestamp. Both runners pass the full
+`originating_envelope.json` through a context local to the verification call.
+Regenerate these fixtures with `python verifier/generate_counterparty_vectors.py`;
+its `--check` option reports drift without writing files. The generator signs the
+deliberate defects as authored, so the negative outcomes survive regeneration.
 
 The keys are generated from fixed seeds so the vectors are reproducible. AERF
 public keys are derived per spec as the first 16 hex of `SHA-256(pubkey)`.
