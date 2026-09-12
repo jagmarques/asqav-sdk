@@ -45,6 +45,9 @@ export const MAX_CANONICAL_INTEGER = 9007199254740992;
 /** The same bound as an exact integer, for comparing against source digits. */
 const MAX_CANONICAL_INTEGER_EXACT = 9007199254740992n;
 
+/** Largest integer magnitude the Asqav profile admits (draft Section 4). */
+export const MAX_PROFILE_INTEGER = 9007199254740991;
+
 /**
  * A digest-covered integer with no exact double. JavaScript rounds it and Python does not,
  * so the same receipt canonicalises two ways and its signature verifies in one SDK and fails
@@ -55,6 +58,19 @@ export class UnsafeIntegerError extends SyntaxError {
     super(message);
     this.name = "UnsafeIntegerError";
   }
+}
+
+/** Integer the Asqav profile refuses: exactly representable yet out of range */
+export class ProfileIntegerError extends SyntaxError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProfileIntegerError";
+  }
+}
+
+/** Assign a decoded member so `__proto__` stays own, never a prototype */
+function setMember(out: Record<string, unknown>, k: string, v: unknown): void {
+  Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
 }
 
 /**
@@ -128,7 +144,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
       seen.add(k);
       ws();
       if (text[i++] !== ":") err("expected ':'");
-      out[k] = value();
+      setMember(out, k, value());
       ws();
       const ch = text[i++];
       if (ch === "}") return out;
@@ -221,7 +237,7 @@ export function unwrapPreservedFloats(value: unknown): unknown {
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = unwrapPreservedFloats(v);
+      setMember(out, k, unwrapPreservedFloats(v));
     }
     return out;
   }
@@ -236,6 +252,49 @@ export function parseJsonStrict(text: string): unknown {
   return unwrapPreservedFloats(parseJsonPreservingFloats(text));
 }
 
+/** First profile-range violation note, else null; `RawFloat` unwrapped first */
+export function profileRangeNote(value: unknown): string | null {
+  const stack: Array<[unknown, string]> = [[value, "$"]];
+  while (stack.length > 0) {
+    const [node, path] = stack.pop() as [unknown, string];
+    const v = isRawFloat(node) ? node.value : node;
+    if (typeof v === "number") {
+      if (Number.isInteger(v) && Math.abs(v) > MAX_PROFILE_INTEGER) {
+        return `Asqav profile range +/-(2**53 - 1) excludes number ${v} at ${path}`;
+      }
+      continue;
+    }
+    if (Array.isArray(v)) {
+      v.forEach((item, i) => stack.push([item, `${path}[${i}]`]));
+    } else if (v !== null && typeof v === "object") {
+      for (const [k, item] of Object.entries(v as Record<string, unknown>)) {
+        stack.push([item, `${path}.${k}`]);
+      }
+    }
+  }
+  return null;
+}
+
+/** Throw `ProfileIntegerError` when parsed values leave the profile range */
+export function assertProfileIntegers(value: unknown): void {
+  const note = profileRangeNote(value);
+  if (note !== null) throw new ProfileIntegerError(note);
+}
+
+/** Strict ingest plus the narrower profile range; shared parser unchanged */
+export function parseProfileJson(text: string): unknown {
+  const parsed = parseJsonPreservingFloats(text);
+  assertProfileIntegers(parsed);
+  return parsed;
+}
+
+// True for numeric v selecting the current profile (1 and 1.0, never true)
+export function isCurrentProfileVersion(value: unknown): boolean {
+  const v = isRawFloat(value) ? value.value : value;
+  if (typeof v === "boolean") return false;
+  return v === 1;
+}
+
 /** Recursively NFC-normalise every string key and value (mirrors `_nfc`). */
 function nfc(obj: unknown): unknown {
   if (typeof obj === "string") return obj.normalize("NFC");
@@ -244,7 +303,7 @@ function nfc(obj: unknown): unknown {
   if (obj !== null && typeof obj === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-      out[(k as string).normalize("NFC")] = nfc(v);
+      setMember(out, (k as string).normalize("NFC"), nfc(v));
     }
     return out;
   }

@@ -16,6 +16,8 @@ import {
   asqavJcs,
   asqavJcsPreCutover,
   hasSupplementaryMemberName,
+  isCurrentProfileVersion,
+  profileRangeNote,
 } from "../canonical.js";
 import { sha256Hex } from "../crypto.js";
 import { isLowerHex } from "./acta.js";
@@ -91,6 +93,28 @@ function payloadOf(doc: Record<string, unknown>): Record<string, unknown> {
   const env = normaliseEnvelope(doc);
   const p = env.payload;
   return isRecord(p) ? p : env;
+}
+
+/** Flat object the cloud hash-mode path signs, before canonicalisation */
+function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown> {
+  return {
+    v: 1,
+    mode: "hash",
+    hash: doc.hash ?? null,
+    hash_algo: doc.hash_algo ?? "sha256",
+    metadata: doc.metadata ?? {},
+    server_timestamp: doc.server_timestamp ?? null,
+    action_id: doc.action_id ?? null,
+    agent_id: doc.agent_id ?? null,
+    org_id: doc.org_id ?? null,
+    policy_digest: doc.policy_digest ?? null,
+    policy_decision: doc.policy_decision ?? null,
+  };
+}
+
+/** Own-member read; inherited prototype members never select or validate. */
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 /** Decode signature material; empty on malformed input so verify FAILs, never crashes. */
@@ -198,20 +222,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
   }
 
   private hashModeSigningInput(doc: Record<string, unknown>): Uint8Array {
-    const flat = {
-      v: 1,
-      mode: "hash",
-      hash: doc.hash ?? null,
-      hash_algo: doc.hash_algo ?? "sha256",
-      metadata: doc.metadata ?? {},
-      server_timestamp: doc.server_timestamp ?? null,
-      action_id: doc.action_id ?? null,
-      agent_id: doc.agent_id ?? null,
-      org_id: doc.org_id ?? null,
-      policy_digest: doc.policy_digest ?? null,
-      policy_decision: doc.policy_decision ?? null,
-    };
-    return asqavJcs(flat);
+    return asqavJcs(flatSignedFields(doc));
   }
 
   chainStep(doc: Record<string, unknown>): ChainStep {
@@ -313,5 +324,31 @@ export class AsqavNativeAdapter extends FormatAdapter {
    */
   keyedDigest(doc: Record<string, unknown>): boolean {
     return isHashMode(doc) && doc.hash_algo === "hmac-sha256";
+  }
+
+  /** Refuse current-profile digest inputs outside the range, else null. */
+  profilePrecheck(
+    doc: Record<string, unknown>,
+    predecessor: Record<string, unknown> | null = null,
+    predecessorFmt: string | null = null,
+  ): string | null {
+    if (isHashMode(doc)) {
+      const topV = hasOwn(doc, "v") ? doc.v : undefined;
+      if (!isCurrentProfileVersion(topV)) return null;
+      return profileRangeNote(flatSignedFields(doc));
+    }
+    const signed = payloadOf(doc);
+    const v = hasOwn(signed, "v") ? signed.v : undefined;
+    if (!isCurrentProfileVersion(v)) return null;
+    const note = profileRangeNote(signed);
+    if (note !== null) return note;
+    if (
+      predecessor !== null &&
+      predecessorFmt === this.name &&
+      signed.previousReceiptHash !== FIRST_RECEIPT_SEED
+    ) {
+      return profileRangeNote(payloadOf(predecessor));
+    }
+    return null;
   }
 }

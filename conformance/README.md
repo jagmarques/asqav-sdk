@@ -81,11 +81,12 @@ tests that named it built their expected value by calling the function under tes
 
 If your implementation produces a different `canonical` or `sha256` for one of the provided inputs, open an issue at https://github.com/jagmarques/asqav-sdk/issues with your implementation, language, and JCS library name.
 
-## Corpus freeze at v1 (criterion 420)
+## Rolling corpus lock (criterion 420)
 
-This corpus is frozen at version 1. `manifest.lock.json` pins every corpus
-file by SHA-256 and byte length, and carries the digest of the lock itself;
-any drift fails CI.
+This corpus carries a rolling lock. `manifest.lock.json` records the current
+`corpus_version` with its completed-cut history, pins every corpus file by
+SHA-256 and byte length, and carries the digest of the lock itself; any
+drift fails CI.
 
 - Lock digest: pinned in the lock's own `digest` field and reproduced in the
   repo as the `FINGERPRINT_LOCK_DIGEST` constant in
