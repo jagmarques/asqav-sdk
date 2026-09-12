@@ -138,8 +138,8 @@
   "files": [
     {
       "path": "README.md",
-      "sha256": "554a4675eb2677c8e86381eca1151d56ccee1c9064149f49480431a101c4186f",
-      "bytes": 9594
+      "sha256": "fb73ce26100a518109a829095dd46e7e506121ddd15f1fd9c56664bcaa4bcee7",
+      "bytes": 9629
     },
     {
       "path": "UPSTREAM.md",
@@ -1667,5 +1667,5 @@
       ]
     }
   },
-  "digest": "b3d177b60535b846f0fe48ab1606a0295ae691d5463e7129fbb4856e2c3935b0"
+  "digest": "4d9a4eeb0c7a6ab77c40583c2f915b65c1b00159891d19a6802c9677abf9fcc6"
 }

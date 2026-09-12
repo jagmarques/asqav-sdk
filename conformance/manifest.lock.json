@@ -71,8 +71,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "76d4312fe625de70f338e3ac726776608db4de2ace0cca2ed9b9d8bfe24164fc",
-      "bytes": 7891
+      "sha256": "56bd3a65ba4cac107f005a90a40fab19607dd3bd447e319cda30b08f0ae240d9",
+      "bytes": 7926
     },
     {
       "path": "vectors.json",
@@ -95,5 +95,5 @@
     },
     "known_answer_message_note": "the 32-byte SHA-256 digest of the canonical bytes of vector 'minimal_read': the hash is what ML-DSA-65 signs"
   },
-  "digest": "9b7b9886158f1b833660b4b43130bfb7907d5753cbb08b270d632b2454a99a8e"
+  "digest": "e6e6946274551752412cd4bc6ada7f4739e9ae495e4594639a2eec4de87039ed"
 }
