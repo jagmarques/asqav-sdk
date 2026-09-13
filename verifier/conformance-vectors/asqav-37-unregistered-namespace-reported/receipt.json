@@ -1,0 +1,30 @@
+{
+  "payload": {
+    "type": "protectmcp:lifecycle:oversight_ruling",
+    "v": 1,
+    "issued_at": "2026-05-04T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_demo_001",
+    "action_ref": "sha256:9632ae3c8d6b7da7ca90d0edec7467c0097799bb2954cde5bf66e5a0b101c2e1",
+    "context": {
+      "subject": "genesis-permit",
+      "tool": "demo.action",
+      "decision": "allow"
+    },
+    "payload_digest": {
+      "hash": "9632ae3c8d6b7da7ca90d0edec7467c0097799bb2954cde5bf66e5a0b101c2e1",
+      "size": 68
+    },
+    "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "allow",
+    "mode": "payload",
+    "tool_name": "demo.action"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "t117-namespace-vec-key",
+    "sig": "zX3DZ7Y9jCuk0MdBWOnla0E5cT+5jcJrNLGQz7edmO8FV7/RXJyyiLLZKGHnzQewe/EljSenG7wPL/1XJE55DA=="
+  },
+  "anchors": []
+}

@@ -636,5 +636,13 @@
     "reason_code": "counterparty_unrecognised_scope",
     "notes": "Signed acknowledgment with binding result unrecognised_scope; signature and local TSA verify.",
     "failure_class": "unverifiable"
+  },
+  {
+    "dir": "asqav-37-unregistered-namespace-reported",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "unregistered_namespace",
+    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace; structure axis reports SKIPPED, verdict unverified/unverifiable.",
+    "failure_class": "unverifiable"
   }
 ]
