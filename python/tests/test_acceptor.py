@@ -61,6 +61,7 @@ def _signed(action_ref: str = "act_1", previous: str = "0" * 64, **extra) -> dic
     """A real, correctly signed asqav-native receipt carrying ``extra``."""
     payload = {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": _ISSUER,
         "agent_id": "agt_acceptor_001",
