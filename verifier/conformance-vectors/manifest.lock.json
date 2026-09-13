@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 27,
+  "corpus_version": 29,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -138,6 +138,16 @@
       "version": 26,
       "files": 300,
       "digest": "4d9a4eeb0c7a6ab77c40583c2f915b65c1b00159891d19a6802c9677abf9fcc6"
+    },
+    {
+      "version": 27,
+      "files": 303,
+      "digest": "c6e8a446235e646e01da0a0422f971561059325938626bce83baae67eb8c7b76"
+    },
+    {
+      "version": 28,
+      "files": 306,
+      "digest": "635992ca1a0f758c6ece24bd40c44eb90991d96b5eff69ea5cd685c921983179"
     }
   ],
   "files": [
@@ -1412,6 +1422,21 @@
       "bytes": 1003
     },
     {
+      "path": "asqav-38-unknown-member-preserved/expected.json",
+      "sha256": "50147b51a659baa637a123ec4e0a421f61f0fcc9a182f73783896bce43cea89a",
+      "bytes": 579
+    },
+    {
+      "path": "asqav-38-unknown-member-preserved/jwks.json",
+      "sha256": "9ae219e656fa81e03cb8ab0074adc3c580ae618b3f1f652f6a3dfabeed5a1615",
+      "bytes": 218
+    },
+    {
+      "path": "asqav-38-unknown-member-preserved/receipt.json",
+      "sha256": "419d9fe429ef5ad207fef5b29cdd5852d4866653d301e19d1547fea9c1430565",
+      "bytes": 1029
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -1488,8 +1513,8 @@
     },
     {
       "path": "gen_oracle_vectors.py",
-      "sha256": "290cea795e50dcfa9f5ebacaf13f5c3163b5cf759f3d4063555709665e45ce91",
-      "bytes": 18703
+      "sha256": "c297bcae063ae03b940e60a9152f7f1a7e657e88b020c090fc70643f1d21c39c",
+      "bytes": 20353
     },
     {
       "path": "gen_payload_digest_vectors.py",
@@ -1513,8 +1538,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "4b12e4aa7f6ef1353c17dbfc5d4c9716c41b1e02bee0064bf2d52025ce24aa9f",
-      "bytes": 30045
+      "sha256": "33c37092fc1d8c110bce9056037a0b37c170eb0c2364ce16028af155c88b646e",
+      "bytes": 30604
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1548,8 +1573,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "793e18ed235ccc0997818ab73cda52246813c2c35a98ea44b4c69954e06dceff",
-      "bytes": 62150
+      "sha256": "2a2add4f844564ececf883117a25658daac15a4cf82e7ec28bcc033a6cbdfd64",
+      "bytes": 63581
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -1687,5 +1712,5 @@
       ]
     }
   },
-  "digest": "c6e8a446235e646e01da0a0422f971561059325938626bce83baae67eb8c7b76"
+  "digest": "b5f24f11b196398acc59e97bc80fd7d603919e6fbc444606020dbfabe64a6bfb"
 }
