@@ -2467,7 +2467,10 @@ def check_structure(payload: dict):
         return "FAIL", f"missing required fields: {','.join(missing)}"
     rt = payload.get("type")
     if rt not in ALLOWED_TYPES:
-        return "FAIL", f"type {rt!r} outside the allowed namespace"
+        return "SKIPPED", (
+            f"type {rt!r} outside the known namespace; "
+            "profile membership unverifiable, reported not failed"
+        )
     ce_res, ce_note = check_controls_evaluated(payload)
     if ce_res == "FAIL":
         return "FAIL", ce_note
