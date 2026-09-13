@@ -487,6 +487,38 @@ def main() -> int:
         },
         indent=1,
     )
+    # asqav-38: a normal valid payload plus one member the draft's 12.1
+    # registry does not name and no upstream ACTA field carries (checked:
+    # zero draft occurrences). The signature covers the canonical payload
+    # INCLUDING the member, so the vector proves preservation inside the
+    # signature scope, and the expectation pins the ignore half: verified,
+    # with the member neither surfaced in the verdict nor changing it.
+    p38 = _demo_payload(
+        {"subject": "unknown-member-preserved", "tool": "demo.action"},
+        vendor_trace_id="trace-9f3a91d2-not-a-registry-member",
+    )
+    _write(
+        "asqav-38-unknown-member-preserved",
+        {
+            "receipt.json": _sign_ed(p38, sk),
+            "jwks.json": ed_jwks,
+            "expected.json": {
+                "format": "asqav-native",
+                "outcome": "verified",
+                "reason_code": "",
+                "notes": (
+                    "The payload carries vendor_trace_id, a member absent from the "
+                    "draft's 12.1 registry, from the upstream ACTA fields, and not v "
+                    "(v is outside the unknown-member rule by its own words). The "
+                    "signature covers the canonical payload including it, so the "
+                    "vector proves the member is preserved byte-for-byte inside the "
+                    "signature scope and ignored for conformance: not surfaced in "
+                    "the verdict and not changing the outcome. Contrast with "
+                    "asqav-08, where signer is surfaced in the verdict by design."
+                ),
+            },
+        },
+    )
     return 0
 
 
