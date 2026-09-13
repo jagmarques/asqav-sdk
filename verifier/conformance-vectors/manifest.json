@@ -644,5 +644,12 @@
     "reason_code": "unregistered_namespace",
     "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace; structure axis reports SKIPPED, verdict unverified/unverifiable.",
     "failure_class": "unverifiable"
+  },
+  {
+    "dir": "asqav-38-unknown-member-preserved",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "The payload carries vendor_trace_id, a member absent from the draft's 12.1 registry, from the upstream ACTA fields, and not v. The signature covers the canonical payload including it, so the vector proves the member is preserved byte-for-byte inside the signature scope and ignored for conformance: not surfaced in the verdict and not changing the outcome. Contrast with asqav-08, where signer is surfaced."
   }
 ]
