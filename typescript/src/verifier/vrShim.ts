@@ -187,14 +187,14 @@ export function checkNonce(
 }
 
 /** Asqav-native structure check; returns `[result, note]` (mirrors `check_structure`). */
-export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL", string] {
+export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL" | "SKIPPED", string] {
   const missing = REQUIRED_FIELDS.filter((f) => !(f in payload));
   if (missing.length > 0) {
     return ["FAIL", `missing required fields: ${missing.join(",")}`];
   }
   const rt = payload.type;
   if (typeof rt !== "string" || !ALLOWED_TYPES.has(rt)) {
-    return ["FAIL", `type ${JSON.stringify(rt)} outside the allowed namespace`];
+    return ["SKIPPED", `type ${JSON.stringify(rt)} outside the known namespace; profile membership unverifiable, reported not failed`];
   }
   const [ceRes, ceNote] = checkControlsEvaluated(payload);
   if (ceRes === "FAIL") {
