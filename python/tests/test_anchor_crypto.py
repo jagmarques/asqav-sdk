@@ -31,6 +31,7 @@ def _envelope() -> dict:
     return {
         "payload": {
             "type": "protectmcp:decision",
+            "v": 1,
             "issued_at": "2026-06-01T00:00:00Z",
             "issuer_id": "org-anchor",
             "action_ref": "sha256:" + "a" * 64,

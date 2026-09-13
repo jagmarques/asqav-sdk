@@ -19,6 +19,7 @@ CODE_TYPE = "protectmcp:lifecycle:code_authorship"
 def _risk_payload() -> dict:
     return {
         "type": RISK_TYPE,
+        "v": 1,
         "issued_at": "2026-06-01T19:26:44.289388Z",
         "issuer_id": "c37probe-org-00001",
         "action_ref": "sha256:" + "8" * 64,
@@ -57,6 +58,45 @@ def test_structure_reports_unknown_type() -> None:
     assert failure_class == "unverifiable"
 
 
+def test_structure_accepts_recognised_wire_versions() -> None:
+    """v=1 and v=2 both select: v=2 is recognised for verification (draft 5.3),
+    so the corpus's v:2 canary keeps verifying under the gate."""
+    payload = _risk_payload()
+    assert v.check_structure(payload)[0] == "PASS"
+    payload["v"] = 2
+    assert v.check_structure(payload)[0] == "PASS"
+
+
+def test_structure_reports_absent_wire_version() -> None:
+    """A receipt with no v member is not a Compliance Receipt of this document;
+    the note is distinct from the unsupported-value note and never reads as v1."""
+    payload = _risk_payload()
+    del payload["v"]
+    res, note = v.check_structure(payload)
+    assert res == "SKIPPED"
+    assert "absence is not version 1" in note
+    assert "unsupported wire version" not in note
+
+
+def test_structure_reports_unsupported_wire_version() -> None:
+    """Every unrecognised value SKIPs unverifiable with its repr, never fails,
+    and never selects: 99, '1', None, 0, -1, plus True and 1.0 (strict int only)."""
+    for bad in (99, "1", None, 0, -1, True, 1.0):
+        payload = _risk_payload()
+        payload["v"] = bad
+        res, note = v.check_structure(payload)
+        assert res == "SKIPPED", f"v={bad!r}: {res} {note}"
+        assert "unsupported wire version" in note
+        assert repr(bad) in note
+    payload = _risk_payload()
+    payload["v"] = 99
+    verdict, failure_class = v._fold_verdict(
+        [("structure", *v.check_structure(payload))]
+    )
+    assert verdict == "unverified"
+    assert failure_class == "unverifiable"
+
+
 def test_run_structure_axis_passes_on_risk_acceptance(capsys) -> None:
     """A full run over a risk-acceptance envelope prints `[  ok] structure`:
     the type is recognised, so the structure axis contributes a PASS and the
@@ -78,6 +118,7 @@ def test_run_structure_axis_passes_on_risk_acceptance(capsys) -> None:
 def _code_payload() -> dict:
     return {
         "type": CODE_TYPE,
+        "v": 1,
         "issued_at": "2026-06-02T10:00:00.000000Z",
         "issuer_id": "c39probe-org-00001",
         "action_ref": "sha256:" + "8" * 64,
@@ -259,6 +300,7 @@ def _valid_payload(issuer_id: str, agent_id: str) -> dict:
 
     return {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "issuer_id": issuer_id,
         "agent_id": agent_id,

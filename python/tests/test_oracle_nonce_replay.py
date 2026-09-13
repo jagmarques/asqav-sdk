@@ -9,6 +9,7 @@ def _doc(nonce: str) -> dict:
     return {
         "payload": {
             "type": "protectmcp:decision",
+            "v": 1,
             "issued_at": "2026-06-01T19:26:44Z",
             "issuer_id": "org-1",
             "agent_id": "agt-1",
