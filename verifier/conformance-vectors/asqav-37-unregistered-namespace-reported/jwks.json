@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "t117-namespace-vec-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "IvPDQUuStUThOe4kjeYLmBO6JfE4XqNlznBcsweOUrg="
+    }
+  ]
+}

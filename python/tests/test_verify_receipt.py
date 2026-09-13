@@ -3,7 +3,9 @@
 verify_receipt.py carries protectmcp:lifecycle:risk_acceptance and
 protectmcp:lifecycle:code_authorship in ALLOWED_TYPES so the structure axis
 recognises a valid receipt of either type and PASSes on it; an unknown type
-still fails closed. These tests pin both behaviours.
+is REPORTED (SKIPPED, naming the namespace), never failed, while the verdict
+stays unverified/unverifiable so nothing unrecognised verifies. These tests
+pin both behaviours.
 """
 
 from __future__ import annotations
@@ -42,11 +44,17 @@ def test_structure_accepts_risk_acceptance() -> None:
     assert RISK_TYPE in note
 
 
-def test_structure_still_rejects_unknown_type() -> None:
+def test_structure_reports_unknown_type() -> None:
+    """An unregistered namespace is REPORTED, never failed: the axis returns
+    SKIPPED naming the type, and the fold keeps the verdict closed."""
     payload = _risk_payload()
     payload["type"] = "protectmcp:not_a_real_type"
-    res, _note = v.check_structure(payload)
-    assert res == "FAIL"
+    res, note = v.check_structure(payload)
+    assert res == "SKIPPED"
+    assert "protectmcp:not_a_real_type" in note
+    verdict, failure_class = v._fold_verdict([("structure", res, note)])
+    assert verdict == "unverified"
+    assert failure_class == "unverifiable"
 
 
 def test_run_structure_axis_passes_on_risk_acceptance(capsys) -> None:

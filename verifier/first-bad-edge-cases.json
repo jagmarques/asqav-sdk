@@ -86,6 +86,7 @@
     "asqav-31-counterparty-scope-match": null,
     "asqav-32-counterparty-anchors-included": "counterparty",
     "asqav-33-counterparty-scope-absent": "counterparty",
-    "asqav-34-counterparty-scope-unknown": "counterparty"
+    "asqav-34-counterparty-scope-unknown": "counterparty",
+    "asqav-37-unregistered-namespace-reported": "structure"
   }
 }
