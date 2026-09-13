@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 26,
+  "corpus_version": 27,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -133,6 +133,11 @@
       "version": 25,
       "files": 300,
       "digest": "654725d071c89dc1104e6201d91eaa85a0fdce93b5e5b56eff2b054c08cae3b1"
+    },
+    {
+      "version": 26,
+      "files": 300,
+      "digest": "4d9a4eeb0c7a6ab77c40583c2f915b65c1b00159891d19a6802c9677abf9fcc6"
     }
   ],
   "files": [
@@ -1392,6 +1397,21 @@
       "bytes": 1074
     },
     {
+      "path": "asqav-37-unregistered-namespace-reported/expected.json",
+      "sha256": "0a82941e8ab895017cbddfa8c77dd9c6504e2cdf7e753596027ae4eb7eca45bd",
+      "bytes": 337
+    },
+    {
+      "path": "asqav-37-unregistered-namespace-reported/jwks.json",
+      "sha256": "e4c8f288e9cc46c18f8a5dd5a4846f327aa3dc515ae6f9253ed3c80d70d20beb",
+      "bytes": 220
+    },
+    {
+      "path": "asqav-37-unregistered-namespace-reported/receipt.json",
+      "sha256": "c30a0bc96f23565acf0feefd53b6ff1202e08b7953f20f1ccca7da8dab11dda2",
+      "bytes": 1003
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -1493,8 +1513,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "6a1abdfca7dd49981dc64fb6a123992244ea61bc11993be3e4044a973fc27960",
-      "bytes": 29683
+      "sha256": "4b12e4aa7f6ef1353c17dbfc5d4c9716c41b1e02bee0064bf2d52025ce24aa9f",
+      "bytes": 30045
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1528,8 +1548,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "ddcc1df27c60610081a669ea5e55b61191f457d9b99ba48e9bccdc55c4639cc4",
-      "bytes": 60666
+      "sha256": "793e18ed235ccc0997818ab73cda52246813c2c35a98ea44b4c69954e06dceff",
+      "bytes": 62150
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -1667,5 +1687,5 @@
       ]
     }
   },
-  "digest": "4d9a4eeb0c7a6ab77c40583c2f915b65c1b00159891d19a6802c9677abf9fcc6"
+  "digest": "c6e8a446235e646e01da0a0422f971561059325938626bce83baae67eb8c7b76"
 }
