@@ -11,6 +11,7 @@ import base64
 import io
 import os
 import sys
+from datetime import datetime, timezone
 
 import pytest
 
@@ -881,6 +882,18 @@ def _shared_inputs(position: str, pair: dict):
 _SHARED_POSITIONS = ["payload", "signature", "predecessor", "counterparty"]
 _SHARED_KINDS = ["dict", "list", "tuple"]
 
+_FROZEN_NOW = datetime(2026, 9, 14, 0, 0, 0, tzinfo=timezone.utc)
+
+
+class _FrozenDatetime(datetime):
+    """now() pinned to one instant; every other classmember inherited unchanged."""
+
+    @classmethod
+    def now(cls, tz=None):
+        if tz is None:
+            return _FROZEN_NOW.replace(tzinfo=None)
+        return _FROZEN_NOW
+
 
 @pytest.mark.parametrize("position", _SHARED_POSITIONS)
 @pytest.mark.parametrize("kind", _SHARED_KINDS)
@@ -897,7 +910,10 @@ def test_run_shared_node_matches_unshared_twin(position, kind, capsys) -> None:
 
 @pytest.mark.parametrize("position", _SHARED_POSITIONS)
 @pytest.mark.parametrize("kind", _SHARED_KINDS)
-def test_run_structured_shared_node_matches_unshared_twin(position, kind) -> None:
+def test_run_structured_shared_node_matches_unshared_twin(position, kind, monkeypatch) -> None:
+    # The skew note embeds the wall clock; freeze it so the twin calls compare
+    # equal whenever the structures agree, without comparing any field less.
+    monkeypatch.setattr(vr, "datetime", _FrozenDatetime)
     env_s, pred_s, cp_s = _shared_inputs(position, _shared_pair(kind))
     out_s = vr.run_structured(env_s, {"keys": []}, pred_s, counterparty=cp_s)
     env_t, pred_t, cp_t = _shared_inputs(position, _twin_pair(kind))
