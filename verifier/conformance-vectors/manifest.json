@@ -593,6 +593,13 @@
     "notes": "asqav-17's receipt with the anchors member present as a JSON null: a third spelling of no anchors found in the wild, and a malformed one - the structure axis FAILs, naming the member and the shape, and the verdict reads unverified/unverifiable rather than reading null as absent. Nothing cryptographic was disproved, so the class is unverifiable, not invalid (same family as duplicate_member: the receipt's own bytes are malformed)."
   },
   {
+    "dir": "asqav-29-article-50-lifecycle-disclosure",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "A protectmcp:lifecycle disclosure receipt declaring eu_ai_act_articles ['Article-50'] with framework_mappings_self_declared true - the Article 50 duty shape in -09's binding, and the first corpus vector to carry eu_ai_act_articles at all. The anchors member is absent (the T-016 spelling). The verifier does not check framework claims: both engine halves declare framework_mapping_claims NOT-CHECKED."
+  },
+  {
     "dir": "asqav-35-invocation-ref-binds-pre-post",
     "format": "asqav-native",
     "outcome": "verified",

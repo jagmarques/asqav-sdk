@@ -1,0 +1,30 @@
+{
+  "payload": {
+    "type": "protectmcp:lifecycle",
+    "v": 1,
+    "issued_at": "2026-09-05T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_a50_001",
+    "action_ref": "sha256:55fea0f49ab4d8798fffa02d7d6d9b1a97f957dd1755be3fbc7c35f27b966b2f",
+    "context": {
+      "subject": "article-50-disclosure"
+    },
+    "payload_digest": {
+      "hash": "55fea0f49ab4d8798fffa02d7d6d9b1a97f957dd1755be3fbc7c35f27b966b2f",
+      "size": 35
+    },
+    "policy_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "allow",
+    "mode": "payload",
+    "eu_ai_act_articles": [
+      "Article-50"
+    ],
+    "framework_mappings_self_declared": true
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "asqav-article-50-vec-key",
+    "sig": "xILp1+VmcmpCvjCOTG6RWYLzvzRhFScbRRu7p/DXLKuLJ8I4uINPpPVT5WkEq22ojIkxiUbqBknwYmRz5QftCw=="
+  }
+}

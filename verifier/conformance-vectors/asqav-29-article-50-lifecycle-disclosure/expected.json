@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "The Article 50 duty shape named in -09's binding: a protectmcp:lifecycle disclosure receipt whose signed payload declares eu_ai_act_articles ['Article-50'] with framework_mappings_self_declared true. The anchors member is absent, the conformant spelling T-016 pins, and the receipt verifies like any anchor-less valid receipt (asqav-17's outcome family). The verifier does not check framework claims: both engine halves declare framework_mapping_claims NOT-CHECKED, so the declaration rides the signed bytes without changing the outcome."
+}

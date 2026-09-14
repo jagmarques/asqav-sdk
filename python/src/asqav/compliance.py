@@ -15,7 +15,7 @@ from ._jcs import canonical_json
 FRAMEWORKS = {
     "eu_ai_act": {
         "name": "EU AI Act",
-        "description": "Articles 12 + 26 record-keeping and human oversight",
+        "description": "EU AI Act (Articles 12, 26 and 50 declarations)",
         "version": "Regulation (EU) 2024/1689",
     },
     "dora": {
