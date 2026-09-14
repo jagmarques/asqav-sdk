@@ -465,6 +465,7 @@ def test_asqav_native_agent_id_fallback_resolves_absent_kid() -> None:
     )
     payload = {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-06-19T00:00:00.000000Z",
         "issuer_id": "org-1",
         "agent_id": "agt_probe",
