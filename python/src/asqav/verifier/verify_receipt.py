@@ -117,6 +117,10 @@ ALLOWED_TYPES = {
     "protectmcp:observation:result_bound",
 }
 
+#: Wire versions a verifier accepts (draft 5.3): v=2 is recognised for
+#: verification, not released for emission. Widening is a registry decision.
+RECOGNISED_WIRE_VERSIONS = frozenset({1, 2})
+
 
 #: Closed controls_evaluated key set; mirrors the client false-attestation guard.
 ALLOWED_CONTROL_KEYS = frozenset(
@@ -2470,6 +2474,19 @@ def check_structure(payload: dict):
         return "SKIPPED", (
             f"type {rt!r} outside the known namespace; "
             "profile membership unverifiable, reported not failed"
+        )
+    # Draft 5.3: absence never reads as v1; only the recognised set verifies.
+    # An unrecognised v is unverifiable, reported not failed, shape never guessed.
+    if "v" not in payload:
+        return "SKIPPED", (
+            "no v member: not a Compliance Receipt of this document; "
+            "absence is not version 1"
+        )
+    v = payload["v"]
+    if type(v) is not int or v not in RECOGNISED_WIRE_VERSIONS:
+        return "SKIPPED", (
+            f"unsupported wire version {v!r}: "
+            "unverifiable under this document, reported not failed"
         )
     ce_res, ce_note = check_controls_evaluated(payload)
     if ce_res == "FAIL":
