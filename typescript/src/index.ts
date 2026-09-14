@@ -542,7 +542,7 @@ export interface SignOptions {
   iso42001?: string[];
 
   /** Caller-supplied list of EU AI Act article ids (e.g.
-   * `["Article-12", "Article-15"]`). Self-declared. */
+   * `["Article-12", "Article-15", "Article-50"]`). Self-declared. */
   euAiActArticles?: string[];
 
   /** Caller-supplied base64 RFC 3161 TimeStampResp (DER), preserved for offline TSA chain
