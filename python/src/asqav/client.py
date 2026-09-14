@@ -2171,7 +2171,7 @@ class Agent:
             iso_42001: Caller-supplied list of ISO/IEC 42001 control ids
                 (e.g. ``["A.6.2.6"]``). Self-declared.
             eu_ai_act_articles: Caller-supplied list of EU AI Act article
-                ids (e.g. ``["Article-12", "Article-15"]``). Self-declared.
+                ids (e.g. ``["Article-12", "Article-15", "Article-50"]``). Self-declared.
             rfc3161_timestamp: Caller-supplied base64-encoded RFC 3161
                 TimeStampResp (DER). Preserved on the receipt for offline
                 TSA chain verification independent of cloud-issued anchors.
