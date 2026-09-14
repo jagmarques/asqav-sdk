@@ -44,73 +44,100 @@ python -m oracle.runner          # from the verifier/ directory
 
 ## Vectors
 
-- `asqav-01..03` - valid Asqav-native receipts (genesis permit, genesis deny,
-  chain link), Ed25519-signed so the signature axis verifies without the
-  post-quantum dependency.
-- `asqav-04-tamper-sig` - decision flipped after signing; signature fails.
-- `asqav-05-hash-mode-prod` - a real default-mode prod `/sign` receipt (ML-DSA-65).
-  The reconstructed signing input byte-matches the prod-signed message and the
-  signature verifies with `dilithium-py`; absent that optional dep the signature
-  axis SKIPs, so the outcome is `unverified`/`unverifiable`. Guards the
-  production hash-mode path against a false `verified` on the post-quantum
-  signature the CI base cannot check.
-- `asqav-06-mldsa65-payload-prod` - a real payload-mode prod ML-DSA-65 receipt;
-  its signed `expires_at` lapsed, so the expiry axis FAILs alone while the
-  verdict stays verified (criterion 426).
-- `asqav-07-revoked-key` - a valid signature from a key whose JWKS status is
-  `revoked`; the key_status axis FAILs the verdict (parity vector).
-- `asqav-08-v2-signer-canary` / `asqav-09-v2-signer-tampered` - a v:2 receipt
-  whose in-signed-body `signer` the neutral verifier surfaces, and its tampered
-  twin proving `signer` sits inside the signed coverage (parity vectors).
-- `asqav-10-hash-mode-multikey` - hash-mode receipt signed by the last of three
-  sibling keys sharing issuer/org ids; the agent bind resolves the actual signer
-  (anti-vacuous parity vector).
-- `asqav-11-dup-member-toplevel` / `asqav-13-dup-member-nested` - the valid
-  genesis receipt with a duplicated JSON member name at the top level and two
-  levels down. Both are terminal parse failures (criterion 419): the strict
-  parser rejects them before any hashing, so they never verify.
-- `asqav-12-time-edge-expiry` - deterministic ML-DSA-65 vector with an extreme
-  positive UTC offset around midnight and a lapsed signed `expires_at`
-  (time-edge conformance, criterion 422; parity vector).
-- `aerf-01..02` - valid AERF receipts (genesis, chain link). Genesis omits
-  `previous_receipt_hash`; the chain hash excludes the signature, per the AERF
-  spec.
-- `aerf-03-tamper-evidence` - action mutated after signing; signature fails.
-- `aerf-04-tamper-chain` - `previous_receipt_hash` mutated; chain fails.
-- `acta-01..05` - ACTA genesis, chain link, tampered signature, and an
-  unsupported commitment-mode receipt that fails the baseline verifier.
-- `aerf-up-*` - upstream-derived AERF vectors (see `UPSTREAM.md`).
-- `agentreceipts-01..06` - W3C-VC AgentReceipt: did:key genesis (key resolves
-  inline), chain link, tampered payload, tampered proofValue, a genesis missing
-  `previous_receipt_hash` (malformed), and a wrong-DID signature mismatch.
-- `agentreceipts-up-*` - upstream agent-receipts vectors (six malformed
-  single-field mutations, a tampered chain, and two upstream-keypair PASS
-  cases). See `UPSTREAM.md`.
-- `authproof-01-genesis-real-sdk` - a receipt minted by the real Authproof JS
-  SDK (ES256 over insertion-order `JSON.stringify`, embedded P-256 JWK); a
-  cross-implementation interop PASS. `authproof-02/03` are its forged-signature
-  and tampered-scope negatives. The signer key is embedded, so no key file. See
-  `UPSTREAM.md`.
-- `pipelock-ev2-01-proxy-decision` / `pipelock-ev2-02-tamper-payload` - a valid
-  Pipelock evidence-v2 receipt and its verdict-flipped twin (keys.json carries
-  the signer key id -> raw Ed25519 hex).
-- `w3c-vc-01-didweb-happy-path` - a W3C VC 2.0 credential with a
-  DataIntegrityProof `eddsa-jcs-2022` signature (W3C TR vc-di-eddsa): Ed25519
-  over `SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))`. The
-  did:web issuer resolves from the injected DID document (offline mode).
-- `w3c-vc-02-tamper-subject` / `w3c-vc-03-tamper-proofvalue` - credentialSubject
-  flipped and one proofValue base58 character replaced after signing; both fail
-  the signature axis.
-- `w3c-vc-04-wrong-key-injected` - the injected DID document publishes an
-  unrelated key; verification fails against the published key, never a false pass.
-- `w3c-vc-05-no-did-document` - no injected DID document and the oracle never
-  fetches, so the signature axis SKIPs: `unverified`/`unverifiable`, fail closed.
-- `w3c-vc-06-expired` - signature verifies but signed `validUntil` lapsed; the
-  expiry axis FAILs alone while the verdict stays verified (criterion 426).
-- `w3c-vc-07-dup-member` - `credentialSubject` appears twice; strict ingest
-  rejects the duplicate at parse time (criterion 419).
-- `w3c-vc-08-didkey-happy-path` - a did:key issuer self-resolves inline from
-  the multicodec frame; no key file needed.
+An index of every directory in the corpus, regenerated from `manifest.json`. Each vector's
+`notes` text lives in that manifest, which is where it is authored and where the corpus lock
+covers it.
+
+<!-- vectors-list:start (regenerated by verifier/render_vector_list.py; do not hand-edit) -->
+- `asqav-01-genesis-permit` — verified
+- `asqav-02-genesis-deny` — verified
+- `asqav-03-chain-link` — verified
+- `asqav-04-tamper-sig` — unverified (issuer_signature)
+- `asqav-05-hash-mode-prod` — unverified (signature_skipped_no_dilithium)
+- `asqav-06-mldsa65-payload-prod` — verified
+- `asqav-07-revoked-key` — unverified (key_revoked)
+- `aerf-01-genesis` — verified
+- `aerf-02-chain-link` — verified
+- `aerf-03-tamper-evidence` — unverified (issuer_signature)
+- `aerf-04-tamper-chain` — unverified (chain)
+- `acta-01-genesis` — verified
+- `acta-02-chain-link` — verified
+- `acta-03-tamper-sig` — unverified (sig_mismatch)
+- `acta-05-commitment-mode-unsupported` — unverified (sig_mismatch)
+- `acta-06-chain-link-03-prefixed` — verified
+- `acta-07-chain-link-03-wrong-digest` — unverified (chain)
+- `acta-up-01-a2a-trusted-attestation` — verified
+- `acta-up-02-a2a-trajectory-endpoint` — verified
+- `acta-up-03-a2a-tampered-sig` — unverified (sig_mismatch)
+- `aerf-up-01-genesis-happy-path` — verified
+- `aerf-up-02-chain-happy-path` — verified
+- `aerf-up-03-tamper-evidence` — unverified (issuer_signature)
+- `aerf-up-04-tamper-chain` — unverified (issuer_signature)
+- `aerf-up-05-impact-no-parent-sig` — unverified (parent_signature)
+- `aerf-up-06-impact-with-parent-sig` — verified
+- `aerf-up-07-pdp-binding-valid` — verified
+- `aerf-up-08-pdp-binding-split-context` — unverified (pdp_signature)
+- `aerf-up-11-tag-stripped-known-limit` — verified
+- `aerf-up-12-common-mode-known-limit` — verified
+- `agentreceipts-01-didkey-genesis` — verified
+- `agentreceipts-02-didkey-chain-link` — verified
+- `agentreceipts-03-tamper-payload` — unverified (issuer_signature)
+- `agentreceipts-04-tamper-proofvalue` — unverified (issuer_signature)
+- `agentreceipts-05-genesis-missing-prev-hash` — unverified (schema)
+- `agentreceipts-06-wrong-key` — unverified (issuer_signature)
+- `agentreceipts-up-00-valid-resigned` — verified
+- `agentreceipts-up-01-wrong-proof-type` — unverified (schema)
+- `agentreceipts-up-02-mutated-action-type` — unverified (issuer_signature)
+- `agentreceipts-up-03-mutated-principal-id` — unverified (issuer_signature)
+- `agentreceipts-up-04-truncated-proof-value` — unverified (issuer_signature)
+- `agentreceipts-up-05-wrong-multibase-prefix` — unverified (issuer_signature)
+- `agentreceipts-up-06-flipped-proof-byte` — unverified (issuer_signature)
+- `agentreceipts-up-07-tampered-mid-chain` — unverified (issuer_signature)
+- `agentreceipts-up-08-valid-chain-link` — verified
+- `authproof-01-genesis-real-sdk` — verified
+- `authproof-02-forged-sig` — unverified (issuer_signature)
+- `authproof-03-tampered-scope` — unverified (issuer_signature)
+- `pipelock-ev2-01-proxy-decision` — verified
+- `pipelock-ev2-02-tamper-payload` — unverified (issuer_signature)
+- `asqav-08-v2-signer-canary` — verified
+- `asqav-09-v2-signer-tampered` — unverified (issuer_signature)
+- `asqav-10-hash-mode-multikey` — verified
+- `asqav-12-time-edge-expiry` — verified
+- `asqav-11-dup-member-toplevel` — unverified (duplicate_member)
+- `asqav-13-dup-member-nested` — unverified (duplicate_member)
+- `w3c-vc-01-didweb-happy-path` — verified
+- `w3c-vc-02-tamper-subject` — unverified (issuer_signature)
+- `w3c-vc-03-tamper-proofvalue` — unverified (issuer_signature)
+- `w3c-vc-04-wrong-key-injected` — unverified (issuer_signature)
+- `w3c-vc-05-no-did-document` — unverified (signature_skipped_no_did_document)
+- `w3c-vc-06-expired` — verified
+- `w3c-vc-07-dup-member` — unverified (duplicate_member)
+- `w3c-vc-08-didkey-happy-path` — verified
+- `asqav-14-omitted-action-chain` — verified
+- `asqav-15-unsigned-gap` — verified
+- `asqav-16-chain-emission-blocked` — verified
+- `asqav-17-seq-contiguous` — verified
+- `asqav-18-seq-gap` — unverified (seq_gap)
+- `asqav-19-seq-non-monotonic` — unverified (seq_not_monotonic)
+- `asqav-20-seq-absent` — verified
+- `asqav-21-key-thumbprint-binds` — verified
+- `asqav-22-key-substituted` — unverified (key_substituted)
+- `asqav-25-payload-digest-rederives` — verified
+- `asqav-26-payload-digest-mismatch` — unverified (payload_digest_mismatch)
+- `asqav-23-anchor-status-pending` — verified
+- `asqav-24-anchor-block-hash-prod` — verified
+- `asqav-27-anchors-absent` — verified
+- `asqav-28-anchors-null-malformed` — unverified (malformed_member)
+- `asqav-29-article-50-lifecycle-disclosure` — verified
+- `asqav-35-invocation-ref-binds-pre-post` — verified
+- `asqav-36-invocation-ref-duplicate-emission` — verified
+- `asqav-31-counterparty-scope-match` — verified
+- `asqav-32-counterparty-anchors-included` — unverified (counterparty_mismatch)
+- `asqav-33-counterparty-scope-absent` — unverified (counterparty_legacy_scope)
+- `asqav-34-counterparty-scope-unknown` — unverified (counterparty_unrecognised_scope)
+- `asqav-37-unregistered-namespace-reported` — unverified (unregistered_namespace)
+- `asqav-38-unknown-member-preserved` — verified
+<!-- vectors-list:end -->
 
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;
 an incorrect three-key digest; a missing scope member; and a scope this profile
