@@ -860,6 +860,64 @@ def test_compliance_envelope_malformed_signature_fails_does_not_crash() -> None:
         assert res.failure_class == "invalid"
 
 
+def test_hash_mode_schema_accepts_recognised_wire_versions() -> None:
+    """v=1 and v=2 both pass the hash-mode schema gate: v=2 is recognised for
+    verification (draft 5.3), matching the payload-mode structure gate."""
+    ad = AsqavNativeAdapter()
+    res, note = ad.schema(_load("asqav-05-hash-mode-prod", "receipt.json"))
+    assert res == "PASS", note
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    doc["v"] = 2
+    res, note = ad.schema(doc)
+    assert res == "PASS", note
+
+
+def test_hash_mode_schema_reports_unsupported_wire_version() -> None:
+    """Every unrecognised value SKIPs unverifiable with its repr kept - 99, '1',
+    0, -1, True, 1.0 (strict int only) - mirroring the payload-mode gate."""
+    ad = AsqavNativeAdapter()
+    for bad in (99, "1", 0, -1, True, 1.0):
+        doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+        doc["v"] = bad
+        res, note = ad.schema(doc)
+        assert res == "SKIPPED", f"v={bad!r}: {res} {note}"
+        assert "unsupported wire version" in note
+        assert repr(bad) in note
+
+
+def test_hash_mode_schema_absent_version_fails_naming_v() -> None:
+    """Absent or null v stays a missing-field FAIL folding to unverifiable; the
+    gate must not re-route it into the unsupported-value case (already correct)."""
+    ad = AsqavNativeAdapter()
+    for variant in ("absent", "null"):
+        doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+        if variant == "absent":
+            del doc["v"]
+        else:
+            doc["v"] = None
+        res, note = ad.schema(doc)
+        assert res == "FAIL", f"{variant}: {res} {note}"
+        assert "missing fields: v" in note
+
+
+def test_hash_mode_v99_unverifiable_end_to_end() -> None:
+    """The corpus vector with v flipped to 99 is refused unverifiable, while the
+    v=1 original keeps verifying (dilithium-gated, as the signature runs)."""
+    pytest.importorskip("dilithium_py.ml_dsa")
+    provider = _provider("asqav-05-hash-mode-prod", "asqav-native")
+    doc = _load("asqav-05-hash-mode-prod", "receipt.json")
+    doc["v"] = 99
+    res = verify(doc, ADAPTERS, key_provider=provider)
+    assert res.axis("structure").result == "SKIPPED"
+    assert "unsupported wire version 99" in res.axis("structure").note
+    assert res.verdict == "unverified"
+    assert res.failure_class == "unverifiable"
+    res_ok = verify(
+        _load("asqav-05-hash-mode-prod", "receipt.json"), ADAPTERS, key_provider=provider
+    )
+    assert res_ok.verdict == "verified"
+
+
     # A malformed AERF signature (non-hex or non-string) decodes to b'' and FAILs, never raises.
 def test_aerf_malformed_signature_fails_does_not_crash() -> None:
     doc = _load("aerf-01-genesis", "receipt.json")

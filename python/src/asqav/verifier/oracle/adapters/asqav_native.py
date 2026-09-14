@@ -231,6 +231,14 @@ class AsqavNativeAdapter(FormatAdapter):
                     f"hash-mode receipt carries claim fields its signature does not "
                     f"cover: {','.join(unsigned)}"
                 )
+            # Absence FAILs above (v is required); here its value must be a
+            # recognised integer, exactly as the payload-mode structure gate.
+            v = doc.get("v")
+            if not _vr.is_recognised_wire_version(v):
+                return "SKIPPED", (
+                    f"unsupported wire version {v!r}: "
+                    "unverifiable under this document, reported not failed"
+                )
             return "PASS", "hash-mode signature receipt; required flat fields present"
         return _vr.check_structure(_payload(doc))
 

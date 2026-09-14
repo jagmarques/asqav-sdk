@@ -2483,7 +2483,7 @@ def check_structure(payload: dict):
             "absence is not version 1"
         )
     v = payload["v"]
-    if type(v) is not int or v not in RECOGNISED_WIRE_VERSIONS:
+    if not is_recognised_wire_version(v):
         return "SKIPPED", (
             f"unsupported wire version {v!r}: "
             "unverifiable under this document, reported not failed"
@@ -2501,6 +2501,11 @@ def is_current_profile_version(value) -> bool:
     if isinstance(value, int):
         return value == 1
     return isinstance(value, float) and value == 1.0
+
+
+def is_recognised_wire_version(value) -> bool:
+    """True for an integer v in RECOGNISED_WIRE_VERSIONS; booleans and floats never select."""
+    return type(value) is int and value in RECOGNISED_WIRE_VERSIONS
 
 
 def profile_range_note(obj) -> str | None:
