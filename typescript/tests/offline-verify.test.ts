@@ -295,6 +295,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
 
     const payload: Record<string, unknown> = {
       type: "protectmcp:decision",
+      v: 1,
       issued_at: "2026-06-19T00:00:00.000000Z",
       issuer_id: kid,
       action_ref: "sha256:" + "a".repeat(64),
@@ -334,6 +335,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
 
     const payload: Record<string, unknown> = {
       type: "protectmcp:decision",
+      v: 1,
       issued_at: "2026-06-19T00:00:00.000000Z",
       issuer_id: kid,
       action_ref: "sha256:" + "a".repeat(64),
@@ -426,6 +428,7 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
     const victim = ml_dsa65.keygen();
     const payload: Record<string, unknown> = {
       type: "protectmcp:decision",
+      v: 1,
       issued_at: "2026-06-19T00:00:00.000000Z",
       issuer_id: "org-victim",
       agent_id: "agt_attacker",
@@ -475,6 +478,7 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
     const kid = "agent-one";
     const payload: Record<string, unknown> = {
       type: "protectmcp:decision",
+      v: 1,
       issued_at: "2026-06-19T00:00:00.000000Z",
       issuer_id: "org-legit",
       action_ref: "sha256:" + "a".repeat(64),
