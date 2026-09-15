@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from . import strict_json
 from .verifier.oracle import ADAPTERS, verify
 from .verifier.oracle.core import VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED
 
@@ -211,7 +212,8 @@ def _decode_receipt(raw: bytes) -> dict | None:
                 return None
             candidate = text
         try:
-            parsed = json.loads(candidate)
+            # Strict loader: bare json.loads would admit out-of-domain integers
+            parsed = strict_json.loads(candidate)
         except (ValueError, TypeError):
             continue
         return parsed if isinstance(parsed, dict) else None
