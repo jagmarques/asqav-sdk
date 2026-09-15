@@ -56,6 +56,18 @@ RECOGNISED_MODE = frozenset({"hash", "payload"})
 #: receipts and their lack of ``v`` is what 5.3 discriminates on.
 FOREIGN_PREFIXES = ("acta-", "agentreceipts-", "aerf-", "pipelock-", "w3c-", "authproof-", "dsse-")
 
+#: Named negative vectors for draft 5.2.1 (criterion 674): their whole point is a
+#: missing or unrecognised ``v`` under an otherwise valid signature, and both
+#: oracles must report them unverified. They are exempt from the census below by
+#: name so the generator-regression protection stays intact for every other vector.
+VERSION_NEGATIVE_VECTORS = frozenset(
+    {
+        "asqav-39-absent-version",
+        "asqav-40-unrecognised-version",
+        "asqav-41-hash-unrecognised-version",
+    }
+)
+
 
 def _receipt_files(prefix: str):
     """Yield (label, parsed json) for every receipt-shaped file under a family."""
@@ -89,6 +101,8 @@ def test_every_asqav_vector_carries_v_and_mode() -> None:
 
     offenders = []
     for label, doc in files:
+        if label.split("/")[0] in VERSION_NEGATIVE_VECTORS:
+            continue
         members, position = _signed_members(doc)
         v, mode = members.get("v"), members.get("mode")
         if v is None or mode is None:
@@ -105,6 +119,8 @@ def test_every_asqav_vector_carries_v_and_mode() -> None:
 def test_v_and_mode_carry_only_recognised_values() -> None:
     bad = []
     for label, doc in _asqav_receipts():
+        if label.split("/")[0] in VERSION_NEGATIVE_VECTORS:
+            continue
         members, _ = _signed_members(doc)
         v, mode = members.get("v"), members.get("mode")
         if v is not None and (isinstance(v, bool) or v not in RECOGNISED_V):
