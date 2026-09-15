@@ -1797,7 +1797,7 @@
       "expect": {
         "verdict": "unverified",
         "axes": {
-          "key_status": "FAIL",
+          "key_status": "SKIPPED",
           "issuer_bind": "PASS"
         },
         "failure_class": "invalid"
