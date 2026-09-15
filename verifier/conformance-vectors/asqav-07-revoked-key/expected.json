@@ -2,6 +2,6 @@
   "format": "asqav-native",
   "outcome": "unverified",
   "reason_code": "key_revoked",
-  "notes": "Valid Ed25519 signature but signing key status is 'revoked'; key_status axis FAILs the verdict.",
-  "failure_class": "invalid"
+  "notes": "Valid Ed25519 signature but signing key status is 'revoked' with no published revoked_at; key_status axis SKIPs (unverifiable).",
+  "failure_class": "unverifiable"
 }
