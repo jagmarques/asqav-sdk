@@ -1,0 +1,13 @@
+{
+  "keys": [
+    {
+      "kid": "vec_kid_t168",
+      "agent_id": "agt_t168",
+      "issuer_id": "org_t168_vec",
+      "org_id": "org_t168_vec",
+      "alg": "Ed25519",
+      "public_key": "D2Giy5pvLMtoWzbwo6rV6lVV32saRd+fZLA35CaiiSM=",
+      "status": "active"
+    }
+  ]
+}
