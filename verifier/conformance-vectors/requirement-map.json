@@ -520,6 +520,39 @@
       "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
+    },
+    "asqav-39-absent-version": {
+      "structure": "SKIPPED",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-40-unrecognised-version": {
+      "structure": "SKIPPED",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-41-hash-unrecognised-version": {
+      "payload": "FAIL"
     }
   },
   "requirements": {
@@ -1361,6 +1394,68 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-39-absent-version": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-STRUCTURE"
+      ]
+    },
+    "asqav-40-unrecognised-version": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-STRUCTURE"
+      ]
+    },
+    "asqav-41-hash-unrecognised-version": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ]
     }
   },
   "interop_fixtures": {
@@ -1660,7 +1755,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -1696,7 +1793,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -1732,7 +1831,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -1768,7 +1869,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -1804,7 +1907,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -1840,7 +1945,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-ANCHOR": [
       "asqav-24-anchor-block-hash-prod",
@@ -1883,7 +1990,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -1919,7 +2028,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -1955,7 +2066,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-PAYLOAD-DIGEST": [
       "asqav-01-genesis-permit",
@@ -1991,7 +2104,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-COUNTERPARTY": [
       "asqav-01-genesis-permit",
@@ -2025,7 +2140,9 @@
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-unregistered-namespace-reported",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -2068,7 +2185,7 @@
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 37,
+    "asqav_native_vectors": 40,
     "interop_fixtures": 52,
     "requirements": 13,
     "requirements_covered": 13,
