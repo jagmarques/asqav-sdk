@@ -84,6 +84,7 @@ function nestedReceipt(depth: number): Record<string, unknown> {
   return {
     payload: {
       type: "protectmcp:decision",
+      v: 1,
       issued_at: "2026-06-19T00:00:00.000000Z",
       issuer_id: "f94f66c0-c580-432d-a041-29374f7aee07",
       agent_id: "agt_1",

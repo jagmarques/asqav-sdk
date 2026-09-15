@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "",
+  "notes": "Payload-mode receipt carrying v=99 under an otherwise valid Ed25519 signature. Draft §5.2.1: an unsupported version is unverifiable and its shape MUST NOT be guessed, so both oracles report unverifiable. Regression pin for the TypeScript verifier, which returned verified here before its version gate."
+}
