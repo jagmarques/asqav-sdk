@@ -62,6 +62,7 @@ function signed(
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     type: "protectmcp:decision",
+    v: 1,
     issued_at: "2026-08-30T12:00:00+00:00",
     issuer_id: ISSUER,
     agent_id: "agt_acceptor_001",
