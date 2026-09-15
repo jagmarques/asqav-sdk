@@ -2163,7 +2163,7 @@ def coverage_declaration(axes: list) -> dict:
     return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
 
 
-def check_payload_digest(payload: dict):
+def check_payload_digest(payload: dict) -> tuple[str, str, str]:
     """Recompute payload_digest from the context carried in the same receipt.
 
     A receipt that carries BOTH the context and a digest over it is checkable with
@@ -2176,44 +2176,67 @@ def check_payload_digest(payload: dict):
     Absence PASSes on both sides. Hash mode carries no context, and a payload-mode
     receipt may legitimately omit it (redaction, or an org that does not store the
     full payload), so a missing context is the ordinary case and never a failure.
+
+    Returns (result, note, applicability): absence reports "not_applicable",
+    every other branch "evaluated", so no consumer parses the note (criterion 487)
     """
     if not isinstance(payload, dict):
-        return "PASS", "no signed payload; no digest to recompute"
+        return "PASS", "no signed payload; no digest to recompute", "evaluated"
     digest = payload.get("payload_digest")
     if digest is None:
-        return "PASS", "receipt binds no payload_digest; nothing to recompute"
+        return "PASS", "receipt binds no payload_digest; nothing to recompute", "not_applicable"
     if not isinstance(digest, dict):
-        return "FAIL", f"payload_digest is {type(digest).__name__}, not an object"
+        return "FAIL", f"payload_digest is {type(digest).__name__}, not an object", "evaluated"
     claimed = digest.get("hash")
     if not isinstance(claimed, str) or not re.fullmatch(r"[0-9a-f]{64}", claimed):
-        return "FAIL", f"payload_digest.hash {claimed!r} is not 64 lowercase hex"
+        return "FAIL", f"payload_digest.hash {claimed!r} is not 64 lowercase hex", "evaluated"
     claimed_size = digest.get("size")
     # Absence stays allowed; a present null is malformed, not a missing length.
     if "size" in digest and (
         not isinstance(claimed_size, int) or isinstance(claimed_size, bool) or claimed_size < 0
     ):
-        return "FAIL", f"payload_digest.size {claimed_size!r} is not a non-negative integer"
+        return (
+            "FAIL",
+            f"payload_digest.size {claimed_size!r} is not a non-negative integer",
+            "evaluated",
+        )
     if payload.get("context") is None:
         # An explicit null reads as absent: the hosted verifier returns payload: null
         # for redacted and hash-only receipts, and null is not a context to hash
-        return "PASS", "no context carried; payload_digest not recomputable here"
+        return (
+            "PASS",
+            "no context carried; payload_digest not recomputable here",
+            "not_applicable",
+        )
 
     try:
         encoded = canonical_json(payload["context"])
     except (TypeError, ValueError, RecursionError):
-        return "SKIPPED", "context is not canonicalisable, so payload_digest cannot be recomputed"
+        return (
+            "SKIPPED",
+            "context is not canonicalisable, so payload_digest cannot be recomputed",
+            "evaluated",
+        )
     actual = hashlib.sha256(encoded).hexdigest()
     if actual != claimed:
-        return "FAIL", (
+        return (
+            "FAIL",
             f"payload_digest_mismatch: receipt binds {claimed[:16]}.., "
-            f"its own context hashes to {actual[:16]}.."
+            f"its own context hashes to {actual[:16]}..",
+            "evaluated",
         )
     if claimed_size is not None and claimed_size != len(encoded):
-        return "FAIL", (
+        return (
+            "FAIL",
             f"payload_digest_mismatch: size claims {claimed_size}, "
-            f"canonical context is {len(encoded)} bytes"
+            f"canonical context is {len(encoded)} bytes",
+            "evaluated",
         )
-    return "PASS", f"payload_digest rederives from the carried context ({len(encoded)} bytes)"
+    return (
+        "PASS",
+        f"payload_digest rederives from the carried context ({len(encoded)} bytes)",
+        "evaluated",
+    )
 
 
 def _envelope_hash(envelope: dict) -> str:
@@ -2787,7 +2810,7 @@ def run(
     # axis, so the report says the binding was not checked rather than staying silent.
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
-    results.append(("payload_digest", *check_payload_digest(payload)))
+    results.append(("payload_digest", *check_payload_digest(payload)[:2]))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
@@ -2818,13 +2841,16 @@ def run(
 
 
     # One structured-axis row carrying its per-axis failure token (418/438).
-def _struct_axis(name: str, result: str, note: str) -> dict:
-    return {
+def _struct_axis(name: str, result: str, note: str, applicability: str | None = None) -> dict:
+    axis = {
         "name": name,
         "result": result,
         "note": note,
         "failure_class": _axis_failure_class(name, result, note),
     }
+    if applicability is not None:
+        axis["applicability"] = applicability
+    return axis
 
 
 #: Structure-axis note for the malformed third spelling of "no anchors": the member
@@ -3042,7 +3068,8 @@ def run_structured(
     axes.append(
         _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
-    axes.append(_struct_axis("payload_digest", *check_payload_digest(payload)))
+    pd_res, pd_note, pd_applicability = check_payload_digest(payload)
+    axes.append(_struct_axis("payload_digest", pd_res, pd_note, pd_applicability))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))

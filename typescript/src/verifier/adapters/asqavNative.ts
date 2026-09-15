@@ -302,7 +302,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // riding along as corroboration nobody checked
     const signature = isRecord(doc.signature) ? doc.signature : isRecord(doc.signature_envelope) ? doc.signature_envelope : {};
     axes.push(["counterparty", ...checkCounterpartyBinding(signedUnit, undefined, signature.kid ?? null)]);
-    axes.push(["payload_digest", ...checkPayloadDigest(signedUnit)]);
+    const [pdRes, pdNote] = checkPayloadDigest(signedUnit);
+    // ExtraAxis stays a 3-tuple; applicability rides the direct return
+    axes.push(["payload_digest", pdRes, pdNote]);
     // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
     axes.push(["skew", ...checkSkew(stamp)]);

@@ -291,7 +291,9 @@ class AsqavNativeAdapter(FormatAdapter):
         # riding along as corroboration nobody checked
         kid = _vr.counterparty_acknowledging_kid(doc)
         axes.append(("counterparty", *_vr.check_counterparty_binding(signed, acknowledging_kid=kid)))
-        axes.append(("payload_digest", *_vr.check_payload_digest(signed)))
+        pd_res, pd_note, _pd_app = _vr.check_payload_digest(signed)
+        # Oracle axes stay 3-tuples; applicability surfaces in run_structured
+        axes.append(("payload_digest", pd_res, pd_note))
         # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
