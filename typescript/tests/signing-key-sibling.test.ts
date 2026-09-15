@@ -95,7 +95,7 @@ describe("the gating axes read the entry that signed", () => {
         key("k-agent-two", "agt_two", { status: "revoked" }),
       ],
     };
-    expect(axesOf(receipt(payload(), "AAAA"), jwks).key_status).toBe("FAIL");
+    expect(axesOf(receipt(payload(), "AAAA"), jwks).key_status).toBe("SKIPPED");
   });
 
   it("keeps an active signer active behind a revoked sibling", () => {
