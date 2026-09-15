@@ -37,6 +37,7 @@ import {
   checkNonce,
   checkOrgBinding,
   checkStructure,
+  isRecognisedWireVersion,
   keyIssuerOf,
   keyOrgOf,
   matchSigningKey,
@@ -256,6 +257,11 @@ export class AsqavNativeAdapter extends FormatAdapter {
           "FAIL",
           `hash-mode receipt carries claim fields its signature does not cover: ${unsigned.join(",")}`,
         ];
+      }
+      // Absence FAILs above; here the value must be a recognised integer
+      const hv = doc.v;
+      if (!isRecognisedWireVersion(hv)) {
+        return ["SKIPPED", `unsupported wire version ${JSON.stringify(hv)}: unverifiable under this document, reported not failed`];
       }
       return ["PASS", "hash-mode signature receipt; required flat fields present"];
     }

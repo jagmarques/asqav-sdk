@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "",
+  "notes": "Payload-mode receipt with no v member and an otherwise valid Ed25519 signature. Draft §5.2.1: absence is distinct from any value and MUST NOT be inferred as version 1, so both oracles report unverifiable. Regression pin for the TypeScript verifier, which returned verified here before its version gate."
+}
