@@ -148,6 +148,35 @@ That makes Mode B **fail-closed**: `asqav hook pretool` signs a decision receipt
 **block** when policy denies **or when it cannot reach the signer.** If asqav is unreachable, the
 tool call is blocked rather than allowed through unsigned.
 
+That promise covers the gate once it runs. Its startup-failure policy is the other half, and that
+half is not fail-closed: a gate that fails to start enforces nothing. The hooks reference is
+explicit about it. "A hook that can't start lands in the same non-blocking bucket. When the script
+path doesn't exist or isn't executable, the shell exits with a code like 127 and you see the same
+notice with the interpreter's message, for example `Failed with non-blocking status code: /bin/sh:
+/path/to/hook.sh: No such file or directory`. For most hook events, the action proceeds. When you
+set up a policy hook, watch for this notice on its first run: a mistyped path in `settings.json`
+leaves the gate silently disabled." (<https://code.claude.com/docs/en/hooks>, accessed
+2026-09-15). Exit 2 is the only code that blocks through the code alone, as quoted above, so the
+action proceeds. A gate that never started and a gate that ran and allowed the call leave the same
+trace in the action's outcome.
+
+The code you read comes from the shell, because the Mode B snippet below is shell form:
+"**Shell form** runs when `args` is absent. The `command` string is passed to a shell: `sh -c` on
+macOS and Linux, Git Bash on Windows, or PowerShell when Git Bash isn't installed."
+(<https://code.claude.com/docs/en/hooks>, accessed 2026-09-15). On macOS and Linux, an `asqav` the
+shell cannot resolve exits 127, and a gate script that exists without the execute bit exits 126.
+Run the exact `command` string from your `settings.json` once and read the code back:
+
+```bash
+sh -c 'asqav hook pretool' </dev/null; echo "exit=$?"   # 127 or 126 means the gate never ran
+```
+
+So installing a Mode B gate takes one step beyond writing the JSON: pin an absolute command path
+in managed settings rather than trusting whatever `PATH` the harness hands the shell, then confirm
+the command resolves there. asqav cannot raise this failure for you, because asqav is the process
+that failed to start. The deadline below bounds a gate that runs. Nothing inside asqav bounds one
+that was never spawned.
+
 The honest cost of a real gate:
 
 - A shell spawn plus network latency sit **on the critical path of every matched tool call**.
