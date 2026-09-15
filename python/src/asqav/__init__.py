@@ -423,20 +423,30 @@ def verify_receipt_offline(
 ) -> dict:
     """Verify a receipt fully offline against an in-memory JWKS snapshot.
 
-    Runs the oracle axes: structure, signature (Ed25519/ES256/ML-DSA-65),
-    hash-chain link. No network call is made; all crypto happens in-process.
-    ML-DSA-65 requires ``pip install asqav[verify]``; without it the signature
-    axis is SKIPPED and the verdict is unverified/unverifiable, never verified.
+    Reports 12 axes in this order: ``structure``, ``signature``, ``chain``,
+    ``seq``, ``expiry``, ``nonce``, ``key_binding``, ``counterparty``,
+    ``payload_digest``, ``skew``, ``key_status``, ``issuer_bind``. The TypeScript
+    ``verifyReceiptOffline`` reports the same names in the same order. A receipt
+    whose ``structure`` axis fails stops there and reports fewer. No network call
+    is made; all crypto happens in-process. ML-DSA-65 requires ``pip install
+    asqav[verify]``; without it the signature axis is SKIPPED and the verdict is
+    unverified/unverifiable, never verified.
 
-    THE ANCHOR-BINDING AND CLOCK-SKEW AXES ARE NOT EVALUATED HERE, by design and
-    identically in the TypeScript ``verifyReceiptOffline``, so the two languages
-    report the same axes. A ``verified`` verdict from this function therefore
-    means the axes above passed, NOT that the receipt's anchors were checked:
-    ``anchors`` sits outside the signed bytes, so an altered envelope can move it
-    without breaking the signature. Run ``check_anchors`` and ``check_skew`` from
-    ``asqav.verifier.verify_receipt`` on the normalised envelope when you need
-    them, or use the standalone verifier, which reports every axis. See
-    docs/offline-verification.md.
+    ``skew`` is one of the 12 and it decides the verdict: an ``issued_at`` more
+    than 300 seconds ahead of the wall clock reports FAIL, and the verdict is
+    ``unverified`` with failure class ``invalid``. The bound is forward-only, so
+    a receipt from the past passes it.
+
+    THE ANCHOR-BINDING AXIS IS NOT EVALUATED HERE, by design and identically in
+    the TypeScript ``verifyReceiptOffline``. A ``verified`` verdict from this
+    function therefore means the 12 axes above passed, NOT that the receipt's
+    anchors were checked: ``anchors`` sits outside the signed bytes, so an
+    altered envelope can move it without breaking the signature. The standalone
+    verifier also reports ``issuer_key``, which this function does not, and it
+    reports no ``seq`` axis; those three names are the whole vocabulary
+    difference. Run ``check_anchors`` from ``asqav.verifier.verify_receipt`` on
+    the normalised envelope when you need it, or use the standalone verifier,
+    which reports every axis. See docs/offline-verification.md.
 
     Args:
         receipt: Parsed receipt envelope dict (``{payload, signature, anchors}``).
