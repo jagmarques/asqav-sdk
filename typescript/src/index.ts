@@ -546,7 +546,7 @@ export interface SignOptions {
   iso42001?: string[];
 
   /** Caller-supplied list of EU AI Act article ids (e.g.
-   * `["Article-12", "Article-15"]`). Self-declared. */
+   * `["Article-12", "Article-15", "Article-50"]`). Self-declared. */
   euAiActArticles?: string[];
 
   /** Caller-supplied base64 RFC 3161 TimeStampResp (DER), preserved for offline TSA chain
@@ -2547,15 +2547,27 @@ import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index
 import type { VerifyResult } from "./verifier/core.js";
 
 /**
- * Verify a receipt fully offline against an in-memory JWKS snapshot, running the oracle axes
- * (structure, signature, hash-chain link). No network call is made.
+ * Verify a receipt fully offline against an in-memory JWKS snapshot. No network
+ * call is made.
  *
- * The anchor-binding and clock-skew axes are NOT evaluated here, by design and identically in the
- * Python `verify_receipt_offline`, so the two languages report the same axes. A `verified` verdict
- * therefore means the axes above passed, NOT that the receipt's anchors were checked: `anchors`
- * sits outside the signed bytes, so an altered envelope can move it without breaking the
- * signature. Run `checkAnchors` and `checkSkew` from the verifier entry point on the normalised
- * envelope when you need them. See docs/offline-verification.md.
+ * Reports 12 axes in this order: `structure`, `signature`, `chain`, `seq`,
+ * `expiry`, `nonce`, `key_binding`, `counterparty`, `payload_digest`, `skew`,
+ * `key_status`, `issuer_bind`. The Python `verify_receipt_offline` reports the
+ * same names in the same order. A receipt whose `structure` axis fails stops
+ * there and reports fewer.
+ *
+ * `skew` is one of the 12 and it decides the verdict: an `issued_at` more than
+ * 300 seconds ahead of the wall clock reports FAIL, and the verdict is
+ * `unverified` with failure class `invalid`.
+ *
+ * The anchor-binding axis is NOT evaluated here, by design and identically in
+ * Python. A `verified` verdict therefore means the 12 axes above passed, NOT
+ * that the receipt's anchors were checked: `anchors` sits outside the signed
+ * bytes, so an altered envelope can move it without breaking the signature. The
+ * standalone Python verifier also reports `issuer_key` and reports no `seq`.
+ * Those three names are the whole vocabulary difference. Run `checkAnchors`
+ * from the verifier entry point on the normalised envelope when you need it.
+ * See docs/offline-verification.md.
  */
 export function verifyReceiptOffline(
   receipt: Record<string, unknown>,

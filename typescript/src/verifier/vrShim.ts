@@ -35,6 +35,17 @@ const ALLOWED_TYPES = new Set([
   "protectmcp:observation:result_bound",
 ]);
 
+/** Wire versions a verifier accepts (draft §5.2.1): v=2 is recognised for
+ * verification, not released for emission. Widening is a registry decision. */
+export const RECOGNISED_WIRE_VERSIONS: ReadonlySet<number> = new Set([1, 2]);
+
+/** True for an integer v in RECOGNISED_WIRE_VERSIONS */
+export function isRecognisedWireVersion(value: unknown): boolean {
+  // A float-preserving parse delivers 1.0 as a RawFloat object, which fails
+  // typeof here mirrors Python's `type(value) is int` rejecting a float
+  return typeof value === "number" && Number.isInteger(value) && RECOGNISED_WIRE_VERSIONS.has(value);
+}
+
 /** Closed controls_evaluated key set; mirrors the client false-attestation guard. */
 const ALLOWED_CONTROL_KEYS = new Set([
   "emergency_halt",
@@ -187,14 +198,22 @@ export function checkNonce(
 }
 
 /** Asqav-native structure check; returns `[result, note]` (mirrors `check_structure`). */
-export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL", string] {
+export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL" | "SKIPPED", string] {
   const missing = REQUIRED_FIELDS.filter((f) => !(f in payload));
   if (missing.length > 0) {
     return ["FAIL", `missing required fields: ${missing.join(",")}`];
   }
   const rt = payload.type;
   if (typeof rt !== "string" || !ALLOWED_TYPES.has(rt)) {
-    return ["FAIL", `type ${JSON.stringify(rt)} outside the allowed namespace`];
+    return ["SKIPPED", `type ${JSON.stringify(rt)} outside the known namespace; profile membership unverifiable, reported not failed`];
+  }
+  // Absence never reads as v1; an unrecognised v is unverifiable, never guessed
+  if (!("v" in payload)) {
+    return ["SKIPPED", "no v member: not a Compliance Receipt of this document; absence is not version 1"];
+  }
+  const v = payload.v;
+  if (!isRecognisedWireVersion(v)) {
+    return ["SKIPPED", `unsupported wire version ${JSON.stringify(v)}: unverifiable under this document, reported not failed`];
   }
   const [ceRes, ceNote] = checkControlsEvaluated(payload);
   if (ceRes === "FAIL") {

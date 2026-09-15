@@ -593,6 +593,13 @@
     "notes": "asqav-17's receipt with the anchors member present as a JSON null: a third spelling of no anchors found in the wild, and a malformed one - the structure axis FAILs, naming the member and the shape, and the verdict reads unverified/unverifiable rather than reading null as absent. Nothing cryptographic was disproved, so the class is unverifiable, not invalid (same family as duplicate_member: the receipt's own bytes are malformed)."
   },
   {
+    "dir": "asqav-29-article-50-lifecycle-disclosure",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "A protectmcp:lifecycle disclosure receipt declaring eu_ai_act_articles ['Article-50'] with framework_mappings_self_declared true - the Article 50 duty shape in -09's binding, and the first corpus vector to carry eu_ai_act_articles at all. The anchors member is absent (the T-016 spelling). The verifier does not check framework claims: both engine halves declare framework_mapping_claims NOT-CHECKED."
+  },
+  {
     "dir": "asqav-35-invocation-ref-binds-pre-post",
     "format": "asqav-native",
     "outcome": "verified",
@@ -636,5 +643,44 @@
     "reason_code": "counterparty_unrecognised_scope",
     "notes": "Signed acknowledgment with binding result unrecognised_scope; signature and local TSA verify.",
     "failure_class": "unverifiable"
+  },
+  {
+    "dir": "asqav-37-unregistered-namespace-reported",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "unregistered_namespace",
+    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace; structure axis reports SKIPPED, verdict unverified/unverifiable.",
+    "failure_class": "unverifiable"
+  },
+  {
+    "dir": "asqav-38-unknown-member-preserved",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "The payload carries vendor_trace_id, a member absent from the draft's 12.1 registry, from the upstream ACTA fields, and not v. The signature covers the canonical payload including it, so the vector proves the member is preserved byte-for-byte inside the signature scope and ignored for conformance: not surfaced in the verdict and not changing the outcome. Contrast with asqav-08, where signer is surfaced."
+  },
+  {
+    "dir": "asqav-39-absent-version",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "",
+    "notes": "No v member under a valid signature; absence MUST NOT infer v1 (draft 5.2.1)."
+  },
+  {
+    "dir": "asqav-40-unrecognised-version",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "",
+    "notes": "v=99 under a valid signature; unsupported versions are unverifiable, shape never guessed (draft 5.2.1)."
+  },
+  {
+    "dir": "asqav-41-hash-unrecognised-version",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "",
+    "notes": "Hash-mode v=99 under a valid signature; the recognised-value gate applies in both modes (draft 5.2.1)."
   }
 ]

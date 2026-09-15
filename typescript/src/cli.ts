@@ -311,7 +311,7 @@ async function cmdApprove(args: string[]): Promise<void> {
 
 async function cmdComplianceFrameworks(): Promise<void> {
   const frameworks: Array<[string, string]> = [
-    ["eu_ai_act", "EU AI Act, Articles 12 + 26"],
+    ["eu_ai_act", "EU AI Act (Articles 12, 26 and 50 declarations)"],
     ["dora", "DORA, Article 17"],
     ["nydfs_500", "NYDFS Part 500"],
     ["colorado_ai", "Colorado AI Act SB 24-205"],

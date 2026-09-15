@@ -186,15 +186,55 @@ These checks establish byte equality. They do not independently verify the origi
 signature, fetch an origin over the network, or add anchor verification to the public
 offline APIs. Evaluate those trust inputs separately.
 
-## Anchor binding and clock skew
+## Axes both offline APIs report
 
-`verify_receipt_offline` / `verifyReceiptOffline` cover structure, signature and the
-hash chain. Two further axes are checked on request in both languages: anchor binding,
-and `issued_at` not more than 300 seconds ahead of the wall clock (a forward bound; a
-receipt from the past never fails it). `anchors` sits outside the signed bytes, so that
-axis is the one an altered envelope can move without breaking the signature; every anchor
-commits to `sha256(JCS({payload, signature}))`, the two-key object the signer anchored,
-never to the export's other top-level members.
+`verify_receipt_offline` and `verifyReceiptOffline` report these 12 axes, in this
+order, and both languages report the same names on the same receipt. A receipt whose
+`structure` axis fails stops there and reports fewer.
+
+| Axis | What it checks |
+|---|---|
+| `structure` | Required members present, receipt type and wire version recognised, signature algorithm supported |
+| `signature` | Ed25519, ES256 or ML-DSA-65 verifies over the canonical signed bytes |
+| `chain` | The carried link rederives from the supplied predecessor |
+| `seq` | The signed counter advances past the predecessor's counter |
+| `expiry` | `expires_at` has not lapsed; this axis reports on its own and never folds the verdict |
+| `nonce` | A different receipt reusing this issuer's nonce is flagged as a replay candidate |
+| `key_binding` | The signed `key_thumbprint` rederives from the resolved signing key |
+| `counterparty` | A claimed cross-agent binding commits to the origin envelope's bytes |
+| `payload_digest` | `payload_digest` rederives from the context carried in the same receipt |
+| `skew` | `issued_at` is at most 300 seconds ahead of the wall clock |
+| `key_status` | The signing key's published status is not revoked |
+| `issuer_bind` | The verifying key is published under the issuer the signed bytes name |
+
+`skew` is one of the 12, and it decides the verdict: an `issued_at` more than 300
+seconds ahead of the wall clock reports `skew FAIL` and the verdict is `unverified`
+with failure class `invalid`. The bound is forward-only, so a receipt from the past
+passes it.
+
+### Where the standalone verifier's vocabulary differs
+
+`run()` and `run_structured()` in `verify_receipt.py` report 13 axes on the same
+receipt. Three names differ, and these three are the whole difference:
+
+| Axis | Offline SDK APIs | Standalone verifier |
+|---|---|---|
+| `anchors` | not reported | reported |
+| `issuer_key` | not reported | reported |
+| `seq` | reported | not reported |
+
+`python/tests/test_offline_entry_point_axis_declaration.py` executes both APIs and
+asserts both tables above against the axis names they return, so a drift in either
+direction fails the suite rather than aging quietly in this file.
+
+## Anchor binding
+
+`anchors` sits outside the signed bytes, so that axis is the one an altered envelope
+can move without breaking the signature; every anchor commits to
+`sha256(JCS({payload, signature}))`, the two-key object the signer anchored, never to
+the export's other top-level members. Neither offline SDK API evaluates it, which is
+why their `verified` verdict says nothing about the receipt's anchors. Check it on
+request with the helpers below.
 
 Normalise the envelope first. The Python standalone verifier does it before any axis
 runs, and an envelope that skips it digests different bytes.
@@ -218,6 +258,9 @@ const env = normaliseEnvelope(receipt);
 console.log(checkAnchors(env));                   // ["PASS"|"FAIL"|"SKIPPED", note]
 console.log(checkSkew(env.payload.issued_at));
 ```
+
+`check_skew` / `checkSkew` apply the same 300-second bound the `skew` axis applies,
+for a timestamp you hold outside an envelope. The offline APIs call it for you.
 
 An absent or empty `anchors` reports SKIPPED, and a present non-list value FAILs. An
 anchor `value` is read as present only when it is genuinely base64 and decodes to at

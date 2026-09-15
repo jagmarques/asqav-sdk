@@ -117,6 +117,10 @@ ALLOWED_TYPES = {
     "protectmcp:observation:result_bound",
 }
 
+#: Wire versions a verifier accepts (draft 5.3): v=2 is recognised for
+#: verification, not released for emission. Widening is a registry decision.
+RECOGNISED_WIRE_VERSIONS = frozenset({1, 2})
+
 
 #: Closed controls_evaluated key set; mirrors the client false-attestation guard.
 ALLOWED_CONTROL_KEYS = frozenset(
@@ -2467,7 +2471,23 @@ def check_structure(payload: dict):
         return "FAIL", f"missing required fields: {','.join(missing)}"
     rt = payload.get("type")
     if rt not in ALLOWED_TYPES:
-        return "FAIL", f"type {rt!r} outside the allowed namespace"
+        return "SKIPPED", (
+            f"type {rt!r} outside the known namespace; "
+            "profile membership unverifiable, reported not failed"
+        )
+    # Draft 5.3: absence never reads as v1; only the recognised set verifies.
+    # An unrecognised v is unverifiable, reported not failed, shape never guessed.
+    if "v" not in payload:
+        return "SKIPPED", (
+            "no v member: not a Compliance Receipt of this document; "
+            "absence is not version 1"
+        )
+    v = payload["v"]
+    if not is_recognised_wire_version(v):
+        return "SKIPPED", (
+            f"unsupported wire version {v!r}: "
+            "unverifiable under this document, reported not failed"
+        )
     ce_res, ce_note = check_controls_evaluated(payload)
     if ce_res == "FAIL":
         return "FAIL", ce_note
@@ -2481,6 +2501,11 @@ def is_current_profile_version(value) -> bool:
     if isinstance(value, int):
         return value == 1
     return isinstance(value, float) and value == 1.0
+
+
+def is_recognised_wire_version(value) -> bool:
+    """True for an integer v in RECOGNISED_WIRE_VERSIONS; booleans and floats never select."""
+    return type(value) is int and value in RECOGNISED_WIRE_VERSIONS
 
 
 def profile_range_note(obj) -> str | None:

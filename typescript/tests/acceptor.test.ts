@@ -62,6 +62,7 @@ function signed(
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     type: "protectmcp:decision",
+    v: 1,
     issued_at: "2026-08-30T12:00:00+00:00",
     issuer_id: ISSUER,
     agent_id: "agt_acceptor_001",
@@ -378,5 +379,51 @@ describe("acceptor middleware (Connect/Express adapter)", () => {
     const mw = acceptorMiddleware({ keyProvider: jwks, predecessorFor: () => predecessor });
     const got = drive(mw, { "x-asqav-receipt": JSON.stringify(receipt) });
     expect((got.locals.asqavAcceptorDecision as { accepted: boolean }).accepted).toBe(true);
+  });
+
+  it("refuses an out-of-domain integer before the hook can see it", () => {
+    // Criterion 686: 2**53+1 must die at the parse boundary, never rounded
+    // into an identifier nobody sent and handed to predecessorFor
+    const seen: unknown[] = [];
+    const mw = acceptorMiddleware({
+      predecessorFor: (receipt) => {
+        seen.push(receipt.probe);
+        return null;
+      },
+    });
+    const got = drive(mw, { "x-asqav-receipt": '{"probe":9007199254740993}' });
+    expect(got.status).toBe(403);
+    expect(got.reached).toBe(false);
+    expect(seen).toEqual([]);
+    expect(seen).not.toContain(9007199254740992);
+  });
+
+  it("still hands a boundary integer to the hook", () => {
+    // The control: 2**53-1 is inside the profile, so decode succeeds and the
+    // hook runs; the verifier may still refuse the unsigned receipt afterwards
+    let calls = 0;
+    const mw = acceptorMiddleware({
+      predecessorFor: () => {
+        calls += 1;
+        return null;
+      },
+    });
+    drive(mw, { "x-asqav-receipt": '{"probe":9007199254740991}' });
+    expect(calls).toBe(1);
+  });
+
+  it("refuses an out-of-domain integer wrapped in base64", () => {
+    let calls = 0;
+    const mw = acceptorMiddleware({
+      predecessorFor: () => {
+        calls += 1;
+        return null;
+      },
+    });
+    const packed = Buffer.from('{"probe":9007199254740993}', "utf-8").toString("base64");
+    const got = drive(mw, { "x-asqav-receipt": packed });
+    expect(got.status).toBe(403);
+    expect(got.reached).toBe(false);
+    expect(calls).toBe(0);
   });
 });

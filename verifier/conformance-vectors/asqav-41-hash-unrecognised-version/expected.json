@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "",
+  "notes": "Hash-mode receipt carrying v=99 with a valid Ed25519 signature over the flat signed fields. Draft §5.2.1 applies in both modes: the value MUST be a recognised integer, so both oracles report unverifiable. Regression pin for the TypeScript adapter schema gate, which had no version branch before."
+}

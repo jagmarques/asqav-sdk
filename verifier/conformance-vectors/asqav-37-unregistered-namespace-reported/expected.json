@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "unregistered_namespace",
+  "failure_class": "unverifiable",
+  "notes": "Correctly signed receipt whose type uses the draft-registered protectmcp:lifecycle:oversight_ruling namespace the verifier does not recognise; structure axis reports SKIPPED, never FAIL."
+}

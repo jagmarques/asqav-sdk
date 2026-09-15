@@ -61,6 +61,7 @@ def _signed(action_ref: str = "act_1", previous: str = "0" * 64, **extra) -> dic
     """A real, correctly signed asqav-native receipt carrying ``extra``."""
     payload = {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-08-30T12:00:00+00:00",
         "issuer_id": _ISSUER,
         "agent_id": "agt_acceptor_001",
@@ -439,3 +440,53 @@ class TestAsgiMiddleware:
 
         asyncio.run(mw(scope, receive, send))
         assert seen and seen[0].accepted
+
+    def test_an_out_of_domain_integer_in_the_header_is_refused_at_decode(self) -> None:
+        """Criterion 686: 2**53+1 dies at the parse boundary, so the refusal
+        carries the decode reason rather than a verifier verdict."""
+        status, body, reached = self._run(
+            self._mw(), headers=[(b"x-asqav-receipt", b'{"probe": 9007199254740993}')]
+        )
+        assert status == 403
+        assert not reached
+        assert b"peer receipt header is not a JSON object" in body
+
+
+class TestDecodeReceipt:
+    """The header decode routes through the strict parser (criterion 686).
+
+    An out-of-domain integer must refuse at the boundary instead of arriving
+    at the verifier rounded (TS) or exact-but-unchecked (PY).
+    """
+
+    def test_an_out_of_domain_integer_refuses(self) -> None:
+        from asqav.acceptor import _decode_receipt
+
+        assert _decode_receipt(b'{"probe": 9007199254740993}') is None
+
+    def test_a_boundary_integer_still_decodes(self) -> None:
+        """The control: 2**53-1 is inside the profile and must keep working."""
+        from asqav.acceptor import _decode_receipt
+
+        assert _decode_receipt(b'{"probe": 9007199254740991}') == {
+            "probe": 9007199254740991
+        }
+
+    def test_an_out_of_domain_integer_refuses_base64_wrapped(self) -> None:
+        from asqav.acceptor import _decode_receipt
+
+        packed = base64.b64encode(b'{"probe": 9007199254740993}')
+        assert _decode_receipt(packed) is None
+
+    def test_a_boundary_integer_still_decodes_base64_wrapped(self) -> None:
+        from asqav.acceptor import _decode_receipt
+
+        packed = base64.b64encode(b'{"probe": 9007199254740991}')
+        assert _decode_receipt(packed) == {"probe": 9007199254740991}
+
+    def test_a_duplicate_member_refuses_through_the_same_arm(self) -> None:
+        """DuplicateMemberError is a ValueError, so the kept except arm
+        catches it exactly like the out-of-domain integer above."""
+        from asqav.acceptor import _decode_receipt
+
+        assert _decode_receipt(b'{"a": 1, "a": 2}') is None

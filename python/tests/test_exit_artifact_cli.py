@@ -77,6 +77,7 @@ def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
     kid = "exit-artifact-key-01"
     payload = {
         "type": "protectmcp:decision",
+        "v": 1,
         "issued_at": "2026-06-19T00:00:00.000000Z",
         "issuer_id": kid,
         "action_ref": "sha256:" + "a" * 64,
