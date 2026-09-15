@@ -780,18 +780,18 @@ const LOWER_HEX_64 = /^[0-9a-f]{64}$/;
  * Recompute payload_digest from the context carried in the same receipt; the two disagreeing means
  * one is a lie. Absence PASSes: hash mode carries no context and redaction may drop it.
  */
-export function checkPayloadDigest(payload: unknown): readonly [VerifyState, string] {
-  if (!isRecord(payload)) return ["PASS", "no signed payload; no digest to recompute"];
+export function checkPayloadDigest(payload: unknown): readonly [VerifyState, string, string] {
+  if (!isRecord(payload)) return ["PASS", "no signed payload; no digest to recompute", "evaluated"];
   const digest = payload.payload_digest;
   if (digest === undefined || digest === null) {
-    return ["PASS", "receipt binds no payload_digest; nothing to recompute"];
+    return ["PASS", "receipt binds no payload_digest; nothing to recompute", "not_applicable"];
   }
   if (!isRecord(digest)) {
-    return ["FAIL", `payload_digest is ${pyTypeName(digest)}, not an object`];
+    return ["FAIL", `payload_digest is ${pyTypeName(digest)}, not an object`, "evaluated"];
   }
   const claimed = digest.hash;
   if (typeof claimed !== "string" || !LOWER_HEX_64.test(claimed)) {
-    return ["FAIL", `payload_digest.hash ${pyRepr(claimed)} is not 64 lowercase hex`];
+    return ["FAIL", `payload_digest.hash ${pyRepr(claimed)} is not 64 lowercase hex`, "evaluated"];
   }
   const claimedSize = digest.size;
   // Absence stays allowed; a present null is malformed, not a missing length
@@ -799,16 +799,24 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
     claimedSize !== undefined &&
     (typeof claimedSize !== "number" || !Number.isInteger(claimedSize) || claimedSize < 0)
   ) {
-    return ["FAIL", `payload_digest.size ${pyRepr(claimedSize)} is not a non-negative integer`];
+    return [
+      "FAIL",
+      `payload_digest.size ${pyRepr(claimedSize)} is not a non-negative integer`,
+      "evaluated",
+    ];
   }
   if (payload.context === undefined || payload.context === null) {
-    return ["PASS", "no context carried; payload_digest not recomputable here"];
+    return ["PASS", "no context carried; payload_digest not recomputable here", "not_applicable"];
   }
   let encoded: Uint8Array;
   try {
     encoded = asqavJcs(payload.context);
   } catch {
-    return ["SKIPPED", "context is not canonicalisable, so payload_digest cannot be recomputed"];
+    return [
+      "SKIPPED",
+      "context is not canonicalisable, so payload_digest cannot be recomputed",
+      "evaluated",
+    ];
   }
   const actual = sha256Hex(encoded);
   if (actual !== claimed) {
@@ -816,6 +824,7 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
       "FAIL",
       `payload_digest_mismatch: receipt binds ${claimed.slice(0, 16)}.., ` +
         `its own context hashes to ${actual.slice(0, 16)}..`,
+      "evaluated",
     ];
   }
   if (claimedSize !== undefined && claimedSize !== null && claimedSize !== encoded.length) {
@@ -823,9 +832,14 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
       "FAIL",
       `payload_digest_mismatch: size claims ${claimedSize}, ` +
         `canonical context is ${encoded.length} bytes`,
+      "evaluated",
     ];
   }
-  return ["PASS", `payload_digest rederives from the carried context (${encoded.length} bytes)`];
+  return [
+    "PASS",
+    `payload_digest rederives from the carried context (${encoded.length} bytes)`,
+    "evaluated",
+  ];
 }
 
 /**

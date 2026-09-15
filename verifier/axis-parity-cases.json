@@ -2154,7 +2154,8 @@
       },
       "expect": {
         "result": "PASS",
-        "note_contains": "binds no payload_digest"
+        "note_contains": "binds no payload_digest",
+        "applicability": "not_applicable"
       }
     },
     {
@@ -2171,7 +2172,8 @@
       },
       "expect": {
         "result": "PASS",
-        "note_contains": "rederives from the carried context"
+        "note_contains": "rederives from the carried context",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2188,7 +2190,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "payload_digest_mismatch"
+        "note_contains": "payload_digest_mismatch",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2205,7 +2208,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "payload_digest_mismatch"
+        "note_contains": "payload_digest_mismatch",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2218,7 +2222,8 @@
       },
       "expect": {
         "result": "PASS",
-        "note_contains": "no context carried"
+        "note_contains": "no context carried",
+        "applicability": "not_applicable"
       }
     },
     {
@@ -2231,7 +2236,8 @@
       },
       "expect": {
         "result": "PASS",
-        "note_contains": "no context carried"
+        "note_contains": "no context carried",
+        "applicability": "not_applicable"
       }
     },
     {
@@ -2245,7 +2251,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not an object"
+        "note_contains": "not an object",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2261,7 +2268,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not 64 lowercase hex"
+        "note_contains": "not 64 lowercase hex",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2277,7 +2285,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "not 64 lowercase hex"
+        "note_contains": "not 64 lowercase hex",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2294,7 +2303,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "non-negative integer"
+        "note_contains": "non-negative integer",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2311,7 +2321,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "non-negative integer"
+        "note_contains": "non-negative integer",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2327,7 +2338,8 @@
       },
       "expect": {
         "result": "PASS",
-        "note_contains": "rederives from the carried context"
+        "note_contains": "rederives from the carried context",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2340,7 +2352,8 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "non-negative integer"
+        "note_contains": "non-negative integer",
+        "applicability": "evaluated"
       }
     },
     {
@@ -2354,7 +2367,24 @@
       },
       "expect": {
         "result": "FAIL",
-        "note_contains": "non-negative integer"
+        "note_contains": "non-negative integer",
+        "applicability": "evaluated"
+      }
+    },
+    {
+      "name": "context that cannot canonicalise skips recomputation",
+      "payload": {
+        "context": {
+          "x": 1e1000
+        },
+        "payload_digest": {
+          "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e"
+        }
+      },
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "not canonicalisable",
+        "applicability": "evaluated"
       }
     }
   ],
