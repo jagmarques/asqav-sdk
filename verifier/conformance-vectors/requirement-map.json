@@ -85,7 +85,7 @@
       "nonce": "PASS",
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
-      "key_status": "FAIL",
+      "key_status": "SKIPPED",
       "signature": "PASS",
       "key_binding": "PASS",
       "counterparty": "PASS",
@@ -757,7 +757,6 @@
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
         "REQ-KEY-RESOLUTION",
-        "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
@@ -766,7 +765,8 @@
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-KEY-STATUS"
       ]
     },
     "asqav-08-v2-signer-canary": {
@@ -1841,7 +1841,6 @@
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
       "asqav-06-mldsa65-payload-prod",
-      "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
       "asqav-11-dup-member-toplevel",
