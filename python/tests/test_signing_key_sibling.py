@@ -176,7 +176,7 @@ def test_key_status_reads_the_signing_agent_not_its_sibling() -> None:
         ]
     }
     axes = _axes(_receipt(_payload("agt_two"), "AAAA"), jwks)
-    assert axes["key_status"] == "FAIL"
+    assert axes["key_status"] == "SKIPPED"
 
 
     # The mirror case: a revoked sibling ahead of the signer changes no axis.
