@@ -10,6 +10,7 @@ import {
   verify,
   type FailureClass,
 } from "./verifier/core.js";
+import { parseJsonStrict } from "./verifier/canonical.js";
 import type { KeyProvider } from "./verifier/adapter.js";
 
 /** Which acceptor rule refused, or `"verifier"` when the receipt did not verify. */
@@ -168,7 +169,8 @@ export const DEFAULT_RECEIPT_HEADER = "x-asqav-receipt";
 function decodeReceipt(raw: string): Record<string, unknown> | null {
   const attempt = (text: string): Record<string, unknown> | null => {
     try {
-      const parsed: unknown = JSON.parse(text);
+      // Strict loader: bare JSON.parse would round out-of-domain integers
+      const parsed: unknown = parseJsonStrict(text);
       return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
         ? (parsed as Record<string, unknown>)
         : null;
