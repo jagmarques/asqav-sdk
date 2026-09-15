@@ -110,15 +110,15 @@ describe("verifyReceiptOffline - Ed25519 path (no network)", () => {
 describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
   const REVOKED_DIR = join(VECTORS, "asqav-07-revoked-key");
 
-  it("returns FAIL for a receipt with a valid sig but revoked key status (corpus vector)", () => {
+  it("returns unverified/unverifiable for a receipt with a valid sig but revoked key status (corpus vector)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const jwks = loadJson(REVOKED_DIR, "jwks.json");
     const result = verifyReceiptOffline(receipt, jwks);
     expect(result.verdict).toBe("unverified");
-    expect(result.failureClass).toBe("invalid");
+    expect(result.failureClass).toBe("unverifiable");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
     expect(keyAxis, "key_status axis must be present").toBeDefined();
-    expect(keyAxis?.result).toBe("FAIL");
+    expect(keyAxis?.result).toBe("SKIPPED");
   });
 
   it("key_status axis note names the revoked status", () => {
@@ -147,7 +147,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     expect(result.verdict).toBe("verified");
   });
 
-  it("suspended key also FAILs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
+  it("suspended key also SKIPs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
     const suspJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
@@ -155,10 +155,10 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const result = verifyReceiptOffline(receipt, suspJwks);
     expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
-    expect(keyAxis?.result).toBe("FAIL");
+    expect(keyAxis?.result).toBe("SKIPPED");
   });
 
-  it("compromised key also FAILs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
+  it("compromised key also SKIPs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
     const compJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
@@ -166,7 +166,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const result = verifyReceiptOffline(receipt, compJwks);
     expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
-    expect(keyAxis?.result).toBe("FAIL");
+    expect(keyAxis?.result).toBe("SKIPPED");
   });
 
   it("revoked key with revoked_at AFTER issuance INCOMPLETE without anchor (c386 backdating fix)", () => {

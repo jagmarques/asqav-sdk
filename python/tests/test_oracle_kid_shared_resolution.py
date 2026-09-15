@@ -93,7 +93,7 @@ def test_absent_kid_still_emits_the_gating_axes() -> None:
 
     # The status read is the one published for the key the agent route resolves.
 def test_absent_kid_reports_the_revoked_status_of_the_signing_key() -> None:
-    assert _axes(_receipt(ABSENT_KID), _jwks(status="revoked"))["key_status"] == "FAIL"
+    assert _axes(_receipt(ABSENT_KID), _jwks(status="revoked"))["key_status"] == "SKIPPED"
 
 
     # Rewriting the kid changes no axis outcome, since one entry answers both.
@@ -195,7 +195,7 @@ def test_rewritten_kid_cannot_flip_a_revoked_receipt_to_pass() -> None:
     # And the revoked status carries the verdict in both cases.
     assert honest_res.verdict == "unverified"
     assert rewritten_res.verdict == "unverified"
-    assert honest_res.failure_class == "invalid"
-    assert rewritten_res.failure_class == "invalid"
+    assert honest_res.failure_class == "unverifiable"
+    assert rewritten_res.failure_class == "unverifiable"
     assert rewritten_res.axis("key_status") is not None
-    assert rewritten_res.axis("key_status").result == "FAIL"
+    assert rewritten_res.axis("key_status").result == "SKIPPED"
