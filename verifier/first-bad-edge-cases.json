@@ -89,6 +89,9 @@
     "asqav-33-counterparty-scope-absent": "counterparty",
     "asqav-34-counterparty-scope-unknown": "counterparty",
     "asqav-37-unregistered-namespace-reported": "structure",
-    "asqav-38-unknown-member-preserved": null
+    "asqav-38-unknown-member-preserved": null,
+    "asqav-39-absent-version": "structure",
+    "asqav-40-unrecognised-version": "structure",
+    "asqav-41-hash-unrecognised-version": "structure"
   }
 }

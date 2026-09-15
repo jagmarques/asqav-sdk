@@ -658,5 +658,29 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "The payload carries vendor_trace_id, a member absent from the draft's 12.1 registry, from the upstream ACTA fields, and not v. The signature covers the canonical payload including it, so the vector proves the member is preserved byte-for-byte inside the signature scope and ignored for conformance: not surfaced in the verdict and not changing the outcome. Contrast with asqav-08, where signer is surfaced."
+  },
+  {
+    "dir": "asqav-39-absent-version",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "",
+    "notes": "No v member under a valid signature; absence MUST NOT infer v1 (draft 5.2.1)."
+  },
+  {
+    "dir": "asqav-40-unrecognised-version",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "",
+    "notes": "v=99 under a valid signature; unsupported versions are unverifiable, shape never guessed (draft 5.2.1)."
+  },
+  {
+    "dir": "asqav-41-hash-unrecognised-version",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "",
+    "notes": "Hash-mode v=99 under a valid signature; the recognised-value gate applies in both modes (draft 5.2.1)."
   }
 ]

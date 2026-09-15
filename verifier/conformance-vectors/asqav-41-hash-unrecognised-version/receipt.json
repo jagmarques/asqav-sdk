@@ -1,0 +1,18 @@
+{
+  "mode": "hash",
+  "payload": null,
+  "hash_algo": "sha256",
+  "hash": "sha256:a3783b25172d8b43eb2df87207d5cf3ef914635fdd098bbf43c9cee4af32b7ea",
+  "metadata": {},
+  "server_timestamp": "2026-06-04T20:31:38.361764",
+  "action_id": "act_t168",
+  "agent_id": "agt_t168",
+  "org_id": "org_t168_vec",
+  "policy_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
+  "policy_decision": "permit",
+  "algorithm": "Ed25519",
+  "key_id": "org_t168_vec",
+  "v": 99,
+  "signature_b64": "e9jZVqpsou+wu6UwI5NJQNptZqF4bVRXtjmoXviTHouKar5mrIh4/QS0qMrmnUPkWBKycLfK8d/Wl/kNzaKYCA==",
+  "anchors": []
+}
