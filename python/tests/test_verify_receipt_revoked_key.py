@@ -48,9 +48,9 @@ def test_check_key_status_active_passes():
     assert res == "PASS"
 
 
-def test_check_key_status_revoked_fails_without_revoked_at():
+def test_check_key_status_revoked_skipped_without_revoked_at():
     res, note = v.check_key_status("revoked", "2026-06-01T00:00:00Z")
-    assert res == "FAIL"
+    assert res == "SKIPPED"
     assert "revoked" in note.lower()
 
 
@@ -112,8 +112,8 @@ def test_run_active_key_has_key_status_pass(capsys):
 # --- run_structured path ---
 
 
-    # run_structured must include a key_status FAIL axis for a revoked key.
-def test_run_structured_revoked_key_has_key_status_fail_axis():
+    # run_structured must include a key_status SKIPPED axis for a revoked key
+def test_run_structured_revoked_key_has_key_status_skipped_axis():
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -123,7 +123,7 @@ def test_run_structured_revoked_key_has_key_status_fail_axis():
     names = [a["name"] for a in result["axes"]]
     assert "key_status" in names, f"key_status axis missing; got axes: {names}"
     ks = next(a for a in result["axes"] if a["name"] == "key_status")
-    assert ks["result"] == "FAIL", f"expected FAIL, got {ks['result']!r}"
+    assert ks["result"] == "SKIPPED", f"expected SKIPPED, got {ks['result']!r}"
 
 
     # run_structured includes a key_status PASS axis for an active key.
@@ -222,8 +222,8 @@ def _axis(axes, name):
     return next(a for a in axes if a[0] == name)
 
 
-    # The asqav-native adapter surfaces a failing key_status axis for a revoked key.
-def test_oracle_revoked_key_axis_fails():
+    # The asqav-native adapter surfaces a skipped key_status axis for a revoked key
+def test_oracle_revoked_key_axis_skipped():
     doc = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -231,7 +231,7 @@ def test_oracle_revoked_key_axis_fails():
     }
     ad = AsqavNativeAdapter()
     status = _axis(ad.extra_axes(doc, _jwks("revoked")), "key_status")
-    assert status[1] == "FAIL", status
+    assert status[1] == "SKIPPED", status
 
 
 def test_oracle_active_key_axis_passes():
@@ -256,3 +256,55 @@ def test_oracle_forged_anchor_revoked_key_axis_skipped():
     axes = ad.extra_axes(doc, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"))
     status = _axis(axes, "key_status")
     assert status[1] == "SKIPPED", f"forged anchor upgraded axis to {status[1]!r}"
+
+
+# --- criterion 276: a bare revocation must not accuse forgery ---
+
+
+def test_check_key_status_revoked_without_revoked_at_is_skipped():
+    """With no revoked_at the axis cannot place issuance, so it reports
+    SKIPPED (unverifiable) rather than FAIL (invalid, a proven binding
+    failure) for a signature that may predate the revocation."""
+    res, note = v.check_key_status("revoked", "2026-06-01T00:00:00Z")
+    assert res == "SKIPPED"
+    assert "revoked_at" in note.lower()
+
+
+def test_run_structured_revoked_without_revoked_at_is_unverifiable():
+    """Twin: the receipt stays unverified (nothing is admitted) but the class
+    is unverifiable. A real ML-DSA-65 signature, so key_status alone carries
+    the fold and the class change is attributable to this axis."""
+    import base64
+
+    pytest.importorskip("dilithium_py")
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    pk, sk = ML_DSA_65.keygen()
+    payload = _payload()
+    sig = base64.b64encode(ML_DSA_65.sign(sk, v.canonical_json(payload))).decode()
+    jwks = _jwks("revoked")
+    jwks["keys"][0]["public_key"] = base64.b64encode(pk).decode()
+    envelope = {
+        "payload": payload,
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": sig},
+        "anchors": [],
+    }
+    result = v.run_structured(envelope, jwks, None)
+    ks = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert ks["result"] == "SKIPPED"
+    assert result["verdict"] == "unverified"
+    assert result["failure_class"] == "unverifiable"
+
+
+def test_run_structured_bad_signature_stays_invalid_with_active_key():
+    """Control: the relaxed accusation covers unplaceable revocation only. A
+    genuinely bad signature still reports FAIL / invalid after the change."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    result = v.run_structured(envelope, _jwks("active"), None)
+    sig = next(a for a in result["axes"] if a["name"] == "signature")
+    assert sig["result"] == "FAIL"
+    assert result["failure_class"] == "invalid"

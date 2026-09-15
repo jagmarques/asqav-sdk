@@ -1832,7 +1832,8 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     by such a key must not PASS offline, mirroring the hosted /verify. With a
     precise revoked_at, prefer the at-or-before-issuance check so a receipt signed
     BEFORE revocation still PASSes; without one the axis cannot place issuance, so
-    any revoked key fails.
+    a revoked key reports SKIPPED (unverifiable): an unplaceable revocation is
+    incomplete evidence, not a proven binding failure (criterion 276).
 
     has_trusted_anchor must be an anchor the caller CRYPTOGRAPHICALLY verified as
     pre-revocation; mere presence is not enough (anchors are unsigned and
@@ -1862,7 +1863,11 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
                 f"self-attested, no anchor proves pre-revocation timing",
             )
         return "PASS", f"signing key revoked at {revoked_at}, after issuance {issued_at}"
-    return "FAIL", f"signing key status {status!r}; receipt cannot be trusted"
+    return (
+        "SKIPPED",
+        f"signing key status {status!r}; no revoked_at published, cannot place "
+        "issuance relative to revocation",
+    )
 
 
     # ML-DSA-65 / Ed25519 / ES256 verify. Returns (result, note); result in PASS/FAIL/SKIPPED.

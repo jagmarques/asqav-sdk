@@ -672,7 +672,10 @@ export function checkKeyStatus(
       return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
     }
   }
-  return ["FAIL", `signing key status ${JSON.stringify(status)}; receipt cannot be trusted`];
+  return [
+    "SKIPPED",
+    `signing key status ${JSON.stringify(status)}; no revoked_at published, cannot place issuance relative to revocation`,
+  ];
 }
 
 // RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key (criterion 458). A port of
