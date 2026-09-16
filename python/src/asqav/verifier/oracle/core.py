@@ -169,6 +169,10 @@ def axis_failure_class(axis: str, result: str, note: str) -> str | None:
             return FAILURE_INVALID
         if note.startswith("proof @context is not a prefix"):
             return FAILURE_INVALID
+        if note.startswith("unregistered type ") or note.startswith(
+            "malformed type "
+        ):
+            return FAILURE_INVALID
         return FAILURE_UNVERIFIABLE
     if axis == "expiry":
         if note.startswith("unreadable expires_at"):
