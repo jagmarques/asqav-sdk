@@ -1,0 +1,55 @@
+{
+  "registry_edition": "2026-09-15.v1",
+  "namespaces": [
+    {
+      "namespace": "protectmcp:acknowledgment",
+      "description": "A receipt emitted by the acknowledging party (\"B\") in a counterparty_binding pair under the emitter behaviour of Section 5.8.2, carrying the counterparty_binding object that digests the bound A-party envelope per Section 5.8",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:decision",
+      "description": "A receipt recording a policy evaluation outcome (allow, deny, rate_limit) for an MCP-mediated tool call where a policy was actually evaluated; observation is reserved to protectmcp:lifecycle and protectmcp:observation per Section 5.3",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:restraint",
+      "description": "A receipt recording the application of an enforcement restraint on an agent (e.g., quota, rate limit, sandbox tightening); emission otherwise follows the decision path of Section 5.3",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:lifecycle",
+      "description": "A receipt recording an agent or system lifecycle event (e.g., configuration change, key rotation, oversight review, or a decision=observation record indicating an Action was signed without policy evaluation per Section 5.3)",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:lifecycle:configuration_change",
+      "description": "A receipt recording a configuration change to an agent or producing system, including changes that disable or re-enable receipt generation (see Section 7.1.1); a registered sub-namespace under protectmcp:lifecycle that the reference cloud implementation emits today; a receipt of this type that lacks a well-formed config_manifest_digest (Section 5.9) is rejected at signing time per the type-bound presence rule of Section 5.9",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:lifecycle:risk_acceptance",
+      "description": "A receipt recording a producer's acceptance of a known risk, security finding, or policy exception; a registered sub-namespace under protectmcp:lifecycle that signs through the no-policy lifecycle path (decision=observation, no policy evaluated) and carries the risk- acceptance extension fields of Section 5.12",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:lifecycle:oversight_ruling",
+      "description": "A receipt recording a human ruling made about one or more previously recorded Actions, referencing them by action_ref; a registered sub-namespace under protectmcp:lifecycle that signs through the no-policy lifecycle path (decision=observation, no policy evaluated) and carries the oversight-ruling fields of Section 5.13.  Absent a reviewer attestation, the human-review claim it carries is unverified",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:lifecycle:code_authorship",
+      "description": "A receipt recording a producer's assertion that an agent-authored change to a code repository existed at a point in time; a registered sub-namespace under protectmcp:lifecycle that signs through the no-policy lifecycle path (decision=observation, no policy evaluated) and carries the code-authorship extension fields of Section 5.14; the receipt binds the issuer to the recorded change assertion; it does not establish the change's existence or exact execution time, and the issuing platform never clones the repository, re-diffs the change, verifies the code, or verifies the model",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:observation",
+      "description": "A receipt recording passive telemetry about an Action that was signed without a policy evaluation, emitted under one of the capture topologies catalogued in Appendix C (typically network_proxy, browser_extension, ebpf_observer, or mcp_proxy) where the originating application could not call the receipt-emitting SDK directly; the reference cloud implementation rejects at signing time, as the false_attestation_guard, a receipt that declares the passive_telemetry capture topology but carries a type outside protectmcp:observation and its sub-namespaces",
+      "reference": "This document."
+    },
+    {
+      "namespace": "protectmcp:observation:result_bound",
+      "description": "A sub-namespace under protectmcp:observation for a follow-up observation receipt that carries a result_digest (Section 5.9) binding the byte-equality of a downstream Action's result to the originating protectmcp:decision receipt identified by action_ref; the reference cloud implementation emits this type for tool calls whose downstream result is regulator-relevant (LLM completions under EU AI Act Article 12, audit-log entries under HIPAA 164.312(b), broker-dealer communications under SEC 17a-4); a receipt of this type that lacks a well-formed result_digest is rejected at signing time per the type-bound presence rule of Section 5.9",
+      "reference": "This document."
+    }
+  ]
+}

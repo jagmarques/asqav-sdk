@@ -110,6 +110,7 @@ export function axisFailureClass(axis: string, result: VerifyState, note: string
     if (note.startsWith("key_purpose mismatch")) return FAILURE_INVALID;
     if (note.includes("signing-key DID != issuer DID")) return FAILURE_INVALID;
     if (note.startsWith("proof @context is not a prefix")) return FAILURE_INVALID;
+    if (note.startsWith("unregistered type ") || note.startsWith("malformed type ")) return FAILURE_INVALID;
     return FAILURE_UNVERIFIABLE;
   }
   if (axis === "expiry") {

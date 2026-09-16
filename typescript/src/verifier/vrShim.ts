@@ -35,6 +35,23 @@ const ALLOWED_TYPES = new Set([
   "protectmcp:observation:result_bound",
 ]);
 
+// Edition this verifier resolves type names against
+export const REGISTRY_EDITION = "2026-09-15.v1";
+
+// Draft-registered namespaces (anchor iana-type-namespaces), all ten
+export const REGISTRY_NAMESPACES: ReadonlySet<string> = new Set([
+  "protectmcp:decision",
+  "protectmcp:restraint",
+  "protectmcp:lifecycle",
+  "protectmcp:lifecycle:configuration_change",
+  "protectmcp:lifecycle:risk_acceptance",
+  "protectmcp:lifecycle:oversight_ruling",
+  "protectmcp:lifecycle:code_authorship",
+  "protectmcp:acknowledgment",
+  "protectmcp:observation",
+  "protectmcp:observation:result_bound",
+]);
+
 /** Wire versions a verifier accepts (draft §5.2.1): v=2 is recognised for
  * verification, not released for emission. Widening is a registry decision. */
 export const RECOGNISED_WIRE_VERSIONS: ReadonlySet<number> = new Set([1, 2]);
@@ -204,7 +221,18 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
     return ["FAIL", `missing required fields: ${missing.join(",")}`];
   }
   const rt = payload.type;
-  if (typeof rt !== "string" || !ALLOWED_TYPES.has(rt)) {
+  // Non-string type is malformed, not an unregistered namespace
+  if (typeof rt !== "string") {
+    return ["FAIL", `malformed type ${JSON.stringify(rt)}: not a string`];
+  }
+  // Split per draft anchor type: gap, reserved-unknown, foreign
+  if (!ALLOWED_TYPES.has(rt)) {
+    if (REGISTRY_NAMESPACES.has(rt)) {
+      return ["SKIPPED", `type ${JSON.stringify(rt)} is registered but this verifier does not implement it`];
+    }
+    if (rt.startsWith("protectmcp:")) {
+      return ["FAIL", `unregistered type ${JSON.stringify(rt)}: claims the reserved protectmcp namespace`];
+    }
     return ["SKIPPED", `type ${JSON.stringify(rt)} outside the known namespace; profile membership unverifiable, reported not failed`];
   }
   // Absence never reads as v1; an unrecognised v is unverifiable, never guessed
