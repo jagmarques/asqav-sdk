@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "invalid",
+  "reason_code": "malformed_type",
+  "notes": "Payload-mode genesis whose type is the integer 42: a non-string type is malformed, guarded before the set lookup, so the structure axis FAILs invalid (criterion 524)."
+}
