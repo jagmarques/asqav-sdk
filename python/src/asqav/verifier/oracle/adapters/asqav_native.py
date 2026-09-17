@@ -344,14 +344,10 @@ class AsqavNativeAdapter(FormatAdapter):
     def profile_precheck(
         self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None
     ) -> str | None:
-        """Refuse current-profile digest inputs outside the range, else None."""
+        """Refuse digest inputs outside the range, else None."""
         if _is_hash_mode(doc):
-            if not _vr.is_current_profile_version(doc.get("v")):
-                return None
             return _vr.profile_range_note(_flat_signed_fields(doc))
         signed = _payload(doc)
-        if not _vr.is_current_profile_version(signed.get("v")):
-            return None
         note = _vr.profile_range_note(signed)
         if note is not None:
             return note

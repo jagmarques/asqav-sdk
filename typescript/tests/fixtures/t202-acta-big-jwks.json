@@ -1,0 +1,10 @@
+{
+ "keys": [
+  {
+   "kty": "OKP",
+   "crv": "Ed25519",
+   "kid": "sb:issuer:t202-numeric-probe",
+   "x": "jgxUWcEbyyApDzwZZHekVSTWWqNS5zD1cAQbhJVkHyo"
+  }
+ ]
+}

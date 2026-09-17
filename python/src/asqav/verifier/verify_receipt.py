@@ -2595,10 +2595,8 @@ def _counterparty_commitment_reached(payload, counterparty) -> bool:
     return isinstance(counterparty, dict)
 
 
-    # Refusal note when current-profile digest inputs violate the range, else None.
+    # Refusal note when digest inputs violate the range, else None.
 def _profile_range_refusal(payload, sig_obj, predecessor_payload, counterparty, anchors):
-    if not is_current_profile_version(payload.get("v")):
-        return None
     note = profile_range_note(payload)
     if note is not None:
         return note

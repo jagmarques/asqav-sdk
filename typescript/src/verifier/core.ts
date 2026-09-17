@@ -6,6 +6,8 @@
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
+import { profileRangeNote } from "./canonical.js";
+import { normaliseEnvelope } from "./vrShim.js";
 
 /**
  * Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
@@ -345,8 +347,18 @@ export function verify(
   ) {
     earlyNote = TOO_DEEP_NOTE;
   } else {
-    const predAd = predecessor === null ? null : detect(predecessor, adapters);
-    earlyNote = ad.profilePrecheck(doc, predecessor, predAd === null ? null : predAd.name);
+    // The numeric-domain rule runs here for every adapter; adapter prechecks
+    // keep only format-specific extras (predecessor, hash mode)
+    const env = normaliseEnvelope(doc);
+    const p: unknown = env.payload;
+    const signed = typeof p === "object" && p !== null && !Array.isArray(p)
+      ? (p as Record<string, unknown>)
+      : env;
+    earlyNote = profileRangeNote(signed);
+    if (earlyNote === null) {
+      const predAd = predecessor === null ? null : detect(predecessor, adapters);
+      earlyNote = ad.profilePrecheck(doc, predecessor, predAd === null ? null : predAd.name);
+    }
   }
   if (earlyNote !== null) {
     const early = earlyUnverified(ad.name, earlyNote);

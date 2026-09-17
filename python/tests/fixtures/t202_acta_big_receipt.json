@@ -1,0 +1,16 @@
+{
+ "payload": {
+  "type": "protectmcp:decision",
+  "issued_at": "2026-05-04T12:00:00+00:00",
+  "issuer_id": "sb:issuer:t202-numeric-probe",
+  "agent_id": "agt_acta_001",
+  "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "decision": "allow",
+  "probe": 9007199254740993
+ },
+ "signature": {
+  "alg": "EdDSA",
+  "kid": "sb:issuer:t202-numeric-probe",
+  "sig": "2500f1b10ef6fa1e84be0dc99cdccb0aefae45525ac187ba7d09f9faa3d504438f309e07ec00a7b1285e40dbc1b0c94c7504a9d49c3b0bb931dc230e73067b0e"
+ }
+}

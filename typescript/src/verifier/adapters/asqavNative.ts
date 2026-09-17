@@ -17,7 +17,6 @@ import {
   asqavJcs,
   asqavJcsPreCutover,
   hasSupplementaryMemberName,
-  isCurrentProfileVersion,
   profileRangeNote,
 } from "../canonical.js";
 import { sha256Hex } from "../crypto.js";
@@ -113,11 +112,6 @@ function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown>
     policy_digest: doc.policy_digest ?? null,
     policy_decision: doc.policy_decision ?? null,
   };
-}
-
-/** Own-member read; inherited prototype members never select or validate. */
-function hasOwn(obj: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 /** Decode signature material; empty on malformed input so verify FAILs, never crashes. */
@@ -350,20 +344,16 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return isHashMode(doc) && doc.hash_algo === "hmac-sha256";
   }
 
-  /** Refuse current-profile digest inputs outside the range, else null. */
+  /** Refuse digest inputs outside the range, else null. */
   profilePrecheck(
     doc: Record<string, unknown>,
     predecessor: Record<string, unknown> | null = null,
     predecessorFmt: string | null = null,
   ): string | null {
     if (isHashMode(doc)) {
-      const topV = hasOwn(doc, "v") ? doc.v : undefined;
-      if (!isCurrentProfileVersion(topV)) return null;
       return profileRangeNote(flatSignedFields(doc));
     }
     const signed = payloadOf(doc);
-    const v = hasOwn(signed, "v") ? signed.v : undefined;
-    if (!isCurrentProfileVersion(v)) return null;
     const note = profileRangeNote(signed);
     if (note !== null) return note;
     if (
