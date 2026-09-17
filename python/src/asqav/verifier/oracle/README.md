@@ -54,14 +54,15 @@ signature axis has a real upstream-keypair fixture.
 
 ## Adapters this slice
 
-- **asqav-native** - the `verify_receipt` signature, chain, and structure-
-  presence axes behind the seam. ML-DSA-65 over the canonical payload; chain via
-  the all-zero genesis seed. Scope boundary: as a standalone offline verifier the
-  oracle runs only those three axes; it does NOT run the standalone
-  `verify_receipt` clock-skew (`issued_at`) or anchor-liveness axes, which need
-  wall-clock freshness and network the oracle deliberately omits. A receipt the
-  oracle reports `verified` for can still fail those two liveness axes at
-  ingestion time.
+- **asqav-native** - the `verify_receipt` axes behind the seam. ML-DSA-65 over
+  the canonical payload; chain via the all-zero genesis seed. As a standalone
+  offline verifier the oracle runs these 12 axes, in order: `structure`,
+  `signature`, `chain`, `seq`, `expiry`, `nonce`, `key_binding`,
+  `counterparty`, `payload_digest`, `skew`, `key_status`, `issuer_bind`. The
+  `skew` axis reads `issued_at` against the wall clock with the same 300-second
+  forward bound the standalone verifier uses, so it fails a receipt issued
+  ahead of the clock and decides the verdict like any other axis. The oracle
+  reports no `anchors` axis; check anchor material separately when you need it.
 - **aerf** - Ed25519 over RFC 8785 JCS, signed directly. Genesis OMITS
   `previous_receipt_hash`; the chain hash EXCLUDES the signature, per the AERF
   spec (the agentmint reference producer includes it; this adapter targets the
