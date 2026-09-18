@@ -59,6 +59,9 @@ without writing, which is what CI runs. Write mode swaps published value
 bytes surgically and refuses any value that does not occur exactly once, so
 it can neither reformat the twelve nonstandard receipts nor collapse
 ``asqav-11``'s deliberate duplicate payload.
+
+``--check`` also asserts outcomes: each manifest vector's ``expected.json``
+runs against the live oracle; write mode reports drift but never rewrites it.
 """
 
 from __future__ import annotations
@@ -74,6 +77,12 @@ from typing import Any
 
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE / "conformance-vectors"
+
+# Outcome half runs the oracle from this checkout (as CI does); inserted
+# first so the tree under check wins over any installed copy.
+_SDK_SRC = str(_HERE.parent / "python" / "src")
+if _SDK_SRC not in sys.path:
+    sys.path.insert(0, _SDK_SRC)
 
 GENESIS_ZEROS = "0" * 64
 
@@ -248,6 +257,51 @@ def _vector_dirs() -> list[Path]:
     )
 
 
+def _audit_outcomes() -> tuple[list[Finding], int]:
+    """Check each manifest vector's expected.json against the live oracle.
+
+    Population is the manifest entries; the import stays deferred so JCS works standalone.
+    """
+    try:
+        from asqav.verifier.oracle.runner import run_one
+    except Exception as exc:
+        return [Finding("<oracle import>", "outcome", "<live verdict>",
+                        f"<unavailable: {exc}>")], 0
+    manifest = json.loads((ROOT / "manifest.json").read_text())
+    findings: list[Finding] = []
+    for entry in manifest:
+        name = entry["dir"]
+        vec_dir = ROOT / name
+        try:
+            expected = json.loads((vec_dir / "expected.json").read_text())
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            findings.append(Finding(name, "outcome", "<expected.json>",
+                                    f"<unreadable: {exc}>"))
+            continue
+        exp_outcome = expected.get("outcome", "")
+        exp_class = expected.get("failure_class", "")
+        reason = expected.get("reason_code", "")
+        fmt = expected.get("format") or entry.get("format", "")
+        try:
+            res = run_one(vec_dir, fmt, exp_outcome, reason, exp_class)
+        except Exception as exc:
+            findings.append(Finding(name, "outcome", exp_outcome, f"<error: {exc}>"))
+            continue
+        if res.ok:
+            continue
+        # Same tolerance as runner._tolerated: the ML-DSA skip vector
+        # verifies once the optional dep is present.
+        if (exp_outcome == "unverified" and res.actual_verdict == "verified"
+                and reason == "signature_skipped_no_dilithium"):
+            continue
+        if res.actual_verdict != exp_outcome:
+            findings.append(Finding(name, "outcome", exp_outcome, res.actual_verdict))
+        else:
+            findings.append(Finding(name, "failure_class", exp_class,
+                                    res.actual_failure_class))
+    return findings, len(manifest)
+
+
 def _published_text(vector: str, member: str, published: Any) -> str:
     """The exact bytes write mode looks for: the JSON rendering of a value."""
     if member == "payload_digest":
@@ -303,12 +357,15 @@ def main() -> int:
         all_skips.extend(skips)
         all_unrecomputable.extend(unrecomputable)
         rederived += clean
+    outcome_drifts, outcome_checked = _audit_outcomes()
 
     if args.check:
-        if all_drifts:
+        if all_drifts or outcome_drifts:
             print("corpus-B integrity: DRIFT between the published files and their own inputs",
                   file=sys.stderr)
             for finding in all_drifts:
+                print(f"  {finding}", file=sys.stderr)
+            for finding in outcome_drifts:
                 print(f"  {finding}", file=sys.stderr)
             print("\nregenerate with: python verifier/regen_conformance_vectors.py"
                   "\nthen re-freeze:  python verifier/freeze_corpus_lock.py",
@@ -316,13 +373,18 @@ def main() -> int:
             return 1
         print(f"corpus-B integrity: {rederived} members re-derive, "
               f"{len(all_skips)} reason-coded skips, "
-              f"{len(all_unrecomputable)} unrecomputable without their input")
+              f"{len(all_unrecomputable)} unrecomputable without their input, "
+              f"{outcome_checked} outcomes match the live oracle")
         for line in all_skips:
             print(f"  skip: {line}")
         for line in all_unrecomputable:
             print(f"  unrecomputable: {line}")
         return 0
 
+    if outcome_drifts:
+        for finding in outcome_drifts:
+            print(f"OUTCOME DRIFT, fix expected.json by hand: {finding}", file=sys.stderr)
+        return 1
     applied = []
     for finding in all_drifts:
         if finding.member.endswith("(stale skip)"):

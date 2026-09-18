@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "key_revoked",
+  "notes": "Key revoked 2026-05-01, before the 2026-06-01 issuance; key_status axis FAILs (invalid).",
+  "failure_class": "invalid"
+}
