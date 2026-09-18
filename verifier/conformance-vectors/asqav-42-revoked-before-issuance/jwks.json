@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-revoked-early-key",
+      "issuer_id": "asqav-revoked-early-key",
+      "alg": "Ed25519",
+      "status": "revoked",
+      "revoked_at": "2026-05-01T00:00:00+00:00",
+      "public_key": "CwCt5/KImyIgHFFvmTnDmmzXvQso1ex/QmeA3t7H7oQ="
+    }
+  ]
+}
