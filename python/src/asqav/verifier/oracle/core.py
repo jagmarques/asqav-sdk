@@ -12,7 +12,11 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Any
 
-from asqav.verifier.verify_receipt import normalise_envelope, profile_range_note
+from asqav.verifier.verify_receipt import (
+    normalise_envelope,
+    numeric_domain_applies,
+    profile_range_note,
+)
 
 from . import crypto
 from .adapter import FormatAdapter, VerificationContext
@@ -344,12 +348,12 @@ def verify(
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
     ):
         return _early_unverified(ad.name, _TOO_DEEP_NOTE)
-    # The numeric-domain rule runs here for every adapter: a wire-format
-    # property of JSON numbers, never gated on receipt content. Adapter
-    # prechecks keep only format-specific extras (predecessor, hash mode).
+    # The numeric-domain rule runs here for every adapter, gated on the
+    # declared wire version: absent means legacy pre-rule bytes.
     env = normalise_envelope(doc)
     _payload = env.get("payload")
-    core_note = profile_range_note(_payload if isinstance(_payload, dict) else env)
+    _signed = _payload if isinstance(_payload, dict) else env
+    core_note = profile_range_note(_signed) if numeric_domain_applies(_signed) else None
     if core_note is not None:
         return _early_unverified(ad.name, core_note)
     pred_ad = detect(predecessor, adapters) if predecessor is not None else None

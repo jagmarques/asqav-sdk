@@ -1,8 +1,6 @@
 /**
- * The numeric-domain rule holds at every object parse boundary (criterion 686).
- * Twin of python/tests/test_numeric_domain_every_parse.py: no field inside the
- * receipt can switch the rule off, and the acta split-verdict bytes read the
- * same here as in Python.
+ * Twin of the Python test module, versioned round 2: declared v gets it
+ * No version keeps legacy pre-rule behaviour on these acta bytes
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -39,7 +37,7 @@ describe("numeric domain at every object parse", () => {
     expect(refused(verify(doc, ADAPTERS, keys))).toBe(true);
   });
 
-  it("rule applies with v missing", () => {
+  it("v missing keeps the legacy verdict with no rule note", () => {
     const doc = loadJson(resolve(GENESIS, "receipt.json"));
     const keys = loadJson(resolve(GENESIS, "jwks.json"));
     const payload = doc.payload as Record<string, unknown>;
@@ -47,7 +45,8 @@ describe("numeric domain at every object parse", () => {
     delete payload.v;
     const result = verify(doc, ADAPTERS, keys);
     expect(result.verdict).toBe("unverified");
-    expect(refused(result)).toBe(true);
+    expect(result.axes.length).toBe(12);
+    expect(refused(result)).toBe(false);
   });
 
   it("rule applies with v=2", () => {
@@ -61,10 +60,20 @@ describe("numeric domain at every object parse", () => {
     expect(refused(result)).toBe(true);
   });
 
-  it("acta big-integer bytes read unverified, matching Python", () => {
+  it("acta legacy bytes stay unverified via lossy parse, rule silent", () => {
     const doc = loadJson(resolve(FIXTURES, "t202-acta-big-receipt.json"));
     const keys = loadJson(resolve(FIXTURES, "t202-acta-big-jwks.json"));
     const result = verify(doc, ADAPTERS, keys);
     expect(result.verdict).toBe("unverified");
+    expect(refused(result)).toBe(false);
+  });
+
+  it("acta bytes with v declared are refused by the rule", () => {
+    const doc = loadJson(resolve(FIXTURES, "t202-acta-big-receipt.json"));
+    const keys = loadJson(resolve(FIXTURES, "t202-acta-big-jwks.json"));
+    (doc.payload as Record<string, unknown>).v = 2;
+    const result = verify(doc, ADAPTERS, keys);
+    expect(result.verdict).toBe("unverified");
+    expect(refused(result)).toBe(true);
   });
 });

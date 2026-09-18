@@ -484,15 +484,21 @@ def test_run_structured_clean_v1_reaches_real_crypto(
     assert calls, "a clean v=1 receipt must reach the signature check"
 
 
-@pytest.mark.parametrize("version", [None, 2, True, "1", [1]])
-def test_run_structured_non_current_versions_skip_the_precheck(version) -> None:
+def test_run_structured_missing_version_skips_the_precheck_legacy() -> None:
+    """No declared version: legacy pre-rule bytes keep the old verdict (686r2)."""
     payload = _profile_payload(score=2**53)
-    if version is None:
-        del payload["v"]
-    else:
-        payload["v"] = version
+    del payload["v"]
     out = vr.run_structured(_profile_envelope(payload), {"keys": []})
     assert all("profile range" not in a["note"] for a in out["axes"])
+
+
+@pytest.mark.parametrize("version", [2, True, "1", [1]])
+def test_run_structured_declared_version_gets_the_precheck(version) -> None:
+    """A declared version in any form gets the rule, never less (686r2)."""
+    payload = _profile_payload(score=2**53)
+    payload["v"] = version
+    out = vr.run_structured(_profile_envelope(payload), {"keys": []})
+    assert any("profile range" in a["note"] for a in out["axes"])
 
 
 def test_run_structured_float_1_0_selects_the_current_profile() -> None:

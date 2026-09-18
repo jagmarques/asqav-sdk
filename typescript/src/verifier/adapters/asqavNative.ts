@@ -17,6 +17,7 @@ import {
   asqavJcs,
   asqavJcsPreCutover,
   hasSupplementaryMemberName,
+  numericDomainApplies,
   profileRangeNote,
 } from "../canonical.js";
 import { sha256Hex } from "../crypto.js";
@@ -351,9 +352,12 @@ export class AsqavNativeAdapter extends FormatAdapter {
     predecessorFmt: string | null = null,
   ): string | null {
     if (isHashMode(doc)) {
+      // The flat set synthesizes v:1, so the declared version is read here
+      if (!numericDomainApplies(doc)) return null;
       return profileRangeNote(flatSignedFields(doc));
     }
     const signed = payloadOf(doc);
+    if (!numericDomainApplies(signed)) return null;
     const note = profileRangeNote(signed);
     if (note !== null) return note;
     if (

@@ -1409,16 +1409,23 @@ def test_profile_clean_v1_reaches_real_crypto(monkeypatch: pytest.MonkeyPatch) -
     assert calls, "a clean v=1 receipt must reach the signature check"
 
 
-@pytest.mark.parametrize("version", [None, 2, True, "1"])
-def test_profile_non_current_versions_skip_the_precheck(version) -> None:
+def test_profile_missing_version_skips_the_precheck_legacy() -> None:
+    """No declared version: legacy pre-rule bytes keep the old verdict (686r2)."""
     doc = _load("asqav-01-genesis-permit", "receipt.json")
-    if version is None:
-        del doc["payload"]["v"]
-    else:
-        doc["payload"]["v"] = version
+    del doc["payload"]["v"]
     doc["payload"]["score"] = 2**53
     res = verify(doc, ADAPTERS)
     assert all("profile range" not in a.note for a in res.axes)
+
+
+@pytest.mark.parametrize("version", [2, True, "1"])
+def test_profile_declared_version_gets_the_precheck(version) -> None:
+    """A declared version in any form gets the rule, never less (686r2)."""
+    doc = _load("asqav-01-genesis-permit", "receipt.json")
+    doc["payload"]["v"] = version
+    doc["payload"]["score"] = 2**53
+    res = verify(doc, ADAPTERS)
+    assert any("profile range" in a.note for a in res.axes)
 
 
 def test_profile_float_1_0_selects_the_current_profile() -> None:

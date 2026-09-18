@@ -346,8 +346,13 @@ class AsqavNativeAdapter(FormatAdapter):
     ) -> str | None:
         """Refuse digest inputs outside the range, else None."""
         if _is_hash_mode(doc):
+            # The flat set synthesizes v:1, so the declared version is read here.
+            if not _vr.numeric_domain_applies(doc):
+                return None
             return _vr.profile_range_note(_flat_signed_fields(doc))
         signed = _payload(doc)
+        if not _vr.numeric_domain_applies(signed):
+            return None
         note = _vr.profile_range_note(signed)
         if note is not None:
             return note

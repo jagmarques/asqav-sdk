@@ -6,7 +6,7 @@
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
-import { profileRangeNote } from "./canonical.js";
+import { numericDomainApplies, profileRangeNote } from "./canonical.js";
 import { normaliseEnvelope } from "./vrShim.js";
 
 /**
@@ -347,14 +347,14 @@ export function verify(
   ) {
     earlyNote = TOO_DEEP_NOTE;
   } else {
-    // The numeric-domain rule runs here for every adapter; adapter prechecks
-    // keep only format-specific extras (predecessor, hash mode)
+    // The numeric-domain rule runs here for every adapter, gated on the
+    // declared wire version: absent means legacy pre-rule bytes
     const env = normaliseEnvelope(doc);
     const p: unknown = env.payload;
     const signed = typeof p === "object" && p !== null && !Array.isArray(p)
       ? (p as Record<string, unknown>)
       : env;
-    earlyNote = profileRangeNote(signed);
+    earlyNote = numericDomainApplies(signed) ? profileRangeNote(signed) : null;
     if (earlyNote === null) {
       const predAd = predecessor === null ? null : detect(predecessor, adapters);
       earlyNote = ad.profilePrecheck(doc, predecessor, predAd === null ? null : predAd.name);

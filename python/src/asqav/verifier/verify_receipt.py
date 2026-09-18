@@ -2513,6 +2513,14 @@ def is_recognised_wire_version(value) -> bool:
     return type(value) is int and value in RECOGNISED_WIRE_VERSIONS
 
 
+def numeric_domain_applies(signed) -> bool:
+    """True when the numeric-domain rule governs this receipt.
+
+    Versioned, not switchable: absent means legacy, any declared form gets it.
+    """
+    return isinstance(signed, dict) and "v" in signed
+
+
 def profile_range_note(obj) -> str | None:
     """Note when ``obj`` carries a number beyond +/-(2**53 - 1), else None."""
     stack = [(obj, "$", False)]
@@ -2597,6 +2605,8 @@ def _counterparty_commitment_reached(payload, counterparty) -> bool:
 
     # Refusal note when digest inputs violate the range, else None.
 def _profile_range_refusal(payload, sig_obj, predecessor_payload, counterparty, anchors):
+    if not numeric_domain_applies(payload):
+        return None
     note = profile_range_note(payload)
     if note is not None:
         return note

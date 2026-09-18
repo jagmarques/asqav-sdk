@@ -426,16 +426,24 @@ describe("Asqav profile safe-integer precheck (current v=1 refuses before crypto
     expect(calls.length).toBeGreaterThan(0);
   });
 
-  it.each([[undefined], [2], [true], ["1"]])(
-    "non-current version %p skips the precheck",
+  it("missing version skips the precheck (legacy pre-rule bytes)", () => {
+    const doc = load("asqav-01-genesis-permit");
+    const payload = doc.payload as Record<string, unknown>;
+    delete payload.v;
+    payload.score = 2 ** 53;
+    const res = verify(doc, ADAPTERS);
+    expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+  });
+
+  it.each([[2], [true], ["1"]])(
+    "declared version %p gets the precheck",
     (version) => {
       const doc = load("asqav-01-genesis-permit");
       const payload = doc.payload as Record<string, unknown>;
-      if (version === undefined) delete payload.v;
-      else payload.v = version as number;
+      payload.v = version as number;
       payload.score = 2 ** 53;
       const res = verify(doc, ADAPTERS);
-      expect(notes(res).some((n) => n.includes("profile range"))).toBe(false);
+      expect(notes(res).some((n) => n.includes("profile range"))).toBe(true);
     },
   );
 

@@ -1,16 +1,12 @@
 """The numeric-domain rule holds at every object parse boundary (criterion 686).
 
-No field inside the receipt can switch the rule off: v missing, v unknown, and
-every adapter all apply it. The cross-language case pins the acta split verdict
-the rule exists to prevent (identical bytes, one verdict, both SDKs).
+Versioned round 2: declared v in any form gets the rule, absent keeps legacy.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
-import pytest
 
 import asqav
 
@@ -52,22 +48,37 @@ def test_control_gate_on_v1_refuses():
     assert _refused(asqav.verify_receipt_offline(d, jwks))
 
 
-@pytest.mark.parametrize("mutate", [
-    pytest.param(lambda p: p.pop("v"), id="v-missing"),
-    pytest.param(lambda p: p.update(v=2), id="v-2"),
-])
-def test_numeric_rule_applies_regardless_of_profile_version(mutate):
-    """v missing or unknown gets the rule, never a free pass."""
-    d, jwks = _genesis_big(mutate)
+def test_v_missing_keeps_legacy_verdict():
+    """No declared version: pre-rule behaviour, no rule note (round 2 item 1)."""
+    d, jwks = _genesis_big(lambda p: p.pop("v"))
+    result = asqav.verify_receipt_offline(d, jwks)
+    assert result["verdict"] == "unverified"  # signature broken by the probe
+    assert len(result["axes"]) == 12
+    assert not _refused(result)
+
+
+def test_v2_gets_the_rule():
+    """An unrecognised declared version earns the rule, never less (item 7)."""
+    d, jwks = _genesis_big(lambda p: p.update(v=2))
     result = asqav.verify_receipt_offline(d, jwks)
     assert result["verdict"] == "unverified"
     assert _refused(result)
 
 
-def test_acta_big_integer_unverified_same_as_typescript():
-    """The acta split-verdict bytes read unverified here, matching TS."""
+def test_acta_legacy_no_version_keeps_verifying():
+    """The grading acta bytes declare no v, so Python keeps verifying (item 6)."""
     d = _load(FIXTURES / "t202_acta_big_receipt.json")
     jwks = _load(FIXTURES / "t202_acta_big_jwks.json")
+    assert "v" not in d["payload"]
+    result = asqav.verify_receipt_offline(d, jwks)
+    assert result["verdict"] == "verified"
+
+
+def test_acta_v2_refused():
+    """The same acta bytes with v declared are refused by the rule (item 7)."""
+    d = _load(FIXTURES / "t202_acta_big_receipt.json")
+    jwks = _load(FIXTURES / "t202_acta_big_jwks.json")
+    d["payload"]["v"] = 2
     result = asqav.verify_receipt_offline(d, jwks)
     assert result["verdict"] == "unverified"
     assert _refused(result)

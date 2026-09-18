@@ -295,6 +295,16 @@ export function isCurrentProfileVersion(value: unknown): boolean {
   return v === 1;
 }
 
+// True when the numeric-domain rule governs this receipt: a declared wire
+// version in any form. Absent means legacy pre-rule bytes
+export function numericDomainApplies(signed: unknown): boolean {
+  return (
+    typeof signed === "object" &&
+    signed !== null &&
+    Object.prototype.hasOwnProperty.call(signed, "v")
+  );
+}
+
 /** Recursively NFC-normalise every string key and value (mirrors `_nfc`). */
 function nfc(obj: unknown): unknown {
   if (typeof obj === "string") return obj.normalize("NFC");
