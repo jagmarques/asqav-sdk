@@ -10,6 +10,8 @@ Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65
 post-quantum), timestamped against independent witnesses, and verifiable by anyone —
 auditor, counterparty, regulator — **without an Asqav account and without trusting us**.
 
+Source-available client SDK under Elastic License 2.0; open verifier and conformance vectors under Apache-2.0; commercial signing service.
+
 Zero native dependencies in either SDK. Cryptography runs server-side.
 
 ## Install
@@ -154,4 +156,4 @@ Aligns with NIST FIPS 204 (ML-DSA), RFC 8785 (JCS) and NSA CSI U/OO/6030316-26.
 
 ## License
 
-Elastic License 2.0. Get an API key at [asqav.com](https://asqav.com).
+Source-available client SDK under Elastic License 2.0; open verifier and conformance vectors under Apache-2.0; commercial signing service. Get an API key at [asqav.com](https://asqav.com).
