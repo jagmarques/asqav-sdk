@@ -374,9 +374,9 @@ export interface InitOptions {
    * full-payload otherwise. Reads ``ASQAV_MODE`` when ``"auto"``.
    */
   mode?: "auto" | "hash-only" | "full-payload";
-  /**
-   * Optional 32-byte salt you generate and hold; hash-only mode then uses HMAC-SHA-256
-   * keyed by it. Asqav never receives it, and salted digests still travel labelled `sha256`.
+  /** Optional 32-byte salt you generate and hold. CAVEAT: the
+   * backend rejects caller-computed-HMAC hash-only bodies; send
+   * `context` (`keyed_digest_requires_context`, `verified_keyed`)
    */
   orgSalt?: Uint8Array;
 }
