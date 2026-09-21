@@ -682,5 +682,13 @@
     "failure_class": "unverifiable",
     "reason_code": "",
     "notes": "Hash-mode v=99 under a valid signature; the recognised-value gate applies in both modes (draft 5.2.1)."
+  },
+  {
+    "dir": "asqav-42-keyed-digest-unverifiable",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "payload_digest_unchecked",
+    "notes": "Keyed payload_digest (hash_algo hmac-sha256) beside its context: SKIPPED as unverifiable, never a mismatch; signature and local TSA verify.",
+    "failure_class": "unverifiable"
   }
 ]
