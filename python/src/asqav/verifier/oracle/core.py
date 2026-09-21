@@ -66,6 +66,8 @@ class VerifyResult:
     #: Earliest axis in report order that did not PASS, else None. Reported so two verifiers
     #: disagreeing about WHICH check failed first is as visible as disagreeing about the verdict.
     first_failing_edge: str | None = None
+    #: Resolved invocation context, so a disagreement attributes to an input.
+    context: VerificationContext | None = None
 
         # Return the result for one axis, or None if it was not run.
     def axis(self, name: str) -> AxisResult | None:
@@ -304,7 +306,9 @@ def _exceeds_depth(obj: Any, max_depth: int) -> bool:
 
 
     # One-axis unverified result for a pre-axis input refusal (depth, profile range).
-def _early_unverified(fmt: str, note: str) -> VerifyResult:
+def _early_unverified(
+    fmt: str, note: str, context: VerificationContext | None = None,
+) -> VerifyResult:
     axes = [_axis("structure", crypto.FAIL, note)]
     verdict, failure_class = fold_verdict(axes, keyed=False)
     return VerifyResult(
@@ -313,6 +317,7 @@ def _early_unverified(fmt: str, note: str) -> VerifyResult:
         verdict=verdict,
         failure_class=failure_class,
         first_failing_edge=first_failing_edge(axes),
+        context=context,
     )
 
 
@@ -326,6 +331,7 @@ def verify(
     context: VerificationContext | None = None,
 ) -> VerifyResult:
     ad = detect(doc, adapters)
+    resolved = context or VerificationContext()
     if ad is None:
         axes = [_axis("structure", crypto.FAIL, "no adapter recognises this receipt")]
         verdict, failure_class = fold_verdict(axes, keyed=False)
@@ -335,13 +341,14 @@ def verify(
             verdict=verdict,
             failure_class=failure_class,
             first_failing_edge=first_failing_edge(axes),
+            context=resolved,
         )
     # An over-nested receipt would crash the recursive JCS encoder. Cap it here and
     # report unverified/unverifiable, never a verified, matching the standalone gate.
     if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
     ):
-        return _early_unverified(ad.name, _TOO_DEEP_NOTE)
+        return _early_unverified(ad.name, _TOO_DEEP_NOTE, resolved)
     pred_ad = detect(predecessor, adapters) if predecessor is not None else None
     refusal = ad.profile_precheck(
         doc,
@@ -349,7 +356,7 @@ def verify(
         predecessor_fmt=pred_ad.name if pred_ad is not None else None,
     )
     if refusal is not None:
-        return _early_unverified(ad.name, refusal)
+        return _early_unverified(ad.name, refusal, resolved)
 
     axes = [
         _structure_axis(ad, doc),
@@ -358,7 +365,7 @@ def verify(
         _seq_axis(ad, doc, adapters, predecessor),
     ]
     axes.extend(_axis(name, res, note) for name, res, note in
-                ad.extra_axes_with_context(doc, key_provider, context or VerificationContext()))
+                ad.extra_axes_with_context(doc, key_provider, resolved))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426);
     # a keyed digest reports verified_keyed, never plain verified (criterion 438).
@@ -371,6 +378,7 @@ def verify(
         failure_class=failure_class,
         signer=signer,
         first_failing_edge=first_failing_edge(axes),
+        context=resolved,
     )
 
 
