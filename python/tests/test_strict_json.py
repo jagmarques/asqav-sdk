@@ -197,15 +197,25 @@ def test_profile_ingest_refuses_float_spellings_of_the_boundary(literal: str) ->
 
 
     # The string twin, booleans and fractional floats keep their existing behavior.
+    # An integer-valued float spelling (5.0) is refused: the digest would bind
+    # digits the profile never validated as an integer (criterion 684 task 1).
 def test_profile_ingest_keeps_strings_booleans_and_fractions() -> None:
     assert strict_json.loads_profile('{"n": "9007199254740993"}') == {
         "n": "9007199254740993"
     }
     assert strict_json.loads_profile('{"a": true, "b": 3.14}') == {"a": True, "b": 3.14}
-    assert strict_json.loads_profile('{"n": 5.0}') == {"n": 5.0}
+    with pytest.raises(strict_json.ProfileIntegerError):
+        strict_json.loads_profile('{"n": 5.0}')
 
 
     # The shared generic entry still accepts +/-2**53: foreign compatibility control.
 @pytest.mark.parametrize("literal", ["9007199254740992", "-9007199254740992"])
 def test_generic_ingest_still_accepts_the_excluded_boundary(literal: str) -> None:
     assert strict_json.loads('{"n": %s}' % literal) == {"n": int(literal)}
+
+
+    # A digest-covered number whose raw lexeme is not an exact integer parses
+    # silently without the lexeme rule: the digest would bind unvalidated digits.
+def test_profile_ingest_refuses_non_integer_lexeme() -> None:
+    with pytest.raises(strict_json.ProfileIntegerError):
+        strict_json.loads_profile('{"n":9007199254740991.0000001}')
