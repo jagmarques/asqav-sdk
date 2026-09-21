@@ -1,0 +1,40 @@
+{
+  "payload": {
+    "v": 1,
+    "mode": "payload",
+    "type": "protectmcp:acknowledgment",
+    "issuer_id": "ack",
+    "agent_id": "agent_ack",
+    "action_id": "action_ack",
+    "issued_at": "2026-09-01T12:00:00+00:00",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "action_ref": "sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9",
+    "context": {
+      "test": "counterparty binding",
+      "party": "ack"
+    },
+    "payload_digest": {
+      "hash": "6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9",
+      "size": 45
+    },
+    "policy_digest": "sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b",
+    "decision": "allow",
+    "counterparty_binding": {
+      "scope": "envelope_minus_anchors",
+      "receipt_ref": "sig_counterparty_origin",
+      "envelope_hash": "xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=",
+      "expect_ack_from": "peer"
+    }
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "ack",
+    "sig": "dpnsZxkq5OxE6gNGqD99hbim5UCQ7ndVUP0yqs5cfTSNFZ8qa5fGbM3G8usDqSbuqSl9zjfwiO+ChAb/eJ4ZBg=="
+  },
+  "anchors": [
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEICoZyRZ3RxVtDr5Jt8GBltIkhRS6+jLsjMoH7EpSKBYBAgEqGA8yMDI2MDkwMTEyMDAwMVoxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQPfinnqDqHLbyjuLVslZdNzTb5++Sgup1e358i0wzSs63hPiYOI93oda6I9Cgkc1vTq+KZS4YB6QX6cwovx+vQo="
+    }
+  ]
+}
