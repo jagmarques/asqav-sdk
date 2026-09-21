@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 35,
+  "corpus_version": 36,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -178,6 +178,11 @@
       "version": 34,
       "files": 319,
       "digest": "dc6a590c1321d88354ae8680fc3dac54ea8da318e1526e2bd0a7ffec224cacdc"
+    },
+    {
+      "version": 35,
+      "files": 319,
+      "digest": "fbf533947a83babff9474d94043179021554623b42bf2bdf7f949cc6d79e37b2"
     }
   ],
   "files": [
@@ -1527,6 +1532,21 @@
       "bytes": 619
     },
     {
+      "path": "asqav-42-keyed-digest-unverifiable/expected.json",
+      "sha256": "c0899343479736648af56e8f4aebc555b292c5e5c91ad4987fe3c6b335ae94a0",
+      "bytes": 511
+    },
+    {
+      "path": "asqav-42-keyed-digest-unverifiable/jwks.json",
+      "sha256": "95c6354b62d70ed19ee5fbc3d3c6bbbb2fb8485dd7621231a304b304bf560363",
+      "bytes": 224
+    },
+    {
+      "path": "asqav-42-keyed-digest-unverifiable/receipt.json",
+      "sha256": "72a75f36216e97ec64fc9276ac3e8663cce9365d39ac4efb7c5b9a65a145ecd0",
+      "bytes": 960
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -1607,6 +1627,11 @@
       "bytes": 7958
     },
     {
+      "path": "gen_keyed_digest_vector.py",
+      "sha256": "9e387b518324bc9ec04ea9761b18f5824e928148a909b3fdc01920d164241f33",
+      "bytes": 5161
+    },
+    {
       "path": "gen_oracle_vectors.py",
       "sha256": "c297bcae063ae03b940e60a9152f7f1a7e657e88b020c090fc70643f1d21c39c",
       "bytes": 20353
@@ -1633,8 +1658,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "74220a85264b9938b7970ec2e9eb2635d7b1778783f75014f6a3e809b44cfd83",
-      "bytes": 32056
+      "sha256": "8ca8f83aa08192724e44438b84e36b7100e3f4fb2dc4f0825c063afd687aa48b",
+      "bytes": 32412
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1668,8 +1693,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "54da7ff8b30e9bfc35b2d74c58f7d95970d0fa27db2ab6a0d3e8da8883e88103",
-      "bytes": 68275
+      "sha256": "55891a327aa31cf0a1e8bcaf8fc9271dc6740c1837143133482bf3c6f73b50b9",
+      "bytes": 72496
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -1807,5 +1832,5 @@
       ]
     }
   },
-  "digest": "fbf533947a83babff9474d94043179021554623b42bf2bdf7f949cc6d79e37b2"
+  "digest": "824e3c1e645de4d4213fe680e4f83d8fe65942cec710e40cfcdb66faee090045"
 }
