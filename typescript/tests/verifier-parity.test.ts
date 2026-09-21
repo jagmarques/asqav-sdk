@@ -163,6 +163,7 @@ describe("parseJsonPreservingFloats matches JSON.parse structure (Node 18+ safe)
   // with JSON.parse on everything except the deliberate float/big-int preservation.
   const unwrap = (v: unknown): unknown => {
     if (v && typeof v === "object" && "value" in v && Object.keys(v).length === 1) return (v as { value: number }).value;
+    if (v && typeof v === "object" && "value" in v && "lexeme" in v && Object.keys(v).length === 2) return (v as { value: number }).value;
     if (v && typeof v === "object" && "source" in v && Object.keys(v).length === 1) return Number((v as { source: string }).source);
     if (Array.isArray(v)) return v.map(unwrap);
     if (v && typeof v === "object") {
