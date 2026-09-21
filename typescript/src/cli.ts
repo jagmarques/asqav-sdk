@@ -314,7 +314,7 @@ async function cmdComplianceFrameworks(): Promise<void> {
     ["eu_ai_act", "EU AI Act (Articles 12, 26 and 50 declarations)"],
     ["dora", "DORA, Article 17"],
     ["nydfs_500", "NYDFS Part 500"],
-    ["colorado_ai", "Colorado AI Act SB 24-205"],
+    ["colorado_ai", "Colorado ADMT Act (SB 26-189)"],
     ["texas_traiga", "Texas TRAIGA HB 149"],
     ["nist_ai_rmf", "NIST AI RMF"],
     ["circia", "CIRCIA Covered Cyber Incident"],
