@@ -77,6 +77,43 @@ modes, framework integrations, offline verification, and what a receipt does not
 - **[python/README.md](python/README.md)** — also rendered on [PyPI](https://pypi.org/project/asqav/)
 - **[typescript/README.md](typescript/README.md)** — also rendered on [npm](https://www.npmjs.com/package/@asqav/sdk)
 
+## Capture coverage
+
+How each shipped adapter observes the interaction it signs. `harness_enforced`
+fires from the harness itself; `framework_callback` from framework seams;
+`in_path_proxy` from calls flowing through our wrapper; `model_invoked` only
+when the model invokes the wrapped unit; `passive` scans without enforcing.
+
+| adapter | coverage class | citation (URL) | accessed |
+|---|---|---|---|
+| openai (python) | in_path_proxy | https://github.com/openai/openai-python | 2026-09-21 |
+| anthropic (python) | in_path_proxy | https://github.com/anthropics/anthropic-sdk-python | 2026-09-21 |
+| letta (python) | in_path_proxy | https://docs.letta.com/ | 2026-09-21 |
+| haystack (python) | in_path_proxy | https://docs.haystack.deepset.ai/docs/pipelines | 2026-09-21 |
+| smolagents (python) | model_invoked | https://huggingface.co/docs/smolagents/index | 2026-09-21 |
+| langchain (python) | framework_callback | https://reference.langchain.com/python/langchain-core/callbacks | 2026-09-21 |
+| litellm (python) | framework_callback | https://docs.litellm.ai/docs/observability/custom_callback | 2026-09-21 |
+| llamaindex (python) | framework_callback | https://docs.llamaindex.ai/en/stable/module_guides/observability/callbacks/ | 2026-09-21 |
+| dspy (python) | framework_callback | https://dspy.ai/current/tutorials/observability/ | 2026-09-21 |
+| instructor (python) | framework_callback | https://python.useinstructor.com/concepts/hooks/ | 2026-09-21 |
+| crewai (python) | framework_callback | https://docs.crewai.com/en/concepts/tasks | 2026-09-21 |
+| openai_agents (python) | framework_callback | https://openai.github.io/openai-agents-python/guardrails/ | 2026-09-21 |
+| strands (python) | framework_callback | https://strandsagents.com/docs/user-guide/concepts/agents/hooks/ | 2026-09-21 |
+| opa_detector (python) | passive | https://www.openpolicyagent.org/docs/latest/ | 2026-09-21 |
+| presidio_detector (python) | passive | https://data-privacy-stack.github.io/presidio/ | 2026-09-21 |
+| cli_hook (harness hook) | harness_enforced | https://code.claude.com/docs/en/hooks | 2026-09-21 |
+| langchain (typescript) | framework_callback | https://reference.langchain.com/javascript/langchain-core/callbacks/base/BaseCallbackHandler | 2026-09-21 |
+| openai-agents (typescript) | framework_callback | https://openai.github.io/openai-agents-js/ | 2026-09-21 |
+| mastra (typescript) | framework_callback | https://mastra.ai/docs/agents/using-tools | 2026-09-21 |
+| vercel-ai (typescript) | framework_callback | https://ai-sdk.dev/docs/ai-sdk-core/telemetry | 2026-09-21 |
+| opa (typescript) | passive | https://www.openpolicyagent.org/docs/latest/ | 2026-09-21 |
+| presidio (typescript) | passive | https://data-privacy-stack.github.io/presidio/ | 2026-09-21 |
+
+No `model_invoked` surface is ever built; an MCP-server request is answered
+with the harness hook plus the SDK. Hook handlers run under per-hook-family
+timeouts (600 seconds for command, HTTP and MCP-tool hooks; 30 for prompt
+hooks; 60 for agent hooks — see the hooks reference above).
+
 ## Repository layout
 
 ```
