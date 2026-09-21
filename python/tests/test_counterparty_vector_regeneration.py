@@ -40,7 +40,11 @@ def test_fingerprint_regeneration_preserves_negative_scope_and_digest_recipes():
         assert state == {True: "PASS", False: "FAIL", None: "SKIPPED"}[result.valid], note
         checked.append(vector["name"])
     assert set(checked) == {"counterparty_binding_scope_minus_anchors", "counterparty_binding_anchors_included_rejected",
-                            "counterparty_binding_legacy_scope_absent", "counterparty_binding_unrecognised_scope"}
+                            "counterparty_binding_legacy_scope_absent", "counterparty_binding_unrecognised_scope",
+                            "counterparty_binding_peer_swapped", "counterparty_binding_origin_signature_forged",
+                            "counterparty_binding_divergent_terms_two_signatures",
+                            "counterparty_binding_received_only_acknowledgement",
+                            "counterparty_binding_cross_interaction_replay", "counterparty_binding_origin_unavailable"}
 
 
 def test_signed_generator_is_deterministic_and_check_never_writes(tmp_path, monkeypatch):

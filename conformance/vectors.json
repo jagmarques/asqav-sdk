@@ -672,7 +672,10 @@
         "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
         "binding_result": true,
         "binding_label": "matches",
-        "failure_class": null
+        "failure_class": null,
+        "affected_axes": [
+          "binding_digest"
+        ]
       },
       "generation": {
         "counterparty_digest_members": [
@@ -720,7 +723,10 @@
         "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
         "binding_result": false,
         "binding_label": "mismatch",
-        "failure_class": "invalid"
+        "failure_class": "invalid",
+        "affected_axes": [
+          "binding_digest"
+        ]
       },
       "generation": {
         "counterparty_digest_members": [
@@ -768,7 +774,10 @@
         "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
         "binding_result": null,
         "binding_label": "legacy_scope",
-        "failure_class": "unverifiable"
+        "failure_class": "unverifiable",
+        "affected_axes": [
+          "binding_structure"
+        ]
       },
       "generation": {
         "counterparty_digest_members": [
@@ -817,7 +826,10 @@
         "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
         "binding_result": null,
         "binding_label": "unrecognised_scope",
-        "failure_class": "unverifiable"
+        "failure_class": "unverifiable",
+        "affected_axes": [
+          "binding_structure"
+        ]
       },
       "generation": {
         "counterparty_digest_members": [
@@ -827,6 +839,419 @@
       },
       "canonical": "{\"action_id\":\"act_counterparty_unrecognised_scope\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"unsupported_fixture_scope\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
       "sha256": "8f008eafa83e78228aa107d8d819d866f2ca94a017cdd01dd168ee2c19c2ad09"
+    },
+    {
+      "name": "counterparty_binding_origin_forged",
+      "description": "Origin envelope bytes altered after signing; digest no longer matches.",
+      "input": {
+        "anchors": [
+          {
+            "tsa_url": "https://tsa.example/timestamp",
+            "type": "rfc3161",
+            "value": "AAAA_synthetic_tsr_base64_placeholder_AAAA"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "synthetic_upgradeable_timestamp"
+          }
+        ],
+        "payload": {
+          "action_id": "act_FORGED_AFTER_SIGNING_0001",
+          "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_id": "agt_originator_A",
+          "decision": "allow",
+          "issued_at": "2026-05-18T20:00:00+00:00",
+          "issuer_id": "00000000000000000098",
+          "org_id": "org_demo",
+          "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+          "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sandbox_state": "live",
+          "tool_name": "database.query",
+          "type": "protectmcp:action",
+          "v": 1
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "00000000000000000098",
+          "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
+        }
+      },
+      "expected_verify": false,
+      "reason": "Reference fixture only; carries no binding expectation.",
+      "expected": {},
+      "canonical": "{\"anchors\":[{\"tsa_url\":\"https://tsa.example/timestamp\",\"type\":\"rfc3161\",\"value\":\"AAAA_synthetic_tsr_base64_placeholder_AAAA\"},{\"type\":\"opentimestamps\",\"value\":\"synthetic_upgradeable_timestamp\"}],\"payload\":{\"action_id\":\"act_FORGED_AFTER_SIGNING_0001\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_originator_A\",\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:00+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:action\",\"v\":1},\"signature\":{\"alg\":\"ML-DSA-65\",\"kid\":\"00000000000000000098\",\"sig\":\"AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA\"}}",
+      "sha256": "ec0152153d72b81b6c56f274b9a971ffbf4a181f6ea08460be1ec4a90247a788"
+    },
+    {
+      "name": "counterparty_binding_origin_divergent",
+      "description": "Well-formed second envelope over divergent terms; validly shaped, no common agreement.",
+      "input": {
+        "anchors": [
+          {
+            "tsa_url": "https://tsa.example/timestamp",
+            "type": "rfc3161",
+            "value": "AAAA_synthetic_tsr_base64_placeholder_AAAA"
+          },
+          {
+            "type": "opentimestamps",
+            "value": "synthetic_upgradeable_timestamp"
+          }
+        ],
+        "payload": {
+          "action_id": "act_DIVERGENT_TERMS_0009",
+          "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_id": "agt_originator_A",
+          "decision": "allow",
+          "issued_at": "2026-05-18T20:00:00+00:00",
+          "issuer_id": "00000000000000000098",
+          "org_id": "org_demo",
+          "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "policy_digest": "sha256:9999888877776666555544443333222211110000ffffeeeeddddccccbbbb",
+          "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sandbox_state": "live",
+          "tool_name": "database.query",
+          "type": "protectmcp:action",
+          "v": 1
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "00000000000000000098",
+          "sig": "divergent-valid-signature-bytes-not-verified-here"
+        }
+      },
+      "expected_verify": false,
+      "reason": "Reference fixture only; carries no binding expectation.",
+      "expected": {},
+      "canonical": "{\"anchors\":[{\"tsa_url\":\"https://tsa.example/timestamp\",\"type\":\"rfc3161\",\"value\":\"AAAA_synthetic_tsr_base64_placeholder_AAAA\"},{\"type\":\"opentimestamps\",\"value\":\"synthetic_upgradeable_timestamp\"}],\"payload\":{\"action_id\":\"act_DIVERGENT_TERMS_0009\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_originator_A\",\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:00+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:9999888877776666555544443333222211110000ffffeeeeddddccccbbbb\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:action\",\"v\":1},\"signature\":{\"alg\":\"ML-DSA-65\",\"kid\":\"00000000000000000098\",\"sig\":\"divergent-valid-signature-bytes-not-verified-here\"}}",
+      "sha256": "6cf6c8b5070dba2e46abadcf3323266bae5d737af508470a039a33c84e2281cb"
+    },
+    {
+      "name": "counterparty_binding_origin_absent",
+      "description": "No envelope at all; the origin is unavailable, not merely disagreeing.",
+      "input": {},
+      "expected_verify": false,
+      "reason": "Reference fixture only; carries no binding expectation.",
+      "expected": {},
+      "canonical": "{}",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "name": "counterparty_binding_peer_swapped",
+      "description": "Digest matches the origin, but the acknowledgement names a different peer.",
+      "input": {
+        "action_id": "act_counterparty_peer_swapped",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "99999999999999999999",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns kid_mismatch.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": false,
+        "binding_label": "kid_mismatch",
+        "failure_class": "invalid",
+        "affected_axes": [
+          "binding_digest",
+          "kid_binding"
+        ]
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_peer_swapped\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"99999999999999999999\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "45e599ad025aac7e4a0039ce999eae1e754312a4220698d6f096cf6b7952b362"
+    },
+    {
+      "name": "counterparty_binding_origin_signature_forged",
+      "description": "Binding points at the original terms, but the presented origin bytes were altered.",
+      "input": {
+        "action_id": "act_counterparty_forged",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns mismatch.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_forged",
+        "binding_result": false,
+        "binding_label": "mismatch",
+        "failure_class": "invalid",
+        "affected_axes": [
+          "binding_digest",
+          "signature"
+        ],
+        "digest_pinned": true
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_forged\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "186df43f053ac200ac6231fb43c86c8f2f884db0163a5bb631aab38ec6179dfb"
+    },
+    {
+      "name": "counterparty_binding_divergent_terms_two_signatures",
+      "description": "Two well-formed signatures over divergent terms; no demonstrated common agreement.",
+      "input": {
+        "action_id": "act_counterparty_divergent",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns mismatch.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_divergent",
+        "binding_result": false,
+        "binding_label": "mismatch",
+        "failure_class": "invalid",
+        "affected_axes": [
+          "binding_digest",
+          "signature"
+        ],
+        "digest_pinned": true
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_divergent\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "3bc550d9e54bcef47cd6624a31096f0bc7657c6cd2f1f29a8c6cc5167132b019"
+    },
+    {
+      "name": "counterparty_binding_received_only_acknowledgement",
+      "description": "Bare acknowledgement with no receipt reference; nothing to resolve it against.",
+      "input": {
+        "action_id": "act_counterparty_received_only",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "expect_ack_from": "00000000000000000098",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns malformed.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": false,
+        "binding_label": "malformed",
+        "failure_class": "invalid",
+        "affected_axes": [
+          "binding_structure"
+        ]
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_received_only\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"expect_ack_from\":\"00000000000000000098\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "57dbbabe598fc9d880daeb6283f10eed49934391127d09f4a6024d8c1bd14732"
+    },
+    {
+      "name": "counterparty_binding_cross_interaction_replay",
+      "description": "Binding copied verbatim from another interaction; terms do not match this origin.",
+      "input": {
+        "action_id": "act_counterparty_replay",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "receipt_ref": "asqav-receipt://org_demo/agt_other/seq/0007",
+          "envelope_hash": "VjA4s+Jc8ys7jD0nRCHKQhuIBbIAqynlxaxvzYrGy3s=",
+          "expect_ack_from": "00000000000000000098",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns mismatch.",
+      "expected": {
+        "envelope_hash_base64": "VjA4s+Jc8ys7jD0nRCHKQhuIBbIAqynlxaxvzYrGy3s=",
+        "envelope_hash_hex": "563038b3e25cf32b3b8c3d274421ca421b8805b200ab29e5c5ac6fcd8ac6cb7b",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": false,
+        "binding_label": "mismatch",
+        "failure_class": "invalid",
+        "affected_axes": [
+          "binding_digest",
+          "receipt_ref"
+        ],
+        "digest_pinned": true
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_replay\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"VjA4s+Jc8ys7jD0nRCHKQhuIBbIAqynlxaxvzYrGy3s=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_other/seq/0007\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "69d921ed3182791e5f46be5ce1ea722840a56f7dea9e65efefe1bf45e0a2ddc2"
+    },
+    {
+      "name": "counterparty_binding_origin_unavailable",
+      "description": "Well-formed binding, but there is no origin envelope to compare it against.",
+      "input": {
+        "action_id": "act_counterparty_unavailable",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "transport_label": "mcp"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": false,
+      "reason": "The binding axis returns unresolved.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_absent",
+        "binding_result": null,
+        "binding_label": "unresolved",
+        "failure_class": "unverifiable",
+        "affected_axes": [
+          "origin_availability"
+        ]
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_unavailable\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "b6f72c4a7b12981e512e7b730e0a268576254b5d4b2bb69a8b74a11969dc12fd"
     }
   ]
 }
