@@ -39,6 +39,42 @@ See `vectors.json`. Each vector has:
 - `expected`: values that are NOT wire members - what a correct implementation should
   produce, plus vector metadata. Do not implement a field from this block.
 
+Anything outside `input` is vector metadata, never a wire member.
+The remaining vector-level keys, each metadata:
+
+- `name`: the vector's stable identifier, referenced by manifests and reports.
+- `description`: what the vector exercises, in one or two sentences.
+- `reason`: why this input is conformant or not, naming the rule.
+- `expected_verify`: whether the input verifies (metadata about the
+  fixture, not a wire value to reproduce).
+- `generation`: the recipe the minter used (hash members, seeds);
+  documents provenance, never parsed by a verifier.
+- `canonical`: the JCS-canonical byte sequence only for inputs whose
+  canonical form the fixture pins (see `non_conformant_canonical`).
+- `sha256`: the digest of the pinned canonical bytes, hex-encoded.
+- `input_text`: the raw document text for refusal vectors (parse
+  failures); the bytes the parser must reject, not an object to verify.
+- `signature_hex`: a signature in hex for vectors that pin the raw
+  signature bytes beside the parsed form.
+- `peer_sent_nonce`: the nonce the peer sent, for replay-window
+  vectors; metadata about the scenario setup.
+- `substitution`: the member swapped in to build the negative case;
+  records what was changed, not a wire member.
+- `non_conformant_canonical`: the canonical bytes of a deliberately
+  non-conformant input, pinned so the refusal is reproducible.
+- `non_conformant_sha256`: the digest of those non-conformant bytes.
+- `capture_topology`: a selector naming which capture topology the
+  vector exercises; the wire member is `input.manifest.capture_topology`,
+  never `context`. Do not read topology from `context`.
+- `counterparty_binding_member_missing`: names the binding member
+  deliberately omitted to build the negative case.
+
+Top-level header (applies to the whole file, not to any vector):
+
+- `version`: the corpus format version this file conforms to.
+- `canonicalization`: the canonical form inputs are encoded with (JCS).
+- `hash_algorithm`: the digest algorithm binding values use (SHA-256).
+
 If your implementation produces the same `canonical` and `sha256` for each `input`, you are ready to verify live Asqav records.
 
 ### Counterparty binding vectors
