@@ -1,6 +1,6 @@
 """The standalone verifier resolves the signing key by what the receipt signed, not list position.
 
-Criterion 564. The envelope kid of a cloud receipt is the org id, which every sibling key of the
+The envelope kid of a cloud receipt is the org id, which every sibling key of the
 org publishes as issuer_id, so a loose match answers with whichever sibling is listed first. The
 signed key_thumbprint and the signed agent_id name the real key; the matcher reads them first.
 Every directory here publishes more than one key under one issuer, the shape that exposes a
