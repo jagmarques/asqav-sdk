@@ -5,6 +5,18 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- TypeScript verifier: a decimal from `parseJsonPreservingFloats` is signed and hashed as Python's
+  `repr(float)`: `1e-7` becomes `1e-07`, `0.00001` becomes `1e-05`, `76355072847686510.0`
+  becomes `7.635507284768651e+16` and `-0.0` stays `-0.0`. The exponent form starts at 1e16 and
+  below 1e-4 with a sign and two digits, and everything between keeps the positional form. Before,
+  `asqavJcs`, `jcs` and `asqavJcsPreCutover` wrote the JavaScript spelling in those three zones, so
+  a receipt carrying such a decimal failed its signature check in this verifier and passed in
+  Python, and `counterpartyEnvelopeHash` returned a different hash (`counterparty_mismatch`).
+  Strict RFC 8785 output (`jcsRfc8785`) and plain numbers from `JSON.parse` are unchanged, and no
+  conformance vector changes its verdict. `verifier/float-repr-cases.json` holds seeded random
+  decimals with Python's output for each; `python/tests/test_float_repr_parity.py` recomputes it and
+  `typescript/tests/verifier-float-repr.test.ts` checks the TypeScript half (criterion 747).
+
 - `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
   POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`
   context key, so a genuine allow receipt was refused as a digest mismatch (criterion 578).
