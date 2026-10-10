@@ -251,7 +251,7 @@ signature, issuer binding, key status and key thumbprint axes must all pass). Th
 cached at `~/.asqav/jwks-cache.json` (`ASQAV_HOOK_JWKS_CACHE` overrides) for 24 hours and
 refreshed once when the signing key is not in the cache. A receipt that does not verify, or that
 cannot be verified inside the deadline, blocks the tool call. The receipt must also answer this
-request: signed for the agent in `ASQAV_AGENT_ID`, bound to the digest `Agent.sign` posted, and issued
+request: signed for the agent in `ASQAV_AGENT_ID` with a key the JWK Set publishes for that agent (a sibling's or another org's key never verifies a permit, whatever `kid` or `key_thumbprint` the receipt names), bound to the digest `Agent.sign` posted, and issued
 inside the gate's deadline. The receipt must carry the event's `tool_use_id` as `invocation_ref`, so a
 receipt minted for another call blocks even for the same tool and input. An event with no
 `tool_use_id` blocks before anything is signed, because no permit could be tied to the call.
