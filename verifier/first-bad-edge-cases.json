@@ -92,6 +92,12 @@
     "asqav-38-unknown-member-preserved": null,
     "asqav-39-absent-version": "structure",
     "asqav-40-unrecognised-version": "structure",
-    "asqav-41-hash-unrecognised-version": "structure"
+    "asqav-41-hash-unrecognised-version": "structure",
+    "asqav-42-keyed-digest-unverifiable": "payload_digest",
+    "asqav-35-counterparty-peer-swapped": "counterparty",
+    "asqav-36-counterparty-origin-forged": "counterparty",
+    "asqav-37-counterparty-divergent-terms": "counterparty",
+    "asqav-38-counterparty-received-only": "counterparty",
+    "asqav-39-counterparty-cross-replay": "counterparty"
   }
 }

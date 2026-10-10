@@ -65,6 +65,7 @@ import hashlib
 import json
 import math
 import re
+import struct
 import sys
 import urllib.error
 import urllib.request
@@ -537,6 +538,19 @@ def _int_digit_count(node: int) -> int:
     return digits
 
 
+    # A float literal preserved with its source lexeme, mirroring
+    # ``asqav.strict_json.RawFloat`` (this file ships standalone).
+class _RawFloat(float):
+    def __new__(cls, value, lexeme):
+        obj = super().__new__(cls, value)
+        obj.lexeme = lexeme
+        return obj
+
+
+def _raw_float(literal):
+    return _RawFloat(float(literal), literal)
+
+
 def _parse_object(text: str, source: str) -> dict:
     """Parse ``text`` as a JSON object, or raise VerifierInputError.
 
@@ -552,6 +566,7 @@ def _parse_object(text: str, source: str) -> dict:
             text,
             object_pairs_hook=_reject_duplicate_members,
             parse_int=_reject_unsafe_integer,
+            parse_float=_raw_float,
         )
     except (DuplicateMemberError, UnsafeIntegerError) as exc:
         raise VerifierInputError(f"{source}: {exc}") from exc
@@ -1254,13 +1269,46 @@ def _ots_node(buf: bytes, off: int, msg: bytes, depth: int, state: _OtsState) ->
     return _ots_item(tag, buf, off, msg, depth, state)
 
 
+def _derive_block_id(header: dict, merkle_internal: bytes):
+    """Rebuild the 80-byte header and check it against the claimed id.
+
+    Returns (block_id, meets_target), or None when the six derive fields
+    are absent or unparseable. Byte order: version/time/bits/nonce
+    little-endian, both hashes byte-reversed from display hex.
+    """
+    try:
+        version = int(header["version"])
+        prev = bytes.fromhex(header["previousblockhash"])[::-1]
+        stamp = _parse_stamp(header.get("time"))
+        bits = int(header["bits"])
+        nonce = int(header["nonce"])
+        if stamp is None or len(prev) != 32 or not 0 <= version < 2**32:
+            return None
+        if not 0 <= bits < 2**32 or not 0 <= nonce < 2**32:
+            return None
+        exp = (bits >> 24) - 3
+        if exp < 0:
+            return None
+        raw = struct.pack("<I", version) + prev + merkle_internal
+        raw += struct.pack("<III", int(stamp.timestamp()), bits, nonce)
+        if len(raw) != 80:
+            return None
+        block_id = hashlib.sha256(hashlib.sha256(raw).digest()).digest()[::-1].hex()
+        target = (bits & 0xFFFFFF) * 256**exp
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    return block_id, int(block_id, 16) < target
+
+
 def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, str, object]:
     """One OpenTimestamps anchor -> (outcome, detail, block time when verified).
 
     Offline-checkable portion: the proof's initial commitment must equal this
     envelope's digest, and the op chain evaluates to a merkle root. Placing that
     root in a real block needs a caller-supplied header source; without one the
-    block portion reports unverifiable, never a PASS.
+    block portion reports unverifiable, never a PASS. A source carrying only
+    hash/merkle_root/time stays accepted on the merkle match alone; sources
+    with the six derive fields must also reproduce the claimed block id.
     """
     try:
         if len(blob) > _OTS_MAX_BLOB or not blob.startswith(_OTS_MAGIC):
@@ -1293,6 +1341,7 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
             except (TypeError, ValueError):
                 continue
     saw_mismatch = None
+    saw_bad_header = None
     for height, root in state.attestations:
         header = headers.get(height)
         if not isinstance(header, dict) or not isinstance(header.get("merkle_root"), str):
@@ -1308,10 +1357,22 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
         if root != want:
             saw_mismatch = height
             continue
+        derived = _derive_block_id(header, want)
+        if derived is not None:
+            block_id, meets_target = derived
+            claimed = header.get("hash")
+            if not isinstance(claimed, str) or block_id != claimed.lower():
+                saw_bad_header = height
+                continue
+            if not meets_target:
+                saw_bad_header = height
+                continue
         when = _parse_stamp(header.get("time")) if header.get("time") else None
         return "verified", f"OpenTimestamps proof lands in bitcoin block {height}", when
     if saw_mismatch is not None:
         return "invalid", f"merkle path does not land in bitcoin block {saw_mismatch}", None
+    if saw_bad_header is not None:
+        return "invalid", f"bitcoin block {saw_bad_header} header fields do not reproduce its id", None
     return (
         "unverifiable",
         "offline OpenTimestamps check did not complete; commitment matches but no "
@@ -2003,11 +2064,11 @@ def _parse_stamp(value: object):
     return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
 
 
-def check_skew(issued_at: str):
+def check_skew(issued_at: str, *, now: datetime | None = None):
     ts = _parse_stamp(issued_at)
     if ts is None:
         return "FAIL", f"unparseable issued_at {issued_at!r}"
-    skew = (ts - datetime.now(timezone.utc)).total_seconds()
+    skew = (ts - (now or datetime.now(timezone.utc))).total_seconds()
     if skew > SKEW_BOUND_SECONDS:
         return (
             "FAIL",
@@ -2197,6 +2258,14 @@ def check_payload_digest(payload: dict):
         # An explicit null reads as absent: the hosted verifier returns payload: null
         # for redacted and hash-only receipts, and null is not a context to hash
         return "PASS", "no context carried; payload_digest not recomputable here"
+    if is_keyed_digest(payload):
+        # A keyed digest (hash_algo outside sha256) is HMAC over the context
+        # under holder key material no caller supplies here; recomputing a
+        # plain SHA-256 would manufacture a mismatch, so report unverifiable.
+        return "SKIPPED", (
+            "keyed payload_digest needs holder key material to recompute; "
+            "recorded as unverifiable, never a mismatch"
+        )
 
     try:
         encoded = canonical_json(payload["context"])
@@ -2363,14 +2432,14 @@ def check_key_binding(payload: dict, alg, public_key):
 
 
     # Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426).
-def check_expiry(payload: dict):
+def check_expiry(payload: dict, *, now: datetime | None = None):
     if not isinstance(payload, dict) or "expires_at" not in payload:
         return "PASS", "receipt declares no expiry"
     raw = payload["expires_at"]
     ts = _parse_stamp(raw)
     if ts is None:
         return "FAIL", f"unreadable expires_at {raw!r}; refused rather than read as no expiry"
-    delta = (ts - datetime.now(timezone.utc)).total_seconds()
+    delta = (ts - (now or datetime.now(timezone.utc))).total_seconds()
     if delta < 0:
         return "FAIL", f"expires_at {raw} lapsed {-delta:.0f}s ago"
     return "PASS", f"expires_at {raw} is {delta:.0f}s ahead"
@@ -2522,6 +2591,20 @@ def profile_range_note(obj) -> str | None:
         node, path, exiting = stack.pop()
         if isinstance(node, bool):
             continue
+        if isinstance(node, _RawFloat):
+            # Judge the SOURCE LEXEME, never the parsed double: an
+            # integer-valued float lexeme binds digits the profile never
+            # validated as an integer.
+            if (
+                not re.fullmatch(r"-?\d+", node.lexeme)
+                and node.is_integer()
+                and -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER
+            ):
+                return (
+                    f"Asqav profile range +/-(2**53 - 1) excludes non-integer "
+                    f"lexeme {node.lexeme!r} at {path}"
+                )
+            # Fall through: out-of-range magnitudes still fail below.
         if isinstance(node, int):
             if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
                 # str() itself raises past the interpreter digit cap, so an

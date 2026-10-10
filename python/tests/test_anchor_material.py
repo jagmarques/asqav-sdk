@@ -24,7 +24,8 @@ _VECTOR = (
 )
 
 
-def _run(*, tsa: bool = True, wrong_merkle_root: bool = False) -> dict:
+def _run(*, tsa: bool = True, wrong_merkle_root: bool = False,
+        nonce_plus_one: bool = False, altered_bits: bool = False) -> dict:
     receipt = json.loads((_VECTOR / "receipt.json").read_text())
     jwks = json.loads((_VECTOR / "jwks.json").read_text())
     predecessor = json.loads((_VECTOR / "predecessor.json").read_text())
@@ -34,6 +35,10 @@ def _run(*, tsa: bool = True, wrong_merkle_root: bool = False) -> dict:
     headers = json.loads((_VECTOR / "bitcoin_headers.json").read_text())
     if wrong_merkle_root:
         headers["965451"]["merkle_root"] = "00" * 32
+    if nonce_plus_one:
+        headers["965451"]["nonce"] += 1
+    if altered_bits:
+        headers["965451"]["bits"] ^= 1
     return v.run_structured(
         receipt,
         jwks,
@@ -68,3 +73,17 @@ def test_without_the_tsa_file_the_axis_skips() -> None:
     assert "- rfc3161" in anchors["note"] and "unverifiable" in anchors["note"]
     # The OpenTimestamps half still completes: the SKIP is the TSA's alone.
     assert "- opentimestamps: verified" in anchors["note"]
+
+
+def test_a_bumped_nonce_fails_the_axis() -> None:
+    anchors = _anchors(_run(nonce_plus_one=True))
+    assert anchors["result"] == "FAIL", anchors["note"]
+    assert "- opentimestamps: invalid" in anchors["note"]
+    assert "do not reproduce its id" in anchors["note"]
+
+
+def test_altered_bits_fail_the_axis() -> None:
+    anchors = _anchors(_run(altered_bits=True))
+    assert anchors["result"] == "FAIL", anchors["note"]
+    assert "- opentimestamps: invalid" in anchors["note"]
+    assert "do not reproduce its id" in anchors["note"]

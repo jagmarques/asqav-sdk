@@ -60,6 +60,8 @@ export interface VerifyResult {
   notChecked: NotCheckedEntry[];
   /** The coverage block, mirrored from the reviewer's tool: snake_case keys are deliberate. */
   coverage: Coverage;
+  /** Resolved invocation context, so a disagreement attributes to an input. */
+  context?: VerificationContext;
 }
 
 /** Axes whose FAIL proves a cryptographic/policy binding failure (invalid). */
@@ -322,6 +324,7 @@ export function verify(
   context: VerificationContext = {},
 ): VerifyResult {
   const ad = detect(doc, adapters);
+  const resolved: VerificationContext = context ?? {};
   if (ad === null) {
     const axes = [axis("structure", FAIL, "no adapter recognises this receipt")];
     const [verdict, failureClass] = foldVerdict(axes, false);
@@ -334,6 +337,7 @@ export function verify(
       firstFailingEdge: firstFailingEdge(axes),
       notChecked: notCheckedDeclaration(),
       coverage: coverageDeclaration(axes),
+      context: resolved,
     };
   }
   // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
@@ -359,6 +363,7 @@ export function verify(
       firstFailingEdge: early.firstFailingEdge,
       notChecked: early.notChecked,
       coverage: early.coverage,
+      context: resolved,
     };
   }
 
@@ -377,5 +382,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), context: resolved };
 }
