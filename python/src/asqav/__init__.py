@@ -497,4 +497,8 @@ def verify_receipt_offline(
         "first_failing_edge": vr.first_failing_edge,
         "not_checked": vr.not_checked,
         "coverage": vr.coverage,
+        # Mirrors the TS twin's resolved context; unset hints are omitted like undefined.
+        "context": {
+            k: v for k, v in (vars(vr.context) if vr.context else {}).items() if v is not None
+        },
     }
