@@ -23,8 +23,9 @@ from typing import Any
 try:
     import typer
 except ImportError:
-    print("CLI requires typer. Install with: pip install asqav[cli]")
-    sys.exit(1)
+    print('CLI requires typer. Install with: pip install "asqav[cli]"', file=sys.stderr)
+    # Exit 1 is a non-blocking error to the harness, so the PreToolUse gate must exit 2.
+    sys.exit(2 if sys.argv[1:3] == ["hook", "pretool"] else 1)
 
 from asqav.code_authorship import CODE_AUTHORSHIP_WRITE_SCOPE
 from asqav.credentials import resolve_api_key
