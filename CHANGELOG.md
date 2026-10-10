@@ -5,16 +5,40 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- One verdict for a signed decimal across the verifiers. The current receipt profile (`v: 1`)
+  admits only integers within +/-(2**53 - 1) as digest-covered numbers. `verify_receipt.py` and
+  the TypeScript verifier refused an integer-valued float such as `500.0` or `-0.0`, while the
+  Python oracle and `asqav.verify_receipt_offline` verified it because their parser keeps no
+  lexeme. `profile_range_note` now judges every parsed Python float, so all of them report such a
+  receipt `unverified` / `unverifiable`. The oracle and the TypeScript verifier also apply the
+  range to the signature object of an anchored receipt and to the originating envelope of an
+  `envelope_minus_anchors` binding, as `verify_receipt.py` does. A binding under any other scope
+  never hashes its origin, so no verifier range-checks that origin. `verifyReceiptOffline` accepts
+  raw JSON text for the receipt, keys, predecessor and originating envelope, reads it with the
+  lexeme-preserving parser and returns the runner's verdict. Given an object from `JSON.parse` it
+  writes a fraction or a value past 2**53 as Python does, refuses a `-0` as `unverifiable`, and
+  reports a signed `500.0` as `invalid` because `JSON.parse` returns 500 (see the TypeScript
+  README). `verifier/verdict-parity-cases` holds 30 receipts signed with a local key over `1e-07`,
+  the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and tampered.
+  `python/tests/test_verdict_parity_cases.py` and `typescript/tests/verifier-verdict-parity.test.ts`
+  assert one outcome per case from every verifier. No conformance vector changes its verdict
+  (criterion 747).
+
 - TypeScript verifier: a decimal from `parseJsonPreservingFloats` is signed and hashed as Python's
   `repr(float)`: `1e-7` becomes `1e-07`, `0.00001` becomes `1e-05`, `76355072847686510.0`
   becomes `7.635507284768651e+16` and `-0.0` stays `-0.0`. The exponent form starts at 1e16 and
   below 1e-4 with a sign and two digits, and everything between keeps the positional form. Before,
-  `asqavJcs`, `jcs` and `asqavJcsPreCutover` wrote the JavaScript spelling in those three zones, so
-  a receipt carrying such a decimal failed its signature check in this verifier and passed in
-  Python, and `counterpartyEnvelopeHash` returned a different hash (`counterparty_mismatch`).
-  Strict RFC 8785 output (`jcsRfc8785`) and plain numbers from `JSON.parse` are unchanged, and no
-  conformance vector changes its verdict. `verifier/float-repr-cases.json` holds seeded random
-  decimals with Python's output for each; `python/tests/test_float_repr_parity.py` recomputes it and
+  `asqavJcs`, `jcs` and `asqavJcsPreCutover` wrote the JavaScript spelling in those three zones.
+  That split the verdict where the spelling reached signed or hashed bytes: a receipt carrying a
+  decimal below 1e-4 failed its signature check here and passed in Python, and
+  `counterpartyEnvelopeHash` gave a different hash for an originating envelope with a decimal in
+  any of the three zones (`counterparty_mismatch`). The spelling alone does not settle every
+  verdict. On a `v: 1` receipt the profile range refuses a signed 1e16-zone number or `-0.0`
+  before any signature check, so the new spelling never reaches it, and the Python oracle still
+  verified a `-0.0` receipt that both other verifiers refused. The entry above closes that split.
+  `jcsRfc8785` is unchanged, and no conformance vector changes its verdict.
+  `verifier/float-repr-cases.json` holds seeded random decimals with Python's output for each;
+  `python/tests/test_float_repr_parity.py` recomputes it and
   `typescript/tests/verifier-float-repr.test.ts` checks the TypeScript half (criterion 747).
 
 - `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
