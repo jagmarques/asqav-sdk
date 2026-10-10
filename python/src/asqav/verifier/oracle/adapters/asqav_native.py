@@ -23,12 +23,18 @@ byte-identical to ``verify_receipt.canonical_json`` by the cloud-parity test.
 """
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from asqav.verifier import verify_receipt as _vr
 
-from ..adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
-from ..adapter import resolve_evaluation_now
+from ..adapter import (
+    ChainStep,
+    FormatAdapter,
+    SignatureMaterial,
+    VerificationContext,
+    resolve_evaluation_now,
+)
 from ..canonical import asqav_jcs
 from ..core import sha256_hex
 from .acta import _is_lower_hex
@@ -122,6 +128,15 @@ def _safe_b64(value: Any) -> bytes:
 
 
     # Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode).
+
+def _accepts_context(method: Any) -> bool:
+    try:
+        params = inspect.signature(method).parameters.values()
+    except (TypeError, ValueError):
+        return True
+    positional = [p for p in params if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+    return len(positional) >= 3 or any(p.kind is p.VAR_POSITIONAL for p in params)
+
 class AsqavNativeAdapter(FormatAdapter):
 
     name = "asqav-native"
@@ -250,7 +265,11 @@ class AsqavNativeAdapter(FormatAdapter):
     def extra_axes_with_context(
         self, doc: dict, key_provider: Any, context: VerificationContext,
     ) -> list[tuple[str, str, str]]:
-        axes = self.extra_axes(doc, key_provider, context)
+        # A subclass may still override extra_axes with the older two-argument form.
+        if _accepts_context(self.extra_axes):
+            axes = self.extra_axes(doc, key_provider, context)
+        else:
+            axes = self.extra_axes(doc, key_provider)
         if context.originating_envelope is None:
             return axes
         signed = {} if _is_hash_mode(doc) else _payload(doc)
