@@ -2003,11 +2003,11 @@ def _parse_stamp(value: object):
     return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
 
 
-def check_skew(issued_at: str):
+def check_skew(issued_at: str, *, now: datetime | None = None):
     ts = _parse_stamp(issued_at)
     if ts is None:
         return "FAIL", f"unparseable issued_at {issued_at!r}"
-    skew = (ts - datetime.now(timezone.utc)).total_seconds()
+    skew = (ts - (now or datetime.now(timezone.utc))).total_seconds()
     if skew > SKEW_BOUND_SECONDS:
         return (
             "FAIL",
@@ -2363,14 +2363,14 @@ def check_key_binding(payload: dict, alg, public_key):
 
 
     # Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426).
-def check_expiry(payload: dict):
+def check_expiry(payload: dict, *, now: datetime | None = None):
     if not isinstance(payload, dict) or "expires_at" not in payload:
         return "PASS", "receipt declares no expiry"
     raw = payload["expires_at"]
     ts = _parse_stamp(raw)
     if ts is None:
         return "FAIL", f"unreadable expires_at {raw!r}; refused rather than read as no expiry"
-    delta = (ts - datetime.now(timezone.utc)).total_seconds()
+    delta = (ts - (now or datetime.now(timezone.utc))).total_seconds()
     if delta < 0:
         return "FAIL", f"expires_at {raw} lapsed {-delta:.0f}s ago"
     return "PASS", f"expires_at {raw} is {delta:.0f}s ahead"
