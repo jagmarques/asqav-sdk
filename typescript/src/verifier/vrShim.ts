@@ -3,7 +3,7 @@
  * the TS oracle reproduces the same bytes and the same structure verdict as the Python surface.
  */
 
-import { asqavJcs } from "./canonical.js";
+import { asqavJcs, exceedsDepth } from "./canonical.js";
 import { sha256Hex, type VerifyState } from "./crypto.js";
 
 /** Mirrors `core/integrity.py` FIRST_RECEIPT_SEED (64 zeros). */
@@ -847,13 +847,7 @@ export function counterpartyEnvelopeHash(originator: unknown): string {
     throw new Error("originating signing bytes are unavailable");
   }
   const projection = { payload: originator.payload, signature };
-  const stack: [unknown, number][] = [[projection, 0]];
-  while (stack.length) {
-    const [node, depth] = stack.pop()!;
-    if (depth > 200) throw new Error("originating nesting exceeds 200 levels");
-    const children = isRecord(node) ? Object.values(node) : Array.isArray(node) ? node : [];
-    for (const child of children) stack.push([child, depth + 1]);
-  }
+  if (exceedsDepth(projection, 200)) throw new Error("originating nesting exceeds 200 levels");
   return Buffer.from(sha256Hex(asqavJcs(projection)), "hex").toString("base64");
 }
 

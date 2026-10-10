@@ -8,15 +8,19 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { verifyReceiptOffline } from "../src/index.js";
+import { checkCounterpartyBinding } from "../src/verifier/vrShim.js";
 // Imported from the published `@asqav/sdk/verifier` entry, not the inner module, so
 // a caller following the docs reaches every piece the Python surface exposes.
 import {
   checkAnchors,
   checkExpiry,
   checkSkew,
+  counterpartyEnvelopeHash,
   envelopeMinusAnchorsJcs,
   MAX_NESTING_DEPTH,
   normaliseEnvelope,
+  parseJsonPreservingFloats,
+  RawFloat,
   sha256Hex,
   SKEW_BOUND_SECONDS,
 } from "../src/verifier/index.js";
@@ -52,6 +56,32 @@ interface ChainPrevCase {
   expect: { verdict: string; chain: string; signature: string };
 }
 
+interface NestingDepthCase {
+  name: string;
+  wrappers: number;
+  leaf: string;
+  expect: { structure: string; verdict?: string; failure_class?: string; note?: string };
+}
+
+interface CounterpartyDepthCase {
+  name: string;
+  wrappers: number;
+  leaf: string;
+  envelope_hash: string;
+  expect: { result: string; note_contains: string };
+}
+
+interface NestingDepthTable {
+  envelope: Record<string, unknown>;
+  jwks: Record<string, unknown>;
+  cases: NestingDepthCase[];
+  counterparty: {
+    envelope: Record<string, unknown>;
+    payload: Record<string, unknown>;
+    cases: CounterpartyDepthCase[];
+  };
+}
+
 interface DivergenceCase {
   name: string;
   envelope: Record<string, unknown>;
@@ -67,6 +97,7 @@ const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf-8")) as {
   expiry: ExpiryCase[];
   chain_prev_hash: ChainPrevCase[];
   anchors_divergence: DivergenceCase[];
+  nesting_depth: NestingDepthTable;
 };
 
 const PIPELOCK_VECTOR = resolve(
@@ -312,6 +343,105 @@ describe("nesting-depth gate parity", () => {
     expect(r.verdict).toBe("unverified");
     expect(r.failureClass).toBe("unverifiable");
     expect(r.axes[0].note).toBe("receipt nesting exceeds the supported depth (> 200 levels)");
+  });
+
+  it("the depth table is populated and two-sided", () => {
+    const outcomes = new Set(TABLE.nesting_depth.cases.map((c) => c.expect.structure));
+    expect([...outcomes].sort()).toEqual(["FAIL", "PASS"]);
+    const leaves = new Set(TABLE.nesting_depth.cases.map((c) => /[.eE]/.test(c.leaf)));
+    expect(leaves.size, "needs both decimal and integer leaves").toBe(2);
+  });
+
+  // The parser wraps each decimal in a RawFloat, a plain float in Python, so
+  // the wrapper must not add a level to the depth walk
+  const PARSERS: Array<[string, (text: string) => unknown]> = [
+    ["parseJsonPreservingFloats", parseJsonPreservingFloats],
+    ["JSON.parse", (text) => JSON.parse(text)],
+  ];
+  const nest = (wrappers: number, leaf: string): string =>
+    '{"n":'.repeat(wrappers) + `{"leaf":${leaf}}` + "}".repeat(wrappers);
+
+  for (const [parserName, parse] of PARSERS) {
+    for (const c of TABLE.nesting_depth.cases) {
+      it(`shared case (${parserName}): ${c.name}`, () => {
+        const base = JSON.stringify(TABLE.nesting_depth.envelope).slice(0, -1);
+        const receipt = parse(`${base},"junk":${nest(c.wrappers, c.leaf)}}`) as Record<string, unknown>;
+        const r = verifyReceiptOffline(receipt, TABLE.nesting_depth.jwks);
+        expect(r.axes.find((a) => a.axis === "structure")?.result, c.name).toBe(c.expect.structure);
+        if (c.expect.structure === "FAIL") {
+          expect(r.verdict).toBe(c.expect.verdict);
+          expect(r.failureClass).toBe(c.expect.failure_class);
+          expect(r.axes).toHaveLength(1);
+          expect(r.axes[0].note).toBe(c.expect.note);
+        }
+      });
+    }
+  }
+
+  // The counterparty hash walks the originating envelope under its own cap
+  for (const [parserName, parse] of PARSERS) {
+    for (const c of TABLE.nesting_depth.counterparty.cases) {
+      it(`counterparty case (${parserName}): ${c.name}`, () => {
+        const env = TABLE.nesting_depth.counterparty.envelope as { payload: object; signature: object };
+        const payloadText = JSON.stringify(env.payload).slice(0, -1) + `,"junk":${nest(c.wrappers, c.leaf)}}`;
+        const originator = parse(`{"payload":${payloadText},"signature":${JSON.stringify(env.signature)}}`);
+        const payload = JSON.parse(JSON.stringify(TABLE.nesting_depth.counterparty.payload)) as {
+          counterparty_binding: Record<string, unknown>;
+        };
+        payload.counterparty_binding.envelope_hash = c.envelope_hash;
+        const [result, note] = checkCounterpartyBinding(payload, originator);
+        expect(result, `${c.name}: ${note}`).toBe(c.expect.result);
+        expect(note, c.name).toContain(c.expect.note_contains);
+      });
+    }
+  }
+
+  // Look-alikes are containers, so they must still meet the cap
+  const deep = (levels: number): Record<string, unknown> => {
+    let node: Record<string, unknown> = { leaf: 1 };
+    for (let i = 0; i < levels; i++) node = { n: node };
+    return node;
+  };
+  const forgeries: Array<[string, () => unknown]> = [
+    ["prototype swapped onto an object with an extra key", () =>
+      Object.setPrototypeOf({ value: 1, n: deep(500) }, RawFloat.prototype)],
+    ["prototype swapped onto a bare nested object", () =>
+      Object.setPrototypeOf(deep(500), RawFloat.prototype)],
+    ["a nested object passed as the value", () => new RawFloat(deep(500) as unknown as number)],
+    ["a nested object passed as the lexeme", () =>
+      new RawFloat(1.5, deep(500) as unknown as string)],
+  ];
+  for (const [name, make] of forgeries) {
+    it(`caps a forged RawFloat: ${name}`, () => {
+      const receipt = nestedReceipt(0);
+      receipt.junk = make();
+      const r = verifyReceiptOffline(receipt, JWKS);
+      expect(r.verdict).toBe("unverified");
+      expect(r.failureClass).toBe("unverifiable");
+      expect(r.axes[0].note).toBe("receipt nesting exceeds the supported depth (> 200 levels)");
+    });
+    it(`caps a forged RawFloat in the originator: ${name}`, () => {
+      expect(() => counterpartyEnvelopeHash({
+        payload: { junk: make() },
+        signature: { alg: "a", kid: "k", sig: "s" },
+      })).toThrow(/nesting exceeds 200/);
+    });
+  }
+
+  it("keeps a genuine RawFloat a leaf at the cap", () => {
+    for (const leaf of [new RawFloat(1.5), new RawFloat(1.5, "1.5")]) {
+      const receipt = nestedReceipt(0);
+      let node: Record<string, unknown> = { leaf };
+      for (let i = 0; i < MAX_NESTING_DEPTH - 2; i++) node = { n: node };
+      receipt.junk = node;
+      const r = verifyReceiptOffline(receipt, JWKS);
+      expect(r.axes.find((a) => a.axis === "structure")?.result).toBe("PASS");
+    }
+  });
+
+  it("parses a decimal leaf to a RawFloat, so the shared cases are not vacuous", () => {
+    const parsed = parseJsonPreservingFloats('{"leaf":1.5}') as Record<string, unknown>;
+    expect(parsed.leaf).toBeInstanceOf(RawFloat);
   });
 
   it("returns a verdict instead of exhausting the stack", () => {
