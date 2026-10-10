@@ -22,6 +22,7 @@ jobs:
             python:
               - 'python/**'
               - 'LICENSE'
+              - 'README.md'
               - 'conformance/**'
               # The shared case tables gate both verifiers, so editing one must run
               # the jobs that consume it or the gate could be weakened unseen.
