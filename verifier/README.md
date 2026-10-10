@@ -102,7 +102,7 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 |---|---|---|
 | signature | ML-DSA-65, Ed25519 or ES256 over canonical bytes | `dilithium-py` or `cryptography` against the JWKS public key |
 | canonical bytes | JCS reproduction | stdlib `json` (sorted keys, no whitespace, UTF-8) |
-| issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json`; a key carried in an Audit Pack is an input, not a trust anchor — the draft lists JWK Sets, configured trust anchors and authenticated historical exports as resolution inputs, requires independent key-to-issuer authorization, and reports conflicting records as unverifiable |
+| issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json`. A key carried in an Audit Pack is an input, not a trust anchor. The draft accepts JWK Sets, configured trust anchors and authenticated historical exports as resolution inputs; it requires independent key-to-issuer authorization and reports conflicting records as unverifiable |
 | chain | SHA-256 link to predecessor | stdlib `hashlib` |
 | anchors | each anchor's token must commit `sha256(JCS({payload, signature}))`, the two-key object the signer anchored; RFC3161 TSA signature against pinned TSA key material, OpenTimestamps merkle path against supplied bitcoin headers | stdlib DER/ots parse + `dilithium-py`/`cryptography` for the TSA signature |
 | skew | `issued_at` not more than 300s in the future (a forward bound only; a receipt from the past never fails here) | stdlib `datetime` |
