@@ -118,6 +118,12 @@ describe("explicit Asqav profile ingest (shared parser unchanged)", () => {
     expect(() => parseProfileJson('{"n":9.007199254740992e15}')).toThrow(ProfileIntegerError);
   });
 
+  it("refuses a non-integer lexeme whose value falls in range", () => {
+    expect(() => parseProfileJson('{"n":9007199254740991.0000001}')).toThrow(
+      /Asqav profile range/,
+    );
+  });
+
   it("keeps string twins, booleans and fractions unchanged", () => {
     expect(parseProfileJson('{"n":"9007199254740993"}')).toEqual({ n: "9007199254740993" });
     const parsed = parseProfileJson('{"a":true,"b":3.14}') as {

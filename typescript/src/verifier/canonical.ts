@@ -14,9 +14,11 @@ type JsonValue =
 /**
  * A JSON number written as a FLOAT literal, kept so `500.0` re-emits as `500.0` rather than the
  * `500` JSON.parse collapses it to; the jcs dialects sign numbers as the producer emitted them.
+ * The source lexeme rides along so the profile range judges
+ * digits, never the parsed double.
  */
 export class RawFloat {
-  constructor(public readonly value: number) {}
+  constructor(public readonly value: number, public readonly lexeme?: string) {}
 
   // JSON.stringify re-emits the number itself, never the wrapper shape.
   toJSON(): number {
@@ -208,7 +210,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
     }
     const lexeme = text.slice(start, i);
     const parsed = Number(lexeme);
-    if (isFloat) return new RawFloat(parsed);
+    if (isFloat) return new RawFloat(parsed, lexeme);
     // Test the SOURCE DIGITS, never the parsed double: Number("9007199254740993") is
     // already 9007199254740992, so a magnitude check on `parsed` would wave through the
     // exact value this rule exists to refuse.
@@ -257,6 +259,18 @@ export function profileRangeNote(value: unknown): string | null {
   const stack: Array<[unknown, string]> = [[value, "$"]];
   while (stack.length > 0) {
     const [node, path] = stack.pop() as [unknown, string];
+    if (isRawFloat(node)) {
+      // Judge the SOURCE DIGITS, never the parsed double: an integer-valued
+      // float lexeme binds digits the profile never validated as an integer
+      if (
+        node.lexeme !== undefined &&
+        !/^-?\d+$/.test(node.lexeme) &&
+        Number.isInteger(node.value) &&
+        Math.abs(node.value) <= MAX_PROFILE_INTEGER
+      ) {
+        return `Asqav profile range +/-(2**53 - 1) excludes non-integer lexeme ${node.lexeme} at ${path}`;
+      }
+    }
     const v = isRawFloat(node) ? node.value : node;
     if (typeof v === "number") {
       if (Number.isInteger(v) && Math.abs(v) > MAX_PROFILE_INTEGER) {
