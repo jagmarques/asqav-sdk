@@ -81,7 +81,10 @@ def test_pretool_dry_run_clear_context_sends_the_arguments() -> None:
     )
     assert result.exit_code == 0, result.output
     body = json.loads(result.output)
-    assert body["context"] == {"tool_input": {"file_path": "/tmp/f", "content": "hi"}}
+    assert body["context"] == {
+        "tool_input": {"file_path": "/tmp/f", "content": "hi"},
+        "_trace_id": "s2",
+    }
 
 
 def test_sign_event_inits_hash_only_by_default_and_carries_the_deadline(monkeypatch) -> None:
