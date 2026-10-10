@@ -112,15 +112,35 @@ export class DuplicateMemberError extends SyntaxError {
   }
 }
 
-/** ECMAScript-shortest decimal of a float, forced to carry a `.0` when whole. */
+// Python repr(float): exponent form from 1e16 and below 1e-4, -0.0 kept
+// Same shortest digits as JavaScript, laid out as 1e-07 and 7.6e+16
+export function pythonFloatRepr(n: number): string {
+  if (n === 0) return Object.is(n, -0) ? "-0.0" : "0.0";
+  const [mantissa, exponent] = Math.abs(n).toExponential().split("e");
+  const digits = mantissa.replace(".", "");
+  const exp10 = Number(exponent);
+  const sign = n < 0 ? "-" : "";
+  if (exp10 >= 16 || exp10 < -4) return sign + exponentLayout(digits, exp10);
+  return sign + positionalLayout(digits, exp10 + 1);
+}
+
 function floatToString(n: number): string {
   if (!Number.isFinite(n)) {
     throw new Error(`non-finite number not allowed in JCS: ${n}`);
   }
-  let s = n.toString();
-  // A whole-valued float must keep its decimal point (Python repr(500.0)=="500.0").
-  if (!/[.eE]/.test(s)) s += ".0";
-  return s;
+  return pythonFloatRepr(n);
+}
+
+function exponentLayout(digits: string, exp10: number): string {
+  const head = digits.length > 1 ? `${digits[0]}.${digits.slice(1)}` : digits;
+  return `${head}e${exp10 < 0 ? "-" : "+"}${String(Math.abs(exp10)).padStart(2, "0")}`;
+}
+
+// point counts the digits left of the decimal point, 0 or less when none
+function positionalLayout(digits: string, point: number): string {
+  if (point <= 0) return `0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${digits}${"0".repeat(point - digits.length)}.0`;
+  return `${digits.slice(0, point)}.${digits.slice(point)}`;
 }
 
 /**
