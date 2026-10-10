@@ -12,8 +12,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import crypto
 from ..verify_receipt import NOT_CHECKED, not_checked_declaration
+from . import crypto
 from .adapter import FormatAdapter, VerificationContext
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED

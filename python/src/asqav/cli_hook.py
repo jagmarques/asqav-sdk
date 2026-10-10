@@ -628,7 +628,8 @@ def hook_pretool(
     if decision != "allow":
         # Only a permit opens the gate; any other non-blocking decision exits 2.
         print(
-            f"asqav hook: non-permit decision {decision!r} on {sig.signature_id}; blocking tool call",
+            f"asqav hook: non-permit decision {decision!r} on {sig.signature_id}; "
+            "blocking tool call",
             file=sys.stderr,
         )
         raise typer.Exit(code=2)
