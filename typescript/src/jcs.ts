@@ -3,7 +3,7 @@
  * bytes the cloud signs and the chain hashes over. `canonicalize.ts` exposes the same bytes by alias.
  */
 
-import { isRawFloatLeaf } from "./verifier/canonical.js";
+import { isRawFloatLeaf, pythonFloatRepr } from "./verifier/canonical.js";
 
 type JsonValue =
   | null
@@ -87,35 +87,7 @@ function floatLeafToCanonical(n: number): string {
     throw new TypeError("NaN / Infinity are not allowed in canonical JSON");
   }
   assertProfileRange(n);
-  if (n === 0) return Object.is(n, -0) ? "-0.0" : "0.0";
   return pythonFloatRepr(n);
-}
-
-/**
- * Python repr(float) of a finite nonzero double. Both languages pick the
- * shortest round-trip digits, so only the layout differs.
- */
-function pythonFloatRepr(n: number): string {
-  const [mantissa, exponent] = Math.abs(n).toExponential().split("e");
-  const digits = mantissa.replace(".", "");
-  const exp10 = Number(exponent);
-  const sign = n < 0 ? "-" : "";
-  // repr uses exponent form from 1e16 up and below 1e-4
-  if (exp10 >= 16 || exp10 < -4) return sign + exponentLayout(digits, exp10);
-  return sign + positionalLayout(digits, exp10 + 1);
-}
-
-function exponentLayout(digits: string, exp10: number): string {
-  const head = digits.length > 1 ? `${digits[0]}.${digits.slice(1)}` : digits;
-  const magnitude = String(Math.abs(exp10)).padStart(2, "0");
-  return `${head}e${exp10 < 0 ? "-" : "+"}${magnitude}`;
-}
-
-// point counts the digits left of the decimal point, 0 or less when none
-function positionalLayout(digits: string, point: number): string {
-  if (point <= 0) return `0.${"0".repeat(-point)}${digits}`;
-  if (point >= digits.length) return `${digits}${"0".repeat(point - digits.length)}.0`;
-  return `${digits.slice(0, point)}.${digits.slice(point)}`;
 }
 
 function jsonString(s: string): string {
