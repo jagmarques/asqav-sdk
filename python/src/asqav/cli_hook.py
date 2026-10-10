@@ -112,8 +112,8 @@ def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
         raise typer.Exit(code=fail_code)
     try:
         event = json_mod.loads(raw)
-    except json_mod.JSONDecodeError as exc:
-        print(f"Error: hook event is not valid JSON: {exc}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 - deep nesting and huge ints raise past JSONDecodeError
+        print(f"Error: hook event is not valid JSON: {type(exc).__name__}: {exc}", file=sys.stderr)
         raise typer.Exit(code=fail_code) from exc
     if not isinstance(event, dict):
         print("Error: hook event must be a JSON object.", file=sys.stderr)
@@ -617,6 +617,19 @@ def hook_pretool(
     result_digest. A malformed/empty event also blocks (exit 2): the gate fails
     closed on every failure path, never open.
     """
+    try:
+        _pretool_gate(clear_context=clear_context, dry_run=dry_run)
+    except typer.Exit:
+        raise
+    except Exception as exc:  # noqa: BLE001 - exit 1 lets the tool run, so nothing escapes
+        print(
+            f"asqav hook: unexpected {type(exc).__name__}, blocking tool call: {exc}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2) from exc
+
+
+def _pretool_gate(*, clear_context: bool, dry_run: bool) -> None:
     started = time.monotonic()
     event = _read_event(fail_code=2)
     action_type, context, session_id, fields = _map_event(
