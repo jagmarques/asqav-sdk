@@ -108,7 +108,23 @@ def _vectors() -> list[tuple[str, dict, dict, dict]]:
            "asqav-48-outer-public-key-edited",
            "The outer public_key_b64 is not the key the signature verified against.")
     out += _shape_vectors(agree, jwks, src, edited_note=REASON)
+    out.append(_flat_hash_vector())
     return out
+
+
+def _flat_hash_vector() -> tuple[str, dict, dict, dict]:
+    """asqav-05 (default /sign shape) plus members its signature does not cover."""
+    base = _HERE / "asqav-05-hash-mode-prod"
+    entry = _load(base / "receipt.json")
+    entry.update(action_type="payments:wire_transfer_1M", agent_name="Trusted agent",
+                 decision="approved", signed_at="2020-01-01T00:00:00Z", verified=True)
+    return ("asqav-52-outer-flat-hash-unsigned-members", entry, _load(base / "jwks.json"), {
+        "format": "asqav-native", "outcome": "verified", "reason_code": "",
+        "notes": "Real prod hash-mode receipt (asqav-05, ML-DSA-65) with action_type, agent_name, "
+        "decision, signed_at and verified added. A flat receipt signs its own fields, so those "
+        "members are not copies of anything signed: the signature still verifies and the "
+        "outer_copies axis passes while listing them as not signed.",
+    })
 
 
 def _shape_vectors(agree: dict, jwks: dict, src: str, edited_note: str) -> list:

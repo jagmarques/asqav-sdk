@@ -255,7 +255,9 @@ Some copies cannot be judged and are listed rather than failed. An observation
 a form this check does not read (basic ISO, hour-only, week dates, comma fractions), is
 listed. The digest and the key are listed when the signature did not verify, because
 until then the bytes compared need not be the signed bytes. A member that is absent or
-`null` is not compared. The manual
+`null` is not compared, except `compliance_mode`, which must be `true` whenever it is
+present. A flat hash-mode receipt (`mode: hash`, no `payload` object) signs its own fields, so it
+has no copies: its other members are listed as not signed. The manual
 [openssl and jq walkthrough](openssl-jq-walkthrough.md) reads the `payload` alone, so
 it never relies on a copy.
 
@@ -264,7 +266,7 @@ whose copies all agree, one each with an edited `signed_at`, `agent_id`, `action
 `message_b64` and `public_key_b64`, and the same refusal when the signature is a flat
 string (`asqav-49` agrees, `asqav-50` edits `agent_id`) or sits under
 `signature_envelope` (`asqav-51` edits `action_type`). Every verifier refuses the
-edited ones.
+edited ones. `asqav-52` pins the flat hash-mode listing.
 
 ### Where the standalone verifier's vocabulary differs
 

@@ -778,6 +778,32 @@ function strayOutcomes(
   ];
 }
 
+/** Fields a flat hash-mode receipt signs; its other members are unsigned. */
+const FLAT_SIGNED: ReadonlySet<string> = new Set([
+  "v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id",
+  "agent_id", "org_id", "policy_digest", "policy_decision",
+]);
+
+/** Signature material of a flat receipt: read to verify, not claims. */
+const FLAT_MATERIAL: ReadonlySet<string> = new Set([
+  "payload", "signature", "signature_b64", "anchors", "algorithm", "key_id",
+]);
+
+/** A flat hash-mode receipt: mode=hash, no payload object, a signature. */
+function isFlatHashReceipt(raw: Record<string, unknown>): boolean {
+  if (raw.mode !== "hash" || isRecord(raw.payload)) return false;
+  return pyTruthy(raw.signature_b64) || pyTruthy(raw.signature);
+}
+
+/** A flat receipt has no copies; list the members it does not sign. */
+function flatOuterNote(raw: Record<string, unknown>): readonly ["PASS", string] {
+  const names = Object.keys(raw)
+    .filter((k) => !FLAT_SIGNED.has(k) && !FLAT_MATERIAL.has(k) && present(raw, k))
+    .sort();
+  if (names.length === 0) return ["PASS", "no outer copies carried; the signed payload is the whole receipt"];
+  return ["PASS", `not signed, do not rely on: ${names.join(", ")}`];
+}
+
 function outerCopyOutcomes(
   raw: Record<string, unknown>, payload: Record<string, unknown>,
   sigObj: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null,
@@ -828,7 +854,10 @@ export function checkOuterCopies(
   raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null = null,
 ): readonly ["PASS" | "FAIL", string] {
   const payload = raw.payload;
-  if (!isRecord(payload)) return ["PASS", "no signed payload object; no outer copies compared"];
+  if (!isRecord(payload)) {
+    if (isFlatHashReceipt(raw)) return flatOuterNote(raw);
+    return ["PASS", "no signed payload object; no outer copies compared"];
+  }
   const sigObj = normaliseEnvelope(raw).signature;
   const signature = isRecord(sigObj) ? sigObj : {};
   return outerCopyNote(outerCopyOutcomes(raw, payload, signature, msg, keyBytes), raw);

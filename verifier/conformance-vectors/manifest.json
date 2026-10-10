@@ -800,5 +800,12 @@
     "failure_class": "invalid",
     "reason_code": "outer_copy_mismatch",
     "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. The signature object sits under the hosted name signature_envelope, which a verifier reads as the signature. The outer action_type differs from the signed one. The signed bytes are untouched, so the signature axis still passes; the outer_copies axis FAILs and the verdict is unverified/invalid."
+  },
+  {
+    "dir": "asqav-52-outer-flat-hash-unsigned-members",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Real prod hash-mode receipt (asqav-05, ML-DSA-65) with action_type, agent_name, decision, signed_at and verified added. A flat receipt signs its own fields, so those members are not copies of anything signed: the signature still verifies and the outer_copies axis passes while listing them as not signed."
   }
 ]

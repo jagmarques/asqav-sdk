@@ -67,6 +67,7 @@ AUTHORED_REF_VECTORS = frozenset(
         "asqav-49-outer-flat-signature-agree",
         "asqav-50-outer-flat-signature-agent-id-edited",
         "asqav-51-outer-envelope-signature-action-type-edited",
+        "asqav-52-outer-flat-hash-unsigned-members",
     }
 )
 

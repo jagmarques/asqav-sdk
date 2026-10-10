@@ -17,7 +17,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   key copies are compared only when the signature verified, `signed_bytes_withheld` is listed and
   never switches a check off, and an observation time that is withheld or unreadable is listed
   instead of failed. Axis count is 13 for the offline APIs and 14 for the standalone verifier.
-  Conformance vectors `asqav-43` to `asqav-51` pin agreeing entries and edited copies in each
+  A flat hash-mode receipt lists its unsigned members too. Conformance vectors `asqav-43` to `asqav-52` pin agreeing entries and edited copies in each
   signature spelling, and `verifier/outer-copy-cases.json` pins byte-identical results and notes
   in both languages. `docs/offline-verification.md` lists which members are signed.
 
