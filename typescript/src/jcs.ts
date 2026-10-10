@@ -3,6 +3,8 @@
  * bytes the cloud signs and the chain hashes over. `canonicalize.ts` exposes the same bytes by alias.
  */
 
+import { isRawFloatLeaf, pythonFloatRepr } from "./verifier/canonical.js";
+
 type JsonValue =
   | null
   | boolean
@@ -23,6 +25,7 @@ function canonicalString(value: unknown): string {
   if (value === null) return "null";
   if (value === true) return "true";
   if (value === false) return "false";
+  if (isRawFloatLeaf(value)) return floatLeafToCanonical(value.value);
   if (typeof value === "number") {
     if (!Number.isFinite(value)) {
       throw new TypeError("NaN / Infinity are not allowed in canonical JSON");
@@ -54,14 +57,7 @@ export const MAX_PROFILE_INTEGER = 9007199254740991;
 function numberToCanonical(n: number): string {
   // Map -0 to 0 so equal mathematical values produce identical bytes.
   if (n === 0) return "0";
-  // The profile ends at 2**53 - 1: a parsed 2**53 is refused although it
-  // round-trips, because a rounded 2**53+1 is indistinguishable from it here
-  if (Number.isInteger(n) && Math.abs(n) > MAX_PROFILE_INTEGER) {
-    throw new RangeError(
-      `integer outside the Asqav profile range +/-(2**53 - 1): ${n}; serialise ` +
-        `it as a JSON string or an integer-rational pair`,
-    );
-  }
+  assertProfileRange(n);
   // For safe integers, plain toString matches the canonical bytes byte-for-byte.
   if (Number.isInteger(n) && Number.isSafeInteger(n)) {
     return n.toString();
@@ -69,6 +65,29 @@ function numberToCanonical(n: number): string {
   // V8's Number.toString already produces the shortest round-trip form;
   // unused by Compliance Receipts (no floats signed), kept for safety.
   return n.toString();
+}
+
+function assertProfileRange(n: number): void {
+  // The profile ends at 2**53 - 1, so 2**53 is refused though it round-trips
+  // (a rounded 2**53+1 looks identical)
+  if (Number.isInteger(n) && Math.abs(n) > MAX_PROFILE_INTEGER) {
+    throw new RangeError(
+      `integer outside the Asqav profile range +/-(2**53 - 1): ${n}; serialise ` +
+        `it as a JSON string or an integer-rational pair`,
+    );
+  }
+}
+
+/**
+ * A float literal kept by the float-preserving parser. json.dumps writes
+ * repr(float) for it, so follow that, not the JavaScript number form.
+ */
+function floatLeafToCanonical(n: number): string {
+  if (!Number.isFinite(n)) {
+    throw new TypeError("NaN / Infinity are not allowed in canonical JSON");
+  }
+  assertProfileRange(n);
+  return pythonFloatRepr(n);
 }
 
 function jsonString(s: string): string {
