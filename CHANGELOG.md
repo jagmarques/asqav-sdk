@@ -5,6 +5,18 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- TypeScript verifier: a decimal from `parseJsonPreservingFloats` is signed and hashed as Python's
+  `repr(float)`: `1e-7` becomes `1e-07`, `0.00001` becomes `1e-05`, `76355072847686510.0`
+  becomes `7.635507284768651e+16` and `-0.0` stays `-0.0`. The exponent form starts at 1e16 and
+  below 1e-4 with a sign and two digits, and everything between keeps the positional form. Before,
+  `asqavJcs`, `jcs` and `asqavJcsPreCutover` wrote the JavaScript spelling in those three zones, so
+  a receipt carrying such a decimal failed its signature check in this verifier and passed in
+  Python, and `counterpartyEnvelopeHash` returned a different hash (`counterparty_mismatch`).
+  Strict RFC 8785 output (`jcsRfc8785`) and plain numbers from `JSON.parse` are unchanged, and no
+  conformance vector changes its verdict. `verifier/float-repr-cases.json` holds seeded random
+  decimals with Python's output for each; `python/tests/test_float_repr_parity.py` recomputes it and
+  `typescript/tests/verifier-float-repr.test.ts` checks the TypeScript half (criterion 747).
+
 - `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
   POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`
   context key, so a genuine allow receipt was refused as a digest mismatch (criterion 578).
@@ -28,6 +40,33 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   envelope hash shares that walk, so a decimal there passes at 197 wrappers as in Python. Only a
   genuine `RawFloat` shape counts as a leaf. A shared table in `verifier/axis-parity-cases.json`
   pins both boundaries.
+
+- TypeScript CommonJS build: `npm run build` passes `--splitting`, so `RawFloat` is defined once
+  and every CommonJS entry shares it. Each entry used to bundle its own class, so a decimal parsed
+  by `@asqav/sdk/verifier` failed the `instanceof` check inside `require('@asqav/sdk')`. The depth
+  walk counted its wrapper as nesting and the `aerf-up-01` vector failed its signature. Mixed
+  entries now give the ESM verdicts, and the ESM files are unchanged. `Agent` is defined once too,
+  so `instanceof Agent` holds across entries (criterion 743).
+
+- TypeScript counterparty binding: `computeEnvelopeHash` and `verifyCounterpartyBinding` hash a
+  float-preserving leaf as Python's `json.dumps` writes the float, so `1.0` stays `1.0`, `1e-7`
+  becomes `1e-07` and `-0.0` stays `-0.0`. The wrapper used to hash as an object with `lexeme`
+  and `value` members and count as a nesting level. A float Python refuses (whole-valued beyond
+  2**53 - 1, or not finite) raises `canonical bytes unavailable` and the binding reports
+  `unresolved`. Refusing every float would have split from Python, which hashes them. The depth
+  walk is the shared `exceedsDepth`, so a decimal passes at the same 200 levels in both halves.
+  Input from plain `JSON.parse` has already lost `1.0` as `1` and is not covered.
+  `verifier/counterparty-float-cases.json` pins Python's hashes for decimal and exponent leaves
+  at depth (criterion 744).
+
+- TypeScript `canonicalJson`, the public export, writes a float-preserving value the way Python
+  does, for example `{"v":1e-07}` where it used to write an object with `lexeme` and `value`
+  members. The replay, chain-link and doors callers share it, so their bytes change for input
+  from `parseJsonPreservingFloats`. Plain `JSON.parse` input is unchanged (criterion 744).
+
+- TypeScript CommonJS entries share all module state under `--splitting`, as the ESM entries
+  already did. The seen-nonce index is one example, so the note on conformance vector
+  `asqav-06` now matches ESM (criterion 743).
 
 - Witness policy is signed-optional, not required: decision record
   `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`

@@ -6,6 +6,7 @@
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
+import { exceedsDepth } from "./verifier/canonical.js";
 
 /**
  * Byte binding over payload and the exact signature object.
@@ -48,14 +49,20 @@ export function computeEnvelopeHash(
     throw new Error("counterparty_origin_unavailable: signature object is incomplete");
   }
   const projection = { payload: envelope.payload, signature };
-  const stack: [unknown, number][] = [[projection, 0]];
-  while (stack.length) {
-    const [node, depth] = stack.pop()!;
-    if (depth > 200) throw new Error("counterparty_origin_unavailable: nesting exceeds 200 levels");
-    const children = isObject(node) ? Object.values(node) : Array.isArray(node) ? node : [];
-    for (const child of children) stack.push([child, depth + 1]);
+  // A parsed RawFloat is one leaf here, as a float is in Python
+  if (exceedsDepth(projection, 200)) {
+    throw new Error("counterparty_origin_unavailable: nesting exceeds 200 levels");
   }
-  return createHash("sha256").update(canonicalJson(projection)).digest("base64");
+  return createHash("sha256").update(canonicalBytes(projection)).digest("base64");
+}
+
+/** Refuse what the canonicaliser refuses, with the Python error text */
+function canonicalBytes(projection: unknown): Uint8Array {
+  try {
+    return canonicalJson(projection);
+  } catch (cause) {
+    throw new Error("counterparty_origin_unavailable: canonical bytes unavailable", { cause });
+  }
 }
 
 /** Options for {@link computeCounterpartyBinding}. */
