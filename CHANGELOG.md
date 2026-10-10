@@ -5,6 +5,16 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
+  POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`
+  context key, so a genuine allow receipt was refused as a digest mismatch (criterion 578).
+  `--dry-run` shows the same normalised body. The digest is read from the body
+  `Agent.sign` hands to the wire, so before-hooks and detectors run once.
+  The receipt must carry the event's `tool_use_id` as `invocation_ref`. An event
+  with no `tool_use_id` is blocked (exit 2). Any other error in the gate, including a
+  tool input nested too deep to parse, exits 2 rather than 1.
+  Without the `cli` extra, `asqav hook pretool` exits 2 instead of 1 so the call is blocked.
+
 - TypeScript verifier: the nesting-depth cap treats a decimal from `parseJsonPreservingFloats`
   as a leaf, so the same bytes pass structure at 198 levels in both halves. The counterparty
   envelope hash shares that walk, so a decimal there passes at 197 wrappers as in Python. Only a

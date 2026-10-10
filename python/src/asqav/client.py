@@ -20,6 +20,7 @@ Example:
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import hashlib
 import hmac
@@ -136,6 +137,10 @@ _mode: str = "full-payload"
 _org_salt: bytes | None = None
 #: Per-request HTTP timeout in seconds; init(timeout=...) overrides it.
 _timeout: float = 30.0
+#: Observer handed the exact body Agent.sign is about to POST (the hook gate reads its hash).
+_sign_body_tap: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = (
+    contextvars.ContextVar("asqav_sign_body_tap", default=None)
+)
 #: Hash-only request metadata allowlist; mirrors the server-enforced whitelist.
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
@@ -1533,16 +1538,21 @@ def _prepare_sign_context(
     *,
     action_type: str,
     context: dict[str, Any] | None,
-    context_schema: 'dict[str, Any] | Callable[[dict[str, Any]], None] | None',
-    system_prompt_hash: str | None,
-    model_params: dict | None,
-    tool_inputs_hash: str | None,
-    trace_id: str | None,
-    parent_id: str | None,
-    counterparty: dict[str, Any] | None,
-    tool_name: str | None,
-    model_name: str | None,
-) -> dict[str, Any] | None:
+    context_schema: 'dict[str, Any] | Callable[[dict[str, Any]], None] | None' = None,
+    system_prompt_hash: str | None = None,
+    model_params: dict | None = None,
+    tool_inputs_hash: str | None = None,
+    trace_id: str | None = None,
+    parent_id: str | None = None,
+    counterparty: dict[str, Any] | None = None,
+    tool_name: str | None = None,
+    model_name: str | None = None,
+) -> tuple[str, dict[str, Any] | None]:
+    """Return the action type and context exactly as ``Agent.sign`` signs them.
+
+    Shared with the PreToolUse gate so its digest matches the POSTed body.
+    """
+    action_type = resolve_pattern(action_type)
     if (
         system_prompt_hash
         or model_params
@@ -1599,7 +1609,7 @@ def _prepare_sign_context(
         # Stamp verdicts into context so they travel inside the signed body.
         context = dict(context) if context else {}
         context["_detectors"] = _detector_records
-    return context
+    return action_type, context
 
 
 def _validate_sign_vocabulary(
@@ -2188,9 +2198,7 @@ class Agent:
         Returns:
             SignatureResponse with the signature.
         """
-        action_type = resolve_pattern(action_type)
-
-        context = _prepare_sign_context(
+        action_type, context = _prepare_sign_context(
             action_type=action_type,
             context=context,
             context_schema=context_schema,
@@ -2385,6 +2393,9 @@ class Agent:
         # Counterparty pin: server decodes b64.
         if expected_executor_pubkey_b64 is not None:
             body["expected_executor_pubkey_b64"] = expected_executor_pubkey_b64
+        tap = _sign_body_tap.get()
+        if tap is not None:
+            tap(body)
         data = _post(f"/agents/{self.agent_id}/sign", body)
 
         response = SignatureResponse(

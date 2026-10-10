@@ -33,8 +33,11 @@ export ASQAV_API_KEY="sk_test_your_key_here"
 export ASQAV_AGENT_ID="your-agent-id"
 ```
 
-> `asqav` is the console entrypoint shipped by the asqav Python package
-> (`pip install asqav`). The `hook` subcommand is the harness-hook surface described here.
+> `asqav` is the console entrypoint shipped by the asqav Python package. The `hook`
+> subcommand is the harness-hook surface described here, and it needs two extras:
+> `pip install "asqav[cli,verify]"`. Without `cli` the gate cannot start, and `asqav hook pretool`
+> exits 2 with that message so the tool call is blocked rather than run ungated. Without
+> `verify` the gate cannot check the receipt's ML-DSA-65 signature, so it blocks every call.
 
 ---
 
@@ -169,8 +172,12 @@ shell cannot resolve exits 127, and a gate script that exists without the execut
 Run the exact `command` string from your `settings.json` once and read the code back:
 
 ```bash
-sh -c 'asqav hook pretool' </dev/null; echo "exit=$?"   # 127 or 126 means the gate never ran
+sh -c 'asqav hook pretool' </dev/null; echo "exit=$?"   # only 2 is healthy
 ```
+
+An empty event is blocked on purpose, so a working gate answers exit 2. Any other code means the
+gate is broken: 127 or 126 never ran, and 1 or a traceback is an install problem. Treat anything
+but 2 as a gate that is not enforcing.
 
 So installing a Mode B gate takes one step beyond writing the JSON: pin an absolute command path
 in managed settings rather than trusting whatever `PATH` the harness hands the shell, then confirm
@@ -244,8 +251,10 @@ signature, issuer binding, key status and key thumbprint axes must all pass). Th
 cached at `~/.asqav/jwks-cache.json` (`ASQAV_HOOK_JWKS_CACHE` overrides) for 24 hours and
 refreshed once when the signing key is not in the cache. A receipt that does not verify, or that
 cannot be verified inside the deadline, blocks the tool call. The receipt must also answer this
-request: signed for the agent in `ASQAV_AGENT_ID`, bound to the digest the gate sent, and issued
-inside the gate's deadline. A receipt for another agent, another action or an old issue time blocks.
+request: signed for the agent in `ASQAV_AGENT_ID`, bound to the digest `Agent.sign` posted, and issued
+inside the gate's deadline. The receipt must carry the event's `tool_use_id` as `invocation_ref`, so a
+receipt minted for another call blocks even for the same tool and input. An event with no
+`tool_use_id` blocks before anything is signed, because no permit could be tied to the call.
 
 The cache is a cache, not a trust anchor. Anyone who can write `$HOME` or set
 `ASQAV_HOOK_JWKS_CACHE` can put a key of their own in it and have the gate accept a receipt signed
