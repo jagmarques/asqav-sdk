@@ -6,6 +6,7 @@ instead of rotting unseen. CI runs the python job on README edits.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 README = Path(__file__).resolve().parents[2] / "README.md"
@@ -71,3 +72,26 @@ def test_capture_coverage_rules_present() -> None:
     assert "an MCP-server request is answered" in text
     assert "with the harness hook plus the SDK" in text
     assert "600 seconds for command, HTTP and MCP-tool hooks" in text
+
+
+_VERSION_RE = re.compile(r"^v?\d+(\.\d+)*([.-][0-9A-Za-z.]+)?$")
+
+
+def test_capture_coverage_rows_carry_versions() -> None:
+    """Every row names the checked framework release (criterion 581 C1)."""
+    text = README.read_text()
+    rows = _table_rows(text)
+    assert len(rows) == 22, f"expected 22 adapter rows, got {len(rows)}"
+    header = next(
+        line for line in text.splitlines() if line.startswith("| adapter |")
+    )
+    header_cells = [c.strip() for c in header.strip("|").split("|")]
+    assert header_cells == ["adapter", "coverage class", "citation (URL)", "accessed", "version"], header_cells
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) != 5 or cells[0] in ("adapter", "") or set(cells[0]) <= {"-"}:
+            continue
+        assert (cells[0], cells[1]) in rows, cells[0]
+        assert _VERSION_RE.match(cells[4]), f"{cells[0]}: {cells[4]!r} is no release identifier"
