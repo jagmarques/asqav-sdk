@@ -62,11 +62,14 @@ def _flip_last_char(digest: str) -> str:
 class _Signer:
     """Stands in for the platform: signs an allow receipt over the body it received."""
 
-    def __init__(self, *, alter_digest: bool = False) -> None:
+    def __init__(
+        self, *, alter_digest: bool = False, omit_invocation_ref: bool = False
+    ) -> None:
         self.ml = _ml_dsa_65()
         self.pk, self.sk = self.ml.keygen()
         self.thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=self.pk)
         self.alter_digest = alter_digest
+        self.omit_invocation_ref = omit_invocation_ref
         self.posted: list[dict[str, Any]] = []
 
     def jwks(self) -> dict[str, Any]:
@@ -102,7 +105,7 @@ class _Signer:
     def post(self, path: str, body: dict[str, Any], *_a: Any, **_k: Any) -> dict[str, Any]:
         assert path == f"/agents/{AGENT}/sign", path
         self.posted.append(json.loads(json.dumps(body)))
-        digest = body["hash"]
+        digest = body.get("hash", "sha256:" + "5" * 64)
         if self.alter_digest:
             digest = _flip_last_char(digest)
         payload = {
@@ -117,12 +120,15 @@ class _Signer:
             "previousReceiptHash": "0" * 64,
             "decision": "allow",
         }
+        # The cloud signs the caller's invocation_ref into the payload, top level.
+        if body.get("invocation_ref") is not None and not self.omit_invocation_ref:
+            payload["invocation_ref"] = body["invocation_ref"]
         envelope = {
             "alg": "ML-DSA-65",
             "kid": ORG,
             "sig": base64.b64encode(self.ml.sign(self.sk, vr.canonical_json(payload))).decode(),
         }
-        return {
+        self.last_response = {
             "signature": envelope,
             "signature_id": "sig_e2e",
             "action_id": "act_e2e",
@@ -133,6 +139,7 @@ class _Signer:
             "decision": "allow",
             "compliance_mode": True,
         }
+        return self.last_response
 
 
 def _run_gate(monkeypatch, signer: _Signer, event: dict[str, Any], *extra: str):
@@ -144,7 +151,12 @@ def _run_gate(monkeypatch, signer: _Signer, event: dict[str, Any], *extra: str):
 
 _EVENTS = [
     pytest.param(
-        {"session_id": "s-trace-1", "tool_name": "Bash", "tool_input": {"command": "ls -la"}},
+        {
+            "session_id": "s-trace-1",
+            "tool_use_id": "toolu_01",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls -la"},
+        },
         id="mixed-case-tool-with-trace-id",
     ),
     pytest.param(
@@ -152,11 +164,21 @@ _EVENTS = [
         id="mixed-case-tool-without-trace-id",
     ),
     pytest.param(
-        {"session_id": "s-trace-3", "tool_name": "bash", "tool_input": {"command": "ls -la"}},
+        {
+            "session_id": "s-trace-3",
+            "tool_use_id": "toolu_03",
+            "tool_name": "bash",
+            "tool_input": {"command": "ls -la"},
+        },
         id="lowercase-tool-with-trace-id",
     ),
     pytest.param(
-        {"session_id": "s-trace-2", "tool_name": "Write", "tool_input": {"file_path": "/f"}},
+        {
+            "session_id": "s-trace-2",
+            "tool_use_id": "toolu_02",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/f"},
+        },
         id="capitalised-tool-with-trace-id",
     ),
 ]
@@ -242,3 +264,114 @@ def test_a_receipt_for_another_agent_still_blocks_end_to_end(monkeypatch) -> Non
     result = _run_gate(monkeypatch, signer, event)
     assert result.exit_code == 2, result.output
     assert "agent mismatch" in result.output
+
+
+# === the receipt must name THIS invocation, and nothing after signing may exit open ===
+
+_CALL = {
+    "session_id": "s-replay",
+    "tool_use_id": "toolu_A",
+    "tool_name": "Bash",
+    "tool_input": {"command": "rm -rf build"},
+}
+
+
+def test_a_receipt_minted_for_call_one_does_not_open_an_identical_call_two(monkeypatch) -> None:
+    signer = _Signer()
+    first = _run_gate(monkeypatch, signer, _CALL)
+    assert first.exit_code == 0, first.output
+    call_one = json.loads(json.dumps(signer.last_response))
+    # Same tool, input and session inside the freshness window, a different invocation:
+    # the platform (or whoever holds the response channel) hands back call one's receipt.
+    monkeypatch.setattr(signer, "post", lambda *_a, **_k: json.loads(json.dumps(call_one)))
+    second = _run_gate(monkeypatch, signer, {**_CALL, "tool_use_id": "toolu_B"})
+    assert second.exit_code == 2, second.output
+    assert "invocation_ref does not match this tool call" in second.output
+
+
+def test_a_receipt_without_an_invocation_ref_blocks_when_the_host_named_one(monkeypatch) -> None:
+    signer = _Signer(omit_invocation_ref=True)
+    result = _run_gate(monkeypatch, signer, _CALL)
+    assert result.exit_code == 2, result.output
+    assert "invocation_ref does not match this tool call (missing)" in result.output
+
+
+def test_a_host_that_names_no_invocation_leaves_the_digest_binding_alone(monkeypatch) -> None:
+    event = {k: v for k, v in _CALL.items() if k != "tool_use_id"}
+    result = _run_gate(monkeypatch, _Signer(), event)
+    assert result.exit_code == 0, result.output
+
+
+class _FlappingDetector:
+    """Allows the first inspect() and raises on every later one."""
+
+    name = "flapping"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def inspect(self, action_type: str, context: dict[str, Any]):
+        from asqav._detectors import DetectorResult
+
+        self.calls += 1
+        if self.calls > 1:
+            raise RuntimeError("backend flapped on the second run")
+        return DetectorResult(allow=True)
+
+
+@pytest.fixture
+def _clean_registries():
+    from asqav._detectors import clear_detectors
+    from asqav.hooks import clear_hooks
+
+    clear_detectors()
+    clear_hooks()
+    yield
+    clear_detectors()
+    clear_hooks()
+
+
+def test_detectors_and_before_hooks_run_once_and_the_gate_does_not_rebuild(
+    monkeypatch, _clean_registries
+) -> None:
+    from asqav._detectors import register_detector
+    from asqav.hooks import register_before
+
+    detector = _FlappingDetector()
+    register_detector(detector)
+    seen: list[str] = []
+    register_before("tool:*", lambda action, ctx: seen.append(action))
+    signer = _Signer()
+    result = _run_gate(monkeypatch, signer, _CALL)
+    assert result.exit_code == 0, result.output
+    assert detector.calls == 1, "the gate re-ran the detector after signing"
+    assert seen == ["tool:bash"], "the gate re-ran the before-hook after signing"
+    assert len(signer.posted) == 1
+
+
+def test_a_detector_that_raises_on_the_signing_run_blocks_with_exit_two(
+    monkeypatch, _clean_registries
+) -> None:
+    from asqav._detectors import register_detector
+
+    detector = _FlappingDetector()
+    detector.calls = 1
+    register_detector(detector)
+    result = _run_gate(monkeypatch, _Signer(), _CALL)
+    assert result.exit_code == 2, result.output
+
+
+def test_any_error_after_signing_exits_two_never_one(monkeypatch) -> None:
+    def broken(_sig):
+        raise RuntimeError("receipt shape surprised the gate")
+
+    monkeypatch.setattr(cli_hook, "_wire_decision", broken)
+    result = _run_gate(monkeypatch, _Signer(), _CALL)
+    assert result.exit_code == 2, result.output
+    assert "blocking tool call" in result.output
+
+
+def test_clear_context_blocks_because_the_real_body_carries_no_digest(monkeypatch) -> None:
+    result = _run_gate(monkeypatch, _Signer(), _CALL, "--clear-context")
+    assert result.exit_code == 2, result.output
+    assert "does not match the digest the gate sent" in result.output

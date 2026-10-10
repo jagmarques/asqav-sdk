@@ -220,7 +220,7 @@ def _require_identity() -> tuple[str, str]:
     return api_key, agent_id  # type: ignore[return-value]
 
 
-    # Init the SDK, fetch the agent, and sign. Raises on any failure.
+    # Init the SDK, fetch the agent, sign. Returns (receipt, digest POSTed); raises on failure.
 def _sign_event(
     *,
     action_type: str,
@@ -231,7 +231,7 @@ def _sign_event(
     agent_id: str,
     clear_context: bool = False,
     timeout: float | None = None,
-) -> Any:
+) -> tuple[Any, str]:
     import asqav
 
     # Hash-only by default: the tool arguments are digested here and never leave the
@@ -246,7 +246,17 @@ def _sign_event(
         agent._session_id = session_id  # type: ignore[attr-defined]
     kwargs = {k: v for k, v in compliance_fields.items() if v is not None}
     kwargs.pop("compliance_mode", None)
-    return agent.sign(action_type, context=context, compliance_mode=True, **kwargs)
+    # The digest comes from the body sign() hands to the wire, never from the response
+    # and never from a second build that would run before-hooks and detectors again.
+    from asqav import client as _client
+
+    sent: dict[str, str] = {}
+    token = _client._sign_body_tap.set(lambda body: sent.update(hash=str(body.get("hash", ""))))
+    try:
+        sig = agent.sign(action_type, context=context, compliance_mode=True, **kwargs)
+    finally:
+        _client._sign_body_tap.reset(token)
+    return sig, sent.get("hash", "")
 
 
 def _jwks_url() -> str:
@@ -368,14 +378,20 @@ _PERMIT_AXES = ("signature", "issuer_bind", "key_status", "key_binding")
 
 
 def _verify_returned_receipt(
-    sig: Any, timeout: float, *, sent_hash: str, expected_agent_id: str
+    sig: Any,
+    timeout: float,
+    *,
+    sent_hash: str,
+    expected_agent_id: str,
+    expected_invocation_ref: str | None = None,
 ) -> tuple[bool, str]:
     """Verify the receipt the signer returned against the published JWK Set.
 
     Returns (ok, reason). The signature-related axes must all PASS; anchors and the
     chain are outside a single receipt's reach and are not required here. The
-    receipt must then answer THIS request: same agent, same action digest, fresh
-    inside the gate deadline. Anything else is (False, reason).
+    receipt must then answer THIS request: same agent, same action digest, the same
+    tool invocation when the host named one, fresh inside the gate deadline. Anything
+    else is (False, reason).
     """
     from asqav.verifier import verify_receipt as _vr
 
@@ -418,6 +434,15 @@ def _verify_returned_receipt(
     # No digest sent (--clear-context) binds nothing, so even an empty match blocks
     if not sent_hash or receipt_digest != sent_hash:
         return False, "receipt digest does not match the digest the gate sent"
+    # The cloud signs invocation_ref at the top level of the payload; a receipt minted for
+    # another call with the same tool, input and session carries a different one.
+    if expected_invocation_ref is not None:
+        got = payload.get("invocation_ref")
+        if got != expected_invocation_ref:
+            return False, (
+                "receipt invocation_ref does not match this tool call "
+                f"({'missing' if got is None else 'a different call'})"
+            )
     try:
         issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
         if issued.tzinfo is None:
@@ -496,7 +521,7 @@ def hook_posttool(
     api_key, agent_id = _require_identity()
     deadline = _deadline_seconds()
     try:
-        sig = _call_with_deadline(
+        sig, _sent_hash = _call_with_deadline(
             _sign_event,
             deadline,
             action_type=action_type,
@@ -516,6 +541,58 @@ def hook_posttool(
         print(f"asqav hook: sign failed, proceeding unsigned: {exc}", file=sys.stderr)
         return
     print(f"signed {sig.signature_id}", file=sys.stderr)
+
+
+def _tool_use_id(event: dict[str, Any]) -> str | None:
+    # The id _map_event forwards as invocation_ref; None when the host sent none.
+    value = event.get("tool_use_id")
+    return value if isinstance(value, str) and value != "" else None
+
+
+def _enforce_receipt(
+    sig: Any,
+    *,
+    sent_hash: str,
+    agent_id: str,
+    invocation_ref: str | None,
+    deadline: float,
+    started: float,
+) -> None:
+    """Verify the returned receipt and exit 2 unless it is a permit for THIS call."""
+    remaining = max(deadline - (time.monotonic() - started), _MIN_VERIFY_BUDGET_SECONDS)
+    try:
+        ok, reason = _call_with_deadline(
+            _verify_returned_receipt, remaining, sig, remaining,
+            sent_hash=sent_hash, expected_agent_id=agent_id,
+            expected_invocation_ref=invocation_ref,
+        )
+    except HookDeadlineExceeded:
+        ok, reason = False, (
+            f"verification did not finish inside the remaining {remaining:g}s of the "
+            f"{deadline:g}s deadline"
+        )
+    except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
+        ok, reason = False, f"could not verify the returned receipt: {exc}"
+    if not ok:
+        print(
+            f"asqav hook: receipt {sig.signature_id} did not verify ({reason}); blocking tool call",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2)
+    decision = _wire_decision(sig)
+    if decision in _BLOCKING_DECISIONS:
+        # A verified receipt that carries a denial is still a denial; exit 2 blocks the tool.
+        print(f"blocked {sig.signature_id}: {decision}", file=sys.stderr)
+        raise typer.Exit(code=2)
+    if decision != "allow":
+        # Only a permit opens the gate; any other non-blocking decision exits 2.
+        print(
+            f"asqav hook: non-permit decision {decision!r} on {sig.signature_id}; "
+            "blocking tool call",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2)
+    print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
 
 
 @hook_app.command("pretool")
@@ -577,7 +654,7 @@ def hook_pretool(
         raise typer.Exit(code=2)
     deadline = _deadline_seconds()
     try:
-        sig = _call_with_deadline(
+        sig, sent_hash = _call_with_deadline(
             _sign_event,
             deadline,
             action_type=action_type,
@@ -596,50 +673,24 @@ def hook_pretool(
         print(f"asqav hook: signer unreachable, blocking tool call: {exc}", file=sys.stderr)
         raise typer.Exit(code=2) from exc
 
-    # The permit is only as good as its signature; verify it before letting the tool run.
-    # The locally built body carries the digest the gate sent; the receipt must answer it.
-    sent_body = _build_body(
-        action_type=action_type,
-        context=context,
-        session_id=session_id,
-        agent_id=agent_id,
-        compliance_fields=fields,
-        clear_context=clear_context,
-    )
-    sent_hash = sent_body.get("hash", "")
-    remaining = max(deadline - (time.monotonic() - started), _MIN_VERIFY_BUDGET_SECONDS)
     try:
-        ok, reason = _call_with_deadline(
-            _verify_returned_receipt, remaining, sig, remaining,
-            sent_hash=sent_hash, expected_agent_id=agent_id,
+        _enforce_receipt(
+            sig,
+            sent_hash=sent_hash,
+            agent_id=agent_id,
+            invocation_ref=_tool_use_id(event),
+            deadline=deadline,
+            started=started,
         )
-    except HookDeadlineExceeded:
-        ok, reason = False, (
-            f"verification did not finish inside the remaining {remaining:g}s of the "
-            f"{deadline:g}s deadline"
-        )
-    except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
-        ok, reason = False, f"could not verify the returned receipt: {exc}"
-    if not ok:
+    except typer.Exit:
+        raise
+    except Exception as exc:  # noqa: BLE001 - nothing after signing may exit open
         print(
-            f"asqav hook: receipt {sig.signature_id} did not verify ({reason}); blocking tool call",
+            f"asqav hook: could not gate receipt {getattr(sig, 'signature_id', '?')}, "
+            f"blocking tool call: {exc}",
             file=sys.stderr,
         )
-        raise typer.Exit(code=2)
-    decision = _wire_decision(sig)
-    if decision in _BLOCKING_DECISIONS:
-        # A verified receipt that carries a denial is still a denial; exit 2 blocks the tool.
-        print(f"blocked {sig.signature_id}: {decision}", file=sys.stderr)
-        raise typer.Exit(code=2)
-    if decision != "allow":
-        # Only a permit opens the gate; any other non-blocking decision exits 2.
-        print(
-            f"asqav hook: non-permit decision {decision!r} on {sig.signature_id}; "
-            "blocking tool call",
-            file=sys.stderr,
-        )
-        raise typer.Exit(code=2)
-    print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
+        raise typer.Exit(code=2) from exc
 
 
 @hook_app.command("code-authorship")
