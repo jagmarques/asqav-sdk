@@ -31,7 +31,8 @@ Derived members this script owns, per vector directory:
   form is authored and is preserved. No ``predecessor.json`` means genesis:
   the hash must be all zeros.
 * ``payload_digest`` — ``{hash, size}`` over the JCS of the context carried
-  in the same receipt. No carried context means unrecomputable, not drift.
+  in the same receipt. No carried context, or a keyed ``hash_algo`` (an HMAC
+  under holder key material), means unrecomputable, not drift.
 * ``counterparty_binding.envelope_hash`` — standard-base64
   ``sha256(JCS({payload, signature}))`` of ``originating_envelope.json``.
   A binding that names no originating envelope file is a failure: a digest
@@ -82,6 +83,15 @@ SKIP_BY_REASON = {
     "payload_digest_mismatch": "payload_digest",
     "counterparty_mismatch": "envelope_hash",
 }
+
+
+#: Unkeyed hash_algo values, vendored from the verifier (absent means sha256).
+_UNKEYED_HASH_ALGOS = frozenset({"sha256"})
+
+
+def _is_keyed(payload: dict) -> bool:
+    algo = payload.get("hash_algo")
+    return algo is not None and (not isinstance(algo, str) or algo.strip().lower() not in _UNKEYED_HASH_ALGOS)
 
 
 def canonical_json(obj: Any) -> bytes:
@@ -207,6 +217,8 @@ def _audit_vector(vector_dir: Path) -> tuple[list[Finding], list[str], list[str]
         context = payload.get("context")
         if context is None:
             unrecomputable.append(f"{name}: payload_digest (no context carried)")
+        elif _is_keyed(payload):
+            unrecomputable.append(f"{name}: payload_digest (keyed hash_algo, no holder key)")
         else:
             encoded = canonical_json(context)
             recomputed = {"hash": _sha256_hex(encoded), "size": len(encoded)}
