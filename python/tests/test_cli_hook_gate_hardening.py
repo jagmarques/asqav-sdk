@@ -112,7 +112,7 @@ def _row(pk: bytes, kid: str, *, thumbprint: str | None = None) -> dict:
 
 
 def _gate_with(monkeypatch, sig: _Sig, jwks: dict, fetch_calls: list | None = None):
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: (sig, _live_digest()))
 
     def fake_fetch(_timeout: float) -> dict:
         if fetch_calls is not None:
@@ -258,7 +258,7 @@ def _bound_gate(monkeypatch, *, agent_id: str = AGENT, issued_at: str | None = N
     if issued_at is not None:
         payload["issued_at"] = issued_at
     sig = _Sig("sig_bound", payload, _signed(payload, sk, ml), [])
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **k: (sig, "" if k.get("clear_context") else _live_digest()))
     monkeypatch.setattr(
         cli_hook, "_fetch_jwks", lambda _t: {"keys": [_row(pk, "k-live", thumbprint=thumb)]}
     )
@@ -321,7 +321,7 @@ def test_a_slow_jwks_phase_blocks_inside_the_deadline(monkeypatch) -> None:
     payload = _payload("allow")
     sig = _Sig("sig_slow", payload, _signed(payload, sk, ml), [])
     monkeypatch.setenv(cli_hook._DEADLINE_ENV, "0.5")
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: (sig, _live_digest()))
 
     def slow_fetch(_timeout: float) -> dict:
         time.sleep(5.0)
