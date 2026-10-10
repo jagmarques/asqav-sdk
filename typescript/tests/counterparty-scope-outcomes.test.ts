@@ -9,7 +9,10 @@ import { canonicalJson } from "../src/jcs.js";
 
 const ROOT = resolve(__dirname, "../../verifier/conformance-vectors");
 const names = ["asqav-31-counterparty-scope-match", "asqav-32-counterparty-anchors-included",
-  "asqav-33-counterparty-scope-absent", "asqav-34-counterparty-scope-unknown"];
+  "asqav-33-counterparty-scope-absent", "asqav-34-counterparty-scope-unknown",
+  "asqav-35-counterparty-peer-swapped", "asqav-36-counterparty-origin-forged",
+  "asqav-37-counterparty-divergent-terms", "asqav-38-counterparty-received-only",
+  "asqav-39-counterparty-cross-replay"];
 const load = (name: string, file: string): Record<string, unknown> => JSON.parse(readFileSync(resolve(ROOT, name, file), "utf8"));
 const fixture = (name = names[0]!) => ({ receipt: load(name, "receipt.json"), origin: load(name, "originating_envelope.json"), jwks: load(name, "jwks.json") });
 
