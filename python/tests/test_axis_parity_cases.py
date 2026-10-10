@@ -10,15 +10,21 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import asqav
+from asqav import strict_json
+from asqav.verifier.oracle import ADAPTERS
 from asqav.verifier.oracle.core import MAX_NESTING_DEPTH as ORACLE_MAX_NESTING_DEPTH
+from asqav.verifier.oracle.core import verify as oracle_verify
 from asqav.verifier.verify_receipt import (
     SKEW_BOUND_SECONDS,
     check_anchors,
+    check_counterparty_binding,
     check_expiry,
     check_skew,
     envelope_minus_anchors_jcs,
@@ -48,6 +54,71 @@ def test_table_is_populated() -> None:
 def test_bounds_match_the_table() -> None:
     assert SKEW_BOUND_SECONDS == 300
     assert ORACLE_MAX_NESTING_DEPTH == 200
+
+
+NESTING = TABLE["nesting_depth"]
+CP_CASES = NESTING["counterparty"]["cases"]
+
+
+def test_nesting_depth_table_is_populated_and_two_sided() -> None:
+    outcomes = {c["expect"]["structure"] for c in NESTING["cases"]}
+    assert outcomes == {"PASS", "FAIL"}, outcomes
+    decimal = {any(ch in c["leaf"] for ch in ".eE") for c in NESTING["cases"]}
+    assert decimal == {True, False}, "needs both decimal and integer leaves"
+
+
+# loads gives plain floats, loads_profile wraps each decimal in a RawFloat
+# like the TS parser. Both must answer the table the same way
+@pytest.mark.parametrize("parser", [strict_json.loads, strict_json.loads_profile])
+@pytest.mark.parametrize("case", NESTING["cases"], ids=[c["name"] for c in NESTING["cases"]])
+def test_nesting_depth_case(case: dict[str, Any], parser: Callable[[str], Any]) -> None:
+    base = json.dumps(NESTING["envelope"], separators=(",", ":"))[:-1]
+    text = (
+        f'{base},"junk":' + '{"n":' * case["wrappers"]
+        + '{"leaf":' + case["leaf"] + "}" + "}" * case["wrappers"] + "}"
+    )
+    receipt = parser(text)
+    result = oracle_verify(receipt, ADAPTERS, key_provider=NESTING["jwks"])
+    structure = next(a for a in result.axes if a.axis == "structure")
+    assert structure.result == case["expect"]["structure"], case["name"]
+    if case["expect"]["structure"] == "FAIL":
+        assert result.verdict == case["expect"]["verdict"], case["name"]
+        assert result.failure_class == case["expect"]["failure_class"], case["name"]
+        assert len(result.axes) == 1, case["name"]
+        assert structure.note == case["expect"]["note"], case["name"]
+
+
+def _originator_text(case: dict[str, Any]) -> str:
+    env = NESTING["counterparty"]["envelope"]
+    payload = json.dumps(env["payload"], separators=(",", ":"))[:-1]
+    payload += (
+        ',"junk":' + '{"n":' * case["wrappers"]
+        + '{"leaf":' + case["leaf"] + "}" + "}" * case["wrappers"] + "}"
+    )
+    sig = json.dumps(env["signature"], separators=(",", ":"))
+    return str('{"payload":' + payload + ',"signature":' + sig + "}")
+
+
+# The counterparty binding hashes the originating envelope under its own 200 cap
+@pytest.mark.parametrize("parser", [strict_json.loads, strict_json.loads_profile])
+@pytest.mark.parametrize("case", CP_CASES, ids=[c["name"] for c in CP_CASES])
+def test_nesting_depth_counterparty_case(
+    case: dict[str, Any], parser: Callable[[str], Any]
+) -> None:
+    payload = json.loads(json.dumps(NESTING["counterparty"]["payload"]))
+    payload["counterparty_binding"]["envelope_hash"] = case["envelope_hash"]
+    result, note = check_counterparty_binding(payload, parser(_originator_text(case)))
+    assert result == case["expect"]["result"], f"{case['name']}: {note}"
+    assert case["expect"]["note_contains"] in note, case["name"]
+
+
+def test_nesting_depth_profile_parser_wraps_decimals() -> None:
+    """The RawFloat arm of the table is real, and the wrapper is a scalar float."""
+    leaf = strict_json.loads_profile('{"leaf":1.5}')["leaf"]
+    assert isinstance(leaf, strict_json.RawFloat)
+    assert isinstance(leaf, float)
+    assert not isinstance(leaf, (dict, list))
+    assert type(strict_json.loads('{"leaf":1.5}')["leaf"]) is float
 
 
 @pytest.mark.parametrize("case", TABLE["anchors"], ids=[c["name"] for c in TABLE["anchors"]])
