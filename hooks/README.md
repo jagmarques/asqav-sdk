@@ -276,7 +276,7 @@ wire `decision: observation`, the response carrying `policy_enforcement` to say 
 an in-process `deny` or `rate_limit` with HTTP 412.
 
 The gate permits a tool call only for a verified receipt whose wire decision is `allow`. Any other
-decision, `observation` included, exits 2 and blocks the call, and the hook prints `permit <id>`
+decision exits 2 and blocks the call; that includes `observation`. The hook prints `permit <id>`
 only for an `allow`. So today Mode B blocks every tool call against the hosted platform, because
 the platform never answers this hook with `allow`. It stays that way until a capture topology
 exists that the platform accepts as harness-enforced, backed by a deployment attestation. That is
