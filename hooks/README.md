@@ -6,7 +6,8 @@ agent choosing to call a tool. Claude Code runs the hook, not the model.
 There are two modes, and the difference between them is the whole point:
 
 - **Mode A (PostToolUse audit)** is the default and what most users want. It is **fail-open**.
-- **Mode B (PreToolUse gate)** is opt-in for hard enforcement. It is **fail-closed**.
+- **Mode B (PreToolUse gate)** is opt-in for hard enforcement. It is **fail-closed**, and
+  against the hosted platform today it blocks every matched call (see "v1 scope of Mode B").
 
 Read both before you pick one. The honest cost of each is stated below, because a wrong mental
 model here is a security problem.
@@ -187,8 +188,7 @@ The honest cost of a real gate:
 
 v1 ships Mode B as a documented `type: "command"` variant only. The shipped `pretool` script
 **signs and fails closed on error**. It does **not** turn on PreToolUse DENY-policy decisions by
-default. That firewall behavior (denying specific tool calls by policy) is **founder-gated**, and
-exposed only as an opt-in flag, off by default. The gate lets a call run only on a verified
+default, and no flag turns it on: `pretool` takes only `--clear-context` and `--dry-run`. The gate lets a call run only on a verified
 receipt whose decision is `allow`, and the hosted platform does not return one to this hook today
 (see "What the cloud records for an in-process gate today" below). So against the hosted platform,
 Mode B blocks every matched call.
@@ -300,8 +300,8 @@ The receipt each mode writes is labelled honestly, and the asqav cloud enforces 
   so a posttool hook physically cannot mislabel itself as a gate.
 - **PreToolUse receipts** (Mode B) are the only ones allowed to claim a decision. The local gate
   genuinely had the option to block, so it may use `capture_topology="in_process_sdk"` with
-  `receipt_type="protectmcp:decision"` and a `policy_decision` of `permit` or `deny`. The hosted
-  platform currently records that `permit` as an observation (see above), so the gate blocks.
+  `receipt_type="protectmcp:decision"`. The shipped hook only ever sends `permit`; the hosted
+  platform records it as an observation (see above), so the gate blocks.
 
 The rule of thumb: a hook that ran after the fact records an observation. Only a hook that could
 have blocked records a decision.
