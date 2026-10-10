@@ -53,9 +53,11 @@ def _ml_dsa_65():
 
 
 def _payload(decision: str = "allow", **extra: Any) -> dict:
+    from datetime import datetime, timezone
+
     payload = {
         "type": "protectmcp:decision",
-        "issued_at": "2026-06-19T00:00:00+00:00",
+        "issued_at": datetime.now(timezone.utc).isoformat(),
         "issuer_id": ORG,
         "agent_id": AGENT,
         "action_ref": "sha256:" + "8" * 64,
@@ -66,6 +68,25 @@ def _payload(decision: str = "allow", **extra: Any) -> dict:
     }
     payload.update(extra)
     return payload
+
+
+def _live_digest() -> str:
+    """The digest the gate computes for this file's pretool event."""
+    body = cli_hook._build_body(
+        action_type="tool:Write",
+        context={"tool_input": {"file_path": "/tmp/f", "content": "hi"}},
+        session_id="s9",
+        agent_id=AGENT,
+        compliance_fields={
+            "compliance_mode": True,
+            "receipt_type": "protectmcp:decision",
+            "policy_decision": "permit",
+            "capture_topology": "in_process_sdk",
+            "trace_id": "s9",
+        },
+        clear_context=False,
+    )
+    return body["hash"]
 
 
 def _signed(payload: dict, sk: bytes, ml) -> dict:
@@ -112,6 +133,7 @@ def test_a_rotated_key_refreshes_the_cache_instead_of_blocking_for_a_day(monkeyp
     new_thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=new_pk)
     old_thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=old_pk)
     payload = _payload("allow", key_thumbprint=new_thumb)
+    payload["action_ref"] = _live_digest()
     sig = _Sig("sig_rotated", payload, _signed(payload, new_sk, ml), [])
     # The cache predates the rotation: same agent_id, the key the receipt does not bind.
     cli_hook._write_jwks_cache({"keys": [_row(old_pk, "k-old", thumbprint=old_thumb)]})
@@ -128,6 +150,7 @@ def test_the_agent_bind_still_answers_when_the_directory_publishes_no_thumbprint
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _payload("allow", key_thumbprint=vr.thumbprint_for_key(alg="ML-DSA-65", public_key=pk))
+    payload["action_ref"] = _live_digest()
     sig = _Sig("sig_nothumb", payload, _signed(payload, sk, ml), [])
     live = {"keys": [_row(pk, "k-live")]}
     calls: list = []
@@ -188,6 +211,7 @@ def _gate_for_decision(monkeypatch, decision: str):
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _payload(decision)
+    payload["action_ref"] = _live_digest()
     if decision != "allow":
         payload["type"] = "protectmcp:lifecycle"
     sig = _Sig(f"sig_{decision}", payload, _signed(payload, sk, ml), [])
@@ -200,11 +224,10 @@ def test_an_allow_receipt_prints_permit_and_exits_zero(monkeypatch) -> None:
     assert "permit sig_allow" in result.output
 
 
-def test_an_observation_receipt_prints_signed_and_exits_zero(monkeypatch) -> None:
+def test_an_observation_receipt_is_blocked_as_non_permit(monkeypatch) -> None:
     result = _gate_for_decision(monkeypatch, "observation")
-    assert result.exit_code == 0, result.output
-    assert "signed sig_observation" in result.output
-    assert "permit" not in result.output
+    assert result.exit_code == 2, result.output
+    assert "non-permit" in result.output
 
 
 def test_a_deny_receipt_is_announced_as_blocked_and_exits_two(monkeypatch) -> None:

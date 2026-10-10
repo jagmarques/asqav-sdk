@@ -22,6 +22,7 @@ jobs:
             python:
               - 'python/**'
               - 'LICENSE'
+              - 'README.md'
               - 'conformance/**'
               # The shared case tables gate both verifiers, so editing one must run
               # the jobs that consume it or the gate could be weakened unseen.
@@ -177,6 +178,24 @@ jobs:
           }
           JS
           node node_modules/.bin/asqav --version
+
+  # RFC 9964 independent read of the flagship ML-DSA-65 vector (criterion
+  # 534): WebCrypto learns ML-DSA-65 at Node 24.7.0, so this job pins 24.
+  rfc9964:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: typescript/package-lock.json
+      - run: npm ci
+        working-directory: typescript
+      - run: npx vitest run tests/rfc9964-independent.test.ts
+        working-directory: typescript
 
   verifier:
     needs: changes
