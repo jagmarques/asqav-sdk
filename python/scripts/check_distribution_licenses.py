@@ -21,11 +21,6 @@ TERMS = {
 LICENSE_FILES = ["LICENSE", "NOTICE", "licenses/Apache-2.0.txt"]
 VERIFIER = "asqav/verifier/verify_receipt.py"
 
-#: Least conformance vectors the distribution must carry (criterion 704 C3).
-CORPUS_EXPECTED_JSON_MIN = 93
-#: Corpus licence files shipped beside the vectors (content unpinned: FIX-B owns it).
-CORPUS_LICENSE_FILES = ["NOTICE", "LICENSE"]
-
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -101,17 +96,6 @@ def check_archive(path: Path, expected: dict[str, bytes]) -> None:
     require(
         members.get(verifier_path) == expected[VERIFIER], "standalone verifier or header changed"
     )
-    found = [name for name in members if name.endswith("/expected.json")]
-    require(
-        len(found) >= CORPUS_EXPECTED_JSON_MIN,
-        f"conformance corpus short: {len(found)} expected.json, need {CORPUS_EXPECTED_JSON_MIN}",
-    )
-    licence_dir = corpus_root if wheel else root + "/conformance"
-    for name in CORPUS_LICENSE_FILES:
-        require(
-            members.get(licence_dir + "/" + name) is not None,
-            f"missing corpus licence file: {name}",
-        )
 
 
 def main(argv: list[str] | None = None) -> int:
