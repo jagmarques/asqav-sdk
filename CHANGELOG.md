@@ -5,6 +5,10 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- Witness policy is signed-optional, not required: decision record
+  `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
+  (criterion 696 Task A; draft edits stay founder-owned as Task B).
+
 ## [0.10.10] - 2026-09-05
 
 ### Changed

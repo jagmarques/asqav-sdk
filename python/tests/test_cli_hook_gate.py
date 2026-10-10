@@ -157,9 +157,11 @@ def _ml_dsa_65():
 
 
 def _payload(decision: str = "allow") -> dict:
+    from datetime import datetime, timezone
+
     return {
         "type": "protectmcp:decision",
-        "issued_at": "2026-06-19T00:00:00+00:00",
+        "issued_at": datetime.now(timezone.utc).isoformat(),
         "issuer_id": ORG,
         "agent_id": "agt_hook",
         "action_ref": "sha256:" + "8" * 64,
@@ -168,6 +170,25 @@ def _payload(decision: str = "allow") -> dict:
         "previousReceiptHash": "0" * 64,
         "decision": decision,
     }
+
+
+def _live_digest() -> str:
+    """The digest the gate itself computes for _PRETOOL_EVENT (what a bound receipt must carry)."""
+    body = cli_hook._build_body(
+        action_type="tool:Write",
+        context={"tool_input": {"file_path": "/tmp/f", "content": "hi"}},
+        session_id="s2",
+        agent_id="agt_hook",
+        compliance_fields={
+            "compliance_mode": True,
+            "receipt_type": "protectmcp:decision",
+            "policy_decision": "permit",
+            "capture_topology": "in_process_sdk",
+            "trace_id": "s2",
+        },
+        clear_context=False,
+    )
+    return body["hash"]
 
 
 def _signed(payload: dict, sk: bytes, ml) -> dict:
@@ -209,22 +230,36 @@ def test_pretool_accepts_a_receipt_that_verifies_and_labels_a_permit(monkeypatch
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _payload("allow")
+    payload["action_ref"] = _live_digest()
     sig = _Sig("sig_ok", payload, _signed(payload, sk, ml), [])
     result = _gate_with(monkeypatch, sig, _jwks(pk))
     assert result.exit_code == 0, result.output
     assert "permit sig_ok" in result.output
 
 
-def test_pretool_labels_an_observation_as_signed_not_permit(monkeypatch) -> None:
+def test_pretool_blocks_a_non_permit_observation(monkeypatch) -> None:
+    """A verified non-permit decision still exits 2: only a permit opens the gate."""
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _payload("observation")
     payload["type"] = "protectmcp:lifecycle"
+    payload["action_ref"] = _live_digest()
     sig = _Sig("sig_obs", payload, _signed(payload, sk, ml), [])
     result = _gate_with(monkeypatch, sig, _jwks(pk))
-    assert result.exit_code == 0, result.output
-    assert "signed sig_obs" in result.output
-    assert "permit" not in result.output
+    assert result.exit_code == 2, result.output
+    assert "non-permit" in result.output
+
+
+def test_pretool_rejects_a_receipt_for_other_bytes(monkeypatch) -> None:
+    """A valid receipt answering a different request is rejected with reason."""
+    ml = _ml_dsa_65()
+    pk, sk = ml.keygen()
+    payload = _payload("allow")
+    payload["action_ref"] = "sha256:" + "9" * 64
+    sig = _Sig("sig_other", payload, _signed(payload, sk, ml), [])
+    result = _gate_with(monkeypatch, sig, _jwks(pk))
+    assert result.exit_code == 2, result.output
+    assert "does not match the digest the gate sent" in result.output
 
 
 def test_pretool_blocks_a_forged_receipt(monkeypatch) -> None:
@@ -263,6 +298,7 @@ def test_jwks_cache_is_reused_and_refreshed_once_on_a_key_miss(monkeypatch) -> N
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _payload("allow")
+    payload["action_ref"] = _live_digest()
     sig = _Sig("sig_c", payload, _signed(payload, sk, ml), [])
     calls: list = []
     first = _gate_with(monkeypatch, sig, _jwks(pk), calls)

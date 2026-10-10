@@ -20,7 +20,11 @@ only reading that keeps the two SDKs byte-identical.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+#: A float literal without fraction or exponent parts is an exact integer.
+_INTEGER_LEXEME_RE = re.compile(r"-?\d+$")
 
 __all__ = [
     "DuplicateMemberError",
@@ -58,6 +62,23 @@ class UnsafeIntegerError(ValueError):
 
 class ProfileIntegerError(ValueError):
     """An integer the Asqav profile refuses; exactly representable yet out of range."""
+
+
+class RawFloat(float):
+    """A float literal preserved with its source lexeme for profile judgment.
+
+    Behaves as a plain float everywhere; the profile range judges the
+    lexeme digits, never the parsed double.
+    """
+
+    def __new__(cls, value: float, lexeme: str) -> "RawFloat":
+        obj = super().__new__(cls, value)
+        obj.lexeme = lexeme
+        return obj
+
+
+def _raw_float(literal: str) -> RawFloat:
+    return RawFloat(float(literal), literal)
 
 
     # object_pairs_hook: reject a repeated member name, else build the object.
@@ -101,6 +122,19 @@ def assert_profile_integers(obj: Any) -> None:
         node, path = stack.pop()
         if isinstance(node, bool):
             continue
+        if isinstance(node, RawFloat):
+            # Judge the SOURCE LEXEME, never the parsed double: 9007199254740991.0
+            # equals 9007199254740991 but the digest binds unvalidated digits.
+            if (
+                not _INTEGER_LEXEME_RE.match(node.lexeme)
+                and node.is_integer()
+                and -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER
+            ):
+                raise ProfileIntegerError(
+                    f"non-integer lexeme in the Asqav profile range: "
+                    f"{node.lexeme!r} at {path}; serialise it as a JSON string"
+                )
+            # Fall through: out-of-range magnitudes still fail below.
         if isinstance(node, int):
             if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
                 raise ProfileIntegerError(
@@ -123,6 +157,15 @@ def assert_profile_integers(obj: Any) -> None:
 
     # Strict ingest plus the narrower Asqav profile range; shared loads unchanged.
 def loads_profile(text: str | bytes, **kwargs: Any) -> Any:
-    obj = loads(text, **kwargs)
+    for reserved in ("object_pairs_hook", "parse_int", "parse_float"):
+        if reserved in kwargs:
+            raise ValueError(f"{reserved} is reserved for strict ingest")
+    obj = json.loads(
+        text,
+        object_pairs_hook=reject_duplicate_members,
+        parse_int=reject_unsafe_integer,
+        parse_float=_raw_float,
+        **kwargs,
+    )
     assert_profile_integers(obj)
     return obj

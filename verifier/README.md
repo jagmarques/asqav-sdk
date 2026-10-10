@@ -65,13 +65,23 @@ curl https://api.asqav.com/.well-known/jwks.json > jwks.json
 python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json --offline
 ```
 
-This tool resolves keys through the JWK Set only. The draft defines a second
-path and ranks it first: a verifier holding an Audit Pack SHOULD resolve `kid`
-from the pack's trust-anchor metadata, the artefact the receipt was delivered
-in, which resolves offline. Where both sources are consulted they must agree,
-and a disagreement fails the key rather than silently picking one
+This tool resolves keys through the JWK Set only. The draft lists three
+resolution inputs — "independently authenticated JWK Sets, configured
+trust anchors or authenticated historical exports" — and a key carried
+in an Audit Pack is an input, not a trust anchor: "a carried public key
+alone is not a trust anchor", and the verifier "MUST NOT prefer a
+caller-supplied key merely because it appears in an Audit Pack".
+"Conflicting authoritative records or unresolved ambiguity make key
+authorization unverifiable." Where both sources are consulted they must
+agree, and a disagreement fails the key rather than silently picking one
 ([draft-marques-asqav-compliance-receipts](https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/),
-issuer key resolution).
+issuer key resolution; checked against the tracked snapshot pinned below).
+
+Draft snapshot: `asqav/ietf/draft-marques-asqav-compliance-receipts-09.xml`
+(workspace-relative), sha256
+`9c361a59b22cd0e1a9234abacbc5e3c88e0cfc73215133a27d7c4ad048dfbe64`.
+Re-check every draft-attributed sentence above against that snapshot
+before trusting this section after any draft revision.
 
 The export carries more top-level members than the signer anchored; the verifier keeps
 only `payload`, `signature` and `anchors`, and every anchor is checked against
@@ -92,7 +102,7 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 |---|---|---|
 | signature | ML-DSA-65, Ed25519 or ES256 over canonical bytes | `dilithium-py` or `cryptography` against the JWKS public key |
 | canonical bytes | JCS reproduction | stdlib `json` (sorted keys, no whitespace, UTF-8) |
-| issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json`; the draft ranks an Audit Pack's trust-anchor metadata first for a verifier holding a pack (offline, the artefact the receipt was delivered in), and where both sources are consulted they must agree or the key fails |
+| issuer_key | key resolution by `kid` | matched against `/.well-known/jwks.json`. A key carried in an Audit Pack is an input, not a trust anchor. The draft accepts JWK Sets, configured trust anchors and authenticated historical exports as resolution inputs; it requires independent key-to-issuer authorization and reports conflicting records as unverifiable |
 | chain | SHA-256 link to predecessor | stdlib `hashlib` |
 | anchors | each anchor's token must commit `sha256(JCS({payload, signature}))`, the two-key object the signer anchored; RFC3161 TSA signature against pinned TSA key material, OpenTimestamps merkle path against supplied bitcoin headers | stdlib DER/ots parse + `dilithium-py`/`cryptography` for the TSA signature |
 | skew | `issued_at` not more than 300s in the future (a forward bound only; a receipt from the past never fails here) | stdlib `datetime` |

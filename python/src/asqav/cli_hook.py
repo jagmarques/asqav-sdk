@@ -17,6 +17,7 @@ import os
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 try:
@@ -361,11 +362,15 @@ def _key_present(jwks: dict[str, Any], payload: dict[str, Any], signature: Any =
 _PERMIT_AXES = ("signature", "issuer_bind", "key_status", "key_binding")
 
 
-def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
+def _verify_returned_receipt(
+    sig: Any, timeout: float, *, sent_hash: str, expected_agent_id: str
+) -> tuple[bool, str]:
     """Verify the receipt the signer returned against the published JWK Set.
 
     Returns (ok, reason). The signature-related axes must all PASS; anchors and the
-    chain are outside a single receipt's reach and are not required here.
+    chain are outside a single receipt's reach and are not required here. The
+    receipt must then answer THIS request: same agent, same action digest, fresh
+    inside the gate deadline. Anything else is (False, reason).
     """
     from asqav.verifier import verify_receipt as _vr
 
@@ -399,6 +404,23 @@ def _verify_returned_receipt(sig: Any, timeout: float) -> tuple[bool, str]:
         if axis is None or axis["result"] != "PASS":
             note = axis["note"] if axis else "axis missing"
             return False, f"{name}: {note}"
+    if payload.get("agent_id") != expected_agent_id:
+        return False, (
+            f"agent mismatch: receipt answers {payload.get('agent_id')!r}, "
+            f"gate sent {expected_agent_id!r}"
+        )
+    receipt_digest = payload.get("hash") or payload.get("action_ref")
+    if receipt_digest != sent_hash:
+        return False, "receipt digest does not match the digest the gate sent"
+    try:
+        issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
+        if issued.tzinfo is None:
+            issued = issued.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - issued).total_seconds()
+    except (TypeError, ValueError):
+        return False, "receipt issued_at is missing or unparseable"
+    if not 0 <= age <= _deadline_seconds():
+        return False, f"receipt issued_at outside the gate deadline ({age:.1f}s old)"
     return True, f"signature verified against the published JWK Set (kid {signature.get('kid')})"
 
 
@@ -569,9 +591,22 @@ def hook_pretool(
         raise typer.Exit(code=2) from exc
 
     # The permit is only as good as its signature; verify it before letting the tool run.
+    # The locally built body carries the digest the gate sent; the receipt must answer it.
+    sent_body = _build_body(
+        action_type=action_type,
+        context=context,
+        session_id=session_id,
+        agent_id=agent_id,
+        compliance_fields=fields,
+        clear_context=clear_context,
+    )
+    sent_hash = sent_body.get("hash", "")
     remaining = max(deadline - (time.monotonic() - started), _MIN_VERIFY_BUDGET_SECONDS)
     try:
-        ok, reason = _call_with_deadline(_verify_returned_receipt, remaining, sig, remaining)
+        ok, reason = _call_with_deadline(
+            _verify_returned_receipt, remaining, sig, remaining,
+            sent_hash=sent_hash, expected_agent_id=agent_id,
+        )
     except HookDeadlineExceeded:
         ok, reason = False, (
             f"verification did not finish inside the remaining {remaining:g}s of the "
@@ -589,6 +624,14 @@ def hook_pretool(
     if decision in _BLOCKING_DECISIONS:
         # A verified receipt that carries a denial is still a denial; exit 2 blocks the tool.
         print(f"blocked {sig.signature_id}: {decision}", file=sys.stderr)
+        raise typer.Exit(code=2)
+    if decision != "allow":
+        # Only a permit opens the gate; any other non-blocking decision exits 2.
+        print(
+            f"asqav hook: non-permit decision {decision!r} on {sig.signature_id}; "
+            "blocking tool call",
+            file=sys.stderr,
+        )
         raise typer.Exit(code=2)
     print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
 
