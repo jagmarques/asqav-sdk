@@ -1,0 +1,13 @@
+Asqav verifier notices
+
+Copyright (c) 2026 Asqav
+
+The standalone offline verifier
+(python/src/asqav/verifier/verify_receipt.py,
+SPDX-License-Identifier: Apache-2.0) is Apache License 2.0;
+LICENSE-APACHE contains the unmodified standard text. The conformance
+vectors under verifier/conformance-vectors/ are covered by
+conformance/NOTICE, which names Apache-2.0 for Asqav-authored material;
+this notice agrees with that grant. Everything else in this repository,
+including the TypeScript verifier and the oracle, stays under the
+repository LICENSE (Elastic License 2.0).
