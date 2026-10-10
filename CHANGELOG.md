@@ -9,9 +9,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Added
 
-- **`AsqavClient` (TypeScript) keeps its own connection.** A client holds the API key,
-  base URL, signing mode and salt it was built with, and every Agent it creates or
-  retrieves uses them. Two clients can run side by side in one process, and the module
+- **`AsqavClient` (TypeScript) keeps its own connection.** A client keeps the API key and
+  the settings it was built with, and every Agent it creates or retrieves uses them. Two clients can run side by side in one process, and the module
   default set by `init` stays independent of both. The README shows credential rotation
   through a new client and Agent.
 - **An optional invocation pointer on sign.** `Agent.sign(..., invocation_ref=...)` in
@@ -73,8 +72,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 - **`asqav hook pretool` accepts a genuine allow receipt.** The gate rebuilt the request
   digest without the lowercased action type and the `_trace_id` context key, so every
   real permit was refused as a digest mismatch. It now reads the digest from the body
-  `Agent.sign` sends, so before-hooks and detectors run once, and `--dry-run` shows the
-  same body.
+  `Agent.sign` sends, so before-hooks and detectors run once. `--dry-run` shows the same
+  body.
 - **The TypeScript verifier checks the wire version.** A receipt with no `v` member, or
   with `v: 99`, verified in TypeScript and failed in Python. Both verifiers recognise
   `v` 1 and 2; an absent or unsupported `v` makes the receipt unverifiable, on
@@ -98,10 +97,12 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 - **The TypeScript verifier writes decimals as Python's `repr(float)`.** `1e-7` becomes
   `1e-07`, `0.00001` becomes `1e-05`, `76355072847686510.0` becomes
   `7.635507284768651e+16` and `-0.0` stays `-0.0`. `asqavJcs`, `jcs` and
-  `asqavJcsPreCutover` wrote the JavaScript spelling there, so a receipt carrying such a
-  decimal failed its signature check in TypeScript and passed in Python, and
-  `counterpartyEnvelopeHash` returned a different hash. The strict JCS output and plain
-  numbers from `JSON.parse` are unchanged.
+  `asqavJcsPreCutover` wrote the JavaScript spelling there, so a receipt carrying a
+  decimal such as `1e-07` failed its signature check in TypeScript and passed in Python,
+  and `counterpartyEnvelopeHash` returned a different hash. The strict JCS output and plain
+  numbers from `JSON.parse` are unchanged. A receipt carrying `-0.0` or a decimal such as
+  `500.0` is still refused by the TypeScript number-range check while the Python oracle
+  accepts it; aligning that check is tracked for the next release.
 - **TypeScript counterparty hashing matches Python for floats.** `computeEnvelopeHash` and
   `verifyCounterpartyBinding` hash a float-preserving value as Python's `json.dumps` writes
   it (`1.0` stays `1.0`). A float Python refuses raises `canonical bytes unavailable` and
