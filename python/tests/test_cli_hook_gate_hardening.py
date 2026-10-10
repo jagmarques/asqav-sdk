@@ -244,6 +244,74 @@ def test_a_rate_limit_receipt_is_announced_as_blocked_and_exits_two(monkeypatch)
     assert "signed" not in result.output
 
 
+# === the receipt must answer THIS request: agent, digest, freshness (578) ===
+
+
+def _bound_gate(monkeypatch, *, agent_id: str = AGENT, issued_at: str | None = None,
+                clear_context: bool = False, action_ref: str | None = None):
+    """Run the gate on a validly signed allow receipt, varying one binding at a time."""
+    ml = _ml_dsa_65()
+    pk, sk = ml.keygen()
+    thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=pk)
+    payload = _payload("allow", key_thumbprint=thumb, agent_id=agent_id)
+    payload["action_ref"] = _live_digest() if action_ref is None else action_ref
+    if issued_at is not None:
+        payload["issued_at"] = issued_at
+    sig = _Sig("sig_bound", payload, _signed(payload, sk, ml), [])
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+    monkeypatch.setattr(
+        cli_hook, "_fetch_jwks", lambda _t: {"keys": [_row(pk, "k-live", thumbprint=thumb)]}
+    )
+    args = ["hook", "pretool"] + (["--clear-context"] if clear_context else [])
+    return runner.invoke(app, args, input=json.dumps(_PRETOOL_EVENT))
+
+
+def test_a_fresh_allow_bound_to_this_agent_and_action_passes(monkeypatch) -> None:
+    result = _bound_gate(monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "permit sig_bound" in result.output
+
+
+def test_a_receipt_signed_for_another_agent_is_refused(monkeypatch) -> None:
+    result = _bound_gate(monkeypatch, agent_id="agt_someone_else")
+    assert result.exit_code == 2, result.output
+    assert "agent mismatch" in result.output and "blocking tool call" in result.output
+
+
+@pytest.mark.parametrize(
+    "age_seconds, note",
+    [(13 * 86400, "13 days old"), (60, "one minute old"), (-600, "dated in the future")],
+)
+def test_a_receipt_outside_the_gate_window_is_refused(monkeypatch, age_seconds, note) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    issued = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
+    result = _bound_gate(monkeypatch, issued_at=issued.isoformat())
+    assert result.exit_code == 2, f"{note}: {result.output}"
+    assert "outside the gate deadline" in result.output
+
+
+def test_clear_context_always_blocks_because_there_is_no_digest_to_bind(monkeypatch) -> None:
+    assert "hash" not in cli_hook._build_body(
+        action_type="tool:Write",
+        context={"tool_input": {}},
+        session_id="s9",
+        agent_id=AGENT,
+        compliance_fields={"compliance_mode": True},
+        clear_context=True,
+    )
+    result = _bound_gate(monkeypatch, clear_context=True)
+    assert result.exit_code == 2, result.output
+    assert "digest does not match" in result.output
+
+
+def test_clear_context_blocks_a_receipt_with_an_empty_digest(monkeypatch) -> None:
+    """An empty action_ref equals the empty digest a --clear-context gate sends."""
+    result = _bound_gate(monkeypatch, clear_context=True, action_ref="")
+    assert result.exit_code == 2, result.output
+    assert "digest does not match" in result.output
+
+
 # === the verification phase runs inside the deadline (447b) ===
 
 
