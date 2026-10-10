@@ -26,6 +26,7 @@ runner = CliRunner()
 
 _PRETOOL_EVENT = {
     "session_id": "s2",
+    "tool_use_id": "toolu_hook",
     "tool_name": "Write",
     "tool_input": {"file_path": "/tmp/f", "content": "hi"},
 }
@@ -172,6 +173,7 @@ def _payload(decision: str = "allow") -> dict:
         "policy_digest": "sha256:" + "3" * 64,
         "previousReceiptHash": "0" * 64,
         "decision": decision,
+        "invocation_ref": "toolu_hook",
     }
 
 
