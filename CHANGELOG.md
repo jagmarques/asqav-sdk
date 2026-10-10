@@ -13,6 +13,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   The receipt must carry the event's `tool_use_id` as `invocation_ref`. An event
   with no `tool_use_id` is blocked (exit 2). Any other error in the gate, including a
   tool input nested too deep to parse, exits 2 rather than 1.
+  Without the `cli` extra, `asqav hook pretool` exits 2 instead of 1 so the call is blocked.
 
 - TypeScript verifier: the nesting-depth cap treats a decimal from `parseJsonPreservingFloats`
   as a leaf, so the same bytes pass structure at 198 levels in both halves. The counterparty
