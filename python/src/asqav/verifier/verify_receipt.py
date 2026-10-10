@@ -61,6 +61,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import calendar
 import hashlib
 import json
 import math
@@ -382,6 +383,7 @@ _INVALID_FAIL_AXES = frozenset(
         "key_binding",
         "counterparty",
         "payload_digest",
+        "outer_copies",
     }
 )
 
@@ -2077,6 +2079,198 @@ def check_skew(issued_at: str, *, now: datetime | None = None):
     return "PASS", f"skew {skew:.0f}s within bound"
 
 
+#: Text members an Audit Pack entry restates beside the signed payload, each
+#: paired with the signed member it must equal. No signature covers a copy.
+_OUTER_TEXT_COPIES = (
+    ("agent_id", "agent_id"),
+    ("action_id", "action_id"),
+    ("action_type", "action_type"),
+    ("receipt_type", "type"),
+    ("supersedes", "supersedes"),
+)
+
+#: Members with no signed counterpart: reported, never trusted.
+_OUTER_UNATTESTED = (
+    "signature_id", "capture_topology", "stale_pending", "corrupted", "corruption_message",
+)
+
+#: What each outer member must agree with, for the mismatch note.
+_OUTER_SIGNED_LABEL = {
+    "receipt_type": "type",
+    "signed_at": "issued_at",
+    "algorithm": "signature.alg",
+    "signature_b64": "signature.sig",
+    "message_b64": "the canonical signed bytes",
+    "message_sha256": "the canonical signed bytes",
+    "public_key_b64": "the verifying key",
+    "compliance_mode": "the payload",
+}
+
+#: Export timestamps: date, optional clock, optional zone (none is UTC).
+_INSTANT_RE = re.compile(
+    r"([0-9]{4})-([0-9]{2})-([0-9]{2})"
+    r"(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]+))?)?)?"
+    r"(Z|[+-][0-9]{2}(?::?[0-9]{2})?)?"
+)
+_STRICT_B64_RE = re.compile(r"[A-Za-z0-9+/]*={0,2}")
+
+
+def _zone_shift(zone: str | None) -> int | None:
+    """Seconds east of UTC for a zone suffix, None when out of range."""
+    if not zone or zone == "Z":
+        return 0
+    digits = zone[1:].replace(":", "")
+    hours, minutes = int(digits[:2]), int(digits[2:4] or 0)
+    if hours > 23 or minutes > 59:
+        return None
+    return (hours * 3600 + minutes * 60) * (1 if zone[0] == "+" else -1)
+
+
+def _instant(text: object):
+    """(epoch seconds, microsecond digits) of an export timestamp, else None."""
+    m = _INSTANT_RE.fullmatch(text) if isinstance(text, str) else None
+    if m is None:
+        return None
+    shift = _zone_shift(m.group(8))
+    parts = [int(g or 0) for g in m.groups()[:6]]
+    try:
+        moment = datetime(*parts, tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    if shift is None:
+        return None
+    return calendar.timegm(moment.utctimetuple()) - shift, (m.group(7) or "")[:6].rstrip("0")
+
+
+def _same_instant(outer: object, signed: object) -> bool:
+    if isinstance(outer, str) and outer == signed:
+        return True
+    left = _instant(outer)
+    return left is not None and left == _instant(signed)
+
+
+def _strict_b64(value: object):
+    """Bytes of a standard or url-safe base64 string, None on anything else."""
+    if not isinstance(value, str):
+        return None
+    text = value.replace("-", "+").replace("_", "/")
+    text += "=" * ((-len(text)) % 4)
+    if _STRICT_B64_RE.fullmatch(text) is None:
+        return None
+    try:
+        return base64.b64decode(text, validate=True)
+    except ValueError:
+        return None
+
+
+def _same_text(outer: object, signed: object) -> bool:
+    return isinstance(outer, str) and outer == signed
+
+
+def _same_bytes(outer: object, expected: bytes) -> bool:
+    decoded = _strict_b64(outer)
+    return decoded is not None and decoded == expected
+
+
+def _text_copy_outcomes(raw: dict, payload: dict) -> list:
+    """(member, agrees) per carried text copy; agrees is None with no signed twin."""
+    out = []
+    for outer, signed in _OUTER_TEXT_COPIES:
+        if raw.get(outer) is None:
+            continue
+        twin = payload.get(signed)
+        out.append((outer, None if twin is None else _same_text(raw[outer], twin)))
+    return out
+
+
+def _time_copy_outcomes(raw: dict, payload: dict) -> list:
+    """signed_at must equal issued_at; an observation receipt may also carry the
+    caller-observed context.ts there, because that is what its row stores."""
+    if raw.get("signed_at") is None:
+        return []
+    signed = [payload.get("issued_at")]
+    context = payload.get("context")
+    if payload.get("type") == "protectmcp:observation" and isinstance(context, dict):
+        signed.append(context.get("ts"))
+    signed = [s for s in signed if s is not None]
+    if not signed:
+        return [("signed_at", None)]
+    return [("signed_at", any(_same_instant(raw["signed_at"], s) for s in signed))]
+
+
+def _envelope_copy_outcomes(raw: dict, sig_obj: dict) -> list:
+    """algorithm and the signature string against the envelope's own signature object."""
+    out = []
+    if raw.get("algorithm") is not None:
+        twin = sig_obj.get("alg")
+        out.append(("algorithm", None if twin is None else _same_text(raw["algorithm"], twin)))
+    if raw.get("signature_b64") is not None:
+        twin = _strict_b64(sig_obj.get("sig"))
+        out.append(("signature_b64", None if twin is None else _same_bytes(raw["signature_b64"], twin)))
+    return out
+
+
+def _byte_copy_outcomes(raw: dict, msg: bytes, key_bytes) -> list:
+    """The signed-bytes copies and the carried public key against what verified."""
+    out = []
+    if raw.get("message_b64") is not None:
+        out.append(("message_b64", _same_bytes(raw["message_b64"], msg)))
+    if raw.get("message_sha256") is not None:
+        withheld = raw.get("signed_bytes_withheld") is True
+        out.append(("message_sha256", None if withheld else raw["message_sha256"] == hashlib.sha256(msg).hexdigest()))
+    if raw.get("public_key_b64") is not None:
+        # No resolved key: nothing to compare, so the copy is unattested
+        out.append(("public_key_b64", None if key_bytes is None else _same_bytes(raw["public_key_b64"], key_bytes)))
+    return out
+
+
+def _outer_copy_outcomes(raw: dict, payload: dict, sig_obj: dict, msg: bytes, key_bytes) -> list:
+    out = _text_copy_outcomes(raw, payload) + _time_copy_outcomes(raw, payload)
+    out += _envelope_copy_outcomes(raw, sig_obj) + _byte_copy_outcomes(raw, msg, key_bytes)
+    if "compliance_mode" in raw:
+        out.append(("compliance_mode", raw["compliance_mode"] is True))
+    return out
+
+
+def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
+    """Fold per-member outcomes into the (result, note) of the outer_copies axis."""
+    bad = [m for m, ok in outcomes if ok is False]
+    unattested = [m for m, ok in outcomes if ok is None]
+    unattested += [m for m in _OUTER_UNATTESTED if m in raw]
+    if bad:
+        named = ", ".join(f"{m} (signed: {_OUTER_SIGNED_LABEL.get(m, m)})" for m in bad)
+        return "FAIL", (
+            f"outer copies disagree with the signed payload: {named}; "
+            "rely on the signed payload, not on the copies"
+        )
+    agreed = [m for m, ok in outcomes if ok]
+    parts = []
+    if agreed:
+        parts.append(f"outer copies agree with the signed payload: {', '.join(agreed)}")
+    if unattested:
+        parts.append(f"no signed counterpart, do not rely on: {', '.join(unattested)}")
+    return "PASS", "; ".join(parts) or "no outer copies carried; the signed payload is the whole receipt"
+
+
+def check_outer_copies(raw: dict, msg: bytes, key_bytes=None):
+    """(result, note) for the outer_copies axis.
+
+    An Audit Pack entry restates signed values (agent, action, time, signature
+    and key material) as plain top-level members that no signature covers, so an
+    edit to one still verifies "signature valid". Every such copy is compared
+    with the signed value it restates and any disagreement FAILs the axis, which
+    makes the verdict unverified (invalid). A member with no signed counterpart
+    is listed as such. ``raw`` is the entry as received, ``msg`` the canonical
+    signed bytes, ``key_bytes`` the key the signature was checked against (None
+    when none resolved).
+    """
+    payload = raw.get("payload") if isinstance(raw, dict) else None
+    sig_obj = raw.get("signature") if isinstance(raw, dict) else None
+    if not isinstance(payload, dict) or not isinstance(sig_obj, dict):
+        return "PASS", "no signed payload object beside a signature object; no outer copies compared"
+    return _outer_copy_note(_outer_copy_outcomes(raw, payload, sig_obj, msg, key_bytes), raw)
+
+
 #: What this verifier does NOT check, declared in the output rather than in a document.
 #:
 #: A verifier that reports only what it checked lets a reader mistake silence for
@@ -2185,8 +2379,8 @@ def not_checked_declaration() -> list:
 #: expiry last. The coverage block measures "not reached" against this sequence.
 _FULL_AXIS_ORDER = (
     "structure", "nonce", "issuer_key", "issuer_bind", "key_status", "signature",
-    "key_binding", "counterparty", "payload_digest", "chain", "anchors", "skew",
-    "expiry",
+    "key_binding", "counterparty", "payload_digest", "outer_copies", "chain", "anchors",
+    "skew", "expiry",
 )
 
 
@@ -2742,6 +2936,61 @@ def _agent_fallback_signature(
     return sig_res, eff, agent_note
 
 
+def _signature_object(envelope: dict, payload: dict) -> dict:
+    """The {alg, kid, sig} object of a normalised envelope, derived from a flat string."""
+    sig_obj = envelope.get("signature", {})
+    if isinstance(sig_obj, str):  # flat-string signature, derive the object
+        return {
+            "alg": envelope.get("algorithm", "ML-DSA-65"),
+            "kid": payload.get("issuer_id", ""),
+            "sig": sig_obj,
+        }
+    # A non-object signature (list, number, ...) carries no kid/sig; key
+    # resolution then FAILs cleanly instead of .get on a non-dict.
+    return sig_obj if isinstance(sig_obj, dict) else {}
+
+
+def _key_and_signature_rows(
+    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+):
+    """Rows for issuer_key, issuer_bind, key_status and signature, plus the verifying key.
+
+    Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``. The key the signature
+    axis actually verified against is what key_binding and outer_copies weigh.
+    """
+    entry = _signing_key_entry(jwks, kid, payload, envelope)
+    pk, status, jwks_alg = _entry_material(entry)
+    if pk is None:
+        rows = [
+            ("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"),
+            ("signature", "SKIPPED", "no issuer key to verify against"),
+        ]
+        return rows, None, None, acknowledging_kid
+    _raw_sig = sig_obj.get("sig", "")
+    sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
+    sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
+    eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
+    eff = (status, eff_kid, key_issuer_of(entry), revoked_at_of(entry), pk, jwks_alg)
+    agent_note = ""
+    if sig_res[0] != "PASS":
+        sig_res, eff, agent_note = _agent_fallback_signature(
+            jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
+        )
+    eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
+    # Only a cryptographically verified anchor at or before revoked_at proves
+    # pre-revocation timing; presence alone never upgrades a revoked key.
+    trusted_anchor = _has_trusted_pre_revocation_anchor(anchor_eval.trusted_times, eff_revoked_at)
+    rows = [
+        ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}"),
+        # kid picks the key and the attacker picks the kid, so bind the key that
+        # actually verified back to the issuer the receipt claims.
+        ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))),
+        ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor)),
+        ("signature", *sig_res),
+    ]
+    return rows, eff_pk, eff_alg, bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
+
+
 def run(
     envelope: dict,
     jwks: dict,
@@ -2761,6 +3010,7 @@ def run(
         print("\n  => unverified (failure_class: unverifiable; no receipt object to verify)")
         return 2
     acknowledging_kid = counterparty_acknowledging_kid(envelope)
+    raw_entry = envelope
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -2783,17 +3033,7 @@ def run(
         print(f"  [FAIL] input       {_SHAPE_MESSAGES[shape]}")
         print("\n  => unverified (failure_class: unverifiable; receipt not canonicalisable)")
         return 2
-    sig_obj = envelope.get("signature", {})
-    if isinstance(sig_obj, str):  # flat-string signature, derive the object
-        sig_obj = {
-            "alg": envelope.get("algorithm", "ML-DSA-65"),
-            "kid": payload.get("issuer_id", ""),
-            "sig": sig_obj,
-        }
-    elif not isinstance(sig_obj, dict):
-        # A non-object signature (list, number, ...) carries no kid/sig; key
-        # resolution then FAILs cleanly instead of .get on a non-dict.
-        sig_obj = {}
+    sig_obj = _signature_object(envelope, payload)
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
     refusal = _profile_range_refusal(
@@ -2823,54 +3063,17 @@ def run(
         envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
     )
 
-    entry = _signing_key_entry(jwks, kid, payload, envelope)
-    pk, status, jwks_alg = _entry_material(entry)
-    # The key the signature axis actually verified against, which is what the
-    # key_binding axis has to rederive the bound thumbprint from.
-    eff_pk, eff_alg = None, None
-    if pk is None:
-        results.append(("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
-        results.append(("signature", "SKIPPED", "no issuer key to verify against"))
-    else:
-        _raw_sig = sig_obj.get("sig", "")
-        sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
-        sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
-        eff_status = status
-        eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
-        eff_issuer = key_issuer_of(entry)
-        eff_revoked_at = revoked_at_of(entry)
-        eff_pk, eff_alg = pk, jwks_alg
-        agent_note = ""
-        if sig_res[0] != "PASS":
-            eff = (eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg)
-            sig_res, eff, agent_note = _agent_fallback_signature(
-                jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
-            )
-            eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
-        results.append(
-            ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}")
-        )
-        # kid picks the key and the attacker picks the kid, so bind the key that
-        # actually verified back to the issuer the receipt claims.
-        results.append(
-            ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id")))
-        )
-        # Only a cryptographically verified anchor at or before revoked_at proves
-        # pre-revocation timing; presence alone never upgrades a revoked key.
-        trusted_anchor = _has_trusted_pre_revocation_anchor(
-            anchor_eval.trusted_times, eff_revoked_at
-        )
-        results.append(
-            ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor))
-        )
-        results.append(("signature", *sig_res))
-        acknowledging_kid = bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
+    rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
+        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+    )
+    results.extend(rows)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
     results.append(("payload_digest", *check_payload_digest(payload)))
+    results.append(("outer_copies", *check_outer_copies(raw_entry, msg, eff_pk)))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
@@ -2981,6 +3184,7 @@ def run_structured(
             "alg": None,
         }
     acknowledging_kid = counterparty_acknowledging_kid(envelope)
+    raw_entry = envelope
     envelope = normalise_envelope(envelope)
     payload = envelope.get("payload", envelope)
     if not isinstance(payload, dict):
@@ -3019,15 +3223,7 @@ def run_structured(
             "alg": None,
         }
 
-    sig_obj = envelope.get("signature", {})
-    if isinstance(sig_obj, str):
-        sig_obj = {
-            "alg": envelope.get("algorithm", "ML-DSA-65"),
-            "kid": payload.get("issuer_id", ""),
-            "sig": sig_obj,
-        }
-    elif not isinstance(sig_obj, dict):
-        sig_obj = {}  # non-object signature: no usable kid/sig, key resolution FAILs cleanly
+    sig_obj = _signature_object(envelope, payload)
     kid = sig_obj.get("kid", "")
     alg = sig_obj.get("alg", "ML-DSA-65")
     refusal = _profile_range_refusal(
@@ -3070,54 +3266,10 @@ def run_structured(
         envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
     )
 
-    entry = _signing_key_entry(jwks, kid, payload, envelope)
-    pk, status, jwks_alg = _entry_material(entry)
-    # The key the signature axis actually verified against, which is what the
-    # key_binding axis has to rederive the bound thumbprint from.
-    eff_pk, eff_alg = None, None
-    if pk is None:
-        axes.append(_struct_axis("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"))
-        axes.append(_struct_axis("signature", "SKIPPED", "no issuer key to verify against"))
-    else:
-        _raw_sig = sig_obj.get("sig", "")
-        sig_bytes = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
-        sig_res = verify_signature(pk, msg, sig_bytes, alg or jwks_alg)
-        eff_status = status
-        eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
-        eff_issuer = key_issuer_of(entry)
-        eff_revoked_at = revoked_at_of(entry)
-        eff_pk, eff_alg = pk, jwks_alg
-        agent_note = ""
-        if sig_res[0] != "PASS":
-            eff = (eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg)
-            sig_res, eff, agent_note = _agent_fallback_signature(
-                jwks, payload, envelope, msg, sig_bytes, alg, jwks_alg, pk,
-                sig_res, eff,
-            )
-            eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
-        axes.append(
-            _struct_axis(
-                "issuer_key",
-                "PASS",
-                f"resolved signing key {eff_kid} (status={eff_status}){agent_note}",
-            )
-        )
-        # kid picks the key and the attacker picks the kid, so bind the key that
-        # actually verified back to the issuer the receipt claims.
-        axes.append(_struct_axis("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))))
-        # Only a cryptographically verified anchor at or before revoked_at counts as
-        # trusted timing; presence alone never upgrades a revoked key.
-        trusted_anchor = _has_trusted_pre_revocation_anchor(
-            anchor_eval.trusted_times, eff_revoked_at
-        )
-        axes.append(
-            _struct_axis(
-                "key_status",
-                *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor),
-            )
-        )
-        axes.append(_struct_axis("signature", sig_res[0], sig_res[1]))
-        acknowledging_kid = bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
+    rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
+        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+    )
+    axes.extend(_struct_axis(*row) for row in rows)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
@@ -3126,6 +3278,7 @@ def run_structured(
         _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
     axes.append(_struct_axis("payload_digest", *check_payload_digest(payload)))
+    axes.append(_struct_axis("outer_copies", *check_outer_copies(raw_entry, msg, eff_pk)))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))

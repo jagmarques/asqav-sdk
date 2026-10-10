@@ -5,6 +5,17 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- Outer copies in an exported entry are checked against the signed payload (criterion 742).
+  An Audit Pack entry restates signed values (agent, action, time, signature string, key
+  and signed bytes) as plain top-level members no signature covers, so editing one still
+  read "signature valid". The Python and TypeScript offline verifiers and the standalone
+  `verify_receipt.py` now report a new `outer_copies` axis: any copy that disagrees with the
+  signed value it restates fails the verdict as `unverified` / `invalid`, and members with no
+  signed counterpart are named in the note. Axis count is 13 for the offline APIs and 14
+  for the standalone verifier. Conformance vectors `asqav-43` to `asqav-48` pin one agreeing
+  entry and five edited copies, and `verifier/outer-copy-cases.json` pins byte-identical results
+  and notes in both languages. `docs/offline-verification.md` lists which members are signed.
+
 - `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
   POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`
   context key, so a genuine allow receipt was refused as a digest mismatch (criterion 578).

@@ -188,7 +188,7 @@ offline APIs. Evaluate those trust inputs separately.
 
 ## Axes both offline APIs report
 
-`verify_receipt_offline` and `verifyReceiptOffline` report these 12 axes, in this
+`verify_receipt_offline` and `verifyReceiptOffline` report these 13 axes, in this
 order, and both languages report the same names on the same receipt. A receipt whose
 `structure` axis fails stops there and reports fewer.
 
@@ -204,17 +204,56 @@ order, and both languages report the same names on the same receipt. A receipt w
 | `counterparty` | A claimed cross-agent binding commits to the origin envelope's bytes |
 | `payload_digest` | `payload_digest` rederives from the context carried in the same receipt |
 | `skew` | `issued_at` is at most 300 seconds ahead of the wall clock |
+| `outer_copies` | The plain copies an exported entry carries (agent, action, time, signature, key, signed bytes) equal the signed values they restate |
 | `key_status` | The signing key's published status is not revoked |
 | `issuer_bind` | The verifying key is published under the issuer the signed bytes name |
 
-`skew` is one of the 12, and it decides the verdict: an `issued_at` more than 300
+`skew` is one of the 13, and it decides the verdict: an `issued_at` more than 300
 seconds ahead of the wall clock reports `skew FAIL` and the verdict is `unverified`
 with failure class `invalid`. The bound is forward-only, so a receipt from the past
 passes it.
 
+### Outer copies in an exported entry
+
+An Audit Pack entry is the signed `payload`, its `signature` object and `anchors`,
+plus plain top-level copies of some signed values. The copies are for convenience and
+no signature covers them, so an unchecked edit to one would still read "signature
+valid". Both offline APIs and the standalone verifier compare each copy with the value
+it restates and fail the `outer_copies` axis when they differ. The verdict is then
+`unverified` with failure class `invalid`, even though the signature itself verifies.
+Read the agent and the time from the signed `payload`.
+
+| Outer member | Signed value it must equal |
+|---|---|
+| `agent_id` | `payload.agent_id` |
+| `action_id` | `payload.action_id` |
+| `action_type` | `payload.action_type` (payload-mode receipts only) |
+| `receipt_type` | `payload.type` |
+| `supersedes` | `payload.supersedes` |
+| `signed_at` | `payload.issued_at`, the same instant to the microsecond; an observation receipt may carry its caller-observed `context.ts` instead, because that is the time its record stores |
+| `algorithm` | `signature.alg` |
+| `signature_b64` | `signature.sig`, the same decoded bytes |
+| `message_b64` | the canonical (JCS) bytes of `payload`, which are the bytes that were signed |
+| `message_sha256` | the SHA-256 of those bytes; not checkable when `signed_bytes_withheld` is true |
+| `public_key_b64` | the key the signature was verified against |
+| `compliance_mode` | `true`, whenever a `payload` object is present |
+
+Members with no signed counterpart are named in the axis note and never trusted:
+`signature_id`, `capture_topology`, `stale_pending`, `corrupted`,
+`corruption_message`, and `action_type` on a hash-mode receipt, whose signed bytes
+carry no action type. A member that is absent is not compared. Only an entry whose
+`signature` is an object is checked; the hosted `/api/v1/verify/<id>` response is a
+display projection that cannot reproduce the signature in any case. The manual
+[openssl and jq walkthrough](openssl-jq-walkthrough.md) reads the `payload` alone, so
+it never relies on a copy.
+
+`verifier/conformance-vectors/asqav-43` to `asqav-48` pin the behavior: one entry
+whose copies all agree, and one each with an edited `signed_at`, `agent_id`,
+`action_type`, `message_b64` and `public_key_b64`. Every verifier refuses the edited ones.
+
 ### Where the standalone verifier's vocabulary differs
 
-`run()` and `run_structured()` in `verify_receipt.py` report 13 axes on the same
+`run()` and `run_structured()` in `verify_receipt.py` report 14 axes on the same
 receipt. Three names differ, and these three are the whole difference:
 
 | Axis | Offline SDK APIs | Standalone verifier |
@@ -277,8 +316,8 @@ caller-pinned TSA key material (`trusted_tsa_keys`, or `--tsa-key` on the CLI);
 an OpenTimestamps anchor PASSes only when the proof commits the same digest and
 its merkle path matches caller-supplied block data (`bitcoin_headers` /
 `--bitcoin-headers`). Without usable supplied block data, placement is unverifiable; a supplied root that disagrees makes it invalid. A token whose check runs and fails reports
-FAIL (`invalid`); one the check cannot complete offline — junk token, no pinned TSA
-key, no header source, `status: pending`/`failed`, unknown type — reports SKIPPED
+FAIL (`invalid`); one the check cannot complete offline - junk token, no pinned TSA
+key, no header source, `status: pending`/`failed`, unknown type - reports SKIPPED
 (`unverifiable`), never PASS. The TypeScript shim carries no CMS/ots evaluation, so
 every shape-valid entry reports unverifiable there; that residual is conservative,
 never permissive.
