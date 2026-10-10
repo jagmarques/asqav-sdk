@@ -129,7 +129,7 @@ def _result_digest(tool_response: Any) -> str:
     return f"sha256:{digest}"
 
 
-    # Build the same body sign() POSTs, reusing the SDK builder (no re-impl).
+    # Build the body sign() POSTs: the SDK's own context and body builders, no re-impl.
 def _build_body(
     *,
     action_type: str,
@@ -140,20 +140,25 @@ def _build_body(
     clear_context: bool = False,
 ) -> dict[str, Any]:
     from asqav import client as _client
-    from asqav.client import _build_sign_body
+    from asqav.client import _build_sign_body, _prepare_sign_context
 
+    # sign() lowercases the action type and files trace_id in the context before
+    # hashing, so the digest the receipt must answer is over that form.
+    fields = {k: v for k, v in compliance_fields.items() if v is not None}
+    wire_action, wire_context = _prepare_sign_context(
+        action_type=action_type, context=context, trace_id=fields.pop("trace_id", None)
+    )
     # The wire mode is a module global the SDK resolves at init; the hook pins it
     # explicitly so a dry run shows the bytes the live hook sends.
     previous = _client._mode
     _client._mode = "full-payload" if clear_context else "hash-only"
     try:
         return _build_sign_body(
-            action_type=action_type,
-            context=context,
+            action_type=wire_action,
+            context=wire_context,
             session_id=session_id or None,
             agent_id=agent_id,
-            compliance_fields={k: v for k, v in compliance_fields.items() if v is not None}
-            or None,
+            compliance_fields=fields or None,
         )
     finally:
         _client._mode = previous
