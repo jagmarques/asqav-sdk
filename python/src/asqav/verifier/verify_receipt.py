@@ -537,6 +537,19 @@ def _int_digit_count(node: int) -> int:
     return digits
 
 
+    # A float literal preserved with its source lexeme, mirroring
+    # ``asqav.strict_json.RawFloat`` (this file ships standalone).
+class _RawFloat(float):
+    def __new__(cls, value, lexeme):
+        obj = super().__new__(cls, value)
+        obj.lexeme = lexeme
+        return obj
+
+
+def _raw_float(literal):
+    return _RawFloat(float(literal), literal)
+
+
 def _parse_object(text: str, source: str) -> dict:
     """Parse ``text`` as a JSON object, or raise VerifierInputError.
 
@@ -552,6 +565,7 @@ def _parse_object(text: str, source: str) -> dict:
             text,
             object_pairs_hook=_reject_duplicate_members,
             parse_int=_reject_unsafe_integer,
+            parse_float=_raw_float,
         )
     except (DuplicateMemberError, UnsafeIntegerError) as exc:
         raise VerifierInputError(f"{source}: {exc}") from exc
@@ -2530,6 +2544,20 @@ def profile_range_note(obj) -> str | None:
         node, path, exiting = stack.pop()
         if isinstance(node, bool):
             continue
+        if isinstance(node, _RawFloat):
+            # Judge the SOURCE LEXEME, never the parsed double: an
+            # integer-valued float lexeme binds digits the profile never
+            # validated as an integer.
+            if (
+                not re.fullmatch(r"-?\d+", node.lexeme)
+                and node.is_integer()
+                and -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER
+            ):
+                return (
+                    f"Asqav profile range +/-(2**53 - 1) excludes non-integer "
+                    f"lexeme {node.lexeme!r} at {path}"
+                )
+            # Fall through: out-of-range magnitudes still fail below.
         if isinstance(node, int):
             if not -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER:
                 # str() itself raises past the interpreter digit cap, so an
