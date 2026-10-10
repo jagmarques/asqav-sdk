@@ -807,6 +807,10 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
   if (payload.context === undefined || payload.context === null) {
     return ["PASS", "no context carried; payload_digest not recomputable here"];
   }
+  const algo = (payload as Record<string, unknown>).hash_algo;
+  if (algo !== undefined && (typeof algo !== "string" || algo.trim().toLowerCase() !== "sha256")) {
+    return ["SKIPPED", "keyed payload_digest needs holder key material to recompute; recorded as unverifiable, never a mismatch"];
+  }
   let encoded: Uint8Array;
   try {
     encoded = asqavJcs(payload.context);
