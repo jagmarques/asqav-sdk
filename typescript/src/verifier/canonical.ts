@@ -114,10 +114,7 @@ export class DuplicateMemberError extends SyntaxError {
 
 // Python repr(float): exponent form from 1e16 and below 1e-4, -0.0 kept
 // Same shortest digits as JavaScript, laid out as 1e-07 and 7.6e+16
-function floatToString(n: number): string {
-  if (!Number.isFinite(n)) {
-    throw new Error(`non-finite number not allowed in JCS: ${n}`);
-  }
+export function pythonFloatRepr(n: number): string {
   if (n === 0) return Object.is(n, -0) ? "-0.0" : "0.0";
   const [mantissa, exponent] = Math.abs(n).toExponential().split("e");
   const digits = mantissa.replace(".", "");
@@ -125,6 +122,13 @@ function floatToString(n: number): string {
   const sign = n < 0 ? "-" : "";
   if (exp10 >= 16 || exp10 < -4) return sign + exponentLayout(digits, exp10);
   return sign + positionalLayout(digits, exp10 + 1);
+}
+
+function floatToString(n: number): string {
+  if (!Number.isFinite(n)) {
+    throw new Error(`non-finite number not allowed in JCS: ${n}`);
+  }
+  return pythonFloatRepr(n);
 }
 
 function exponentLayout(digits: string, exp10: number): string {
