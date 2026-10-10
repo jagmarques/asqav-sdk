@@ -113,9 +113,10 @@ wrapped unit) is the class we never build, so no row below uses it.
 | presidio (typescript) | passive | https://data-privacy-stack.github.io/presidio/ | 2026-09-21 | 2.2.364 |
 
 No `model_invoked` surface is ever built; an MCP-server request is answered
-with the harness hook plus the SDK. smolagents is `in_path_proxy`: `wrap_tool`
-replaces the tool's `forward`, so every call runs through our wrapper, whoever
-makes it. Hook handlers run under per-hook-family
+with the harness hook plus the SDK. smolagents is `in_path_proxy` with the local
+executor (the default): `wrap_tool` replaces the tool's `forward`, so every call
+runs through our wrapper. Remote executors (docker, e2b, modal, blaxel) rebuild
+the tool from its class source and drop the wrapper, so nothing is signed there. Hook handlers run under per-hook-family
 timeouts (600 seconds for command, HTTP and MCP-tool hooks; 30 for prompt
 hooks; 60 for agent hooks, see the hooks reference above).
 
