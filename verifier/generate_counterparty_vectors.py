@@ -28,6 +28,17 @@ CASES = (
     ("asqav-34-counterparty-scope-unknown", "unrecognised_scope", "unverifiable"),
 )
 
+#: Adversarial families whose binding deliberately disagrees with the emitted
+#: origin (or omits the reference). Every ack stays well-signed so the
+#: signature axis passes and only the counterparty axis fails.
+NEW_CASES = (
+    "asqav-35-counterparty-peer-swapped",
+    "asqav-36-counterparty-origin-forged",
+    "asqav-37-counterparty-divergent-terms",
+    "asqav-38-counterparty-received-only",
+    "asqav-39-counterparty-cross-replay",
+)
+
 
 def jcs(value: object) -> bytes:
     """Fixture members use ASCII keys and integers; compute independently of verifiers."""
@@ -102,7 +113,46 @@ def fixtures() -> dict[str, dict[str, object]]:
             "expected.json": expected,
             "tsa_trust.pem": key("tsa").public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
         }
+    files.update(_adversarial_fixtures(origin, digest))
     return files
+
+
+def _adversarial_fixtures(origin: dict, digest: str) -> dict[str, dict[str, object]]:
+    """Signed dirs for bindings that deliberately disagree with the emitted origin."""
+    out: dict[str, dict[str, object]] = {}
+
+    def emit(name: str, binding: dict, emitted_origin: dict, label: str) -> None:
+        body = payload("ack")
+        body.update(type="protectmcp:acknowledgment", counterparty_binding=binding)
+        out[name] = {
+            "receipt.json": sign_and_anchor(body),
+            "originating_envelope.json": copy.deepcopy(emitted_origin),
+            "jwks.json": {"keys": [{"kid": who, "issuer_id": who, "alg": "Ed25519", "status": "active",
+                                        "public_key": base64.b64encode(public_key(who)).decode()}
+                                       for who in ("origin", "ack")]},
+            "expected.json": {
+                "format": "asqav-native", "outcome": "unverified",
+                "reason_code": f"counterparty_{label}", "failure_class": "invalid",
+                "notes": f"Signed acknowledgment with binding result {label}; signature and local TSA verify.",
+            },
+            "tsa_trust.pem": key("tsa").public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
+        }
+
+    base = {"scope": SCOPE, "receipt_ref": "sig_counterparty_origin",
+            "envelope_hash": digest, "expect_ack_from": "ack"}
+    emit(NEW_CASES[0], {**base, "expect_ack_from": "peer"}, origin, "kid_mismatch")
+    forged = copy.deepcopy(origin)
+    forged["payload"]["action_id"] = "action_forged_after_signing"
+    emit(NEW_CASES[1], dict(base), forged, "mismatch")
+    other = sign_and_anchor(payload("origin-b"))
+    emit(NEW_CASES[2], dict(base), other, "mismatch")
+    received = {k: v for k, v in base.items() if k not in ("receipt_ref", "envelope_hash")}
+    emit(NEW_CASES[3], received, origin, "malformed")
+    replay_terms = {"payload": {"terms": "other-interaction"}, "signature": origin["signature"]}
+    replay_hash = base64.b64encode(hashlib.sha256(jcs(replay_terms)).digest()).decode()
+    emit(NEW_CASES[4], {**base, "receipt_ref": "sig_other_interaction",
+                        "envelope_hash": replay_hash}, origin, "mismatch")
+    return out
 
 
 def generated_files() -> dict[Path, str]:
@@ -124,7 +174,7 @@ def main() -> int:
             if not args.check:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(text)
-    print(f"counterparty fixtures: {len(CASES)} cases; {len(drift)} file(s) {'drifted' if args.check else 'regenerated'}")
+    print(f"counterparty fixtures: {len(CASES) + len(NEW_CASES)} cases; {len(drift)} file(s) {'drifted' if args.check else 'regenerated'}")
     if args.check and drift:
         print("\n".join(drift))
     return int(args.check and bool(drift))
