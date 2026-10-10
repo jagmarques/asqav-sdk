@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 38,
+  "corpus_version": 39,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -193,6 +193,11 @@
       "version": 37,
       "files": 319,
       "digest": "d9267ca3be6ba54a1cffdc404d13f8221e6853af1c78ebba26905340f9bdb29d"
+    },
+    {
+      "version": 38,
+      "files": 348,
+      "digest": "273fd053ee20b2e6faa956af80b1f2f0ebdef8353a54c1b2a75d858067da7d33"
     }
   ],
   "files": [
@@ -1213,8 +1218,8 @@
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/bitcoin_headers.json",
-      "sha256": "c9ef4a03f1a8e1c0fd4eaf8ca4ce611b909304806e94854559179879b51bffa7",
-      "bytes": 224
+      "sha256": "1e623fc6ef805ddafd0149df4d2c27f11046db040a1a889425010525dbe4c8c5",
+      "bytes": 391
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/expected.json",
@@ -1967,5 +1972,5 @@
       ]
     }
   },
-  "digest": "273fd053ee20b2e6faa956af80b1f2f0ebdef8353a54c1b2a75d858067da7d33"
+  "digest": "841e6583cfeb5921e3044f1edfeab5652c062bd0d076377b47e3b20aa11a967d"
 }
