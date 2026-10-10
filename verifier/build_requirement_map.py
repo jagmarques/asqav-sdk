@@ -89,6 +89,11 @@ REQUIREMENTS = {
         "statement": "Where context and payload_digest are both carried, recompute the digest and the size.",
         "axis": "payload_digest",
     },
+    "REQ-KEYED-DIGEST": {
+        "section": "payload-digest",
+        "statement": "Use the defined keyed construction when hash_algo selects it; a keyed digest without holder key material is unverifiable, never a mismatch.",
+        "axis": "payload_digest",
+    },
     "REQ-COUNTERPARTY": {
         "section": "counterparty-binding",
         "statement": "Weigh a counterparty_binding rather than letting the corroboration claim ride unchecked.",

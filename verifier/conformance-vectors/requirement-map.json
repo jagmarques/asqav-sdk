@@ -553,6 +553,21 @@
     },
     "asqav-41-hash-unrecognised-version": {
       "payload": "FAIL"
+    },
+    "asqav-42-keyed-digest-unverifiable": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "SKIPPED",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
     }
   },
   "requirements": {
@@ -611,6 +626,11 @@
       "statement": "Where context and payload_digest are both carried, recompute the digest and the size.",
       "axis": "payload_digest"
     },
+    "REQ-KEYED-DIGEST": {
+      "section": "payload-digest",
+      "statement": "Use the defined keyed construction when hash_algo selects it; a keyed digest without holder key material is unverifiable, never a mismatch.",
+      "axis": "payload_digest"
+    },
     "REQ-COUNTERPARTY": {
       "section": "counterparty-binding",
       "statement": "Weigh a counterparty_binding rather than letting the corroboration claim ride unchecked.",
@@ -634,6 +654,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -655,6 +676,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -676,6 +698,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -697,6 +720,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -720,6 +744,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -738,6 +763,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -758,6 +784,7 @@
         "REQ-ISSUER-BIND",
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -780,6 +807,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -801,6 +829,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -824,6 +853,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -842,6 +872,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -863,6 +894,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -884,6 +916,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -905,6 +938,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -926,6 +960,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -947,6 +982,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -968,6 +1004,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -989,6 +1026,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1010,6 +1048,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1031,6 +1070,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1052,6 +1092,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1073,6 +1114,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1094,6 +1136,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1116,6 +1159,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1135,6 +1179,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1156,6 +1201,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1177,6 +1223,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1202,6 +1249,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1219,6 +1267,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1241,6 +1290,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1261,6 +1311,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1280,6 +1331,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1301,6 +1353,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1322,6 +1375,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1343,6 +1397,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1364,6 +1419,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1385,6 +1441,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1406,6 +1463,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1427,6 +1485,7 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
@@ -1450,11 +1509,34 @@
         "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
         "REQ-NONCE",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
+      ]
+    },
+    "asqav-42-keyed-digest-unverifiable": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-NONCE",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-KEYED-DIGEST",
+        "REQ-PAYLOAD-DIGEST"
       ]
     }
   },
@@ -1757,7 +1839,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -1795,7 +1878,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -1833,7 +1917,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -1870,7 +1955,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -1908,7 +1994,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -1946,7 +2033,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-ANCHOR": [
       "asqav-24-anchor-block-hash-prod",
@@ -1991,7 +2079,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -2029,7 +2118,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -2067,9 +2157,48 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-PAYLOAD-DIGEST": [
+      "asqav-01-genesis-permit",
+      "asqav-02-genesis-deny",
+      "asqav-03-chain-link",
+      "asqav-04-tamper-sig",
+      "asqav-06-mldsa65-payload-prod",
+      "asqav-07-revoked-key",
+      "asqav-08-v2-signer-canary",
+      "asqav-09-v2-signer-tampered",
+      "asqav-11-dup-member-toplevel",
+      "asqav-12-time-edge-expiry",
+      "asqav-13-dup-member-nested",
+      "asqav-14-omitted-action-chain",
+      "asqav-15-unsigned-gap",
+      "asqav-16-chain-emission-blocked",
+      "asqav-17-seq-contiguous",
+      "asqav-18-seq-gap",
+      "asqav-19-seq-non-monotonic",
+      "asqav-20-seq-absent",
+      "asqav-21-key-thumbprint-binds",
+      "asqav-22-key-substituted",
+      "asqav-23-anchor-status-pending",
+      "asqav-24-anchor-block-hash-prod",
+      "asqav-25-payload-digest-rederives",
+      "asqav-26-payload-digest-mismatch",
+      "asqav-27-anchors-absent",
+      "asqav-29-article-50-lifecycle-disclosure",
+      "asqav-31-counterparty-scope-match",
+      "asqav-32-counterparty-anchors-included",
+      "asqav-33-counterparty-scope-absent",
+      "asqav-34-counterparty-scope-unknown",
+      "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-unregistered-namespace-reported",
+      "asqav-38-unknown-member-preserved",
+      "asqav-39-absent-version",
+      "asqav-40-unrecognised-version"
+    ],
+    "REQ-KEYED-DIGEST": [
       "asqav-01-genesis-permit",
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
@@ -2141,7 +2270,8 @@
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
-      "asqav-40-unrecognised-version"
+      "asqav-40-unrecognised-version",
+      "asqav-42-keyed-digest-unverifiable"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -2177,17 +2307,18 @@
       "asqav-34-counterparty-scope-unknown",
       "asqav-35-invocation-ref-binds-pre-post",
       "asqav-36-invocation-ref-duplicate-emission",
-      "asqav-38-unknown-member-preserved"
+      "asqav-38-unknown-member-preserved",
+      "asqav-42-keyed-digest-unverifiable"
     ]
   },
   "unmapped_requirements": [],
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 40,
+    "asqav_native_vectors": 41,
     "interop_fixtures": 52,
-    "requirements": 13,
-    "requirements_covered": 13,
+    "requirements": 14,
+    "requirements_covered": 14,
     "requirements_unmapped": 0
   }
 }
