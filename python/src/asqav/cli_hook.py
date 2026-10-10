@@ -410,7 +410,8 @@ def _verify_returned_receipt(
             f"gate sent {expected_agent_id!r}"
         )
     receipt_digest = payload.get("hash") or payload.get("action_ref")
-    if receipt_digest != sent_hash:
+    # No digest sent (--clear-context) binds nothing, so even an empty match blocks
+    if not sent_hash or receipt_digest != sent_hash:
         return False, "receipt digest does not match the digest the gate sent"
     try:
         issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
