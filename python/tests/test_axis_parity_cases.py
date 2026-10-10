@@ -24,6 +24,7 @@ from asqav.verifier.oracle.core import verify as oracle_verify
 from asqav.verifier.verify_receipt import (
     SKEW_BOUND_SECONDS,
     check_anchors,
+    check_counterparty_binding,
     check_expiry,
     check_skew,
     envelope_minus_anchors_jcs,
@@ -56,6 +57,7 @@ def test_bounds_match_the_table() -> None:
 
 
 NESTING = TABLE["nesting_depth"]
+CP_CASES = NESTING["counterparty"]["cases"]
 
 
 def test_nesting_depth_table_is_populated_and_two_sided() -> None:
@@ -84,6 +86,30 @@ def test_nesting_depth_case(case: dict[str, Any], parser: Callable[[str], Any]) 
         assert result.failure_class == case["expect"]["failure_class"], case["name"]
         assert len(result.axes) == 1, case["name"]
         assert structure.note == case["expect"]["note"], case["name"]
+
+
+def _originator_text(case: dict[str, Any]) -> str:
+    env = NESTING["counterparty"]["envelope"]
+    payload = json.dumps(env["payload"], separators=(",", ":"))[:-1]
+    payload += (
+        ',"junk":' + '{"n":' * case["wrappers"]
+        + '{"leaf":' + case["leaf"] + "}" + "}" * case["wrappers"] + "}"
+    )
+    sig = json.dumps(env["signature"], separators=(",", ":"))
+    return str('{"payload":' + payload + ',"signature":' + sig + "}")
+
+
+# The counterparty binding hashes the originating envelope under its own 200 cap
+@pytest.mark.parametrize("parser", [strict_json.loads, strict_json.loads_profile])
+@pytest.mark.parametrize("case", CP_CASES, ids=[c["name"] for c in CP_CASES])
+def test_nesting_depth_counterparty_case(
+    case: dict[str, Any], parser: Callable[[str], Any]
+) -> None:
+    payload = json.loads(json.dumps(NESTING["counterparty"]["payload"]))
+    payload["counterparty_binding"]["envelope_hash"] = case["envelope_hash"]
+    result, note = check_counterparty_binding(payload, parser(_originator_text(case)))
+    assert result == case["expect"]["result"], f"{case['name']}: {note}"
+    assert case["expect"]["note_contains"] in note, case["name"]
 
 
 def test_nesting_depth_profile_parser_wraps_decimals() -> None:
