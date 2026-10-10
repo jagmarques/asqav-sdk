@@ -128,6 +128,15 @@ def regenerate(doc: dict) -> list[str]:
 
         binding = vector.get("input", {}).get("counterparty_binding")
         members = tuple(vector.get("generation", {}).get("counterparty_digest_members", MINUS_ANCHORS_MEMBERS))
+        if not isinstance(origin.get("input", {}).get("payload"), dict):
+            # Deliberately unavailable origin (origin_unavailable family):
+            # nothing to derive; the unresolved expectation stands on its own.
+            continue
+        if expected.get("digest_pinned") is True:
+            # Deliberate cross-origin mismatch (forged/divergent/replayed
+            # families): the wire value intentionally disagrees with the
+            # referenced origin, so there is nothing to re-derive.
+            continue
         digest = envelope_digest(origin["input"], members)
         if not isinstance(binding, dict) or "envelope_hash" not in binding:
             # A vector that deliberately omits envelope_hash still names its origin
