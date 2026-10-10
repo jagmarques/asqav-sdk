@@ -30,6 +30,32 @@ function isRawFloat(v: unknown): v is RawFloat {
   return v instanceof RawFloat;
 }
 
+/** A RawFloat the parser could make: numeric value, string or no lexeme, no
+ *  other own key. Anything else is a container, not a leaf */
+export function isRawFloatLeaf(v: unknown): v is RawFloat {
+  if (!(v instanceof RawFloat)) return false;
+  if (typeof v.value !== "number") return false;
+  if (v.lexeme !== undefined && typeof v.lexeme !== "string") return false;
+  return Reflect.ownKeys(v).every((k) => k === "value" || k === "lexeme");
+}
+
+/** True when `obj` nests deeper than `maxDepth`, on an explicit stack. A parser
+ *  RawFloat is a leaf as in Python. Shared by both depth caps */
+export function exceedsDepth(obj: unknown, maxDepth: number): boolean {
+  const stack: Array<[unknown, number]> = [[obj, 0]];
+  while (stack.length > 0) {
+    const [cur, depth] = stack.pop() as [unknown, number];
+    if (depth > maxDepth) return true;
+    if (isRawFloatLeaf(cur)) continue;
+    if (Array.isArray(cur)) {
+      for (const v of cur) stack.push([v, depth + 1]);
+    } else if (cur !== null && typeof cur === "object") {
+      for (const v of Object.values(cur as Record<string, unknown>)) stack.push([v, depth + 1]);
+    }
+  }
+  return false;
+}
+
 /**
  * An integer beyond IEEE-754 safe range, kept as exact source digits. Collapsing it to the nearest
  * double would let two distinct integers share one signature and a tampered receipt verify.
