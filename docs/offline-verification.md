@@ -114,9 +114,9 @@ import { writeFileSync, readFileSync } from "node:fs";
 const jwks = await fetchJwks();
 writeFileSync("jwks.json", JSON.stringify(jwks));
 
-// Verify offline
-const receipt = JSON.parse(readFileSync("receipt.json", "utf-8"));
-const jwksSaved = JSON.parse(readFileSync("jwks.json", "utf-8"));
+// Verify offline, from the raw text
+const receipt = readFileSync("receipt.json", "utf-8");
+const jwksSaved = readFileSync("jwks.json", "utf-8");
 
 const result = verifyReceiptOffline(receipt, jwksSaved);
 // result.verdict: "verified" | "verified_keyed" | "unverified"
@@ -127,6 +127,14 @@ if (result.verdict !== "verified" && result.verdict !== "verified_keyed") {
   throw new Error(`Receipt not verified (${result.failureClass}): ${JSON.stringify(result.axes)}`);
 }
 ```
+
+Pass the receipt as raw JSON text. The parser keeps each number as written, so the
+verdict matches the Python verifiers. The receipt profile only accepts integers in the
+safe range, so a receipt whose signed bytes hold `500.0` or `-0.0` comes back `unverified`
+/ `unverifiable`. An object from `JSON.parse` has lost that spelling. With such an object,
+a `-0` is refused as `unverifiable`, and `500.0` reads back as `500`, so the signature
+fails and the result is `unverified` / `invalid`. It is never `verified`. The same applies to
+the predecessor and originating envelope arguments, which also accept raw text.
 
 ## Counterparty bindings
 

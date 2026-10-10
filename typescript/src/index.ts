@@ -2528,11 +2528,28 @@ export async function fetchJwks(url: string = DEFAULT_JWKS_URL): Promise<Record<
 }
 
 import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index.js";
+import { refuseInput as _refuseInput } from "./verifier/core.js";
+import { normaliseEnvelope as _normaliseEnvelope } from "./verifier/vrShim.js";
+import { parseJsonPreservingFloats as _parseRaw, parsedNegativeZeroPath as _negZeroPath } from "./verifier/canonical.js";
 import type { VerifyResult } from "./verifier/core.js";
+
+// True when the receipt binds its origin under the scope that hashes it
+function _hashesOrigin(receipt: Record<string, unknown> | null | undefined): boolean {
+  const env = receipt == null ? {} : _normaliseEnvelope(receipt);
+  const body = env.payload !== null && typeof env.payload === "object" ? (env.payload as Record<string, unknown>) : env;
+  const cpb = body.counterparty_binding as Record<string, unknown> | null | undefined;
+  return cpb !== null && typeof cpb === "object" && cpb.scope === "envelope_minus_anchors";
+}
+
+/** Receipt-side input: raw JSON text (preferred) or an already-parsed object */
+export type OfflineJsonInput = string | Record<string, unknown>;
 
 /**
  * Verify a receipt fully offline against an in-memory JWKS snapshot. No network
  * call is made.
+ *
+ * Pass raw JSON text, not `JSON.parse` output: a parsed object has lost each
+ * number's spelling (the README offline section lists what that changes).
  *
  * Reports 12 axes in this order: `structure`, `signature`, `chain`, `seq`,
  * `expiry`, `nonce`, `key_binding`, `counterparty`, `payload_digest`, `skew`,
@@ -2554,12 +2571,37 @@ import type { VerifyResult } from "./verifier/core.js";
  * See docs/offline-verification.md.
  */
 export function verifyReceiptOffline(
-  receipt: Record<string, unknown>,
-  jwks: Record<string, unknown>,
-  predecessor?: Record<string, unknown> | null,
-  originatingEnvelope?: Record<string, unknown> | null,
+  receipt: OfflineJsonInput,
+  jwks: OfflineJsonInput,
+  predecessor?: OfflineJsonInput | null,
+  originatingEnvelope?: OfflineJsonInput | null,
 ): VerifyResult {
-  return _oracleVerify(receipt, _ADAPTERS, jwks, predecessor ?? null, Object.freeze({ originatingEnvelope }));
+  const inputs: Array<[string, OfflineJsonInput | null | undefined]> = [
+    ["receipt", receipt], ["jwks", jwks], ["predecessor", predecessor], ["originating envelope", originatingEnvelope],
+  ];
+  const parsed: Array<Record<string, unknown> | null> = [];
+  for (const [name, input] of inputs) {
+    if (typeof input !== "string") {
+      // jwks signs no number; an origin is hashed only under a dispatched scope
+      const skip = name === "jwks" || (name === "originating envelope" && !_hashesOrigin(parsed[0]));
+      const zero = skip || input == null ? null : _negZeroPath(input);
+      if (zero !== null) {
+        return _refuseInput(
+          `already-parsed ${name} carries -0 at ${zero}; JSON.parse cannot tell -0 from -0.0, pass the raw JSON text`,
+        );
+      }
+      parsed.push(input ?? null);
+      continue;
+    }
+    try {
+      parsed.push(_parseRaw(input) as Record<string, unknown>);
+    } catch (exc) {
+      if (!(exc instanceof SyntaxError)) throw exc;
+      return _refuseInput(`ingest=FAIL(terminal parse failure before any hashing: ${exc.message})`);
+    }
+  }
+  const [r, k, p, o] = parsed;
+  return _oracleVerify(r ?? {}, _ADAPTERS, k, p, Object.freeze({ originatingEnvelope: o ?? undefined }));
 }
 
 // === Internal config exposure for tests only ===

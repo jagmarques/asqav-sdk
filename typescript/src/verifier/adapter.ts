@@ -130,6 +130,7 @@ export abstract class FormatAdapter {
     _doc: Record<string, unknown>,
     _predecessor: Record<string, unknown> | null = null,
     _predecessorFmt: string | null = null,
+    _originatingEnvelope: unknown = null,
   ): string | null {
     return null;
   }
