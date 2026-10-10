@@ -24,7 +24,7 @@ EXPECTED_ROWS = {
     ("anthropic (python)", "in_path_proxy"),
     ("letta (python)", "in_path_proxy"),
     ("haystack (python)", "in_path_proxy"),
-    ("smolagents (python)", "model_invoked"),
+    ("smolagents (python)", "in_path_proxy"),
     ("langchain (python)", "framework_callback"),
     ("litellm (python)", "framework_callback"),
     ("llamaindex (python)", "framework_callback"),
@@ -62,8 +62,10 @@ def test_capture_coverage_table_matches_shipped_adapters() -> None:
     assert "## Capture coverage" in text
     rows = _table_rows(text)
     assert rows == EXPECTED_ROWS, f"table drift: {rows ^ EXPECTED_ROWS}"
-    assert {cls for _, cls in rows} <= CLASSES
-    assert {cls for _, cls in rows} == CLASSES
+    used = {cls for _, cls in rows}
+    assert used <= CLASSES
+    # model_invoked is the never-built class, so no adapter may use it
+    assert used == CLASSES - {"model_invoked"}
 
 
 def test_capture_coverage_rules_present() -> None:
