@@ -89,7 +89,7 @@ echo "step 0: fixture byte pins"
 pin_check "published-receipt.json" "$FIX/published-receipt.json" \
   e5c81f01d570a9a1cf0aca8f6c773feba8ce01b9580d44ffac3a26dddbf22e63 11222
 pin_check "published-jwks.json" "$FIX/published-jwks.json" \
-  2ca81e3233f23ebdfa9f230c6914025f0dfd30a90c9cf322f70198c61d098bc4 2851
+  8c51fca134a57084d4d2e39c2105e78f113d2af268ed9618b8cece0ed03734c1 5491
 pin_check "ed25519-receipt.json" "$FIX/ed25519-receipt.json" \
   a04803fd954195371caa827e1e1b59a401ab16a45b4c3805495dc30c555dfd1e 983
 pin_check "ed25519-jwks.json" "$FIX/ed25519-jwks.json" \
