@@ -248,13 +248,13 @@ def test_a_rate_limit_receipt_is_announced_as_blocked_and_exits_two(monkeypatch)
 
 
 def _bound_gate(monkeypatch, *, agent_id: str = AGENT, issued_at: str | None = None,
-                clear_context: bool = False):
+                clear_context: bool = False, action_ref: str | None = None):
     """Run the gate on a validly signed allow receipt, varying one binding at a time."""
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=pk)
     payload = _payload("allow", key_thumbprint=thumb, agent_id=agent_id)
-    payload["action_ref"] = _live_digest()
+    payload["action_ref"] = _live_digest() if action_ref is None else action_ref
     if issued_at is not None:
         payload["issued_at"] = issued_at
     sig = _Sig("sig_bound", payload, _signed(payload, sk, ml), [])
@@ -301,6 +301,13 @@ def test_clear_context_always_blocks_because_there_is_no_digest_to_bind(monkeypa
         clear_context=True,
     )
     result = _bound_gate(monkeypatch, clear_context=True)
+    assert result.exit_code == 2, result.output
+    assert "digest does not match" in result.output
+
+
+def test_clear_context_blocks_a_receipt_with_an_empty_digest(monkeypatch) -> None:
+    """An empty action_ref equals the empty digest a --clear-context gate sends."""
+    result = _bound_gate(monkeypatch, clear_context=True, action_ref="")
     assert result.exit_code == 2, result.output
     assert "digest does not match" in result.output
 
