@@ -84,14 +84,14 @@ modes, framework integrations, offline verification, and what a receipt does not
 How each shipped adapter observes the interaction it signs. `harness_enforced`
 fires from the harness itself; `framework_callback` from framework seams;
 `in_path_proxy` from calls flowing through our wrapper; `passive` scans
-without enforcing. `model_invoked` (only when the model chooses to invoke the
-wrapped unit) is the class we never build, so no row below uses it.
+without enforcing. `model_invoked` (the governance surface is itself a tool the model may
+choose to skip) is the class we never build, so no row below uses it.
 
 | adapter | coverage class | citation (URL) | accessed | version |
 |---|---|---|---|---|
 | openai (python) | in_path_proxy | https://github.com/openai/openai-python | 2026-09-21 | 3.16.2 |
 | anthropic (python) | in_path_proxy | https://github.com/anthropics/anthropic-sdk-python | 2026-09-21 | 1.7.0 |
-| letta (python) | in_path_proxy | https://docs.letta.com/ | 2026-09-21 | 0.32.15 |
+| letta (python) | in_path_proxy | https://docs.letta.com/ | 2026-10-10 | 1.12.1 |
 | haystack (python) | in_path_proxy | https://docs.haystack.deepset.ai/docs/pipelines | 2026-09-21 | 3.1.1 |
 | smolagents (python) | in_path_proxy | https://huggingface.co/docs/smolagents/index | 2026-09-21 | 1.26.0 |
 | langchain (python) | framework_callback | https://reference.langchain.com/python/langchain-core/callbacks | 2026-09-21 | 1.4.2 |
@@ -101,7 +101,7 @@ wrapped unit) is the class we never build, so no row below uses it.
 | instructor (python) | framework_callback | https://python.useinstructor.com/concepts/hooks/ | 2026-09-21 | 1.17.0 |
 | crewai (python) | framework_callback | https://docs.crewai.com/en/concepts/tasks | 2026-09-21 | 1.15.22 |
 | openai_agents (python) | framework_callback | https://openai.github.io/openai-agents-python/guardrails/ | 2026-09-21 | 0.22.3 |
-| strands (python) | framework_callback | https://strandsagents.com/docs/user-guide/concepts/agents/hooks/ | 2026-09-21 | 1.56.0 |
+| strands (python) | framework_callback | https://strandsagents.com/docs/learning/control-your-agent-with-hooks/ | 2026-10-10 | 1.56.0 |
 | opa_detector (python) | passive | https://www.openpolicyagent.org/docs/latest/ | 2026-09-21 | v1.20.2 |
 | presidio_detector (python) | passive | https://data-privacy-stack.github.io/presidio/ | 2026-09-21 | 2.2.364 |
 | cli_hook (harness hook) | harness_enforced | https://code.claude.com/docs/en/hooks | 2026-09-21 | 2.1.278 |
