@@ -83,8 +83,9 @@ modes, framework integrations, offline verification, and what a receipt does not
 
 How each shipped adapter observes the interaction it signs. `harness_enforced`
 fires from the harness itself; `framework_callback` from framework seams;
-`in_path_proxy` from calls flowing through our wrapper; `model_invoked` only
-when the model invokes the wrapped unit; `passive` scans without enforcing.
+`in_path_proxy` from calls flowing through our wrapper; `passive` scans
+without enforcing. `model_invoked` (only when the model chooses to invoke the
+wrapped unit) is the class we never build, so no row below uses it.
 
 | adapter | coverage class | citation (URL) | accessed | version |
 |---|---|---|---|---|
@@ -92,7 +93,7 @@ when the model invokes the wrapped unit; `passive` scans without enforcing.
 | anthropic (python) | in_path_proxy | https://github.com/anthropics/anthropic-sdk-python | 2026-09-21 | 1.7.0 |
 | letta (python) | in_path_proxy | https://docs.letta.com/ | 2026-09-21 | 0.32.15 |
 | haystack (python) | in_path_proxy | https://docs.haystack.deepset.ai/docs/pipelines | 2026-09-21 | 3.1.1 |
-| smolagents (python) | model_invoked | https://huggingface.co/docs/smolagents/index | 2026-09-21 | 1.26.0 |
+| smolagents (python) | in_path_proxy | https://huggingface.co/docs/smolagents/index | 2026-09-21 | 1.26.0 |
 | langchain (python) | framework_callback | https://reference.langchain.com/python/langchain-core/callbacks | 2026-09-21 | 1.4.2 |
 | litellm (python) | framework_callback | https://docs.litellm.ai/docs/observability/custom_callback | 2026-09-21 | 1.102.0 |
 | llamaindex (python) | framework_callback | https://docs.llamaindex.ai/en/stable/module_guides/observability/callbacks/ | 2026-09-21 | 0.14.24 |
@@ -112,9 +113,11 @@ when the model invokes the wrapped unit; `passive` scans without enforcing.
 | presidio (typescript) | passive | https://data-privacy-stack.github.io/presidio/ | 2026-09-21 | 2.2.364 |
 
 No `model_invoked` surface is ever built; an MCP-server request is answered
-with the harness hook plus the SDK. Hook handlers run under per-hook-family
+with the harness hook plus the SDK. smolagents is `in_path_proxy`: `wrap_tool`
+replaces the tool's `forward`, so every call runs through our wrapper, whoever
+makes it. Hook handlers run under per-hook-family
 timeouts (600 seconds for command, HTTP and MCP-tool hooks; 30 for prompt
-hooks; 60 for agent hooks — see the hooks reference above).
+hooks; 60 for agent hooks, see the hooks reference above).
 
 ## Repository layout
 
