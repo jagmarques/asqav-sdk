@@ -9,7 +9,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-README = Path(__file__).resolve().parents[2] / "README.md"
+REPO = Path(__file__).resolve().parents[2]
+README = REPO / "README.md"
+PY_EXTRAS = REPO / "python" / "src" / "asqav" / "extras"
+TS_EXTRAS = REPO / "typescript" / "src" / "extras"
+HARNESS_HOOK = REPO / "python" / "src" / "asqav" / "cli_hook.py"
 
 CLASSES = {
     "harness_enforced",
@@ -45,6 +49,23 @@ EXPECTED_ROWS = {
 }
 
 
+def _shipped_adapters() -> set[str]:
+    """Row names for every adapter module on disk, so the table cannot lag the code."""
+    names = {
+        f"{p.stem} (python)"
+        for p in PY_EXTRAS.glob("*.py")
+        if not p.stem.startswith("_")
+    }
+    names |= {
+        f"{p.stem} (typescript)"
+        for p in TS_EXTRAS.glob("*.ts")
+        if not p.stem.startswith("_") and p.stem != "index"
+    }
+    if HARNESS_HOOK.is_file():
+        names.add("cli_hook (harness hook)")
+    return names
+
+
 def _table_rows(text: str) -> set[tuple[str, str]]:
     rows: set[tuple[str, str]] = set()
     for line in text.splitlines():
@@ -61,6 +82,13 @@ def test_capture_coverage_table_matches_shipped_adapters() -> None:
     text = README.read_text()
     assert "## Capture coverage" in text
     rows = _table_rows(text)
+    shipped = _shipped_adapters()
+    assert shipped, "no adapter modules found on disk"
+    names = {name for name, _ in rows}
+    assert names == shipped, (
+        f"adapters without a row: {sorted(shipped - names)}, "
+        f"rows without an adapter: {sorted(names - shipped)}"
+    )
     assert rows == EXPECTED_ROWS, f"table drift: {rows ^ EXPECTED_ROWS}"
     used = {cls for _, cls in rows}
     assert used <= CLASSES
@@ -88,7 +116,8 @@ def test_capture_coverage_rows_carry_versions() -> None:
         line for line in text.splitlines() if line.startswith("| adapter |")
     )
     header_cells = [c.strip() for c in header.strip("|").split("|")]
-    assert header_cells == ["adapter", "coverage class", "citation (URL)", "accessed", "version"], header_cells
+    expected_header = ["adapter", "coverage class", "citation (URL)", "accessed", "version"]
+    assert header_cells == expected_header, header_cells
     for line in text.splitlines():
         if not line.startswith("|"):
             continue
