@@ -160,7 +160,7 @@ _EVENTS = [
         id="mixed-case-tool-with-trace-id",
     ),
     pytest.param(
-        {"tool_name": "Bash", "tool_input": {"command": "ls -la"}},
+        {"tool_use_id": "toolu_04", "tool_name": "Bash", "tool_input": {"command": "ls -la"}},
         id="mixed-case-tool-without-trace-id",
     ),
     pytest.param(
@@ -206,7 +206,12 @@ def test_the_posted_body_is_the_lowercased_action_with_the_trace_id_in_the_conte
     monkeypatch,
 ) -> None:
     signer = _Signer()
-    event = {"session_id": "s-trace-1", "tool_name": "Bash", "tool_input": {"command": "ls"}}
+    event = {
+        "session_id": "s-trace-1",
+        "tool_use_id": "toolu_ls",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+    }
     assert _run_gate(monkeypatch, signer, event).exit_code == 0
     sent = signer.posted[0]
     assert sent["action_type"] == "tool:bash"
@@ -217,7 +222,12 @@ def test_the_posted_body_is_the_lowercased_action_with_the_trace_id_in_the_conte
 
 def test_a_receipt_bound_to_the_unnormalised_digest_is_refused(monkeypatch) -> None:
     """A digest over the event as spelled (not as Agent.sign sends it) must not open the gate."""
-    event = {"session_id": "s-trace-1", "tool_name": "Bash", "tool_input": {"command": "ls"}}
+    event = {
+        "session_id": "s-trace-1",
+        "tool_use_id": "toolu_ls",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+    }
     signer = _Signer()
     unnormalised = _digest_as_spelled(monkeypatch, "s-trace-1")
     original_post = signer.post
@@ -233,7 +243,12 @@ def test_a_receipt_bound_to_the_unnormalised_digest_is_refused(monkeypatch) -> N
 
 def test_the_dry_run_prints_the_digest_the_live_hook_posts(monkeypatch) -> None:
     signer = _Signer()
-    event = {"session_id": "s-trace-1", "tool_name": "Bash", "tool_input": {"command": "ls"}}
+    event = {
+        "session_id": "s-trace-1",
+        "tool_use_id": "toolu_ls",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+    }
     assert _run_gate(monkeypatch, signer, event).exit_code == 0
     dry = runner.invoke(app, ["hook", "pretool", "--dry-run"], input=json.dumps(event))
     assert dry.exit_code == 0, dry.output
@@ -260,7 +275,12 @@ def test_a_receipt_for_another_agent_still_blocks_end_to_end(monkeypatch) -> Non
         return data
 
     signer.post = post_other_agent  # type: ignore[method-assign]
-    event = {"session_id": "s-trace-1", "tool_name": "Bash", "tool_input": {"command": "ls"}}
+    event = {
+        "session_id": "s-trace-1",
+        "tool_use_id": "toolu_ls",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+    }
     result = _run_gate(monkeypatch, signer, event)
     assert result.exit_code == 2, result.output
     assert "agent mismatch" in result.output
@@ -296,10 +316,20 @@ def test_a_receipt_without_an_invocation_ref_blocks_when_the_host_named_one(monk
     assert "invocation_ref does not match this tool call (missing)" in result.output
 
 
-def test_a_host_that_names_no_invocation_leaves_the_digest_binding_alone(monkeypatch) -> None:
+def test_an_event_without_a_tool_use_id_blocks_before_anything_is_signed(monkeypatch) -> None:
     event = {k: v for k, v in _CALL.items() if k != "tool_use_id"}
-    result = _run_gate(monkeypatch, _Signer(), event)
-    assert result.exit_code == 0, result.output
+    signer = _Signer()
+    result = _run_gate(monkeypatch, signer, event)
+    assert result.exit_code == 2, result.output
+    assert "no tool_use_id" in result.output
+    assert signer.posted == [], "an unbindable call must not reach the signer"
+
+
+def test_an_empty_or_non_string_tool_use_id_blocks_too(monkeypatch) -> None:
+    for bad in ("", None, 7):
+        result = _run_gate(monkeypatch, _Signer(), {**_CALL, "tool_use_id": bad})
+        assert result.exit_code == 2, (bad, result.output)
+        assert "no tool_use_id" in result.output
 
 
 class _FlappingDetector:
