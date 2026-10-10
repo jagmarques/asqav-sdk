@@ -40,6 +40,18 @@ export type KeyProvider = Record<string, unknown> | null;
 /** Comparison input local to one invocation; never a key provider. */
 export interface VerificationContext {
   readonly originatingEnvelope?: unknown;
+  /** Wall-clock override the time axes evaluate against; undefined = now. */
+  readonly evaluationTime?: unknown;
+  /** Trust roots the caller evaluated against (attribution only). */
+  readonly trustRoots?: unknown;
+  /** Revocation snapshot the caller evaluated against (attribution only). */
+  readonly revocationSnapshot?: unknown;
+  /** Policy revision the caller evaluated against (attribution only). */
+  readonly policyRevision?: unknown;
+  /** Evidence cutoff the caller evaluated against (attribution only). */
+  readonly evidenceKnowledgeCutoff?: unknown;
+  /** Who ran the evaluation (attribution only). */
+  readonly evaluator?: unknown;
 }
 
 /**
