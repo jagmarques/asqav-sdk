@@ -29,9 +29,9 @@ FRAMEWORKS = {
         "version": "23 NYCRR 500",
     },
     "colorado_ai": {
-        "name": "Colorado AI Act",
-        "description": "SB 24-205 High-Risk AI System deployer obligations",
-        "version": "SB 24-205",
+        "name": "Colorado ADMT Act",
+        "description": "SB 26-189 automated decision-making technology: developer duties 6-1-1702(4) and deployer duties 6-1-1703",
+        "version": "SB 26-189",
     },
     "texas_traiga": {
         "name": "Texas TRAIGA",
