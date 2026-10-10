@@ -40,10 +40,10 @@ def _invoke_hook(subcommand: str, event: dict, extra_args: list[str] | None = No
 # === posttool honesty invariant ===
 
 
-    # action_type is tool:<tool_name> for posttool.
+    # action_type is tool:<tool_name> for posttool, lowercased as sign() sends it.
 def test_posttool_dry_run_action_type() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
-    assert body["action_type"] == "tool:Bash"
+    assert body["action_type"] == "tool:bash"
 
 
     # Digest only by default: the tool arguments never leave the machine.
@@ -58,7 +58,7 @@ def test_posttool_dry_run_sends_a_digest_not_the_arguments() -> None:
     # --clear-context is the opt-in that sends the arguments for the platform to hold.
 def test_posttool_dry_run_clear_context_sends_the_arguments() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT, ["--clear-context"])
-    assert body["context"] == {"tool_input": {"command": "ls"}}
+    assert body["context"] == {"tool_input": {"command": "ls"}, "_trace_id": "s1"}
 
 
     # session_id is forwarded from the hook event.
