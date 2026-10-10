@@ -5,6 +5,11 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
+  POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`
+  context key, so a genuine allow receipt was refused as a digest mismatch (criterion 578).
+  `--dry-run` shows the same normalised body.
+
 - Witness policy is signed-optional, not required: decision record
   `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
   (criterion 696 Task A; draft edits stay founder-owned as Task B).
