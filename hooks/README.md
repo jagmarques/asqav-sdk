@@ -188,8 +188,10 @@ The honest cost of a real gate:
 v1 ships Mode B as a documented `type: "command"` variant only. The shipped `pretool` script
 **signs and fails closed on error**. It does **not** turn on PreToolUse DENY-policy decisions by
 default. That firewall behavior (denying specific tool calls by policy) is **founder-gated**, and
-exposed only as an opt-in flag, off by default. So out of the box, Mode B enforces "every matched
-call must be signable" and not "deny these specific calls."
+exposed only as an opt-in flag, off by default. The gate lets a call run only on a verified
+receipt whose decision is `allow`, and the hosted platform does not return one to this hook today
+(see "What the cloud records for an in-process gate today" below). So against the hosted platform,
+Mode B blocks every matched call.
 
 Use a `type: "command"` hook for Mode B. Do **not** use `type: "http"` as the gate: HTTP hooks
 fail open (see Mode A), so they can never be the hard boundary.
@@ -241,7 +243,9 @@ platform's published JWK Set with the same standalone verifier a customer runs o
 signature, issuer binding, key status and key thumbprint axes must all pass). The JWK Set is
 cached at `~/.asqav/jwks-cache.json` (`ASQAV_HOOK_JWKS_CACHE` overrides) for 24 hours and
 refreshed once when the signing key is not in the cache. A receipt that does not verify, or that
-cannot be verified inside the deadline, blocks the tool call.
+cannot be verified inside the deadline, blocks the tool call. The receipt must also answer this
+request: signed for the agent in `ASQAV_AGENT_ID`, bound to the digest the gate sent, and issued
+inside the gate's deadline. A receipt for another agent, another action or an old issue time blocks.
 
 The cache is a cache, not a trust anchor. Anyone who can write `$HOME` or set
 `ASQAV_HOOK_JWKS_CACHE` can put a key of their own in it and have the gate accept a receipt signed
@@ -269,12 +273,18 @@ prints the exact body either way.
 The platform treats every `capture_topology="in_process_sdk"` receipt as self-reported by code
 the agent controls, so it records a pretool `permit` as an observation (`protectmcp:lifecycle`,
 wire `decision: observation`, the response carrying `policy_enforcement` to say so) and rejects
-an in-process `deny` or `rate_limit` with HTTP 412. The gate therefore blocks when it cannot sign,
-and the evidence it leaves is a signed observation of every matched call, not a policy decision.
-The hook prints `signed <id>` for such a receipt and reserves `permit <id>` for a receipt whose
-wire decision is `allow`. Policy decisions through the gate need a capture topology the platform
-accepts as harness-enforced, backed by a deployment attestation; that is tracked work, not a
-flag.
+an in-process `deny` or `rate_limit` with HTTP 412.
+
+The gate permits a tool call only for a verified receipt whose wire decision is `allow`. Any other
+decision, `observation` included, exits 2 and blocks the call, and the hook prints `permit <id>`
+only for an `allow`. So today Mode B blocks every tool call against the hosted platform, because
+the platform never answers this hook with `allow`. It stays that way until a capture topology
+exists that the platform accepts as harness-enforced, backed by a deployment attestation. That is
+tracked work, not a flag. The gate does not treat a self-reported observation as a permit to get
+around this.
+
+`--clear-context` always blocks as well. Its body carries no `hash`, so the gate has no digest to
+bind a receipt to and refuses the call. Use Mode A when you want the evidence without the gate.
 
 ---
 
@@ -290,7 +300,8 @@ The receipt each mode writes is labelled honestly, and the asqav cloud enforces 
   so a posttool hook physically cannot mislabel itself as a gate.
 - **PreToolUse receipts** (Mode B) are the only ones allowed to claim a decision. The local gate
   genuinely had the option to block, so it may use `capture_topology="in_process_sdk"` with
-  `receipt_type="protectmcp:decision"` and a `policy_decision` of `permit` or `deny`.
+  `receipt_type="protectmcp:decision"` and a `policy_decision` of `permit` or `deny`. The hosted
+  platform currently records that `permit` as an observation (see above), so the gate blocks.
 
 The rule of thumb: a hook that ran after the fact records an observation. Only a hook that could
 have blocked records a decision.
