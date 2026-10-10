@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import crypto
+from ..verify_receipt import NOT_CHECKED, not_checked_declaration
 from .adapter import FormatAdapter, VerificationContext
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
@@ -68,10 +69,45 @@ class VerifyResult:
     first_failing_edge: str | None = None
     #: Resolved invocation context, so a disagreement attributes to an input.
     context: VerificationContext | None = None
+    #: The checks this result does not claim, beside the claim it makes.
+    not_checked: list = field(default_factory=list)
+    #: Coverage block beside not_checked; snake_case keys mirror the TS twin.
+    coverage: dict = field(default_factory=dict)
 
         # Return the result for one axis, or None if it was not run.
     def axis(self, name: str) -> AxisResult | None:
         return next((a for a in self.axes if a.axis == name), None)
+
+
+#: The axis order verify() reports on the normal path, mirroring the TS twin.
+ORACLE_AXIS_ORDER = (
+    "structure", "signature", "chain", "seq", "expiry", "nonce",
+    "key_binding", "counterparty", "payload_digest", "skew",
+    "key_status", "issuer_bind",
+)
+
+
+def _oracle_coverage(axis_names: list[str]) -> dict:
+    """Coverage block for one result's axes; same shape as the TS twin."""
+    entries = [
+        {
+            "id": row["check"],
+            "reason": "not_implemented",
+            "status": "not_implemented",
+            "requirement": row["requirement"],
+            "condition": row["condition"],
+        }
+        for row in NOT_CHECKED
+    ]
+    if axis_names and axis_names[-1] == ORACLE_AXIS_ORDER[-1]:
+        return {"stopped_at": None, "checks_not_evaluated": entries}
+    stopped_at = "structure"
+    entries += [
+        {"id": name, "reason": "not_reached", "status": "implemented"}
+        for name in ORACLE_AXIS_ORDER[1:]
+        if name not in axis_names
+    ]
+    return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
 
 
 #: Axes whose FAIL proves a cryptographic/policy binding failure (invalid).
@@ -318,6 +354,8 @@ def _early_unverified(
         failure_class=failure_class,
         first_failing_edge=first_failing_edge(axes),
         context=context,
+        not_checked=not_checked_declaration(),
+        coverage=_oracle_coverage([a.axis for a in axes]),
     )
 
 
@@ -342,6 +380,8 @@ def verify(
             failure_class=failure_class,
             first_failing_edge=first_failing_edge(axes),
             context=resolved,
+            not_checked=not_checked_declaration(),
+            coverage=_oracle_coverage([a.axis for a in axes]),
         )
     # An over-nested receipt would crash the recursive JCS encoder. Cap it here and
     # report unverified/unverifiable, never a verified, matching the standalone gate.
@@ -379,6 +419,8 @@ def verify(
         signer=signer,
         first_failing_edge=first_failing_edge(axes),
         context=resolved,
+        not_checked=not_checked_declaration(),
+        coverage=_oracle_coverage([a.axis for a in axes]),
     )
 
 
