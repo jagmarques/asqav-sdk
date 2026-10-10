@@ -645,6 +645,46 @@
     "failure_class": "unverifiable"
   },
   {
+    "dir": "asqav-35-counterparty-peer-swapped",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_kid_mismatch",
+    "notes": "Signed acknowledgment with binding result kid_mismatch; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
+    "dir": "asqav-36-counterparty-origin-forged",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_mismatch",
+    "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
+    "dir": "asqav-37-counterparty-divergent-terms",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_mismatch",
+    "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
+    "dir": "asqav-38-counterparty-received-only",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_malformed",
+    "notes": "Signed acknowledgment with binding result malformed; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
+    "dir": "asqav-39-counterparty-cross-replay",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "reason_code": "counterparty_mismatch",
+    "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
+    "failure_class": "invalid"
+  },
+  {
     "dir": "asqav-37-unregistered-namespace-reported",
     "format": "asqav-native",
     "outcome": "unverified",

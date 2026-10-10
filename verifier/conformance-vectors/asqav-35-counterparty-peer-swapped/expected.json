@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "counterparty_kid_mismatch",
+  "failure_class": "invalid",
+  "notes": "Signed acknowledgment with binding result kid_mismatch; signature and local TSA verify."
+}
