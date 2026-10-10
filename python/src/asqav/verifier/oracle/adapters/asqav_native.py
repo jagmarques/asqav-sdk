@@ -127,16 +127,21 @@ def _safe_b64(value: Any) -> bytes:
         return b""
 
 
-    # Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode).
-
-def _accepts_context(method: Any) -> bool:
+def _context_call_style(method: Any) -> str:
+    """How an extra_axes override takes context: positional, keyword, or not at all."""
     try:
-        params = inspect.signature(method).parameters.values()
+        params = list(inspect.signature(method).parameters.values())
     except (TypeError, ValueError):
-        return True
+        return "positional"
     positional = [p for p in params if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-    return len(positional) >= 3 or any(p.kind is p.VAR_POSITIONAL for p in params)
+    if len(positional) >= 3 or any(p.kind is p.VAR_POSITIONAL for p in params):
+        return "positional"
+    if any(p.kind is p.VAR_KEYWORD or (p.kind is p.KEYWORD_ONLY and p.name == "context") for p in params):
+        return "keyword"
+    return "none"
 
+
+# Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode).
 class AsqavNativeAdapter(FormatAdapter):
 
     name = "asqav-native"
@@ -266,8 +271,11 @@ class AsqavNativeAdapter(FormatAdapter):
         self, doc: dict, key_provider: Any, context: VerificationContext,
     ) -> list[tuple[str, str, str]]:
         # A subclass may still override extra_axes with the older two-argument form.
-        if _accepts_context(self.extra_axes):
+        style = _context_call_style(self.extra_axes)
+        if style == "positional":
             axes = self.extra_axes(doc, key_provider, context)
+        elif style == "keyword":
+            axes = self.extra_axes(doc, key_provider, context=context)
         else:
             axes = self.extra_axes(doc, key_provider)
         if context.originating_envelope is None:

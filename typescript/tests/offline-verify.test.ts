@@ -597,3 +597,15 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     expect(result.axes.find((a) => a.axis === "structure")?.note).toContain("does not cover");
   });
 });
+
+describe("verifyReceiptOffline result shape", () => {
+  it("returns exactly the key set the Python twin pins", () => {
+    const dir = join(VECTORS, "asqav-27-anchors-absent");
+    const result = verifyReceiptOffline(loadJson(dir, "receipt.json"), loadJson(dir, "jwks.json"));
+    // Same literal set as _TS_KEYS in python/tests/test_offline_api_declares_anchor_scope.py.
+    expect(Object.keys(result).sort()).toEqual([
+      "axes", "context", "coverage", "failureClass", "firstFailingEdge",
+      "fmt", "notChecked", "signer", "verdict",
+    ]);
+  });
+});
