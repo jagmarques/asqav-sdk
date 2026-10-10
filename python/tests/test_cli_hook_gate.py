@@ -218,7 +218,7 @@ def _jwks(pk: bytes) -> dict:
 
 
 def _gate_with(monkeypatch, sig: _Sig, jwks: dict, fetch_calls: list | None = None):
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: (sig, _live_digest()))
 
     def fake_fetch(_timeout: float) -> dict:
         if fetch_calls is not None:
@@ -286,7 +286,7 @@ def test_pretool_blocks_when_the_jwks_cannot_be_fetched(monkeypatch) -> None:
     ml = _ml_dsa_65()
     _pk, sk = ml.keygen()
     payload = _payload("allow")
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: _Sig("sig_x", payload, _signed(payload, sk, ml), []))
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: (_Sig("sig_x", payload, _signed(payload, sk, ml), []), _live_digest()))
 
     def broken(_timeout: float) -> dict:
         raise OSError("network down")
