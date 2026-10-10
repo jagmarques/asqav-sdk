@@ -1,0 +1,34 @@
+{
+  "payload": {
+    "v": 1,
+    "mode": "payload",
+    "type": "protectmcp:decision",
+    "issuer_id": "origin-b",
+    "agent_id": "agent_origin-b",
+    "action_id": "action_origin-b",
+    "issued_at": "2026-09-01T12:00:00+00:00",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "action_ref": "sha256:be29c55a238758a4c3fd3de52e8a2e32fa3b820c1073f989d525d3477ef3507c",
+    "context": {
+      "test": "counterparty binding",
+      "party": "origin-b"
+    },
+    "payload_digest": {
+      "hash": "be29c55a238758a4c3fd3de52e8a2e32fa3b820c1073f989d525d3477ef3507c",
+      "size": 50
+    },
+    "policy_digest": "sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b",
+    "decision": "allow"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "origin-b",
+    "sig": "1DsV6Ob668KCHD2kSP9Nl77UqOLBM0JpayIn9/h/uIkHpMQNsizVSIQ6UYO3nM69ZojiSaScWFRrAb6WDxyTCQ=="
+  },
+  "anchors": [
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEIEtTu1pg+kgrHTrNg4XzPbdKchtT7bafa5gR/L5ktbvwAgEqGA8yMDI2MDkwMTEyMDAwMVoxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQOZCfNCA4qyvFMPqElnVt8VZ0qyJjyAMLsNaFc6eJEryNkGwvXaXjTr3vhwui2KVkY7ZSl3lXaEvfeBTUL6Exwk="
+    }
+  ]
+}
