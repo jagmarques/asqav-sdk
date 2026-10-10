@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 42,
+  "corpus_version": 44,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -213,13 +213,23 @@
       "version": 41,
       "files": 367,
       "digest": "6c1069b147f5915844ba5307be804d3198b780284287858fc21bab53c4031b71"
+    },
+    {
+      "version": 42,
+      "files": 367,
+      "digest": "a741914c558f00ed59c3c47ced9c49fe3f2d4ba9835afcafc3a016760e5e8429"
+    },
+    {
+      "version": 43,
+      "files": 376,
+      "digest": "8dacaa480ece3331e2e27ee8931df1636fb8dd0b15874dca6233ff8152939e26"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "d40629973e627702d1e1946d3b034fbdc2263b2584a282e33ec257c22eca03da",
-      "bytes": 11430
+      "sha256": "2770857acceb5ef819974b00a4164105a74b87656839c60cfcf25dbc5722eeb6",
+      "bytes": 11664
     },
     {
       "path": "UPSTREAM.md",
@@ -1792,6 +1802,51 @@
       "bytes": 19990
     },
     {
+      "path": "asqav-49-outer-flat-signature-agree/expected.json",
+      "sha256": "25bdd71ab7c99d1286d287648a28319ae6de3932f434e5408138fd8865c3aecf",
+      "bytes": 316
+    },
+    {
+      "path": "asqav-49-outer-flat-signature-agree/jwks.json",
+      "sha256": "8c51fca134a57084d4d2e39c2105e78f113d2af268ed9618b8cece0ed03734c1",
+      "bytes": 5491
+    },
+    {
+      "path": "asqav-49-outer-flat-signature-agree/receipt.json",
+      "sha256": "fa574f25cbdd59c117776596ae1a12a9525bb6e04eb6fbb1543eeccde2a9eeb4",
+      "bytes": 19898
+    },
+    {
+      "path": "asqav-50-outer-flat-signature-agent-id-edited/expected.json",
+      "sha256": "223279aa11a552c224abb0fe26c67322fb3c1148eb3f17be06e3ce40c2db445d",
+      "bytes": 550
+    },
+    {
+      "path": "asqav-50-outer-flat-signature-agent-id-edited/jwks.json",
+      "sha256": "8c51fca134a57084d4d2e39c2105e78f113d2af268ed9618b8cece0ed03734c1",
+      "bytes": 5491
+    },
+    {
+      "path": "asqav-50-outer-flat-signature-agent-id-edited/receipt.json",
+      "sha256": "4debaa5d50cd4fa47608a9756592fc878b0d2245a8398d1e40fd550386d8a35c",
+      "bytes": 19899
+    },
+    {
+      "path": "asqav-51-outer-envelope-signature-action-type-edited/expected.json",
+      "sha256": "380547f8aabbbde2a6b28e0dccbfc1924d0562d7b9e27a29045c4f20c64ff62a",
+      "bytes": 553
+    },
+    {
+      "path": "asqav-51-outer-envelope-signature-action-type-edited/jwks.json",
+      "sha256": "8c51fca134a57084d4d2e39c2105e78f113d2af268ed9618b8cece0ed03734c1",
+      "bytes": 5491
+    },
+    {
+      "path": "asqav-51-outer-envelope-signature-action-type-edited/receipt.json",
+      "sha256": "c696c7ef946fd5554ec38cb8ccf52b8e724f3f03eb5e13df66abdc5b77e96e88",
+      "bytes": 19998
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -1883,8 +1938,8 @@
     },
     {
       "path": "gen_outer_copy_vectors.py",
-      "sha256": "fdc96a3d0b9cba7d777ac66d904d7b5c20295ff5925eb883ef19c616934cf010",
-      "bytes": 5778
+      "sha256": "1c7bf797e99e29b0711e9d0ff5243173f1b7e4ddfcfd73bc26cf1a3e4316cc49",
+      "bytes": 7881
     },
     {
       "path": "gen_payload_digest_vectors.py",
@@ -1908,8 +1963,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "be6b9ab120de608266e4ff5062c2ae7a3c2e9d804bf61fb7e260567aceeae0cf",
-      "bytes": 36945
+      "sha256": "b23db25d63990578514fe69616a041930b2ad107c05142912b824c8d4683e5f0",
+      "bytes": 38584
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -1943,8 +1998,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "f4db3fb57d4c96079c6e8ad2d4047eed0a78bdb0488345c51d027f0af5d27564",
-      "bytes": 94297
+      "sha256": "e14a972215ab3a9dbf5fd73259869d8544d319a9d7f73c470823cb569d2e81ef",
+      "bytes": 99638
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2082,5 +2137,5 @@
       ]
     }
   },
-  "digest": "a741914c558f00ed59c3c47ced9c49fe3f2d4ba9835afcafc3a016760e5e8429"
+  "digest": "a84e677f25aa39a13ad31800489a1b76b5be523d515390ff5946d9cf068302c9"
 }

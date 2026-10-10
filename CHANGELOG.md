@@ -11,10 +11,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   read "signature valid". The Python and TypeScript offline verifiers and the standalone
   `verify_receipt.py` now report a new `outer_copies` axis: any copy that disagrees with the
   signed value it restates fails the verdict as `unverified` / `invalid`, and members with no
-  signed counterpart are named in the note. Axis count is 13 for the offline APIs and 14
-  for the standalone verifier. Conformance vectors `asqav-43` to `asqav-48` pin one agreeing
-  entry and five edited copies, and `verifier/outer-copy-cases.json` pins byte-identical results
-  and notes in both languages. `docs/offline-verification.md` lists which members are signed.
+  signed counterpart, or that sit under a name the receipt never signed, are listed in the note
+  as not signed, on a pass too. The copies are weighed against the normalised signature object,
+  so a flat `sig` string or `signature_envelope` is checked like the object form. The digest and
+  key copies are compared only when the signature verified, `signed_bytes_withheld` is listed and
+  never switches a check off, and an observation time that is withheld or unreadable is listed
+  instead of failed. Axis count is 13 for the offline APIs and 14 for the standalone verifier.
+  Conformance vectors `asqav-43` to `asqav-51` pin agreeing entries and edited copies in each
+  signature spelling, and `verifier/outer-copy-cases.json` pins byte-identical results and notes
+  in both languages. `docs/offline-verification.md` lists which members are signed.
 
 - `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
   POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`

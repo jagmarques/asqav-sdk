@@ -781,6 +781,54 @@
       "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "FAIL"
+    },
+    "asqav-49-outer-flat-signature-agree": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "FAIL"
+    },
+    "asqav-50-outer-flat-signature-agent-id-edited": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "FAIL",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "FAIL"
+    },
+    "asqav-51-outer-envelope-signature-action-type-edited": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "FAIL",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "FAIL"
     }
   },
   "requirements": {
@@ -2045,6 +2093,75 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-49-outer-flat-signature-agree": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-50-outer-flat-signature-agent-id-edited": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-51-outer-envelope-signature-action-type-edited": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
     }
   },
   "interop_fixtures": {
@@ -2358,7 +2475,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -2408,7 +2528,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -2458,7 +2581,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -2507,7 +2633,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -2557,7 +2686,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -2607,7 +2739,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-ANCHOR": [
       "asqav-24-anchor-block-hash-prod",
@@ -2669,7 +2804,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -2719,7 +2857,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -2769,7 +2910,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-PAYLOAD-DIGEST": [
       "asqav-01-genesis-permit",
@@ -2818,7 +2962,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-KEYED-DIGEST": [
       "asqav-01-genesis-permit",
@@ -2867,7 +3014,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-OUTER-COPIES": [
       "asqav-01-genesis-permit",
@@ -2917,7 +3067,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-COUNTERPARTY": [
       "asqav-01-genesis-permit",
@@ -2965,7 +3118,10 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -3013,14 +3169,17 @@
       "asqav-45-outer-agent-id-edited",
       "asqav-46-outer-action-type-edited",
       "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited"
+      "asqav-48-outer-public-key-edited",
+      "asqav-49-outer-flat-signature-agree",
+      "asqav-50-outer-flat-signature-agent-id-edited",
+      "asqav-51-outer-envelope-signature-action-type-edited"
     ]
   },
   "unmapped_requirements": [],
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 52,
+    "asqav_native_vectors": 55,
     "interop_fixtures": 52,
     "requirements": 15,
     "requirements_covered": 15,

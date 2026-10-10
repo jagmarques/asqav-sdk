@@ -97,9 +97,19 @@ _DISPATCH = {
 }
 
 
+#: Last verification, so a second look at the same input costs nothing.
+_LAST: tuple | None = None
+
+
     # Dispatch to the algorithm's verifier; SKIP an unsupported alg.
 def verify_signature(alg: object, pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
+    global _LAST
     fn = _DISPATCH.get((alg if isinstance(alg, str) else "").upper())
     if fn is None:
         return SKIPPED, f"unsupported alg {alg!r} (oracle checks {sorted(_DISPATCH)})"
-    return fn(pk, msg, sig)
+    last = _LAST
+    if last is not None and last[0] is fn and last[1:4] == (pk, msg, sig):
+        return last[4]
+    result = fn(pk, msg, sig)
+    _LAST = (fn, pk, msg, sig, result)
+    return result

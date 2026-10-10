@@ -234,22 +234,37 @@ Read the agent and the time from the signed `payload`.
 | `algorithm` | `signature.alg` |
 | `signature_b64` | `signature.sig`, the same decoded bytes |
 | `message_b64` | the canonical (JCS) bytes of `payload`, which are the bytes that were signed |
-| `message_sha256` | the SHA-256 of those bytes; not checkable when `signed_bytes_withheld` is true |
-| `public_key_b64` | the key the signature was verified against |
+| `message_sha256` | the SHA-256 of those bytes, compared whenever the signature verified over them |
+| `public_key_b64` | the key the signature verified under; listed instead when the signature did not verify |
 | `compliance_mode` | `true`, whenever a `payload` object is present |
+| `signature` (flat string), `signature_envelope` | the normalised signature object, the one the signature check used |
+| any other top-level member named like a signed member (`issued_at`, `decision`, `org_id`, `type`, `v`, ...) | that signed member |
+| `signature.<name>` | the signed member of the same name, when the signature object carries extras |
 
-Members with no signed counterpart are named in the axis note and never trusted:
-`signature_id`, `capture_topology`, `stale_pending`, `corrupted`,
-`corruption_message`, and `action_type` on a hash-mode receipt, whose signed bytes
-carry no action type. A member that is absent is not compared. Only an entry whose
-`signature` is an object is checked; the hosted `/api/v1/verify/<id>` response is a
-display projection that cannot reproduce the signature in any case. The manual
+The signature copies are weighed against the normalised signature object, so a flat
+`sig` string or the hosted `signature_envelope` spelling is checked the same way as
+the object form. A member that is not a copy of anything signed is listed in the axis
+note as "not signed, do not rely on", on a pass as well as on a failure:
+`signature_id`, `capture_topology`, `stale_pending`, `corrupted`, `corruption_message`,
+`signed_bytes_withheld`, `action_type` on a hash-mode receipt (its signed bytes carry no
+action type), and any other name the receipt never signed (`verified`, `kid`, `agent_name`).
+The hosted response's own `type: "signature"` is listed the same way.
+
+Some copies cannot be judged and are listed rather than failed. An observation
+`signed_at` whose signed `context.ts` is withheld by the default export, or is written in
+a form this check does not read (basic ISO, hour-only, week dates, comma fractions), is
+listed. The digest and the key are listed when the signature did not verify, because
+until then the bytes compared need not be the signed bytes. A member that is absent or
+`null` is not compared. The manual
 [openssl and jq walkthrough](openssl-jq-walkthrough.md) reads the `payload` alone, so
 it never relies on a copy.
 
-`verifier/conformance-vectors/asqav-43` to `asqav-48` pin the behavior: one entry
-whose copies all agree, and one each with an edited `signed_at`, `agent_id`,
-`action_type`, `message_b64` and `public_key_b64`. Every verifier refuses the edited ones.
+`verifier/conformance-vectors/asqav-43` to `asqav-51` pin the behavior: one entry
+whose copies all agree, one each with an edited `signed_at`, `agent_id`, `action_type`,
+`message_b64` and `public_key_b64`, and the same refusal when the signature is a flat
+string (`asqav-49` agrees, `asqav-50` edits `agent_id`) or sits under
+`signature_envelope` (`asqav-51` edits `action_type`). Every verifier refuses the
+edited ones.
 
 ### Where the standalone verifier's vocabulary differs
 

@@ -79,6 +79,10 @@ def _sig_of(name: str, receipt: dict) -> str:
         assert isinstance(entry.get("sig"), str), name
         return entry["sig"]
     signature = receipt.get("signature")
+    if isinstance(signature, str):  # flat spelling: the string is the sig
+        return signature
+    if not isinstance(signature, dict):  # hosted spelling: the object is renamed
+        signature = receipt.get("signature_envelope")
     assert isinstance(signature, dict) and isinstance(signature.get("sig"), str), name
     return signature["sig"]
 
@@ -100,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 59,
-    "action_ref": 55,
-    "policy_digest": 52,
-    "previousReceiptHash": 52,
+    "sig": 62,
+    "action_ref": 58,
+    "policy_digest": 55,
+    "previousReceiptHash": 55,
     "key_thumbprint": 3,
-    "payload_digest": 49,
+    "payload_digest": 52,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -400,6 +404,9 @@ for _name in (
     "asqav-46-outer-action-type-edited",
     "asqav-47-outer-message-copy-edited",
     "asqav-48-outer-public-key-edited",
+    "asqav-49-outer-flat-signature-agree",
+    "asqav-50-outer-flat-signature-agent-id-edited",
+    "asqav-51-outer-envelope-signature-action-type-edited",
 ):
     for _pins in (PINNED_SIG, PINNED_ACTION_REF, PINNED_POLICY_DIGEST, PINNED_PREV_HASH,
                   PINNED_PAYLOAD_DIGEST):
@@ -481,6 +488,11 @@ def _occurrences() -> list[tuple[str, str, str]]:
         signature = receipt.get("signature")
         if isinstance(signature, dict) and isinstance(signature.get("sig"), str):
             found.append((name, "sig", "signature"))
+        elif isinstance(signature, str) and isinstance(payload, dict):
+            found.append((name, "sig", "signature"))
+        envelope = receipt.get("signature_envelope")
+        if isinstance(envelope, dict) and isinstance(envelope.get("sig"), str):
+            found.append((name, "sig", "signature_envelope"))
         for index, entry in enumerate(receipt.get("signatures") or []):
             if isinstance(entry, dict) and isinstance(entry.get("sig"), str):
                 found.append((name, "sig", f"signatures[{index}]"))
@@ -518,7 +530,7 @@ def test_no_derived_member_hides_at_an_unknown_path() -> None:
         "key_thumbprint": {"payload"},
         "payload_digest": {"payload"},
         "envelope_hash": {"payload/counterparty_binding"},
-        "sig": {"signature", "signatures[]"},
+        "sig": {"signature", "signature_envelope", "signatures[]"},
         "canonical": set(),
     }
     assert set(known) == PINNED_MEMBER_NAMES

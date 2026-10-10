@@ -6,7 +6,10 @@ asqav-43 is a real prod receipt with those copies added by the export rule, all
 agreeing, so the family has a verified control. asqav-44..48 each edit one copy
 and leave every signed byte alone: the signature still verifies, and every
 verifier must still refuse the entry because a copy disagrees with the signed
-payload.
+payload. asqav-49..51 repeat that for the two other places a signature lives:
+a flat base64 string (asqav-49 agrees, asqav-50 edits agent_id) and the hosted
+signature_envelope object (asqav-51 edits action_type). The signature verifies
+in all three, because the verifier rebuilds the same signature object.
 
 The source is the payload-mode prod receipt of asqav-06, whose signed payload
 carries agent_id, action_id, action_type and issued_at. The export-side copies
@@ -104,7 +107,40 @@ def _vectors() -> list[tuple[str, dict, dict, dict]]:
     edited("public_key_b64", _flip_last_byte(agree["public_key_b64"]),
            "asqav-48-outer-public-key-edited",
            "The outer public_key_b64 is not the key the signature verified against.")
+    out += _shape_vectors(agree, jwks, src, edited_note=REASON)
     return out
+
+
+def _shape_vectors(agree: dict, jwks: dict, src: str, edited_note: str) -> list:
+    """The flat-string and signature_envelope spellings of the signature."""
+    flat = copy.deepcopy(agree)
+    flat["signature"] = agree["signature"]["sig"]
+    flat_bad = copy.deepcopy(flat)
+    flat_bad["agent_id"] = "agt_someoneElse000000"
+    hosted = copy.deepcopy(agree)
+    hosted["signature_envelope"] = hosted.pop("signature")
+    hosted["action_type"] = "payment:release"
+    refuse = {"format": "asqav-native", "outcome": "unverified", "failure_class": "invalid",
+              "reason_code": edited_note}
+    tail = (" The signed bytes are untouched, so the signature axis still passes; the "
+            "outer_copies axis FAILs and the verdict is unverified/invalid.")
+    return [
+        ("asqav-49-outer-flat-signature-agree", flat, jwks, {
+            "format": "asqav-native", "outcome": "verified", "reason_code": "",
+            "notes": src + "The signature is the flat base64 string and every copy agrees with the "
+            "signed payload. Control for asqav-50.",
+        }),
+        ("asqav-50-outer-flat-signature-agent-id-edited", flat_bad, jwks, {
+            **refuse,
+            "notes": src + "The signature is the flat base64 string, which a verifier rebuilds into "
+            "the same object. The outer agent_id names a different agent than the signed payload." + tail,
+        }),
+        ("asqav-51-outer-envelope-signature-action-type-edited", hosted, jwks, {
+            **refuse,
+            "notes": src + "The signature object sits under the hosted name signature_envelope, which "
+            "a verifier reads as the signature. The outer action_type differs from the signed one." + tail,
+        }),
+    ]
 
 
 def _write(name: str, entry: dict, jwks: dict, expected: dict) -> None:
