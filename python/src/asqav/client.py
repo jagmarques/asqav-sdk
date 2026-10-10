@@ -2984,6 +2984,9 @@ def init(
             Salted digests still travel labelled ``sha256``, so a third
             party recomputing per ``docs/fingerprint-spec.md`` sees a
             mismatch even though the signature verifies.
+            CAVEAT: the current backend rejects caller-computed-HMAC
+            hash-only bodies (``keyed_digest_requires_context``). Keyed
+            digests are server-keyed: send ``context`` (``verified_keyed``).
         timeout: Per-request HTTP timeout in seconds (default 30). The
             harness hook passes its own deadline here so a hung signer
             cannot outlive the gate.
@@ -3060,9 +3063,8 @@ def govern(
         capabilities: Capability strings for the new agent.
         base_url: Override API base URL (for testing).
         mode: Wire mode - "auto" (default), "hash-only", or "full-payload".
-        org_salt: Optional 32-byte HMAC salt for hash-only mode, generated
-            and held by you. Unset means an unsalted SHA-256 digest. See
-            init() for the full caveats.
+        org_salt: Optional 32-byte HMAC salt for hash-only mode. See
+            init() for the ``keyed_digest_requires_context`` caveat.
 
     Returns:
         A ready-to-use Agent instance.
