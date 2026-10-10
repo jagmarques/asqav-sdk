@@ -4,7 +4,7 @@
  */
 
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
-import { RawFloat } from "./canonical.js";
+import { exceedsDepth } from "./canonical.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 
@@ -290,26 +290,6 @@ function isCounter(v: unknown): v is number {
 export const MAX_NESTING_DEPTH = 200;
 
 const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NESTING_DEPTH} levels)`;
-
-/**
- * True when `obj` nests deeper than `maxDepth`, walked with an explicit stack so the check itself never
- * overflows. `JSON.parse` applies no depth limit, so this is the only cap a parsed object meets.
- */
-function exceedsDepth(obj: unknown, maxDepth: number): boolean {
-  const stack: Array<[unknown, number]> = [[obj, 0]];
-  while (stack.length > 0) {
-    const [cur, depth] = stack.pop() as [unknown, number];
-    if (depth > maxDepth) return true;
-    // A RawFloat is a number leaf, as in Python, not a container
-    if (cur instanceof RawFloat) continue;
-    if (Array.isArray(cur)) {
-      for (const v of cur) stack.push([v, depth + 1]);
-    } else if (cur !== null && typeof cur === "object") {
-      for (const v of Object.values(cur as Record<string, unknown>)) stack.push([v, depth + 1]);
-    }
-  }
-  return false;
-}
 
 /** One-axis unverified result for a pre-axis refusal (depth, profile range) */
 function earlyUnverified(fmt: string, note: string): VerifyResult {
