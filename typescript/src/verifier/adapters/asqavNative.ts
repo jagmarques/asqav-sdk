@@ -98,6 +98,22 @@ function payloadOf(doc: Record<string, unknown>): Record<string, unknown> {
   return isRecord(p) ? p : env;
 }
 
+// Mirror of Python _counterparty_commitment_reached: the binding reaches its
+// envelope hash, so the originating envelope's numbers are digest-covered
+function counterpartyCommitmentReached(payload: Record<string, unknown>, origin: unknown): boolean {
+  const cpb = payload.counterparty_binding;
+  if (!isRecord(cpb) || cpb.scope !== "envelope_minus_anchors") return false;
+  if (typeof cpb.receipt_ref !== "string" || cpb.receipt_ref === "") return false;
+  const digest = cpb.envelope_hash;
+  if (typeof digest !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(digest)) {
+    return false;
+  }
+  if (Buffer.from(digest, "base64").length !== 32) return false;
+  const ack = cpb.expect_ack_from;
+  if (ack !== undefined && ack !== null && typeof ack !== "string") return false;
+  return isRecord(origin);
+}
+
 /** Flat object the cloud hash-mode path signs, before canonicalisation */
 function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -366,23 +382,34 @@ export class AsqavNativeAdapter extends FormatAdapter {
     doc: Record<string, unknown>,
     predecessor: Record<string, unknown> | null = null,
     predecessorFmt: string | null = null,
+    originatingEnvelope: unknown = null,
   ): string | null {
     if (isHashMode(doc)) {
       const topV = hasOwn(doc, "v") ? doc.v : undefined;
       if (!isCurrentProfileVersion(topV)) return null;
       return profileRangeNote(flatSignedFields(doc));
     }
+    // Python _profile_range_refusal inputs, in order, so verifiers refuse alike
     const signed = payloadOf(doc);
     const v = hasOwn(signed, "v") ? signed.v : undefined;
     if (!isCurrentProfileVersion(v)) return null;
-    const note = profileRangeNote(signed);
+    let note = profileRangeNote(signed);
     if (note !== null) return note;
+    const env = normaliseEnvelope(doc);
+    if (Array.isArray(env.anchors) && env.anchors.length > 0 && isRecord(env.signature)) {
+      note = profileRangeNote(env.signature);
+      if (note !== null) return note;
+    }
     if (
       predecessor !== null &&
       predecessorFmt === this.name &&
       signed.previousReceiptHash !== FIRST_RECEIPT_SEED
     ) {
-      return profileRangeNote(payloadOf(predecessor));
+      note = profileRangeNote(payloadOf(predecessor));
+      if (note !== null) return note;
+    }
+    if (counterpartyCommitmentReached(signed, originatingEnvelope)) {
+      return profileRangeNote(originatingEnvelope);
     }
     return null;
   }

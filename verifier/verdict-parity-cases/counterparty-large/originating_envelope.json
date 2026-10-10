@@ -1,0 +1,41 @@
+{
+  "payload": {
+    "v": 1,
+    "mode": "payload",
+    "type": "protectmcp:decision",
+    "issuer_id": "origin",
+    "agent_id": "agent_origin",
+    "action_id": "action_origin",
+    "issued_at": "2026-09-01T12:00:00+00:00",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "action_ref": "sha256:eaa40a5ece963896517978a26f1bec6355de3513ece6afb800c15034c8b712df",
+    "context": {
+      "test": "counterparty binding",
+      "party": "origin"
+    },
+    "payload_digest": {
+      "hash": "eaa40a5ece963896517978a26f1bec6355de3513ece6afb800c15034c8b712df",
+      "size": 48
+    },
+    "policy_digest": "sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b",
+    "decision": "allow",
+    "terms": {
+      "price": 7.635507284768651e+16
+    }
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "origin",
+    "sig": "yLTcX3gfHiM/dN6PAq69qCI45h5AMbPOVYYiqKYPZugABbMCVkm/2nf+NSl9zNSgxIeAU1F+P/SRbdhEnrIwBQ=="
+  },
+  "anchors": [
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEIMHKNjentJCDufA8Z3Xb7ZIDH+Bi0OyGqzsSVQwXVpf3AgEqGA8yMDI2MDkwMTEyMDAwMVoxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQK/ozEd8EFZLQyiQG2jEu6fawsZBRfV9/THWhb+N5DDiCaINNRT6ey3eHCIJka/zvtUKiy+uqELjMnqAQAmyngY="
+    },
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEIMHKNjentJCDufA8Z3Xb7ZIDH+Bi0OyGqzsSVQwXVpf3AgEqGA8yMDI2MDkwMTEyMDAwMloxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQMbnrI2aQRPbpbg0LfUQjYB3Cu3ZzfO7rqdoSd/80cZ5f2rh/O3lZSvvZ31aH9kP1d5ZZOWdPH/sTr/reB4YugM="
+    }
+  ]
+}

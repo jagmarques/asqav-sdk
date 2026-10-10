@@ -104,14 +104,23 @@ import { readFileSync, writeFileSync } from "node:fs";
 const jwks = await fetchJwks();                        // online, once
 writeFileSync("jwks.json", JSON.stringify(jwks));
 
-const receipt = JSON.parse(readFileSync("receipt.json", "utf8"));   // offline from here
-const result = await verifyReceiptOffline(receipt, JSON.parse(readFileSync("jwks.json", "utf8")));
+// Offline from here. Pass the raw text, not JSON.parse output (see below).
+const result = verifyReceiptOffline(readFileSync("receipt.json", "utf8"), readFileSync("jwks.json", "utf8"));
 if (result.verdict === "unverified") throw new Error(JSON.stringify(result.axes));
 ```
 
 `verdict` is `"verified" | "verified_keyed" | "unverified"`. `verified_keyed` is a pass over a
-keyed digest: internally consistent, but not third-party re-derivable. Pass
-`{ predecessor: prevReceipt }` to check the hash-chain link too.
+keyed digest: internally consistent, but not third-party re-derivable. Pass the predecessor
+receipt as the third argument to check the hash-chain link too.
+
+Raw text gets the same verdict as the Python verifiers and the conformance runner, because
+the parser keeps each number as it was written. The signed bytes can hold `500.0` or `-0.0`,
+and the receipt profile accepts only integers in the safe range, so those receipts come back
+`unverified` / `unverifiable` everywhere. `JSON.parse` throws that spelling away. With an
+already-parsed object, a `-0` is refused as `unverifiable` because it could have been `-0` or
+`-0.0`, and a `500.0` reads back as `500`, so the signature check fails and the result is
+`unverified` / `invalid` instead. It is never `verified`. Fractions such as `1e-07` and `0.5`
+verify the same way on both paths.
 ML-DSA-65 verifies in-process via `@noble/post-quantum`; Ed25519 and ES256 via `node:crypto`.
 Guide: [offline and air-gapped verification](https://asqav.com/docs/offline-air-gapped-verification).
 

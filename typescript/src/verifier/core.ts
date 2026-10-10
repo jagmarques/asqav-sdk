@@ -298,6 +298,11 @@ function earlyUnverified(fmt: string, note: string): VerifyResult {
   return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
 }
 
+/** Unverified/unverifiable for input refused before hashing (runner form) */
+export function refuseInput(note: string, context: VerificationContext = {}, fmt = "unknown"): VerifyResult {
+  return { ...earlyUnverified(fmt, note), context };
+}
+
 /** Verify one parsed receipt and return a structured `VerifyResult`. */
 export function verify(
   doc: Record<string, unknown>,
@@ -333,7 +338,12 @@ export function verify(
     earlyNote = TOO_DEEP_NOTE;
   } else {
     const predAd = predecessor === null ? null : detect(predecessor, adapters);
-    earlyNote = ad.profilePrecheck(doc, predecessor, predAd === null ? null : predAd.name);
+    earlyNote = ad.profilePrecheck(
+      doc,
+      predecessor,
+      predAd === null ? null : predAd.name,
+      resolved.originatingEnvelope ?? null,
+    );
   }
   if (earlyNote !== null) {
     const early = earlyUnverified(ad.name, earlyNote);
