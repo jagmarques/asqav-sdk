@@ -8,9 +8,9 @@ import { describe, expect, it } from "vitest";
 import { NOT_CHECKED } from "../src/verifier/not-checked.js";
 
 function row(check: string): Record<string, unknown> {
-  const found = NOT_CHECKED.find((e) => (e as Record<string, unknown>).check === check);
+  const found = NOT_CHECKED.find((e) => e.check === check);
   expect(found, `${check} missing from NOT_CHECKED`).toBeDefined();
-  return found as Record<string, unknown>;
+  return { ...found } as Record<string, unknown>;
 }
 
 describe("anchor non-coverage declaration", () => {
