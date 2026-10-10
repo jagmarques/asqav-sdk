@@ -11,11 +11,11 @@ import inspect
 import asqav.client as client
 
 
-def test_shipped_default_is_unsalted_sha256() -> None:
-    print("MODULE:", client.__file__)
+def test_shipped_default_is_unsalted_sha256(monkeypatch) -> None:
     assert client._org_salt is None
     assert inspect.signature(client.init).parameters["org_salt"].default is None
-    client._api_key, client._mode = "sk_test", "hash-only"
+    monkeypatch.setattr(client, "_api_key", "sk_test")
+    monkeypatch.setattr(client, "_mode", "hash-only")
     body = client._build_sign_body(
         action_type="api:call",
         context={"model": "gpt-4"},
