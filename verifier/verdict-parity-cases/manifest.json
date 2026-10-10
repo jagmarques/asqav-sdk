@@ -1,0 +1,304 @@
+{
+  "cases": [
+    {
+      "dir": "receipt-small-repr",
+      "lexeme": "1e-07",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-small-alt0",
+      "lexeme": "1e-7",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-small-alt1",
+      "lexeme": "0.0000001",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-small-tamper",
+      "lexeme": "1.0000000000000001e-07",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "receipt-large-repr",
+      "lexeme": "7.635507284768651e+16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-large-alt0",
+      "lexeme": "76355072847686510.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-large-alt1",
+      "lexeme": "7.635507284768651E16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-large-tamper",
+      "lexeme": "7.635507284768653e+16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-negzero-repr",
+      "lexeme": "-0.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-negzero-alt0",
+      "lexeme": "-0e0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-negzero-alt1",
+      "lexeme": "-0.000",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "receipt-negzero-tamper",
+      "lexeme": "0.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "receipt-float500-repr",
+      "lexeme": "500.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "receipt-float500-alt0",
+      "lexeme": "5e2",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "receipt-float500-alt1",
+      "lexeme": "500.00",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "receipt-float500-tamper",
+      "lexeme": "500.00000000000006",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "receipt-half-repr",
+      "lexeme": "0.5",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-half-alt0",
+      "lexeme": "5e-1",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-half-alt1",
+      "lexeme": "0.50",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-half-tamper",
+      "lexeme": "0.5000000000000001",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "counterparty-small",
+      "lexeme": "1e-07",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "counterparty-small-tamper",
+      "lexeme": "1.0000000000000001e-07",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "counterparty-large",
+      "lexeme": "7.635507284768651e+16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "counterparty-large-tamper",
+      "lexeme": "7.635507284768653e+16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "counterparty-negzero",
+      "lexeme": "-0.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "counterparty-negzero-tamper",
+      "lexeme": "0.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "counterparty-float500",
+      "lexeme": "500.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "counterparty-float500-tamper",
+      "lexeme": "500.00000000000006",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    },
+    {
+      "dir": "counterparty-half",
+      "lexeme": "0.5",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "counterparty-half-tamper",
+      "lexeme": "0.5000000000000001",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      }
+    }
+  ]
+}
