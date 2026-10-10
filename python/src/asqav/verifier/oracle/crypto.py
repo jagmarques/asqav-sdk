@@ -97,7 +97,8 @@ _DISPATCH = {
 }
 
 
-#: Last verification, so a second look at the same input costs nothing.
+#: Last verification, held as immutable copies so a caller reusing a buffer
+#: can never read an earlier result.
 _LAST: tuple | None = None
 
 
@@ -107,9 +108,12 @@ def verify_signature(alg: object, pk: bytes, msg: bytes, sig: bytes) -> tuple[st
     fn = _DISPATCH.get((alg if isinstance(alg, str) else "").upper())
     if fn is None:
         return SKIPPED, f"unsupported alg {alg!r} (oracle checks {sorted(_DISPATCH)})"
+    if not all(isinstance(x, (bytes, bytearray)) for x in (pk, msg, sig)):
+        return fn(pk, msg, sig)
+    held = (bytes(pk), bytes(msg), bytes(sig))
     last = _LAST
-    if last is not None and last[0] is fn and last[1:4] == (pk, msg, sig):
-        return last[4]
+    if last is not None and last[0] is fn and last[1] == held:
+        return last[2]
     result = fn(pk, msg, sig)
-    _LAST = (fn, pk, msg, sig, result)
+    _LAST = (fn, held, result)
     return result

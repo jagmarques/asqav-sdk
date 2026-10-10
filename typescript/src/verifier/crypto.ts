@@ -101,7 +101,7 @@ const DISPATCH: Record<string, Verifier> = {
   ES256: verifyEs256,
 };
 
-/** Last verification, so a second look at the same input costs nothing. */
+/** Last verification, held as copies so a reused buffer cannot alias it. */
 let lastVerification: {
   fn: Verifier; pk: Uint8Array; msg: Uint8Array; sig: Uint8Array; outcome: VerifyOutcome;
 } | null = null;
@@ -127,7 +127,7 @@ export function verifySignature(
     return last.outcome;
   }
   const outcome = fn(pk, msg, sig);
-  lastVerification = { fn, pk, msg, sig, outcome };
+  lastVerification = { fn, pk: new Uint8Array(pk), msg: new Uint8Array(msg), sig: new Uint8Array(sig), outcome };
   return outcome;
 }
 

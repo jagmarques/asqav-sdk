@@ -106,7 +106,7 @@ PINNED_MEMBER_NAMES = frozenset(
 EXPECTED_PIN_COUNTS = {
     "sig": 62,
     "action_ref": 58,
-    "policy_digest": 55,
+    "policy_digest": 56,
     "previousReceiptHash": 55,
     "key_thumbprint": 3,
     "payload_digest": 52,
@@ -411,6 +411,11 @@ for _name in (
     for _pins in (PINNED_SIG, PINNED_ACTION_REF, PINNED_POLICY_DIGEST, PINNED_PREV_HASH,
                   PINNED_PAYLOAD_DIGEST):
         _pins[_name] = _pins["asqav-06-mldsa65-payload-prod"]
+
+#: The flat hash-mode vector keeps asqav-05's signed fields, so its policy_digest is asqav-05's.
+PINNED_POLICY_DIGEST["asqav-52-outer-flat-hash-unsigned-members"] = PINNED_POLICY_DIGEST[
+    "asqav-05-hash-mode-prod"
+]
 
 
 

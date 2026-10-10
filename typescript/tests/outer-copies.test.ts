@@ -181,3 +181,22 @@ describe("members no signature covers, and a signature that did not verify", () 
     expect(axis(result, "outer_copies")?.note).toContain("public_key_b64");
   });
 });
+
+describe("a flat hash-mode receipt signs its own fields (asqav-52)", () => {
+  it("verifies and lists the members it does not sign", () => {
+    const [receipt, jwks] = vector("asqav-52-outer-flat-hash-unsigned-members");
+    const result = verifyReceiptOffline(receipt, jwks);
+    expect(result.verdict).toBe("verified");
+    expect(axis(result, "outer_copies")?.note).toBe(
+      "not signed, do not rely on: action_type, agent_name, decision, signed_at, verified",
+    );
+  });
+
+  it("fails a null compliance_mode beside a payload", () => {
+    const [receipt] = vector("asqav-43-outer-copies-agree");
+    receipt.compliance_mode = null;
+    const [result, note] = checkOuterCopies(receipt, new Uint8Array(), null);
+    expect(result).toBe("FAIL");
+    expect(note).toContain("compliance_mode");
+  });
+});

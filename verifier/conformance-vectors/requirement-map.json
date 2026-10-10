@@ -829,6 +829,9 @@
       "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "FAIL"
+    },
+    "asqav-52-outer-flat-hash-unsigned-members": {
+      "payload": "FAIL"
     }
   },
   "requirements": {
@@ -2162,6 +2165,28 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-52-outer-flat-hash-unsigned-members": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ]
     }
   },
   "interop_fixtures": {
@@ -3179,7 +3204,7 @@
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 55,
+    "asqav_native_vectors": 56,
     "interop_fixtures": 52,
     "requirements": 15,
     "requirements_covered": 15,

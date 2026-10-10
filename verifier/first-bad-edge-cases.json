@@ -103,6 +103,7 @@
     "asqav-49-outer-flat-signature-agree": null,
     "asqav-50-outer-flat-signature-agent-id-edited": "outer_copies",
     "asqav-51-outer-envelope-signature-action-type-edited": "outer_copies",
+    "asqav-52-outer-flat-hash-unsigned-members": null,
     "asqav-35-counterparty-peer-swapped": "counterparty",
     "asqav-36-counterparty-origin-forged": "counterparty",
     "asqav-37-counterparty-divergent-terms": "counterparty",

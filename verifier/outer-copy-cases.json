@@ -2854,6 +2854,229 @@
         "result": "FAIL",
         "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
       }
+    },
+    {
+      "name": "flat hash-mode receipt with nothing unsigned",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no outer copies carried; the signed payload is the whole receipt"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with unsigned members",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": [],
+        "action_type": "pay:wire",
+        "agent_name": "Trusted",
+        "decision": "approved",
+        "signed_at": "2020-01-01",
+        "verified": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: action_type, agent_name, decision, signed_at, verified"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt, edited signed field is not a copy",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_9",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no outer copies carried; the signed payload is the whole receipt"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt, null members are not listed",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": [],
+        "verified": null,
+        "signature_id": null
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no outer copies carried; the signed payload is the whole receipt"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with a flat signature field",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "anchors": [],
+        "signature": "c2lnLWJ5dGVz",
+        "kid": "k"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: kid"
+      }
+    },
+    {
+      "name": "flat receipt without a signature is not hash-mode",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "anchors": [],
+        "verified": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed payload object; no outer copies compared"
+      }
+    },
+    {
+      "name": "flat receipt in another mode is not hash-mode",
+      "raw": {
+        "mode": "payload",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": [],
+        "verified": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed payload object; no outer copies compared"
+      }
+    },
+    {
+      "name": "compliance_mode null fails like any other non-true value",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "compliance_mode": null
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: compliance_mode (signed: the payload); rely on the signed payload, not on the copies"
+      }
     }
   ]
 }

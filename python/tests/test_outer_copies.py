@@ -323,3 +323,21 @@ def test_a_digest_copy_is_not_blamed_when_the_signature_did_not_verify() -> None
     assert axes["signature"]["result"] == "FAIL"
     assert axes["outer_copies"]["result"] == "FAIL"
     assert "message_sha256 (signed" not in axes["outer_copies"]["note"]
+
+
+# ---- a flat hash-mode receipt signs its own fields (asqav-52) ---------------
+
+@requires_mldsa
+def test_a_flat_hash_receipt_lists_the_members_it_does_not_sign() -> None:
+    receipt, jwks = _vector("asqav-52-outer-flat-hash-unsigned-members")
+    for result in _both(receipt, jwks)[:1]:
+        outer = _axes(result)["outer_copies"]
+        assert result["verdict"] == "verified"
+        assert outer["note"] == "not signed, do not rely on: action_type, agent_name, decision, signed_at, verified"
+
+
+def test_compliance_mode_null_fails_beside_a_payload() -> None:
+    receipt, _ = _vector("asqav-43-outer-copies-agree")
+    receipt["compliance_mode"] = None
+    result, note = vr.check_outer_copies(receipt, b"x", None)
+    assert result == "FAIL" and "compliance_mode" in note

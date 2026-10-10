@@ -2296,6 +2296,34 @@ def _stray_outcomes(raw: dict, payload: dict, sig_obj: dict) -> list:
     return out + [(f"signature.{k}", _stray_outcome(sig_obj[k], payload, k)) for k in extra]
 
 
+#: Fields a flat hash-mode receipt signs; every other member of one is unsigned.
+_FLAT_SIGNED = frozenset((
+    "v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id",
+    "agent_id", "org_id", "policy_digest", "policy_decision",
+))
+
+#: Signature material and framing of a flat receipt: read to verify, not claims.
+_FLAT_MATERIAL = frozenset(("payload", "signature", "signature_b64", "anchors", "algorithm", "key_id"))
+
+
+def _is_flat_hash_receipt(raw: dict) -> bool:
+    """A flat hash-mode receipt: mode=hash, no payload object, a signature (the oracle's rule)."""
+    if raw.get("mode") != "hash" or isinstance(raw.get("payload"), dict):
+        return False
+    return bool(raw.get("signature_b64") or raw.get("signature"))
+
+
+def _flat_outer_note(raw: dict) -> tuple:
+    """A flat receipt signs its own fields, so it has no copies; list what it signs not."""
+    names = sorted(
+        (k for k in raw if k not in _FLAT_SIGNED and k not in _FLAT_MATERIAL and raw[k] is not None),
+        key=_unit_order,
+    )
+    if not names:
+        return "PASS", "no outer copies carried; the signed payload is the whole receipt"
+    return "PASS", f"not signed, do not rely on: {', '.join(names)}"
+
+
 def _outer_copy_outcomes(raw: dict, payload: dict, sig_obj: dict, msg: bytes, key_bytes) -> list:
     out = _text_copy_outcomes(raw, payload) + _time_copy_outcomes(raw, payload)
     out += _envelope_copy_outcomes(raw, sig_obj) + _byte_copy_outcomes(raw, msg, key_bytes)
@@ -2335,10 +2363,13 @@ def check_outer_copies(raw: dict, msg: bytes, key_bytes=None):
     is listed as such, never trusted. ``raw`` is the entry as received, ``msg``
     the canonical signed bytes, ``key_bytes`` the key the signature verified
     under (None when it did not verify). The signature copies are weighed against
-    the normalised signature object, the one the signature axis used.
+    the normalised signature object, the one the signature axis used. A flat
+    hash-mode receipt has no copies: the members it does not sign are listed.
     """
     payload = raw.get("payload") if isinstance(raw, dict) else None
     if not isinstance(payload, dict):
+        if isinstance(raw, dict) and _is_flat_hash_receipt(raw):
+            return _flat_outer_note(raw)
         return "PASS", "no signed payload object; no outer copies compared"
     sig_obj = _signature_object(normalise_envelope(raw), payload)
     return _outer_copy_note(_outer_copy_outcomes(raw, payload, sig_obj, msg, key_bytes), raw)
