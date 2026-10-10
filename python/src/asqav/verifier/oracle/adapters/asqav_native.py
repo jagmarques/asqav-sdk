@@ -28,6 +28,7 @@ from typing import Any
 from asqav.verifier import verify_receipt as _vr
 
 from ..adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
+from ..adapter import resolve_evaluation_now
 from ..canonical import asqav_jcs
 from ..core import sha256_hex
 from .acta import _is_lower_hex
@@ -249,7 +250,7 @@ class AsqavNativeAdapter(FormatAdapter):
     def extra_axes_with_context(
         self, doc: dict, key_provider: Any, context: VerificationContext,
     ) -> list[tuple[str, str, str]]:
-        axes = self.extra_axes(doc, key_provider)
+        axes = self.extra_axes(doc, key_provider, context)
         if context.originating_envelope is None:
             return axes
         signed = {} if _is_hash_mode(doc) else _payload(doc)
@@ -261,7 +262,9 @@ class AsqavNativeAdapter(FormatAdapter):
         outcome = _vr.check_counterparty_binding(signed, context.originating_envelope, acknowledging_kid=kid)
         return [("counterparty", *outcome) if axis == baseline else axis for axis in axes]
 
-    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
+    def extra_axes(
+        self, doc: dict, key_provider: Any, context: VerificationContext | None = None,
+    ) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
         A receipt signed by a revoked key, or by a key the directory publishes
@@ -279,7 +282,8 @@ class AsqavNativeAdapter(FormatAdapter):
         # expires_at, and reading the flat doc would gate on an uncovered field.
         hash_mode = _is_hash_mode(doc)
         signed = {} if hash_mode else _payload(doc)
-        axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
+        now = resolve_evaluation_now(getattr(context, "evaluation_time", None))
+        axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed, now=now))]
         axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
@@ -295,7 +299,7 @@ class AsqavNativeAdapter(FormatAdapter):
         # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
-        axes.append(("skew", *_vr.check_skew(stamp)))
+        axes.append(("skew", *_vr.check_skew(stamp, now=now)))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)
