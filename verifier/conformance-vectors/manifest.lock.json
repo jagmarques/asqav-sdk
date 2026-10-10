@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 35,
+  "corpus_version": 36,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -178,6 +178,11 @@
       "version": 34,
       "files": 319,
       "digest": "dc6a590c1321d88354ae8680fc3dac54ea8da318e1526e2bd0a7ffec224cacdc"
+    },
+    {
+      "version": 35,
+      "files": 319,
+      "digest": "fbf533947a83babff9474d94043179021554623b42bf2bdf7f949cc6d79e37b2"
     }
   ],
   "files": [
@@ -1203,8 +1208,8 @@
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/expected.json",
-      "sha256": "bf709720bba281f1c14b543fc36d5f3c678ac8fcd602402f6796533fab2384e9",
-      "bytes": 879
+      "sha256": "aa4fc6428c2d531ec6fcbb23796809e8c09af34d1e952861d24c8679a8559dd5",
+      "bytes": 900
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/jwks.json",
@@ -1807,5 +1812,5 @@
       ]
     }
   },
-  "digest": "fbf533947a83babff9474d94043179021554623b42bf2bdf7f949cc6d79e37b2"
+  "digest": "b59439ac5e16b1e356a07f48becde619245e9256fcb45dff00196bb73778ca13"
 }

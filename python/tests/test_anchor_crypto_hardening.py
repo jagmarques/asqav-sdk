@@ -120,14 +120,46 @@ def test_deeply_nested_der_does_not_recurse():
 
 
 def test_ots_varuint_is_width_bounded():
-    """An unbounded varuint builds a multi-megabit int one shift at a time;
-    900k continuation bytes measured at 326 seconds before the cap."""
-    blob = vr._OTS_MAGIC + bytes([1, 0x08]) + b"\x00" * 32 + b"\x00" + b"\xff" * 900_000
+    """A varuint past the width cap is rejected even when the blob commits.
+
+    The blob carries the real envelope digest so it reaches the width check
+    instead of failing the commitment compare first. The parser-level pin
+    below is what flips when the cap is raised: end-to-end outcomes stay
+    SKIPPED either way because the detail is not surfaced.
+    """
+    env = _envelope([])
+    digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
+    blob = (
+        vr._OTS_MAGIC + bytes([1, 0x08]) + digest + b"\x00" + b"\x00" * 8
+        + b"\x80" * 11 + b"\x00"
+    )
     start = time.monotonic()
     ev = vr.evaluate_anchors(_envelope([_anchor("opentimestamps", blob)]))
     elapsed = time.monotonic() - start
     assert ev.result in ("SKIPPED", "FAIL")
     assert elapsed < 5.0, f"ots varuint took {elapsed:.1f}s; the width cap is gone"
+    with pytest.raises(vr._AnchorParseError, match="exceeds the supported width"):
+        vr._ots_varuint(b"\x80" * 11 + b"\x00", 0)
+
+
+def _leb(n: int) -> bytes:
+    out = bytearray()
+    while True:
+        byte = n & 0x7F
+        n >>= 7
+        if n:
+            out.append(byte | 0x80)
+        else:
+            out.append(byte)
+            return bytes(out)
+
+
+def _committing_node(digest: bytes, height: int, msg: bytes) -> tuple[bytes, dict]:
+    """Attestation node plus headers keyed so the commitment verifies."""
+    node = b"\x00" + vr._OTS_BITCOIN_TAG + _leb(len(_leb(height))) + _leb(height)
+    headers = {height: {"merkle_root": msg[::-1].hex()}}
+    head = vr._OTS_MAGIC + bytes([1, 0x08]) + digest
+    return head, node, headers
 
 
 # --- 3. CMS content binding (RFC 5652 s11.1) -------------------------------
@@ -301,3 +333,62 @@ def test_keyed_receipt_failing_a_check_stays_unverified():
     verdict, fc = vr._fold_verdict(failing, keyed=True)
     assert verdict == vr.VERDICT_UNVERIFIED
     assert fc == vr.FAILURE_INVALID
+
+
+def test_ots_blob_is_size_bounded():
+    """A committing blob past the size cap is rejected before parsing it."""
+    env = _envelope([])
+    digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
+    forks = b"".join(b"\xff\x00" + b"\x00" * 8 + b"\x00" for _ in range(100_000))
+    head, node, headers = _committing_node(digest, 100, digest)
+    blob = head + forks + node
+    assert len(blob) > vr._OTS_MAX_BLOB
+    start = time.monotonic()
+    ev = vr.evaluate_anchors(
+        _envelope([_anchor("opentimestamps", blob)]), bitcoin_headers=headers
+    )
+    elapsed = time.monotonic() - start
+    assert ev.result == "SKIPPED"
+    assert elapsed < 5.0, f"ots blob took {elapsed:.1f}s; the size cap is gone"
+
+
+def test_ots_msg_is_append_bounded():
+    """A committing append past the message cap is rejected mid-chain.
+
+    The blob carries the real envelope digest so it reaches the append
+    check instead of failing the commitment compare first. The parser-level
+    pin below is what flips when the cap is raised: end-to-end outcomes stay
+    SKIPPED either way because the detail is not surfaced.
+    """
+    env = _envelope([])
+    digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
+    arg = b"\x00" * 4100
+    blob = (
+        vr._OTS_MAGIC + bytes([1, 0x08]) + digest + b"\xf0" + _leb(len(arg)) + arg
+        + b"\x00" + vr._OTS_BITCOIN_TAG + b"\x01\x64"
+    )
+    start = time.monotonic()
+    ev = vr.evaluate_anchors(_envelope([_anchor("opentimestamps", blob)]))
+    elapsed = time.monotonic() - start
+    assert ev.result in ("SKIPPED", "FAIL")
+    assert elapsed < 5.0, f"ots append took {elapsed:.1f}s; the message cap is gone"
+    with pytest.raises(vr._AnchorParseError, match="exceeds the 4096-byte op limit"):
+        vr._ots_item(0xF0, _leb(len(arg)) + arg, 0, digest, 0, vr._OtsState())
+
+
+def test_ots_depth_is_nesting_bounded():
+    """A committing chain past the nesting cap is rejected before depth 129."""
+    env = _envelope([])
+    digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
+    msg = digest
+    for _ in range(129):
+        msg = hashlib.sha256(msg).digest()
+    head, node, headers = _committing_node(digest, 100, msg)
+    blob = head + b"\x08" * 129 + node
+    start = time.monotonic()
+    ev = vr.evaluate_anchors(
+        _envelope([_anchor("opentimestamps", blob)]), bitcoin_headers=headers
+    )
+    elapsed = time.monotonic() - start
+    assert ev.result == "SKIPPED"
+    assert elapsed < 5.0, f"ots nesting took {elapsed:.1f}s; the depth cap is gone"
