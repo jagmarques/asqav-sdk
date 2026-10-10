@@ -30,7 +30,10 @@ FRAMEWORKS = {
     },
     "colorado_ai": {
         "name": "Colorado ADMT Act",
-        "description": "SB 26-189 automated decision-making technology: developer duties 6-1-1702(4) and deployer duties 6-1-1703",
+        "description": (
+            "SB 26-189 automated decision-making technology: developer duties "
+            "6-1-1702(4) and deployer duties 6-1-1703"
+        ),
         "version": "SB 26-189",
     },
     "texas_traiga": {
