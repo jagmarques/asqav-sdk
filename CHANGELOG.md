@@ -5,6 +5,12 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+- TypeScript verifier: the nesting-depth cap treats a decimal from `parseJsonPreservingFloats`
+  as a leaf, so the same bytes pass structure at 198 levels in both halves. The counterparty
+  envelope hash shares that walk, so a decimal there passes at 197 wrappers as in Python. Only a
+  genuine `RawFloat` shape counts as a leaf. A shared table in `verifier/axis-parity-cases.json`
+  pins both boundaries.
+
 - Witness policy is signed-optional, not required: decision record
   `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
   (criterion 696 Task A; draft edits stay founder-owned as Task B).
