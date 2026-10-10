@@ -461,6 +461,21 @@
       "skew": "PASS",
       "expiry": "PASS"
     },
+    "asqav-35-counterparty-peer-swapped": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "FAIL",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
     "asqav-35-invocation-ref-binds-pre-post": {
       "structure": "PASS",
       "nonce": "PASS",
@@ -473,6 +488,21 @@
       "payload_digest": "PASS",
       "chain": "PASS",
       "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-36-counterparty-origin-forged": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "FAIL",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -491,6 +521,21 @@
       "skew": "PASS",
       "expiry": "PASS"
     },
+    "asqav-37-counterparty-divergent-terms": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "FAIL",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
     "asqav-37-unregistered-namespace-reported": {
       "structure": "SKIPPED",
       "nonce": "PASS",
@@ -503,6 +548,21 @@
       "payload_digest": "PASS",
       "chain": "PASS",
       "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-38-counterparty-received-only": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "FAIL",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -533,6 +593,21 @@
       "payload_digest": "PASS",
       "chain": "PASS",
       "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-39-counterparty-cross-replay": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "FAIL",
+      "payload_digest": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -1364,6 +1439,27 @@
         "REQ-COUNTERPARTY"
       ]
     },
+    "asqav-35-counterparty-peer-swapped": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
+    },
     "asqav-35-invocation-ref-binds-pre-post": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
@@ -1385,6 +1481,27 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-36-counterparty-origin-forged": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
     },
     "asqav-36-invocation-ref-duplicate-emission": {
       "declared_outcome": "verified",
@@ -1408,6 +1525,27 @@
         "REQ-ANCHOR"
       ]
     },
+    "asqav-37-counterparty-divergent-terms": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
+    },
     "asqav-37-unregistered-namespace-reported": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
@@ -1429,6 +1567,27 @@
         "REQ-ANCHOR",
         "REQ-STRUCTURE"
       ]
+    },
+    "asqav-38-counterparty-received-only": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
     },
     "asqav-38-unknown-member-preserved": {
       "declared_outcome": "verified",
@@ -1473,6 +1632,27 @@
         "REQ-ANCHOR",
         "REQ-STRUCTURE"
       ]
+    },
+    "asqav-39-counterparty-cross-replay": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
     },
     "asqav-40-unrecognised-version": {
       "declared_outcome": "unverified",
@@ -1834,11 +2014,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -1873,11 +2058,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -1912,11 +2102,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -1950,11 +2145,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -1989,11 +2189,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -2028,11 +2233,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -2041,7 +2251,12 @@
       "asqav-31-counterparty-scope-match",
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
-      "asqav-34-counterparty-scope-unknown"
+      "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
+      "asqav-36-counterparty-origin-forged",
+      "asqav-37-counterparty-divergent-terms",
+      "asqav-38-counterparty-received-only",
+      "asqav-39-counterparty-cross-replay"
     ],
     "REQ-SKEW": [
       "asqav-01-genesis-permit",
@@ -2074,11 +2289,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -2113,11 +2333,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -2152,11 +2377,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -2191,11 +2421,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version"
     ],
     "REQ-KEYED-DIGEST": [
@@ -2229,11 +2464,16 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version"
     ],
     "REQ-COUNTERPARTY": [
@@ -2265,11 +2505,16 @@
       "asqav-29-article-50-lifecycle-disclosure",
       "asqav-31-counterparty-scope-match",
       "asqav-32-counterparty-anchors-included",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
+      "asqav-39-counterparty-cross-replay",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable"
     ],
@@ -2305,9 +2550,14 @@
       "asqav-32-counterparty-anchors-included",
       "asqav-33-counterparty-scope-absent",
       "asqav-34-counterparty-scope-unknown",
+      "asqav-35-counterparty-peer-swapped",
       "asqav-35-invocation-ref-binds-pre-post",
+      "asqav-36-counterparty-origin-forged",
       "asqav-36-invocation-ref-duplicate-emission",
+      "asqav-37-counterparty-divergent-terms",
+      "asqav-38-counterparty-received-only",
       "asqav-38-unknown-member-preserved",
+      "asqav-39-counterparty-cross-replay",
       "asqav-42-keyed-digest-unverifiable"
     ]
   },
@@ -2315,7 +2565,7 @@
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 41,
+    "asqav_native_vectors": 46,
     "interop_fixtures": 52,
     "requirements": 14,
     "requirements_covered": 14,
