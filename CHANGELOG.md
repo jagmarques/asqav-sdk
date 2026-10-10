@@ -26,6 +26,14 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   tool input nested too deep to parse, exits 2 rather than 1.
   Without the `cli` extra, `asqav hook pretool` exits 2 instead of 1 so the call is blocked.
 
+- `asqav hook pretool` opens the gate only for a key published for the gated agent
+  (criterion 741). The gate verified a permit against the whole multi-tenant key directory, so
+  a receipt naming the gated agent but signed by a same-org sibling's key, another org's key, or
+  a key picked by `kid` with no `key_thumbprint` was accepted. The verifier now sees only the
+  entries whose `agent_id` equals `ASQAV_AGENT_ID`, so no receipt field can select a key that
+  agent does not own. An entry published without `agent_id` verifies nothing. The cloud's
+  `/.well-known/jwks.json` already publishes `agent_id` on every key.
+
 - TypeScript verifier: the nesting-depth cap treats a decimal from `parseJsonPreservingFloats`
   as a leaf, so the same bytes pass structure at 198 levels in both halves. The counterparty
   envelope hash shares that walk, so a decimal there passes at 197 wrappers as in Python. Only a
