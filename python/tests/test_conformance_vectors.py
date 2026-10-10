@@ -182,3 +182,50 @@ def test_capture_topology_unknown_value_is_a_failure_vector() -> None:
     assert rejected, "missing the unknown-value rejection vector"
     v = rejected[0]
     assert v["capture_topology"] not in CAPTURE_TOPOLOGY_VOCABULARY
+
+
+def _readme_text() -> str:
+    return (
+        Path(__file__).parent.parent.parent / "conformance" / "README.md"
+    ).read_text()
+
+
+def _vector_keys() -> set[str]:
+    doc = json.loads(VECTORS_PATH.read_text())
+    keys: set[str] = set()
+    for vector in doc["vectors"]:
+        keys.update(vector.keys())
+    return keys | {"version", "canonicalization", "hash_algorithm"}
+
+
+def test_readme_states_closing_rule() -> None:
+    assert "Anything outside `input` is vector metadata, never a wire member" in _readme_text()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "canonicalization",
+        "capture_topology",
+        "counterparty_binding_member_missing",
+        "description",
+        "expected_verify",
+        "generation",
+        "hash_algorithm",
+        "input_text",
+        "name",
+        "non_conformant_canonical",
+        "non_conformant_sha256",
+        "peer_sent_nonce",
+        "reason",
+        "signature_hex",
+        "substitution",
+        "version",
+    ],
+)
+def test_readme_documents_vector_level_key(key: str) -> None:
+    """Population re-derived live: the union of vector-level keys across
+    vectors.json plus the top-level header; input/canonical/sha256/expected
+    were already documented."""
+    assert key in _vector_keys(), f"{key} left the live population"
+    assert f"`{key}`" in _readme_text(), f"README never documents {key}"
