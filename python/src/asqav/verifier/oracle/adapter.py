@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -22,6 +23,35 @@ class VerificationContext:
     """Caller-supplied comparison input for one invocation; never key material."""
 
     originating_envelope: Any = None
+    #: Wall-clock override the time axes evaluate against; None = now.
+    evaluation_time: Any = None
+    #: Trust roots the caller evaluated against (attribution only).
+    trust_roots: Any = None
+    #: Revocation snapshot the caller evaluated against (attribution only).
+    revocation_snapshot: Any = None
+    #: Policy revision the caller evaluated against (attribution only).
+    policy_revision: Any = None
+    #: Evidence cutoff the caller evaluated against (attribution only).
+    evidence_knowledge_cutoff: Any = None
+    #: Who ran the evaluation (attribution only).
+    evaluator: Any = None
+
+
+def resolve_evaluation_now(evaluation_time: Any) -> datetime | None:
+    """Coerce the context hint to a datetime; unparseable means wall clock."""
+    parsed: datetime | None = None
+    if evaluation_time is None or isinstance(evaluation_time, datetime):
+        parsed = evaluation_time
+    elif isinstance(evaluation_time, str):
+        try:
+            parsed = datetime.fromisoformat(evaluation_time.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed is not None and parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 @dataclass(frozen=True)

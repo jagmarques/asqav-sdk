@@ -130,6 +130,16 @@ function safeB64(value: unknown): Uint8Array {
   }
 }
 
+/** Coerce the context hint to epoch ms; unparseable means wall clock. */
+function resolveEvaluationNowMs(evaluationTime: unknown): number {
+  if (typeof evaluationTime === "number" && Number.isFinite(evaluationTime)) return evaluationTime;
+  if (typeof evaluationTime === "string") {
+    const ms = Date.parse(evaluationTime);
+    if (!Number.isNaN(ms)) return ms;
+  }
+  return Date.now();
+}
+
 export class AsqavNativeAdapter extends FormatAdapter {
   readonly name = "asqav-native";
 
@@ -273,7 +283,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
   extraAxesWithContext(
     doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext,
   ): ExtraAxis[] {
-    const axes = this.extraAxes(doc, keyProvider);
+    const axes = this.extraAxes(doc, keyProvider, context);
     if (context.originatingEnvelope == null) return axes;
     const signed = isHashMode(doc) ? {} : payloadOf(doc);
     const signature = isRecord(doc.signature) ? doc.signature : isRecord(doc.signature_envelope) ? doc.signature_envelope : {};
@@ -285,11 +295,12 @@ export class AsqavNativeAdapter extends FormatAdapter {
       ? ["counterparty", ...outcome] : axis);
   }
 
-  extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider): ExtraAxis[] {
+  extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext = {}): ExtraAxis[] {
     const hashMode = isHashMode(doc);
+    const nowMs = resolveEvaluationNowMs(context.evaluationTime);
     // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
     // expires_at, and reading the flat doc would gate on an uncovered field.
-    const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc))]];
+    const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc), nowMs)]];
     axes.push(["nonce", ...checkNonce(hashMode ? {} : payloadOf(doc), this.seenNonces)]);
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);
@@ -305,7 +316,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
     axes.push(["payload_digest", ...checkPayloadDigest(signedUnit)]);
     // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
-    axes.push(["skew", ...checkSkew(stamp)]);
+    axes.push(["skew", ...checkSkew(stamp, nowMs)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.
