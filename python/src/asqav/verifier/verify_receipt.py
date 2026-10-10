@@ -65,6 +65,7 @@ import hashlib
 import json
 import math
 import re
+import struct
 import sys
 import urllib.error
 import urllib.request
@@ -1268,13 +1269,46 @@ def _ots_node(buf: bytes, off: int, msg: bytes, depth: int, state: _OtsState) ->
     return _ots_item(tag, buf, off, msg, depth, state)
 
 
+def _derive_block_id(header: dict, merkle_internal: bytes):
+    """Rebuild the 80-byte header and check it against the claimed id.
+
+    Returns (block_id, meets_target), or None when the six derive fields
+    are absent or unparseable. Byte order: version/time/bits/nonce
+    little-endian, both hashes byte-reversed from display hex.
+    """
+    try:
+        version = int(header["version"])
+        prev = bytes.fromhex(header["previousblockhash"])[::-1]
+        stamp = _parse_stamp(header.get("time"))
+        bits = int(header["bits"])
+        nonce = int(header["nonce"])
+        if stamp is None or len(prev) != 32 or not 0 <= version < 2**32:
+            return None
+        if not 0 <= bits < 2**32 or not 0 <= nonce < 2**32:
+            return None
+        exp = (bits >> 24) - 3
+        if exp < 0:
+            return None
+        raw = struct.pack("<I", version) + prev + merkle_internal
+        raw += struct.pack("<III", int(stamp.timestamp()), bits, nonce)
+        if len(raw) != 80:
+            return None
+        block_id = hashlib.sha256(hashlib.sha256(raw).digest()).digest()[::-1].hex()
+        target = (bits & 0xFFFFFF) * 256**exp
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    return block_id, int(block_id, 16) < target
+
+
 def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, str, object]:
     """One OpenTimestamps anchor -> (outcome, detail, block time when verified).
 
     Offline-checkable portion: the proof's initial commitment must equal this
     envelope's digest, and the op chain evaluates to a merkle root. Placing that
     root in a real block needs a caller-supplied header source; without one the
-    block portion reports unverifiable, never a PASS.
+    block portion reports unverifiable, never a PASS. A source carrying only
+    hash/merkle_root/time stays accepted on the merkle match alone; sources
+    with the six derive fields must also reproduce the claimed block id.
     """
     try:
         if len(blob) > _OTS_MAX_BLOB or not blob.startswith(_OTS_MAGIC):
@@ -1307,6 +1341,7 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
             except (TypeError, ValueError):
                 continue
     saw_mismatch = None
+    saw_bad_header = None
     for height, root in state.attestations:
         header = headers.get(height)
         if not isinstance(header, dict) or not isinstance(header.get("merkle_root"), str):
@@ -1322,10 +1357,22 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
         if root != want:
             saw_mismatch = height
             continue
+        derived = _derive_block_id(header, want)
+        if derived is not None:
+            block_id, meets_target = derived
+            claimed = header.get("hash")
+            if not isinstance(claimed, str) or block_id != claimed.lower():
+                saw_bad_header = height
+                continue
+            if not meets_target:
+                saw_bad_header = height
+                continue
         when = _parse_stamp(header.get("time")) if header.get("time") else None
         return "verified", f"OpenTimestamps proof lands in bitcoin block {height}", when
     if saw_mismatch is not None:
         return "invalid", f"merkle path does not land in bitcoin block {saw_mismatch}", None
+    if saw_bad_header is not None:
+        return "invalid", f"bitcoin block {saw_bad_header} header fields do not reproduce its id", None
     return (
         "unverifiable",
         "offline OpenTimestamps check did not complete; commitment matches but no "
