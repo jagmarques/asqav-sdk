@@ -125,10 +125,21 @@ Repository = "https://github.com/jagmarques/asqav-sdk"
 include = [
     "/src",
 ]
+[tool.hatch.build.targets.sdist.force-include]
+# Mirror the source layout inside the sdist so the wheel mapping below
+# resolves identically when built direct or from the sdist.
+"../verifier/conformance-vectors" = "verifier/conformance-vectors"
+"../conformance/NOTICE" = "conformance/NOTICE"
+"../conformance/LICENSE" = "conformance/LICENSE"
 
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"verifier/conformance-vectors" = "asqav/conformance_vectors"
+"conformance/NOTICE" = "asqav/conformance_vectors/NOTICE"
+"conformance/LICENSE" = "asqav/conformance_vectors/LICENSE"
 
 
 [tool.ruff]
