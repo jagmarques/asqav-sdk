@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "counterparty_malformed",
+  "failure_class": "invalid",
+  "notes": "Signed acknowledgment with binding result malformed; signature and local TSA verify."
+}
