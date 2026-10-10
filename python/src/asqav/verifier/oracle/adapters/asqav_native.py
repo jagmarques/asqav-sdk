@@ -28,6 +28,7 @@ from typing import Any
 
 from asqav.verifier import verify_receipt as _vr
 
+from .. import crypto
 from ..adapter import (
     ChainStep,
     FormatAdapter,
@@ -201,6 +202,14 @@ class AsqavNativeAdapter(FormatAdapter):
             payload.get("key_thumbprint"),
         )
 
+    def _verifying_key(self, doc: dict, pk: bytes | None, msg: bytes) -> bytes | None:
+        """The resolved key when the signature verifies under it, else None."""
+        if pk is None:
+            return None
+        sm = self.extract_signature(doc)
+        res, _ = crypto.verify_signature(sm.alg, pk, msg, sm.sig)
+        return pk if res == crypto.PASS else None
+
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
         jwks = key_provider or {"keys": []}
         kid = self.extract_signature(doc).kid
@@ -327,8 +336,9 @@ class AsqavNativeAdapter(FormatAdapter):
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
         axes.append(("skew", *_vr.check_skew(stamp, now=now)))
-        # Weigh the plain copies against the signed payload and verifying key
-        axes.append(("outer_copies", *_vr.check_outer_copies(doc, self.signing_input(doc), bound_pk)))
+        # Weigh the plain copies against the signed payload and the key that verified
+        msg = self.signing_input(doc)
+        axes.append(("outer_copies", *_vr.check_outer_copies(doc, msg, self._verifying_key(doc, bound_pk, msg))))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)

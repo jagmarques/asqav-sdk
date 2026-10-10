@@ -20,7 +20,7 @@ import {
   isCurrentProfileVersion,
   profileRangeNote,
 } from "../canonical.js";
-import { sha256Hex } from "../crypto.js";
+import { PASS, sha256Hex, verifySignature } from "../crypto.js";
 import { isLowerHex } from "./acta.js";
 import {
   FIRST_RECEIPT_SEED,
@@ -198,6 +198,15 @@ export class AsqavNativeAdapter extends FormatAdapter {
     );
   }
 
+  /** The resolved key when the signature verifies under it, else null. */
+  private verifyingKey(
+    doc: Record<string, unknown>, pk: Uint8Array | null, msg: Uint8Array,
+  ): Uint8Array | null {
+    if (pk === null) return null;
+    const sm = this.extractSignature(doc);
+    return verifySignature(sm.alg, pk, msg, sm.sig).result === PASS ? pk : null;
+  }
+
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
@@ -319,8 +328,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
     axes.push(["skew", ...checkSkew(stamp, nowMs)]);
     // Plain copies beside the signed payload are weighed against it; the key is
-    // the one the signature axis verified against
-    axes.push(["outer_copies", ...checkOuterCopies(doc, this.signingInput(doc), boundPk)]);
+    // the one the signature verified under
+    const msg = this.signingInput(doc);
+    axes.push(["outer_copies", ...checkOuterCopies(doc, msg, this.verifyingKey(doc, boundPk, msg))]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.

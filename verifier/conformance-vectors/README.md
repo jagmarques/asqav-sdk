@@ -152,6 +152,9 @@ covers it.
 - `asqav-46-outer-action-type-edited` — unverified (outer_copy_mismatch)
 - `asqav-47-outer-message-copy-edited` — unverified (outer_copy_mismatch)
 - `asqav-48-outer-public-key-edited` — unverified (outer_copy_mismatch)
+- `asqav-49-outer-flat-signature-agree` — verified
+- `asqav-50-outer-flat-signature-agent-id-edited` — unverified (outer_copy_mismatch)
+- `asqav-51-outer-envelope-signature-action-type-edited` — unverified (outer_copy_mismatch)
 <!-- vectors-list:end -->
 
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;

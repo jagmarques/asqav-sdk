@@ -2089,16 +2089,39 @@ _OUTER_TEXT_COPIES = (
     ("supersedes", "supersedes"),
 )
 
-#: Members with no signed counterpart: reported, never trusted.
+#: Members with no signed counterpart: reported, never trusted. The withheld
+#: flag is one: it is a claim about the entry that no signature covers.
 _OUTER_UNATTESTED = (
     "signature_id", "capture_topology", "stale_pending", "corrupted", "corruption_message",
+    "signed_bytes_withheld",
 )
+
+#: Members an entry carries by design, each weighed below or listed above. Any
+#: other top-level name is a stray: held to its signed twin by name, else listed.
+_OUTER_MEMBERS = frozenset((
+    "payload", "signature", "signature_envelope", "anchors", "signature_id", "agent_id",
+    "action_id", "action_type", "algorithm", "signed_at", "compliance_mode",
+    "signature_b64", "public_key_b64", "message_b64", "message_sha256",
+    "signed_bytes_withheld", "stale_pending", "capture_topology", "corrupted",
+    "corruption_message", "receipt_type", "supersedes",
+))
+
+#: Members of the signature object itself; any other is an unsigned extra.
+_SIGNATURE_MEMBERS = ("alg", "kid", "sig")
+
+#: What the hosted /verify response puts under its own top-level type member.
+_HOSTED_RESPONSE_TYPE = "signature"
+
+#: Stand-in the digest-only export writes over a signed value it withholds.
+_WITHHELD_MARKER = "withheld: re-export with include_signed_bytes=true for the signed bytes"
 
 #: What each outer member must agree with, for the mismatch note.
 _OUTER_SIGNED_LABEL = {
     "receipt_type": "type",
     "signed_at": "issued_at",
     "algorithm": "signature.alg",
+    "signature": "signature.sig",
+    "signature_envelope": "signature",
     "signature_b64": "signature.sig",
     "message_b64": "the canonical signed bytes",
     "message_sha256": "the canonical signed bytes",
@@ -2132,9 +2155,9 @@ def _instant(text: object):
     if m is None:
         return None
     shift = _zone_shift(m.group(8))
-    parts = [int(g or 0) for g in m.groups()[:6]]
+    year, month, day, hour, minute, second = (int(g or 0) for g in m.groups()[:6])
     try:
-        moment = datetime(*parts, tzinfo=timezone.utc)
+        moment = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
     except ValueError:
         return None
     if shift is None:
@@ -2172,56 +2195,105 @@ def _same_bytes(outer: object, expected: bytes) -> bool:
     return decoded is not None and decoded == expected
 
 
+def _same_json(outer: object, signed: object) -> bool:
+    """Equal once canonicalised; a value that cannot be canonicalised is unequal."""
+    try:
+        return canonical_json(outer) == canonical_json(signed)
+    except Exception:
+        return False
+
+
+def _signed_twin(payload: dict, name: str):
+    """A signed member's value, None when it is absent or withheld from the export."""
+    twin = payload.get(name)
+    return None if twin == _WITHHELD_MARKER else twin
+
+
 def _text_copy_outcomes(raw: dict, payload: dict) -> list:
     """(member, agrees) per carried text copy; agrees is None with no signed twin."""
     out = []
     for outer, signed in _OUTER_TEXT_COPIES:
         if raw.get(outer) is None:
             continue
-        twin = payload.get(signed)
+        twin = _signed_twin(payload, signed)
         out.append((outer, None if twin is None else _same_text(raw[outer], twin)))
     return out
 
 
 def _time_copy_outcomes(raw: dict, payload: dict) -> list:
     """signed_at must equal issued_at; an observation receipt may also carry the
-    caller-observed context.ts there, because that is what its row stores."""
+    caller-observed context.ts there, because that is what its row stores. When
+    that time is withheld or in a form this check cannot read, the copy is
+    unattested rather than contradicted."""
     if raw.get("signed_at") is None:
         return []
-    signed = [payload.get("issued_at")]
+    observed = payload.get("type") == "protectmcp:observation"
     context = payload.get("context")
-    if payload.get("type") == "protectmcp:observation" and isinstance(context, dict):
-        signed.append(context.get("ts"))
-    signed = [s for s in signed if s is not None]
-    if not signed:
-        return [("signed_at", None)]
-    return [("signed_at", any(_same_instant(raw["signed_at"], s) for s in signed))]
+    seen = context.get("ts") if observed and isinstance(context, dict) else None
+    signed = [t for t in (_signed_twin(payload, "issued_at"), seen) if t is not None]
+    if any(_same_instant(raw["signed_at"], t) for t in signed):
+        return [("signed_at", True)]
+    unreadable = observed and (seen is None or _instant(seen) is None)
+    return [("signed_at", None if not signed or unreadable else False)]
 
 
 def _envelope_copy_outcomes(raw: dict, sig_obj: dict) -> list:
-    """algorithm and the signature string against the envelope's own signature object."""
+    """algorithm and the signature strings against the normalised signature object."""
     out = []
+    twin_sig = _strict_b64(sig_obj.get("sig"))
     if raw.get("algorithm") is not None:
         twin = sig_obj.get("alg")
         out.append(("algorithm", None if twin is None else _same_text(raw["algorithm"], twin)))
     if raw.get("signature_b64") is not None:
-        twin = _strict_b64(sig_obj.get("sig"))
-        out.append(("signature_b64", None if twin is None else _same_bytes(raw["signature_b64"], twin)))
+        out.append(("signature_b64", None if twin_sig is None else _same_bytes(raw["signature_b64"], twin_sig)))
+    flat = raw.get("signature")
+    if flat is not None and not isinstance(flat, dict):
+        out.append(("signature", None if twin_sig is None else _same_bytes(flat, twin_sig)))
+    if raw.get("signature_envelope") is not None:
+        out.append(("signature_envelope", _same_json(raw["signature_envelope"], sig_obj)))
     return out
 
 
 def _byte_copy_outcomes(raw: dict, msg: bytes, key_bytes) -> list:
-    """The signed-bytes copies and the carried public key against what verified."""
+    """The signed-bytes copies and the carried key against what verified.
+
+    key_bytes is the key the signature verified under, None when it did not
+    verify. The digest and the key are compared only then: before that, msg
+    need not be the signed bytes, so a difference proves nothing.
+    """
     out = []
     if raw.get("message_b64") is not None:
         out.append(("message_b64", _same_bytes(raw["message_b64"], msg)))
     if raw.get("message_sha256") is not None:
-        withheld = raw.get("signed_bytes_withheld") is True
-        out.append(("message_sha256", None if withheld else raw["message_sha256"] == hashlib.sha256(msg).hexdigest()))
+        digest = hashlib.sha256(msg).hexdigest()
+        out.append(("message_sha256", None if key_bytes is None else raw["message_sha256"] == digest))
     if raw.get("public_key_b64") is not None:
-        # No resolved key: nothing to compare, so the copy is unattested
         out.append(("public_key_b64", None if key_bytes is None else _same_bytes(raw["public_key_b64"], key_bytes)))
     return out
+
+
+def _stray_outcome(value: object, payload: dict, name: str):
+    """A member under a signed member's name must equal it; any other name has no twin.
+
+    The hosted response names itself type "signature", which is no receipt type.
+    """
+    twin = _signed_twin(payload, name)
+    if twin is None or (name == "type" and value == _HOSTED_RESPONSE_TYPE):
+        return None
+    return _same_json(value, twin)
+
+
+def _unit_order(name: str) -> bytes:
+    # Big-endian UTF-16 bytes sort as the code units do, in every engine.
+    return name.encode("utf-16-be", "surrogatepass")
+
+
+def _stray_outcomes(raw: dict, payload: dict, sig_obj: dict) -> list:
+    """Top-level members outside the export shape, then extras inside the signature object."""
+    top = sorted((k for k in raw if k not in _OUTER_MEMBERS and raw[k] is not None), key=_unit_order)
+    out = [(k, _stray_outcome(raw[k], payload, k)) for k in top]
+    extra = sorted((k for k in sig_obj if k not in _SIGNATURE_MEMBERS and sig_obj[k] is not None), key=_unit_order)
+    return out + [(f"signature.{k}", _stray_outcome(sig_obj[k], payload, k)) for k in extra]
 
 
 def _outer_copy_outcomes(raw: dict, payload: dict, sig_obj: dict, msg: bytes, key_bytes) -> list:
@@ -2229,7 +2301,7 @@ def _outer_copy_outcomes(raw: dict, payload: dict, sig_obj: dict, msg: bytes, ke
     out += _envelope_copy_outcomes(raw, sig_obj) + _byte_copy_outcomes(raw, msg, key_bytes)
     if "compliance_mode" in raw:
         out.append(("compliance_mode", raw["compliance_mode"] is True))
-    return out
+    return out + _stray_outcomes(raw, payload, sig_obj)
 
 
 def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
@@ -2238,7 +2310,7 @@ def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
     unattested = [m for m, ok in outcomes if ok is None]
     unattested += [m for m in _OUTER_UNATTESTED if m in raw]
     if bad:
-        named = ", ".join(f"{m} (signed: {_OUTER_SIGNED_LABEL.get(m, m)})" for m in bad)
+        named = ", ".join(f"{m} (signed: {_OUTER_SIGNED_LABEL.get(m, m.removeprefix('signature.'))})" for m in bad)
         return "FAIL", (
             f"outer copies disagree with the signed payload: {named}; "
             "rely on the signed payload, not on the copies"
@@ -2248,7 +2320,7 @@ def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
     if agreed:
         parts.append(f"outer copies agree with the signed payload: {', '.join(agreed)}")
     if unattested:
-        parts.append(f"no signed counterpart, do not rely on: {', '.join(unattested)}")
+        parts.append(f"not signed, do not rely on: {', '.join(unattested)}")
     return "PASS", "; ".join(parts) or "no outer copies carried; the signed payload is the whole receipt"
 
 
@@ -2260,14 +2332,15 @@ def check_outer_copies(raw: dict, msg: bytes, key_bytes=None):
     edit to one still verifies "signature valid". Every such copy is compared
     with the signed value it restates and any disagreement FAILs the axis, which
     makes the verdict unverified (invalid). A member with no signed counterpart
-    is listed as such. ``raw`` is the entry as received, ``msg`` the canonical
-    signed bytes, ``key_bytes`` the key the signature was checked against (None
-    when none resolved).
+    is listed as such, never trusted. ``raw`` is the entry as received, ``msg``
+    the canonical signed bytes, ``key_bytes`` the key the signature verified
+    under (None when it did not verify). The signature copies are weighed against
+    the normalised signature object, the one the signature axis used.
     """
     payload = raw.get("payload") if isinstance(raw, dict) else None
-    sig_obj = raw.get("signature") if isinstance(raw, dict) else None
-    if not isinstance(payload, dict) or not isinstance(sig_obj, dict):
-        return "PASS", "no signed payload object beside a signature object; no outer copies compared"
+    if not isinstance(payload, dict):
+        return "PASS", "no signed payload object; no outer copies compared"
+    sig_obj = _signature_object(normalise_envelope(raw), payload)
     return _outer_copy_note(_outer_copy_outcomes(raw, payload, sig_obj, msg, key_bytes), raw)
 
 
@@ -2991,6 +3064,12 @@ def _key_and_signature_rows(
     return rows, eff_pk, eff_alg, bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
 
+def _verifying_key(rows, eff_pk):
+    """The key bytes the signature row verified under, None when it did not PASS."""
+    passed = any(name == "signature" and res == "PASS" for name, res, _ in rows)
+    return eff_pk if passed else None
+
+
 def run(
     envelope: dict,
     jwks: dict,
@@ -3073,7 +3152,7 @@ def run(
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
     results.append(("payload_digest", *check_payload_digest(payload)))
-    results.append(("outer_copies", *check_outer_copies(raw_entry, msg, eff_pk)))
+    results.append(("outer_copies", *check_outer_copies(raw_entry, msg, _verifying_key(rows, eff_pk))))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
@@ -3278,7 +3357,7 @@ def run_structured(
         _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
     axes.append(_struct_axis("payload_digest", *check_payload_digest(payload)))
-    axes.append(_struct_axis("outer_copies", *check_outer_copies(raw_entry, msg, eff_pk)))
+    axes.append(_struct_axis("outer_copies", *check_outer_copies(raw_entry, msg, _verifying_key(rows, eff_pk))))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))

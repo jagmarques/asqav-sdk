@@ -55,7 +55,7 @@ def _axes(result: dict) -> dict:
 
 
 def test_case_table_is_populated() -> None:
-    assert len(CASES) >= 50
+    assert len(CASES) >= 100
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
@@ -105,7 +105,7 @@ def test_the_untouched_prod_export_passes_the_axis_and_lists_what_is_unattested(
     assert outer["result"] == "PASS"
     assert "agent_id, action_id, signed_at" in outer["note"]
     # Hash mode signs no action_type, so that copy has nothing to check against
-    assert "no signed counterpart, do not rely on: action_type, signature_id" in outer["note"]
+    assert "not signed, do not rely on: action_type, signature_id" in outer["note"]
     assert _axes(asqav.verify_receipt_offline(receipt, jwks))["outer_copies"]["result"] == "PASS"
 
 
@@ -158,7 +158,7 @@ def test_cli_run_reports_the_axis_on_a_clean_export(tmp_path: Path) -> None:
     assert "[  ok] outer_copies" in run.stdout
 
 
-# ---- conformance vectors (verifier/conformance-vectors/asqav-43..48) --------
+# ---- conformance vectors (verifier/conformance-vectors/asqav-43..51) --------
 
 EDITED = [
     "asqav-44-outer-signed-at-edited",
@@ -204,3 +204,122 @@ def test_the_observation_time_rule_does_not_open_the_signed_at_check() -> None:
     receipt["payload"] = copy.deepcopy(receipt["payload"])
     assert receipt["payload"]["type"] != "protectmcp:observation"
     assert _axes(vr.run_structured(receipt, jwks))["outer_copies"]["result"] == "FAIL"
+
+
+# ---- the other two spellings of the signature (asqav-49..51) -----------------
+
+SHAPE_EDITED = [
+    "asqav-50-outer-flat-signature-agent-id-edited",
+    "asqav-51-outer-envelope-signature-action-type-edited",
+]
+
+
+@requires_mldsa
+def test_the_flat_signature_control_verifies() -> None:
+    receipt, jwks = _vector("asqav-49-outer-flat-signature-agree")
+    assert isinstance(receipt["signature"], str)
+    result = asqav.verify_receipt_offline(receipt, jwks)
+    assert result["verdict"] == "verified", result["axes"]
+    assert _axes(result)["outer_copies"]["result"] == "PASS"
+
+
+@pytest.mark.parametrize("name", SHAPE_EDITED)
+@requires_mldsa
+def test_an_edited_copy_beside_a_rebuilt_signature_is_refused(name: str) -> None:
+    receipt, jwks = _vector(name)
+    assert not isinstance(receipt.get("signature"), dict)
+    for result in (asqav.verify_receipt_offline(receipt, jwks), vr.run_structured(receipt, jwks)):
+        axes = _axes(result)
+        assert axes["signature"]["result"] == "PASS", name
+        assert axes["outer_copies"]["result"] == "FAIL", name
+        assert (result["verdict"], result["failure_class"]) == ("unverified", "invalid"), name
+
+
+# ---- members no signature covers, and the signature that did not verify ----
+
+def _both(receipt: dict, jwks: dict) -> list:
+    return [asqav.verify_receipt_offline(receipt, jwks), vr.run_structured(receipt, jwks)]
+
+
+@pytest.mark.parametrize(
+    "member",
+    ["issued_at", "type", "issuer_id", "org_id", "decision", "v"],
+)
+@requires_mldsa
+def test_a_top_level_member_under_a_signed_name_must_equal_it(member: str) -> None:
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    receipt[member] = "2030-01-01T00:00:00Z" if member == "issued_at" else "forged"
+    for result in _both(receipt, jwks):
+        assert _axes(result)["outer_copies"]["result"] == "FAIL", member
+        assert result["verdict"] == "unverified"
+
+
+@requires_mldsa
+def test_a_nested_signature_member_under_a_signed_name_must_equal_it() -> None:
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    receipt["signature"]["agent_id"] = "agt_someoneElse000000"
+    for result in _both(receipt, jwks):
+        outer = _axes(result)["outer_copies"]
+        assert outer["result"] == "FAIL" and "signature.agent_id" in outer["note"]
+
+
+@requires_mldsa
+def test_unsigned_members_are_listed_on_a_pass() -> None:
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    receipt.update(verified=True, signature_valid=True, kid="k", key_id="k", agent_name="Trusted")
+    receipt["signature"]["signed_at"] = "2030-01-01T00:00:00Z"
+    for result in _both(receipt, jwks):
+        outer = _axes(result)["outer_copies"]
+        assert outer["result"] == "PASS"
+        assert (
+            "not signed, do not rely on: agent_name, key_id, kid, signature_valid, verified, "
+            "signature.signed_at" in outer["note"]
+        )
+
+
+@requires_mldsa
+def test_the_withheld_flag_does_not_switch_off_the_digest_check() -> None:
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    receipt.update(message_sha256="0" * 64, signed_bytes_withheld=True)
+    for result in _both(receipt, jwks):
+        outer = _axes(result)["outer_copies"]
+        assert _axes(result)["signature"]["result"] == "PASS"
+        assert outer["result"] == "FAIL" and "message_sha256" in outer["note"]
+
+
+@requires_mldsa
+def test_the_withheld_flag_is_listed_beside_a_true_digest() -> None:
+    import hashlib
+
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    receipt["message_sha256"] = hashlib.sha256(base64.b64decode(receipt["message_b64"])).hexdigest()
+    receipt["signed_bytes_withheld"] = True
+    for result in _both(receipt, jwks):
+        outer = _axes(result)["outer_copies"]
+        assert outer["result"] == "PASS" and "signed_bytes_withheld" in outer["note"]
+
+
+@requires_mldsa
+def test_a_key_copy_is_not_blamed_when_the_signature_did_not_verify_under_it() -> None:
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    rotated = copy.deepcopy(jwks)
+    key = bytearray(base64.b64decode(rotated["keys"][0]["public_key"]))
+    key[-1] ^= 0x01
+    rotated["keys"][0]["public_key"] = base64.b64encode(bytes(key)).decode()
+    result = asqav.verify_receipt_offline(receipt, rotated)
+    axes = _axes(result)
+    assert axes["signature"]["result"] != "PASS"
+    assert axes["outer_copies"]["result"] == "PASS"
+    assert "public_key_b64" in axes["outer_copies"]["note"]
+    assert result["verdict"] == "unverified"
+
+
+@requires_mldsa
+def test_a_digest_copy_is_not_blamed_when_the_signature_did_not_verify() -> None:
+    receipt, jwks = _vector("asqav-43-outer-copies-agree")
+    receipt["message_sha256"] = "0" * 64
+    receipt["payload"]["agent_id"] = receipt["agent_id"] = "agt_someoneElse000000"
+    axes = _axes(asqav.verify_receipt_offline(receipt, jwks))
+    assert axes["signature"]["result"] == "FAIL"
+    assert axes["outer_copies"]["result"] == "FAIL"
+    assert "message_sha256 (signed" not in axes["outer_copies"]["note"]
