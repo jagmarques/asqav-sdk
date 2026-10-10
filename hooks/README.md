@@ -34,9 +34,10 @@ export ASQAV_AGENT_ID="your-agent-id"
 ```
 
 > `asqav` is the console entrypoint shipped by the asqav Python package. The `hook`
-> subcommand is the harness-hook surface described here, and it needs the CLI extra:
-> `pip install "asqav[cli]"`. Without it the gate cannot start, and `asqav hook pretool`
-> exits 2 with that message so the tool call is blocked rather than run ungated.
+> subcommand is the harness-hook surface described here, and it needs two extras:
+> `pip install "asqav[cli,verify]"`. Without `cli` the gate cannot start, and `asqav hook pretool`
+> exits 2 with that message so the tool call is blocked rather than run ungated. Without
+> `verify` the gate cannot check the receipt's ML-DSA-65 signature, so it blocks every call.
 
 ---
 
