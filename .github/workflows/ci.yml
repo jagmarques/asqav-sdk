@@ -30,6 +30,9 @@ jobs:
               - 'verifier/axis-parity-cases.json'
               - 'verifier/anchor-value-cases.json'
               - 'verifier/time-edge-cases.json'
+              - 'verifier/float-repr-cases.json'
+              - 'verifier/generate_float_repr_cases.py'
+              - 'verifier/counterparty-float-cases.json'
               - '.github/workflows/ci.yml'
             typescript:
               - 'typescript/**'
@@ -41,6 +44,8 @@ jobs:
               - 'verifier/axis-parity-cases.json'
               - 'verifier/anchor-value-cases.json'
               - 'verifier/time-edge-cases.json'
+              - 'verifier/float-repr-cases.json'
+              - 'verifier/counterparty-float-cases.json'
               - '.github/workflows/ci.yml'
             verifier:
               - 'python/src/asqav/verifier/**'
@@ -49,6 +54,8 @@ jobs:
               - 'verifier/axis-parity-cases.json'
               - 'verifier/anchor-value-cases.json'
               - 'verifier/time-edge-cases.json'
+              - 'verifier/float-repr-cases.json'
+              - 'verifier/counterparty-float-cases.json'
               # Corpus-freeze tooling and the standalone walkthrough gate the
               # corpus here, so editing one must re-run this job.
               - 'verifier/check_corpus_lock.sh'
