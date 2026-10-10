@@ -57,6 +57,15 @@ def _vectors() -> dict[str, dict]:
 #: SHA-256 of each vector's canonical bytes, verbatim from the published file.
 #: Pinning this pins ``canonical`` transitively: no other byte string has this digest.
 PINNED_SHA256 = {
+    "counterparty_binding_origin_unavailable": "b6f72c4a7b12981e512e7b730e0a268576254b5d4b2bb69a8b74a11969dc12fd",
+    "counterparty_binding_cross_interaction_replay": "69d921ed3182791e5f46be5ce1ea722840a56f7dea9e65efefe1bf45e0a2ddc2",
+    "counterparty_binding_received_only_acknowledgement": "57dbbabe598fc9d880daeb6283f10eed49934391127d09f4a6024d8c1bd14732",
+    "counterparty_binding_divergent_terms_two_signatures": "3bc550d9e54bcef47cd6624a31096f0bc7657c6cd2f1f29a8c6cc5167132b019",
+    "counterparty_binding_origin_signature_forged": "186df43f053ac200ac6231fb43c86c8f2f884db0163a5bb631aab38ec6179dfb",
+    "counterparty_binding_peer_swapped": "45e599ad025aac7e4a0039ce999eae1e754312a4220698d6f096cf6b7952b362",
+    "counterparty_binding_origin_absent": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "counterparty_binding_origin_divergent": "6cf6c8b5070dba2e46abadcf3323266bae5d737af508470a039a33c84e2281cb",
+    "counterparty_binding_origin_forged": "ec0152153d72b81b6c56f274b9a971ffbf4a181f6ea08460be1ec4a90247a788",
     "counterparty_binding_origin_two_anchors": "36e5256c3940a777eb4e4fc6b08fcb31f1e5a352c82736aa7b32578980b5e9b4",
     "counterparty_binding_scope_minus_anchors": "e6a6b09958c64686de4ef7dd2494690ee0ed7d039da92e2e78b550190d5fe931",
     "counterparty_binding_anchors_included_rejected": "85004158dcf9345ef58eed4178bbfea481a38f0b8cb2a1970785d892980695dc",
@@ -109,6 +118,15 @@ PINNED_SHA256 = {
 #: Length of each canonical string, so a published ``canonical`` cannot be swapped
 #: for a different one that happens to carry the pinned digest in its ``sha256``.
 PINNED_CANONICAL_LENGTH = {
+    "counterparty_binding_origin_unavailable": 904,
+    "counterparty_binding_cross_interaction_replay": 892,
+    "counterparty_binding_received_only_acknowledgement": 776,
+    "counterparty_binding_divergent_terms_two_signatures": 902,
+    "counterparty_binding_origin_signature_forged": 899,
+    "counterparty_binding_peer_swapped": 905,
+    "counterparty_binding_origin_absent": 2,
+    "counterparty_binding_origin_divergent": 958,
+    "counterparty_binding_origin_forged": 988,
     "counterparty_binding_origin_two_anchors": 985,
     "counterparty_binding_scope_minus_anchors": 912,
     "counterparty_binding_anchors_included_rejected": 918,

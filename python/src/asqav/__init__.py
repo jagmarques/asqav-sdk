@@ -464,6 +464,10 @@ def verify_receipt_offline(
             else None; the two are never collapsed (criterion 418)
           - ``"axes"``: list of per-axis dicts (name, result, note, failure_class)
           - ``"fmt"``: detected receipt format name
+          - ``"signer"``: in-body origin attestation, else None
+          - ``"first_failing_edge"``: earliest non-passing axis, else None
+          - ``"not_checked"``: the checks this result does not claim
+          - ``"coverage"``: stopped_at plus checks_not_evaluated beside it
 
     Example::
 
@@ -489,4 +493,12 @@ def verify_receipt_offline(
             for a in vr.axes
         ],
         "fmt": vr.fmt,
+        "signer": vr.signer,
+        "first_failing_edge": vr.first_failing_edge,
+        "not_checked": vr.not_checked,
+        "coverage": vr.coverage,
+        # Mirrors the TS twin's resolved context; unset hints are omitted like undefined.
+        "context": {
+            k: v for k, v in (vars(vr.context) if vr.context else {}).items() if v is not None
+        },
     }

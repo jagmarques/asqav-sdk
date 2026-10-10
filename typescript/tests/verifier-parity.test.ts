@@ -36,7 +36,7 @@ function loadJson(path: string): Record<string, unknown> {
 }
 
 describe("verifier parity gate (THE GATE)", () => {
-  it("matches every manifest outcome across all 91 corpus vectors", () => {
+  it("matches every manifest outcome across all 97 corpus vectors", () => {
     const results = runCorpus(CORPUS_ROOT);
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
@@ -53,9 +53,9 @@ describe("verifier parity gate (THE GATE)", () => {
     // eslint-disable-next-line no-console
     console.log(`\n${report}\n\n  => ${passed}/${results.length} vectors matched expected outcome\n`);
 
-    expect(results.length).toBe(91);
+    expect(results.length).toBe(97);
     expect(mismatches, `mismatched vectors: ${mismatches.map((m) => m.dir).join(", ")}`).toEqual([]);
-    expect(passed).toBe(91);
+    expect(passed).toBe(97);
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
@@ -163,6 +163,7 @@ describe("parseJsonPreservingFloats matches JSON.parse structure (Node 18+ safe)
   // with JSON.parse on everything except the deliberate float/big-int preservation.
   const unwrap = (v: unknown): unknown => {
     if (v && typeof v === "object" && "value" in v && Object.keys(v).length === 1) return (v as { value: number }).value;
+    if (v && typeof v === "object" && "value" in v && "lexeme" in v && Object.keys(v).length === 2) return (v as { value: number }).value;
     if (v && typeof v === "object" && "source" in v && Object.keys(v).length === 1) return Number((v as { source: string }).source);
     if (Array.isArray(v)) return v.map(unwrap);
     if (v && typeof v === "object") {
