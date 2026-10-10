@@ -20,6 +20,7 @@ Example:
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import hashlib
 import hmac
@@ -136,6 +137,10 @@ _mode: str = "full-payload"
 _org_salt: bytes | None = None
 #: Per-request HTTP timeout in seconds; init(timeout=...) overrides it.
 _timeout: float = 30.0
+#: Observer handed the exact body Agent.sign is about to POST (the hook gate reads its hash).
+_sign_body_tap: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = (
+    contextvars.ContextVar("asqav_sign_body_tap", default=None)
+)
 #: Hash-only request metadata allowlist; mirrors the server-enforced whitelist.
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
@@ -2388,6 +2393,9 @@ class Agent:
         # Counterparty pin: server decodes b64.
         if expected_executor_pubkey_b64 is not None:
             body["expected_executor_pubkey_b64"] = expected_executor_pubkey_b64
+        tap = _sign_body_tap.get()
+        if tap is not None:
+            tap(body)
         data = _post(f"/agents/{self.agent_id}/sign", body)
 
         response = SignatureResponse(
