@@ -2534,18 +2534,24 @@ import type { VerifyResult } from "./verifier/core.js";
  * Verify a receipt fully offline against an in-memory JWKS snapshot. No network
  * call is made.
  *
- * Reports 12 axes in this order: `structure`, `signature`, `chain`, `seq`,
+ * Reports 13 axes in this order: `structure`, `signature`, `chain`, `seq`,
  * `expiry`, `nonce`, `key_binding`, `counterparty`, `payload_digest`, `skew`,
- * `key_status`, `issuer_bind`. The Python `verify_receipt_offline` reports the
+ * `outer_copies`, `key_status`, `issuer_bind`. The Python
+ * `verify_receipt_offline` reports the
  * same names in the same order. A receipt whose `structure` axis fails stops
  * there and reports fewer.
  *
- * `skew` is one of the 12 and it decides the verdict: an `issued_at` more than
+ * `skew` is one of the 13 and it decides the verdict: an `issued_at` more than
  * 300 seconds ahead of the wall clock reports FAIL, and the verdict is
  * `unverified` with failure class `invalid`.
  *
+ * `outer_copies` decides the verdict too. An Audit Pack entry restates signed
+ * values as plain top-level members no signature covers; a copy that disagrees
+ * with the signed payload reports FAIL, and the verdict is `unverified` with
+ * failure class `invalid`.
+ *
  * The anchor-binding axis is NOT evaluated here, by design and identically in
- * Python. A `verified` verdict therefore means the 12 axes above passed, NOT
+ * Python. A `verified` verdict therefore means the 13 axes above passed, NOT
  * that the receipt's anchors were checked: `anchors` sits outside the signed
  * bytes, so an altered envelope can move it without breaking the signature. The
  * standalone Python verifier also reports `issuer_key` and reports no `seq`.

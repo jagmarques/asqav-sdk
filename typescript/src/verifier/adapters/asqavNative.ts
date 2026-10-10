@@ -36,6 +36,7 @@ import {
   checkSkew,
   checkNonce,
   checkOrgBinding,
+  checkOuterCopies,
   checkStructure,
   isRecognisedWireVersion,
   keyIssuerOf,
@@ -317,6 +318,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
     axes.push(["skew", ...checkSkew(stamp, nowMs)]);
+    // Plain copies beside the signed payload are weighed against it; the key is
+    // the one the signature axis verified against
+    axes.push(["outer_copies", ...checkOuterCopies(doc, this.signingInput(doc), boundPk)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.

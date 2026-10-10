@@ -100,12 +100,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 53,
-    "action_ref": 49,
-    "policy_digest": 46,
-    "previousReceiptHash": 46,
+    "sig": 59,
+    "action_ref": 55,
+    "policy_digest": 52,
+    "previousReceiptHash": 52,
     "key_thumbprint": 3,
-    "payload_digest": 43,
+    "payload_digest": 49,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -390,6 +390,21 @@ PINNED_ENVELOPE_HASH = {
     'asqav-37-counterparty-divergent-terms': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
     'asqav-39-counterparty-cross-replay': 'xxTSAmzdM1Act3omGEhYR5GfMnUC+C/P6+dZjRm8XIo=',
 }
+
+#: Outer-copy vectors keep asqav-06's signed payload and edit only unsigned
+#: export copies, so every derived pin is asqav-06's pin.
+for _name in (
+    "asqav-43-outer-copies-agree",
+    "asqav-44-outer-signed-at-edited",
+    "asqav-45-outer-agent-id-edited",
+    "asqav-46-outer-action-type-edited",
+    "asqav-47-outer-message-copy-edited",
+    "asqav-48-outer-public-key-edited",
+):
+    for _pins in (PINNED_SIG, PINNED_ACTION_REF, PINNED_POLICY_DIGEST, PINNED_PREV_HASH,
+                  PINNED_PAYLOAD_DIGEST):
+        _pins[_name] = _pins["asqav-06-mldsa65-payload-prod"]
+
 
 
 @pytest.mark.parametrize("name,value", sorted(PINNED_SIG.items()))

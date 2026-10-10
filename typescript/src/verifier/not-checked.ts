@@ -144,6 +144,7 @@ export const AXIS_ORDER = [
   "counterparty",
   "payload_digest",
   "skew",
+  "outer_copies",
   "key_status",
   "issuer_bind",
 ] as const;

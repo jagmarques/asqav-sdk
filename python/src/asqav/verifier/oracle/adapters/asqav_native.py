@@ -327,6 +327,8 @@ class AsqavNativeAdapter(FormatAdapter):
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
         axes.append(("skew", *_vr.check_skew(stamp, now=now)))
+        # Weigh the plain copies against the signed payload and verifying key
+        axes.append(("outer_copies", *_vr.check_outer_copies(doc, self.signing_input(doc), bound_pk)))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)

@@ -1,0 +1,1361 @@
+{
+  "note": "Outer-copy case table (criterion 742). Both the Python and the TypeScript suites feed every case to their own check_outer_copies with the decoded message and key and assert the same result AND the same note, byte for byte. Expectations are the Python output, reviewed by hand. key_b64 null means no key resolved.",
+  "cases": [
+    {
+      "name": "no outer copies carried",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no outer copies carried; the signed payload is the whole receipt"
+      }
+    },
+    {
+      "name": "every copy agrees",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": "agt_1",
+        "action_id": "act_1",
+        "action_type": "pay:release",
+        "receipt_type": "protectmcp:decision",
+        "signed_at": "2026-06-19T00:00:00.123456",
+        "algorithm": "Ed25519",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "message_b64": "c2lnbmVkLWJ5dGVz",
+        "message_sha256": "1b1a789ffde69769ff0b3bd7e2cd3e0d8f8c9e108ffcf8e1a7ccae2bf39c63c4",
+        "public_key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+        "compliance_mode": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: agent_id, action_id, action_type, receipt_type, signed_at, algorithm, signature_b64, message_b64, message_sha256, public_key_b64, compliance_mode"
+      }
+    },
+    {
+      "name": "agent_id edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": "agt_2",
+        "action_id": "act_1",
+        "action_type": "pay:release",
+        "receipt_type": "protectmcp:decision",
+        "signed_at": "2026-06-19T00:00:00.123456",
+        "algorithm": "Ed25519",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "message_b64": "c2lnbmVkLWJ5dGVz",
+        "message_sha256": "1b1a789ffde69769ff0b3bd7e2cd3e0d8f8c9e108ffcf8e1a7ccae2bf39c63c4",
+        "public_key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+        "compliance_mode": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: agent_id (signed: agent_id); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "action_id edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": "agt_1",
+        "action_id": "act_2",
+        "action_type": "pay:release",
+        "receipt_type": "protectmcp:decision",
+        "signed_at": "2026-06-19T00:00:00.123456",
+        "algorithm": "Ed25519",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "message_b64": "c2lnbmVkLWJ5dGVz",
+        "message_sha256": "1b1a789ffde69769ff0b3bd7e2cd3e0d8f8c9e108ffcf8e1a7ccae2bf39c63c4",
+        "public_key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+        "compliance_mode": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: action_id (signed: action_id); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "action_type edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": "agt_1",
+        "action_id": "act_1",
+        "action_type": "pay:other",
+        "receipt_type": "protectmcp:decision",
+        "signed_at": "2026-06-19T00:00:00.123456",
+        "algorithm": "Ed25519",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "message_b64": "c2lnbmVkLWJ5dGVz",
+        "message_sha256": "1b1a789ffde69769ff0b3bd7e2cd3e0d8f8c9e108ffcf8e1a7ccae2bf39c63c4",
+        "public_key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+        "compliance_mode": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: action_type (signed: action_type); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "receipt_type edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": "agt_1",
+        "action_id": "act_1",
+        "action_type": "pay:release",
+        "receipt_type": "protectmcp:restraint",
+        "signed_at": "2026-06-19T00:00:00.123456",
+        "algorithm": "Ed25519",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "message_b64": "c2lnbmVkLWJ5dGVz",
+        "message_sha256": "1b1a789ffde69769ff0b3bd7e2cd3e0d8f8c9e108ffcf8e1a7ccae2bf39c63c4",
+        "public_key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+        "compliance_mode": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: receipt_type (signed: type); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "supersedes edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z",
+          "supersedes": "sig_a"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "supersedes": "sig_b"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: supersedes (signed: supersedes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "supersedes agrees",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z",
+          "supersedes": "sig_a"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "supersedes": "sig_a"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: supersedes"
+      }
+    },
+    {
+      "name": "action_type with no signed twin is listed",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": null,
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "action_type": "asqav:heartbeat"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed counterpart, do not rely on: action_type"
+      }
+    },
+    {
+      "name": "outer null members are not copies",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": null,
+        "signed_at": null,
+        "message_b64": null
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no outer copies carried; the signed payload is the whole receipt"
+      }
+    },
+    {
+      "name": "signed_at naive equals signed Z",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T00:00:00.123456"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at one microsecond off",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T00:00:00.123457"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at edited to another day",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-03-03T00:00:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at trailing zeros in fraction",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T00:00:00.12345600Z"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at nine digit fraction truncates to micro",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T00:00:00.123456789Z"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at offset spelling of same instant",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T02:00:00.123456+02:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at basic offset spelling of same instant",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T02:00:00.123456+0200"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at offset one hour off",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T02:00:00.123456+01:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at month out of range",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-13-19T00:00:00.123456"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at day out of range",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-02-30T00:00:00.123456"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at year zero",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "0000-06-19T00:00:00.123456"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at hour out of range",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T24:00:00.123456"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at offset out of range",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T00:00:00.123456+25:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at not a string",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": 1781827200
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at unparseable but identical to signed",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "soon"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "soon"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at unparseable and different",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "soon"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "later"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signed_at date only equals midnight",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "signed_at without signed issued_at is listed",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": null
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-19T00:00:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed counterpart, do not rely on: signed_at"
+      }
+    },
+    {
+      "name": "observation receipt may carry context.ts",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:observation",
+          "issued_at": "2026-06-19T00:00:00.123456Z",
+          "context": {
+            "ts": "2026-06-18T10:00:00Z"
+          }
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-18T10:00:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signed_at"
+      }
+    },
+    {
+      "name": "observation receipt still rejects other times",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:observation",
+          "issued_at": "2026-06-19T00:00:00.123456Z",
+          "context": {
+            "ts": "2026-06-18T10:00:00Z"
+          }
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-18T10:00:01"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "context.ts is not accepted on other receipt types",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z",
+          "context": {
+            "ts": "2026-06-18T10:00:00Z"
+          }
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signed_at": "2026-06-18T10:00:00"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signed_at (signed: issued_at); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "algorithm edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "algorithm": "ML-DSA-65"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: algorithm (signed: signature.alg); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signature_b64 same bytes in url-safe alphabet",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signature_b64": "c2lnLWJ5dGVz"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: signature_b64"
+      }
+    },
+    {
+      "name": "signature_b64 different bytes",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signature_b64": "b3RoZXItYnl0ZXM="
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signature_b64 (signed: signature.sig); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "signature_b64 not base64",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signature_b64": "not base64!!"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: signature_b64 (signed: signature.sig); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_b64 same bytes, padding stripped",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_b64": "c2lnbmVkLWJ5dGVz"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "outer copies agree with the signed payload: message_b64"
+      }
+    },
+    {
+      "name": "message_b64 other bytes",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_b64": "b3RoZXI="
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: message_b64 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_b64 with a junk character",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_b64": "c2ln!bmVkLWJ5dGVz"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: message_b64 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_b64 not a string",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_b64": 7
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: message_b64 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_b64 empty",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_b64": ""
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: message_b64 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_sha256 edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: message_sha256 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_sha256 upper case",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_sha256": "1B1A789FFDE69769FF0B3BD7E2CD3E0D8F8C9E108FFCF8E1A7CCAE2BF39C63C4"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: message_sha256 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "message_sha256 on a withheld pack is listed",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "message_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "signed_bytes_withheld": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed counterpart, do not rely on: message_sha256"
+      }
+    },
+    {
+      "name": "public_key_b64 edited",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "public_key_b64": "b3RoZXIta2V5"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: public_key_b64 (signed: the verifying key); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "public_key_b64 with no resolved key is not compared",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "public_key_b64": "b3RoZXIta2V5"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": null,
+      "expect": {
+        "result": "PASS",
+        "note": "no signed counterpart, do not rely on: public_key_b64"
+      }
+    },
+    {
+      "name": "compliance_mode false beside a payload",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "compliance_mode": false
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: compliance_mode (signed: the payload); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "compliance_mode as a string",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "compliance_mode": "true"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: compliance_mode (signed: the payload); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "members with no signed counterpart are listed",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "signature_id": "sig_1",
+        "capture_topology": "sdk",
+        "stale_pending": true,
+        "corrupted": false,
+        "corruption_message": null
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed counterpart, do not rely on: signature_id, capture_topology, stale_pending, corrupted, corruption_message"
+      }
+    },
+    {
+      "name": "several edits are all named",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "anchors": [],
+        "agent_id": "agt_2",
+        "action_id": "act_1",
+        "action_type": "pay:release",
+        "receipt_type": "protectmcp:decision",
+        "signed_at": "2020-01-01T00:00:00",
+        "algorithm": "Ed25519",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "message_b64": "eA==",
+        "message_sha256": "1b1a789ffde69769ff0b3bd7e2cd3e0d8f8c9e108ffcf8e1a7ccae2bf39c63c4",
+        "public_key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+        "compliance_mode": true
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "FAIL",
+        "note": "outer copies disagree with the signed payload: agent_id (signed: agent_id), signed_at (signed: issued_at), message_b64 (signed: the canonical signed bytes); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "payload not an object",
+      "raw": {
+        "payload": null,
+        "signature": {
+          "alg": "Ed25519",
+          "kid": "k",
+          "sig": "c2lnLWJ5dGVz"
+        },
+        "agent_id": "agt_9"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed payload object beside a signature object; no outer copies compared"
+      }
+    },
+    {
+      "name": "hosted display shape carries a flat signature",
+      "raw": {
+        "payload": {
+          "agent_id": "agt_1",
+          "action_id": "act_1",
+          "action_type": "pay:release",
+          "type": "protectmcp:decision",
+          "issued_at": "2026-06-19T00:00:00.123456Z"
+        },
+        "signature": "c2lnLWJ5dGVz",
+        "agent_id": "agt_9"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed payload object beside a signature object; no outer copies compared"
+      }
+    },
+    {
+      "name": "bare payload",
+      "raw": {
+        "agent_id": "agt_1",
+        "action_id": "act_1",
+        "action_type": "pay:release",
+        "type": "protectmcp:decision",
+        "issued_at": "2026-06-19T00:00:00.123456Z"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "no signed payload object beside a signature object; no outer copies compared"
+      }
+    }
+  ]
+}
