@@ -142,11 +142,12 @@ class _Signer:
         return self.last_response
 
 
-def _run_gate(monkeypatch, signer: _Signer, event: dict[str, Any], *extra: str):
+def _run_gate(monkeypatch, signer: _Signer, event: dict[str, Any] | str, *extra: str):
     monkeypatch.setattr(_client, "_get", signer.get)
     monkeypatch.setattr(_client, "_post", signer.post)
     monkeypatch.setattr(cli_hook, "_fetch_jwks", lambda _t: signer.jwks())
-    return runner.invoke(app, ["hook", "pretool", *extra], input=json.dumps(event))
+    raw = event if isinstance(event, str) else json.dumps(event)
+    return runner.invoke(app, ["hook", "pretool", *extra], input=raw)
 
 
 _EVENTS = [
@@ -405,3 +406,47 @@ def test_clear_context_blocks_because_the_real_body_carries_no_digest(monkeypatc
     result = _run_gate(monkeypatch, _Signer(), _CALL, "--clear-context")
     assert result.exit_code == 2, result.output
     assert "does not match the digest the gate sent" in result.output
+
+
+# === the gate never exits 1: exit 1 is a non-blocking error and the tool would run ===
+
+
+def _unreachable_signer() -> _Signer:
+    signer = _Signer()
+
+    def refuse(*_a: Any, **_k: Any) -> dict[str, Any]:
+        raise ConnectionError("signer down")
+
+    signer.post = refuse  # type: ignore[method-assign]
+    return signer
+
+
+def _raw_event(tool_input_json: str) -> str:
+    return (
+        '{"session_id":"s-raw","tool_use_id":"toolu_raw","tool_name":"Bash",'
+        f'"tool_input":{tool_input_json}}}'
+    )
+
+
+def test_a_tool_input_nested_past_the_json_recursion_limit_blocks(monkeypatch) -> None:
+    depth = 1100
+    raw = _raw_event("[" * depth + "]" * depth)
+    result = _run_gate(monkeypatch, _unreachable_signer(), raw)
+    assert result.exit_code == 2, result.output
+    assert "blocking tool call" in result.output or "not valid JSON" in result.output
+
+
+def test_a_tool_input_holding_a_huge_integer_blocks(monkeypatch) -> None:
+    raw = _raw_event('{"n":1' + "0" * 5000 + "}")
+    result = _run_gate(monkeypatch, _unreachable_signer(), raw)
+    assert result.exit_code == 2, result.output
+
+
+def test_an_unexpected_error_at_the_top_of_the_live_branch_blocks(monkeypatch) -> None:
+    def boom(_event):
+        raise RuntimeError("something nobody planned for")
+
+    monkeypatch.setattr(cli_hook, "_tool_use_id", boom)
+    result = _run_gate(monkeypatch, _Signer(), _CALL)
+    assert result.exit_code == 2, result.output
+    assert "unexpected RuntimeError, blocking tool call" in result.output
