@@ -202,6 +202,25 @@ def test_native_subclass_keeps_its_two_argument_guard_with_context(axis_name, st
         assert result.verdict == "unverified"
 
 
+@pytest.mark.parametrize("style", ["keyword_only", "var_keyword"])
+def test_native_subclass_with_keyword_context_receives_the_context(style):
+    from asqav.verifier.oracle import AsqavNativeAdapter
+    seen = []
+    class KeywordOnly(AsqavNativeAdapter):
+        def extra_axes(self, doc, key_provider, *, context=None):
+            seen.append(context)
+            return super().extra_axes(doc, key_provider, context)
+    class VarKeyword(AsqavNativeAdapter):
+        def extra_axes(self, doc, key_provider, **kw):
+            seen.append(kw.get("context"))
+            return super().extra_axes(doc, key_provider, kw.get("context"))
+    receipt, origin, jwks = fixture()
+    context = VerificationContext(origin, evaluation_time="2026-01-01T00:00:00Z")
+    adapter = KeywordOnly() if style == "keyword_only" else VarKeyword()
+    verify(receipt, [adapter], jwks, context=context)
+    assert seen == [context]
+
+
 def test_hosted_signature_envelope_retains_actual_acknowledging_kid():
     from asqav.verifier.verify_receipt import run_structured
     receipt, origin, jwks = fixture()
