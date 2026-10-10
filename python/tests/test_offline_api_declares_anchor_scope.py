@@ -19,11 +19,11 @@ _VECTORS = (
     / "asqav-27-anchors-absent"
 )
 
-#: verifyReceiptOffline top-level keys, re-derived live from
-#: typescript/src/verifier/core.ts (the three verify() return sites).
+#: verifyReceiptOffline top-level keys; typescript/tests/offline-verify.test.ts
+#: pins the same literal set against a live TS call, so drift fails one side.
 _TS_KEYS = {
     "fmt", "axes", "verdict", "failureClass", "signer",
-    "firstFailingEdge", "notChecked", "coverage",
+    "firstFailingEdge", "notChecked", "coverage", "context",
 }
 
 
