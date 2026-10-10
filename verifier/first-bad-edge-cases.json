@@ -92,6 +92,7 @@
     "asqav-38-unknown-member-preserved": null,
     "asqav-39-absent-version": "structure",
     "asqav-40-unrecognised-version": "structure",
-    "asqav-41-hash-unrecognised-version": "structure"
+    "asqav-41-hash-unrecognised-version": "structure",
+    "asqav-42-keyed-digest-unverifiable": "payload_digest"
   }
 }

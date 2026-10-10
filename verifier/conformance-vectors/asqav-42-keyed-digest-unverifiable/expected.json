@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "unverifiable",
+  "reason_code": "payload_digest_unchecked",
+  "notes": "Payload-mode genesis carrying BOTH context and payload_digest, but hash_algo selects the keyed construction: the digest is an HMAC under holder key material no verifier holds, so the payload_digest axis reports SKIPPED (unverifiable) rather than manufacturing a mismatch FAIL. The HMAC is computed with stdlib hmac over JCS bytes, never through the verifier."
+}
