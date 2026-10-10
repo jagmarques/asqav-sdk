@@ -5,96 +5,166 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
-- One verdict for a signed decimal across the verifiers. The current receipt profile (`v: 1`)
-  admits only integers within +/-(2**53 - 1) as digest-covered numbers. `verify_receipt.py` and
-  the TypeScript verifier refused an integer-valued float such as `500.0` or `-0.0`, while the
-  Python oracle and `asqav.verify_receipt_offline` verified it because their parser keeps no
-  lexeme. `profile_range_note` now judges every parsed Python float, so all of them report such a
-  receipt `unverified` / `unverifiable`. The oracle and the TypeScript verifier also apply the
-  range to the signature object of an anchored receipt and to the originating envelope of an
-  `envelope_minus_anchors` binding, as `verify_receipt.py` does. A binding under any other scope
-  never hashes its origin, so no verifier range-checks that origin. `verifyReceiptOffline` accepts
-  raw JSON text for the receipt, keys, predecessor and originating envelope, reads it with the
-  lexeme-preserving parser and returns the runner's verdict. Given an object from `JSON.parse` it
-  writes a fraction or a value past 2**53 as Python does, refuses a `-0` as `unverifiable`, and
-  reports a signed `500.0` as `invalid` because `JSON.parse` returns 500 (see the TypeScript
-  README). `verifier/verdict-parity-cases` holds 30 receipts signed with a local key over `1e-07`,
-  the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and tampered.
-  `python/tests/test_verdict_parity_cases.py` and `typescript/tests/verifier-verdict-parity.test.ts`
-  assert one outcome per case from every verifier. No conformance vector changes its verdict
-  (criterion 747).
+### Fixed
 
-- TypeScript verifier: a decimal from `parseJsonPreservingFloats` is signed and hashed as Python's
-  `repr(float)`: `1e-7` becomes `1e-07`, `0.00001` becomes `1e-05`, `76355072847686510.0`
-  becomes `7.635507284768651e+16` and `-0.0` stays `-0.0`. The exponent form starts at 1e16 and
-  below 1e-4 with a sign and two digits, and everything between keeps the positional form. Before,
-  `asqavJcs`, `jcs` and `asqavJcsPreCutover` wrote the JavaScript spelling in those three zones.
-  That split the verdict where the spelling reached signed or hashed bytes: a receipt carrying a
-  decimal below 1e-4 failed its signature check here and passed in Python, and
-  `counterpartyEnvelopeHash` gave a different hash for an originating envelope with a decimal in
-  any of the three zones (`counterparty_mismatch`). The spelling alone does not settle every
-  verdict. On a `v: 1` receipt the profile range refuses a signed 1e16-zone number or `-0.0`
-  before any signature check, so the new spelling never reaches it, and the Python oracle still
-  verified a `-0.0` receipt that both other verifiers refused. The entry above closes that split.
-  `jcsRfc8785` is unchanged, and no conformance vector changes its verdict.
-  `verifier/float-repr-cases.json` holds seeded random decimals with Python's output for each;
-  `python/tests/test_float_repr_parity.py` recomputes it and
-  `typescript/tests/verifier-float-repr.test.ts` checks the TypeScript half (criterion 747).
+- **One verdict for a signed decimal across the verifiers.** The current receipt profile
+  (`v: 1`) admits only integers within ±(2^53 - 1) as digest-covered numbers.
+  `verify_receipt.py` and the TypeScript verifier refused an integer-valued float such as
+  `500.0` or `-0.0`. The Python oracle and `asqav.verify_receipt_offline` verified it,
+  because their parser keeps no lexeme. `profile_range_note` now judges every parsed
+  Python float, so all of them report such a receipt `unverified` / `unverifiable`. The
+  oracle and the TypeScript verifier also apply the range to the signature object of an
+  anchored receipt and to the originating envelope of an `envelope_minus_anchors`
+  binding, as `verify_receipt.py` does. A binding under another scope never hashes its
+  origin, so no verifier range-checks that origin.
+- **`verifyReceiptOffline` accepts raw JSON text** for the receipt, keys, predecessor and
+  originating envelope. It reads the text with the lexeme-preserving parser and returns
+  the conformance runner's verdict. Given an object from `JSON.parse`, it writes a
+  fraction or a value past 2^53 as Python does and refuses a `-0` as `unverifiable`. A
+  signed `500.0` reads back as `500` there, so that receipt reports `invalid`; the
+  TypeScript README explains the difference.
+- **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 30 receipts signed with
+  a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
+  tampered. A Python test and a TypeScript test assert one outcome per case from every
+  verifier. No conformance vector changes its verdict.
 
-- `asqav hook pretool` now compares the receipt to the digest `Agent.sign` actually
-  POSTs. The gate rebuilt it without the lowercased action type and the `_trace_id`
-  context key, so a genuine allow receipt was refused as a digest mismatch (criterion 578).
-  `--dry-run` shows the same normalised body. The digest is read from the body
-  `Agent.sign` hands to the wire, so before-hooks and detectors run once.
-  The receipt must carry the event's `tool_use_id` as `invocation_ref`. An event
-  with no `tool_use_id` is blocked (exit 2). Any other error in the gate, including a
-  tool input nested too deep to parse, exits 2 rather than 1.
-  Without the `cli` extra, `asqav hook pretool` exits 2 instead of 1 so the call is blocked.
+## [0.10.11] - 2026-10-10
 
-- `asqav hook pretool` opens the gate only for a key published for the gated agent
-  (criterion 741). The gate verified a permit against the whole multi-tenant key directory, so
-  a receipt naming the gated agent but signed by a same-org sibling's key, another org's key, or
-  a key picked by `kid` with no `key_thumbprint` was accepted. The verifier now sees only the
-  entries whose `agent_id` equals `ASQAV_AGENT_ID`, so no receipt field can select a key that
-  agent does not own. An entry published without `agent_id` verifies nothing. The cloud's
-  `/.well-known/jwks.json` already publishes `agent_id` on every key.
+### Added
 
-- TypeScript verifier: the nesting-depth cap treats a decimal from `parseJsonPreservingFloats`
-  as a leaf, so the same bytes pass structure at 198 levels in both halves. The counterparty
-  envelope hash shares that walk, so a decimal there passes at 197 wrappers as in Python. Only a
-  genuine `RawFloat` shape counts as a leaf. A shared table in `verifier/axis-parity-cases.json`
-  pins both boundaries.
+- **`AsqavClient` (TypeScript) keeps its own connection.** A client keeps the API key and
+  the settings it was built with, and every Agent it creates or retrieves uses them. Two clients can run side by side in one process, and the module
+  default set by `init` stays independent of both. The README shows credential rotation
+  through a new client and Agent.
+- **An optional invocation pointer on sign.** `Agent.sign(..., invocation_ref=...)` in
+  Python and `invocationRef` in TypeScript put a tool-invocation identifier into the
+  signed receipt, so a pre-call and a post-call receipt can be linked. It is a
+  producer-asserted pointer and promises nothing about uniqueness. The Python hooks
+  forward the tool's invocation id on their own.
+- **The originating receipt can be passed to counterparty checks.** The standalone
+  verifier takes `--counterparty <file>`, and the Python and TypeScript offline
+  verification entry points take the full originating envelope as an option, so the
+  counterparty scope check compares bytes locally. The builders in both languages hash
+  exactly the payload and the original signature object. An unknown scope never passes.
+- **`verify_receipt_offline` in Python returns the same keys as its TypeScript twin:**
+  `signer`, `first_failing_edge`, `not_checked`, `coverage` and the resolved `context`.
+- **The verification context takes evaluation hints:** `evaluation_time`, `trust_roots`,
+  `revocation_snapshot`, `policy_revision`, `evidence_knowledge_cutoff` and `evaluator`
+  (`evaluationTime` and so on in TypeScript), all unset by default. `evaluation_time`
+  drives the expiry and clock-skew checks, so a receipt can be judged as of a chosen
+  moment, and the result records the context it used. With the defaults every verdict is
+  unchanged. A verifier adapter that overrides `extra_axes` with two arguments keeps
+  working; one that takes `context` by keyword or through `**kwargs` receives it.
+- **Conformance vectors** for an Article 50 lifecycle disclosure, an unknown member
+  preserved inside the signature, invocation-pointer pre/post linking, counterparty
+  bindings, a keyed payload digest, an unregistered receipt namespace and the
+  ±(2^53 - 1) integer boundary. The vectors live in the repository, beside the code.
 
-- TypeScript CommonJS build: `npm run build` passes `--splitting`, so `RawFloat` is defined once
-  and every CommonJS entry shares it. Each entry used to bundle its own class, so a decimal parsed
-  by `@asqav/sdk/verifier` failed the `instanceof` check inside `require('@asqav/sdk')`. The depth
-  walk counted its wrapper as nesting and the `aerf-up-01` vector failed its signature. Mixed
-  entries now give the ESM verdicts, and the ESM files are unchanged. `Agent` is defined once too,
-  so `instanceof Agent` holds across entries (criterion 743).
+### Changed
 
-- TypeScript counterparty binding: `computeEnvelopeHash` and `verifyCounterpartyBinding` hash a
-  float-preserving leaf as Python's `json.dumps` writes the float, so `1.0` stays `1.0`, `1e-7`
-  becomes `1e-07` and `-0.0` stays `-0.0`. The wrapper used to hash as an object with `lexeme`
-  and `value` members and count as a nesting level. A float Python refuses (whole-valued beyond
-  2**53 - 1, or not finite) raises `canonical bytes unavailable` and the binding reports
-  `unresolved`. Refusing every float would have split from Python, which hashes them. The depth
-  walk is the shared `exceedsDepth`, so a decimal passes at the same 200 levels in both halves.
-  Input from plain `JSON.parse` has already lost `1.0` as `1` and is not covered.
-  `verifier/counterparty-float-cases.json` pins Python's hashes for decimal and exponent leaves
-  at depth (criterion 744).
+- **Colorado framework entry follows the operative act.** `colorado_ai` in
+  `asqav.compliance.FRAMEWORKS` and in the TypeScript `compliance frameworks` listing
+  reads "Colorado ADMT Act", SB 26-189 (developer duties 6-1-1702(4), deployer duties
+  6-1-1703). The key `colorado_ai` is unchanged.
+- **`@asqav/sdk` declares the Node versions it runs on:** `>=20.19.0 <21 || >=22.12.0`,
+  the release lines on which the CommonJS entry loads. Node 21 does not load it.
+- **Python wheels and source archives carry their license files.** `LICENSE` (Elastic
+  License 2.0 for the SDK), the Apache-2.0 text for the standalone verifier and a
+  `NOTICE` naming which files each covers ship in both, and the package metadata reads
+  `LicenseRef-Elastic-License-2.0 AND Apache-2.0`.
+- **A receipt type outside the registry reports SKIPPED, not FAIL, on the structure
+  check,** naming the type. The verdict stays unverified, so nothing unrecognised
+  verifies. Both languages.
+- **A key revoked with no published `revoked_at` reports SKIPPED / unverifiable** on the
+  key-status check instead of FAIL / invalid, in both languages. A key revoked with a
+  timestamp reports as before, and a bad signature still fails.
+- **A keyed payload digest (`hmac-sha256`) reports SKIPPED** instead of a digest
+  mismatch, since a third party cannot recompute it.
+- **The `org_salt` / `orgSalt` documentation states that the hosted API refuses hash-only
+  bodies with a caller-computed HMAC** (`keyed_digest_requires_context`). Keyed digests
+  are computed server-side: send `context`.
+- **Documentation names the checks the offline APIs report,** including the clock-skew
+  check, which they do evaluate. The hooks guide states that the Mode B pretool gate is
+  deny-by-default and that a gate which cannot start (exit 126 or 127) does not block.
+  The verifier README describes both key-resolution paths and notes that the standalone
+  tool resolves through the JWK Set. The coverage table cites `letta-client` 1.12.1 and
+  classes smolagents as `in_path_proxy`.
 
-- TypeScript `canonicalJson`, the public export, writes a float-preserving value the way Python
-  does, for example `{"v":1e-07}` where it used to write an object with `lexeme` and `value`
-  members. The replay, chain-link and doors callers share it, so their bytes change for input
-  from `parseJsonPreservingFloats`. Plain `JSON.parse` input is unchanged (criterion 744).
+### Fixed
 
-- TypeScript CommonJS entries share all module state under `--splitting`, as the ESM entries
-  already did. The seen-nonce index is one example, so the note on conformance vector
-  `asqav-06` now matches ESM (criterion 743).
+- **`asqav hook pretool` accepts a genuine allow receipt.** The gate rebuilt the request
+  digest without the lowercased action type and the `_trace_id` context key, so every
+  real permit was refused as a digest mismatch. It now reads the digest from the body
+  `Agent.sign` sends, so before-hooks and detectors run once. `--dry-run` shows the same
+  body.
+- **The TypeScript verifier checks the wire version.** A receipt with no `v` member, or
+  with `v: 99`, verified in TypeScript and failed in Python. Both verifiers recognise
+  `v` 1 and 2; an absent or unsupported `v` makes the receipt unverifiable, on
+  payload-mode and hash-mode receipts alike. Booleans and floats never count as a version.
+- **Integers beyond ±(2^53 - 1) are refused as unverifiable** by the strict parsers, the
+  verifier and the oracle in both languages, and the CLI exits 2 with no traceback.
+- **A float spelling of an integer in a digest-covered field is refused** by the strict
+  parsers in both languages, so it cannot bind digits that were never validated.
+- **An explicit `"size": null` in `payload_digest` is malformed** in both verifiers. An
+  absent `size` stays allowed.
+- **The TypeScript acceptor middleware parses receipt headers strictly,** as Python does.
+  A large integer in a header was rounded by `JSON.parse`, so a peer receipt could be
+  accepted under an identifier nobody sent.
+- **The anchor block id is derived from the block header.** When the six header fields
+  are present, the verifier rebuilds the 80-byte header and requires its hash to match
+  the claimed block and meet the target, so a swapped block hash fails.
+- **TypeScript Agents stay on their connection.** An Agent keeps the connection selected
+  when it was created or retrieved. Calling `init` for another account affects Agents
+  obtained afterwards, pending operations keep their destination and signing mode, the
+  salt is copied, and a failed `init` leaves the default intact.
+- **The TypeScript verifier writes decimals as Python's `repr(float)`.** `1e-7` becomes
+  `1e-07`, `0.00001` becomes `1e-05`, `76355072847686510.0` becomes
+  `7.635507284768651e+16` and `-0.0` stays `-0.0`. `asqavJcs`, `jcs` and
+  `asqavJcsPreCutover` wrote the JavaScript spelling there, so a receipt carrying a
+  decimal such as `1e-07` failed its signature check in TypeScript and passed in Python,
+  and `counterpartyEnvelopeHash` returned a different hash. The strict JCS output and plain
+  numbers from `JSON.parse` are unchanged. A receipt carrying `-0.0` or a decimal such as
+  `500.0` is still refused by the TypeScript number-range check while the Python oracle
+  accepts it. The Unreleased section aligns the oracle with that check.
+- **TypeScript counterparty hashing matches Python for floats.** `computeEnvelopeHash` and
+  `verifyCounterpartyBinding` hash a float-preserving value as Python's `json.dumps` writes
+  it (`1.0` stays `1.0`). A float Python refuses raises `canonical bytes unavailable` and
+  the binding reports `unresolved`.
+- **TypeScript `canonicalJson` writes a float-preserving value as Python does,** for
+  example `{"v":1e-07}`, where it wrote an object with `lexeme` and `value` members. Plain
+  `JSON.parse` input is unchanged.
+- **The TypeScript nesting-depth cap treats a decimal as a leaf,** so the same bytes pass
+  at 198 levels in both languages, and a decimal in a counterparty envelope passes at 197
+  wrappers as in Python.
+- **The TypeScript CommonJS build defines `RawFloat` and `Agent` once.** Each CommonJS
+  entry bundled its own copy, so a decimal parsed through `@asqav/sdk/verifier` failed the
+  `instanceof` check inside `require('@asqav/sdk')`, and `instanceof Agent` failed across
+  entries. CommonJS and ESM now give the same verdicts; the ESM files are unchanged.
 
-- Witness policy is signed-optional, not required: decision record
-  `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
-  (criterion 696 Task A; draft edits stay founder-owned as Task B).
+### Security
+
+- **`asqav hook pretool` only opens for a key published for the gated agent.** The gate
+  verified a permit against the whole key directory, so a receipt naming the gated agent
+  but signed by a sibling agent's key, another organisation's key, or a key picked by
+  `kid` alone was accepted. It now keeps only the directory entries whose `agent_id`
+  equals `ASQAV_AGENT_ID`; an entry with no `agent_id` verifies nothing.
+- **`asqav hook pretool` binds the receipt to the call.** The receipt must name the same
+  agent and action digest, fall inside the gate's deadline, and carry the event's
+  `tool_use_id` as `invocation_ref`. An event with no `tool_use_id` is blocked, a receipt
+  is refused whenever the gate sent no digest (so `--clear-context` always blocks), and
+  any error in the gate, including the `cli` extra being absent or an event nested too
+  deep to parse, exits 2 so the call is blocked.
+- **Python lock pins moved past open advisories:** pyjwt 2.13.0 to 2.15.0, anyio 4.12.1
+  to 4.14.2, urllib3 2.7.0 to 2.8.0, fsspec 2026.2.0 to 2026.6.0, multidict 6.7.1 to
+  6.9.1 and litellm 1.88.0 to 1.88.6. The `asqav` package declares no runtime
+  dependencies; these arrive only through optional extras (pyjwt through `openai-agents`
+  and `strands`; fsspec and litellm through `litellm`; multidict through `litellm` and
+  `instructor`; anyio through most extras, including `httpx` and `cli`; urllib3 through
+  `langchain`, `litellm`, `haystack`, `instructor`, `openai-agents`, `presidio` and
+  `strands`). If you install one of those extras, upgrade these packages in your own
+  environment.
+- **TypeScript development dependencies updated:** source-map-js 1.2.2, nanoid 3.3.18 and
+  vitest 4.1.11. None of them ship in the published package.
 
 ## [0.10.10] - 2026-09-05
 
@@ -527,7 +597,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   is fail-closed stricter than the suite spec: `proofPurpose` must be
   `assertionMethod` and the verificationMethod DID must equal the issuer DID,
   mirroring the agentreceipts adapter. `validFrom`/`validUntil` report on the
-  expiry axis, which never folds the verdict (criterion 426). A sibling
+  expiry axis, which never folds the verdict. A sibling
   cryptosuite reports as an algorithm mismatch (`invalid`), never a silent
   re-dispatch. Eight new conformance vectors (`w3c-vc-01..08`) pin the did:web
   and did:key happy paths, tamper rejection, a wrong published key, fail-closed
@@ -573,8 +643,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   The per-axis PASS/FAIL/SKIPPED tokens stay internal. Both language halves and
   the conformance corpus agree byte for byte on verdict and failure_class.
 
-- **BREAKING: duplicate JSON member names are rejected at any depth (criterion
-  419).** Every receipt- and record-parsing path — `verify_receipt` ingest, the
+- **BREAKING: duplicate JSON member names are rejected at any depth.**
+  Every receipt- and record-parsing path — `verify_receipt` ingest, the
   oracle runner and CLI, the attestation signed-message re-parse, the doors OTel
   receipt recovery, the CLI JSON arguments and signing-log records, the API
   response parsers, and the TypeScript `parseJsonPreservingFloats` plus the
