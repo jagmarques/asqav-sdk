@@ -342,6 +342,19 @@ def _load_jwks(timeout: float) -> dict[str, Any]:
     return fresh
 
 
+def _keys_of_agent(jwks: dict[str, Any], agent_id: str) -> dict[str, Any]:
+    """The published keys whose agent_id is the gated agent, and nothing else.
+
+    The verifier picks a key by thumbprint, then kid, then agent bind, all named by the
+    receipt, so a set holding another agent's key lets that agent's signature stand in.
+    Handing it only this agent's keys fixes the resolved entry's agent_id by construction.
+    """
+    keys = [
+        k for k in (jwks.get("keys") or []) if isinstance(k, dict) and k.get("agent_id") == agent_id
+    ]
+    return {"keys": keys}
+
+
 def _key_absent_reason(
     jwks: dict[str, Any], payload: dict[str, Any], signature: Any = None
 ) -> str:
@@ -355,12 +368,16 @@ def _key_absent_reason(
     if thumb and any(k.get("key_thumbprint") for k in keys):
         if any(k.get("key_thumbprint") == thumb for k in keys):
             return ""
-        return f"the published set holds no key with thumbprint {thumb}"
+        return f"the gated agent has no published key with thumbprint {thumb}"
     agent_id = payload.get("agent_id")
     if agent_id:
         if any(k.get("agent_id") == agent_id for k in keys):
             return ""
         return f"the published set holds no key for agent {agent_id}"
+    return _kid_absent_reason(keys, signature)
+
+
+def _kid_absent_reason(keys: list[dict[str, Any]], signature: Any) -> str:
     kid = signature.get("kid") if isinstance(signature, dict) else None
     if kid:
         if any(kid in (k.get("kid"), k.get("issuer_id")) for k in keys):
@@ -374,8 +391,88 @@ def _key_present(jwks: dict[str, Any], payload: dict[str, Any], signature: Any =
     return not _key_absent_reason(jwks, payload, signature)
 
 
+def _missing_agent_key(
+    jwks: dict[str, Any], agent_id: str, payload: dict[str, Any], signature: Any
+) -> str:
+    # An empty set is its own reason, not "names no key", which would blame the receipt.
+    if not jwks["keys"]:
+        return f"the published set holds no key for the gated agent {agent_id}"
+    return _key_absent_reason(jwks, payload, signature)
+
+
+def _agent_key_set(
+    stop: float, payload: dict[str, Any], signature: Any, agent_id: str
+) -> tuple[dict[str, Any], str]:
+    """Return (the gated agent's published keys, "") or ({}, why the gate must block).
+
+    The directory is multi-tenant, so only entries published for agent_id may verify a
+    permit. A same-org sibling, another org's agent, or a kid that names a sibling then
+    finds no key of its own to resolve to.
+    """
+    left = stop - time.monotonic()
+    if left <= 0:
+        return {}, "the gate's deadline was spent before the JWK Set could be read"
+    jwks = _keys_of_agent(_load_jwks(left), agent_id)
+    missing = _missing_agent_key(jwks, agent_id, payload, signature)
+    if not missing:
+        return jwks, ""
+    # One refresh answers a rotation; a set that still names no key ends here with the
+    # reason, instead of re-reading the whole directory on every tool call.
+    left = stop - time.monotonic()
+    if left <= 0:
+        return {}, f"the gate's deadline was spent before a refresh could answer: {missing}"
+    fresh = _fetch_jwks(left)
+    _write_jwks_cache(fresh)
+    jwks = _keys_of_agent(fresh, agent_id)
+    missing = _missing_agent_key(jwks, agent_id, payload, signature)
+    if missing:
+        return {}, f"signing key not published: {missing}"
+    return jwks, ""
+
+
 #: Axes that establish the returned receipt really is a platform signature over these bytes.
 _PERMIT_AXES = ("signature", "issuer_bind", "key_status", "key_binding")
+
+
+def _request_binding_failure(
+    payload: dict[str, Any],
+    *,
+    sent_hash: str,
+    expected_agent_id: str,
+    expected_invocation_ref: str,
+) -> str:
+    """Empty when the receipt answers this agent, digest and tool call, else why not."""
+    if payload.get("agent_id") != expected_agent_id:
+        return (
+            f"agent mismatch: receipt answers {payload.get('agent_id')!r}, "
+            f"gate sent {expected_agent_id!r}"
+        )
+    receipt_digest = payload.get("hash") or payload.get("action_ref")
+    # No digest sent (--clear-context) binds nothing, so even an empty match blocks
+    if not sent_hash or receipt_digest != sent_hash:
+        return "receipt digest does not match the digest the gate sent"
+    # The cloud signs invocation_ref at the top level of the payload; a receipt minted for
+    # another call with the same tool, input and session carries a different one.
+    got = payload.get("invocation_ref")
+    if got != expected_invocation_ref:
+        return (
+            "receipt invocation_ref does not match this tool call "
+            f"({'missing' if got is None else 'a different call'})"
+        )
+    return ""
+
+
+def _freshness_failure(payload: dict[str, Any]) -> str:
+    try:
+        issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
+        if issued.tzinfo is None:
+            issued = issued.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - issued).total_seconds()
+    except (TypeError, ValueError):
+        return "receipt issued_at is missing or unparseable"
+    if not 0 <= age <= _deadline_seconds():
+        return f"receipt issued_at outside the gate deadline ({age:.1f}s old)"
+    return ""
 
 
 def _verify_returned_receipt(
@@ -402,23 +499,9 @@ def _verify_returned_receipt(
         return False, "signer returned no verifiable receipt (payload or signature missing)"
     anchors = getattr(sig, "anchors", None) or []
     doc = {"payload": payload, "signature": signature, "anchors": anchors}
-    stop = time.monotonic() + timeout
-    left = stop - time.monotonic()
-    if left <= 0:
-        return False, "the gate's deadline was spent before the JWK Set could be read"
-    jwks = _load_jwks(left)
-    missing = _key_absent_reason(jwks, payload, signature)
-    if missing:
-        # One refresh answers a rotation; a set that still names no key ends here with the
-        # reason, instead of re-reading the whole directory on every tool call.
-        left = stop - time.monotonic()
-        if left <= 0:
-            return False, f"the gate's deadline was spent before a refresh could answer: {missing}"
-        jwks = _fetch_jwks(left)
-        _write_jwks_cache(jwks)
-        missing = _key_absent_reason(jwks, payload, signature)
-        if missing:
-            return False, f"signing key not published: {missing}"
+    jwks, why = _agent_key_set(time.monotonic() + timeout, payload, signature, expected_agent_id)
+    if why:
+        return False, why
     report = _vr.run_structured(doc, jwks, None)
     axes = {a["name"]: a for a in report.get("axes", [])}
     for name in _PERMIT_AXES:
@@ -426,32 +509,14 @@ def _verify_returned_receipt(
         if axis is None or axis["result"] != "PASS":
             note = axis["note"] if axis else "axis missing"
             return False, f"{name}: {note}"
-    if payload.get("agent_id") != expected_agent_id:
-        return False, (
-            f"agent mismatch: receipt answers {payload.get('agent_id')!r}, "
-            f"gate sent {expected_agent_id!r}"
-        )
-    receipt_digest = payload.get("hash") or payload.get("action_ref")
-    # No digest sent (--clear-context) binds nothing, so even an empty match blocks
-    if not sent_hash or receipt_digest != sent_hash:
-        return False, "receipt digest does not match the digest the gate sent"
-    # The cloud signs invocation_ref at the top level of the payload; a receipt minted for
-    # another call with the same tool, input and session carries a different one.
-    got = payload.get("invocation_ref")
-    if got != expected_invocation_ref:
-        return False, (
-            "receipt invocation_ref does not match this tool call "
-            f"({'missing' if got is None else 'a different call'})"
-        )
-    try:
-        issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
-        if issued.tzinfo is None:
-            issued = issued.replace(tzinfo=timezone.utc)
-        age = (datetime.now(timezone.utc) - issued).total_seconds()
-    except (TypeError, ValueError):
-        return False, "receipt issued_at is missing or unparseable"
-    if not 0 <= age <= _deadline_seconds():
-        return False, f"receipt issued_at outside the gate deadline ({age:.1f}s old)"
+    failure = _request_binding_failure(
+        payload,
+        sent_hash=sent_hash,
+        expected_agent_id=expected_agent_id,
+        expected_invocation_ref=expected_invocation_ref,
+    ) or _freshness_failure(payload)
+    if failure:
+        return False, failure
     return True, f"signature verified against the published JWK Set (kid {signature.get('kid')})"
 
 
