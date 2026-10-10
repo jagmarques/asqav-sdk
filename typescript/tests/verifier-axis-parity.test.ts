@@ -17,6 +17,8 @@ import {
   envelopeMinusAnchorsJcs,
   MAX_NESTING_DEPTH,
   normaliseEnvelope,
+  parseJsonPreservingFloats,
+  RawFloat,
   sha256Hex,
   SKEW_BOUND_SECONDS,
 } from "../src/verifier/index.js";
@@ -52,6 +54,19 @@ interface ChainPrevCase {
   expect: { verdict: string; chain: string; signature: string };
 }
 
+interface NestingDepthCase {
+  name: string;
+  wrappers: number;
+  leaf: string;
+  expect: { structure: string; verdict?: string; failure_class?: string; note?: string };
+}
+
+interface NestingDepthTable {
+  envelope: Record<string, unknown>;
+  jwks: Record<string, unknown>;
+  cases: NestingDepthCase[];
+}
+
 interface DivergenceCase {
   name: string;
   envelope: Record<string, unknown>;
@@ -67,6 +82,7 @@ const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf-8")) as {
   expiry: ExpiryCase[];
   chain_prev_hash: ChainPrevCase[];
   anchors_divergence: DivergenceCase[];
+  nesting_depth: NestingDepthTable;
 };
 
 const PIPELOCK_VECTOR = resolve(
@@ -312,6 +328,37 @@ describe("nesting-depth gate parity", () => {
     expect(r.verdict).toBe("unverified");
     expect(r.failureClass).toBe("unverifiable");
     expect(r.axes[0].note).toBe("receipt nesting exceeds the supported depth (> 200 levels)");
+  });
+
+  it("the depth table is populated and two-sided", () => {
+    const outcomes = new Set(TABLE.nesting_depth.cases.map((c) => c.expect.structure));
+    expect([...outcomes].sort()).toEqual(["FAIL", "PASS"]);
+    const leaves = new Set(TABLE.nesting_depth.cases.map((c) => /[.eE]/.test(c.leaf)));
+    expect(leaves.size, "needs both decimal and integer leaves").toBe(2);
+  });
+
+  // The parser wraps each decimal in a RawFloat, a plain float in Python, so
+  // the wrapper must not add a level to the depth walk
+  for (const c of TABLE.nesting_depth.cases) {
+    it(`shared case: ${c.name}`, () => {
+      const base = JSON.stringify(TABLE.nesting_depth.envelope).slice(0, -1);
+      const text =
+        `${base},"junk":` + '{"n":'.repeat(c.wrappers) + `{"leaf":${c.leaf}}` + "}".repeat(c.wrappers) + "}";
+      const receipt = parseJsonPreservingFloats(text) as Record<string, unknown>;
+      const r = verifyReceiptOffline(receipt, TABLE.nesting_depth.jwks);
+      expect(r.axes.find((a) => a.axis === "structure")?.result, c.name).toBe(c.expect.structure);
+      if (c.expect.structure === "FAIL") {
+        expect(r.verdict).toBe(c.expect.verdict);
+        expect(r.failureClass).toBe(c.expect.failure_class);
+        expect(r.axes).toHaveLength(1);
+        expect(r.axes[0].note).toBe(c.expect.note);
+      }
+    });
+  }
+
+  it("parses a decimal leaf to a RawFloat, so the shared cases are not vacuous", () => {
+    const parsed = parseJsonPreservingFloats('{"leaf":1.5}') as Record<string, unknown>;
+    expect(parsed.leaf).toBeInstanceOf(RawFloat);
   });
 
   it("returns a verdict instead of exhausting the stack", () => {

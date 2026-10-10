@@ -2821,5 +2821,110 @@
         "failure_class": "invalid"
       }
     }
-  ]
+  ],
+  "nesting_depth_note": "Nesting-depth cap parity (criterion 317). Each case builds the receipt JSON text with `wrappers` objects of the shape {\"n\": ...} around {\"leaf\": <leaf literal>} under an unsigned `junk` member, parses it with the decimal-preserving parser (TS parseJsonPreservingFloats, Python strict_json.loads) and verifies it. The envelope key and the leaf each add a level, so 198 wrappers sit at the cap of 200 and 199 cross it. A decimal leaf is a scalar in both halves, so it must not add a level.",
+  "nesting_depth": {
+    "envelope": {
+      "payload": {
+        "type": "protectmcp:decision",
+        "v": 1,
+        "issued_at": "2026-06-19T00:00:00.000000Z",
+        "issuer_id": "f94f66c0-c580-432d-a041-29374f7aee07",
+        "agent_id": "agt_1",
+        "action_ref": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "payload_digest": {
+          "hash": "88",
+          "size": 512
+        },
+        "policy_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "decision": "allow"
+      },
+      "signature": {
+        "alg": "ML-DSA-65",
+        "kid": "k1",
+        "sig": "AAAA"
+      },
+      "anchors": []
+    },
+    "jwks": {
+      "keys": [
+        {
+          "kid": "k1",
+          "agent_id": "agt_1",
+          "issuer_id": "f94f66c0-c580-432d-a041-29374f7aee07",
+          "alg": "ML-DSA-65",
+          "status": "active",
+          "public_key": "AAAA"
+        }
+      ]
+    },
+    "cases": [
+      {
+        "name": "integer leaf at the cap",
+        "wrappers": 198,
+        "leaf": "1",
+        "expect": {
+          "structure": "PASS"
+        }
+      },
+      {
+        "name": "decimal leaf at the cap",
+        "wrappers": 198,
+        "leaf": "1.5",
+        "expect": {
+          "structure": "PASS"
+        }
+      },
+      {
+        "name": "exponent leaf at the cap",
+        "wrappers": 198,
+        "leaf": "1.25e-1",
+        "expect": {
+          "structure": "PASS"
+        }
+      },
+      {
+        "name": "decimal leaf one level inside the cap",
+        "wrappers": 197,
+        "leaf": "1.5",
+        "expect": {
+          "structure": "PASS"
+        }
+      },
+      {
+        "name": "integer leaf one level past the cap",
+        "wrappers": 199,
+        "leaf": "1",
+        "expect": {
+          "structure": "FAIL",
+          "verdict": "unverified",
+          "failure_class": "unverifiable",
+          "note": "receipt nesting exceeds the supported depth (> 200 levels)"
+        }
+      },
+      {
+        "name": "decimal leaf one level past the cap",
+        "wrappers": 199,
+        "leaf": "1.5",
+        "expect": {
+          "structure": "FAIL",
+          "verdict": "unverified",
+          "failure_class": "unverifiable",
+          "note": "receipt nesting exceeds the supported depth (> 200 levels)"
+        }
+      },
+      {
+        "name": "decimal leaf well past the cap",
+        "wrappers": 201,
+        "leaf": "1.5",
+        "expect": {
+          "structure": "FAIL",
+          "verdict": "unverified",
+          "failure_class": "unverifiable",
+          "note": "receipt nesting exceeds the supported depth (> 200 levels)"
+        }
+      }
+    ]
+  }
 }
