@@ -26,6 +26,7 @@ runner = CliRunner()
 
 _PRETOOL_EVENT = {
     "session_id": "s2",
+    "tool_use_id": "toolu_hook",
     "tool_name": "Write",
     "tool_input": {"file_path": "/tmp/f", "content": "hi"},
 }
@@ -81,7 +82,10 @@ def test_pretool_dry_run_clear_context_sends_the_arguments() -> None:
     )
     assert result.exit_code == 0, result.output
     body = json.loads(result.output)
-    assert body["context"] == {"tool_input": {"file_path": "/tmp/f", "content": "hi"}}
+    assert body["context"] == {
+        "tool_input": {"file_path": "/tmp/f", "content": "hi"},
+        "_trace_id": "s2",
+    }
 
 
 def test_sign_event_inits_hash_only_by_default_and_carries_the_deadline(monkeypatch) -> None:
@@ -169,6 +173,7 @@ def _payload(decision: str = "allow") -> dict:
         "policy_digest": "sha256:" + "3" * 64,
         "previousReceiptHash": "0" * 64,
         "decision": decision,
+        "invocation_ref": "toolu_hook",
     }
 
 
@@ -215,7 +220,7 @@ def _jwks(pk: bytes) -> dict:
 
 
 def _gate_with(monkeypatch, sig: _Sig, jwks: dict, fetch_calls: list | None = None):
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: sig)
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: (sig, _live_digest()))
 
     def fake_fetch(_timeout: float) -> dict:
         if fetch_calls is not None:
@@ -283,7 +288,7 @@ def test_pretool_blocks_when_the_jwks_cannot_be_fetched(monkeypatch) -> None:
     ml = _ml_dsa_65()
     _pk, sk = ml.keygen()
     payload = _payload("allow")
-    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: _Sig("sig_x", payload, _signed(payload, sk, ml), []))
+    monkeypatch.setattr(cli_hook, "_sign_event", lambda **_k: (_Sig("sig_x", payload, _signed(payload, sk, ml), []), _live_digest()))
 
     def broken(_timeout: float) -> dict:
         raise OSError("network down")

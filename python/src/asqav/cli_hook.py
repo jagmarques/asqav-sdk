@@ -23,8 +23,9 @@ from typing import Any
 try:
     import typer
 except ImportError:
-    print("CLI requires typer. Install with: pip install asqav[cli]")
-    sys.exit(1)
+    print('CLI requires typer. Install with: pip install "asqav[cli]"', file=sys.stderr)
+    # Exit 1 is a non-blocking error to the harness, so the PreToolUse gate must exit 2.
+    sys.exit(2 if sys.argv[1:3] == ["hook", "pretool"] else 1)
 
 from asqav.code_authorship import CODE_AUTHORSHIP_WRITE_SCOPE
 from asqav.credentials import resolve_api_key
@@ -112,8 +113,8 @@ def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
         raise typer.Exit(code=fail_code)
     try:
         event = json_mod.loads(raw)
-    except json_mod.JSONDecodeError as exc:
-        print(f"Error: hook event is not valid JSON: {exc}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 - deep nesting and huge ints raise past JSONDecodeError
+        print(f"Error: hook event is not valid JSON: {type(exc).__name__}: {exc}", file=sys.stderr)
         raise typer.Exit(code=fail_code) from exc
     if not isinstance(event, dict):
         print("Error: hook event must be a JSON object.", file=sys.stderr)
@@ -129,7 +130,7 @@ def _result_digest(tool_response: Any) -> str:
     return f"sha256:{digest}"
 
 
-    # Build the same body sign() POSTs, reusing the SDK builder (no re-impl).
+    # Build the body sign() POSTs: the SDK's own context and body builders, no re-impl.
 def _build_body(
     *,
     action_type: str,
@@ -140,20 +141,25 @@ def _build_body(
     clear_context: bool = False,
 ) -> dict[str, Any]:
     from asqav import client as _client
-    from asqav.client import _build_sign_body
+    from asqav.client import _build_sign_body, _prepare_sign_context
 
+    # sign() lowercases the action type and files trace_id in the context before
+    # hashing, so the digest the receipt must answer is over that form.
+    fields = {k: v for k, v in compliance_fields.items() if v is not None}
+    wire_action, wire_context = _prepare_sign_context(
+        action_type=action_type, context=context, trace_id=fields.pop("trace_id", None)
+    )
     # The wire mode is a module global the SDK resolves at init; the hook pins it
     # explicitly so a dry run shows the bytes the live hook sends.
     previous = _client._mode
     _client._mode = "full-payload" if clear_context else "hash-only"
     try:
         return _build_sign_body(
-            action_type=action_type,
-            context=context,
+            action_type=wire_action,
+            context=wire_context,
             session_id=session_id or None,
             agent_id=agent_id,
-            compliance_fields={k: v for k, v in compliance_fields.items() if v is not None}
-            or None,
+            compliance_fields=fields or None,
         )
     finally:
         _client._mode = previous
@@ -215,7 +221,7 @@ def _require_identity() -> tuple[str, str]:
     return api_key, agent_id  # type: ignore[return-value]
 
 
-    # Init the SDK, fetch the agent, and sign. Raises on any failure.
+    # Init the SDK, fetch the agent, sign. Returns (receipt, digest POSTed); raises on failure.
 def _sign_event(
     *,
     action_type: str,
@@ -226,7 +232,7 @@ def _sign_event(
     agent_id: str,
     clear_context: bool = False,
     timeout: float | None = None,
-) -> Any:
+) -> tuple[Any, str]:
     import asqav
 
     # Hash-only by default: the tool arguments are digested here and never leave the
@@ -241,7 +247,17 @@ def _sign_event(
         agent._session_id = session_id  # type: ignore[attr-defined]
     kwargs = {k: v for k, v in compliance_fields.items() if v is not None}
     kwargs.pop("compliance_mode", None)
-    return agent.sign(action_type, context=context, compliance_mode=True, **kwargs)
+    # The digest comes from the body sign() hands to the wire, never from the response
+    # and never from a second build that would run before-hooks and detectors again.
+    from asqav import client as _client
+
+    sent: dict[str, str] = {}
+    token = _client._sign_body_tap.set(lambda body: sent.update(hash=str(body.get("hash", ""))))
+    try:
+        sig = agent.sign(action_type, context=context, compliance_mode=True, **kwargs)
+    finally:
+        _client._sign_body_tap.reset(token)
+    return sig, sent.get("hash", "")
 
 
 def _jwks_url() -> str:
@@ -363,14 +379,20 @@ _PERMIT_AXES = ("signature", "issuer_bind", "key_status", "key_binding")
 
 
 def _verify_returned_receipt(
-    sig: Any, timeout: float, *, sent_hash: str, expected_agent_id: str
+    sig: Any,
+    timeout: float,
+    *,
+    sent_hash: str,
+    expected_agent_id: str,
+    expected_invocation_ref: str,
 ) -> tuple[bool, str]:
     """Verify the receipt the signer returned against the published JWK Set.
 
     Returns (ok, reason). The signature-related axes must all PASS; anchors and the
     chain are outside a single receipt's reach and are not required here. The
-    receipt must then answer THIS request: same agent, same action digest, fresh
-    inside the gate deadline. Anything else is (False, reason).
+    receipt must then answer THIS request: same agent, same action digest, the same
+    tool invocation (tool_use_id), fresh inside the gate deadline. Anything
+    else is (False, reason).
     """
     from asqav.verifier import verify_receipt as _vr
 
@@ -413,6 +435,14 @@ def _verify_returned_receipt(
     # No digest sent (--clear-context) binds nothing, so even an empty match blocks
     if not sent_hash or receipt_digest != sent_hash:
         return False, "receipt digest does not match the digest the gate sent"
+    # The cloud signs invocation_ref at the top level of the payload; a receipt minted for
+    # another call with the same tool, input and session carries a different one.
+    got = payload.get("invocation_ref")
+    if got != expected_invocation_ref:
+        return False, (
+            "receipt invocation_ref does not match this tool call "
+            f"({'missing' if got is None else 'a different call'})"
+        )
     try:
         issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
         if issued.tzinfo is None:
@@ -491,7 +521,7 @@ def hook_posttool(
     api_key, agent_id = _require_identity()
     deadline = _deadline_seconds()
     try:
-        sig = _call_with_deadline(
+        sig, _sent_hash = _call_with_deadline(
             _sign_event,
             deadline,
             action_type=action_type,
@@ -513,100 +543,28 @@ def hook_posttool(
     print(f"signed {sig.signature_id}", file=sys.stderr)
 
 
-@hook_app.command("pretool")
-def hook_pretool(
-    clear_context: bool = typer.Option(
-        False,
-        "--clear-context",
-        help="Send the tool arguments in clear for the platform to hold (default: digest only).",
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help="Build and print the sign() body as JSON. No network call.",
-    ),
+def _tool_use_id(event: dict[str, Any]) -> str | None:
+    # The id _map_event forwards as invocation_ref; None when the host sent none.
+    value = event.get("tool_use_id")
+    return value if isinstance(value, str) and value != "" else None
+
+
+def _enforce_receipt(
+    sig: Any,
+    *,
+    sent_hash: str,
+    agent_id: str,
+    invocation_ref: str,
+    deadline: float,
+    started: float,
 ) -> None:
-    """Sign a Claude Code PreToolUse event (FAIL-CLOSED gate).
-
-    The host shell decided before the tool ran, so this is a real decision:
-    in_process_sdk + protectmcp:decision + policy_decision=permit. Exit 2 BLOCKS
-    the tool call when the signer is unreachable, signing errors, the signer does
-    not answer inside the deadline, or the returned receipt does not verify
-    against the published JWK Set. There is no tool result pre-execution, so no
-    result_digest. A malformed/empty event also blocks (exit 2): the gate fails
-    closed on every failure path, never open.
-    """
-    started = time.monotonic()
-    event = _read_event(fail_code=2)
-    action_type, context, session_id, fields = _map_event(
-        event,
-        receipt_type=_DECISION,
-        capture_topology="in_process_sdk",
-        bind_result=False,
-        policy_decision="permit",
-    )
-
-    if dry_run:
-        api_key = resolve_api_key() or ""
-        agent_id = os.environ.get("ASQAV_AGENT_ID", "")
-        body = _build_body(
-            action_type=action_type,
-            context=context,
-            session_id=session_id,
-            agent_id=agent_id,
-            compliance_fields=fields,
-            clear_context=clear_context,
-        )
-        print(json_mod.dumps(body, indent=2, default=str))
-        return
-
-    # Fail-closed: any failure to reach the signer or sign blocks the tool (exit 2).
-    api_key = resolve_api_key()
-    agent_id = os.environ.get("ASQAV_AGENT_ID")
-    if not api_key or not agent_id:
-        print(
-            "asqav hook: ASQAV_API_KEY (or `asqav login`) and ASQAV_AGENT_ID required "
-            "to gate; blocking.",
-            file=sys.stderr,
-        )
-        raise typer.Exit(code=2)
-    deadline = _deadline_seconds()
-    try:
-        sig = _call_with_deadline(
-            _sign_event,
-            deadline,
-            action_type=action_type,
-            context=context,
-            session_id=session_id,
-            compliance_fields=fields,
-            api_key=api_key,
-            agent_id=agent_id,
-            clear_context=clear_context,
-            timeout=deadline,
-        )
-    except HookDeadlineExceeded as exc:
-        print(f"asqav hook: {exc}; blocking tool call", file=sys.stderr)
-        raise typer.Exit(code=2) from exc
-    except Exception as exc:
-        print(f"asqav hook: signer unreachable, blocking tool call: {exc}", file=sys.stderr)
-        raise typer.Exit(code=2) from exc
-
-    # The permit is only as good as its signature; verify it before letting the tool run.
-    # The locally built body carries the digest the gate sent; the receipt must answer it.
-    sent_body = _build_body(
-        action_type=action_type,
-        context=context,
-        session_id=session_id,
-        agent_id=agent_id,
-        compliance_fields=fields,
-        clear_context=clear_context,
-    )
-    sent_hash = sent_body.get("hash", "")
+    """Verify the returned receipt and exit 2 unless it is a permit for THIS call."""
     remaining = max(deadline - (time.monotonic() - started), _MIN_VERIFY_BUDGET_SECONDS)
     try:
         ok, reason = _call_with_deadline(
             _verify_returned_receipt, remaining, sig, remaining,
             sent_hash=sent_hash, expected_agent_id=agent_id,
+            expected_invocation_ref=invocation_ref,
         )
     except HookDeadlineExceeded:
         ok, reason = False, (
@@ -635,6 +593,126 @@ def hook_pretool(
         )
         raise typer.Exit(code=2)
     print(f"{_decision_label(sig)} {sig.signature_id}", file=sys.stderr)
+
+
+@hook_app.command("pretool")
+def hook_pretool(
+    clear_context: bool = typer.Option(
+        False,
+        "--clear-context",
+        help="Send the tool arguments in clear for the platform to hold (default: digest only).",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Build and print the sign() body as JSON. No network call.",
+    ),
+) -> None:
+    """Sign a Claude Code PreToolUse event (FAIL-CLOSED gate).
+
+    The host shell decided before the tool ran, so this is a real decision:
+    in_process_sdk + protectmcp:decision + policy_decision=permit. Exit 2 BLOCKS
+    the tool call when the signer is unreachable, signing errors, the signer does
+    not answer inside the deadline, or the returned receipt does not verify
+    against the published JWK Set. There is no tool result pre-execution, so no
+    result_digest. A malformed/empty event also blocks (exit 2): the gate fails
+    closed on every failure path, never open.
+    """
+    try:
+        _pretool_gate(clear_context=clear_context, dry_run=dry_run)
+    except typer.Exit:
+        raise
+    except Exception as exc:  # noqa: BLE001 - exit 1 lets the tool run, so nothing escapes
+        print(
+            f"asqav hook: unexpected {type(exc).__name__}, blocking tool call: {exc}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2) from exc
+
+
+def _pretool_gate(*, clear_context: bool, dry_run: bool) -> None:
+    started = time.monotonic()
+    event = _read_event(fail_code=2)
+    action_type, context, session_id, fields = _map_event(
+        event,
+        receipt_type=_DECISION,
+        capture_topology="in_process_sdk",
+        bind_result=False,
+        policy_decision="permit",
+    )
+
+    if dry_run:
+        api_key = resolve_api_key() or ""
+        agent_id = os.environ.get("ASQAV_AGENT_ID", "")
+        body = _build_body(
+            action_type=action_type,
+            context=context,
+            session_id=session_id,
+            agent_id=agent_id,
+            compliance_fields=fields,
+            clear_context=clear_context,
+        )
+        print(json_mod.dumps(body, indent=2, default=str))
+        return
+
+    # Fail-closed: an event without tool_use_id leaves no way to bind a permit to this call.
+    invocation_ref = _tool_use_id(event)
+    if invocation_ref is None:
+        print(
+            "asqav hook: the event carries no tool_use_id, so no receipt can be bound to "
+            "this call; blocking tool call",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2)
+    # Fail-closed: any failure to reach the signer or sign blocks the tool (exit 2).
+    api_key = resolve_api_key()
+    agent_id = os.environ.get("ASQAV_AGENT_ID")
+    if not api_key or not agent_id:
+        print(
+            "asqav hook: ASQAV_API_KEY (or `asqav login`) and ASQAV_AGENT_ID required "
+            "to gate; blocking.",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2)
+    deadline = _deadline_seconds()
+    try:
+        sig, sent_hash = _call_with_deadline(
+            _sign_event,
+            deadline,
+            action_type=action_type,
+            context=context,
+            session_id=session_id,
+            compliance_fields=fields,
+            api_key=api_key,
+            agent_id=agent_id,
+            clear_context=clear_context,
+            timeout=deadline,
+        )
+    except HookDeadlineExceeded as exc:
+        print(f"asqav hook: {exc}; blocking tool call", file=sys.stderr)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        print(f"asqav hook: signer unreachable, blocking tool call: {exc}", file=sys.stderr)
+        raise typer.Exit(code=2) from exc
+
+    try:
+        _enforce_receipt(
+            sig,
+            sent_hash=sent_hash,
+            agent_id=agent_id,
+            invocation_ref=invocation_ref,
+            deadline=deadline,
+            started=started,
+        )
+    except typer.Exit:
+        raise
+    except Exception as exc:  # noqa: BLE001 - nothing after signing may exit open
+        print(
+            f"asqav hook: could not gate receipt {getattr(sig, 'signature_id', '?')}, "
+            f"blocking tool call: {exc}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2) from exc
 
 
 @hook_app.command("code-authorship")
