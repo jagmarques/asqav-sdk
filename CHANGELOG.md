@@ -11,7 +11,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   `--dry-run` shows the same normalised body. The digest is read from the body
   `Agent.sign` hands to the wire, so before-hooks and detectors run once, and the
   receipt must carry the event's `tool_use_id` as `invocation_ref`, and an event with
-  no `tool_use_id` is blocked (exit 2). Any error after signing exits 2.
+  no `tool_use_id` is blocked (exit 2). Any other error in the gate, including a
+  tool input nested too deep to parse, exits 2 rather than 1.
 
 - Witness policy is signed-optional, not required: decision record
   `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
