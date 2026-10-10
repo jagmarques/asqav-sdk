@@ -4,6 +4,7 @@
  */
 
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
+import { RawFloat } from "./canonical.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 
@@ -299,6 +300,8 @@ function exceedsDepth(obj: unknown, maxDepth: number): boolean {
   while (stack.length > 0) {
     const [cur, depth] = stack.pop() as [unknown, number];
     if (depth > maxDepth) return true;
+    // A RawFloat is a number leaf, as in Python, not a container
+    if (cur instanceof RawFloat) continue;
     if (Array.isArray(cur)) {
       for (const v of cur) stack.push([v, depth + 1]);
     } else if (cur !== null && typeof cur === "object") {
