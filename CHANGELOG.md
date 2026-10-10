@@ -39,6 +39,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   `verifier/counterparty-float-cases.json` pins Python's hashes for decimal and exponent leaves
   at depth (criterion 744).
 
+- TypeScript `canonicalJson`, the public export, writes a float-preserving value the way Python
+  does, for example `{"v":1e-07}` where it used to write an object with `lexeme` and `value`
+  members. The replay, chain-link and doors callers share it, so their bytes change for input
+  from `parseJsonPreservingFloats`. Plain `JSON.parse` input is unchanged (criterion 744).
+
+- TypeScript CommonJS entries share all module state under `--splitting`, as the ESM entries
+  already did. The seen-nonce index is one example, so the note on conformance vector
+  `asqav-06` now matches ESM (criterion 743).
+
 - Witness policy is signed-optional, not required: decision record
   `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
   (criterion 696 Task A; draft edits stay founder-owned as Task B).
