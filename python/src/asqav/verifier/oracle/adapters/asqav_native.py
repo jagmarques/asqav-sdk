@@ -23,11 +23,18 @@ byte-identical to ``verify_receipt.canonical_json`` by the cloud-parity test.
 """
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from asqav.verifier import verify_receipt as _vr
 
-from ..adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
+from ..adapter import (
+    ChainStep,
+    FormatAdapter,
+    SignatureMaterial,
+    VerificationContext,
+    resolve_evaluation_now,
+)
 from ..canonical import asqav_jcs
 from ..core import sha256_hex
 from .acta import _is_lower_hex
@@ -120,7 +127,21 @@ def _safe_b64(value: Any) -> bytes:
         return b""
 
 
-    # Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode).
+def _context_call_style(method: Any) -> str:
+    """How an extra_axes override takes context: positional, keyword, or not at all."""
+    try:
+        params = list(inspect.signature(method).parameters.values())
+    except (TypeError, ValueError):
+        return "positional"
+    positional = [p for p in params if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+    if len(positional) >= 3 or any(p.kind is p.VAR_POSITIONAL for p in params):
+        return "positional"
+    if any(p.kind is p.VAR_KEYWORD or (p.kind is p.KEYWORD_ONLY and p.name == "context") for p in params):
+        return "keyword"
+    return "none"
+
+
+# Asqav Compliance Receipt - ML-DSA-65 over canonical bytes (compliance or hash mode).
 class AsqavNativeAdapter(FormatAdapter):
 
     name = "asqav-native"
@@ -249,7 +270,14 @@ class AsqavNativeAdapter(FormatAdapter):
     def extra_axes_with_context(
         self, doc: dict, key_provider: Any, context: VerificationContext,
     ) -> list[tuple[str, str, str]]:
-        axes = self.extra_axes(doc, key_provider)
+        # A subclass may still override extra_axes with the older two-argument form.
+        style = _context_call_style(self.extra_axes)
+        if style == "positional":
+            axes = self.extra_axes(doc, key_provider, context)
+        elif style == "keyword":
+            axes = self.extra_axes(doc, key_provider, context=context)
+        else:
+            axes = self.extra_axes(doc, key_provider)
         if context.originating_envelope is None:
             return axes
         signed = {} if _is_hash_mode(doc) else _payload(doc)
@@ -261,7 +289,9 @@ class AsqavNativeAdapter(FormatAdapter):
         outcome = _vr.check_counterparty_binding(signed, context.originating_envelope, acknowledging_kid=kid)
         return [("counterparty", *outcome) if axis == baseline else axis for axis in axes]
 
-    def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
+    def extra_axes(
+        self, doc: dict, key_provider: Any, context: VerificationContext | None = None,
+    ) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
 
         A receipt signed by a revoked key, or by a key the directory publishes
@@ -279,7 +309,8 @@ class AsqavNativeAdapter(FormatAdapter):
         # expires_at, and reading the flat doc would gate on an uncovered field.
         hash_mode = _is_hash_mode(doc)
         signed = {} if hash_mode else _payload(doc)
-        axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed))]
+        now = resolve_evaluation_now(getattr(context, "evaluation_time", None))
+        axes: list[tuple[str, str, str]] = [("expiry", *_vr.check_expiry(signed, now=now))]
         axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
@@ -295,7 +326,7 @@ class AsqavNativeAdapter(FormatAdapter):
         # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
         # this the oracle accepted a 2099 issue time the standalone verifier refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
-        axes.append(("skew", *_vr.check_skew(stamp)))
+        axes.append(("skew", *_vr.check_skew(stamp, now=now)))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)

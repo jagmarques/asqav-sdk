@@ -541,12 +541,12 @@ function skewWithinBound(skewSeconds: number): boolean {
 }
 
 /** `issued_at` within the wall-clock bound; returns `[result, note]` (mirrors `check_skew`). */
-export function checkSkew(issuedAt: unknown): readonly [VerifyState, string] {
+export function checkSkew(issuedAt: unknown, nowMs: number = Date.now()): readonly [VerifyState, string] {
   const ms = parseIsoMs(issuedAt);
   if (ms === null) {
     return ["FAIL", `unparseable issued_at ${JSON.stringify(issuedAt ?? null)}`];
   }
-  const skew = (ms - Date.now()) / 1000;
+  const skew = (ms - nowMs) / 1000;
   if (!skewWithinBound(skew)) {
     return ["FAIL", `issued_at ${skew.toFixed(0)}s ahead of wall clock (> ${SKEW_BOUND_SECONDS}s)`];
   }
@@ -560,7 +560,7 @@ function expiryLapsed(deltaSeconds: number): boolean {
 }
 
 /** Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426). */
-export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
+export function checkExpiry(payload: unknown, nowMs: number = Date.now()): readonly [VerifyState, string] {
   if (!isRecord(payload) || !("expires_at" in payload)) {
     return ["PASS", "receipt declares no expiry"];
   }
@@ -569,7 +569,7 @@ export function checkExpiry(payload: unknown): readonly [VerifyState, string] {
   if (ms === null) {
     return ["FAIL", `unreadable expires_at ${pyRepr(raw)}; refused rather than read as no expiry`];
   }
-  const delta = (ms - Date.now()) / 1000;
+  const delta = (ms - nowMs) / 1000;
   if (expiryLapsed(delta)) {
     return ["FAIL", `expires_at ${pyStr(raw)} lapsed ${(-delta).toFixed(0)}s ago`];
   }
@@ -806,6 +806,10 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
   }
   if (payload.context === undefined || payload.context === null) {
     return ["PASS", "no context carried; payload_digest not recomputable here"];
+  }
+  const algo = (payload as Record<string, unknown>).hash_algo;
+  if (algo !== undefined && (typeof algo !== "string" || algo.trim().toLowerCase() !== "sha256")) {
+    return ["SKIPPED", "keyed payload_digest needs holder key material to recompute; recorded as unverifiable, never a mismatch"];
   }
   let encoded: Uint8Array;
   try {

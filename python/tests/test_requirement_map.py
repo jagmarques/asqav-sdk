@@ -101,6 +101,8 @@ def test_anchor_material_vector_exercises_req_anchor(document):
     assert document["coverage"]["REQ-ANCHOR"] == [
         "asqav-24-anchor-block-hash-prod", "asqav-31-counterparty-scope-match",
         "asqav-32-counterparty-anchors-included", "asqav-33-counterparty-scope-absent",
-        "asqav-34-counterparty-scope-unknown",
+        "asqav-34-counterparty-scope-unknown", "asqav-35-counterparty-peer-swapped",
+        "asqav-36-counterparty-origin-forged", "asqav-37-counterparty-divergent-terms",
+        "asqav-38-counterparty-received-only", "asqav-39-counterparty-cross-replay",
     ]
     assert document["unmapped_requirements"] == []
