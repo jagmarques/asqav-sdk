@@ -2822,7 +2822,7 @@
       }
     }
   ],
-  "nesting_depth_note": "Nesting-depth cap parity (criterion 317). Each case builds the receipt JSON text with `wrappers` objects of the shape {\"n\": ...} around {\"leaf\": <leaf literal>} under an unsigned `junk` member, parses it with the decimal-preserving parser (TS parseJsonPreservingFloats, Python strict_json.loads) and verifies it. The envelope key and the leaf each add a level, so 198 wrappers sit at the cap of 200 and 199 cross it. A decimal leaf is a scalar in both halves, so it must not add a level.",
+  "nesting_depth_note": "Nesting-depth cap parity (criterion 317). Each case builds the receipt JSON text with `wrappers` objects of the shape {\"n\": ...} around {\"leaf\": <leaf literal>} under an unsigned `junk` member and verifies it, once per parser. TS parses with parseJsonPreservingFloats (wraps each decimal in a RawFloat) and with JSON.parse. Python parses with strict_json.loads (plain floats) and with strict_json.loads_profile (the parser that keeps a RawFloat). The envelope key and the leaf each add a level, so 198 wrappers sit at the cap of 200 and 199 cross it. A decimal leaf is a scalar in both halves, so it must not add a level. The `counterparty` cases do the same for the originating envelope the counterparty binding hashes: the junk sits inside the originating payload and the projection root is the payload object, so 197 wrappers pass and 198 report the canonical bytes unavailable. Each PASS row carries the reference hash from the Python canonicaliser.",
   "nesting_depth": {
     "envelope": {
       "payload": {
@@ -2885,6 +2885,14 @@
         }
       },
       {
+        "name": "string leaf at the cap",
+        "wrappers": 198,
+        "leaf": "\"x\"",
+        "expect": {
+          "structure": "PASS"
+        }
+      },
+      {
         "name": "decimal leaf one level inside the cap",
         "wrappers": 197,
         "leaf": "1.5",
@@ -2915,6 +2923,28 @@
         }
       },
       {
+        "name": "string leaf one level past the cap",
+        "wrappers": 199,
+        "leaf": "\"x\"",
+        "expect": {
+          "structure": "FAIL",
+          "verdict": "unverified",
+          "failure_class": "unverifiable",
+          "note": "receipt nesting exceeds the supported depth (> 200 levels)"
+        }
+      },
+      {
+        "name": "decimal leaf at 200 wrappers",
+        "wrappers": 200,
+        "leaf": "1.5",
+        "expect": {
+          "structure": "FAIL",
+          "verdict": "unverified",
+          "failure_class": "unverifiable",
+          "note": "receipt nesting exceeds the supported depth (> 200 levels)"
+        }
+      },
+      {
         "name": "decimal leaf well past the cap",
         "wrappers": 201,
         "leaf": "1.5",
@@ -2925,6 +2955,80 @@
           "note": "receipt nesting exceeds the supported depth (> 200 levels)"
         }
       }
-    ]
+    ],
+    "counterparty": {
+      "envelope": {
+        "payload": {
+          "type": "protectmcp:decision",
+          "v": 1,
+          "agent_id": "agt_1",
+          "decision": "allow"
+        },
+        "signature": {
+          "alg": "ML-DSA-65",
+          "kid": "k1",
+          "sig": "AAAA"
+        }
+      },
+      "payload": {
+        "issuer_id": "iss_1",
+        "counterparty_binding": {
+          "scope": "envelope_minus_anchors",
+          "receipt_ref": "r1"
+        }
+      },
+      "cases": [
+        {
+          "name": "integer leaf at the boundary",
+          "wrappers": 197,
+          "leaf": "1",
+          "envelope_hash": "KbSzyp2r+002cyLZ4USHYgcGaDkPrzFRivyjTb7hv9U=",
+          "expect": {
+            "result": "PASS",
+            "note_contains": "counterparty binding rederives"
+          }
+        },
+        {
+          "name": "decimal leaf at the boundary",
+          "wrappers": 197,
+          "leaf": "1.5",
+          "envelope_hash": "SsZN2fi3YB5YDZ/6DjyPDPv2w5+8adqWnM/t1Xp14xU=",
+          "expect": {
+            "result": "PASS",
+            "note_contains": "counterparty binding rederives"
+          }
+        },
+        {
+          "name": "string leaf at the boundary",
+          "wrappers": 197,
+          "leaf": "\"x\"",
+          "envelope_hash": "UO/4ZASqLctXVqiU2XRUiYgEllu2inM0JYnh9EsTIYU=",
+          "expect": {
+            "result": "PASS",
+            "note_contains": "counterparty binding rederives"
+          }
+        },
+        {
+          "name": "integer leaf one level past",
+          "wrappers": 198,
+          "leaf": "1",
+          "envelope_hash": "SsZN2fi3YB5YDZ/6DjyPDPv2w5+8adqWnM/t1Xp14xU=",
+          "expect": {
+            "result": "SKIPPED",
+            "note_contains": "exact originating canonical bytes are unavailable"
+          }
+        },
+        {
+          "name": "decimal leaf one level past",
+          "wrappers": 198,
+          "leaf": "1.5",
+          "envelope_hash": "SsZN2fi3YB5YDZ/6DjyPDPv2w5+8adqWnM/t1Xp14xU=",
+          "expect": {
+            "result": "SKIPPED",
+            "note_contains": "exact originating canonical bytes are unavailable"
+          }
+        }
+      ]
+    }
   }
 }
