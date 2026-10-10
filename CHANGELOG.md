@@ -21,6 +21,24 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   genuine `RawFloat` shape counts as a leaf. A shared table in `verifier/axis-parity-cases.json`
   pins both boundaries.
 
+- TypeScript CommonJS build: `npm run build` passes `--splitting`, so `RawFloat` is defined once
+  and every CommonJS entry shares it. Each entry used to bundle its own class, so a decimal parsed
+  by `@asqav/sdk/verifier` failed the `instanceof` check inside `require('@asqav/sdk')`. The depth
+  walk counted its wrapper as nesting and the `aerf-up-01` vector failed its signature. Mixed
+  entries now give the ESM verdicts, and the ESM files are unchanged. `Agent` is defined once too,
+  so `instanceof Agent` holds across entries (criterion 743).
+
+- TypeScript counterparty binding: `computeEnvelopeHash` and `verifyCounterpartyBinding` hash a
+  float-preserving leaf as Python's `json.dumps` writes the float, so `1.0` stays `1.0`, `1e-7`
+  becomes `1e-07` and `-0.0` stays `-0.0`. The wrapper used to hash as an object with `lexeme`
+  and `value` members and count as a nesting level. A float Python refuses (whole-valued beyond
+  2**53 - 1, or not finite) raises `canonical bytes unavailable` and the binding reports
+  `unresolved`. Refusing every float would have split from Python, which hashes them. The depth
+  walk is the shared `exceedsDepth`, so a decimal passes at the same 200 levels in both halves.
+  Input from plain `JSON.parse` has already lost `1.0` as `1` and is not covered.
+  `verifier/counterparty-float-cases.json` pins Python's hashes for decimal and exponent leaves
+  at depth (criterion 744).
+
 - Witness policy is signed-optional, not required: decision record
   `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`
   (criterion 696 Task A; draft edits stay founder-owned as Task B).
