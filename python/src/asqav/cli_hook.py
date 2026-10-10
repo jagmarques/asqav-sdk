@@ -383,14 +383,14 @@ def _verify_returned_receipt(
     *,
     sent_hash: str,
     expected_agent_id: str,
-    expected_invocation_ref: str | None = None,
+    expected_invocation_ref: str,
 ) -> tuple[bool, str]:
     """Verify the receipt the signer returned against the published JWK Set.
 
     Returns (ok, reason). The signature-related axes must all PASS; anchors and the
     chain are outside a single receipt's reach and are not required here. The
     receipt must then answer THIS request: same agent, same action digest, the same
-    tool invocation when the host named one, fresh inside the gate deadline. Anything
+    tool invocation (tool_use_id), fresh inside the gate deadline. Anything
     else is (False, reason).
     """
     from asqav.verifier import verify_receipt as _vr
@@ -436,13 +436,12 @@ def _verify_returned_receipt(
         return False, "receipt digest does not match the digest the gate sent"
     # The cloud signs invocation_ref at the top level of the payload; a receipt minted for
     # another call with the same tool, input and session carries a different one.
-    if expected_invocation_ref is not None:
-        got = payload.get("invocation_ref")
-        if got != expected_invocation_ref:
-            return False, (
-                "receipt invocation_ref does not match this tool call "
-                f"({'missing' if got is None else 'a different call'})"
-            )
+    got = payload.get("invocation_ref")
+    if got != expected_invocation_ref:
+        return False, (
+            "receipt invocation_ref does not match this tool call "
+            f"({'missing' if got is None else 'a different call'})"
+        )
     try:
         issued = datetime.fromisoformat(str(payload.get("issued_at", "")))
         if issued.tzinfo is None:
@@ -554,7 +553,7 @@ def _enforce_receipt(
     *,
     sent_hash: str,
     agent_id: str,
-    invocation_ref: str | None,
+    invocation_ref: str,
     deadline: float,
     started: float,
 ) -> None:
@@ -642,6 +641,15 @@ def hook_pretool(
         print(json_mod.dumps(body, indent=2, default=str))
         return
 
+    # Fail-closed: an event without tool_use_id leaves no way to bind a permit to this call.
+    invocation_ref = _tool_use_id(event)
+    if invocation_ref is None:
+        print(
+            "asqav hook: the event carries no tool_use_id, so no receipt can be bound to "
+            "this call; blocking tool call",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=2)
     # Fail-closed: any failure to reach the signer or sign blocks the tool (exit 2).
     api_key = resolve_api_key()
     agent_id = os.environ.get("ASQAV_AGENT_ID")
@@ -678,7 +686,7 @@ def hook_pretool(
             sig,
             sent_hash=sent_hash,
             agent_id=agent_id,
-            invocation_ref=_tool_use_id(event),
+            invocation_ref=invocation_ref,
             deadline=deadline,
             started=started,
         )
