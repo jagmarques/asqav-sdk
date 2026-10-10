@@ -2197,6 +2197,14 @@ def check_payload_digest(payload: dict):
         # An explicit null reads as absent: the hosted verifier returns payload: null
         # for redacted and hash-only receipts, and null is not a context to hash
         return "PASS", "no context carried; payload_digest not recomputable here"
+    if is_keyed_digest(payload):
+        # A keyed digest (hash_algo outside sha256) is HMAC over the context
+        # under holder key material no caller supplies here; recomputing a
+        # plain SHA-256 would manufacture a mismatch, so report unverifiable.
+        return "SKIPPED", (
+            "keyed payload_digest needs holder key material to recompute; "
+            "recorded as unverifiable, never a mismatch"
+        )
 
     try:
         encoded = canonical_json(payload["context"])
