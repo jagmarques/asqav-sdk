@@ -48,8 +48,10 @@ ship a TLS terminator.
 
 ## Point the SDK at your signer
 
-The SDK reads `ASQAV_API_URL` at import time, falling back to
-`https://api.asqav.com/api/v1`. Override it to your signer's URL:
+The SDK resolves its API base in this order: the `base_url` argument to
+`asqav.init()`, `ASQAV_API_URL`, `ASQAV_API_BASE`, the base saved by
+`asqav login --api-base`, then `https://api.asqav.com/api/v1`. The CLI and
+`asqav doctor` use the same order. Point it at your signer's URL:
 
 ```bash
 export ASQAV_API_URL=https://signer.internal.example.com/api/v1

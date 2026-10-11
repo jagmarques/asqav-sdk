@@ -7,6 +7,8 @@
 import fs from "node:fs";
 import readline from "node:readline";
 import {
+  _anchorState,
+  _signatureValid,
   Agent,
   APIError,
   BudgetTracker,
@@ -75,6 +77,11 @@ function positional(args: string[]): string[] {
 
 // === Commands ===
 
+const ANCHOR_TEXT: Record<string, string> = {
+  pending: "pending (normal for a fresh receipt; run verify again later)",
+  unknown: "not reported",
+};
+
 async function cmdVerify(args: string[]): Promise<void> {
   const [sigId] = positional(args);
   if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
@@ -84,10 +91,14 @@ async function cmdVerify(args: string[]): Promise<void> {
   try {
     const r = await verifySignature(sigId);
     if (output === "json") {
-      process.stdout.write(`${JSON.stringify(r, null, 2)}\n`);
+      const extra = { signatureValid: _signatureValid(r), anchor: _anchorState(r.verificationDetail) };
+      process.stdout.write(`${JSON.stringify({ ...r, ...extra }, null, 2)}\n`);
       return;
     }
-    process.stdout.write(`Signature: ${r.verified ? "valid" : "invalid"}\n`);
+    // Signature and anchor are separate axes; fresh receipts read valid
+    const anchor = _anchorState(r.verificationDetail);
+    process.stdout.write(`Signature: ${_signatureValid(r) ? "valid" : "invalid"}\n`);
+    process.stdout.write(`Anchor: ${ANCHOR_TEXT[anchor] ?? anchor}\n`);
     if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
     if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
     process.stdout.write(`Algorithm: ${r.algorithm}\n`);
@@ -1073,7 +1084,8 @@ async function cmdLogin(args: string[]): Promise<void> {
 
   const base = apiBase || undefined;
   try {
-    init({ apiKey, baseUrl: base });
+    // Validate against the base being saved, not the file it replaces
+    init({ apiKey, baseUrl: resolveApiBase(base, { useFile: false }) });
     await request<unknown>("GET", "/agents");
   } catch (err) {
     die(`Error: key validation failed: ${(err as Error).message}\nNothing was saved.`);

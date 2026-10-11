@@ -22,10 +22,24 @@ pip install asqav
 
 ## 快速开始
 
+```bash
+export ASQAV_API_KEY=<paste your key here>
+```
+
+```python
+import asqav
+asqav.init()
+agent = asqav.Agent.create("my-first-agent")
+receipt = agent.sign("test", {"hello": "world"})
+print("Receipt:", receipt.verification_url)
+```
+
+高风险操作可附加审计字段：
+
 ```python
 import asqav
 
-asqav.init(api_key="sk_...")
+asqav.init()
 agent = asqav.Agent.create("my-agent")
 
 sig = agent.sign(

@@ -536,7 +536,7 @@ def test_quickstart_with_api_key() -> None:
     assert result.exit_code == 0
     assert "API key detected" in result.output
     assert "asqav hook" in result.output
-    assert "Policy" in result.output
+    assert "asqav.Agent.create" in result.output
     assert "Next steps" in result.output
 
 

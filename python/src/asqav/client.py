@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 from ._sql_match import matches_pattern as _matches_pattern
 from ._useragent import USER_AGENT
-from .credentials import resolve_api_key
+from .credentials import resolve_api_base, resolve_api_key
 from .patterns import resolve_pattern
 from .retry import with_retry
 
@@ -117,7 +117,10 @@ except ImportError:
 
 # API configuration
 _api_key: str | None = None
-_api_base: str = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
+# Same order as init(); see credentials.resolve_api_base.
+_api_base: str = resolve_api_base()
+# Last base passed to init(); a later init() without one (e.g. via govern()) keeps it.
+_explicit_api_base: str | None = None
 
 
 def _join_url(base: str, path: str) -> str:
@@ -132,6 +135,7 @@ def _join_url(base: str, path: str) -> str:
 
 
 _client: Any = None
+_NO_BODY: Any = object()
 # Hybrid GDPR mode: resolved at init() time, overridable per-call. See _mode.py.
 _mode: str = "full-payload"
 _org_salt: bytes | None = None
@@ -171,6 +175,72 @@ class APIError(AsqavError):
     def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
+
+
+    # Raised when the API cannot be reached (refused, DNS, timeout, TLS).
+    # Not retried, so a caller's deadline (the hook gate's timeout) still holds.
+class AsqavConnectionError(AsqavError):
+
+    pass
+
+
+    # One-line connection error naming the URL and a next step.
+def _connection_error(url: str, exc: BaseException) -> AsqavConnectionError:
+    reason = getattr(exc, "reason", None) or exc
+    return AsqavConnectionError(
+        f"could not reach the Asqav API at {url} ({_one_line(str(reason))}). "
+        "Check the API base (ASQAV_API_URL or `asqav login --api-base`) and run `asqav doctor`."
+    )
+
+
+    # Collapse whitespace and cap length so an error message stays on one line.
+def _one_line(text: str, limit: int = 200) -> str:
+    flat = " ".join(text.split())
+    return flat if len(flat) <= limit else flat[: limit - 3] + "..."
+
+
+    # Server reason from a JSON error body: detail (str, list or dict) plus code.
+def _reason_from_body(body: Any) -> str:
+    if not isinstance(body, dict):
+        return ""
+    detail = body.get("detail") or body.get("error") or body.get("message")
+    code = body.get("code")
+    if isinstance(detail, dict):
+        code = code or detail.get("code")
+        detail = detail.get("message") or detail.get("detail")
+    if isinstance(detail, list):
+        detail = _validation_list_text(detail)
+    text = _one_line(str(detail)) if detail else ""
+    if code and str(code) not in text:
+        text = f"{text} ({code})" if text else str(code)
+    return text
+
+
+    # FastAPI validation list as "field: message; field: message".
+def _validation_list_text(items: list[Any]) -> str:
+    return "; ".join(
+        f"{e.get('loc', ['?'])[-1]}: {e.get('msg', '')}".strip(": ")
+        for e in items
+        if isinstance(e, dict)
+    ) or str(items)
+
+
+    # One-line APIError message for an HTTP error status and raw body text.
+def _error_message(status: int, text: str, body: Any = None) -> str:
+    if body is None:
+        try:
+            body = _json.loads(text)
+        except ValueError:
+            body = None
+    reason = _reason_from_body(body)
+    if reason:
+        return reason
+    flat = _one_line(text or "")
+    if not flat:
+        return f"HTTP {status}"
+    if "<" not in flat:
+        return f"HTTP {status}: {flat}"
+    return f"HTTP {status} with a non-JSON body (often a proxy or gateway error page)"
 
 
 class AsqavValidationError(ValueError):
@@ -2981,7 +3051,10 @@ def init(
 
     Args:
         api_key: Your Asqav API key. Can also be set via ASQAV_API_KEY env var.
-        base_url: Override API base URL (for testing).
+        base_url: API base URL. When omitted, a base given to a previous
+            init() call in this process stays; otherwise it resolves in this
+            order: ``ASQAV_API_URL``, ``ASQAV_API_BASE``, the base saved by
+            ``asqav login --api-base``, then ``https://api.asqav.com/api/v1``.
         mode: Wire format for ``Agent.sign``. One of ``"auto"`` (default),
             ``"hash-only"``, or ``"full-payload"``. ``auto`` resolves to
             ``hash-only`` for the Asqav cloud (``*.asqav.com``) and
@@ -3018,7 +3091,7 @@ def init(
         # Force hash-only against a custom URL
         asqav.init(api_key="sk_...", mode="hash-only", org_salt=bytes.fromhex("..."))
     """
-    global _api_key, _api_base, _client, _mode, _org_salt, _timeout
+    global _api_key, _api_base, _explicit_api_base, _client, _mode, _org_salt, _timeout
 
     _api_key = resolve_api_key(api_key)
 
@@ -3028,8 +3101,8 @@ def init(
             "to init(). A saved key is read from ~/.asqav/credentials. Get yours at asqav.com"
         )
 
-    if base_url:
-        _api_base = base_url
+    _explicit_api_base = base_url or _explicit_api_base
+    _api_base = resolve_api_base(_explicit_api_base)
 
     from ._mode import _resolve_mode
 
@@ -3102,10 +3175,7 @@ def _get(path: str) -> dict[str, Any]:
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
-        response = _client.get(path)
-        _handle_response(response)
-        result: dict[str, Any] = _strict_response_json(response)
-        return result
+        return _httpx_call("get", path)
     else:
         # Use stdlib urllib if httpx not installed
         return _urllib_request("GET", path)
@@ -3117,10 +3187,7 @@ def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
-        response = _client.post(path, json=data)
-        _handle_response(response)
-        result: dict[str, Any] = _strict_response_json(response)
-        return result
+        return _httpx_call("post", path, data)
     else:
         return _urllib_request("POST", path, data)
 
@@ -3131,10 +3198,7 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
-        response = _client.patch(path, json=data)
-        _handle_response(response)
-        result: dict[str, Any] = _strict_response_json(response)
-        return result
+        return _httpx_call("patch", path, data)
     else:
         return _urllib_request("PATCH", path, data)
 
@@ -3145,10 +3209,7 @@ def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
-        response = _client.put(path, json=data)
-        _handle_response(response)
-        result: dict[str, Any] = _strict_response_json(response)
-        return result
+        return _httpx_call("put", path, data)
     else:
         return _urllib_request("PUT", path, data)
 
@@ -3159,12 +3220,21 @@ def _delete(path: str) -> dict[str, Any]:
     _ensure_initialized()
 
     if _HTTPX_AVAILABLE and _client:
-        response = _client.delete(path)
-        _handle_response(response)
-        result: dict[str, Any] = _strict_response_json(response)
-        return result
+        return _httpx_call("delete", path)
     else:
         return _urllib_request("DELETE", path)
+
+
+    # Send one request on the shared httpx client; transport failures become AsqavConnectionError.
+def _httpx_call(verb: str, path: str, data: Any = _NO_BODY) -> dict[str, Any]:
+    kwargs = {} if data is _NO_BODY else {"json": data}
+    try:
+        response = getattr(_client, verb)(path, **kwargs)
+    except httpx.RequestError as exc:
+        raise _connection_error(_join_url(_api_base, path), exc) from exc
+    _handle_response(response)
+    result: dict[str, Any] = _strict_response_json(response)
+    return result
 
 
     # Ensure the SDK is initialized.
@@ -3182,18 +3252,10 @@ def _handle_response(response: Any) -> None:
     elif response.status_code >= 400:
         try:
             body = response.json()
-            error = body.get("detail") or body.get("error") or response.text or "Unknown error"
-            if isinstance(error, list):
-                error = "; ".join(
-                    f"{e.get('loc', ['?'])[-1]}: {e.get('msg', '')}".strip(": ")
-                    for e in error
-                    if isinstance(e, dict)
-                ) or str(error)
-            elif not isinstance(error, str):
-                error = str(error)
         except Exception:
-            error = response.text or "Unknown error"
-        raise APIError(error, response.status_code)
+            body = None
+        text = response.text if isinstance(response.text, str) else ""
+        raise APIError(_error_message(response.status_code, text, body), response.status_code)
 
 
     # HTTP client using stdlib urllib (used when httpx not installed).
@@ -3231,8 +3293,18 @@ def _urllib_request(
             raise AuthenticationError("Invalid API key") from e
         elif e.code == 429:
             raise RateLimitError("Rate limit exceeded") from e
-        else:
-            raise APIError(str(e), e.code) from e
+        raise APIError(_error_message(e.code, _http_error_text(e)), e.code) from e
+    except (urllib.error.URLError, OSError) as e:
+        raise _connection_error(url, e) from e
+
+
+    # Body of a urllib HTTPError as text ("" when unreadable), so the server reason survives.
+def _http_error_text(err: Any) -> str:
+    try:
+        raw = err.read()
+    except Exception:
+        return ""
+    return raw.decode("utf-8", "replace") if isinstance(raw, bytes) else ""
 
 
 # Global agent for decorators
@@ -3464,6 +3536,37 @@ def get_session_signatures(session_id: str) -> list[SignedActionResponse]:
     ]
 
 
+    # GET the public /verify document; errors map to APIError or AsqavConnectionError.
+def _fetch_verification(url: str) -> dict[str, Any]:
+    if _HTTPX_AVAILABLE:
+        try:
+            response = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=30.0)
+        except httpx.RequestError as exc:
+            raise _connection_error(url, exc) from exc
+        if response.status_code == 404:
+            raise APIError("Signature not found", 404)
+        if response.status_code >= 400:
+            status = response.status_code
+            raise APIError(_error_message(status, response.text), status)
+        return _strict_response_json(response)
+    import urllib.error
+    import urllib.request
+
+    from . import strict_json
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result: dict[str, Any] = strict_json.loads(response.read().decode("utf-8"))
+            return result
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise APIError("Signature not found", 404) from e
+        raise APIError(_error_message(e.code, _http_error_text(e)), e.code) from e
+    except (urllib.error.URLError, OSError) as e:
+        raise _connection_error(url, e) from e
+
+
 def verify_signature(signature_id: str) -> VerificationResponse:
     """Publicly verify a signature by ID.
 
@@ -3483,29 +3586,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
     """
     url = _join_url(_api_base, f"/verify/{signature_id}")
 
-    # Use httpx if available (better SSL handling)
-    if _HTTPX_AVAILABLE:
-        response = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=30.0)
-        if response.status_code == 404:
-            raise APIError("Signature not found", 404)
-        if response.status_code >= 400:
-            raise APIError(response.text, response.status_code)
-        data: dict[str, Any] = _strict_response_json(response)
-    else:
-        # Fallback to urllib
-        import urllib.error
-        import urllib.request
-
-        from . import strict_json
-
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=30) as response:
-                data = strict_json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                raise APIError("Signature not found", 404) from e
-            raise APIError(str(e), e.code) from e
+    data = _fetch_verification(url)
 
     detail_raw = data.get("verification_detail")
     detail = (
@@ -3573,6 +3654,28 @@ def verify_signature(signature_id: str) -> VerificationResponse:
     )
 
 
+    # Signature validity on its own, apart from anchoring; falls back to the rolled-up verdict.
+def _signature_valid(resp: Any) -> bool:
+    detail = getattr(resp, "verification_detail", None)
+    if isinstance(detail, VerificationDetail):
+        return bool(detail.signature_valid)
+    return bool(resp.verified)
+
+
+    # Anchor state of a verification: confirmed, invalid, pending, none or unknown.
+def _anchor_state(detail: Any) -> str:
+    if not isinstance(detail, VerificationDetail):
+        return "unknown"
+    if detail.anchor_valid_ots is True or detail.anchor_valid_rfc3161 is True:
+        return "confirmed"
+    statuses = (detail.anchor_status_ots, detail.anchor_status_rfc3161)
+    if "invalid" in statuses or detail.validation_label == "anchor_invalid":
+        return "invalid"
+    if any(statuses) or detail.validation_label.startswith("anchor_pending"):
+        return "pending"
+    return "none"
+
+
 def verify(signature_id: str) -> dict[str, Any]:
     """Publicly verify a receipt by id and return a plain dict. No API key.
 
@@ -3585,7 +3688,9 @@ def verify(signature_id: str) -> dict[str, Any]:
         signature_id: The signature id to verify.
 
     Returns:
-        dict with ``verified``, ``agent_id``, ``agent_name``, ``signature_id``,
+        dict with ``verified``, ``signature_valid``, ``anchor`` (``confirmed``,
+        ``pending``, ``invalid``, ``none`` or ``unknown``), ``agent_id``,
+        ``agent_name``, ``signature_id``,
         ``algorithm``, ``verification_url``, and ``chain_hash`` (None when the
         server does not expose the payload).
 
@@ -3603,6 +3708,8 @@ def verify(signature_id: str) -> dict[str, Any]:
     )
     return {
         "verified": resp.verified,
+        "signature_valid": _signature_valid(resp),
+        "anchor": _anchor_state(resp.verification_detail),
         "agent_id": resp.agent_id,
         "agent_name": resp.agent_name,
         "signature_id": resp.signature_id,
