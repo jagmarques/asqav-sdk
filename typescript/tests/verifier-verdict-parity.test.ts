@@ -5,7 +5,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { verifyReceiptOffline } from "../src/index.js";
+import { verifyCounterpartyBinding, verifyReceiptOffline } from "../src/index.js";
+import { parseJsonPreservingFloats } from "../src/verifier/canonical.js";
 import { runOne } from "../src/verifier/runner.js";
 
 interface Outcome {
@@ -16,6 +17,8 @@ interface ParityCase extends Outcome {
   dir: string;
   lexeme: string;
   parsed: Outcome;
+  binding?: string;
+  parsed_binding?: string;
 }
 
 const CASES_DIR = resolve(__dirname, "..", "..", "verifier", "verdict-parity-cases");
@@ -28,7 +31,7 @@ const parse = (t: string | null): Record<string, unknown> | null => (t === null 
 describe("signed float receipts get the Python verdict", () => {
   it("the manifest covers every zone with tamper controls", () => {
     const lexemes = new Set(MANIFEST.map((c) => c.lexeme));
-    for (const l of ["1e-07", "7.635507284768651e+16", "-0.0", "500.0", "0.5"]) expect(lexemes.has(l)).toBe(true);
+    for (const l of ["1e-07", "7.635507284768651e+16", "-0.0", "500.0", "0.5", "5e2", "-0"]) expect(lexemes.has(l)).toBe(true);
     expect(MANIFEST.filter((c) => c.dir.endsWith("-tamper")).length).toBe(10);
   });
 
@@ -40,6 +43,13 @@ describe("signed float receipts get the Python verdict", () => {
     expect([text.verdict, text.failureClass]).toEqual(want);
   });
 
+  it.each(MANIFEST.map((c) => [c.dir, c] as const))("%s: float-preserving object API", (_dir, c) => {
+    const keep = (t: string | null) => (t === null ? null : parseJsonPreservingFloats(t));
+    const files = ["receipt.json", "jwks.json", "originating_envelope.json"].map((f) => keep(read(c, f)));
+    const r = verifyReceiptOffline(files[0] as never, files[1] as never, null, files[2] as never);
+    expect([r.verdict, r.failureClass]).toEqual([c.outcome, c.failure_class]);
+  });
+
   it.each(MANIFEST.map((c) => [c.dir, c] as const))("%s: JSON.parse object API", (_dir, c) => {
     const r = verifyReceiptOffline(
       parse(read(c, "receipt.json"))!,
@@ -48,10 +58,24 @@ describe("signed float receipts get the Python verdict", () => {
       parse(read(c, "originating_envelope.json")),
     );
     expect([r.verdict, r.failureClass]).toEqual([c.parsed.outcome, c.parsed.failure_class]);
-    // The documented residual turns unverifiable into invalid, never verified
-    if (c.outcome === "verified") expect(c.parsed).toEqual({ outcome: c.outcome, failure_class: c.failure_class });
+    // Past Python only for an integer respelled as a float, as documented
+    if (c.parsed.outcome === "verified" && c.outcome !== "verified") expect(respelledInteger(c)).toBe(true);
+  });
+
+  const bindings = MANIFEST.filter((c) => c.binding !== undefined);
+  const bind = (c: ParityCase, origin: unknown) => verifyCounterpartyBinding(parse(read(c, "receipt.json"))!, origin).label;
+
+  it.each(bindings.map((c) => [c.dir, c] as const))("%s: verifyCounterpartyBinding", (_dir, c) => {
+    const text = read(c, "originating_envelope.json")!;
+    expect([bind(c, text), bind(c, parseJsonPreservingFloats(text))]).toEqual([c.binding, c.binding]);
+    expect(bind(c, JSON.parse(text))).toBe(c.parsed_binding);
+    if (c.parsed_binding === "matches" && c.binding !== "matches") expect(respelledInteger(c)).toBe(true);
   });
 });
+
+function respelledInteger(c: ParityCase): boolean {
+  return c.dir.includes("-respelled-") && /[.eE]/.test(c.lexeme) && Number.isInteger(Number(c.lexeme));
+}
 
 describe("a parsed -0 is refused only where it is signed", () => {
   const c = MANIFEST.find((m) => m.dir === "receipt-half-repr")!;

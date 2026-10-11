@@ -131,10 +131,14 @@ if (result.verdict !== "verified" && result.verdict !== "verified_keyed") {
 Pass the receipt as raw JSON text. The parser keeps each number as written, so the
 verdict matches the Python verifiers. The receipt profile only accepts integers in the
 safe range, so a receipt whose signed bytes hold `500.0` or `-0.0` comes back `unverified`
-/ `unverifiable`. An object from `JSON.parse` has lost that spelling. With such an object,
-a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads back as `500`, so
-the signature fails and the result is `unverified` / `invalid`. It is never `verified`. The same applies to
-the predecessor and originating envelope arguments, which also accept raw text.
+/ `unverifiable`. An object from `JSON.parse` cannot carry that spelling. With such an
+object, a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads back as
+`500`. A float `500.0` the signer wrote then fails the signature as `unverified` /
+`invalid`. A signed integer that the file respells as an integer-valued float, such as
+`500` as `500.0` or `5e2`, or `0` as `0.0`, verifies on this path while raw text and the
+Python verifiers refuse it. Callers who need the strict profile must pass raw text. The
+same applies to the predecessor and originating envelope arguments, which also accept raw
+text.
 
 ## Counterparty bindings
 
@@ -173,6 +177,17 @@ string can change it, even when the decoded signature bytes stay equal.
 The scope check runs before origin lookup or hashing. An absent binding has no effect
 on verification. An applicable unknown binding blocks a pass; a demonstrated integrity
 failure on another axis still makes the overall result `invalid`.
+
+In TypeScript, `verifyCounterpartyBinding(acknowledgment, origin)` and
+`computeEnvelopeHash(origin)` take the origin as raw JSON text or as a
+`parseJsonPreservingFloats` value, and then agree with Python's
+`verify_counterparty_binding` and `compute_envelope_hash`. An origin from `JSON.parse` has
+lost the spelling of its numbers. If it holds `-0`, which could have been the integer `0` or
+the float `-0.0`, `verifyCounterpartyBinding` reports `unresolved`, and `computeEnvelopeHash`
+and `computeCounterpartyBinding` throw `counterparty_origin_unavailable`. If the origin
+signed the integer `500` and the file respells it as `500.0`, the binding reports `matches`
+where Python reports `mismatch`; a float `500.0` the origin signed reports `mismatch`. Pass
+raw text when you need Python's answer.
 
 For hosted signing, build the binding from the envelope supplied by the peer:
 
