@@ -57,8 +57,10 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   0.10.11 computed over an origin holding such a number, or a `-0`, now reports
   `mismatch`. A digest, fingerprint, chain hash or door output saved from 0.10.11 over
   such input differs from the new output, and so does an ERC-8004
-  `receiptCommitment` recorded from it, on chain or elsewhere. Python never matched these
-  values. Recompute them from the original object.
+  `receiptCommitment` recorded from it, on chain or elsewhere. For a fraction or a `-0.0`
+  origin, Python never matched the 0.10.11 value. An origin with an integer `-0`, which
+  Python reads as `0`, did match Python in 0.10.11 and still matches in Python, but
+  TypeScript now reports `mismatch`. Recompute these values from the original object.
 
 ## [0.10.11] - 2026-10-10
 
