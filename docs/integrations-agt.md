@@ -1,8 +1,8 @@
 # Microsoft Agent Governance Toolkit: Asqav as an independent witness
 
 Microsoft's Agent Governance Toolkit (AGT) can sign a receipt for every MCP tool
-call it governs. Each receipt records the Cedar decision for one call, is signed
-with Ed25519 and points at the previous receipt's hash. The signing key lives in
+call it governs. Each receipt records the Cedar decision for one call and is
+signed with Ed25519, chained to the receipt before it. The signing key lives in
 the same process that made the decision, and AGT's receipts proposal says what
 that means:
 
@@ -23,16 +23,16 @@ signed, and that your Asqav org recorded it then.
 
 It does not stop the operator from rewriting history. Whoever runs the agent
 holds the AGT key and the Asqav API key, so they can rewrite a receipt, re-sign
-it with AGT and countersign it again. The new Asqav receipt carries a later
-timestamp, and the first one stays in that Asqav agent's chained record. A
-rewrite therefore shows up as a second, later Asqav receipt for the same AGT
-receipt id. An auditor finds it by reading the agent's Asqav record, not by
-checking one link.
+it with AGT and countersign it again, possibly under a different Asqav agent in
+the same org. The first Asqav receipt stays on record. In hash-only mode Asqav
+holds only a digest, so no Asqav record names the AGT receipt. An auditor finds
+a rewrite by matching every Asqav receipt in the org against the exported AGT
+receipts; one that matches none is a rewritten or dropped receipt.
 
-It also does not prove that the decision was right, that the receipt was honest
-before its first countersign, or that the tool call happened. In hash-only mode
-(the default against the Asqav cloud) Asqav sees only a digest of the link. The
-Asqav key is held by the Asqav service, not in a hardware security module.
+It also does not show that the Cedar decision was right or that the tool call
+happened, and a receipt that was already false at its first countersign stays
+false. Hash-only mode is the default against the Asqav cloud. The Asqav key is
+held by the Asqav service, not in a hardware security module.
 
 ## Versions
 
@@ -43,6 +43,11 @@ Asqav key is held by the Asqav service, not in a hardware security module.
   after 5.0.0. It has not reached PyPI yet. This module was tested against AGT
   commit `c767f8333f413bd1a93e82836b7aa226280b61ae` for that path.
 - AGT needs Python 3.11 or later, so the extra installs nothing on 3.10.
+
+AGT's own verifier references the Asqav receipt only on AGT builds that ship the
+external-authorization profile, which is unreleased as of commit `c767f83`. On
+the PyPI 5.0.0 release AGT's verifier never sees the Asqav receipt, and the
+link is checked by `verify_asqav_link` alone.
 
 ## Install
 
@@ -103,8 +108,8 @@ print(receipt.assurance_level, receipt.authorizer_id)
 # externally_authorized asqav:sig_...
 ```
 
-For each tool call the signer gets an Asqav receipt over the AGT receipt plus a
-fresh nonce, an expiry and the authorizer public key. It then calls AGT's
+For each tool call the signer gets an Asqav receipt over the AGT receipt and
+the authorization it is about to make (its nonce, expiry and public key). It then calls AGT's
 `authorize_receipt` with `authorizer_id` set to `asqav:<signature_id>`. AGT's
 signed authorization payload covers `authorizer_id`, so any edit to it breaks
 AGT's check.
@@ -144,12 +149,15 @@ assert errors == []
 Drop `trusted_authorizer_keys` and `require_external_authorization` for
 countersigned receipts; AGT 5.0.0 does not accept them.
 
-`verify_asqav_link` returns an empty list only when the Asqav signature and
-signing key verify against the JWKS, the signed `action_ref` matches one
-recomputed from the AGT receipt, and the signed decision fits the link: `allow`
-for an authorization, `allow` or `observation` for a countersign. Called without
-a JWKS it refuses. `expected_org` pins the Asqav org, so a receipt from another
-org's account fails. For an authorized receipt it also checks that
+`verify_asqav_link` first checks the Asqav signature and signing key against
+the JWKS, and refuses when no JWKS is given. It then recomputes the `action_ref`
+from the AGT receipt and compares it with the signed one. The signed decision
+must fit the link: `allow` for an authorization, `allow` or `observation` for a
+countersign. `expected_org` pins the Asqav org id. The pin holds only when the
+signed `org_id` and the org the JWKS publishes for the key that verifies the
+signature both equal it. That key is found by checking the signature, never by
+the unsigned `kid`. The signed `org_id` is used because `issuer_id` carries the org's legal
+entity when one is set. For an authorized receipt it also checks that
 `authorizer_id` names the Asqav receipt; that id sits outside the signed
 payload, and the cryptographic binding is the `action_ref`. For the full Asqav
 verdict, anchors included, run `asqav.verify_receipt_offline` on the Asqav
@@ -160,10 +168,11 @@ receipt.
 - Whoever holds the authorizer key can re-authorize a receipt with a new nonce
   or expiry, and AGT's check still passes. `verify_asqav_link` fails for it,
   because the Asqav receipt binds the original nonce and expiry.
-- Signing fails closed. A receipt AGT rejects, an Asqav error, a decision the
-  link does not accept, or an Asqav receipt that does not bind the AGT receipt
-  raises `AgtSigningError`. As an external authorizer, that also stops AGT's
-  adapter from storing the receipt.
+- Signing fails closed. `countersign` and the authorizer hook raise
+  `AgtSigningError` when AGT rejects the receipt or Asqav errors. They also
+  raise when the signed Asqav receipt has the wrong decision or does not bind
+  the AGT receipt. As an external authorizer, that stops AGT's adapter from
+  storing the receipt.
 - With no Asqav policy for `agt:countersign`, Asqav records the countersign as
   an observation, which `countersign` accepts.
 - The nonce is a correlation value. Replay prevention across sessions needs
