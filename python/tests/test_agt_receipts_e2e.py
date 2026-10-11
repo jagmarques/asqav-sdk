@@ -359,7 +359,7 @@ def test_expected_org_pins_the_asqav_org(stub: _AsqavStub) -> None:
     assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
     other = "44444444-4444-4444-8444-444444444444"
     errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=other)
-    assert errors == [f"Asqav receipt is not from org {other} (got {ORG!r})."]
+    assert f"Asqav receipt is not from org {other} (got {ORG!r})." in errors
 
 
 @pytest.mark.parametrize("mode", ["full-payload", "hash-only"])
@@ -376,7 +376,7 @@ def test_expected_org_pins_a_legal_entity_org_by_its_signed_org_id(
     other = "44444444-4444-4444-8444-444444444444"
     for pin in (other, LEI):
         errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=pin)
-        assert errors == [f"Asqav receipt is not from org {pin} (got {ORG!r})."]
+        assert f"Asqav receipt is not from org {pin} (got {ORG!r})." in errors
 
 
 def test_expected_org_falls_back_to_issuer_id_without_org_id(stub: _AsqavStub) -> None:
@@ -388,7 +388,53 @@ def test_expected_org_falls_back_to_issuer_id_without_org_id(stub: _AsqavStub) -
     jwks = stub.jwks()
     assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
     errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=LEI)
-    assert errors == [f"Asqav receipt is not from org {LEI} (got {ORG!r})."]
+    assert f"Asqav receipt is not from org {LEI} (got {ORG!r})." in errors
+
+
+VICTIM_ORG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+
+def _resign(server: _AsqavStub, envelope: dict[str, Any], **edits: Any) -> dict[str, Any]:
+    """Re-sign an Asqav envelope with the stand-in's own key after editing its payload."""
+    forged = json.loads(json.dumps(envelope))
+    for key, value in edits.items():
+        if value is None:
+            forged["payload"].pop(key, None)
+        else:
+            forged["payload"][key] = value
+    sig = ML_DSA_65.sign(server.sk, vr.canonical_json(forged["payload"]))
+    forged["signature"]["sig"] = base64.b64encode(sig).decode()
+    return forged
+
+
+@pytest.mark.parametrize(
+    ("legal_entity", "edits", "key_org"),
+    [
+        pytest.param(VICTIM_ORG, {"org_id": None}, None, id="B2-no-org-id-legal-entity-is-victim"),
+        pytest.param(LEI, {"org_id": VICTIM_ORG}, None, id="B3-org-id-claims-victim-under-lei"),
+        pytest.param(None, {"org_id": VICTIM_ORG}, None, id="B4-org-id-claims-victim"),
+        pytest.param(LEI, {"org_id": VICTIM_ORG}, VICTIM_ORG, id="B5-control-key-for-victim"),
+    ],
+)
+def test_expected_org_needs_the_signing_key_published_for_that_org(
+    monkeypatch: pytest.MonkeyPatch,
+    legal_entity: str | None,
+    edits: dict[str, Any],
+    key_org: str | None,
+) -> None:
+    for server in _serve(monkeypatch, _AsqavStub(legal_entity=legal_entity)):
+        seed, _ = _seed()
+        (receipt,) = _agt_receipts(seed, "read_file")
+        link = AsqavAgtSigner().countersign(receipt)
+        forged = _resign(server, link.asqav_receipt, **edits)
+        jwks = server.jwks()
+        if key_org is not None:
+            jwks["keys"][0]["org_id"] = key_org
+        errors = verify_asqav_link(receipt, forged, jwks=jwks, expected_org=VICTIM_ORG)
+        if key_org is not None:
+            assert errors == []
+        else:
+            assert f"Asqav signing key is published under org {ORG}, not {VICTIM_ORG}." in errors
 
 
 def test_operator_recountersign_shows_as_a_second_later_receipt(stub: _AsqavStub) -> None:
