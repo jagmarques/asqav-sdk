@@ -5,6 +5,29 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`asqav verify` keeps signature validity apart from anchoring.** A fresh receipt whose
+  timestamp anchor is still pending prints `Signature: valid` and `Anchor: pending`, in the
+  Python and TypeScript CLIs. `asqav.verify()` in both languages returns `signature_valid`
+  (`signatureValid`) and `anchor` beside `verified`.
+- **One API base order everywhere.** `init()`, the async client, the CLI and `asqav doctor`
+  resolve the base as: the `base_url` argument, `ASQAV_API_URL`, `ASQAV_API_BASE`, the base
+  saved by `asqav login --api-base`, then the hosted default. A base passed to `init()` stays
+  in force when a later call in the same process omits it. `asqav doctor` prints the
+  base it checks. The Python async client reads the key and base set by `init()`.
+- **Network and gateway failures raise Asqav errors.** A refused or timed-out connection
+  raises `AsqavConnectionError`, an `AsqavError` with a one-line message naming the URL. An HTML or other non-JSON error page becomes a one-line `APIError`. Without
+  httpx the server's `detail` and `code` reach the `APIError` message as they do with it.
+- **`asqav quickstart` prints code that runs.** It prints a first-receipt snippet and the
+  command that verifies it. Its help says it writes no files.
+
+### Changed
+
+- **One first-receipt snippet.** The READMEs, the CLI reference, `asqav quickstart` and
+  `asqav init` share the snippet the dashboard shows: `export ASQAV_API_KEY`, then
+  `asqav.init()` and one `agent.sign(...)`.
+
 ## [0.10.11] - 2026-10-10
 
 ### Added
