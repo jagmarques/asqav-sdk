@@ -310,8 +310,10 @@ def _verifying_rows(asqav_receipt: dict[str, Any], jwks: dict[str, Any]) -> list
     rows = []
     for row in keys:
         pk = _row_key(row)
+        if pk is None:
+            continue
         alg = row.get("alg") or signature.get("alg")
-        if pk is not None and vr.verify_signature(pk, msg, sig, alg)[0] == "PASS":
+        if vr.verify_signature(pk, msg, sig, alg)[0] == "PASS":
             rows.append(row)
     return rows
 
