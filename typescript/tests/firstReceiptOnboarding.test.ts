@@ -77,6 +77,51 @@ describe("first-receipt onboarding (TypeScript)", () => {
     expect(printed()).not.toContain("invalid");
   });
 
+  it.each([
+    "signer_key_changed",
+    "agent_revoked_before_issuance",
+    "chain_break",
+    "signature_expired",
+    "agent_unknown",
+    "compliance_mode_anchor_required",
+  ])("verify reads a server rejection (%s) as invalid and exits 1", async (label) => {
+    const detail = { ...FRESH.verification_detail, validation_label: label, anchor_valid_ots: true };
+    stubFetch(() => respond({ ...FRESH, verification_detail: detail }));
+    await expect(runCli(["verify", "sig_1"])).rejects.toThrow("__EXIT__1");
+    expect(printed()).toContain(`Signature: invalid (${label})`);
+  });
+
+  it("verify reads one invalid anchor as invalid", async () => {
+    const detail = {
+      ...FRESH.verification_detail,
+      validation_label: "anchor_invalid",
+      anchor_valid_ots: true,
+      anchor_status_ots: "valid",
+      anchor_status_rfc3161: "invalid",
+    };
+    stubFetch(() => respond({ ...FRESH, verification_detail: detail }));
+    await expect(runCli(["verify", "sig_1"])).rejects.toThrow("__EXIT__1");
+    expect(printed()).toContain("Anchor: invalid");
+  });
+
+  it.each([
+    [["migrate", "run", "v3-20"], "ASQAV_MAINTENANCE_KEY"],
+    [["org", "halt", "org_1", "--yes"], "ASQAV_SESSION_TOKEN"],
+  ])("%j sends credentials only to the saved base", async (argv, envName) => {
+    const base = "http://127.0.0.1:9/api/v1";
+    fs.writeFileSync(credsFile, JSON.stringify({ api_key: "sk_test", api_base: base }));
+    process.env[envName] = "secret_test_value";
+    stubFetch(() => respond({ ok: true }));
+    try {
+      await runCli(argv);
+    } finally {
+      delete process.env[envName];
+    }
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.every((u) => u.startsWith(base))).toBe(true);
+    expect(urls.some((u) => u.includes("asqav.com"))).toBe(false);
+  });
+
   it("verify() reports signature validity and anchor state", async () => {
     stubFetch(() => respond(FRESH));
     const result = await verify("sig_1");

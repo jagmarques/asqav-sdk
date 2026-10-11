@@ -2285,17 +2285,21 @@ type AnchorFields = Partial<
   >
 >;
 
-/** @internal - signature validity apart from anchoring. */
+const ANCHOR_WAIT_LABELS = new Set(["valid", "anchor_pending", "anchor_pending_no_cryptographic_proof"]);
+
+/** @internal - accepted, or the signature holds and only the anchor waits. */
 export function _signatureValid(r: { verified: boolean; verificationDetail?: AnchorFields }): boolean {
-  return r.verificationDetail ? Boolean(r.verificationDetail.signatureValid) : Boolean(r.verified);
+  if (r.verified === true) return true;
+  const d = r.verificationDetail;
+  return Boolean(d?.signatureValid) && ANCHOR_WAIT_LABELS.has(d?.validationLabel ?? "");
 }
 
 /** @internal - anchor state: confirmed, invalid, pending, none, unknown. */
 export function _anchorState(d?: AnchorFields): string {
   if (!d) return "unknown";
-  if (d.anchorValidOts === true || d.anchorValidRfc3161 === true) return "confirmed";
   const statuses: unknown[] = [d.anchorStatusOts, d.anchorStatusRfc3161];
   if (statuses.includes("invalid") || d.validationLabel === "anchor_invalid") return "invalid";
+  if (d.anchorValidOts === true || d.anchorValidRfc3161 === true) return "confirmed";
   if (statuses.some(Boolean) || (d.validationLabel ?? "").startsWith("anchor_pending")) return "pending";
   return "none";
 }
