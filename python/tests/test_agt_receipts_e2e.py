@@ -45,6 +45,7 @@ AsqavAgtSigner = agt_receipts.AsqavAgtSigner
 verify_asqav_link = agt_receipts.verify_asqav_link
 
 ORG = "33333333-3333-4333-8333-333333333333"
+LEI = "5493001KJTIIGC8Y1R12"
 AGENT_ID = "agt_763"
 KID = "key-763"
 CEDAR = """
@@ -62,7 +63,9 @@ def _seed() -> tuple[str, str]:
 class _AsqavStub:
     """Local stand-in for the Asqav agent-create and sign endpoints."""
 
-    def __init__(self) -> None:
+    def __init__(self, legal_entity: str | None = None) -> None:
+        self.issuer_id = legal_entity or ORG
+        self.org_id_signed = True
         self.pk, self.sk = ML_DSA_65.keygen()
         self.thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=self.pk)
         self.sign_posts: list[dict[str, Any]] = []
@@ -109,7 +112,7 @@ class _AsqavStub:
         row = {
             "kid": KID,
             "agent_id": AGENT_ID,
-            "issuer_id": ORG,
+            "issuer_id": self.issuer_id,
             "org_id": ORG,
             "alg": "ML-DSA-65",
             "kty": "AKP",
@@ -132,27 +135,38 @@ class _AsqavStub:
         }
 
     def mint(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Mirror the cloud: action_ref is the caller's, payload_digest hashes what was sent."""
+        """Shape the payload like the cloud: org_id always, issuer_id is the legal entity if set."""
+        seq = len(self.sign_posts)
         if "hash" in body:
             digest = {"hash": body["hash"][len("sha256:"):], "size": body["payload_size"]}
         else:
             encoded = vr.canonical_json(body["context"])
             digest = {"hash": hashlib.sha256(encoded).hexdigest(), "size": len(encoded)}
-        seq = len(self.sign_posts)
+        issued_at = datetime.now(timezone.utc).isoformat()
         payload = {
             "v": 1,
-            "type": "protectmcp:decision",
-            "issued_at": datetime.now(timezone.utc).isoformat(),
-            "issuer_id": ORG,
+            "action_id": f"act_763_{seq}",
             "agent_id": AGENT_ID,
-            "action_type": body["action_type"],
+            "org_id": ORG,
+            "policy_digest": "sha256:" + "3" * 64,
+            "type": "protectmcp:decision",
+            "issued_at": issued_at,
+            "issuer_id": self.issuer_id,
             "action_ref": self.override_ref or body["action_ref"],
             "payload_digest": digest,
-            "policy_digest": "sha256:" + "3" * 64,
             "previousReceiptHash": "0" * 64,
             "decision": self.decision,
+            "tool_name": body["action_type"],
             "key_thumbprint": self.thumb,
         }
+        if "hash" in body:
+            payload.update(mode="hash", hash=body["hash"], hash_algo="sha256")
+            payload.update(metadata=body["metadata"], server_timestamp=issued_at)
+        else:
+            payload.update(mode="payload", action_type=body["action_type"])
+            payload.update(context=body["context"], timestamp=issued_at)
+        if not self.org_id_signed:
+            del payload["org_id"]
         sig = ML_DSA_65.sign(self.sk, vr.canonical_json(payload))
         return {
             "signature": {"alg": "ML-DSA-65", "kid": KID, "sig": base64.b64encode(sig).decode()},
@@ -169,7 +183,15 @@ class _AsqavStub:
 
 @pytest.fixture
 def stub(monkeypatch: pytest.MonkeyPatch):
-    server = _AsqavStub()
+    yield from _serve(monkeypatch, _AsqavStub())
+
+
+@pytest.fixture
+def lei_stub(monkeypatch: pytest.MonkeyPatch):
+    yield from _serve(monkeypatch, _AsqavStub(legal_entity=LEI))
+
+
+def _serve(monkeypatch: pytest.MonkeyPatch, server: _AsqavStub):
     server.thread.start()
     for name in ("_api_key", "_api_base", "_client", "_mode", "_org_salt", "_timeout"):
         monkeypatch.setattr(asqav_client, name, getattr(asqav_client, name))
@@ -337,7 +359,36 @@ def test_expected_org_pins_the_asqav_org(stub: _AsqavStub) -> None:
     assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
     other = "44444444-4444-4444-8444-444444444444"
     errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=other)
-    assert errors == [f"Asqav receipt is not from org {other} (got ['{ORG}'])."]
+    assert errors == [f"Asqav receipt is not from org {other} (got {ORG!r})."]
+
+
+@pytest.mark.parametrize("mode", ["full-payload", "hash-only"])
+def test_expected_org_pins_a_legal_entity_org_by_its_signed_org_id(
+    lei_stub: _AsqavStub, mode: str
+) -> None:
+    asqav_client.init(api_key="sk_test_agt763", base_url=lei_stub.base, mode=mode)
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    payload, jwks = link.asqav_receipt["payload"], lei_stub.jwks()
+    assert (payload["issuer_id"], payload["org_id"]) == (LEI, ORG)
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
+    other = "44444444-4444-4444-8444-444444444444"
+    for pin in (other, LEI):
+        errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=pin)
+        assert errors == [f"Asqav receipt is not from org {pin} (got {ORG!r})."]
+
+
+def test_expected_org_falls_back_to_issuer_id_without_org_id(stub: _AsqavStub) -> None:
+    stub.org_id_signed = False
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    assert "org_id" not in link.asqav_receipt["payload"]
+    jwks = stub.jwks()
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
+    errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=LEI)
+    assert errors == [f"Asqav receipt is not from org {LEI} (got {ORG!r})."]
 
 
 def test_operator_recountersign_shows_as_a_second_later_receipt(stub: _AsqavStub) -> None:
