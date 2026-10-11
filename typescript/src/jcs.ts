@@ -3,7 +3,7 @@
  * bytes the cloud signs and the chain hashes over. `canonicalize.ts` exposes the same bytes by alias.
  */
 
-import { isRawFloatLeaf, pythonFloatRepr } from "./verifier/canonical.js";
+import { isRawFloatLeaf, pythonFloatRepr, writesAsFloat } from "./verifier/canonical.js";
 
 type JsonValue =
   | null
@@ -58,13 +58,8 @@ function numberToCanonical(n: number): string {
   // Map -0 to 0 so equal mathematical values produce identical bytes.
   if (n === 0) return "0";
   assertProfileRange(n);
-  // For safe integers, plain toString matches the canonical bytes byte-for-byte.
-  if (Number.isInteger(n) && Number.isSafeInteger(n)) {
-    return n.toString();
-  }
-  // V8's Number.toString already produces the shortest round-trip form;
-  // unused by Compliance Receipts (no floats signed), kept for safety.
-  return n.toString();
+  // A fraction came from a float: write Python repr (1e-07, not 1e-7)
+  return writesAsFloat(n) ? pythonFloatRepr(n) : n.toString();
 }
 
 function assertProfileRange(n: number): void {
