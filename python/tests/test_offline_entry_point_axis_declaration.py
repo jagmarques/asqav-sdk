@@ -136,7 +136,7 @@ def test_doc_parser_fires_and_is_not_vacuous():
     assert _doc_table_rows("## A heading this file does not carry") == []
     assert _skew_denials("The skew axis is not evaluated here") != []
     assert _skew_denials("The skew axis is evaluated here") == []
-    assert len(_doc_table_rows(AXES_HEADING)) == 12
+    assert len(_doc_table_rows(AXES_HEADING)) == 13
     assert len(_doc_table_rows(DIFF_HEADING)) == 3
 
 
