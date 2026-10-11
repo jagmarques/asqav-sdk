@@ -60,7 +60,7 @@ def test_verify_invalid(mock_verify: MagicMock) -> None:
         algorithm="ml-dsa-44",
     )
     result = runner.invoke(app, ["verify", "sig_bad"])
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "invalid" in result.output
     assert "bad-agent" in result.output
 
