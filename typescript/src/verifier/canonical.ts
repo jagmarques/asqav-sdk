@@ -124,6 +124,12 @@ export function pythonFloatRepr(n: number): string {
   return sign + positionalLayout(digits, exp10 + 1);
 }
 
+/** A plain fraction or a value past 2**53 came from a float lexeme (strict
+ *  ingest refuses such integers), so Python writes it with repr */
+export function writesAsFloat(n: number): boolean {
+  return !Number.isInteger(n) || Math.abs(n) > MAX_CANONICAL_INTEGER;
+}
+
 function floatToString(n: number): string {
   if (!Number.isFinite(n)) {
     throw new Error(`non-finite number not allowed in JCS: ${n}`);
@@ -467,11 +473,8 @@ function serialize(
   if (value === true) return "true";
   if (value === false) return "false";
   if (isRawFloat(value)) return honorFloat ? floatToString(value.value) : numberToString(value.value);
-  // A plain fraction or a value past 2**53 came from a float lexeme (strict
-  // ingest refuses such integers), so write it as Python repr does
   if (typeof value === "number") {
-    const fromFloat = !Number.isInteger(value) || Math.abs(value) > MAX_CANONICAL_INTEGER;
-    return honorFloat && fromFloat ? floatToString(value) : numberToString(value);
+    return honorFloat && writesAsFloat(value) ? floatToString(value) : numberToString(value);
   }
   if (typeof value === "string") return jsonString(value);
   if (Array.isArray(value)) {
