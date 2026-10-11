@@ -119,10 +119,16 @@ jq '.receipts[0] | {payload, signature, anchors}' compliance-bundle.json > recei
 python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json --offline
 ```
 
-The verifier checks one receipt per run; there is no offline whole-pack
-verifier yet. `asqav audit-pack verify` sends the bundle to the API the SDK
-points at, so it is not an offline check. Only compliance-mode receipts
-verify this way.
+The verifier checks one receipt per run. To check the whole pack offline,
+including the chain links and the bundle signature, run:
+
+```bash
+asqav audit-pack verify --offline compliance-bundle.json
+```
+
+Without `--offline`, `asqav audit-pack verify` sends the bundle to the API the
+SDK points at. Only compliance-mode receipts verify offline; the offline
+command lists the others as not verifiable offline.
 
 The same audit-pack also feeds the IETF Compliance Receipts profile
 under `draft-marques-asqav-compliance-receipts`, so third-party

@@ -100,6 +100,16 @@ asqav audit-pack export \
   --output-file bundle.json
 ```
 
+### `asqav audit-pack verify --offline <pack>`
+
+Verifies an exported pack on your machine with no network. Export it with `--include-signed-bytes`. See [offline verification](../../docs/offline-verification.md#whole-audit-pack-offline) for what each status means.
+
+```bash
+asqav audit-pack verify --offline bundle.json
+```
+
+Exit code 0 means every receipt verified, 2 means some are not verifiable offline, and 1 means something is invalid.
+
 ### `asqav audit-pack policy <digest>`
 
 Resolves a `policy_digest` to the retained policy artefact JSON. Accepts either `sha256:<64-hex>` or a bare 64-hex string, where the prefix is added for you.

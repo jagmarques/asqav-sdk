@@ -102,6 +102,57 @@ lazy loading of both dependencies. It also executes a copied file with Asqav
 imports and outbound sockets refused. The OpenSSL alternative is documented in
 [the walkthrough](openssl-jq-walkthrough.md), including its algorithm requirements.
 
+## Whole Audit Pack offline
+
+`asqav audit-pack verify --offline` checks an exported Audit Pack on your machine and
+makes no network call. Export the pack with `--include-signed-bytes`, because a pack
+without the signed bytes has nothing to verify.
+
+```sh
+asqav audit-pack verify --offline bundle.json
+asqav audit-pack verify --offline bundle.json --output json
+```
+
+The command checks:
+
+- each receipt with `run_structured` from `verify_receipt.py`, using the pack's `jwks` key
+  snapshot. That covers the signature, issuer binding, key status and anchors
+- each receipt's chain link against the previous receipt of the same agent in the pack
+- the bundle digest, recomputed over the members the export signs, and the bundle
+  signature. The bundle key must also appear in the key snapshot
+
+Each receipt gets one of three statuses:
+
+| Status | Meaning |
+|---|---|
+| `verified` | Every check passed, including the timestamp proofs |
+| `not_verifiable_offline` | Nothing failed, but a check could not finish offline. The reason is printed |
+| `invalid` | A check ran and failed, such as a signature mismatch or a broken chain link |
+
+Common reasons for `not_verifiable_offline`:
+
+- a non-compliance-mode receipt, which has no signed receipt envelope
+- a pending OpenTimestamps anchor
+- an RFC3161 anchor whose TSA key or certificate is missing
+- signed bytes withheld at export
+
+Packs exported today carry no TSA certificates. Pass one with `--tsa-key FILE` (repeatable),
+or the TSA certificates in the pack's `tsa_trust` member are used if it has one.
+`--bitcoin-headers FILE` supplies OpenTimestamps block data, as it does for the standalone
+verifier. `--jwks FILE` uses a key set you kept instead of the pack's snapshot. The pack's
+own snapshot only shows that the pack is consistent with itself, so a key set saved
+separately is stronger evidence.
+
+A lapsed `expires_at` on a receipt signed before that time is shown as an `info` line and
+does not count as a failure.
+
+Exit codes: `0` every receipt and the bundle verified, `2` some are not verifiable offline,
+`1` anything is invalid.
+
+The TypeScript CLI has the same command, minus `--tsa-key` and `--bitcoin-headers`. It
+cannot check RFC3161 or OpenTimestamps tokens, so it lists anchored receipts as not
+verifiable offline even where the Python command verifies them.
+
 ## TypeScript / Node
 
 The TypeScript SDK ships ML-DSA-65 via `@noble/post-quantum` (pure JS, no WASM).
