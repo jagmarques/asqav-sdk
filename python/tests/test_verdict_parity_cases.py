@@ -68,6 +68,10 @@ def test_manifest_covers_every_zone_with_controls() -> None:
     assert {"1e-07", "7.635507284768651e+16", "-0.0", "500.0", "0.5", "5e2", "-0"} <= lexemes
     assert all("binding" in c for c in MANIFEST if c["dir"].startswith("counterparty-"))
     assert sum(c["dir"].endswith("-tamper") for c in MANIFEST) == 10
+    # Integers past 2**53 in signed and unsigned positions, receipts and bindings alike.
+    unsafe = {c["dir"] for c in MANIFEST if c.get("unsafe_integer")}
+    for part in ("receipt-unsafe-int-signed", "receipt-unsafe-int-unsigned", "counterparty-"):
+        assert any(d.startswith(part) for d in unsafe), part
     assert {c["outcome"] for c in MANIFEST} == {"verified", "unverified"}
     dirs = sorted(p.name for p in CASES_DIR.iterdir() if p.is_dir())
     assert dirs == sorted(c["dir"] for c in MANIFEST)
@@ -104,3 +108,20 @@ def test_binding_label_is_the_sdk_verdict(row: dict) -> None:
     ack = json.loads(_text(case, "receipt.json"))
     origin = json.loads(_text(case, "originating_envelope.json"))
     assert verify_counterparty_binding(ack, origin).label == row["binding"]
+
+
+# The oracle CLI takes no origin, so only rows whose receipt holds the integer.
+UNSAFE = [c for c in MANIFEST if c.get("unsafe_integer") and "-origin-" not in c["dir"]]
+
+
+@pytest.mark.parametrize("row", UNSAFE, ids=[c["dir"] for c in UNSAFE])
+def test_oracle_cli_refuses_an_integer_past_2_53(row: dict) -> None:
+    case = CASES_DIR / row["dir"]
+    args = [sys.executable, "-m", "asqav.verifier.oracle", str(case / "receipt.json"),
+            "--keys", str(case / "jwks.json")]
+    env = {**os.environ, "ASQAV_API_URL": "http://127.0.0.1:9",
+           "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    proc = subprocess.run(args, capture_output=True, text=True, env=env, timeout=120)
+    # Exit 2 is unverifiable; a crash exits 1, which reads as invalid.
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "Traceback" not in proc.stderr

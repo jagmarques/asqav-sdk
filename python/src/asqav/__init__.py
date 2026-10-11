@@ -456,6 +456,9 @@ def verify_receipt_offline(
     the normalised envelope when you need it, or use the standalone verifier,
     which reports every axis. See docs/offline-verification.md.
 
+    Any input holding an integer outside +/-2**53 reports ``unverified`` with
+    failure class ``unverifiable``, the answer raw-text ingest gives the same file.
+
     Args:
         receipt: Parsed receipt envelope dict (``{payload, signature, anchors}``).
         jwks: JWKS dict previously fetched via ``fetch_jwks()``.
