@@ -148,6 +148,9 @@ def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, trusted_times:
 def check_bundle(pack: dict, jwks: dict, trusted_times: list | None = None) -> dict:
     """Recompute the bundle digest, verify its signature, and tie the key to the key set.
     ``trusted_times`` (anchor times proven by pinned TSA keys) place a revocation in time."""
+    if vr._holds_unsafe_integer(pack, jwks):
+        # Raw-text ingest refuses such a pack; so does a parsed dict.
+        return _outcome(NOT_OFFLINE, f"pack: {vr._UNSAFE_INTEGER_INPUT_NOTE}")
     material = _bundle_material(pack)
     if isinstance(material, dict):
         return material

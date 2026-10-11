@@ -271,7 +271,8 @@ def verify_litellm_log(
         try:
             # Strict ingest (419): a duplicated member name fails the record.
             record = strict_json.loads(raw)
-        except (json_mod.JSONDecodeError, strict_json.DuplicateMemberError) as exc:
+        except (json_mod.JSONDecodeError, strict_json.DuplicateMemberError,
+                strict_json.UnsafeIntegerError) as exc:
             total += 1
             failures.append({"line": lineno, "reason": f"bad json: {exc}"})
             continue
@@ -318,7 +319,8 @@ def _load_json_arg(source: str, label: str) -> dict | None:
     """Load a JSON arg from a file path, stdin (`-`), or return None when empty.
 
     Used by `sign` for `--action-json` and `--policy-artefact`. Exits 1 on
-    OSError, JSONDecodeError, or a duplicated member name (419) with a clear
+    OSError, JSONDecodeError, a duplicated member name (419) or an integer
+    past 2**53, with a clear
     `label`-prefixed message so the caller knows which arg failed.
     """
     import json as json_mod
@@ -334,7 +336,8 @@ def _load_json_arg(source: str, label: str) -> dict | None:
             with open(source) as f:
                 text = f.read()
         return strict_json.loads(text)
-    except (OSError, json_mod.JSONDecodeError, strict_json.DuplicateMemberError) as exc:
+    except (OSError, json_mod.JSONDecodeError, strict_json.DuplicateMemberError,
+            strict_json.UnsafeIntegerError) as exc:
         print(f"Error reading {label}: {exc}")
         raise typer.Exit(code=1) from exc
 
