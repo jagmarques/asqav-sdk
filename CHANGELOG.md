@@ -17,8 +17,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   pack carries are never used as roots. A missing bundle signature, an unknown bundle key, an
   unsupported or mismatched bundle algorithm, a bundle key of another organization, a chain gap,
   a fork and a duplicate entry are all invalid. A revoked bundle key is invalid under `--jwks`.
-  Exit 0 needs `--jwks` with everything verified, anything invalid exits 1, and every other
-  result exits 2. A lapsed `expires_at` on a receipt signed before it is an info line, not a
+  Exit 0 needs `--jwks` with everything verified. Anything invalid exits 1; any other result
+  exits 2. A lapsed `expires_at` on a receipt signed before it is an info line, not a
   failure. The TypeScript CLI has the same command and trust rules, but it does not check
   timestamp tokens.
 
