@@ -9,21 +9,31 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 - **`asqav verify` keeps signature validity apart from anchoring.** A fresh receipt whose
   timestamp anchor is still pending prints `Signature: valid` and `Anchor: pending`, in the
-  Python and TypeScript CLIs. `asqav.verify()` in both languages returns `signature_valid`
-  (`signatureValid`) and `anchor` beside `verified`.
+  Python and TypeScript CLIs. A receipt the server rejects prints
+  `Signature: invalid (<label>)`. `asqav.verify()` in both languages returns
+  `signature_valid` (`signatureValid`) and `anchor` beside `verified`.
 - **One API base order everywhere.** `init()`, the async client, the CLI and `asqav doctor`
   resolve the base as: the `base_url` argument, `ASQAV_API_URL`, `ASQAV_API_BASE`, the base
   saved by `asqav login --api-base`, then the hosted default. A base passed to `init()` stays
   in force when a later call in the same process omits it. `asqav doctor` prints the
   base it checks. The Python async client reads the key and base set by `init()`.
-- **Network and gateway failures raise Asqav errors.** A refused or timed-out connection
-  raises `AsqavConnectionError`, an `AsqavError` with a one-line message naming the URL. An HTML or other non-JSON error page becomes a one-line `APIError`. Without
-  httpx the server's `detail` and `code` reach the `APIError` message as they do with it.
+- **Network and gateway failures raise Asqav errors.** An HTML or other non-JSON error page
+  becomes a one-line `APIError`, and a non-JSON success body raises `AsqavResponseError`.
+  Without httpx the server's `detail` and `code` reach the `APIError` message as they do
+  with it.
+- **`asqav migrate run` and `asqav org halt` send credentials only to the resolved API
+  base** in both CLIs, never to the hosted default when another base is configured.
 - **`asqav quickstart` prints code that runs.** It prints a first-receipt snippet and the
   command that verifies it. Its help says it writes no files.
 
 ### Changed
 
+- **Connection failures raise `AsqavConnectionError`.** A connection that fails or times
+  out raises `AsqavConnectionError`, an `APIError` with status 0, in both languages,
+  with a one-line message naming the URL. Python code that caught `httpx.RequestError` or
+  `urllib.error.URLError` around SDK calls should catch `asqav.AsqavConnectionError`.
+- **`asqav verify` exits 1 when the server rejects the receipt.** A pending anchor alone
+  still exits 0.
 - **One first-receipt snippet.** The READMEs, the CLI reference, `asqav quickstart` and
   `asqav init` share the snippet the dashboard shows: `export ASQAV_API_KEY`, then
   `asqav.init()` and one `agent.sign(...)`.

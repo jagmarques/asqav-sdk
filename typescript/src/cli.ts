@@ -88,44 +88,51 @@ async function cmdVerify(args: string[]): Promise<void> {
   const output = parseFlag(args, "output") ?? "text";
   // Verify is public, but `request` short-circuits on missing config; init with any key.
   init({ apiKey: resolveApiKey() ?? "anon" });
+  let r: Awaited<ReturnType<typeof verifySignature>>;
   try {
-    const r = await verifySignature(sigId);
-    if (output === "json") {
-      const extra = { signatureValid: _signatureValid(r), anchor: _anchorState(r.verificationDetail) };
-      process.stdout.write(`${JSON.stringify({ ...r, ...extra }, null, 2)}\n`);
-      return;
-    }
-    // Signature and anchor are separate axes; fresh receipts read valid
-    const anchor = _anchorState(r.verificationDetail);
-    process.stdout.write(`Signature: ${_signatureValid(r) ? "valid" : "invalid"}\n`);
-    process.stdout.write(`Anchor: ${ANCHOR_TEXT[anchor] ?? anchor}\n`);
-    if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
-    if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
-    process.stdout.write(`Algorithm: ${r.algorithm}\n`);
-    const d = r.verificationDetail;
-    if (d) {
-      process.stdout.write(`Validation: ${d.validationLabel}\n`);
-      if (d.chainValid !== undefined) {
-        process.stdout.write(`Chain valid: ${d.chainValid}\n`);
-      }
-      if (d.anchorStatusOts !== undefined) {
-        process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts}\n`);
-      }
-      if (d.anchorStatusRfc3161 !== undefined) {
-        process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161}\n`);
-      }
-      if (d.signedAtSkewSeconds !== undefined) {
-        process.stdout.write(`signed_at skew: ${d.signedAtSkewSeconds}s\n`);
-      }
-      if (d.missingFields && d.missingFields.length > 0) {
-        process.stdout.write(`Missing fields: ${d.missingFields.join(", ")}\n`);
-      }
-    }
+    r = await verifySignature(sigId);
   } catch (err) {
     if (err instanceof APIError && err.statusCode === 404) {
       die(`Signature not found: ${sigId}`);
     }
     die(`Error: ${(err as Error).message}`);
+  }
+  if (output === "json") {
+    const extra = { signatureValid: _signatureValid(r), anchor: _anchorState(r.verificationDetail) };
+    process.stdout.write(`${JSON.stringify({ ...r, ...extra }, null, 2)}\n`);
+  } else {
+    printVerifyText(r);
+  }
+  // A server rejection exits non-zero; a pending anchor alone does not
+  if (!_signatureValid(r)) process.exit(1);
+}
+
+function verifyStatus(r: Awaited<ReturnType<typeof verifySignature>>): string {
+  if (_signatureValid(r)) return "valid";
+  const label = r.verificationDetail?.validationLabel;
+  return label ? `invalid (${label})` : "invalid";
+}
+
+function printVerifyText(r: Awaited<ReturnType<typeof verifySignature>>): void {
+  const anchor = _anchorState(r.verificationDetail);
+  process.stdout.write(`Signature: ${verifyStatus(r)}\n`);
+  process.stdout.write(`Anchor: ${ANCHOR_TEXT[anchor] ?? anchor}\n`);
+  if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
+  if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
+  process.stdout.write(`Algorithm: ${r.algorithm}\n`);
+  const d = r.verificationDetail;
+  if (!d) return;
+  process.stdout.write(`Validation: ${d.validationLabel}\n`);
+  if (d.chainValid !== undefined) process.stdout.write(`Chain valid: ${d.chainValid}\n`);
+  if (d.anchorStatusOts !== undefined) process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts}\n`);
+  if (d.anchorStatusRfc3161 !== undefined) {
+    process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161}\n`);
+  }
+  if (d.signedAtSkewSeconds !== undefined) {
+    process.stdout.write(`signed_at skew: ${d.signedAtSkewSeconds}s\n`);
+  }
+  if (d.missingFields && d.missingFields.length > 0) {
+    process.stdout.write(`Missing fields: ${d.missingFields.join(", ")}\n`);
   }
 }
 
@@ -752,7 +759,7 @@ async function sessionRequest(
         "and needs a dashboard session token (JWT), not an agent API key.",
     );
   }
-  const baseUrl = process.env.ASQAV_API_URL ?? "https://api.asqav.com/api/v1";
+  const baseUrl = resolveApiBase();
   const url = `${baseUrl.replace(/\/+$/, "")}${path}`;
   let response: Response;
   try {
@@ -920,7 +927,7 @@ async function cmdMigrateRun(args: string[]): Promise<void> {
   if (!apiKey) {
     die("Error: API key required. Run `asqav login` or set ASQAV_API_KEY.");
   }
-  const baseUrl = process.env.ASQAV_API_URL ?? "https://api.asqav.com/api/v1";
+  const baseUrl = resolveApiBase();
   const url = `${baseUrl.replace(/\/+$/, "")}/maintenance/run-migration-${migration}`;
   try {
     const response = await fetch(url, {

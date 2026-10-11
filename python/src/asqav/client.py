@@ -61,7 +61,19 @@ _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
 def _strict_response_json(response: Any) -> dict[str, Any]:
     from . import strict_json
 
-    return strict_json.loads(response.text)
+    try:
+        return strict_json.loads(response.text)
+    except (_json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise _non_json_error(exc) from exc
+
+
+    # A 2xx body that is not JSON (a proxy or captive-portal page) as an AsqavResponseError.
+def _non_json_error(exc: Exception) -> AsqavResponseError:
+    return AsqavResponseError(
+        f"the API answered with a non-JSON body ({_one_line(str(exc))}); "
+        "check the API base and any proxy in between",
+        docs_url=RESPONSE_ERROR_DOCS_URL,
+    )
 
 
     # Execute function with exponential backoff retry on rate limit/network errors.
@@ -177,19 +189,20 @@ class APIError(AsqavError):
         self.status_code = status_code
 
 
-    # Raised when the API cannot be reached (refused, DNS, timeout, TLS).
+    # API unreachable (refused, DNS, timeout, TLS); an APIError with status 0, as in TypeScript.
     # Not retried, so a caller's deadline (the hook gate's timeout) still holds.
-class AsqavConnectionError(AsqavError):
+class AsqavConnectionError(APIError):
 
-    pass
+    def __init__(self, message: str) -> None:
+        super().__init__(message, 0)
 
 
-    # One-line connection error naming the URL and a next step.
+    # One-line connection error naming the URL and a next step; same text as TypeScript.
 def _connection_error(url: str, exc: BaseException) -> AsqavConnectionError:
     reason = getattr(exc, "reason", None) or exc
     return AsqavConnectionError(
-        f"could not reach the Asqav API at {url} ({_one_line(str(reason))}). "
-        "Check the API base (ASQAV_API_URL or `asqav login --api-base`) and run `asqav doctor`."
+        f"Network error: {_one_line(str(reason))} (could not reach the Asqav API at {url}; "
+        "check ASQAV_API_URL or `asqav login --api-base`)"
     )
 
 
@@ -3283,7 +3296,10 @@ def _urllib_request(
             # Strict ingest (419): a duplicated member name fails the response.
             from . import strict_json
 
-            result: dict[str, Any] = strict_json.loads(response.read().decode("utf-8"))
+            try:
+                result: dict[str, Any] = strict_json.loads(response.read().decode("utf-8"))
+            except (_json.JSONDecodeError, UnicodeDecodeError) as exc:
+                raise _non_json_error(exc) from exc
             return result
 
     try:
@@ -3557,14 +3573,18 @@ def _fetch_verification(url: str) -> dict[str, Any]:
     try:
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=30) as response:
-            result: dict[str, Any] = strict_json.loads(response.read().decode("utf-8"))
-            return result
+            raw = response.read()
     except urllib.error.HTTPError as e:
         if e.code == 404:
             raise APIError("Signature not found", 404) from e
         raise APIError(_error_message(e.code, _http_error_text(e)), e.code) from e
     except (urllib.error.URLError, OSError) as e:
         raise _connection_error(url, e) from e
+    try:
+        result: dict[str, Any] = strict_json.loads(raw.decode("utf-8"))
+    except (_json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise _non_json_error(exc) from exc
+    return result
 
 
 def verify_signature(signature_id: str) -> VerificationResponse:
@@ -3654,23 +3674,31 @@ def verify_signature(signature_id: str) -> VerificationResponse:
     )
 
 
-    # Signature validity on its own, apart from anchoring; falls back to the rolled-up verdict.
+#: Labels where a valid signature only waits on its anchor; any other label is a rejection.
+_ANCHOR_WAIT_LABELS = frozenset(
+    {"valid", "anchor_pending", "anchor_pending_no_cryptographic_proof"}
+)
+
+
+    # True when the server accepts the receipt, or the signature holds and only the anchor waits.
 def _signature_valid(resp: Any) -> bool:
+    if resp.verified is True:
+        return True
     detail = getattr(resp, "verification_detail", None)
-    if isinstance(detail, VerificationDetail):
-        return bool(detail.signature_valid)
-    return bool(resp.verified)
+    if not isinstance(detail, VerificationDetail):
+        return False
+    return bool(detail.signature_valid) and detail.validation_label in _ANCHOR_WAIT_LABELS
 
 
     # Anchor state of a verification: confirmed, invalid, pending, none or unknown.
 def _anchor_state(detail: Any) -> str:
     if not isinstance(detail, VerificationDetail):
         return "unknown"
-    if detail.anchor_valid_ots is True or detail.anchor_valid_rfc3161 is True:
-        return "confirmed"
     statuses = (detail.anchor_status_ots, detail.anchor_status_rfc3161)
     if "invalid" in statuses or detail.validation_label == "anchor_invalid":
         return "invalid"
+    if detail.anchor_valid_ots is True or detail.anchor_valid_rfc3161 is True:
+        return "confirmed"
     if any(statuses) or detail.validation_label.startswith("anchor_pending"):
         return "pending"
     return "none"

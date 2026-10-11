@@ -124,6 +124,8 @@ def verify(
 
     Prints signature validity and anchor state on separate lines, so a fresh
     receipt reads "Signature: valid" while its timestamp anchor is pending.
+    A receipt the server rejects reads "Signature: invalid (<label>)" and
+    exits 1.
     With ``--output json`` returns the full ``VerificationResponse`` plus
     the IETF profile sub-axes (`chain_valid`, `anchor_status_ots`,
     `anchor_status_rfc3161`, `signed_at_skew_seconds`, `missing_fields`)
@@ -134,8 +136,8 @@ def verify(
 
     import httpx
 
-    from asqav import APIError, AsqavConnectionError, verify_signature
-    from asqav.client import _anchor_state, _signature_valid
+    from asqav import APIError, AsqavError, verify_signature
+    from asqav.client import _signature_valid
 
     try:
         result = verify_signature(signature_id)
@@ -145,7 +147,7 @@ def verify(
             raise typer.Exit(code=1) from exc
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
-    except AsqavConnectionError as exc:
+    except AsqavError as exc:
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
     except (httpx.RequestError, urllib.error.URLError) as exc:
@@ -154,42 +156,66 @@ def verify(
         raise typer.Exit(code=1) from exc
 
     if output == "json":
-        detail = result.verification_detail
-        payload = {
-            "signature_id": result.signature_id,
-            "signature_valid": _signature_valid(result),
-            "anchor": _anchor_state(detail),
-            "agent_id": result.agent_id,
-            "agent_name": result.agent_name,
-            "action_id": result.action_id,
-            "action_type": result.action_type,
-            "algorithm": result.algorithm,
-            "signed_at": result.signed_at,
-            "verified": result.verified,
-            "verification_url": result.verification_url,
-            "verification_detail": (
-                {
-                    "signer_key_match": detail.signer_key_match,
-                    "signature_valid": detail.signature_valid,
-                    "algorithm_match": detail.algorithm_match,
-                    "agent_active": detail.agent_active,
-                    "validation_label": detail.validation_label,
-                    "signed_at_skew_seconds": detail.signed_at_skew_seconds,
-                    "chain_valid": detail.chain_valid,
-                    "anchor_status_ots": detail.anchor_status_ots,
-                    "anchor_status_rfc3161": detail.anchor_status_rfc3161,
-                    "missing_fields": detail.missing_fields,
-                }
-                if detail
-                else None
-            ),
-        }
-        print(json_mod.dumps(payload, indent=2, default=str))
-        return
+        print(json_mod.dumps(_verify_json(result), indent=2, default=str))
+    else:
+        _print_verify_text(result)
+    # A rejection the server reports exits non-zero; a pending anchor alone does not.
+    if not _signature_valid(result):
+        raise typer.Exit(code=1)
 
-    # Signature validity and anchoring are separate axes: a fresh receipt is valid, anchor pending.
+
+def _verify_json(result: Any) -> dict[str, Any]:
+    # JSON form of a verification, with the signature and anchor axes on top.
+    from asqav.client import _anchor_state, _signature_valid
+
+    detail = result.verification_detail
+    return {
+        "signature_id": result.signature_id,
+        "signature_valid": _signature_valid(result),
+        "anchor": _anchor_state(detail),
+        "agent_id": result.agent_id,
+        "agent_name": result.agent_name,
+        "action_id": result.action_id,
+        "action_type": result.action_type,
+        "algorithm": result.algorithm,
+        "signed_at": result.signed_at,
+        "verified": result.verified,
+        "verification_url": result.verification_url,
+        "verification_detail": (
+            {
+                "signer_key_match": detail.signer_key_match,
+                "signature_valid": detail.signature_valid,
+                "algorithm_match": detail.algorithm_match,
+                "agent_active": detail.agent_active,
+                "validation_label": detail.validation_label,
+                "signed_at_skew_seconds": detail.signed_at_skew_seconds,
+                "chain_valid": detail.chain_valid,
+                "anchor_status_ots": detail.anchor_status_ots,
+                "anchor_status_rfc3161": detail.anchor_status_rfc3161,
+                "missing_fields": detail.missing_fields,
+            }
+            if detail
+            else None
+        ),
+    }
+
+
+def _verify_status(result: Any) -> str:
+    # Headline: valid only when the server accepts it or just the anchor waits.
+    from asqav.client import VerificationDetail, _signature_valid
+
+    if _signature_valid(result):
+        return "valid"
+    detail = result.verification_detail
+    label = detail.validation_label if isinstance(detail, VerificationDetail) else ""
+    return f"invalid ({label})" if label else "invalid"
+
+
+def _print_verify_text(result: Any) -> None:
+    from asqav.client import _anchor_state
+
     anchor = _anchor_state(result.verification_detail)
-    print(f"Signature: {'valid' if _signature_valid(result) else 'invalid'}")
+    print(f"Signature: {_verify_status(result)}")
     print(f"Anchor: {_ANCHOR_TEXT.get(anchor, anchor)}")
     print(f"Agent: {result.agent_name} ({result.agent_id})")
     print(f"Action: {result.action_type}")
