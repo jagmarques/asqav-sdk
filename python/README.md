@@ -19,25 +19,27 @@ pip install asqav
 ## Quick start
 
 ```bash
-pip install "asqav[cli]"
-asqav login        # validates your key, saves it to ~/.asqav/credentials
+pip install asqav
+export ASQAV_API_KEY=<paste your key here>
 ```
 
 ```python
 import asqav
-
-# govern() = init() + Agent.create() in one call
-agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
-
-sig = agent.sign("api:openai:chat", {"model": "gpt-4o"})
-
-print(sig.action_ref)             # "sha256:..." over the JCS-canonical action
-print(sig.previous_receipt_hash)  # 64 hex; "0"*64 on this agent's first receipt
-print(sig.verification_url)       # anyone can open this
+asqav.init()
+agent = asqav.Agent.create("my-first-agent")
+receipt = agent.sign("test", {"hello": "world"})
+print("Receipt:", receipt.verification_url)
 ```
 
-One install, one `govern`, one `sign`. `asqav.init()` + `asqav.Agent.create()` remain
-available when you want control over `algorithm`, `capabilities` and other agent options.
+The printed link is your signed receipt; anyone can open it. To keep the key out of your shell
+profile, install the CLI with `pip install "asqav[cli]"` and run `asqav login` once; `asqav.init()`
+then reads the saved key. `asqav quickstart` prints these steps again.
+
+Check it from the shell with `asqav verify <signature_id>`, where the id is the last part of the
+receipt URL. A fresh receipt reads `Signature: valid` with `Anchor: pending` until its timestamp
+anchor confirms.
+
+`asqav.govern(agent_name="my-agent")` folds `init()` and `Agent.create()` into one call.
 
 ## Verify it without an account
 

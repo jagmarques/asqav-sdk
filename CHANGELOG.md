@@ -7,6 +7,25 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- Outer copies in an exported entry are checked against the signed payload (criterion 742).
+  An Audit Pack entry restates signed values (agent, action, time, signature string, key
+  and signed bytes) as plain top-level members no signature covers, so editing one still
+  read "signature valid". The Python and TypeScript offline verifiers and the standalone
+  `verify_receipt.py` now report a new `outer_copies` axis: any copy that disagrees with the
+  signed value it restates fails the verdict as `unverified` / `invalid`, and members with no
+  signed counterpart, or that sit under a name the receipt never signed, are listed in the note
+  as not signed, on a pass too. The copies are weighed against the normalised signature object,
+  so a flat `sig` string or `signature_envelope` is checked like the object form. The digest and
+  key copies are compared only when the signature verified, `signed_bytes_withheld` is listed and
+  never switches a check off, and an observation time that is withheld or unreadable is listed
+  instead of failed. Axis count is 13 for the offline APIs and 14 for the standalone verifier.
+  A flat hash-mode receipt lists its unsigned members too, including a `payload`, a
+  `signature` other than the one verified, and a `key_id` other than the kid of the verifying key.
+  The single-entry signature cache in both languages verifies the bytes it holds, and the
+  TypeScript one caches `Uint8Array` input only. Conformance vectors `asqav-43` to `asqav-52` pin agreeing entries and edited copies in each
+  signature spelling, and `verifier/outer-copy-cases.json` pins byte-identical results and notes
+  in both languages. `docs/offline-verification.md` lists which members are signed.
+
 - **One verdict for a signed decimal across the verifiers.** The current receipt profile
   (`v: 1`) admits only integers within ±(2^53 - 1) as digest-covered numbers.
   `verify_receipt.py` and the TypeScript verifier refused an integer-valued float such as
@@ -33,6 +52,64 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
   tampered. A Python test and a TypeScript test assert one outcome per case from every
   verifier. No conformance vector changes its verdict.
+- **TypeScript `canonicalJson` writes a plain fraction as Python does.** 0.10.11 gave the
+  Python spelling only to a float-preserving value and left plain `JSON.parse` input as
+  JavaScript writes it, so `computeEnvelopeHash` and `verifyCounterpartyBinding` returned
+  `mismatch` for a genuine binding over a decimal such as `1e-07` or `0.00001` when the
+  origin came from `JSON.parse`. A plain fraction is now written as `1e-07` and `1e-05`.
+  The envelope hash also writes a plain `-0` as `-0.0`, the only way Python writes a
+  negative zero, so a `-0.0` origin matches; an origin respelling Python's `0` as `-0` now
+  reports `mismatch`. A whole-valued float such as `500.0` still reads back from
+  `JSON.parse` as `500`, so that binding stays `mismatch`; parse the origin with
+  `parseJsonPreservingFloats` to keep it.
+- **Digest change for TypeScript helpers.** For input holding a non-integer number with a
+  magnitude from 1e-9 up to 1e-4, these now return a different value, the one the Python
+  helpers return: `canonicalJson`, `computeToolFingerprint`, `computeConfigManifestDigest`,
+  `computeCveInventoryDigest`, the `action_ref` that compliance mode derives from
+  `context`, `deriveChainHash`, `verifyChain` and the CLI chain check, the `chainHash`
+  that `verify()` returns, and the receipt doors `canonicalReceiptBytes`, `receiptDigest`,
+  `toW3cVc`, `toCloudEvent`, `toOtelGenaiAttributes`, `toC2paAssertion`,
+  `toErc8004ValidationRequest` and `wrapAll`. Other numbers give the same bytes as before.
+  `canonicalize`, `canonicalizeAction` and `hashAction` are not affected and still write
+  such a number the JavaScript way.
+- **Values saved from TypeScript 0.10.11 may not recompute.** A counterparty binding that
+  0.10.11 computed over an origin holding such a number, or a `-0`, now reports
+  `mismatch`. A digest, fingerprint, chain hash or door output saved from 0.10.11 over
+  such input differs from the new output, and so does an ERC-8004
+  `receiptCommitment` recorded from it, on chain or elsewhere. For a fraction or a `-0.0`
+  origin, Python never matched the 0.10.11 value. An origin with an integer `-0`, which
+  Python reads as `0`, did match Python in 0.10.11 and still matches in Python, but
+  TypeScript now reports `mismatch`. Recompute these values from the original object.
+- **`asqav verify` keeps signature validity apart from anchoring.** A fresh receipt whose
+  timestamp anchor is still pending prints `Signature: valid` and `Anchor: pending`, in the
+  Python and TypeScript CLIs. A receipt the server rejects prints
+  `Signature: invalid (<label>)`. `asqav.verify()` in both languages returns
+  `signature_valid` (`signatureValid`) and `anchor` beside `verified`.
+- **One API base order everywhere.** `init()`, the async client, the CLI and `asqav doctor`
+  resolve the base as: the `base_url` argument, `ASQAV_API_URL`, `ASQAV_API_BASE`, the base
+  saved by `asqav login --api-base`, then the hosted default. A base passed to `init()` stays
+  in force when a later call in the same process omits it. `asqav doctor` prints the
+  base it checks. The Python async client reads the key and base set by `init()`.
+- **Network and gateway failures raise Asqav errors.** An HTML or other non-JSON error page
+  becomes a one-line `APIError`, and a non-JSON success body raises `AsqavResponseError`.
+  Without httpx the server's `detail` and `code` reach the `APIError` message as they do
+  with it.
+- **`asqav migrate run` and `asqav org halt` send credentials only to the resolved API
+  base** in both CLIs, never to the hosted default when another base is configured.
+- **`asqav quickstart` prints code that runs.** It prints a first-receipt snippet and the
+  command that verifies it. Its help says it writes no files.
+
+### Changed
+
+- **Connection failures raise `AsqavConnectionError`.** A connection that fails or times
+  out raises `AsqavConnectionError`, an `APIError` with status 0, in both languages,
+  with a one-line message naming the URL. Python code that caught `httpx.RequestError` or
+  `urllib.error.URLError` around SDK calls should catch `asqav.AsqavConnectionError`.
+- **`asqav verify` exits 1 when the server rejects the receipt.** A pending anchor alone
+  still exits 0.
+- **One first-receipt snippet.** The READMEs, the CLI reference, `asqav quickstart` and
+  `asqav init` share the snippet the dashboard shows: `export ASQAV_API_KEY`, then
+  `asqav.init()` and one `agent.sign(...)`.
 
 ## [0.10.11] - 2026-10-10
 

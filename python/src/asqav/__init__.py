@@ -67,6 +67,7 @@ from .client import (
     AgentResponse,
     APIError,
     ApprovalResponse,
+    AsqavConnectionError,
     AsqavError,
     AsqavResponseError,
     AsqavValidationError,
@@ -337,6 +338,7 @@ __all__ = [
     "clear_hooks",
     # Exceptions
     "AsqavError",
+    "AsqavConnectionError",
     "AsqavValidationError",
     "AsqavResponseError",
     "AuthenticationError",
@@ -423,23 +425,29 @@ def verify_receipt_offline(
 ) -> dict:
     """Verify a receipt fully offline against an in-memory JWKS snapshot.
 
-    Reports 12 axes in this order: ``structure``, ``signature``, ``chain``,
+    Reports 13 axes in this order: ``structure``, ``signature``, ``chain``,
     ``seq``, ``expiry``, ``nonce``, ``key_binding``, ``counterparty``,
-    ``payload_digest``, ``skew``, ``key_status``, ``issuer_bind``. The TypeScript
+    ``payload_digest``, ``skew``, ``outer_copies``, ``key_status``, ``issuer_bind``. The TypeScript
     ``verifyReceiptOffline`` reports the same names in the same order. A receipt
     whose ``structure`` axis fails stops there and reports fewer. No network call
     is made; all crypto happens in-process. ML-DSA-65 requires ``pip install
     asqav[verify]``; without it the signature axis is SKIPPED and the verdict is
     unverified/unverifiable, never verified.
 
-    ``skew`` is one of the 12 and it decides the verdict: an ``issued_at`` more
+    ``skew`` is one of the 13 and it decides the verdict: an ``issued_at`` more
     than 300 seconds ahead of the wall clock reports FAIL, and the verdict is
     ``unverified`` with failure class ``invalid``. The bound is forward-only, so
     a receipt from the past passes it.
 
+    ``outer_copies`` decides the verdict too. An Audit Pack entry restates signed
+    values (agent, action, time, signature string, key and signed bytes) as plain
+    top-level members no signature covers; any copy that disagrees with the signed
+    payload reports FAIL and the verdict is ``unverified`` with failure class
+    ``invalid``. Read agent and time from the payload, not from the copies.
+
     THE ANCHOR-BINDING AXIS IS NOT EVALUATED HERE, by design and identically in
     the TypeScript ``verifyReceiptOffline``. A ``verified`` verdict from this
-    function therefore means the 12 axes above passed, NOT that the receipt's
+    function therefore means the 13 axes above passed, NOT that the receipt's
     anchors were checked: ``anchors`` sits outside the signed bytes, so an
     altered envelope can move it without breaking the signature. The standalone
     verifier also reports ``issuer_key``, which this function does not, and it
