@@ -12,6 +12,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Any
 
+from asqav import strict_json
+
 from ..verify_receipt import NOT_CHECKED, not_checked_declaration
 from . import crypto
 from .adapter import FormatAdapter, VerificationContext
@@ -342,6 +344,19 @@ def _exceeds_depth(obj: Any, max_depth: int) -> bool:
     return False
 
 
+_UNSAFE_INTEGER_NOTE = "an integer outside +/-2**53 has no exact double; raw-text ingest refuses it"
+
+
+    # Same refusal strict ingest gives raw text, so a parsed dict cannot verify past it.
+def _holds_unsafe_integer(*inputs: Any) -> bool:
+    try:
+        for value in inputs:
+            strict_json.assert_canonical_integers(value)
+    except strict_json.UnsafeIntegerError:
+        return True
+    return False
+
+
     # One-axis unverified result for a pre-axis input refusal (depth, profile range).
 def _early_unverified(
     fmt: str, note: str, context: VerificationContext | None = None,
@@ -390,6 +405,8 @@ def verify(
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
     ):
         return _early_unverified(ad.name, _TOO_DEEP_NOTE, resolved)
+    if _holds_unsafe_integer(doc, predecessor, key_provider, resolved.originating_envelope):
+        return _early_unverified(ad.name, _UNSAFE_INTEGER_NOTE, resolved)
     pred_ad = detect(predecessor, adapters) if predecessor is not None else None
     refusal = ad.profile_precheck(
         doc,
