@@ -33,10 +33,14 @@ def _text(case: Path, name: str) -> str | None:
 
 def _standalone(case: Path) -> tuple[str, str | None]:
     origin = _text(case, "originating_envelope.json")
+    prev = _text(case, "predecessor.json")
     try:
+        pred = vr._parse_object(prev, "predecessor") if prev else None
+        prev_payload = pred.get("payload", pred) if pred else None
         out = vr.run_structured(
             vr._parse_object(_text(case, "receipt.json"), "receipt"),
             vr._parse_object(_text(case, "jwks.json"), "jwks"),
+            prev_payload,
             trusted_tsa_keys=vr._load_tsa_keys([str(case / "tsa_trust.pem")]),
             counterparty=vr._parse_object(origin, "counterparty") if origin else None,
         )
@@ -50,14 +54,18 @@ def _standalone_cli(case: Path) -> int:
             "--jwks", str(case / "jwks.json"), "--tsa-key", str(case / "tsa_trust.pem")]
     if (case / "originating_envelope.json").exists():
         args += ["--counterparty", str(case / "originating_envelope.json")]
+    if (case / "predecessor.json").exists():
+        args += ["--predecessor", str(case / "predecessor.json")]
     env = {**os.environ, "ASQAV_API_URL": "http://127.0.0.1:9"}
     return subprocess.run(args, capture_output=True, text=True, env=env, timeout=120).returncode
 
 
 def _offline_dict(case: Path) -> tuple[str, str | None]:
     origin = _text(case, "originating_envelope.json")
+    prev = _text(case, "predecessor.json")
     out = asqav.verify_receipt_offline(
         json.loads(_text(case, "receipt.json")), json.loads(_text(case, "jwks.json")),
+        predecessor=json.loads(prev) if prev else None,
         originating_envelope=json.loads(origin) if origin else None,
     )
     return out["verdict"], out["failure_class"]
@@ -70,7 +78,9 @@ def test_manifest_covers_every_zone_with_controls() -> None:
     assert sum(c["dir"].endswith("-tamper") for c in MANIFEST) == 10
     # Integers past 2**53 in signed and unsigned positions, receipts and bindings alike.
     unsafe = {c["dir"] for c in MANIFEST if c.get("unsafe_integer")}
-    for part in ("receipt-unsafe-int-signed", "receipt-unsafe-int-unsigned", "counterparty-"):
+    parts = ("receipt-unsafe-int-signed", "receipt-unsafe-int-unsigned",
+             "receipt-unsafe-int-predecessor", "counterparty-")
+    for part in parts:
         assert any(d.startswith(part) for d in unsafe), part
     assert {c["outcome"] for c in MANIFEST} == {"verified", "unverified"}
     dirs = sorted(p.name for p in CASES_DIR.iterdir() if p.is_dir())
@@ -119,6 +129,8 @@ def test_oracle_cli_refuses_an_integer_past_2_53(row: dict) -> None:
     case = CASES_DIR / row["dir"]
     args = [sys.executable, "-m", "asqav.verifier.oracle", str(case / "receipt.json"),
             "--keys", str(case / "jwks.json")]
+    if (case / "predecessor.json").exists():
+        args += ["--predecessor", str(case / "predecessor.json")]
     env = {**os.environ, "ASQAV_API_URL": "http://127.0.0.1:9",
            "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
     proc = subprocess.run(args, capture_output=True, text=True, env=env, timeout=120)

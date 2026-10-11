@@ -27,7 +27,7 @@ With Decorators:
 Get your API key at asqav.com
 """
 
-from . import doors
+from . import doors, strict_json
 from ._detectors import (
     DetectorBlockedError,
     DetectorPlugin,
@@ -492,6 +492,11 @@ def verify_receipt_offline(
     predecessor_payload = None
     if predecessor is not None:
         predecessor_payload = predecessor.get("payload", predecessor)
+        try:
+            strict_json.assert_canonical_integers(predecessor)
+        except strict_json.UnsafeIntegerError:
+            # The whole predecessor goes to the core, which refuses it as raw-text ingest does.
+            predecessor_payload = predecessor
     vr = _oracle_verify(
         receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload,
         context=VerificationContext(originating_envelope=originating_envelope),

@@ -359,6 +359,28 @@
       "unsafe_integer": false
     },
     {
+      "dir": "receipt-unsafe-int-predecessor",
+      "lexeme": "9007199254740993",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-predecessor-bound",
+      "lexeme": "9007199254740992",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": false
+    },
+    {
       "dir": "counterparty-small",
       "lexeme": "1e-07",
       "outcome": "verified",
