@@ -47,7 +47,7 @@ from asqav._useragent import USER_AGENT
 # Harness hooks (Claude Code PostToolUse/PreToolUse). Distinct from asqav/hooks.py,
 # which is in-process sign callbacks the agent opts into.
 from asqav.cli_hook import hook_app
-from asqav.credentials import resolve_api_key
+from asqav.credentials import resolve_api_base, resolve_api_key
 
 app = typer.Typer(
     name="asqav",
@@ -107,6 +107,12 @@ def main(
     pass
 
 
+_ANCHOR_TEXT = {
+    "pending": "pending (normal for a fresh receipt; run verify again later)",
+    "unknown": "not reported",
+}
+
+
 @app.command()
 def verify(
     signature_id: str = typer.Argument(help="Signature ID to verify."),
@@ -116,6 +122,8 @@ def verify(
 ) -> None:
     """Verify a signature by ID (public, no auth needed).
 
+    Prints signature validity and anchor state on separate lines, so a fresh
+    receipt reads "Signature: valid" while its timestamp anchor is pending.
     With ``--output json`` returns the full ``VerificationResponse`` plus
     the IETF profile sub-axes (`chain_valid`, `anchor_status_ots`,
     `anchor_status_rfc3161`, `signed_at_skew_seconds`, `missing_fields`)
@@ -126,7 +134,8 @@ def verify(
 
     import httpx
 
-    from asqav import APIError, verify_signature
+    from asqav import APIError, AsqavConnectionError, verify_signature
+    from asqav.client import _anchor_state, _signature_valid
 
     try:
         result = verify_signature(signature_id)
@@ -134,6 +143,9 @@ def verify(
         if exc.status_code == 404:
             print(f"Signature not found: {signature_id}")
             raise typer.Exit(code=1) from exc
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+    except AsqavConnectionError as exc:
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
     except (httpx.RequestError, urllib.error.URLError) as exc:
@@ -145,6 +157,8 @@ def verify(
         detail = result.verification_detail
         payload = {
             "signature_id": result.signature_id,
+            "signature_valid": _signature_valid(result),
+            "anchor": _anchor_state(detail),
             "agent_id": result.agent_id,
             "agent_name": result.agent_name,
             "action_id": result.action_id,
@@ -173,8 +187,10 @@ def verify(
         print(json_mod.dumps(payload, indent=2, default=str))
         return
 
-    status = "valid" if result.verified else "invalid"
-    print(f"Signature: {status}")
+    # Signature validity and anchoring are separate axes: a fresh receipt is valid, anchor pending.
+    anchor = _anchor_state(result.verification_detail)
+    print(f"Signature: {'valid' if _signature_valid(result) else 'invalid'}")
+    print(f"Anchor: {_ANCHOR_TEXT.get(anchor, anchor)}")
     print(f"Agent: {result.agent_name} ({result.agent_id})")
     print(f"Action: {result.action_type}")
     print(f"Algorithm: {result.algorithm}")
@@ -977,14 +993,26 @@ def demo(
     serve(port=port, open_browser=not no_browser)
 
 
+#: Canonical first-receipt snippet; README, docs and the dashboard print the same text.
+FIRST_RECEIPT_KEY_STEP = "export ASQAV_API_KEY=<paste your key here>"
+FIRST_RECEIPT_SNIPPET = (
+    "import asqav\n"
+    "asqav.init()\n"
+    'agent = asqav.Agent.create("my-first-agent")\n'
+    'receipt = agent.sign("test", {"hello": "world"})\n'
+    'print("Receipt:", receipt.verification_url)\n'
+)
+
+
 @app.command()
 def quickstart() -> None:
-    # Get started with asqav in 60 seconds.
-    api_key = resolve_api_key()
-    if api_key:
-        typer.echo(
-            typer.style("API key detected.", fg=typer.colors.GREEN, bold=True)
-        )
+    """Print the first-receipt steps and check your key. Writes no files.
+
+    Shows a Python snippet that signs one action and prints its receipt URL,
+    then the command that verifies it.
+    """
+    if resolve_api_key():
+        typer.echo(typer.style("API key detected.", fg=typer.colors.GREEN, bold=True))
     else:
         typer.echo(
             typer.style(
@@ -993,6 +1021,14 @@ def quickstart() -> None:
                 bold=True,
             )
         )
+    typer.echo(f"API base: {resolve_api_base()}")
+
+    typer.echo("\n--- 1. Set your key (or run `asqav login`) ---\n")
+    typer.echo(FIRST_RECEIPT_KEY_STEP)
+    typer.echo("\n--- 2. Sign your first receipt (save as first_receipt.py) ---\n")
+    typer.echo(FIRST_RECEIPT_SNIPPET, nl=False)
+    typer.echo("\n--- 3. Verify it (the id is the last part of the receipt URL) ---\n")
+    typer.echo("asqav verify <signature_id>")
 
     typer.echo("\n--- Claude Code hook ---\n")
     typer.echo(
@@ -1002,24 +1038,9 @@ def quickstart() -> None:
         "See the hooks guide for wiring instructions."
     )
 
-    typer.echo("\n--- Default policy example ---\n")
-    typer.echo(
-        "from asqav import Policy\n"
-        "\n"
-        'policy = Policy(\n'
-        '    name="default",\n'
-        '    rules=[\n'
-        '        {"action": "api:call", "effect": "allow"},\n'
-        '        {"action": "write:data", "effect": "deny"},\n'
-        '    ],\n'
-        ')'
-    )
-
     typer.echo("\n--- Next steps ---\n")
-    typer.echo("1. Create an agent:  asqav agents create my-agent")
-    typer.echo("2. Sign actions:     agent.sign('api:call', metadata={...})")
-    typer.echo("3. Verify anywhere:  asqav verify <signature_id>")
-    typer.echo("4. Run diagnostics:  asqav doctor")
+    typer.echo("1. Check your setup:   asqav doctor")
+    typer.echo("2. Scaffold a project: asqav init --write")
 
 
 # === onboarding commands (login / whoami / status / init) ===
@@ -1041,7 +1062,7 @@ def _detect_framework() -> str:
 
 
 def _onboarding_snippet(framework: str) -> str:
-    # Return a short govern() + @asqav.secure snippet flavoured for the framework.
+    # Canonical first-receipt snippet plus a governed function flavoured for the framework.
     action = {
         "openai": "api:openai:chat",
         "anthropic": "api:anthropic:messages",
@@ -1049,17 +1070,14 @@ def _onboarding_snippet(framework: str) -> str:
         "langchain": "api:langchain:invoke",
     }.get(framework, "api:call")
     return (
-        "import asqav\n"
-        "\n"
         "# Key resolves from `asqav login` (or ASQAV_API_KEY)\n"
-        'agent = asqav.govern(agent_name="my-agent")\n'
-        "\n"
+        + FIRST_RECEIPT_SNIPPET
+        + "\n"
         "@asqav.secure\n"
         "def call_model(prompt: str) -> str:\n"
         '    return "..."  # your model call\n'
         "\n"
-        f'sig = agent.sign("{action}", {{"model": "gpt-4o"}})\n'
-        "print(sig.verification_url)\n"
+        f'agent.sign("{action}", {{"model": "gpt-4o"}})\n'
     )
 
 
@@ -1083,7 +1101,9 @@ def _resolve_key_source(explicit: str | None) -> tuple[str | None, str]:
 @app.command("login")
 def login(
     api_key: str = typer.Option("", "--api-key", help="Asqav API key (prompted if omitted)."),
-    api_base: str = typer.Option("", "--api-base", help="Override the API base URL."),
+    api_base: str = typer.Option(
+        "", "--api-base", help="API base URL to save; the SDK, CLI and doctor then use it."
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing credentials file."),
 ) -> None:
     # Validate an API key and save it to ~/.asqav/credentials.
@@ -1102,7 +1122,8 @@ def login(
 
     base = api_base or None
     try:
-        asqav.init(api_key=api_key, base_url=base)
+        # Validate against the base being saved, never the file this login replaces.
+        asqav.init(api_key=api_key, base_url=resolve_api_base(base, use_file=False))
         _get("/agents")
     except Exception as exc:
         typer.echo(f"Error: key validation failed: {exc}")
@@ -1115,8 +1136,6 @@ def login(
 
 
 def _whoami_impl(api_key: str) -> None:
-    from asqav.credentials import resolve_api_base
-
     key, source = _resolve_key_source(api_key or None)
     if key is None:
         typer.echo("No API key found (checked --api-key, ASQAV_API_KEY, ~/.asqav/credentials).")
@@ -1223,6 +1242,11 @@ def doctor() -> None:
             + "  ASQAV_API_KEY not set (run `asqav login`)"
         )
         all_ok = False
+
+    typer.echo(
+        typer.style("INFO", fg=typer.colors.BLUE, bold=True)
+        + f"  API base: {resolve_api_base()}"
+    )
 
     # Check 2: API reachable
     if api_key:
@@ -1824,7 +1848,7 @@ def _session_request(
 
     from asqav.client import _join_url
 
-    base = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
+    base = resolve_api_base()
     url = _join_url(base, path)
     body = json_mod.dumps(data).encode("utf-8") if data is not None else b"{}"
     req = urllib.request.Request(
@@ -2213,7 +2237,7 @@ def migrate_run(
 
     from asqav.client import _join_url
 
-    base = os.environ.get("ASQAV_API_URL", "https://api.asqav.com/api/v1")
+    base = resolve_api_base()
     url = _join_url(base, f"/maintenance/run-migration-{migration}")
 
     import urllib.error

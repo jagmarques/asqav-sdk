@@ -2,7 +2,8 @@
 
 Stores an API key (and optional API base) in ``~/.asqav/credentials`` so the SDK
 and CLI can resolve a key without an environment variable. Resolution mirrors
-:mod:`asqav.local`: explicit argument, then environment, then file.
+:mod:`asqav.local`: explicit argument, then environment, then file. The API base
+order is documented on :func:`resolve_api_base`.
 """
 
 from __future__ import annotations
@@ -93,14 +94,16 @@ def resolve_api_key(explicit: str | None = None) -> str | None:
     return None
 
 
-    # Resolve an API base: explicit arg, then ASQAV_API_BASE env, then file, then default.
-def resolve_api_base(explicit: str | None = None) -> str:
+    # Resolve the API base. Order: explicit arg, ASQAV_API_URL, ASQAV_API_BASE,
+    # the base saved by `asqav login`, then the hosted default.
+def resolve_api_base(explicit: str | None = None, *, use_file: bool = True) -> str:
     if explicit:
         return explicit
-    env_base = os.environ.get("ASQAV_API_BASE")
-    if env_base:
-        return env_base
-    file_base = load_credentials().get("api_base")
+    for name in ("ASQAV_API_URL", "ASQAV_API_BASE"):
+        env_base = os.environ.get(name)
+        if env_base:
+            return env_base
+    file_base = load_credentials().get("api_base") if use_file else None
     if isinstance(file_base, str) and file_base:
         return file_base
     return _DEFAULT_API_BASE
