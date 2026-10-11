@@ -2908,18 +2908,18 @@ def profile_range_note(obj) -> str | None:
         node, path, exiting = stack.pop()
         if isinstance(node, bool):
             continue
-        if isinstance(node, _RawFloat):
-            # Judge the SOURCE LEXEME, never the parsed double: an
-            # integer-valued float lexeme binds digits the profile never
-            # validated as an integer.
+        if isinstance(node, float):
+            # A parsed float came from a float lexeme, so 500.0 and -0.0 bind
+            # digits the profile never validated as an integer, lexeme kept or not.
+            lexeme = node.lexeme if isinstance(node, _RawFloat) else repr(node)
             if (
-                not re.fullmatch(r"-?\d+", node.lexeme)
+                not re.fullmatch(r"-?\d+", lexeme)
                 and node.is_integer()
                 and -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER
             ):
                 return (
                     f"Asqav profile range +/-(2**53 - 1) excludes non-integer "
-                    f"lexeme {node.lexeme!r} at {path}"
+                    f"lexeme {lexeme!r} at {path}"
                 )
             # Fall through: out-of-range magnitudes still fail below.
         if isinstance(node, int):
@@ -2975,7 +2975,8 @@ def profile_range_note(obj) -> str | None:
 def _counterparty_commitment_reached(payload, counterparty) -> bool:
     """True when the counterparty path reaches its envelope commitment."""
     cpb = payload.get("counterparty_binding")
-    if not isinstance(cpb, dict):
+    # Only this scope hashes the origin; another one never reads it.
+    if not isinstance(cpb, dict) or cpb.get("scope") != "envelope_minus_anchors":
         return False
     receipt_ref = cpb.get("receipt_ref")
     if not isinstance(receipt_ref, str) or not receipt_ref:

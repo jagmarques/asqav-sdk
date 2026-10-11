@@ -395,6 +395,7 @@ def verify(
         doc,
         predecessor=predecessor,
         predecessor_fmt=pred_ad.name if pred_ad is not None else None,
+        counterparty=resolved.originating_envelope,
     )
     if refusal is not None:
         return _early_unverified(ad.name, refusal, resolved)
