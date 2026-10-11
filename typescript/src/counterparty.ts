@@ -6,7 +6,7 @@
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
-import { exceedsDepth } from "./verifier/canonical.js";
+import { exceedsDepth, isRawFloatLeaf, RawFloat } from "./verifier/canonical.js";
 
 /**
  * Byte binding over payload and the exact signature object.
@@ -53,7 +53,15 @@ export function computeEnvelopeHash(
   if (exceedsDepth(projection, 200)) {
     throw new Error("counterparty_origin_unavailable: nesting exceeds 200 levels");
   }
-  return createHash("sha256").update(canonicalBytes(projection)).digest("base64");
+  return createHash("sha256").update(canonicalBytes(negativeZeroAsFloat(projection))).digest("base64");
+}
+
+/** Python writes a negative zero only as -0.0; JSON.parse reads it as -0 */
+function negativeZeroAsFloat(value: unknown): unknown {
+  if (Object.is(value, -0)) return new RawFloat(-0);
+  if (Array.isArray(value)) return value.map(negativeZeroAsFloat);
+  if (value === null || typeof value !== "object" || isRawFloatLeaf(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, negativeZeroAsFloat(v)]));
 }
 
 /** Refuse what the canonicaliser refuses, with the Python error text */
