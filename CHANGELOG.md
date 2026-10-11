@@ -52,6 +52,34 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
   tampered. A Python test and a TypeScript test assert one outcome per case from every
   verifier. No conformance vector changes its verdict.
+- **TypeScript `canonicalJson` writes a plain fraction as Python does.** 0.10.11 gave the
+  Python spelling only to a float-preserving value and left plain `JSON.parse` input as
+  JavaScript writes it, so `computeEnvelopeHash` and `verifyCounterpartyBinding` returned
+  `mismatch` for a genuine binding over a decimal such as `1e-07` or `0.00001` when the
+  origin came from `JSON.parse`. A plain fraction is now written as `1e-07` and `1e-05`.
+  The envelope hash also writes a plain `-0` as `-0.0`, the only way Python writes a
+  negative zero, so a `-0.0` origin matches; an origin respelling Python's `0` as `-0` now
+  reports `mismatch`. A whole-valued float such as `500.0` still reads back from
+  `JSON.parse` as `500`, so that binding stays `mismatch`; parse the origin with
+  `parseJsonPreservingFloats` to keep it.
+- **Digest change for TypeScript helpers.** For input holding a non-integer number with a
+  magnitude from 1e-9 up to 1e-4, these now return a different value, the one the Python
+  helpers return: `canonicalJson`, `computeToolFingerprint`, `computeConfigManifestDigest`,
+  `computeCveInventoryDigest`, the `action_ref` that compliance mode derives from
+  `context`, `deriveChainHash`, `verifyChain` and the CLI chain check, the `chainHash`
+  that `verify()` returns, and the receipt doors `canonicalReceiptBytes`, `receiptDigest`,
+  `toW3cVc`, `toCloudEvent`, `toOtelGenaiAttributes`, `toC2paAssertion`,
+  `toErc8004ValidationRequest` and `wrapAll`. Other numbers give the same bytes as before.
+  `canonicalize`, `canonicalizeAction` and `hashAction` are not affected and still write
+  such a number the JavaScript way.
+- **Values saved from TypeScript 0.10.11 may not recompute.** A counterparty binding that
+  0.10.11 computed over an origin holding such a number, or a `-0`, now reports
+  `mismatch`. A digest, fingerprint, chain hash or door output saved from 0.10.11 over
+  such input differs from the new output, and so does an ERC-8004
+  `receiptCommitment` recorded from it, on chain or elsewhere. For a fraction or a `-0.0`
+  origin, Python never matched the 0.10.11 value. An origin with an integer `-0`, which
+  Python reads as `0`, did match Python in 0.10.11 and still matches in Python, but
+  TypeScript now reports `mismatch`. Recompute these values from the original object.
 - **`asqav verify` keeps signature validity apart from anchoring.** A fresh receipt whose
   timestamp anchor is still pending prints `Signature: valid` and `Anchor: pending`, in the
   Python and TypeScript CLIs. A receipt the server rejects prints
