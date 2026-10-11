@@ -30,7 +30,7 @@ import {
   saveCredentials,
 } from "./credentials.js";
 import { SDK_VERSION, userAgentHeaders } from "./userAgent.js";
-import { verifyAuditPackOffline, type PackReport } from "./auditPackOffline.js";
+import { SELF_CONSISTENT_LABEL, verifyAuditPackOffline, type PackReport } from "./auditPackOffline.js";
 import { parseJsonStrict } from "./verifier/canonical.js";
 
 export const CLI_VERSION = SDK_VERSION;
@@ -608,8 +608,12 @@ const OFFLINE_MARKS: Record<string, string> = { verified: "  ok", not_verifiable
 function printOfflineReport(report: PackReport): void {
   const w = (line: string): void => void process.stdout.write(`${line}\n`);
   const { summary } = report;
+  const headline = report.status === "self_consistent" ? SELF_CONSISTENT_LABEL : report.status.replace(/_/g, " ");
   w("Asqav Audit Pack offline verification");
   w(`  keys:    ${report.trust.keys} (${report.trust.key_count} keys)`);
+  if (report.bundle.key_thumbprint) w(`  bundle key: ${report.bundle.key_thumbprint}`);
+  if (!report.trust.anchored) w("  trust:   the keys and any TSA material are self-asserted by the pack; pass --jwks");
+  if (report.trust.tsa_carried_not_trusted > 0) w("  tsa:     TSA entries carried in the pack are not used as roots");
   w(`  [${OFFLINE_MARKS[report.bundle.status]}] bundle   ${report.bundle.reason}`);
   for (const r of report.receipts) {
     const detail = r.reasons.length > 0 ? `: ${r.reasons.join("; ")}` : "";
@@ -618,7 +622,7 @@ function printOfflineReport(report: PackReport): void {
     for (const line of [...checked, ...r.notes.map((n) => `info: ${n}`)]) w(`         ${line}`);
   }
   w(
-    `\n  => ${report.status.replace(/_/g, " ")}: ${summary.verified}/${summary.total} verified, ` +
+    `\n  => ${headline}: ${summary.verified}/${summary.total} verified, ` +
       `${summary.not_verifiable_offline} not verifiable offline, ${summary.invalid} invalid`,
   );
 }
