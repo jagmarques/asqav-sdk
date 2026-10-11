@@ -201,47 +201,47 @@
       }
     },
     {
-      "dir": "counterparty-small",
-      "lexeme": "1e-07",
-      "outcome": "verified",
-      "failure_class": null,
+      "dir": "receipt-respelled-int500-0",
+      "lexeme": "500.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
       "parsed": {
         "outcome": "verified",
         "failure_class": null
       }
     },
     {
-      "dir": "counterparty-small-tamper",
-      "lexeme": "1.0000000000000001e-07",
+      "dir": "receipt-respelled-int500-1",
+      "lexeme": "5e2",
       "outcome": "unverified",
-      "failure_class": "invalid",
+      "failure_class": "unverifiable",
       "parsed": {
-        "outcome": "unverified",
-        "failure_class": "invalid"
+        "outcome": "verified",
+        "failure_class": null
       }
     },
     {
-      "dir": "counterparty-large",
-      "lexeme": "7.635507284768651e+16",
+      "dir": "receipt-respelled-int0-0",
+      "lexeme": "0.0",
       "outcome": "unverified",
       "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      }
+    },
+    {
+      "dir": "receipt-respelled-int0-1",
+      "lexeme": "-0",
+      "outcome": "verified",
+      "failure_class": null,
       "parsed": {
         "outcome": "unverified",
         "failure_class": "unverifiable"
       }
     },
     {
-      "dir": "counterparty-large-tamper",
-      "lexeme": "7.635507284768653e+16",
-      "outcome": "unverified",
-      "failure_class": "unverifiable",
-      "parsed": {
-        "outcome": "unverified",
-        "failure_class": "unverifiable"
-      }
-    },
-    {
-      "dir": "counterparty-negzero",
+      "dir": "receipt-respelled-int0-2",
       "lexeme": "-0.0",
       "outcome": "unverified",
       "failure_class": "unverifiable",
@@ -251,6 +251,76 @@
       }
     },
     {
+      "dir": "receipt-respelled-negzero-0",
+      "lexeme": "-0",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
+      "dir": "counterparty-small",
+      "lexeme": "1e-07",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "binding": "matches",
+      "parsed_binding": "matches"
+    },
+    {
+      "dir": "counterparty-small-tamper",
+      "lexeme": "1.0000000000000001e-07",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "invalid"
+      },
+      "binding": "mismatch",
+      "parsed_binding": "mismatch"
+    },
+    {
+      "dir": "counterparty-large",
+      "lexeme": "7.635507284768651e+16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "binding": "unresolved",
+      "parsed_binding": "unresolved"
+    },
+    {
+      "dir": "counterparty-large-tamper",
+      "lexeme": "7.635507284768653e+16",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "binding": "unresolved",
+      "parsed_binding": "unresolved"
+    },
+    {
+      "dir": "counterparty-negzero",
+      "lexeme": "-0.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "binding": "matches",
+      "parsed_binding": "unresolved"
+    },
+    {
       "dir": "counterparty-negzero-tamper",
       "lexeme": "0.0",
       "outcome": "unverified",
@@ -258,7 +328,9 @@
       "parsed": {
         "outcome": "unverified",
         "failure_class": "invalid"
-      }
+      },
+      "binding": "mismatch",
+      "parsed_binding": "mismatch"
     },
     {
       "dir": "counterparty-float500",
@@ -268,7 +340,9 @@
       "parsed": {
         "outcome": "unverified",
         "failure_class": "invalid"
-      }
+      },
+      "binding": "matches",
+      "parsed_binding": "mismatch"
     },
     {
       "dir": "counterparty-float500-tamper",
@@ -278,7 +352,9 @@
       "parsed": {
         "outcome": "unverified",
         "failure_class": "invalid"
-      }
+      },
+      "binding": "mismatch",
+      "parsed_binding": "mismatch"
     },
     {
       "dir": "counterparty-half",
@@ -288,7 +364,9 @@
       "parsed": {
         "outcome": "verified",
         "failure_class": null
-      }
+      },
+      "binding": "matches",
+      "parsed_binding": "matches"
     },
     {
       "dir": "counterparty-half-tamper",
@@ -298,7 +376,45 @@
       "parsed": {
         "outcome": "unverified",
         "failure_class": "invalid"
-      }
+      },
+      "binding": "mismatch",
+      "parsed_binding": "mismatch"
+    },
+    {
+      "dir": "counterparty-respelled-int500",
+      "lexeme": "500.0",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "binding": "mismatch",
+      "parsed_binding": "matches"
+    },
+    {
+      "dir": "counterparty-respelled-int0",
+      "lexeme": "-0",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "binding": "matches",
+      "parsed_binding": "unresolved"
+    },
+    {
+      "dir": "counterparty-respelled-negzero",
+      "lexeme": "-0",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "binding": "mismatch",
+      "parsed_binding": "unresolved"
     }
   ]
 }
