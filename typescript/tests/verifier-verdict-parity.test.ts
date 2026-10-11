@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { verifyCounterpartyBinding, verifyReceiptOffline } from "../src/index.js";
-import { parseJsonPreservingFloats } from "../src/verifier/canonical.js";
+import { parseJsonPreservingFloats, UnsafeIntegerError } from "../src/verifier/canonical.js";
 import { runOne } from "../src/verifier/runner.js";
 
 interface Outcome {
@@ -19,6 +19,7 @@ interface ParityCase extends Outcome {
   parsed: Outcome;
   binding?: string;
   parsed_binding?: string;
+  unsafe_integer?: boolean;
 }
 
 const CASES_DIR = resolve(__dirname, "..", "..", "verifier", "verdict-parity-cases");
@@ -26,6 +27,7 @@ const MANIFEST = (JSON.parse(readFileSync(join(CASES_DIR, "manifest.json"), "utf
   .cases;
 const read = (c: ParityCase, f: string): string | null =>
   existsSync(join(CASES_DIR, c.dir, f)) ? readFileSync(join(CASES_DIR, c.dir, f), "utf8") : null;
+const PREV = "predecessor.json";
 const parse = (t: string | null): Record<string, unknown> | null => (t === null ? null : JSON.parse(t));
 
 describe("signed float receipts get the Python verdict", () => {
@@ -39,14 +41,20 @@ describe("signed float receipts get the Python verdict", () => {
     const want = [c.outcome, c.failure_class];
     const raw = runOne(join(CASES_DIR, c.dir), "asqav-native", c.outcome, "", c.failure_class ?? "");
     expect([raw.actualVerdict, raw.actualFailureClass || null], raw.detail.slice(0, 300)).toEqual(want);
-    const text = verifyReceiptOffline(read(c, "receipt.json")!, read(c, "jwks.json")!, null, read(c, "originating_envelope.json"));
+    const text = verifyReceiptOffline(read(c, "receipt.json")!, read(c, "jwks.json")!, read(c, PREV), read(c, "originating_envelope.json"));
     expect([text.verdict, text.failureClass]).toEqual(want);
   });
 
   it.each(MANIFEST.map((c) => [c.dir, c] as const))("%s: float-preserving object API", (_dir, c) => {
     const keep = (t: string | null) => (t === null ? null : parseJsonPreservingFloats(t));
-    const files = ["receipt.json", "jwks.json", "originating_envelope.json"].map((f) => keep(read(c, f)));
-    const r = verifyReceiptOffline(files[0] as never, files[1] as never, null, files[2] as never);
+    const names = ["receipt.json", "jwks.json", "originating_envelope.json", PREV];
+    // The parse itself refuses an integer past 2**53, as raw-text ingest does
+    if (c.unsafe_integer) {
+      expect(() => names.map((f) => keep(read(c, f)))).toThrow(UnsafeIntegerError);
+      return;
+    }
+    const files = names.map((f) => keep(read(c, f)));
+    const r = verifyReceiptOffline(files[0] as never, files[1] as never, files[3] as never, files[2] as never);
     expect([r.verdict, r.failureClass]).toEqual([c.outcome, c.failure_class]);
   });
 
@@ -54,12 +62,12 @@ describe("signed float receipts get the Python verdict", () => {
     const r = verifyReceiptOffline(
       parse(read(c, "receipt.json"))!,
       parse(read(c, "jwks.json"))!,
-      null,
+      parse(read(c, PREV)),
       parse(read(c, "originating_envelope.json")),
     );
     expect([r.verdict, r.failureClass]).toEqual([c.parsed.outcome, c.parsed.failure_class]);
-    // Past Python only for an integer respelled as a float, as documented
-    if (c.parsed.outcome === "verified" && c.outcome !== "verified") expect(respelledInteger(c)).toBe(true);
+    // Past Python only for a respelled or rounded unsigned integer
+    if (c.parsed.outcome === "verified" && c.outcome !== "verified") expect(respelledInteger(c) || unsignedUnsafe(c)).toBe(true);
   });
 
   const bindings = MANIFEST.filter((c) => c.binding !== undefined);
@@ -67,14 +75,22 @@ describe("signed float receipts get the Python verdict", () => {
 
   it.each(bindings.map((c) => [c.dir, c] as const))("%s: verifyCounterpartyBinding", (_dir, c) => {
     const text = read(c, "originating_envelope.json")!;
-    expect([bind(c, text), bind(c, parseJsonPreservingFloats(text))]).toEqual([c.binding, c.binding]);
+    expect(bind(c, text)).toBe(c.binding);
+    if (c.unsafe_integer && c.dir.includes("-origin-")) expect(() => parseJsonPreservingFloats(text)).toThrow(UnsafeIntegerError);
+    else expect(bind(c, parseJsonPreservingFloats(text))).toBe(c.binding);
     expect(bind(c, JSON.parse(text))).toBe(c.parsed_binding);
-    if (c.parsed_binding === "matches" && c.binding !== "matches") expect(respelledInteger(c)).toBe(true);
+    if (c.parsed_binding === "matches" && c.binding !== "matches") expect(respelledInteger(c) || unsignedUnsafe(c)).toBe(true);
   });
 });
 
 function respelledInteger(c: ParityCase): boolean {
   return c.dir.includes("-respelled-") && /[.eE]/.test(c.lexeme) && Number.isInteger(Number(c.lexeme));
+}
+
+// JSON.parse rounds an integer past 2**53; unsigned, it goes unseen
+function unsignedUnsafe(c: ParityCase): boolean {
+  const unsigned = c.dir.includes("-unsigned") || c.dir.endsWith("-predecessor");
+  return c.unsafe_integer === true && unsigned && !Number.isSafeInteger(Number(c.lexeme));
 }
 
 describe("a parsed -0 is refused only where it is signed", () => {

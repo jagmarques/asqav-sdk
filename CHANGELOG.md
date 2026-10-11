@@ -28,6 +28,17 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- **The Python oracle returns a verdict for an integer past 2^53.** `run_one` and
+  `python -m asqav.verifier.oracle` raised `UnsafeIntegerError` on a receipt or origin holding
+  an integer outside ±2^53, where `verify_receipt.py` and the TypeScript `runOne` report
+  `unverified` / `unverifiable`. Both now return that verdict, and the oracle CLI exits 2
+  instead of crashing with exit 1. `asqav.verify_receipt_offline` gives the same answer for a
+  parsed dict holding such an integer anywhere, members no signature covers included, so it no
+  longer verifies a receipt that raw-text ingest refuses. `verify_counterparty_binding`
+  reports `unresolved` for an origin holding one, as the TypeScript raw-text path does. The
+  verdict parity fixtures gain eleven cases with such integers in signed and unsigned positions
+  of receipts, predecessors and counterparty envelopes, plus two 2^53 controls, asserted on every
+  Python and TypeScript verifier. Conformance vectors are unchanged.
 - Outer copies in an exported entry are checked against the signed payload (criterion 742).
   An Audit Pack entry restates signed values (agent, action, time, signature string, key
   and signed bytes) as plain top-level members no signature covers, so editing one still
@@ -72,7 +83,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   such as `0.5` still verifies. A cloud receipt can carry such a number in the
   `metadata` values of a hash-mode receipt, for example a `timestamp` sent as
   `1791676800.0`.
-- **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 41 receipts signed with
+- **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 54 receipts signed with
   a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
   tampered, plus signed integers `500` and `0` respelled as `500.0`, `5e2`, `0.0`, `-0`
   and `-0.0`, and signed `-0.0` and `0.0` respelled `-0`. A Python test and a TypeScript
