@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. Every plain copy agrees with the signed payload, so the outer_copies axis passes. signature_id is not carried (no signed counterpart). Control for asqav-44..48."
+}

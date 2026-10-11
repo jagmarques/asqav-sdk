@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. The signature is the flat base64 string and every copy agrees with the signed payload. Control for asqav-50."
+}

@@ -74,6 +74,7 @@ const INVALID_FAIL_AXES = new Set([
   "key_binding",
   "counterparty",
   "payload_digest",
+  "outer_copies",
   "nonce",
   "parent_signature",
   "pdp_signature",

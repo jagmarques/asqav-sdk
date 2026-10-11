@@ -59,6 +59,7 @@ export type { Coverage, CoverageEntry, NotCheckedEntry } from "./not-checked.js"
 export {
   checkAnchors,
   checkExpiry,
+  checkOuterCopies,
   checkSkew,
   envelopeMinusAnchorsJcs,
   normaliseEnvelope,

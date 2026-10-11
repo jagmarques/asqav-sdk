@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "invalid",
+  "reason_code": "outer_copy_mismatch",
+  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. The outer action_type differs from the signed action_type. The signed bytes are untouched, so the signature axis still passes; the outer_copies axis FAILs and the verdict is unverified/invalid."
+}
