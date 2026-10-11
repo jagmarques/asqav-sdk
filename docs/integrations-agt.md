@@ -110,8 +110,8 @@ signed authorization payload covers `authorizer_id`, so any edit to it breaks
 AGT's check.
 
 An authorization needs an `allow` from Asqav, so register an Asqav policy that
-allows `agt:authorize`. Without one, Asqav records an observation, and the
-signer refuses to authorize.
+allows `agt:authorize`. Without that policy Asqav only records an observation.
+The signer then refuses to authorize.
 
 The Ed25519 authorization AGT checks is made with `authorizer_key_hex`, a key
 you hold, so AGT's `require_external_authorization=True` passes without
