@@ -128,7 +128,7 @@ function bundleMaterial(pack: Obj): Material | BundleResult {
   return { msg, key: b64decode(keyB64 as string), sig: b64decode(sig as string), alg };
 }
 
-function bundleKeyProblem(pack: Obj, entry: Obj | undefined, alg: string, anchored: boolean): BundleResult | null {
+function bundleKeyProblem(pack: Obj, entry: Obj | undefined, alg: string): BundleResult | null {
   if (entry === undefined) return outcome("invalid", "bundle key is not in the key set");
   if (typeof entry.alg === "string" && entry.alg.toUpperCase() !== alg.toUpperCase()) {
     return outcome("invalid", `bundle algorithm ${alg} differs from its key's alg ${entry.alg}`);
@@ -137,19 +137,39 @@ function bundleKeyProblem(pack: Obj, entry: Obj | undefined, alg: string, anchor
     return outcome("invalid", "bundle signing key belongs to another organization");
   }
   const status = String(entry.status ?? "").toLowerCase();
-  if (REVOKED_STATUSES.has(status) || entry.revoked_at) {
-    return outcome(anchored ? "invalid" : "not_verifiable_offline", `bundle key is ${status || "revoked"}`);
-  }
+  if (REVOKED_STATUSES.has(status) || entry.revoked_at || entry.suspended_at) return revocationOutcome(pack, entry);
   return null;
 }
 
+function stampMs(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const zoned = /(Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}Z`;
+  const ms = Date.parse(zoned);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+// No anchor checks here: only the signed start can prove a later signature
+function revocationOutcome(pack: Obj, entry: Obj): BundleResult {
+  const label = String(entry.status || "revoked").toLowerCase();
+  const when = entry.revoked_at || entry.suspended_at;
+  const rev = stampMs(when);
+  const start = stampMs(pack.start);
+  if (rev !== null && start !== null && start >= rev) {
+    return outcome("invalid", `bundle key ${label} at ${String(when)}, before the signed window start`);
+  }
+  return outcome(
+    "not_verifiable_offline",
+    `bundle key ${label} at ${when ? String(when) : "an unknown time"}; nothing proves the bundle was signed before it`,
+  );
+}
+
 /** Recompute the bundle digest, check its signature and key */
-export function checkBundle(pack: Obj, jwks: unknown, anchored = false): BundleResult {
+export function checkBundle(pack: Obj, jwks: unknown): BundleResult {
   const material = bundleMaterial(pack);
   if ("status" in material) return material;
   const { msg, key, sig, alg } = material;
   const entry = jwksKeys(jwks).find((k) => sameBytes(keyBytes(k), key));
-  const problem = bundleKeyProblem(pack, entry, alg, anchored);
+  const problem = bundleKeyProblem(pack, entry, alg);
   if (problem !== null || entry === undefined) return problem as BundleResult;
   const res = verifySignature(alg, key, msg, sig);
   if (res.result !== "PASS") {
@@ -346,7 +366,7 @@ export function verifyAuditPackOffline(packText: string, jwksText?: string): Pac
   const keySet: Obj = isObj(supplied) ? supplied : isObj(pack.jwks) ? pack.jwks : { keys: [] };
   const receipts = Array.isArray(pack.receipts) ? pack.receipts : [];
   const [preds, issues] = chainContext(receipts);
-  const bundle = checkBundle(pack, keySet, anchored);
+  const bundle = checkBundle(pack, keySet);
   const results = receipts.map((r, i) =>
     applyContext(verifyPackEntry(r, keySet, preds.get(i) ?? null), issues.get(i) ?? [], bundle.status === "verified"),
   );
