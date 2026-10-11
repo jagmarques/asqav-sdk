@@ -116,11 +116,19 @@ receipt as the third argument to check the hash-chain link too.
 Raw text gets the same verdict as the Python verifiers and the conformance runner, because
 the parser keeps each number as it was written. The signed bytes can hold `500.0` or `-0.0`,
 and the receipt profile accepts only integers in the safe range, so those receipts come back
-`unverified` / `unverifiable` everywhere. `JSON.parse` throws that spelling away. With an
-already-parsed object, a `-0` in a signed part is refused as `unverifiable` because it could
-have been `-0` or `-0.0`, and a `500.0` reads back as `500`, so the signature check fails and
-the result is `unverified` / `invalid` instead. It is never `verified`. Fractions such as `1e-07` and `0.5`
-verify the same way on both paths.
+`unverified` / `unverifiable` everywhere. An object from `JSON.parse` cannot carry that
+spelling. On that path a `-0` in a signed part is refused as `unverifiable`, because it could
+have been `-0` or `-0.0`. A `500.0` reads back as `500`: if the signer wrote the float `500.0`,
+the signature check fails with `unverified` / `invalid`, but if the signer wrote the integer
+`500` and the file respells it as `500.0` or `5e2` (or `0` as `0.0`), the object verifies while
+raw text and the Python verifiers refuse it. Pass raw text when you need the strict profile.
+Fractions such as `1e-07` and `0.5` verify the same way on both paths.
+`verifyCounterpartyBinding` and `computeEnvelopeHash` also take the origin as raw text, and
+then agree with Python's `verify_counterparty_binding`. A `JSON.parse` origin loses the
+spelling here too. If it holds `-0`, `verifyCounterpartyBinding` reports `unresolved` and
+`computeEnvelopeHash` and `computeCounterpartyBinding` throw `counterparty_origin_unavailable`.
+If the origin signed the integer `500` and the file respells it as `500.0`, the binding reports
+`matches` while Python reports `mismatch`. Pass raw text for Python's answer.
 ML-DSA-65 verifies in-process via `@noble/post-quantum`; Ed25519 and ES256 via `node:crypto`.
 Guide: [offline and air-gapped verification](https://asqav.com/docs/offline-air-gapped-verification).
 
