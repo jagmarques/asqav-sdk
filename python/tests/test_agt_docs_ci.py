@@ -21,7 +21,10 @@ def _agt_job() -> str:
 def test_docs_describe_a_witness_and_its_limits() -> None:
     assert "They cannot produce a matching" not in DOC
     assert "independent signer" not in DOC
-    assert "second, later Asqav receipt" in DOC
+    assert "second, later Asqav receipt" not in DOC
+    assert "matching every Asqav receipt in the org against the exported AGT\nreceipts" in DOC
+    assert "the PyPI 5.0.0 release AGT's verifier never sees the Asqav receipt" in DOC
+    assert "checked by `verify_asqav_link` alone" in DOC
     assert "does not evaluate" in DOC
     assert "passes without\nconsulting Asqav" in DOC
 
