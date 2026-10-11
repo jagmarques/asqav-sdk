@@ -335,6 +335,26 @@ export function profileRangeNote(value: unknown): string | null {
   return null;
 }
 
+/** First plain `-0` path in a parsed value, else null. JSON.parse reads `-0`
+ *  and `-0.0` alike though they sign differently; only raw text can say */
+export function parsedNegativeZeroPath(value: unknown): string | null {
+  const stack: Array<[unknown, string, number]> = [[value, "$", 0]];
+  while (stack.length > 0) {
+    const [node, path, depth] = stack.pop() as [unknown, string, number];
+    if (Object.is(node, -0)) return path;
+    // Past the nesting cap the core refuses the receipt as too deep anyway
+    if (depth > 201 || node === null || typeof node !== "object" || isRawFloat(node)) continue;
+    if (Array.isArray(node)) {
+      node.forEach((item, i) => stack.push([item, `${path}[${i}]`, depth + 1]));
+    } else {
+      for (const [k, item] of Object.entries(node as Record<string, unknown>)) {
+        stack.push([item, `${path}.${k}`, depth + 1]);
+      }
+    }
+  }
+  return null;
+}
+
 /** Throw `ProfileIntegerError` when parsed values leave the profile range */
 export function assertProfileIntegers(value: unknown): void {
   const note = profileRangeNote(value);
@@ -447,9 +467,12 @@ function serialize(
   if (value === true) return "true";
   if (value === false) return "false";
   if (isRawFloat(value)) return honorFloat ? floatToString(value.value) : numberToString(value.value);
-  // A >2^53 integer: emit exact source digits in every dialect (Python str(int)
-  // parity) so distinct ints stay distinct.
-  if (typeof value === "number") return numberToString(value);
+  // A plain fraction or a value past 2**53 came from a float lexeme (strict
+  // ingest refuses such integers), so write it as Python repr does
+  if (typeof value === "number") {
+    const fromFloat = !Number.isInteger(value) || Math.abs(value) > MAX_CANONICAL_INTEGER;
+    return honorFloat && fromFloat ? floatToString(value) : numberToString(value);
+  }
   if (typeof value === "string") return jsonString(value);
   if (Array.isArray(value)) {
     return "[" + value.map((v) => serialize(v, keyCompare, honorFloat)).join(",") + "]";
@@ -468,15 +491,13 @@ function serialize(
 
 const utf16CompareKeys = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-/** AERF/ACTA-dialect JCS: NFC, code-point key sort, numbers as the producer emits them. */
+/** AERF/ACTA-dialect JCS: NFC, code-point key sort, floats as Python repr */
 export function jcs(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(nfc(obj), compareCodePoints, true));
 }
 
-/**
- * Asqav cloud JCS bytes (no NFC, producer numbers), byte-identical to the cloud signer: member names in
- * UTF-16 code-unit order per RFC 8785 section 3.2.3, which JS string comparison already gives.
- */
+/** Asqav cloud JCS bytes, byte-identical to the cloud signer: no NFC, Python
+ *  float repr, member names in UTF-16 code-unit order (JS string compare) */
 export function asqavJcs(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(obj, utf16CompareKeys, true));
 }

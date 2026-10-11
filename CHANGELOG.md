@@ -7,6 +7,32 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- **One verdict for a signed decimal across the verifiers.** The current receipt profile
+  (`v: 1`) admits only integers within ±(2^53 - 1) as digest-covered numbers.
+  `verify_receipt.py` and the TypeScript verifier refused an integer-valued float such as
+  `500.0` or `-0.0`. The Python oracle and `asqav.verify_receipt_offline` verified it,
+  because their parser keeps no lexeme. `profile_range_note` now judges every parsed
+  Python float, so all of them report such a receipt `unverified` / `unverifiable`. The
+  oracle and the TypeScript verifier also apply the range to the signature object of an
+  anchored receipt and to the originating envelope of an `envelope_minus_anchors`
+  binding, as `verify_receipt.py` does. A binding under another scope never hashes its
+  origin, so no verifier range-checks that origin.
+- **`verifyReceiptOffline` accepts raw JSON text** for the receipt, keys, predecessor and
+  originating envelope. It reads the text with the lexeme-preserving parser and returns
+  the conformance runner's verdict. Given an object from `JSON.parse`, it writes a
+  fraction or a value past 2^53 as Python does and refuses a signed `-0` as
+  `unverifiable`. A signed `500.0` reads back as `500` there, so that receipt reports `invalid`; the
+  TypeScript README explains the difference.
+- **Behaviour change for Python users.** `asqav.verify_receipt_offline` and the oracle
+  now refuse, as `unverified` / `unverifiable`, a receipt they verified in 0.10.11 when a
+  signed number is an integer written as a float, such as `500.0` or `-0.0`. A fraction
+  such as `0.5` still verifies. A cloud receipt can carry such a number in the
+  `metadata` values of a hash-mode receipt, for example a `timestamp` sent as
+  `1791676800.0`.
+- **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 30 receipts signed with
+  a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
+  tampered. A Python test and a TypeScript test assert one outcome per case from every
+  verifier. No conformance vector changes its verdict.
 - **`asqav verify` keeps signature validity apart from anchoring.** A fresh receipt whose
   timestamp anchor is still pending prints `Signature: valid` and `Anchor: pending`, in the
   Python and TypeScript CLIs. A receipt the server rejects prints
@@ -135,7 +161,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   and `counterpartyEnvelopeHash` returned a different hash. The strict JCS output and plain
   numbers from `JSON.parse` are unchanged. A receipt carrying `-0.0` or a decimal such as
   `500.0` is still refused by the TypeScript number-range check while the Python oracle
-  accepts it; aligning that check is tracked for the next release.
+  accepts it. The Unreleased section aligns the oracle with that check.
 - **TypeScript counterparty hashing matches Python for floats.** `computeEnvelopeHash` and
   `verifyCounterpartyBinding` hash a float-preserving value as Python's `json.dumps` writes
   it (`1.0` stays `1.0`). A float Python refuses raises `canonical bytes unavailable` and
@@ -607,7 +633,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   is fail-closed stricter than the suite spec: `proofPurpose` must be
   `assertionMethod` and the verificationMethod DID must equal the issuer DID,
   mirroring the agentreceipts adapter. `validFrom`/`validUntil` report on the
-  expiry axis, which never folds the verdict (criterion 426). A sibling
+  expiry axis, which never folds the verdict. A sibling
   cryptosuite reports as an algorithm mismatch (`invalid`), never a silent
   re-dispatch. Eight new conformance vectors (`w3c-vc-01..08`) pin the did:web
   and did:key happy paths, tamper rejection, a wrong published key, fail-closed
@@ -633,7 +659,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 ### Changed
 
 - **BREAKING: the verifier speaks a three-verdict vocabulary and never collapses
-  failure classes (criteria 418/438).** Every public verifier surface — the
+  failure classes.** Every public verifier surface — the
   standalone `verify_receipt.py` (text + structured + exit codes), the oracle
   `verify()` / `VerifyResult`, the oracle runner, the TypeScript `verify()` /
   `verifyReceiptOffline`, and `verify_attestation_offline` — now reports
@@ -653,8 +679,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   The per-axis PASS/FAIL/SKIPPED tokens stay internal. Both language halves and
   the conformance corpus agree byte for byte on verdict and failure_class.
 
-- **BREAKING: duplicate JSON member names are rejected at any depth (criterion
-  419).** Every receipt- and record-parsing path — `verify_receipt` ingest, the
+- **BREAKING: duplicate JSON member names are rejected at any depth.**
+  Every receipt- and record-parsing path — `verify_receipt` ingest, the
   oracle runner and CLI, the attestation signed-message re-parse, the doors OTel
   receipt recovery, the CLI JSON arguments and signing-log records, the API
   response parsers, and the TypeScript `parseJsonPreservingFloats` plus the
