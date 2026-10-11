@@ -79,6 +79,10 @@ def _sig_of(name: str, receipt: dict) -> str:
         assert isinstance(entry.get("sig"), str), name
         return entry["sig"]
     signature = receipt.get("signature")
+    if isinstance(signature, str):  # flat spelling: the string is the sig
+        return signature
+    if not isinstance(signature, dict):  # hosted spelling: the object is renamed
+        signature = receipt.get("signature_envelope")
     assert isinstance(signature, dict) and isinstance(signature.get("sig"), str), name
     return signature["sig"]
 
@@ -100,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 53,
-    "action_ref": 49,
-    "policy_digest": 46,
-    "previousReceiptHash": 46,
+    "sig": 62,
+    "action_ref": 58,
+    "policy_digest": 56,
+    "previousReceiptHash": 55,
     "key_thumbprint": 3,
-    "payload_digest": 43,
+    "payload_digest": 52,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -391,6 +395,29 @@ PINNED_ENVELOPE_HASH = {
     'asqav-39-counterparty-cross-replay': 'xxTSAmzdM1Act3omGEhYR5GfMnUC+C/P6+dZjRm8XIo=',
 }
 
+#: Outer-copy vectors keep asqav-06's signed payload and edit only unsigned
+#: export copies, so every derived pin is asqav-06's pin.
+for _name in (
+    "asqav-43-outer-copies-agree",
+    "asqav-44-outer-signed-at-edited",
+    "asqav-45-outer-agent-id-edited",
+    "asqav-46-outer-action-type-edited",
+    "asqav-47-outer-message-copy-edited",
+    "asqav-48-outer-public-key-edited",
+    "asqav-49-outer-flat-signature-agree",
+    "asqav-50-outer-flat-signature-agent-id-edited",
+    "asqav-51-outer-envelope-signature-action-type-edited",
+):
+    for _pins in (PINNED_SIG, PINNED_ACTION_REF, PINNED_POLICY_DIGEST, PINNED_PREV_HASH,
+                  PINNED_PAYLOAD_DIGEST):
+        _pins[_name] = _pins["asqav-06-mldsa65-payload-prod"]
+
+#: The flat hash-mode vector keeps asqav-05's signed fields, so its policy_digest is asqav-05's.
+PINNED_POLICY_DIGEST["asqav-52-outer-flat-hash-unsigned-members"] = PINNED_POLICY_DIGEST[
+    "asqav-05-hash-mode-prod"
+]
+
+
 
 @pytest.mark.parametrize("name,value", sorted(PINNED_SIG.items()))
 def test_sig_is_the_pinned_literal(name: str, value: str) -> None:
@@ -466,6 +493,11 @@ def _occurrences() -> list[tuple[str, str, str]]:
         signature = receipt.get("signature")
         if isinstance(signature, dict) and isinstance(signature.get("sig"), str):
             found.append((name, "sig", "signature"))
+        elif isinstance(signature, str) and isinstance(payload, dict):
+            found.append((name, "sig", "signature"))
+        envelope = receipt.get("signature_envelope")
+        if isinstance(envelope, dict) and isinstance(envelope.get("sig"), str):
+            found.append((name, "sig", "signature_envelope"))
         for index, entry in enumerate(receipt.get("signatures") or []):
             if isinstance(entry, dict) and isinstance(entry.get("sig"), str):
                 found.append((name, "sig", f"signatures[{index}]"))
@@ -503,7 +535,7 @@ def test_no_derived_member_hides_at_an_unknown_path() -> None:
         "key_thumbprint": {"payload"},
         "payload_digest": {"payload"},
         "envelope_hash": {"payload/counterparty_binding"},
-        "sig": {"signature", "signatures[]"},
+        "sig": {"signature", "signature_envelope", "signatures[]"},
         "canonical": set(),
     }
     assert set(known) == PINNED_MEMBER_NAMES

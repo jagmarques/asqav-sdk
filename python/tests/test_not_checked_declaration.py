@@ -108,11 +108,11 @@ def test_every_return_path_of_run_structured_declares_it():
         )
 
 
-#: The twelve axes after the structure gate on the normal path, pinned verbatim so
-#: a reorder of the verifier's sequence fails here instead of editing the pin.
+#: The thirteen axes after the structure gate, pinned verbatim so a reorder
+#: of the verifier's sequence fails here instead of editing the pin.
 _AXES_AFTER_STRUCTURE = (
     "nonce", "issuer_key", "issuer_bind", "key_status", "signature", "key_binding",
-    "counterparty", "payload_digest", "chain", "anchors", "skew", "expiry",
+    "counterparty", "payload_digest", "outer_copies", "chain", "anchors", "skew", "expiry",
 )
 
 
