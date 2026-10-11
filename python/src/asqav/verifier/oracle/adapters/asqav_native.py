@@ -373,23 +373,21 @@ class AsqavNativeAdapter(FormatAdapter):
         return _is_hash_mode(doc) and doc.get("hash_algo") == "hmac-sha256"
 
     def profile_precheck(
-        self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None
+        self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None,
+        counterparty: Any = None,
     ) -> str | None:
         """Refuse current-profile digest inputs outside the range, else None."""
         if _is_hash_mode(doc):
             if not _vr.is_current_profile_version(doc.get("v")):
                 return None
             return _vr.profile_range_note(_flat_signed_fields(doc))
-        signed = _payload(doc)
-        if not _vr.is_current_profile_version(signed.get("v")):
-            return None
-        note = _vr.profile_range_note(signed)
-        if note is not None:
-            return note
-        if (
-            isinstance(predecessor, dict)
-            and predecessor_fmt == self.name
-            and signed.get("previousReceiptHash") != _vr.FIRST_RECEIPT_SEED
-        ):
-            return _vr.profile_range_note(_payload(predecessor))
-        return None
+        # The standalone rule itself, so both Python verifiers refuse the same inputs.
+        env = _vr.normalise_envelope(doc)
+        same_fmt = isinstance(predecessor, dict) and predecessor_fmt == self.name
+        return _vr._profile_range_refusal(
+            _payload(doc),
+            env.get("signature"),
+            _payload(predecessor) if same_fmt else None,
+            counterparty,
+            env.get("anchors"),
+        )

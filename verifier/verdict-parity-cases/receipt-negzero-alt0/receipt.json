@@ -1,0 +1,37 @@
+{
+  "payload": {
+    "type": "protectmcp:decision",
+    "v": 1,
+    "issued_at": "2026-09-01T12:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "agent_id": "agt_demo_001",
+    "action_ref": "sha256:0e253e03f0ad3958f3af59a52e9ccd91a3bc089da58aed15cca7062fd549c797",
+    "context": {
+      "subject": "float-negzero",
+      "tool": "demo.action",
+      "decision": "allow",
+      "score": -0e0
+    },
+    "payload_digest": {
+      "hash": "0e253e03f0ad3958f3af59a52e9ccd91a3bc089da58aed15cca7062fd549c797",
+      "size": 80
+    },
+    "risk": -0e0,
+    "policy_digest": "sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "allow",
+    "mode": "payload",
+    "tool_name": "demo.action"
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "verdict-parity-747",
+    "sig": "uyfEy7O/f6u0CJM9AXRLz2mQw1gX5FZbSnFtqxmCxTZjFaAY900fNZAooRYz5Lx2XDba0zS5W0SKUzFyPUSADA=="
+  },
+  "anchors": [
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEIN6qhXltS1c/3QcHUt70hFyLslrBG1tASsMJhiLn/yFqAgEqGA8yMDI2MDkwMTEyMDAwMVoxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQKd7TjkZUuugRHkmu5PbnpWYwMWrf5mxk5jJ4rlK8QV+jnJKK/IwHAxePccJ79xuSBFoWggpmR0Mzeo4lfRWNQ4="
+    }
+  ]
+}
