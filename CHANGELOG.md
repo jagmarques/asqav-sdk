@@ -5,7 +5,23 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-10-11
+
+This release makes the verifiers agree. An edited copy of a signed value in an exported
+entry now fails verification, and a signed decimal gets one verdict in Python and
+TypeScript alike. Connection failures raise one Asqav error in both languages, and
+`asqav verify` reports the signature apart from a pending timestamp anchor. A whole Audit
+Pack can now be checked offline with `asqav audit-pack verify --offline`. Python users
+should read the behaviour change below: an integer written as a float in a signed field,
+such as `500.0`, is now refused as unverifiable.
+
 ### Added
+
+- **Microsoft Agent Governance Toolkit receipts can be witnessed by Asqav** (criterion 763).
+  The `asqav.agt_receipts` module records each AGT receipt in an Asqav receipt signed and
+  timestamped by the Asqav service, outside the agent's process, and links the two. Install it
+  with `pip install "asqav[agt]"` (Python 3.11 and later). Asqav witnesses the receipt; it does
+  not evaluate the Cedar decision. `docs/integrations-agt.md` lists what the witness proves.
 
 - **`asqav audit-pack verify --offline <pack>` checks a whole exported Audit Pack with no
   network** (criterion 760). Every receipt runs through `verify_receipt.py`, chained to the
@@ -39,7 +55,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   verdict parity fixtures gain eleven cases with such integers in signed and unsigned positions
   of receipts, predecessors and counterparty envelopes, plus two 2^53 controls, asserted on every
   Python and TypeScript verifier. Conformance vectors are unchanged.
-- Outer copies in an exported entry are checked against the signed payload (criterion 742).
+- **Outer copies in an exported entry are checked against the signed payload.**
   An Audit Pack entry restates signed values (agent, action, time, signature string, key
   and signed bytes) as plain top-level members no signature covers, so editing one still
   read "signature valid". The Python and TypeScript offline verifiers and the standalone
