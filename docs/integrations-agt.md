@@ -154,8 +154,9 @@ the JWKS, and refuses when no JWKS is given. It then recomputes the `action_ref`
 from the AGT receipt and compares it with the signed one. The signed decision
 must fit the link: `allow` for an authorization, `allow` or `observation` for a
 countersign. `expected_org` pins the Asqav org id. The pin holds only when the
-signed `org_id` and the org the JWKS publishes for the signing key both equal
-it. The signed `org_id` is used because `issuer_id` carries the org's legal
+signed `org_id` and the org the JWKS publishes for the key that verifies the
+signature both equal it. That key is found by checking the signature, never by
+the unsigned `kid`. The signed `org_id` is used because `issuer_id` carries the org's legal
 entity when one is set. For an authorized receipt it also checks that
 `authorizer_id` names the Asqav receipt; that id sits outside the signed
 payload, and the cryptographic binding is the `action_ref`. For the full Asqav
