@@ -45,11 +45,20 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   `parseJsonPreservingFloats` to keep it.
 - **Digest change for TypeScript helpers.** For input holding a non-integer number with a
   magnitude from 1e-9 up to 1e-4, these now return a different value, the one the Python
-  helpers return: `computeToolFingerprint`, `computeConfigManifestDigest`,
+  helpers return: `canonicalJson`, `computeToolFingerprint`, `computeConfigManifestDigest`,
   `computeCveInventoryDigest`, the `action_ref` that compliance mode derives from
-  `context`, `deriveChainHash` and `verifyChain`, `canonicalReceiptBytes`, `receiptDigest`
-  and the `asqav.receipt` OpenTelemetry attribute. Other numbers give the same bytes as
-  before.
+  `context`, `deriveChainHash`, `verifyChain` and the CLI chain check, the `chainHash`
+  that `verify()` returns, and the receipt doors `canonicalReceiptBytes`, `receiptDigest`,
+  `toW3cVc`, `toCloudEvent`, `toOtelGenaiAttributes`, `toC2paAssertion`,
+  `toErc8004ValidationRequest` and `wrapAll`. Other numbers give the same bytes as before.
+  `canonicalize`, `canonicalizeAction` and `hashAction` are not affected and still write
+  such a number the JavaScript way.
+- **Values saved from TypeScript 0.10.11 may not recompute.** A counterparty binding that
+  0.10.11 computed over an origin holding such a number, or a `-0`, now reports
+  `mismatch`. A digest, fingerprint, chain hash or door output saved from 0.10.11 over
+  such input differs from the new output, and so does an ERC-8004
+  `receiptCommitment` recorded from it, on chain or elsewhere. Python never matched these
+  values. Recompute them from the original object.
 
 ## [0.10.11] - 2026-10-10
 

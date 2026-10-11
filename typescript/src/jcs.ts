@@ -1,7 +1,5 @@
-/**
- * JCS canonicalization for the IETF Compliance Receipts profile; `canonicalJson(obj)` returns the exact
- * bytes the cloud signs and the chain hashes over. `canonicalize.ts` exposes the same bytes by alias.
- */
+/** JCS bytes the cloud signs and the chain hashes over; canonicalize.ts
+ *  writes small fractions differently */
 
 import { isRawFloatLeaf, pythonFloatRepr, writesAsFloat } from "./verifier/canonical.js";
 
