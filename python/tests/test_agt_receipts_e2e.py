@@ -394,17 +394,38 @@ def test_expected_org_falls_back_to_issuer_id_without_org_id(stub: _AsqavStub) -
 VICTIM_ORG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 
 
-def _resign(server: _AsqavStub, envelope: dict[str, Any], **edits: Any) -> dict[str, Any]:
-    """Re-sign an Asqav envelope with the stand-in's own key after editing its payload."""
+def _resign(
+    server: _AsqavStub, envelope: dict[str, Any], *, sk: bytes | None = None, **edits: Any
+) -> dict[str, Any]:
+    """Re-sign an Asqav envelope after editing its payload (stand-in key unless ``sk``)."""
     forged = json.loads(json.dumps(envelope))
     for key, value in edits.items():
         if value is None:
             forged["payload"].pop(key, None)
         else:
             forged["payload"][key] = value
-    sig = ML_DSA_65.sign(server.sk, vr.canonical_json(forged["payload"]))
+    sig = ML_DSA_65.sign(sk or server.sk, vr.canonical_json(forged["payload"]))
     forged["signature"]["sig"] = base64.b64encode(sig).decode()
     return forged
+
+
+def _victim_row() -> tuple[dict[str, Any], bytes, str]:
+    """A second org's published key, as a merged JWKS carries it."""
+    pk, sk = ML_DSA_65.keygen()
+    thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=pk)
+    row = {
+        "kid": "key-victim",
+        "agent_id": "agt_victim",
+        "issuer_id": VICTIM_ORG,
+        "org_id": VICTIM_ORG,
+        "alg": "ML-DSA-65",
+        "kty": "AKP",
+        "public_key": base64.b64encode(pk).decode(),
+        "status": "active",
+        "revoked_at": None,
+        "key_thumbprint": thumb,
+    }
+    return row, sk, thumb
 
 
 @pytest.mark.parametrize(
@@ -435,6 +456,41 @@ def test_expected_org_needs_the_signing_key_published_for_that_org(
             assert errors == []
         else:
             assert f"Asqav signing key is published under org {ORG}, not {VICTIM_ORG}." in errors
+
+
+@pytest.mark.parametrize(
+    "kid",
+    ["key-victim", VICTIM_ORG, "", None],
+    ids=["victim-key-id", "victim-org", "empty", "none"],
+)
+@pytest.mark.parametrize("thumbprint", ["none", "victim"])
+def test_expected_org_reads_the_key_that_verified_not_the_kid(
+    stub: _AsqavStub, kid: str | None, thumbprint: str
+) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    victim, _, victim_thumb = _victim_row()
+    jwks = {"keys": [*stub.jwks()["keys"], victim]}
+    stamp = None if thumbprint == "none" else victim_thumb
+    forged = _resign(stub, link.asqav_receipt, org_id=VICTIM_ORG, key_thumbprint=stamp)
+    forged["signature"]["kid"] = kid
+    errors = verify_asqav_link(receipt, forged, jwks=jwks, expected_org=VICTIM_ORG)
+    assert f"Asqav signing key is published under org {ORG}, not {VICTIM_ORG}." in errors
+
+
+def test_expected_org_holds_for_each_org_in_a_merged_jwks(stub: _AsqavStub) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    victim, victim_sk, victim_thumb = _victim_row()
+    jwks = {"keys": [*stub.jwks()["keys"], victim]}
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
+    edits = {"org_id": VICTIM_ORG, "issuer_id": VICTIM_ORG, "agent_id": "agt_victim"}
+    own = _resign(stub, link.asqav_receipt, sk=victim_sk, key_thumbprint=victim_thumb, **edits)
+    own["signature"]["kid"] = "key-victim"
+    assert verify_asqav_link(receipt, own, jwks=jwks, expected_org=VICTIM_ORG) == []
+    assert verify_asqav_link(receipt, own, jwks=jwks, expected_org=ORG) != []
 
 
 def test_operator_recountersign_shows_as_a_second_later_receipt(stub: _AsqavStub) -> None:
