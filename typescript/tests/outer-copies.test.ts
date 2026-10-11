@@ -44,7 +44,7 @@ describe("outer-copy case table (shared with Python)", () => {
 
   it.each(CASES.map((c) => [c.name, c] as const))("%s", (_name, c) => {
     const key = c.key_b64 === null ? null : b64decode(c.key_b64);
-    const [result, note] = checkOuterCopies(c.raw, b64decode(c.message_b64), key);
+    const [result, note] = checkOuterCopies(c.raw, b64decode(c.message_b64), key, c.key_kid ?? null);
     expect({ result, note }).toEqual(c.expect);
   });
 });
@@ -198,5 +198,37 @@ describe("a flat hash-mode receipt signs its own fields (asqav-52)", () => {
     const [result, note] = checkOuterCopies(receipt, new Uint8Array(), null);
     expect(result).toBe("FAIL");
     expect(note).toContain("compliance_mode");
+  });
+});
+
+describe("a flat receipt signs neither payload nor signature, nor its key_id", () => {
+  const attacks: Array<[string, Record<string, unknown>]> = [
+    ["payload", { payload: "Approved wire transfer of $1M by the CFO" }],
+    ["payload", { payload: ["approved", "cfo"] }],
+    ["signature", { signature: { alg: "ML-DSA-65", approved_by: "cfo", agent_id: "agt_cfo" } }],
+    ["signature", { signature: "b3RoZXItc2lnbmF0dXJl" }],
+  ];
+
+  it.each(attacks)("lists an unsigned %s", (member, edit) => {
+    const [receipt, jwks] = vector("asqav-05-hash-mode-prod");
+    const result = verifyReceiptOffline({ ...receipt, ...edit }, jwks);
+    expect(result.verdict).toBe("verified");
+    expect(axis(result, "outer_copies")?.note).toBe(`not signed, do not rely on: ${member}`);
+  });
+
+  it("lists a key_id no key verified under", () => {
+    const [receipt, jwks] = vector("asqav-05-hash-mode-prod");
+    const result = verifyReceiptOffline({ ...receipt, key_id: "cfo-hsm-key" }, jwks);
+    expect(result.verdict).toBe("unverified");
+    expect(axis(result, "outer_copies")?.note).toBe("not signed, do not rely on: key_id");
+  });
+
+  it("does not list the signature or key_id that verified", () => {
+    const [receipt, jwks] = vector("asqav-05-hash-mode-prod");
+    const result = verifyReceiptOffline({ ...receipt, signature: receipt.signature_b64 }, jwks);
+    expect(result.verdict).toBe("verified");
+    expect(axis(result, "outer_copies")?.note).toBe(
+      "no outer copies carried; the signed payload is the whole receipt",
+    );
   });
 });

@@ -97,8 +97,8 @@ _DISPATCH = {
 }
 
 
-#: Last verification, held as immutable copies so a caller reusing a buffer
-#: can never read an earlier result.
+#: Last verification, held and computed on immutable copies so neither a reused
+#: buffer nor the input type can change what a later call reads.
 _LAST: tuple | None = None
 
 
@@ -114,6 +114,6 @@ def verify_signature(alg: object, pk: bytes, msg: bytes, sig: bytes) -> tuple[st
     last = _LAST
     if last is not None and last[0] is fn and last[1] == held:
         return last[2]
-    result = fn(pk, msg, sig)
+    result = fn(*held)
     _LAST = (fn, held, result)
     return result

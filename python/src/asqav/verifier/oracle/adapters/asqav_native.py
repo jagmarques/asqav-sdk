@@ -338,7 +338,9 @@ class AsqavNativeAdapter(FormatAdapter):
         axes.append(("skew", *_vr.check_skew(stamp, now=now)))
         # Weigh the plain copies against the signed payload and the key that verified
         msg = self.signing_input(doc)
-        axes.append(("outer_copies", *_vr.check_outer_copies(doc, msg, self._verifying_key(doc, bound_pk, msg))))
+        verifying = self._verifying_key(doc, bound_pk, msg)
+        kid = entry.get("kid") if verifying is not None and entry is not None else None
+        axes.append(("outer_copies", *_vr.check_outer_copies(doc, msg, verifying, kid)))
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)

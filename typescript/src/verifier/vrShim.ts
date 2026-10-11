@@ -784,10 +784,8 @@ const FLAT_SIGNED: ReadonlySet<string> = new Set([
   "agent_id", "org_id", "policy_digest", "policy_decision",
 ]);
 
-/** Signature material of a flat receipt: read to verify, not claims. */
-const FLAT_MATERIAL: ReadonlySet<string> = new Set([
-  "payload", "signature", "signature_b64", "anchors", "algorithm", "key_id",
-]);
+/** Framing a flat receipt's checks read: algorithm and anchors. */
+const FLAT_FRAMING: ReadonlySet<string> = new Set(["anchors", "algorithm"]);
 
 /** A flat hash-mode receipt: mode=hash, no payload object, a signature. */
 function isFlatHashReceipt(raw: Record<string, unknown>): boolean {
@@ -795,10 +793,29 @@ function isFlatHashReceipt(raw: Record<string, unknown>): boolean {
   return pyTruthy(raw.signature_b64) || pyTruthy(raw.signature);
 }
 
+/** The signature string that verified, or a string with its bytes. */
+function flatSignatureUsed(raw: Record<string, unknown>, name: string): boolean {
+  const source = pyTruthy(raw.signature_b64) ? "signature_b64" : "signature";
+  if (typeof raw[name] !== "string" || typeof raw[source] !== "string") return false;
+  const verified = strictB64(raw[source]);
+  return name === source || (verified !== null && sameBytes(raw[name], verified));
+}
+
+/** Signed, framing, the verified signature, or the verifying kid. */
+function flatMemberBound(
+  raw: Record<string, unknown>, name: string, keyBytes: Uint8Array | null, keyKid: string | null,
+): boolean {
+  if (FLAT_SIGNED.has(name) || FLAT_FRAMING.has(name)) return true;
+  if (name === "signature_b64" || name === "signature") return flatSignatureUsed(raw, name);
+  return name === "key_id" && keyBytes !== null && typeof keyKid === "string" && raw[name] === keyKid;
+}
+
 /** A flat receipt has no copies; list the members it does not sign. */
-function flatOuterNote(raw: Record<string, unknown>): readonly ["PASS", string] {
+function flatOuterNote(
+  raw: Record<string, unknown>, keyBytes: Uint8Array | null, keyKid: string | null,
+): readonly ["PASS", string] {
   const names = Object.keys(raw)
-    .filter((k) => !FLAT_SIGNED.has(k) && !FLAT_MATERIAL.has(k) && present(raw, k))
+    .filter((k) => present(raw, k) && !flatMemberBound(raw, k, keyBytes, keyKid))
     .sort();
   if (names.length === 0) return ["PASS", "no outer copies carried; the signed payload is the whole receipt"];
   return ["PASS", `not signed, do not rely on: ${names.join(", ")}`];
@@ -848,14 +865,15 @@ function outerCopyNote(outcomes: CopyOutcome[], raw: Record<string, unknown>): r
  * entry as received, `msg` the canonical signed bytes, `keyBytes` the key the
  * signature verified under (null when it did not verify). The signature copies
  * are weighed against the normalised signature object, the one the signature
- * axis used.
+ * axis used. A flat hash-mode receipt lists the members it does not sign,
+ * including a `key_id` other than `keyKid`, the kid of the key that verified.
  */
 export function checkOuterCopies(
-  raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null = null,
+  raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null = null, keyKid: string | null = null,
 ): readonly ["PASS" | "FAIL", string] {
   const payload = raw.payload;
   if (!isRecord(payload)) {
-    if (isFlatHashReceipt(raw)) return flatOuterNote(raw);
+    if (isFlatHashReceipt(raw)) return flatOuterNote(raw, keyBytes, keyKid);
     return ["PASS", "no signed payload object; no outer copies compared"];
   }
   const sigObj = normaliseEnvelope(raw).signature;

@@ -198,6 +198,16 @@ export class AsqavNativeAdapter extends FormatAdapter {
     );
   }
 
+  /** outer_copies, weighed against the verifying key and its kid. */
+  private outerCopies(
+    doc: Record<string, unknown>, pk: Uint8Array | null, entry: Record<string, unknown> | null,
+  ): readonly ["PASS" | "FAIL", string] {
+    const msg = this.signingInput(doc);
+    const verifying = this.verifyingKey(doc, pk, msg);
+    const kid = verifying !== null && typeof entry?.kid === "string" ? entry.kid : null;
+    return checkOuterCopies(doc, msg, verifying, kid);
+  }
+
   /** The resolved key when the signature verifies under it, else null. */
   private verifyingKey(
     doc: Record<string, unknown>, pk: Uint8Array | null, msg: Uint8Array,
@@ -329,8 +339,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
     axes.push(["skew", ...checkSkew(stamp, nowMs)]);
     // Plain copies beside the signed payload are weighed against it; the key is
     // the one the signature verified under
-    const msg = this.signingInput(doc);
-    axes.push(["outer_copies", ...checkOuterCopies(doc, msg, this.verifyingKey(doc, boundPk, msg))]);
+    axes.push(["outer_copies", ...this.outerCopies(doc, boundPk, entry)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.

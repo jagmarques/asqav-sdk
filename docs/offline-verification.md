@@ -256,8 +256,19 @@ a form this check does not read (basic ISO, hour-only, week dates, comma fractio
 listed. The digest and the key are listed when the signature did not verify, because
 until then the bytes compared need not be the signed bytes. A member that is absent or
 `null` is not compared, except `compliance_mode`, which must be `true` whenever it is
-present. A flat hash-mode receipt (`mode: hash`, no `payload` object) signs its own fields, so it
-has no copies: its other members are listed as not signed. The manual
+present.
+
+A flat hash-mode receipt (`mode: hash`, no `payload` object) signs its own fields, so it
+has no copies. Its signature covers `v`, `mode`, `hash`, `hash_algo`, `metadata`,
+`server_timestamp`, `action_id`, `agent_id`, `org_id`, `policy_digest` and
+`policy_decision`. Every other member is listed as not signed, apart from these.
+`algorithm` and `anchors` are read by their own checks. The signature string that was
+verified (`signature_b64`, or `signature` when `signature_b64` is empty) is not listed,
+and neither is a second string with the same decoded bytes. Any other `signature`, such as
+an object, or a string that differs, is listed. So is a `payload` that is not null. `key_id`
+only picks which published key to try, and nothing signs it. It is left unlisted when the
+signature verified under the published key whose `kid` it names. In every other case it is
+listed. The manual
 [openssl and jq walkthrough](openssl-jq-walkthrough.md) reads the `payload` alone, so
 it never relies on a copy.
 

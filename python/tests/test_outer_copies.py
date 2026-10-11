@@ -61,7 +61,8 @@ def test_case_table_is_populated() -> None:
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_shared_case_table(case: dict) -> None:
     key = None if case["key_b64"] is None else base64.b64decode(case["key_b64"])
-    result, note = vr.check_outer_copies(case["raw"], base64.b64decode(case["message_b64"]), key)
+    message = base64.b64decode(case["message_b64"])
+    result, note = vr.check_outer_copies(case["raw"], message, key, case.get("key_kid"))
     assert (result, note) == (case["expect"]["result"], case["expect"]["note"])
 
 
@@ -341,3 +342,40 @@ def test_compliance_mode_null_fails_beside_a_payload() -> None:
     receipt["compliance_mode"] = None
     result, note = vr.check_outer_copies(receipt, b"x", None)
     assert result == "FAIL" and "compliance_mode" in note
+
+
+# ---- a flat receipt signs neither payload nor signature, nor its key_id ------
+
+_FLAT_ATTACKS = [
+    ("payload", {"payload": "Approved wire transfer of $1M by the CFO"}),
+    ("payload", {"payload": ["approved", "cfo"]}),
+    ("signature", {"signature": {"alg": "ML-DSA-65", "approved_by": "cfo", "agent_id": "agt_cfo"}}),
+    ("signature", {"signature": "b3RoZXItc2lnbmF0dXJl"}),
+]
+
+
+@requires_mldsa
+@pytest.mark.parametrize(("member", "edit"), _FLAT_ATTACKS, ids=[f"{m}-{i}" for i, (m, _) in enumerate(_FLAT_ATTACKS)])
+def test_a_flat_receipt_lists_an_unsigned_payload_or_signature(member: str, edit: dict) -> None:
+    receipt, jwks = _vector("asqav-05-hash-mode-prod")
+    receipt.update(edit)
+    result = asqav.verify_receipt_offline(receipt, jwks)
+    assert result["verdict"] == "verified"
+    assert _axes(result)["outer_copies"]["note"] == f"not signed, do not rely on: {member}"
+
+
+def test_a_flat_receipt_lists_a_key_id_no_key_verified_under() -> None:
+    receipt, jwks = _vector("asqav-05-hash-mode-prod")
+    receipt["key_id"] = "cfo-hsm-key"
+    result = asqav.verify_receipt_offline(receipt, jwks)
+    assert result["verdict"] == "unverified"
+    assert _axes(result)["outer_copies"]["note"] == "not signed, do not rely on: key_id"
+
+
+@requires_mldsa
+def test_a_flat_receipt_does_not_list_the_signature_or_key_id_that_verified() -> None:
+    receipt, jwks = _vector("asqav-05-hash-mode-prod")
+    receipt["signature"] = receipt["signature_b64"]
+    result = asqav.verify_receipt_offline(receipt, jwks)
+    assert result["verdict"] == "verified"
+    assert _axes(result)["outer_copies"]["note"] == "no outer copies carried; the signed payload is the whole receipt"

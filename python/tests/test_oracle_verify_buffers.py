@@ -38,3 +38,18 @@ def test_the_same_input_still_gives_the_same_answer() -> None:
     pk, sig = _signed(b"receipt A")
     first = crypto.verify_signature("Ed25519", pk, b"receipt A", sig)
     assert crypto.verify_signature("Ed25519", pk, b"receipt A", sig) == first == ("PASS", "signature valid")
+
+
+def test_a_bytearray_call_answers_as_the_same_bytes_do() -> None:
+    pk, sig = _signed(b"receipt C")
+    cold = crypto.verify_signature("Ed25519", bytearray(pk), bytearray(b"receipt C"), bytearray(sig))
+    assert cold == crypto.verify_signature("Ed25519", pk, b"receipt C", sig) == ("PASS", "signature valid")
+
+
+def test_a_bytes_pass_and_a_bytearray_fail_never_cross() -> None:
+    pk, sig = _signed(b"receipt D")
+    other_pk, _ = _signed(b"other")
+    assert crypto.verify_signature("Ed25519", bytearray(other_pk), b"receipt D", sig)[0] == "FAIL"
+    assert crypto.verify_signature("Ed25519", bytearray(pk), b"receipt D", sig)[0] == "PASS"
+    assert crypto.verify_signature("Ed25519", pk, b"receipt D", sig)[0] == "PASS"
+    assert crypto.verify_signature("Ed25519", bytearray(pk), b"receipt D", bytearray(sig))[0] == "PASS"
