@@ -43,6 +43,13 @@ describe("signed float receipts get the Python verdict", () => {
     expect([text.verdict, text.failureClass]).toEqual(want);
   });
 
+  it.each(MANIFEST.map((c) => [c.dir, c] as const))("%s: float-preserving object API", (_dir, c) => {
+    const keep = (t: string | null) => (t === null ? null : parseJsonPreservingFloats(t));
+    const files = ["receipt.json", "jwks.json", "originating_envelope.json"].map((f) => keep(read(c, f)));
+    const r = verifyReceiptOffline(files[0] as never, files[1] as never, null, files[2] as never);
+    expect([r.verdict, r.failureClass]).toEqual([c.outcome, c.failure_class]);
+  });
+
   it.each(MANIFEST.map((c) => [c.dir, c] as const))("%s: JSON.parse object API", (_dir, c) => {
     const r = verifyReceiptOffline(
       parse(read(c, "receipt.json"))!,

@@ -65,6 +65,7 @@ RESPELLED_RECEIPTS = {
     "int0": (0, [("0.0", UNVERIFIABLE, VERIFIED), ("-0", VERIFIED, UNVERIFIABLE),
                  ("-0.0", UNVERIFIABLE, UNVERIFIABLE)]),
     "negzero": (-0.0, [("-0", INVALID, UNVERIFIABLE)]),
+    "poszero": (0.0, [("-0", INVALID, UNVERIFIABLE)]),
 }
 
 #: name -> (origin's signed number, spelling, outcome, JSON.parse outcome)
@@ -72,6 +73,7 @@ RESPELLED_ORIGINS = {
     "int500": (500, "500.0", UNVERIFIABLE, VERIFIED),
     "int0": (0, "-0", VERIFIED, UNVERIFIABLE),
     "negzero": (-0.0, "-0", INVALID, UNVERIFIABLE),
+    "poszero": (0.0, "-0", INVALID, UNVERIFIABLE),
 }
 
 

@@ -359,13 +359,12 @@ export function parsedNegativeZeroPath(value: unknown): string | null {
     if (Object.is(node, -0)) return path;
     // Past the nesting cap the core refuses the receipt as too deep anyway
     if (depth > 201 || node === null || typeof node !== "object" || isRawFloat(node)) continue;
-    if (Array.isArray(node)) {
-      node.forEach((item, i) => stack.push([item, `${path}[${i}]`, depth + 1]));
-    } else {
-      for (const [k, item] of Object.entries(node as Record<string, unknown>)) {
-        stack.push([item, `${path}.${k}`, depth + 1]);
-      }
-    }
+    const entries = Array.isArray(node)
+      ? node.map((item, i): [string, unknown] => [`[${i}]`, item])
+      : Object.entries(node as Record<string, unknown>).map(([k, item]): [string, unknown] => [`.${k}`, item]);
+    // A preserved container's plain -0 was the integer -0, Python's 0
+    const keep = PRESERVED.has(node) ? entries.filter(([, item]) => !Object.is(item, -0)) : entries;
+    for (const [step, item] of keep) stack.push([item, path + step, depth + 1]);
   }
   return null;
 }

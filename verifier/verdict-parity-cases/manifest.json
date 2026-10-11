@@ -261,6 +261,16 @@
       }
     },
     {
+      "dir": "receipt-respelled-poszero-0",
+      "lexeme": "-0",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      }
+    },
+    {
       "dir": "counterparty-small",
       "lexeme": "1e-07",
       "outcome": "verified",
@@ -406,6 +416,18 @@
     },
     {
       "dir": "counterparty-respelled-negzero",
+      "lexeme": "-0",
+      "outcome": "unverified",
+      "failure_class": "invalid",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "binding": "mismatch",
+      "parsed_binding": "unresolved"
+    },
+    {
+      "dir": "counterparty-respelled-poszero",
       "lexeme": "-0",
       "outcome": "unverified",
       "failure_class": "invalid",
