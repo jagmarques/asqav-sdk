@@ -16,8 +16,9 @@ from .client import (
     SessionResponse,
     SignatureResponse,
     VerificationResponse,
-    _api_base,
-    _api_key,
+    _connection_error,
+    _error_message,
+    _join_url,
     _parse_bitcoin_anchor,
     _parse_timestamp,
     _resolve_action_ref,
@@ -47,17 +48,16 @@ def _ensure_httpx() -> None:
 
     # Ensure the SDK is initialized.
 def _ensure_initialized() -> None:
-
-    if not _api_key:
-        raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
+    _get_config()
 
 
-    # Get the current ``(api_base, api_key)`` tuple from the client module.
+    # Read ``(api_base, api_key)`` live from the client module, as set by asqav.init().
 def _get_config() -> tuple[str, str]:
+    from . import client as _client_mod
 
-    if not _api_key:
+    if not _client_mod._api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
-    return _api_base, _api_key
+    return _client_mod._api_base, _client_mod._api_key
 
 
     # Handle API response errors (async version).
@@ -68,10 +68,20 @@ async def _handle_response(response: Any) -> None:
         raise RateLimitError("Rate limit exceeded. Upgrade at asqav.com/pricing")
     elif response.status_code >= 400:
         try:
-            error = response.json().get("error", "Unknown error")
+            body = response.json()
         except Exception:
-            error = response.text
-        raise APIError(error, response.status_code)
+            body = None
+        text = response.text if isinstance(response.text, str) else ""
+        raise APIError(_error_message(response.status_code, text, body), response.status_code)
+
+
+    # Send one async request; transport failures become AsqavConnectionError.
+async def _send(client: Any, verb: str, api_base: str, path: str, **kwargs: Any) -> Any:
+    try:
+        return await getattr(client, verb)(path, **kwargs)
+    except httpx.RequestError as exc:
+        target = path if "://" in path else _join_url(api_base, path)
+        raise _connection_error(target, exc) from exc
 
 
     # Make an async GET request to the API.
@@ -86,7 +96,7 @@ async def _async_get(path: str) -> dict[str, Any]:
         headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=30.0,
     ) as client:
-        response = await client.get(path)
+        response = await _send(client, "get", api_base, path)
         await _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
@@ -104,7 +114,7 @@ async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=30.0,
     ) as client:
-        response = await client.post(path, json=data)
+        response = await _send(client, "post", api_base, path, json=data)
         await _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
@@ -122,7 +132,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=30.0,
     ) as client:
-        response = await client.patch(path, json=data)
+        response = await _send(client, "patch", api_base, path, json=data)
         await _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
@@ -387,11 +397,12 @@ class AsyncAgent:
         url = f"{api_base}/verify/{signature_id}"
 
         async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, timeout=30.0) as client:
-            response = await client.get(url)
+            response = await _send(client, "get", api_base, url)
             if response.status_code == 404:
                 raise APIError("Signature not found", 404)
             if response.status_code >= 400:
-                raise APIError(response.text, response.status_code)
+                status = response.status_code
+                raise APIError(_error_message(status, response.text), status)
             data: dict[str, Any] = _strict_response_json(response)
 
         return VerificationResponse(
