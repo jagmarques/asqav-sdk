@@ -168,10 +168,10 @@ Common reasons for `not_verifiable_offline`:
 
 A pack exported today cannot reach exit code `0`. Its OpenTimestamps anchors are pending,
 it carries no TSA certificates, and a non-compliance-mode receipt is never verified offline.
-Exit `0` needs the export to ship TSA signing certificates and the holder to supply both
-`--jwks` and `--tsa-key`. TSA entries inside a pack are never used as trust.
-`--bitcoin-headers FILE` supplies OpenTimestamps block data, as it does for the standalone
-verifier.
+Exit `0` needs `--jwks`, a `--tsa-key` that verifies every RFC3161 anchor, and no pending
+OpenTimestamps anchor. A completed OpenTimestamps proof is checked against
+`--bitcoin-headers FILE`, as in the standalone verifier. TSA entries inside a pack are never
+used as trust.
 
 A lapsed `expires_at` on a receipt signed before that time is shown as an `info` line and
 does not count as a failure.
@@ -182,7 +182,9 @@ without `--jwks`.
 
 The TypeScript CLI has the same command and the same trust rules, without `--tsa-key` or
 `--bitcoin-headers`. It cannot check RFC3161 or OpenTimestamps tokens, so it lists anchored
-receipts as not verifiable offline even where the Python command verifies them.
+receipts as not verifiable offline even where the Python command verifies them. Without
+anchor times it cannot prove that a revoked bundle key signed after its revocation from an
+anchor alone. A pack that Python marks `invalid` on that ground exits `2` in TypeScript.
 
 ## TypeScript / Node
 
