@@ -1675,12 +1675,31 @@ def audit_pack_export(
     print(f"algorithm:     {bundle.get('bundle_signature_algorithm', '?')}")
 
 
+def _offline_headline(report: dict) -> str:
+    from asqav.verifier import pack_verify
+
+    if report["status"] == pack_verify.SELF_CONSISTENT:
+        return pack_verify.SELF_CONSISTENT_LABEL
+    return report["status"].replace("_", " ")
+
+
+def _print_offline_trust(report: dict) -> None:
+    trust, bundle = report["trust"], report["bundle"]
+    print(f"  keys:    {trust['keys']} ({trust['key_count']} keys), TSA keys: {trust['tsa_keys']}")
+    if bundle.get("key_thumbprint"):
+        print(f"  bundle key: {bundle['key_thumbprint']}")
+    if not trust["anchored"]:
+        print("  trust:   the keys and any TSA material are self-asserted by the pack; pass --jwks")
+    if trust["tsa_carried_not_trusted"]:
+        print("  tsa:     TSA entries carried in the pack are not used as roots; pass --tsa-key")
+
+
 def _print_offline_report(report: dict) -> None:
     marks = {"verified": "  ok", "not_verifiable_offline": "skip", "invalid": "FAIL"}
-    pack, trust, summary = report["pack"], report["trust"], report["summary"]
+    pack, summary = report["pack"], report["summary"]
     print("Asqav Audit Pack offline verification")
     print(f"  pack:    {pack.get('organization_id')} {pack.get('start')} .. {pack.get('end')}")
-    print(f"  keys:    {trust['keys']} ({trust['key_count']} keys), TSA keys: {trust['tsa_keys']}")
+    _print_offline_trust(report)
     bundle = report["bundle"]
     print(f"  [{marks[bundle['status']]}] bundle   {bundle['reason']}")
     for r in report["receipts"]:
@@ -1691,7 +1710,7 @@ def _print_offline_report(report: dict) -> None:
         for line in checked + [f"info: {n}" for n in r["notes"]]:
             print(f"         {line}")
     print(
-        f"\n  => {report['status'].replace('_', ' ')}: {summary['verified']}/{summary['total']} verified, "
+        f"\n  => {_offline_headline(report)}: {summary['verified']}/{summary['total']} verified, "
         f"{summary['not_verifiable_offline']} not verifiable offline, {summary['invalid']} invalid"
     )
 
@@ -1734,15 +1753,16 @@ def audit_pack_verify(
         False,
         "--offline",
         help="Verify on this machine with no network: every receipt, the chains and the "
-        "bundle signature, against the pack's own key snapshot.",
+        "bundle signature. Without --jwks the pack vouches for itself and cannot exit 0.",
     ),
     jwks: str = typer.Option(
-        "", "--jwks", help="With --offline: a key set you kept, used instead of the pack's."
+        "", "--jwks", help="With --offline: a key set you kept; the only source of key trust."
     ),
     tsa_key: list[str] = typer.Option(
         [],
         "--tsa-key",
-        help="With --offline: a pinned TSA certificate or key file (repeatable).",
+        help="With --offline: a pinned TSA certificate or key file (repeatable); TSA "
+        "material inside the pack is never trusted.",
     ),
     bitcoin_headers: str = typer.Option(
         "",
@@ -1758,7 +1778,7 @@ def audit_pack_verify(
 
     With --offline nothing leaves the machine. Each receipt is reported
     verified, not verifiable offline (with the reason) or invalid. Exit code
-    0 means all verified, 2 some not verifiable offline, 1 any invalid.
+    0 needs --jwks and every receipt verified; any invalid exits 1, else 2.
     """
     if offline:
         _audit_pack_verify_offline(bundle, output, jwks, tsa_key, bitcoin_headers)
