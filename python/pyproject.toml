@@ -89,6 +89,8 @@ instructor = ["instructor>=1.5.0"]
 # Pluggable detector extras (criterion 331): optional, lazy-imported.
 presidio = ["presidio-analyzer>=2.2.0"]
 opa = []
+# Microsoft Agent Governance Toolkit receipts (MIT); its wheels require Python 3.11+.
+agt = ["agent-governance-toolkit-protocols==5.0.0; python_version >= '3.11'"]
 all = [
     "httpx>=0.24.0",
     "typer>=0.12.0",
@@ -150,3 +152,7 @@ python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+[tool.uv]
+# The agt extra's upstream caps cryptography below 50; keep the dev lock on the patched release.
+override-dependencies = ["cryptography>=50.0.0"]
