@@ -18,6 +18,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from asqav.counterparty import verify_counterparty_binding
 from asqav.verifier.oracle import canonical as oracle
 from asqav.verifier.verify_receipt import _envelope_hash, canonical_json
 
@@ -49,6 +50,24 @@ def test_expected_values_are_python_output(case: dict) -> None:
     assert oracle.asqav_jcs(value) == expected
     assert oracle.jcs(value) == expected
     assert _envelope_hash(_envelope(case["lexeme"])) == case["envelope_hash"]
+
+
+@pytest.mark.parametrize("case", CASES, ids=[f"{c['zone']}-{c['lexeme']}" for c in CASES])
+def test_binding_label_is_the_sdk_verdict(case: dict) -> None:
+    binding = {
+        "scope": "envelope_minus_anchors",
+        "receipt_ref": "r1",
+        "envelope_hash": case["envelope_hash"],
+    }
+    ack = {"payload": {"counterparty_binding": binding}, "signature": {"kid": "kid-B"}}
+    result = verify_counterparty_binding(ack, _envelope(case["lexeme"]))
+    assert result.label == case["binding"]
+    assert case["binding"] == ("unresolved" if _out_of_profile(case["lexeme"]) else "matches")
+
+
+def _out_of_profile(lexeme: str) -> bool:
+    value = json.loads(lexeme)
+    return value.is_integer() and abs(value) > 2**53 - 1
 
 
 def test_table_is_the_generator_output() -> None:
