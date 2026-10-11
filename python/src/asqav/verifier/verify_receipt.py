@@ -3459,17 +3459,19 @@ def _load_tsa_keys(paths) -> list:
                 blob = fh.read()
         except OSError as exc:
             raise VerifierInputError(f"{path}: {exc.strerror or exc}") from exc
-        text = blob.strip()
-        if text.startswith(b"-----BEGIN"):
-            keys.append(text + b"\n")
-            continue
-        try:
-            keys.append(base64.b64decode(text, validate=True))
-            continue
-        except Exception:
-            pass
-        keys.append(bytes(text))
+        keys.append(tsa_key_material(blob))
     return keys
+
+
+def tsa_key_material(blob: bytes) -> bytes:
+    """One TSA key or certificate as the anchor check takes it: PEM kept, base64 decoded."""
+    text = blob.strip()
+    if text.startswith(b"-----BEGIN"):
+        return text + b"\n"
+    try:
+        return base64.b64decode(text, validate=True)
+    except Exception:
+        return bytes(text)
 
 
 def main() -> int:

@@ -5,6 +5,27 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Added
+
+- **`asqav audit-pack verify --offline <pack>` checks a whole exported Audit Pack with no
+  network** (criterion 760). Every receipt runs through `verify_receipt.py`, chained to the
+  receipt with the previous `seq` from the same agent, and the bundle digest and signature are
+  checked. Each receipt is reported `verified`, `not_verifiable_offline` with the reason, or
+  `invalid`, and the pack gets a summary. Trust comes only from files you supply: `--jwks` for
+  keys and `--tsa-key` for the TSA's own signing certificate or key (not a root CA). Without `--jwks` the pack's own snapshot is used and the
+  best result is `self-consistent, not anchored to a trusted key` with exit 2. TSA entries the
+  pack carries are never trusted. A missing bundle signature, an unknown bundle key, an
+  unsupported or mismatched bundle algorithm, a bundle key of another organization, a chain gap,
+  a fork and a duplicate entry are all invalid. A bundle key revoked or suspended after the
+  export leaves the pack not verifiable offline; it is invalid only when the signed window start
+  or a receipt's trusted timestamp proves the bundle was signed after the revocation. A pack
+  exported today cannot reach exit 0: its OpenTimestamps anchors are pending and it carries no
+  TSA certificates.
+  Exit 0 needs `--jwks` with everything verified. Anything invalid exits 1; any other result
+  exits 2. A lapsed `expires_at` on a receipt signed before it is an info line, not a
+  failure. The TypeScript CLI has the same command and trust rules, but it does not check
+  timestamp tokens.
+
 ### Fixed
 
 - **The Python oracle returns a verdict for an integer past 2^53.** `run_one` and
