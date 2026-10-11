@@ -1,11 +1,12 @@
-"""Asqav as the independent signer for Microsoft Agent Governance Toolkit receipts.
+"""Asqav as an independent witness for Microsoft Agent Governance Toolkit receipts.
 
 Install: pip install "asqav[agt]"
 
 AGT's ``mcp_receipt_governed`` receipts are signed by the process that made the
 Cedar decision, which AGT's own proposal calls self-attestation. This module
-records each AGT receipt in an Asqav receipt, signed by the Asqav service, and
-links the two so either side can be checked against the other:
+records each AGT receipt in an Asqav receipt, signed and timestamped by the Asqav
+service under the caller's Asqav org, and links the two. Asqav witnesses that a
+receipt with this digest existed at that time; it does not evaluate the decision.
 
 ``AsqavAgtSigner.countersign(receipt)``
     Works on every AGT release. AGT's ``verify_receipt`` must accept the receipt
@@ -14,16 +15,15 @@ links the two so either side can be checked against the other:
 ``AsqavAgtSigner`` passed as ``external_authorizer``
     Uses AGT's external-authorization profile when the installed AGT ships
     ``authorize_receipt``. The receipt's ``authorizer_id`` becomes
-    ``asqav:<signature_id>``, so AGT's ``verify_receipt_chain`` carries the
-    Asqav reference.
+    ``asqav:<signature_id>``. Asqav must return an ``allow`` decision.
 
-``verify_asqav_link(receipt, asqav_receipt, jwks=None)``
-    Checks that the Asqav receipt binds this exact AGT receipt and, given a JWKS,
-    that the Asqav signature verifies offline.
+``verify_asqav_link(receipt, asqav_receipt, jwks=..., expected_org=None)``
+    Checks the Asqav signature offline against the JWKS, that the Asqav receipt
+    binds this exact AGT receipt and that its decision fits the link.
 
 The Ed25519 authorization AGT checks is made with ``authorizer_key_hex``, a key
-the caller holds. Asqav's service signs its own receipt and never signs AGT's
-bytes, so the Asqav receipt named in ``authorizer_id`` is the independent part.
+the caller holds, so AGT's own check passes without Asqav. Asqav's service signs
+its own receipt and never signs AGT's bytes; that receipt is the witness.
 """
 
 from __future__ import annotations
@@ -63,7 +63,11 @@ COUNTERSIGN_ACTION = "agt:countersign"
 #: Asqav action type for a receipt authorized through AGT's external-authorization profile.
 AUTHORIZE_ACTION = "agt:authorize"
 
-_REFUSED_DECISIONS = frozenset({"deny", "rate_limit"})
+#: Signed Asqav decisions each link kind accepts; an authorization needs an Asqav ``allow``.
+_ACCEPTED_DECISIONS = {
+    COUNTERSIGN_ACTION: frozenset({"allow", "observation"}),
+    AUTHORIZE_ACTION: frozenset({"allow"}),
+}
 
 
 class AgtSigningError(RuntimeError):
@@ -232,9 +236,11 @@ class AsqavAgtSigner(AsqavAdapter):
             sig = self._agent.sign(action_type, context, compliance_mode=True)
         except Exception as exc:
             raise AgtSigningError(f"asqav_sign_failed: {exc}") from exc
-        if sig.decision in _REFUSED_DECISIONS:
-            raise AgtSigningError(f"asqav_decision_refused: {sig.decision}")
-        signed_ref = (sig.payload or {}).get("action_ref")
+        payload = sig.payload or {}
+        decision = payload.get("decision", sig.decision)
+        if decision not in _ACCEPTED_DECISIONS[action_type]:
+            raise AgtSigningError(f"asqav_decision_refused: {decision} for {action_type}")
+        signed_ref = payload.get("action_ref")
         if signed_ref != expected_ref:
             raise AgtSigningError(
                 "asqav_receipt_unbound: the signed action_ref does not match this AGT receipt"
@@ -271,32 +277,54 @@ def _signature_errors(asqav_receipt: dict[str, Any], jwks: dict[str, Any]) -> li
     return errors
 
 
-def verify_asqav_link(
-    receipt: Any,
-    asqav_receipt: Any,
-    *,
-    jwks: dict[str, Any] | None = None,
-) -> list[str]:
-    """Check that ``asqav_receipt`` binds this AGT receipt; empty list means it does.
-
-    Run AGT's own ``verify_receipt_chain`` for the AGT side. Pass Asqav's JWKS to
-    also check the Asqav signature and signing key offline (needs ``asqav[verify]``);
-    the full Asqav verdict, anchors included, comes from ``asqav.verify_receipt_offline``.
-    """
-    if not isinstance(asqav_receipt, dict) or not isinstance(asqav_receipt.get("payload"), dict):
-        return ["Asqav receipt has no signed payload."]
+def _link_errors(receipt: Any, asqav_receipt: dict[str, Any]) -> list[str]:
+    payload = asqav_receipt["payload"]
     try:
         action_type, context = _expected_action(receipt)
         expected_ref = _compute_action_ref(action_type, context)
     except (AttributeError, TypeError, ValueError) as exc:
         return [f"AGT receipt cannot be bound: {exc}"]
     errors: list[str] = []
-    if asqav_receipt["payload"].get("action_ref") != expected_ref:
+    if payload.get("action_ref") != expected_ref:
         errors.append("Asqav receipt does not bind this AGT receipt (action_ref mismatch).")
-    if action_type == AUTHORIZE_ACTION:
-        named = AUTHORIZER_PREFIX + str(asqav_receipt.get("signature_id"))
-        if receipt.authorizer_id != named:
-            errors.append("AGT authorizer_id does not name this Asqav receipt.")
-    if jwks is not None:
-        errors.extend(_signature_errors(asqav_receipt, jwks))
+    decision = payload.get("decision")
+    if decision not in _ACCEPTED_DECISIONS[action_type]:
+        errors.append(f"Asqav decision {decision!r} does not support {action_type}.")
+    # signature_id sits outside the signed payload; action_ref carries the cryptographic binding.
+    named = AUTHORIZER_PREFIX + str(asqav_receipt.get("signature_id"))
+    if action_type == AUTHORIZE_ACTION and receipt.authorizer_id != named:
+        errors.append("AGT authorizer_id does not name this Asqav receipt.")
+    return errors
+
+
+def _org_errors(payload: dict[str, Any], expected_org: str) -> list[str]:
+    claimed = {payload.get("issuer_id")} | ({payload["org_id"]} if "org_id" in payload else set())
+    if claimed != {expected_org}:
+        return [f"Asqav receipt is not from org {expected_org} (got {sorted(map(str, claimed))})."]
+    return []
+
+
+def verify_asqav_link(
+    receipt: Any,
+    asqav_receipt: Any,
+    *,
+    jwks: dict[str, Any] | None = None,
+    expected_org: str | None = None,
+) -> list[str]:
+    """Check that ``asqav_receipt`` is a signed Asqav witness of this AGT receipt.
+
+    An empty list means the Asqav signature verified against ``jwks`` (needs
+    ``asqav[verify]``), its ``action_ref`` binds this AGT receipt and its decision
+    fits the link. Without ``jwks`` the link is refused. ``expected_org`` pins the
+    Asqav org. Run AGT's ``verify_receipt_chain`` for the AGT side; the full Asqav
+    verdict, anchors included, comes from ``asqav.verify_receipt_offline``.
+    """
+    if not isinstance(asqav_receipt, dict) or not isinstance(asqav_receipt.get("payload"), dict):
+        return ["Asqav receipt has no signed payload."]
+    if not isinstance(jwks, dict):
+        return ["Asqav signature not checked: pass the Asqav JWKS (asqav.fetch_jwks())."]
+    errors = _signature_errors(asqav_receipt, jwks)
+    errors += _link_errors(receipt, asqav_receipt)
+    if expected_org is not None:
+        errors += _org_errors(asqav_receipt["payload"], expected_org)
     return errors
