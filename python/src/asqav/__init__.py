@@ -27,7 +27,7 @@ With Decorators:
 Get your API key at asqav.com
 """
 
-from . import doors
+from . import doors, strict_json
 from ._detectors import (
     DetectorBlockedError,
     DetectorPlugin,
@@ -456,6 +456,9 @@ def verify_receipt_offline(
     the normalised envelope when you need it, or use the standalone verifier,
     which reports every axis. See docs/offline-verification.md.
 
+    Any input holding an integer outside +/-2**53 reports ``unverified`` with
+    failure class ``unverifiable``, the answer raw-text ingest gives the same file.
+
     Args:
         receipt: Parsed receipt envelope dict (``{payload, signature, anchors}``).
         jwks: JWKS dict previously fetched via ``fetch_jwks()``.
@@ -489,6 +492,11 @@ def verify_receipt_offline(
     predecessor_payload = None
     if predecessor is not None:
         predecessor_payload = predecessor.get("payload", predecessor)
+        try:
+            strict_json.assert_canonical_integers(predecessor)
+        except strict_json.UnsafeIntegerError:
+            # The whole predecessor goes to the core, which refuses it as raw-text ingest does.
+            predecessor_payload = predecessor
     vr = _oracle_verify(
         receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload,
         context=VerificationContext(originating_envelope=originating_envelope),
