@@ -30,6 +30,7 @@ import {
   saveCredentials,
 } from "./credentials.js";
 import { SDK_VERSION, userAgentHeaders } from "./userAgent.js";
+import { verifyAuditPackOffline, type PackReport } from "./auditPackOffline.js";
 import { parseJsonStrict } from "./verifier/canonical.js";
 
 export const CLI_VERSION = SDK_VERSION;
@@ -602,7 +603,50 @@ async function cmdAuditPackExport(args: string[]): Promise<void> {
   }
 }
 
+const OFFLINE_MARKS: Record<string, string> = { verified: "  ok", not_verifiable_offline: "skip", invalid: "FAIL" };
+
+function printOfflineReport(report: PackReport): void {
+  const w = (line: string): void => void process.stdout.write(`${line}\n`);
+  const { summary } = report;
+  w("Asqav Audit Pack offline verification");
+  w(`  keys:    ${report.trust.keys} (${report.trust.key_count} keys)`);
+  w(`  [${OFFLINE_MARKS[report.bundle.status]}] bundle   ${report.bundle.reason}`);
+  for (const r of report.receipts) {
+    const detail = r.reasons.length > 0 ? `: ${r.reasons.join("; ")}` : "";
+    w(`  [${OFFLINE_MARKS[r.status]}] ${String(r.signature_id ?? "?")}  ${r.status.replace(/_/g, " ")}${detail}`);
+    const checked = (["signature", "chain"] as const).filter((k) => r[k]).map((k) => `${k}: ${r[k]}`);
+    for (const line of [...checked, ...r.notes.map((n) => `info: ${n}`)]) w(`         ${line}`);
+  }
+  w(
+    `\n  => ${report.status.replace(/_/g, " ")}: ${summary.verified}/${summary.total} verified, ` +
+      `${summary.not_verifiable_offline} not verifiable offline, ${summary.invalid} invalid`,
+  );
+}
+
+async function cmdAuditPackVerifyOffline(args: string[]): Promise<void> {
+  const rest = args.filter((a) => a !== "--offline");
+  const [packPath] = positional(rest);
+  if (!packPath) die("Usage: asqav audit-pack verify --offline <pack.json> [--jwks FILE] [--output text|json]");
+  const jwksPath = parseFlag(rest, "jwks");
+  let report: PackReport;
+  try {
+    const fsp = await import("node:fs/promises");
+    const packText = await fsp.readFile(packPath, "utf8");
+    const jwksText = jwksPath ? await fsp.readFile(jwksPath, "utf8") : undefined;
+    report = verifyAuditPackOffline(packText, jwksText);
+  } catch (err) {
+    die(`Error reading input: ${(err as Error).message}`);
+  }
+  if ((parseFlag(rest, "output") ?? "text") === "json") {
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  } else {
+    printOfflineReport(report);
+  }
+  process.exit(report.exit_code);
+}
+
 async function cmdAuditPackVerify(args: string[]): Promise<void> {
+  if (hasFlag(args, "offline")) return cmdAuditPackVerifyOffline(args);
   const [bundlePath] = positional(args);
   if (!bundlePath) {
     die("Usage: asqav audit-pack verify <bundle.json|-> [--output text|json]");
@@ -1208,6 +1252,7 @@ Usage:
   asqav audit-pack export --start ISO --end ISO --output-file PATH
                           [--organization-id ID] [--no-only-compliance]
   asqav audit-pack verify <bundle.json|-> [--output text|json]
+  asqav audit-pack verify --offline <pack.json> [--jwks FILE] [--output text|json]
   asqav audit-pack policy <sha256:hex> [--output text|json]
   asqav payloads erase <signature_id> --yes                P4 right-to-erasure
   asqav org set-compliance-strict <org_id> --enable|--disable
