@@ -267,6 +267,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -275,7 +277,7 @@ jobs:
       - run: pip install -e "./python[agt,verify,dev]"
       - run: ASQAV_AGT_REQUIRED=1 pytest python/tests/test_agt_receipts_e2e.py -v --tb=short
       - run: pip uninstall -y agent-governance-toolkit-protocols
-      - run: pip install "agentmesh_mcp_receipts[crypto] @ https://github.com/microsoft/agent-governance-toolkit/archive/c767f8333f413bd1a93e82836b7aa226280b61ae.tar.gz#subdirectory=agent-governance-python/agentmesh-integrations/mcp-receipt-governed"
+      - run: pip install "agentmesh_mcp_receipts[crypto] @ https://github.com/microsoft/agent-governance-toolkit/archive/c767f8333f413bd1a93e82836b7aa226280b61ae.tar.gz#sha256=fb680af9e3dcb9aaf2af557494d52209b4e0c231f07b5ed126abad70ec6a2346&subdirectory=agent-governance-python/agentmesh-integrations/mcp-receipt-governed"
       - run: ASQAV_AGT_REQUIRED=1 ASQAV_AGT_PROFILE_REQUIRED=1 pytest python/tests/test_agt_receipts_e2e.py -v --tb=short
 
   ci-ok:
