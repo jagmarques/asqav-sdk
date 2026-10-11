@@ -243,6 +243,19 @@ def unsafe_receipt_files() -> tuple[dict, list]:
         outcome = VERIFIED if lexeme == SAFE_BOUND else UNVERIFIABLE
         manifest.append({"dir": case, "lexeme": lexeme, **outcome, "parsed": parsed,
                          "unsafe_integer": lexeme != SAFE_BOUND})
+    # A chain link whose predecessor holds the integer outside its signed payload.
+    prev = payload("prev", 0.5)
+    link = payload("link", 0.5)
+    link["previousReceiptHash"] = hashlib.sha256(canonical_json(prev)).hexdigest()
+    prev_text = json.dumps(sign_and_anchor(prev), indent=2) + "\n"
+    for suffix, lexeme in (("predecessor", UNSAFE_UNSIGNED[0]), ("predecessor-bound", SAFE_BOUND)):
+        case = f"receipt-unsafe-int-{suffix}"
+        files[case] = {
+            "receipt.json": sign_and_anchor(link), "predecessor.json": with_note(prev_text, lexeme),
+            "jwks.json": jwks(), "tsa_trust.pem": tsa_pem()}
+        outcome = VERIFIED if lexeme == SAFE_BOUND else UNVERIFIABLE
+        manifest.append({"dir": case, "lexeme": lexeme, **outcome, "parsed": VERIFIED,
+                         "unsafe_integer": lexeme != SAFE_BOUND})
     return files, manifest
 
 
