@@ -122,6 +122,8 @@ export function verifySignature(
     const known = Object.keys(DISPATCH).sort().join(", ");
     return { result: SKIPPED, note: `unsupported alg '${alg}' (oracle checks ${known})` };
   }
+  // Only Uint8Array input is cached; other types go straight to fn
+  if (![pk, msg, sig].every((x) => x instanceof Uint8Array)) return fn(pk, msg, sig);
   const last = lastVerification;
   if (last !== null && last.fn === fn && bytesEqual(last.pk, pk) && bytesEqual(last.msg, msg) && bytesEqual(last.sig, sig)) {
     return last.outcome;

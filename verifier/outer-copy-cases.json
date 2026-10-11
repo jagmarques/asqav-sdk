@@ -1,5 +1,5 @@
 {
-  "note": "Outer-copy case table (criterion 742). Both the Python and the TypeScript suites feed every case to their own check_outer_copies with the decoded message and key and assert the same result AND the same note, byte for byte. Expectations are the Python output, reviewed by hand. key_b64 null means no key resolved.",
+  "note": "Outer-copy case table (criterion 742). Both the Python and the TypeScript suites feed every case to their own check_outer_copies with the decoded message and key and assert the same result AND the same note, byte for byte. Expectations are the Python output, reviewed by hand. key_b64 null means no key resolved; key_kid, when present, is the published kid of that key.",
   "cases": [
     {
       "name": "no outer copies carried",
@@ -2877,6 +2877,7 @@
       },
       "message_b64": "c2lnbmVkLWJ5dGVz",
       "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
       "expect": {
         "result": "PASS",
         "note": "no outer copies carried; the signed payload is the whole receipt"
@@ -2909,6 +2910,7 @@
       },
       "message_b64": "c2lnbmVkLWJ5dGVz",
       "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
       "expect": {
         "result": "PASS",
         "note": "not signed, do not rely on: action_type, agent_name, decision, signed_at, verified"
@@ -2936,6 +2938,7 @@
       },
       "message_b64": "c2lnbmVkLWJ5dGVz",
       "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
       "expect": {
         "result": "PASS",
         "note": "no outer copies carried; the signed payload is the whole receipt"
@@ -2965,6 +2968,7 @@
       },
       "message_b64": "c2lnbmVkLWJ5dGVz",
       "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
       "expect": {
         "result": "PASS",
         "note": "no outer copies carried; the signed payload is the whole receipt"
@@ -2993,6 +2997,7 @@
       },
       "message_b64": "c2lnbmVkLWJ5dGVz",
       "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
       "expect": {
         "result": "PASS",
         "note": "not signed, do not rely on: kid"
@@ -3020,6 +3025,7 @@
       },
       "message_b64": "c2lnbmVkLWJ5dGVz",
       "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
       "expect": {
         "result": "PASS",
         "note": "no signed payload object; no outer copies compared"
@@ -3076,6 +3082,329 @@
       "expect": {
         "result": "FAIL",
         "note": "outer copies disagree with the signed payload: compliance_mode (signed: the payload); rely on the signed payload, not on the copies"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with a text payload lists it",
+      "raw": {
+        "mode": "hash",
+        "payload": "Approved wire transfer of $1M by the CFO",
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: payload"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with a list payload lists it",
+      "raw": {
+        "mode": "hash",
+        "payload": [
+          "approved",
+          "cfo"
+        ],
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: payload"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with a signature object beside signature_b64 lists it",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": [],
+        "signature": {
+          "alg": "ML-DSA-65",
+          "sig": "c2lnLWJ5dGVz",
+          "approved_by": "cfo",
+          "agent_id": "agt_cfo"
+        }
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: signature"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with a signature string other than signature_b64 lists it",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": [],
+        "signature": "b3RoZXItc2ln"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: signature"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with a signature string carrying the verified bytes is not listed",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": [],
+        "signature": "c2lnLWJ5dGVz"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "no outer copies carried; the signed payload is the whole receipt"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt with an empty signature_b64 lists it beside the verified signature",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "",
+        "anchors": [],
+        "signature": "c2lnLWJ5dGVz"
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: signature_b64"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt whose only signature is an object lists it",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "anchors": [],
+        "signature": {
+          "sig": "c2lnLWJ5dGVz",
+          "approved_by": "cfo"
+        }
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: signature"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt lists a key_id other than the kid that verified",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "cfo-hsm-key",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: key_id"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt lists key_id when no key verified",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": null,
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: key_id"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt lists key_id when the verifying key publishes no kid",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": "k",
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: key_id"
+      }
+    },
+    {
+      "name": "flat hash-mode receipt lists a non-text key_id",
+      "raw": {
+        "mode": "hash",
+        "payload": null,
+        "v": 1,
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "hash_algo": "sha256",
+        "metadata": {},
+        "server_timestamp": "2026-06-04T20:31:38",
+        "action_id": "act_1",
+        "agent_id": "agt_1",
+        "org_id": "org_1",
+        "policy_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "policy_decision": "permit",
+        "algorithm": "ML-DSA-65",
+        "key_id": [
+          "k"
+        ],
+        "signature_b64": "c2lnLWJ5dGVz",
+        "anchors": []
+      },
+      "message_b64": "c2lnbmVkLWJ5dGVz",
+      "key_b64": "a2V5LWJ5dGVzLTAxMjM=",
+      "key_kid": "k",
+      "expect": {
+        "result": "PASS",
+        "note": "not signed, do not rely on: key_id"
       }
     }
   ]

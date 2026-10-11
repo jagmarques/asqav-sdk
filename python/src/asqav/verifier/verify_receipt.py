@@ -2302,8 +2302,8 @@ _FLAT_SIGNED = frozenset((
     "agent_id", "org_id", "policy_digest", "policy_decision",
 ))
 
-#: Signature material and framing of a flat receipt: read to verify, not claims.
-_FLAT_MATERIAL = frozenset(("payload", "signature", "signature_b64", "anchors", "algorithm", "key_id"))
+#: Framing a flat receipt's checks read: algorithm and anchors.
+_FLAT_FRAMING = frozenset(("anchors", "algorithm"))
 
 
 def _is_flat_hash_receipt(raw: dict) -> bool:
@@ -2313,10 +2313,28 @@ def _is_flat_hash_receipt(raw: dict) -> bool:
     return bool(raw.get("signature_b64") or raw.get("signature"))
 
 
-def _flat_outer_note(raw: dict) -> tuple:
+def _flat_signature_used(raw: dict, name: str) -> bool:
+    """The signature string that verified, or a string with its bytes."""
+    source = "signature_b64" if raw.get("signature_b64") else "signature"
+    if not isinstance(raw[name], str) or not isinstance(raw[source], str):
+        return False
+    decoded = _strict_b64(raw[name])
+    return name == source or (decoded is not None and decoded == _strict_b64(raw[source]))
+
+
+def _flat_member_bound(raw: dict, name: str, key_bytes, key_kid) -> bool:
+    """Signed, framing, the verified signature, or the verifying kid."""
+    if name in _FLAT_SIGNED or name in _FLAT_FRAMING:
+        return True
+    if name in ("signature_b64", "signature"):
+        return _flat_signature_used(raw, name)
+    return name == "key_id" and key_bytes is not None and isinstance(key_kid, str) and raw[name] == key_kid
+
+
+def _flat_outer_note(raw: dict, key_bytes, key_kid) -> tuple:
     """A flat receipt signs its own fields, so it has no copies; list what it signs not."""
     names = sorted(
-        (k for k in raw if k not in _FLAT_SIGNED and k not in _FLAT_MATERIAL and raw[k] is not None),
+        (k for k in raw if raw[k] is not None and not _flat_member_bound(raw, k, key_bytes, key_kid)),
         key=_unit_order,
     )
     if not names:
@@ -2352,7 +2370,7 @@ def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
     return "PASS", "; ".join(parts) or "no outer copies carried; the signed payload is the whole receipt"
 
 
-def check_outer_copies(raw: dict, msg: bytes, key_bytes=None):
+def check_outer_copies(raw: dict, msg: bytes, key_bytes=None, key_kid=None):
     """(result, note) for the outer_copies axis.
 
     An Audit Pack entry restates signed values (agent, action, time, signature
@@ -2364,12 +2382,13 @@ def check_outer_copies(raw: dict, msg: bytes, key_bytes=None):
     the canonical signed bytes, ``key_bytes`` the key the signature verified
     under (None when it did not verify). The signature copies are weighed against
     the normalised signature object, the one the signature axis used. A flat
-    hash-mode receipt has no copies: the members it does not sign are listed.
+    hash-mode receipt has no copies: the members it does not sign are listed,
+    including a ``key_id`` other than ``key_kid``, the kid of the key that verified.
     """
     payload = raw.get("payload") if isinstance(raw, dict) else None
     if not isinstance(payload, dict):
         if isinstance(raw, dict) and _is_flat_hash_receipt(raw):
-            return _flat_outer_note(raw)
+            return _flat_outer_note(raw, key_bytes, key_kid)
         return "PASS", "no signed payload object; no outer copies compared"
     sig_obj = _signature_object(normalise_envelope(raw), payload)
     return _outer_copy_note(_outer_copy_outcomes(raw, payload, sig_obj, msg, key_bytes), raw)

@@ -1,6 +1,7 @@
 /** A reused buffer never reads an earlier verification result. */
 
 import { generateKeyPairSync, sign } from "node:crypto";
+import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 import { describe, expect, it } from "vitest";
 
 import { verifySignature } from "../src/verifier/crypto.js";
@@ -41,5 +42,24 @@ describe("verifySignature with reused buffers", () => {
     const first = verifySignature("Ed25519", pk, enc("receipt A"), sig);
     expect(verifySignature("Ed25519", pk, enc("receipt A"), sig)).toEqual(first);
     expect(first.result).toBe("PASS");
+  });
+
+  it("answers a non-Uint8Array input the same whether or not the cache is warm", () => {
+    const { pk, sig } = signed(enc("receipt E"));
+    const msg = enc("receipt E");
+    verifySignature("ES256", enc("x"), enc("x"), enc("x"));
+    const inputs = [Array.from(pk), new Uint8ClampedArray(pk), new Uint16Array(pk)] as unknown as Uint8Array[];
+    const cold = inputs.map((key) => verifySignature("Ed25519", key, msg, sig));
+    expect(verifySignature("Ed25519", pk, msg, sig).result).toBe("PASS");
+    expect(inputs.map((key) => verifySignature("Ed25519", key, msg, sig))).toEqual(cold);
+  });
+
+  it("never serves a verdict reached on another input type to a Uint8Array", () => {
+    const { publicKey, secretKey } = ml_dsa65.keygen(new Uint8Array(32).fill(7));
+    const msg = enc("receipt F");
+    const sig = ml_dsa65.sign(msg, secretKey);
+    verifySignature("Ed25519", enc("x"), enc("x"), enc("x"));
+    verifySignature("ML-DSA-65", publicKey, new Uint16Array(msg) as unknown as Uint8Array, sig);
+    expect(verifySignature("ML-DSA-65", publicKey, msg, sig).result).toBe("PASS");
   });
 });
