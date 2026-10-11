@@ -149,6 +149,14 @@ function positionalLayout(digits: string, point: number): string {
   return `${digits.slice(0, point)}.${digits.slice(point)}`;
 }
 
+const PRESERVED = new WeakSet<object>();
+
+/** True for an object or array the float-preserving parser built, where a
+ *  plain -0 can only be the integer lexeme -0 */
+export function isPreservedContainer(value: object): boolean {
+  return PRESERVED.has(value);
+}
+
 /**
  * Parse JSON preserving float literals as `RawFloat`, mirroring Python's `json.load`. Strict on two
  * counts: a duplicated member at any depth throws, and so does an integer outside +/-2**53,
@@ -169,6 +177,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
     if (c === "{" || c === "[") {
       if (++depth > 1000) err("maximum nesting depth exceeded");
       const v = c === "{" ? object() : array();
+      PRESERVED.add(v);
       depth--;
       return v;
     }
