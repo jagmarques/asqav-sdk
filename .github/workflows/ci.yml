@@ -261,10 +261,27 @@ jobs:
       - run: ruff check github-action github-action-risk-acceptance
       - run: pytest github-action github-action-risk-acceptance -v --tb=short
 
+  # Real AGT packages: the PyPI pin, then the AGT commit carrying its external-authorization
+  # profile. The REQUIRED flags turn a missing package into a failure instead of a skip.
+  agt:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e "./python[agt,verify,dev]"
+      - run: ASQAV_AGT_REQUIRED=1 pytest python/tests/test_agt_receipts_e2e.py -v --tb=short
+      - run: pip uninstall -y agent-governance-toolkit-protocols
+      - run: pip install "agentmesh_mcp_receipts[crypto] @ https://github.com/microsoft/agent-governance-toolkit/archive/c767f8333f413bd1a93e82836b7aa226280b61ae.tar.gz#subdirectory=agent-governance-python/agentmesh-integrations/mcp-receipt-governed"
+      - run: ASQAV_AGT_REQUIRED=1 ASQAV_AGT_PROFILE_REQUIRED=1 pytest python/tests/test_agt_receipts_e2e.py -v --tb=short
+
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary]
+    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -275,8 +292,10 @@ jobs:
           echo "typescript=${{ needs.typescript.result }}"
           echo "verifier=${{ needs.verifier.result }}"
           echo "actions=${{ needs.actions.result }}"
+          echo "agt=${{ needs.agt.result }}"
           [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.python-distributions.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.actions.result }}"    =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.agt.result }}"        =~ ^(success|skipped)$ ]] || exit 1
