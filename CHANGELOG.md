@@ -8,17 +8,19 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 ### Added
 
 - **`asqav audit-pack verify --offline <pack>` checks a whole exported Audit Pack with no
-  network** (criterion 760). Every receipt runs through `verify_receipt.py` against the pack's
-  `jwks` snapshot, with each receipt chained to the previous one from the same agent. The bundle
-  digest is recomputed over the members the export signs, and the bundle signature is verified
-  under a key that must appear in that snapshot. Each receipt is reported `verified`,
-  `not_verifiable_offline` with the reason (non-compliance-mode receipt, pending anchor, missing
-  TSA key, withheld signed bytes) or `invalid`, and the pack gets a summary. Exit code 0 means
-  every receipt verified. Any invalid member exits 1; otherwise receipts that are not verifiable
-  offline exit 2. A lapsed `expires_at` on a receipt signed before it is an info line, not a failure.
-  TSA certificates come from `--tsa-key` or the pack's `tsa_trust` member, which the bundle
-  signature covers when present. `--jwks` uses a key set you kept instead of the pack's. The
-  TypeScript CLI has the same command, but it does not check timestamp tokens.
+  network** (criterion 760). Every receipt runs through `verify_receipt.py`, chained to the
+  receipt with the previous `seq` from the same agent, and the bundle digest and signature are
+  checked. Each receipt is reported `verified`, `not_verifiable_offline` with the reason, or
+  `invalid`, and the pack gets a summary. Trust comes only from files you supply: `--jwks` for
+  keys and `--tsa-key` for TSA roots. Without `--jwks` the pack's own snapshot is used and the
+  best result is `self-consistent, not anchored to a trusted key` with exit 2. TSA entries the
+  pack carries are never used as roots. A missing bundle signature, an unknown bundle key, an
+  unsupported or mismatched bundle algorithm, a bundle key of another organization, a chain gap,
+  a fork and a duplicate entry are all invalid. A revoked bundle key is invalid under `--jwks`.
+  Exit 0 needs `--jwks` with everything verified, anything invalid exits 1, and every other
+  result exits 2. A lapsed `expires_at` on a receipt signed before it is an info line, not a
+  failure. The TypeScript CLI has the same command and trust rules, but it does not check
+  timestamp tokens.
 
 ### Fixed
 

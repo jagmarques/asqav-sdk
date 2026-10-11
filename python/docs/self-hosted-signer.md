@@ -123,7 +123,7 @@ The verifier checks one receipt per run. To check the whole pack offline,
 including the chain links and the bundle signature, run:
 
 ```bash
-asqav audit-pack verify --offline compliance-bundle.json
+asqav audit-pack verify --offline compliance-bundle.json --jwks jwks.json
 ```
 
 Without `--offline`, `asqav audit-pack verify` sends the bundle to the API the

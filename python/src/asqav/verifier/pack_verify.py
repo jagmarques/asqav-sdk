@@ -10,10 +10,14 @@ from asqav.verifier import verify_receipt as vr
 VERIFIED = "verified"
 NOT_OFFLINE = "not_verifiable_offline"
 INVALID = "invalid"
+#: Pack status when nothing failed but the keys came from the pack itself (no --jwks).
+SELF_CONSISTENT = "self_consistent"
+SELF_CONSISTENT_LABEL = "self-consistent, not anchored to a trusted key"
 
-#: Process exit code per pack status: 0 all verified, 2 some not verifiable offline, 1 any invalid.
-EXIT_CODES = {VERIFIED: 0, NOT_OFFLINE: 2, INVALID: 1}
+#: Exit code per pack status: 0 verified under supplied keys, 1 any invalid, else 2.
+EXIT_CODES = {VERIFIED: 0, NOT_OFFLINE: 2, SELF_CONSISTENT: 2, INVALID: 1}
 _RANK = {VERIFIED: 0, NOT_OFFLINE: 1, INVALID: 2}
+_BUNDLE_ALGS = frozenset({"ML-DSA-65", "ED25519", "ES256"})
 
 #: Optional pack members the bundle signature covers whenever they are carried.
 _PRESENCE_MEMBERS = (
@@ -32,6 +36,7 @@ _FLAT_REASON = (
 _WITHHELD_REASON = (
     "signed bytes withheld at export; re-export with --include-signed-bytes to verify it"
 )
+_UNVOUCHED_REASON = "bundle signature not verified, so nothing vouches for this entry"
 
 
 def signed_bundle_payload(pack: dict) -> dict:
@@ -57,11 +62,10 @@ def signed_bundle_payload(pack: dict) -> dict:
     return payload
 
 
-def pack_tsa_keys(pack: dict) -> list:
-    """TSA certificates or keys the pack carries under ``tsa_trust`` (PEM or base64)."""
+def pack_tsa_count(pack: dict) -> int:
+    """TSA entries the pack carries; reported only, never used as trust roots."""
     raw = pack.get("tsa_trust")
-    items = raw if isinstance(raw, list) else [raw]
-    return [vr.tsa_key_material(i.encode()) for i in items if isinstance(i, str) and i.strip()]
+    return len(raw) if isinstance(raw, list) else int(bool(raw))
 
 
 def _key_bytes(entry) -> bytes | None:
@@ -79,17 +83,25 @@ def _jwks_keys(jwks) -> list:
     return [k for k in keys if isinstance(k, dict)] if isinstance(keys, list) else []
 
 
-def _outcome(status: str, reason: str) -> dict:
-    return {"status": status, "reason": reason}
+def _outcome(status: str, reason: str, thumbprint: str | None = None) -> dict:
+    return {"status": status, "reason": reason, "key_thumbprint": thumbprint}
 
 
-def check_bundle(pack: dict, jwks: dict) -> dict:
-    """Recompute the bundle digest, verify its signature, and tie the key to the key set."""
-    digest = pack.get("bundle_digest")
-    sig = pack.get("bundle_signature")
-    key_b64 = pack.get("bundle_public_key")
-    if not (isinstance(digest, str) and isinstance(sig, str) and isinstance(key_b64, str)):
-        return _outcome(NOT_OFFLINE, "pack carries no bundle signature")
+def _thumbprint(entry: dict, alg: str, key: bytes) -> str | None:
+    try:
+        return entry.get("key_thumbprint") or vr.thumbprint_for_key(alg=alg, public_key=key)
+    except (ValueError, TypeError, KeyError):
+        return None
+
+
+def _bundle_material(pack: dict):
+    """(message, key, signature, alg) or an invalid outcome; a missing member is never benign."""
+    digest, sig, key_b64 = (pack.get(k) for k in ("bundle_digest", "bundle_signature", "bundle_public_key"))
+    if not all(isinstance(v, str) and v for v in (digest, sig, key_b64)):
+        return _outcome(INVALID, "pack carries no bundle signature")
+    alg = pack.get("bundle_signature_algorithm")
+    if not isinstance(alg, str) or alg.upper() not in _BUNDLE_ALGS:
+        return _outcome(INVALID, f"unsupported bundle signature algorithm {alg!r}")
     try:
         msg = vr.canonical_json(signed_bundle_payload(pack))
         key, sig_bytes = vr._b64decode(key_b64), vr._b64decode(sig)
@@ -97,48 +109,135 @@ def check_bundle(pack: dict, jwks: dict) -> dict:
         return _outcome(INVALID, f"bundle cannot be read: {exc}")
     if "sha256:" + hashlib.sha256(msg).hexdigest() != digest:
         return _outcome(INVALID, "bundle_digest does not match the pack contents")
-    alg = pack.get("bundle_signature_algorithm") or "ML-DSA-65"
-    result, note = vr.verify_signature(key, msg, sig_bytes, alg)
-    if result != "PASS":
-        return _outcome(INVALID if result == "FAIL" else NOT_OFFLINE, f"bundle signature: {note}")
-    entry = next((k for k in _jwks_keys(jwks) if _key_bytes(k) == key), None)
+    return msg, key, sig_bytes, alg
+
+
+def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, anchored: bool):
     if entry is None:
-        return _outcome(NOT_OFFLINE, "bundle signature valid, but its key is not in the key set")
+        return _outcome(INVALID, "bundle key is not in the key set")
+    key_alg = entry.get("alg")
+    if isinstance(key_alg, str) and key_alg.upper() != alg.upper():
+        return _outcome(INVALID, f"bundle algorithm {alg} differs from its key's alg {key_alg}")
     org = pack.get("organization_id")
     if org and entry.get("org_id") and entry.get("org_id") != org:
         return _outcome(INVALID, "bundle signing key belongs to another organization")
-    return _outcome(VERIFIED, f"bundle signature valid under key {entry.get('kid')}")
+    status = str(entry.get("status") or "").lower()
+    if status in vr.REVOKED_KEY_STATUSES or entry.get("revoked_at"):
+        return _outcome(INVALID if anchored else NOT_OFFLINE, f"bundle key is {status or 'revoked'}")
+    return None
 
 
-def _chain_key(payload: dict) -> tuple:
+def check_bundle(pack: dict, jwks: dict, anchored: bool = False) -> dict:
+    """Recompute the bundle digest, verify its signature, and tie the key to the key set."""
+    material = _bundle_material(pack)
+    if isinstance(material, dict):
+        return material
+    msg, key, sig_bytes, alg = material
+    entry = next((k for k in _jwks_keys(jwks) if _key_bytes(k) == key), None)
+    problem = _bundle_key_problem(pack, entry, alg, anchored)
+    if problem is not None:
+        return problem
+    result, note = vr.verify_signature(key, msg, sig_bytes, alg)
+    if result != "PASS":
+        return _outcome(INVALID if result == "FAIL" else NOT_OFFLINE, f"bundle signature: {note}")
+    thumb = _thumbprint(entry, alg, key)
+    return _outcome(VERIFIED, f"bundle signature valid under key {entry.get('kid')}", thumb)
+
+
+def _seq(payload: dict) -> int | None:
     seq = payload.get("seq")
-    ordinal = seq if isinstance(seq, int) and not isinstance(seq, bool) else float("inf")
-    return ordinal, str(payload.get("issued_at", ""))
+    return seq if isinstance(seq, int) and not isinstance(seq, bool) else None
 
 
-def _consecutive(prev: dict, cur: dict) -> bool:
-    a, b = prev.get("seq"), cur.get("seq")
-    if isinstance(a, int) and isinstance(b, int):
-        return b == a + 1
-    return True
+def _agent(entry: dict) -> str:
+    return str(entry["payload"].get("agent_id") or entry.get("agent_id") or "")
 
 
-def chain_predecessors(receipts: list) -> dict:
-    """Index of each envelope receipt -> its predecessor payload in the pack, per agent chain."""
-    chains: dict[str, list[int]] = {}
-    for i, entry in enumerate(receipts):
-        payload = entry.get("payload") if isinstance(entry, dict) else None
-        if isinstance(payload, dict) and not entry.get("signed_bytes_withheld"):
-            agent = str(payload.get("agent_id") or entry.get("agent_id") or "")
-            chains.setdefault(agent, []).append(i)
+def _link_hash(entry: dict) -> str | None:
+    if entry.get("signed_bytes_withheld"):
+        value = entry.get("message_sha256")
+        return value if isinstance(value, str) else None
+    try:
+        return hashlib.sha256(vr.canonical_json(entry["payload"])).hexdigest()
+    except (ValueError, TypeError, RecursionError):
+        return None
+
+
+def _envelopes(receipts: list) -> dict:
+    return {
+        i: e for i, e in enumerate(receipts)
+        if isinstance(e, dict) and isinstance(e.get("payload"), dict)
+    }
+
+
+def _link(i: int, entry: dict, by_seq: dict, by_hash: dict, envelopes: dict) -> tuple:
+    """(predecessor payload, chain issue) for one envelope receipt."""
+    payload, seq = entry["payload"], _seq(entry["payload"])
+    prev, agent = payload.get("previousReceiptHash"), _agent(entry)
+    if prev == vr.FIRST_RECEIPT_SEED:
+        return None, None
+    if seq is not None and len(by_seq.get((agent, seq - 1), [])) == 1:
+        return envelopes[by_seq[(agent, seq - 1)][0]]["payload"], None
+    j = by_hash.get((agent, prev))
+    if j is not None:
+        pred = envelopes[j]
+        return (None if pred.get("signed_bytes_withheld") else pred["payload"]), None
+    if seq is not None and any(a == agent and s < seq for a, s in by_seq):
+        return None, f"chain: gap, the predecessor of seq {seq} is missing from the pack"
+    return None, None
+
+
+def _index(envelopes: dict) -> tuple:
+    by_seq: dict[tuple, list[int]] = {}
+    by_hash: dict[tuple, int] = {}
+    for i, e in envelopes.items():
+        seq = None if e.get("signed_bytes_withheld") else _seq(e["payload"])
+        if seq is not None:
+            by_seq.setdefault((_agent(e), seq), []).append(i)
+        h = _link_hash(e)
+        if h is not None:
+            by_hash[(_agent(e), h)] = i
+    return by_seq, by_hash
+
+
+def _duplicates(pairs) -> dict:
+    groups: dict = {}
+    for i, key in pairs:
+        if key is not None:
+            groups.setdefault(key, []).append(i)
+    return {i: key for key, idxs in groups.items() if len(idxs) > 1 for i in idxs}
+
+
+def chain_issues(receipts: list, envelopes: dict, by_seq: dict) -> dict:
+    """Index -> invalid reasons for forked chains and duplicate entries."""
+    issues: dict[int, list[str]] = {}
+    forks = {i: k for k, idxs in by_seq.items() if len(idxs) > 1 for i in idxs}
+    prevs = _duplicates(
+        (i, (_agent(e), e["payload"].get("previousReceiptHash"))) for i, e in envelopes.items()
+    )
+    ids = _duplicates(
+        (i, e.get("signature_id")) for i, e in enumerate(receipts) if isinstance(e, dict)
+    )
+    for i, (agent, seq) in forks.items():
+        issues.setdefault(i, []).append(f"chain: fork, seq {seq} appears twice for agent {agent}")
+    for i, (agent, _) in prevs.items():
+        issues.setdefault(i, []).append(f"chain: fork, two receipts of {agent} share a predecessor")
+    for i, sid in ids.items():
+        issues.setdefault(i, []).append(f"duplicate entry: signature_id {sid}")
+    return issues
+
+
+def chain_context(receipts: list) -> tuple:
+    """(index -> predecessor payload, index -> invalid reasons) for the pack's receipts."""
+    envelopes = _envelopes(receipts)
+    by_seq, by_hash = _index(envelopes)
+    issues = chain_issues(receipts, envelopes, by_seq)
     preds: dict[int, dict | None] = {}
-    for idxs in chains.values():
-        idxs.sort(key=lambda i: _chain_key(receipts[i]["payload"]))
-        preds[idxs[0]] = None
-        for prev, cur in zip(idxs, idxs[1:]):
-            p, c = receipts[prev]["payload"], receipts[cur]["payload"]
-            preds[cur] = p if _consecutive(p, c) else None
-    return preds
+    for i, e in envelopes.items():
+        preds[i], issue = _link(i, e, by_seq, by_hash, envelopes)
+        if issue:
+            issues.setdefault(i, []).append(issue)
+    return preds, issues
 
 
 def _expiry_note(payload: dict, axes: list) -> str | None:
@@ -233,21 +332,36 @@ def _worst(statuses) -> str:
     return max(statuses, key=_RANK.__getitem__, default=VERIFIED)
 
 
+def _apply(result: dict, issues: list, bundle_ok: bool) -> dict:
+    if issues:
+        return {**result, "status": INVALID, "reasons": issues + result["reasons"]}
+    if result["status"] == VERIFIED and not bundle_ok:
+        return {**result, "status": NOT_OFFLINE, "reasons": [_UNVOUCHED_REASON]}
+    return result
+
+
 def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_headers=None) -> dict:
-    """Per-receipt and pack report; ``jwks`` replaces the pack's key snapshot, ``tsa_keys`` adds
-    to the pack's TSA material. ``exit_code`` is 0 all verified, 2 some not offline, 1 invalid."""
-    key_set = jwks if jwks is not None else pack.get("jwks")
+    """Per-receipt and pack report. Trust comes only from ``jwks`` and ``tsa_keys``; without
+    ``jwks`` the pack's own snapshot is used and the best result is self_consistent."""
+    anchored = isinstance(jwks, dict)
+    key_set = jwks if anchored else pack.get("jwks")
     key_set = key_set if isinstance(key_set, dict) else {"keys": []}
-    pinned = pack_tsa_keys(pack) + list(tsa_keys or [])
+    pinned = list(tsa_keys or [])
     receipts = pack.get("receipts") if isinstance(pack.get("receipts"), list) else []
-    preds = chain_predecessors(receipts)
+    preds, issues = chain_context(receipts)
+    bundle = check_bundle(pack, key_set, anchored)
     results = [
-        verify_entry(r, key_set, preds.get(i), tsa_keys=pinned, headers=bitcoin_headers)
+        _apply(
+            verify_entry(r, key_set, preds.get(i), tsa_keys=pinned, headers=bitcoin_headers),
+            issues.get(i, []),
+            bundle["status"] == VERIFIED,
+        )
         for i, r in enumerate(receipts)
     ]
-    bundle = check_bundle(pack, key_set)
     counts = {s: sum(1 for r in results if r["status"] == s) for s in (VERIFIED, NOT_OFFLINE, INVALID)}
     status = _worst([bundle["status"]] + [r["status"] for r in results])
+    if status != INVALID and not anchored:
+        status = SELF_CONSISTENT
     return {
         "status": status,
         "exit_code": EXIT_CODES[status],
@@ -255,9 +369,11 @@ def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_
         "receipts": results,
         "summary": {"total": len(results), **counts},
         "trust": {
-            "keys": "supplied key set" if jwks is not None else "pack key snapshot",
+            "anchored": anchored,
+            "keys": "supplied key set" if anchored else "pack key snapshot (self-asserted)",
             "key_count": len(_jwks_keys(key_set)),
             "tsa_keys": len(pinned),
+            "tsa_carried_not_trusted": pack_tsa_count(pack),
         },
         "pack": {
             "organization_id": pack.get("organization_id"),
