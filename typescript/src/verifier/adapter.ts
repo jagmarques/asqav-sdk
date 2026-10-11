@@ -125,6 +125,12 @@ export abstract class FormatAdapter {
     return null;
   }
 
+  /** Parts whose numbers are signed (`chained`: what a successor's link
+   *  hashes); default the whole document */
+  signedParts(doc: Record<string, unknown>, _chained = false): unknown[] {
+    return [doc];
+  }
+
   /** Refusal note or null; default no-op, the core reports a note early. */
   profilePrecheck(
     _doc: Record<string, unknown>,
