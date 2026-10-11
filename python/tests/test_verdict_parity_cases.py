@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 os.environ["ASQAV_API_URL"] = "http://127.0.0.1:9"
 
 import asqav  # noqa: E402
+from asqav.counterparty import verify_counterparty_binding  # noqa: E402
 from asqav.verifier import verify_receipt as vr  # noqa: E402
 from asqav.verifier.oracle.runner import run_one  # noqa: E402
 
@@ -64,7 +65,8 @@ def _offline_dict(case: Path) -> tuple[str, str | None]:
 
 def test_manifest_covers_every_zone_with_controls() -> None:
     lexemes = {c["lexeme"] for c in MANIFEST}
-    assert {"1e-07", "7.635507284768651e+16", "-0.0", "500.0", "0.5"} <= lexemes
+    assert {"1e-07", "7.635507284768651e+16", "-0.0", "500.0", "0.5", "5e2", "-0"} <= lexemes
+    assert all("binding" in c for c in MANIFEST if c["dir"].startswith("counterparty-"))
     assert sum(c["dir"].endswith("-tamper") for c in MANIFEST) == 10
     assert {c["outcome"] for c in MANIFEST} == {"verified", "unverified"}
     dirs = sorted(p.name for p in CASES_DIR.iterdir() if p.is_dir())
@@ -91,3 +93,14 @@ def test_every_python_verifier_returns_the_manifest_outcome(row: dict) -> None:
     }
     assert got == dict.fromkeys(got, want), (row["dir"], row["lexeme"], oracle.detail[:300])
     assert _standalone_cli(case) == CLI_EXIT[want], row["dir"]
+
+
+BINDINGS = [c for c in MANIFEST if "binding" in c]
+
+
+@pytest.mark.parametrize("row", BINDINGS, ids=[c["dir"] for c in BINDINGS])
+def test_binding_label_is_the_sdk_verdict(row: dict) -> None:
+    case = CASES_DIR / row["dir"]
+    ack = json.loads(_text(case, "receipt.json"))
+    origin = json.loads(_text(case, "originating_envelope.json"))
+    assert verify_counterparty_binding(ack, origin).label == row["binding"]
