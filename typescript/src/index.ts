@@ -24,7 +24,7 @@ import {
 import { runDetectors } from "./detectors.js";
 import { userAgentHeaders } from "./userAgent.js";
 import { deriveChainHash } from "./replay.js";
-import { resolveApiKey } from "./credentials.js";
+import { resolveApiBase, resolveApiKey } from "./credentials.js";
 
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
@@ -275,7 +275,6 @@ export function anchors(
   return _anchorsFromResponse(response as never);
 }
 
-const DEFAULT_BASE_URL = "https://api.asqav.com/api/v1";
 /** Metadata keys allowed alongside a hash-only request. Mirrors the
  * Python whitelist; the server enforces its own. */
 const HASH_ONLY_METADATA_WHITELIST = new Set<string>([
@@ -296,12 +295,13 @@ interface Config {
 
 let config: Config = Object.freeze({
   apiKey: null,
-  // Seed the base URL from ASQAV_API_URL, matching the Python half's module-level
-  // _api_base, so keyless verify() honors the env without an init() call.
-  baseUrl: process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL,
+  // Same order as init(), so keyless verify() sees env and saved login
+  baseUrl: resolveApiBase(),
   mode: "full-payload",
   orgSalt: null,
 });
+// Last base given to init(); a later init() without one keeps it
+let explicitBase: string | null = null;
 
 // === Errors ===
 
@@ -337,6 +337,69 @@ export class APIError extends AsqavError {
     this.name = "APIError";
     this.statusCode = statusCode;
   }
+}
+
+/** Thrown when the API cannot be reached (refused, DNS, timeout, TLS).
+ * An APIError with statusCode 0, so `instanceof APIError` still matches. */
+export class AsqavConnectionError extends APIError {
+  constructor(url: string, cause: unknown) {
+    super(
+      `Network error: ${causeText(cause)} (could not reach the Asqav API at ${url}; ` +
+        "check ASQAV_API_URL or `asqav login --api-base`)",
+      0,
+    );
+    this.name = "AsqavConnectionError";
+  }
+}
+
+function oneLine(text: string, limit = 200): string {
+  const flat = text.split(/\s+/).filter(Boolean).join(" ");
+  return flat.length <= limit ? flat : `${flat.slice(0, limit - 3)}...`;
+}
+
+function causeText(cause: unknown): string {
+  const err = cause as { message?: unknown; cause?: { message?: unknown } } | null;
+  const inner = err?.cause?.message;
+  const text = typeof inner === "string" && inner ? `${err?.message}: ${inner}` : err?.message;
+  return oneLine(typeof text === "string" ? text : String(cause));
+}
+
+/** Server reason from a JSON error body: detail plus code. */
+function reasonFromBody(body: unknown): string {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return "";
+  const rec = body as Record<string, unknown>;
+  let detail = rec.detail || rec.error || rec.message;
+  let code = rec.code;
+  if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+    const inner = detail as Record<string, unknown>;
+    code = code || inner.code;
+    detail = inner.message || inner.detail;
+  }
+  if (Array.isArray(detail)) {
+    detail = detail
+      .filter((e): e is Record<string, unknown> => e !== null && typeof e === "object")
+      .map((e) => `${Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : "?"}: ${e.msg ?? ""}`)
+      .join("; ");
+  }
+  let text = detail ? oneLine(String(detail)) : "";
+  if (code && !text.includes(String(code))) text = text ? `${text} (${code})` : String(code);
+  return text;
+}
+
+/** One-line APIError message for an HTTP error status and its raw body text. */
+export function _errorMessage(status: number, text: string): string {
+  let body: unknown = null;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = null;
+  }
+  const reason = reasonFromBody(body);
+  if (reason) return reason;
+  const flat = oneLine(text);
+  if (!flat) return `HTTP ${status}`;
+  if (!flat.includes("<")) return `HTTP ${status}: ${flat}`;
+  return `HTTP ${status} with a non-JSON body (often a proxy or gateway error page)`;
 }
 
 /** Thrown when a cloud response omits a field the SDK requires (rule 3.9), so a caller
@@ -903,7 +966,8 @@ export interface PreflightResult {
 // === init ===
 
 export function init(options: InitOptions = {}): void {
-  config = resolveConnection(options, config.baseUrl);
+  config = resolveConnection(options, explicitBase ?? resolveApiBase());
+  explicitBase = options.baseUrl ?? explicitBase;
 }
 
 function resolveConnection(options: InitOptions, fallbackBase: string): Config {
@@ -1021,7 +1085,7 @@ async function requestWithConnection<T>(
         await sleep(2 ** (attempt - 1) * 250);
         continue;
       }
-      throw new APIError(`Network error: ${lastError.message}`, 0);
+      throw new AsqavConnectionError(url, lastError);
     }
 
     if (response.status === 401) {
@@ -1039,18 +1103,8 @@ async function requestWithConnection<T>(
       continue;
     }
     if (response.status >= 400) {
-      let detail: string = response.statusText || "Unknown error";
-      try {
-        const json = (await response.json()) as { error?: string; detail?: string };
-        detail = json.error ?? json.detail ?? detail;
-      } catch {
-        try {
-          detail = await response.text();
-        } catch {
-          // ignore
-        }
-      }
-      throw new APIError(detail, response.status);
+      const text = await response.text().catch(() => "");
+      throw new APIError(_errorMessage(response.status, text || response.statusText), response.status);
     }
 
     if (response.status === 204) {
@@ -2205,7 +2259,7 @@ export class AsqavClient {
 
   /** Resolve local configuration; Agent methods perform HTTP. */
   constructor(options: InitOptions = {}) {
-    this.#connection = resolveConnection(options, process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL);
+    this.#connection = resolveConnection(options, resolveApiBase());
   }
 
   createAgent(options: AgentCreateOptions): Promise<Agent> {
@@ -2218,6 +2272,33 @@ export class AsqavClient {
 }
 
 // === Standalone functions ===
+
+type AnchorFields = Partial<
+  Pick<
+    VerificationDetail,
+    | "signatureValid"
+    | "validationLabel"
+    | "anchorValidOts"
+    | "anchorValidRfc3161"
+    | "anchorStatusOts"
+    | "anchorStatusRfc3161"
+  >
+>;
+
+/** @internal - signature validity apart from anchoring. */
+export function _signatureValid(r: { verified: boolean; verificationDetail?: AnchorFields }): boolean {
+  return r.verificationDetail ? Boolean(r.verificationDetail.signatureValid) : Boolean(r.verified);
+}
+
+/** @internal - anchor state: confirmed, invalid, pending, none, unknown. */
+export function _anchorState(d?: AnchorFields): string {
+  if (!d) return "unknown";
+  if (d.anchorValidOts === true || d.anchorValidRfc3161 === true) return "confirmed";
+  const statuses: unknown[] = [d.anchorStatusOts, d.anchorStatusRfc3161];
+  if (statuses.includes("invalid") || d.validationLabel === "anchor_invalid") return "invalid";
+  if (statuses.some(Boolean) || (d.validationLabel ?? "").startsWith("anchor_pending")) return "pending";
+  return "none";
+}
 
 export async function verifySignature(signatureId: string): Promise<VerificationResponse> {
   const data = await request<{
@@ -2332,6 +2413,10 @@ export async function verifySignature(signatureId: string): Promise<Verification
  */
 export async function verify(signatureId: string): Promise<{
   verified: boolean;
+  /** Signature validity apart from anchoring; true on a fresh receipt. */
+  signatureValid: boolean;
+  /** Anchor state: confirmed, pending, invalid, none or unknown. */
+  anchor: string;
   agentId: string;
   agentName?: string;
   signatureId: string;
@@ -2340,12 +2425,17 @@ export async function verify(signatureId: string): Promise<{
   chainHash: string | null;
 }> {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/verify/${signatureId}`;
-  const response = await fetch(url, {
-    headers: { Accept: "application/json", ...userAgentHeaders() },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Accept: "application/json", ...userAgentHeaders() },
+    });
+  } catch (err) {
+    throw new AsqavConnectionError(url, err);
+  }
   if (response.status === 404) throw new APIError("Signature not found", 404);
   if (response.status >= 400) {
-    throw new APIError(await response.text(), response.status);
+    throw new APIError(_errorMessage(response.status, await response.text()), response.status);
   }
   const data = (await response.json()) as {
     signature_id: string;
@@ -2355,14 +2445,36 @@ export async function verify(signatureId: string): Promise<{
     verified: boolean;
     verification_url?: string;
     payload?: unknown;
+    verification_detail?: {
+      signature_valid?: boolean;
+      validation_label?: string;
+      anchor_valid_ots?: boolean;
+      anchor_valid_rfc3161?: boolean;
+      anchor_status_ots?: "valid" | "pending" | "invalid";
+      anchor_status_rfc3161?: "valid" | "pending" | "invalid";
+    };
   };
+  const vd = data.verification_detail;
+  const detail = vd
+    ? {
+        signatureValid: vd.signature_valid,
+        validationLabel: vd.validation_label,
+        anchorValidOts: vd.anchor_valid_ots,
+        anchorValidRfc3161: vd.anchor_valid_rfc3161,
+        anchorStatusOts: vd.anchor_status_ots,
+        anchorStatusRfc3161: vd.anchor_status_rfc3161,
+      }
+    : undefined;
   const payload = data.payload;
   const chainHash =
     payload !== null && typeof payload === "object" && !Array.isArray(payload)
       ? deriveChainHash(payload as Record<string, unknown>)
       : null;
+  const verified = requireField<boolean>(data, "verified");
   return {
-    verified: requireField<boolean>(data, "verified"),
+    verified,
+    signatureValid: _signatureValid({ verified, verificationDetail: detail }),
+    anchor: _anchorState(detail),
     agentId: requireField<string>(data, "agent_id"),
     agentName: data.agent_name,
     signatureId: requireField<string>(data, "signature_id"),
@@ -2566,9 +2678,10 @@ export function verifyReceiptOffline(
 
 /** @internal - reset module state. Used in tests. */
 export function _resetForTests(): void {
+  explicitBase = null;
   config = Object.freeze({
     apiKey: null,
-    baseUrl: process.env.ASQAV_API_URL ?? DEFAULT_BASE_URL,
+    baseUrl: resolveApiBase(),
     mode: "full-payload",
     orgSalt: null,
   });

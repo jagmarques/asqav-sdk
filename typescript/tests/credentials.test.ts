@@ -47,7 +47,7 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
   let stderrSpy: ReturnType<typeof vi.spyOn>;
   const tempDirs: string[] = [];
   const savedEnv: Record<string, string | undefined> = {};
-  const ENV_KEYS = ["ASQAV_CREDENTIALS_PATH", "ASQAV_API_KEY", "ASQAV_API_BASE", "HOME"];
+  const ENV_KEYS = ["ASQAV_CREDENTIALS_PATH", "ASQAV_API_KEY", "ASQAV_API_BASE", "ASQAV_API_URL", "HOME"];
 
   beforeEach(() => {
     _resetForTests();
@@ -59,6 +59,7 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
     process.env.ASQAV_CREDENTIALS_PATH = path.join(tmp, "credentials");
     delete process.env.ASQAV_API_KEY;
     delete process.env.ASQAV_API_BASE;
+    delete process.env.ASQAV_API_URL;
 
     exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new Error(`__EXIT__${code ?? 0}`);
