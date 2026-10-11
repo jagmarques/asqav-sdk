@@ -21,25 +21,11 @@ cloud-side doc: https://www.asqav.com/docs/self-hosted-signer
 
 ## Stand up the signer
 
-The reference docker-compose for the signer plus its Postgres and
-Redis dependencies is published with the cloud repo:
-
-```bash
-curl -O https://raw.githubusercontent.com/jagmarques/asqav/main/docker-compose.signer.yml
-```
-
-Create a `.env` next to it with at minimum:
-
-```bash
-POSTGRES_PASSWORD=<a strong random value, 32+ chars>
-BUILD_SHA=unknown
-```
-
-Bring it up:
-
-```bash
-docker compose -f docker-compose.signer.yml up -d
-```
+Asqav does not publish a signer image. The signer builds from source with
+`docker-compose.signer.yml` in the Asqav server repository, which is
+private; contact info@asqav.com for access. The deploy steps and the full
+list of required `.env` values are in that repository's
+`docs/self-hosted-signer.md`.
 
 The signer exposes the Asqav API surface on port `8000` inside the
 compose network. Front it with your own ingress such as Traefik, nginx,
@@ -48,8 +34,10 @@ ship a TLS terminator.
 
 ## Point the SDK at your signer
 
-The SDK reads `ASQAV_API_URL` at import time, falling back to
-`https://api.asqav.com/api/v1`. Override it to your signer's URL:
+The SDK resolves its API base in this order: the `base_url` argument to
+`asqav.init()`, `ASQAV_API_URL`, `ASQAV_API_BASE`, the base saved by
+`asqav login --api-base`, then `https://api.asqav.com/api/v1`. The CLI and
+`asqav doctor` use the same order. Point it at your signer's URL:
 
 ```bash
 export ASQAV_API_URL=https://signer.internal.example.com/api/v1
@@ -113,14 +101,28 @@ https://www.asqav.com/docs/offline-air-gapped-verification.
 
 ## Verifying a signed receipt
 
-Independent verification does not require any Asqav infrastructure.
-The audit-pack export carries the public ML-DSA-65 key, the hash
-chain, and the timestamp tokens. Anyone with the exported pack can
-verify offline:
+Verifying a receipt needs no Asqav infrastructure. Export a pack with the
+signed bytes included. The JSON bundle carries the receipts and a `jwks`
+snapshot of the verification keys taken at export time:
 
 ```bash
-asqav verify --pack ./compliance-bundle.json
+asqav audit-pack export --start 2026-01-01T00:00:00Z --end 2026-04-01T00:00:00Z \
+  --include-signed-bytes --output-file compliance-bundle.json
 ```
+
+Take the key set and one receipt out of the bundle and run the standalone
+verifier offline:
+
+```bash
+jq '.jwks' compliance-bundle.json > jwks.json
+jq '.receipts[0] | {payload, signature, anchors}' compliance-bundle.json > receipt.json
+python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json --offline
+```
+
+The verifier checks one receipt per run; there is no offline whole-pack
+verifier yet. `asqav audit-pack verify` sends the bundle to the API the SDK
+points at, so it is not an offline check. Only compliance-mode receipts
+verify this way.
 
 The same audit-pack also feeds the IETF Compliance Receipts profile
 under `draft-marques-asqav-compliance-receipts`, so third-party

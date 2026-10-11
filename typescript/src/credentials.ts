@@ -82,12 +82,15 @@ export function resolveApiKey(explicit?: string): string | null {
   return null;
 }
 
-/** Resolve an API base: explicit arg, then ASQAV_API_BASE env, then file, then default. */
-export function resolveApiBase(explicit?: string): string {
+/** API base order: explicit arg, ASQAV_API_URL, ASQAV_API_BASE, the base
+ * saved by `asqav login --api-base`, then the hosted default. */
+export function resolveApiBase(explicit?: string, options: { useFile?: boolean } = {}): string {
   if (explicit) return explicit;
-  const envBase = process.env.ASQAV_API_BASE;
-  if (envBase) return envBase;
-  const fileBase = loadCredentials().api_base;
+  for (const name of ["ASQAV_API_URL", "ASQAV_API_BASE"]) {
+    const envBase = process.env[name];
+    if (envBase) return envBase;
+  }
+  const fileBase = options.useFile === false ? undefined : loadCredentials().api_base;
   if (typeof fileBase === "string" && fileBase) return fileBase;
   return DEFAULT_API_BASE;
 }

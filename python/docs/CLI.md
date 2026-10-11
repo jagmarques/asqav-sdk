@@ -3,15 +3,43 @@
 The `asqav` CLI ships in the `asqav[cli]` extra. Every command wraps a public Python API; the same arguments accepted on the command line work as kwargs on the corresponding SDK call. Every CLI command works on the free tier; the Asqav cloud is the source of truth for what a key may do.
 
 ```bash
-pip install asqav[cli]
-export ASQAV_API_KEY=sk_...
+pip install "asqav[cli]"
+export ASQAV_API_KEY=<paste your key here>
 ```
+
+## First receipt
+
+```python
+import asqav
+asqav.init()
+agent = asqav.Agent.create("my-first-agent")
+receipt = agent.sign("test", {"hello": "world"})
+print("Receipt:", receipt.verification_url)
+```
+
+Then run `asqav verify <signature_id>`, where the id is the last part of the printed receipt URL.
+
+## Setup commands
+
+### `asqav quickstart`
+
+Prints the steps above and reports whether a key was found and which API base is in use. It writes no files.
+
+### `asqav init [--write] [--demo]`
+
+Prints the first-receipt snippet plus an `@asqav.secure` function named for the framework it detects. `--write` saves it to `asqav_governance.py`; `--demo` signs one labelled action.
+
+### `asqav login [--api-key KEY] [--api-base URL]`, `asqav whoami`, `asqav doctor`
+
+`login` validates a key and saves it, with an optional API base, to `~/.asqav/credentials`. `whoami` shows which key and base are active. `doctor` checks the key and the API against that same base.
+
+The SDK, the CLI and `doctor` resolve the API base in one order: the `base_url` argument to `init()`, then `ASQAV_API_URL`, then `ASQAV_API_BASE`, then the base saved by `asqav login --api-base`, then `https://api.asqav.com/api/v1`.
 
 ## Public commands
 
 ### `asqav verify <signature_id> [--output text|json]`
 
-Public, no API key required. Prints the verification outcome plus the IETF Compliance Receipts profile sub-axes when the cloud emitted them: `chain_valid`, `anchor_status_ots`, `anchor_status_rfc3161`, `signed_at_skew_seconds`, `missing_fields`. With `--output json`, returns the full `VerificationResponse` dataclass as JSON.
+Public, no API key required. Prints signature validity and anchor state on separate lines, so a fresh receipt reads `Signature: valid` with `Anchor: pending` until its timestamp anchor confirms. Then come the IETF Compliance Receipts profile sub-axes when the cloud emitted them: `chain_valid`, `anchor_status_ots`, `anchor_status_rfc3161`, `signed_at_skew_seconds`, `missing_fields`. With `--output json`, returns the full `VerificationResponse` as JSON plus top-level `signature_valid` and `anchor`.
 
 ```bash
 asqav verify sig_abc123 --output json

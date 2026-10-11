@@ -26,6 +26,7 @@ def home(tmp_path, monkeypatch):
     monkeypatch.delenv("ASQAV_CREDENTIALS_PATH", raising=False)
     monkeypatch.delenv("ASQAV_API_KEY", raising=False)
     monkeypatch.delenv("ASQAV_API_BASE", raising=False)
+    monkeypatch.delenv("ASQAV_API_URL", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
     return tmp_path
 
@@ -282,7 +283,7 @@ def test_init_prints_snippet_without_writing(tmp_path, monkeypatch) -> None:
     result = runner.invoke(app, ["init"])
     assert result.exit_code == 0, result.output
     assert "Detected framework: python" in result.output
-    assert "asqav.govern" in result.output
+    assert "asqav.Agent.create" in result.output
     assert "@asqav.secure" in result.output
     assert os.listdir(tmp_path) == []
 
@@ -301,7 +302,7 @@ def test_init_write_creates_file(tmp_path, monkeypatch) -> None:
     assert result.exit_code == 0
     written = tmp_path / "asqav_governance.py"
     assert written.exists()
-    assert "asqav.govern" in written.read_text()
+    assert "asqav.Agent.create" in written.read_text()
 
 
 def test_init_demo_skips_without_key(tmp_path, monkeypatch) -> None:
