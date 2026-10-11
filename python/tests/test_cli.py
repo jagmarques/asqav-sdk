@@ -60,7 +60,7 @@ def test_verify_invalid(mock_verify: MagicMock) -> None:
         algorithm="ml-dsa-44",
     )
     result = runner.invoke(app, ["verify", "sig_bad"])
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "invalid" in result.output
     assert "bad-agent" in result.output
 
@@ -536,7 +536,7 @@ def test_quickstart_with_api_key() -> None:
     assert result.exit_code == 0
     assert "API key detected" in result.output
     assert "asqav hook" in result.output
-    assert "Policy" in result.output
+    assert "asqav.Agent.create" in result.output
     assert "Next steps" in result.output
 
 

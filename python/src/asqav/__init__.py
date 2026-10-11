@@ -67,6 +67,7 @@ from .client import (
     AgentResponse,
     APIError,
     ApprovalResponse,
+    AsqavConnectionError,
     AsqavError,
     AsqavResponseError,
     AsqavValidationError,
@@ -337,6 +338,7 @@ __all__ = [
     "clear_hooks",
     # Exceptions
     "AsqavError",
+    "AsqavConnectionError",
     "AsqavValidationError",
     "AsqavResponseError",
     "AuthenticationError",
