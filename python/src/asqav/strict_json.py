@@ -37,6 +37,7 @@ __all__ = [
     "loads",
     "loads_profile",
     "assert_profile_integers",
+    "assert_canonical_integers",
 ]
 
 #: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
@@ -154,6 +155,29 @@ def assert_profile_integers(obj: Any) -> None:
             stack.extend((v, f"{path}.{k}") for k, v in node.items())
         elif isinstance(node, (list, tuple)):
             stack.extend((v, f"{path}[{i}]") for i, v in enumerate(node))
+
+
+    # Refuse a parsed int outside +/-2**53 at any depth, as strict ingest would have.
+    # Dict API callers get the same refusal as raw text callers.
+def assert_canonical_integers(obj: Any) -> None:
+    stack: list[Any] = [obj]
+    seen: set[int] = set()
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (dict, list, tuple)):
+            if id(node) in seen:  # a shared or cyclic container is walked once
+                continue
+            seen.add(id(node))
+        if isinstance(node, int) and not isinstance(node, bool):
+            if not -MAX_CANONICAL_INTEGER <= node <= MAX_CANONICAL_INTEGER:
+                raise UnsafeIntegerError(
+                    "integer outside the canonical integer range +/-2**53; serialise it "
+                    "as a JSON string or an integer-rational pair"
+                )
+        elif isinstance(node, dict):
+            stack.extend(node.values())
+        elif isinstance(node, (list, tuple)):
+            stack.extend(node)
 
 
     # Strict ingest plus the narrower Asqav profile range; shared loads unchanged.
