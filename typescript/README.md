@@ -122,6 +122,9 @@ have been `-0` or `-0.0`. A `500.0` reads back as `500`: if the signer wrote the
 the signature check fails with `unverified` / `invalid`, but if the signer wrote the integer
 `500` and the file respells it as `500.0` or `5e2` (or `0` as `0.0`), the object verifies while
 raw text and the Python verifiers refuse it. Pass raw text when you need the strict profile.
+An integer past 2^53 anywhere in the receipt is refused as `unverifiable` on raw text and by
+every Python verifier, a parsed dict included. `JSON.parse` rounds it, so one outside the
+signed bytes goes unseen and that object can still verify.
 Fractions such as `1e-07` and `0.5` verify the same way on both paths.
 `verifyCounterpartyBinding` and `computeEnvelopeHash` also take the origin as raw text, and
 then agree with Python's `verify_counterparty_binding`. A `JSON.parse` origin loses the
@@ -130,6 +133,8 @@ spelling here too. If it holds `-0`, `verifyCounterpartyBinding` reports `unreso
 If the origin signed the integer `500` and the file respells it as `500.0`, the binding reports
 `matches` while Python reports `mismatch`. If the origin signed a float such as `500.0` or `-1.0`,
 a `JSON.parse` origin reads it back as an integer and the binding reports `mismatch` while Python
+reports `matches`. An integer past 2^53 anywhere in the origin makes the binding `unresolved`
+on raw text and in Python, while a `JSON.parse` origin that holds one outside the signed bytes
 reports `matches`. Pass raw text for Python's answer.
 ML-DSA-65 verifies in-process via `@noble/post-quantum`; Ed25519 and ES256 via `node:crypto`.
 Guide: [offline and air-gapped verification](https://asqav.com/docs/offline-air-gapped-verification).

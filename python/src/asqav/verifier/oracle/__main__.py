@@ -58,8 +58,8 @@ def _load(path: str | None) -> dict | None:
         raise SystemExit(2) from None
     try:
         return strict_json.loads(text)
-    except strict_json.DuplicateMemberError as exc:
-        # Terminal ingest failure (419): never hash or verify last-wins bytes.
+    except (strict_json.DuplicateMemberError, strict_json.UnsafeIntegerError) as exc:
+        # Terminal ingest failure (419): never hash or verify last-wins or rounded bytes.
         print(f"asqav-verify: {path} rejected: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
     except json.JSONDecodeError as exc:
