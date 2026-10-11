@@ -57,6 +57,17 @@ AUTHORED_REF_VECTORS = frozenset(
         "asqav-06-mldsa65-payload-prod",
         "asqav-12-time-edge-expiry",
         "asqav-13-dup-member-nested",
+        # Outer-copy family: asqav-06's payload plus export copies
+        "asqav-43-outer-copies-agree",
+        "asqav-44-outer-signed-at-edited",
+        "asqav-45-outer-agent-id-edited",
+        "asqav-46-outer-action-type-edited",
+        "asqav-47-outer-message-copy-edited",
+        "asqav-48-outer-public-key-edited",
+        "asqav-49-outer-flat-signature-agree",
+        "asqav-50-outer-flat-signature-agent-id-edited",
+        "asqav-51-outer-envelope-signature-action-type-edited",
+        "asqav-52-outer-flat-hash-unsigned-members",
     }
 )
 
