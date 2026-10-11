@@ -7,6 +7,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import strict_json
 from ._jcs import canonical_json
 
 __all__ = [
@@ -73,6 +74,11 @@ def compute_envelope_hash(envelope: dict[str, Any]) -> str:
         for key in ("alg", "kid", "sig")
     ):
         raise ValueError("counterparty_origin_unavailable: signature object is incomplete")
+    try:
+        # Raw-text ingest refuses the whole origin over such an integer; so does a dict.
+        strict_json.assert_canonical_integers(envelope)
+    except strict_json.UnsafeIntegerError as exc:
+        raise ValueError("counterparty_origin_unavailable: integer outside +/-2**53") from exc
     projection = {"payload": envelope["payload"], "signature": signature}
     stack = [(projection, 0)]
     while stack:

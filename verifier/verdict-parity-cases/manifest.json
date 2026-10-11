@@ -271,6 +271,94 @@
       }
     },
     {
+      "dir": "receipt-unsafe-int-signed0",
+      "lexeme": "76355072847686512",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-signed1",
+      "lexeme": "-76355072847686512",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-signed2",
+      "lexeme": "8529836597716306944",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-unsigned0",
+      "lexeme": "9007199254740993",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-unsigned1",
+      "lexeme": "-9007199254740993",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-unsigned2",
+      "lexeme": "1000000000000000000000000000000",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-unsigned3",
+      "lexeme": "1927637842182427223",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": true
+    },
+    {
+      "dir": "receipt-unsafe-int-unsigned-bound",
+      "lexeme": "9007199254740992",
+      "outcome": "verified",
+      "failure_class": null,
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": false
+    },
+    {
       "dir": "counterparty-small",
       "lexeme": "1e-07",
       "outcome": "verified",
@@ -437,6 +525,45 @@
       },
       "binding": "mismatch",
       "parsed_binding": "unresolved"
+    },
+    {
+      "dir": "counterparty-unsafe-int-origin-signed",
+      "lexeme": "8529836597716306944",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "unsafe_integer": true,
+      "binding": "unresolved",
+      "parsed_binding": "unresolved"
+    },
+    {
+      "dir": "counterparty-unsafe-int-origin-unsigned",
+      "lexeme": "9007199254740993",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "unverified",
+        "failure_class": "unverifiable"
+      },
+      "unsafe_integer": true,
+      "binding": "unresolved",
+      "parsed_binding": "matches"
+    },
+    {
+      "dir": "counterparty-unsafe-int-ack-unsigned",
+      "lexeme": "-9007199254740993",
+      "outcome": "unverified",
+      "failure_class": "unverifiable",
+      "parsed": {
+        "outcome": "verified",
+        "failure_class": null
+      },
+      "unsafe_integer": true,
+      "binding": "matches",
+      "parsed_binding": "matches"
     }
   ]
 }
