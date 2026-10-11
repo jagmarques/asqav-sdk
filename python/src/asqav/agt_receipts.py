@@ -297,11 +297,87 @@ def _link_errors(receipt: Any, asqav_receipt: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _org_errors(payload: dict[str, Any], expected_org: str) -> list[str]:
-    claimed = {payload.get("issuer_id")} | ({payload["org_id"]} if "org_id" in payload else set())
-    if claimed != {expected_org}:
-        return [f"Asqav receipt is not from org {expected_org} (got {sorted(map(str, claimed))})."]
+def _verifying_rows(asqav_receipt: dict[str, Any], jwks: dict[str, Any]) -> list[dict[str, Any]]:
+    """JWKS rows whose key verifies the signature; the unsigned kid never picks the row."""
+    from .verifier import verify_receipt as vr
+
+    signature = asqav_receipt.get("signature")
+    raw = signature.get("sig") if isinstance(signature, dict) else None
+    keys = jwks.get("keys")
+    if not isinstance(raw, str) or not isinstance(keys, list):
+        return []
+    msg, sig = vr.canonical_json(asqav_receipt["payload"]), vr._b64decode(raw)
+    rows = []
+    for row in keys:
+        pk = _row_key(row)
+        if pk is None:
+            continue
+        alg = row.get("alg") or signature.get("alg")
+        if vr.verify_signature(pk, msg, sig, alg)[0] == "PASS":
+            rows.append(row)
+    return rows
+
+
+def _row_key(row: Any) -> bytes | None:
+    from .verifier import verify_receipt as vr
+
+    if not isinstance(row, dict) or not isinstance(row.get("public_key"), str):
+        return None
+    try:
+        return vr._b64decode(row["public_key"])
+    except ValueError:
+        return None
+
+
+def _row_org_errors(row: dict[str, Any], claimed: Any, expected_org: str) -> list[str]:
+    from .verifier import verify_receipt as vr
+
+    errors = []
+    key_org = vr.key_org_of(row)
+    if key_org is not None and vr._org_key(key_org) != vr._org_key(expected_org):
+        errors.append(f"Asqav signing key is published under org {key_org}, not {expected_org}.")
+    result, note = vr.check_org_binding(vr.key_issuer_of(row), key_org, claimed)
+    if result != "PASS":
+        errors.append(f"Asqav signing key org binding {result}: {note}")
+    return errors
+
+
+def _thumbprint_errors(payload: dict[str, Any], row: dict[str, Any]) -> list[str]:
+    from .verifier import verify_receipt as vr
+
+    signed = payload.get("key_thumbprint")
+    if signed is None:
+        return []
+    pk = _row_key(row)
+    alg = row.get("alg")
+    if pk is None or not isinstance(alg, str):
+        return ["Asqav signing key cannot be thumbprinted, so key_thumbprint is unchecked."]
+    if signed != vr.thumbprint_for_key(alg=alg, public_key=pk):
+        return ["Asqav key_thumbprint does not name the key that verified the signature."]
     return []
+
+
+def _org_errors(
+    asqav_receipt: dict[str, Any], jwks: dict[str, Any], expected_org: str
+) -> list[str]:
+    """The pin holds only when the signed org, the verifying key's published org and the pin agree.
+
+    The signed ``org_id`` names the org (``issuer_id`` carries a legal entity when one is
+    set, so it is the claim only when ``org_id`` is absent). The org of the signing key
+    comes from every JWKS row whose public key verifies the signature, never the kid.
+    """
+    payload = asqav_receipt["payload"]
+    claimed = payload["org_id"] if "org_id" in payload else payload.get("issuer_id")
+    errors: list[str] = []
+    if claimed != expected_org:
+        errors.append(f"Asqav receipt is not from org {expected_org} (got {claimed!r}).")
+    rows = _verifying_rows(asqav_receipt, jwks)
+    if not rows:
+        return errors + ["No JWKS key verifies the Asqav signature, so its org is unknown."]
+    for row in rows:
+        errors += _row_org_errors(row, claimed, expected_org)
+        errors += _thumbprint_errors(payload, row)
+    return list(dict.fromkeys(errors))
 
 
 def verify_asqav_link(
@@ -316,8 +392,10 @@ def verify_asqav_link(
     An empty list means the Asqav signature verified against ``jwks`` (needs
     ``asqav[verify]``), its ``action_ref`` binds this AGT receipt and its decision
     fits the link. Without ``jwks`` the link is refused. ``expected_org`` pins the
-    Asqav org. Run AGT's ``verify_receipt_chain`` for the AGT side; the full Asqav
-    verdict, anchors included, comes from ``asqav.verify_receipt_offline``.
+    Asqav org id: the signed ``org_id`` (``issuer_id`` when absent) and the org the
+    JWKS publishes for the key that verifies the signature must both equal it.
+    Run AGT's ``verify_receipt_chain`` for the AGT side; the full Asqav verdict,
+    anchors included, comes from ``asqav.verify_receipt_offline``.
     """
     if not isinstance(asqav_receipt, dict) or not isinstance(asqav_receipt.get("payload"), dict):
         return ["Asqav receipt has no signed payload."]
@@ -326,5 +404,5 @@ def verify_asqav_link(
     errors = _signature_errors(asqav_receipt, jwks)
     errors += _link_errors(receipt, asqav_receipt)
     if expected_org is not None:
-        errors += _org_errors(asqav_receipt["payload"], expected_org)
+        errors += _org_errors(asqav_receipt, jwks, expected_org)
     return errors
