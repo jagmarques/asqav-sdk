@@ -7,6 +7,25 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- Outer copies in an exported entry are checked against the signed payload (criterion 742).
+  An Audit Pack entry restates signed values (agent, action, time, signature string, key
+  and signed bytes) as plain top-level members no signature covers, so editing one still
+  read "signature valid". The Python and TypeScript offline verifiers and the standalone
+  `verify_receipt.py` now report a new `outer_copies` axis: any copy that disagrees with the
+  signed value it restates fails the verdict as `unverified` / `invalid`, and members with no
+  signed counterpart, or that sit under a name the receipt never signed, are listed in the note
+  as not signed, on a pass too. The copies are weighed against the normalised signature object,
+  so a flat `sig` string or `signature_envelope` is checked like the object form. The digest and
+  key copies are compared only when the signature verified, `signed_bytes_withheld` is listed and
+  never switches a check off, and an observation time that is withheld or unreadable is listed
+  instead of failed. Axis count is 13 for the offline APIs and 14 for the standalone verifier.
+  A flat hash-mode receipt lists its unsigned members too, including a `payload`, a
+  `signature` other than the one verified, and a `key_id` other than the kid of the verifying key.
+  The single-entry signature cache in both languages verifies the bytes it holds, and the
+  TypeScript one caches `Uint8Array` input only. Conformance vectors `asqav-43` to `asqav-52` pin agreeing entries and edited copies in each
+  signature spelling, and `verifier/outer-copy-cases.json` pins byte-identical results and notes
+  in both languages. `docs/offline-verification.md` lists which members are signed.
+
 - **One verdict for a signed decimal across the verifiers.** The current receipt profile
   (`v: 1`) admits only integers within ±(2^53 - 1) as digest-covered numbers.
   `verify_receipt.py` and the TypeScript verifier refused an integer-valued float such as

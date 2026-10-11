@@ -82,7 +82,7 @@ class VerifyResult:
 #: The axis order verify() reports on the normal path, mirroring the TS twin.
 ORACLE_AXIS_ORDER = (
     "structure", "signature", "chain", "seq", "expiry", "nonce",
-    "key_binding", "counterparty", "payload_digest", "skew",
+    "key_binding", "counterparty", "payload_digest", "skew", "outer_copies",
     "key_status", "issuer_bind",
 )
 
@@ -120,6 +120,7 @@ _INVALID_FAIL_AXES = frozenset(
         "key_binding",
         "counterparty",
         "payload_digest",
+        "outer_copies",
         "nonce",
         "parent_signature",
         "pdp_signature",
