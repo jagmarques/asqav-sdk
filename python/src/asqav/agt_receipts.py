@@ -298,9 +298,10 @@ def _link_errors(receipt: Any, asqav_receipt: dict[str, Any]) -> list[str]:
 
 
 def _org_errors(payload: dict[str, Any], expected_org: str) -> list[str]:
-    claimed = {payload.get("issuer_id")} | ({payload["org_id"]} if "org_id" in payload else set())
-    if claimed != {expected_org}:
-        return [f"Asqav receipt is not from org {expected_org} (got {sorted(map(str, claimed))})."]
+    # issuer_id is the org's legal entity when one is set; the signed org_id names the org itself.
+    claimed = payload["org_id"] if "org_id" in payload else payload.get("issuer_id")
+    if claimed != expected_org:
+        return [f"Asqav receipt is not from org {expected_org} (got {claimed!r})."]
     return []
 
 
@@ -316,8 +317,9 @@ def verify_asqav_link(
     An empty list means the Asqav signature verified against ``jwks`` (needs
     ``asqav[verify]``), its ``action_ref`` binds this AGT receipt and its decision
     fits the link. Without ``jwks`` the link is refused. ``expected_org`` pins the
-    Asqav org. Run AGT's ``verify_receipt_chain`` for the AGT side; the full Asqav
-    verdict, anchors included, comes from ``asqav.verify_receipt_offline``.
+    Asqav org id, read from the signed ``org_id`` (``issuer_id`` when absent).
+    Run AGT's ``verify_receipt_chain`` for the AGT side; the full Asqav verdict,
+    anchors included, comes from ``asqav.verify_receipt_offline``.
     """
     if not isinstance(asqav_receipt, dict) or not isinstance(asqav_receipt.get("payload"), dict):
         return ["Asqav receipt has no signed payload."]
