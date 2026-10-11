@@ -102,6 +102,90 @@ lazy loading of both dependencies. It also executes a copied file with Asqav
 imports and outbound sockets refused. The OpenSSL alternative is documented in
 [the walkthrough](openssl-jq-walkthrough.md), including its algorithm requirements.
 
+## Whole Audit Pack offline
+
+`asqav audit-pack verify --offline` checks an exported Audit Pack on your machine and
+makes no network call. Install `pip install "asqav[cli,verify]"`: without the `verify`
+extra no ML-DSA signature can be checked. Export the pack with `--include-signed-bytes`,
+because a pack without the signed bytes has nothing to verify.
+
+```sh
+asqav audit-pack verify --offline bundle.json --jwks saved-jwks.json --tsa-key tsa.pem
+asqav audit-pack verify --offline bundle.json --jwks saved-jwks.json --output json
+```
+
+### Where trust comes from
+
+Trust comes only from files you supply. `--jwks FILE` is a key set you saved yourself, for
+example from `/.well-known/jwks.json` while Asqav was reachable. `--tsa-key FILE`
+(repeatable) pins the TSA's own signing certificate or public key, not a root CA. The
+verifier checks each RFC3161 token against the pinned key itself and builds no certificate
+path, so a pinned root CA verifies nothing. A pinned key that does not match the token's
+signer makes that anchor fail, which marks the receipt `invalid`. The pack's own `jwks`
+snapshot and any TSA entries it carries in `tsa_trust` are written by whoever produced the
+pack, so they are never treated as trusted.
+
+Without `--jwks`, the command checks the pack against its own snapshot. The best result is
+then `self-consistent, not anchored to a trusted key`, with exit code `2`, and the report
+says the keys are self-asserted. It never exits `0` in that mode. The report prints the
+bundle key's thumbprint so you can compare it with a key you hold.
+
+### What it checks
+
+- each receipt with `run_structured` from `verify_receipt.py`, which covers the signature,
+  issuer binding, key status and anchors
+- each receipt's chain link to the receipt with the previous `seq` from the same agent. A
+  receipt missing from the middle of a chain is `invalid`
+- forks and copies: two receipts with the same agent and `seq`, two that claim the same
+  predecessor, or one `signature_id` listed twice are all `invalid`
+- the bundle. It must carry a signature with a supported algorithm that matches its key's
+  published `alg`. The digest is recomputed over the signed members. The key must be in the
+  key set and belong to the pack's organization
+
+A missing bundle signature is `invalid`, as is an unknown bundle key or an unsupported
+algorithm. No receipt is reported `verified` unless the bundle signature verified.
+
+A bundle key that the key set lists as revoked or suspended makes the bundle not verifiable
+offline, because a key revoked after the export does not make an archived pack false. The
+bundle is `invalid` only when signing after the revocation is proven: the signed window
+`start` is at or after `revoked_at` (or `suspended_at`), or a receipt in the bundle carries
+an anchor that a pinned TSA key places at or after that time.
+
+Each receipt gets one of these statuses:
+
+| Status | Meaning |
+|---|---|
+| `verified` | Every check passed against the keys used, including the timestamp proofs |
+| `not_verifiable_offline` | Nothing failed, but a check could not finish offline. The reason is printed |
+| `invalid` | A check ran and failed, such as a signature mismatch, a chain gap or a fork |
+
+Common reasons for `not_verifiable_offline`:
+
+- a non-compliance-mode receipt, which has no signed receipt envelope
+- a pending OpenTimestamps anchor
+- an RFC3161 anchor without a pinned TSA key (`--tsa-key`)
+- signed bytes withheld at export
+
+A pack exported today cannot reach exit code `0`. Its OpenTimestamps anchors are pending,
+it carries no TSA certificates, and a non-compliance-mode receipt is never verified offline.
+Exit `0` needs `--jwks`, a `--tsa-key` that verifies every RFC3161 anchor, and no pending
+OpenTimestamps anchor. A completed OpenTimestamps proof is checked against
+`--bitcoin-headers FILE`, as in the standalone verifier. TSA entries inside a pack are never
+used as trust.
+
+A lapsed `expires_at` on a receipt signed before that time is shown as an `info` line and
+does not count as a failure.
+
+Exit codes: `0` only with `--jwks`, when every receipt and the bundle verified. `1` when
+anything is invalid. Every other result exits `2`, including a self-consistent pack checked
+without `--jwks`.
+
+The TypeScript CLI has the same command and the same trust rules, without `--tsa-key` or
+`--bitcoin-headers`. It cannot check RFC3161 or OpenTimestamps tokens, so it lists anchored
+receipts as not verifiable offline even where the Python command verifies them. Without
+anchor times it cannot prove that a revoked bundle key signed after its revocation from an
+anchor alone. A pack that Python marks `invalid` on that ground exits `2` in TypeScript.
+
 ## TypeScript / Node
 
 The TypeScript SDK ships ML-DSA-65 via `@noble/post-quantum` (pure JS, no WASM).

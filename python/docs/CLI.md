@@ -100,6 +100,16 @@ asqav audit-pack export \
   --output-file bundle.json
 ```
 
+### `asqav audit-pack verify --offline <pack>`
+
+Verifies an exported pack on your machine with no network. Install `pip install "asqav[cli,verify]"` and export the pack with `--include-signed-bytes`. Pass a key set you saved with `--jwks`; without it the pack only vouches for itself. See [offline verification](../../docs/offline-verification.md#whole-audit-pack-offline) for the trust rules and what each status means.
+
+```bash
+asqav audit-pack verify --offline bundle.json --jwks saved-jwks.json
+```
+
+Exit code 0 needs `--jwks` and every receipt verified. Anything invalid exits 1; every other result exits 2.
+
 ### `asqav audit-pack policy <digest>`
 
 Resolves a `policy_digest` to the retained policy artefact JSON. Accepts either `sha256:<64-hex>` or a bare 64-hex string, where the prefix is added for you.
