@@ -118,7 +118,7 @@ The command checks:
 - each receipt with `run_structured` from `verify_receipt.py`, using the pack's `jwks` key
   snapshot. That covers the signature, issuer binding, key status and anchors
 - each receipt's chain link against the previous receipt of the same agent in the pack
-- the bundle digest, recomputed over the members the export signs, and the bundle
+- the bundle digest (recomputed over the signed members) and the bundle
   signature. The bundle key must also appear in the key snapshot
 
 Each receipt gets one of three statuses:
