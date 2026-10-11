@@ -118,9 +118,12 @@ asqav audit-pack verify --offline bundle.json --jwks saved-jwks.json --output js
 
 Trust comes only from files you supply. `--jwks FILE` is a key set you saved yourself, for
 example from `/.well-known/jwks.json` while Asqav was reachable. `--tsa-key FILE`
-(repeatable) pins a TSA certificate or key. The pack's own `jwks` snapshot and any TSA
-entries it carries in `tsa_trust` are written by whoever produced the pack, so they are
-never treated as trusted.
+(repeatable) pins the TSA's own signing certificate or public key, not a root CA. The
+verifier checks each RFC3161 token against the pinned key itself and builds no certificate
+path, so a pinned root CA verifies nothing. A pinned key that does not match the token's
+signer makes that anchor fail, which marks the receipt `invalid`. The pack's own `jwks`
+snapshot and any TSA entries it carries in `tsa_trust` are written by whoever produced the
+pack, so they are never treated as trusted.
 
 Without `--jwks`, the command checks the pack against its own snapshot. The best result is
 then `self-consistent, not anchored to a trusted key`, with exit code `2`, and the report
@@ -136,12 +139,17 @@ bundle key's thumbprint so you can compare it with a key you hold.
 - forks and copies: two receipts with the same agent and `seq`, two that claim the same
   predecessor, or one `signature_id` listed twice are all `invalid`
 - the bundle. It must carry a signature with a supported algorithm that matches its key's
-  published `alg`. The digest is recomputed over the signed members, and the key must be in
-  the key set, belong to the pack's organization and not be revoked
+  published `alg`. The digest is recomputed over the signed members. The key must be in the
+  key set and belong to the pack's organization
 
-A missing bundle signature, an unknown bundle key or an unsupported algorithm is `invalid`.
-No receipt is reported `verified` unless the bundle signature verified. A revoked bundle key
-is `invalid` under `--jwks`, and not verifiable offline without it.
+A missing bundle signature is `invalid`, as is an unknown bundle key or an unsupported
+algorithm. No receipt is reported `verified` unless the bundle signature verified.
+
+A bundle key that the key set lists as revoked or suspended makes the bundle not verifiable
+offline, because a key revoked after the export does not make an archived pack false. The
+bundle is `invalid` only when signing after the revocation is proven: the signed window
+`start` is at or after `revoked_at` (or `suspended_at`), or a receipt in the bundle carries
+an anchor that a pinned TSA key places at or after that time.
 
 Each receipt gets one of these statuses:
 
@@ -158,9 +166,12 @@ Common reasons for `not_verifiable_offline`:
 - an RFC3161 anchor without a pinned TSA key (`--tsa-key`)
 - signed bytes withheld at export
 
-Packs exported today carry no TSA certificates, and TSA entries inside a pack are not used as
-roots. `--bitcoin-headers FILE` supplies OpenTimestamps block data, as it does for the
-standalone verifier.
+A pack exported today cannot reach exit code `0`. Its OpenTimestamps anchors are pending,
+it carries no TSA certificates, and a non-compliance-mode receipt is never verified offline.
+Exit `0` needs the export to ship TSA signing certificates and the holder to supply both
+`--jwks` and `--tsa-key`. TSA entries inside a pack are never used as trust.
+`--bitcoin-headers FILE` supplies OpenTimestamps block data, as it does for the standalone
+verifier.
 
 A lapsed `expires_at` on a receipt signed before that time is shown as an `info` line and
 does not count as a failure.
