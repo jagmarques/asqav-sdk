@@ -23,12 +23,16 @@ npm install @asqav/sdk       # Node 20.19 through 20.x, or 22.12 and later
 
 ## Sign an action
 
+```bash
+export ASQAV_API_KEY=<paste your key here>
+```
+
 ```python
 import asqav
-
-agent = asqav.govern(api_key="sk_...", agent_name="my-agent")
-sig = agent.sign("api:openai:chat", {"model": "gpt-4o"})
-print(sig.verification_url)
+asqav.init()
+agent = asqav.Agent.create("my-first-agent")
+receipt = agent.sign("test", {"hello": "world"})
+print("Receipt:", receipt.verification_url)
 ```
 
 ```ts
