@@ -1,0 +1,205 @@
+# Copyright 2026 Asqav
+# SPDX-License-Identifier: Apache-2.0
+"""Seeded, locally signed receipts with split-zone floats and the one verdict every verifier owes.
+
+Offline only (ASQAV_API_URL is a closed local port); --check never writes."""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import copy
+import hashlib
+import importlib.util
+import json
+import math
+import os
+import sys
+from pathlib import Path
+
+os.environ["ASQAV_API_URL"] = "http://127.0.0.1:9"
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "verifier" / "verdict-parity-cases"
+sys.path.insert(0, str(ROOT / "python" / "src"))
+sys.path.insert(0, str(ROOT / "python" / "tests"))
+from asqav.verifier.verify_receipt import canonical_json  # noqa: E402
+from tsa_testkit import make_timestamp_resp, make_tst_info  # noqa: E402
+
+ISSUER = "Asqav Ltd"
+KID = "verdict-parity-747"
+VERIFIED = {"outcome": "verified", "failure_class": None}
+INVALID = {"outcome": "unverified", "failure_class": "invalid"}
+UNVERIFIABLE = {"outcome": "unverified", "failure_class": "unverifiable"}
+
+#: name -> (float signed, alternate spellings, outcome, tamper outcome)
+RECEIPT_CASES = {
+    "small": (1e-7, ["1e-7", "0.0000001"], VERIFIED, INVALID),
+    "large": (7.635507284768651e16, ["76355072847686510.0", "7.635507284768651E16"],
+              UNVERIFIABLE, UNVERIFIABLE),
+    "negzero": (-0.0, ["-0e0", "-0.000"], UNVERIFIABLE, UNVERIFIABLE),
+    "float500": (500.0, ["5e2", "500.00"], UNVERIFIABLE, INVALID),
+    "half": (0.5, ["5e-1", "0.50"], VERIFIED, INVALID),
+}
+
+#: name -> (float in the originating envelope, outcome)
+COUNTERPARTY_CASES = {
+    "small": (1e-7, VERIFIED),
+    "large": (7.635507284768651e16, UNVERIFIABLE),
+    "negzero": (-0.0, UNVERIFIABLE),
+    "float500": (500.0, UNVERIFIABLE),
+    "half": (0.5, VERIFIED),
+}
+
+
+def key(label: str) -> Ed25519PrivateKey:
+    return Ed25519PrivateKey.from_private_bytes(
+        hashlib.sha256(f"asqav verdict parity fixture seed: {label}".encode()).digest()
+    )
+
+
+def public_b64(label: str) -> str:
+    raw = key(label).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return base64.b64encode(raw).decode()
+
+
+def tsa_pem() -> str:
+    pub = key("tsa").public_key()
+    return pub.public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
+
+
+def jwks() -> dict:
+    return {"keys": [{"kid": KID, "issuer_id": ISSUER, "alg": "Ed25519", "status": "active",
+                      "public_key": public_b64("issuer")}]}
+
+
+def payload(name: str, x: float) -> dict:
+    ctx = {"subject": f"float-{name}", "tool": "demo.action", "decision": "allow", "score": x}
+    enc = canonical_json(ctx)
+    digest = hashlib.sha256(enc).hexdigest()
+    return {
+        "type": "protectmcp:decision", "v": 1, "issued_at": "2026-09-01T12:00:00+00:00",
+        "issuer_id": ISSUER, "agent_id": "agt_demo_001", "action_ref": f"sha256:{digest}",
+        "context": ctx, "payload_digest": {"hash": digest, "size": len(enc)}, "risk": x,
+        "policy_digest": "sha256:" + hashlib.sha256(b"fixture policy").hexdigest(),
+        "previousReceiptHash": "0" * 64, "decision": "allow", "mode": "payload",
+        "tool_name": "demo.action",
+    }
+
+
+def sign_and_anchor(body: dict) -> dict:
+    env = {"payload": body, "signature": {
+        "alg": "Ed25519", "kid": KID,
+        "sig": base64.b64encode(key("issuer").sign(canonical_json(body))).decode(),
+    }}
+    tst = make_tst_info(hashlib.sha256(canonical_json(env)).digest(), "20260901120001Z")
+    token = make_timestamp_resp(tst, key("tsa").sign(tst), sig_alg_oid="1.3.101.112")
+    env["anchors"] = [{"type": "rfc3161", "value": base64.b64encode(token).decode()}]
+    return env
+
+
+def tampered(x: float) -> float:
+    # One ulp up keeps a non-zero value's zone; a signed zero flips to 0.0.
+    return math.nextafter(x, math.inf) if x != 0 else 0.0
+
+
+def parsed_outcome(lexeme: str, outcome: dict) -> dict:
+    # JSON.parse reads an integer-valued float lexeme back as an integer, so the
+    # profile refusal cannot fire and the signature check fails instead; -0 is refused.
+    value = float(lexeme)
+    if outcome == UNVERIFIABLE and value.is_integer() and abs(value) < 2**53 and not (
+        value == 0 and math.copysign(1, value) < 0
+    ):
+        return INVALID
+    return outcome
+
+
+def receipt_files() -> tuple[dict, list]:
+    files, manifest = {}, []
+    for name, (x, alts, outcome, tamper_outcome) in RECEIPT_CASES.items():
+        text = json.dumps(sign_and_anchor(payload(name, x)), indent=2) + "\n"
+        lexeme = repr(x)
+        assert text.count(lexeme) == 2, (name, lexeme)
+        spellings = [("repr", lexeme, outcome)]
+        spellings += [(f"alt{i}", a, outcome) for i, a in enumerate(alts)]
+        spellings.append(("tamper", repr(tampered(x)), tamper_outcome))
+        for suffix, spelled, expect in spellings:
+            case = f"receipt-{name}-{suffix}"
+            files[case] = {"receipt.json": text.replace(lexeme, spelled), "jwks.json": jwks(),
+                           "tsa_trust.pem": tsa_pem()}
+            manifest.append({"dir": case, "lexeme": spelled, **expect,
+                             "parsed": parsed_outcome(spelled, expect)})
+    return files, manifest
+
+
+def counterparty_files() -> tuple[dict, list]:
+    spec = importlib.util.spec_from_file_location(
+        "gcv", ROOT / "verifier" / "generate_counterparty_vectors.py")
+    gcv = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gcv)
+    base_payload = gcv.payload
+    files, manifest = {}, []
+    for name, (x, outcome) in COUNTERPARTY_CASES.items():
+        def with_price(label: str, x: float = x) -> dict:
+            body = base_payload(label)
+            if label == "origin":
+                body["terms"] = {"price": x}  # signed by the origin, outside its context
+            return body
+        gcv.payload = with_price
+        try:
+            made = gcv.fixtures()["asqav-31-counterparty-scope-match"]
+        finally:
+            gcv.payload = base_payload
+        made = {k: v for k, v in made.items() if k != "expected.json"}
+        origin = json.dumps(made["originating_envelope.json"], indent=2) + "\n"
+        lexeme = repr(x)
+        assert origin.count(lexeme) == 1, (name, lexeme)
+        case = f"counterparty-{name}"
+        files[case] = {**made, "originating_envelope.json": origin}
+        manifest.append({"dir": case, "lexeme": lexeme, **outcome,
+                         "parsed": parsed_outcome(lexeme, outcome)})
+        # Tamper control: the origin's float moves after the acknowledger bound its hash.
+        swapped = repr(tampered(x)) if x != 0 else "0.0"
+        files[f"{case}-tamper"] = {**copy.deepcopy(made),
+                                   "originating_envelope.json": origin.replace(lexeme, swapped)}
+        tamper_expect = UNVERIFIABLE if float(swapped).is_integer() else INVALID
+        manifest.append({"dir": f"{case}-tamper", "lexeme": swapped, **tamper_expect,
+                         "parsed": parsed_outcome(swapped, tamper_expect)})
+    return files, manifest
+
+
+def generated_files() -> dict[Path, str]:
+    rf, rm = receipt_files()
+    cf, cm = counterparty_files()
+    out = {}
+    for case, members in {**rf, **cf}.items():
+        for fn, value in members.items():
+            text = value if isinstance(value, str) else json.dumps(value, indent=2) + "\n"
+            out[OUT / case / fn] = text
+    out[OUT / "manifest.json"] = json.dumps({"cases": rm + cm}, indent=2) + "\n"
+    return out
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    drift = []
+    for path, text in generated_files().items():
+        if not path.exists() or path.read_text() != text:
+            drift.append(str(path.relative_to(ROOT)))
+            if not args.check:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+    verb = "drifted" if args.check else "regenerated"
+    print(f"verdict parity cases: {len(drift)} file(s) {verb}")
+    if args.check and drift:
+        print("\n".join(drift))
+    return int(args.check and bool(drift))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
