@@ -26,6 +26,7 @@ from asqav.cli import app
 runner = CliRunner()
 DEAD_BASE = "http://127.0.0.1:9/api/v1"
 REPO_ROOT = Path(__file__).resolve().parents[2]
+BLOCKED: list[str] = []
 DASHBOARD_SNIPPET = (
     "import asqav\n"
     "asqav.init()\n"
@@ -58,6 +59,7 @@ _ERROR_BODIES: dict[str, tuple[int, bytes, str]] = {
 class _Stub:
     def __init__(self) -> None:
         self.mode = "ok"
+        self.detail: dict[str, Any] = {}
         self.requests: list[tuple[str, str]] = []
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}/api/v1"
@@ -85,6 +87,9 @@ class _Stub:
                 if stub.mode in _ERROR_BODIES:
                     code, raw, ctype = _ERROR_BODIES[stub.mode]
                     return self._send(code, raw, ctype)
+                if stub.mode == "html200":
+                    return self._send(200, b"<html><body>Sign in to the Wi-Fi</body></html>",
+                                      "text/html")
                 code, payload = stub.answer(method, self.path.split("?")[0], body)
                 return self._send(code, payload)
 
@@ -100,6 +105,8 @@ class _Stub:
         now = "2026-10-11T00:00:00+00:00"
         if path.endswith("/health"):
             return 200, {"status": "healthy"}
+        if "/maintenance/" in path or path.endswith("/emergency-halt"):
+            return 200, {"ok": True}
         if path.rstrip("/").endswith("/agents") and method == "GET":
             return 200, []
         if path.endswith("/agents/create"):
@@ -129,7 +136,7 @@ class _Stub:
                     "algorithm_match": True, "agent_active": True,
                     "validation_label": ("anchor_pending_no_cryptographic_proof"
                                          if sig_ok else "invalid_signature"),
-                    "anchor_status_ots": "pending"}}
+                    "anchor_status_ots": "pending", **self.detail}}
 
 
 @pytest.fixture
@@ -148,9 +155,11 @@ def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
     monkeypatch.setenv("ASQAV_CREDENTIALS_PATH", str(tmp_path / "credentials"))
     monkeypatch.setattr(credentials, "_DEFAULT_API_BASE", DEAD_BASE, raising=False)
     real_getaddrinfo = socket.getaddrinfo
+    BLOCKED.clear()
 
     def guarded(host: Any, *args: Any, **kwargs: Any) -> Any:
         if "asqav.com" in str(host):
+            BLOCKED.append(str(host))
             raise OSError(f"test blocked a lookup of {host}")
         return real_getaddrinfo(host, *args, **kwargs)
 
@@ -187,6 +196,37 @@ def test_verify_cli_bad_signature_reads_invalid(stub: _Stub) -> None:
     stub.mode = "badsig"
     result = runner.invoke(app, ["verify", "sig_stub01"])
     assert "Signature: invalid" in result.output
+
+
+REJECTIONS = [
+    "signer_key_changed",
+    "agent_revoked_before_issuance",
+    "chain_break",
+    "signature_expired",
+    "agent_unknown",
+    "compliance_mode_anchor_required",
+]
+
+
+@pytest.mark.parametrize("label", REJECTIONS)
+def test_verify_cli_server_rejection_reads_invalid_and_exits_1(stub: _Stub, label: str) -> None:
+    # signature_valid stays true on these; the server's label is the verdict.
+    client_mod._api_base = stub.base
+    stub.detail = {"validation_label": label, "anchor_valid_ots": True,
+                   "anchor_status_ots": "valid"}
+    result = runner.invoke(app, ["verify", "sig_stub01"])
+    assert f"Signature: invalid ({label})" in result.output
+    assert result.exit_code == 1
+
+
+def test_verify_cli_one_invalid_anchor_reads_invalid(stub: _Stub) -> None:
+    client_mod._api_base = stub.base
+    stub.detail = {"validation_label": "anchor_invalid", "anchor_valid_ots": True,
+                   "anchor_status_ots": "valid", "anchor_status_rfc3161": "invalid"}
+    result = runner.invoke(app, ["verify", "sig_stub01"])
+    assert "Anchor: invalid" in result.output
+    assert "Signature: invalid (anchor_invalid)" in result.output
+    assert result.exit_code == 1
 
 
 def test_verify_dict_carries_signature_and_anchor(stub: _Stub) -> None:
@@ -234,6 +274,25 @@ def test_doctor_probes_the_saved_base(stub: _Stub, tmp_path: Path) -> None:
     assert f"API base: {stub.base}" in result.output
     assert result.exit_code == 0, result.output
     assert ("GET", "/api/v1/agents") in stub.requests
+
+
+@pytest.mark.parametrize(
+    ("command", "env", "path"),
+    [
+        (["migrate", "run", "v3-20"], "ASQAV_MAINTENANCE_KEY",
+         "/api/v1/maintenance/run-migration-v3-20"),
+        (["org", "halt", "org_1", "--yes"], "ASQAV_SESSION_TOKEN",
+         "/api/v1/orgs/org_1/emergency-halt"),
+    ],
+)
+def test_admin_commands_use_the_saved_base(stub: _Stub, tmp_path: Path,
+                                           monkeypatch: pytest.MonkeyPatch,
+                                           command: list[str], env: str, path: str) -> None:
+    _save_login(tmp_path, stub.base)
+    monkeypatch.setenv(env, "secret_test_value")
+    runner.invoke(app, command)
+    assert ("POST", path) in stub.requests
+    assert BLOCKED == []
 
 
 def test_async_client_reads_config_set_by_init(stub: _Stub) -> None:
@@ -318,6 +377,8 @@ def _create_error(base: str) -> Exception:
 def test_connection_refused_is_one_line_asqav_error(transport: str) -> None:
     err = _create_error(DEAD_BASE)
     assert isinstance(err, asqav.AsqavConnectionError)
+    # Same hierarchy as TypeScript: an APIError with status 0.
+    assert isinstance(err, asqav.APIError) and err.status_code == 0
     assert "127.0.0.1:9" in str(err)
     assert "\n" not in str(err)
 
@@ -340,6 +401,16 @@ def test_html_error_page_is_one_line(stub: _Stub, transport: str) -> None:
     assert isinstance(err, asqav.APIError) and err.status_code == 502
     assert "<html" not in str(err) and "\n" not in str(err)
     assert "502" in str(err)
+
+
+def test_non_json_success_body_is_asqav_error(stub: _Stub, transport: str) -> None:
+    stub.mode = "html200"
+    err = _create_error(stub.base)
+    assert isinstance(err, asqav.AsqavResponseError)
+    assert "\n" not in str(err)
+    client_mod._api_base = stub.base
+    with pytest.raises(asqav.AsqavResponseError):
+        asqav.verify_signature("sig_x")
 
 
 @pytest.mark.parametrize(
