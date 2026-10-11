@@ -77,6 +77,22 @@ RESPELLED_ORIGINS = {
 }
 
 
+#: Integer lexemes past 2**53, with 2**53 itself as the in-range control. Raw-text
+#: ingest refuses them anywhere; JSON.parse rounds them, so it sees only signed ones.
+def _seeded(label: str, low: int, high: int) -> int:
+    # A seeded draw in [low, high) that is stable across Python versions.
+    digest = hashlib.sha256(f"asqav unsafe integer seed: {label}".encode()).digest()
+    return low + int.from_bytes(digest, "big") % (high - low)
+
+
+#: Signed floats past 2**53; each is respelled as its exact integer value.
+UNSAFE_SIGNED = [7.635507284768651e16, -7.635507284768651e16,
+                 float(_seeded("signed", 2**60, 10**20))]
+UNSAFE_UNSIGNED = ["9007199254740993", "-9007199254740993", "1" + "0" * 30,
+                   str(_seeded("unsigned", 2**53 + 1, 2**64))]
+SAFE_BOUND = "9007199254740992"
+
+
 def key(label: str) -> Ed25519PrivateKey:
     return Ed25519PrivateKey.from_private_bytes(
         hashlib.sha256(f"asqav verdict parity fixture seed: {label}".encode()).digest()
@@ -201,6 +217,71 @@ def receipt_files() -> tuple[dict, list]:
     return files, manifest
 
 
+def with_note(text: str, lexeme: str) -> str:
+    # An unsigned top-level member no signature or binding covers.
+    head = '{\n  "payload"'
+    assert text.startswith(head), text[:40]
+    return f'{{\n  "note": {lexeme},\n  "payload"' + text[len(head):]
+
+
+def unsafe_receipt_files() -> tuple[dict, list]:
+    """Integers past 2**53 in signed and unsigned receipt positions."""
+    files, manifest = {}, []
+    rows = []
+    for i, x in enumerate(UNSAFE_SIGNED):
+        signed = json.dumps(sign_and_anchor(payload(f"unsafe{i}", x)), indent=2) + "\n"
+        lex = str(int(x))
+        rows.append((f"signed{i}", respell(signed, ("risk", "score"), repr(x), lex), lex,
+                     UNVERIFIABLE))
+    half = json.dumps(sign_and_anchor(payload("half", 0.5)), indent=2) + "\n"
+    rows += [(f"unsigned{i}", with_note(half, lex), lex, VERIFIED)
+             for i, lex in enumerate(UNSAFE_UNSIGNED)]
+    rows.append(("unsigned-bound", with_note(half, SAFE_BOUND), SAFE_BOUND, VERIFIED))
+    for suffix, text, lexeme, parsed in rows:
+        case = f"receipt-unsafe-int-{suffix}"
+        files[case] = {"receipt.json": text, "jwks.json": jwks(), "tsa_trust.pem": tsa_pem()}
+        outcome = VERIFIED if lexeme == SAFE_BOUND else UNVERIFIABLE
+        manifest.append({"dir": case, "lexeme": lexeme, **outcome, "parsed": parsed,
+                         "unsafe_integer": lexeme != SAFE_BOUND})
+    # A chain link whose predecessor holds the integer outside its signed payload.
+    prev = payload("prev", 0.5)
+    link = payload("link", 0.5)
+    link["previousReceiptHash"] = hashlib.sha256(canonical_json(prev)).hexdigest()
+    prev_text = json.dumps(sign_and_anchor(prev), indent=2) + "\n"
+    for suffix, lexeme in (("predecessor", UNSAFE_UNSIGNED[0]), ("predecessor-bound", SAFE_BOUND)):
+        case = f"receipt-unsafe-int-{suffix}"
+        files[case] = {
+            "receipt.json": sign_and_anchor(link), "predecessor.json": with_note(prev_text, lexeme),
+            "jwks.json": jwks(), "tsa_trust.pem": tsa_pem()}
+        outcome = VERIFIED if lexeme == SAFE_BOUND else UNVERIFIABLE
+        manifest.append({"dir": case, "lexeme": lexeme, **outcome, "parsed": VERIFIED,
+                         "unsafe_integer": lexeme != SAFE_BOUND})
+    return files, manifest
+
+
+def unsafe_counterparty_files(gcv) -> tuple[dict, list]:
+    """Integers past 2**53 signed by the origin, unsigned in it, and unsigned in the ack."""
+    files, manifest = {}, []
+    x = UNSAFE_SIGNED[2]
+    made, origin = bound_origin(gcv, x)
+    rows = [("origin-signed", made, respell(origin, ("price",), repr(x), str(int(x))),
+             str(int(x)), UNVERIFIABLE)]
+    made, origin = bound_origin(gcv, 0.5)
+    rows += [("origin-unsigned", made, with_note(origin, UNSAFE_UNSIGNED[0]), UNSAFE_UNSIGNED[0],
+              UNVERIFIABLE)]
+    ack = with_note(json.dumps(made["receipt.json"], indent=2) + "\n", UNSAFE_UNSIGNED[1])
+    rows += [("ack-unsigned", {**made, "receipt.json": ack}, origin, UNSAFE_UNSIGNED[1],
+              VERIFIED)]
+    for suffix, members, origin_text, lexeme, parsed in rows:
+        case = f"counterparty-unsafe-int-{suffix}"
+        files[case] = {**members, "originating_envelope.json": origin_text}
+        ack_text = members["receipt.json"]
+        ack_text = ack_text if isinstance(ack_text, str) else _ack_text(members)
+        manifest.append({"dir": case, "lexeme": lexeme, **UNVERIFIABLE, "parsed": parsed,
+                         "unsafe_integer": True, **binding_labels(ack_text, origin_text)})
+    return files, manifest
+
+
 def _gcv():
     spec = importlib.util.spec_from_file_location(
         "gcv", ROOT / "verifier" / "generate_counterparty_vectors.py")
@@ -259,19 +340,21 @@ def counterparty_files() -> tuple[dict, list]:
         files[case] = {**made, "originating_envelope.json": respelled}
         manifest.append({"dir": case, "lexeme": spelled, **outcome, "parsed": parsed,
                          **binding_labels(_ack_text(made), respelled)})
-    return files, manifest
+    uf, um = unsafe_counterparty_files(gcv)
+    return {**files, **uf}, manifest + um
 
 
 def generated_files() -> dict[Path, str]:
     rf, rm = receipt_files()
     sf, sm = respelled_receipt_files()
+    uf, um = unsafe_receipt_files()
     cf, cm = counterparty_files()
     out = {}
-    for case, members in {**rf, **sf, **cf}.items():
+    for case, members in {**rf, **sf, **uf, **cf}.items():
         for fn, value in members.items():
             text = value if isinstance(value, str) else json.dumps(value, indent=2) + "\n"
             out[OUT / case / fn] = text
-    out[OUT / "manifest.json"] = json.dumps({"cases": rm + sm + cm}, indent=2) + "\n"
+    out[OUT / "manifest.json"] = json.dumps({"cases": rm + sm + um + cm}, indent=2) + "\n"
     return out
 
 

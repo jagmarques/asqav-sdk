@@ -220,7 +220,10 @@ object, a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads 
 `500`. A float `500.0` the signer wrote then fails the signature as `unverified` /
 `invalid`. A signed integer that the file respells as an integer-valued float, such as
 `500` as `500.0` or `5e2`, or `0` as `0.0`, verifies on this path while raw text and the
-Python verifiers refuse it. Callers who need the strict profile must pass raw text. The
+Python verifiers refuse it. An integer past 2^53 anywhere in the receipt is refused as
+`unverifiable` on raw text and by every Python verifier, a parsed dict included; a
+`JSON.parse` object rounds it, so one outside the signed bytes goes unseen there.
+Callers who need the strict profile must pass raw text. The
 same applies to the predecessor and originating envelope arguments, which also accept raw
 text.
 
@@ -270,8 +273,10 @@ lost the spelling of its numbers. If it holds `-0`, which could have been the in
 the float `-0.0`, `verifyCounterpartyBinding` reports `unresolved`, and `computeEnvelopeHash`
 and `computeCounterpartyBinding` throw `counterparty_origin_unavailable`. If the origin
 signed the integer `500` and the file respells it as `500.0`, the binding reports `matches`
-where Python reports `mismatch`; a float `500.0` the origin signed reports `mismatch`. Pass
-raw text when you need Python's answer.
+where Python reports `mismatch`; a float `500.0` the origin signed reports `mismatch`. An
+integer past 2^53 anywhere in the origin makes the binding `unresolved` on raw text and in
+Python, and a `JSON.parse` origin that holds one outside the signed bytes reports `matches`.
+Pass raw text when you need Python's answer.
 
 For hosted signing, build the binding from the envelope supplied by the peer:
 

@@ -1,0 +1,42 @@
+{
+  "note": 9007199254740993,
+  "payload": {
+    "v": 1,
+    "mode": "payload",
+    "type": "protectmcp:decision",
+    "issuer_id": "origin",
+    "agent_id": "agent_origin",
+    "action_id": "action_origin",
+    "issued_at": "2026-09-01T12:00:00+00:00",
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "action_ref": "sha256:eaa40a5ece963896517978a26f1bec6355de3513ece6afb800c15034c8b712df",
+    "context": {
+      "test": "counterparty binding",
+      "party": "origin"
+    },
+    "payload_digest": {
+      "hash": "eaa40a5ece963896517978a26f1bec6355de3513ece6afb800c15034c8b712df",
+      "size": 48
+    },
+    "policy_digest": "sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b",
+    "decision": "allow",
+    "terms": {
+      "price": 0.5
+    }
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "origin",
+    "sig": "hAj0lyl/9pfaJ2eU42CaaSi92u094ZI8u0wO/vEDW7o/UqcWMqxDRd5L95C6D22cqhhW4w97eTQrHK/KpdIOBA=="
+  },
+  "anchors": [
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEIEEKk0rKh4dXIGrnekA90JwP8jY8WA6K7m+wE8Rgb2bIAgEqGA8yMDI2MDkwMTEyMDAwMVoxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQDa2mQGGh50N1Zsmk2KbiGLNW35iNFh3DznrL1RBAq5xq9EfbcD4LRLC64heOM+rWJqvQBzjeTT+rpZxYadTCwE="
+    },
+    {
+      "type": "rfc3161",
+      "value": "MIIBBjADAgEAMIH+BgkqhkiG9w0BBwKggfAwge0CAQMxDzANBglghkgBZQMEAgEFADBiBgsqhkiG9w0BCRABBKBTBFEwTwIBAQYDKgMEMDEwDQYJYIZIAWUDBAIBBQAEIEEKk0rKh4dXIGrnekA90JwP8jY8WA6K7m+wE8Rgb2bIAgEqGA8yMDI2MDkwMTEyMDAwMloxczBxAgEDoBQAAAAAAAAAAAAAAAAAAAAAAAAAADANBglghkgBZQMEAgEFADAFBgMrZXAEQL7UMGAcaVl/f1MnRgNxhODxd1r/4pOtKmAV8HtU+6PRD3mjxn2y1HmDoEaclYY6KnsWsrPLcqeURL7yRXoCEA0="
+    }
+  ]
+}
