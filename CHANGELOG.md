@@ -33,8 +33,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   integer sat in a member no signature covers, and so did `pack_verify.verify_entry`, which
   calls it. Raw-text ingest already refused it, as does `asqav.verify_receipt_offline`.
   Both now report `unverified` / `unverifiable` on an input axis. `run_structured` also takes
-  the whole predecessor envelope, as the CLI reads it, and checks all of it before using its
-  payload. `pack_verify.verify_pack` reports a pack dict holding one as not verifiable
+  the whole predecessor envelope that the CLI reads. It checks every member before it uses
+  the payload. `pack_verify.verify_pack` reports a pack dict holding one as not verifiable
   offline. `asqav verify-litellm-log` stops crashing with a traceback on an index line holding
   one: the line counts as a failure and the command exits 1. The verdict parity test
   now runs `run_structured` on dicts on every row, and `verify_entry` on every row without
