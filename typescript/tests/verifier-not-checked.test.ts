@@ -115,6 +115,7 @@ const AXES_AFTER_STRUCTURE = [
   "counterparty",
   "payload_digest",
   "skew",
+  "outer_copies",
   "key_status",
   "issuer_bind",
 ];

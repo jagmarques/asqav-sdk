@@ -20,7 +20,7 @@ import {
   isCurrentProfileVersion,
   profileRangeNote,
 } from "../canonical.js";
-import { sha256Hex } from "../crypto.js";
+import { PASS, sha256Hex, verifySignature } from "../crypto.js";
 import { isLowerHex } from "./acta.js";
 import {
   FIRST_RECEIPT_SEED,
@@ -36,6 +36,7 @@ import {
   checkSkew,
   checkNonce,
   checkOrgBinding,
+  checkOuterCopies,
   checkStructure,
   isRecognisedWireVersion,
   keyIssuerOf,
@@ -213,6 +214,25 @@ export class AsqavNativeAdapter extends FormatAdapter {
     );
   }
 
+  /** outer_copies, weighed against the verifying key and its kid. */
+  private outerCopies(
+    doc: Record<string, unknown>, pk: Uint8Array | null, entry: Record<string, unknown> | null,
+  ): readonly ["PASS" | "FAIL", string] {
+    const msg = this.signingInput(doc);
+    const verifying = this.verifyingKey(doc, pk, msg);
+    const kid = verifying !== null && typeof entry?.kid === "string" ? entry.kid : null;
+    return checkOuterCopies(doc, msg, verifying, kid);
+  }
+
+  /** The resolved key when the signature verifies under it, else null. */
+  private verifyingKey(
+    doc: Record<string, unknown>, pk: Uint8Array | null, msg: Uint8Array,
+  ): Uint8Array | null {
+    if (pk === null) return null;
+    const sm = this.extractSignature(doc);
+    return verifySignature(sm.alg, pk, msg, sm.sig).result === PASS ? pk : null;
+  }
+
   resolveKey(
     doc: Record<string, unknown>,
     keyProvider: KeyProvider,
@@ -342,6 +362,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
     axes.push(["skew", ...checkSkew(stamp, nowMs)]);
+    // Plain copies beside the signed payload are weighed against it; the key is
+    // the one the signature verified under
+    axes.push(["outer_copies", ...this.outerCopies(doc, boundPk, entry)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
     // compliance mode, org_id in hash mode.

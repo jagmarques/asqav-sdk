@@ -80,7 +80,7 @@ Asqav 当前已上线的六项能力：
 
 - 云端 hash-only 模式 - 已上线，`*.asqav.com` 默认开启。
 - 自托管签名器，采用 split-trust - 已上线。
-- 自带 KMS，支持 AWS KMS 或 GCP KMS - 已上线，Enterprise 层级。
+- Asqav 托管的 KMS（AWS KMS 或 GCP KMS，密钥位于 Asqav 的云账户）- 已上线，Enterprise 层级。
 - 客户自有存储 - 已上线，自托管；relay payload 白名单在代码中强制。
 - SCITT / COSE_Sign1 收据导出 - 已上线，公开端点 `GET /api/v1/signatures/{id}/cose` 返回 `application/cose`。
 - 气隙 / 本地部署模式 - 已上线，离线 license + 零出网，详见后端仓库 `docs/airgapped-mode.md`。
