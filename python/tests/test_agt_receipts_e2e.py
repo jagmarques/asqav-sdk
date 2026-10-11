@@ -362,6 +362,15 @@ def test_expected_org_pins_the_asqav_org(stub: _AsqavStub) -> None:
     assert f"Asqav receipt is not from org {other} (got {ORG!r})." in errors
 
 
+def test_expected_org_skips_jwks_rows_that_are_not_objects(stub: _AsqavStub) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    jwks = stub.jwks()
+    jwks = {**jwks, "keys": ["junk", None, 7, *jwks["keys"]]}
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
+
+
 @pytest.mark.parametrize("mode", ["full-payload", "hash-only"])
 def test_expected_org_pins_a_legal_entity_org_by_its_signed_org_id(
     lei_stub: _AsqavStub, mode: str
