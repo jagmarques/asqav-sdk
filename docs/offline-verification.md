@@ -132,8 +132,8 @@ Pass the receipt as raw JSON text. The parser keeps each number as written, so t
 verdict matches the Python verifiers. The receipt profile only accepts integers in the
 safe range, so a receipt whose signed bytes hold `500.0` or `-0.0` comes back `unverified`
 / `unverifiable`. An object from `JSON.parse` has lost that spelling. With such an object,
-a `-0` is refused as `unverifiable`, and `500.0` reads back as `500`, so the signature
-fails and the result is `unverified` / `invalid`. It is never `verified`. The same applies to
+a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads back as `500`, so
+the signature fails and the result is `unverified` / `invalid`. It is never `verified`. The same applies to
 the predecessor and originating envelope arguments, which also accept raw text.
 
 ## Counterparty bindings
