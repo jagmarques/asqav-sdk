@@ -178,6 +178,17 @@ The scope check runs before origin lookup or hashing. An absent binding has no e
 on verification. An applicable unknown binding blocks a pass; a demonstrated integrity
 failure on another axis still makes the overall result `invalid`.
 
+In TypeScript, `verifyCounterpartyBinding(acknowledgment, origin)` and
+`computeEnvelopeHash(origin)` take the origin as raw JSON text or as a
+`parseJsonPreservingFloats` value, and then agree with Python's
+`verify_counterparty_binding` and `compute_envelope_hash`. An origin from `JSON.parse` has
+lost the spelling of its numbers. If it holds `-0`, which could have been the integer `0` or
+the float `-0.0`, `verifyCounterpartyBinding` reports `unresolved`, and `computeEnvelopeHash`
+and `computeCounterpartyBinding` throw `counterparty_origin_unavailable`. If the origin
+signed the integer `500` and the file respells it as `500.0`, the binding reports `matches`
+where Python reports `mismatch`; a float `500.0` the origin signed reports `mismatch`. Pass
+raw text when you need Python's answer.
+
 For hosted signing, build the binding from the envelope supplied by the peer:
 
 ```python
