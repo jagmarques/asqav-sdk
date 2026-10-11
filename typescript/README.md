@@ -128,7 +128,9 @@ then agree with Python's `verify_counterparty_binding`. A `JSON.parse` origin lo
 spelling here too. If it holds `-0`, `verifyCounterpartyBinding` reports `unresolved` and
 `computeEnvelopeHash` and `computeCounterpartyBinding` throw `counterparty_origin_unavailable`.
 If the origin signed the integer `500` and the file respells it as `500.0`, the binding reports
-`matches` while Python reports `mismatch`. Pass raw text for Python's answer.
+`matches` while Python reports `mismatch`. If the origin signed a float such as `500.0` or `-1.0`,
+a `JSON.parse` origin reads it back as an integer and the binding reports `mismatch` while Python
+reports `matches`. Pass raw text for Python's answer.
 ML-DSA-65 verifies in-process via `@noble/post-quantum`; Ed25519 and ES256 via `node:crypto`.
 Guide: [offline and air-gapped verification](https://asqav.com/docs/offline-air-gapped-verification).
 
