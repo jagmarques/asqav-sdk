@@ -112,7 +112,25 @@ def _bundle_material(pack: dict):
     return msg, key, sig_bytes, alg
 
 
-def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, anchored: bool):
+def _revocation_outcome(pack: dict, entry: dict, trusted_times: list) -> dict:
+    """Not verifiable for a key revoked after signing; invalid only when signing after it is proven."""
+    label = str(entry.get("status") or "revoked").lower()
+    when = entry.get("revoked_at") or entry.get("suspended_at")
+    rev = vr._parse_stamp(when) if when else None
+    if rev is not None:
+        start = vr._parse_stamp(pack.get("start"))
+        if start is not None and start >= rev:
+            return _outcome(INVALID, f"bundle key {label} at {when}, before the signed window start")
+        if any(t >= rev for t in trusted_times):
+            return _outcome(INVALID, f"bundle key {label} at {when}; a receipt in the bundle has a "
+                            "trusted timestamp after that")
+    return _outcome(
+        NOT_OFFLINE, f"bundle key {label} at {when or 'an unknown time'}; "
+        "nothing proves the bundle was signed before it"
+    )
+
+
+def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, trusted_times: list):
     if entry is None:
         return _outcome(INVALID, "bundle key is not in the key set")
     key_alg = entry.get("alg")
@@ -122,19 +140,20 @@ def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, anchored: bool
     if org and entry.get("org_id") and entry.get("org_id") != org:
         return _outcome(INVALID, "bundle signing key belongs to another organization")
     status = str(entry.get("status") or "").lower()
-    if status in vr.REVOKED_KEY_STATUSES or entry.get("revoked_at"):
-        return _outcome(INVALID if anchored else NOT_OFFLINE, f"bundle key is {status or 'revoked'}")
+    if status in vr.REVOKED_KEY_STATUSES or entry.get("revoked_at") or entry.get("suspended_at"):
+        return _revocation_outcome(pack, entry, trusted_times)
     return None
 
 
-def check_bundle(pack: dict, jwks: dict, anchored: bool = False) -> dict:
-    """Recompute the bundle digest, verify its signature, and tie the key to the key set."""
+def check_bundle(pack: dict, jwks: dict, trusted_times: list | None = None) -> dict:
+    """Recompute the bundle digest, verify its signature, and tie the key to the key set.
+    ``trusted_times`` (anchor times proven by pinned TSA keys) place a revocation in time."""
     material = _bundle_material(pack)
     if isinstance(material, dict):
         return material
     msg, key, sig_bytes, alg = material
     entry = next((k for k in _jwks_keys(jwks) if _key_bytes(k) == key), None)
-    problem = _bundle_key_problem(pack, entry, alg, anchored)
+    problem = _bundle_key_problem(pack, entry, alg, list(trusted_times or []))
     if problem is not None:
         return problem
     result, note = vr.verify_signature(key, msg, sig_bytes, alg)
@@ -328,6 +347,17 @@ def verify_entry(entry, jwks: dict, predecessor=None, *, tsa_keys=None, headers=
     return {**head, **_envelope_result(entry, jwks, None, tsa_keys, headers)}
 
 
+def trusted_anchor_times(receipts: list, tsa_keys: list, headers) -> list:
+    """Anchor times the pinned TSA keys or supplied block data prove, across the pack."""
+    times: list = []
+    for entry in receipts:
+        if isinstance(entry, dict) and isinstance(entry.get("payload"), dict):
+            env = vr.normalise_envelope(entry)
+            ev = vr.evaluate_anchors(env, trusted_tsa_keys=tsa_keys, bitcoin_headers=headers)
+            times.extend(ev.trusted_times)
+    return times
+
+
 def _worst(statuses) -> str:
     return max(statuses, key=_RANK.__getitem__, default=VERIFIED)
 
@@ -349,7 +379,7 @@ def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_
     pinned = list(tsa_keys or [])
     receipts = pack.get("receipts") if isinstance(pack.get("receipts"), list) else []
     preds, issues = chain_context(receipts)
-    bundle = check_bundle(pack, key_set, anchored)
+    bundle = check_bundle(pack, key_set, trusted_anchor_times(receipts, pinned, bitcoin_headers))
     results = [
         _apply(
             verify_entry(r, key_set, preds.get(i), tsa_keys=pinned, headers=bitcoin_headers),

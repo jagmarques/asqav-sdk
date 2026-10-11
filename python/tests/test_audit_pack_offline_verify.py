@@ -311,10 +311,55 @@ def test_revoked_key_cannot_forge_a_verified_pack_with_its_own_tsa(tmp_path: Pat
     m["jwks"]["keys"][0].update(status="revoked", revoked_at="2026-09-01T00:00:00Z")
     args = ["--jwks", _write_jwks(tmp_path, m["jwks"]), "--output", "json"]
     report = _json_report(proc := _run_cli(tmp_path, m["pack"], *args))
-    assert proc.returncode == 1, proc.stdout
-    assert report["bundle"]["status"] == pv.INVALID
-    assert report["bundle"]["reason"] == "bundle key is revoked"
+    assert proc.returncode == 2, proc.stdout
+    assert report["bundle"]["status"] == pv.NOT_OFFLINE
+    assert "nothing proves the bundle was signed before it" in report["bundle"]["reason"]
     assert report["summary"]["verified"] == 0
+
+
+@pytest.mark.parametrize(
+    "status,member", [("revoked", "revoked_at"), ("suspended", "suspended_at")]
+)
+def test_key_revoked_after_the_export_is_not_verifiable_not_invalid(status, member) -> None:
+    m = _minted()
+    m["jwks"]["keys"][0].update({"status": status, member: "2027-01-01T00:00:00Z"})
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["bundle"]["status"] == pv.NOT_OFFLINE, report["bundle"]
+    assert report["bundle"]["reason"] == (
+        f"bundle key {status} at 2027-01-01T00:00:00Z; "
+        "nothing proves the bundle was signed before it"
+    )
+    assert report["summary"]["invalid"] == 0 and report["exit_code"] == 2
+
+
+def test_trusted_timestamp_after_revocation_proves_the_bundle_invalid() -> None:
+    m = _minted()
+    m["pack"]["start"] = "2026-04-01T00:00:00"
+    _seal(m["pack"], m["sk"], m["pk"])
+    m["jwks"]["keys"][0].update(status="revoked", revoked_at="2026-05-01T00:00:00Z")
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["bundle"]["status"] == pv.INVALID
+    reason = report["bundle"]["reason"]
+    assert "a receipt in the bundle has a trusted timestamp after that" in reason
+    assert report["exit_code"] == 1
+
+
+def test_signed_window_starting_after_revocation_is_invalid() -> None:
+    m = _minted()
+    m["jwks"]["keys"][0].update(status="revoked", revoked_at="2026-06-18T00:00:00Z")
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"])
+    assert report["bundle"]["reason"] == (
+        "bundle key revoked at 2026-06-18T00:00:00Z, before the signed window start"
+    )
+    assert report["exit_code"] == 1
+
+
+def test_docs_say_what_tsa_key_takes_and_that_todays_packs_cannot_exit_0() -> None:
+    doc = (Path(__file__).parents[2] / "docs" / "offline-verification.md").read_text()
+    body = doc.split("## Whole Audit Pack offline")[1].split("## TypeScript")[0]
+    section = " ".join(body.split())
+    assert "the TSA's own signing certificate or public key, not a root CA" in section
+    assert "A pack exported today cannot reach exit code `0`" in section
 
 
 def test_revoked_bundle_key_in_the_pack_snapshot_is_never_verified() -> None:
