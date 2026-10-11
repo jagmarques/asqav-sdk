@@ -123,8 +123,12 @@ the signature check fails with `unverified` / `invalid`, but if the signer wrote
 `500` and the file respells it as `500.0` or `5e2` (or `0` as `0.0`), the object verifies while
 raw text and the Python verifiers refuse it. Pass raw text when you need the strict profile.
 Fractions such as `1e-07` and `0.5` verify the same way on both paths.
-`verifyCounterpartyBinding` and `computeEnvelopeHash` also take the origin as raw text. Given
-a `JSON.parse` origin holding `-0`, they report `unresolved`.
+`verifyCounterpartyBinding` and `computeEnvelopeHash` also take the origin as raw text, and
+then agree with Python's `verify_counterparty_binding`. A `JSON.parse` origin loses the
+spelling here too. If it holds `-0`, `verifyCounterpartyBinding` reports `unresolved` and
+`computeEnvelopeHash` and `computeCounterpartyBinding` throw `counterparty_origin_unavailable`.
+If the origin signed the integer `500` and the file respells it as `500.0`, the binding reports
+`matches` while Python reports `mismatch`. Pass raw text for Python's answer.
 ML-DSA-65 verifies in-process via `@noble/post-quantum`; Ed25519 and ES256 via `node:crypto`.
 Guide: [offline and air-gapped verification](https://asqav.com/docs/offline-air-gapped-verification).
 
