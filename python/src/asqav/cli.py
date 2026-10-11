@@ -20,6 +20,7 @@ Commands:
     asqav compliance frameworks / export       - List frameworks / export bundle
     asqav compliance templates / report / reports / download - Cloud reports
     asqav audit-pack verify <bundle>           - Verify a holder-supplied bundle
+    asqav audit-pack verify --offline <pack>   - Verify a whole pack with no network
     asqav org halt / resume <org_id>           - Org-wide emergency kill-switch (admin)
     asqav keys create / list / revoke          - Account API key management (admin)
     asqav observability summary / metrics      - Read 24h metrics
@@ -1674,6 +1675,72 @@ def audit_pack_export(
     print(f"algorithm:     {bundle.get('bundle_signature_algorithm', '?')}")
 
 
+def _offline_headline(report: dict) -> str:
+    from asqav.verifier import pack_verify
+
+    if report["status"] == pack_verify.SELF_CONSISTENT:
+        return pack_verify.SELF_CONSISTENT_LABEL
+    return report["status"].replace("_", " ")
+
+
+def _print_offline_trust(report: dict) -> None:
+    trust, bundle = report["trust"], report["bundle"]
+    print(f"  keys:    {trust['keys']} ({trust['key_count']} keys), TSA keys: {trust['tsa_keys']}")
+    if bundle.get("key_thumbprint"):
+        print(f"  bundle key: {bundle['key_thumbprint']}")
+    if not trust["anchored"]:
+        print("  trust:   the keys and any TSA material are self-asserted by the pack; pass --jwks")
+    if trust["tsa_carried_not_trusted"]:
+        print("  tsa:     TSA entries carried in the pack are not used as roots; pass --tsa-key")
+
+
+def _print_offline_report(report: dict) -> None:
+    marks = {"verified": "  ok", "not_verifiable_offline": "skip", "invalid": "FAIL"}
+    pack, summary = report["pack"], report["summary"]
+    print("Asqav Audit Pack offline verification")
+    print(f"  pack:    {pack.get('organization_id')} {pack.get('start')} .. {pack.get('end')}")
+    _print_offline_trust(report)
+    bundle = report["bundle"]
+    print(f"  [{marks[bundle['status']]}] bundle   {bundle['reason']}")
+    for r in report["receipts"]:
+        label = r["status"].replace("_", " ")
+        detail = f": {'; '.join(r['reasons'])}" if r["reasons"] else ""
+        print(f"  [{marks[r['status']]}] {r.get('signature_id') or '?'}  {label}{detail}")
+        checked = [f"{k}: {r[k]}" for k in ("signature", "chain") if r.get(k)]
+        for line in checked + [f"info: {n}" for n in r["notes"]]:
+            print(f"         {line}")
+    print(
+        f"\n  => {_offline_headline(report)}: {summary['verified']}/{summary['total']} verified, "
+        f"{summary['not_verifiable_offline']} not verifiable offline, {summary['invalid']} invalid"
+    )
+
+
+def _audit_pack_verify_offline(
+    bundle: str, output: str, jwks: str, tsa_key: list[str], bitcoin_headers: str
+) -> None:
+    import json as json_mod
+
+    from asqav.verifier import pack_verify
+    from asqav.verifier import verify_receipt as vr
+
+    try:
+        pack = vr._load(bundle)
+        key_set = vr._load(jwks) if jwks else None
+        headers = vr._load(bitcoin_headers) if bitcoin_headers else None
+        tsa_keys = vr._load_tsa_keys(tsa_key)
+    except vr.VerifierInputError as exc:
+        print(f"Error reading input: {exc}")
+        raise typer.Exit(code=1) from exc
+    report = pack_verify.verify_pack(
+        pack, jwks=key_set, tsa_keys=tsa_keys, bitcoin_headers=headers
+    )
+    if output == "json":
+        print(json_mod.dumps(report, indent=2, default=str))
+    else:
+        _print_offline_report(report)
+    raise typer.Exit(code=report["exit_code"])
+
+
 @audit_pack_app.command("verify")
 def audit_pack_verify(
     bundle: str = typer.Argument(
@@ -1682,15 +1749,44 @@ def audit_pack_verify(
     output: str = typer.Option(
         "text", "--output", "-o", help="Output format: text or json."
     ),
+    offline: bool = typer.Option(
+        False,
+        "--offline",
+        help="Verify on this machine with no network: every receipt, the chains and the "
+        "bundle signature. Without --jwks the pack vouches for itself and cannot exit 0.",
+    ),
+    jwks: str = typer.Option(
+        "", "--jwks", help="With --offline: a key set you kept; the only source of key trust."
+    ),
+    tsa_key: list[str] = typer.Option(
+        [],
+        "--tsa-key",
+        help="With --offline: the TSA's own signing certificate or key, not a root CA "
+        "(repeatable); TSA material inside the pack is never trusted.",
+    ),
+    bitcoin_headers: str = typer.Option(
+        "",
+        "--bitcoin-headers",
+        help="With --offline: JSON map of block height to merkle_root and time.",
+    ),
 ) -> None:
-    """Verify a holder-supplied Audit Pack bundle and print the signed report.
+    """Verify an Audit Pack bundle, through the API or with --offline on this machine.
 
-    Calls POST `/audit-pack/verify`. The cloud re-derives the bundle digest
-    and per-receipt signatures from the bundle bytes alone, then signs the
-    verdict with the org's most-recent active agent key so a downstream
-    consumer can prove the report is an authentic Asqav verdict. Exits
+    Without --offline it calls POST `/audit-pack/verify`: the cloud re-derives
+    the bundle digest and per-receipt signatures and signs its report. Exits
     non-zero when the bundle signature is invalid, so it works as a gate.
+
+    With --offline nothing leaves the machine. Each receipt is reported
+    verified, not verifiable offline (with the reason) or invalid. Exit code
+    0 needs --jwks and every receipt verified; any invalid exits 1, else 2.
     """
+    if offline:
+        _audit_pack_verify_offline(bundle, output, jwks, tsa_key, bitcoin_headers)
+        return
+    _audit_pack_verify_cloud(bundle, output)
+
+
+def _audit_pack_verify_cloud(bundle: str, output: str) -> None:
     import json as json_mod
 
     if bundle == "-":
@@ -1721,31 +1817,35 @@ def audit_pack_verify(
     if output == "json":
         print(json_mod.dumps(report, indent=2, default=str))
     else:
-        verdict = (
-            typer.style("VALID", fg=typer.colors.GREEN, bold=True)
-            if sig_valid
-            else typer.style("INVALID", fg=typer.colors.RED, bold=True)
-        )
-        typer.echo(f"bundle signature: {verdict}")
-        print(f"bundle_digest:  {report.get('bundle_digest', '?')}")
-        print(f"receipt_count:  {report.get('receipt_count', '?')}")
-        print(f"report_signed:  {report.get('report_signature_algorithm', '?')}")
-        regimes = report.get("regimes_summary") or {}
-        if regimes:
-            joined = ", ".join(f"{k}={v}" for k, v in sorted(regimes.items()))
-            print(f"regimes:        {joined}")
-        bad = [
-            r
-            for r in (report.get("per_receipt") or [])
-            if not r.get("signature_valid", True)
-        ]
-        if bad:
-            print(f"failed receipts: {len(bad)}")
-            for r in bad[:10]:
-                print(f"  - {r.get('record_id', '?')}")
+        _print_cloud_report(report, sig_valid)
 
     if not sig_valid:
         raise typer.Exit(code=1)
+
+
+def _print_cloud_report(report: dict, sig_valid: bool) -> None:
+    verdict = (
+        typer.style("VALID", fg=typer.colors.GREEN, bold=True)
+        if sig_valid
+        else typer.style("INVALID", fg=typer.colors.RED, bold=True)
+    )
+    typer.echo(f"bundle signature: {verdict}")
+    print(f"bundle_digest:  {report.get('bundle_digest', '?')}")
+    print(f"receipt_count:  {report.get('receipt_count', '?')}")
+    print(f"report_signed:  {report.get('report_signature_algorithm', '?')}")
+    regimes = report.get("regimes_summary") or {}
+    if regimes:
+        joined = ", ".join(f"{k}={v}" for k, v in sorted(regimes.items()))
+        print(f"regimes:        {joined}")
+    bad = [
+        r
+        for r in (report.get("per_receipt") or [])
+        if not r.get("signature_valid", True)
+    ]
+    if bad:
+        print(f"failed receipts: {len(bad)}")
+        for r in bad[:10]:
+            print(f"  - {r.get('record_id', '?')}")
 
 
 @audit_pack_app.command("policy")
