@@ -131,10 +131,14 @@ if (result.verdict !== "verified" && result.verdict !== "verified_keyed") {
 Pass the receipt as raw JSON text. The parser keeps each number as written, so the
 verdict matches the Python verifiers. The receipt profile only accepts integers in the
 safe range, so a receipt whose signed bytes hold `500.0` or `-0.0` comes back `unverified`
-/ `unverifiable`. An object from `JSON.parse` has lost that spelling. With such an object,
-a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads back as `500`, so
-the signature fails and the result is `unverified` / `invalid`. It is never `verified`. The same applies to
-the predecessor and originating envelope arguments, which also accept raw text.
+/ `unverifiable`. An object from `JSON.parse` cannot carry that spelling. With such an
+object, a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads back as
+`500`. A float `500.0` the signer wrote then fails the signature as `unverified` /
+`invalid`. A signed integer that the file respells as an integer-valued float, such as
+`500` as `500.0` or `5e2`, or `0` as `0.0`, verifies on this path while raw text and the
+Python verifiers refuse it. Callers who need the strict profile must pass raw text. The
+same applies to the predecessor and originating envelope arguments, which also accept raw
+text.
 
 ## Counterparty bindings
 
