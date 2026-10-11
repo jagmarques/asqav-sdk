@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
+from asqav.counterparty import verify_counterparty_binding  # noqa: E402
 from asqav.verifier.verify_receipt import _envelope_hash, canonical_json  # noqa: E402
 
 OUT = ROOT / "verifier" / "float-repr-cases.json"
@@ -90,15 +91,28 @@ def _bits(rng: random.Random) -> str:
             return repr(x)
 
 
+def binding_label(envelope_hash: str, origin_text: str) -> str | None:
+    """The SDK binding verdict for an acknowledgment that binds envelope_hash."""
+    binding = {
+        "scope": "envelope_minus_anchors",
+        "receipt_ref": "r1",
+        "envelope_hash": envelope_hash,
+    }
+    ack = {"payload": {"counterparty_binding": binding}, "signature": {"kid": "kid-B"}}
+    return verify_counterparty_binding(ack, json.loads(origin_text)).label
+
+
 def _row(zone: str, lexeme: str) -> dict:
     parsed = json.loads('{"v":' + lexeme + "}")
     text = '{"payload":{"v":' + lexeme + '},"signature":' + json.dumps(SIGNATURE) + "}"
+    envelope_hash = _envelope_hash(json.loads(text))
     return {
         "zone": zone,
         "lexeme": lexeme,
         "repr": repr(parsed["v"]),
         "canonical": canonical_json(parsed).decode(),
-        "envelope_hash": _envelope_hash(json.loads(text)),
+        "envelope_hash": envelope_hash,
+        "binding": binding_label(envelope_hash, text),
     }
 
 
@@ -113,7 +127,10 @@ def build() -> dict:
             '{"v": lexeme}, and _envelope_hash of {"payload": {"v": lexeme}, "signature": '
             "signature}. python/tests/test_float_repr_parity.py recomputes them and "
             "typescript/tests/verifier-float-repr.test.ts feeds the same lexemes through "
-            "the float-preserving parser. Regenerate with verifier/generate_float_repr_cases.py. "
+            "the float-preserving parser. binding is the label of "
+            "asqav.counterparty.verify_counterparty_binding on an acknowledgment binding "
+            "envelope_hash, given the json.loads origin. "
+            "Regenerate with verifier/generate_float_repr_cases.py. "
             "Zones: small 1e-9 <= |x| < 1e-4, large 1e16 <= |x| < 1e21, mid 1e-6..1e18, "
             "bits uniform doubles, edge hand-picked."
         ),
