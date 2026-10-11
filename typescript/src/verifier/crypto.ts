@@ -101,6 +101,15 @@ const DISPATCH: Record<string, Verifier> = {
   ES256: verifyEs256,
 };
 
+/** Last verification, held as copies so a reused buffer cannot alias it. */
+let lastVerification: {
+  fn: Verifier; pk: Uint8Array; msg: Uint8Array; sig: Uint8Array; outcome: VerifyOutcome;
+} | null = null;
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && Buffer.from(a.buffer, a.byteOffset, a.byteLength).equals(b);
+}
+
 /** Dispatch to the algorithm's verifier; SKIP an unsupported alg. */
 export function verifySignature(
   alg: string,
@@ -113,7 +122,15 @@ export function verifySignature(
     const known = Object.keys(DISPATCH).sort().join(", ");
     return { result: SKIPPED, note: `unsupported alg '${alg}' (oracle checks ${known})` };
   }
-  return fn(pk, msg, sig);
+  // Only Uint8Array input is cached; other types go straight to fn
+  if (![pk, msg, sig].every((x) => x instanceof Uint8Array)) return fn(pk, msg, sig);
+  const last = lastVerification;
+  if (last !== null && last.fn === fn && bytesEqual(last.pk, pk) && bytesEqual(last.msg, msg) && bytesEqual(last.sig, sig)) {
+    return last.outcome;
+  }
+  const outcome = fn(pk, msg, sig);
+  lastVerification = { fn, pk: new Uint8Array(pk), msg: new Uint8Array(msg), sig: new Uint8Array(sig), outcome };
+  return outcome;
 }
 
 import { createHash } from "node:crypto";
