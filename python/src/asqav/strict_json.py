@@ -122,17 +122,18 @@ def assert_profile_integers(obj: Any) -> None:
         node, path = stack.pop()
         if isinstance(node, bool):
             continue
-        if isinstance(node, RawFloat):
-            # Judge the SOURCE LEXEME, never the parsed double: 9007199254740991.0
-            # equals 9007199254740991 but the digest binds unvalidated digits.
+        if isinstance(node, float):
+            # A parsed float came from a float lexeme: 9007199254740991.0 equals
+            # 9007199254740991 but the digest binds unvalidated digits.
+            lexeme = node.lexeme if isinstance(node, RawFloat) else repr(node)
             if (
-                not _INTEGER_LEXEME_RE.match(node.lexeme)
+                not _INTEGER_LEXEME_RE.match(lexeme)
                 and node.is_integer()
                 and -MAX_PROFILE_INTEGER <= node <= MAX_PROFILE_INTEGER
             ):
                 raise ProfileIntegerError(
                     f"non-integer lexeme in the Asqav profile range: "
-                    f"{node.lexeme!r} at {path}; serialise it as a JSON string"
+                    f"{lexeme!r} at {path}; serialise it as a JSON string"
                 )
             # Fall through: out-of-range magnitudes still fail below.
         if isinstance(node, int):
