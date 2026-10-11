@@ -63,32 +63,46 @@ describe("float spelling matches Python repr", () => {
     signature: { kid: "kid-B" },
   });
 
-  it.each(["JSON.parse", "parseJsonPreservingFloats"] as const)(
-    "verifyCounterpartyBinding on a %s origin gives the Python label",
-    (parser) => {
+  const readers = {
+    "raw text": (t: string): unknown => t,
+    parseJsonPreservingFloats,
+    "JSON.parse": (t: string): unknown => JSON.parse(t),
+  };
+  // JSON.parse keeps no spelling: a -0 is refused, 500.0 reads as 500
+  const parsedLabel = (c: FloatCase): string => {
+    const v = JSON.parse(c.lexeme) as number;
+    return Object.is(v, -0) ? "unresolved" : parseLoses(v) ? "mismatch" : c.binding;
+  };
+
+  it.each(Object.keys(readers) as Array<keyof typeof readers>)(
+    "verifyCounterpartyBinding on a %s origin gives the pinned label",
+    (reader) => {
       const wrong: string[] = [];
       for (const c of TABLE.cases) {
-        const parsed = parser === "JSON.parse" ? JSON.parse(origin(c)) : parseJsonPreservingFloats(origin(c));
-        const lost = parser === "JSON.parse" && parseLoses(JSON.parse(c.lexeme) as number);
-        const want = lost ? "mismatch" : c.binding;
-        const got = verifyCounterpartyBinding(ack(c.envelope_hash), parsed).label;
+        const want = reader === "JSON.parse" ? parsedLabel(c) : c.binding;
+        const got = verifyCounterpartyBinding(ack(c.envelope_hash), readers[reader](origin(c))).label;
         if (got !== want) wrong.push(`${c.zone} ${c.lexeme}: ${got} != ${want}`);
       }
       expect({ wrong: wrong.length, sample: wrong.slice(0, 3) }).toEqual({ wrong: 0, sample: [] });
     },
   );
 
-  it("computeEnvelopeHash on a JSON.parse origin is the Python hash for -0.0 and 1e-9..1e-4", () => {
-    const rows = TABLE.cases.filter((c) => c.zone === "small" || c.repr === "-0.0");
-    expect(rows.length).toBeGreaterThan(300);
+  it("computeEnvelopeHash on a JSON.parse origin is the Python hash in 1e-9..1e-4", () => {
+    const rows = TABLE.cases.filter((c) => c.zone === "small");
+    expect(rows.length).toBeGreaterThanOrEqual(300);
     for (const c of rows) expect(computeEnvelopeHash(JSON.parse(origin(c))), c.lexeme).toBe(c.envelope_hash);
   });
 
-  it("a plain -0 hashes as -0.0, so an integer -0 Python reads as 0 no longer matches", () => {
+  it("-0 hashes as Python reads it from raw text and is refused after JSON.parse", () => {
     const text = (n: string) => `{"payload":{"v":${n}},"signature":${JSON.stringify(TABLE.signature)}}`;
     const negZero = TABLE.cases.find((c) => c.lexeme === "-0.0")!.envelope_hash;
-    expect(computeEnvelopeHash(parseJsonPreservingFloats(text("-0")))).toBe(negZero);
-    expect(computeEnvelopeHash(JSON.parse(text("-0")))).toBe(negZero);
+    expect(computeEnvelopeHash(text("-0.0"))).toBe(negZero);
+    expect(computeEnvelopeHash(text("-0"))).toBe(computeEnvelopeHash(text("0")));
+    expect(computeEnvelopeHash(parseJsonPreservingFloats(text("-0")))).toBe(computeEnvelopeHash(text("0")));
+    expect(() => computeEnvelopeHash(JSON.parse(text("-0.0")))).toThrow(/counterparty_origin_unavailable/);
+    const kept = parseJsonPreservingFloats(text("1")) as { payload: Record<string, unknown> };
+    const rebuilt = { ...kept, payload: { ...kept.payload, w: -0 } };
+    expect(() => computeEnvelopeHash(rebuilt)).toThrow(/counterparty_origin_unavailable/);
   });
 
   it("a RawFloat built by hand, with no lexeme, is written the same way", () => {
