@@ -588,6 +588,7 @@ def test_run_genesis_skips_predecessor_numbers(capsys) -> None:
 
 def _binding(**over) -> dict:
     base = {
+        "scope": "envelope_minus_anchors",
         "receipt_ref": "r",
         "envelope_hash": base64.b64encode(b"e" * 32).decode(),
     }
@@ -639,15 +640,13 @@ def test_run_cyclic_counterparty_refuses_finite(capsys) -> None:
 @pytest.mark.parametrize(
     "binding",
     [
-        {"envelope_hash": base64.b64encode(b"e" * 32).decode()},
-        {"receipt_ref": "r"},
-        {"receipt_ref": "r", "envelope_hash": "!!!"},
-        {"receipt_ref": "r", "envelope_hash": base64.b64encode(b"e" * 16).decode()},
-        {
-            "receipt_ref": "r",
-            "envelope_hash": base64.b64encode(b"e" * 32).decode(),
-            "expect_ack_from": 7,
-        },
+        _binding(receipt_ref=None),
+        _binding(envelope_hash=None),
+        _binding(envelope_hash="!!!"),
+        _binding(envelope_hash=base64.b64encode(b"e" * 16).decode()),
+        _binding(expect_ack_from=7),
+        {k: v for k, v in _binding().items() if k != "scope"},
+        _binding(scope="unsupported_fixture_scope"),
     ],
 )
 def test_run_structured_malformed_binding_skips_counterparty(binding) -> None:
@@ -696,9 +695,13 @@ def test_run_structured_float_and_list_spellings_refuse() -> None:
     payload2 = _profile_payload(scores=[1, 2**53])
     out2 = vr.run_structured(_profile_envelope(payload2), {"keys": []})
     assert "profile range +/-(2**53 - 1)" in out2["axes"][0]["note"]
+    # A parsed Python float came from a float lexeme, so 5.0 refuses like the raw text.
     payload3 = _profile_payload(score=5.0, tags=["a"])
     out3 = vr.run_structured(_profile_envelope(payload3), {"keys": []})
-    assert all("profile range" not in a["note"] for a in out3["axes"])
+    assert "non-integer lexeme '5.0' at $.score" in out3["axes"][0]["note"]
+    payload4 = _profile_payload(score=5.5, tags=["a"])
+    out4 = vr.run_structured(_profile_envelope(payload4), {"keys": []})
+    assert all("profile range" not in a["note"] for a in out4["axes"])
 
 
 @pytest.mark.parametrize("drop", [["issuer_id"], ["previousReceiptHash"], ["issuer_id", "previousReceiptHash"]])
