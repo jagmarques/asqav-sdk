@@ -149,6 +149,14 @@ function positionalLayout(digits: string, point: number): string {
   return `${digits.slice(0, point)}.${digits.slice(point)}`;
 }
 
+const PRESERVED = new WeakSet<object>();
+
+/** True for an object or array the float-preserving parser built, where a
+ *  plain -0 can only be the integer lexeme -0 */
+export function isPreservedContainer(value: object): boolean {
+  return PRESERVED.has(value);
+}
+
 /**
  * Parse JSON preserving float literals as `RawFloat`, mirroring Python's `json.load`. Strict on two
  * counts: a duplicated member at any depth throws, and so does an integer outside +/-2**53,
@@ -169,6 +177,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
     if (c === "{" || c === "[") {
       if (++depth > 1000) err("maximum nesting depth exceeded");
       const v = c === "{" ? object() : array();
+      PRESERVED.add(v);
       depth--;
       return v;
     }
@@ -350,13 +359,12 @@ export function parsedNegativeZeroPath(value: unknown): string | null {
     if (Object.is(node, -0)) return path;
     // Past the nesting cap the core refuses the receipt as too deep anyway
     if (depth > 201 || node === null || typeof node !== "object" || isRawFloat(node)) continue;
-    if (Array.isArray(node)) {
-      node.forEach((item, i) => stack.push([item, `${path}[${i}]`, depth + 1]));
-    } else {
-      for (const [k, item] of Object.entries(node as Record<string, unknown>)) {
-        stack.push([item, `${path}.${k}`, depth + 1]);
-      }
-    }
+    const entries = Array.isArray(node)
+      ? node.map((item, i): [string, unknown] => [`[${i}]`, item])
+      : Object.entries(node as Record<string, unknown>).map(([k, item]): [string, unknown] => [`.${k}`, item]);
+    // A preserved container's plain -0 was the integer -0, Python's 0
+    const keep = PRESERVED.has(node) ? entries.filter(([, item]) => !Object.is(item, -0)) : entries;
+    for (const [step, item] of keep) stack.push([item, path + step, depth + 1]);
   }
   return null;
 }

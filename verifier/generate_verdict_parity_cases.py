@@ -14,6 +14,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -26,8 +27,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "verifier" / "verdict-parity-cases"
 sys.path.insert(0, str(ROOT / "python" / "src"))
 sys.path.insert(0, str(ROOT / "python" / "tests"))
-from asqav.verifier.verify_receipt import canonical_json  # noqa: E402
 from tsa_testkit import make_timestamp_resp, make_tst_info  # noqa: E402
+
+from asqav.counterparty import verify_counterparty_binding  # noqa: E402
+from asqav.verifier.verify_receipt import canonical_json  # noqa: E402
 
 ISSUER = "Asqav Ltd"
 KID = "verdict-parity-747"
@@ -52,6 +55,25 @@ COUNTERPARTY_CASES = {
     "negzero": (-0.0, UNVERIFIABLE),
     "float500": (500.0, UNVERIFIABLE),
     "half": (0.5, VERIFIED),
+}
+
+
+#: name -> (signed number, [(spelling, outcome, JSON.parse outcome)]). JSON.parse
+#: verifies an integer respelled as a float and refuses any -0.
+RESPELLED_RECEIPTS = {
+    "int500": (500, [("500.0", UNVERIFIABLE, VERIFIED), ("5e2", UNVERIFIABLE, VERIFIED)]),
+    "int0": (0, [("0.0", UNVERIFIABLE, VERIFIED), ("-0", VERIFIED, UNVERIFIABLE),
+                 ("-0.0", UNVERIFIABLE, UNVERIFIABLE)]),
+    "negzero": (-0.0, [("-0", INVALID, UNVERIFIABLE)]),
+    "poszero": (0.0, [("-0", INVALID, UNVERIFIABLE)]),
+}
+
+#: name -> (origin's signed number, spelling, outcome, JSON.parse outcome)
+RESPELLED_ORIGINS = {
+    "int500": (500, "500.0", UNVERIFIABLE, VERIFIED),
+    "int0": (0, "-0", VERIFIED, UNVERIFIABLE),
+    "negzero": (-0.0, "-0", INVALID, UNVERIFIABLE),
+    "poszero": (0.0, "-0", INVALID, UNVERIFIABLE),
 }
 
 
@@ -117,6 +139,50 @@ def parsed_outcome(lexeme: str, outcome: dict) -> dict:
     return outcome
 
 
+def respell(text: str, keys: tuple[str, ...], lexeme: str, spelled: str) -> str:
+    """Respell the value under each of keys, which must each occur once."""
+    for name in keys:
+        pattern = rf'("{name}": ){re.escape(lexeme)}(?=[,\n])'
+        text, count = re.subn(pattern, lambda m: m.group(1) + spelled, text)
+        assert count == 1, (name, lexeme, count)
+    return text
+
+
+class _NegativeZero(Exception):
+    pass
+
+
+def _js_number(lexeme: str) -> float | int:
+    # The number JSON.parse yields, as Python canonical_json would write it.
+    value = float(lexeme)
+    if value == 0 and lexeme.startswith("-"):
+        raise _NegativeZero
+    return int(value) if value.is_integer() and abs(value) < 2**53 else value
+
+
+def binding_labels(ack_text: str, origin_text: str) -> dict:
+    """verify_counterparty_binding from json.loads, then from JSON.parse's view of the text."""
+    ack = json.loads(ack_text)
+    label = verify_counterparty_binding(ack, json.loads(origin_text)).label
+    try:
+        shaped = json.loads(origin_text, parse_int=_js_number, parse_float=_js_number)
+    except _NegativeZero:
+        return {"binding": label, "parsed_binding": "unresolved"}
+    return {"binding": label, "parsed_binding": verify_counterparty_binding(ack, shaped).label}
+
+
+def respelled_receipt_files() -> tuple[dict, list]:
+    files, manifest = {}, []
+    for name, (x, spellings) in RESPELLED_RECEIPTS.items():
+        text = json.dumps(sign_and_anchor(payload(name, x)), indent=2) + "\n"
+        for i, (spelled, outcome, parsed) in enumerate(spellings):
+            case = f"receipt-respelled-{name}-{i}"
+            files[case] = {"receipt.json": respell(text, ("risk", "score"), repr(x), spelled),
+                           "jwks.json": jwks(), "tsa_trust.pem": tsa_pem()}
+            manifest.append({"dir": case, "lexeme": spelled, **outcome, "parsed": parsed})
+    return files, manifest
+
+
 def receipt_files() -> tuple[dict, list]:
     files, manifest = {}, []
     for name, (x, alts, outcome, tamper_outcome) in RECEIPT_CASES.items():
@@ -135,51 +201,77 @@ def receipt_files() -> tuple[dict, list]:
     return files, manifest
 
 
-def counterparty_files() -> tuple[dict, list]:
+def _gcv():
     spec = importlib.util.spec_from_file_location(
         "gcv", ROOT / "verifier" / "generate_counterparty_vectors.py")
     gcv = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gcv)
+    return gcv
+
+
+def bound_origin(gcv, x: float | int) -> tuple[dict, str]:
+    """An acknowledgment bound to an origin that signed price x, and the origin text."""
     base_payload = gcv.payload
+
+    def with_price(label: str) -> dict:
+        body = base_payload(label)
+        if label == "origin":
+            body["terms"] = {"price": x}  # signed by the origin, outside its context
+        return body
+    gcv.payload = with_price
+    try:
+        made = gcv.fixtures()["asqav-31-counterparty-scope-match"]
+    finally:
+        gcv.payload = base_payload
+    made = {k: v for k, v in made.items() if k != "expected.json"}
+    return made, json.dumps(made["originating_envelope.json"], indent=2) + "\n"
+
+
+def _ack_text(made: dict) -> str:
+    return json.dumps(made["receipt.json"])
+
+
+def counterparty_files() -> tuple[dict, list]:
+    gcv = _gcv()
     files, manifest = {}, []
     for name, (x, outcome) in COUNTERPARTY_CASES.items():
-        def with_price(label: str, x: float = x) -> dict:
-            body = base_payload(label)
-            if label == "origin":
-                body["terms"] = {"price": x}  # signed by the origin, outside its context
-            return body
-        gcv.payload = with_price
-        try:
-            made = gcv.fixtures()["asqav-31-counterparty-scope-match"]
-        finally:
-            gcv.payload = base_payload
-        made = {k: v for k, v in made.items() if k != "expected.json"}
-        origin = json.dumps(made["originating_envelope.json"], indent=2) + "\n"
+        made, origin = bound_origin(gcv, x)
         lexeme = repr(x)
         assert origin.count(lexeme) == 1, (name, lexeme)
         case = f"counterparty-{name}"
         files[case] = {**made, "originating_envelope.json": origin}
         manifest.append({"dir": case, "lexeme": lexeme, **outcome,
-                         "parsed": parsed_outcome(lexeme, outcome)})
+                         "parsed": parsed_outcome(lexeme, outcome),
+                         **binding_labels(_ack_text(made), origin)})
         # Tamper control: the origin's float moves after the acknowledger bound its hash.
         swapped = repr(tampered(x)) if x != 0 else "0.0"
+        tampered_origin = origin.replace(lexeme, swapped)
         files[f"{case}-tamper"] = {**copy.deepcopy(made),
-                                   "originating_envelope.json": origin.replace(lexeme, swapped)}
+                                   "originating_envelope.json": tampered_origin}
         tamper_expect = UNVERIFIABLE if float(swapped).is_integer() else INVALID
         manifest.append({"dir": f"{case}-tamper", "lexeme": swapped, **tamper_expect,
-                         "parsed": parsed_outcome(swapped, tamper_expect)})
+                         "parsed": parsed_outcome(swapped, tamper_expect),
+                         **binding_labels(_ack_text(made), tampered_origin)})
+    for name, (x, spelled, outcome, parsed) in RESPELLED_ORIGINS.items():
+        made, origin = bound_origin(gcv, x)
+        respelled = respell(origin, ("price",), repr(x), spelled)
+        case = f"counterparty-respelled-{name}"
+        files[case] = {**made, "originating_envelope.json": respelled}
+        manifest.append({"dir": case, "lexeme": spelled, **outcome, "parsed": parsed,
+                         **binding_labels(_ack_text(made), respelled)})
     return files, manifest
 
 
 def generated_files() -> dict[Path, str]:
     rf, rm = receipt_files()
+    sf, sm = respelled_receipt_files()
     cf, cm = counterparty_files()
     out = {}
-    for case, members in {**rf, **cf}.items():
+    for case, members in {**rf, **sf, **cf}.items():
         for fn, value in members.items():
             text = value if isinstance(value, str) else json.dumps(value, indent=2) + "\n"
             out[OUT / case / fn] = text
-    out[OUT / "manifest.json"] = json.dumps({"cases": rm + cm}, indent=2) + "\n"
+    out[OUT / "manifest.json"] = json.dumps({"cases": rm + sm + cm}, indent=2) + "\n"
     return out
 
 
