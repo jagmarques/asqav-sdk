@@ -108,7 +108,7 @@ Verifies an exported pack on your machine with no network. Export it with `--inc
 asqav audit-pack verify --offline bundle.json
 ```
 
-Exit code 0 means every receipt verified, 2 means some are not verifiable offline, and 1 means something is invalid.
+Exit code 0 means every receipt verified. Any invalid member exits 1; otherwise receipts that are not verifiable offline exit 2.
 
 ### `asqav audit-pack policy <digest>`
 
