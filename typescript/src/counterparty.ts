@@ -6,7 +6,12 @@
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
-import { exceedsDepth, isRawFloatLeaf, RawFloat } from "./verifier/canonical.js";
+import {
+  exceedsDepth,
+  isPreservedContainer,
+  isRawFloatLeaf,
+  parseJsonPreservingFloats,
+} from "./verifier/canonical.js";
 
 /**
  * Byte binding over payload and the exact signature object.
@@ -37,10 +42,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** Hash payload and signature only, keeping the encoded signature spelling. */
+/** Hash payload and signature only, keeping the encoded signature spelling. Raw
+ *  JSON text is read with the float-preserving parser, as Python reads it. */
 export function computeEnvelopeHash(
-  envelope: unknown,
+  origin: unknown,
 ): string {
+  const envelope = typeof origin === "string" ? parseOrigin(origin) : origin;
   if (!isObject(envelope) || !isObject(envelope.payload) || !isObject(envelope.signature)) {
     throw new Error("counterparty_origin_unavailable: signing envelope required");
   }
@@ -53,15 +60,31 @@ export function computeEnvelopeHash(
   if (exceedsDepth(projection, 200)) {
     throw new Error("counterparty_origin_unavailable: nesting exceeds 200 levels");
   }
-  return createHash("sha256").update(canonicalBytes(negativeZeroAsFloat(projection))).digest("base64");
+  if (hasAmbiguousNegativeZero(projection)) {
+    throw new Error("counterparty_origin_unavailable: a parsed -0 was -0 or -0.0; pass the raw text");
+  }
+  return createHash("sha256").update(canonicalBytes(projection)).digest("base64");
 }
 
-/** Python writes a negative zero only as -0.0; JSON.parse reads it as -0 */
-function negativeZeroAsFloat(value: unknown): unknown {
-  if (Object.is(value, -0)) return new RawFloat(-0);
-  if (Array.isArray(value)) return value.map(negativeZeroAsFloat);
-  if (value === null || typeof value !== "object" || isRawFloatLeaf(value)) return value;
-  return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, negativeZeroAsFloat(v)]));
+function parseOrigin(text: string): unknown {
+  try {
+    return parseJsonPreservingFloats(text);
+  } catch (cause) {
+    throw new Error("counterparty_origin_unavailable: origin is not strict JSON", { cause });
+  }
+}
+
+/** A -0 outside a float-preserving parse was -0 (Python's 0) or -0.0 */
+function hasAmbiguousNegativeZero(projection: Record<string, unknown>): boolean {
+  const stack: unknown[] = [projection];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (node === null || typeof node !== "object" || isRawFloatLeaf(node)) continue;
+    const children = Object.values(node);
+    if (!isPreservedContainer(node) && children.some((v) => Object.is(v, -0))) return true;
+    for (const child of children) stack.push(child);
+  }
+  return false;
 }
 
 /** Refuse what the canonicaliser refuses, with the Python error text */
