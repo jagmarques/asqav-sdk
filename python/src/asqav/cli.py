@@ -1761,8 +1761,8 @@ def audit_pack_verify(
     tsa_key: list[str] = typer.Option(
         [],
         "--tsa-key",
-        help="With --offline: a pinned TSA certificate or key file (repeatable); TSA "
-        "material inside the pack is never trusted.",
+        help="With --offline: the TSA's own signing certificate or key, not a root CA "
+        "(repeatable); TSA material inside the pack is never trusted.",
     ),
     bitcoin_headers: str = typer.Option(
         "",

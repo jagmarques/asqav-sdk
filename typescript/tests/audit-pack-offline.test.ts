@@ -233,12 +233,31 @@ describe("audit-pack verify --offline", () => {
     expect(report.bundle.reason).toBe("bundle signing key belongs to another organization");
   });
 
-  it("fails a revoked bundle key under supplied keys and never verifies it from the snapshot", () => {
+  it.each([
+    ["revoked", "revoked_at"],
+    ["suspended", "suspended_at"],
+  ])("leaves a pack whose key was %s after the export not verifiable, not invalid", (status, member) => {
     const m = minted();
-    m.jwks.keys[0].status = "revoked";
-    const anchored = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
-    expect(anchored.bundle).toMatchObject({ status: "invalid", reason: "bundle key is revoked" });
-    expect(anchored.exit_code).toBe(1);
+    Object.assign(m.jwks.keys[0], { status, [member]: "2027-01-01T00:00:00Z" });
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.bundle).toMatchObject({
+      status: "not_verifiable_offline",
+      reason: `bundle key ${status} at 2027-01-01T00:00:00Z; nothing proves the bundle was signed before it`,
+    });
+    expect(report.summary.invalid).toBe(0);
+    expect(report.exit_code).toBe(2);
+  });
+
+  it("fails a bundle whose signed window starts after the key was revoked", () => {
+    const m = minted();
+    Object.assign(m.jwks.keys[0], { status: "revoked", revoked_at: "2026-06-18T00:00:00Z" });
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.bundle.reason).toBe("bundle key revoked at 2026-06-18T00:00:00Z, before the signed window start");
+    expect(report.exit_code).toBe(1);
+  });
+
+  it("never verifies a bundle key the pack snapshot lists as revoked", () => {
+    const m = minted();
     m.pack.jwks.keys[0].status = "revoked";
     seal(m.pack, m.keys.secretKey, m.keys.publicKey);
     expect(verifyAuditPackOffline(JSON.stringify(m.pack)).bundle.status).toBe("not_verifiable_offline");
