@@ -20,9 +20,15 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 - **`verifyReceiptOffline` accepts raw JSON text** for the receipt, keys, predecessor and
   originating envelope. It reads the text with the lexeme-preserving parser and returns
   the conformance runner's verdict. Given an object from `JSON.parse`, it writes a
-  fraction or a value past 2^53 as Python does and refuses a `-0` as `unverifiable`. A
-  signed `500.0` reads back as `500` there, so that receipt reports `invalid`; the
+  fraction or a value past 2^53 as Python does and refuses a signed `-0` as
+  `unverifiable`. A signed `500.0` reads back as `500` there, so that receipt reports `invalid`; the
   TypeScript README explains the difference.
+- **Behaviour change for Python users.** `asqav.verify_receipt_offline` and the oracle
+  now refuse, as `unverified` / `unverifiable`, a receipt they verified in 0.10.11 when a
+  signed number is an integer written as a float, such as `500.0` or `-0.0`. A fraction
+  such as `0.5` still verifies. A cloud receipt can carry such a number in the
+  `metadata` values of a hash-mode receipt, for example a `timestamp` sent as
+  `1791676800.0`.
 - **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 30 receipts signed with
   a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
   tampered. A Python test and a TypeScript test assert one outcome per case from every
@@ -623,7 +629,7 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 ### Changed
 
 - **BREAKING: the verifier speaks a three-verdict vocabulary and never collapses
-  failure classes (criteria 418/438).** Every public verifier surface — the
+  failure classes.** Every public verifier surface — the
   standalone `verify_receipt.py` (text + structured + exit codes), the oracle
   `verify()` / `VerifyResult`, the oracle runner, the TypeScript `verify()` /
   `verifyReceiptOffline`, and `verify_attestation_offline` — now reports

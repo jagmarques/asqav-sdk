@@ -231,6 +231,15 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return [pk, `resolved agent key ${entry.kid} (status=${status})`];
   }
 
+  // The ranges profilePrecheck checks: the signature object only when anchored
+  signedParts(doc: Record<string, unknown>, chained = false): unknown[] {
+    if (chained) return [payloadOf(doc)];
+    if (isHashMode(doc)) return [flatSignedFields(doc)];
+    const env = normaliseEnvelope(doc);
+    const anchored = Array.isArray(env.anchors) && env.anchors.length > 0 && isRecord(env.signature);
+    return anchored ? [payloadOf(doc), env.signature] : [payloadOf(doc)];
+  }
+
   signingInput(doc: Record<string, unknown>): Uint8Array {
     if (isHashMode(doc)) {
       return this.hashModeSigningInput(doc);

@@ -2528,7 +2528,7 @@ export async function fetchJwks(url: string = DEFAULT_JWKS_URL): Promise<Record<
 }
 
 import { ADAPTERS as _ADAPTERS, verify as _oracleVerify } from "./verifier/index.js";
-import { refuseInput as _refuseInput } from "./verifier/core.js";
+import { detect as _detect, refuseInput as _refuseInput } from "./verifier/core.js";
 import { normaliseEnvelope as _normaliseEnvelope } from "./verifier/vrShim.js";
 import { parseJsonPreservingFloats as _parseRaw, parsedNegativeZeroPath as _negZeroPath } from "./verifier/canonical.js";
 import type { VerifyResult } from "./verifier/core.js";
@@ -2539,6 +2539,20 @@ function _hashesOrigin(receipt: Record<string, unknown> | null | undefined): boo
   const body = env.payload !== null && typeof env.payload === "object" ? (env.payload as Record<string, unknown>) : env;
   const cpb = body.counterparty_binding as Record<string, unknown> | null | undefined;
   return cpb !== null && typeof cpb === "object" && cpb.scope === "envelope_minus_anchors";
+}
+
+// First -0 in the signed parts of a parsed input; jwks signs no number and an
+// origin is hashed only under a dispatched scope
+function _signedNegZero(name: string, input: Record<string, unknown>, receipt: Record<string, unknown> | null): string | null {
+  if (name === "jwks") return null;
+  if (name === "originating envelope") return _hashesOrigin(receipt) ? _negZeroPath(input) : null;
+  const ad = _detect(input, _ADAPTERS);
+  const parts = ad === null ? [input] : ad.signedParts(input, name === "predecessor");
+  for (const part of parts) {
+    const path = _negZeroPath(part);
+    if (path !== null) return path;
+  }
+  return null;
 }
 
 /** Receipt-side input: raw JSON text (preferred) or an already-parsed object */
@@ -2582,9 +2596,7 @@ export function verifyReceiptOffline(
   const parsed: Array<Record<string, unknown> | null> = [];
   for (const [name, input] of inputs) {
     if (typeof input !== "string") {
-      // jwks signs no number; an origin is hashed only under a dispatched scope
-      const skip = name === "jwks" || (name === "originating envelope" && !_hashesOrigin(parsed[0]));
-      const zero = skip || input == null ? null : _negZeroPath(input);
+      const zero = input == null ? null : _signedNegZero(name, input, parsed[0]);
       if (zero !== null) {
         return _refuseInput(
           `already-parsed ${name} carries -0 at ${zero}; JSON.parse cannot tell -0 from -0.0, pass the raw JSON text`,

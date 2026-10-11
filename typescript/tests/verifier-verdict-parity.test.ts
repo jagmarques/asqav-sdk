@@ -52,3 +52,24 @@ describe("signed float receipts get the Python verdict", () => {
     if (c.outcome === "verified") expect(c.parsed).toEqual({ outcome: c.outcome, failure_class: c.failure_class });
   });
 });
+
+describe("a parsed -0 is refused only where it is signed", () => {
+  const c = MANIFEST.find((m) => m.dir === "receipt-half-repr")!;
+  const receipt = (): Record<string, unknown> => parse(read(c, "receipt.json"))!;
+  const check = (r: Record<string, unknown>) => verifyReceiptOffline(r, parse(read(c, "jwks.json"))!);
+
+  it("verifies with -0 in an unsigned member and an anchor entry, as the other verifiers do", () => {
+    const r = receipt();
+    r.note = -0;
+    (r.anchors as Array<Record<string, unknown>>)[0].x = -0;
+    expect([check(r).verdict, check(r).failureClass]).toEqual(["verified", null]);
+  });
+
+  it.each(["payload", "signature"])("refuses -0 in the signed %s as unverifiable", (part) => {
+    const r = receipt();
+    (r[part] as Record<string, unknown>).x = -0;
+    const res = check(r);
+    expect([res.verdict, res.failureClass]).toEqual(["unverified", "unverifiable"]);
+    expect(res.axes[0].note).toContain("receipt carries -0");
+  });
+});
