@@ -13,9 +13,9 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   digest is recomputed over the members the export signs, and the bundle signature is verified
   under a key that must appear in that snapshot. Each receipt is reported `verified`,
   `not_verifiable_offline` with the reason (non-compliance-mode receipt, pending anchor, missing
-  TSA key, withheld signed bytes) or `invalid`, and the pack gets a summary. Exit codes are 0
-  when everything verified, 2 when some receipts are not verifiable offline, and 1 when anything
-  is invalid. A lapsed `expires_at` on a receipt signed before it is an info line, not a failure.
+  TSA key, withheld signed bytes) or `invalid`, and the pack gets a summary. Exit code 0 means
+  every receipt verified. Any invalid member exits 1; otherwise receipts that are not verifiable
+  offline exit 2. A lapsed `expires_at` on a receipt signed before it is an info line, not a failure.
   TSA certificates come from `--tsa-key` or the pack's `tsa_trust` member, which the bundle
   signature covers when present. `--jwks` uses a key set you kept instead of the pack's. The
   TypeScript CLI has the same command, but it does not check timestamp tokens.
