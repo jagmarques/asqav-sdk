@@ -2286,11 +2286,14 @@ type AnchorFields = Partial<
 >;
 
 const ANCHOR_WAIT_LABELS = new Set(["valid", "anchor_pending", "anchor_pending_no_cryptographic_proof"]);
+// Cloud pass labels with verified false (asqav routes/verify.py:1340)
+const PASS_LABELS = new Set(["valid_commitment_not_rederivable"]);
 
 /** @internal - accepted, or the signature holds and only the anchor waits. */
 export function _signatureValid(r: { verified: boolean; verificationDetail?: AnchorFields }): boolean {
   if (r.verified === true) return true;
   const d = r.verificationDetail;
+  if (PASS_LABELS.has(d?.validationLabel ?? "")) return true;
   return Boolean(d?.signatureValid) && ANCHOR_WAIT_LABELS.has(d?.validationLabel ?? "");
 }
 

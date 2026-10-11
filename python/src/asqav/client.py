@@ -3678,6 +3678,8 @@ def verify_signature(signature_id: str) -> VerificationResponse:
 _ANCHOR_WAIT_LABELS = frozenset(
     {"valid", "anchor_pending", "anchor_pending_no_cryptographic_proof"}
 )
+#: Labels the cloud counts as a pass with verified false (asqav routes/verify.py:1340).
+_PASS_LABELS = frozenset({"valid_commitment_not_rederivable"})
 
 
     # True when the server accepts the receipt, or the signature holds and only the anchor waits.
@@ -3687,6 +3689,8 @@ def _signature_valid(resp: Any) -> bool:
     detail = getattr(resp, "verification_detail", None)
     if not isinstance(detail, VerificationDetail):
         return False
+    if detail.validation_label in _PASS_LABELS:
+        return True
     return bool(detail.signature_valid) and detail.validation_label in _ANCHOR_WAIT_LABELS
 
 

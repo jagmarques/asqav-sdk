@@ -219,6 +219,16 @@ def test_verify_cli_server_rejection_reads_invalid_and_exits_1(stub: _Stub, labe
     assert result.exit_code == 1
 
 
+def test_verify_cli_passing_attestation_reads_valid(stub: _Stub) -> None:
+    # The cloud counts this label as a pass although verified is false.
+    client_mod._api_base = stub.base
+    stub.detail = {"validation_label": "valid_commitment_not_rederivable",
+                   "anchor_valid_ots": True, "anchor_status_ots": "valid"}
+    result = runner.invoke(app, ["verify", "sig_stub01"])
+    assert "Signature: valid" in result.output
+    assert result.exit_code == 0
+
+
 def test_verify_cli_one_invalid_anchor_reads_invalid(stub: _Stub) -> None:
     client_mod._api_base = stub.base
     stub.detail = {"validation_label": "anchor_invalid", "anchor_valid_ots": True,

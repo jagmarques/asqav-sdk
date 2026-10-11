@@ -91,6 +91,18 @@ describe("first-receipt onboarding (TypeScript)", () => {
     expect(printed()).toContain(`Signature: invalid (${label})`);
   });
 
+  it("verify reads a passing attestation as valid and exits 0", async () => {
+    const detail = {
+      ...FRESH.verification_detail,
+      validation_label: "valid_commitment_not_rederivable",
+      anchor_valid_ots: true,
+      anchor_status_ots: "valid",
+    };
+    stubFetch(() => respond({ ...FRESH, verification_detail: detail }));
+    await runCli(["verify", "sig_1"]);
+    expect(printed()).toContain("Signature: valid");
+  });
+
   it("verify reads one invalid anchor as invalid", async () => {
     const detail = {
       ...FRESH.verification_detail,
