@@ -553,6 +553,334 @@ export function checkSkew(issuedAt: unknown, nowMs: number = Date.now()): readon
   return ["PASS", `skew ${skew.toFixed(0)}s within bound`];
 }
 
+// ---------------------------------------------------------------------------
+// Outer copies (mirrors `check_outer_copies`)
+
+/** Plain-text entry members paired with the signed member each must equal. */
+const OUTER_TEXT_COPIES: ReadonlyArray<readonly [string, string]> = [
+  ["agent_id", "agent_id"],
+  ["action_id", "action_id"],
+  ["action_type", "action_type"],
+  ["receipt_type", "type"],
+  ["supersedes", "supersedes"],
+];
+
+/** Members with no signed counterpart: listed, never trusted. The withheld
+ * flag is one, because no signature covers it. */
+const OUTER_UNATTESTED = [
+  "signature_id", "capture_topology", "stale_pending", "corrupted", "corruption_message",
+  "signed_bytes_withheld",
+] as const;
+
+/** Members an entry carries by design. Any other name is a stray: held to
+ * the signed member of that name, else listed. */
+const OUTER_MEMBERS: ReadonlySet<string> = new Set([
+  "payload", "signature", "signature_envelope", "anchors", "signature_id", "agent_id",
+  "action_id", "action_type", "algorithm", "signed_at", "compliance_mode",
+  "signature_b64", "public_key_b64", "message_b64", "message_sha256",
+  "signed_bytes_withheld", "stale_pending", "capture_topology", "corrupted",
+  "corruption_message", "receipt_type", "supersedes",
+]);
+
+/** Members of the signature object itself; any other is an unsigned extra. */
+const SIGNATURE_MEMBERS: ReadonlySet<string> = new Set(["alg", "kid", "sig"]);
+
+/** The hosted /verify response names itself with this top-level type. */
+const HOSTED_RESPONSE_TYPE = "signature";
+
+/** Stand-in the digest-only export writes over a signed value it withholds. */
+const WITHHELD_MARKER = "withheld: re-export with include_signed_bytes=true for the signed bytes";
+
+/** What each outer member must agree with, for the mismatch note. */
+const OUTER_SIGNED_LABEL: Readonly<Record<string, string>> = {
+  receipt_type: "type",
+  signed_at: "issued_at",
+  algorithm: "signature.alg",
+  signature: "signature.sig",
+  signature_envelope: "signature",
+  signature_b64: "signature.sig",
+  message_b64: "the canonical signed bytes",
+  message_sha256: "the canonical signed bytes",
+  public_key_b64: "the verifying key",
+  compliance_mode: "the payload",
+};
+
+/** Export timestamps: date, optional clock, optional zone (none is UTC). */
+const INSTANT_RE =
+  /^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]+))?)?)?(Z|[+-][0-9]{2}(?::?[0-9]{2})?)?$/;
+const STRICT_B64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+const LONE_SURROGATE_RE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+/** One outer member against its signed twin, or null with no twin. */
+type CopyOutcome = readonly [string, boolean | null];
+
+function hasMember(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function present(obj: Record<string, unknown>, key: string): boolean {
+  return hasMember(obj, key) && obj[key] !== undefined && obj[key] !== null;
+}
+
+/** Seconds east of UTC for a zone suffix, null when out of range. */
+function zoneShift(zone: string | undefined): number | null {
+  if (!zone || zone === "Z") return 0;
+  const digits = zone.slice(1).replace(":", "");
+  const hours = Number(digits.slice(0, 2));
+  const minutes = Number(digits.slice(2, 4) || 0);
+  if (hours > 23 || minutes > 59) return null;
+  return (hours * 3600 + minutes * 60) * (zone[0] === "+" ? 1 : -1);
+}
+
+/** [epoch seconds, microsecond digits] of an export timestamp, else null. */
+function instantOf(text: unknown): readonly [number, string] | null {
+  const m = typeof text === "string" ? INSTANT_RE.exec(text) : null;
+  if (m === null) return null;
+  const [y, mo, d, hh, mi, ss] = [1, 2, 3, 4, 5, 6].map((i) => Number(m[i] ?? 0));
+  const shift = zoneShift(m[8]);
+  if (shift === null || y < 1 || hh > 23 || mi > 59 || ss > 59) return null;
+  const date = new Date(0);
+  date.setUTCFullYear(y, mo - 1, d);
+  date.setUTCHours(hh, mi, ss, 0);
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+  return [date.getTime() / 1000 - shift, (m[7] ?? "").slice(0, 6).replace(/0+$/, "")];
+}
+
+function sameInstant(outer: unknown, signed: unknown): boolean {
+  if (typeof outer === "string" && outer === signed) return true;
+  const left = instantOf(outer);
+  const right = instantOf(signed);
+  return left !== null && right !== null && left[0] === right[0] && left[1] === right[1];
+}
+
+/** Bytes of a standard or url-safe base64 string, null on anything else. */
+function strictB64(value: unknown): Uint8Array | null {
+  if (typeof value !== "string") return null;
+  let text = value.replace(/-/g, "+").replace(/_/g, "/");
+  text += "=".repeat((4 - (text.length % 4)) % 4);
+  if (!STRICT_B64_RE.test(text)) return null;
+  return new Uint8Array(Buffer.from(text, "base64"));
+}
+
+function sameText(outer: unknown, signed: unknown): boolean {
+  return typeof outer === "string" && outer === signed;
+}
+
+function sameBytes(outer: unknown, expected: Uint8Array): boolean {
+  const decoded = strictB64(outer);
+  return decoded !== null && Buffer.from(decoded).equals(Buffer.from(expected));
+}
+
+/** True when a string, member name or nested value has a lone surrogate. */
+function hasLoneSurrogate(value: unknown): boolean {
+  if (typeof value === "string") return LONE_SURROGATE_RE.test(value);
+  if (Array.isArray(value)) return value.some(hasLoneSurrogate);
+  if (isRecord(value)) return Object.entries(value).some(([k, v]) => LONE_SURROGATE_RE.test(k) || hasLoneSurrogate(v));
+  return false;
+}
+
+/** Equal once canonicalised; an uncanonicalisable value is unequal. */
+function sameJson(outer: unknown, signed: unknown): boolean {
+  try {
+    if (hasLoneSurrogate(outer) || hasLoneSurrogate(signed)) return false;
+    return Buffer.from(asqavJcs(outer)).equals(Buffer.from(asqavJcs(signed)));
+  } catch {
+    return false;
+  }
+}
+
+/** A signed member's value, null when absent or withheld by the export. */
+function signedTwin(payload: Record<string, unknown>, name: string): unknown {
+  if (!present(payload, name)) return null;
+  return payload[name] === WITHHELD_MARKER ? null : payload[name];
+}
+
+function textCopyOutcomes(raw: Record<string, unknown>, payload: Record<string, unknown>): CopyOutcome[] {
+  const out: CopyOutcome[] = [];
+  for (const [outer, signed] of OUTER_TEXT_COPIES) {
+    if (!present(raw, outer)) continue;
+    const twin = signedTwin(payload, signed);
+    out.push([outer, twin === null ? null : sameText(raw[outer], twin)]);
+  }
+  return out;
+}
+
+/** signed_at equals issued_at; an observation may carry context.ts there. When
+ * that time is withheld or in a form this check cannot read, the copy is
+ * unattested rather than contradicted. */
+function timeCopyOutcomes(raw: Record<string, unknown>, payload: Record<string, unknown>): CopyOutcome[] {
+  if (!present(raw, "signed_at")) return [];
+  const observed = payload.type === "protectmcp:observation";
+  const context = payload.context;
+  const seen = observed && isRecord(context) && present(context, "ts") ? context.ts : null;
+  const signed = [signedTwin(payload, "issued_at"), seen].filter((t) => t !== null);
+  if (signed.some((t) => sameInstant(raw.signed_at, t))) return [["signed_at", true]];
+  const unreadable = observed && (seen === null || instantOf(seen) === null);
+  return [["signed_at", signed.length === 0 || unreadable ? null : false]];
+}
+
+/** algorithm and the signature strings against the normalised object. */
+function envelopeCopyOutcomes(raw: Record<string, unknown>, sigObj: Record<string, unknown>): CopyOutcome[] {
+  const out: CopyOutcome[] = [];
+  const twinSig = strictB64(sigObj.sig);
+  if (present(raw, "algorithm")) {
+    out.push(["algorithm", present(sigObj, "alg") ? sameText(raw.algorithm, sigObj.alg) : null]);
+  }
+  if (present(raw, "signature_b64")) {
+    out.push(["signature_b64", twinSig === null ? null : sameBytes(raw.signature_b64, twinSig)]);
+  }
+  if (present(raw, "signature") && !isRecord(raw.signature)) {
+    out.push(["signature", twinSig === null ? null : sameBytes(raw.signature, twinSig)]);
+  }
+  if (present(raw, "signature_envelope")) {
+    out.push(["signature_envelope", sameJson(raw.signature_envelope, sigObj)]);
+  }
+  return out;
+}
+
+/**
+ * The signed-bytes copies and the carried key against what verified.
+ * `keyBytes` is the key the signature verified under, null when it did not.
+ * The digest and the key are compared only then: before that, msg need not be
+ * the signed bytes, so a difference proves nothing.
+ */
+function byteCopyOutcomes(
+  raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null,
+): CopyOutcome[] {
+  const out: CopyOutcome[] = [];
+  if (present(raw, "message_b64")) out.push(["message_b64", sameBytes(raw.message_b64, msg)]);
+  if (present(raw, "message_sha256")) {
+    out.push(["message_sha256", keyBytes === null ? null : raw.message_sha256 === sha256Hex(msg)]);
+  }
+  if (present(raw, "public_key_b64")) {
+    out.push(["public_key_b64", keyBytes === null ? null : sameBytes(raw.public_key_b64, keyBytes)]);
+  }
+  return out;
+}
+
+/** A member named like a signed member must equal it; other names have no
+ * twin. The hosted type "signature" is no receipt type. */
+function strayOutcome(value: unknown, payload: Record<string, unknown>, name: string): boolean | null {
+  const twin = signedTwin(payload, name);
+  if (twin === null || (name === "type" && value === HOSTED_RESPONSE_TYPE)) return null;
+  return sameJson(value, twin);
+}
+
+/** Top-level strays, then extras inside the signature object. */
+function strayOutcomes(
+  raw: Record<string, unknown>, payload: Record<string, unknown>, sigObj: Record<string, unknown>,
+): CopyOutcome[] {
+  const top = Object.keys(raw).filter((k) => !OUTER_MEMBERS.has(k) && present(raw, k)).sort();
+  const extra = Object.keys(sigObj).filter((k) => !SIGNATURE_MEMBERS.has(k) && present(sigObj, k)).sort();
+  return [
+    ...top.map((k): CopyOutcome => [k, strayOutcome(raw[k], payload, k)]),
+    ...extra.map((k): CopyOutcome => [`signature.${k}`, strayOutcome(sigObj[k], payload, k)]),
+  ];
+}
+
+/** Fields a flat hash-mode receipt signs; its other members are unsigned. */
+const FLAT_SIGNED: ReadonlySet<string> = new Set([
+  "v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id",
+  "agent_id", "org_id", "policy_digest", "policy_decision",
+]);
+
+/** Framing a flat receipt's checks read: algorithm and anchors. */
+const FLAT_FRAMING: ReadonlySet<string> = new Set(["anchors", "algorithm"]);
+
+/** A flat hash-mode receipt: mode=hash, no payload object, a signature. */
+function isFlatHashReceipt(raw: Record<string, unknown>): boolean {
+  if (raw.mode !== "hash" || isRecord(raw.payload)) return false;
+  return pyTruthy(raw.signature_b64) || pyTruthy(raw.signature);
+}
+
+/** The signature string that verified, or a string with its bytes. */
+function flatSignatureUsed(raw: Record<string, unknown>, name: string): boolean {
+  const source = pyTruthy(raw.signature_b64) ? "signature_b64" : "signature";
+  if (typeof raw[name] !== "string" || typeof raw[source] !== "string") return false;
+  const verified = strictB64(raw[source]);
+  return name === source || (verified !== null && sameBytes(raw[name], verified));
+}
+
+/** Signed, framing, the verified signature, or the verifying kid. */
+function flatMemberBound(
+  raw: Record<string, unknown>, name: string, keyBytes: Uint8Array | null, keyKid: string | null,
+): boolean {
+  if (FLAT_SIGNED.has(name) || FLAT_FRAMING.has(name)) return true;
+  if (name === "signature_b64" || name === "signature") return flatSignatureUsed(raw, name);
+  return name === "key_id" && keyBytes !== null && typeof keyKid === "string" && raw[name] === keyKid;
+}
+
+/** A flat receipt has no copies; list the members it does not sign. */
+function flatOuterNote(
+  raw: Record<string, unknown>, keyBytes: Uint8Array | null, keyKid: string | null,
+): readonly ["PASS", string] {
+  const names = Object.keys(raw)
+    .filter((k) => present(raw, k) && !flatMemberBound(raw, k, keyBytes, keyKid))
+    .sort();
+  if (names.length === 0) return ["PASS", "no outer copies carried; the signed payload is the whole receipt"];
+  return ["PASS", `not signed, do not rely on: ${names.join(", ")}`];
+}
+
+function outerCopyOutcomes(
+  raw: Record<string, unknown>, payload: Record<string, unknown>,
+  sigObj: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null,
+): CopyOutcome[] {
+  const out = [
+    ...textCopyOutcomes(raw, payload), ...timeCopyOutcomes(raw, payload),
+    ...envelopeCopyOutcomes(raw, sigObj), ...byteCopyOutcomes(raw, msg, keyBytes),
+  ];
+  if (hasMember(raw, "compliance_mode")) out.push(["compliance_mode", raw.compliance_mode === true]);
+  return [...out, ...strayOutcomes(raw, payload, sigObj)];
+}
+
+function signedLabel(member: string): string {
+  if (hasMember(OUTER_SIGNED_LABEL, member)) return OUTER_SIGNED_LABEL[member];
+  return member.startsWith("signature.") ? member.slice("signature.".length) : member;
+}
+
+function outerCopyNote(outcomes: CopyOutcome[], raw: Record<string, unknown>): readonly ["PASS" | "FAIL", string] {
+  const bad = outcomes.filter(([, ok]) => ok === false).map(([m]) => m);
+  const unattested = outcomes.filter(([, ok]) => ok === null).map(([m]) => m);
+  unattested.push(...OUTER_UNATTESTED.filter((m) => hasMember(raw, m)));
+  if (bad.length > 0) {
+    const named = bad.map((m) => `${m} (signed: ${signedLabel(m)})`).join(", ");
+    return ["FAIL", `outer copies disagree with the signed payload: ${named}; rely on the signed payload, not on the copies`];
+  }
+  const agreed = outcomes.filter(([, ok]) => ok === true).map(([m]) => m);
+  const parts: string[] = [];
+  if (agreed.length > 0) {
+    parts.push(`outer copies agree with the signed payload: ${agreed.join(", ")}`);
+  }
+  if (unattested.length > 0) {
+    parts.push(`not signed, do not rely on: ${unattested.join(", ")}`);
+  }
+  return ["PASS", parts.join("; ") || "no outer copies carried; the signed payload is the whole receipt"];
+}
+
+/**
+ * Compare the plain copies an exported entry carries with the signed values
+ * they restate (mirrors `check_outer_copies`). No signature covers a copy, so
+ * any disagreement FAILs and the verdict is unverified with class invalid. A
+ * member with no signed counterpart is listed, never trusted. `raw` is the
+ * entry as received, `msg` the canonical signed bytes, `keyBytes` the key the
+ * signature verified under (null when it did not verify). The signature copies
+ * are weighed against the normalised signature object, the one the signature
+ * axis used. A flat hash-mode receipt lists the members it does not sign,
+ * including a `key_id` other than `keyKid`, the kid of the key that verified.
+ */
+export function checkOuterCopies(
+  raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null = null, keyKid: string | null = null,
+): readonly ["PASS" | "FAIL", string] {
+  const payload = raw.payload;
+  if (!isRecord(payload)) {
+    if (isFlatHashReceipt(raw)) return flatOuterNote(raw, keyBytes, keyKid);
+    return ["PASS", "no signed payload object; no outer copies compared"];
+  }
+  const sigObj = normaliseEnvelope(raw).signature;
+  const signature = isRecord(sigObj) ? sigObj : {};
+  return outerCopyNote(outerCopyOutcomes(raw, payload, signature, msg, keyBytes), raw);
+}
+
 // True once the signed expiry sits in the past (mirrors signature_expired). A negative
 // delta from the wall clock, so the verdict never depends on which verifier runs.
 function expiryLapsed(deltaSeconds: number): boolean {

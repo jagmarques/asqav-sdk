@@ -94,6 +94,11 @@ REQUIREMENTS = {
         "statement": "Use the defined keyed construction when hash_algo selects it; a keyed digest without holder key material is unverifiable, never a mismatch.",
         "axis": "payload_digest",
     },
+    "REQ-OUTER-COPIES": {
+        "section": "audit-pack-export",
+        "statement": "An exported entry's plain copies of signed values must equal the signed payload; a copy that disagrees fails the verdict, because no signature covers it.",
+        "axis": "outer_copies",
+    },
     "REQ-COUNTERPARTY": {
         "section": "counterparty-binding",
         "statement": "Weigh a counterparty_binding rather than letting the corroboration claim ride unchecked.",

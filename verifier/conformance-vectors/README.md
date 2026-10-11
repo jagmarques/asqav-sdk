@@ -135,8 +135,27 @@ covers it.
 - `asqav-32-counterparty-anchors-included` — unverified (counterparty_mismatch)
 - `asqav-33-counterparty-scope-absent` — unverified (counterparty_legacy_scope)
 - `asqav-34-counterparty-scope-unknown` — unverified (counterparty_unrecognised_scope)
+- `asqav-35-counterparty-peer-swapped` — unverified (counterparty_kid_mismatch)
+- `asqav-36-counterparty-origin-forged` — unverified (counterparty_mismatch)
+- `asqav-37-counterparty-divergent-terms` — unverified (counterparty_mismatch)
+- `asqav-38-counterparty-received-only` — unverified (counterparty_malformed)
+- `asqav-39-counterparty-cross-replay` — unverified (counterparty_mismatch)
 - `asqav-37-unregistered-namespace-reported` — unverified (unregistered_namespace)
 - `asqav-38-unknown-member-preserved` — verified
+- `asqav-39-absent-version` — unverified
+- `asqav-40-unrecognised-version` — unverified
+- `asqav-41-hash-unrecognised-version` — unverified
+- `asqav-42-keyed-digest-unverifiable` — unverified (payload_digest_unchecked)
+- `asqav-43-outer-copies-agree` — verified
+- `asqav-44-outer-signed-at-edited` — unverified (outer_copy_mismatch)
+- `asqav-45-outer-agent-id-edited` — unverified (outer_copy_mismatch)
+- `asqav-46-outer-action-type-edited` — unverified (outer_copy_mismatch)
+- `asqav-47-outer-message-copy-edited` — unverified (outer_copy_mismatch)
+- `asqav-48-outer-public-key-edited` — unverified (outer_copy_mismatch)
+- `asqav-49-outer-flat-signature-agree` — verified
+- `asqav-50-outer-flat-signature-agent-id-edited` — unverified (outer_copy_mismatch)
+- `asqav-51-outer-envelope-signature-action-type-edited` — unverified (outer_copy_mismatch)
+- `asqav-52-outer-flat-hash-unsigned-members` — verified
 <!-- vectors-list:end -->
 
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;
