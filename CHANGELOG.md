@@ -51,13 +51,18 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   such as `0.5` still verifies. A cloud receipt can carry such a number in the
   `metadata` values of a hash-mode receipt, for example a `timestamp` sent as
   `1791676800.0`.
-- **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 39 receipts signed with
+- **Signed parity fixtures.** `verifier/verdict-parity-cases` holds 41 receipts signed with
   a local key over `1e-07`, the 1e16 zone, `-0.0`, `500.0` and `0.5`, respelled and
   tampered, plus signed integers `500` and `0` respelled as `500.0`, `5e2`, `0.0`, `-0`
-  and `-0.0`, and a signed `-0.0` respelled `-0`. A Python test and a TypeScript test
-  assert one outcome per case from every verifier, and the counterparty binding label from
-  raw text, the float-preserving parser and `JSON.parse`. No conformance vector changes
-  its verdict.
+  and `-0.0`, and signed `-0.0` and `0.0` respelled `-0`. A Python test and a TypeScript
+  test assert one outcome per case from every verifier, including `verifyReceiptOffline`
+  given `parseJsonPreservingFloats` values, and the counterparty binding label from raw
+  text, the float-preserving parser and `JSON.parse`. No conformance vector changes its
+  verdict.
+- **`verifyReceiptOffline` reads a `-0` in a float-preserving value as Python does.** Given
+  `parseJsonPreservingFloats` output, it refused every `-0` as `unverifiable`. That parser
+  keeps `-0.0` as a float, so a plain `-0` there is the integer Python reads as `0`, and
+  the receipt now gets Python's verdict.
 - **TypeScript `canonicalJson` writes a plain fraction as Python does.** 0.10.11 gave the
   Python spelling only to a float-preserving value and left plain `JSON.parse` input as
   JavaScript writes it, so `computeEnvelopeHash` and `verifyCounterpartyBinding` returned
@@ -65,8 +70,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   origin came from `JSON.parse`. A plain fraction is now written as `1e-07` and `1e-05`.
   Both functions also accept the origin as raw JSON text and read it as Python does, so
   `-0` hashes as `0` and `-0.0` as `-0.0`. A `JSON.parse` origin holding `-0` reports
-  `unresolved` (`computeEnvelopeHash` throws `counterparty_origin_unavailable`), since it
-  could have been either. A whole-valued float such as `500.0` still reads back from
+  `unresolved`, since it could have been either, and `computeEnvelopeHash` and
+  `computeCounterpartyBinding` throw `counterparty_origin_unavailable` for it. A whole-valued float such as `500.0` still reads back from
   `JSON.parse` as `500`, so that binding stays `mismatch`, and an origin that signed the
   integer `500` but is respelled `500.0` reports `matches` there while Python reports
   `mismatch`. Pass raw text or a `parseJsonPreservingFloats` value to get Python's answer.
