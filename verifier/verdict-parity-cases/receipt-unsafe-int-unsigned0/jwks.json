@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "verdict-parity-747",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "PR40Qeq7m3KmvzleoY9xhdNBWbktgSVdb62wFN62sEc="
+    }
+  ]
+}
