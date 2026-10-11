@@ -1,4 +1,4 @@
-# Microsoft Agent Governance Toolkit: Asqav as the independent signer
+# Microsoft Agent Governance Toolkit: Asqav as an independent witness
 
 Microsoft's Agent Governance Toolkit (AGT) can sign a receipt for every MCP tool
 call it governs. Each receipt records the Cedar decision for one call, is signed
@@ -11,10 +11,28 @@ that means:
 
 (AGT, `docs/proposals/verifiable-compliance-receipts.md`)
 
-The `asqav.agt_receipts` module records each AGT receipt in an Asqav receipt,
-signed by the Asqav service with Asqav's key, and links the two. Whoever runs the
-agent can rewrite and re-sign their own AGT receipt. They cannot produce a matching
-Asqav receipt for the rewritten one.
+The `asqav.agt_receipts` module records each AGT receipt in an Asqav receipt and
+links the two. The Asqav receipt is signed and timestamped by the Asqav service,
+under your org's Asqav key, outside the agent's process. Asqav does not evaluate
+the Cedar decision or the tool arguments; it witnesses the receipt.
+
+## What the Asqav receipt proves
+
+It proves that an AGT receipt with this exact payload digest existed when Asqav
+signed, and that your Asqav org recorded it then.
+
+It does not stop the operator from rewriting history. Whoever runs the agent
+holds the AGT key and the Asqav API key, so they can rewrite a receipt, re-sign
+it with AGT and countersign it again. The new Asqav receipt carries a later
+timestamp, and the first one stays in that Asqav agent's chained record. A
+rewrite therefore shows up as a second, later Asqav receipt for the same AGT
+receipt id. An auditor finds it by reading the agent's Asqav record, not by
+checking one link.
+
+It also does not prove that the decision was right, that the receipt was honest
+before its first countersign, or that the tool call happened. In hash-only mode
+(the default against the Asqav cloud) Asqav sees only a digest of the link. The
+Asqav key is held by the Asqav service, not in a hardware security module.
 
 ## Versions
 
@@ -32,7 +50,20 @@ Asqav receipt for the rewritten one.
 pip install "asqav[agt]"
 ```
 
-Add `asqav[verify]` as well to check Asqav signatures offline.
+Add `asqav[verify]` as well; `verify_asqav_link` checks Asqav signatures with it.
+
+AGT 5.0.0 requires `cryptography<50`, so this install downgrades `cryptography`
+to 49.0.0 in the whole environment. That release is affected by
+GHSA-g6cj-pr64-35w5 (CVE-2026-69247), a padding oracle in PKCS#7 EnvelopedData
+decryption that 50.0.0 fixes. Neither this module nor AGT's receipt code calls
+PKCS#7 decryption, but other code in the same environment might. Pip
+constraints cannot lift an upper bound, so either install the extra in its own
+environment or override the pin with uv; this module's tests pass on 50.0.0:
+
+```bash
+echo "cryptography>=50.0.0" > overrides.txt
+uv pip install --override overrides.txt "asqav[agt]"
+```
 
 ## Countersign an AGT receipt (any AGT release)
 
@@ -52,9 +83,9 @@ print(link.signature_id, link.verification_url)
 ```
 
 `countersign` runs AGT's own `verify_receipt` first and refuses a receipt AGT
-rejects. The Asqav receipt binds the AGT receipt id, its payload hash and the
-AGT signer key. Store `link.asqav_receipt` (a JSON-safe dict) next to AGT's
-exported receipts; `signer.links` keeps every link by AGT receipt id.
+rejects. The Asqav receipt binds the AGT receipt id, its payload hash, the AGT
+signer key and the Cedar decision. Store `link.asqav_receipt` (a JSON-safe dict)
+next to AGT's exported receipts; `signer.links` keeps every link by AGT receipt id.
 
 ## Use Asqav as AGT's external authorizer (AGT with `authorize_receipt`)
 
@@ -75,8 +106,18 @@ print(receipt.assurance_level, receipt.authorizer_id)
 For each tool call the signer gets an Asqav receipt over the AGT receipt plus a
 fresh nonce, an expiry and the authorizer public key. It then calls AGT's
 `authorize_receipt` with `authorizer_id` set to `asqav:<signature_id>`. AGT's
-signed authorization payload covers `authorizer_id`, so AGT's own verifier
-carries the Asqav reference, and any edit to it breaks AGT's check.
+signed authorization payload covers `authorizer_id`, so any edit to it breaks
+AGT's check.
+
+An authorization needs an `allow` from Asqav, so register an Asqav policy that
+allows `agt:authorize`. Without one, Asqav records an observation, and the
+signer refuses to authorize.
+
+The Ed25519 authorization AGT checks is made with `authorizer_key_hex`, a key
+you hold, so AGT's `require_external_authorization=True` passes without
+consulting Asqav. The Asqav receipt that `authorizer_id` names is the
+independent evidence, and only `verify_asqav_link` checks it. Run the signer in
+a separate service from the agent so the agent process never holds that key.
 
 ## Verify
 
@@ -94,35 +135,36 @@ errors = verify_receipt_chain(
 jwks = asqav.fetch_jwks()
 asqav_receipts = {rid: link.asqav_receipt for rid, link in signer.links.items()}
 for receipt in receipts:
-    errors += verify_asqav_link(receipt, asqav_receipts[receipt.receipt_id], jwks=jwks)
+    errors += verify_asqav_link(
+        receipt, asqav_receipts[receipt.receipt_id], jwks=jwks, expected_org=ASQAV_ORG_ID
+    )
 assert errors == []
 ```
 
 Drop `trusted_authorizer_keys` and `require_external_authorization` for
-countersigned receipts; AGT 5.0.0 does not accept them. `verify_asqav_link` recomputes the Asqav `action_ref`
-from the AGT receipt and compares it with the one Asqav signed. For an
-authorized receipt it also checks that `authorizer_id` names that Asqav receipt.
-With a JWKS it checks the Asqav signature and signing key offline. For the full
-Asqav verdict, anchors included, run `asqav.verify_receipt_offline` on the
-Asqav receipt.
+countersigned receipts; AGT 5.0.0 does not accept them.
 
-## What the link proves
+`verify_asqav_link` returns an empty list only when the Asqav signature and
+signing key verify against the JWKS, the signed `action_ref` matches one
+recomputed from the AGT receipt, and the signed decision fits the link: `allow`
+for an authorization, `allow` or `observation` for a countersign. Called without
+a JWKS it refuses. `expected_org` pins the Asqav org, so a receipt from another
+org's account fails. For an authorized receipt it also checks that
+`authorizer_id` names the Asqav receipt; that id sits outside the signed
+payload, and the cryptographic binding is the `action_ref`. For the full Asqav
+verdict, anchors included, run `asqav.verify_receipt_offline` on the Asqav
+receipt.
 
-- The Ed25519 authorization AGT checks is made with `authorizer_key_hex`, a key
-  you hold. Asqav's service signs its own ML-DSA-65 receipt and does not sign
-  AGT's bytes, so the independent evidence is the Asqav receipt that
-  `authorizer_id` names. Run the signer in a separate service from the agent so
-  the agent process never holds the authorizer key.
+## Behaviour notes
+
 - Whoever holds the authorizer key can re-authorize a receipt with a new nonce
   or expiry, and AGT's check still passes. `verify_asqav_link` fails for it,
   because the Asqav receipt binds the original nonce and expiry.
-- Signing fails closed. A receipt AGT rejects, an Asqav error, a `deny` or
-  `rate_limit` decision from your Asqav policy, or an Asqav receipt that does
-  not bind the AGT receipt raises `AgtSigningError`. As an external authorizer,
-  that also stops AGT's adapter from storing the receipt.
-- With no Asqav policy for `agt:countersign` or `agt:authorize`, Asqav records
-  the receipt as an observation instead of a policy decision.
-- In hash-only mode (the default against the Asqav cloud) only a digest of the
-  link context leaves your network.
+- Signing fails closed. A receipt AGT rejects, an Asqav error, a decision the
+  link does not accept, or an Asqav receipt that does not bind the AGT receipt
+  raises `AgtSigningError`. As an external authorizer, that also stops AGT's
+  adapter from storing the receipt.
+- With no Asqav policy for `agt:countersign`, Asqav records the countersign as
+  an observation, which `countersign` accepts.
 - The nonce is a correlation value. Replay prevention across sessions needs
   durable nonce tracking on your side, as AGT's README notes.

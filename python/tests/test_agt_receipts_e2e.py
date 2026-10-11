@@ -269,7 +269,7 @@ def test_forged_asqav_receipt_fails_the_signature_axis(stub: _AsqavStub) -> None
     (receipt,) = _agt_receipts(seed, "read_file")
     link = AsqavAgtSigner().countersign(receipt)
     forged = json.loads(json.dumps(link.asqav_receipt))
-    forged["payload"]["decision"] = "deny"
+    forged["payload"]["policy_digest"] = "sha256:" + "4" * 64
     errors = verify_asqav_link(receipt, forged, jwks=stub.jwks())
     assert errors == ["Asqav receipt signature axis FAIL: signature mismatch"]
     other = _AsqavStub()
@@ -287,13 +287,74 @@ def test_unbound_asqav_response_fails_closed(stub: _AsqavStub) -> None:
         AsqavAgtSigner().countersign(receipt)
 
 
-@pytest.mark.parametrize("decision", ["deny", "rate_limit"])
+@pytest.mark.parametrize("decision", ["deny", "rate_limit", "unknown"])
 def test_refused_asqav_decision_fails_closed(stub: _AsqavStub, decision: str) -> None:
     seed, _ = _seed()
     (receipt,) = _agt_receipts(seed, "read_file")
     stub.decision = decision
     with pytest.raises(AgtSigningError, match="asqav_decision_refused"):
         AsqavAgtSigner().countersign(receipt)
+
+
+def test_observation_is_an_accepted_countersign(stub: _AsqavStub) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    stub.decision = "observation"
+    link = AsqavAgtSigner().countersign(receipt)
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=stub.jwks()) == []
+
+
+def test_verify_refuses_without_key_material(stub: _AsqavStub) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    refused = ["Asqav signature not checked: pass the Asqav JWKS (asqav.fetch_jwks())."]
+    assert verify_asqav_link(receipt, link.asqav_receipt) == refused
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=None) == refused
+    unsigned = {"payload": dict(link.asqav_receipt["payload"])}
+    assert verify_asqav_link(receipt, unsigned) == refused
+    errors = verify_asqav_link(receipt, unsigned, jwks=stub.jwks())
+    assert errors and all("action_ref" not in e for e in errors)
+
+
+@pytest.mark.parametrize("decision", ["deny", "rate_limit"])
+def test_verify_rejects_a_signed_refusal(stub: _AsqavStub, decision: str) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    AsqavAgtSigner().countersign(receipt)
+    stub.decision = decision
+    refusal = stub.mint(stub.sign_posts[0])
+    assert verify_asqav_link(receipt, refusal, jwks=stub.jwks()) == [
+        f"Asqav decision {decision!r} does not support {COUNTERSIGN_ACTION}."
+    ]
+
+
+def test_expected_org_pins_the_asqav_org(stub: _AsqavStub) -> None:
+    seed, _ = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    link = AsqavAgtSigner().countersign(receipt)
+    jwks = stub.jwks()
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=ORG) == []
+    other = "44444444-4444-4444-8444-444444444444"
+    errors = verify_asqav_link(receipt, link.asqav_receipt, jwks=jwks, expected_org=other)
+    assert errors == [f"Asqav receipt is not from org {other} (got ['{ORG}'])."]
+
+
+def test_operator_recountersign_shows_as_a_second_later_receipt(stub: _AsqavStub) -> None:
+    seed, agt_pub = _seed()
+    (receipt,) = _agt_receipts(seed, "read_file")
+    signer = AsqavAgtSigner()
+    first = signer.countersign(receipt)
+    rewritten = _reload(receipt)
+    rewritten.args_hash = agt.hash_tool_args({"path": "/etc/shadow"})
+    agt.sign_receipt(rewritten, seed)
+    second = signer.countersign(rewritten)
+    assert verify_asqav_link(rewritten, second.asqav_receipt, jwks=stub.jwks()) == []
+    assert first.agt_receipt_id == second.agt_receipt_id
+    assert first.signature_id != second.signature_id
+    issued = [link.asqav_receipt["payload"]["issued_at"] for link in (first, second)]
+    assert issued[0] <= issued[1]
+    assert verify_asqav_link(receipt, second.asqav_receipt, jwks=stub.jwks()) != []
 
 
 def test_asqav_sign_error_fails_closed(stub: _AsqavStub) -> None:
@@ -310,8 +371,11 @@ def test_asqav_sign_error_fails_closed(stub: _AsqavStub) -> None:
 def test_verify_link_fails_clean_on_malformed_input(stub: _AsqavStub, bad: Any) -> None:
     seed, _ = _seed()
     (receipt,) = _agt_receipts(seed, "read_file")
-    assert verify_asqav_link(receipt, bad) == ["Asqav receipt has no signed payload."]
-    assert verify_asqav_link(object(), {"payload": {}})[0].startswith("AGT receipt cannot be bound")
+    assert verify_asqav_link(receipt, bad, jwks=stub.jwks()) == [
+        "Asqav receipt has no signed payload."
+    ]
+    errors = verify_asqav_link(object(), {"payload": {}}, jwks=stub.jwks())
+    assert any(e.startswith("AGT receipt cannot be bound") for e in errors)
 
 
 @pytest.mark.parametrize(
@@ -395,7 +459,7 @@ def test_agt_verifier_rejects_a_rewritten_asqav_reference(stub: _AsqavStub, prof
         require_external_authorization=True,
     )
     assert errors == ["[0] External authorization signature is invalid."]
-    assert verify_asqav_link(receipt, link.asqav_receipt) == [
+    assert verify_asqav_link(receipt, link.asqav_receipt, jwks=stub.jwks()) == [
         "AGT authorizer_id does not name this Asqav receipt."
     ]
 
@@ -416,6 +480,32 @@ def test_reauthorization_by_the_key_holder_breaks_the_asqav_link(stub: _AsqavStu
     ) == []
     assert verify_asqav_link(receipt, link.asqav_receipt, jwks=stub.jwks()) == [
         "Asqav receipt does not bind this AGT receipt (action_ref mismatch)."
+    ]
+
+
+def test_authorization_needs_an_asqav_allow(stub: _AsqavStub, profile) -> None:
+    seed, _ = _seed()
+    auth_seed, _ = _seed()
+    signer = AsqavAgtSigner(authorizer_key_hex=auth_seed)
+    adapter = _authorized_adapter(signer, seed)
+    stub.decision = "observation"
+    with pytest.raises(AgtSigningError, match="asqav_decision_refused: observation"):
+        adapter.govern_tool_call("did:x", "read_file")
+    assert adapter.store.count == 0
+
+
+@pytest.mark.parametrize("decision", ["observation", "deny"])
+def test_verify_rejects_a_non_allow_authorization(stub: _AsqavStub, profile, decision: str) -> None:
+    seed, _ = _seed()
+    auth_seed, _ = _seed()
+    signer = AsqavAgtSigner(authorizer_key_hex=auth_seed)
+    receipt = _authorized_adapter(signer, seed).govern_tool_call("did:x", "read_file")
+    link = signer.links[receipt.receipt_id]
+    stub.decision = decision
+    weaker = stub.mint(stub.sign_posts[0])
+    weaker["signature_id"] = link.signature_id
+    assert verify_asqav_link(receipt, weaker, jwks=stub.jwks()) == [
+        f"Asqav decision {decision!r} does not support {AUTHORIZE_ACTION}."
     ]
 
 
