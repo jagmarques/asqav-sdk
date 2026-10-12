@@ -104,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 62,
-    "action_ref": 58,
-    "policy_digest": 56,
-    "previousReceiptHash": 55,
+    "sig": 63,
+    "action_ref": 59,
+    "policy_digest": 57,
+    "previousReceiptHash": 56,
     "key_thumbprint": 3,
-    "payload_digest": 52,
+    "payload_digest": 53,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -162,6 +162,7 @@ PINNED_SIG = {
     'asqav-38-unknown-member-preserved': '+yaOF8LnW9HXyYyXPzMh1kYpHHEUJ+NP5GauLj2IuMUA4xBePHacPDmqAJPWDPO+cakz2wliO1ugetkopiV4BA==',
     'asqav-39-absent-version': 'MlyX1vS2F6s430FPIrS+Kc5aXwQ7ANtNe4U3d/NNfQTwd01X5r8ixvL8nNewaCpGOoPn5XDlb3qVLSasP02OAg==',
     'asqav-40-unrecognised-version': 'y5vFWXiO0t8EPVPqLWb2kcQ+14ARjzj/uoxF8M1U9oa7OxT/iAIU/d5QA7R3ovjp6JQ749INkSB1lIEDxt5LCQ==',
+    'asqav-42-revoked-before-issuance': 'ZI26b+6DmQ5GnkUSwTl/70PtQIHRtxuDiMjeFio39GXxqwkvBXFIN8U414P0gcAQIlMTAs6jeAqGHK7H3yEXDA==',
     'dsse-attestation-ml-dsa-65#signatures[0]': '0ZYmSnbpMGf1rAkIDa9qiIHzo9LcdhwC3+ox/pYrXADFKVRHoc9SIahGXnp3e91ekqSHucReLyW3mV30LXvhYiquI7phHP9XFt0KgbKqlP+XvQqsntepOBy2Y+hPy6EVeIF3OX3oZyTk9v7C1Brn/GbcjVEThtwZQjO5QgLlghZrESUsSEc7Vlr3SlWnNQ4tdywIG5KBKed4Nlw7tJvdoe52Wf2xG3TaVfK0nO7XCf6pnyk0lIKaFoOvapZf+MG9ZPfgnK76jz9iFpuixJRJBlNzd9lrT+tzGytbdEiXe3BHd1MftpT7y1bRNn9PiNaLat39Vw7SwIcubstD23wXsBU+TM0nUFc0RRj2sZjKBfHs97Z0MA3KNHKESwpZt4YWzKIgQ329sa7a740Mg7QxjqRR1sc4TXiiNd7dz67n6xf3OXo3EJnXAfwL3rEs/Pc83gw+kFZZmcNxdpY1ii+gKQP1+1zWiMx675gngwzgGvtUJ/S8wPURa4UZOEUfSminGkD+J4AMSI0EJX+K2S3nLFAvZN4ghqLVzaRYVc//Az1jYv2vpKSw/FEI/EZHJyb1Lutw0oITOcmjTgWl8IGrZQM7YtoHIYgKp7oYCSKcaqTGu0CkzmUVykwYsJXiE21YkBYkOiR0qyy2BYiRpCs/QXqQPVvlkZ2xM/LH5SLWGAZzte69UZtzalAIlCYVuwvtenXw7/61qu1EaVCYkH3/hrVrj7T8pKumkhk98to7oO3dP5cG4rh83oJTIDInCMFu35H1u0GX16QPdVwCXpYs/bo/UeXWv0ZY+Zh2t9SdLngH4fqxXSkL/Z5Du33jMiqSW80rx18iVUFRTSHsSDJtw4Sfb9uy4RjcxxuuyNaoB4U72nhuyZxPbB9NDQL1pagq0hgyn7Mj40EZH0fXjO6VJ/S/LfibF7TyK1ra6XL/5ZhJ6o6qsc/XSEKxL0JqQ+MzggwqQEwbtk53Ygmcqa/2jheprfVVndwKzTmhuklVwWevd9OYvWYr8qk6jjBqy0+6k/oF5wc7qExbMJ99ghaELz58LIPuxnbQt1d1HkYi44sX8xzeIV1rO6wKjKiuw0q9anKwl5pRc3sNrJDdhQZNJ4Ndh2MjzN/WcDH0v/FfFBsICXxGmdCZQpTm0HSAKSWHL1LgBAB/2R2N/0sJExFUCq3KaSYjjDVAessDoOPtGC1S3wF3Dh1mboH1rR/IUt1nR1qnPuowX0oN2/ByQGc1iUE1THfhwUJ6IKDeu3AZ9Rn1nLg+MtqmcsRsRpyY2Wo0N5jqwnL23Zir/ynpi3fzS/42ojfoyiORNUN0LJ6P+TjsPvZzF5ghEmzm0etFyN+3MVoqQmcKLlJADEdb67NRTJ0ID5AkUwNvjPbHDesZzLrLVSj53FNnju2UFsSdDMoOmj5xWjV01th0z3ukMmCeKIE4t+cJDD9ijR0vqswlyYAcdbKIVyF18A2xhu7s5lnvUgEvnKjrfKocFwfb2y6d9+UZNklfiFNASwBtoBx+CHPfGkDNoqbWw4YzHY18aGyQx7RzA/AIlwejVzDAtOJkDu3kdLjwCf727UmpIx4yMZEW4E2lFRkm2iqLaSA2MHtu1LlMfUZX04EYmEQXapPWpPJHQRcLP/T2nlM9tv+qQYW09t+/mqmYMYVMnjsPGxxh6FI4yqmHCTtU4NGdB5LRYq4vlJoPkpHSLs1h4Fs0Qt/YxRjAgUUW9+8A/bHH9MhQZdDbpkUufPvkiu2Uzx05vOIncAd5wCqzV+rtTh3jFZGeEbVLtVX+FWLTYQr1ihE3/pNyD2gKgW3Ym/mWA5gu0H7N8Mfi2e3O15MMVlXhKHRNv96L6OnFFeIePHflxxpp6oLPq4W1eW9af7a8DzX7ekBQ6/R0po3Q3OdwO6oBT8iOvlXvn8mJcZVzfNV2W6MOk+2oGVzepZq9KarOc3W+3zHVwAfgSnB51VvN3JfIiORsn81qz6J0FOKBCeeTG/lID+RYMjYN2VOtZErDDXvAG7Kc65BC4uXHsPj1CiLsBsnhdafcC0VbyWX6wMdR0DdC9sRC7Q+yXa+e3nbpEggJQltb9am74ciciWhjnwlEMrURyNMJSB82tEIF1776PI9rAsmeTwqt/PV2U7XhQhUBEff63Iv4lVbtnImXf9tNsvppxL8jnCd6il9DPRvie5ixmSN6YW9Ngj3UQh9EIBx13vLnIX1d5NbJUraflHjakZRa9P27owp6D6M4goddVJz+kuzRXa6POkyz/6wRe3f+jjcAdcJLey1Wi8eAZXkbjN3lDjWnSeFg9YFT1inVeRytKMdFZu/opKjpXrQwKCqfHvm2mqAzy0ykaqqmQxjMVrk5zkjfiNzBgEUT5p/HWq+7ejZUClnNDHFVleURpEs+OemfNRMsR9Ps7kubqm2v29+6YodQLCLcne+O4trWjjmH6cBNsprz3qM1xsdGaRL7Qt4mNf1wlyxsYsgr4zBTM944JMRPj1hJoXN9B8ZUirHiao0qPMSlS1YaSxerNoV8MXHcrpeZFJgL2ykN5rdBGDekppYRpPe+DNL+sg0bIrx2dYZVPRLE7oIeYJTQkPS4o6wlNn+KAkot7Y1Q5Opbv74fCG+IEQkjsoDOmO/UavNsMamXecnVx8fgqDxCF5zuxcwfBF4b0vrwuKn+UqqP/qcPDFhXz0z1oJy3CL2YB+lwFpSvluCbjFrlQyAbzr0JudvgSqsXMqFnd9dFbdNdGd5/n6Y/Ipz2urXXPGiSXXv4UYHhuLO+s2hnIJdvUL/0V3y1TRcezyoz4Cji7bBy7cFOWHoMbVbaTktXOm5LFwbUYXIrLbk8dlbKVN3y+71xJcBOo6zD0ydGMNQ53UE09KNXSfx9GUnuJBxSH25OHyMUQ0tPncytCf+1AVcvUxHknKWtRzsx41d+LPoMgMlZHouWsmLiqL3tYsSCa1xOVJCqCzi+Zl0VwHdliK0yjDZ57g9FtEWtXxrWCY5SUhoBKv2WMTaLl4IYJ+lN09wRSbeETuBubpNL+i6jhUUobYsFtsPVFPJOdZSNnM4ZLHhvX5qc5X3avXZttpqMl+GdE5IMZCQtT89W8WAWGA2+7jrMKr4rJIsfiX4Yx2ediR7gTeunorifBy9WX3rF8BlDQqpPaUuxSomtJ0/62MVup7JjOk59qAK5Gt1DVvSOy6iyzRu+DwxyUrjTJ+iFqqyIggdmFj3OCbCwpTkE7urETVSK8oo1TsUE5IgSf4Lp3P4mvtPwhRxIRWGC3AuSXD9PWvI0bHYlkejlzsIDqOv1NHELIgoczosjgF4e1f1USnZIkytBzzkMiaYkUy21wyCzpYmf+xTSBs6UkPWM/PXjFBdw9ZhJELhEhQjOVObeUtAJ3aKnc+t5l9Blr5K2+a8eAV7KX6NUxToOtWWH8leKFxtx1/jKuFMgqWD61bwaX0wNFzyeWrWU5H4RkBRuyOor0VRfhkyx4z5Lmn8L0amAXHEF/u7XYAJXWfPbEyX3OpsiZhrUFcii+lE8dT2/bk8SKVTtO3FKxFNxa+OirpkYhw7lwAdsv+2u64RaUqt6IKN7EETbNMi2+xNtQcm2Bm7brKNbGJ2HpadmY9A0x+tKoIk8fJGNj98dE5P/krjolR97M/Mnl9o8DLcy7vn8cGgcnI6jWzFQk4oWwxkIawBv0nh4QvbnR9OFKmW/6V0EnyaPYWUZf/lC1U6FsleEF2bodFs6K9XNGa7Uz+XpX7Spyuk6ZEJiHt3/nnKwXa6X4ZfPOsiuNAjYiAnC+le9Ey3Asf0qZ7M5DQB4x/BmiUmMxsNRPAOxlifaYFG7a0BrEEpU3wSX2L0u+WJA35KkfsaEWqFxFi6Z6KO/amOcMvKdu5O7/fT997rKXh2vNha+fuRjz9UUMMOfniPLgVZ6ilkKr/tSpYjsKPWWNX51ji9APoxSDBzyiptBsu3D9V3a8i6h0y4m3Fazem5JJX5ngF8kOJShUjWPci/VhdsAnZhz58wYUMZUI+wZfYibZuaWUg4y8vdihywT2KTeFTXx1+4CArOzrqICWBJnN+PSzc1LpuQS4v3HEMFbzZGnXuqhqq67HIR8XhN2cjFRDR7X2J2TnvmcfCj1PphrHlb9Qv+NbdP7t4p9WX1w/titfbHWrEDQ3g6lvCYXvk05cw0gt99Qru67HLairk+gfHp+Zmi2qo4TqdMXPt2xULnvEPWpedhOSH0nagQcHv/qaq56GfirAu3RRi3uJgsyZGa16pXKn/d3saa339RyJLxLbqJV3oVJ28lpuB11aPoLQbtmmma3Byi4XDjRI4THCEX8jrtlSZsUvYsXgjM+FY7BOX42s2rAyCQTJ5ahpri90tryBj9EVm1ym0R1wcPTSHSPmd/xSFdglJ7INDVebqqzvMLc8gAAAAAAAAAAAAAAChEWHCIs',
     'asqav-35-counterparty-peer-swapped': 'dpnsZxkq5OxE6gNGqD99hbim5UCQ7ndVUP0yqs5cfTSNFZ8qa5fGbM3G8usDqSbuqSl9zjfwiO+ChAb/eJ4ZBg==',
     'asqav-36-counterparty-origin-forged': 'CaXqppYvh1nnO29VnjKNwBttWUtXOQdD4/5zfI5CTzzzn5dvLkkOIU4GPaGu0m9OY1ZYctQwxgcgiXwuoZBnBg==',
@@ -222,6 +223,7 @@ PINNED_ACTION_REF = {
     'asqav-38-counterparty-received-only': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
     'asqav-39-counterparty-cross-replay': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
     'asqav-42-keyed-digest-unverifiable': 'sha256:24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9',
+    'asqav-42-revoked-before-issuance': 'sha256:c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124',
 }
 
 #: Published `policy_digest` strings, verbatim. Hash-mode receipts carry it at
@@ -273,6 +275,7 @@ PINNED_POLICY_DIGEST = {
     'asqav-38-counterparty-received-only': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
     'asqav-39-counterparty-cross-replay': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
     'asqav-42-keyed-digest-unverifiable': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    'asqav-42-revoked-before-issuance': 'sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7',
 }
 
 #: Published `previousReceiptHash` strings, verbatim. Genesis vectors pin the
@@ -324,6 +327,7 @@ PINNED_PREV_HASH = {
     'asqav-38-counterparty-received-only': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-39-counterparty-cross-replay': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-42-keyed-digest-unverifiable': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-42-revoked-before-issuance': '0000000000000000000000000000000000000000000000000000000000000000',
 }
 
 #: Published `key_thumbprint` strings, verbatim.
@@ -380,6 +384,7 @@ PINNED_PAYLOAD_DIGEST = {
     'asqav-38-counterparty-received-only': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
     'asqav-39-counterparty-cross-replay': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
     'asqav-42-keyed-digest-unverifiable': {'hash': '24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9', 'size': 25},
+    'asqav-42-revoked-before-issuance': {'hash': 'c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124', 'size': 101},
 }
 
 #: Published counterparty `envelope_hash` strings, verbatim. `asqav-32` pins
