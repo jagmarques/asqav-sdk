@@ -20,6 +20,8 @@ TERMS = {
 }
 LICENSE_FILES = ["LICENSE", "NOTICE", "licenses/Apache-2.0.txt"]
 VERIFIER = "asqav/verifier/verify_receipt.py"
+CORPUS_DIR = "asqav/conformance_vectors"
+CORPUS_MIN_EXPECTED = 93
 
 
 def require(condition: bool, message: str) -> None:
@@ -96,6 +98,16 @@ def check_archive(path: Path, expected: dict[str, bytes]) -> None:
     require(
         members.get(verifier_path) == expected[VERIFIER], "standalone verifier or header changed"
     )
+    check_corpus(members)
+
+
+def check_corpus(members: dict[str, bytes]) -> None:
+    """The archive must carry the conformance corpus it verifies against."""
+    expected = [name for name in members if name.endswith("expected.json")]
+    require(len(expected) >= CORPUS_MIN_EXPECTED, f"corpus too small: {len(expected)}")
+    for name in ("NOTICE", "LICENSE"):
+        matches = [m for m in members if m.endswith(f"{CORPUS_DIR}/{name}")]
+        require(len(matches) == 1, f"corpus {name} missing or duplicated")
 
 
 def main(argv: list[str] | None = None) -> int:
