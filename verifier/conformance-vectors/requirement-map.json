@@ -8,7 +8,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -24,7 +24,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -40,7 +40,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -56,7 +56,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "FAIL",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -75,7 +75,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -91,7 +91,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "SKIPPED",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -107,7 +107,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -123,7 +123,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "FAIL",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -142,7 +142,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "FAIL",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -158,7 +158,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -174,7 +174,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "FAIL",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -190,7 +190,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -206,7 +206,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -222,7 +222,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -238,7 +238,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -254,7 +254,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -270,7 +270,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -286,7 +286,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -302,7 +302,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -318,7 +318,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "FAIL",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -334,7 +334,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -350,13 +350,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -366,7 +366,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -382,7 +382,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "FAIL",
@@ -398,7 +398,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -417,7 +417,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -433,13 +433,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -449,13 +449,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "FAIL",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -465,13 +465,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "SKIPPED",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -481,13 +481,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "SKIPPED",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -497,13 +497,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "FAIL",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -513,7 +513,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -529,13 +529,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "FAIL",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -545,7 +545,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -561,13 +561,13 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "FAIL",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -577,7 +577,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -593,13 +593,29 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "FAIL",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-38-protectmcp-unknown-invalid": {
+      "structure": "FAIL",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "SKIPPED",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -609,7 +625,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -625,7 +641,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -641,13 +657,29 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "FAIL",
       "payload_digest": "PASS",
       "outer_copies": "PASS",
       "chain": "PASS",
-      "anchors": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-39-malformed-type": {
+      "structure": "FAIL",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "SKIPPED",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -657,7 +689,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -676,7 +708,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "SKIPPED",
@@ -692,7 +724,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "FAIL",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -708,7 +740,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -724,7 +756,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -740,7 +772,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -756,7 +788,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -772,7 +804,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -788,11 +820,11 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
-      "outer_copies": "FAIL",
+      "outer_copies": "PASS",
       "chain": "PASS",
       "anchors": "SKIPPED",
       "skew": "PASS",
@@ -804,7 +836,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -820,7 +852,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -836,7 +868,7 @@
       "issuer_key": "PASS",
       "issuer_bind": "PASS",
       "key_status": "PASS",
-      "signature": "PASS",
+      "signature": "SKIPPED",
       "key_binding": "PASS",
       "counterparty": "PASS",
       "payload_digest": "PASS",
@@ -943,12 +975,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-02-genesis-deny": {
@@ -966,12 +998,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-03-chain-link": {
@@ -989,12 +1021,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-04-tamper-sig": {
@@ -1012,12 +1044,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-05-hash-mode-prod": {
@@ -1057,12 +1089,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-07-revoked-key": {
@@ -1079,13 +1111,13 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
         "REQ-ANCHOR",
-        "REQ-KEY-STATUS"
+        "REQ-KEY-STATUS",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-08-v2-signer-canary": {
@@ -1103,12 +1135,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-09-v2-signer-tampered": {
@@ -1126,12 +1158,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-10-hash-mode-multikey": {
@@ -1171,12 +1203,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-12-time-edge-expiry": {
@@ -1194,12 +1226,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-13-dup-member-nested": {
@@ -1217,12 +1249,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-14-omitted-action-chain": {
@@ -1240,12 +1272,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-15-unsigned-gap": {
@@ -1263,12 +1295,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-16-chain-emission-blocked": {
@@ -1286,12 +1318,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-17-seq-contiguous": {
@@ -1309,12 +1341,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-18-seq-gap": {
@@ -1332,12 +1364,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-19-seq-non-monotonic": {
@@ -1355,12 +1387,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-20-seq-absent": {
@@ -1378,12 +1410,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-21-key-thumbprint-binds": {
@@ -1401,12 +1433,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-22-key-substituted": {
@@ -1424,12 +1456,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-23-anchor-status-pending": {
@@ -1447,19 +1479,18 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-24-anchor-block-hash-prod": {
       "declared_outcome": "verified",
-      "observed_verdict": "verified",
+      "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1471,11 +1502,13 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-25-payload-digest-rederives": {
       "declared_outcome": "verified",
@@ -1492,12 +1525,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-26-payload-digest-mismatch": {
@@ -1515,12 +1548,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-27-anchors-absent": {
@@ -1538,12 +1571,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-28-anchors-null-malformed": {
@@ -1584,19 +1617,18 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-31-counterparty-scope-match": {
       "declared_outcome": "verified",
-      "observed_verdict": "verified",
+      "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1608,17 +1640,18 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-32-counterparty-anchors-included": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1630,17 +1663,18 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-33-counterparty-scope-absent": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
@@ -1651,19 +1685,19 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-COUNTERPARTY"
+        "REQ-ANCHOR",
+        "REQ-COUNTERPARTY",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-34-counterparty-scope-unknown": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
@@ -1674,19 +1708,19 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-COUNTERPARTY"
+        "REQ-ANCHOR",
+        "REQ-COUNTERPARTY",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-35-counterparty-peer-swapped": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1698,11 +1732,13 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-35-invocation-ref-binds-pre-post": {
       "declared_outcome": "verified",
@@ -1719,19 +1755,18 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-36-counterparty-origin-forged": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1743,11 +1778,13 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-36-invocation-ref-duplicate-emission": {
       "declared_outcome": "verified",
@@ -1764,19 +1801,18 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-37-counterparty-divergent-terms": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1788,11 +1824,13 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-37-unregistered-namespace-reported": {
       "declared_outcome": "unverified",
@@ -1809,11 +1847,11 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW"
       ],
       "not_exercised": [
         "REQ-ANCHOR",
+        "REQ-SIGNATURE",
         "REQ-STRUCTURE"
       ]
     },
@@ -1821,7 +1859,6 @@
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1833,11 +1870,36 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-38-protectmcp-unknown-invalid": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-38-unknown-member-preserved": {
       "declared_outcome": "verified",
@@ -1854,12 +1916,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-39-absent-version": {
@@ -1877,11 +1939,11 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW"
       ],
       "not_exercised": [
         "REQ-ANCHOR",
+        "REQ-SIGNATURE",
         "REQ-STRUCTURE"
       ]
     },
@@ -1889,7 +1951,6 @@
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
       "exercises": [
-        "REQ-ANCHOR",
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
@@ -1901,11 +1962,36 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
-      "not_exercised": []
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
+    },
+    "asqav-39-malformed-type": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
+      ]
     },
     "asqav-40-unrecognised-version": {
       "declared_outcome": "unverified",
@@ -1922,11 +2008,11 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW"
       ],
       "not_exercised": [
         "REQ-ANCHOR",
+        "REQ-SIGNATURE",
         "REQ-STRUCTURE"
       ]
     },
@@ -1965,14 +2051,14 @@
         "REQ-KEY-THUMBPRINT",
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
         "REQ-ANCHOR",
         "REQ-KEYED-DIGEST",
-        "REQ-PAYLOAD-DIGEST"
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-42-revoked-before-issuance": {
@@ -1990,12 +2076,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-43-outer-copies-agree": {
@@ -2013,12 +2099,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-44-outer-signed-at-edited": {
@@ -2036,12 +2122,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-45-outer-agent-id-edited": {
@@ -2059,12 +2145,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-46-outer-action-type-edited": {
@@ -2082,12 +2168,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-47-outer-message-copy-edited": {
@@ -2105,12 +2191,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-48-outer-public-key-edited": {
@@ -2128,12 +2214,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-49-outer-flat-signature-agree": {
@@ -2151,12 +2237,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-50-outer-flat-signature-agent-id-edited": {
@@ -2174,12 +2260,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-51-outer-envelope-signature-action-type-edited": {
@@ -2197,12 +2283,12 @@
         "REQ-NONCE",
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
-        "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ],
       "not_exercised": [
-        "REQ-ANCHOR"
+        "REQ-ANCHOR",
+        "REQ-SIGNATURE"
       ]
     },
     "asqav-52-outer-flat-hash-unsigned-members": {
@@ -2491,60 +2577,7 @@
     }
   },
   "coverage": {
-    "REQ-SIGNATURE": [
-      "asqav-01-genesis-permit",
-      "asqav-02-genesis-deny",
-      "asqav-03-chain-link",
-      "asqav-04-tamper-sig",
-      "asqav-06-mldsa65-payload-prod",
-      "asqav-07-revoked-key",
-      "asqav-08-v2-signer-canary",
-      "asqav-09-v2-signer-tampered",
-      "asqav-11-dup-member-toplevel",
-      "asqav-12-time-edge-expiry",
-      "asqav-13-dup-member-nested",
-      "asqav-14-omitted-action-chain",
-      "asqav-15-unsigned-gap",
-      "asqav-16-chain-emission-blocked",
-      "asqav-17-seq-contiguous",
-      "asqav-18-seq-gap",
-      "asqav-19-seq-non-monotonic",
-      "asqav-20-seq-absent",
-      "asqav-21-key-thumbprint-binds",
-      "asqav-22-key-substituted",
-      "asqav-23-anchor-status-pending",
-      "asqav-24-anchor-block-hash-prod",
-      "asqav-25-payload-digest-rederives",
-      "asqav-26-payload-digest-mismatch",
-      "asqav-27-anchors-absent",
-      "asqav-29-article-50-lifecycle-disclosure",
-      "asqav-31-counterparty-scope-match",
-      "asqav-32-counterparty-anchors-included",
-      "asqav-33-counterparty-scope-absent",
-      "asqav-34-counterparty-scope-unknown",
-      "asqav-35-counterparty-peer-swapped",
-      "asqav-35-invocation-ref-binds-pre-post",
-      "asqav-36-counterparty-origin-forged",
-      "asqav-36-invocation-ref-duplicate-emission",
-      "asqav-37-counterparty-divergent-terms",
-      "asqav-37-unregistered-namespace-reported",
-      "asqav-38-counterparty-received-only",
-      "asqav-38-unknown-member-preserved",
-      "asqav-39-absent-version",
-      "asqav-39-counterparty-cross-replay",
-      "asqav-40-unrecognised-version",
-      "asqav-42-keyed-digest-unverifiable",
-      "asqav-42-revoked-before-issuance",
-      "asqav-43-outer-copies-agree",
-      "asqav-44-outer-signed-at-edited",
-      "asqav-45-outer-agent-id-edited",
-      "asqav-46-outer-action-type-edited",
-      "asqav-47-outer-message-copy-edited",
-      "asqav-48-outer-public-key-edited",
-      "asqav-49-outer-flat-signature-agree",
-      "asqav-50-outer-flat-signature-agent-id-edited",
-      "asqav-51-outer-envelope-signature-action-type-edited"
-    ],
+    "REQ-SIGNATURE": [],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
       "asqav-02-genesis-deny",
@@ -2583,9 +2616,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2637,9 +2672,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2690,9 +2727,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2744,9 +2783,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2798,9 +2839,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2814,18 +2857,7 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited"
     ],
-    "REQ-ANCHOR": [
-      "asqav-24-anchor-block-hash-prod",
-      "asqav-31-counterparty-scope-match",
-      "asqav-32-counterparty-anchors-included",
-      "asqav-33-counterparty-scope-absent",
-      "asqav-34-counterparty-scope-unknown",
-      "asqav-35-counterparty-peer-swapped",
-      "asqav-36-counterparty-origin-forged",
-      "asqav-37-counterparty-divergent-terms",
-      "asqav-38-counterparty-received-only",
-      "asqav-39-counterparty-cross-replay"
-    ],
+    "REQ-ANCHOR": [],
     "REQ-SKEW": [
       "asqav-01-genesis-permit",
       "asqav-02-genesis-deny",
@@ -2864,9 +2896,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2918,9 +2952,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -2972,9 +3008,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3026,9 +3064,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-revoked-before-issuance",
       "asqav-43-outer-copies-agree",
@@ -3079,9 +3119,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-revoked-before-issuance",
       "asqav-43-outer-copies-agree",
@@ -3132,9 +3174,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3184,9 +3228,11 @@
       "asqav-37-counterparty-divergent-terms",
       "asqav-37-unregistered-namespace-reported",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-40-unrecognised-version",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3238,8 +3284,10 @@
       "asqav-36-invocation-ref-duplicate-emission",
       "asqav-37-counterparty-divergent-terms",
       "asqav-38-counterparty-received-only",
+      "asqav-38-protectmcp-unknown-invalid",
       "asqav-38-unknown-member-preserved",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-malformed-type",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
       "asqav-43-outer-copies-agree",
@@ -3253,14 +3301,41 @@
       "asqav-51-outer-envelope-signature-action-type-edited"
     ]
   },
-  "unmapped_requirements": [],
-  "unmapped_detail": {},
+  "unmapped_requirements": [
+    "REQ-ANCHOR",
+    "REQ-SIGNATURE"
+  ],
+  "unmapped_detail": {
+    "REQ-ANCHOR": {
+      "axis": "anchors",
+      "results_seen_across_vectors": [
+        "(absent)",
+        "SKIPPED"
+      ],
+      "sample_notes": [
+        "anchors bind envelope digest sha256:10dc777c837dd476..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature)",
+        "anchors bind envelope digest sha256:1252c422e91062da..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature);     - opentimestamps: value present, base64-ok; status pending, not an anchored proof",
+        "anchors bind envelope digest sha256:270b40f716ae7339..;     - rfc3161: value present, base64-ok; unverifiable (offline RFC3161 check did not complete; imprint matches but no trusted TSA key material verified the token signature)"
+      ]
+    },
+    "REQ-SIGNATURE": {
+      "axis": "signature",
+      "results_seen_across_vectors": [
+        "(absent)",
+        "SKIPPED"
+      ],
+      "sample_notes": [
+        "run 'pip install cryptography' for the Ed25519 check",
+        "run 'pip install dilithium-py' for the post-quantum check"
+      ]
+    }
+  },
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 57,
+    "asqav_native_vectors": 59,
     "interop_fixtures": 52,
     "requirements": 15,
-    "requirements_covered": 15,
-    "requirements_unmapped": 0
+    "requirements_covered": 13,
+    "requirements_unmapped": 2
   }
 }
