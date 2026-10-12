@@ -1147,8 +1147,7 @@ function surfaceKwargsIntoContext(options: SignOptions): Record<string, unknown>
 }
 
 /**
- * Fail-fast vocabulary checks before the HTTP roundtrip; the cloud stays source of truth.
- * Throws AsqavError on the first offending field.
+ * Fail-fast vocabulary checks pre-roundtrip; cloud stays source of truth, throws first offense.
  */
 const OWASP_AGENTIC_TOP10_IDS = new Set([
   "ASI01", "ASI02", "ASI03", "ASI04", "ASI05", "ASI06", "ASI07", "ASI08", "ASI09", "ASI10",
