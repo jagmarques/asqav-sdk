@@ -17,6 +17,7 @@ os.environ["ASQAV_API_URL"] = "http://127.0.0.1:9"
 
 import asqav  # noqa: E402
 from asqav.counterparty import verify_counterparty_binding  # noqa: E402
+from asqav.verifier import pack_verify as pv  # noqa: E402
 from asqav.verifier import verify_receipt as vr  # noqa: E402
 from asqav.verifier.oracle.runner import run_one  # noqa: E402
 
@@ -47,6 +48,33 @@ def _standalone(case: Path) -> tuple[str, str | None]:
     except vr.VerifierInputError:
         return "unverified", "unverifiable"
     return out["verdict"], out["failure_class"]
+
+
+def _loaded(case: Path, name: str):
+    text = _text(case, name)
+    return json.loads(text) if text else None
+
+
+def _structured_dict(case: Path) -> tuple[str, str | None]:
+    # The public function on json.loads dicts, whole predecessor included.
+    out = vr.run_structured(
+        _loaded(case, "receipt.json"), _loaded(case, "jwks.json"), _loaded(case, "predecessor.json"),
+        trusted_tsa_keys=vr._load_tsa_keys([str(case / "tsa_trust.pem")]),
+        counterparty=_loaded(case, "originating_envelope.json"),
+    )
+    return out["verdict"], out["failure_class"]
+
+
+PACK_STATUS = {pv.VERIFIED: ("verified", None), pv.INVALID: ("unverified", "invalid"),
+               pv.NOT_OFFLINE: ("unverified", "unverifiable")}
+
+
+def _pack_entry(case: Path) -> tuple[str, str | None]:
+    out = pv.verify_entry(
+        _loaded(case, "receipt.json"), _loaded(case, "jwks.json"), _loaded(case, "predecessor.json"),
+        tsa_keys=vr._load_tsa_keys([str(case / "tsa_trust.pem")]),
+    )
+    return PACK_STATUS[out["status"]]
 
 
 def _standalone_cli(case: Path) -> int:
@@ -104,7 +132,10 @@ def test_every_python_verifier_returns_the_manifest_outcome(row: dict) -> None:
         "oracle": (oracle.actual_verdict, oracle.actual_failure_class or None),
         "verify_receipt.py": _standalone(case),
         "verify_receipt_offline": _offline_dict(case),
+        "run_structured(dict)": _structured_dict(case),
     }
+    if not (case / "originating_envelope.json").exists():
+        got["pack_verify.verify_entry"] = _pack_entry(case)  # takes no origin
     assert got == dict.fromkeys(got, want), (row["dir"], row["lexeme"], oracle.detail[:300])
     assert _standalone_cli(case) == CLI_EXIT[want], row["dir"]
 

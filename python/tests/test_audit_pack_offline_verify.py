@@ -449,3 +449,17 @@ def test_jwks_that_is_not_an_object_is_refused(tmp_path: Path) -> None:
     (tmp_path / "bad.json").write_text("[]")
     proc = _run_cli(tmp_path, _real_pack(), "--jwks", str(tmp_path / "bad.json"))
     assert proc.returncode == 1 and "Error reading input" in proc.stdout
+
+
+def test_pack_dict_holding_an_integer_past_2_53_is_not_verifiable_offline() -> None:
+    # Raw-text ingest refuses such a pack; the dict API must too.
+    m = _minted()
+    tsa = _tsa_bytes(m["tsa"])
+    assert pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=tsa)["status"] == pv.VERIFIED
+    pack = copy.deepcopy(m["pack"])
+    pack["note"] = 2**53 + 1  # outside the bundle digest, so only the range check catches it
+    report = pv.verify_pack(pack, jwks=m["jwks"], tsa_keys=tsa)
+    assert report["status"] == pv.NOT_OFFLINE and report["exit_code"] == 2
+    assert "+/-2**53" in report["bundle"]["reason"]
+    entry = {**m["pack"]["receipts"][0], "note": -(2**53) - 1}
+    assert pv.verify_entry(entry, m["jwks"], tsa_keys=tsa)["status"] == pv.NOT_OFFLINE

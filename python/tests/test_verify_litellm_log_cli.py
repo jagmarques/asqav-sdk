@@ -74,3 +74,16 @@ class TestVerifyLitellmLog:
             app, ["verify-litellm-log", str(tmp_path / "nope.jsonl")]
         )
         assert result.exit_code == 1
+
+    def test_integer_past_2_53_fails_the_line_without_a_traceback(self, tmp_path):
+        path = tmp_path / "index.jsonl"
+        path.write_text('{"signature_id": "sid_1", "ts": 9007199254740993}\n')
+
+        with patch("asqav.verify_signature", return_value=_verify_result(True)) as verify:
+            result = runner.invoke(app, ["verify-litellm-log", str(path)])
+
+        # Strict ingest refuses the line; it counts as a failure and exits 1.
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1, result.output
+        assert "verified 0/1" in result.output and "bad json" in result.output
+        verify.assert_not_called()

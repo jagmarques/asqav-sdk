@@ -223,6 +223,8 @@ object, a `-0` in a signed part is refused as `unverifiable`, and `500.0` reads 
 Python verifiers refuse it. An integer past 2^53 anywhere in the receipt is refused as
 `unverifiable` on raw text and by every Python verifier, a parsed dict included; a
 `JSON.parse` object rounds it, so one outside the signed bytes goes unseen there.
+`run_structured` checks only the predecessor it is handed, so pass it the whole
+predecessor envelope as the CLI reads it.
 Callers who need the strict profile must pass raw text. The
 same applies to the predecessor and originating envelope arguments, which also accept raw
 text.
