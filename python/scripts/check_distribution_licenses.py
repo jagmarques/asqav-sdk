@@ -105,9 +105,12 @@ def check_corpus(members: dict[str, bytes]) -> None:
     """The archive must carry the conformance corpus it verifies against."""
     expected = [name for name in members if name.endswith("expected.json")]
     require(len(expected) >= CORPUS_MIN_EXPECTED, f"corpus too small: {len(expected)}")
-    for name in ("NOTICE", "LICENSE"):
+    papers = {name: (ROOT.parent / "conformance" / name).read_bytes()
+              for name in ("NOTICE", "LICENSE")}
+    for name, want in papers.items():
         matches = [m for m in members if m.endswith(f"{CORPUS_DIR}/{name}")]
-        require(len(matches) == 1, f"corpus {name} missing or duplicated")
+        require(len(matches) == 1, f"missing or changed license: {CORPUS_DIR}/{name}")
+        require(members[matches[0]] == want, f"missing or changed license: {CORPUS_DIR}/{name}")
 
 
 def main(argv: list[str] | None = None) -> int:
