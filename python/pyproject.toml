@@ -128,6 +128,15 @@ include = [
     "/src",
 ]
 
+# Into src/ on purpose: `python -m build` builds the wheel FROM the sdist,
+# where ../ paths no longer resolve, so a wheel-stage force-include of the
+# same files raises FileNotFoundError. Landing under src/asqav/ lets the
+# wheel packages=["src/asqav"] pick the corpus up with no wheel mapping.
+[tool.hatch.build.targets.sdist.force-include]
+"../verifier/conformance-vectors" = "src/asqav/conformance_vectors"
+"../conformance/NOTICE" = "src/asqav/conformance_vectors/NOTICE"
+"../conformance/LICENSE" = "src/asqav/conformance_vectors/LICENSE"
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
