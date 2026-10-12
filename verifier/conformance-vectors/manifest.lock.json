@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 46,
+  "corpus_version": 47,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -233,6 +233,11 @@
       "version": 45,
       "files": 379,
       "digest": "66e38b974e80f6182ac6605e451fef550d94aa750169c0b3e568fb460996b9dd"
+    },
+    {
+      "version": 46,
+      "files": 382,
+      "digest": "793f6a658f0e11693412d600f545726925957152b51f501b2314279a7d0261e0"
     }
   ],
   "files": [
@@ -243,8 +248,8 @@
     },
     {
       "path": "UPSTREAM.md",
-      "sha256": "7554dbe6fa727a17abd532c0422393233d0c6a9f4def0d3732b308e3a53f8b11",
-      "bytes": 11634
+      "sha256": "25edcd3370691af8abd1c16c89ee310a01b355d719c99d01ebd2802deddae99f",
+      "bytes": 11946
     },
     {
       "path": "acta-01-genesis/acta-keys.json",
@@ -2177,5 +2182,5 @@
       ]
     }
   },
-  "digest": "793f6a658f0e11693412d600f545726925957152b51f501b2314279a7d0261e0"
+  "digest": "a21e029c219d059d9bb481a523606c55007738edf10877e2b6e85d32b5b292c8"
 }
