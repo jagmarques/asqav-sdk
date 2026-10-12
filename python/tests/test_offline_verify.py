@@ -51,15 +51,15 @@ def test_fetch_jwks_exported():
     assert callable(asqav.fetch_jwks)
 
 
-    # fetch_jwks() must invoke urllib.request.urlopen (not silently bypass it).
+    # fetch_jwks() must hit the network stack (not silently bypass it).
 def test_fetch_jwks_hits_network(monkeypatch):
     called = []
 
-    def _capture(req, **kw):
+    def _capture(self, req, **kw):
         called.append(req.full_url if hasattr(req, "full_url") else str(req))
         raise RuntimeError("intercepted")
 
-    monkeypatch.setattr(urllib.request, "urlopen", _capture)
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", _capture)
     with pytest.raises(RuntimeError, match="intercepted"):
         asqav.fetch_jwks()
     assert called, "fetch_jwks must call urlopen"
