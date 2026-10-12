@@ -2386,6 +2386,24 @@
         "note_contains": "not canonicalisable",
         "applicability": "evaluated"
       }
+    },
+    {
+      "name": "keyed digest skips recomputation as evaluated",
+      "payload": {
+        "context": {
+          "amount": 100,
+          "currency": "EUR"
+        },
+        "hash_algo": "hmac-sha512",
+        "payload_digest": {
+          "hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        }
+      },
+      "expect": {
+        "result": "SKIPPED",
+        "note_contains": "keyed",
+        "applicability": "evaluated"
+      }
     }
   ],
   "counterparty_binding": [
