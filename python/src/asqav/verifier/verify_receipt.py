@@ -69,6 +69,7 @@ import re
 import struct
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import namedtuple
 from datetime import datetime, timezone
@@ -585,12 +586,26 @@ def _parse_object(text: str, source: str) -> dict:
     return value
 
 
+class _SameHostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse cross-host redirects; a hop elsewhere is not the issuer."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN202
+        if urllib.parse.urlsplit(newurl).hostname != urllib.parse.urlsplit(
+            req.full_url
+        ).hostname:
+            raise VerifierInputError(f"{req.full_url}: refusing cross-host redirect")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _get_json(url: str, *, timeout: int = 30) -> dict:
+    if urllib.parse.urlsplit(url).scheme != "https":
+        raise VerifierInputError(f"{url}: refusing non-https fetch")
     req = urllib.request.Request(
         url, headers={"Accept": "application/json", "User-Agent": USER_AGENT}
     )
+    opener = urllib.request.build_opener(_SameHostRedirectHandler)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with opener.open(req, timeout=timeout) as resp:
             body = resp.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         raise VerifierInputError(
