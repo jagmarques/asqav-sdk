@@ -128,9 +128,19 @@ include = [
     "/src",
 ]
 
+[tool.hatch.build.targets.sdist.force-include]
+"../verifier/conformance-vectors" = "asqav/conformance_vectors"
+"../conformance/NOTICE" = "asqav/conformance_vectors/NOTICE"
+"../conformance/LICENSE" = "asqav/conformance_vectors/LICENSE"
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/asqav"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"../verifier/conformance-vectors" = "asqav/conformance_vectors"
+"../conformance/NOTICE" = "asqav/conformance_vectors/NOTICE"
+"../conformance/LICENSE" = "asqav/conformance_vectors/LICENSE"
 
 
 [tool.ruff]
