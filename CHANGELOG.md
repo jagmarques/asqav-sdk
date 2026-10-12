@@ -33,6 +33,17 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- **Every Python verifier refuses a parsed dict holding an integer past 2^53.** The
+  standalone `run_structured` verified a receipt given as `json.loads` dicts when such an
+  integer sat in a member no signature covers, and so did `pack_verify.verify_entry`, which
+  calls it. Raw-text ingest already refused it, as does `asqav.verify_receipt_offline`.
+  Both now report `unverified` / `unverifiable` on an input axis. `run_structured` also takes
+  the whole predecessor envelope that the CLI reads. It checks every member before it uses
+  the payload. `pack_verify.verify_pack` reports a pack dict holding one as not verifiable
+  offline. `asqav verify-litellm-log` stops crashing with a traceback on an index line holding
+  one: the line counts as a failure and the command exits 1. The verdict parity test
+  now runs `run_structured` on dicts on every row, and `verify_entry` on every row without
+  an origin.
 - **The Python oracle returns a verdict for an integer past 2^53.** `run_one` and
   `python -m asqav.verifier.oracle` raised `UnsafeIntegerError` on a receipt or origin holding
   an integer outside ±2^53, where `verify_receipt.py` and the TypeScript `runOne` report
