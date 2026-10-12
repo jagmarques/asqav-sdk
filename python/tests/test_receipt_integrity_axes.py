@@ -76,7 +76,7 @@ def _receipt(**extra) -> dict:
 def test_table_is_populated() -> None:
     assert len(TABLE["payload_digest"]) >= 10
     assert len(TABLE["counterparty_binding"]) >= 8
-    assert {c["expect"]["result"] for c in TABLE["payload_digest"]} == {"PASS", "FAIL"}
+    assert {c["expect"]["result"] for c in TABLE["payload_digest"]} == {"PASS", "FAIL", "SKIPPED"}
     assert {c["expect"]["result"] for c in TABLE["counterparty_binding"]} == {
         "PASS",
         "FAIL",
@@ -86,9 +86,28 @@ def test_table_is_populated() -> None:
 
 def test_payload_digest_table() -> None:
     for case in TABLE["payload_digest"]:
-        result, note = vr.check_payload_digest(case["payload"])
+        result, note, applicability = vr.check_payload_digest(case["payload"])
         assert result == case["expect"]["result"], f"{case['name']}: {note}"
         assert case["expect"]["note_contains"] in note, f"{case['name']}: {note}"
+        assert applicability == case["expect"]["applicability"], f"{case['name']}: {note}"
+
+
+def test_absence_and_recompute_differ_without_the_note() -> None:
+    """Criterion 487: an evaluated PASS and a not-applicable PASS share their
+    result and are told apart by the applicability member, never the note."""
+    absent = {"payload_digest": {"hash": "f" * 64}, "other": 1}
+    recomputed = {
+        "context": {"amount": 100, "currency": "EUR"},
+        "payload_digest": {
+            "hash": "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+            "size": 31,
+        },
+    }
+    res_absent, _, app_absent = vr.check_payload_digest(absent)
+    res_recomputed, _, app_recomputed = vr.check_payload_digest(recomputed)
+    assert res_absent == res_recomputed == "PASS"
+    assert app_absent == "not_applicable"
+    assert app_recomputed == "evaluated"
 
 
 def test_counterparty_binding_table() -> None:
