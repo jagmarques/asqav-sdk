@@ -3268,6 +3268,57 @@ _ANCHORS_NULL_NOTE = (
 )
 
 
+def _holds_unsafe_integer(*inputs) -> bool:
+    """True when any input holds an int outside +/-2**53 at any depth.
+
+    A parsed dict must get the refusal raw-text ingest gives the same file.
+    """
+    stack = list(inputs)
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (dict, list, tuple)):
+            if id(node) in seen:
+                continue
+            seen.add(id(node))
+            stack.extend(node.values() if isinstance(node, dict) else node)
+        elif isinstance(node, int) and not isinstance(node, bool):
+            if not -MAX_CANONICAL_INTEGER <= node <= MAX_CANONICAL_INTEGER:
+                return True
+    return False
+
+
+def _predecessor_payload(predecessor):
+    """The payload of a whole predecessor envelope, else the value as given."""
+    if isinstance(predecessor, dict) and isinstance(predecessor.get("payload"), dict):
+        return predecessor["payload"]
+    return predecessor
+
+
+#: Input-axis note for a dict holding an integer raw-text ingest refuses.
+_UNSAFE_INTEGER_INPUT_NOTE = (
+    "integer outside the canonical integer range +/-2**53; serialise it as a JSON "
+    "string or an integer-rational pair"
+)
+
+
+def _input_refusal(envelope) -> dict | None:
+    """The axis refusing a receipt before any check runs, else None."""
+    if not isinstance(envelope, dict):
+        note = f"expected a JSON object receipt, got {type(envelope).__name__}"
+        return _struct_axis("input", "FAIL", note)
+    # A wire "anchors": null is the malformed third spelling of "no anchors"
+    # (absent and [] are the conformant two); normalise_envelope would hide it.
+    if "anchors" in envelope and envelope["anchors"] is None:
+        return _struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)
+    return None
+
+
+def _unsafe_integer_refusal(*inputs) -> str | None:
+    # The profile check runs first and names a signed member.
+    return _UNSAFE_INTEGER_INPUT_NOTE if _holds_unsafe_integer(*inputs) else None
+
+
 def run_structured(
     envelope: dict,
     jwks: dict,
@@ -3283,6 +3334,9 @@ def run_structured(
     Same logic as ``run()`` but returns a dict instead of printing and exiting; the
     public SDK uses the oracle adapter path for multi-format support.
 
+    ``predecessor_payload`` may also be the whole predecessor envelope, as the CLI
+    reads it; the whole of it is checked before its payload is used.
+
     ``seen_nonces`` is the caller's replay index, exactly as ``run()`` takes it: pass
     one to have the nonce axis flag a different receipt reusing an (issuer_id, nonce)
     pair. Without it the axis still reports, and says it holds no index.
@@ -3294,30 +3348,11 @@ def run_structured(
     SHA-256 of the canonical payload bytes; ``kid``; and ``alg``, verbatim from the
     wire (ML-DSA-65 cloud-issued, Ed25519/ES256 local).
     """
-    if not isinstance(envelope, dict):
-        axes = [
-            _struct_axis(
-                "input",
-                "FAIL",
-                f"expected a JSON object receipt, got {type(envelope).__name__}",
-            )
-        ]
-        return {
-            "not_checked": not_checked_declaration(),
-            "coverage": coverage_declaration(axes),
-            "verdict": VERDICT_UNVERIFIED,
-            "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": axes,
-            "canonical_sha256": None,
-            "kid": None,
-            "alg": None,
-        }
-    # A wire "anchors": null is the malformed third spelling of "no anchors"
-    # (absent and [] are the conformant two). The gate reads the raw envelope:
-    # normalise_envelope projects absent and null to the same None, so after it
-    # the two spellings are indistinguishable.
-    if "anchors" in envelope and envelope["anchors"] is None:
-        axes = [_struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)]
+    refusal = _input_refusal(envelope)
+    whole_predecessor = predecessor_payload
+    predecessor_payload = _predecessor_payload(predecessor_payload)
+    if refusal is not None:
+        axes = [refusal]
         return {
             "not_checked": not_checked_declaration(),
             "coverage": coverage_declaration(axes),
@@ -3373,7 +3408,7 @@ def run_structured(
     alg = sig_obj.get("alg", "ML-DSA-65")
     refusal = _profile_range_refusal(
         payload, sig_obj, predecessor_payload, counterparty, envelope.get("anchors")
-    )
+    ) or _unsafe_integer_refusal(raw_entry, jwks, whole_predecessor, counterparty)
     if refusal is not None:
         axes = [_struct_axis("input", "FAIL", refusal)]
         return {
