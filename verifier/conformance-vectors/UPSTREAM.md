@@ -199,3 +199,9 @@ with the Go reference on the JCS preimage for the `proxy_decision` receipt shape
 proven by the fact that the Go-signed bytes verify here. Outbound interop
 (Pipelock verifying an oracle-produced receipt) and chain-link vector coverage
 are deferred pending key-generation tooling for the conformance test suite.
+
+The `w3c-vc-*` vector directories and `dsse-attestation-ml-dsa-65` are
+Asqav-authored against published specification text (W3C Verifiable
+Credentials 2.0 with DataIntegrityProof, did:web, DSSE and the in-toto
+Statement layout); no upstream fixture was ingested, so there is no
+upstream commit to pin for them.
