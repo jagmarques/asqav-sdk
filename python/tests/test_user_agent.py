@@ -78,11 +78,11 @@ def test_httpx_client_sends_user_agent() -> None:
 def test_verifier_get_json_sends_user_agent() -> None:
     captured: dict = {}
 
-    def fake_urlopen(req, timeout=None):
+    def fake_open(self, req, timeout=None):  # noqa: ANN001, ANN202
         captured["ua"] = req.get_header("User-agent")
         return _FakeResponse(b"{}")
 
-    with patch.object(urllib.request, "urlopen", fake_urlopen):
+    with patch.object(urllib.request.OpenerDirector, "open", fake_open):
         verify_receipt._get_json("https://api.example.test/api/v1/verify/sig_x")
 
     assert captured["ua"] is not None
