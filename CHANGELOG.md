@@ -26,6 +26,11 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
   failure. The TypeScript CLI has the same command and trust rules, but it does not check
   timestamp tokens.
 
+- **Witness policy is signed-optional, not required** (criterion 696). A producer-declared
+  threshold outside the signature cannot be re-derived by an offline third party, so the wire
+  format neither carries nor enforces verifier policy. Decision record (workspace-local):
+  `.asondy/eng/DECISION-witness-policy-signed-optional-696.md`.
+
 ### Fixed
 
 - **Every Python verifier refuses a parsed dict holding an integer past 2^53.** The
