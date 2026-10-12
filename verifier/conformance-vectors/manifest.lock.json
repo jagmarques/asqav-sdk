@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 45,
+  "corpus_version": 46,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -228,6 +228,11 @@
       "version": 44,
       "files": 376,
       "digest": "a84e677f25aa39a13ad31800489a1b76b5be523d515390ff5946d9cf068302c9"
+    },
+    {
+      "version": 45,
+      "files": 379,
+      "digest": "66e38b974e80f6182ac6605e451fef550d94aa750169c0b3e568fb460996b9dd"
     }
   ],
   "files": [
@@ -1717,6 +1722,21 @@
       "bytes": 960
     },
     {
+      "path": "asqav-42-revoked-before-issuance/expected.json",
+      "sha256": "f4e3905e7d7a504c7398a5a95a50be8e9760b6eb751863a8f692ea2ff9a2ef01",
+      "bytes": 222
+    },
+    {
+      "path": "asqav-42-revoked-before-issuance/jwks.json",
+      "sha256": "a53afa2970878fbe2679bbb27a67076e531c4a6d761dc5050797eda170a5e91d",
+      "bytes": 284
+    },
+    {
+      "path": "asqav-42-revoked-before-issuance/receipt.json",
+      "sha256": "44729f08dffe4f3eb9dddee8673e8c94c16d13005c518106f34d642182cd8062",
+      "bytes": 1042
+    },
+    {
       "path": "asqav-43-outer-copies-agree/expected.json",
       "sha256": "01c88eb1b72bcca29cbe025258b40b3bd058d7c898b12335df63cb102698bb73",
       "bytes": 368
@@ -1983,8 +2003,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "93c6f077ff498ca5cf5f3ddb49f3fe789c5155d1cff4ae2feec2dea5d63e08d1",
-      "bytes": 39049
+      "sha256": "6a05f9f4954910a54a4032c4d5066b422803634484fc63bf09f145b068f46dd4",
+      "bytes": 39441
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2018,8 +2038,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "0b2be4c623f6dd8ee9ff3b82ae2e6ed579180f4b57de16663d71e68b7b7090c6",
-      "bytes": 100294
+      "sha256": "e92455308d5708bbfc65ed70c51dec415d29529b7438538053de6169ddfac82c",
+      "bytes": 101883
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2157,5 +2177,5 @@
       ]
     }
   },
-  "digest": "66e38b974e80f6182ac6605e451fef550d94aa750169c0b3e568fb460996b9dd"
+  "digest": "793f6a658f0e11693412d600f545726925957152b51f501b2314279a7d0261e0"
 }
