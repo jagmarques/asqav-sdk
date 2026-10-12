@@ -3,7 +3,7 @@
   "fields": [
     {
       "field": "seq",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Optional positive integer in the single issuer chain.  Continuity exposes an inconsistency within observed evidence; it does not prove withholding or reveal an omitted tail without a later trusted checkpoint.  Defined in Section 5.2.11."
     },
     {
@@ -268,7 +268,7 @@
     },
     {
       "field": "action_type",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Presence is mode- conditioned: required for the defined payload mode; not a member emitted by the defined hash mode.  Unsupported or malformed mode combinations are not silently repaired.  Defined in Section 5.2.2."
     },
     {
@@ -278,12 +278,12 @@
     },
     {
       "field": "mode",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Both core modes use a nested signed payload.  Mode determines the required content and digest interpretation; flat legacy inputs use a separately selected adapter.  Defined in Section 5.2.2."
     },
     {
       "field": "hash",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Hash-mode commitment string.  Its digest bytes equal payload_digest.hash under that mode; the former has the retained prefix and the latter is unprefixed.  Algorithm interpretation follows the signed hash_algo and selected version. Defined in Section 5.2.2."
     },
     {
@@ -293,7 +293,7 @@
     },
     {
       "field": "decision",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Required value governed by the receipt type.  Decision types record an actual policy evaluation; defined no-policy types use observation.  Defined in Section 5.3."
     },
     {
@@ -318,7 +318,7 @@
     },
     {
       "field": "timestamp",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Presence and meaning follow the selected mode and version.  Do not treat a payload-mode requirement as universally optional or as an independently trusted event time.  Defined in Section 5.2.2."
     },
     {
@@ -328,7 +328,7 @@
     },
     {
       "field": "tool_name",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Required for protectmcp:decision and otherwise governed by the selected type and mode.  It is not universally optional.  Defined in Section 5.3."
     },
     {
@@ -338,7 +338,7 @@
     },
     {
       "field": "v",
-      "scope": "signed payload",
+      "scope": "signed-payload",
       "description": "Required nested payload version for the core format.  Known shapes and legacy adapters are explicitly selected.  A version-2 canary does not define a released production contract, and unknown versions are unverifiable. Defined in Section 5.2.1."
     },
     {

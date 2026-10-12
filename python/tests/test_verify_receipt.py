@@ -46,12 +46,7 @@ def test_structure_accepts_risk_acceptance() -> None:
 
 
 def test_structure_reports_unknown_type() -> None:
-    """A protectmcp: value absent from the applicable vocabulary is a
-    non-conformance of the receipt, not a shrug: the axis FAILs naming the
-    type and the fold classifies it invalid. The namespace is registered; it
-    is the value that is unknown, so this is not the outside-the-namespace
-    case (draft anchor `type`, exercised row-for-row in
-    test_type_resolution.py)."""
+    """A protectmcp: value absent from the vocabulary FAILs as invalid (registered namespace, unknown value)."""
     payload = _risk_payload()
     payload["type"] = "protectmcp:not_a_real_type"
     res, note = v.check_structure(payload)

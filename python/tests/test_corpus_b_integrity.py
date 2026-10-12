@@ -104,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 63,
-    "action_ref": 59,
-    "policy_digest": 57,
-    "previousReceiptHash": 56,
+    "sig": 65,
+    "action_ref": 61,
+    "policy_digest": 59,
+    "previousReceiptHash": 58,
     "key_thumbprint": 3,
-    "payload_digest": 53,
+    "payload_digest": 55,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -170,6 +170,8 @@ PINNED_SIG = {
     'asqav-38-counterparty-received-only': 'GWMUl05X3dPX6z0YtM6nqFGvRsYjlSbMY2yx0NLILiA230SWg5RWhCBIvbgpFhhvnct9SUAkei4ijKUZJAJeCg==',
     'asqav-39-counterparty-cross-replay': '8aYaCZz/81DFnBgm54lnc7cuhg0Z5MsGU7mS3wpNoOTTUsP83JhCg/C3oS3lkQPPEY7IQOoBwUOhF5/wJf9FCA==',
     'asqav-42-keyed-digest-unverifiable': 'jpwrSvphAO+Sf+uZVr3pBCNpIQ+l/T3OzzKbqS1t4vShAdOIVSvJ2ZXb+jemE9+Do1VjMEvzwI/u74r8XVwpCQ==',
+    'asqav-38-protectmcp-unknown-invalid': 'lmRzAdp5YvCyLK2cQ+Xf2/0JIZ/AzfFgXjXzvPt5K1nLPykQNfa/1OjwwLIi6QnQnjVfQlB+xBjEz0V1x8MoBA==',
+    'asqav-39-malformed-type': '0ZnelkJ9t6zbAAeF08bFtJUG11RyTgnMhj84E5pKnAWeAHnGbPbMJv/GgXib9mc5Ipu28V/fkm2b3a9kwCYOAA==',
 }
 
 #: Published `action_ref` strings, verbatim.
@@ -224,6 +226,8 @@ PINNED_ACTION_REF = {
     'asqav-39-counterparty-cross-replay': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
     'asqav-42-keyed-digest-unverifiable': 'sha256:24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9',
     'asqav-42-revoked-before-issuance': 'sha256:c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124',
+    'asqav-38-protectmcp-unknown-invalid': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
+    'asqav-39-malformed-type': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
 }
 
 #: Published `policy_digest` strings, verbatim. Hash-mode receipts carry it at
@@ -276,6 +280,8 @@ PINNED_POLICY_DIGEST = {
     'asqav-39-counterparty-cross-replay': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
     'asqav-42-keyed-digest-unverifiable': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     'asqav-42-revoked-before-issuance': 'sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7',
+    'asqav-38-protectmcp-unknown-invalid': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    'asqav-39-malformed-type': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
 }
 
 #: Published `previousReceiptHash` strings, verbatim. Genesis vectors pin the
@@ -328,6 +334,8 @@ PINNED_PREV_HASH = {
     'asqav-39-counterparty-cross-replay': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-42-keyed-digest-unverifiable': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-42-revoked-before-issuance': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-38-protectmcp-unknown-invalid': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-39-malformed-type': '0000000000000000000000000000000000000000000000000000000000000000',
 }
 
 #: Published `key_thumbprint` strings, verbatim.
@@ -385,6 +393,8 @@ PINNED_PAYLOAD_DIGEST = {
     'asqav-39-counterparty-cross-replay': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
     'asqav-42-keyed-digest-unverifiable': {'hash': '24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9', 'size': 25},
     'asqav-42-revoked-before-issuance': {'hash': 'c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124', 'size': 101},
+    'asqav-38-protectmcp-unknown-invalid': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
+    'asqav-39-malformed-type': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
 }
 
 #: Published counterparty `envelope_hash` strings, verbatim. `asqav-32` pins
