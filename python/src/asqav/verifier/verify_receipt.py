@@ -1906,18 +1906,11 @@ def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
 def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False):
     """Gate the verdict on the signing key's published status.
 
-    The public JWKS marks a key revoked once its agent is revoked; a receipt signed
-    by such a key must not PASS offline, mirroring the hosted /verify. With a
-    precise revoked_at, prefer the at-or-before-issuance check so a receipt signed
-    BEFORE revocation still PASSes; without one the axis cannot place issuance, so
-    a revoked key reports SKIPPED (unverifiable): an unplaceable revocation is
-    incomplete evidence, not a proven binding failure (criterion 276).
+    A revoked key never PASSes on receipt timestamps alone: producer-attested
+    time without a verified anchor SKIPs; revocation at/before issuance FAILs.
 
-    has_trusted_anchor must be an anchor the caller CRYPTOGRAPHICALLY verified as
-    pre-revocation; mere presence is not enough (anchors are unsigned and
-    attacker-addable). Without one the self-attested issued_at is backdateable, so
-    that case downgrades to SKIPPED (INCOMPLETE), never a hiding PASS. Defaults
-    False so a caller that ignores the parameter never hides behind a bare timestamp.
+    has_trusted_anchor must be an anchor the caller verified as pre-revocation;
+    presence alone never suffices, and the default False never hides behind it.
     """
     s = (status or "").lower()
     if s not in REVOKED_KEY_STATUSES:
