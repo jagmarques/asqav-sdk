@@ -71,7 +71,11 @@ def test_verifier_ships_inside_the_asqav_package() -> None:
         pytest.skip("pyproject not present (running from an installed package)")
     text = pyproject.read_text()
     assert '"src/asqav"' in text  # the package selector that carries the verifier
-    assert "../verifier" not in text  # no cross-root force-include that an sdist cannot reach
+    # No cross-root force-include at WHEEL stage: the default build makes the wheel
+    # FROM the sdist, where ../ sources no longer resolve (FileNotFoundError). An
+    # sdist-stage mapping into src/ is fine — the wheel picks it up via packages.
+    wheel_section = text.split("[tool.hatch.build.targets.wheel]", 1)[1]
+    assert "../" not in wheel_section, "wheel-stage cross-root force-include"
 
 
 def test_adapters_registered() -> None:
