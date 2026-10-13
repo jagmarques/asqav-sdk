@@ -831,5 +831,12 @@
     "failure_class": "invalid",
     "reason_code": "key_revoked",
     "notes": "Key revoked 2026-05-01, before the 2026-06-01 issuance, under a valid signature; the key_status axis FAILs (invalid) as its only failing axis. Pairs with asqav-07, whose missing revoked_at SKIPs."
+  },
+  {
+    "dir": "asqav-53-payload-digest-no-context",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Signed receipt carrying payload_digest but no context: the digest is never recomputed, so the payload_digest axis PASSes as not_applicable rather than passing on silence. The honest-absence half of the rederives pair with asqav-25."
   }
 ]
