@@ -188,6 +188,62 @@ an Independent Submission profiling
 [`draft-farley-acta-signed-receipts`](https://datatracker.ietf.org/doc/draft-farley-acta-signed-receipts/).
 Aligns with NIST FIPS 204 (ML-DSA), RFC 8785 (JCS) and NSA CSI U/OO/6030316-26.
 
+## Coverage classes
+
+Every asqav integration signs actions, but only some can refuse one. The five
+coverage classes below are the honest vocabulary (derived from the per-integration
+classification with code cites; the Dify row is the residual shape):
+
+- **harness_enforced** — a hook the runtime fires for *every* tool call and that *can block*.
+- **framework_callback** — a hook/callback the framework fires as part of its normal loop.
+- **in_path_proxy** — asqav sits in the call path by wrapping the callee.
+- **model_invoked** — a tool the model must *choose* to call; bypassable by design.
+- **passive** — telemetry recorded after the fact; cannot block.
+
+Tiers follow `website/docs/enforcement.html`: **Strong** refuses by construction on
+covered calls; **Bounded** gates through a framework mechanism that may need
+opt-in (a flag, wrapping); **Detectable** leaves a signed record but cannot refuse.
+Ground rule: never build a model_invoked surface — a tool the model must choose
+to call is bypassable by design, and the Dify Agent path below is the shipped
+instance of that residual shape.
+
+| Integration | Coverage class | Tier |
+|---|---|---|
+| asqav-claude-code | harness_enforced | Strong |
+| asqav-pi | harness_enforced | Strong |
+| asqav-google-adk | framework_callback (blocking) | Bounded |
+| asqav-crewai | framework_callback (blocking with fail_closed) | Bounded |
+| asqav-crewai-guardrail | framework_callback (fail-closed) | Strong |
+| asqav-openai-agents | framework_callback (guardrail surface) | Bounded |
+| asqav-langchain | framework_callback (observe-only) | Detectable |
+| asqav-pydantic | framework_callback (observe-only) | Detectable |
+| asqav-vercel-ai | framework_callback / in_path_proxy hybrid (wrapped tools) | Bounded |
+| asqav-autogen | in_path_proxy (wrapped tools) | Strong |
+| asqav-chatbase | in_path_proxy (handler holds credentials) | Strong |
+| asqav-browser-extension | in_path_proxy (browser) | Strong |
+| asqav-letta | in_path_proxy (client wrapper) | Bounded |
+| asqav-smolagents | in_path_proxy (tool wrapper) | Bounded |
+| asqav-litellm | framework_callback (guardrail seam) | Bounded |
+| asqav-llamaindex | framework_callback (observe-only) | Detectable |
+| asqav-dspy | framework_callback (observe-only) | Detectable |
+| asqav-instructor | framework_callback (observe-only) | Detectable |
+| asqav-mastra | framework_callback (observe-only) | Detectable |
+| asqav-strands | framework_callback (observe-only) | Detectable |
+| asqav-haystack | in_path_proxy (pipeline component) | Bounded |
+| Upsonic | framework_callback (tracing provider) | Detectable |
+| n8n-nodes-asqav | framework_callback (deterministic step) | Detectable |
+| asqav-activepieces | framework_callback (deterministic step) | Detectable |
+| asqav-flowise | workflow node (deterministic, non-blocking) | Detectable |
+| asqav-langflow | workflow node (deterministic, non-blocking) | Detectable |
+| Dify (dify-plugin-asqav) | model_invoked (Agent path) / framework_callback (Workflow path) | Detectable |
+| asqav-kaibanjs | passive | Detectable |
+| asqav-attio | passive | Detectable |
+
+Only 8 of the 29 can actually stop an action; the rest sign after the fact.
+Half the table observes. Read the class column, not the logo wall. (The SDK's
+own adapters carry per-adapter classes under Capture coverage below; this table
+covers the 29 distribution integrations.)
+
 ## Ecosystem
 
 - [`asqav` on PyPI](https://pypi.org/project/asqav/) — the Python SDK
