@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-payload-digest-nocontext-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "migPrTxXwGjiOQhX/fn+cayydhJDDyYAZ3bXWk9PdDE="
+    }
+  ]
+}

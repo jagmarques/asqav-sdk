@@ -104,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 65,
-    "action_ref": 61,
-    "policy_digest": 59,
-    "previousReceiptHash": 58,
+    "sig": 66,
+    "action_ref": 62,
+    "policy_digest": 60,
+    "previousReceiptHash": 59,
     "key_thumbprint": 3,
-    "payload_digest": 55,
+    "payload_digest": 56,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -431,6 +431,15 @@ for _name in (
 PINNED_POLICY_DIGEST["asqav-52-outer-flat-hash-unsigned-members"] = PINNED_POLICY_DIGEST[
     "asqav-05-hash-mode-prod"
 ]
+#: asqav-53 clones asqav-25's payload minus the context, so every member but the
+#: fresh signature aliases asqav-25's pins; the tests below prove each alias.
+for _pins in (PINNED_ACTION_REF, PINNED_POLICY_DIGEST, PINNED_PREV_HASH,
+              PINNED_PAYLOAD_DIGEST):
+    _pins["asqav-53-payload-digest-no-context"] = _pins["asqav-25-payload-digest-rederives"]
+PINNED_SIG["asqav-53-payload-digest-no-context"] = (
+    "LI6zLp59FCkjMhfrM5EMPg8ZErzsdr4eSrF5RUilLcOlEHz/Zg6TaKxVur4W/8i0VdrPU1"
+    "tdx5NHA1KxmxfYBg=="
+)
 
 
 
