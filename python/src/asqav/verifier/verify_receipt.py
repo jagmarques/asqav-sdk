@@ -120,6 +120,27 @@ ALLOWED_TYPES = {
     "protectmcp:observation:result_bound",
 }
 
+#: Edition this verifier resolves type names against, vendored from
+#: verifier/registry/type-namespaces.json (criterion 524)
+REGISTRY_EDITION = "2026-09-15.v1"
+
+#: Draft-registered namespaces (anchor iana-type-namespaces), all ten
+#: The engine implements ALLOWED_TYPES; oversight_ruling names the gap
+REGISTRY_NAMESPACES = frozenset(
+    {
+        "protectmcp:decision",
+        "protectmcp:restraint",
+        "protectmcp:lifecycle",
+        "protectmcp:lifecycle:configuration_change",
+        "protectmcp:lifecycle:risk_acceptance",
+        "protectmcp:lifecycle:oversight_ruling",
+        "protectmcp:lifecycle:code_authorship",
+        "protectmcp:acknowledgment",
+        "protectmcp:observation",
+        "protectmcp:observation:result_bound",
+    }
+)
+
 #: Wire versions a verifier accepts (draft 5.3): v=2 is recognised for
 #: verification, not released for emission. Widening is a registry decision.
 RECOGNISED_WIRE_VERSIONS = frozenset({1, 2})
@@ -413,6 +434,10 @@ def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
             return FAILURE_UNVERIFIABLE
         return FAILURE_INVALID
     if axis == "structure":
+        if note.startswith("unregistered type ") or note.startswith(
+            "malformed type "
+        ):
+            return FAILURE_INVALID
         return FAILURE_UNVERIFIABLE
     if axis == "expiry":
         if note.startswith("unreadable expires_at"):
@@ -2894,7 +2919,19 @@ def check_structure(payload: dict):
     if missing:
         return "FAIL", f"missing required fields: {','.join(missing)}"
     rt = payload.get("type")
+    # Non-string type is malformed, never unregistered (criterion 524)
+    if not isinstance(rt, str):
+        return "FAIL", f"malformed type {rt!r}: not a string"
+    # Split per draft anchor type: gap, reserved-unknown, foreign
     if rt not in ALLOWED_TYPES:
+        if rt in REGISTRY_NAMESPACES:
+            return "SKIPPED", (
+                f"type {rt!r} is registered but this verifier does not implement it"
+            )
+        if rt.startswith("protectmcp:"):
+            return "FAIL", (
+                f"unregistered type {rt!r}: claims the reserved protectmcp namespace"
+            )
         return "SKIPPED", (
             f"type {rt!r} outside the known namespace; "
             "profile membership unverifiable, reported not failed"
@@ -3383,6 +3420,24 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
+            "registry_edition": REGISTRY_EDITION,
+        }
+    # A wire "anchors": null is the malformed third spelling of "no anchors"
+    # (absent and [] are the conformant two). The gate reads the raw envelope:
+    # normalise_envelope projects absent and null to the same None, so after it
+    # the two spellings are indistinguishable.
+    if "anchors" in envelope and envelope["anchors"] is None:
+        axes = [_struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)]
+        return {
+            "not_checked": not_checked_declaration(),
+            "coverage": coverage_declaration(axes),
+            "verdict": VERDICT_UNVERIFIED,
+            "failure_class": FAILURE_UNVERIFIABLE,
+            "axes": axes,
+            "canonical_sha256": None,
+            "kid": None,
+            "alg": None,
+            "registry_edition": REGISTRY_EDITION,
         }
     acknowledging_kid = counterparty_acknowledging_kid(envelope)
     raw_entry = envelope
@@ -3407,6 +3462,7 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
+            "registry_edition": REGISTRY_EDITION,
         }
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
@@ -3422,6 +3478,7 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
+            "registry_edition": REGISTRY_EDITION,
         }
 
     sig_obj = _signature_object(envelope, payload)
@@ -3441,6 +3498,7 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
+            "registry_edition": REGISTRY_EDITION,
         }
     try:
         msg = canonical_json(payload)
@@ -3456,6 +3514,7 @@ def run_structured(
             "canonical_sha256": None,
             "kid": None,
             "alg": None,
+            "registry_edition": REGISTRY_EDITION,
         }
 
     axes: list[dict] = []
@@ -3501,6 +3560,7 @@ def run_structured(
         "canonical_sha256": hashlib.sha256(msg).hexdigest(),
         "kid": kid,
         "alg": alg,
+        "registry_edition": REGISTRY_EDITION,
     }
 
 
