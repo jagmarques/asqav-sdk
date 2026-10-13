@@ -70,11 +70,26 @@ describe("receipt-internal integrity parity", () => {
 
   for (const c of TABLE.payload_digest) {
     it(`payload_digest: ${c.name}`, () => {
-      const [result, note] = checkPayloadDigest(c.payload);
+      const [result, note, applicability] = checkPayloadDigest(c.payload);
       expect(result, note).toBe(c.expect.result);
       expect(note).toContain(c.expect.note_contains);
+      expect(applicability, note).toBe(c.expect.applicability);
     });
   }
+
+  it("absence and recompute differ without the note", () => {
+    // Criterion 487: same PASS, told apart by applicability, never the note
+    const [, , absent] = checkPayloadDigest({ payload_digest: { hash: "f".repeat(64) } });
+    const [, , recomputed] = checkPayloadDigest({
+      context: { amount: 100, currency: "EUR" },
+      payload_digest: {
+        hash: "f50d36c1739463e571da8e929fdeb3bc35c5bf86051c653d6a61deedcb10944e",
+        size: 31,
+      },
+    });
+    expect(absent).toBe("not_applicable");
+    expect(recomputed).toBe("evaluated");
+  });
 
   for (const c of TABLE.counterparty_binding) {
     it(`counterparty: ${c.name}`, () => {
