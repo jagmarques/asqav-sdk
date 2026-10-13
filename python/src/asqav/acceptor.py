@@ -44,6 +44,7 @@ __all__ = [
     "AcceptorDecision",
     "AcceptorMiddleware",
     "check_peer_receipt",
+    "encode_receipt_header",
 ]
 
 #: Verdicts an acceptor may admit. `verified_keyed` counts: the peer's own keyed digest
@@ -199,6 +200,16 @@ def check_peer_receipt(
 
 #: Header the peer presents its receipt in, JSON or base64-of-JSON.
 DEFAULT_RECEIPT_HEADER = "x-asqav-receipt"
+
+
+def encode_receipt_header(receipt: dict) -> str:
+    """Encode a receipt for the ``x-asqav-receipt`` header a peer's acceptor reads.
+
+    Base64 over the JSON text, so the header stays one ASCII token; the
+    acceptor decodes it back to the same object (raw JSON is accepted too).
+    """
+    text = json.dumps(receipt, separators=(",", ":"), ensure_ascii=False)
+    return base64.b64encode(text.encode("utf-8")).decode("ascii")
 
 
 def _decode_receipt(raw: bytes) -> dict | None:

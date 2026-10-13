@@ -29,7 +29,7 @@ import { resolveApiBase, resolveApiKey } from "./credentials.js";
 export { SDK_VERSION, USER_AGENT, userAgentHeaders } from "./userAgent.js";
 
 // Acceptor-side admission control for an inbound peer receipt (B15)
-export { DEFAULT_RECEIPT_HEADER, acceptorMiddleware, checkPeerReceipt } from "./acceptor.js";
+export { DEFAULT_RECEIPT_HEADER, acceptorMiddleware, checkPeerReceipt, encodeReceiptHeader } from "./acceptor.js";
 export type {
   AcceptorDecision,
   AcceptorMiddlewareOptions,
@@ -251,6 +251,7 @@ export {
   type CounterpartyBindingVerification,
   type ComputeCounterpartyBindingOptions,
 } from "./counterparty.js";
+import { computeCounterpartyBinding, type CounterpartyBinding } from "./counterparty.js";
 
 import {
   signatureEnvelopeFromResponse as _signatureEnvelopeFromResponse,
@@ -265,6 +266,16 @@ export function signatureEnvelope(
   response: SignatureResponse | null | undefined,
 ): SignatureEnvelope | undefined {
   return _signatureEnvelopeFromResponse(response as never);
+}
+
+/** The receipt to hand a peer: `{signature_id, payload, signature}`.
+ * Undefined outside compliance mode, which has no signed envelope. */
+export function receiptOf(
+  response: SignatureResponse | null | undefined,
+): Record<string, unknown> | undefined {
+  const signature = signatureEnvelope(response);
+  if (!response || signature === undefined || !response.payload) return undefined;
+  return { signature_id: response.signatureId, payload: response.payload, signature };
 }
 
 /** Return the cloud-supplied `anchors[]` array, or undefined for
@@ -690,6 +701,10 @@ export interface SignOptions {
   /** Code-authorship receipt: producer-asserted author, wired as `authored_by`. A populated
    * `modelId` / `modelVersion` requires `attestationSource`. */
   authoredBy?: AuthoredBy;
+
+  /** Binds this receipt to the peer receipt it acknowledges; only on
+   * receiptType=protectmcp:acknowledgment under compliance mode. */
+  counterpartyBinding?: CounterpartyBinding;
 
   /** Optional schema for context (criterion 328). Validates and normalises context before
    * signing; throws ValidationError on mismatch. */
@@ -1325,6 +1340,24 @@ function validateSignOptions(options: SignOptions, complianceMode: boolean): voi
   // Code-authorship receipt: shape + namespace fence + no-policy opt-out +
   // compliance_mode requirement, lockstep with the cloud SignRequest validator.
   validateCodeAuthorship(options, complianceMode);
+  // Binding fenced to the acknowledgment receipt, as in the cloud's
+  // admit_counterparty_binding
+  validateCounterpartyBinding(options, complianceMode);
+}
+
+function validateCounterpartyBinding(options: SignOptions, complianceMode: boolean): void {
+  const binding = options.counterpartyBinding;
+  if (binding === undefined) return;
+  if (options.receiptType !== ACKNOWLEDGMENT_RECEIPT_TYPE || !complianceMode) {
+    throw new AsqavError(
+      `counterparty_binding_requires_acknowledgment_receipt: counterparty_binding is only valid on receipt_type=${ACKNOWLEDGMENT_RECEIPT_TYPE} with compliance_mode=true.`,
+    );
+  }
+  for (const key of ["envelope_hash", "receipt_ref"] as const) {
+    if (typeof binding[key] !== "string" || !binding[key]) {
+      throw new AsqavError(`counterparty_binding_malformed: ${key} must be a non-empty string.`);
+    }
+  }
 }
 
 /**
@@ -1754,6 +1787,8 @@ const IETF_OPTIONAL_FIELD_MAP: ReadonlyArray<{
   { wire: "change_approval_ref", read: (o) => o.changeApprovalRef },
   { wire: "change_class", read: (o) => o.changeClass },
   { wire: "authored_by", read: (o) => authoredByToWire(o.authoredBy) },
+  // Acknowledgment binding, fenced to the acknowledgment receipt
+  { wire: "counterparty_binding", read: (o) => o.counterpartyBinding },
   {
     wire: "tool_fingerprint",
     read: (o) =>
@@ -2055,6 +2090,38 @@ export class Agent {
 
   static async get(agentId: string): Promise<Agent> {
     return getAgentWithConnection(config, agentId);
+  }
+
+  /**
+   * Acknowledge a peer's receipt, binding its exact bytes; receiptRef
+   * defaults to the envelope's signature_id. See README "Agent to agent".
+   */
+  async acknowledge(
+    peerReceipt: Record<string, unknown>,
+    options: {
+      receiptRef?: string;
+      actionType?: string;
+      context?: Record<string, unknown>;
+      expectAckFrom?: string;
+      transportLabel?: string;
+    } = {},
+  ): Promise<SignatureResponse> {
+    const ref = options.receiptRef ?? peerReceipt.signature_id;
+    if (typeof ref !== "string" || !ref) {
+      throw new AsqavError("receipt_ref is required: pass the peer receipt's signature_id");
+    }
+    const counterpartyBinding = computeCounterpartyBinding(peerReceipt, {
+      receiptRef: ref,
+      expectAckFrom: options.expectAckFrom,
+      transportLabel: options.transportLabel,
+    });
+    return this.sign({
+      actionType: options.actionType ?? "a2a:acknowledge",
+      context: options.context,
+      complianceMode: true,
+      receiptType: ACKNOWLEDGMENT_RECEIPT_TYPE,
+      counterpartyBinding,
+    });
   }
 
   async sign(options: SignOptions): Promise<SignatureResponse> {
