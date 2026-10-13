@@ -75,6 +75,41 @@ TypeScript, or the standalone `python -m asqav.verifier.verify_receipt --offline
 algorithm is per-receipt from `signature.alg`: ML-DSA-65 for cloud-issued receipts,
 Ed25519/ES256 for locally signed ones.
 
+## Agent to agent
+
+When one agent calls another, both sides keep a receipt of the hand-off. The sender passes its
+signed receipt along; the receiver checks it and signs an acknowledgment bound to the sender's
+exact bytes.
+
+```python
+# agent A: sign the action and send the receipt with the request
+from asqav import encode_receipt_header
+
+sent = agent_a.sign("a2a:task", {"to": "agent-b", "task": "summarise"})
+headers = {"x-asqav-receipt": encode_receipt_header(sent.receipt())}
+
+# agent B: admit it, then acknowledge it
+from asqav import check_peer_receipt
+
+decision = check_peer_receipt(peer_receipt)   # or mount AcceptorMiddleware
+if decision.accepted:
+    ack = agent_b.acknowledge(peer_receipt)
+```
+
+```ts
+import { checkPeerReceipt, encodeReceiptHeader, receiptOf } from "@asqav/sdk";
+
+const sent = await agentA.sign({ actionType: "a2a:task", context: { to: "agent-b" } });
+const headers = { "x-asqav-receipt": encodeReceiptHeader(receiptOf(sent)!) };
+
+if (checkPeerReceipt(peerReceipt).accepted) await agentB.acknowledge(peerReceipt);
+```
+
+The acknowledgment is a `protectmcp:acknowledgment` receipt whose `counterparty_binding`
+commits to the sender's payload and signature. The cloud admits it only when the sender's
+receipt is visible to the receiver's organization (the same org, or a published receipt) and
+the bytes match; `verify_counterparty_binding` re-checks it offline.
+
 ## Per-language guides
 
 The package READMEs are the reference for each language — quick start, CLI, data-handling
