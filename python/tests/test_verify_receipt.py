@@ -46,16 +46,15 @@ def test_structure_accepts_risk_acceptance() -> None:
 
 
 def test_structure_reports_unknown_type() -> None:
-    """An unregistered namespace is REPORTED, never failed: the axis returns
-    SKIPPED naming the type, and the fold keeps the verdict closed."""
+    """A protectmcp: value absent from the vocabulary FAILs as invalid (registered namespace, unknown value)."""
     payload = _risk_payload()
     payload["type"] = "protectmcp:not_a_real_type"
     res, note = v.check_structure(payload)
-    assert res == "SKIPPED"
+    assert res == "FAIL"
     assert "protectmcp:not_a_real_type" in note
     verdict, failure_class = v._fold_verdict([("structure", res, note)])
     assert verdict == "unverified"
-    assert failure_class == "unverifiable"
+    assert failure_class == "invalid"
 
 
 def test_structure_accepts_recognised_wire_versions() -> None:
