@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 50,
+  "corpus_version": 52,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -253,6 +253,16 @@
       "version": 49,
       "files": 388,
       "digest": "e1100006d8a57bf0a61e32523d6720ab74cc4be90da81305e2ab972e1b4ecc0b"
+    },
+    {
+      "version": 50,
+      "files": 388,
+      "digest": "f36224ed87b8760be478baaaf2bb651a9724656d4d9022f8602c3353019ca6f7"
+    },
+    {
+      "version": 51,
+      "files": 391,
+      "digest": "e013a6711dc027f37bdeb494fdb697527d7637a1b5ac74b0d801190fdb118dd0"
     }
   ],
   "files": [
@@ -1937,6 +1947,21 @@
       "bytes": 5165
     },
     {
+      "path": "asqav-53-payload-digest-no-context/expected.json",
+      "sha256": "c2b3a4bd94163178d780236a837dddfcc76ed7fc1fcec1d2a37730e2fa232344",
+      "bytes": 322
+    },
+    {
+      "path": "asqav-53-payload-digest-no-context/jwks.json",
+      "sha256": "668c3939af338ed0c11f6919d5c7abc6b30149bbfea470efea6c01f2dd18431b",
+      "bytes": 231
+    },
+    {
+      "path": "asqav-53-payload-digest-no-context/receipt.json",
+      "sha256": "7b7e1866c63e4de1fa93ca8e0f7d4a3fd5b0fbde9abd26c9d15f84f4b33135c8",
+      "bytes": 880
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -2053,8 +2078,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "0274f41d75c772c4a1fa606b20e9d7db7361cc1d60d844754383a7842177a9cd",
-      "bytes": 40126
+      "sha256": "2f2be210cde5992299b05ca57aeda8c398f971b325d38f2a6e1ff5dead2abeec",
+      "bytes": 40511
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2088,8 +2113,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "20be62572f3b0122ebe60b1245108689ebb71f21f154325dfdc28cf72ee4177e",
-      "bytes": 104965
+      "sha256": "0116fa46e3753f6cbc57e7deb999fe4609acb45b8e277435bbbd7074b2475766",
+      "bytes": 106584
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2227,5 +2252,5 @@
       ]
     }
   },
-  "digest": "f36224ed87b8760be478baaaf2bb651a9724656d4d9022f8602c3353019ca6f7"
+  "digest": "a4a30da0d965e8c2aa00612d3549b20242a7d1c4db796c46881fa6fc230a186e"
 }

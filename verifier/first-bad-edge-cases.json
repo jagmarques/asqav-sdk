@@ -111,6 +111,7 @@
     "asqav-37-counterparty-divergent-terms": "counterparty",
     "asqav-38-counterparty-received-only": "counterparty",
     "asqav-39-counterparty-cross-replay": "counterparty",
-    "asqav-42-revoked-before-issuance": "key_status"
+    "asqav-42-revoked-before-issuance": "key_status",
+    "asqav-53-payload-digest-no-context": null
   }
 }
