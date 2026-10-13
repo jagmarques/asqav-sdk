@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-type-resolution-vec-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "gdzCUysWxe6LaSEQOz+MUU2DVFj8Qr9qMX88JYPWV9A="
+    }
+  ]
+}
