@@ -165,6 +165,14 @@ export function checkPeerReceipt(
 /** Header the peer presents its receipt in, JSON or base64-of-JSON. */
 export const DEFAULT_RECEIPT_HEADER = "x-asqav-receipt";
 
+/**
+ * Encode a receipt for the `x-asqav-receipt` header: base64 JSON, one token.
+ * Pass it as received; a JSON.parse round trip can change float spellings.
+ */
+export function encodeReceiptHeader(receipt: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(receipt), "utf-8").toString("base64");
+}
+
 /** Parse a receipt header, accepting raw JSON or base64-wrapped JSON. */
 function decodeReceipt(raw: string): Record<string, unknown> | null {
   const attempt = (text: string): Record<string, unknown> | null => {

@@ -43,6 +43,11 @@ if TYPE_CHECKING:
 
 from ._sql_match import matches_pattern as _matches_pattern
 from ._useragent import USER_AGENT
+from .counterparty import (
+    ACKNOWLEDGMENT_RECEIPT_TYPE,
+    CounterpartyBinding,
+    compute_counterparty_binding,
+)
 from .credentials import resolve_api_base, resolve_api_key
 from .patterns import resolve_pattern
 from .retry import with_retry
@@ -588,6 +593,18 @@ class SignatureResponse:
             if keys >= {"alg", "kid", "sig"}:
                 return self.signature  # type: ignore[return-value]
         return None
+
+    def receipt(self) -> dict[str, Any] | None:
+        """The receipt to hand a peer agent: ``{signature_id, payload, signature}``.
+
+        ``payload`` and ``signature`` are the signed envelope a peer hashes and
+        verifies; ``signature_id`` is the locator it acknowledges against. None
+        outside compliance mode, where there is no signed envelope to share.
+        """
+        signature = self.signature_envelope()
+        if signature is None or not isinstance(self.payload, dict):
+            return None
+        return {"signature_id": self.signature_id, "payload": self.payload, "signature": signature}
 
     def anchors_array(self) -> list[dict[str, Any]] | None:
         """Return the cloud-supplied `anchors[]` array. None on
@@ -1368,6 +1385,31 @@ def _validate_risk_acceptance(
 _CODE_AUTHORSHIP_RECEIPT_TYPE = "protectmcp:lifecycle:code_authorship"
 
 
+def _validate_counterparty_binding(
+    binding: "CounterpartyBinding | dict[str, Any] | None",
+    *,
+    receipt_type: str | None,
+    compliance_mode: bool,
+) -> dict[str, Any] | None:
+    """Fence the binding to compliance acknowledgment receipts and return its wire form.
+
+    Mirrors the cloud's admit_counterparty_binding: a binding outside an
+    acknowledgment, or without compliance_mode, is refused before any network call.
+    """
+    if binding is None:
+        return None
+    if receipt_type != ACKNOWLEDGMENT_RECEIPT_TYPE or not compliance_mode:
+        raise ValueError(
+            "counterparty_binding_requires_acknowledgment_receipt: counterparty_binding is "
+            f"only valid on receipt_type={ACKNOWLEDGMENT_RECEIPT_TYPE} with compliance_mode=True."
+        )
+    wire = binding.to_wire() if isinstance(binding, CounterpartyBinding) else dict(binding)
+    for key in ("envelope_hash", "receipt_ref"):
+        if not isinstance(wire.get(key), str) or not wire[key]:
+            raise ValueError(f"counterparty_binding_malformed: {key} must be a non-empty string.")
+    return wire
+
+
 def _validate_code_authorship(
     *,
     receipt_type: str | None,
@@ -2060,6 +2102,47 @@ class Agent:
             expires_at=_parse_timestamp(data["expires_at"]),
         )
 
+    def acknowledge(
+        self,
+        peer_receipt: dict[str, Any],
+        *,
+        receipt_ref: str | None = None,
+        action_type: str = "a2a:acknowledge",
+        context: dict[str, Any] | None = None,
+        expect_ack_from: str | None = None,
+        transport_label: str | None = None,
+    ) -> SignatureResponse:
+        """Sign this agent's acknowledgment of a peer agent's receipt.
+
+        ``peer_receipt`` is the envelope the peer sent (``{payload, signature}``,
+        as from :meth:`SignatureResponse.receipt` or the ``x-asqav-receipt``
+        header). The acknowledgment is a ``protectmcp:acknowledgment`` receipt
+        whose ``counterparty_binding`` commits to the peer envelope's exact
+        bytes, so either side can later prove what was sent and what was
+        acknowledged. ``receipt_ref`` is the peer's ``signature_id``; it is read
+        from the envelope's top-level ``signature_id`` when omitted. The cloud
+        admits the binding only when that receipt is visible to this
+        organization (its own, or published) and the bytes match.
+        """
+        ref = receipt_ref or peer_receipt.get("signature_id")
+        if not isinstance(ref, str) or not ref:
+            raise ValueError(
+                "receipt_ref is required: pass the peer receipt's signature_id"
+            )
+        binding = compute_counterparty_binding(
+            peer_receipt,
+            receipt_ref=ref,
+            expect_ack_from=expect_ack_from,
+            transport_label=transport_label,
+        )
+        return self.sign(
+            action_type,
+            context=context,
+            compliance_mode=True,
+            receipt_type=ACKNOWLEDGMENT_RECEIPT_TYPE,
+            counterparty_binding=binding,
+        )
+
     def sign(
         self,
         action_type: str,
@@ -2136,6 +2219,9 @@ class Agent:
         change_approval_ref: str | None = None,
         change_class: str | None = None,
         authored_by: "AuthoredBy | dict[str, Any] | None" = None,
+        # Agent-to-agent acknowledgment: binds this receipt to the peer receipt it
+        # acknowledges. Valid only on receipt_type=protectmcp:acknowledgment.
+        counterparty_binding: "CounterpartyBinding | dict[str, Any] | None" = None,
     ) -> SignatureResponse:
         """Sign an action cryptographically.
 
@@ -2349,6 +2435,10 @@ class Agent:
             authored_by=authored_by,
         )
 
+        counterparty_binding = _validate_counterparty_binding(
+            counterparty_binding, receipt_type=receipt_type, compliance_mode=compliance_mode
+        )
+
         # Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
         if valid_seconds is not None and expires_at is not None:
             raise ValueError(
@@ -2463,6 +2553,7 @@ class Agent:
                 ("change_approval_ref", change_approval_ref),
                 ("change_class", change_class),
                 ("authored_by", authored_by),
+                ("counterparty_binding", counterparty_binding),
             ):
                 if v is not None:
                     compliance_fields[k] = v

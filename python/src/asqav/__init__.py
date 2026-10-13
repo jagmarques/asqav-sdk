@@ -42,6 +42,7 @@ from .acceptor import (
     AcceptorDecision,
     AcceptorMiddleware,
     check_peer_receipt,
+    encode_receipt_header,
 )
 from .async_client import AsyncAgent
 from .attestation import (
@@ -374,6 +375,7 @@ __all__ = [
     # Acceptor-side admission control for an inbound peer receipt (B15)
     "AcceptorDecision",
     "AcceptorMiddleware",
+    "encode_receipt_header",
     "DEFAULT_RECEIPT_HEADER",
     "check_peer_receipt",
     # DORA RTS JC 2024-33 Annex II vocabulary
