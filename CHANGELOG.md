@@ -5,6 +5,8 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-10-13
+
 ### Added
 
 - **Agent-to-agent receipts: acknowledge a peer's receipt.** Agent A signs an action and hands
