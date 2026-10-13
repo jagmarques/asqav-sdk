@@ -7,6 +7,17 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Added
 
+- **Agent-to-agent receipts: acknowledge a peer's receipt.** Agent A signs an action and hands
+  B `response.receipt()` (TypeScript: `receiptOf(response)`), usually in the `x-asqav-receipt`
+  header via `encode_receipt_header` / `encodeReceiptHeader`. B checks it with the existing
+  acceptor (`check_peer_receipt`, `AcceptorMiddleware`) and signs
+  `agent.acknowledge(peer_receipt)`: a `protectmcp:acknowledgment` receipt whose
+  `counterparty_binding` commits to A's exact payload and signature bytes, so both sides can prove
+  what was sent and what was acknowledged. `sign()` takes `counterparty_binding` /
+  `counterpartyBinding` directly too, fenced to acknowledgment receipts under compliance mode like
+  the cloud. The cloud admits the binding only when A's receipt is visible to B's organization
+  (the same org, or a published receipt) and the bytes match.
+
 - **`asqav audit-pack verify --offline <pack>` checks a whole exported Audit Pack with no
   network** (criterion 760). Every receipt runs through `verify_receipt.py`, chained to the
   receipt with the previous `seq` from the same agent, and the bundle digest and signature are
