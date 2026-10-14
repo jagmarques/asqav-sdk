@@ -268,11 +268,25 @@ def test_session_signs_error_on_exception(
     error_call = mock_post.call_args_list[3]
     assert error_call[0][1]["action_type"] == "session:error"
     assert "connection lost" in error_call[0][1]["context"]["error"]
+    assert error_call[0][1]["result_digest"] == asqav_client._digest_result_value(
+        "connection lost"
+    )
 
     # Session should have ended with "error" status
     assert mock_patch.call_count == 1
     end_call = mock_patch.call_args_list[0]
     assert end_call[0][1]["status"] == "error"
+
+
+def test_session_sign_forwards_result() -> None:
+    """Session.sign passes result through so in-session outcomes bind (787)."""
+    from asqav.decorators import Session
+
+    agent = MagicMock()
+    sess_resp = MagicMock(session_id="sess_1")
+    sess = Session(agent, sess_resp)
+    sess.sign("tool:run", {"tool": "search"}, result={"hits": 3})
+    agent.sign.assert_called_once_with("tool:run", {"tool": "search"}, result={"hits": 3})
 
 
     # Verify asqav.secure is still importable and callable (backward compat).

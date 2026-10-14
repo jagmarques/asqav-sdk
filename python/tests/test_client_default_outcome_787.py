@@ -100,3 +100,73 @@ def test_attach_result_links_origin() -> None:
     assert body["receipt_type"] == "protectmcp:observation:result_bound"
     assert body["action_ref"] == "act_origin_123"
     assert body["result_digest"] == _digest_result_value({"status": "ok", "rows": 3})
+
+
+def _wire_sign(action: str, **kwargs):
+    """Run one Agent-level call with stubbed network; return the wire body."""
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with patch("asqav.client._post", side_effect=fake_post):
+        action()
+    return captured["body"]
+
+
+def test_span_end_binds_attributes() -> None:
+    from asqav.client import span
+
+    bodies: list = []
+
+    def fake_post(path: str, body: dict) -> dict:
+        bodies.append(body)
+        return _ok_response()
+
+    with (
+        patch("asqav.client.get_agent", return_value=_agent()),
+        patch("asqav.client._post", side_effect=fake_post),
+    ):
+        with span("api:test", {"model": "x"}) as s:
+            s.set_attribute("tokens", 7)
+    assert bodies, "span end must sign"
+    assert bodies[-1]["result_digest"] == _digest_result_value({"model": "x", "tokens": 7})
+
+
+def test_sign_output_binds_output() -> None:
+    body = _wire_sign(
+        lambda: _agent().sign_output("tool:search", "in-hash", {"hits": [1, 2]}),
+    )
+    assert body["result_digest"] == _digest_result_value({"hits": [1, 2]})
+
+
+def test_budget_record_binds_payload() -> None:
+    from asqav.client import BudgetTracker
+
+    body = _wire_sign(
+        lambda: BudgetTracker(_agent(), limit=10.0).record("api:x", actual_cost=0.5),
+    )
+    assert body["action_type"] == "budget:api:x"
+    assert body["result_digest"] == _digest_result_value(
+        {"cost": 0.5, "currency": "USD", "cumulative_spend": 0.5, "limit": 10.0}
+    )
+
+
+def test_attestation_generate_binds_document() -> None:
+    import asqav.client as client_mod
+
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return _ok_response()
+
+    with (
+        patch.object(client_mod.Agent, "get", return_value=_agent()),
+        patch("asqav.client._post", side_effect=fake_post),
+    ):
+        client_mod.generate_attestation("agent_outcome")
+    body = captured["body"]
+    assert body["action_type"] == "attestation:generate"
+    assert body["result_digest"].startswith("sha256:")

@@ -67,6 +67,17 @@ def test_full_three_phase_flow():
     assert second_call[1]["parent_id"] == "sid-intent-001"
 
 
+def test_execution_binds_result_when_signing_post_execution():
+    agent = _mock_agent(cleared=True)
+
+    chain = sign_with_phases(agent, "api:call", {"model": "gpt-4"}, result={"ok": True})
+
+    assert chain.execution is not None
+    second_call = agent.sign.call_args_list[1]
+    assert second_call[0][0] == "api:call:execution"
+    assert second_call[1]["result"] == {"ok": True}
+
+
     # When preflight denies, execution phase is skipped.
 def test_blocked_action_skips_execution():
     agent = _mock_agent(cleared=False)

@@ -8,6 +8,7 @@ import {
   _resetForTests,
   digestResultValue,
   init,
+  toJsonSafeResult,
 } from "../src/index.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -95,5 +96,15 @@ describe("default outcome (787)", () => {
     expect(body.receipt_type).toBe("protectmcp:observation:result_bound");
     expect(body.action_ref).toBe("act_origin_123");
     expect(body.result_digest).toBe(digestResultValue({ status: "ok", rows: 3 }));
+  });
+
+  it("BigInt results serialize instead of throwing (787)", async () => {
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(okBody()));
+    await fakeAgent().sign({ actionType: "api.call", result: { total: 10n } });
+    expect(readBody(spy).result_digest).toBe(
+      digestResultValue(toJsonSafeResult({ total: 10n }) as Record<string, unknown>),
+    );
   });
 });

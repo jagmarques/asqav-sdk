@@ -1041,6 +1041,7 @@ def span(
                     "status": span_obj.status,
                     "attributes": span_obj.attributes,
                 },
+                result=dict(span_obj.attributes),
             )
             span_obj.signature = result.signature
         except Exception:
@@ -2165,6 +2166,7 @@ class Agent:
             compliance_mode=True,
             receipt_type=ACKNOWLEDGMENT_RECEIPT_TYPE,
             counterparty_binding=binding,
+            result=peer_receipt,
         )
 
     def sign(
@@ -2842,6 +2844,7 @@ class Agent:
         return self.sign(
             action_type=action_type,
             context=sign_context,
+            result=output,
         )
 
     def start_session(self) -> SessionResponse:
@@ -5124,6 +5127,7 @@ def generate_attestation(
             "session_id": session_id,
             "format": format,
         },
+        result=dict(doc_content),
     )
 
     doc_content["attestation_signature"] = {
@@ -5344,7 +5348,7 @@ class BudgetTracker:
         if context:
             payload.update(context)
 
-        sig = self.agent.sign(f"budget:{action_type}", payload)
+        sig = self.agent.sign(f"budget:{action_type}", payload, result=dict(payload))
         self._records.append(sig.signature_id)
         return sig
 
