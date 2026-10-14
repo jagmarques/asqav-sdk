@@ -67,6 +67,7 @@ def sign_with_phases(
     action_type: str,
     context: dict[str, Any] | None = None,
     trace_id: str | None = None,
+    result: Any = None,
 ) -> PhaseChain:
     """Execute the full three-phase signing flow.
 
@@ -74,7 +75,8 @@ def sign_with_phases(
     Phase 2 (Decision): Preflight check - policy evaluates
     Phase 3 (Execution): Sign what actually happened (only if approved)
 
-    Each phase produces a receipt linked to the previous one.
+    Each phase produces a receipt linked to the previous one. Pass result
+    when signing post-execution so the execution receipt binds the outcome.
     """
     from .client import generate_trace_id
 
@@ -98,6 +100,7 @@ def sign_with_phases(
             context,
             trace_id=tid,
             parent_id=intent_sig.signature_id if intent_sig else None,
+            result=result,
         )
 
     return PhaseChain(
