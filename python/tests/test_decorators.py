@@ -289,6 +289,59 @@ def test_session_sign_forwards_result() -> None:
     agent.sign.assert_called_once_with("tool:run", {"tool": "search"}, result={"hits": 3})
 
 
+@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+def test_session_sign_binds_result_digest(
+    mock_post: MagicMock, mock_patch: MagicMock
+) -> None:
+    """s.sign(result=...) mints a wire result_digest (787)."""
+    from asqav.decorators import session as session_cm
+
+    _reset_global_agent()
+
+    with session_cm() as s:
+        s.sign("data:read", {"file": "config.json"}, result={"rows": 2})
+
+    sign_bodies = [
+        c[0][1] for c in mock_post.call_args_list if "/sign" in c[0][0]
+    ]
+    assert sign_bodies, "session sign must hit the wire"
+    assert sign_bodies[0]["result_digest"] == asqav_client._digest_result_value(
+        {"rows": 2}
+    )
+
+
+@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+def test_async_session_signs_error_digest(
+    mock_post: MagicMock, mock_patch: MagicMock
+) -> None:
+    """async_session error path mints a wire result_digest (787)."""
+    from asqav.decorators import async_session
+
+    _reset_global_agent()
+
+    async def run() -> None:
+        async with async_session():
+            raise ValueError("async gone")
+
+    try:
+        asyncio.run(run())
+        assert False, "should have raised"
+    except ValueError:
+        pass
+
+    error_bodies = [
+        c[0][1]
+        for c in mock_post.call_args_list
+        if c[0][1].get("action_type") == "session:error"
+    ]
+    assert error_bodies, "async session error must sign"
+    assert error_bodies[0]["result_digest"] == asqav_client._digest_result_value(
+        "async gone"
+    )
+
+
     # Verify asqav.secure is still importable and callable (backward compat).
 def test_existing_secure_still_works() -> None:
     assert hasattr(asqav, "secure")

@@ -3155,14 +3155,12 @@ class Agent:
         action_type: str,
         context: dict[str, Any] | None = None,
         trace_id: str | None = None,
+        result: Any | None = None,
     ) -> "PhaseChain":
-        """Execute the full three-phase signing flow (intent, decision, execution).
-
-        See :func:`asqav.phases.sign_with_phases` for details.
-        """
+        """Three-phase flow; result binds a digest on :execution (787)."""
         from .phases import sign_with_phases
 
-        return sign_with_phases(self, action_type, context, trace_id)
+        return sign_with_phases(self, action_type, context, trace_id, result=result)
 
     def attach_result(
         self,
