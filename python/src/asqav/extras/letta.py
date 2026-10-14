@@ -116,6 +116,7 @@ class AsqavLettaHook(AsqavAdapter):
                         "block_label": block_label,
                         "value_length": len(str(getattr(result, "value", result))),
                     },
+                    result=getattr(result, "value", result),
                 )
             except Exception as exc:
                 logger.warning(
@@ -179,6 +180,7 @@ class AsqavLettaHook(AsqavAdapter):
                             "agent_id": str(agent_id)[:_MAX_LEN],
                             "block_label": block_label,
                         },
+                        result=value if value is not _UNSET else None,
                     )
                 except Exception as exc:
                     logger.warning(

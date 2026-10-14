@@ -3,9 +3,9 @@ import { AsqavMastraHook } from "../../src/extras/mastra.js";
 import type { Agent } from "../../src/index.js";
 
 function makeFakeAgent() {
-  const calls: Array<{ actionType: string; context: Record<string, unknown> }> = [];
-  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown> }) => {
-    calls.push({ actionType: opts.actionType, context: opts.context ?? {} });
+  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
+  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
+    calls.push({ actionType: opts.actionType, context: opts.context ?? {}, result: opts.result });
     return {
       signature: "sig",
       signatureId: "sig_1",
@@ -58,6 +58,10 @@ describe("AsqavMastraHook before/after wiring", () => {
     expect(calls[0].context.step_id).toBe("fetch-weather");
     expect(calls[1].context.output_length).toBe(JSON.stringify({ temp: 22 }).length);
     expect(calls[2].context.error).toBe("nope");
+    // 787: completion and error outcomes travel as the receipt result
+    expect(calls[0].result).toBeUndefined();
+    expect(calls[1].result).toEqual({ temp: 22 });
+    expect(calls[2].result).toBe("Error: nope");
   });
 
   it("attach(agent.on) subscribes to step:before / step:after / step:error", async () => {

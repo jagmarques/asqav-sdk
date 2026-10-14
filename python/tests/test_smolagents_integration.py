@@ -102,6 +102,7 @@ def test_wrap_tool_signs_tool_end(hook: AsqavSmolagentsHook) -> None:
     assert ctx["tool"] == "calculator"
     assert ctx["output_type"] == "str"
     assert ctx["output_length"] == 2
+    assert last_call[1]["result"] == "42"  # 787: output bound by default.
 
 
     # wrap_tool does not alter the tool's return value.

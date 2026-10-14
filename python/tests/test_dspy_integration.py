@@ -106,6 +106,7 @@ def test_on_module_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     cb._sign_action.assert_called_once_with(
         "dspy.module.end",
         {"call_id": "call-1", "ok": True, "exception": None},
+        result={"answer": "hello"},
     )
 
 
@@ -115,6 +116,7 @@ def test_on_module_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     cb._sign_action.assert_called_once_with(
         "dspy.module.end",
         {"call_id": "call-2", "ok": False, "exception": "ValueError"},
+        result="bad input",
     )
 
 
@@ -166,6 +168,7 @@ def test_on_lm_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     cb._sign_action.assert_called_once_with(
         "dspy.lm.end",
         {"call_id": "call-2", "ok": True, "exception": None},
+        result={"text": "result"},
     )
 
 
@@ -210,6 +213,7 @@ def test_on_tool_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     cb._sign_action.assert_called_once_with(
         "dspy.tool.end",
         {"call_id": "call-3", "ok": True, "exception": None},
+        result={"results": ["a", "b"]},
     )
 
 
@@ -253,6 +257,7 @@ def test_on_evaluate_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     cb._sign_action.assert_called_once_with(
         "dspy.evaluate.end",
         {"call_id": "call-e1", "ok": True, "exception": None},
+        result={"score": 0.87},
     )
 
 
@@ -286,6 +291,7 @@ def test_on_adapter_format_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     cb._sign_action.assert_called_once_with(
         "dspy.adapter.format.end",
         {"call_id": "call-f1", "ok": True, "exception": None},
+        result={"messages": []},
     )
 
 

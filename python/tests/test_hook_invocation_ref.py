@@ -111,7 +111,7 @@ def test_cli_pretool_dry_run_forwards_the_reference() -> None:
 def test_cli_posttool_dry_run_forwards_the_reference() -> None:
     body = _dry_run("posttool", _post_event())
     assert body["invocation_ref"] == "toolu_abc123"
-    assert body["receipt_type"] == "protectmcp:observation"
+    assert body["receipt_type"] == "protectmcp:observation:result_bound"
 
 
 def test_cli_posttool_bind_result_forwards_the_reference() -> None:

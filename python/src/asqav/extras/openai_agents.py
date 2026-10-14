@@ -127,6 +127,7 @@ class AsqavGuardrail(AsqavAdapter):
                     "output_length": output_length,
                     "output_preview": data_repr,
                 },
+                result=output_data,
             )
         except Exception as exc:
             logger.warning("asqav output guardrail signing failed (fail-open): %s", exc)
@@ -208,7 +209,7 @@ class AsqavTracingProcessor(AsqavAdapter, TracingProcessor):
                     if len(output_repr) > 200:
                         output_repr = output_repr[:200]
                     context["output_preview"] = output_repr
-            self._sign_action("span:end", context)
+            self._sign_action("span:end", context, result=exported)
         except Exception as exc:
             logger.warning("asqav span:end signing failed (fail-open): %s", exc)
 

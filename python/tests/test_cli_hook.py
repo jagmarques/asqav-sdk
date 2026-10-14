@@ -73,10 +73,10 @@ def test_posttool_honesty_invariant_capture_topology() -> None:
     assert body["capture_topology"] == "passive_telemetry"
 
 
-    # Honesty invariant: posttool must set receipt_type=protectmcp:observation.
+    # Honesty invariant: posttool binds the result by default (787).
 def test_posttool_honesty_invariant_receipt_type() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
-    assert body["receipt_type"] == "protectmcp:observation"
+    assert body["receipt_type"] == "protectmcp:observation:result_bound"
 
 
     # posttool must never emit a :decision receipt (would be a false attestation).

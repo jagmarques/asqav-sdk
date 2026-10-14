@@ -31,6 +31,19 @@ export interface AsqavAdapterOptions {
 interface SignActionInput {
   actionType: string;
   context?: Record<string, unknown>;
+  /** Completion value; its digest is default-sent (787). */
+  result?: unknown;
+}
+
+/** JSON-safe projection so JCS digest never throws on host objects. */
+export function toJsonSafeResult(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  try {
+    const roundTripped: unknown = JSON.parse(JSON.stringify(value) ?? "null");
+    return roundTripped === undefined ? String(value) : roundTripped;
+  } catch {
+    return String(value);
+  }
 }
 
 /**
@@ -99,6 +112,9 @@ export class AsqavAdapter {
         await agent.sign({
           actionType: input.actionType,
           context: input.context,
+          ...(input.result !== undefined
+            ? { result: toJsonSafeResult(input.result) as never }
+            : {}),
         });
       } catch (err) {
         try {

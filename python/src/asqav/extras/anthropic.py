@@ -50,7 +50,10 @@ class _SignedMessages:
             if usage:
                 context["input_tokens"] = getattr(usage, "input_tokens", None)
                 context["output_tokens"] = getattr(usage, "output_tokens", None)
-            sig = self._agent.sign(action_type=context["action_type"], context=context)
+            sig = self._agent.sign(
+                action_type=context["action_type"], context=context,
+                result=response,  # 787: chat completion is the outcome.
+            )
             response._asqav_receipt = sig
         except Exception:
             logger.debug("asqav sign failed (fail-soft)", exc_info=True)

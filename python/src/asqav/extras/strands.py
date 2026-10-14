@@ -180,6 +180,7 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
 
             output_hash = "none"
             stop_reason: str | None = None
+            message: Any = None
             stop_response = getattr(event, "stop_response", None)
             if stop_response is not None:
                 message = getattr(stop_response, "message", None)
@@ -205,7 +206,9 @@ class AsqavStrandsHooks(AsqavAdapter, HookProvider):
             if self._algorithm is not None:
                 context["algorithm"] = self._algorithm
 
-            self._sign_action(_STRANDS_ACTION, context)
+            # 787: bind the model output (or the failure) to the receipt.
+            result_value = message if stop_response is not None else error
+            self._sign_action(_STRANDS_ACTION, context, result=result_value)
         except Exception as exc:
             logger.warning(
                 "asqav strands after-model-call signing failed (fail-open): %s", exc
