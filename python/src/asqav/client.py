@@ -1743,8 +1743,9 @@ def _digest_result_value(result: bytes | str | dict | list) -> str:
     """Compute the canonical ``sha256:<hex>`` of a tool result (criterion 787).
 
     Dicts/lists are JCS-canonicalised so key order never changes the digest;
-    strings encode as UTF-8; bytes hash raw. Output matches the server's
-    ``sha256:<64 hex>`` result_digest wire shape.
+    strings encode as UTF-8; bytes hash raw. Anything JCS refuses falls back
+    to str(), so fail-open paths always bind an outcome instead of throwing.
+    Output matches the server's ``sha256:<64 hex>`` result_digest wire shape.
     """
     import hashlib
 
@@ -1755,7 +1756,10 @@ def _digest_result_value(result: bytes | str | dict | list) -> str:
     else:
         from .canonicalize import canonicalize
 
-        raw = canonicalize(result)
+        try:
+            raw = canonicalize(result)
+        except (TypeError, ValueError, RecursionError):
+            raw = str(result).encode("utf-8")
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 

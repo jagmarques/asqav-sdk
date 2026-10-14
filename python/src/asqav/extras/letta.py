@@ -101,6 +101,7 @@ class AsqavLettaHook(AsqavAdapter):
                             "error_type": type(exc).__name__,
                             "error": str(exc)[:_MAX_LEN],
                         },
+                        result=str(exc),
                     )
                 except Exception as sign_exc:
                     logger.warning(
@@ -164,6 +165,7 @@ class AsqavLettaHook(AsqavAdapter):
                                 "error_type": type(exc).__name__,
                                 "error": str(exc)[:_MAX_LEN],
                             },
+                            result=str(exc),
                         )
                     except Exception as sign_exc:
                         logger.warning(

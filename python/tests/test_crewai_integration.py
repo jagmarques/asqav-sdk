@@ -127,6 +127,7 @@ def test_step_callback_signs_action(hook):
     assert action == "step:execute"
     assert ctx["step_type"] == "AgentAction"
     assert "search" in ctx["step_output"]
+    assert mock_sign.call_args[1]["result"] is step
 
 
 # === task_callback ===

@@ -132,7 +132,7 @@ class AsqavCrewHook(AsqavAdapter):
             "step_type": type(step_output).__name__,
             "step_output": str(step_output)[:_MAX_DESC],
         }
-        self._sign_action("step:execute", ctx)
+        self._sign_action("step:execute", ctx, result=step_output)
 
     def task_callback(self, task_output: Any) -> None:
         """Callback for CrewAI ``task_callback`` parameter.

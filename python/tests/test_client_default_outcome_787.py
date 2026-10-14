@@ -74,6 +74,19 @@ def test_digest_is_key_order_stable() -> None:
     assert len(_digest_result_value(b"raw")) == len("sha256:") + 64
 
 
+def test_digest_falls_back_for_non_jcs_values() -> None:
+    class HostObject:
+        def __str__(self) -> str:
+            return "host-value"
+
+    circular: dict = {}
+    circular["self"] = circular
+    for awkward in (HostObject(), circular, float("nan"), 2**60, {"k": HostObject()}):
+        digest = _digest_result_value(awkward)  # must not throw (fail-open)
+        assert digest.startswith("sha256:") and len(digest) == len("sha256:") + 64
+    assert _digest_result_value(HostObject()) == _digest_result_value("host-value")
+
+
 def test_attach_result_links_origin() -> None:
     captured: dict = {}
 
