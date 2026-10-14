@@ -146,7 +146,7 @@ export class AsqavMastraHook extends AsqavAdapter {
       ctx.output_preview = truncate(outputStr);
       ctx.output_length = outputStr?.length ?? 0;
     }
-    this.signAction({ actionType: "step:after", context: ctx });
+    this.signAction({ actionType: "step:after", context: ctx, result: evt.output });
   }
 
   /** Sign an error event from a Mastra step. */
@@ -159,6 +159,10 @@ export class AsqavMastraHook extends AsqavAdapter {
       error_type: err instanceof Error ? err.name : typeof err,
       error: truncate(err instanceof Error ? err.message : String(err)),
     };
-    this.signAction({ actionType: "step:error", context: ctx });
+    this.signAction({
+      actionType: "step:error",
+      context: ctx,
+      result: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+    });
   }
 }

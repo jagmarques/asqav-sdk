@@ -85,6 +85,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
             output_length: outStr?.length ?? 0,
             output_preview: truncate(outStr ?? ""),
           },
+          result: out,
         });
         return out;
       } catch (err) {
@@ -95,6 +96,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
             error_type: err instanceof Error ? err.name : typeof err,
             error: truncate(err instanceof Error ? err.message : String(err)),
           },
+          result: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
         });
         throw err;
       }
@@ -128,6 +130,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
         output_length: repr?.length ?? 0,
         output_preview: truncate(repr ?? ""),
       },
+      result: output,
     });
   }
 }

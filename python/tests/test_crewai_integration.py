@@ -74,7 +74,7 @@ def test_on_task_complete_signs_action(hook):
         "task_description": "Write report",
         "output_length": 27,
         "agent_role": "Writer",
-    })
+    }, result="Final analysis results here")
 
 
     # on_task_complete omits output_length when output is None.
@@ -100,7 +100,7 @@ def test_on_task_fail_signs_action(hook):
         "task_description": "Fetch data",
         "error": "Connection timeout",
         "agent_role": "Fetcher",
-    })
+    }, result="Connection timeout")
 
 
     # on_task_fail omits error when not provided.

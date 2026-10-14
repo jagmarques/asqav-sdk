@@ -111,6 +111,7 @@ class TestPostCallSuccessHook:
                     "total_tokens": 30,
                 },
             },
+            result=response,
         )
 
     def test_post_call_success_no_usage(self):
@@ -151,6 +152,7 @@ class TestPostCallFailureHook:
                 "error_message": "rate limit exceeded",
             },
             risk_class="medium",
+            result="rate limit exceeded",
         )
 
 

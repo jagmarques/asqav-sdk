@@ -112,6 +112,7 @@ def test_openai_signs_receipt_and_attaches_it(monkeypatch):
     assert context["prompt_tokens"] == 3
     assert context["completion_tokens"] == 5
     assert context["total_tokens"] == 8
+    assert kwargs["result"] is response  # 787: completion bound by default.
 
     assert response._asqav_receipt is receipt
 
@@ -208,6 +209,7 @@ def test_anthropic_signs_receipt_and_attaches_it(monkeypatch):
     assert context["anthropic_id"] == "msg_1"
     assert context["input_tokens"] == 4
     assert context["output_tokens"] == 9
+    assert kwargs["result"] is response  # 787: completion bound by default.
 
     assert response._asqav_receipt is receipt
 
