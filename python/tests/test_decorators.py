@@ -113,6 +113,7 @@ def test_sign_decorator_sync(mock_post: MagicMock, mock_patch: MagicMock) -> Non
     result_args = mock_post.call_args_list[2]
     assert result_args[0][1]["action_type"] == "function:result"
     assert result_args[0][1]["context"]["success"] is True
+    assert result_args[0][1]["result_digest"] == asqav_client._digest_result_value(5)
 
 
     # @asqav.sign on async function works with asyncio.run().
@@ -216,6 +217,9 @@ def test_sign_decorator_reraises_exception(mock_post: MagicMock, mock_patch: Mag
     error_args = mock_post.call_args_list[2]
     assert error_args[0][1]["action_type"] == "function:error"
     assert "something broke" in error_args[0][1]["context"]["error"]
+    assert error_args[0][1]["result_digest"] == asqav_client._digest_result_value(
+        "something broke"
+    )
 
 
     # with asqav.session() as s: s.sign(...) groups signs under a session.
@@ -282,6 +286,35 @@ def test_existing_secure_still_works() -> None:
     assert hasattr(asqav, "sign")
     assert hasattr(asqav, "session")
     assert hasattr(asqav, "async_session")
+
+
+    # @asqav.secure binds the function outcome as the receipt result (787).
+@patch("asqav.client._patch", side_effect=_mock_patch_side_effect)
+@patch("asqav.client._post", side_effect=_mock_post_side_effect)
+def test_secure_decorator_binds_result(mock_post: MagicMock, mock_patch: MagicMock) -> None:
+    _reset_global_agent()
+
+    @asqav.secure
+    def add(a: int, b: int) -> int:
+        return a + b
+
+    assert add(2, 3) == 5
+    result_call = mock_post.call_args_list[-1]
+    assert result_call[0][1]["action_type"] == "function:result"
+    assert result_call[0][1]["result_digest"] == asqav_client._digest_result_value(5)
+
+    @asqav.secure
+    def fail() -> None:
+        raise ValueError("boom")
+
+    try:
+        fail()
+        assert False, "should have raised"
+    except ValueError:
+        pass
+    error_call = mock_post.call_args_list[-1]
+    assert error_call[0][1]["action_type"] == "function:error"
+    assert error_call[0][1]["result_digest"] == asqav_client._digest_result_value("boom")
 
 
     # Concurrent first calls to get_agent create exactly one agent (no duplicate race).

@@ -3,7 +3,7 @@
  * Signs agent and tool lifecycle events, fail-open so governance never breaks the agent loop.
  */
 
-import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
 const MAX_PREVIEW = 200;
 
@@ -67,7 +67,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
     const toolName = tool.name ?? "unknown";
 
     const execute = async (input: I, ...rest: unknown[]): Promise<O> => {
-      const inputStr = typeof input === "string" ? input : JSON.stringify(input);
+      const inputStr = safeStringify(input);
       self.signAction({
         actionType: "tool:start",
         context: {
@@ -77,7 +77,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
       });
       try {
         const out = await original(input, ...rest);
-        const outStr = typeof out === "string" ? out : JSON.stringify(out);
+        const outStr = safeStringify(out);
         self.signAction({
           actionType: "tool:end",
           context: {
@@ -107,7 +107,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
 
   /** Sign an ``agent:input`` event. Use as an input guardrail. */
   public onAgentInput(input: unknown, agentName?: string): void {
-    const repr = typeof input === "string" ? input : JSON.stringify(input);
+    const repr = safeStringify(input);
     this.signAction({
       actionType: "agent:input",
       context: {
@@ -121,7 +121,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
 
   /** Sign an ``agent:output`` event. Use as an output guardrail. */
   public onAgentOutput(output: unknown, agentName?: string): void {
-    const repr = typeof output === "string" ? output : JSON.stringify(output);
+    const repr = safeStringify(output);
     this.signAction({
       actionType: "agent:output",
       context: {

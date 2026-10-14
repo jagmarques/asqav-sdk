@@ -1,7 +1,7 @@
 // LangChain.js integration. Install @langchain/core, then either
 // enableLangchainGovernance({ agentName }) or AsqavCallbackHandler.create({...}).
 
-import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
 // Local LangChain.js types so this module compiles even when the peer
 // package is not installed. The actual base class is loaded lazily.
@@ -136,7 +136,7 @@ export class AsqavCallbackHandler extends AsqavAdapter {
       }
 
       handleToolEnd(output: unknown): void {
-        const outStr = typeof output === "string" ? output : JSON.stringify(output);
+        const outStr = safeStringify(output);
         this._asqav._emit("tool:end", {
           output_type: typeof output,
           output_length: outStr?.length ?? 0,

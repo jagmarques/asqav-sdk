@@ -3,7 +3,7 @@
  * workflow step becomes a receipt. Needs the `@mastra/core` peer dependency; see the README.
  */
 
-import { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
+import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
 const MAX_PREVIEW = 200;
 
@@ -124,9 +124,7 @@ export class AsqavMastraHook extends AsqavAdapter {
       agent_name: evt.agentName ?? this.name,
     };
     if (evt.input !== undefined) {
-      const inputStr = typeof evt.input === "string"
-        ? evt.input
-        : JSON.stringify(evt.input);
+      const inputStr = safeStringify(evt.input);
       ctx.input_preview = truncate(inputStr);
     }
     this.signAction({ actionType: "step:before", context: ctx });
@@ -140,9 +138,7 @@ export class AsqavMastraHook extends AsqavAdapter {
       agent_name: evt.agentName ?? this.name,
     };
     if (evt.output !== undefined) {
-      const outputStr = typeof evt.output === "string"
-        ? evt.output
-        : JSON.stringify(evt.output);
+      const outputStr = safeStringify(evt.output);
       ctx.output_preview = truncate(outputStr);
       ctx.output_length = outputStr?.length ?? 0;
     }

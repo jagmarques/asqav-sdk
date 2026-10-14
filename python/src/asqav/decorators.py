@@ -114,6 +114,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "success": True,
                         },
+                        result=result,
                     )
 
                     return result
@@ -125,6 +126,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "error": str(e),
                         },
+                        result=str(e),
                     )
                     raise
 
@@ -154,6 +156,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "success": True,
                         },
+                        result=result,
                     )
 
                     return result
@@ -165,6 +168,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "error": str(e),
                         },
+                        result=str(e),
                     )
                     raise
 
