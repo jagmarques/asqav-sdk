@@ -208,6 +208,7 @@ class AsyncAgent:
         result: bytes | str | dict | list | None = None,
         receipt_type: str | None = None,
         action_ref: str | None = None,
+        compliance_mode: bool | None = None,
     ) -> SignatureResponse:
         from .client import _build_sign_body, _digest_result_value
 
@@ -239,6 +240,8 @@ class AsyncAgent:
             body["receipt_type"] = receipt_type
         if action_ref is not None:
             body["action_ref"] = action_ref
+        if compliance_mode is not None:
+            body["compliance_mode"] = compliance_mode
         data = await _async_post(f"/agents/{self.agent_id}/sign", body)
 
         return SignatureResponse(
@@ -284,6 +287,7 @@ class AsyncAgent:
             result_digest=result_digest,
             receipt_type="protectmcp:observation:result_bound",
             action_ref=action_ref,
+            compliance_mode=True,
         )
 
         # Countersign an existing signature record (async); appends to ``co_signatures``.
