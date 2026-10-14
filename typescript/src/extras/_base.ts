@@ -46,6 +46,16 @@ export function toJsonSafeResult(value: unknown): unknown {
   }
 }
 
+/** Preview stringify that never throws on BigInt or circular values. */
+export function safeStringify(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 /**
  * Shared base for the framework adapters here. Subclasses call ``signAction`` on every framework
  * callback and MUST NOT call the SDK directly, so the fail-open contract lives in one place.

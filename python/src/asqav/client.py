@@ -3614,6 +3614,7 @@ def secure(func: F) -> F:
                     "function": func.__name__,
                     "success": True,
                 },
+                result=result,
             )
 
             return result
@@ -3626,6 +3627,7 @@ def secure(func: F) -> F:
                     "function": func.__name__,
                     "error": str(e),
                 },
+                result=str(e),
             )
             raise
 
@@ -3678,6 +3680,7 @@ def secure_async(func: F) -> F:
                     "function": func.__name__,
                     "success": True,
                 },
+                result=result,
             )
 
             return result
@@ -3689,6 +3692,7 @@ def secure_async(func: F) -> F:
                     "function": func.__name__,
                     "error": str(e),
                 },
+                result=str(e),
             )
             raise
 

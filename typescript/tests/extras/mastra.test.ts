@@ -64,6 +64,25 @@ describe("AsqavMastraHook before/after wiring", () => {
     expect(calls[2].result).toBe("Error: nope");
   });
 
+  it("survives hostile outputs: BigInt and circular values still sign", async () => {
+    const { AsqavMastraHook: Hook } = await import("../../src/extras/mastra.js");
+    const { agent, calls, sign } = makeFakeAgent();
+    const hook = new Hook({ agent });
+
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    hook.after({ stepId: "s-big", stepType: "tool", output: { n: 10n } });
+    hook.after({ stepId: "s-circ", stepType: "tool", output: circular });
+
+    await tick();
+    expect(sign).toHaveBeenCalledTimes(2);
+    expect(calls[0].actionType).toBe("step:after");
+    expect(typeof calls[0].context.output_preview).toBe("string");
+    expect(typeof calls[1].context.output_preview).toBe("string");
+    expect(calls[0].result).toBeDefined();
+    expect(calls[1].result).toBeDefined();
+  });
+
   it("attach(agent.on) subscribes to step:before / step:after / step:error", async () => {
     const { AsqavMastraHook: Hook } = await import("../../src/extras/mastra.js");
     const { agent, sign } = makeFakeAgent();
