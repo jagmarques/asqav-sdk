@@ -152,7 +152,7 @@ class AsqavCrewHook(AsqavAdapter):
         }
         if raw is not None:
             ctx["output_length"] = len(raw)
-        self._sign_action("task:complete", ctx)
+        self._sign_action("task:complete", ctx, result=raw)
 
 
 class AsqavGuardrailProvider(AsqavAdapter):
