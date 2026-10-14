@@ -11,7 +11,7 @@ import {
 } from "./algorithms.js";
 import { canonicalizeAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
-import { canonicalJson } from "./jcs.js";
+import { canonicalJson, toJsonSafeResult } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
 import {
   type ContextSchema,
@@ -167,7 +167,7 @@ export {
   canonicalizeToolArgs,
   hashAction,
 } from "./canonicalize.js";
-export { canonicalJson } from "./jcs.js";
+export { canonicalJson, safeStringify, toJsonSafeResult } from "./jcs.js";
 export * as doors from "./doors.js";
 export {
   verifyChain,
@@ -2136,6 +2136,7 @@ export class Agent {
       complianceMode: true,
       receiptType: ACKNOWLEDGMENT_RECEIPT_TYPE,
       counterpartyBinding,
+      result: peerReceipt,
     });
   }
 
@@ -2166,11 +2167,10 @@ export class Agent {
       finalContext = { ...(finalContext ?? {}), _detectors: _detectorRecords };
     }
 
-    // Default-send the outcome: explicit resultDigest wins, else digest
-    // result before validation so the result_bound guard sees it
+    // Default-send the outcome: explicit resultDigest wins, else digest result
     const effectiveOptions = options.resultDigest !== undefined || options.result === undefined
       ? options
-      : { ...options, resultDigest: digestResultValue(options.result) };
+      : { ...options, resultDigest: digestResultValue(toJsonSafeResult(options.result) as never) };
 
     validateSignOptions(effectiveOptions, complianceMode);
 

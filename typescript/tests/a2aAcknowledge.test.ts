@@ -12,6 +12,7 @@ import {
   DEFAULT_RECEIPT_HEADER,
   _resetForTests,
   computeEnvelopeHash,
+  digestResultValue,
   encodeReceiptHeader,
   init,
   receiptOf,
@@ -76,6 +77,7 @@ describe("agent-to-agent acknowledgment", () => {
     const binding = body.counterparty_binding as Record<string, unknown>;
     expect(binding.receipt_ref).toBe("sig_peer");
     expect(binding.envelope_hash).toBe(computeEnvelopeHash(PEER));
+    expect(body.result_digest).toBe(digestResultValue(PEER));
     expect(binding.expect_ack_from).toBe("kid_b");
     expect(binding.transport_label).toBe("https");
   });

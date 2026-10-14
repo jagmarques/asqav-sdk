@@ -5,6 +5,8 @@
 
 import { Agent } from "../index.js";
 
+export { safeStringify, toJsonSafeResult } from "../jcs.js";
+
 /**
  * Options accepted by every Asqav adapter constructor. Provide exactly one of ``agent`` (used directly),
  * ``agentId`` (lazy ``Agent.get``), or ``agentName`` (lazy ``Agent.create``).
@@ -33,27 +35,6 @@ interface SignActionInput {
   context?: Record<string, unknown>;
   /** Completion value; its digest is default-sent (787). */
   result?: unknown;
-}
-
-/** JSON-safe projection so JCS digest never throws on host objects. */
-export function toJsonSafeResult(value: unknown): unknown {
-  if (value === undefined) return undefined;
-  try {
-    const roundTripped: unknown = JSON.parse(JSON.stringify(value) ?? "null");
-    return roundTripped === undefined ? String(value) : roundTripped;
-  } catch {
-    return String(value);
-  }
-}
-
-/** Preview stringify that never throws on BigInt or circular values. */
-export function safeStringify(value: unknown): string {
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
 }
 
 /**
@@ -122,9 +103,7 @@ export class AsqavAdapter {
         await agent.sign({
           actionType: input.actionType,
           context: input.context,
-          ...(input.result !== undefined
-            ? { result: toJsonSafeResult(input.result) as never }
-            : {}),
+          ...(input.result !== undefined ? { result: input.result as never } : {}),
         });
       } catch (err) {
         try {
