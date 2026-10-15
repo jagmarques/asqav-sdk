@@ -46,6 +46,10 @@ function parseDatetime(value: unknown): number | null {
   if (typeof value !== "string") return null;
   const text = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|z|[+-]\d{2}:\d{2})$/.test(text)) return null;
+  // Ranges checked here because Date.parse rolls hour 24 and second 60 over
+  const [hh, mm, ss] = text.slice(11, 19).split(":");
+  const whole = (ss ?? "0").split(".")[0];
+  if (Number(hh) > 23 || Number(mm) > 59 || Number(whole) > 59) return null;
   const ms = Date.parse(text);
   return Number.isNaN(ms) ? null : ms;
 }
