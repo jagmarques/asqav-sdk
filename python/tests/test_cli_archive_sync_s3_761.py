@@ -181,6 +181,45 @@ def test_s3_bad_url_is_usage_error(monkeypatch, tmp_path):
 
 
 @mock_aws
+def test_s3_rerun_skips_identical_terminal_page(monkeypatch, tmp_path):
+    """Re-running a complete sync mints no new locked versions."""
+    _awsenviron(monkeypatch)
+    with mock_aws():
+        s3 = _bucket()
+        pages = {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False)}
+        calls = _pageserver(monkeypatch, pages)
+        out = str(tmp_path / "arc")
+        args = ["archive", "sync", "--out", out, "--s3", "s3://arc/pages"]
+        assert runner.invoke(app, args).exit_code == 0
+        assert len(s3.list_object_versions(Bucket="arc", Prefix="pages/")["Versions"]) == 3
+        calls.clear()
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0, result.output
+        assert [c for c in calls] == [c for c in calls if "cursor=1" in c]
+        assert len(calls) == 1
+        vers = s3.list_object_versions(Bucket="arc", Prefix="pages/")
+        assert len(vers["Versions"]) == 3
+
+
+@mock_aws
+def test_s3_missing_next_cursor_aborts_cleanly(monkeypatch, tmp_path):
+    """A has_more page without next_cursor ends loud, not with a traceback."""
+    _awsenviron(monkeypatch)
+    with mock_aws():
+        _bucket()
+        page = _page([_receipt(1)], 1, True)
+        del page["next_cursor"]
+        _pageserver(monkeypatch, {0: page})
+        out = str(tmp_path / "arc")
+        result = runner.invoke(
+            app, ["archive", "sync", "--out", out, "--s3", "s3://arc/pages"]
+        )
+        assert result.exit_code == 1
+        assert "next_cursor" in result.output
+        assert "Traceback" not in result.output
+
+
+@mock_aws
 def test_s3_missing_bucket_aborts(monkeypatch, tmp_path):
     """Syncing into a bucket that does not exist fails instead of duping."""
     _awsenviron(monkeypatch)

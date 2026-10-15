@@ -1941,6 +1941,22 @@ def _read_s3_cursor(s3_client, dest):
         raise typer.Exit(code=1)
 
 
+def _s3_page_identical(s3_client, dest, cursor, body):
+    """True when the stored terminal page already holds these bytes."""
+    from botocore.exceptions import ClientError as ClientError_mod
+
+    try:
+        obj = s3_client.get_object(
+            Bucket=dest[0], Key=_s3_key(dest, f"page-{cursor}.json")
+        )
+    except ClientError_mod as exc:
+        if exc.response.get("Error", {}).get("Code") == "NoSuchKey":
+            return False
+        print(f"Error reading S3 page: {exc}")
+        raise typer.Exit(code=1)
+    return obj["Body"].read() == body
+
+
 def _put_s3_page(s3_client, dest, cursor, body, retain_until):
     """Store one verified page under Object Lock (WORM, customer bucket)."""
     s3_client.put_object(
@@ -2030,16 +2046,25 @@ def archive_sync(
             print(f"Page digest mismatch at cursor {cursor}; aborting.")
             raise typer.Exit(code=1)
         body = json_mod.dumps(page, indent=2, default=str).encode("utf-8")
-        with open(os_mod.path.join(out_dir, f"page-{cursor}.json"), "wb") as f:
-            f.write(body)
-        if s3_client is not None:
-            retain = datetime_mod.datetime.now(datetime_mod.timezone.utc)
-            retain += datetime_mod.timedelta(days=retention_days)
-            _put_s3_page(s3_client, dest, cursor, body, retain)
+        unchanged = (
+            not page.get("has_more")
+            and s3_client is not None
+            and _s3_page_identical(s3_client, dest, cursor, body)
+        )
+        if not unchanged:
+            with open(os_mod.path.join(out_dir, f"page-{cursor}.json"), "wb") as f:
+                f.write(body)
+            if s3_client is not None:
+                retain = datetime_mod.datetime.now(datetime_mod.timezone.utc)
+                retain += datetime_mod.timedelta(days=retention_days)
+                _put_s3_page(s3_client, dest, cursor, body, retain)
         total += len(receipts)
         if not page.get("has_more"):
             break
-        cursor = page["next_cursor"]
+        cursor = page.get("next_cursor")
+        if cursor is None:
+            print("Archive page is missing next_cursor; aborting.")
+            raise typer.Exit(code=1)
         with open(cursor_path, "w") as f:
             f.write(str(cursor))
         if s3_client is not None:
