@@ -1909,6 +1909,73 @@ archive_app = typer.Typer(
 app.add_typer(archive_app, name="archive")
 
 
+def _parse_s3_url(url):
+    """Split s3://bucket/prefix into (bucket, prefix); usage error out."""
+    if not url.startswith("s3://"):
+        raise typer.BadParameter("S3 URL must look like s3://bucket/prefix.")
+    rest = url[len("s3://"):].strip("/")
+    if not rest:
+        raise typer.BadParameter("S3 URL must look like s3://bucket/prefix.")
+    bucket, _, prefix = rest.partition("/")
+    if not bucket:
+        raise typer.BadParameter("S3 URL must look like s3://bucket/prefix.")
+    return bucket, prefix.strip("/")
+
+
+def _s3_key(dest, name):
+    """Prefix a page or cursor object name inside the customer bucket."""
+    return f"{dest[1]}/{name}" if dest[1] else name
+
+
+def _read_s3_cursor(s3_client, dest):
+    """Resume from the bucket cursor object; missing bucket aborts."""
+    from botocore.exceptions import ClientError as ClientError_mod
+
+    try:
+        obj = s3_client.get_object(Bucket=dest[0], Key=_s3_key(dest, "cursor"))
+        return int(obj["Body"].read().decode("utf-8").strip() or 0)
+    except ClientError_mod as exc:
+        if exc.response.get("Error", {}).get("Code") == "NoSuchKey":
+            return 0
+        print(f"Error reading S3 cursor: {exc}")
+        raise typer.Exit(code=1)
+
+
+def _s3_page_identical(s3_client, dest, cursor, body):
+    """True when the stored terminal page already holds these bytes."""
+    from botocore.exceptions import ClientError as ClientError_mod
+
+    try:
+        obj = s3_client.get_object(
+            Bucket=dest[0], Key=_s3_key(dest, f"page-{cursor}.json")
+        )
+    except ClientError_mod as exc:
+        if exc.response.get("Error", {}).get("Code") == "NoSuchKey":
+            return False
+        print(f"Error reading S3 page: {exc}")
+        raise typer.Exit(code=1)
+    return obj["Body"].read() == body
+
+
+def _put_s3_page(s3_client, dest, cursor, body, retain_until):
+    """Store one verified page under Object Lock (WORM, customer bucket)."""
+    s3_client.put_object(
+        Bucket=dest[0],
+        Key=_s3_key(dest, f"page-{cursor}.json"),
+        Body=body,
+        ContentType="application/json",
+        ObjectLockMode="COMPLIANCE",
+        ObjectLockRetainUntilDate=retain_until,
+    )
+
+
+def _put_s3_cursor(s3_client, dest, cursor):
+    """Overwrite the bucket cursor so a re-run resumes without gaps."""
+    s3_client.put_object(
+        Bucket=dest[0], Key=_s3_key(dest, "cursor"), Body=str(cursor).encode("utf-8")
+    )
+
+
 @archive_app.command("sync")
 def archive_sync(
     out: str = typer.Option(
@@ -1920,13 +1987,16 @@ def archive_sync(
     limit: int = typer.Option(100, "--limit", min=1, max=500),
     agent_id: str = typer.Option("", "--agent-id"),
     only_compliance: bool = typer.Option(True, "--only-compliance/--no-only-compliance"),
+    s3: str = typer.Option("", "--s3", help="S3 URL for pages (s3://bucket/prefix)."),
+    s3_endpoint_url: str = typer.Option("", "--s3-endpoint-url", help="Local S3 store URL."),
+    retention_days: int = typer.Option(30, "--retention-days", min=1),
 ) -> None:
-    """Sync signed archive pages into a directory, resumable by cursor.
+    """Sync signed archive pages to a directory and optionally S3.
 
-    Pages come from GET `/audit-pack/archive` and each page's digest is
-    re-derived locally before writing, so a tampered page aborts the
-    sync. Re-running resumes from the saved cursor without gaps.
+    Each page digest is re-derived before writing, so tampering aborts
+    the sync; re-running resumes from the saved cursor without gaps.
     """
+    import datetime as datetime_mod
     import hashlib as hashlib_mod
     import json as json_mod
     import os as os_mod
@@ -1936,6 +2006,15 @@ def archive_sync(
     _init_sdk()
     from asqav.client import _get
 
+    dest = _parse_s3_url(s3) if s3 else None
+    s3_client = None
+    if dest is not None:
+        try:
+            import boto3 as boto3_mod
+        except ImportError:
+            print("S3 sync needs boto3: pip install asqav[s3].")
+            raise typer.Exit(code=1)
+        s3_client = boto3_mod.client("s3", endpoint_url=s3_endpoint_url or None)
     out_dir = os_mod.path.abspath(out)
     os_mod.makedirs(out_dir, exist_ok=True)
     cursor_path = cursor_file or os_mod.path.join(out_dir, "cursor")
@@ -1943,6 +2022,8 @@ def archive_sync(
     if os_mod.path.exists(cursor_path):
         with open(cursor_path) as f:
             cursor = int(f.read().strip() or 0)
+    elif s3_client is not None:
+        cursor = _read_s3_cursor(s3_client, dest)
     total = 0
     while True:
         path = f"/audit-pack/archive?cursor={cursor}&limit={limit}"
@@ -1964,15 +2045,32 @@ def archive_sync(
         if expect != page.get("page_digest", ""):
             print(f"Page digest mismatch at cursor {cursor}; aborting.")
             raise typer.Exit(code=1)
-        with open(os_mod.path.join(out_dir, f"page-{cursor}.json"), "w") as f:
-            json_mod.dump(page, f, indent=2, default=str)
+        body = json_mod.dumps(page, indent=2, default=str).encode("utf-8")
+        unchanged = (
+            not page.get("has_more")
+            and s3_client is not None
+            and _s3_page_identical(s3_client, dest, cursor, body)
+        )
+        if not unchanged:
+            with open(os_mod.path.join(out_dir, f"page-{cursor}.json"), "wb") as f:
+                f.write(body)
+            if s3_client is not None:
+                retain = datetime_mod.datetime.now(datetime_mod.timezone.utc)
+                retain += datetime_mod.timedelta(days=retention_days)
+                _put_s3_page(s3_client, dest, cursor, body, retain)
         total += len(receipts)
         if not page.get("has_more"):
             break
-        cursor = page["next_cursor"]
+        cursor = page.get("next_cursor")
+        if cursor is None:
+            print("Archive page is missing next_cursor; aborting.")
+            raise typer.Exit(code=1)
         with open(cursor_path, "w") as f:
             f.write(str(cursor))
-    print(f"synced {total} receipts to {out_dir}")
+        if s3_client is not None:
+            _put_s3_cursor(s3_client, dest, cursor)
+    where = f"s3://{dest[0]}/{dest[1]}" if dest else out_dir
+    print(f"synced {total} receipts to {where}")
 
 
 # === payloads erase command (P4: GDPR right-to-erasure) ===
