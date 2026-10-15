@@ -2219,6 +2219,25 @@ def _strict_b64(value: object):
         return None
 
 
+#: Transport named when history verifies under a non-contract encoding.
+LEGACY_ENCODING_POLICY = "pre-2026-09-02 profile transport"
+
+
+def _sig_carrier(value: object):
+    """Name a signature string's wire form: contract, legacy, or None.
+
+    Contract is unpadded base64url. Decodable history (padded urlsafe,
+    standard) is legacy, still accepted with the policy named. None is junk.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    if _strict_b64(value) is None:
+        return None
+    if "+" in value or "/" in value or value.endswith("="):
+        return "legacy"
+    return "contract"
+
+
 def _same_text(outer: object, signed: object) -> bool:
     return isinstance(outer, str) and outer == signed
 
@@ -3161,14 +3180,26 @@ def _key_and_signature_rows(
         ]
         return rows, None, None, acknowledging_kid
     _raw_sig = sig_obj.get("sig", "")
-    sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
-    sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
+    carrier = _sig_carrier(_raw_sig)
+    if carrier is None:
+        sig = b""
+        sig_res = ("FAIL", "signature string is not decodable base64")
+    else:
+        decoded = _strict_b64(_raw_sig)
+        sig = decoded if decoded is not None else b""
+        sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
     eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
     eff = (status, eff_kid, key_issuer_of(entry), revoked_at_of(entry), pk, jwks_alg)
     agent_note = ""
-    if sig_res[0] != "PASS":
+    if sig_res[0] != "PASS" and carrier is not None:
         sig_res, eff, agent_note = _agent_fallback_signature(
             jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
+        )
+    if sig_res[0] == "PASS" and carrier == "legacy":
+        sig_res = (
+            "PASS",
+            sig_res[1] + "; accepted under legacy encoding policy: "
+            + LEGACY_ENCODING_POLICY,
         )
     eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
     # Only a cryptographically verified anchor at or before revoked_at proves
