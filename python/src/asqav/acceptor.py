@@ -38,6 +38,7 @@ from typing import Any
 from . import strict_json
 from .verifier.oracle import ADAPTERS, verify
 from .verifier.oracle.core import VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED
+from .verifier.verify_receipt import _parse_stamp
 
 __all__ = [
     "DEFAULT_RECEIPT_HEADER",
@@ -70,15 +71,8 @@ class AcceptorDecision:
     rule: str | None = None
 
 
-def _parse_stamp(raw: Any) -> datetime | None:
-    if not isinstance(raw, str) or not raw:
-        return None
-    try:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-
+# _parse_stamp is the verifier's canonical stamp parser (imported above): one
+# grammar for every time axis, so expiry refuses exactly what skew refuses
 def _payload_of(receipt: dict) -> dict:
     payload = receipt.get("payload")
     return payload if isinstance(payload, dict) else receipt
