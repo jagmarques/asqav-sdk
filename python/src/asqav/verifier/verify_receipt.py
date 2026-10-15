@@ -1427,6 +1427,10 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
 #: anchors that CRYPTOGRAPHICALLY verified, the only ones weighable against revoked_at.
 AnchorEvaluation = namedtuple("AnchorEvaluation", ("result", "note", "trusted_times"))
 
+#: Anchor-entry members declared by draft -09 "anchoring"; members outside this
+#: set are ignored by the checks and preserved in the envelope bytes.
+ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash", "tsa_url", "operator_id"})
+
 
 def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None) -> AnchorEvaluation:
     """Cryptographically evaluate every anchor against the envelope digest.
@@ -1470,13 +1474,16 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
             saw_invalid = True
             lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
             continue
-        atype = a.get("type", "?")
-        blob = _anchor_bytes(a.get("value"))
+        # Members outside ANCHOR_ENTRY_MEMBERS never reach the checks, and the
+        # envelope bytes (hence the digest scope) are untouched by this read.
+        known = {k: a[k] for k in a if k in ANCHOR_ENTRY_MEMBERS}
+        atype = known.get("type", "?")
+        blob = _anchor_bytes(known.get("value"))
         if blob is None:
             saw_invalid = True
             lines.append(f"    - {atype}: value MISSING or malformed")
             continue
-        status = a.get("status")
+        status = known.get("status")
         if status in ("pending", "failed"):
             saw_unverifiable = True
             lines.append(
