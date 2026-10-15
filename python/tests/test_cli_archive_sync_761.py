@@ -2,31 +2,15 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 
 from typer.testing import CliRunner
 
-from asqav._jcs import canonical_json
 from asqav.cli import app
+from tests._archive_page_761 import _page_full as _page
 
 runner = CliRunner()
-
-
-def _page(receipts, next_cursor, has_more):
-    body = {"organization_id": "org_arc", "receipts": receipts}
-    digest = "sha256:" + hashlib.sha256(canonical_json(body)).hexdigest()
-    return {
-        "organization_id": "org_arc",
-        "receipts": receipts,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "page_digest": digest,
-        "page_signature": "c2ln",
-        "page_signature_algorithm": "ml-dsa-65",
-        "page_public_key": "a2V5",
-    }
 
 
 def _receipt(i):
@@ -41,7 +25,7 @@ def test_sync_writes_pages_and_resumes(monkeypatch, tmp_path):
         calls.append(path)
         if "cursor=0" in path:
             return _page([_receipt(1)], 1, True)
-        return _page([_receipt(2)], None, False)
+        return _page([_receipt(2)], None, False, cursor=1)
 
     import asqav.cli as cli_mod
 
