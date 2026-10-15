@@ -1898,6 +1898,83 @@ def audit_pack_policy(
         print(json_mod.dumps(data, indent=2, default=str))
 
 
+# === archive sync command (761: customer-held receipt copies) ===
+
+
+archive_app = typer.Typer(
+    name="archive",
+    help="Sync signed receipt pages to customer-held storage.",
+    no_args_is_help=True,
+)
+app.add_typer(archive_app, name="archive")
+
+
+@archive_app.command("sync")
+def archive_sync(
+    out: str = typer.Option(
+        ..., "--out", help="Directory for page files (customer storage)."
+    ),
+    cursor_file: str = typer.Option(
+        "", "--cursor-file", help="Resume cursor path (default <out>/cursor)."
+    ),
+    limit: int = typer.Option(100, "--limit", min=1, max=500),
+    agent_id: str = typer.Option("", "--agent-id"),
+    only_compliance: bool = typer.Option(True, "--only-compliance/--no-only-compliance"),
+) -> None:
+    """Sync signed archive pages into a directory, resumable by cursor.
+
+    Pages come from GET `/audit-pack/archive` and each page's digest is
+    re-derived locally before writing, so a tampered page aborts the
+    sync. Re-running resumes from the saved cursor without gaps.
+    """
+    import hashlib as hashlib_mod
+    import json as json_mod
+    import os as os_mod
+
+    from asqav._jcs import canonical_json as _canonical_json
+
+    _init_sdk()
+    from asqav.client import _get
+
+    out_dir = os_mod.path.abspath(out)
+    os_mod.makedirs(out_dir, exist_ok=True)
+    cursor_path = cursor_file or os_mod.path.join(out_dir, "cursor")
+    cursor = 0
+    if os_mod.path.exists(cursor_path):
+        with open(cursor_path) as f:
+            cursor = int(f.read().strip() or 0)
+    total = 0
+    while True:
+        path = f"/audit-pack/archive?cursor={cursor}&limit={limit}"
+        if agent_id:
+            path += f"&agent_id={agent_id}"
+        if not only_compliance:
+            path += "&only_compliance=false"
+        try:
+            page = _get(path)
+        except Exception as exc:
+            print(f"Error fetching archive page: {exc}")
+            raise typer.Exit(code=1) from exc
+        receipts = page.get("receipts", [])
+        expect = "sha256:" + hashlib_mod.sha256(
+            _canonical_json(
+                {"organization_id": page.get("organization_id", ""), "receipts": receipts}
+            )
+        ).hexdigest()
+        if expect != page.get("page_digest", ""):
+            print(f"Page digest mismatch at cursor {cursor}; aborting.")
+            raise typer.Exit(code=1)
+        with open(os_mod.path.join(out_dir, f"page-{cursor}.json"), "w") as f:
+            json_mod.dump(page, f, indent=2, default=str)
+        total += len(receipts)
+        if not page.get("has_more"):
+            break
+        cursor = page["next_cursor"]
+        with open(cursor_path, "w") as f:
+            f.write(str(cursor))
+    print(f"synced {total} receipts to {out_dir}")
+
+
 # === payloads erase command (P4: GDPR right-to-erasure) ===
 
 
