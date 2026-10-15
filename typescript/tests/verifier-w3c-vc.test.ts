@@ -189,3 +189,42 @@ describe("detection exclusion against the sibling VC format", () => {
     expect([w.detect(ar), g.detect(ar)]).toEqual([false, true]);
   });
 });
+
+describe("w3c-vc xsd:datetime grammar pin (criterion 336)", () => {
+  const ad = new W3cVcAdapter();
+  const BASIC = "20200101T000000Z";
+
+  it("FAILs a basic-form proof.created as unreadable", () => {
+    const doc = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    (doc.proof as Record<string, unknown>).created = BASIC;
+    const [result, note] = ad.schema(doc);
+    expect(result).toBe(FAIL);
+    expect(note).toContain("unreadable proof.created");
+  });
+
+  it("FAILs a basic-form validity window on the expiry axis", () => {
+    const from = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    from.validFrom = BASIC;
+    const axes = ad.extraAxes(from, null);
+    expect(axes[0][1]).toBe(FAIL);
+    expect(axes[0][2]).toContain("unreadable expires_at");
+    const until = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    until.validUntil = BASIC;
+    const axes2 = ad.extraAxes(until, null);
+    expect(axes2[0][1]).toBe(FAIL);
+    expect(axes2[0][2]).toContain("unreadable expires_at");
+  });
+
+  it("FAILs hour 24 Date.parse would roll to the next day", () => {
+    const doc = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    doc.validUntil = "2020-06-01T24:00:00Z";
+    const axes = ad.extraAxes(doc, null);
+    expect(axes[0][1]).toBe(FAIL);
+    expect(axes[0][2]).toContain("unreadable expires_at");
+  });
+
+  it("keeps the RFC 3339 outcomes", () => {
+    const doc = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    expect(ad.schema(doc)[0]).toBe(PASS);
+  });
+});
