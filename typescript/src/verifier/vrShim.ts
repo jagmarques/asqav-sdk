@@ -538,7 +538,7 @@ const ISO_STAMP =
 
 // Python treats a stamp with no zone as UTC, where JS would read it as local time.
 // Ranges are checked here because Date.parse accepts hour 24 and Python does not.
-function parseIsoMs(issuedAt: unknown): number | null {
+export function parseIsoMs(issuedAt: unknown): number | null {
   if (typeof issuedAt !== "string") return null;
   const m = ISO_STAMP.exec(issuedAt);
   if (m === null) return null;
@@ -1012,9 +1012,11 @@ export function checkKeyStatus(
   }
   if (revokedAt) {
     try {
-      const rev = new Date(revokedAt).getTime();
-      const iss = new Date(issuedAt).getTime();
-      if (isNaN(rev) || isNaN(iss)) {
+      // Pinned grammar, not `new Date`: the basic form parses nowhere now, so
+      // one stamp draws one verdict on every engine (mirrors check_key_status)
+      const rev = parseIsoMs(revokedAt);
+      const iss = parseIsoMs(issuedAt);
+      if (rev === null || iss === null) {
         return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
       }
       if (rev <= iss) {

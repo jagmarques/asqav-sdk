@@ -12,6 +12,7 @@ import {
 } from "./verifier/core.js";
 import { parseJsonStrict } from "./verifier/canonical.js";
 import type { KeyProvider } from "./verifier/adapter.js";
+import { parseIsoMs } from "./verifier/vrShim.js";
 
 /** Which acceptor rule refused, or `"verifier"` when the receipt did not verify. */
 export type AcceptorRule = "verifier" | "expiry" | "seq_downgrade" | "challenge";
@@ -43,10 +44,11 @@ export interface CheckPeerReceiptOptions {
  */
 const ADMISSIBLE = new Set<string>([VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED]);
 
+// The verifier's pinned stamp grammar, so expiry refuses exactly what skew
+// refuses on every engine; a zone-less stamp reads as UTC, matching Python
 function parseStamp(raw: unknown): Date | null {
-  if (typeof raw !== "string" || raw === "") return null;
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const ms = parseIsoMs(raw);
+  return ms === null ? null : new Date(ms);
 }
 
 function payloadOf(receipt: Record<string, unknown>): Record<string, unknown> {

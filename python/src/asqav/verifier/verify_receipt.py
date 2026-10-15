@@ -1941,15 +1941,12 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     if s not in REVOKED_KEY_STATUSES:
         return "PASS", f"signing key status {status!r} is active"
     if revoked_at:
-        try:
-            rev = datetime.fromisoformat(str(revoked_at).replace("Z", "+00:00"))
-            iss = datetime.fromisoformat(str(issued_at).replace("Z", "+00:00"))
-        except (ValueError, AttributeError):
+        # Pinned grammar first: bare fromisoformat reads the basic form on 3.11+
+        # but raises on 3.10, so the same stamp drew different verdicts per version
+        rev = _parse_stamp(revoked_at)
+        iss = _parse_stamp(issued_at)
+        if rev is None or iss is None:
             return "FAIL", f"signing key status {status!r}; unparseable revoked_at/issued_at"
-        if rev.tzinfo is None:
-            rev = rev.replace(tzinfo=timezone.utc)
-        if iss.tzinfo is None:
-            iss = iss.replace(tzinfo=timezone.utc)
         if rev <= iss:
             return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
         if not has_trusted_anchor:
