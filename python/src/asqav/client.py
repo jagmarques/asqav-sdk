@@ -3183,8 +3183,9 @@ def init(
             it for you. Leave it unset and the digest is an unsalted
             SHA-256, which can be guessed for a predictable context.
             Salted digests still travel labelled ``sha256``, so a third
-            party recomputing per ``docs/fingerprint-spec.md`` sees a
-            mismatch even though the signature verifies.
+            party recomputing per ``docs/fingerprint-spec.md`` would see a
+            mismatch; the current backend rejects the body before signing
+            (see CAVEAT below), so no signature verifies for this flow.
             CAVEAT: the current backend rejects caller-computed-HMAC
             hash-only bodies (``keyed_digest_requires_context``). Keyed
             digests are server-keyed: send ``context`` (``verified_keyed``).
