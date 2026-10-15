@@ -113,3 +113,40 @@ def test_oracle_null_anchors_is_malformed_not_no_anchors() -> None:
     assert res.failure_class == "unverifiable"
     assert res.first_failing_edge == "structure"
     assert all(a.note != "no anchors on this receipt" for a in res.axes)
+
+
+def test_corpus_anchor_entries_use_only_declared_members() -> None:
+    """Every anchor entry in every pinned vector uses only ANCHOR_ENTRY_MEMBERS.
+
+    The draft declares the member set once (required type/value, optional
+    status/anchor_block_hash/tsa_url/operator_id); the corpus must agree, so a
+    future vector smuggling an undeclared member fails here, not in review."""
+    declared = v.ANCHOR_ENTRY_MEMBERS
+    assert declared == {"type", "value", "status", "anchor_block_hash", "tsa_url", "operator_id"}
+    checked = 0
+    for receipt_path in sorted(_VECTORS.glob("*/receipt.json")):
+        receipt = json.loads(receipt_path.read_text())
+        for entry in receipt.get("anchors") or []:
+            assert isinstance(entry, dict), receipt_path
+            assert set(entry) <= declared, (receipt_path, sorted(set(entry) - declared))
+            checked += 1
+    assert checked > 0, "control: the corpus holds anchor entries to census"
+
+
+def test_unknown_anchor_member_yields_byte_identical_axis() -> None:
+    """An entry carrying an undeclared member verifies exactly as without it.
+
+    Unknown members are ignored by the checks and preserved in the envelope, so
+    member growth across revisions can neither fail nor silently alter an axis.
+    The probe member is asserted undeclared so the test cannot pass vacuously."""
+    assert "proof_of_future" not in v.ANCHOR_ENTRY_MEMBERS
+    receipt, jwks, pred = _vector("asqav-24-anchor-block-hash-prod")
+    assert receipt.get("anchors"), "control: the pinned vector carries anchors"
+    mutated = json.loads(json.dumps(receipt))
+    for entry in mutated["anchors"]:
+        entry["proof_of_future"] = "qhV5..."
+    plain = v.run_structured(receipt, jwks, pred)
+    extra = v.run_structured(mutated, jwks, pred)
+    assert _structured_shape(extra) == _structured_shape(plain)
+    assert extra["verdict"] == plain["verdict"]
+    assert extra["failure_class"] == plain["failure_class"]
