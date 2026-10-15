@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-import hashlib
 import json
 import os
 
@@ -11,23 +10,10 @@ import boto3
 from moto import mock_aws
 from typer.testing import CliRunner
 
-from asqav._jcs import canonical_json
 from asqav.cli import app
+from tests._archive_page_761 import _page_full as _page
 
 runner = CliRunner()
-def _page(receipts, next_cursor, has_more):
-    body = {"organization_id": "org_arc", "receipts": receipts}
-    digest = "sha256:" + hashlib.sha256(canonical_json(body)).hexdigest()
-    return {
-        "organization_id": "org_arc",
-        "receipts": receipts,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "page_digest": digest,
-        "page_signature": "c2ln",
-        "page_signature_algorithm": "ml-dsa-65",
-        "page_public_key": "a2V5",
-    }
 
 
 def _receipt(i):
@@ -76,7 +62,7 @@ def test_s3_sync_writes_pages_with_retention(monkeypatch, tmp_path):
         s3 = _bucket()
         _pageserver(
             monkeypatch,
-            {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False)},
+            {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False, cursor=1)},
         )
         out = str(tmp_path / "arc")
         result = runner.invoke(
@@ -104,7 +90,7 @@ def test_s3_resume_has_no_gaps_or_duplicates(monkeypatch, tmp_path):
         body = json.dumps(first, indent=2, default=str).encode()
         s3.put_object(Bucket="arc", Key="pages/page-0.json", Body=body)
         s3.put_object(Bucket="arc", Key="pages/cursor", Body=b"1")
-        calls = _pageserver(monkeypatch, {1: _page([_receipt(2)], None, False)})
+        calls = _pageserver(monkeypatch, {1: _page([_receipt(2)], None, False, cursor=1)})
         out = str(tmp_path / "arc")
         result = runner.invoke(
             app, ["archive", "sync", "--out", out, "--s3", "s3://arc/pages"]
@@ -147,7 +133,7 @@ def test_s3_stored_pages_verify_offline(monkeypatch, tmp_path):
         s3 = _bucket()
         _pageserver(
             monkeypatch,
-            {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False)},
+            {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False, cursor=1)},
         )
         out = str(tmp_path / "arc")
         result = runner.invoke(
@@ -157,15 +143,9 @@ def test_s3_stored_pages_verify_offline(monkeypatch, tmp_path):
         for cursor in (0, 1):
             raw = s3.get_object(Bucket="arc", Key=f"pages/page-{cursor}.json")
             page = json.loads(raw["Body"].read().decode())
-            expect = "sha256:" + hashlib.sha256(
-                canonical_json(
-                    {
-                        "organization_id": page["organization_id"],
-                        "receipts": page["receipts"],
-                    }
-                )
-            ).hexdigest()
-            assert expect == page["page_digest"]
+            from asqav.cli import _verify_archive_page
+
+            _verify_archive_page(page)  # digest + signature, bucket bytes alone
 
 
 def test_s3_bad_url_is_usage_error(monkeypatch, tmp_path):
@@ -186,7 +166,7 @@ def test_s3_rerun_skips_identical_terminal_page(monkeypatch, tmp_path):
     _awsenviron(monkeypatch)
     with mock_aws():
         s3 = _bucket()
-        pages = {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False)}
+        pages = {0: _page([_receipt(1)], 1, True), 1: _page([_receipt(2)], None, False, cursor=1)}
         calls = _pageserver(monkeypatch, pages)
         out = str(tmp_path / "arc")
         args = ["archive", "sync", "--out", out, "--s3", "s3://arc/pages"]
@@ -207,8 +187,7 @@ def test_s3_missing_next_cursor_aborts_cleanly(monkeypatch, tmp_path):
     _awsenviron(monkeypatch)
     with mock_aws():
         _bucket()
-        page = _page([_receipt(1)], 1, True)
-        del page["next_cursor"]
+        page = _page([_receipt(1)], None, True)
         _pageserver(monkeypatch, {0: page})
         out = str(tmp_path / "arc")
         result = runner.invoke(

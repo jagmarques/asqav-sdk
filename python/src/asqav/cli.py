@@ -1976,6 +1976,46 @@ def _put_s3_cursor(s3_client, dest, cursor):
     )
 
 
+def _verify_archive_page(page: dict) -> bytes:
+    """Check a server archive page digest + signature offline (761).
+
+    The digest runs over the full server envelope, not the
+    organization/receipts subset; the Ed25519/ES256/ML-DSA-65 signature
+    verifies against the bundled page_public_key. Raises ValueError when
+    anything is missing, mismatched, or unverifiable: an unverified page
+    never reaches customer storage.
+    """
+    import base64 as base64_mod
+    import hashlib as hashlib_mod
+
+    from asqav._jcs import canonical_json as _canonical_json
+    from asqav.verifier.verify_receipt import verify_signature
+
+    envelope = {
+        "organization_id": page.get("organization_id", ""),
+        "request": page.get("page_request", {}),
+        "window": page.get("id_window", {}),
+        "next_cursor": page.get("next_cursor"),
+        "has_more": page.get("has_more", False),
+        "receipts": page.get("receipts", []),
+    }
+    page_bytes = _canonical_json(envelope)
+    expect = "sha256:" + hashlib_mod.sha256(page_bytes).hexdigest()
+    if expect != page.get("page_digest", ""):
+        raise ValueError("page digest mismatch")
+    try:
+        public_key = base64_mod.b64decode(page.get("page_public_key", ""))
+        signature = base64_mod.b64decode(page.get("page_signature", ""))
+    except Exception as exc:
+        raise ValueError(f"page key/signature undecodable: {exc}") from exc
+    verdict, reason = verify_signature(
+        public_key, page_bytes, signature, page.get("page_signature_algorithm", "")
+    )
+    if verdict != "PASS":
+        raise ValueError(f"page signature {verdict}: {reason}")
+    return page_bytes
+
+
 @archive_app.command("sync")
 def archive_sync(
     out: str = typer.Option(
@@ -1997,11 +2037,8 @@ def archive_sync(
     the sync; re-running resumes from the saved cursor without gaps.
     """
     import datetime as datetime_mod
-    import hashlib as hashlib_mod
     import json as json_mod
     import os as os_mod
-
-    from asqav._jcs import canonical_json as _canonical_json
 
     _init_sdk()
     from asqav.client import _get
@@ -2037,14 +2074,11 @@ def archive_sync(
             print(f"Error fetching archive page: {exc}")
             raise typer.Exit(code=1) from exc
         receipts = page.get("receipts", [])
-        expect = "sha256:" + hashlib_mod.sha256(
-            _canonical_json(
-                {"organization_id": page.get("organization_id", ""), "receipts": receipts}
-            )
-        ).hexdigest()
-        if expect != page.get("page_digest", ""):
-            print(f"Page digest mismatch at cursor {cursor}; aborting.")
-            raise typer.Exit(code=1)
+        try:
+            _verify_archive_page(page)
+        except ValueError as exc:
+            print(f"Archive page at cursor {cursor} rejected: {exc}; aborting.")
+            raise typer.Exit(code=1) from exc
         body = json_mod.dumps(page, indent=2, default=str).encode("utf-8")
         unchanged = (
             not page.get("has_more")
