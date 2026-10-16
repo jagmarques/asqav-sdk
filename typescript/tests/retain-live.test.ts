@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { verify } from "../src/verifier/core.js";
 import { ADAPTERS } from "../src/verifier/index.js";
 import { AssessmentStore } from "../src/verifier/assessmentStore.js";
-import { axesDict, contextDict, recordVerifyResult } from "../src/verifier/retain.js";
+import { axesDict, contextDict, reassessVerifyResult, recordVerifyResult } from "../src/verifier/retain.js";
 import { classify } from "../src/verifier/disagreement.js";
 
 const RECEIPT = join(__dirname, "..", "..", "verifier", "conformance-vectors", "asqav-01-genesis-permit", "receipt.json");
@@ -67,13 +67,15 @@ describe("retain live results", () => {
       digest,
       verify(doc, ADAPTERS, null, null, { evaluationTime: "2019-06-01T00:00:00Z" }),
     );
-    const second = recordVerifyResult(
+    const second = reassessVerifyResult(
       store,
       digest,
       verify(doc, ADAPTERS, null, null, { evaluationTime: "2026-09-21T00:00:00Z" }),
     );
     expect(first.axes["expiry"]).toBe("PASS");
     expect(second.axes["expiry"]).toBe("FAIL");
+    expect(second.kind).toBe("reassessment");
+    expect(second.supersedes).toBe(first.entryHash);
     expect(first.verdict).toBe(second.verdict);
     expect(store.replay(digest)).toEqual(first);
     const out = classify({ ...first }, { ...second }, first.verdict, second.verdict);
