@@ -1,7 +1,5 @@
 # asqav
 
-[![GitHub stars](https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social)](https://github.com/jagmarques/asqav-sdk)
-
 TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents.
 
 Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65 (FIPS 204,
