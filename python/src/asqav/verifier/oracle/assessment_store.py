@@ -56,6 +56,8 @@ class AssessmentStore:
         recorded_at: str | None = None,
     ) -> AssessmentEntry:
         """Append an original assessment; originals are never modified."""
+        if self.replay(doc_sha256) is not None:
+            raise ValueError(f"duplicate original for {doc_sha256[:16]}; reassess instead")
         prev = self._entries[-1].entry_hash if self._entries else "GENESIS"
         entry = AssessmentEntry(
             doc_sha256=doc_sha256,
@@ -87,6 +89,8 @@ class AssessmentStore:
     ) -> AssessmentEntry:
         """Append a reassessment naming the original it supersedes."""
         original = self.replay(doc_sha256)
+        if original is None:
+            raise ValueError(f"no retained original for {doc_sha256[:16]}; record first")
         prev = self._entries[-1].entry_hash if self._entries else "GENESIS"
         entry = AssessmentEntry(
             doc_sha256=doc_sha256,
@@ -96,7 +100,7 @@ class AssessmentStore:
             failure_class=failure_class,
             recorded_at=recorded_at,
             kind="reassessment",
-            supersedes=original.entry_hash if original is not None else None,
+            supersedes=original.entry_hash,
             prev_hash=prev,
         ).hashed()
         self._entries.append(entry)
@@ -126,4 +130,18 @@ class AssessmentStore:
                 store._entries.append(AssessmentEntry(**json.loads(line)))
         if not store.verify_chain():
             raise ValueError("assessment log chain broken")
+        originals: dict[str, str] = {}
+        for entry in store._entries:
+            if entry.kind == "original":
+                if entry.supersedes is not None:
+                    raise ValueError("original must not supersede")
+                if entry.doc_sha256 in originals:
+                    raise ValueError("duplicate original in restored log")
+                originals[entry.doc_sha256] = entry.entry_hash
+            elif entry.kind != "reassessment":
+                raise ValueError(f"unknown entry kind {entry.kind!r}")
+        for entry in store._entries:
+            if entry.kind == "reassessment":
+                if originals.get(entry.doc_sha256) != entry.supersedes:
+                    raise ValueError("reassessment links a missing original")
         return store

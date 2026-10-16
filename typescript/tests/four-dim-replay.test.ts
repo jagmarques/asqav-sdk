@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { verify } from "../src/verifier/core.js";
 import { ADAPTERS } from "../src/verifier/index.js";
 import { AssessmentStore } from "../src/verifier/assessmentStore.js";
-import { axesDict, recordVerifyResult } from "../src/verifier/retain.js";
+import { axesDict, reassessVerifyResult, recordVerifyResult } from "../src/verifier/retain.js";
 import { classify } from "../src/verifier/disagreement.js";
 
 const T1 = "2019-06-01T00:00:00Z";
@@ -42,12 +42,14 @@ describe("four-dim replay", () => {
     const baseline = recordVerifyResult(store, digest, verify(doc, ADAPTERS, null, null, ctx()));
     expect(baseline.axes["expiry"]).toBe("PASS");
 
-    const moved = recordVerifyResult(
+    const moved = reassessVerifyResult(
       store,
       digest,
       verify(doc, ADAPTERS, null, null, ctx({ evaluationTime: T2 })),
     );
     expect(moved.axes["expiry"]).toBe("FAIL");
+    expect(moved.kind).toBe("reassessment");
+    expect(moved.supersedes).toBe(baseline.entryHash);
 
     for (const [label, over] of [
       ["policyRevision", { policyRevision: "2031-01" }],

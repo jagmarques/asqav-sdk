@@ -14,7 +14,8 @@ from pathlib import Path
 from asqav.verifier.oracle import ADAPTERS, VerificationContext, verify
 from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.disagreement import classify
-from asqav.verifier.oracle.retain import axes_dict, context_dict, record_verify_result
+from asqav.verifier.oracle.retain import axes_dict, context_dict
+from asqav.verifier.oracle.retain import reassess_verify_result, record_verify_result
 
 _CORPUS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
 
@@ -72,9 +73,10 @@ def test_live_two_era_run_retains_and_replays() -> None:
     store = AssessmentStore()
     first = record_verify_result(store, digest, verify(
         doc, ADAPTERS, context=VerificationContext(evaluation_time="2019-06-01T00:00:00Z")))
-    second = record_verify_result(store, digest, verify(
+    second = reassess_verify_result(store, digest, verify(
         doc, ADAPTERS, context=VerificationContext(evaluation_time="2026-09-21T00:00:00Z")))
     assert first.axes["expiry"] == "PASS" and second.axes["expiry"] == "FAIL"
+    assert second.kind == "reassessment" and second.supersedes == first.entry_hash
     assert first.verdict == second.verdict == "unverified"
     assert store.replay(digest) == first
     out = classify(first.__dict__, second.__dict__, first.verdict, second.verdict)
