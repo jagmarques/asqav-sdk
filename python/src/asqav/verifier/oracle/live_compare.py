@@ -12,6 +12,7 @@ import json
 
 from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.adapter import VerificationContext
+from asqav.verifier.oracle.agreement import bind_envelope
 from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
 from asqav.verifier.oracle.retain import axes_dict, context_dict
@@ -70,17 +71,22 @@ def compare_live_strict(
     *,
     context: VerificationContext | None = None,
 ) -> Disagreement:
-    """Strict live compare: the entry verifies the bytes itself (488 C26).
+    """Strict live compare: the entry verifies the bytes itself (488 C26, C29).
 
     No digest or result parameter exists, so no unbound or foreign-result
     call is expressible; digests derive from the stated bytes and both
-    compared results come from re-verifying those bytes under one context."""
-    first = verify(json.loads(first_bytes), ADAPTERS, context=context)
-    second = verify(json.loads(second_bytes), ADAPTERS, context=context)
+    compared results come from re-verifying those bytes under one context.
+    Envelopes derive from the same bytes (C29): caller terms attach, but a
+    stated kid/signature contradicting the bytes raises."""
+    first_doc, second_doc = json.loads(first_bytes), json.loads(second_bytes)
+    first = verify(first_doc, ADAPTERS, context=context)
+    second = verify(second_doc, ADAPTERS, context=context)
     first_digest = hashlib.sha256(first_bytes).hexdigest()
     second_digest = hashlib.sha256(second_bytes).hexdigest()
-    first_view = _live_view(first_digest, first, first_agreement)
-    second_view = _live_view(second_digest, second, second_agreement)
+    first_view = _live_view(
+        first_digest, first, bind_envelope(first_agreement, first_doc, ADAPTERS))
+    second_view = _live_view(
+        second_digest, second, bind_envelope(second_agreement, second_doc, ADAPTERS))
     return classify(first_view, second_view, first.verdict, second.verdict)
 
 
