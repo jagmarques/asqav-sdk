@@ -54,9 +54,11 @@ def _has_stated_envelope(agreement: object | None) -> bool:
 def _bound_agreement(agreement: object | None, raw: bytes | None) -> object | None:
     """Bind the caller terms to the bytes-derived envelope (488 C30).
 
-    Bytes present: parse and bind (contradiction raises, match derives).
-    Bytes absent: pass through (a stated envelope already raised above)."""
-    if raw is None:
+    Bytes present with stated terms: parse and bind (contradiction
+    raises, match derives). No stated agreement: keep None so
+    digest-only callers see no behavior change. Bytes absent: pass
+    through (a stated envelope already raised above)."""
+    if raw is None or agreement is None:
         return agreement
     return bind_envelope(agreement, json.loads(raw), ADAPTERS)
 
@@ -157,17 +159,27 @@ def attribute_live_split(
 
     Rerun digests are the original digests (a rerun re-executes the same
     bytes); pass explicit rerun bytes to bind them like C24 binds the
-    originals."""
-    for tag, digest, raw in (("first", first_digest, first_bytes),
-                             ("second", second_digest, second_bytes),
-                             ("rerun_a", first_digest, rerun_a_bytes),
-                             ("rerun_b", second_digest, rerun_b_bytes)):
+    originals. Envelopes default-bind like compare_live (C31): a stated
+    kid/signature without its bytes raises, bytes present bind."""
+    for tag, digest, raw, agr, present in (
+            ("first", first_digest, first_bytes, first_agreement, True),
+            ("second", second_digest, second_bytes, second_agreement, True),
+            ("rerun_a", first_digest, rerun_a_bytes, first_agreement, rerun_a is not None),
+            ("rerun_b", second_digest, rerun_b_bytes, second_agreement, rerun_b is not None)):
         if raw is not None and hashlib.sha256(raw).hexdigest() != digest:
             raise ValueError(f"{tag} digest is not the sha256 of the stated bytes")
-    first_view = _live_view(first_digest, first, first_agreement)
-    second_view = _live_view(second_digest, second, second_agreement)
-    rerun_a_view = None if rerun_a is None else _live_view(first_digest, rerun_a, first_agreement)
-    rerun_b_view = None if rerun_b is None else _live_view(second_digest, rerun_b, second_agreement)
+        if present and raw is None and _has_stated_envelope(agr):
+            raise ValueError(f"{tag} envelope without bytes; pass the receipt bytes")
+    first_view = _live_view(first_digest, first,
+                            _bound_agreement(first_agreement, first_bytes))
+    second_view = _live_view(second_digest, second,
+                             _bound_agreement(second_agreement, second_bytes))
+    rerun_a_view = (None if rerun_a is None
+                    else _live_view(first_digest, rerun_a,
+                                    _bound_agreement(first_agreement, rerun_a_bytes)))
+    rerun_b_view = (None if rerun_b is None
+                    else _live_view(second_digest, rerun_b,
+                                    _bound_agreement(second_agreement, rerun_b_bytes)))
     return attribute_split(
         first_view, second_view, getattr(first, "verdict"), getattr(second, "verdict"),
         rerun_a_view, rerun_b_view)
