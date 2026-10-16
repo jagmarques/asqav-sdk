@@ -1,0 +1,92 @@
+{
+  "note": "Independent per-axis expectations for the verifier normalization surface (criterion 488 C6). Authored from the axis semantics (check_expiry: absent PASS / unparseable FAIL / past-of-clock FAIL / future PASS; check_skew: unparseable FAIL / issued more than 300s ahead of clock FAIL / else PASS; VerificationContext: six attribution fields echoed on the resolved result), NOT from implementation output. Every case freezes the evaluation clock via evaluation_time, so no expectation depends on the run date. Both suites feed each case through their own oracle and assert only the named normalization axes plus the resolved-context echo; signature/chain/counterparty axes are out of scope here. Patch payload merges over the base vector receipt; remove lists payload keys to delete.",
+  "base_vector": "asqav-01-genesis-permit",
+  "cases": [
+    {
+      "name": "expiry-pass-before-deadline",
+      "patch": {"payload": {"issued_at": "2029-06-01T00:00:00Z", "expires_at": "2030-01-01T00:00:00Z"}},
+      "context": {"evaluation_time": "2029-06-01T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "PASS", "skew": "PASS"},
+        "context_echo": {"evaluation_time": "2029-06-01T00:00:00Z"}
+      }
+    },
+    {
+      "name": "expiry-fail-after-deadline",
+      "patch": {"payload": {"issued_at": "2019-06-01T00:00:00Z", "expires_at": "2020-01-01T00:00:00Z"}},
+      "context": {"evaluation_time": "2026-09-21T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "FAIL", "skew": "PASS"},
+        "context_echo": {"evaluation_time": "2026-09-21T00:00:00Z"}
+      }
+    },
+    {
+      "name": "expiry-absent-passes",
+      "patch": {"payload": {"issued_at": "2029-06-01T00:00:00Z"}, "remove": ["expires_at"]},
+      "context": {"evaluation_time": "2029-06-01T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "PASS", "skew": "PASS"},
+        "context_echo": {"evaluation_time": "2029-06-01T00:00:00Z"}
+      }
+    },
+    {
+      "name": "expiry-unparseable-fails",
+      "patch": {"payload": {"issued_at": "2029-06-01T00:00:00Z", "expires_at": "not-a-time"}},
+      "context": {"evaluation_time": "2029-06-01T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "FAIL", "skew": "PASS"},
+        "context_echo": {"evaluation_time": "2029-06-01T00:00:00Z"}
+      }
+    },
+    {
+      "name": "skew-future-beyond-bound-fails",
+      "patch": {"payload": {"issued_at": "2029-06-01T00:10:00Z", "expires_at": "2030-01-01T00:00:00Z"}},
+      "context": {"evaluation_time": "2029-06-01T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "PASS", "skew": "FAIL"},
+        "context_echo": {"evaluation_time": "2029-06-01T00:00:00Z"}
+      }
+    },
+    {
+      "name": "skew-exactly-at-bound-passes",
+      "patch": {"payload": {"issued_at": "2029-06-01T00:05:00Z", "expires_at": "2030-01-01T00:00:00Z"}},
+      "context": {"evaluation_time": "2029-06-01T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "PASS", "skew": "PASS"},
+        "context_echo": {"evaluation_time": "2029-06-01T00:00:00Z"}
+      }
+    },
+    {
+      "name": "skew-unparseable-fails",
+      "patch": {"payload": {"issued_at": "not-a-time", "expires_at": "2030-01-01T00:00:00Z"}},
+      "context": {"evaluation_time": "2029-06-01T00:00:00Z"},
+      "expect": {
+        "axes": {"expiry": "PASS", "skew": "FAIL"},
+        "context_echo": {"evaluation_time": "2029-06-01T00:00:00Z"}
+      }
+    },
+    {
+      "name": "context-attribution-echo",
+      "patch": {"payload": {"issued_at": "2029-06-01T00:00:00Z", "expires_at": "2030-01-01T00:00:00Z"}},
+      "context": {
+        "evaluation_time": "2029-06-01T00:00:00Z",
+        "trust_roots": ["root-a", "root-b"],
+        "revocation_snapshot": "snap-1",
+        "policy_revision": "2026-09",
+        "evidence_knowledge_cutoff": "2026-09-01T00:00:00Z",
+        "evaluator": "c6-probe"
+      },
+      "expect": {
+        "axes": {"expiry": "PASS", "skew": "PASS"},
+        "context_echo": {
+          "evaluation_time": "2029-06-01T00:00:00Z",
+          "trust_roots": ["root-a", "root-b"],
+          "revocation_snapshot": "snap-1",
+          "policy_revision": "2026-09",
+          "evidence_knowledge_cutoff": "2026-09-01T00:00:00Z",
+          "evaluator": "c6-probe"
+        }
+      }
+    }
+  ]
+}
