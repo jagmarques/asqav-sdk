@@ -71,12 +71,14 @@ export function compareLiveStrict(
   firstAgreement: AgreementRef | Record<string, string | null> | null = null,
   secondAgreement: AgreementRef | Record<string, string | null> | null = null,
   context: VerificationContext = {},
+  firstContext: VerificationContext | null = null,
+  secondContext: VerificationContext | null = null,
 ): Disagreement {
   const text = new TextDecoder();
   const firstDoc = JSON.parse(text.decode(firstBytes)) as Record<string, unknown>;
   const secondDoc = JSON.parse(text.decode(secondBytes)) as Record<string, unknown>;
-  const first = verify(firstDoc, ADAPTERS, null, null, context);
-  const second = verify(secondDoc, ADAPTERS, null, null, context);
+  const first = verify(firstDoc, ADAPTERS, null, null, firstContext ?? context);
+  const second = verify(secondDoc, ADAPTERS, null, null, secondContext ?? context);
   const firstDigest = createHash("sha256").update(firstBytes).digest("hex");
   const secondDigest = createHash("sha256").update(secondBytes).digest("hex");
   const firstView = view(firstDigest, first, bindEnvelope(firstAgreement, firstDoc));

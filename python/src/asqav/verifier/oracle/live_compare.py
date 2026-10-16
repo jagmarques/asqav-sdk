@@ -101,6 +101,8 @@ def compare_live_strict(
     second_agreement: object | None = None,
     *,
     context: VerificationContext | None = None,
+    first_context: VerificationContext | None = None,
+    second_context: VerificationContext | None = None,
 ) -> Disagreement:
     """Strict live compare: the entry verifies the bytes itself (488 C26, C29).
 
@@ -108,10 +110,16 @@ def compare_live_strict(
     call is expressible; digests derive from the stated bytes and both
     compared results come from re-verifying those bytes under one context.
     Envelopes derive from the same bytes (C29): caller terms attach, but a
-    stated kid/signature contradicting the bytes raises."""
+    stated kid/signature contradicting the bytes raises. Per-side trust
+    (C33): pass first_context/second_context to verify each side under
+    its own context; differing trust dims then classify instead of
+    hiding behind one shared context. Omitted sides fall back to
+    context, so existing single-context calls are unchanged."""
     first_doc, second_doc = json.loads(first_bytes), json.loads(second_bytes)
-    first = verify(first_doc, ADAPTERS, context=context)
-    second = verify(second_doc, ADAPTERS, context=context)
+    first = verify(first_doc, ADAPTERS,
+                   context=first_context if first_context is not None else context)
+    second = verify(second_doc, ADAPTERS,
+                    context=second_context if second_context is not None else context)
     first_digest = hashlib.sha256(first_bytes).hexdigest()
     second_digest = hashlib.sha256(second_bytes).hexdigest()
     first_view = _live_view(
