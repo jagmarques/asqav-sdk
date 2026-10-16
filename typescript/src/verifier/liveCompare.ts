@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 
 import type { VerificationContext } from "./adapter.js";
-import { type AgreementRef, type AssessmentView } from "./agreement.js";
+import { type AgreementRef, type AssessmentView, bindEnvelope } from "./agreement.js";
 import { AssessmentStore, type AssessmentEntry } from "./assessmentStore.js";
 import { verify } from "./core.js";
 import { classify, specCase, type Disagreement, type SpecCase } from "./disagreement.js";
@@ -52,12 +52,14 @@ export function compareLiveStrict(
   context: VerificationContext = {},
 ): Disagreement {
   const text = new TextDecoder();
-  const first = verify(JSON.parse(text.decode(firstBytes)), ADAPTERS, null, null, context);
-  const second = verify(JSON.parse(text.decode(secondBytes)), ADAPTERS, null, null, context);
+  const firstDoc = JSON.parse(text.decode(firstBytes)) as Record<string, unknown>;
+  const secondDoc = JSON.parse(text.decode(secondBytes)) as Record<string, unknown>;
+  const first = verify(firstDoc, ADAPTERS, null, null, context);
+  const second = verify(secondDoc, ADAPTERS, null, null, context);
   const firstDigest = createHash("sha256").update(firstBytes).digest("hex");
   const secondDigest = createHash("sha256").update(secondBytes).digest("hex");
-  const firstView = view(firstDigest, first, firstAgreement);
-  const secondView = view(secondDigest, second, secondAgreement);
+  const firstView = view(firstDigest, first, bindEnvelope(firstAgreement, firstDoc));
+  const secondView = view(secondDigest, second, bindEnvelope(secondAgreement, secondDoc));
   return classify(firstView, secondView, first.verdict, second.verdict);
 }
 
