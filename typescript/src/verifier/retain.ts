@@ -23,9 +23,22 @@ const CONTEXT_FIELDS = [
   "evaluationTime",
 ] as const;
 
+function freeze(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(freeze);
+  if (value !== null && typeof value === "object") {
+    const frozen: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      frozen[k] = freeze(v);
+    }
+    return frozen;
+  }
+  return value;
+}
+
 export function contextDict(result: VerifyResultLike): Record<string, unknown> {
   const ctx = (result.context ?? {}) as Record<string, unknown>;
-  return Object.fromEntries(CONTEXT_FIELDS.map((name) => [name, ctx[name] ?? null]));
+  return Object.fromEntries(CONTEXT_FIELDS.map((name) => [name, freeze(ctx[name]) ?? null]));
 }
 
 export function axesDict(result: VerifyResultLike): Record<string, string> {
