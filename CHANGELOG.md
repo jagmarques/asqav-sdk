@@ -5,6 +5,47 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+## [0.10.13] - 2026-10-16
+
+### Changed
+
+- **Tool results are bound by default** (criterion 787). When `sign()` is given a `result`, the
+  client sends its digest as `result_digest` (`sha256:<64 hex>`; dicts and lists are
+  JCS-canonicalised first, and anything JCS refuses falls back to `str()`). An explicit
+  `result_digest` still wins. Every integration now forwards its completion and error outputs,
+  from the extras in both languages down to the core decorators, session errors, phased signing
+  and budget records. Previews never throw on BigInt or circular values. The async Python client now
+  forwards `result_digest`, `receipt_type`, `action_ref` and `compliance_mode` like the sync
+  client. New `attach_result()` (TypeScript: `attachResult`) signs a
+  `protectmcp:observation:result_bound` receipt linked to an earlier receipt.
+
+### Added
+
+- **`asqav archive sync`** (criterion 761) pages `GET /audit-pack/archive` into a directory you
+  own (`--out`) or into S3 under Object Lock COMPLIANCE retention (`--s3 s3://bucket/prefix`,
+  `--retention-days`), using your own credentials. It verifies each page's full-envelope digest
+  and signature offline before writing, resumes from a cursor without gaps or duplicates, and
+  never rewrites an identical final page.
+- **Oracle assessments you can keep and review** (criterion 488): a hash-chained assessment
+  store with reassessment labels, an agreement reference that compares seven comparanda, a
+  disagreement classifier with four families and a spec-bug evidence bar, and a live compare
+  that verifies the receipt bytes itself before classifying. In Python,
+  `python -m asqav.verifier.oracle review <store> <receipt>` reviews a live receipt against its
+  retained original. Python and TypeScript agree on every case, including non-ASCII terms and
+  absent inputs.
+- Anchor-entry members are declared once (`ANCHOR_ENTRY_MEMBERS`, draft -09), and the corpus is
+  pinned to agree with them (criterion 676).
+
+### Fixed
+
+- Timestamps on the key-status, acceptor and W3C VC adapter paths are checked against one pinned
+  grammar first, so the ISO basic form and hour 24 get the same verdict in Python and
+  TypeScript (criterion 336).
+- Non-contract but decodable signature history verifies under the named historical encoding
+  policy; undecodable input is refused instead of reported as a crypto mismatch.
+- The org-salt documentation no longer claims a verifying signature it does not have.
+- The READMEs no longer show a GitHub star count.
+
 ## [0.10.12] - 2026-10-13
 
 ### Added
