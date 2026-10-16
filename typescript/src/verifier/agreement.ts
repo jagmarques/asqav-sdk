@@ -33,7 +33,7 @@ export interface AssessmentView {
   readonly docSha256: string;
   readonly axes: Record<string, string>;
   readonly context: Record<string, unknown>;
-  readonly agreement?: AgreementRef | null;
+  readonly agreement?: AgreementRef | Record<string, string | null> | null;
 }
 
 function canonical(value: unknown): string {
@@ -52,6 +52,24 @@ function sortDeep(value: unknown): unknown {
   return value;
 }
 
+type RawAgreement = {
+  agreementId?: string | null;
+  agreement_id?: string | null;
+  predicateVersion?: string | null;
+  predicate_version?: string | null;
+  termsHash?: string | null;
+  terms_hash?: string | null;
+};
+
+function normAgreement(view: AssessmentView): AgreementRef {
+  const raw = (view.agreement ?? {}) as RawAgreement;
+  return {
+    agreementId: raw.agreementId ?? raw.agreement_id ?? null,
+    predicateVersion: raw.predicateVersion ?? raw.predicate_version ?? null,
+    termsHash: raw.termsHash ?? raw.terms_hash ?? null,
+  };
+}
+
 function hashJson(value: unknown): string {
   return createHash("sha256").update(canonical(value), "utf-8").digest("hex");
 }
@@ -66,8 +84,8 @@ export function compareAssessments(
 ): Record<Comparandum, boolean> {
   const fRoots = [...(((ctxGet(first.context, "trustRoots", "trust_roots") as string[] | undefined) ?? []))].sort();
   const sRoots = [...(((ctxGet(second.context, "trustRoots", "trust_roots") as string[] | undefined) ?? []))].sort();
-  const fAgr = first.agreement ?? { agreementId: null, predicateVersion: null, termsHash: null };
-  const sAgr = second.agreement ?? { agreementId: null, predicateVersion: null, termsHash: null };
+  const fAgr = normAgreement(first);
+  const sAgr = normAgreement(second);
   return {
     evidenceBytes: first.docSha256 === second.docSha256,
     agreementVersion:

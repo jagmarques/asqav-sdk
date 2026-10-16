@@ -62,3 +62,25 @@ def test_reads_camel_case_contexts_from_the_other_language() -> None:
         "evaluationTime": "2029-06-01T00:00:00Z",
     }
     assert compare_assessments(_view(), snake_view) == {name: True for name in COMPARANDA}
+
+
+_NON_ASCII_DIGEST = "3a357c459fc615cbc788440180f136108db0051615defa7f819bf38b8b72f3f7"
+
+
+def test_non_ascii_terms_hash_matches_the_other_language() -> None:
+    ref = AgreementRef.of_terms("agr-1", "2029-01", {"clause": "páy on delivery ✓"})
+    assert ref.terms_hash == _NON_ASCII_DIGEST
+
+
+def test_cross_casing_agreement_dicts_compare_by_value() -> None:
+    camel = {"agreementId": "agr-1", "predicateVersion": "2029-01", "termsHash": _AGR.terms_hash}
+    same = compare_assessments(_view(), _view(agreement=camel))
+    assert same["agreement_version"] is True
+    different = dict(camel, termsHash="DIFFERENT")
+    assert compare_assessments(_view(), _view(agreement=different))["agreement_version"] is False
+
+
+def test_both_absent_agreements_match() -> None:
+    assert compare_assessments(_view(agreement=None), _view(agreement=None))[
+        "agreement_version"
+    ] is True

@@ -13,7 +13,10 @@ from dataclasses import dataclass
 
 
 def _canonical(obj: object) -> bytes:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    # ensure_ascii=False: UTF-8 bytes match TypeScript JSON.stringify output,
+    # so non-ASCII terms hash identically in both languages.
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
 
 
 @dataclass(frozen=True)
@@ -57,7 +60,14 @@ def compare_assessments(first: dict, second: dict) -> dict[str, bool]:
         agr = view.get("agreement")
         if agr is None:
             return {}
-        return agr if isinstance(agr, dict) else {
+        if isinstance(agr, dict):
+            # Bilingual keys: agreements cross languages as JSON.
+            return {
+                "agreement_id": agr.get("agreement_id", agr.get("agreementId")),
+                "predicate_version": agr.get("predicate_version", agr.get("predicateVersion")),
+                "terms_hash": agr.get("terms_hash", agr.get("termsHash")),
+            }
+        return {
             "agreement_id": agr.agreement_id,
             "predicate_version": agr.predicate_version,
             "terms_hash": agr.terms_hash,
