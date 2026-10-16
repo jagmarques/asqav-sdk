@@ -52,4 +52,19 @@ describe("assessment store", () => {
     expect(restored.verifyChain()).toBe(true);
     expect(() => AssessmentStore.fromJsonl(store.toJsonl().replaceAll("verified", "x"))).toThrow();
   });
+
+  it("hashes non-ascii inputs as utf-8 and round-trips", () => {
+    const store = new AssessmentStore();
+    const entry = store.record(
+      "ee".repeat(32),
+      { note: "páy ✓", evaluationTime: "2029-06-01T00:00:00Z" },
+      { expiry: "PASS" },
+      "verified",
+      null,
+      "2029-06-01T00:00:00Z",
+    );
+    expect(entry.entryHash).toBe("ee47aa42ad88edbf5fd76dd1cc319336a8a440f4e3f28acf0bbadb4ac636df27");
+    expect(store.verifyChain()).toBe(true);
+    expect(AssessmentStore.fromJsonl(store.toJsonl()).replay("ee".repeat(32))).toEqual(entry);
+  });
 });

@@ -8,8 +8,11 @@ from dataclasses import asdict, dataclass, field
 
 
 def _canonical(obj: object) -> bytes:
-    """Deterministic bytes for hashing (ASCII-only fields; no JCS needed)."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    """Deterministic bytes for hashing (UTF-8 canonical JSON)."""
+    # ensure_ascii=False: UTF-8 bytes match the TS JSON.stringify side,
+    # so non-ASCII inputs hash identically in both languages (488 C15).
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
 
 
 @dataclass(frozen=True)
