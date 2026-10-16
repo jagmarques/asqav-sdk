@@ -69,6 +69,13 @@ def test_rerun_on_other_bytes_is_insufficient() -> None:
     assert out.label == "evidence_insufficient"
 
 
+def test_digestless_split_cannot_be_a_candidate() -> None:
+    first, second = _view(doc_sha256=None), _view(doc_sha256=None)
+    assert classify(first, second, "verified", "unverified").label == "unexplained_needs_investigation"
+    out = spec_case(first, second, "verified", "unverified", _view(doc_sha256=None), _view(doc_sha256=None))
+    assert out.label == "evidence_insufficient" and out.pinned == ()
+
+
 def test_moved_axes_are_a_flake_not_a_spec_bug() -> None:
     first, second = _unexplained()
     moved = _view(axes={"expiry": "FAIL", "skew": "PASS"})

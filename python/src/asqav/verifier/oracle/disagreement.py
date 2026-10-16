@@ -67,6 +67,8 @@ def spec_case(
     the original axes on the original digests."""
     if classify(first, second, verdict_a, verdict_b).label != "unexplained_needs_investigation":
         return SpecCase("not_applicable", "no unexplained split to attribute")
+    if not first.get("doc_sha256") or not second.get("doc_sha256"):
+        return SpecCase("evidence_insufficient", "no digest to pin the split to")
     if rerun_a is None or rerun_b is None:
         return SpecCase("evidence_insufficient", "re-execute both inputs first")
     for tag, orig, rerun in (("first", first, rerun_a), ("second", second, rerun_b)):

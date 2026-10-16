@@ -49,6 +49,16 @@ describe("spec case", () => {
     expect(out.label).toBe("evidence_insufficient");
   });
 
+  it("digest-less split cannot be a candidate", () => {
+    const unaudited = undefined as unknown as string;
+    const first = view({ docSha256: unaudited });
+    const second = view({ docSha256: unaudited });
+    expect(classify(first, second, "verified", "unverified").label).toBe("unexplained_needs_investigation");
+    const out = specCase(first, second, "verified", "unverified", view({ docSha256: unaudited }), second);
+    expect(out.label).toBe("evidence_insufficient");
+    expect(out.pinned).toEqual([]);
+  });
+
   it("moved axes are a flake, not a spec bug", () => {
     const moved = view({ axes: { expiry: "FAIL", skew: "PASS" } });
     const out = specCase(view(), view(), "verified", "unverified", moved, view());

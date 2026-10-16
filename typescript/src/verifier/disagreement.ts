@@ -44,6 +44,9 @@ export function specCase(
   if (classify(first, second, verdictA, verdictB).label !== "unexplained_needs_investigation") {
     return { label: "not_applicable", note: "no unexplained split to attribute", pinned: [] };
   }
+  if (!first.docSha256 || !second.docSha256) {
+    return { label: "evidence_insufficient", note: "no digest to pin the split to", pinned: [] };
+  }
   if (rerunA === null || rerunB === null) {
     return { label: "evidence_insufficient", note: "re-execute both inputs first", pinned: [] };
   }
