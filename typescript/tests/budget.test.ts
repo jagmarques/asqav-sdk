@@ -3,6 +3,7 @@ import {
   Agent,
   BudgetTracker,
   _resetForTests,
+  digestResultValue,
   init,
 } from "../src/index.js";
 
@@ -86,6 +87,13 @@ describe("BudgetTracker", () => {
     expect(body.context.cumulative_spend).toBe(0.42);
     expect(body.context.limit).toBe(10);
     expect(body.context.model).toBe("gpt-4");
+    expect(body.result_digest).toBe(digestResultValue({
+      model: "gpt-4",
+      cost: 0.42,
+      currency: "USD",
+      cumulative_spend: 0.42,
+      limit: 10,
+    }));
 
     expect(b.status().spend).toBeCloseTo(0.42);
     expect(b.status().records).toBe(1);

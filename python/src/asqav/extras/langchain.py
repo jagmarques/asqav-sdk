@@ -95,13 +95,14 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
         # Sign chain:end with output keys.
     def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
-        self._sign_action("chain:end", {"output_keys": list(outputs.keys())})
+        self._sign_action("chain:end", {"output_keys": list(outputs.keys())}, result=outputs)
 
         # Sign chain:error with error type and message.
     def on_chain_error(self, error: BaseException, **kwargs: Any) -> None:
         self._sign_action(
             "chain:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},
+            result=str(error),
         )
 
     # -- Tool callbacks --------------------------------------------------------
@@ -125,6 +126,7 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
         self._sign_action(
             "tool:end",
             {"output_type": type(output).__name__, "output_length": len(output_str)},
+            result=output_str,
         )
 
         # Sign tool:error with error details.
@@ -132,6 +134,7 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
         self._sign_action(
             "tool:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},
+            result=str(error),
         )
 
     # -- LLM callbacks ---------------------------------------------------------
@@ -161,13 +164,14 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
                     k: v for k, v in token_usage.items() if isinstance(v, (int, float))
                 }
 
-        self._sign_action("llm:end", context)
+        self._sign_action("llm:end", context, result=context)
 
         # Sign llm:error with error details.
     def on_llm_error(self, error: BaseException, **kwargs: Any) -> None:
         self._sign_action(
             "llm:error",
             {"error_type": type(error).__name__, "error": str(error)[:200]},
+            result=str(error),
         )
 
 

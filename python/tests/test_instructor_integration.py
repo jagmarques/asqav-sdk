@@ -148,6 +148,7 @@ def test_on_response_signs_complete_with_usage(hook: AsqavInstructorHook) -> Non
             "completion_tokens": 34,
             "total_tokens": 46,
         },
+        result=response,
     )
 
 

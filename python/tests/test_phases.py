@@ -67,6 +67,17 @@ def test_full_three_phase_flow():
     assert second_call[1]["parent_id"] == "sid-intent-001"
 
 
+def test_execution_binds_result_when_signing_post_execution():
+    agent = _mock_agent(cleared=True)
+
+    chain = sign_with_phases(agent, "api:call", {"model": "gpt-4"}, result={"ok": True})
+
+    assert chain.execution is not None
+    second_call = agent.sign.call_args_list[1]
+    assert second_call[0][0] == "api:call:execution"
+    assert second_call[1]["result"] == {"ok": True}
+
+
     # When preflight denies, execution phase is skipped.
 def test_blocked_action_skips_execution():
     agent = _mock_agent(cleared=False)
@@ -185,3 +196,44 @@ def test_agent_convenience_method():
         chain = agent.sign_with_phases("api:call")
 
     assert isinstance(chain, PhaseChain)
+
+
+def test_agent_wrapper_binds_execution_digest():
+    """agent.sign_with_phases(result=...) mints digest on :execution (787)."""
+    from asqav.client import Agent, _digest_result_value
+
+    with (
+        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._post") as mock_post,
+        patch("asqav.client._get") as mock_get,
+    ):
+        mock_post.return_value = {
+            "agent_id": "ag-1",
+            "name": "test",
+            "public_key": "pk-1",
+            "key_id": "kid-1",
+            "algorithm": "ml-dsa-65",
+            "capabilities": [],
+            "created_at": 1700000000.0,
+        }
+        agent = Agent.create("test")
+
+        mock_post.return_value = {
+            "signature": "sig",
+            "signature_id": "sid-1",
+            "action_id": "aid-1",
+            "timestamp": 1700000000.0,
+            "verification_url": "https://asqav.com/verify/sid-1",
+        }
+        mock_get.side_effect = [
+            {"revoked": False, "suspended": False},
+            [],
+        ]
+
+        chain = agent.sign_with_phases("api:call", result={"ok": True})
+
+    assert chain.execution is not None
+    bodies = [c[0][1] for c in mock_post.call_args_list]
+    exec_bodies = [b for b in bodies if str(b.get("action_type", "")).endswith(":execution")]
+    assert exec_bodies, "execution phase must sign"
+    assert exec_bodies[0]["result_digest"] == _digest_result_value({"ok": True})

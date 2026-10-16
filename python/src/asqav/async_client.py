@@ -204,8 +204,13 @@ class AsyncAgent:
         *,
         co_signers: list[str] | None = None,
         user_intent: dict[str, Any] | None = None,
+        result_digest: str | None = None,
+        result: bytes | str | dict | list | None = None,
+        receipt_type: str | None = None,
+        action_ref: str | None = None,
+        compliance_mode: bool | None = None,
     ) -> SignatureResponse:
-        from .client import _build_sign_body
+        from .client import _build_sign_body, _digest_result_value
 
         if tool_name or model_name or parent_id:
             context = dict(context) if context else {}
@@ -216,6 +221,10 @@ class AsyncAgent:
             if parent_id:
                 context["_parent_id"] = parent_id
 
+        # Default-send the outcome (criterion 787): explicit digest wins.
+        if result_digest is None and result is not None:
+            result_digest = _digest_result_value(result)
+
         body = _build_sign_body(
             action_type=action_type,
             context=context,
@@ -225,6 +234,14 @@ class AsyncAgent:
         )
         if co_signers:
             body["co_signers"] = list(co_signers)
+        if result_digest is not None:
+            body["result_digest"] = result_digest
+        if receipt_type is not None:
+            body["receipt_type"] = receipt_type
+        if action_ref is not None:
+            body["action_ref"] = action_ref
+        if compliance_mode is not None:
+            body["compliance_mode"] = compliance_mode
         data = await _async_post(f"/agents/{self.agent_id}/sign", body)
 
         return SignatureResponse(
@@ -248,6 +265,29 @@ class AsyncAgent:
             user_intent_verified=data.get("user_intent_verified"),
             action_ref=_resolve_action_ref(data),
             previous_receipt_hash=_resolve_previous_receipt_hash(data),
+        )
+
+    async def attach_result(
+        self,
+        action_ref: str,
+        result: bytes | str | dict | list,
+        *,
+        action_type: str = "protectmcp:observation",
+        result_digest: str | None = None,
+    ) -> SignatureResponse:
+        """Sign a follow-up result receipt linked to an earlier receipt (787).
+
+        Mirrors :meth:`asqav.client.Agent.attach_result`: the follow-up
+        carries ``receipt_type='protectmcp:observation:result_bound'`` and
+        ``action_ref`` naming the originating receipt/action.
+        """
+        return await self.sign(
+            action_type,
+            result=result,
+            result_digest=result_digest,
+            receipt_type="protectmcp:observation:result_bound",
+            action_ref=action_ref,
+            compliance_mode=True,
         )
 
         # Countersign an existing signature record (async); appends to ``co_signatures``.

@@ -106,6 +106,50 @@ def test_makereport_captures_call_phase() -> None:
     assert len(state.signatures) == 1
 
 
+def test_makereport_binds_outcome_digest() -> None:
+    """test:result sign mints a wire result_digest over the outcome (787)."""
+    from asqav.client import Agent, _digest_result_value
+
+    state = _get_state_for_tests()
+    state.enabled = True
+    state.agent = Agent(
+        agent_id="agent_pytest",
+        name="pytest-agent",
+        public_key="pk_xxx",
+        key_id="key_pytest",
+        algorithm="ML-DSA-65",
+        capabilities=["test:*"],
+        created_at=1700000000.0,
+    )
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return {
+            "signature": "sig-1",
+            "signature_id": "sid-1",
+            "action_id": "aid-1",
+            "timestamp": 1700000000.0,
+            "verification_url": "https://asqav.com/verify/sid-1",
+        }
+
+    report = MagicMock(when="call", nodeid="test.py::test_a",
+                       outcome="passed", duration=0.1, longrepr=None,
+                       sections=[])
+    with patch("asqav.client._post", side_effect=fake_post):
+        gen = pytest_runtest_makereport(MagicMock(), MagicMock())
+        next(gen)
+        try:
+            gen.send(MagicMock(get_result=lambda: report))
+        except StopIteration:
+            pass
+
+    assert captured["body"]["action_type"] == "test:result"
+    assert captured["body"]["result_digest"] == _digest_result_value(
+        {"nodeid": "test.py::test_a", "outcome": "passed", "duration": 0.1}
+    )
+
+
     # Setup and teardown phases are ignored.
 def test_makereport_skips_non_call_phases() -> None:
     state = _get_state_for_tests()
