@@ -1,0 +1,86 @@
+"""Oracle `record` command: live receipt in, retained store out (488 C32).
+
+The missing production caller on the retain path: no shipped entry
+created the stores the review flow reads. `record` closes the loop
+(record then review, all through main()). Tests address main() only.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+import pytest
+
+pytest.importorskip("cryptography", reason="signed fixtures need the cryptography lib")
+
+from asqav.verifier.oracle import ADAPTERS, verify
+from asqav.verifier.oracle.__main__ import main
+from asqav.verifier.oracle.assessment_store import AssessmentStore
+
+_FIX = Path(__file__).resolve().parents[2] / "verifier" / "signed-conflict-fixtures"
+
+
+def _raw(name: str) -> bytes:
+    return (_FIX / f"{name}.json").read_bytes()
+
+
+def _digest(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
+def test_record_then_review_agrees_through_the_flow(tmp_path: Path, capsys) -> None:
+    raw = _raw("conflict-allow")
+    store = str(tmp_path / "store.jsonl")
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(raw)
+    assert main(["record", store, str(receipt)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out == {"digest": _digest(raw), "recorded": 1}
+    assert main(["review", store, str(receipt),
+                 "--rerun-a", str(receipt), "--rerun-b", str(receipt)]) == 0
+
+
+def test_record_appends_to_the_existing_log(tmp_path: Path, capsys) -> None:
+    allow, deny = _raw("conflict-allow"), _raw("conflict-deny")
+    store = tmp_path / "store.jsonl"
+    first = tmp_path / "first.json"
+    first.write_bytes(allow)
+    assert main(["record", str(store), str(first)]) == 0
+    capsys.readouterr()
+    second = tmp_path / "second.json"
+    second.write_bytes(deny)
+    assert main(["record", str(store), str(second)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["recorded"] == 2
+    assert len(AssessmentStore.from_jsonl(store.read_text())) == 2
+
+
+def test_record_rejects_a_duplicate_original(tmp_path: Path, capsys) -> None:
+    raw = _raw("conflict-allow")
+    store = tmp_path / "store.jsonl"
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(raw)
+    assert main(["record", str(store), str(receipt)]) == 0
+    capsys.readouterr()
+    assert main(["record", str(store), str(receipt)]) == 2
+    assert "duplicate original" in capsys.readouterr().err
+
+
+def test_record_rejects_a_broken_receipt(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.json"
+    bad.write_text('{"a": 1, "a": 2}')
+    store = str(tmp_path / "store.jsonl")
+    with pytest.raises(SystemExit) as exc:
+        main(["record", store, str(bad)])
+    assert exc.value.code == 2
+    assert not (tmp_path / "store.jsonl").exists()
+
+
+def test_record_rejects_a_broken_store(tmp_path: Path) -> None:
+    raw = _raw("conflict-allow")
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(raw)
+    store = tmp_path / "store.jsonl"
+    store.write_text("not jsonl\n")
+    assert main(["record", str(store), str(receipt)]) == 2
