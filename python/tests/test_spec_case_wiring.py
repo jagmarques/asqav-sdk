@@ -123,4 +123,4 @@ def test_pipeline_with_moved_live_rerun_reports_flake() -> None:
     split = dataclasses.replace(second, verdict=flipped)
     out, case = attribute_live_split(digest, first, digest, split, era(_T1), era(_T2))
     assert out.label == "unexplained_needs_investigation"
-    assert case.label == "nondeterministic_flake"
+    assert case.label == "nondeterministic_flake" and "second" in case.note

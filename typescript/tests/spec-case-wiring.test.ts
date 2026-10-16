@@ -113,5 +113,6 @@ describe("spec case wiring", () => {
     const out = attributeLiveSplit(digest, first, digest, split, era(T1), era(T2));
     expect(out.disagreement.label).toBe("unexplained_needs_investigation");
     expect(out.specCase.label).toBe("nondeterministic_flake");
+    expect(out.specCase.note).toContain("second");
   });
 });
