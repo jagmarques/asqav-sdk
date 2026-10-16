@@ -1,6 +1,5 @@
 # Asqav SDK — Python + TypeScript
 
-[![GitHub stars](https://img.shields.io/github/stars/jagmarques/asqav-sdk?style=social)](https://github.com/jagmarques/asqav-sdk)
 [![PyPI](https://img.shields.io/pypi/v/asqav)](https://pypi.org/project/asqav/)
 [![npm](https://img.shields.io/npm/v/@asqav/sdk)](https://www.npmjs.com/package/@asqav/sdk)
 
