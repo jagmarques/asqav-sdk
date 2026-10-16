@@ -538,9 +538,13 @@ def _decision_label(sig: Any) -> str:
 @hook_app.command("posttool")
 def hook_posttool(
     bind_result: bool = typer.Option(
-        False,
-        "--bind-result",
-        help="Bind the tool result (observation:result_bound + result_digest).",
+        True,
+        "--bind-result/--no-bind-result",
+        help=(
+            "Bind the tool result (observation:result_bound + result_digest). On by"
+            " default: PostToolUse runs after the tool, so every receipt carries the"
+            " outcome."
+        ),
     ),
     clear_context: bool = typer.Option(
         False,

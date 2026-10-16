@@ -71,6 +71,7 @@ class TestRun:
                 "data_length": 11,
                 "metadata_keys": [],
             },
+            result="hello world",
         )
 
     def test_run_returns_output_dict(self):

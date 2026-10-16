@@ -19,6 +19,27 @@ export function canonicalJson(value: unknown): Uint8Array {
   return new TextEncoder().encode(canonicalString(value));
 }
 
+/** JSON-safe projection so digests never throw on host objects. */
+export function toJsonSafeResult(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  try {
+    const roundTripped: unknown = JSON.parse(JSON.stringify(value) ?? "null");
+    return roundTripped === undefined ? String(value) : roundTripped;
+  } catch {
+    return String(value);
+  }
+}
+
+/** Preview stringify that never throws on BigInt or circular values. */
+export function safeStringify(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function canonicalString(value: unknown): string {
   if (value === null) return "null";
   if (value === true) return "true";

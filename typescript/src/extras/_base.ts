@@ -5,6 +5,8 @@
 
 import { Agent } from "../index.js";
 
+export { safeStringify, toJsonSafeResult } from "../jcs.js";
+
 /**
  * Options accepted by every Asqav adapter constructor. Provide exactly one of ``agent`` (used directly),
  * ``agentId`` (lazy ``Agent.get``), or ``agentName`` (lazy ``Agent.create``).
@@ -31,6 +33,8 @@ export interface AsqavAdapterOptions {
 interface SignActionInput {
   actionType: string;
   context?: Record<string, unknown>;
+  /** Completion value; its digest is default-sent (787). */
+  result?: unknown;
 }
 
 /**
@@ -99,6 +103,7 @@ export class AsqavAdapter {
         await agent.sign({
           actionType: input.actionType,
           context: input.context,
+          ...(input.result !== undefined ? { result: input.result as never } : {}),
         });
       } catch (err) {
         try {

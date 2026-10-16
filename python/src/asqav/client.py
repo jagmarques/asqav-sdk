@@ -1041,6 +1041,7 @@ def span(
                     "status": span_obj.status,
                     "attributes": span_obj.attributes,
                 },
+                result=dict(span_obj.attributes),
             )
             span_obj.signature = result.signature
         except Exception:
@@ -1739,6 +1740,30 @@ def _prepare_sign_context(
     return action_type, context
 
 
+def _digest_result_value(result: bytes | str | dict | list) -> str:
+    """Compute the canonical ``sha256:<hex>`` of a tool result (criterion 787).
+
+    Dicts/lists are JCS-canonicalised so key order never changes the digest;
+    strings encode as UTF-8; bytes hash raw. Anything JCS refuses falls back
+    to str(), so fail-open paths always bind an outcome instead of throwing.
+    Output matches the server's ``sha256:<64 hex>`` result_digest wire shape.
+    """
+    import hashlib
+
+    if isinstance(result, bytes):
+        raw = result
+    elif isinstance(result, str):
+        raw = result.encode("utf-8")
+    else:
+        from .canonicalize import canonicalize
+
+        try:
+            raw = canonicalize(result)
+        except (TypeError, ValueError, RecursionError):
+            raw = str(result).encode("utf-8")
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
 def _validate_sign_vocabulary(
     *,
     receipt_type: str | None,
@@ -2141,6 +2166,7 @@ class Agent:
             compliance_mode=True,
             receipt_type=ACKNOWLEDGMENT_RECEIPT_TYPE,
             counterparty_binding=binding,
+            result=peer_receipt,
         )
 
     def sign(
@@ -2177,6 +2203,7 @@ class Agent:
         capture_topology: str | None = None,
         # NSA CSI U/OO/6030316-26 alignment.
         result_digest: str | None = None,
+        result: bytes | str | dict | list | None = None,
         expires_at: str | float | None = None,
         tool_schema: dict[str, Any] | None = None,
         tool_fingerprint: str | None = None,
@@ -2292,7 +2319,15 @@ class Agent:
                 ``receipt_type='protectmcp:observation'`` (false-attestation guard).
             result_digest: NSA CSI U/OO/6030316-26 alignment.
                 ``sha256:<hex>`` of the tool output. Caller-supplied and
-                forwarded verbatim to the cloud.
+                forwarded verbatim to the cloud. When omitted and ``result``
+                is given, the digest is computed from ``result`` and sent
+                by default (criterion 787: every action gets an outcome).
+            result: Optional tool result (bytes, str, or JSON-able value).
+                Its canonical ``sha256:<hex>`` is computed and sent as
+                ``result_digest`` unless ``result_digest`` is given
+                explicitly. Sign-then-run callers that have no result yet
+                omit both and attach the outcome later via
+                :meth:`attach_result`.
             expires_at: Receipt validity horizon. ISO-8601 string or POSIX
                 float. The cloud owns absolute time-binding and accepts
                 only a duration, so the SDK converts this absolute horizon
@@ -2393,6 +2428,10 @@ class Agent:
         )
 
         # Surface bad arguments client-side; the cloud re-validates.
+        # Default-send the outcome (criterion 787): an explicit result_digest
+        # wins; otherwise a given result is digested and sent.
+        if result_digest is None and result is not None:
+            result_digest = _digest_result_value(result)
         _validate_sign_vocabulary(
             receipt_type=receipt_type,
             policy_decision=policy_decision,
@@ -2805,6 +2844,7 @@ class Agent:
         return self.sign(
             action_type=action_type,
             context=sign_context,
+            result=output,
         )
 
     def start_session(self) -> SessionResponse:
@@ -3115,14 +3155,41 @@ class Agent:
         action_type: str,
         context: dict[str, Any] | None = None,
         trace_id: str | None = None,
+        result: Any | None = None,
     ) -> "PhaseChain":
-        """Execute the full three-phase signing flow (intent, decision, execution).
-
-        See :func:`asqav.phases.sign_with_phases` for details.
-        """
+        """Three-phase flow; result binds a digest on :execution (787)."""
         from .phases import sign_with_phases
 
-        return sign_with_phases(self, action_type, context, trace_id)
+        return sign_with_phases(self, action_type, context, trace_id, result=result)
+
+    def attach_result(
+        self,
+        action_ref: str,
+        result: bytes | str | dict | list,
+        *,
+        action_type: str = "protectmcp:observation",
+        tool_name: str | None = None,
+        result_digest: str | None = None,
+        compliance_mode: bool = True,
+    ) -> SignatureResponse:
+        """Sign a follow-up result receipt linked to an earlier receipt (787).
+
+        For sign-then-run flows: the intent receipt is signed before the
+        tool runs, then this attaches the outcome afterwards. The follow-up
+        carries ``receipt_type='protectmcp:observation:result_bound'`` and
+        ``action_ref`` naming the originating receipt/action, so verifiers
+        join outcome to intent. The digest is computed from ``result`` and
+        sent by default; an explicit ``result_digest`` wins.
+        """
+        return self.sign(
+            action_type,
+            result=result,
+            result_digest=result_digest,
+            receipt_type="protectmcp:observation:result_bound",
+            action_ref=action_ref,
+            tool_name=tool_name,
+            compliance_mode=compliance_mode,
+        )
 
 
 def health_check() -> dict[str, Any]:
@@ -3549,6 +3616,7 @@ def secure(func: F) -> F:
                     "function": func.__name__,
                     "success": True,
                 },
+                result=result,
             )
 
             return result
@@ -3561,6 +3629,7 @@ def secure(func: F) -> F:
                     "function": func.__name__,
                     "error": str(e),
                 },
+                result=str(e),
             )
             raise
 
@@ -3613,6 +3682,7 @@ def secure_async(func: F) -> F:
                     "function": func.__name__,
                     "success": True,
                 },
+                result=result,
             )
 
             return result
@@ -3624,6 +3694,7 @@ def secure_async(func: F) -> F:
                     "function": func.__name__,
                     "error": str(e),
                 },
+                result=str(e),
             )
             raise
 
@@ -5055,6 +5126,7 @@ def generate_attestation(
             "session_id": session_id,
             "format": format,
         },
+        result=dict(doc_content),
     )
 
     doc_content["attestation_signature"] = {
@@ -5275,7 +5347,7 @@ class BudgetTracker:
         if context:
             payload.update(context)
 
-        sig = self.agent.sign(f"budget:{action_type}", payload)
+        sig = self.agent.sign(f"budget:{action_type}", payload, result=dict(payload))
         self._records.append(sig.signature_id)
         return sig
 

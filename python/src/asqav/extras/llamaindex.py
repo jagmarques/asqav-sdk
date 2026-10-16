@@ -131,7 +131,9 @@ class AsqavLlamaIndexHandler(AsqavAdapter, BaseCallbackHandler):  # type: ignore
                 "event_type": event_type.value,
                 "payload_keys": _safe_payload_keys(payload),
             }
-            self._sign_action(f"llamaindex.{event_type.value}.end", context)
+            self._sign_action(
+                f"llamaindex.{event_type.value}.end", context, result=payload
+            )  # 787: end payload carries the outcome.
 
         # Start a trace - begins an Asqav session for grouped signing.
     def start_trace(self, trace_id: Optional[str] = None) -> None:

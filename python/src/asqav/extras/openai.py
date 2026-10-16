@@ -58,6 +58,7 @@ class _SignedCompletions:
             sig = self._agent.sign(
                 action_type=context["action_type"],
                 context=context,
+                result=response,  # 787: chat completion is the outcome.
             )
             response._asqav_receipt = sig
         except Exception:

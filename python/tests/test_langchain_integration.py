@@ -162,6 +162,7 @@ def test_on_chain_end_signs_action(handler):
     handler._sign_action.assert_called_once_with(
         "chain:end",
         {"output_keys": ["result", "source_documents"]},
+        result={"result": "answer", "source_documents": []},
     )
 
 
@@ -171,6 +172,7 @@ def test_on_chain_error_signs_action(handler):
     handler._sign_action.assert_called_once_with(
         "chain:error",
         {"error_type": "ValueError", "error": "bad input"},
+        result="bad input",
     )
 
 
@@ -195,6 +197,7 @@ def test_on_tool_end_signs_action(handler):
     handler._sign_action.assert_called_once_with(
         "tool:end",
         {"output_type": "str", "output_length": 1},
+        result="4",
     )
 
 
@@ -204,6 +207,7 @@ def test_on_tool_error_signs_action(handler):
     handler._sign_action.assert_called_once_with(
         "tool:error",
         {"error_type": "RuntimeError", "error": "tool broke"},
+        result="tool broke",
     )
 
 
@@ -235,6 +239,10 @@ def test_on_llm_end_signs_action(handler):
             "generation_count": 2,
             "token_usage": {"prompt_tokens": 10, "completion_tokens": 20},
         },
+        result={
+            "generation_count": 2,
+            "token_usage": {"prompt_tokens": 10, "completion_tokens": 20},
+        },
     )
 
 
@@ -245,6 +253,7 @@ def test_on_llm_end_no_token_usage(handler):
     handler._sign_action.assert_called_once_with(
         "llm:end",
         {"generation_count": 1},
+        result={"generation_count": 1},
     )
 
 
@@ -255,6 +264,7 @@ def test_on_llm_end_no_llm_output(handler):
     handler._sign_action.assert_called_once_with(
         "llm:end",
         {"generation_count": 0},
+        result={"generation_count": 0},
     )
 
 
@@ -264,6 +274,7 @@ def test_on_llm_error_signs_action(handler):
     handler._sign_action.assert_called_once_with(
         "llm:error",
         {"error_type": "TimeoutError", "error": "model timeout"},
+        result="model timeout",
     )
 
 

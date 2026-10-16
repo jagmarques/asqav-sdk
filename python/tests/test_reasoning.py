@@ -160,3 +160,36 @@ def test_sign_reasoning_passes_trace_and_parent_ids():
     kwargs = agent.sign.call_args.kwargs
     assert kwargs["trace_id"] == "trace-123"
     assert kwargs["parent_id"] == "parent-sig-9"
+
+
+def test_sign_reasoning_binds_output_digest():
+    """sign_reasoning mints a wire result_digest over the output (787)."""
+    from unittest.mock import patch
+
+    from asqav.client import Agent, _digest_result_value
+
+    captured: dict = {}
+
+    def fake_post(path: str, body: dict) -> dict:
+        captured["body"] = body
+        return {
+            "signature": "sig-1",
+            "signature_id": "sid-1",
+            "action_id": "aid-1",
+            "timestamp": 1700000000.0,
+            "verification_url": "https://asqav.com/verify/sid-1",
+        }
+
+    agent = Agent(
+        agent_id="agent_reason",
+        name="reason-agent",
+        public_key="pk_xxx",
+        key_id="key_reason",
+        algorithm="ML-DSA-65",
+        capabilities=["ai:*"],
+        created_at=1700000000.0,
+    )
+    output = {"label": "urgent", "confidence": 0.93}
+    with patch("asqav.client._post", side_effect=fake_post):
+        sign_reasoning(agent, "classify this", [{"role": "assistant"}], output)
+    assert captured["body"]["result_digest"] == _digest_result_value(output)

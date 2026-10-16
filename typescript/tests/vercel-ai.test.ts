@@ -11,9 +11,9 @@ import type { Agent } from "../src/index.js";
  * avoid the real client (no network, no init()) so these tests stay hermetic.
  */
 function makeFakeAgent(opts: { failWith?: Error } = {}) {
-  const calls: Array<{ actionType: string; context: Record<string, unknown> }> = [];
-  const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown> }) => {
-    calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {} });
+  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
+  const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
+    calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {}, result: signOpts.result });
     if (opts.failWith) throw opts.failWith;
     return {
       signature: "sig-bytes",
@@ -91,6 +91,8 @@ describe("span.end -> sign call mapping", () => {
     expect(calls[0].context["ai.usage.completionTokens"]).toBe(42);
     expect(calls[0].context.span_name).toBe("ai.generateText");
     expect(typeof calls[0].context.duration_ms).toBe("number");
+    // 787: span attributes carry the outcome as the receipt result
+    expect(calls[0].result).toEqual({ "ai.model.id": "gpt-4o", "ai.usage.completionTokens": 42 });
   });
 
   it("maps ai.toolCall span name to ai:tool_call", async () => {

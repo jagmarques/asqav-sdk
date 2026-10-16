@@ -97,6 +97,7 @@ def sign_reasoning(
         tool_inputs_hash=trace_hash,
         trace_id=trace_id,
         parent_id=parent_id,
+        result=output,
     )
 
     return ReasoningReceipt(

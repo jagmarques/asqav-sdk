@@ -114,7 +114,7 @@ class AsqavGuardrail(AsqavAdapter):
                 "completion_tokens": getattr(usage, "completion_tokens", None),
                 "total_tokens": getattr(usage, "total_tokens", None),
             }
-        await self._sign_action_async("llm:post_call", context)
+        await self._sign_action_async("llm:post_call", context, result=response)
 
     async def async_post_call_failure_hook(
         self,
@@ -137,6 +137,7 @@ class AsqavGuardrail(AsqavAdapter):
                 "error_message": str(original_exception),
             },
             risk_class="medium",
+            result=str(original_exception),
         )
 
         # Sign moderation events.
@@ -360,7 +361,8 @@ class AsqavSigningLogger(CustomLogger):
                 kwargs, response_obj, start_time, end_time, self._redact
             )
             sig = self._adapter._sign_action(
-                self._action_type(fields.get("model", "")), fields
+                self._action_type(fields.get("model", "")), fields,
+                result=response_obj,  # 787: proxy log binds the response.
             )
             self._append_index(fields, sig)
         except Exception as exc:

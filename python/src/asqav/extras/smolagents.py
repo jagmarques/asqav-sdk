@@ -103,6 +103,7 @@ class AsqavSmolagentsHook(AsqavAdapter):
                             "error_type": type(exc).__name__,
                             "error": str(exc)[:_MAX_LEN],
                         },
+                        result=str(exc),
                     )
                 except Exception as sign_exc:
                     logger.warning(
@@ -118,6 +119,7 @@ class AsqavSmolagentsHook(AsqavAdapter):
                         "output_type": type(result).__name__,
                         "output_length": len(str(result)),
                     },
+                    result=result,
                 )
             except Exception as exc:
                 logger.warning("asqav tool:end signing failed (fail-open): %s", exc)

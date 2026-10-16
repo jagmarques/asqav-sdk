@@ -3,9 +3,9 @@ import { AsqavOpenAIAgentsAdapter } from "../../src/extras/openai-agents.js";
 import type { Agent } from "../../src/index.js";
 
 function makeFakeAgent() {
-  const calls: Array<{ actionType: string; context: Record<string, unknown> }> = [];
-  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown> }) => {
-    calls.push({ actionType: opts.actionType, context: opts.context ?? {} });
+  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
+  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
+    calls.push({ actionType: opts.actionType, context: opts.context ?? {}, result: opts.result });
     return {
       signature: "sig",
       signatureId: "sig_1",
@@ -52,6 +52,9 @@ describe("AsqavOpenAIAgentsAdapter wrapTool + guardrail hooks", () => {
     expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:end"]);
     expect(calls[0].context.tool).toBe("weather");
     expect(calls[1].context.output_length).toBeGreaterThan(0);
+    // 787: the tool output travels as the receipt result
+    expect(calls[0].result).toBeUndefined();
+    expect(calls[1].result).toEqual({ city: "Lisbon", temp: 22 });
   });
 
   it("signs tool:error and re-throws when the underlying tool fails", async () => {
@@ -71,6 +74,8 @@ describe("AsqavOpenAIAgentsAdapter wrapTool + guardrail hooks", () => {
     expect(sign).toHaveBeenCalledTimes(2);
     expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:error"]);
     expect(calls[1].context.error).toBe("kaboom");
+    // 787: the failure travels as the receipt result
+    expect(calls[1].result).toBe("Error: kaboom");
   });
 
   it("signs agent:input and agent:output via guardrail helpers", async () => {
@@ -84,5 +89,7 @@ describe("AsqavOpenAIAgentsAdapter wrapTool + guardrail hooks", () => {
     expect(calls.map((c) => c.actionType)).toEqual(["agent:input", "agent:output"]);
     expect(calls[0].context.agent_name).toBe("agent-1");
     expect(calls[1].context.output_length).toBeGreaterThan(0);
+    // 787: the guardrail output travels as the receipt result
+    expect(calls[1].result).toEqual({ answer: 42 });
   });
 });

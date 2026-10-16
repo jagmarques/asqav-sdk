@@ -28,8 +28,13 @@ class Session:
         return self._session_response.session_id
 
         # Sign an action within this session.
-    def sign(self, action_type: str, context: dict[str, Any] | None = None) -> SignatureResponse:
-        return self._agent.sign(action_type, context)
+    def sign(
+        self,
+        action_type: str,
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> SignatureResponse:
+        return self._agent.sign(action_type, context, **kwargs)
 
 
     # Context manager that groups sign calls; signs ``session:error`` on exception.
@@ -46,6 +51,7 @@ def session() -> Generator[Session, None, None]:
         agent.sign(
             action_type="session:error",
             context={"error": str(e), "error_type": type(e).__name__},
+            result=str(e),
         )
         agent.end_session(status="error")
         raise
@@ -66,6 +72,7 @@ async def async_session() -> AsyncGenerator[Session, None]:
         agent.sign(
             action_type="session:error",
             context={"error": str(e), "error_type": type(e).__name__},
+            result=str(e),
         )
         agent.end_session(status="error")
         raise
@@ -114,6 +121,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "success": True,
                         },
+                        result=result,
                     )
 
                     return result
@@ -125,6 +133,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "error": str(e),
                         },
+                        result=str(e),
                     )
                     raise
 
@@ -154,6 +163,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "success": True,
                         },
+                        result=result,
                     )
 
                     return result
@@ -165,6 +175,7 @@ def sign(func: Any = None, *, action_type: str | None = None) -> Any:
                             "function": fn.__name__,
                             "error": str(e),
                         },
+                        result=str(e),
                     )
                     raise
 

@@ -67,6 +67,7 @@ class AsqavComponent(AsqavAdapter):
                 "data_length": len(data),
                 "metadata_keys": list(resolved_metadata.keys()),
             },
+            result=data,  # 787: the passthrough data is the outcome.
         )
         return {
             "data": data,

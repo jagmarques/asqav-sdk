@@ -138,6 +138,7 @@ def test_wrap_client_signs_memory_read_end(hook: AsqavLettaHook) -> None:
     assert last_call[0][0] == "memory:read.end"
     ctx = last_call[0][1]
     assert ctx["value_length"] == len("hello world")
+    assert last_call[1]["result"] == "hello world"  # 787: value bound.
 
 
     # A successful retrieve produces exactly memory:read + memory:read.end.
@@ -189,6 +190,7 @@ def test_wrap_client_signs_memory_write_end(hook: AsqavLettaHook) -> None:
     ctx = last_call[0][1]
     assert ctx["agent_id"] == "a"
     assert ctx["block_label"] == "human"
+    assert last_call[1]["result"] == "new"  # 787: written value bound.
 
 
     # A successful update produces exactly memory:write + memory:write.end.
@@ -228,6 +230,7 @@ def test_wrap_client_signs_read_error_on_exception(hook: AsqavLettaHook) -> None
     ctx = error_call[0][1]
     assert ctx["error_type"] == "RuntimeError"
     assert ctx["error"] == "network error"
+    assert error_call[1]["result"] == "network error"
 
 
     # wrap_client re-raises the original retrieve exception unchanged.
@@ -254,6 +257,7 @@ def test_wrap_client_signs_write_error_on_exception(hook: AsqavLettaHook) -> Non
     ctx = error_call[0][1]
     assert ctx["error_type"] == "RuntimeError"
     assert ctx["error"] == "write failed"
+    assert error_call[1]["result"] == "write failed"
 
 
     # wrap_client re-raises the original update exception unchanged.

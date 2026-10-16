@@ -11,7 +11,7 @@ import {
 } from "./algorithms.js";
 import { canonicalizeAction } from "./canonicalize.js";
 import { _dispatchAfter, _dispatchBefore } from "./hooks.js";
-import { canonicalJson } from "./jcs.js";
+import { canonicalJson, toJsonSafeResult } from "./jcs.js";
 import { type Mode, resolveMode } from "./mode.js";
 import {
   type ContextSchema,
@@ -167,7 +167,7 @@ export {
   canonicalizeToolArgs,
   hashAction,
 } from "./canonicalize.js";
-export { canonicalJson } from "./jcs.js";
+export { canonicalJson, safeStringify, toJsonSafeResult } from "./jcs.js";
 export * as doors from "./doors.js";
 export {
   verifyChain,
@@ -555,9 +555,12 @@ export interface SignOptions {
 
   // === NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0) ===
 
-  /** `sha256:<hex>` of the tool output. Caller-supplied and forwarded
-   * verbatim to the cloud. */
+  /** `sha256:<hex>` of the tool output, forwarded verbatim. When omitted
+   * and `result` is given, the digest is computed and sent by default */
   resultDigest?: string;
+
+  /** Optional tool result; its digest is sent as `resultDigest` unless set */
+  result?: Uint8Array | string | Record<string, unknown> | unknown[];
 
   /** Receipt validity horizon (ISO-8601 or POSIX), converted client-side to
    * `valid_seconds`. Mutually exclusive with `validSeconds`. */
@@ -1921,6 +1924,18 @@ interface BuildSignBodyArgs {
   userIntent?: UserIntent;
 }
 
+/** Canonical `sha256:<hex>` of a tool result; objects use JCS */
+export function digestResultValue(
+  result: Uint8Array | string | Record<string, unknown> | unknown[],
+): string {
+  const raw: Uint8Array = result instanceof Uint8Array
+    ? result
+    : typeof result === "string"
+      ? Buffer.from(result, "utf-8")
+      : canonicalJson(result);
+  return `sha256:${createHash("sha256").update(raw).digest("hex")}`;
+}
+
 async function buildSignBody(connection: Config, args: BuildSignBodyArgs): Promise<Record<string, unknown>> {
   if (connection.mode === "hash-only") {
     const canonical = canonicalizeAction(args.actionType, args.context);
@@ -2121,6 +2136,7 @@ export class Agent {
       complianceMode: true,
       receiptType: ACKNOWLEDGMENT_RECEIPT_TYPE,
       counterpartyBinding,
+      result: peerReceipt,
     });
   }
 
@@ -2151,12 +2167,17 @@ export class Agent {
       finalContext = { ...(finalContext ?? {}), _detectors: _detectorRecords };
     }
 
-    validateSignOptions(options, complianceMode);
+    // Default-send the outcome: explicit resultDigest wins, else digest result
+    const effectiveOptions = options.resultDigest !== undefined || options.result === undefined
+      ? options
+      : { ...options, resultDigest: digestResultValue(toJsonSafeResult(options.result) as never) };
+
+    validateSignOptions(effectiveOptions, complianceMode);
 
     const actionRef = deriveActionRef(
       complianceMode,
-      options.actionRef,
-      options.actionType,
+      effectiveOptions.actionRef,
+      effectiveOptions.actionType,
       finalContext,
     );
 
@@ -2167,8 +2188,8 @@ export class Agent {
       agentId: this.agentId,
       userIntent: options.userIntent,
     });
-    applyOptionalWireFields(body, options);
-    applyComplianceFields(body, options, complianceMode, actionRef);
+    applyOptionalWireFields(body, effectiveOptions);
+    applyComplianceFields(body, effectiveOptions, complianceMode, actionRef);
 
     const data = await requestWithConnection<SignWireResponse>(
       connection,
@@ -2179,6 +2200,28 @@ export class Agent {
     const response = mapSignWireToResponse(data);
     _dispatchAfter(options.actionType, response);
     return response;
+  }
+
+  /** Sign a follow-up result receipt linked by actionRef to an earlier one */
+  async attachResult(
+    actionRef: string,
+    result: Uint8Array | string | Record<string, unknown> | unknown[],
+    options?: {
+      actionType?: string;
+      toolName?: string;
+      resultDigest?: string;
+      complianceMode?: boolean;
+    },
+  ): Promise<SignatureResponse> {
+    return this.sign({
+      actionType: options?.actionType ?? "protectmcp:observation",
+      result: result,
+      resultDigest: options?.resultDigest,
+      receiptType: "protectmcp:observation:result_bound",
+      actionRef: actionRef,
+      toolName: options?.toolName,
+      complianceMode: options?.complianceMode,
+    });
   }
 
   async countersign(signatureId: string): Promise<SignatureResponse> {
