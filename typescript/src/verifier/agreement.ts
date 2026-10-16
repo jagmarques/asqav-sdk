@@ -92,7 +92,7 @@ export function compareAssessments(
       fAgr.agreementId === sAgr.agreementId &&
       fAgr.predicateVersion === sAgr.predicateVersion &&
       fAgr.termsHash === sAgr.termsHash,
-    contentHashes: hashJson(first.axes) === hashJson(second.axes),
+    contentHashes: hashJson(first.axes ?? {}) === hashJson(second.axes ?? {}),
     evaluator: ctxGet(first.context, "evaluator", "evaluator") === ctxGet(second.context, "evaluator", "evaluator"),
     trustRoots: JSON.stringify(fRoots) === JSON.stringify(sRoots),
     revocationSnapshot:
