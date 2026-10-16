@@ -9,6 +9,7 @@ and marked as such, while digests, axes, contexts and reruns stay live.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from pathlib import Path
@@ -90,11 +91,11 @@ def test_candidate_pins_the_live_digest_through_the_pipeline() -> None:
     first, second = _run(doc), _run(doc)
     assert _view(first, digest) == _view(second, digest), "oracle is deterministic"
     assert len(first.axes) > 0, "axes are real oracle output, not empty"
-    # Split is synthetic (unreachable live: verdict folds from axes); every
-    # byte, axis, context value and both reruns below are live oracle output.
-    out, case = attribute_split(
-        _view(first, digest), _view(second, digest), first.verdict, "unverified",
-        _view(_run(doc), digest), _view(_run(doc), digest))
+    # SYNTHETIC verdict override (the only non-live element): one oracle
+    # version cannot split on identical views; verdict folds from axes
+    split = dataclasses.replace(second, verdict="unverified")
+    out, case = attribute_live_split(
+        digest, first, digest, split, _run(doc), _run(doc), first_bytes=raw)
     assert out.label == "unexplained_needs_investigation"
     assert case.label == "spec_bug_candidate" and case.pinned == (digest,)
 
@@ -108,13 +109,18 @@ def test_pipeline_without_the_split_stays_not_applicable() -> None:
     assert out.label == "agreement" and case.label == "not_applicable"
 
 
-def test_pipeline_with_moved_rerun_axes_reports_flake() -> None:
-    _, digest, doc = _load("conflict-allow")
-    first, second = _run(doc), _run(doc)
-    rerun = _view(_run(doc), digest)
-    rerun["axes"] = {**rerun["axes"], "expiry": "FAIL"}
-    out, case = attribute_split(
-        _view(first, digest), _view(second, digest), first.verdict, "unverified",
-        _view(_run(doc), digest), rerun)
+def test_pipeline_with_moved_live_rerun_reports_flake() -> None:
+    doc, digest = _expiring()
+
+    def era(t: str):
+        return verify(doc, ADAPTERS, context=VerificationContext(evaluation_time=t))
+
+    first, second = era(_T1), era(_T1)
+    assert _view(first, digest) == _view(second, digest), "same era, same views"
+    flipped = "unverified" if first.verdict == "verified" else "verified"
+    # SYNTHETIC verdict override (the only non-live element); the rerun at
+    # _T2 moves the expiry axis live, so the split cannot pin to a rerun
+    split = dataclasses.replace(second, verdict=flipped)
+    out, case = attribute_live_split(digest, first, digest, split, era(_T1), era(_T2))
     assert out.label == "unexplained_needs_investigation"
     assert case.label == "nondeterministic_flake"

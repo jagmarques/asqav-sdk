@@ -74,13 +74,15 @@ describe("spec case wiring", () => {
   });
 
   it("candidate pins the live digest through the pipeline", () => {
-    const { digest, doc } = load("conflict-allow");
+    const { raw, digest, doc } = load("conflict-allow");
     const first = run(doc);
     const second = run(doc);
     expect(viewOf(first, digest)).toEqual(viewOf(second, digest));
     expect(Object.keys(first.axes).length).toBeGreaterThan(0);
-    const out = attributeSplit(viewOf(first, digest), viewOf(second, digest), first.verdict, "unverified",
-      viewOf(run(doc), digest), viewOf(run(doc), digest));
+    // SYNTHETIC verdict override (the only non-live element): one oracle
+    // version cannot split on identical views; verdict folds from axes
+    const split = { ...second, verdict: "unverified" as typeof second.verdict };
+    const out = attributeLiveSplit(digest, first, digest, split, run(doc), run(doc), null, null, raw);
     expect(out.disagreement.label).toBe("unexplained_needs_investigation");
     expect(out.specCase.label).toBe("spec_bug_candidate");
     expect(out.specCase.pinned).toEqual([digest]);
@@ -96,14 +98,19 @@ describe("spec case wiring", () => {
     expect(out.specCase.label).toBe("not_applicable");
   });
 
-  it("pipeline with moved rerun axes reports flake", () => {
-    const { digest, doc } = load("conflict-allow");
-    const first = run(doc);
-    const second = run(doc);
-    const rerun = viewOf(run(doc), digest);
-    const moved: AssessmentView = { ...rerun, axes: { ...rerun.axes, expiry: "FAIL" } };
-    const out = attributeSplit(viewOf(first, digest), viewOf(second, digest), first.verdict, "unverified",
-      viewOf(run(doc), digest), moved);
+  it("pipeline with moved live rerun reports flake", () => {
+    const { doc, digest } = expiring();
+    const era = (t: string) => verify(doc, ADAPTERS, null, null, {
+      evaluationTime: t, trustRoots: ["root-a"], revocationSnapshot: "snap-1", evaluator: "c19-probe",
+    });
+    const first = era(T1);
+    const second = era(T1);
+    expect(viewOf(first, digest)).toEqual(viewOf(second, digest));
+    const flipped = first.verdict === "verified" ? "unverified" : "verified";
+    // SYNTHETIC verdict override (the only non-live element); the rerun at
+    // T2 moves the expiry axis live, so the split cannot pin to a rerun
+    const split = { ...second, verdict: flipped as typeof second.verdict };
+    const out = attributeLiveSplit(digest, first, digest, split, era(T1), era(T2));
     expect(out.disagreement.label).toBe("unexplained_needs_investigation");
     expect(out.specCase.label).toBe("nondeterministic_flake");
   });
