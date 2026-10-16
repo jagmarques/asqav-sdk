@@ -86,6 +86,25 @@ def test_live_rerun_bytes_must_match() -> None:
                              _run(doc), _run(doc), rerun_a_bytes=b"not the receipt")
 
 
+def test_rerun_bytes_bind_per_side_on_split_digests() -> None:
+    allow_raw, allow_digest, allow = _load("conflict-allow")
+    deny_raw, deny_digest, deny = _load("conflict-deny")
+    assert allow_digest != deny_digest, "sides differ or the binding is vacuous"
+    out, case = attribute_live_split(
+        allow_digest, _run(allow), deny_digest, _run(deny),
+        _run(allow), _run(deny), rerun_a_bytes=allow_raw, rerun_b_bytes=deny_raw)
+    assert out.label == "different_subject" and case.label == "not_applicable"
+
+
+def test_swapped_rerun_bytes_raise_per_side() -> None:
+    allow_raw, allow_digest, allow = _load("conflict-allow")
+    deny_raw, deny_digest, deny = _load("conflict-deny")
+    with pytest.raises(ValueError, match="rerun_a digest"):
+        attribute_live_split(
+            allow_digest, _run(allow), deny_digest, _run(deny),
+            _run(allow), _run(deny), rerun_a_bytes=deny_raw, rerun_b_bytes=allow_raw)
+
+
 def test_candidate_pins_the_live_digest_through_the_pipeline() -> None:
     raw, digest, doc = _load("conflict-allow")
     first, second = _run(doc), _run(doc)

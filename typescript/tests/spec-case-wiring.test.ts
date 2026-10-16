@@ -73,6 +73,23 @@ describe("spec case wiring", () => {
       null, null, null, null, Buffer.from("not the receipt"))).toThrow("rerunA digest");
   });
 
+  it("rerun bytes bind per side on split digests", () => {
+    const allow = load("conflict-allow");
+    const deny = load("conflict-deny");
+    expect(allow.digest).not.toBe(deny.digest);
+    const out = attributeLiveSplit(allow.digest, run(allow.doc), deny.digest, run(deny.doc),
+      run(allow.doc), run(deny.doc), null, null, null, null, allow.raw, deny.raw);
+    expect(out.disagreement.label).toBe("different_subject");
+    expect(out.specCase.label).toBe("not_applicable");
+  });
+
+  it("swapped rerun bytes raise per side", () => {
+    const allow = load("conflict-allow");
+    const deny = load("conflict-deny");
+    expect(() => attributeLiveSplit(allow.digest, run(allow.doc), deny.digest, run(deny.doc),
+      run(allow.doc), run(deny.doc), null, null, null, null, deny.raw, allow.raw)).toThrow("rerunA digest");
+  });
+
   it("candidate pins the live digest through the pipeline", () => {
     const { raw, digest, doc } = load("conflict-allow");
     const first = run(doc);
