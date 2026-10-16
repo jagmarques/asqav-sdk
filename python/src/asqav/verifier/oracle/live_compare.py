@@ -54,9 +54,11 @@ def _has_stated_envelope(agreement: object | None) -> bool:
 def _bound_agreement(agreement: object | None, raw: bytes | None) -> object | None:
     """Bind the caller terms to the bytes-derived envelope (488 C30).
 
-    Bytes present: parse and bind (contradiction raises, match derives).
-    Bytes absent: pass through (a stated envelope already raised above)."""
-    if raw is None:
+    Bytes present with stated terms: parse and bind (contradiction
+    raises, match derives). No stated agreement: keep None so
+    digest-only callers see no behavior change. Bytes absent: pass
+    through (a stated envelope already raised above)."""
+    if raw is None or agreement is None:
         return agreement
     return bind_envelope(agreement, json.loads(raw), ADAPTERS)
 

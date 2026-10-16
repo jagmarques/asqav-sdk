@@ -37,7 +37,7 @@ function boundAgreement(
   agreement: AgreementRef | Record<string, string | null> | null,
   raw: Uint8Array | null,
 ): AgreementRef | Record<string, string | null> | null {
-  if (raw === null) return agreement;
+  if (raw === null || agreement === null) return agreement;
   const doc = JSON.parse(new TextDecoder().decode(raw)) as Record<string, unknown>;
   return bindEnvelope(agreement, doc);
 }
