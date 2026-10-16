@@ -128,6 +128,11 @@ def pytest_runtest_makereport(item, call):  # type: ignore[no-untyped-def]
                 "duration": result.duration,
                 "framework": _state.framework,
             },
+            result={
+                "nodeid": result.nodeid,
+                "outcome": result.outcome,
+                "duration": result.duration,
+            },
         )
         _state.signatures.append(sig)
     except Exception as exc:

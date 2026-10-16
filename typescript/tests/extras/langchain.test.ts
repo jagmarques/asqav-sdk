@@ -3,9 +3,9 @@ import type { Agent } from "../../src/index.js";
 
 // Fake Asqav agent: hermetic, no init() / network.
 function makeFakeAgent() {
-  const calls: Array<{ actionType: string; context: Record<string, unknown> }> = [];
-  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown> }) => {
-    calls.push({ actionType: opts.actionType, context: opts.context ?? {} });
+  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
+  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
+    calls.push({ actionType: opts.actionType, context: opts.context ?? {}, result: opts.result });
     return {
       signature: "sig",
       signatureId: "sig_1",
@@ -126,6 +126,11 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
     expect(calls[2].context.tool).toBe("weather");
     expect(calls[3].context.output_length).toBe("sunny".length);
     expect(calls[4].context.error).toBe("boom");
+    // 787: completion and error outcomes travel as the receipt result
+    expect(calls[0].result).toBeUndefined();
+    expect(calls[1].result).toEqual({ generation_count: 1, token_usage: { total: 10 } });
+    expect(calls[3].result).toBe("sunny");
+    expect(calls[4].result).toBe("boom");
   });
 });
 

@@ -104,6 +104,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "ok": exception is None,
                 "exception": _exception_name(exception),
             },
+            result=outputs if exception is None else str(exception),
         )
 
     # === LM handlers ===
@@ -139,6 +140,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "ok": exception is None,
                 "exception": _exception_name(exception),
             },
+            result=outputs if exception is None else str(exception),
         )
 
     # === Tool handlers ===
@@ -174,6 +176,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "ok": exception is None,
                 "exception": _exception_name(exception),
             },
+            result=outputs if exception is None else str(exception),
         )
 
     # === Evaluate handlers ===
@@ -208,6 +211,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "ok": exception is None,
                 "exception": _exception_name(exception),
             },
+            result=outputs if exception is None else str(exception),
         )
 
     # === Adapter format handlers ===
@@ -242,6 +246,7 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "ok": exception is None,
                 "exception": _exception_name(exception),
             },
+            result=outputs if exception is None else str(exception),
         )
 
     # === Adapter parse handlers ===
@@ -276,4 +281,5 @@ class AsqavDSPyCallback(AsqavAdapter, BaseCallback):  # type: ignore[misc]
                 "ok": exception is None,
                 "exception": _exception_name(exception),
             },
+            result=outputs if exception is None else str(exception),
         )

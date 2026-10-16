@@ -365,6 +365,7 @@ def test_on_event_end_llm(handler: AsqavLlamaIndexHandler) -> None:
             "event_type": "llm",
             "payload_keys": ["completion"],
         },
+        result={"completion": "hello"},
     )
 
 
@@ -382,6 +383,7 @@ def test_on_event_end_function_call(handler: AsqavLlamaIndexHandler) -> None:
             "event_type": "function_call",
             "payload_keys": ["function_call_response"],
         },
+        result={"function_call_response": "ok"},
     )
 
 

@@ -4,6 +4,7 @@
  */
 
 import type { Agent } from "../index.js";
+import { toJsonSafeResult } from "./_base.js";
 
 // Local copies of @opentelemetry/api 1.x types so users without OTel can still import this.
 
@@ -221,8 +222,16 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
     }
 
     // Fire-and-forget. No await, no throw.
+    // 787: span attributes carry the AI SDK outcome; bind them as result
+    const outcome = isError && state.exception !== undefined
+      ? { error: context.error }
+      : { ...state.attributes };
     try {
-      const promise = opts.agent.sign({ actionType, context });
+      const promise = opts.agent.sign({
+        actionType,
+        context,
+        result: toJsonSafeResult(outcome) as Record<string, unknown>,
+      });
       Promise.resolve(promise).catch((err) => {
         onError(err, { name: state.name, attributes: state.attributes });
       });

@@ -93,7 +93,7 @@ class AsqavCrewHook(AsqavAdapter):
             ctx["output_length"] = len(output)
         if agent_role is not None:
             ctx["agent_role"] = agent_role
-        self._sign_action("task:complete", ctx)
+        self._sign_action("task:complete", ctx, result=output)
 
     def on_task_fail(
         self,
@@ -115,7 +115,7 @@ class AsqavCrewHook(AsqavAdapter):
             ctx["error"] = error
         if agent_role is not None:
             ctx["agent_role"] = agent_role
-        self._sign_action("task:fail", ctx)
+        self._sign_action("task:fail", ctx, result=error)
 
     # -- CrewAI callback callables --
 
@@ -132,7 +132,7 @@ class AsqavCrewHook(AsqavAdapter):
             "step_type": type(step_output).__name__,
             "step_output": str(step_output)[:_MAX_DESC],
         }
-        self._sign_action("step:execute", ctx)
+        self._sign_action("step:execute", ctx, result=step_output)
 
     def task_callback(self, task_output: Any) -> None:
         """Callback for CrewAI ``task_callback`` parameter.
@@ -152,7 +152,7 @@ class AsqavCrewHook(AsqavAdapter):
         }
         if raw is not None:
             ctx["output_length"] = len(raw)
-        self._sign_action("task:complete", ctx)
+        self._sign_action("task:complete", ctx, result=raw)
 
 
 class AsqavGuardrailProvider(AsqavAdapter):

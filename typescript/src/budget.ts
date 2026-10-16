@@ -82,15 +82,17 @@ export class BudgetTracker {
       throw new Error("actualCost must be a finite non-negative number");
     }
     const next = this.spend + cost;
+    const outcome: Record<string, unknown> = {
+      ...context,
+      cost,
+      currency: this.currency,
+      cumulative_spend: next,
+      limit: this.limit,
+    };
     const sig = await this.agent.sign({
       actionType: `budget:${actionType}`,
-      context: {
-        ...context,
-        cost,
-        currency: this.currency,
-        cumulative_spend: next,
-        limit: this.limit,
-      },
+      context: outcome,
+      result: outcome,
     });
     this.spend = next;
     this.records.push(sig.signatureId);

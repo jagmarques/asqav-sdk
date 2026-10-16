@@ -99,18 +99,20 @@ class AsqavInstructorHook(AsqavAdapter):
             ctx["prompt_tokens"] = getattr(usage, "prompt_tokens", None)
             ctx["completion_tokens"] = getattr(usage, "completion_tokens", None)
             ctx["total_tokens"] = getattr(usage, "total_tokens", None)
-        self._sign_action("instructor.completion.complete", ctx)
+        self._sign_action("instructor.completion.complete", ctx, result=response)
 
     def _on_error(self, error: Exception, **_kwargs: Any) -> None:
         self._sign_action(
             "instructor.completion.error",
             {"error_type": _exception_name(error), "message": str(error)[:500]},
+            result=str(error),
         )
 
     def _on_last_attempt(self, error: Exception, **_kwargs: Any) -> None:
         self._sign_action(
             "instructor.completion.last_attempt",
             {"error_type": _exception_name(error), "message": str(error)[:500]},
+            result=str(error),
         )
 
         # Pydantic validation failed against response_model.
@@ -118,4 +120,5 @@ class AsqavInstructorHook(AsqavAdapter):
         self._sign_action(
             "instructor.parse.error",
             {"error_type": _exception_name(error), "message": str(error)[:500]},
+            result=str(error),
         )

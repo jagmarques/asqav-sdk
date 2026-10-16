@@ -127,6 +127,7 @@ def test_output_guardrail_signs_action():
     assert context["output_type"] == "dict"
     assert "output_length" in context
     assert "output_preview" in context
+    assert args[1]["result"] == {"result": "done"}  # 787: output bound.
 
 
     # run_output_guardrail always returns GuardrailResult with passed=True.
