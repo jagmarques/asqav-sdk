@@ -22,7 +22,13 @@ could not be run, and the verifier never reports a broken receipt as verified.
 ``{key_id: hex}`` map for AERF, an ``{key_id: pem}`` map for ACTA, or a did_map
 for agentreceipts. did:key receipts self-resolve and need no ``--keys``.
 
-A second command reviews a live reassessment against its retained original::
+A second command records a live assessment into the retained log::
+
+    python -m asqav.verifier.oracle record store.jsonl receipt.json
+
+It verifies the receipt, appends the assessment (a missing store file
+starts a new log; a broken one fails), and prints the digest. A third
+command reviews a live reassessment against its retained original::
 
     python -m asqav.verifier.oracle review store.jsonl receipt.json [--rerun-a a.json --rerun-b b.json]
 
@@ -53,6 +59,7 @@ from . import ADAPTERS
 from .assessment_store import AssessmentStore
 from .core import FAILURE_INVALID, VERDICT_UNVERIFIED, verify
 from .live_compare import classify_and_attribute
+from .retain import record_verify_result
 
 
 def _exit_code(verdict: str, failure_class: str | None) -> int:
@@ -98,6 +105,44 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         print(f"asqav-verify: {path} is not valid JSON: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
+
+
+def record(store_path: str, receipt_path: str) -> int:
+    """Retain one live assessment (488 C32, C2 flow caller).
+
+    Verifies the receipt and appends the assessment to the store file,
+    starting a new log when the file is absent. Prints the digest.
+    Exit 0 recorded, 2 input or retention failure."""
+    raw, receipt = _load_raw(receipt_path)
+    digest = hashlib.sha256(raw).hexdigest()
+    try:
+        text = Path(store_path).read_text()
+    except FileNotFoundError:
+        store = AssessmentStore()
+    except OSError as exc:
+        print(f"asqav-verify: cannot read {store_path}: {exc.strerror or exc}",
+              file=sys.stderr)
+        return 2
+    else:
+        try:
+            store = AssessmentStore.from_jsonl(text)
+        except ValueError as exc:
+            print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
+            return 2
+    result = verify(receipt, ADAPTERS)
+    try:
+        record_verify_result(store, digest, result)
+    except ValueError as exc:
+        print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
+        return 2
+    try:
+        Path(store_path).write_text(store.to_jsonl())
+    except OSError as exc:
+        print(f"asqav-verify: cannot write {store_path}: {exc.strerror or exc}",
+              file=sys.stderr)
+        return 2
+    print(json.dumps({"digest": digest, "recorded": len(store)}))
+    return 0
 
 
 def review(store_path: str, receipt_path: str,
@@ -191,10 +236,23 @@ def _review_main(args: list[str]) -> int:
     return review(parsed.store, parsed.receipt, parsed.rerun_a, parsed.rerun_b)
 
 
+def _record_main(args: list[str]) -> int:
+    p = argparse.ArgumentParser(
+        prog="asqav-verify record",
+        description="Retain a live assessment into the store log.",
+    )
+    p.add_argument("store", help="path to the retained assessment JSONL log")
+    p.add_argument("receipt", help="path to the receipt JSON to retain")
+    parsed = p.parse_args(args)
+    return record(parsed.store, parsed.receipt)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if args[:1] == ["review"]:
         return _review_main(args[1:])
+    if args[:1] == ["record"]:
+        return _record_main(args[1:])
     return _verify_main(args)
 
 
