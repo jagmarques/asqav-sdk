@@ -38,6 +38,29 @@ def _live_view(digest: str, result: object, agreement: object | None) -> dict:
     }
 
 
+def _has_stated_envelope(agreement: object | None) -> bool:
+    """True when the caller states a kid or signature (needs bytes)."""
+    if agreement is None:
+        return False
+    if isinstance(agreement, dict):
+        kid = agreement.get("kid")
+        sig = agreement.get("signature")
+    else:
+        kid = getattr(agreement, "kid", None)
+        sig = getattr(agreement, "signature", None)
+    return kid is not None or sig is not None
+
+
+def _bound_agreement(agreement: object | None, raw: bytes | None) -> object | None:
+    """Bind the caller terms to the bytes-derived envelope (488 C30).
+
+    Bytes present: parse and bind (contradiction raises, match derives).
+    Bytes absent: pass through (a stated envelope already raised above)."""
+    if raw is None:
+        return agreement
+    return bind_envelope(agreement, json.loads(raw), ADAPTERS)
+
+
 def compare_live(
     first_digest: str,
     first: object,
@@ -53,13 +76,19 @@ def compare_live(
 
     Digests ride as caller-stated input bytes by default; pass the raw
     receipt bytes to bind them (a stated digest that is not the bytes'
-    sha256 raises instead of classifying)."""
-    for tag, digest, raw in (("first", first_digest, first_bytes),
-                             ("second", second_digest, second_bytes)):
+    sha256 raises instead of classifying). Envelopes default-bind the
+    same way (C30): a stated kid/signature without bytes raises, and
+    bytes present bind the terms to the derived envelope."""
+    for tag, digest, raw, agr in (("first", first_digest, first_bytes, first_agreement),
+                                  ("second", second_digest, second_bytes, second_agreement)):
         if raw is not None and hashlib.sha256(raw).hexdigest() != digest:
             raise ValueError(f"{tag} digest is not the sha256 of the stated bytes")
-    first_view = _live_view(first_digest, first, first_agreement)
-    second_view = _live_view(second_digest, second, second_agreement)
+        if raw is None and _has_stated_envelope(agr):
+            raise ValueError(f"{tag} envelope without bytes; pass the receipt bytes")
+    first_view = _live_view(first_digest, first,
+                            _bound_agreement(first_agreement, first_bytes))
+    second_view = _live_view(second_digest, second,
+                             _bound_agreement(second_agreement, second_bytes))
     return classify(first_view, second_view, getattr(first, "verdict"), getattr(second, "verdict"))
 
 
