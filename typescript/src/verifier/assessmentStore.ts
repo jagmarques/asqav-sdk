@@ -52,6 +52,9 @@ export class AssessmentStore {
     failureClass: string | null,
     recordedAt: string | null = null,
   ): AssessmentEntry {
+    if (this.replay(docSha256) !== null) {
+      throw new Error(`duplicate original for ${docSha256.slice(0, 16)}; reassess instead`);
+    }
     const prev = this.entries.length > 0 ? this.entries[this.entries.length - 1].entryHash : GENESIS;
     const body = {
       docSha256,
@@ -82,6 +85,9 @@ export class AssessmentStore {
     recordedAt: string | null = null,
   ): AssessmentEntry {
     const original = this.replay(docSha256);
+    if (original === null) {
+      throw new Error(`no retained original for ${docSha256.slice(0, 16)}; record first`);
+    }
     const prev = this.entries.length > 0 ? this.entries[this.entries.length - 1].entryHash : GENESIS;
     const body = {
       docSha256,
@@ -91,7 +97,7 @@ export class AssessmentStore {
       failureClass,
       recordedAt,
       kind: "reassessment",
-      supersedes: original !== null ? original.entryHash : null,
+      supersedes: original.entryHash,
       prevHash: prev,
     };
     const entry: AssessmentEntry = { ...body, entryHash: hashEntry(body) };
@@ -120,6 +126,21 @@ export class AssessmentStore {
       if (line.trim() !== "") store.entries.push(JSON.parse(line) as AssessmentEntry);
     }
     if (!store.verifyChain()) throw new Error("assessment log chain broken");
+    const originals = new Map<string, string>();
+    for (const e of store.entries) {
+      if (e.kind === "original") {
+        if (e.supersedes !== null) throw new Error("original must not supersede");
+        if (originals.has(e.docSha256)) throw new Error("duplicate original in restored log");
+        originals.set(e.docSha256, e.entryHash);
+      } else if (e.kind !== "reassessment") {
+        throw new Error(`unknown entry kind ${JSON.stringify(e.kind)}`);
+      }
+    }
+    for (const e of store.entries) {
+      if (e.kind === "reassessment" && originals.get(e.docSha256) !== e.supersedes) {
+        throw new Error("reassessment links a missing original");
+      }
+    }
     return store;
   }
 }

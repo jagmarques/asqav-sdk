@@ -16,7 +16,7 @@ from pathlib import Path
 from asqav.verifier.oracle import ADAPTERS, VerificationContext, verify
 from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.disagreement import classify
-from asqav.verifier.oracle.retain import record_verify_result
+from asqav.verifier.oracle.retain import reassess_verify_result, record_verify_result
 
 _CORPUS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
 _T1 = "2019-06-01T00:00:00Z"
@@ -51,9 +51,10 @@ def test_four_dims_with_declared_effects_and_replay() -> None:
     baseline = record_verify_result(store, digest, verify(doc, ADAPTERS, context=_ctx()))
     assert baseline.axes["expiry"] == "PASS"
 
-    moved = record_verify_result(
+    moved = reassess_verify_result(
         store, digest, verify(doc, ADAPTERS, context=_ctx(evaluation_time=_T2)))
     assert moved.axes["expiry"] == "FAIL", "evaluation_time moves time axes"
+    assert moved.kind == "reassessment" and moved.supersedes == baseline.entry_hash
 
     for label, over in (
         ("policy_revision", {"policy_revision": "2031-01"}),

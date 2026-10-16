@@ -60,3 +60,19 @@ export function recordVerifyResult(
     recordedAt,
   );
 }
+
+export function reassessVerifyResult(
+  store: AssessmentStore,
+  docSha256: string,
+  result: VerifyResultLike,
+  recordedAt: string | null = null,
+): AssessmentEntry {
+  return store.reassess(
+    docSha256,
+    contextDict(result),
+    axesDict(result),
+    result.verdict,
+    result.failureClass,
+    recordedAt,
+  );
+}
