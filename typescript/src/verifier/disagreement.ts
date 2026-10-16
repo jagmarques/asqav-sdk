@@ -1,6 +1,6 @@
 /** Disagreement classification over normalized comparanda (488 C13). */
 
-import { COMPARANDA, compareAssessments, type AssessmentView } from "./agreement.js";
+import { COMPARANDA, compareAssessments, normAgreementValue, type AssessmentView } from "./agreement.js";
 
 export const TRUST_TIME_DIMS = new Set(["trustRoots", "revocationSnapshot", "verificationTime"]);
 
@@ -25,6 +25,21 @@ export function classify(
 
 export function attributedToTrustTime(result: Disagreement): boolean {
   return result.differing.length > 0 && result.differing.every((d) => TRUST_TIME_DIMS.has(d));
+}
+
+export const CONTRADICTORY_TERMS = "contradictory_terms";
+export const MISSING_EVIDENCE = "missing_evidence";
+
+export function conflictKind(first: AssessmentView, second: AssessmentView): string | null {
+  if (first.docSha256 !== second.docSha256) return null;
+  const firstAxes = first.axes ?? {};
+  const secondAxes = second.axes ?? {};
+  if (!Object.keys(firstAxes).length !== !Object.keys(secondAxes).length) return MISSING_EVIDENCE;
+  if (!Object.keys(firstAxes).length) return null;
+  const firstTerms = normAgreementValue(first.agreement).termsHash;
+  const secondTerms = normAgreementValue(second.agreement).termsHash;
+  if (firstTerms && secondTerms && firstTerms !== secondTerms) return CONTRADICTORY_TERMS;
+  return null;
 }
 
 export interface SpecCase {
