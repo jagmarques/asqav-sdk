@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 
 import type { VerificationContext } from "./adapter.js";
-import { type AgreementRef, type AssessmentView, bindEnvelope } from "./agreement.js";
+import { type AgreementRef, type AssessmentView, bindEnvelope, normAgreementValue } from "./agreement.js";
 import { AssessmentStore, type AssessmentEntry } from "./assessmentStore.js";
 import { verify } from "./core.js";
 import { classify, specCase, type Disagreement, type SpecCase } from "./disagreement.js";
@@ -25,6 +25,23 @@ function view(
   return { docSha256: digest, axes: axesDict(result), context: contextDict(result), agreement };
 }
 
+function hasStatedEnvelope(
+  agreement: AgreementRef | Record<string, string | null> | null,
+): boolean {
+  if (agreement === null) return false;
+  const stated = normAgreementValue(agreement);
+  return stated.kid !== null || stated.signature !== null;
+}
+
+function boundAgreement(
+  agreement: AgreementRef | Record<string, string | null> | null,
+  raw: Uint8Array | null,
+): AgreementRef | Record<string, string | null> | null {
+  if (raw === null) return agreement;
+  const doc = JSON.parse(new TextDecoder().decode(raw)) as Record<string, unknown>;
+  return bindEnvelope(agreement, doc);
+}
+
 export function compareLive(
   firstDigest: string,
   first: VerifyResultLike,
@@ -35,12 +52,16 @@ export function compareLive(
   firstBytes: Uint8Array | null = null,
   secondBytes: Uint8Array | null = null,
 ): Disagreement {
-  for (const [tag, digest, raw] of [["first", firstDigest, firstBytes], ["second", secondDigest, secondBytes]] as const) {
+  const sides = [["first", firstDigest, firstBytes, firstAgreement], ["second", secondDigest, secondBytes, secondAgreement]] as const;
+  for (const [tag, digest, raw, agr] of sides) {
     if (raw !== null && createHash("sha256").update(raw).digest("hex") !== digest) {
       throw new Error(`${tag} digest is not the sha256 of the stated bytes`);
     }
-  }  const firstView = view(firstDigest, first, firstAgreement);
-  const secondView = view(secondDigest, second, secondAgreement);
+    if (raw === null && hasStatedEnvelope(agr)) {
+      throw new Error(`${tag} envelope without bytes; pass the receipt bytes`);
+    }
+  }  const firstView = view(firstDigest, first, boundAgreement(firstAgreement, firstBytes));
+  const secondView = view(secondDigest, second, boundAgreement(secondAgreement, secondBytes));
   return classify(firstView, secondView, first.verdict, second.verdict);
 }
 
