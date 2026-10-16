@@ -8,7 +8,10 @@ caller-stated input bytes, and predicate terms attach as AgreementRef.
 from __future__ import annotations
 
 import hashlib
+import json
 
+from asqav.verifier.oracle import ADAPTERS, verify
+from asqav.verifier.oracle.adapter import VerificationContext
 from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
 from asqav.verifier.oracle.retain import axes_dict, context_dict
 
@@ -46,6 +49,28 @@ def compare_live(
     first_view = _live_view(first_digest, first, first_agreement)
     second_view = _live_view(second_digest, second, second_agreement)
     return classify(first_view, second_view, getattr(first, "verdict"), getattr(second, "verdict"))
+
+
+def compare_live_strict(
+    first_bytes: bytes,
+    second_bytes: bytes,
+    first_agreement: object | None = None,
+    second_agreement: object | None = None,
+    *,
+    context: VerificationContext | None = None,
+) -> Disagreement:
+    """Strict live compare: the entry verifies the bytes itself (488 C26).
+
+    No digest or result parameter exists, so no unbound or foreign-result
+    call is expressible; digests derive from the stated bytes and both
+    compared results come from re-verifying those bytes under one context."""
+    first = verify(json.loads(first_bytes), ADAPTERS, context=context)
+    second = verify(json.loads(second_bytes), ADAPTERS, context=context)
+    first_digest = hashlib.sha256(first_bytes).hexdigest()
+    second_digest = hashlib.sha256(second_bytes).hexdigest()
+    first_view = _live_view(first_digest, first, first_agreement)
+    second_view = _live_view(second_digest, second, second_agreement)
+    return classify(first_view, second_view, first.verdict, second.verdict)
 
 
 def attribute_split(
