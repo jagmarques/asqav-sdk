@@ -36,12 +36,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # npm trusted publishing (OIDC), like PyPI's; NPM_TOKEN stays a fallback
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships npm 10
+      - run: npm install -g npm@^11.5.1
       - run: npm ci
         working-directory: typescript
       - run: npm run build
