@@ -1,6 +1,6 @@
 name: Registry drift
-# Fails when a py-v*/ts-v* tag is missing from PyPI/npm or behind there:
-# ts-v0.10.11 and ts-v0.10.12 never reached npm and nobody saw it
+# Fails when the newest py-v*/ts-v* tag is missing from PyPI/npm or behind
+# there, so a failed publish cannot go unseen
 on:
   schedule:
     - cron: '17 6 * * *'

@@ -21,8 +21,8 @@ class DriftTests(unittest.TestCase):
         reg = {"python": state("0.10.13", "0.10.12", "0.10.13"), "typescript": state("0.10.13")}
         self.assertEqual(registry.drift(tags, reg, tags), [])
 
-    def test_the_october_npm_lag_is_caught(self):
-        # ts-v0.10.11 and ts-v0.10.12 were tagged while npm still served 0.10.10
+    def test_a_tag_missing_from_npm_is_caught(self):
+        # Two TypeScript tags past the version npm served as latest
         tags = {"python": V("0.10.12"), "typescript": V("0.10.12")}
         reg = {"python": state("0.10.12"), "typescript": state("0.10.10", "0.10.9", "0.10.10")}
         self.assertEqual(registry.drift(tags, reg, tags),

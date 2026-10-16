@@ -12,7 +12,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 PYPI = "https://pypi.org/pypi/asqav/json"
 NPM = "https://registry.npmjs.org/@asqav%2fsdk"
-# A tag names a release; its publish job can fail unnoticed (npm 0.10.11-12)
+# A tag names a release, but its publish job can fail without anyone noticing
 PREFIXES = {"python": "py-v", "typescript": "ts-v"}
 REGISTRY = {"python": "PyPI", "typescript": "npm"}
 
