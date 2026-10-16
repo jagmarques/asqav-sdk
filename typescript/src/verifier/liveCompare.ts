@@ -112,14 +112,18 @@ export function attributeLiveSplit(
   rerunABytes: Uint8Array | null = null,
   rerunBBytes: Uint8Array | null = null,
 ): { disagreement: Disagreement; specCase: SpecCase } {
-  for (const [tag, digest, raw] of [["first", firstDigest, firstBytes], ["second", secondDigest, secondBytes], ["rerunA", firstDigest, rerunABytes], ["rerunB", secondDigest, rerunBBytes]] as const) {
+  const sides = [["first", firstDigest, firstBytes, firstAgreement, true], ["second", secondDigest, secondBytes, secondAgreement, true], ["rerunA", firstDigest, rerunABytes, firstAgreement, rerunA !== null], ["rerunB", secondDigest, rerunBBytes, secondAgreement, rerunB !== null]] as const;
+  for (const [tag, digest, raw, agr, present] of sides) {
     if (raw !== null && createHash("sha256").update(raw).digest("hex") !== digest) {
       throw new Error(`${tag} digest is not the sha256 of the stated bytes`);
     }
-  }  const firstView = view(firstDigest, first, firstAgreement);
-  const secondView = view(secondDigest, second, secondAgreement);
-  const rerunAView = rerunA === null ? null : view(firstDigest, rerunA, firstAgreement);
-  const rerunBView = rerunB === null ? null : view(secondDigest, rerunB, secondAgreement);
+    if (present && raw === null && hasStatedEnvelope(agr)) {
+      throw new Error(`${tag} envelope without bytes; pass the receipt bytes`);
+    }
+  }  const firstView = view(firstDigest, first, boundAgreement(firstAgreement, firstBytes));
+  const secondView = view(secondDigest, second, boundAgreement(secondAgreement, secondBytes));
+  const rerunAView = rerunA === null ? null : view(firstDigest, rerunA, boundAgreement(firstAgreement, rerunABytes));
+  const rerunBView = rerunB === null ? null : view(secondDigest, rerunB, boundAgreement(secondAgreement, rerunBBytes));
   return attributeSplit(firstView, secondView, first.verdict, second.verdict, rerunAView, rerunBView);
 }
 
