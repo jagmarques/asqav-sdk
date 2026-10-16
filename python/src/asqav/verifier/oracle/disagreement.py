@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from asqav.verifier.oracle.agreement import COMPARANDA, compare_assessments
+from asqav.verifier.oracle.agreement import COMPARANDA, _norm_agreement, compare_assessments
 
 #: Comparanda that vary legitimately across trust environments / time.
 TRUST_TIME_DIMS = frozenset({"trust_roots", "revocation_snapshot", "verification_time"})
@@ -38,6 +38,33 @@ def classify(first: dict, second: dict, verdict_a: str, verdict_b: str) -> Disag
 def attributed_to_trust_time(result: Disagreement) -> bool:
     """True when every differing dim is a trust/time input (C2's own line)."""
     return bool(result.differing) and set(result.differing) <= TRUST_TIME_DIMS
+
+
+CONTRADICTORY_TERMS = "contradictory_terms"
+MISSING_EVIDENCE = "missing_evidence"
+
+
+def conflict_kind(first: dict, second: dict) -> str | None:
+    """Name the conflict shape for one subject (488 C7).
+
+    Same bytes with both sides carrying differing signed terms is a
+    contradictory-terms conflict; same bytes with evidence on one side
+    only is missing evidence. Different bytes carry no conflict call.
+    Terms win only when both sides are evidenced; an empty side
+    reads as missing first."""
+    if first.get("doc_sha256") != second.get("doc_sha256"):
+        return None
+    first_axes = first.get("axes") or {}
+    second_axes = second.get("axes") or {}
+    if (not first_axes) != (not second_axes):
+        return MISSING_EVIDENCE
+    if not first_axes:
+        return None
+    first_terms = _norm_agreement(first.get("agreement")).get("terms_hash")
+    second_terms = _norm_agreement(second.get("agreement")).get("terms_hash")
+    if first_terms and second_terms and first_terms != second_terms:
+        return CONTRADICTORY_TERMS
+    return None
 
 
 @dataclass(frozen=True)
