@@ -38,3 +38,43 @@ def classify(first: dict, second: dict, verdict_a: str, verdict_b: str) -> Disag
 def attributed_to_trust_time(result: Disagreement) -> bool:
     """True when every differing dim is a trust/time input (C2's own line)."""
     return bool(result.differing) and set(result.differing) <= TRUST_TIME_DIMS
+
+
+@dataclass(frozen=True)
+class SpecCase:
+    """Evidence-bar outcome for an unexplained verdict split (488 C23).
+
+    Only a deterministically reproduced split on identical inputs is a
+    spec_bug_candidate; every other outcome names exactly what is missing."""
+
+    label: str
+    note: str
+    pinned: tuple[str, ...] = ()
+
+
+def spec_case(
+    first: dict,
+    second: dict,
+    verdict_a: str,
+    verdict_b: str,
+    rerun_a: dict | None = None,
+    rerun_b: dict | None = None,
+) -> SpecCase:
+    """Apply the spec-bug evidence bar to a classified verdict pair.
+
+    Reruns are re-executions from retained bytes (retain.replay +
+    verify); a split is attributable only when both reruns reproduce
+    the original axes on the original digests."""
+    if classify(first, second, verdict_a, verdict_b).label != "unexplained_needs_investigation":
+        return SpecCase("not_applicable", "no unexplained split to attribute")
+    if not first.get("doc_sha256") or not second.get("doc_sha256"):
+        return SpecCase("evidence_insufficient", "no digest to pin the split to")
+    if rerun_a is None or rerun_b is None:
+        return SpecCase("evidence_insufficient", "re-execute both inputs first")
+    for tag, orig, rerun in (("first", first, rerun_a), ("second", second, rerun_b)):
+        if rerun.get("doc_sha256") != orig.get("doc_sha256"):
+            return SpecCase("evidence_insufficient", f"{tag} rerun is not the same inputs")
+        if not compare_assessments(orig, rerun)["content_hashes"]:
+            return SpecCase("nondeterministic_flake", f"{tag} axes moved between runs")
+    return SpecCase("spec_bug_candidate", "split reproduces on identical inputs",
+                    (str(first.get("doc_sha256")),))

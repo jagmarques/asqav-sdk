@@ -26,3 +26,37 @@ export function classify(
 export function attributedToTrustTime(result: Disagreement): boolean {
   return result.differing.length > 0 && result.differing.every((d) => TRUST_TIME_DIMS.has(d));
 }
+
+export interface SpecCase {
+  readonly label: string;
+  readonly note: string;
+  readonly pinned: string[];
+}
+
+export function specCase(
+  first: AssessmentView,
+  second: AssessmentView,
+  verdictA: string,
+  verdictB: string,
+  rerunA: AssessmentView | null = null,
+  rerunB: AssessmentView | null = null,
+): SpecCase {
+  if (classify(first, second, verdictA, verdictB).label !== "unexplained_needs_investigation") {
+    return { label: "not_applicable", note: "no unexplained split to attribute", pinned: [] };
+  }
+  if (!first.docSha256 || !second.docSha256) {
+    return { label: "evidence_insufficient", note: "no digest to pin the split to", pinned: [] };
+  }
+  if (rerunA === null || rerunB === null) {
+    return { label: "evidence_insufficient", note: "re-execute both inputs first", pinned: [] };
+  }
+  for (const [tag, orig, rerun] of [["first", first, rerunA], ["second", second, rerunB]] as const) {
+    if (rerun.docSha256 !== orig.docSha256) {
+      return { label: "evidence_insufficient", note: `${tag} rerun is not the same inputs`, pinned: [] };
+    }
+    if (!compareAssessments(orig, rerun).contentHashes) {
+      return { label: "nondeterministic_flake", note: `${tag} axes moved between runs`, pinned: [] };
+    }
+  }
+  return { label: "spec_bug_candidate", note: "split reproduces on identical inputs", pinned: [first.docSha256] };
+}
