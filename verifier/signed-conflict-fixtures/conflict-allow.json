@@ -1,0 +1,42 @@
+{
+ "@context": [
+  "https://www.w3.org/ns/credentials/v2",
+  "https://agentreceipts.ai/context/v1"
+ ],
+ "id": "urn:receipt:c7-conflict-allow",
+ "type": [
+  "VerifiableCredential",
+  "AgentReceipt"
+ ],
+ "version": "0.1.0",
+ "issuer": {
+  "id": "did:key:z6MktqPnbGGsq5TR4h9dYRWtkoSQtiZt9CXfUFNcfxA7Fi5x"
+ },
+ "issuanceDate": "2026-10-16T12:00:00Z",
+ "credentialSubject": {
+  "principal": {
+   "id": "did:user:alice"
+  },
+  "action": {
+   "id": "act_c7_conflict_read_001",
+   "type": "filesystem.file.read",
+   "risk_level": "low",
+   "timestamp": "2026-10-16T12:00:00Z"
+  },
+  "outcome": {
+   "status": "success"
+  },
+  "chain": {
+   "sequence": 1,
+   "previous_receipt_hash": null,
+   "chain_id": "chain_c7_allow"
+  }
+ },
+ "proof": {
+  "type": "Ed25519Signature2020",
+  "created": "2026-10-16T12:00:00Z",
+  "verificationMethod": "did:key:z6MktqPnbGGsq5TR4h9dYRWtkoSQtiZt9CXfUFNcfxA7Fi5x#z6MktqPnbGGsq5TR4h9dYRWtkoSQtiZt9CXfUFNcfxA7Fi5x",
+  "proofPurpose": "assertionMethod",
+  "proofValue": "u5-8kaoU_BbdzG-xhD5FIGhR1iedR72QtFbTzxcMgYu3fEndBMCOqm2d7KT11HoFyLjVt8u6yEdHqqj0PhCHJBA"
+ }
+}

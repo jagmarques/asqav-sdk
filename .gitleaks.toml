@@ -9,3 +9,7 @@ paths = ['''verifier/axis-parity-cases\.json''']
 [[allowlists]]
 description = "Corpus-B pin test holds published corpus bytes only: Ed25519/ML-DSA signatures, digests and thumbprints copied from verifier/conformance-vectors, no secrets"
 paths = ['''python/tests/test_corpus_b_integrity\.py''']
+
+[[allowlists]]
+description = "Signed-conflict fixtures hold one TEST-ONLY did:key public identifier plus Ed25519 signatures over fixture bytes; the seed is the published c7 pattern, no secret"
+paths = ['''verifier/signed-conflict-fixtures/''']
