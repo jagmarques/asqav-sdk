@@ -56,3 +56,15 @@ def test_jsonl_round_trip_preserves_and_rejects() -> None:
     assert restored.replay("aa" * 32) is not None
     with pytest.raises(ValueError):
         AssessmentStore.from_jsonl(store.to_jsonl().replace("verified", "x"))
+
+
+def test_non_ascii_inputs_hash_utf8_and_round_trip() -> None:
+    store = AssessmentStore()
+    entry = store.record(
+        "ee" * 32,
+        {"note": "páy ✓", "evaluation_time": "2029-06-01T00:00:00Z"},
+        {"expiry": "PASS"}, "verified", None, recorded_at="2029-06-01T00:00:00Z",
+    )
+    assert entry.entry_hash == "fc0d78385e892d992c8954103a23d58444c51573c4cb615aa68e8fd29b75676b"
+    assert store.verify_chain()
+    assert AssessmentStore.from_jsonl(store.to_jsonl()).replay("ee" * 32) == entry
