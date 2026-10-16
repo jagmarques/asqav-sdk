@@ -2,8 +2,11 @@
 
 import { createHash } from "node:crypto";
 
+import type { VerificationContext } from "./adapter.js";
 import { type AgreementRef, type AssessmentView } from "./agreement.js";
+import { verify } from "./core.js";
 import { classify, specCase, type Disagreement, type SpecCase } from "./disagreement.js";
+import { ADAPTERS } from "./index.js";
 import { axesDict, contextDict, type VerifyResultLike } from "./retain.js";
 
 type LiveView = {
@@ -36,6 +39,23 @@ export function compareLive(
       throw new Error(`${tag} digest is not the sha256 of the stated bytes`);
     }
   }  const firstView = view(firstDigest, first, firstAgreement);
+  const secondView = view(secondDigest, second, secondAgreement);
+  return classify(firstView, secondView, first.verdict, second.verdict);
+}
+
+export function compareLiveStrict(
+  firstBytes: Uint8Array,
+  secondBytes: Uint8Array,
+  firstAgreement: AgreementRef | Record<string, string | null> | null = null,
+  secondAgreement: AgreementRef | Record<string, string | null> | null = null,
+  context: VerificationContext = {},
+): Disagreement {
+  const text = new TextDecoder();
+  const first = verify(JSON.parse(text.decode(firstBytes)), ADAPTERS, null, null, context);
+  const second = verify(JSON.parse(text.decode(secondBytes)), ADAPTERS, null, null, context);
+  const firstDigest = createHash("sha256").update(firstBytes).digest("hex");
+  const secondDigest = createHash("sha256").update(secondBytes).digest("hex");
+  const firstView = view(firstDigest, first, firstAgreement);
   const secondView = view(secondDigest, second, secondAgreement);
   return classify(firstView, secondView, first.verdict, second.verdict);
 }
