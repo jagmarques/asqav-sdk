@@ -58,3 +58,20 @@ def record_verify_result(
         getattr(result, "failure_class"),
         recorded_at=recorded_at,
     )
+
+
+def reassess_verify_result(
+    store: AssessmentStore,
+    doc_sha256: str,
+    result: object,
+    recorded_at: str | None = None,
+) -> AssessmentEntry:
+    """Retain a later live run of already-retained bytes as a reassessment."""
+    return store.reassess(
+        doc_sha256,
+        context_dict(result),
+        axes_dict(result),
+        getattr(result, "verdict"),
+        getattr(result, "failure_class"),
+        recorded_at=recorded_at,
+    )
