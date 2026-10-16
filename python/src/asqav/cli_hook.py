@@ -540,7 +540,11 @@ def hook_posttool(
     bind_result: bool = typer.Option(
         True,
         "--bind-result/--no-bind-result",
-        help="Bind the tool result (observation:result_bound + result_digest). On by default: PostToolUse runs after the tool, so the outcome is attached to every receipt (criterion 787).",
+        help=(
+            "Bind the tool result (observation:result_bound + result_digest). On by"
+            " default: PostToolUse runs after the tool, so every receipt carries the"
+            " outcome."
+        ),
     ),
     clear_context: bool = typer.Option(
         False,
