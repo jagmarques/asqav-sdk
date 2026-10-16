@@ -54,7 +54,10 @@ def compare_assessments(first: dict, second: dict) -> dict[str, bool]:
     f_ctx, s_ctx = first.get("context") or {}, second.get("context") or {}
 
     def _get(ctx: dict, snake: str, camel: str) -> object:
-        return ctx.get(snake, ctx.get(camel))
+        # Absent and None read the same: fall back like TS `??`, so an
+        # explicit null never shadows the sibling key in either language.
+        value = ctx.get(snake)
+        return ctx.get(camel) if value is None else value
 
     def _agr(view: dict) -> dict:
         agr = view.get("agreement")
