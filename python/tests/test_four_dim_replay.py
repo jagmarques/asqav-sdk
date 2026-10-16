@@ -1,12 +1,11 @@
 """Four-dimension replay with declared per-dim effects (488 C17, C9 core).
 
-Semantics decision (recorded 2026-10-16, reversible): event time lives in
-the receipt bytes (payload issued_at) and is held fixed by holding bytes
-fixed. Of the four varied context dims, only evaluation_time moves the
-outcome (time axes); policy_revision and evidence_knowledge_cutoff ride
-along as attribution passengers; trust_roots likewise. The test declares
-each effect empirically against the live oracle, then replays the
-baseline from retained inputs.
+Event time varies as its own frozen doc variant (different issued_at,
+separately digest-keyed) under one shared context: it moves the skew
+axis. evaluation_time moves the expiry axis. policy_revision,
+evidence_knowledge_cutoff and trust_roots move nothing in the current
+oracle (declared passengers: the adapter reads none of them). Replay
+means re-execution from retained inputs, not store retrieval.
 """
 from __future__ import annotations
 
@@ -24,9 +23,11 @@ _T1 = "2019-06-01T00:00:00Z"
 _T2 = "2026-09-21T00:00:00Z"
 
 
-def _frozen_doc() -> tuple[dict, str]:
+def _frozen_doc(issued_at: str | None = None) -> tuple[dict, str]:
     doc = json.loads((_CORPUS / "asqav-01-genesis-permit" / "receipt.json").read_bytes())
     doc["payload"]["expires_at"] = "2020-01-01T00:00:00Z"
+    if issued_at is not None:
+        doc["payload"]["issued_at"] = issued_at
     raw = json.dumps(doc, sort_keys=True).encode()
     assert "issued_at" in doc["payload"], "event time must ride in the bytes"
     return json.loads(raw.decode()), hashlib.sha256(raw).hexdigest()
@@ -63,7 +64,16 @@ def test_four_dims_with_declared_effects_and_replay() -> None:
         assert {a.axis: a.result for a in same.axes} == baseline.axes, label
         assert same.verdict == baseline.verdict, label
 
-    assert store.replay(digest) == baseline, "baseline reproduces from retained inputs"
+    event_doc, event_digest = _frozen_doc(issued_at="2018-01-01T00:00:00Z")
+    assert event_digest != digest, "event variant is separately keyed"
+    event_run = verify(event_doc, ADAPTERS, context=_ctx())
+    assert event_run.axis("skew").result == "PASS", "event time moves the skew axis"
+    assert baseline.axes["skew"] == "FAIL"
+    record_verify_result(store, event_digest, event_run)
+
+    replayed = verify(doc, ADAPTERS, context=VerificationContext(**store.replay(digest).context))
+    assert {a.axis: a.result for a in replayed.axes} == baseline.axes
+    assert replayed.verdict == baseline.verdict, "re-execution reproduces the baseline"
     out = classify(baseline.__dict__, moved.__dict__, baseline.verdict, moved.verdict)
-    assert out.label == "agreement", "same verdict, honest drift, no false split"
-    assert "verification_time" in out.differing
+    assert out.label == "agreement", "verdicts never split here (expiry is non-folding)"
+    assert out.differing == ("content_hashes", "verification_time")

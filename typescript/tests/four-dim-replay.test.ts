@@ -15,9 +15,10 @@ const T1 = "2019-06-01T00:00:00Z";
 const T2 = "2026-09-21T00:00:00Z";
 const RECEIPT = join(__dirname, "..", "..", "verifier", "conformance-vectors", "asqav-01-genesis-permit", "receipt.json");
 
-function frozenDoc(): { doc: Record<string, unknown>; digest: string } {
+function frozenDoc(issuedAt: string | null = null): { doc: Record<string, unknown>; digest: string } {
   const doc = JSON.parse(readFileSync(RECEIPT, "utf-8")) as Record<string, unknown>;
   (doc["payload"] as Record<string, unknown>)["expires_at"] = "2020-01-01T00:00:00Z";
+  if (issuedAt !== null) (doc["payload"] as Record<string, unknown>)["issued_at"] = issuedAt;
   expect(doc["payload"]).toHaveProperty("issued_at");
   return { doc, digest: createHash("sha256").update(JSON.stringify(doc), "utf-8").digest("hex") };
 }
@@ -58,9 +59,18 @@ describe("four-dim replay", () => {
       expect(same.verdict, label).toBe(baseline.verdict);
     }
 
-    expect(store.replay(digest)).toEqual(baseline);
+    const eventVariant = frozenDoc("2018-01-01T00:00:00Z");
+    expect(eventVariant.digest).not.toBe(digest);
+    const eventRun = verify(eventVariant.doc, ADAPTERS, null, null, ctx());
+    expect(eventRun.axes.find((a) => a.axis === "skew")?.result).toBe("PASS");
+    expect(baseline.axes["skew"]).toBe("FAIL");
+
+    const replayed = verify(doc, ADAPTERS, null, null, store.replay(digest)?.context ?? {});
+    expect(axesDict(replayed)).toEqual(baseline.axes);
+    expect(replayed.verdict).toBe(baseline.verdict);
+
     const out = classify({ ...baseline }, { ...moved }, baseline.verdict, moved.verdict);
     expect(out.label).toBe("agreement");
-    expect(out.differing).toContain("verificationTime");
+    expect(out.differing).toEqual(["contentHashes", "verificationTime"]);
   });
 });
