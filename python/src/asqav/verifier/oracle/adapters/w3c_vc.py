@@ -25,6 +25,7 @@ reports genesis.
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,6 +37,10 @@ from ..did import b58btc_decode, resolve_ed25519_key
 _VC_V2_CONTEXT = "https://www.w3.org/ns/credentials/v2"
 _PROOF_TYPE = "DataIntegrityProof"
 _CRYPTOSUITE = "eddsa-jcs-2022"
+
+#: xsd:datetime shape, mirroring the TypeScript twin: full date, T, time and
+#: zone are all required, so the basic form never reaches fromisoformat.
+_XSD_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|z|[+-]\d{2}:\d{2})$")
 
 
     # The doc's proof member when it is a single object; {} for absent/list proofs.
@@ -59,6 +64,8 @@ def _parse_datetime(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
     text = value.strip()
+    if _XSD_DATETIME_RE.match(text) is None:
+        return None
     if text.endswith(("Z", "z")):
         text = text[:-1] + "+00:00"
     try:

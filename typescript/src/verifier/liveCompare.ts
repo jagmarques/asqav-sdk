@@ -1,0 +1,128 @@
+/** Compare two live VerifyResults, then classify (488 C19, C5 core). */
+
+import { createHash } from "node:crypto";
+
+import type { VerificationContext } from "./adapter.js";
+import { type AgreementRef, type AssessmentView } from "./agreement.js";
+import { AssessmentStore, type AssessmentEntry } from "./assessmentStore.js";
+import { verify } from "./core.js";
+import { classify, specCase, type Disagreement, type SpecCase } from "./disagreement.js";
+import { ADAPTERS } from "./index.js";
+import { axesDict, contextDict, type VerifyResultLike } from "./retain.js";
+
+type LiveView = {
+  docSha256: string;
+  axes: Record<string, string>;
+  context: Record<string, unknown>;
+  agreement: AgreementRef | Record<string, string | null> | null;
+};
+
+function view(
+  digest: string,
+  result: VerifyResultLike,
+  agreement: AgreementRef | Record<string, string | null> | null = null,
+): LiveView {
+  return { docSha256: digest, axes: axesDict(result), context: contextDict(result), agreement };
+}
+
+export function compareLive(
+  firstDigest: string,
+  first: VerifyResultLike,
+  secondDigest: string,
+  second: VerifyResultLike,
+  firstAgreement: AgreementRef | Record<string, string | null> | null = null,
+  secondAgreement: AgreementRef | Record<string, string | null> | null = null,
+  firstBytes: Uint8Array | null = null,
+  secondBytes: Uint8Array | null = null,
+): Disagreement {
+  for (const [tag, digest, raw] of [["first", firstDigest, firstBytes], ["second", secondDigest, secondBytes]] as const) {
+    if (raw !== null && createHash("sha256").update(raw).digest("hex") !== digest) {
+      throw new Error(`${tag} digest is not the sha256 of the stated bytes`);
+    }
+  }  const firstView = view(firstDigest, first, firstAgreement);
+  const secondView = view(secondDigest, second, secondAgreement);
+  return classify(firstView, secondView, first.verdict, second.verdict);
+}
+
+export function compareLiveStrict(
+  firstBytes: Uint8Array,
+  secondBytes: Uint8Array,
+  firstAgreement: AgreementRef | Record<string, string | null> | null = null,
+  secondAgreement: AgreementRef | Record<string, string | null> | null = null,
+  context: VerificationContext = {},
+): Disagreement {
+  const text = new TextDecoder();
+  const first = verify(JSON.parse(text.decode(firstBytes)), ADAPTERS, null, null, context);
+  const second = verify(JSON.parse(text.decode(secondBytes)), ADAPTERS, null, null, context);
+  const firstDigest = createHash("sha256").update(firstBytes).digest("hex");
+  const secondDigest = createHash("sha256").update(secondBytes).digest("hex");
+  const firstView = view(firstDigest, first, firstAgreement);
+  const secondView = view(secondDigest, second, secondAgreement);
+  return classify(firstView, secondView, first.verdict, second.verdict);
+}
+
+export function attributeSplit(
+  firstView: AssessmentView,
+  secondView: AssessmentView,
+  verdictA: string,
+  verdictB: string,
+  rerunAView: AssessmentView | null = null,
+  rerunBView: AssessmentView | null = null,
+): { disagreement: Disagreement; specCase: SpecCase } {
+  return {
+    disagreement: classify(firstView, secondView, verdictA, verdictB),
+    specCase: specCase(firstView, secondView, verdictA, verdictB, rerunAView, rerunBView),
+  };
+}
+
+export function attributeLiveSplit(
+  firstDigest: string,
+  first: VerifyResultLike,
+  secondDigest: string,
+  second: VerifyResultLike,
+  rerunA: VerifyResultLike | null = null,
+  rerunB: VerifyResultLike | null = null,
+  firstAgreement: AgreementRef | Record<string, string | null> | null = null,
+  secondAgreement: AgreementRef | Record<string, string | null> | null = null,
+  firstBytes: Uint8Array | null = null,
+  secondBytes: Uint8Array | null = null,
+  rerunABytes: Uint8Array | null = null,
+  rerunBBytes: Uint8Array | null = null,
+): { disagreement: Disagreement; specCase: SpecCase } {
+  for (const [tag, digest, raw] of [["first", firstDigest, firstBytes], ["second", secondDigest, secondBytes], ["rerunA", firstDigest, rerunABytes], ["rerunB", secondDigest, rerunBBytes]] as const) {
+    if (raw !== null && createHash("sha256").update(raw).digest("hex") !== digest) {
+      throw new Error(`${tag} digest is not the sha256 of the stated bytes`);
+    }
+  }  const firstView = view(firstDigest, first, firstAgreement);
+  const secondView = view(secondDigest, second, secondAgreement);
+  const rerunAView = rerunA === null ? null : view(firstDigest, rerunA, firstAgreement);
+  const rerunBView = rerunB === null ? null : view(secondDigest, rerunB, secondAgreement);
+  return attributeSplit(firstView, secondView, first.verdict, second.verdict, rerunAView, rerunBView);
+}
+
+function retainedView(entry: AssessmentEntry): AssessmentView {
+  return {
+    docSha256: entry.docSha256,
+    axes: { ...entry.axes },
+    context: { ...entry.context },
+    agreement: null,
+  };
+}
+
+export function classifyAndAttribute(
+  store: AssessmentStore,
+  docSha256: string,
+  result: VerifyResultLike,
+  rerunA: VerifyResultLike | null = null,
+  rerunB: VerifyResultLike | null = null,
+): { disagreement: Disagreement; specCase: SpecCase } {
+  const original = store.replay(docSha256);
+  if (original === null) {
+    throw new Error("no retained original for this digest; record first");
+  }
+  const firstView = retainedView(original);
+  const secondView = view(docSha256, result, null);
+  const rerunAView = rerunA === null ? null : view(docSha256, rerunA, null);
+  const rerunBView = rerunB === null ? null : view(docSha256, rerunB, null);
+  return attributeSplit(firstView, secondView, original.verdict, result.verdict, rerunAView, rerunBView);
+}

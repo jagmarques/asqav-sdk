@@ -1427,6 +1427,10 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
 #: anchors that CRYPTOGRAPHICALLY verified, the only ones weighable against revoked_at.
 AnchorEvaluation = namedtuple("AnchorEvaluation", ("result", "note", "trusted_times"))
 
+#: Anchor-entry members declared by draft -09 "anchoring"; members outside this
+#: set are ignored by the checks and preserved in the envelope bytes.
+ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash", "tsa_url", "operator_id"})
+
 
 def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None) -> AnchorEvaluation:
     """Cryptographically evaluate every anchor against the envelope digest.
@@ -1470,13 +1474,16 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
             saw_invalid = True
             lines.append(f"    - malformed anchor entry (got {type(a).__name__}, expected an object)")
             continue
-        atype = a.get("type", "?")
-        blob = _anchor_bytes(a.get("value"))
+        # Members outside ANCHOR_ENTRY_MEMBERS never reach the checks, and the
+        # envelope bytes (hence the digest scope) are untouched by this read.
+        known = {k: a[k] for k in a if k in ANCHOR_ENTRY_MEMBERS}
+        atype = known.get("type", "?")
+        blob = _anchor_bytes(known.get("value"))
         if blob is None:
             saw_invalid = True
             lines.append(f"    - {atype}: value MISSING or malformed")
             continue
-        status = a.get("status")
+        status = known.get("status")
         if status in ("pending", "failed"):
             saw_unverifiable = True
             lines.append(
@@ -1941,15 +1948,12 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     if s not in REVOKED_KEY_STATUSES:
         return "PASS", f"signing key status {status!r} is active"
     if revoked_at:
-        try:
-            rev = datetime.fromisoformat(str(revoked_at).replace("Z", "+00:00"))
-            iss = datetime.fromisoformat(str(issued_at).replace("Z", "+00:00"))
-        except (ValueError, AttributeError):
+        # Pinned grammar first: bare fromisoformat reads the basic form on 3.11+
+        # but raises on 3.10, so the same stamp drew different verdicts per version
+        rev = _parse_stamp(revoked_at)
+        iss = _parse_stamp(issued_at)
+        if rev is None or iss is None:
             return "FAIL", f"signing key status {status!r}; unparseable revoked_at/issued_at"
-        if rev.tzinfo is None:
-            rev = rev.replace(tzinfo=timezone.utc)
-        if iss.tzinfo is None:
-            iss = iss.replace(tzinfo=timezone.utc)
         if rev <= iss:
             return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
         if not has_trusted_anchor:
@@ -2217,6 +2221,25 @@ def _strict_b64(value: object):
         return base64.b64decode(text, validate=True)
     except ValueError:
         return None
+
+
+#: Transport named when history verifies under a non-contract encoding.
+LEGACY_ENCODING_POLICY = "pre-2026-09-02 profile transport"
+
+
+def _sig_carrier(value: object):
+    """Name a signature string's wire form: contract, legacy, or None.
+
+    Contract is unpadded base64url. Decodable history (padded urlsafe,
+    standard) is legacy, still accepted with the policy named. None is junk.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    if _strict_b64(value) is None:
+        return None
+    if "+" in value or "/" in value or value.endswith("="):
+        return "legacy"
+    return "contract"
 
 
 def _same_text(outer: object, signed: object) -> bool:
@@ -3161,14 +3184,26 @@ def _key_and_signature_rows(
         ]
         return rows, None, None, acknowledging_kid
     _raw_sig = sig_obj.get("sig", "")
-    sig = _b64decode(_raw_sig) if isinstance(_raw_sig, str) else b""
-    sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
+    carrier = _sig_carrier(_raw_sig)
+    if carrier is None:
+        sig = b""
+        sig_res = ("FAIL", "signature string is not decodable base64")
+    else:
+        decoded = _strict_b64(_raw_sig)
+        sig = decoded if decoded is not None else b""
+        sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
     eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
     eff = (status, eff_kid, key_issuer_of(entry), revoked_at_of(entry), pk, jwks_alg)
     agent_note = ""
-    if sig_res[0] != "PASS":
+    if sig_res[0] != "PASS" and carrier is not None:
         sig_res, eff, agent_note = _agent_fallback_signature(
             jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
+        )
+    if sig_res[0] == "PASS" and carrier == "legacy":
+        sig_res = (
+            "PASS",
+            sig_res[1] + "; accepted under legacy encoding policy: "
+            + LEGACY_ENCODING_POLICY,
         )
     eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
     # Only a cryptographically verified anchor at or before revoked_at proves
