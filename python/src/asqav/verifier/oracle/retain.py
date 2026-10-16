@@ -25,6 +25,8 @@ def _freeze(value: object) -> object:
         return value.isoformat()
     if isinstance(value, (list, tuple)):
         return [_freeze(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _freeze(v) for k, v in value.items()}
     return value
 
 

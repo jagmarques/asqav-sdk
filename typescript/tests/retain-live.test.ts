@@ -21,6 +21,24 @@ function expiringDoc(): { doc: Record<string, unknown>; digest: string } {
 }
 
 describe("retain live results", () => {
+  it("freezes Date contexts to ISO strings with distinct hashes", () => {
+    const a = recordVerifyResult(new AssessmentStore(), "dd".repeat(32), {
+      axes: [{ axis: "expiry", result: "PASS" }],
+      verdict: "verified",
+      failureClass: null,
+      context: { evaluationTime: new Date("2019-06-01T00:00:00Z") },
+    });
+    const b = recordVerifyResult(new AssessmentStore(), "dd".repeat(32), {
+      axes: [{ axis: "expiry", result: "PASS" }],
+      verdict: "verified",
+      failureClass: null,
+      context: { evaluationTime: new Date("2025-01-01T00:00:00Z") },
+    });
+    expect(a.context["evaluationTime"]).toBe("2019-06-01T00:00:00.000Z");
+    expect(b.context["evaluationTime"]).toBe("2025-01-01T00:00:00.000Z");
+    expect(a.entryHash).not.toBe(b.entryHash);
+  });
+
   it("maps attribution fields from a live result", () => {
     const { doc, digest } = expiringDoc();
     const res = verify(doc, ADAPTERS, null, null, {

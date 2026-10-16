@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from asqav.verifier.oracle import ADAPTERS, VerificationContext, verify
@@ -39,6 +40,24 @@ def test_mapping_keeps_attribution_fields() -> None:
     assert axes["expiry"] == "PASS" and len(axes) == len(res.axes)
     entry = record_verify_result(AssessmentStore(), digest, res)
     assert entry.doc_sha256 == digest and entry.verdict == res.verdict
+
+
+def test_freeze_normalizes_nested_datetimes() -> None:
+    from types import SimpleNamespace
+
+    from asqav.verifier.oracle.retain import context_dict
+
+    ctx = SimpleNamespace(
+        evaluator="c16-probe",
+        trust_roots=["root-a"],
+        revocation_snapshot="snap-1",
+        policy_revision="2029-01",
+        evidence_knowledge_cutoff={"at": datetime(2019, 6, 1)},
+        evaluation_time=datetime(2019, 6, 1, tzinfo=timezone.utc),
+    )
+    frozen = context_dict(SimpleNamespace(context=ctx, axes=[]))
+    assert frozen["evaluation_time"] == "2019-06-01T00:00:00+00:00"
+    assert frozen["evidence_knowledge_cutoff"] == {"at": "2019-06-01T00:00:00"}
 
 
 def test_live_two_era_run_retains_and_replays() -> None:
