@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { ADAPTERS } from "../src/verifier/index.js";
-import { verify, type VerificationContext } from "../src/verifier/core.js";
+import { verify } from "../src/verifier/core.js";
+import { ADAPTERS, type VerificationContext } from "../src/verifier/index.js";
 
 interface Case {
   name: string;
