@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import type { VerificationContext } from "./adapter.js";
 import { type AgreementRef, type AssessmentView } from "./agreement.js";
+import { AssessmentStore, type AssessmentEntry } from "./assessmentStore.js";
 import { verify } from "./core.js";
 import { classify, specCase, type Disagreement, type SpecCase } from "./disagreement.js";
 import { ADAPTERS } from "./index.js";
@@ -97,4 +98,31 @@ export function attributeLiveSplit(
   const rerunAView = rerunA === null ? null : view(firstDigest, rerunA, firstAgreement);
   const rerunBView = rerunB === null ? null : view(secondDigest, rerunB, secondAgreement);
   return attributeSplit(firstView, secondView, first.verdict, second.verdict, rerunAView, rerunBView);
+}
+
+function retainedView(entry: AssessmentEntry): AssessmentView {
+  return {
+    docSha256: entry.docSha256,
+    axes: { ...entry.axes },
+    context: { ...entry.context },
+    agreement: null,
+  };
+}
+
+export function classifyAndAttribute(
+  store: AssessmentStore,
+  docSha256: string,
+  result: VerifyResultLike,
+  rerunA: VerifyResultLike | null = null,
+  rerunB: VerifyResultLike | null = null,
+): { disagreement: Disagreement; specCase: SpecCase } {
+  const original = store.replay(docSha256);
+  if (original === null) {
+    throw new Error("no retained original for this digest; record first");
+  }
+  const firstView = retainedView(original);
+  const secondView = view(docSha256, result, null);
+  const rerunAView = rerunA === null ? null : view(docSha256, rerunA, null);
+  const rerunBView = rerunB === null ? null : view(docSha256, rerunB, null);
+  return attributeSplit(firstView, secondView, original.verdict, result.verdict, rerunAView, rerunBView);
 }
