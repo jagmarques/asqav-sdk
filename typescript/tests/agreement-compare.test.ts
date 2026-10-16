@@ -68,4 +68,24 @@ describe("agreement comparanda", () => {
       Object.fromEntries(COMPARANDA.map((k) => [k, true])),
     );
   });
+
+  it("hashes non-ASCII terms identically to the other language", () => {
+    const ref = agreementOfTerms("agr-1", "2029-01", { clause: "páy on delivery ✓" });
+    expect(ref.termsHash).toBe("3a357c459fc615cbc788440180f136108db0051615defa7f819bf38b8b72f3f7");
+  });
+
+  it("compares cross-casing agreement dicts by value", () => {
+    const snake = { agreement_id: "agr-1", predicate_version: "2029-01", terms_hash: AGR.termsHash };
+    expect(compareAssessments(view(), view({ agreement: snake })).agreementVersion).toBe(true);
+    const different = { ...snake, terms_hash: "DIFFERENT" };
+    expect(
+      compareAssessments(view(), view({ agreement: different })).agreementVersion,
+    ).toBe(false);
+  });
+
+  it("matches two absent agreements", () => {
+    expect(compareAssessments(view({ agreement: null }), view({ agreement: null })).agreementVersion).toBe(
+      true,
+    );
+  });
 });
