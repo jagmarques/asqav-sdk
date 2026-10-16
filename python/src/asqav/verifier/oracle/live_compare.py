@@ -12,8 +12,19 @@ import json
 
 from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.adapter import VerificationContext
+from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
 from asqav.verifier.oracle.retain import axes_dict, context_dict
+
+
+def _retained_view(entry: object) -> dict:
+    """Map a retained assessment entry onto the assessment view shape."""
+    return {
+        "doc_sha256": getattr(entry, "doc_sha256"),
+        "axes": dict(getattr(entry, "axes")),
+        "context": dict(getattr(entry, "context")),
+        "agreement": None,
+    }
 
 
 def _live_view(digest: str, result: object, agreement: object | None) -> dict:
@@ -124,4 +135,30 @@ def attribute_live_split(
     rerun_b_view = None if rerun_b is None else _live_view(second_digest, rerun_b, second_agreement)
     return attribute_split(
         first_view, second_view, getattr(first, "verdict"), getattr(second, "verdict"),
+        rerun_a_view, rerun_b_view)
+
+
+def classify_and_attribute(
+    store: AssessmentStore,
+    doc_sha256: str,
+    result: object,
+    rerun_a: object | None = None,
+    rerun_b: object | None = None,
+) -> tuple[Disagreement, SpecCase]:
+    """Review a live reassessment against its retained original (488 C27).
+
+    The production caller of the attribution path: the original comes
+    from the store (missing retention raises instead of classifying),
+    the live result and reruns map to views, and attribute_split
+    classifies plus runs the spec-bug bar. Pure review: the store
+    is never mutated here."""
+    original = store.replay(doc_sha256)
+    if original is None:
+        raise ValueError("no retained original for this digest; record first")
+    first_view = _retained_view(original)
+    second_view = _live_view(doc_sha256, result, None)
+    rerun_a_view = None if rerun_a is None else _live_view(doc_sha256, rerun_a, None)
+    rerun_b_view = None if rerun_b is None else _live_view(doc_sha256, rerun_b, None)
+    return attribute_split(
+        first_view, second_view, original.verdict, getattr(result, "verdict"),
         rerun_a_view, rerun_b_view)
