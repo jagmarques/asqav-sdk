@@ -37,10 +37,13 @@ tidy-up, it would delete the discriminator's only negative evidence and make
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
 import pytest
+
+from asqav.verifier.oracle import ADAPTERS, crypto, verify
 
 _VECTOR_ROOT = Path(__file__).parent.parent.parent / "verifier" / "conformance-vectors"
 
@@ -177,3 +180,38 @@ def test_foreign_families_never_gain_v(prefix: str) -> None:
         "corpus, it deletes the only negative evidence the rule has: "
         f"{offenders}"
     )
+
+
+_ED25519_AVAILABLE = crypto.verify_ed25519(b"\x00" * 32, b"m", b"\x00" * 64)[0] != crypto.SKIPPED
+requires_ed25519 = pytest.mark.skipif(
+    not _ED25519_AVAILABLE, reason="cryptography not installed; Ed25519 verify SKIPs"
+)
+
+
+def _41() -> tuple[dict, dict]:
+    base = _VECTOR_ROOT / "asqav-41-hash-unrecognised-version"
+    return json.loads((base / "receipt.json").read_text()), json.loads(
+        (base / "jwks.json").read_text()
+    )
+
+
+@requires_ed25519
+def test_displayed_v_binds_hash_signature() -> None:
+    """674 C3: asqav-41 displays v=99 with a signature over v=1 bytes; the
+    signature axis must FAIL, not PASS beside structure SKIPPED."""
+    receipt, jwks = _41()
+    res = verify(receipt, ADAPTERS, key_provider=jwks)
+    assert res.axis("signature").result == crypto.FAIL
+    assert res.verdict == "unverified"
+
+
+@requires_ed25519
+def test_relabelled_v2_does_not_verify() -> None:
+    """One-char relabel v=99->2: structure may PASS, but the signature over
+    the displayed v must FAIL; the verdict stays unverified."""
+    receipt, jwks = _41()
+    receipt = copy.deepcopy(receipt)
+    receipt["v"] = 2
+    res = verify(receipt, ADAPTERS, key_provider=jwks)
+    assert res.axis("signature").result == crypto.FAIL
+    assert res.verdict == "unverified"

@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 52,
+  "corpus_version": 53,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -263,6 +263,11 @@
       "version": 51,
       "files": 391,
       "digest": "e013a6711dc027f37bdeb494fdb697527d7637a1b5ac74b0d801190fdb118dd0"
+    },
+    {
+      "version": 52,
+      "files": 391,
+      "digest": "a4a30da0d965e8c2aa00612d3549b20242a7d1c4db796c46881fa6fc230a186e"
     }
   ],
   "files": [
@@ -1753,8 +1758,8 @@
     },
     {
       "path": "asqav-41-hash-unrecognised-version/expected.json",
-      "sha256": "d5944dadec5b6b0d136b7f7137f1a63211d8f2d6dadba8cc29dd10d2d0df12dd",
-      "bytes": 390
+      "sha256": "140f97fb3c759ba570d7e228c23e994b754e677e6c37e21dd98ac988399e58d6",
+      "bytes": 371
     },
     {
       "path": "asqav-41-hash-unrecognised-version/jwks.json",
@@ -2078,8 +2083,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "2f2be210cde5992299b05ca57aeda8c398f971b325d38f2a6e1ff5dead2abeec",
-      "bytes": 40511
+      "sha256": "3b8619827667fbc25f5edbc97d8faa9b951cb7e7fc95f2de5444aa8236e5abd4",
+      "bytes": 40681
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2252,5 +2257,5 @@
       ]
     }
   },
-  "digest": "a4a30da0d965e8c2aa00612d3549b20242a7d1c4db796c46881fa6fc230a186e"
+  "digest": "740d30a48ff2fd37ede485c3351df91079acff8b50053f9fbe41bcb956f5365c"
 }
