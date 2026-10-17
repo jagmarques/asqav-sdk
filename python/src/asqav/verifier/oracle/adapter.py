@@ -33,6 +33,10 @@ class VerificationContext:
     policy_revision: Any = None
     #: Evidence cutoff the caller evaluated against (attribution only).
     evidence_knowledge_cutoff: Any = None
+    #: Event time the caller evaluated against (attribution only).
+    event_time: Any = None
+    #: Effective time the caller evaluated against (attribution only).
+    effective_time: Any = None
     #: Who ran the evaluation (attribution only).
     evaluator: Any = None
 
