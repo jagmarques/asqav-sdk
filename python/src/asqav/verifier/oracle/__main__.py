@@ -130,7 +130,8 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
 # originating_envelope drives verification but is never retained, so a
 # stated envelope would be a live input invisible to attribution.
 _CONTEXT_TEXT_FIELDS = ("evaluator", "revocation_snapshot", "policy_revision",
-                        "evidence_knowledge_cutoff", "evaluation_time")
+                        "evidence_knowledge_cutoff", "evaluation_time",
+                        "event_time", "effective_time")
 
 
 def _load_context(path: str | None) -> VerificationContext | None:

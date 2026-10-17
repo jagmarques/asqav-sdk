@@ -55,6 +55,20 @@ def test_absent_fields_read_equal_for_old_entries() -> None:
     assert compare_assessments(bare, dict(bare))["effective_time"] is True
 
 
+def test_dual_spelled_new_fields_read_camel_first() -> None:
+    both = {"event_time": "2029-05-01T00:00:00Z", "eventTime": "2029-05-01T00:00:00Z",
+            "effective_time": "2029-05-02T00:00:00Z",
+            "effectiveTime": "2029-05-02T00:00:00Z"}
+    camel_flip = {**both, "eventTime": "2029-06-01T00:00:00Z"}
+    assert compare_assessments(_view(context=both), _view(context=camel_flip))[
+        "event_time"] is False
+    snake_flip = {**both, "effective_time": "2029-06-02T00:00:00Z"}
+    assert compare_assessments(_view(context=both), _view(context=snake_flip))[
+        "effective_time"] is True
+    out = classify(_view(context=both), _view(context=camel_flip), "verified", "unverified")
+    assert out.label == "attributed_to_inputs" and out.differing == ("event_time",)
+
+
 def test_replay_reproduces_the_retained_contemporaneous_inputs() -> None:
     store = AssessmentStore()
     store.record("dd" * 32, dict(_CTX), dict(_AXES), "verified", None,

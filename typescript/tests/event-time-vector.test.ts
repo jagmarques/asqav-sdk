@@ -52,6 +52,23 @@ describe("event/effective-time vector", () => {
     expect(compareAssessments(bare, { ...bare })["effectiveTime"]).toBe(true);
   });
 
+  it("reads dual-spelled new fields camel-first", () => {
+    const both = {
+      ...CTX,
+      event_time: "2029-05-01T00:00:00Z",
+      eventTime: "2029-05-01T00:00:00Z",
+      effective_time: "2029-05-02T00:00:00Z",
+      effectiveTime: "2029-05-02T00:00:00Z",
+    };
+    const camelFlip = { ...both, eventTime: "2029-06-01T00:00:00Z" };
+    expect(compareAssessments(view(both), view(camelFlip))["eventTime"]).toBe(false);
+    const snakeFlip = { ...both, effective_time: "2029-06-02T00:00:00Z" };
+    expect(compareAssessments(view(both), view(snakeFlip))["effectiveTime"]).toBe(true);
+    const out = classify(view(both), view(camelFlip), "verified", "unverified");
+    expect(out.label).toBe("attributed_to_inputs");
+    expect(out.differing).toEqual(["eventTime"]);
+  });
+
   it("replays the retained contemporaneous inputs", () => {
     const store = new AssessmentStore();
     store.record(SHA, { ...CTX }, { ...AXES }, "verified", null, "2029-06-01T00:00:00Z");
