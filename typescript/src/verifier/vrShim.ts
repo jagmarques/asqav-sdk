@@ -56,11 +56,19 @@ export const REGISTRY_NAMESPACES: ReadonlySet<string> = new Set([
  * verification, not released for emission. Widening is a registry decision. */
 export const RECOGNISED_WIRE_VERSIONS: ReadonlySet<number> = new Set([1, 2]);
 
+/** Capture modes a verifier accepts (draft §5.2.2) */
+export const RECOGNISED_MODES: ReadonlySet<string> = new Set(["hash", "payload"]);
+
 /** True for an integer v in RECOGNISED_WIRE_VERSIONS */
 export function isRecognisedWireVersion(value: unknown): boolean {
   // A float-preserving parse delivers 1.0 as a RawFloat object, which fails
   // typeof here mirrors Python's `type(value) is int` rejecting a float
   return typeof value === "number" && Number.isInteger(value) && RECOGNISED_WIRE_VERSIONS.has(value);
+}
+
+/** True for a string mode in RECOGNISED_MODES */
+export function isRecognisedMode(value: unknown): boolean {
+  return typeof value === "string" && RECOGNISED_MODES.has(value);
 }
 
 /** Closed controls_evaluated key set; mirrors the client false-attestation guard. */
@@ -242,6 +250,13 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
   const v = payload.v;
   if (!isRecognisedWireVersion(v)) {
     return ["SKIPPED", `unsupported wire version ${JSON.stringify(v)}: unverifiable under this document, reported not failed`];
+  }
+  if (!("mode" in payload)) {
+    return ["SKIPPED", "no mode member: not a Compliance Receipt of this document; absence selects no mode"];
+  }
+  const mode = payload.mode;
+  if (!isRecognisedMode(mode)) {
+    return ["SKIPPED", `unsupported mode ${JSON.stringify(mode)}: unverifiable under this document, reported not failed`];
   }
   const [ceRes, ceNote] = checkControlsEvaluated(payload);
   if (ceRes === "FAIL") {
