@@ -226,7 +226,7 @@ def _sign_entry(sk, payload: dict, seq: int) -> tuple[dict, str]:
 
 def _payload(seq: int, prev: str, expires_at: str) -> dict:
     return {
-        "type": "protectmcp:decision", "v": 1, "seq": seq, "agent_id": AGENT,
+        "type": "protectmcp:decision", "v": 1, "mode": "payload", "seq": seq, "agent_id": AGENT,
         "issued_at": f"2026-06-19T00:00:0{seq}.000000Z", "issuer_id": ORG, "org_id": ORG,
         "action_ref": "sha256:" + "a" * 64, "payload_digest": {"hash": "b" * 64, "size": 1},
         "policy_digest": "sha256:" + "c" * 64, "previousReceiptHash": prev,
