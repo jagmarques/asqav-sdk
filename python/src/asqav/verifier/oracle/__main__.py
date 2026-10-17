@@ -41,6 +41,9 @@ is a terminal failure), and runs the full attribution pipeline
 It prints the disagreement and spec-case outcome as JSON and exits 0 when
 reviewed, 1 on an unexplained split (it needs investigation), 2 on an
 input or retention failure. ``review`` never mutates the store file.
+With ``--context ctx.json`` the live side (receipt plus reruns) verifies
+under those caller-stated trust/time inputs, so a trust-split between
+the retained era and now classifies instead of hiding behind defaults.
 
 This is the entry point bundled into the single-file ``asqav-verify`` binary, so
 it stays free of network calls and reads only the files named on the command
@@ -57,7 +60,7 @@ from pathlib import Path
 
 from asqav import strict_json
 
-from . import ADAPTERS
+from . import ADAPTERS, VerificationContext
 from .assessment_store import AssessmentStore
 from .core import FAILURE_INVALID, VERDICT_UNVERIFIED, verify
 from .live_compare import classify_and_attribute
@@ -119,6 +122,28 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
         raise SystemExit(2) from None
 
 
+def _load_context(path: str | None) -> VerificationContext | None:
+    """Caller-stated trust/time inputs for the live side (488 C36).
+
+    None keeps live defaults. Otherwise the file must hold a JSON
+    object of VerificationContext fields; anything else exits 2."""
+    if path is None:
+        return None
+    try:
+        obj = json.loads(Path(path).read_bytes().decode("utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"asqav-verify: context rejected: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+    if not isinstance(obj, dict):
+        print("asqav-verify: context rejected: not a JSON object", file=sys.stderr)
+        raise SystemExit(2)
+    try:
+        return VerificationContext(**obj)
+    except TypeError as exc:
+        print(f"asqav-verify: context rejected: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+
+
 def record(store_path: str, receipt_path: str) -> int:
     """Retain one live assessment (488 C32, C2 flow caller).
 
@@ -174,7 +199,8 @@ def record(store_path: str, receipt_path: str) -> int:
 
 
 def review(store_path: str, receipt_path: str,
-           rerun_a_path: str | None = None, rerun_b_path: str | None = None) -> int:
+           rerun_a_path: str | None = None, rerun_b_path: str | None = None,
+           context_path: str | None = None) -> int:
     """Review one live receipt against its retained original (488 C28).
 
     The first production flow over the attribution path: the store
@@ -190,6 +216,12 @@ def review(store_path: str, receipt_path: str,
     except ValueError as exc:
         print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
         return 2
+    live_context = None
+    if context_path is not None:
+        try:
+            live_context = _load_context(context_path)
+        except SystemExit:
+            return 2
     raw, receipt = _load_raw(receipt_path)
     digest = hashlib.sha256(raw).hexdigest()
     reruns = []
@@ -202,8 +234,10 @@ def review(store_path: str, receipt_path: str,
             print(f"asqav-verify: {tag} is not a re-execution of the reviewed bytes",
                   file=sys.stderr)
             return 2
-        reruns.append(verify(rerun_doc, ADAPTERS))
-    result = verify(receipt, ADAPTERS)
+        # Reruns re-execute the same live evaluation, so they inherit
+        # the caller-stated context (C36); defaults when unstated.
+        reruns.append(verify(rerun_doc, ADAPTERS, context=live_context))
+    result = verify(receipt, ADAPTERS, context=live_context)
     try:
         disagreement, case = classify_and_attribute(store, digest, result, *reruns)
     except ValueError as exc:
@@ -255,8 +289,11 @@ def _review_main(args: list[str]) -> int:
     p.add_argument("receipt", help="path to the live receipt JSON to review")
     p.add_argument("--rerun-a", help="path to a live re-execution of the receipt bytes")
     p.add_argument("--rerun-b", help="path to a second live re-execution")
+    p.add_argument("--context", help="path to a JSON object of live-side "
+                   "trust/time inputs (trust_roots, evaluation_time, ...)")
     parsed = p.parse_args(args)
-    return review(parsed.store, parsed.receipt, parsed.rerun_a, parsed.rerun_b)
+    return review(parsed.store, parsed.receipt, parsed.rerun_a, parsed.rerun_b,
+                  parsed.context)
 
 
 def _record_main(args: list[str]) -> int:
