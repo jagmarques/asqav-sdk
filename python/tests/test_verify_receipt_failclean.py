@@ -900,7 +900,9 @@ class _FrozenDatetime(datetime):
 
 @pytest.mark.parametrize("position", _SHARED_POSITIONS)
 @pytest.mark.parametrize("kind", _SHARED_KINDS)
-def test_run_shared_node_matches_unshared_twin(position, kind, capsys) -> None:
+def test_run_shared_node_matches_unshared_twin(position, kind, capsys, monkeypatch) -> None:
+    # Twin runs share one clock; the skew note embeds now().
+    monkeypatch.setattr(vr, "datetime", _FrozenDatetime)
     env_s, pred_s, cp_s = _shared_inputs(position, _shared_pair(kind))
     code_s = vr.run(env_s, {"keys": []}, pred_s, counterparty=cp_s)
     text_s = capsys.readouterr().out
@@ -926,7 +928,9 @@ def test_run_structured_shared_node_matches_unshared_twin(position, kind, monkey
 
 
 @pytest.mark.parametrize("position", _SHARED_POSITIONS)
-def test_shared_out_of_range_matches_twin(position, capsys) -> None:
+def test_shared_out_of_range_matches_twin(position, capsys, monkeypatch) -> None:
+    # Twin runs share one clock; the skew note embeds now().
+    monkeypatch.setattr(vr, "datetime", _FrozenDatetime)
     bad = {"n": 2**53}
     env_s, pred_s, cp_s = _shared_inputs(position, {"a": bad, "b": bad})
     code_s = vr.run(env_s, {"keys": []}, pred_s, counterparty=cp_s)
