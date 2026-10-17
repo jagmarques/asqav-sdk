@@ -66,6 +66,7 @@ export function reassessVerifyResult(
   docSha256: string,
   result: VerifyResultLike,
   recordedAt: string | null = null,
+  reason: string | null = null,
 ): AssessmentEntry {
   return store.reassess(
     docSha256,
@@ -74,5 +75,6 @@ export function reassessVerifyResult(
     result.verdict,
     result.failureClass,
     recordedAt,
+    reason,
   );
 }

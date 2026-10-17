@@ -11,6 +11,8 @@ export interface AssessmentEntry {
   readonly recordedAt: string | null;
   readonly kind: string;
   readonly supersedes: string | null;
+  // Why a reassessment exists (488 C10); originals keep null
+  readonly reason: string | null;
   readonly prevHash: string;
   readonly entryHash: string;
 }
@@ -33,6 +35,13 @@ function sortDeep(value: unknown): unknown {
 
 function hashEntry(entry: Omit<AssessmentEntry, "entryHash">): string {
   return createHash("sha256").update(canonical(entry), "utf-8").digest("hex");
+}
+
+// The reason rides outside the chain like the Python twin's label:
+// old logs hashed body without it, so chain hashes never move
+function hashBody(entry: Omit<AssessmentEntry, "entryHash">): string {
+  const { reason: _dropped, ...body } = entry;
+  return hashEntry(body as Omit<AssessmentEntry, "entryHash">);
 }
 
 const GENESIS = "GENESIS";
@@ -65,15 +74,25 @@ export class AssessmentStore {
       recordedAt,
       kind: "original",
       supersedes: null,
+      reason: null,
       prevHash: prev,
     };
-    const entry: AssessmentEntry = { ...body, entryHash: hashEntry(body) };
+    const entry: AssessmentEntry = { ...body, entryHash: hashBody(body) };
     this.entries.push(entry);
     return entry;
   }
 
   replay(docSha256: string): AssessmentEntry | null {
     return this.entries.find((e) => e.docSha256 === docSha256 && e.kind === "original") ?? null;
+  }
+
+  current(docSha256: string): AssessmentEntry | null {
+    // Latest assessment wins; replay() stays the contemporaneous original
+    let seen: AssessmentEntry | null = null;
+    for (const e of this.entries) {
+      if (e.docSha256 === docSha256 && (e.kind === "original" || e.kind === "reassessment")) seen = e;
+    }
+    return seen;
   }
 
   reassess(
@@ -83,6 +102,7 @@ export class AssessmentStore {
     verdict: string,
     failureClass: string | null,
     recordedAt: string | null = null,
+    reason: string | null = null,
   ): AssessmentEntry {
     const original = this.replay(docSha256);
     if (original === null) {
@@ -98,9 +118,10 @@ export class AssessmentStore {
       recordedAt,
       kind: "reassessment",
       supersedes: original.entryHash,
+      reason,
       prevHash: prev,
     };
-    const entry: AssessmentEntry = { ...body, entryHash: hashEntry(body) };
+    const entry: AssessmentEntry = { ...body, entryHash: hashBody(body) };
     this.entries.push(entry);
     return entry;
   }
@@ -110,7 +131,7 @@ export class AssessmentStore {
     for (const e of this.entries) {
       if (e.prevHash !== prev) return false;
       const { entryHash: _drop, ...body } = e;
-      if (hashEntry(body as Omit<AssessmentEntry, "entryHash">) !== e.entryHash) return false;
+      if (hashBody(body as Omit<AssessmentEntry, "entryHash">) !== e.entryHash) return false;
       prev = e.entryHash;
     }
     return true;
@@ -123,7 +144,9 @@ export class AssessmentStore {
   static fromJsonl(text: string): AssessmentStore {
     const store = new AssessmentStore();
     for (const line of text.split("\n")) {
-      if (line.trim() !== "") store.entries.push(JSON.parse(line) as AssessmentEntry);
+      if (line.trim() === "") continue;
+      const parsed = JSON.parse(line) as AssessmentEntry;
+      store.entries.push({ ...parsed, reason: parsed.reason ?? null });
     }
     if (!store.verifyChain()) throw new Error("assessment log chain broken");
     const originals = new Map<string, string>();

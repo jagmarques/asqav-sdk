@@ -75,6 +75,7 @@ def reassess_verify_result(
     result: object,
     recorded_at: str | None = None,
     agreement: dict | None = None,
+    reason: str | None = None,
 ) -> AssessmentEntry:
     """Retain a later live run of already-retained bytes as a reassessment."""
     return store.reassess(
@@ -85,6 +86,7 @@ def reassess_verify_result(
         getattr(result, "failure_class"),
         recorded_at=recorded_at,
         agreement=agreement,
+        reason=reason,
     )
 
 
@@ -94,6 +96,7 @@ def reassess_and_classify(
     result: object,
     recorded_at: str | None = None,
     agreement: dict | None = None,
+    reason: str | None = None,
 ) -> tuple[AssessmentEntry, Disagreement, SpecCase]:
     """Reassess retained bytes, then classify against the original (488 C38).
 
@@ -102,8 +105,10 @@ def reassess_and_classify(
     carry the stored envelope refs (488 C39b: original vs new entry),
     exactly like classify_and_attribute without reruns. A ref-less
     original compares ref-less with the gap named, per the rule in
-    live_compare.classify_and_attribute."""
-    entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement)
+    live_compare.classify_and_attribute. The reason names the driver
+    (e.g. key-compromised) so the revision is labelled, never silent."""
+    entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement,
+                                     reason=reason)
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")
