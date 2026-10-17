@@ -73,7 +73,9 @@ def _attribution_out(digest: str, disagreement: object, case: object) -> int:
     # One JSON shape for every classification caller; 1 flags a split.
     print(json.dumps({
         "digest": digest,
-        "disagreement": {"label": disagreement.label, "differing": list(disagreement.differing)},
+        "disagreement": {"label": disagreement.label,
+                         "differing": list(disagreement.differing),
+                         "conflict": disagreement.conflict},
         "spec_case": {"label": case.label, "note": case.note, "pinned": list(case.pinned)},
     }, indent=2))
     return 1 if disagreement.label == "unexplained_needs_investigation" else 0
@@ -278,8 +280,16 @@ def review(store_path: str, receipt_path: str,
         # the caller-stated context (C36); defaults when unstated.
         reruns.append(verify(rerun_doc, ADAPTERS, context=live_context))
     result = verify(receipt, ADAPTERS, context=live_context)
+    # Live envelope re-derived from bytes (488 C39b); the stored
+    # ref is the other comparandum, never this side. Unboundable
+    # receipts review with no live envelope, same as record().
     try:
-        disagreement, case = classify_and_attribute(store, digest, result, *reruns)
+        live_agreement = asdict(envelope_of(receipt, ADAPTERS))
+    except ValueError:
+        live_agreement = None
+    try:
+        disagreement, case = classify_and_attribute(store, digest, result, *reruns,
+                                                    agreement=live_agreement)
     except ValueError as exc:
         print(f"asqav-verify: {exc}", file=sys.stderr)
         return 2

@@ -93,16 +93,17 @@ def reassess_and_classify(
 
     The retention-layer classification caller: reassess raises unless
     a retained original exists, so both comparanda are real. Views
-    mirror live_compare's retained/live mapping with no envelope
-    terms, exactly like classify_and_attribute without reruns."""
+    carry the stored envelope refs (488 C39b: original vs new entry),
+    exactly like classify_and_attribute without reruns."""
     entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement)
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")
     verdict = getattr(result, "verdict")
     first = {"doc_sha256": original.doc_sha256, "axes": dict(original.axes),
-             "context": dict(original.context), "agreement": None}
+             "context": dict(original.context),
+             "agreement": getattr(original, "agreement", None)}
     second = {"doc_sha256": doc_sha256, "axes": axes_dict(result),
-              "context": context_dict(result), "agreement": None}
+              "context": context_dict(result), "agreement": entry.agreement}
     return (entry, classify(first, second, original.verdict, verdict),
             spec_case(first, second, original.verdict, verdict))
