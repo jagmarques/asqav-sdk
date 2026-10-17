@@ -121,6 +121,10 @@ COMPARANDA = (
     # revision or knowledge cutoff attribute; they never read unexplained.
     "policy_revision",
     "evidence_knowledge_cutoff",
+    # Event-side timing (488 C9): same bytes under another declared event
+    # or effective time attribute; they never read unexplained.
+    "event_time",
+    "effective_time",
 )
 
 
@@ -168,4 +172,8 @@ def compare_assessments(first: dict, second: dict) -> dict[str, bool]:
         "evidence_knowledge_cutoff": _get(f_ctx, "evidence_knowledge_cutoff",
                                           "evidenceKnowledgeCutoff")
         == _get(s_ctx, "evidence_knowledge_cutoff", "evidenceKnowledgeCutoff"),
+        "event_time": _get(f_ctx, "event_time", "eventTime")
+        == _get(s_ctx, "event_time", "eventTime"),
+        "effective_time": _get(f_ctx, "effective_time", "effectiveTime")
+        == _get(s_ctx, "effective_time", "effectiveTime"),
     }

@@ -158,3 +158,20 @@ def test_review_default_live_side_carries_no_context(
                  "--rerun-b", _write(tmp_path / "b.json", raw)])
     assert code == 0
     assert seen == [None, None, None]
+
+
+def test_review_context_states_event_times_through_the_flow(
+        tmp_path: Path, capsys) -> None:
+    raw = (_FIX / "conflict-allow.json").read_bytes()
+    doc = json.loads(raw)
+    store = _store(tmp_path / "store.jsonl", raw, verify(doc, ADAPTERS))
+    ctx = _ctx_file(tmp_path / "ctx.json", {"event_time": "2029-05-01T00:00:00Z",
+                                            "effective_time": "2029-05-02T00:00:00Z"})
+    code = main(["review", store, _write(tmp_path / "receipt.json", raw),
+                 "--rerun-a", _write(tmp_path / "a.json", raw),
+                 "--rerun-b", _write(tmp_path / "b.json", raw),
+                 "--context", ctx])
+    assert code == 0
+    out = _out(capsys)
+    assert out["disagreement"]["label"] == "agreement"
+    assert out["disagreement"]["differing"] == ["event_time", "effective_time"]

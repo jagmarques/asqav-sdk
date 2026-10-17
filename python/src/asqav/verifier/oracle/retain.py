@@ -24,6 +24,8 @@ _CONTEXT_FIELDS = (
     "policy_revision",
     "evidence_knowledge_cutoff",
     "evaluation_time",
+    "event_time",
+    "effective_time",
 )
 
 

@@ -21,6 +21,8 @@ const CONTEXT_FIELDS = [
   "policyRevision",
   "evidenceKnowledgeCutoff",
   "evaluationTime",
+  "eventTime",
+  "effectiveTime",
 ] as const;
 
 function freeze(value: unknown): unknown {
