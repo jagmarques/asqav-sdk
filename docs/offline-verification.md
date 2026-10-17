@@ -521,7 +521,7 @@ U+FFFF; conformance vector `asqav-24-jcs-astral-key-order` pins the difference.
 `JCS_UTF16_CUTOVER` (exported by both verifiers) is the instant the issuing platform
 switched to RFC 8785 order on the wire. A receipt issued before it whose member names
 reach above U+FFFF, and whose signature verifies only under the earlier code-point order,
-is reported on the signature axis as the pre-cutover dialect and the verdict stays
+is reported on the signature axis as the legacy dialect and the verdict stays
 `unverified`. A receipt issued after the cutover gets no such retry. No production receipt
 issued before the cutover carries such a member name (measured over the whole ledger on
 2026-09-02), so the diagnostic exists for completeness rather than for live data.
