@@ -180,7 +180,7 @@ def _load_context(path: str | None) -> VerificationContext | None:
         raise SystemExit(2) from None
 
 
-def record(store_path: str, receipt_path: str) -> int:
+def record(store_path: str, receipt_path: str, reason: str | None = None) -> int:
     """Retain one live assessment (488 C32, C2 flow caller).
 
     New bytes append an original and print the digest (exit 0). Bytes
@@ -227,7 +227,7 @@ def record(store_path: str, receipt_path: str) -> int:
         return 0
     try:
         entry, disagreement, case = reassess_and_classify(
-            store, digest, result, agreement=agreement)
+            store, digest, result, agreement=agreement, reason=reason)
     except ValueError as exc:
         print(f"asqav-verify: {exc}", file=sys.stderr)
         return 2
@@ -353,8 +353,10 @@ def _record_main(args: list[str]) -> int:
     )
     p.add_argument("store", help="path to the retained assessment JSONL log")
     p.add_argument("receipt", help="path to the receipt JSON to retain")
+    p.add_argument("--reason", default=None,
+                   help="label recorded on a reassessment (e.g. key-compromised)")
     parsed = p.parse_args(args)
-    return record(parsed.store, parsed.receipt)
+    return record(parsed.store, parsed.receipt, reason=parsed.reason)
 
 
 def main(argv: list[str] | None = None) -> int:
