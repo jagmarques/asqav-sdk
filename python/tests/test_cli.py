@@ -1084,7 +1084,50 @@ def test_webhooks_delete_calls_delete(
         app, ["webhooks", "delete", "wh_x"], env={"ASQAV_API_KEY": "sk_test"}
     )
     assert result.exit_code == 0
-    mock_delete.assert_called_once_with("/webhooks/wh_x")
+    mock_delete.assert_called_once_with("/alerts/webhooks/wh_x")
+
+
+# The API serves webhooks under /alerts; a bare /webhooks answers 404, and
+# signature.created was never an alert type, so a default create failed 422
+@patch("asqav.client._post")
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_webhooks_create_defaults_to_every_alert_type(
+    mock_init: MagicMock, mock_get: MagicMock, mock_post: MagicMock
+) -> None:
+    mock_get.return_value = {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+    mock_post.return_value = {"id": "wh_new"}
+    result = runner.invoke(
+        app, ["webhooks", "create", "--url", "https://example.com/hook"],
+        env={"ASQAV_API_KEY": "sk_test"},
+    )
+    assert result.exit_code == 0
+    mock_post.assert_called_once_with(
+        "/alerts/webhooks", {"url": "https://example.com/hook", "events": ["*"]}
+    )
+
+
+@patch("asqav.client._get")
+@patch("asqav.init")
+def test_webhooks_list_and_events_read_the_alerts_routes(
+    mock_init: MagicMock, mock_get: MagicMock
+) -> None:
+    def side_effect(path: str):
+        if path == "/account":
+            return {"tier": "pro", "organization_id": "o", "organization_name": "n"}
+        if path == "/alerts/webhooks":
+            return [{"id": "wh_1", "url": "https://example.com/hook", "events": ["revocation"]}]
+        if path == "/alerts/webhooks/event-types":
+            return [{"type": "revocation", "label": "Key revoked"}]
+        raise AssertionError("unexpected path " + path)
+
+    mock_get.side_effect = side_effect
+    listed = runner.invoke(app, ["webhooks", "list"], env={"ASQAV_API_KEY": "sk_test"})
+    assert listed.exit_code == 0
+    assert "wh_1" in listed.output and "events=[revocation]" in listed.output
+    types = runner.invoke(app, ["webhooks", "events"], env={"ASQAV_API_KEY": "sk_test"})
+    assert types.exit_code == 0
+    assert "revocation" in types.output and "Key revoked" in types.output
 
 
 # === audit-pack export / policy ===
