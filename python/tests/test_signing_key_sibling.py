@@ -56,6 +56,7 @@ def _payload(agent_id: str = "agt_two", issuer_id: str = ORG) -> dict:
     return {
         "type": "protectmcp:decision",
         "v": 1,
+        "mode": "payload",
         "issued_at": "2026-06-19T00:00:00.000000Z",
         "issuer_id": issuer_id,
         "agent_id": agent_id,
