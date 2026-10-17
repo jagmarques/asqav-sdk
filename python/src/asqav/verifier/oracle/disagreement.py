@@ -6,7 +6,7 @@ spec bug); a difference with input differences attributes to those
 inputs. No new taxonomy beyond the criterion's own distinction."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from asqav.verifier.oracle.agreement import COMPARANDA, _norm_agreement, compare_assessments
 
@@ -25,15 +25,6 @@ class Disagreement:
     conflict: str | None = None
 
 
-def _legacy_ref_gap(first: dict, second: dict) -> bool:
-    """True when exactly one side carries an envelope ref (488 C39b).
-
-    The ref-less side predates ref retention, so the pair cannot
-    compare envelopes: agreement_version is unmeasurable there,
-    never a difference that attributes a split."""
-    return (first.get("agreement") is None) != (second.get("agreement") is None)
-
-
 def classify(first: dict, second: dict, verdict_a: str, verdict_b: str) -> Disagreement:
     """Classify a verdict pair against normalized input comparanda."""
     compared = compare_assessments(first, second)
@@ -41,8 +32,6 @@ def classify(first: dict, second: dict, verdict_a: str, verdict_b: str) -> Disag
     if not compared["evidence_bytes"]:
         return Disagreement(label="different_subject", conflict=conflict)
     differing = tuple(name for name in COMPARANDA if not compared[name])
-    if _legacy_ref_gap(first, second) and "agreement_version" in differing:
-        differing = tuple(d for d in differing if d != "agreement_version")
     if verdict_a == verdict_b:
         return Disagreement(label="agreement", differing=differing, conflict=conflict)
     if not differing:
@@ -67,9 +56,7 @@ def conflict_kind(first: dict, second: dict) -> str | None:
     contradictory-terms conflict; same bytes with evidence on one side
     only is missing evidence. Different bytes carry no conflict call.
     Terms win only when both sides are evidenced; an empty side
-    reads as missing first. A one-sided envelope ref (488 C39b: the
-    ref-less side predates ref retention) is missing envelope
-    evidence on that side."""
+    reads as missing first."""
     if first.get("doc_sha256") != second.get("doc_sha256"):
         return None
     first_axes = first.get("axes") or {}
@@ -78,13 +65,24 @@ def conflict_kind(first: dict, second: dict) -> str | None:
         return MISSING_EVIDENCE
     if not first_axes:
         return None
-    if (first.get("agreement") is None) != (second.get("agreement") is None):
-        return MISSING_EVIDENCE
     first_terms = _norm_agreement(first.get("agreement")).get("terms_hash")
     second_terms = _norm_agreement(second.get("agreement")).get("terms_hash")
     if first_terms and second_terms and first_terms != second_terms:
         return CONTRADICTORY_TERMS
     return None
+
+
+def mark_legacy_gap(disagreement: Disagreement, original_ref: object | None,
+                     live_ref: object | None) -> Disagreement:
+    """Name a storage-generation ref gap on a classified pair (488 C39b).
+
+    Same digest means same derivability, so a ref-less retained
+    original beside a live ref is a legacy store, never differing
+    input; the caller already compared the pair ref-less. Name the
+    gap missing-evidence unless the pair already carries a call."""
+    if original_ref is None and live_ref is not None and disagreement.conflict is None:
+        return replace(disagreement, conflict=MISSING_EVIDENCE)
+    return disagreement
 
 
 @dataclass(frozen=True)

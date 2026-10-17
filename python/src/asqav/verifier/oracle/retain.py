@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from asqav.verifier.oracle.assessment_store import AssessmentEntry, AssessmentStore
-from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
+from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, mark_legacy_gap, spec_case
 
 _CONTEXT_FIELDS = (
     "evaluator",
@@ -94,16 +94,21 @@ def reassess_and_classify(
     The retention-layer classification caller: reassess raises unless
     a retained original exists, so both comparanda are real. Views
     carry the stored envelope refs (488 C39b: original vs new entry),
-    exactly like classify_and_attribute without reruns."""
+    exactly like classify_and_attribute without reruns. A ref-less
+    original compares ref-less with the gap named, per the rule in
+    live_compare.classify_and_attribute."""
     entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement)
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")
     verdict = getattr(result, "verdict")
+    original_ref = getattr(original, "agreement", None)
+    entry_ref = entry.agreement if original_ref is not None else None
     first = {"doc_sha256": original.doc_sha256, "axes": dict(original.axes),
              "context": dict(original.context),
              "agreement": getattr(original, "agreement", None)}
     second = {"doc_sha256": doc_sha256, "axes": axes_dict(result),
-              "context": context_dict(result), "agreement": entry.agreement}
-    return (entry, classify(first, second, original.verdict, verdict),
+              "context": context_dict(result), "agreement": entry_ref}
+    disagreement = classify(first, second, original.verdict, verdict)
+    return (entry, mark_legacy_gap(disagreement, original_ref, entry.agreement),
             spec_case(first, second, original.verdict, verdict))

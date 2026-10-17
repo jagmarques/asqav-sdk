@@ -14,7 +14,7 @@ from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.adapter import VerificationContext
 from asqav.verifier.oracle.agreement import bind_envelope
 from asqav.verifier.oracle.assessment_store import AssessmentStore
-from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
+from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, mark_legacy_gap, spec_case
 from asqav.verifier.oracle.retain import axes_dict, context_dict
 
 
@@ -210,14 +210,20 @@ def classify_and_attribute(
     classifies plus runs the spec-bug bar. Pure review: the store
     is never mutated here. The live agreement is the caller-derived
     envelope (488 C39b: re-derived from bytes, never stored); reruns
-    re-execute the same bytes so they share it."""
+    re-execute the same bytes so they share it. A ref-less retained
+    original predates ref retention (same digest, same derivability),
+    so the pair compares ref-less and the gap is named on the way
+    out; modern pairs compare ref to ref."""
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")
+    original_ref = getattr(original, "agreement", None)
+    live_ref = agreement if original_ref is not None else None
     first_view = _retained_view(original)
-    second_view = _live_view(doc_sha256, result, agreement)
-    rerun_a_view = None if rerun_a is None else _live_view(doc_sha256, rerun_a, agreement)
-    rerun_b_view = None if rerun_b is None else _live_view(doc_sha256, rerun_b, agreement)
-    return attribute_split(
+    second_view = _live_view(doc_sha256, result, live_ref)
+    rerun_a_view = None if rerun_a is None else _live_view(doc_sha256, rerun_a, live_ref)
+    rerun_b_view = None if rerun_b is None else _live_view(doc_sha256, rerun_b, live_ref)
+    disagreement, case = attribute_split(
         first_view, second_view, original.verdict, getattr(result, "verdict"),
         rerun_a_view, rerun_b_view)
+    return mark_legacy_gap(disagreement, original_ref, agreement), case
