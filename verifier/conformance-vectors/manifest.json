@@ -735,9 +735,9 @@
     "dir": "asqav-41-hash-unrecognised-version",
     "format": "asqav-native",
     "outcome": "unverified",
-    "failure_class": "unverifiable",
+    "failure_class": "invalid",
     "reason_code": "",
-    "notes": "Hash-mode v=99 under a valid signature; the recognised-value gate applies in both modes (draft 5.2.1)."
+    "notes": "Hash-mode receipt displaying v=99 whose signature was computed over v=1 flat fields. The displayed v binds the reconstructed bytes, so both oracles report signature FAIL (invalid). Relabelling v to 2 keeps signature FAIL. Regression pin for version-into-signed-fields (674 C3)."
   },
   {
     "dir": "asqav-42-keyed-digest-unverifiable",
