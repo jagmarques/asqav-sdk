@@ -29,12 +29,20 @@ class AssessmentEntry:
     supersedes: str | None = None
     prev_hash: str = field(default="GENESIS")
     entry_hash: str = field(default="")
+    # Bytes-derived envelope ref (488 C39a), outside the hash
+    # body so old logs still load and chain-hashes never move.
+    agreement: dict | None = None
 
     def hashed(self) -> "AssessmentEntry":
         """Return this entry with entry_hash computed over its content."""
-        body = {k: v for k, v in asdict(self).items() if k != "entry_hash"}
+        # agreement rides outside the chain: old entries hashed body
+        # without it, and it re-derives from the chained digest.
+        body = {k: v for k, v in asdict(self).items()
+                if k not in ("entry_hash", "agreement")}
         digest = hashlib.sha256(_canonical(body)).hexdigest()
-        return AssessmentEntry(**{**body, "entry_hash": digest})
+        # The ref rides along unchained; the digest covers the rest.
+        return AssessmentEntry(**{**body, "agreement": self.agreement,
+                                  "entry_hash": digest})
 
 
 class AssessmentStore:
@@ -54,6 +62,7 @@ class AssessmentStore:
         verdict: str,
         failure_class: str | None,
         recorded_at: str | None = None,
+        agreement: dict | None = None,
     ) -> AssessmentEntry:
         """Append an original assessment; originals are never modified."""
         if self.replay(doc_sha256) is not None:
@@ -66,6 +75,7 @@ class AssessmentStore:
             verdict=verdict,
             failure_class=failure_class,
             recorded_at=recorded_at,
+            agreement=dict(agreement) if agreement is not None else None,
             prev_hash=prev,
         ).hashed()
         self._entries.append(entry)
@@ -86,6 +96,7 @@ class AssessmentStore:
         verdict: str,
         failure_class: str | None,
         recorded_at: str | None = None,
+        agreement: dict | None = None,
     ) -> AssessmentEntry:
         """Append a reassessment naming the original it supersedes."""
         original = self.replay(doc_sha256)
@@ -101,6 +112,7 @@ class AssessmentStore:
             recorded_at=recorded_at,
             kind="reassessment",
             supersedes=original.entry_hash,
+            agreement=dict(agreement) if agreement is not None else None,
             prev_hash=prev,
         ).hashed()
         self._entries.append(entry)

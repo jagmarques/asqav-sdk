@@ -62,6 +62,7 @@ from pathlib import Path
 from asqav import strict_json
 
 from . import ADAPTERS, VerificationContext
+from .agreement import envelope_of
 from .assessment_store import AssessmentStore
 from .core import FAILURE_INVALID, VERDICT_UNVERIFIED, verify
 from .live_compare import classify_and_attribute
@@ -202,9 +203,15 @@ def record(store_path: str, receipt_path: str) -> int:
             print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
             return 2
     result = verify(receipt, ADAPTERS)
+    # Bytes-derived envelope ref (488 C39a): stored for later
+    # conflict classification; unboundable receipts keep None.
+    try:
+        agreement = asdict(envelope_of(receipt, ADAPTERS))
+    except ValueError:
+        agreement = None
     if store.replay(digest) is None:
         try:
-            record_verify_result(store, digest, result)
+            record_verify_result(store, digest, result, agreement=agreement)
         except ValueError as exc:
             print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
             return 2
@@ -217,7 +224,8 @@ def record(store_path: str, receipt_path: str) -> int:
         print(json.dumps({"digest": digest, "recorded": len(store)}))
         return 0
     try:
-        entry, disagreement, case = reassess_and_classify(store, digest, result)
+        entry, disagreement, case = reassess_and_classify(
+            store, digest, result, agreement=agreement)
     except ValueError as exc:
         print(f"asqav-verify: {exc}", file=sys.stderr)
         return 2

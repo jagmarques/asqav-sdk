@@ -49,6 +49,7 @@ def record_verify_result(
     doc_sha256: str,
     result: object,
     recorded_at: str | None = None,
+    agreement: dict | None = None,
 ) -> AssessmentEntry:
     """Retain one live assessment; returns the stored entry."""
     return store.record(
@@ -58,6 +59,7 @@ def record_verify_result(
         getattr(result, "verdict"),
         getattr(result, "failure_class"),
         recorded_at=recorded_at,
+        agreement=agreement,
     )
 
 
@@ -66,6 +68,7 @@ def reassess_verify_result(
     doc_sha256: str,
     result: object,
     recorded_at: str | None = None,
+    agreement: dict | None = None,
 ) -> AssessmentEntry:
     """Retain a later live run of already-retained bytes as a reassessment."""
     return store.reassess(
@@ -75,6 +78,7 @@ def reassess_verify_result(
         getattr(result, "verdict"),
         getattr(result, "failure_class"),
         recorded_at=recorded_at,
+        agreement=agreement,
     )
 
 
@@ -83,6 +87,7 @@ def reassess_and_classify(
     doc_sha256: str,
     result: object,
     recorded_at: str | None = None,
+    agreement: dict | None = None,
 ) -> tuple[AssessmentEntry, Disagreement, SpecCase]:
     """Reassess retained bytes, then classify against the original (488 C38).
 
@@ -90,7 +95,7 @@ def reassess_and_classify(
     a retained original exists, so both comparanda are real. Views
     mirror live_compare's retained/live mapping with no envelope
     terms, exactly like classify_and_attribute without reruns."""
-    entry = reassess_verify_result(store, doc_sha256, result, recorded_at)
+    entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement)
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")
