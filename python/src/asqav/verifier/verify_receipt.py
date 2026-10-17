@@ -3420,6 +3420,13 @@ def _input_refusal(envelope) -> dict | None:
     # A wire "anchors": null is the malformed third spelling of "no anchors"
     # (absent and [] are the conformant two); normalise_envelope would hide it.
     if "anchors" in envelope and envelope["anchors"] is None:
+        # Only payload-mode receipts spell "no anchors"; others hit the payload gate.
+        payload = envelope.get("payload", envelope)
+        if not isinstance(payload, dict):
+            return None
+        # An unrecognised version reports first, so every engine states one fact.
+        if not is_recognised_wire_version(payload.get("v")):
+            return None
         return _struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)
     return None
 
@@ -3463,23 +3470,6 @@ def run_structured(
     predecessor_payload = _predecessor_payload(predecessor_payload)
     if refusal is not None:
         axes = [refusal]
-        return {
-            "not_checked": not_checked_declaration(),
-            "coverage": coverage_declaration(axes),
-            "verdict": VERDICT_UNVERIFIED,
-            "failure_class": FAILURE_UNVERIFIABLE,
-            "axes": axes,
-            "canonical_sha256": None,
-            "kid": None,
-            "alg": None,
-            "registry_edition": REGISTRY_EDITION,
-        }
-    # A wire "anchors": null is the malformed third spelling of "no anchors"
-    # (absent and [] are the conformant two). The gate reads the raw envelope:
-    # normalise_envelope projects absent and null to the same None, so after it
-    # the two spellings are indistinguishable.
-    if "anchors" in envelope and envelope["anchors"] is None:
-        axes = [_struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)]
         return {
             "not_checked": not_checked_declaration(),
             "coverage": coverage_declaration(axes),
