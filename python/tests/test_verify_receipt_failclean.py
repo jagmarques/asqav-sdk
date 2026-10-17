@@ -748,6 +748,18 @@ def test_run_structured_null_anchors_return_early() -> None:
     out = vr.run_structured(env, {"keys": []})
     assert out["verdict"] == "unverified"
     assert out["axes"][0]["name"] == "structure"
+    assert "no v member" in out["axes"][0]["note"]
+
+
+def test_run_structured_null_anchors_fails_on_recognised_v() -> None:
+    payload = dict(_payload())
+    payload["v"] = 1
+    payload["mode"] = "payload"
+    env = {"payload": payload, "signature": _sig(), "anchors": None}
+    out = vr.run_structured(env, {"keys": []})
+    assert out["verdict"] == "unverified"
+    assert out["axes"][0]["name"] == "structure"
+    assert out["axes"][0]["result"] == "FAIL"
     assert "null" in out["axes"][0]["note"]
 
 
