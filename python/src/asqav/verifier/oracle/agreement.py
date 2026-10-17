@@ -117,6 +117,10 @@ COMPARANDA = (
     "trust_roots",
     "revocation_snapshot",
     "verification_time",
+    # Interpretation inputs (488 C9): same facts under another policy
+    # revision or knowledge cutoff attribute; they never read unexplained.
+    "policy_revision",
+    "evidence_knowledge_cutoff",
 )
 
 
@@ -159,4 +163,9 @@ def compare_assessments(first: dict, second: dict) -> dict[str, bool]:
         == _get(s_ctx, "revocation_snapshot", "revocationSnapshot"),
         "verification_time": _get(f_ctx, "evaluation_time", "evaluationTime")
         == _get(s_ctx, "evaluation_time", "evaluationTime"),
+        "policy_revision": _get(f_ctx, "policy_revision", "policyRevision")
+        == _get(s_ctx, "policy_revision", "policyRevision"),
+        "evidence_knowledge_cutoff": _get(f_ctx, "evidence_knowledge_cutoff",
+                                          "evidenceKnowledgeCutoff")
+        == _get(s_ctx, "evidence_knowledge_cutoff", "evidenceKnowledgeCutoff"),
     }

@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COMPARANDA, compareAssessments, type AssessmentView } from "../src/verifier/agreement.js";
-import { classify } from "../src/verifier/disagreement.js";
+import { attributedToTrustTime, classify } from "../src/verifier/disagreement.js";
 
 const SHA = "aa".repeat(32);
 
@@ -58,5 +58,54 @@ describe("compare parity", () => {
     const noAxes = { docSha256: SHA, context: base.context } as unknown as AssessmentView;
     expect(compareAssessments(noAxes, noAxes)["contentHashes"]).toBe(true);
     expect(compareAssessments(noAxes, base)["contentHashes"]).toBe(false);
+  });
+});
+
+/** Identical-facts/different-interpretation vector (488 C9), TS half. */
+const C9_CTX = {
+  evaluator: "c9-probe",
+  trustRoots: ["root-a"],
+  revocationSnapshot: "snap-1",
+  evaluationTime: "2029-06-01T00:00:00Z",
+  policyRevision: "pol-7",
+  evidenceKnowledgeCutoff: "cut-3",
+};
+const C9_AXES = { expiry: "PASS", skew: "PASS" };
+const C9_SHA = "cc".repeat(32);
+
+function c9view(context: Record<string, unknown> = C9_CTX): AssessmentView {
+  return { docSha256: C9_SHA, axes: { ...C9_AXES }, context: { ...context } };
+}
+
+describe("identical facts vector", () => {
+  it("matches on all comparanda when identical", () => {
+    expect(compareAssessments(c9view(), c9view())).toEqual(
+      Object.fromEntries(COMPARANDA.map((n) => [n, true])),
+    );
+  });
+
+  it("attributes a policy-revision flip, never unexplained", () => {
+    const other = c9view({ ...C9_CTX, policyRevision: "pol-9" });
+    expect(compareAssessments(c9view(), other)["policyRevision"]).toBe(false);
+    const out = classify(c9view(), other, "verified", "unverified");
+    expect(out.label).toBe("attributed_to_inputs");
+    expect(out.differing).toEqual(["policyRevision"]);
+    expect(attributedToTrustTime(out)).toBe(false);
+  });
+
+  it("attributes a cutoff flip under the same verdict", () => {
+    const other = c9view({ ...C9_CTX, evidenceKnowledgeCutoff: "cut-4" });
+    const out = classify(c9view(), other, "verified", "verified");
+    expect(out.label).toBe("agreement");
+    expect(out.differing).toEqual(["evidenceKnowledgeCutoff"]);
+    expect(attributedToTrustTime(out)).toBe(true);
+  });
+
+  it("reads absent fields equal for old entries", () => {
+    const bare = { docSha256: C9_SHA, axes: { ...C9_AXES }, context: { evaluator: "c9-probe" } };
+    expect(compareAssessments(bare, { ...bare })["policyRevision"]).toBe(true);
+    const out = classify(bare, { ...bare }, "verified", "verified");
+    expect(out.label).toBe("agreement");
+    expect(out.differing).toEqual([]);
   });
 });
