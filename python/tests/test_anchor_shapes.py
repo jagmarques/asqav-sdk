@@ -117,6 +117,52 @@ def test_oracle_null_anchors_is_malformed_not_no_anchors() -> None:
     assert all(a.note != "no anchors on this receipt" for a in res.axes)
 
 
+#: Exact version-gate notes, pinned so any wording drift across the three
+#: engines fails the cross-engine equality below rather than passing loosely.
+_VERSION_NOTES = {
+    3: "unsupported wire version 3: unverifiable under this document, reported not failed",
+    None: "no v member: not a Compliance Receipt of this document; absence is not version 1",
+}
+
+
+@pytest.mark.parametrize("version", [3, None])
+def test_null_anchors_with_unrecognised_version_reports_version_fact(version) -> None:
+    """679 C3: asqav-28 with payload.v unrecognised (3) or absent reports the
+    wire-version fact on the structure axis in every engine, never the shape."""
+    receipt, jwks, pred = _vector("asqav-28-anchors-null-malformed")
+    mutated = json.loads(json.dumps(receipt))
+    payload = mutated.get("payload", mutated)
+    if version is None:
+        payload.pop("v", None)
+    else:
+        payload["v"] = version
+    out = v.run_structured(mutated, jwks, pred)
+    structure = next(a for a in out["axes"] if a["name"] == "structure")
+    res = oracle_verify(mutated, ADAPTERS, key_provider=jwks, predecessor=pred)
+    ostruct = res.axis("structure")
+    assert ostruct is not None
+    assert (structure["result"], structure["note"]) == (ostruct.result, ostruct.note)
+    assert (structure["result"], structure["note"]) == ("SKIPPED", _VERSION_NOTES[version])
+
+
+@pytest.mark.parametrize("version", [1, 3, None])
+def test_hash_mode_null_anchors_never_reports_shape_fact(version) -> None:
+    """Boundary: a hash-mode envelope (payload None) carries no anchors
+    spelling at all, so the anchors-shape rule never fires for any version."""
+    d = _VECTORS / "asqav-05-hash-mode-prod"
+    receipt = json.loads((d / "receipt.json").read_text())
+    jwks = json.loads((d / "jwks.json").read_text())
+    mutated = json.loads(json.dumps(receipt))
+    mutated["anchors"] = None
+    if version is None:
+        mutated.pop("v", None)
+    else:
+        mutated["v"] = version
+    out = v.run_structured(mutated, jwks, None)
+    assert [(a["name"], a["result"]) for a in out["axes"]] == [("payload", "FAIL")]
+    assert all(a["note"] != ANCHORS_NULL_NOTE for a in out["axes"])
+
+
 def test_corpus_anchor_entries_use_only_declared_members() -> None:
     """Every anchor entry in every pinned vector uses only ANCHOR_ENTRY_MEMBERS.
 
