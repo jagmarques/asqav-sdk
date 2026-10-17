@@ -56,6 +56,7 @@ import hashlib
 import json
 import sys
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 from asqav import strict_json
@@ -122,11 +123,19 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
         raise SystemExit(2) from None
 
 
+# --context accepts only the retained attribution fields (488 C37):
+# originating_envelope drives verification but is never retained, so a
+# stated envelope would be a live input invisible to attribution.
+_CONTEXT_TEXT_FIELDS = ("evaluator", "revocation_snapshot", "policy_revision",
+                        "evidence_knowledge_cutoff", "evaluation_time")
+
+
 def _load_context(path: str | None) -> VerificationContext | None:
-    """Caller-stated trust/time inputs for the live side (488 C36).
+    """Caller-stated trust/time inputs for the live side (488 C36, C37).
 
     None keeps live defaults. Otherwise the file must hold a JSON
-    object of VerificationContext fields; anything else exits 2."""
+    object of retained attribution fields with JSON-native values;
+    anything else exits 2 before any verification runs."""
     if path is None:
         return None
     try:
@@ -137,6 +146,30 @@ def _load_context(path: str | None) -> VerificationContext | None:
     if not isinstance(obj, dict):
         print("asqav-verify: context rejected: not a JSON object", file=sys.stderr)
         raise SystemExit(2)
+    for key in obj:
+        if key != "trust_roots" and key not in _CONTEXT_TEXT_FIELDS:
+            print(f"asqav-verify: context rejected: {key} is not retained",
+                  file=sys.stderr)
+            raise SystemExit(2)
+    roots = obj.get("trust_roots")
+    if roots is not None and not (
+            isinstance(roots, list) and all(isinstance(r, str) for r in roots)):
+        print("asqav-verify: context rejected: trust_roots must list strings",
+              file=sys.stderr)
+        raise SystemExit(2)
+    for key in _CONTEXT_TEXT_FIELDS:
+        if obj.get(key) is not None and not isinstance(obj[key], str):
+            print(f"asqav-verify: context rejected: {key} must be a string",
+                  file=sys.stderr)
+            raise SystemExit(2)
+    when = obj.get("evaluation_time")
+    if isinstance(when, str):
+        try:
+            datetime.fromisoformat(when.replace("Z", "+00:00"))
+        except ValueError:
+            print("asqav-verify: context rejected: unparseable evaluation_time",
+                  file=sys.stderr)
+            raise SystemExit(2) from None
     try:
         return VerificationContext(**obj)
     except TypeError as exc:

@@ -94,8 +94,63 @@ def test_review_bad_context_exits_2(tmp_path: Path, capsys) -> None:
     receipt = _write(tmp_path / "receipt.json", raw)
     bad = [tmp_path / "missing.json",
            Path(_ctx_file(tmp_path / "list.json", ["not", "an", "object"])),
-           Path(_ctx_file(tmp_path / "unknown.json", {"no_such_field": 1}))]
+           Path(_ctx_file(tmp_path / "unknown.json", {"no_such_field": 1})),
+           Path(_ctx_file(tmp_path / "roots-int.json", {"trust_roots": 123})),
+           Path(_ctx_file(tmp_path / "roots-mixed.json",
+                           {"trust_roots": ["root-a", 1]})),
+           Path(_ctx_file(tmp_path / "envelope.json",
+                           {"originating_envelope": {"kid": "k"}})),
+           Path(_ctx_file(tmp_path / "bad-time.json",
+                           {"evaluation_time": "not-a-date"})),
+           Path(_ctx_file(tmp_path / "evaluator-int.json", {"evaluator": 5}))]
     for ctx_path in bad:
         code = main(["review", store, receipt, "--context", str(ctx_path)])
         assert code == 2
         assert capsys.readouterr().out == ""
+
+
+def test_review_reruns_inherit_the_live_context(
+        tmp_path: Path, capsys, monkeypatch) -> None:
+    import asqav.verifier.oracle.__main__ as cli
+    seen: list = []
+    real_verify = cli.verify
+
+    def spy(doc, adapters, **kwargs):
+        seen.append(kwargs.get("context"))
+        return real_verify(doc, adapters, **kwargs)
+
+    monkeypatch.setattr(cli, "verify", spy)
+    raw = (_FIX / "conflict-allow.json").read_bytes()
+    digest = _digest(raw)
+    store = _store(tmp_path / "store.jsonl", digest,
+                   verify(json.loads(raw), ADAPTERS))
+    ctx = _ctx_file(tmp_path / "ctx.json", {"trust_roots": ["example-root-a"]})
+    code = main(["review", store, _write(tmp_path / "receipt.json", raw),
+                 "--rerun-a", _write(tmp_path / "a.json", raw),
+                 "--rerun-b", _write(tmp_path / "b.json", raw),
+                 "--context", ctx])
+    assert code == 0
+    assert len(seen) == 3
+    assert all(getattr(c, "trust_roots", None) == ["example-root-a"] for c in seen)
+
+
+def test_review_default_live_side_carries_no_context(
+        tmp_path: Path, capsys, monkeypatch) -> None:
+    import asqav.verifier.oracle.__main__ as cli
+    seen: list = []
+    real_verify = cli.verify
+
+    def spy(doc, adapters, **kwargs):
+        seen.append(kwargs.get("context"))
+        return real_verify(doc, adapters, **kwargs)
+
+    monkeypatch.setattr(cli, "verify", spy)
+    raw = (_FIX / "conflict-allow.json").read_bytes()
+    digest = _digest(raw)
+    store = _store(tmp_path / "store.jsonl", digest,
+                   verify(json.loads(raw), ADAPTERS))
+    code = main(["review", store, _write(tmp_path / "receipt.json", raw),
+                 "--rerun-a", _write(tmp_path / "a.json", raw),
+                 "--rerun-b", _write(tmp_path / "b.json", raw)])
+    assert code == 0
+    assert seen == [None, None, None]
