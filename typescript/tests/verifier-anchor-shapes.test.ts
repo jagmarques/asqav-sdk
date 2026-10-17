@@ -60,4 +60,22 @@ describe("anchors wire shapes", () => {
     // The null never reads as "no anchors": no axis claims the skip.
     expect(r.axes.some((a) => a.note === "no anchors on this receipt")).toBe(false);
   });
+
+  it.each(["empty", "absent", "null"] as const)(
+    "v=1 and v=2 report the same %s structure fact",
+    (shape) => {
+      const a17 = vector("asqav-17-seq-contiguous");
+      const outs = [1, 2].map((version) => {
+        const receipt = JSON.parse(JSON.stringify(a17.receipt));
+        receipt.payload.v = version;
+        if (shape === "absent") delete receipt.anchors;
+        if (shape === "null") receipt.anchors = null;
+        const r = verify(receipt, ADAPTERS, a17.jwks, a17.predecessor);
+        const structure = r.axes.find((a) => a.axis === "structure")!;
+        return [structure.result, structure.note] as const;
+      });
+      expect(outs[1]).toEqual(outs[0]);
+      expect(outs[0][0]).toBe(shape === "null" ? "FAIL" : "PASS");
+    },
+  );
 });
