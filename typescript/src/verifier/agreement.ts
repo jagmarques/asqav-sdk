@@ -77,6 +77,10 @@ export const COMPARANDA = [
   "trustRoots",
   "revocationSnapshot",
   "verificationTime",
+  // Interpretation inputs (488 C9): same facts under another policy
+  // revision or knowledge cutoff attribute; they never read unexplained
+  "policyRevision",
+  "evidenceKnowledgeCutoff",
 ] as const;
 
 export type Comparandum = (typeof COMPARANDA)[number];
@@ -167,5 +171,11 @@ export function compareAssessments(
     verificationTime:
       ctxGet(first.context, "evaluationTime", "evaluation_time") ===
       ctxGet(second.context, "evaluationTime", "evaluation_time"),
+    policyRevision:
+      ctxGet(first.context, "policyRevision", "policy_revision") ===
+      ctxGet(second.context, "policyRevision", "policy_revision"),
+    evidenceKnowledgeCutoff:
+      ctxGet(first.context, "evidenceKnowledgeCutoff", "evidence_knowledge_cutoff") ===
+      ctxGet(second.context, "evidenceKnowledgeCutoff", "evidence_knowledge_cutoff"),
   };
 }

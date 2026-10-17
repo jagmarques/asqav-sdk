@@ -10,8 +10,10 @@ from dataclasses import dataclass, replace
 
 from asqav.verifier.oracle.agreement import COMPARANDA, _norm_agreement, compare_assessments
 
-#: Comparanda that vary legitimately across trust environments / time.
-TRUST_TIME_DIMS = frozenset({"trust_roots", "revocation_snapshot", "verification_time"})
+#: Comparanda varying legitimately across trust environments and time; the
+#: cutoff is a time horizon (488 C9), policy_revision is a ruleset change
+TRUST_TIME_DIMS = frozenset({"trust_roots", "revocation_snapshot", "verification_time",
+                             "evidence_knowledge_cutoff"})
 
 
 @dataclass(frozen=True)

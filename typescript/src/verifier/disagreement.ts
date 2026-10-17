@@ -2,7 +2,9 @@
 
 import { COMPARANDA, compareAssessments, normAgreementValue, type AssessmentView } from "./agreement.js";
 
-export const TRUST_TIME_DIMS = new Set(["trustRoots", "revocationSnapshot", "verificationTime"]);
+// Dims that vary legitimately across trust environments and time; the
+// cutoff is a time horizon (488 C9), policyRevision is a ruleset change
+export const TRUST_TIME_DIMS = new Set(["trustRoots", "revocationSnapshot", "verificationTime", "evidenceKnowledgeCutoff"]);
 
 export interface Disagreement {
   readonly label: string;
