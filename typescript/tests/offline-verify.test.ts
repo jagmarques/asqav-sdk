@@ -408,7 +408,53 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     const jwks = loadJson(KAT_DIR, "jwks.json");
     const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
     const sig = tampered.signature as Record<string, unknown>;
-    // Zero-out first 16 bytes of the signature - will not verify.
+    // Zero-out first 16 bytes of the signature - will not verify
+    const rawSig = b64decode(sig.sig as string);
+    const bad = new Uint8Array(rawSig.length);
+    bad.set(rawSig);
+    bad.fill(0, 0, 16);
+    sig.sig = Buffer.from(bad).toString("base64");
+    const result = verifyReceiptOffline(tampered, jwks);
+    expect(result.verdict).toBe("unverified");
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    expect(sigAxis?.result).toBe("FAIL");
+  });
+});
+
+// Test-KMS vector (asqav-54, 569 C9): deterministic dilithium key in a
+// BaseKMSClient-conformant double, SPKI beside the JWK
+
+describe("verifyReceiptOffline - test-KMS vector (no network)", () => {
+  const KMS_DIR = join(VECTORS, "asqav-54-kms-signed");
+
+  it("verifies the KMS-signed receipt with signature PASS", () => {
+    const receipt = loadJson(KMS_DIR, "receipt.json");
+    const jwks = loadJson(KMS_DIR, "jwks.json");
+    const result = verifyReceiptOffline(receipt, jwks);
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    // Must be PASS - SKIPPED or INCOMPLETE means ML-DSA-65 was bypassed
+    expect(sigAxis?.result).toBe("PASS");
+    expect(result.verdict).toBe("verified");
+  });
+
+  it("returns FAIL for a tampered KMS-signed receipt (anti-vacuous)", () => {
+    const receipt = loadJson(KMS_DIR, "receipt.json");
+    const jwks = loadJson(KMS_DIR, "jwks.json");
+    const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
+    // Flip one payload field - ML-DSA sig over canonical bytes must not match
+    (tampered.payload as Record<string, unknown>).decision = "deny";
+    const result = verifyReceiptOffline(tampered, jwks);
+    expect(result.verdict).toBe("unverified");
+    const sigAxis = result.axes.find((a) => a.axis === "signature");
+    expect(sigAxis?.result).toBe("FAIL");
+  });
+
+  it("returns FAIL for a corrupted-sig KMS-signed receipt (anti-vacuous)", () => {
+    const receipt = loadJson(KMS_DIR, "receipt.json");
+    const jwks = loadJson(KMS_DIR, "jwks.json");
+    const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
+    const sig = tampered.signature as Record<string, unknown>;
+    // Zero-out first 16 bytes of the signature - will not verify
     const rawSig = b64decode(sig.sig as string);
     const bad = new Uint8Array(rawSig.length);
     bad.set(rawSig);
