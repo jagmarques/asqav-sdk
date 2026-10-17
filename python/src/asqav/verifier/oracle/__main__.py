@@ -65,7 +65,7 @@ from . import ADAPTERS, VerificationContext
 from .assessment_store import AssessmentStore
 from .core import FAILURE_INVALID, VERDICT_UNVERIFIED, verify
 from .live_compare import classify_and_attribute
-from .retain import reassess_verify_result, record_verify_result
+from .retain import reassess_and_classify, record_verify_result
 
 
 def _attribution_out(digest: str, disagreement: object, case: object) -> int:
@@ -183,7 +183,7 @@ def record(store_path: str, receipt_path: str) -> int:
     New bytes append an original and print the digest (exit 0). Bytes
     already retained reassess instead: the reassessment is persisted,
     then classified against the retained original through
-    classify_and_attribute (exit 0 reviewed, 1 unexplained split).
+    reassess_and_classify (exit 0 reviewed, 1 unexplained split).
     Store or input failures exit 2."""
     raw, receipt = _load_raw(receipt_path)
     digest = hashlib.sha256(raw).hexdigest()
@@ -216,17 +216,16 @@ def record(store_path: str, receipt_path: str) -> int:
             return 2
         print(json.dumps({"digest": digest, "recorded": len(store)}))
         return 0
-    reassess_verify_result(store, digest, result)
+    try:
+        entry, disagreement, case = reassess_and_classify(store, digest, result)
+    except ValueError as exc:
+        print(f"asqav-verify: {exc}", file=sys.stderr)
+        return 2
     try:
         Path(store_path).write_text(store.to_jsonl())
     except OSError as exc:
         print(f"asqav-verify: cannot write {store_path}: {exc.strerror or exc}",
               file=sys.stderr)
-        return 2
-    try:
-        disagreement, case = classify_and_attribute(store, digest, result)
-    except ValueError as exc:
-        print(f"asqav-verify: {exc}", file=sys.stderr)
         return 2
     return _attribution_out(digest, disagreement, case)
 

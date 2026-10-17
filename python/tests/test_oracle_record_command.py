@@ -8,6 +8,7 @@ failing. Tests address main() only.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from pathlib import Path
@@ -19,6 +20,7 @@ pytest.importorskip("cryptography", reason="signed fixtures need the cryptograph
 from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.__main__ import main
 from asqav.verifier.oracle.assessment_store import AssessmentStore
+from asqav.verifier.oracle.retain import record_verify_result
 
 _FIX = Path(__file__).resolve().parents[2] / "verifier" / "signed-conflict-fixtures"
 
@@ -75,6 +77,24 @@ def test_record_reassesses_and_classifies_a_duplicate_original(tmp_path: Path, c
     first, second = (json.loads(line) for line in store.read_text().splitlines())
     assert second["kind"] == "reassessment"
     assert second["supersedes"] == first["entry_hash"]
+
+
+def test_record_reassess_split_without_reruns_is_insufficient(tmp_path: Path, capsys) -> None:
+    # 488 C38: the retain-layer caller classifies with no reruns, so a
+    # live split surfaces unexplained but never a candidate from here.
+    raw = _raw("conflict-allow")
+    digest = _digest(raw)
+    prior = dataclasses.replace(verify(json.loads(raw), ADAPTERS), verdict="unverified")
+    store = AssessmentStore()
+    record_verify_result(store, digest, prior)
+    store_path = tmp_path / "store.jsonl"
+    store_path.write_text(store.to_jsonl())
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(raw)
+    assert main(["record", str(store_path), str(receipt)]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["disagreement"]["label"] == "unexplained_needs_investigation"
+    assert out["spec_case"]["label"] == "evidence_insufficient"
 
 
 def test_record_rejects_a_broken_receipt(tmp_path: Path) -> None:

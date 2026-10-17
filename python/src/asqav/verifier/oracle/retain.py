@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from asqav.verifier.oracle.assessment_store import AssessmentEntry, AssessmentStore
+from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
 
 _CONTEXT_FIELDS = (
     "evaluator",
@@ -75,3 +76,28 @@ def reassess_verify_result(
         getattr(result, "failure_class"),
         recorded_at=recorded_at,
     )
+
+
+def reassess_and_classify(
+    store: AssessmentStore,
+    doc_sha256: str,
+    result: object,
+    recorded_at: str | None = None,
+) -> tuple[AssessmentEntry, Disagreement, SpecCase]:
+    """Reassess retained bytes, then classify against the original (488 C38).
+
+    The retention-layer classification caller: reassess raises unless
+    a retained original exists, so both comparanda are real. Views
+    mirror live_compare's retained/live mapping with no envelope
+    terms, exactly like classify_and_attribute without reruns."""
+    entry = reassess_verify_result(store, doc_sha256, result, recorded_at)
+    original = store.replay(doc_sha256)
+    if original is None:
+        raise ValueError("no retained original for this digest; record first")
+    verdict = getattr(result, "verdict")
+    first = {"doc_sha256": original.doc_sha256, "axes": dict(original.axes),
+             "context": dict(original.context), "agreement": None}
+    second = {"doc_sha256": doc_sha256, "axes": axes_dict(result),
+              "context": context_dict(result), "agreement": None}
+    return (entry, classify(first, second, original.verdict, verdict),
+            spec_case(first, second, original.verdict, verdict))
