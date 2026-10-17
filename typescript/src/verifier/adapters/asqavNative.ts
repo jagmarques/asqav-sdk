@@ -118,7 +118,9 @@ function counterpartyCommitmentReached(payload: Record<string, unknown>, origin:
 /** Flat object the cloud hash-mode path signs, before canonicalisation */
 function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown> {
   return {
-    v: 1,
+    // Displayed v binds the signature: a relabelled copy rebuilds other
+    // bytes and fails crypto instead of inheriting the old PASS
+    v: doc.v ?? null,
     mode: "hash",
     hash: doc.hash ?? null,
     hash_algo: doc.hash_algo ?? "sha256",

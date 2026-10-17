@@ -905,7 +905,7 @@ def test_hash_mode_schema_absent_version_fails_naming_v() -> None:
 
 
 def test_hash_mode_v99_unverifiable_end_to_end() -> None:
-    """The corpus vector with v flipped to 99 is refused unverifiable, while the
+    """The corpus vector with v flipped to 99 is refused unverified, while the
     v=1 original keeps verifying (dilithium-gated, as the signature runs)."""
     pytest.importorskip("dilithium_py.ml_dsa")
     provider = _provider("asqav-05-hash-mode-prod", "asqav-native")
@@ -914,8 +914,9 @@ def test_hash_mode_v99_unverifiable_end_to_end() -> None:
     res = verify(doc, ADAPTERS, key_provider=provider)
     assert res.axis("structure").result == "SKIPPED"
     assert "unsupported wire version 99" in res.axis("structure").note
+    assert res.axis("signature").result == crypto.FAIL
     assert res.verdict == "unverified"
-    assert res.failure_class == "unverifiable"
+    assert res.failure_class == "invalid"
     res_ok = verify(
         _load("asqav-05-hash-mode-prod", "receipt.json"), ADAPTERS, key_provider=provider
     )

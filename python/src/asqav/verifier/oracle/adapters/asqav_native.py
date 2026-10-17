@@ -104,7 +104,9 @@ def _payload(doc: dict) -> dict:
     # The flat object the cloud's hash-mode path signs, before canonicalisation.
 def _flat_signed_fields(doc: dict) -> dict:
     return {
-        "v": 1,
+        # The displayed v binds the signature: a relabelled copy rebuilds
+        # different bytes and fails crypto, it never inherits the old PASS.
+        "v": doc.get("v"),
         "mode": "hash",
         "hash": doc.get("hash"),
         "hash_algo": doc.get("hash_algo") or "sha256",
