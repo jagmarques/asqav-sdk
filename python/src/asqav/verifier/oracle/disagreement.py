@@ -20,19 +20,24 @@ class Disagreement:
 
     label: str
     differing: tuple[str, ...] = ()
+    # Conflict shape for one subject (488 C39b); None when the
+    # pair carries no conflict call (different bytes or no shape).
+    conflict: str | None = None
 
 
 def classify(first: dict, second: dict, verdict_a: str, verdict_b: str) -> Disagreement:
     """Classify a verdict pair against normalized input comparanda."""
     compared = compare_assessments(first, second)
+    conflict = conflict_kind(first, second)
     if not compared["evidence_bytes"]:
-        return Disagreement(label="different_subject")
+        return Disagreement(label="different_subject", conflict=conflict)
     differing = tuple(name for name in COMPARANDA if not compared[name])
     if verdict_a == verdict_b:
-        return Disagreement(label="agreement", differing=differing)
+        return Disagreement(label="agreement", differing=differing, conflict=conflict)
     if not differing:
-        return Disagreement(label="unexplained_needs_investigation")
-    return Disagreement(label="attributed_to_inputs", differing=differing)
+        return Disagreement(label="unexplained_needs_investigation", conflict=conflict)
+    return Disagreement(label="attributed_to_inputs", differing=differing,
+                        conflict=conflict)
 
 
 def attributed_to_trust_time(result: Disagreement) -> bool:
