@@ -10,6 +10,7 @@ def _doc(nonce: str) -> dict:
         "payload": {
             "type": "protectmcp:decision",
             "v": 1,
+            "mode": "payload",
             "issued_at": "2026-06-01T19:26:44Z",
             "issuer_id": "org-1",
             "agent_id": "agt-1",
