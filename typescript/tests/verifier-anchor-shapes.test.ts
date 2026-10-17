@@ -78,4 +78,20 @@ describe("anchors wire shapes", () => {
       expect(outs[0][0]).toBe(shape === "null" ? "FAIL" : "PASS");
     },
   );
+
+  it.each([3, null])("null anchors with v=%s reports the version fact", (version) => {
+    const a28 = vector("asqav-28-anchors-null-malformed");
+    const receipt = JSON.parse(JSON.stringify(a28.receipt));
+    const payload = receipt.payload ?? receipt;
+    if (version === null) delete payload.v;
+    else payload.v = version;
+    const r = verify(receipt, ADAPTERS, a28.jwks, a28.predecessor);
+    const structure = r.axes.find((a) => a.axis === "structure")!;
+    expect(structure.result).toBe("SKIPPED");
+    expect(structure.note).toBe(
+      version === 3
+        ? "unsupported wire version 3: unverifiable under this document, reported not failed"
+        : "no v member: not a Compliance Receipt of this document; absence is not version 1",
+    );
+  });
 });
