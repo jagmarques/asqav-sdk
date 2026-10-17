@@ -32,6 +32,7 @@ function payload(agentId = "agt_two"): Record<string, unknown> {
   return {
     type: "protectmcp:decision",
     v: 1,
+    mode: "payload",
     issued_at: "2026-06-19T00:00:00.000000Z",
     issuer_id: ORG,
     agent_id: agentId,

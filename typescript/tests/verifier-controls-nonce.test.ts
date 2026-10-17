@@ -8,6 +8,7 @@ function basePayload(): Record<string, unknown> {
   return {
     type: "protectmcp:decision",
     v: 1,
+    mode: "payload",
     issued_at: "2026-06-01T19:26:44Z",
     issuer_id: "org-1",
     action_ref: "sha256:" + "8".repeat(64),

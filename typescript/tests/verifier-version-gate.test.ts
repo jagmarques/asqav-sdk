@@ -89,3 +89,27 @@ describe("wire version gate (draft §5.2.1)", () => {
     expect(JSON.parse(b99).v).toBe(99);
   });
 });
+
+describe("capture mode gate (draft §5.2.2)", () => {
+  it("absent mode SKIPs without selecting a mode", () => {
+    const doc = payloadDoc(1);
+    delete doc.mode;
+    const [res, note] = checkStructure(doc);
+    expect(res).toBe("SKIPPED");
+    expect(note).toContain("absence selects no mode");
+  });
+
+  it("unrecognised mode SKIPs unverifiable", () => {
+    for (const mode of ["quantum", "HASH", "", null, 1, true]) {
+      const doc = { ...payloadDoc(1), mode };
+      const [res, note] = checkStructure(doc);
+      expect(res).toBe("SKIPPED");
+      expect(note).toContain("unsupported mode");
+    }
+  });
+
+  it("recognised modes still PASS structure", () => {
+    expect(checkStructure(payloadDoc(1))[0]).toBe("PASS");
+    expect(checkStructure({ ...payloadDoc(1), mode: "hash" })[0]).toBe("PASS");
+  });
+});

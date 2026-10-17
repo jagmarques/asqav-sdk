@@ -20,6 +20,7 @@ def _risk_payload() -> dict:
     return {
         "type": RISK_TYPE,
         "v": 1,
+        "mode": "payload",
         "issued_at": "2026-06-01T19:26:44.289388Z",
         "issuer_id": "c37probe-org-00001",
         "action_ref": "sha256:" + "8" * 64,
@@ -96,6 +97,47 @@ def test_structure_reports_unsupported_wire_version() -> None:
     assert failure_class == "unverifiable"
 
 
+def test_structure_reports_absent_mode() -> None:
+    """A receipt with no mode member is not a Compliance Receipt of this
+    document; absence selects no mode and never reads as payload mode."""
+    payload = _risk_payload()
+    del payload["mode"]
+    res, note = v.check_structure(payload)
+    assert res == "SKIPPED"
+    assert "absence selects no mode" in note
+    assert "unsupported mode" not in note
+
+
+def test_structure_reports_unsupported_mode() -> None:
+    """Every unrecognised mode SKIPs unverifiable with its repr: quantum,
+    HASH, empty, None, 1, True. A recognised payload still PASSes."""
+    for bad in ("quantum", "HASH", "", None, 1, True):
+        payload = _risk_payload()
+        payload["mode"] = bad
+        res, note = v.check_structure(payload)
+        assert res == "SKIPPED", f"mode={bad!r}: {res} {note}"
+        assert "unsupported mode" in note
+        assert repr(bad) in note
+    payload = _risk_payload()
+    payload["mode"] = "hash"
+    assert v.check_structure(payload)[0] == "PASS"
+    verdict, failure_class = v._fold_verdict(
+        [("structure", *v.check_structure({**_risk_payload(), "mode": "quantum"}))]
+    )
+    assert verdict == "unverified"
+    assert failure_class == "unverifiable"
+
+
+def test_mode_gate_is_load_bearing(monkeypatch) -> None:
+    """Neutralising is_recognised_mode flips the quantum pin to PASS, so the
+    new assertions above test the gate, not the fixture."""
+    payload = _risk_payload()
+    payload["mode"] = "quantum"
+    assert v.check_structure(payload)[0] == "SKIPPED"
+    monkeypatch.setattr(v, "is_recognised_mode", lambda _m: True)
+    assert v.check_structure(payload)[0] == "PASS"
+
+
 def test_run_structure_axis_passes_on_risk_acceptance(capsys) -> None:
     """A full run over a risk-acceptance envelope prints `[  ok] structure`:
     the type is recognised, so the structure axis contributes a PASS and the
@@ -118,6 +160,7 @@ def _code_payload() -> dict:
     return {
         "type": CODE_TYPE,
         "v": 1,
+        "mode": "payload",
         "issued_at": "2026-06-02T10:00:00.000000Z",
         "issuer_id": "c39probe-org-00001",
         "action_ref": "sha256:" + "8" * 64,
@@ -300,6 +343,7 @@ def _valid_payload(issuer_id: str, agent_id: str) -> dict:
     return {
         "type": "protectmcp:decision",
         "v": 1,
+        "mode": "payload",
         "issued_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "issuer_id": issuer_id,
         "agent_id": agent_id,

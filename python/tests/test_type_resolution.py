@@ -32,6 +32,7 @@ def _payload(**kw):
     base = {
         "type": "protectmcp:decision",
         "v": 1,
+        "mode": "payload",
         "issuer_id": "iss_1",
         "agent_id": "ag_1",
         "org_id": "org_1",

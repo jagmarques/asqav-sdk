@@ -144,6 +144,7 @@ REGISTRY_NAMESPACES = frozenset(
 #: Wire versions a verifier accepts (draft 5.3): v=2 is recognised for
 #: verification, not released for emission. Widening is a registry decision.
 RECOGNISED_WIRE_VERSIONS = frozenset({1, 2})
+RECOGNISED_MODES = frozenset({"hash", "payload"})
 
 
 #: Closed controls_evaluated key set; mirrors the client false-attestation guard.
@@ -2972,6 +2973,17 @@ def check_structure(payload: dict):
             f"unsupported wire version {v!r}: "
             "unverifiable under this document, reported not failed"
         )
+    if "mode" not in payload:
+        return "SKIPPED", (
+            "no mode member: not a Compliance Receipt of this document; "
+            "absence selects no mode"
+        )
+    mode = payload["mode"]
+    if not is_recognised_mode(mode):
+        return "SKIPPED", (
+            f"unsupported mode {mode!r}: "
+            "unverifiable under this document, reported not failed"
+        )
     ce_res, ce_note = check_controls_evaluated(payload)
     if ce_res == "FAIL":
         return "FAIL", ce_note
@@ -2990,6 +3002,11 @@ def is_current_profile_version(value) -> bool:
 def is_recognised_wire_version(value) -> bool:
     """True for an integer v in RECOGNISED_WIRE_VERSIONS; booleans and floats never select."""
     return type(value) is int and value in RECOGNISED_WIRE_VERSIONS
+
+
+def is_recognised_mode(value) -> bool:
+    """True for a string mode in RECOGNISED_MODES; anything else never selects."""
+    return type(value) is str and value in RECOGNISED_MODES
 
 
 def profile_range_note(obj) -> str | None:
