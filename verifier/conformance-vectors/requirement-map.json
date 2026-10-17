@@ -896,6 +896,22 @@
       "anchors": "SKIPPED",
       "skew": "PASS",
       "expiry": "PASS"
+    },
+    "asqav-54-kms-signed": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
     }
   },
   "requirements": {
@@ -2343,6 +2359,29 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-54-kms-signed": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
     }
   },
   "interop_fixtures": {
@@ -2663,7 +2702,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -2720,7 +2760,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -2777,7 +2818,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -2833,7 +2875,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -2890,7 +2933,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -2947,7 +2991,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-ANCHOR": [
       "asqav-24-anchor-block-hash-prod",
@@ -3016,7 +3061,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -3073,7 +3119,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -3130,7 +3177,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-PAYLOAD-DIGEST": [
       "asqav-01-genesis-permit",
@@ -3186,7 +3234,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-KEYED-DIGEST": [
       "asqav-01-genesis-permit",
@@ -3242,7 +3291,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-OUTER-COPIES": [
       "asqav-01-genesis-permit",
@@ -3299,7 +3349,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-COUNTERPARTY": [
       "asqav-01-genesis-permit",
@@ -3354,7 +3405,8 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -3409,14 +3461,15 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
-      "asqav-53-payload-digest-no-context"
+      "asqav-53-payload-digest-no-context",
+      "asqav-54-kms-signed"
     ]
   },
   "unmapped_requirements": [],
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 60,
+    "asqav_native_vectors": 61,
     "interop_fixtures": 52,
     "requirements": 15,
     "requirements_covered": 15,

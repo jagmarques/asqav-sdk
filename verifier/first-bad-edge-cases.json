@@ -112,6 +112,7 @@
     "asqav-38-counterparty-received-only": "counterparty",
     "asqav-39-counterparty-cross-replay": "counterparty",
     "asqav-42-revoked-before-issuance": "key_status",
-    "asqav-53-payload-digest-no-context": null
+    "asqav-53-payload-digest-no-context": null,
+    "asqav-54-kms-signed": null
   }
 }

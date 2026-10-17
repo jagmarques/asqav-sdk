@@ -156,6 +156,7 @@ covers it.
 - `asqav-50-outer-flat-signature-agent-id-edited` — unverified (outer_copy_mismatch)
 - `asqav-51-outer-envelope-signature-action-type-edited` — unverified (outer_copy_mismatch)
 - `asqav-52-outer-flat-hash-unsigned-members` — verified
+- `asqav-54-kms-signed` — verified
 <!-- vectors-list:end -->
 
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;
