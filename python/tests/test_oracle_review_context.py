@@ -1,0 +1,101 @@
+"""Oracle `review --context`: a live trust-split through main() (488 C36).
+
+The production caller always verified the live side under defaults, so
+trust roots / evaluator / evaluation time could never vary live: the
+trust-split arm of C2 was untestable through main(). With --context the
+live side (receipt plus reruns) verifies under caller-stated inputs.
+Tests address main() only, never the library entries directly.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+import pytest
+
+pytest.importorskip("cryptography", reason="signed fixtures need the cryptography lib")
+
+from asqav.verifier.oracle import ADAPTERS, VerificationContext, verify
+from asqav.verifier.oracle.__main__ import main
+from asqav.verifier.oracle.assessment_store import AssessmentStore
+from asqav.verifier.oracle.retain import record_verify_result
+
+_FIX = Path(__file__).resolve().parents[2] / "verifier" / "signed-conflict-fixtures"
+_CORPUS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
+_T1 = "2019-06-01T00:00:00Z"
+
+
+def _digest(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _write(path: Path, data: bytes) -> str:
+    path.write_bytes(data)
+    return str(path)
+
+
+def _ctx_file(path: Path, obj: object) -> str:
+    path.write_text(json.dumps(obj))
+    return str(path)
+
+
+def _store(path: Path, digest: str, result) -> str:
+    store = AssessmentStore()
+    record_verify_result(store, digest, result)
+    path.write_text(store.to_jsonl())
+    return str(path)
+
+
+def _out(capsys) -> dict:
+    return json.loads(capsys.readouterr().out)
+
+
+def test_review_trust_split_attributes_through_the_flow(tmp_path: Path, capsys) -> None:
+    raw = (_FIX / "conflict-allow.json").read_bytes()
+    digest = _digest(raw)
+    doc = json.loads(raw)
+    store = _store(tmp_path / "store.jsonl", digest, verify(doc, ADAPTERS))
+    ctx = _ctx_file(tmp_path / "ctx.json", {"trust_roots": ["example-root-a"]})
+    code = main(["review", store, _write(tmp_path / "receipt.json", raw),
+                 "--rerun-a", _write(tmp_path / "a.json", raw),
+                 "--rerun-b", _write(tmp_path / "b.json", raw),
+                 "--context", ctx])
+    assert code == 0
+    out = _out(capsys)
+    assert out["disagreement"]["label"] == "agreement"
+    assert out["disagreement"]["differing"] == ["trust_roots"]
+    assert out["spec_case"]["label"] == "not_applicable"
+
+
+def test_review_matching_context_erases_time_split(tmp_path: Path, capsys) -> None:
+    doc = json.loads((_CORPUS / "asqav-01-genesis-permit" / "receipt.json").read_bytes())
+    doc["payload"]["expires_at"] = "2020-01-01T00:00:00Z"
+    raw = json.dumps(doc, sort_keys=True).encode()
+    digest = _digest(raw)
+    era = verify(json.loads(raw.decode()), ADAPTERS,
+                 context=VerificationContext(evaluation_time=_T1))
+    store = _store(tmp_path / "store.jsonl", digest, era)
+    ctx = _ctx_file(tmp_path / "ctx.json", {"evaluation_time": _T1})
+    code = main(["review", store, _write(tmp_path / "receipt.json", raw),
+                 "--rerun-a", _write(tmp_path / "a.json", raw),
+                 "--rerun-b", _write(tmp_path / "b.json", raw),
+                 "--context", ctx])
+    assert code == 0
+    out = _out(capsys)
+    assert out["disagreement"] == {"label": "agreement", "differing": []}
+
+
+def test_review_bad_context_exits_2(tmp_path: Path, capsys) -> None:
+    raw = (_FIX / "conflict-allow.json").read_bytes()
+    digest = _digest(raw)
+    store = _store(tmp_path / "store.jsonl", digest,
+                   verify(json.loads(raw), ADAPTERS))
+    receipt = _write(tmp_path / "receipt.json", raw)
+    bad = [tmp_path / "missing.json",
+           Path(_ctx_file(tmp_path / "list.json", ["not", "an", "object"])),
+           Path(_ctx_file(tmp_path / "unknown.json", {"no_such_field": 1}))]
+    for ctx_path in bad:
+        code = main(["review", store, receipt, "--context", str(ctx_path)])
+        assert code == 2
+        assert capsys.readouterr().out == ""
