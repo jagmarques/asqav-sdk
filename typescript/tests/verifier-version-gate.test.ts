@@ -80,4 +80,12 @@ describe("wire version gate (draft §5.2.1)", () => {
     const adapter = new AsqavNativeAdapter();
     expect(adapter.schema(hashDoc(1))[0]).toBe("PASS");
   });
+
+  it("hash mode: displayed v binds the signing input", () => {
+    const adapter = new AsqavNativeAdapter();
+    const b1 = Buffer.from(adapter.signingInput(hashDoc(1))).toString();
+    const b99 = Buffer.from(adapter.signingInput(hashDoc(99))).toString();
+    expect(b1).not.toBe(b99);
+    expect(JSON.parse(b99).v).toBe(99);
+  });
 });
