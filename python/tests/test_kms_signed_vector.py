@@ -25,7 +25,7 @@ VEC = (
     / "conformance-vectors"
     / "asqav-54-kms-signed"
 )
-ANCHOR_HEX = "316d32245c4b38202049f59be20650452eb4b33994439f1cb93d598a92f54a33"
+ANCHOR_HEX = "315b3a7fecfe02ebaacfb570462b4e4e28249f48ca0a4e43d2a36bc528dbeac1"
 
 try:
     from dilithium_py.ml_dsa import ML_DSA_65
