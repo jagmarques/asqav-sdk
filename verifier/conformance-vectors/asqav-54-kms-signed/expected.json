@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Payload-mode receipt signed by a test KMS (criterion 569 C9): key derived from the published seed in mint_kms_signed_vector.py (deterministic dilithium-py key_derive + sign, NEVER production), held by a BaseKMSClient-conformant double. kms_spki_der_b64.txt is the KMS-issued SPKI the AKP JWK pub unwraps from; jwks kid is base64url(sha256(SPKI)); signature.kid names the issuer. Signed 2026-10-17, expires 2027-10-17 so expiry stays PASS."
+}

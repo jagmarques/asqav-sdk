@@ -838,5 +838,12 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "Signed receipt carrying payload_digest but no context: the digest is never recomputed, so the payload_digest axis PASSes as not_applicable rather than passing on silence. The honest-absence half of the rederives pair with asqav-25."
+  },
+  {
+    "dir": "asqav-54-kms-signed",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Payload-mode receipt signed by a test KMS for 569 C9: ML-DSA-65 key from the published seed in verifier/mint_kms_signed_vector.py, SPKI in kms_spki_der_b64.txt, kid resolves to the AKP JWK. Expiry set ahead so the expiry axis stays PASS."
   }
 ]
