@@ -9,7 +9,13 @@ from __future__ import annotations
 from datetime import datetime
 
 from asqav.verifier.oracle.assessment_store import AssessmentEntry, AssessmentStore
-from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, mark_legacy_gap, spec_case
+from asqav.verifier.oracle.disagreement import (
+    Disagreement,
+    SpecCase,
+    classify,
+    mark_legacy_gap,
+    spec_case,
+)
 
 _CONTEXT_FIELDS = (
     "evaluator",

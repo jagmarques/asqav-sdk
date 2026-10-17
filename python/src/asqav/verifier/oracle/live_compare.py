@@ -14,7 +14,13 @@ from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.adapter import VerificationContext
 from asqav.verifier.oracle.agreement import bind_envelope
 from asqav.verifier.oracle.assessment_store import AssessmentStore
-from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, mark_legacy_gap, spec_case
+from asqav.verifier.oracle.disagreement import (
+    Disagreement,
+    SpecCase,
+    classify,
+    mark_legacy_gap,
+    spec_case,
+)
 from asqav.verifier.oracle.retain import axes_dict, context_dict
 
 
