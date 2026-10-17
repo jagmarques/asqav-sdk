@@ -50,6 +50,10 @@ export interface VerificationContext {
   readonly policyRevision?: unknown;
   /** Evidence cutoff the caller evaluated against (attribution only). */
   readonly evidenceKnowledgeCutoff?: unknown;
+  /** Event time the caller evaluated against (attribution only). */
+  readonly eventTime?: unknown;
+  /** Effective time the caller evaluated against (attribution only). */
+  readonly effectiveTime?: unknown;
   /** Who ran the evaluation (attribution only). */
   readonly evaluator?: unknown;
 }

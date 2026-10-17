@@ -81,6 +81,10 @@ export const COMPARANDA = [
   // revision or knowledge cutoff attribute; they never read unexplained
   "policyRevision",
   "evidenceKnowledgeCutoff",
+  // Event-side timing (488 C9): same bytes under another declared event
+  // or effective time attribute; they never read unexplained
+  "eventTime",
+  "effectiveTime",
 ] as const;
 
 export type Comparandum = (typeof COMPARANDA)[number];
@@ -177,5 +181,11 @@ export function compareAssessments(
     evidenceKnowledgeCutoff:
       ctxGet(first.context, "evidenceKnowledgeCutoff", "evidence_knowledge_cutoff") ===
       ctxGet(second.context, "evidenceKnowledgeCutoff", "evidence_knowledge_cutoff"),
+    eventTime:
+      ctxGet(first.context, "eventTime", "event_time") ===
+      ctxGet(second.context, "eventTime", "event_time"),
+    effectiveTime:
+      ctxGet(first.context, "effectiveTime", "effective_time") ===
+      ctxGet(second.context, "effectiveTime", "effective_time"),
   };
 }
