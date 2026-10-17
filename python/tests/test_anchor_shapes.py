@@ -181,6 +181,37 @@ def test_corpus_anchor_entries_use_only_declared_members() -> None:
     assert checked > 0, "control: the corpus holds anchor entries to census"
 
 
+@pytest.mark.parametrize("shape", ["empty", "absent", "null"])
+def test_wire_version_does_not_change_anchors_shape_rule(shape) -> None:
+    """679 C2: the absent/empty/null rule is identical for every recognised
+    wire version; v=1 and v=2 report the same structure fact in each engine."""
+    receipt, jwks, pred = _vector("asqav-17-seq-contiguous")
+    outs = {}
+    for version in (1, 2):
+        mutated = json.loads(json.dumps(receipt))
+        mutated.get("payload", mutated)["v"] = version
+        if shape == "absent":
+            mutated.pop("anchors", None)
+        elif shape == "null":
+            mutated["anchors"] = None
+        out = v.run_structured(mutated, jwks, pred)
+        structure = next(a for a in out["axes"] if a["name"] == "structure")
+        res = oracle_verify(mutated, ADAPTERS, key_provider=jwks, predecessor=pred)
+        ostruct = res.axis("structure")
+        assert ostruct is not None
+        outs[version] = (
+            structure["result"], structure["note"], ostruct.result, ostruct.note)
+    assert outs[1] == outs[2]
+    expected = "FAIL" if shape == "null" else "PASS"
+    assert outs[1][0] == expected and outs[1][2] == expected
+    # Negative control: an unrecognised version reports a different fact.
+    mutated = json.loads(json.dumps(receipt))
+    mutated.get("payload", mutated)["v"] = 3
+    out = v.run_structured(mutated, jwks, pred)
+    structure = next(a for a in out["axes"] if a["name"] == "structure")
+    assert (structure["result"], structure["note"]) != outs[1][:2]
+
+
 def test_unknown_anchor_member_yields_byte_identical_axis() -> None:
     """An entry carrying an undeclared member verifies exactly as without it.
 
