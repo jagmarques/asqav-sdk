@@ -8,6 +8,7 @@ conflict shape on the Disagreement.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from dataclasses import asdict
@@ -125,3 +126,36 @@ def test_review_flow_agrees_when_refs_match(tmp_path: Path, capsys) -> None:
     out = json.loads(capsys.readouterr().out)
     assert out["disagreement"]["differing"] == []
     assert out["disagreement"]["conflict"] is None
+
+
+def test_legacy_refless_original_never_attributes_a_split() -> None:
+    raw = _raw("conflict-allow")
+    doc, digest = json.loads(raw), _digest(raw)
+    live_ref = asdict(envelope_of(doc, ADAPTERS))
+    store = AssessmentStore()
+    record_verify_result(store, digest, verify(doc, ADAPTERS))
+    flipped = dataclasses.replace(verify(doc, ADAPTERS), verdict="unverified")
+    out, _ = classify_and_attribute(store, digest, flipped, agreement=live_ref)
+    assert out.label == "unexplained_needs_investigation"
+    assert "agreement_version" not in out.differing
+    assert out.conflict == "missing_evidence"
+
+
+def test_legacy_refless_original_agrees_without_ref_drift() -> None:
+    raw = _raw("conflict-allow")
+    doc, digest = json.loads(raw), _digest(raw)
+    live_ref = asdict(envelope_of(doc, ADAPTERS))
+    store = AssessmentStore()
+    record_verify_result(store, digest, verify(doc, ADAPTERS))
+    out, _ = classify_and_attribute(store, digest, verify(doc, ADAPTERS),
+                                    agreement=live_ref)
+    assert out.label == "agreement"
+    assert "agreement_version" not in out.differing
+    assert out.conflict == "missing_evidence"
+
+
+def test_symmetric_absent_refs_compare_as_before() -> None:
+    first = _view("dd" * 32, {"expiry": "PASS"}, None)
+    second = _view("dd" * 32, {"expiry": "PASS"}, None)
+    out = classify(first, second, "unverified", "unverified")
+    assert (out.label, out.differing, out.conflict) == ("agreement", (), None)
