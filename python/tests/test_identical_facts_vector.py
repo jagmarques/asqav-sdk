@@ -53,3 +53,15 @@ def test_absent_fields_read_equal_for_old_entries() -> None:
     assert compare_assessments(bare, dict(bare))["evidence_knowledge_cutoff"] is True
     out = classify(bare, dict(bare), "verified", "verified")
     assert out.label == "agreement" and out.differing == ()
+
+
+def test_dual_spelled_context_reads_camel_first() -> None:
+    both = {"policy_revision": "pol-7", "policyRevision": "pol-7"}
+    camel_flip = {"policy_revision": "pol-7", "policyRevision": "pol-9"}
+    assert compare_assessments(_view(context=both), _view(context=camel_flip))[
+        "policy_revision"] is False
+    snake_flip = {"policy_revision": "pol-9", "policyRevision": "pol-7"}
+    assert compare_assessments(_view(context=both), _view(context=snake_flip))[
+        "policy_revision"] is True
+    out = classify(_view(context=both), _view(context=camel_flip), "verified", "unverified")
+    assert out.label == "attributed_to_inputs" and out.differing == ("policy_revision",)

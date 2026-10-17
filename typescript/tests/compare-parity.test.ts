@@ -108,4 +108,15 @@ describe("identical facts vector", () => {
     expect(out.label).toBe("agreement");
     expect(out.differing).toEqual([]);
   });
+
+  it("reads dual-spelled contexts camel-first", () => {
+    const both = { ...C9_CTX, policy_revision: "pol-7", policyRevision: "pol-7" };
+    const camelFlip = { ...both, policyRevision: "pol-9" };
+    expect(compareAssessments(c9view(both), c9view(camelFlip))["policyRevision"]).toBe(false);
+    const snakeFlip = { ...both, policy_revision: "pol-9" };
+    expect(compareAssessments(c9view(both), c9view(snakeFlip))["policyRevision"]).toBe(true);
+    const out = classify(c9view(both), c9view(camelFlip), "verified", "unverified");
+    expect(out.label).toBe("attributed_to_inputs");
+    expect(out.differing).toEqual(["policyRevision"]);
+  });
 });
