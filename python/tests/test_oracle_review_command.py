@@ -21,6 +21,7 @@ pytest.importorskip("cryptography", reason="signed fixtures need the cryptograph
 
 from asqav.verifier.oracle import ADAPTERS, VerificationContext, verify
 from asqav.verifier.oracle.__main__ import main
+from asqav.verifier.oracle.agreement import envelope_of
 from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.retain import record_verify_result
 
@@ -48,9 +49,15 @@ def _write(path: Path, raw: bytes) -> str:
     return str(path)
 
 
-def _store_file(path: Path, digest: str, result) -> str:
+def _store_file(path: Path, raw: bytes, result) -> str:
+    # Mirror production record(): the retained side carries the
+    # bytes-derived envelope ref, so review compares ref to ref.
+    try:
+        agreement = dataclasses.asdict(envelope_of(json.loads(raw), ADAPTERS))
+    except ValueError:
+        agreement = None
     store = AssessmentStore()
-    record_verify_result(store, digest, result)
+    record_verify_result(store, _digest(raw), result, agreement=agreement)
     path.write_text(store.to_jsonl())
     return str(path)
 
@@ -61,7 +68,7 @@ def _review_out(capsys) -> dict:
 
 def test_review_agrees_through_the_flow(tmp_path: Path, capsys) -> None:
     raw = _raw("conflict-allow")
-    store = _store_file(tmp_path / "store.jsonl", _digest(raw), _run(json.loads(raw)))
+    store = _store_file(tmp_path / "store.jsonl", raw, _run(json.loads(raw)))
     receipt = _write(tmp_path / "receipt.json", raw)
     code = main(["review", store, receipt,
                  "--rerun-a", _write(tmp_path / "a.json", raw),
@@ -69,7 +76,8 @@ def test_review_agrees_through_the_flow(tmp_path: Path, capsys) -> None:
     assert code == 0
     out = _review_out(capsys)
     assert out["digest"] == _digest(raw)
-    assert out["disagreement"] == {"label": "agreement", "differing": []}
+    assert out["disagreement"] == {"label": "agreement", "differing": [],
+                                   "conflict": None}
     assert out["spec_case"]["label"] == "not_applicable"
 
 
@@ -87,7 +95,7 @@ def test_review_prior_record_split_exits_1_with_candidate(tmp_path: Path, capsys
     # SYNTHETIC prior-version record (the only non-live element): a valid
     # chain over a flipped verdict, as an older oracle version would retain
     prior = dataclasses.replace(_run(json.loads(raw)), verdict="unverified")
-    store = _store_file(tmp_path / "store.jsonl", digest, prior)
+    store = _store_file(tmp_path / "store.jsonl", raw, prior)
     receipt = _write(tmp_path / "receipt.json", raw)
     code = main(["review", store, receipt,
                  "--rerun-a", _write(tmp_path / "a.json", raw),
@@ -103,13 +111,12 @@ def test_review_drift_surfaces_time_through_the_flow(tmp_path: Path, capsys) -> 
     doc = json.loads((_CORPUS / "asqav-01-genesis-permit" / "receipt.json").read_bytes())
     doc["payload"]["expires_at"] = "2020-01-01T00:00:00Z"
     raw = json.dumps(doc, sort_keys=True).encode()
-    digest = _digest(raw)
 
     def era(t: str):
         return verify(json.loads(raw.decode()), ADAPTERS,
                       context=VerificationContext(evaluation_time=t))
 
-    store = _store_file(tmp_path / "store.jsonl", digest, era(_T1))
+    store = _store_file(tmp_path / "store.jsonl", raw, era(_T1))
     receipt = _write(tmp_path / "receipt.json", raw)
     code = main(["review", store, receipt,
                  "--rerun-a", _write(tmp_path / "a.json", raw),
@@ -122,7 +129,7 @@ def test_review_drift_surfaces_time_through_the_flow(tmp_path: Path, capsys) -> 
 
 def test_review_rerun_must_reexecute_the_bytes(tmp_path: Path, capsys) -> None:
     allow, deny = _raw("conflict-allow"), _raw("conflict-deny")
-    store = _store_file(tmp_path / "store.jsonl", _digest(allow), _run(json.loads(allow)))
+    store = _store_file(tmp_path / "store.jsonl", allow, _run(json.loads(allow)))
     code = main(["review", store, _write(tmp_path / "receipt.json", allow),
                  "--rerun-a", _write(tmp_path / "a.json", allow),
                  "--rerun-b", _write(tmp_path / "b.json", deny)])

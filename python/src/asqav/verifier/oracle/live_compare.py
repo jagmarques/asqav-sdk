@@ -14,7 +14,13 @@ from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.adapter import VerificationContext
 from asqav.verifier.oracle.agreement import bind_envelope
 from asqav.verifier.oracle.assessment_store import AssessmentStore
-from asqav.verifier.oracle.disagreement import Disagreement, SpecCase, classify, spec_case
+from asqav.verifier.oracle.disagreement import (
+    Disagreement,
+    SpecCase,
+    classify,
+    mark_legacy_gap,
+    spec_case,
+)
 from asqav.verifier.oracle.retain import axes_dict, context_dict
 
 
@@ -24,7 +30,8 @@ def _retained_view(entry: object) -> dict:
         "doc_sha256": getattr(entry, "doc_sha256"),
         "axes": dict(getattr(entry, "axes")),
         "context": dict(getattr(entry, "context")),
-        "agreement": None,
+        # Stored envelope ref (488 C39a); old entries predate it.
+        "agreement": getattr(entry, "agreement", None),
     }
 
 
@@ -199,6 +206,7 @@ def classify_and_attribute(
     result: object,
     rerun_a: object | None = None,
     rerun_b: object | None = None,
+    agreement: object | None = None,
 ) -> tuple[Disagreement, SpecCase]:
     """Review a live reassessment against its retained original (488 C27).
 
@@ -206,14 +214,22 @@ def classify_and_attribute(
     from the store (missing retention raises instead of classifying),
     the live result and reruns map to views, and attribute_split
     classifies plus runs the spec-bug bar. Pure review: the store
-    is never mutated here."""
+    is never mutated here. The live agreement is the caller-derived
+    envelope (488 C39b: re-derived from bytes, never stored); reruns
+    re-execute the same bytes so they share it. A ref-less retained
+    original predates ref retention (same digest, same derivability),
+    so the pair compares ref-less and the gap is named on the way
+    out; modern pairs compare ref to ref."""
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")
+    original_ref = getattr(original, "agreement", None)
+    live_ref = agreement if original_ref is not None else None
     first_view = _retained_view(original)
-    second_view = _live_view(doc_sha256, result, None)
-    rerun_a_view = None if rerun_a is None else _live_view(doc_sha256, rerun_a, None)
-    rerun_b_view = None if rerun_b is None else _live_view(doc_sha256, rerun_b, None)
-    return attribute_split(
+    second_view = _live_view(doc_sha256, result, live_ref)
+    rerun_a_view = None if rerun_a is None else _live_view(doc_sha256, rerun_a, live_ref)
+    rerun_b_view = None if rerun_b is None else _live_view(doc_sha256, rerun_b, live_ref)
+    disagreement, case = attribute_split(
         first_view, second_view, original.verdict, getattr(result, "verdict"),
         rerun_a_view, rerun_b_view)
+    return mark_legacy_gap(disagreement, original_ref, agreement), case

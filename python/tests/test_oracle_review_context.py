@@ -8,6 +8,7 @@ Tests address main() only, never the library entries directly.
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +19,7 @@ pytest.importorskip("cryptography", reason="signed fixtures need the cryptograph
 
 from asqav.verifier.oracle import ADAPTERS, VerificationContext, verify
 from asqav.verifier.oracle.__main__ import main
+from asqav.verifier.oracle.agreement import envelope_of
 from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.retain import record_verify_result
 
@@ -40,9 +42,15 @@ def _ctx_file(path: Path, obj: object) -> str:
     return str(path)
 
 
-def _store(path: Path, digest: str, result) -> str:
+def _store(path: Path, raw: bytes, result) -> str:
+    # Mirror production record(): the retained side carries the
+    # bytes-derived envelope ref, so review compares ref to ref.
+    try:
+        agreement = dataclasses.asdict(envelope_of(json.loads(raw), ADAPTERS))
+    except ValueError:
+        agreement = None
     store = AssessmentStore()
-    record_verify_result(store, digest, result)
+    record_verify_result(store, _digest(raw), result, agreement=agreement)
     path.write_text(store.to_jsonl())
     return str(path)
 
@@ -53,9 +61,8 @@ def _out(capsys) -> dict:
 
 def test_review_trust_split_attributes_through_the_flow(tmp_path: Path, capsys) -> None:
     raw = (_FIX / "conflict-allow.json").read_bytes()
-    digest = _digest(raw)
     doc = json.loads(raw)
-    store = _store(tmp_path / "store.jsonl", digest, verify(doc, ADAPTERS))
+    store = _store(tmp_path / "store.jsonl", raw, verify(doc, ADAPTERS))
     ctx = _ctx_file(tmp_path / "ctx.json", {"trust_roots": ["example-root-a"]})
     code = main(["review", store, _write(tmp_path / "receipt.json", raw),
                  "--rerun-a", _write(tmp_path / "a.json", raw),
@@ -72,10 +79,9 @@ def test_review_matching_context_erases_time_split(tmp_path: Path, capsys) -> No
     doc = json.loads((_CORPUS / "asqav-01-genesis-permit" / "receipt.json").read_bytes())
     doc["payload"]["expires_at"] = "2020-01-01T00:00:00Z"
     raw = json.dumps(doc, sort_keys=True).encode()
-    digest = _digest(raw)
     era = verify(json.loads(raw.decode()), ADAPTERS,
                  context=VerificationContext(evaluation_time=_T1))
-    store = _store(tmp_path / "store.jsonl", digest, era)
+    store = _store(tmp_path / "store.jsonl", raw, era)
     ctx = _ctx_file(tmp_path / "ctx.json", {"evaluation_time": _T1})
     code = main(["review", store, _write(tmp_path / "receipt.json", raw),
                  "--rerun-a", _write(tmp_path / "a.json", raw),
@@ -83,13 +89,13 @@ def test_review_matching_context_erases_time_split(tmp_path: Path, capsys) -> No
                  "--context", ctx])
     assert code == 0
     out = _out(capsys)
-    assert out["disagreement"] == {"label": "agreement", "differing": []}
+    assert out["disagreement"] == {"label": "agreement", "differing": [],
+                                   "conflict": None}
 
 
 def test_review_bad_context_exits_2(tmp_path: Path, capsys) -> None:
     raw = (_FIX / "conflict-allow.json").read_bytes()
-    digest = _digest(raw)
-    store = _store(tmp_path / "store.jsonl", digest,
+    store = _store(tmp_path / "store.jsonl", raw,
                    verify(json.loads(raw), ADAPTERS))
     receipt = _write(tmp_path / "receipt.json", raw)
     bad = [tmp_path / "missing.json",
@@ -121,8 +127,7 @@ def test_review_reruns_inherit_the_live_context(
 
     monkeypatch.setattr(cli, "verify", spy)
     raw = (_FIX / "conflict-allow.json").read_bytes()
-    digest = _digest(raw)
-    store = _store(tmp_path / "store.jsonl", digest,
+    store = _store(tmp_path / "store.jsonl", raw,
                    verify(json.loads(raw), ADAPTERS))
     ctx = _ctx_file(tmp_path / "ctx.json", {"trust_roots": ["example-root-a"]})
     code = main(["review", store, _write(tmp_path / "receipt.json", raw),
@@ -146,8 +151,7 @@ def test_review_default_live_side_carries_no_context(
 
     monkeypatch.setattr(cli, "verify", spy)
     raw = (_FIX / "conflict-allow.json").read_bytes()
-    digest = _digest(raw)
-    store = _store(tmp_path / "store.jsonl", digest,
+    store = _store(tmp_path / "store.jsonl", raw,
                    verify(json.loads(raw), ADAPTERS))
     code = main(["review", store, _write(tmp_path / "receipt.json", raw),
                  "--rerun-a", _write(tmp_path / "a.json", raw),
