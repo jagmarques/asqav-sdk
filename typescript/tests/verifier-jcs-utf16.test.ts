@@ -1,5 +1,5 @@
-// The asqav-native verification path orders member names by UTF-16 code unit (RFC 8785 3.2.3) and
-// names the pre-cutover dialect instead of verifying it. TS half of test_verify_receipt_jcs_utf16.py.
+// UTF-16 code-unit member order (RFC 8785); names the legacy dialect
+// TS half of test_verify_receipt_jcs_utf16.py
 
 import { createHash } from "node:crypto";
 
@@ -72,7 +72,7 @@ describe("asqavJcs member order", () => {
     expect(sha256Hex(out)).toBe(RFC8785_SHA256);
   });
 
-  it("keeps the code-point order only as the named pre-cutover dialect", () => {
+  it("keeps the code-point order only as the named legacy dialect", () => {
     expect(new TextDecoder().decode(asqavJcsPreCutover(ASTRAL))).toBe(CODE_POINT_BYTES);
     expect(new TextDecoder().decode(asqavJcs(ASTRAL))).not.toBe(CODE_POINT_BYTES);
   });
@@ -92,11 +92,11 @@ describe("asqav-native signature axis across the dialect cutover", () => {
     expect(digest?.result).toBe("PASS");
   });
 
-  it("names the pre-cutover dialect for an older receipt and never verifies it", () => {
+  it("names the legacy dialect for an older receipt and never verifies it", () => {
     const p = astralPayload("2026-06-19T00:00:00.000000Z");
     const { axis, res } = signatureAxis(p, asqavJcsPreCutover(p));
     expect(axis.result).toBe("FAIL");
-    expect(axis.note).toContain("pre-cutover dialect");
+    expect(axis.note).toContain("legacy dialect");
     expect(res.verdict).toBe("unverified");
   });
 
@@ -105,7 +105,7 @@ describe("asqav-native signature axis across the dialect cutover", () => {
     const p = astralPayload(later);
     const { axis, res } = signatureAxis(p, asqavJcsPreCutover(p));
     expect(axis.result).toBe("FAIL");
-    expect(axis.note).not.toContain("pre-cutover dialect");
+    expect(axis.note).not.toContain("legacy dialect");
     expect(res.verdict).toBe("unverified");
   });
 
