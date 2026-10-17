@@ -19,6 +19,7 @@ pytest.importorskip("cryptography", reason="signed fixtures need the cryptograph
 
 from asqav.verifier.oracle import ADAPTERS, verify
 from asqav.verifier.oracle.__main__ import main
+from asqav.verifier.oracle.agreement import envelope_of
 from asqav.verifier.oracle.assessment_store import AssessmentStore
 from asqav.verifier.oracle.retain import record_verify_result
 
@@ -72,7 +73,9 @@ def test_record_reassesses_and_classifies_a_duplicate_original(tmp_path: Path, c
     assert main(["record", str(store), str(receipt)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["digest"] == _digest(raw)
-    assert out["disagreement"] == {"label": "agreement", "differing": []}
+    assert out["digest"] == _digest(raw)
+    assert out["disagreement"] == {"label": "agreement", "differing": [],
+                                   "conflict": None}
     assert out["spec_case"]["label"] == "not_applicable"
     first, second = (json.loads(line) for line in store.read_text().splitlines())
     assert second["kind"] == "reassessment"
@@ -86,7 +89,10 @@ def test_record_reassess_split_without_reruns_is_insufficient(tmp_path: Path, ca
     digest = _digest(raw)
     prior = dataclasses.replace(verify(json.loads(raw), ADAPTERS), verdict="unverified")
     store = AssessmentStore()
-    record_verify_result(store, digest, prior)
+    # Production record() stores the ref; the hand-built prior must
+    # carry it too, so the split comes from the verdict flip alone.
+    ref = dataclasses.asdict(envelope_of(json.loads(raw), ADAPTERS))
+    record_verify_result(store, digest, prior, agreement=ref)
     store_path = tmp_path / "store.jsonl"
     store_path.write_text(store.to_jsonl())
     receipt = tmp_path / "receipt.json"
