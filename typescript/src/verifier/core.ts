@@ -216,7 +216,7 @@ function signatureAxis(
       return axis(
         "signature",
         FAIL,
-        "pre-cutover dialect: the signature verifies only under code-point member order, " +
+        "legacy dialect: the signature verifies only under code-point member order, " +
           "which is not RFC 8785; reported unverified, never verified",
       );
     }

@@ -1,4 +1,4 @@
-"""The standalone verifier reproduces RFC 8785 member order and names the pre-cutover dialect.
+"""The standalone verifier reproduces RFC 8785 member order and names the legacy dialect.
 
 Criterion 566. ``verify_receipt.py`` is the tool the exit manifest tells a customer to run,
 so its ``canonical_json`` must produce the bytes the platform signs for every member name,
@@ -99,7 +99,7 @@ def test_pre_cutover_receipt_signed_over_code_point_bytes_is_named_not_verified(
     report = _run(payload, v.canonical_json_pre_cutover(payload))
     result, note = _signature_axis(report)
     assert result == "FAIL"
-    assert "pre-cutover dialect" in note
+    assert "legacy dialect" in note
     assert report["verdict"] == v.VERDICT_UNVERIFIED
 
 
@@ -111,7 +111,7 @@ def test_post_cutover_receipt_signed_over_code_point_bytes_gets_no_retry() -> No
     report = _run(payload, v.canonical_json_pre_cutover(payload))
     result, note = _signature_axis(report)
     assert result == "FAIL"
-    assert "pre-cutover dialect" not in note
+    assert "legacy dialect" not in note
     assert report["verdict"] == v.VERDICT_UNVERIFIED
 
 

@@ -224,7 +224,7 @@ def canonical_json_pre_cutover(obj) -> bytes:
     """The code-point member order the platform emitted before JCS_UTF16_CUTOVER.
 
     Diagnostic only: a signature that verifies solely under these bytes is reported
-    as the pre-cutover dialect and never as verified.
+    as the legacy dialect and never as verified.
     """
     return json.dumps(
         obj,
@@ -258,7 +258,7 @@ def _issued_before_cutover(payload: dict) -> bool:
 
 
 def _pre_cutover_diagnostic(payload: dict, sig: bytes, candidates, sig_res):
-    """Name the pre-cutover dialect when that is the only reason a signature fails.
+    """Name the legacy dialect when that is the only reason a signature fails.
 
     Runs only for a receipt issued before JCS_UTF16_CUTOVER whose member names reach
     above U+FFFF. The result stays FAIL: the dialect is reported, never accepted.
@@ -273,7 +273,7 @@ def _pre_cutover_diagnostic(payload: dict, sig: bytes, candidates, sig_res):
         if pk is not None and verify_signature(pk, legacy_msg, sig, alg)[0] == "PASS":
             return (
                 "FAIL",
-                "pre-cutover dialect: the signature verifies only under code-point member "
+                "legacy dialect: the signature verifies only under code-point member "
                 "order, which is not RFC 8785; reported unverified, never verified",
             )
     return sig_res
