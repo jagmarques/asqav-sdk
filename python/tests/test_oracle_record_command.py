@@ -120,3 +120,20 @@ def test_record_rejects_a_broken_store(tmp_path: Path) -> None:
     store = tmp_path / "store.jsonl"
     store.write_text("not jsonl\n")
     assert main(["record", str(store), str(receipt)]) == 2
+
+
+def test_record_reason_labels_the_reassessment(tmp_path: Path, capsys) -> None:
+    raw = _raw("conflict-allow")
+    store = tmp_path / "store.jsonl"
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(raw)
+    assert main(["record", str(store), str(receipt)]) == 0
+    capsys.readouterr()
+    assert main(["record", str(store), str(receipt),
+                 "--reason", "key-compromised"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["disagreement"]["label"] == "agreement"
+    first, second = (json.loads(line) for line in store.read_text().splitlines())
+    assert second["kind"] == "reassessment"
+    assert second["reason"] == "key-compromised"
+    assert first["reason"] is None
