@@ -876,7 +876,7 @@ def webhooks_list() -> None:
     from asqav.client import _get
 
     try:
-        data = _get("/webhooks")
+        data = _get("/alerts/webhooks")
     except Exception as exc:
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
@@ -889,11 +889,27 @@ def webhooks_list() -> None:
         print(f"  {w.get('id', '?')}  {w.get('url', '?')}  events=[{events}]")
 
 
+@webhooks_app.command("events")
+def webhooks_events() -> None:
+    # List the alert types a webhook can subscribe to.
+    _init_sdk()
+    from asqav.client import _get
+
+    try:
+        data = _get("/alerts/webhooks/event-types")
+    except Exception as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+    for e in data if isinstance(data, list) else []:
+        print(f"  {e.get('type', '?')}  {e.get('label', '')}")
+
+
 @webhooks_app.command("create")
 def webhooks_create(
     url: str = typer.Option(..., "--url", help="Webhook target URL (HTTPS)."),
     events: str = typer.Option(
-        "signature.created", "--events", help="Comma-separated event names."
+        "*", "--events",
+        help="Comma-separated alert types (see `asqav webhooks events`), or * for every type.",
     ),
 ) -> None:
     # Create a webhook subscription.
@@ -902,7 +918,7 @@ def webhooks_create(
 
     event_list = [e.strip() for e in events.split(",") if e.strip()]
     try:
-        out = _post("/webhooks", {"url": url, "events": event_list})
+        out = _post("/alerts/webhooks", {"url": url, "events": event_list})
     except Exception as exc:
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
@@ -916,7 +932,7 @@ def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> Non
     from asqav.client import _delete
 
     try:
-        _delete(f"/webhooks/{webhook_id}")
+        _delete(f"/alerts/webhooks/{webhook_id}")
     except Exception as exc:
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
