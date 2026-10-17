@@ -27,6 +27,9 @@ class AssessmentEntry:
     recorded_at: str | None = None
     kind: str = "original"
     supersedes: str | None = None
+    # Why a reassessment exists (488 C10, e.g. key-compromised,
+    # policy-updated); originals keep None. Defaults keep old logs loading.
+    reason: str | None = None
     prev_hash: str = field(default="GENESIS")
     entry_hash: str = field(default="")
     # Bytes-derived envelope ref (488 C39a), outside the hash
@@ -35,14 +38,14 @@ class AssessmentEntry:
 
     def hashed(self) -> "AssessmentEntry":
         """Return this entry with entry_hash computed over its content."""
-        # agreement rides outside the chain: old entries hashed body
-        # without it, and it re-derives from the chained digest.
+        # agreement and reason ride outside the chain: old entries hashed
+        # body without them, and both re-derive from the chained digest.
         body = {k: v for k, v in asdict(self).items()
-                if k not in ("entry_hash", "agreement")}
+                if k not in ("entry_hash", "agreement", "reason")}
         digest = hashlib.sha256(_canonical(body)).hexdigest()
-        # The ref rides along unchained; the digest covers the rest.
+        # The ref and the label ride along unchained; the digest covers the rest.
         return AssessmentEntry(**{**body, "agreement": self.agreement,
-                                  "entry_hash": digest})
+                                  "reason": self.reason, "entry_hash": digest})
 
 
 class AssessmentStore:
@@ -88,6 +91,17 @@ class AssessmentStore:
                 return entry
         return None
 
+    def current(self, doc_sha256: str) -> AssessmentEntry | None:
+        """Latest assessment for these bytes: reassessment wins over the original.
+
+        Readers take current(); replay() stays the contemporaneous original,
+        so a known-wrong frozen verdict is never served as the answer."""
+        seen: AssessmentEntry | None = None
+        for entry in self._entries:
+            if entry.doc_sha256 == doc_sha256 and entry.kind in ("original", "reassessment"):
+                seen = entry
+        return seen
+
     def reassess(
         self,
         doc_sha256: str,
@@ -97,6 +111,7 @@ class AssessmentStore:
         failure_class: str | None,
         recorded_at: str | None = None,
         agreement: dict | None = None,
+        reason: str | None = None,
     ) -> AssessmentEntry:
         """Append a reassessment naming the original it supersedes."""
         original = self.replay(doc_sha256)
@@ -113,6 +128,7 @@ class AssessmentStore:
             kind="reassessment",
             supersedes=original.entry_hash,
             agreement=dict(agreement) if agreement is not None else None,
+            reason=reason,
             prev_hash=prev,
         ).hashed()
         self._entries.append(entry)
