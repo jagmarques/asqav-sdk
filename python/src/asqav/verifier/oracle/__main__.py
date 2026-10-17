@@ -27,7 +27,9 @@ A second command records a live assessment into the retained log::
     python -m asqav.verifier.oracle record store.jsonl receipt.json
 
 It verifies the receipt, appends the assessment (a missing store file
-starts a new log; a broken one fails), and prints the digest. A third
+starts a new log; a broken one fails), and prints the digest. Bytes
+already retained reassess instead: the reassessment is persisted and
+classified against the retained original. A third
 command reviews a live reassessment against its retained original::
 
     python -m asqav.verifier.oracle review store.jsonl receipt.json [--rerun-a a.json --rerun-b b.json]
@@ -59,7 +61,17 @@ from . import ADAPTERS
 from .assessment_store import AssessmentStore
 from .core import FAILURE_INVALID, VERDICT_UNVERIFIED, verify
 from .live_compare import classify_and_attribute
-from .retain import record_verify_result
+from .retain import reassess_verify_result, record_verify_result
+
+
+def _attribution_out(digest: str, disagreement: object, case: object) -> int:
+    # One JSON shape for every classification caller; 1 flags a split.
+    print(json.dumps({
+        "digest": digest,
+        "disagreement": {"label": disagreement.label, "differing": list(disagreement.differing)},
+        "spec_case": {"label": case.label, "note": case.note, "pinned": list(case.pinned)},
+    }, indent=2))
+    return 1 if disagreement.label == "unexplained_needs_investigation" else 0
 
 
 def _exit_code(verdict: str, failure_class: str | None) -> int:
@@ -110,9 +122,11 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
 def record(store_path: str, receipt_path: str) -> int:
     """Retain one live assessment (488 C32, C2 flow caller).
 
-    Verifies the receipt and appends the assessment to the store file,
-    starting a new log when the file is absent. Prints the digest.
-    Exit 0 recorded, 2 input or retention failure."""
+    New bytes append an original and print the digest (exit 0). Bytes
+    already retained reassess instead: the reassessment is persisted,
+    then classified against the retained original through
+    classify_and_attribute (exit 0 reviewed, 1 unexplained split).
+    Store or input failures exit 2."""
     raw, receipt = _load_raw(receipt_path)
     digest = hashlib.sha256(raw).hexdigest()
     try:
@@ -130,19 +144,33 @@ def record(store_path: str, receipt_path: str) -> int:
             print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
             return 2
     result = verify(receipt, ADAPTERS)
-    try:
-        record_verify_result(store, digest, result)
-    except ValueError as exc:
-        print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
-        return 2
+    if store.replay(digest) is None:
+        try:
+            record_verify_result(store, digest, result)
+        except ValueError as exc:
+            print(f"asqav-verify: store rejected: {exc}", file=sys.stderr)
+            return 2
+        try:
+            Path(store_path).write_text(store.to_jsonl())
+        except OSError as exc:
+            print(f"asqav-verify: cannot write {store_path}: {exc.strerror or exc}",
+                  file=sys.stderr)
+            return 2
+        print(json.dumps({"digest": digest, "recorded": len(store)}))
+        return 0
+    reassess_verify_result(store, digest, result)
     try:
         Path(store_path).write_text(store.to_jsonl())
     except OSError as exc:
         print(f"asqav-verify: cannot write {store_path}: {exc.strerror or exc}",
               file=sys.stderr)
         return 2
-    print(json.dumps({"digest": digest, "recorded": len(store)}))
-    return 0
+    try:
+        disagreement, case = classify_and_attribute(store, digest, result)
+    except ValueError as exc:
+        print(f"asqav-verify: {exc}", file=sys.stderr)
+        return 2
+    return _attribution_out(digest, disagreement, case)
 
 
 def review(store_path: str, receipt_path: str,
@@ -181,12 +209,7 @@ def review(store_path: str, receipt_path: str,
     except ValueError as exc:
         print(f"asqav-verify: {exc}", file=sys.stderr)
         return 2
-    print(json.dumps({
-        "digest": digest,
-        "disagreement": {"label": disagreement.label, "differing": list(disagreement.differing)},
-        "spec_case": {"label": case.label, "note": case.note, "pinned": list(case.pinned)},
-    }, indent=2))
-    return 1 if disagreement.label == "unexplained_needs_investigation" else 0
+    return _attribution_out(digest, disagreement, case)
 
 
     # Verify one receipt file and print the verdict + per-axis result as JSON.
