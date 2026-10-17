@@ -2,7 +2,9 @@
 
 The missing production caller on the retain path: no shipped entry
 created the stores the review flow reads. `record` closes the loop
-(record then review, all through main()). Tests address main() only.
+(record then review, all through main()). C35 adds the reassess route:
+bytes already retained classify against the original instead of
+failing. Tests address main() only.
 """
 from __future__ import annotations
 
@@ -56,15 +58,23 @@ def test_record_appends_to_the_existing_log(tmp_path: Path, capsys) -> None:
     assert len(AssessmentStore.from_jsonl(store.read_text())) == 2
 
 
-def test_record_rejects_a_duplicate_original(tmp_path: Path, capsys) -> None:
+def test_record_reassesses_and_classifies_a_duplicate_original(tmp_path: Path, capsys) -> None:
+    # 488 C35 replaces the duplicate reject (RULES 14): retained bytes
+    # reassess through the classification caller instead of failing.
     raw = _raw("conflict-allow")
     store = tmp_path / "store.jsonl"
     receipt = tmp_path / "receipt.json"
     receipt.write_bytes(raw)
     assert main(["record", str(store), str(receipt)]) == 0
     capsys.readouterr()
-    assert main(["record", str(store), str(receipt)]) == 2
-    assert "duplicate original" in capsys.readouterr().err
+    assert main(["record", str(store), str(receipt)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["digest"] == _digest(raw)
+    assert out["disagreement"] == {"label": "agreement", "differing": []}
+    assert out["spec_case"]["label"] == "not_applicable"
+    first, second = (json.loads(line) for line in store.read_text().splitlines())
+    assert second["kind"] == "reassessment"
+    assert second["supersedes"] == first["entry_hash"]
 
 
 def test_record_rejects_a_broken_receipt(tmp_path: Path) -> None:
