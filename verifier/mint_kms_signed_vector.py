@@ -95,6 +95,9 @@ def main() -> None:
     nonce = hashlib.sha256(b"asqav-54-kms-test-nonce").hexdigest()[:24]
     context = {"purpose": "kms-signed-test-vector", "tag": "mldsa65-kms54"}
     ctx_raw = asqav_jcs(context)
+    # Generator-owned vectors bind action_ref to the payload digest by
+    # construction (test_action_ref_form.py keeps that invariant).
+    pd_hash = hashlib.sha256(ctx_raw).hexdigest()
     payload = {
         "v": 1,
         "action_id": action,
@@ -104,9 +107,9 @@ def main() -> None:
         "type": "protectmcp:decision",
         "issued_at": ISSUED,
         "issuer_id": issuer,
-        "action_ref": "sha256:" + hashlib.sha256(b"asqav-54-kms-action").hexdigest(),
+        "action_ref": "sha256:" + pd_hash,
         "payload_digest": {
-            "hash": hashlib.sha256(ctx_raw).hexdigest(),
+            "hash": pd_hash,
             "size": len(ctx_raw),
         },
         "previousReceiptHash": "0" * 64,
