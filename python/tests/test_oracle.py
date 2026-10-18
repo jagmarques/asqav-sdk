@@ -1270,8 +1270,8 @@ def test_an_edge_is_named_for_exactly_the_unverified_verdicts() -> None:
 
     The invariant that makes the field trustworthy rather than decorative. It is
     NOT free: the two exclusions inside first_failing_edge (expiry never folds,
-    a SKIPPED chain does not block) have to stay in step with fold_verdict's, and
-    an earlier draft of this feature got it wrong in the direction this catches -
+    a SKIPPED chain does not block) have to stay in step with the semantic
+    table, and an earlier draft of this feature got it wrong in the direction this catches -
     asqav-06 verifies while its expiry axis FAILs, so a naive "first non-PASS
     axis" named an edge on a receipt that verified.
     """
