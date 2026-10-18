@@ -515,6 +515,9 @@ def verify_receipt_offline(
         "first_failing_edge": vr.first_failing_edge,
         "not_checked": vr.not_checked,
         "coverage": vr.coverage,
+        # The lightweight offline path performs no bundle evaluation; the key
+        # stays for twin parity with the TS verifier and the structured API.
+        "trust_bundle": None,
         # Mirrors the TS twin's resolved context; unset hints are omitted like undefined.
         "context": {
             k: v for k, v in (vars(vr.context) if vr.context else {}).items() if v is not None

@@ -1,0 +1,20 @@
+{
+  "bundle_version": 1,
+  "issued_at": "2026-10-18",
+  "digest_algorithm": "SHA-256",
+  "roots": [
+    {
+      "subject": "CN=SUBCA QC IZENPE - TSA,2.5.4.97=VATES-A01337260,O=IZENPE S.A.,C=ES",
+      "sha256_der": "cf2058aac27925521fc7f2abacd2ee5429dd8d938debd3395ba4a6c042465da7",
+      "not_after": "2045-09-23T10:57:18+00:00",
+      "trusted_list_status_asserted_at": "2026-10-18"
+    },
+    {
+      "subject": "CN=tsa.izenpe.com,2.5.4.97=VATES-A01337260,O=ZIURTAPEN ETA ZERBITZU ENPRESA-EMPRESA DE CERTIFICACION Y SERVICIOS IZENPE S.A.,C=ES",
+      "sha256_der": "fdee568a28bfef94bd19ac3f891db83e726b0bab1884bf90b0fc919c8418626c",
+      "not_after": "2029-03-06T13:32:55+00:00",
+      "trusted_list_status_asserted_at": "2026-10-18"
+    }
+  ],
+  "digest": "ab1ebe370550610b5fe51b2884d7d14dd8e9d9116019ad616e85b9256d4b8ec5"
+}
