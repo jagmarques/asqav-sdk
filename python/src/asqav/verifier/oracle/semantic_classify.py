@@ -13,15 +13,17 @@ is preserved. Agreement of two independent derivations is evidence.
 Derivation per axis (418 invalid limb: resolved key + binding failed;
 anything unresolvable SKIPs upstream): signature SKIPs when no key
 resolves; key_status and issuer_bind only weigh a resolved entry;
-key_binding SKIPs when unrecomputable; counterparty SKIPs what it
-cannot resolve; payload_digest FAILs only on carried-context
-disagreement; outer_copies FAILs on disagreement with signed bytes;
-nonce FAILs on a proven duplicate pair; seq FAILs on withheld or
-malformed counters; parent/pdp signatures FAIL on absent-required or
-failed verification with resolved keys, SKIP otherwise; anchors FAILs
-on malformed/untrusted material, SKIPs when absent. Note-dependent
-axes (chain/skew/structure/expiry) split proven breaks from stops
-by note; anything unlisted never proves a break.
+key_binding SKIPs when unrecomputable, FAILs malformed claims as
+signed-byte defects; counterparty SKIPs what it cannot resolve,
+FAILs malformed/mismatched claims; payload_digest FAILs on malformed
+shape or carried-context disagreement; outer_copies FAILs on
+disagreement with signed bytes; nonce FAILs on a proven duplicate
+pair; seq FAILs on withheld or malformed counters; parent/pdp
+signatures FAIL on absent-required or failed verification with
+resolved keys, SKIP otherwise; anchors FAILs on malformed/untrusted
+material, SKIPs when absent. Note-dependent axes (chain/skew/
+structure/expiry) split proven breaks from stops by note; anything
+unlisted never proves a break.
 """
 from __future__ import annotations
 
