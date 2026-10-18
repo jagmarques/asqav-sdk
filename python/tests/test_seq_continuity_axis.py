@@ -1,8 +1,8 @@
 """Gates for the seq continuity axis - the SDK half of the omission class.
 
 A gap in the counter proves receipts were withheld without needing the withheld
-receipts. The no-SKIPPED gate matters most: fold_verdict blocks on a non-chain
-SKIPPED, so a counter-less receipt would go from verified to unverified.
+receipts. The no-SKIPPED gate matters most: the semantic fold blocks on
+a non-chain SKIPPED, so a counter-less receipt regresses to unverified.
 """
 from __future__ import annotations
 
