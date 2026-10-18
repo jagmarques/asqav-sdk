@@ -1,5 +1,3 @@
-# Copyright 2026 Asqav
-# SPDX-License-Identifier: Apache-2.0
 """Independent verdict semantics for the oracle (criterion 574 D5).
 
 Derived from the normative rules, not by porting any verifier's fold:
