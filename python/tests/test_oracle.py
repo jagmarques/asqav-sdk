@@ -245,7 +245,7 @@ def test_runner_main_reports_all_green(capsys) -> None:
 @requires_ed25519
 def test_corpus_runs_and_every_vector_matches() -> None:
     results = run_corpus(_CORPUS)
-    assert len(results) == 113
+    assert len(results) == 117
     # asqav-05 (unverified) upgrades to verified when dilithium-py is present.
     def _tol(r):
         return r.ok or (

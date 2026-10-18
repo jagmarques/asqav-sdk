@@ -162,6 +162,9 @@ select = ["E", "F", "I", "W"]
 # The relocated neutral verifier carries long signed-message/error strings on one
 # line so the reported note bytes stay greppable; line length is not enforced on it.
 "src/asqav/verifier/**" = ["E501"]
+# Corpus-B pins are single-line literals so a published value stays greppable;
+# splitting them would hide drift. Length is not enforced on the pin dicts.
+"tests/test_corpus_b_integrity.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"

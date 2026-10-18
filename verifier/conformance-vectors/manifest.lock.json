@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 57,
+  "corpus_version": 58,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -288,13 +288,18 @@
       "version": 56,
       "files": 395,
       "digest": "bb5ac998eca55f2644683ef193f92cbf0976d09503afc46aaf1575b45c8b4db8"
+    },
+    {
+      "version": 57,
+      "files": 399,
+      "digest": "8d6482da8eb6cf0cdbb666ac5f40e9ae8f90deee132f9b596c2e722123b24529"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "4217775949ab6125888d30def2b330cfcab03e5258d01e7b1e6c7fced7bf1544",
-      "bytes": 11760
+      "sha256": "3596df7d17b18b9182b956a914c9a1a7e13e118932f7a7ea52984ac50ccc5a5a",
+      "bytes": 12281
     },
     {
       "path": "UPSTREAM.md",
@@ -1762,6 +1767,31 @@
       "bytes": 912
     },
     {
+      "path": "asqav-40-counterparty-self-binding/expected.json",
+      "sha256": "af18ca6cf03fc6132c919ec8650f3583c024334e6d12bb03e958a24b83c0705b",
+      "bytes": 184
+    },
+    {
+      "path": "asqav-40-counterparty-self-binding/jwks.json",
+      "sha256": "612143b9ca1c6f79063d7ff8e9ec3b983d70339f8898ef7ef8a2a24db06cf6f0",
+      "bytes": 377
+    },
+    {
+      "path": "asqav-40-counterparty-self-binding/originating_envelope.json",
+      "sha256": "30ffa57c2cae70263318b27d785e482f8716830747a6dfb0283c690e6ebeb614",
+      "bytes": 1766
+    },
+    {
+      "path": "asqav-40-counterparty-self-binding/receipt.json",
+      "sha256": "c7036b1c03864a8bddfb1bb241808189b00b56f875cd81098e40185d04db97d7",
+      "bytes": 1600
+    },
+    {
+      "path": "asqav-40-counterparty-self-binding/tsa_trust.pem",
+      "sha256": "a3efa8b0ee9fb552c5d0e98b09e53bff7f1a7a1e7b91b31b4f226433456b32dd",
+      "bytes": 113
+    },
+    {
       "path": "asqav-40-unrecognised-version/expected.json",
       "sha256": "cbf7226db9a1ac0288c64d05f08097eed75e17cb30a992cc3889e42eddeab1d9",
       "bytes": 396
@@ -1777,6 +1807,31 @@
       "bytes": 953
     },
     {
+      "path": "asqav-41-counterparty-omitted-peer/expected.json",
+      "sha256": "dc3b456566c660552dc0a40622244a544be1827f698628d29a78b8aa7cf2795a",
+      "bytes": 170
+    },
+    {
+      "path": "asqav-41-counterparty-omitted-peer/jwks.json",
+      "sha256": "612143b9ca1c6f79063d7ff8e9ec3b983d70339f8898ef7ef8a2a24db06cf6f0",
+      "bytes": 377
+    },
+    {
+      "path": "asqav-41-counterparty-omitted-peer/originating_envelope.json",
+      "sha256": "30ffa57c2cae70263318b27d785e482f8716830747a6dfb0283c690e6ebeb614",
+      "bytes": 1766
+    },
+    {
+      "path": "asqav-41-counterparty-omitted-peer/receipt.json",
+      "sha256": "628dc9541a31bd2c45262c77155a10a58e69401f8e79588ba0c788f48809f530",
+      "bytes": 1541
+    },
+    {
+      "path": "asqav-41-counterparty-omitted-peer/tsa_trust.pem",
+      "sha256": "a3efa8b0ee9fb552c5d0e98b09e53bff7f1a7a1e7b91b31b4f226433456b32dd",
+      "bytes": 113
+    },
+    {
       "path": "asqav-41-hash-unrecognised-version/expected.json",
       "sha256": "140f97fb3c759ba570d7e228c23e994b754e677e6c37e21dd98ac988399e58d6",
       "bytes": 371
@@ -1790,6 +1845,31 @@
       "path": "asqav-41-hash-unrecognised-version/receipt.json",
       "sha256": "662fcde3776245e404e400aa30805a2fe90e4329dfd01d915d0baa46281e5e84",
       "bytes": 619
+    },
+    {
+      "path": "asqav-42-counterparty-same-binding-second-ack/expected.json",
+      "sha256": "28c8d1c1fd150b196238168f03dfc0c87a4c957019151359eaf9a3921e41888d",
+      "bytes": 176
+    },
+    {
+      "path": "asqav-42-counterparty-same-binding-second-ack/jwks.json",
+      "sha256": "612143b9ca1c6f79063d7ff8e9ec3b983d70339f8898ef7ef8a2a24db06cf6f0",
+      "bytes": 377
+    },
+    {
+      "path": "asqav-42-counterparty-same-binding-second-ack/originating_envelope.json",
+      "sha256": "30ffa57c2cae70263318b27d785e482f8716830747a6dfb0283c690e6ebeb614",
+      "bytes": 1766
+    },
+    {
+      "path": "asqav-42-counterparty-same-binding-second-ack/receipt.json",
+      "sha256": "837aa66a1f26a3531809a6d346fa1be507c47a124d7fe1422648103c76a85d90",
+      "bytes": 1585
+    },
+    {
+      "path": "asqav-42-counterparty-same-binding-second-ack/tsa_trust.pem",
+      "sha256": "a3efa8b0ee9fb552c5d0e98b09e53bff7f1a7a1e7b91b31b4f226433456b32dd",
+      "bytes": 113
     },
     {
       "path": "asqav-42-keyed-digest-unverifiable/expected.json",
@@ -1820,6 +1900,31 @@
       "path": "asqav-42-revoked-before-issuance/receipt.json",
       "sha256": "44729f08dffe4f3eb9dddee8673e8c94c16d13005c518106f34d642182cd8062",
       "bytes": 1042
+    },
+    {
+      "path": "asqav-43-counterparty-unknown-member/expected.json",
+      "sha256": "48f9a916e94921f3d258604df04dc4ef793700822840eb10e4655d79a3988364",
+      "bytes": 172
+    },
+    {
+      "path": "asqav-43-counterparty-unknown-member/jwks.json",
+      "sha256": "612143b9ca1c6f79063d7ff8e9ec3b983d70339f8898ef7ef8a2a24db06cf6f0",
+      "bytes": 377
+    },
+    {
+      "path": "asqav-43-counterparty-unknown-member/originating_envelope.json",
+      "sha256": "30ffa57c2cae70263318b27d785e482f8716830747a6dfb0283c690e6ebeb614",
+      "bytes": 1766
+    },
+    {
+      "path": "asqav-43-counterparty-unknown-member/receipt.json",
+      "sha256": "0dab2e68d232329690334e4853cacd7896a3b5cd9c719366e30471a7ed6b4b23",
+      "bytes": 1636
+    },
+    {
+      "path": "asqav-43-counterparty-unknown-member/tsa_trust.pem",
+      "sha256": "a3efa8b0ee9fb552c5d0e98b09e53bff7f1a7a1e7b91b31b4f226433456b32dd",
+      "bytes": 113
     },
     {
       "path": "asqav-43-outer-copies-agree/expected.json",
@@ -2143,8 +2248,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "959d90bbe3694da01f628fa8feda7131b979778bedf6d4b8838ffa5e149a5b23",
-      "bytes": 41443
+      "sha256": "146f3cfc82cdcb91ad40e2edb0c5fb58507a771d9354b02f025cacbe18d33ecd",
+      "bytes": 42406
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2178,8 +2283,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "336b0768dc5406b86b09204dcb9d864e43dc40d00190f30a5302a5f970deeb37",
-      "bytes": 109326
+      "sha256": "c00b6d29f330703dbe12b04db26ec7fabc9fc99dd59c89815c90963303ac9f36",
+      "bytes": 116155
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2317,5 +2422,5 @@
       ]
     }
   },
-  "digest": "8d6482da8eb6cf0cdbb666ac5f40e9ae8f90deee132f9b596c2e722123b24529"
+  "digest": "858d6508e20f86cca99848699ceb7df27065f3c0defc46ac6e8aa748d6ddcb80"
 }

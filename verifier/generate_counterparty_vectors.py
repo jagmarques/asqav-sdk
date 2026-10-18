@@ -39,6 +39,15 @@ NEW_CASES = (
     "asqav-39-counterparty-cross-replay",
 )
 
+#: Hole-pinning families for the still-open 731 step-3 probes. Each binding
+#: rederives, so the offline verdict reads verified: the vector pins the hole.
+PROBE_CASES = (
+    "asqav-40-counterparty-self-binding",
+    "asqav-41-counterparty-omitted-peer",
+    "asqav-42-counterparty-same-binding-second-ack",
+    "asqav-43-counterparty-unknown-member",
+)
+
 
 def jcs(value: object) -> bytes:
     """Fixture members use ASCII keys and integers; compute independently of verifiers."""
@@ -114,6 +123,7 @@ def fixtures() -> dict[str, dict[str, object]]:
             "tsa_trust.pem": key("tsa").public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
         }
     files.update(_adversarial_fixtures(origin, digest))
+    files.update(_probe_fixtures(origin, digest))
     return files
 
 
@@ -155,6 +165,48 @@ def _adversarial_fixtures(origin: dict, digest: str) -> dict[str, dict[str, obje
     return out
 
 
+def _probe_fixtures(origin: dict, digest: str) -> dict[str, dict[str, object]]:
+    """Verified dirs pinning the still-open 731 step-3 admit holes offline."""
+    out: dict[str, dict[str, object]] = {}
+
+    def emit_verified(name: str, body: dict, emitted_origin: dict, notes: str) -> None:
+        out[name] = {
+            "receipt.json": sign_and_anchor(body),
+            "originating_envelope.json": copy.deepcopy(emitted_origin),
+            "jwks.json": {"keys": [{"kid": who, "issuer_id": who, "alg": "Ed25519", "status": "active",
+                                        "public_key": base64.b64encode(public_key(who)).decode()}
+                                       for who in ("origin", "ack")]},
+            "expected.json": {"format": "asqav-native", "outcome": "verified",
+                              "reason_code": "", "notes": notes},
+            "tsa_trust.pem": key("tsa").public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode(),
+        }
+
+    base = {"scope": SCOPE, "receipt_ref": "sig_counterparty_origin",
+            "envelope_hash": digest, "expect_ack_from": "ack"}
+    self_body = payload("origin")
+    self_body.update(type="protectmcp:acknowledgment", action_id="action_origin_self_ack",
+                     counterparty_binding={**base, "expect_ack_from": "origin"})
+    emit_verified(PROBE_CASES[0], self_body, origin,
+                  "Self-binding verifies: origin and acknowledger are the same party and no axis compares them.")
+    omitted = {k: v for k, v in base.items() if k != "expect_ack_from"}
+    omitted_body = payload("ack")
+    omitted_body.update(type="protectmcp:acknowledgment", counterparty_binding=omitted)
+    emit_verified(PROBE_CASES[1], omitted_body, origin,
+                  "Omitted peer verifies: without expect_ack_from the kid cross-check is skipped.")
+    replay_body = payload("ack")
+    replay_body.update(type="protectmcp:acknowledgment", action_id="action_ack_second_look",
+                       counterparty_binding=dict(base))
+    emit_verified(PROBE_CASES[2], replay_body, origin,
+                  "Same binding bytes verify a second ack: one origin corroborates two acknowledgments.")
+    unknown = dict(base, bogus_future_member="must-understand")
+    unknown_body = payload("ack")
+    unknown_body.update(type="protectmcp:acknowledgment", action_id="action_ack_unknown_member",
+                        counterparty_binding=unknown)
+    emit_verified(PROBE_CASES[3], unknown_body, origin,
+                  "Unknown binding member verifies: the axis reads known keys and ignores the rest.")
+    return out
+
+
 def generated_files() -> dict[Path, str]:
     output = {}
     for name, files in fixtures().items():
@@ -174,7 +226,7 @@ def main() -> int:
             if not args.check:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(text)
-    print(f"counterparty fixtures: {len(CASES) + len(NEW_CASES)} cases; {len(drift)} file(s) {'drifted' if args.check else 'regenerated'}")
+    print(f"counterparty fixtures: {len(CASES) + len(NEW_CASES) + len(PROBE_CASES)} cases; {len(drift)} file(s) {'drifted' if args.check else 'regenerated'}")
     if args.check and drift:
         print("\n".join(drift))
     return int(args.check and bool(drift))
