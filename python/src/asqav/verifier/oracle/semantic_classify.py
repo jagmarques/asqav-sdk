@@ -1,5 +1,3 @@
-# Copyright 2026 Asqav
-# SPDX-License-Identifier: Apache-2.0
 """Independent failure classification for the oracle (criterion 574 D5a).
 
 Derived from criterion 418, not ported from any verifier's table: INVALID
