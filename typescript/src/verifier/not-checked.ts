@@ -41,8 +41,14 @@ export const NOT_CHECKED: readonly NotCheckedEntry[] = [
   {
     check: "tsa_certificate_revocation",
     requirement: "anchor trust",
-    reason: "no CRL or OCSP lookup, so a revoked TSA certificate is not detected",
-    condition: null,
+    reason:
+      "no live CRL or OCSP lookup offline; revocation status is asserted " +
+      "at trust-bundle issue time per root, so a later revocation is missed " +
+      "until the bundle is refreshed (see the revocation policy in " +
+      "docs/offline-verification.md)",
+    condition:
+      "a newer trust bundle (bundle_version/issued_at) or freshly re-pinned " +
+      "--tsa-key material narrows the assertion lag",
   },
   {
     check: "tsa_trusted_list_status",
