@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Self-binding verifies: origin and acknowledger are the same party and no axis compares them."
+}

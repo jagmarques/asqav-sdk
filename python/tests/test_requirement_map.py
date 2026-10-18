@@ -104,5 +104,7 @@ def test_anchor_material_vector_exercises_req_anchor(document):
         "asqav-34-counterparty-scope-unknown", "asqav-35-counterparty-peer-swapped",
         "asqav-36-counterparty-origin-forged", "asqav-37-counterparty-divergent-terms",
         "asqav-38-counterparty-received-only", "asqav-39-counterparty-cross-replay",
+        "asqav-40-counterparty-self-binding", "asqav-41-counterparty-omitted-peer",
+        "asqav-42-counterparty-same-binding-second-ack", "asqav-43-counterparty-unknown-member",
     ]
     assert document["unmapped_requirements"] == []
