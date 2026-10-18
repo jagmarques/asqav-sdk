@@ -118,7 +118,7 @@ describe("key_thumbprint binding parity", () => {
     expect(axis!.result, axis!.note).toBe("PASS");
   });
 
-  // Removing key_binding from INVALID_FAIL_AXES fails here.
+  // Removing key_binding from either invalid-axes table fails here
   it("treats a substituted key as terminal invalid, never a warning", () => {
     const result = verify(receipt(TP_GOOD), ADAPTERS, jwks(KEY_EVIL));
     const axis = result.axes.find((a) => a.axis === "key_binding")!;
