@@ -18,6 +18,7 @@ from ..verify_receipt import NOT_CHECKED, not_checked_declaration
 from . import crypto
 from .adapter import FormatAdapter, VerificationContext
 from .semantic import fold_independent
+from .semantic_classify import classify as classify_failure
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
@@ -113,76 +114,8 @@ def _oracle_coverage(axis_names: list[str]) -> dict:
     return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
 
 
-#: Axes whose FAIL proves a cryptographic/policy binding failure (invalid).
-_INVALID_FAIL_AXES = frozenset(
-    {
-        "signature",
-        "anchors",
-        "issuer_bind",
-        "key_status",
-        "key_binding",
-        "counterparty",
-        "payload_digest",
-        "outer_copies",
-        "nonce",
-        "parent_signature",
-        "pdp_signature",
-        # A gap proves receipts were withheld and a malformed counter was signed as-is;
-        # both are proven defects, not a recompute that could not finish.
-        "seq",
-    }
-)
-
-
-def axis_failure_class(axis: str, result: str, note: str) -> str | None:
-    """Map one axis outcome to its failure class (criterion 418).
-
-    PASS carries none; SKIPPED means recomputation could not complete
-    (unverifiable); a FAIL is invalid when a binding was proven broken and
-    unverifiable when the receipt's own bytes stopped the recompute. A FAIL this
-    table does not name reads unverifiable: an unclassified failure is never
-    reported as a proven binding failure.
-    """
-    if result == crypto.PASS:
-        return None
-    if result == crypto.SKIPPED:
-        return FAILURE_UNVERIFIABLE
-    if axis in _INVALID_FAIL_AXES:
-        return FAILURE_INVALID
-    if axis == "chain":
-        # A mismatched link or a cross-format predecessor is a proven break; a
-        # predecessor the canonicaliser cannot walk stops the recompute instead.
-        if note.startswith("chain break:") or note == "predecessor is a different receipt format":
-            return FAILURE_INVALID
-        return FAILURE_UNVERIFIABLE
-    if axis == "skew":
-        if note.startswith("unparseable issued_at"):
-            return FAILURE_UNVERIFIABLE
-        return FAILURE_INVALID
-    if axis == "structure":
-        if note.startswith("unsupported ACTA alg") or note.startswith(
-            "unsupported signature algorithm"
-        ):
-            return FAILURE_INVALID
-        if note.startswith("key_purpose mismatch"):
-            return FAILURE_INVALID
-        if "signing-key DID != issuer DID" in note:
-            return FAILURE_INVALID
-        if note.startswith("proof @context is not a prefix"):
-            return FAILURE_INVALID
-        if note.startswith("unregistered type ") or note.startswith(
-            "malformed type "
-        ):
-            return FAILURE_INVALID
-        return FAILURE_UNVERIFIABLE
-    if axis == "expiry":
-        if note.startswith("unreadable expires_at"):
-            return FAILURE_UNVERIFIABLE
-        return FAILURE_INVALID
-    # issuer_key / ingest and anything unlisted: the recompute could not complete.
-    return FAILURE_UNVERIFIABLE
-
-
+    # Failure classification lives in ``semantic_classify`` (criterion 574
+    # D5a): derived from criterion 418, not ported from another table.
 #: Fixed leading axis order every adapter walks, before its format-specific extras.
 #: Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
 AXIS_ORDER_PREFIX = ("structure", "signature", "chain", "seq")
@@ -195,7 +128,7 @@ def first_failing_edge(axes: list[AxisResult]) -> str | None:
     answer never depends on which check happened to be evaluated first internally.
 
     The two exclusions mirror the semantic table exactly, and are the whole
-    this is not simply "the first non-PASS axis": the expiry axis reports on its
+    reason this is not simply "the first non-PASS axis": the expiry axis reports on its
     own and never folds the verdict (criterion 426), and a SKIPPED chain is
     tolerated where any other SKIPPED blocks. Without them a verified receipt
     that is merely expired would name an edge, reporting a failure that did not
@@ -225,7 +158,7 @@ def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
 
 
 def _axis(axis: str, result: str, note: str) -> AxisResult:
-    return AxisResult(axis, result, note, axis_failure_class(axis, result, note))
+    return AxisResult(axis, result, note, classify_failure(axis, result, note))
 
 
 #: Structure-axis note for the malformed third spelling of "no anchors": the member
