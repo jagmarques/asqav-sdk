@@ -685,6 +685,34 @@
     "failure_class": "invalid"
   },
   {
+    "dir": "asqav-40-counterparty-self-binding",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Self-binding verifies: origin and acknowledger are the same party and no axis compares them."
+  },
+  {
+    "dir": "asqav-41-counterparty-omitted-peer",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Omitted peer verifies: without expect_ack_from the kid cross-check is skipped."
+  },
+  {
+    "dir": "asqav-42-counterparty-same-binding-second-ack",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Same binding bytes verify a second ack: one origin corroborates two acknowledgments."
+  },
+  {
+    "dir": "asqav-43-counterparty-unknown-member",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Unknown binding member verifies: the axis reads known keys and ignores the rest."
+  },
+  {
     "dir": "asqav-37-unregistered-namespace-reported",
     "format": "asqav-native",
     "outcome": "unverified",
