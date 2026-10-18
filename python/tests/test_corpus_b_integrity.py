@@ -104,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 67,
-    "action_ref": 63,
-    "policy_digest": 61,
-    "previousReceiptHash": 60,
+    "sig": 68,
+    "action_ref": 64,
+    "policy_digest": 62,
+    "previousReceiptHash": 61,
     "key_thumbprint": 3,
-    "payload_digest": 57,
+    "payload_digest": 58,
     "envelope_hash": 8,
     "canonical": 0,
 }
@@ -446,6 +446,15 @@ PINNED_ACTION_REF["asqav-54-kms-signed"] = 'sha256:1153ce45e4f31303469cf813b71ad
 PINNED_POLICY_DIGEST["asqav-54-kms-signed"] = 'sha256:841c46462a28db90e77440342e78306b689ad71856a62c7dc0ea0a19d08e8d35'
 PINNED_PREV_HASH["asqav-54-kms-signed"] = '0000000000000000000000000000000000000000000000000000000000000000'
 PINNED_PAYLOAD_DIGEST["asqav-54-kms-signed"] = {'hash': '1153ce45e4f31303469cf813b71adef24395f903fe86973ffa22ff97be674590', 'size': 58}
+#: asqav-55 is the 574 C474 hash-mode heartbeat vector; every derived member pinned.
+PINNED_SIG["asqav-55-heartbeat"] = (
+    "gk8oCAWmz90cWuRvhGCLuX+MWSfDIfSG8q4955rbu9IfC6UiaqalrUpG+qISGHMhcfYYi/"
+    "KSCg0K++0K9I8EBw=="
+)
+PINNED_ACTION_REF["asqav-55-heartbeat"] = 'sha256:7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5'
+PINNED_POLICY_DIGEST["asqav-55-heartbeat"] = 'sha256:5ad43b4f600334357a2c88aa28708b8560320a1a1e5f2a729415b4fd836e467c'
+PINNED_PREV_HASH["asqav-55-heartbeat"] = '0000000000000000000000000000000000000000000000000000000000000000'
+PINNED_PAYLOAD_DIGEST["asqav-55-heartbeat"] = {'hash': '7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5', 'size': 23}
 
 
 
