@@ -17,6 +17,7 @@ from asqav import strict_json
 from ..verify_receipt import NOT_CHECKED, not_checked_declaration
 from . import crypto
 from .adapter import FormatAdapter, VerificationContext
+from .semantic import fold_independent
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
@@ -193,7 +194,7 @@ def first_failing_edge(axes: list[AxisResult]) -> str | None:
     Walks the axes as reported, which is the fixed order `verify` builds, so the
     answer never depends on which check happened to be evaluated first internally.
 
-    The two exclusions mirror `fold_verdict` exactly, and are the whole reason
+    The two exclusions mirror the semantic table exactly, and are the whole
     this is not simply "the first non-PASS axis": the expiry axis reports on its
     own and never folds the verdict (criterion 426), and a SKIPPED chain is
     tolerated where any other SKIPPED blocks. Without them a verified receipt
@@ -213,24 +214,8 @@ def first_failing_edge(axes: list[AxisResult]) -> str | None:
     return None
 
 
-    # Fold per-axis outcomes into the public verdict + failure class (418/438).
-def fold_verdict(axes: list[AxisResult], keyed: bool) -> tuple[str, str | None]:
-    failed = [a for a in axes if a.result == crypto.FAIL and a.axis != "expiry"]
-    blocking_skip = any(a.result == crypto.SKIPPED and a.axis != "chain" for a in axes)
-    if failed:
-        # A proven binding failure dominates a malformed-member failure: the
-        # receipt is invalid on the strongest ground the axes established.
-        classes = {a.failure_class for a in failed}
-        failure_class = FAILURE_INVALID if FAILURE_INVALID in classes else FAILURE_UNVERIFIABLE
-        return VERDICT_UNVERIFIED, failure_class
-    if blocking_skip:
-        return VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE
-    if keyed:
-        return VERDICT_VERIFIED_KEYED, None
-    return VERDICT_VERIFIED, None
-
-
-    # Return the first adapter whose structural fingerprint matches ``doc``.
+    # The verdict aggregation lives in ``semantic`` (criterion 574 D5):
+    # independently derived from 418/438/426, not ported from this fold.
 def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
     if not isinstance(doc, dict):
         # A non-object receipt (array, string, number, null) matches no format;
@@ -295,8 +280,8 @@ def _chain_axis(
 def _seq_axis(
     ad: FormatAdapter, doc: dict, adapters: list[FormatAdapter], predecessor: dict | None
 ) -> AxisResult:
-    # A gap is omission evidence. Never SKIPPED: fold_verdict blocks on a non-chain
-    # SKIPPED, so a receipt with no counter would regress to unverified.
+    # A gap is omission evidence. Never SKIPPED: the semantic fold blocks on
+    # a non-chain SKIPPED, so a receipt with no counter regresses.
     seq = ad.seq_of(doc)
     if seq is None:
         return _axis("seq", crypto.PASS, "no seq member; receipt is not part of a counted series")
@@ -366,7 +351,7 @@ def _early_unverified(
     fmt: str, note: str, context: VerificationContext | None = None,
 ) -> VerifyResult:
     axes = [_axis("structure", crypto.FAIL, note)]
-    verdict, failure_class = fold_verdict(axes, keyed=False)
+    verdict, failure_class = fold_independent(axes, keyed=False)
     return VerifyResult(
         fmt=fmt,
         axes=axes,
@@ -392,7 +377,7 @@ def verify(
     resolved = context or VerificationContext()
     if ad is None:
         axes = [_axis("structure", crypto.FAIL, "no adapter recognises this receipt")]
-        verdict, failure_class = fold_verdict(axes, keyed=False)
+        verdict, failure_class = fold_independent(axes, keyed=False)
         return VerifyResult(
             fmt="unknown",
             axes=axes,
@@ -432,7 +417,7 @@ def verify(
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426);
     # a keyed digest reports verified_keyed, never plain verified (criterion 438).
-    verdict, failure_class = fold_verdict(axes, keyed=ad.keyed_digest(doc))
+    verdict, failure_class = fold_independent(axes, keyed=ad.keyed_digest(doc))
     signer = ad.attestation(doc).get("signer")
     return VerifyResult(
         fmt=ad.name,
