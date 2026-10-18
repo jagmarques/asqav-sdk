@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Hash-mode heartbeat (criterion 574 C474): type protectmcp:lifecycle, decision observation, interval in metadata.heartbeat_description, no action_type member, seq 1 on a genesis chain. Signed policy_digest commits to the liveness_heartbeat artefact."
+}

@@ -845,5 +845,12 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "Payload-mode receipt signed by a test KMS for 569 C9: ML-DSA-65 key from the published seed in verifier/mint_kms_signed_vector.py, SPKI in kms_spki_der_b64.txt, kid resolves to the AKP JWK. Expiry set ahead so the expiry axis stays PASS."
+  },
+  {
+    "dir": "asqav-55-heartbeat",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Hash-mode heartbeat (criterion 574 C474): type protectmcp:lifecycle, decision observation, interval in metadata.heartbeat_description, no action_type member, seq 1 on a genesis chain. Signed policy_digest commits to the liveness_heartbeat artefact."
   }
 ]
