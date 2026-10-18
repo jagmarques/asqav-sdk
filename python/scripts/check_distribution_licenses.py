@@ -21,7 +21,9 @@ TERMS = {
 LICENSE_FILES = ["LICENSE", "NOTICE", "licenses/Apache-2.0.txt"]
 VERIFIER = "asqav/verifier/verify_receipt.py"
 CORPUS_DIR = "asqav/conformance_vectors"
-CORPUS_MIN_EXPECTED = 93
+CORPUS_MIN_EXPECTED = 118
+#: 118 shipped expected.json; dsse-attestation-ml-dsa-65 sits outside
+#: manifest.json, so the manifest census stays 117.
 
 
 def require(condition: bool, message: str) -> None:
