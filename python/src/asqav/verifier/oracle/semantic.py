@@ -18,9 +18,8 @@ from typing import Any
 
 from . import crypto
 
-#: Public verdict vocabulary (criteria 418/438). Literals, not logic:
-#: pinned equal to the oracle core's by the vocabulary test, so the
-#: surfaces keep reporting alike while the aggregation stays separate.
+#: Shared literals, separate logic: pinned equal to the oracle core's
+#: by the vocabulary test; the aggregation below stays independent.
 VERDICT_VERIFIED = "verified"
 VERDICT_VERIFIED_KEYED = "verified_keyed"
 VERDICT_UNVERIFIED = "unverified"
@@ -32,11 +31,8 @@ _NON_FOLDING_AXES = frozenset({"expiry"})
 #: A skipped check blocks, except the chain axis (see module docstring).
 _TOLERATED_SKIP_AXES = frozenset({"chain"})
 
-#: (invalid_fail, other_fail, blocking_skip, keyed) -> (verdict, class).
-#: invalid_fail: a FAIL the classifier proved a binding failure (418).
-#: other_fail: a FAIL that only shows the recompute stopped (418).
-#: blocking_skip: a SKIPPED check outside the tolerated set. Every row
-#: below cites the rule that decides it; keyed never rescues a failure.
+#: (invalid, other, skip, keyed) -> (verdict, class); rows cite rules.
+#: invalid = proved binding failure (418); keyed never rescues a failure.
 _TABLE: dict[tuple[bool, bool, bool, bool], tuple[str, str | None]] = {
     (False, False, False, False): ("verified", None),  # clean receipt
     (False, False, False, True): ("verified_keyed", None),  # 438
