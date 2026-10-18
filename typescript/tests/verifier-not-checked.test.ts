@@ -46,6 +46,16 @@ describe("notChecked declaration", () => {
     expect(new Set(names).size, names.join(",")).toBe(names.length);
   });
 
+  it("states the revocation bundle-issue policy with a refresh input", () => {
+    const matches = NOT_CHECKED.filter((e) => e.check === "tsa_certificate_revocation");
+    expect(matches).toHaveLength(1);
+    const row = matches[0]!;
+    expect(row.reason).toContain("no live CRL or OCSP lookup");
+    expect(row.reason).toContain("refreshed");
+    expect(row.condition, "null condition claims never narrowable").not.toBeNull();
+    expect(row.condition).toContain("bundle_version");
+  });
+
   it("rides a rejected input", () => {
     const result = verify({ hello: "world" }, ADAPTERS, null);
     expect(result.verdict).toBe("unverified");
