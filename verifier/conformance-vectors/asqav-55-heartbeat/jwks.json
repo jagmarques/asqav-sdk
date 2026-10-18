@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-heartbeat-vec-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "Ug2z3UrlqAd5AG3+AP4OHIS+fK3h/wvsbOU8D6j7evc="
+    }
+  ]
+}

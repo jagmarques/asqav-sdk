@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 56,
+  "corpus_version": 57,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -283,6 +283,11 @@
       "version": 55,
       "files": 395,
       "digest": "abdaf88258471ef6108aa75bdfc1f7745b43441a018887a79c8d1db222db0bfb"
+    },
+    {
+      "version": 56,
+      "files": 395,
+      "digest": "bb5ac998eca55f2644683ef193f92cbf0976d09503afc46aaf1575b45c8b4db8"
     }
   ],
   "files": [
@@ -2002,6 +2007,21 @@
       "bytes": 5918
     },
     {
+      "path": "asqav-55-heartbeat/expected.json",
+      "sha256": "f49872ab3ed787958b832764112a9886994ef40c7e3e9ac4073d236520375919",
+      "bytes": 340
+    },
+    {
+      "path": "asqav-55-heartbeat/jwks.json",
+      "sha256": "08a4a4f0b780df35969def9f7ac3522366f56a85a20f9b9588201fdd966361c1",
+      "bytes": 221
+    },
+    {
+      "path": "asqav-55-heartbeat/receipt.json",
+      "sha256": "7fb54d43730c71c6100d7b45264c8d21b028a568244ce288f293a07095d4ad7b",
+      "bytes": 1206
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -2072,6 +2092,11 @@
       "bytes": 5586
     },
     {
+      "path": "gen_heartbeat_vector.py",
+      "sha256": "d734a6e84d8853c53a1456294ae8d4fcc611e0eaa28354fa30faa6d2713bd686",
+      "bytes": 4634
+    },
+    {
       "path": "gen_invocation_ref_vectors.py",
       "sha256": "6fad2942a36e90a5116f9a54bb11d2c95513865020016c2d972de9de4a970a55",
       "bytes": 7297
@@ -2118,8 +2143,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "ce0227493eb768800e79069115ff2cd258e4e1e89b05cd4d7601852e9c415fb6",
-      "bytes": 41057
+      "sha256": "959d90bbe3694da01f628fa8feda7131b979778bedf6d4b8838ffa5e149a5b23",
+      "bytes": 41443
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2153,8 +2178,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "6513556d44540023d407e4b3ae6a32a1656c6d6f31d9c6a3adac6b3836a7c36a",
-      "bytes": 107963
+      "sha256": "336b0768dc5406b86b09204dcb9d864e43dc40d00190f30a5302a5f970deeb37",
+      "bytes": 109326
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2292,5 +2317,5 @@
       ]
     }
   },
-  "digest": "bb5ac998eca55f2644683ef193f92cbf0976d09503afc46aaf1575b45c8b4db8"
+  "digest": "8d6482da8eb6cf0cdbb666ac5f40e9ae8f90deee132f9b596c2e722123b24529"
 }

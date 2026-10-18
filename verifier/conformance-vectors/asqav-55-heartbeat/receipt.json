@@ -1,0 +1,36 @@
+{
+  "payload": {
+    "v": 1,
+    "action_id": "act_hb_001",
+    "agent_id": "agt_hb_001",
+    "org_id": "org_hb_001",
+    "policy_digest": "sha256:5ad43b4f600334357a2c88aa28708b8560320a1a1e5f2a729415b4fd836e467c",
+    "type": "protectmcp:lifecycle",
+    "issued_at": "2026-10-18T00:00:00+00:00",
+    "issuer_id": "Asqav Ltd",
+    "action_ref": "sha256:7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5",
+    "payload_digest": {
+      "hash": "7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5",
+      "size": 23
+    },
+    "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "decision": "observation",
+    "mode": "hash",
+    "hash": "sha256:7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5",
+    "hash_algo": "sha256",
+    "metadata": {
+      "heartbeat_description": {
+        "idle_seconds": 3599,
+        "interval_seconds": 3600
+      }
+    },
+    "server_timestamp": "2026-10-18T00:00:00Z",
+    "seq": 1
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "asqav-heartbeat-vec-key",
+    "sig": "gk8oCAWmz90cWuRvhGCLuX+MWSfDIfSG8q4955rbu9IfC6UiaqalrUpG+qISGHMhcfYYi/KSCg0K++0K9I8EBw=="
+  },
+  "anchors": []
+}
