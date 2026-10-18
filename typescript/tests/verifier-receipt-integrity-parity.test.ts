@@ -116,7 +116,7 @@ describe("receipt-internal integrity parity", () => {
     }
   });
 
-  // Removing payload_digest from INVALID_FAIL_AXES fails here.
+  // Removing payload_digest from either invalid-axes table fails here
   it("treats a lying payload_digest as terminal invalid", () => {
     const r = verify(
       receipt({ payload_digest: { hash: "f".repeat(64), size: 31 } }),
