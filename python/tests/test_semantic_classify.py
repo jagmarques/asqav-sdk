@@ -92,11 +92,8 @@ def test_corpus_verdicts_preserved_through_the_new_path() -> None:
 
 
 def test_fail_implies_resolved_inputs_for_gated_axes() -> None:
-    # The table's core premise: axes that cannot resolve their inputs
-    # SKIP upstream (signature with no key, key_binding with no key,
-    # counterparty with an unresolvable claim), so a FAIL reaching the
-    # table ran against resolved inputs. The axis code proves each case;
-    # here the table honors the contract: FAIL is invalid, SKIP is not.
+    # Axes that cannot resolve inputs SKIP upstream, so a FAIL reaching
+    # the table ran against resolved inputs (axis code proves each case).
     assert sc.classify("signature", crypto.FAIL, "signature verification FAILED") == FAILURE_INVALID
     assert sc.classify("signature", crypto.SKIPPED, "no key: unknown kid") == FAILURE_UNVERIFIABLE
     assert sc.classify("key_binding", crypto.SKIPPED, "no signing key resolved") == FAILURE_UNVERIFIABLE
