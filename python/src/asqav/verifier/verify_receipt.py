@@ -1434,7 +1434,7 @@ AnchorEvaluation = namedtuple("AnchorEvaluation", ("result", "note", "trusted_ti
 ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash", "tsa_url", "operator_id"})
 
 
-def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None) -> AnchorEvaluation:
+def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None) -> AnchorEvaluation:
     """Cryptographically evaluate every anchor against the envelope digest.
 
     Shape rules are unchanged (malformed entries FAIL, absent/empty SKIPs), but a
@@ -1442,6 +1442,10 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     entry cryptographically verifies, FAILs when any entry's check runs and fails,
     and reports SKIPPED (unverifiable) when a check cannot complete offline. Anchors
     declared ``status: pending``/``failed`` never count as trusted anchors.
+
+    A supplied trust bundle whose recorded digest disagrees with its contents
+    reports the whole axis SKIPPED: trust material that fails its own check
+    can neither verify nor invalidate, only decline.
     """
     anchors = envelope.get("anchors")
     # Absent is a legitimate no-anchors receipt (SKIPPED); a present non-list
@@ -1455,6 +1459,15 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
         return AnchorEvaluation("FAIL", f"anchors field is not a list (got {type(anchors).__name__})", [])
     if not anchors:
         return AnchorEvaluation("SKIPPED", "no anchors on this receipt", [])
+    if trust_bundle is not None:
+        _tb_ok, _tb_digest = verify_trust_bundle(trust_bundle)
+        if not _tb_ok:
+            return AnchorEvaluation(
+                "SKIPPED",
+                f"trust bundle digest mismatch (recorded {_tb_digest or 'absent'}); "
+                "pinned keys not evaluated",
+                [],
+            )
     try:
         _env_jcs = envelope_minus_anchors_jcs(envelope)
         bound = hashlib.sha256(_env_jcs).digest()
@@ -1534,10 +1547,11 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     return AnchorEvaluation("PASS", "; ".join(lines), trusted_times)
 
 
-def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None):
+def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None):
     """(result, note) for the anchors axis; see evaluate_anchors."""
     ev = evaluate_anchors(
-        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers,
+        trust_bundle=trust_bundle,
     )
     return ev.result, ev.note
 
@@ -2478,6 +2492,15 @@ NOT_CHECKED = (
         "condition": None,
     },
     {
+        "check": "tsa_trusted_list_status",
+        "requirement": "anchor trust",
+        "reason": (
+            "no EU Trusted List status lookup as of the token's genTime; "
+            "a trust bundle records status asserted at bundle-issue time only"
+        ),
+        "condition": None,
+    },
+    {
         "check": "policy_digest_resolution",
         "requirement": "verifier check on policy_digest",
         "reason": (
@@ -3309,6 +3332,7 @@ def run(
     bitcoin_headers=None,
     counterparty: dict | None = None,
     required_extensions=None,
+    trust_bundle: dict | None = None,
 ) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
@@ -3369,7 +3393,8 @@ def run(
     # Evaluated once, up front: the anchors axis reports it, and the key_status
     # axis weighs its cryptographically-proven timing against any revoked_at.
     anchor_eval = evaluate_anchors(
-        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers,
+        trust_bundle=trust_bundle,
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
@@ -3505,6 +3530,8 @@ def run_structured(
     counterparty: dict | None = None,
     seen_nonces: set | None = None,
     required_extensions=None,
+    trust_bundle: dict | None = None,
+    trust_bundle_source: str | None = None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
@@ -3530,7 +3557,12 @@ def run_structured(
     ``{"name", "result", "note", "failure_class"}``; ``canonical_sha256``, hex
     SHA-256 of the canonical payload bytes; ``kid``; and ``alg``, verbatim from the
     wire (ML-DSA-65 cloud-issued, Ed25519/ES256 local).
+
+    ``trust_bundle`` carries the versioned trust identity (``version``,
+    ``digest``, ``source``, ``valid``) when the caller supplied a bundle,
+    else None; it is present on every result including early refusals.
     """
+    _tb_identity = trust_bundle_identity(trust_bundle, trust_bundle_source)
     refusal = _input_refusal(envelope)
     whole_predecessor = predecessor_payload
     predecessor_payload = _predecessor_payload(predecessor_payload)
@@ -3546,6 +3578,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "trust_bundle": _tb_identity,
         }
     acknowledging_kid = counterparty_acknowledging_kid(envelope)
     raw_entry = envelope
@@ -3571,6 +3604,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "trust_bundle": _tb_identity,
         }
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
@@ -3587,6 +3621,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "trust_bundle": _tb_identity,
         }
 
     sig_obj = _signature_object(envelope, payload)
@@ -3607,6 +3642,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "trust_bundle": _tb_identity,
         }
     try:
         msg = canonical_json(payload)
@@ -3623,6 +3659,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "trust_bundle": _tb_identity,
         }
 
     axes: list[dict] = []
@@ -3631,7 +3668,8 @@ def run_structured(
     # Evaluated once, up front: the anchors axis reports it, and the key_status
     # axis weighs its cryptographically-proven timing against any revoked_at.
     anchor_eval = evaluate_anchors(
-        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers,
+        trust_bundle=trust_bundle,
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
@@ -3671,6 +3709,7 @@ def run_structured(
         "kid": kid,
         "alg": alg,
         "registry_edition": REGISTRY_EDITION,
+        "trust_bundle": _tb_identity,
     }
 
 
@@ -3718,6 +3757,75 @@ def tsa_key_material(blob: bytes) -> bytes:
         return bytes(blob)
 
 
+#: Members a versioned TSA trust bundle must carry. The digest covers every
+#: other top-level member, so the file is self-verifying: any edit that does
+#: not recompute the digest fails the check below.
+TRUST_BUNDLE_REQUIRED_KEYS = (
+    "bundle_version",
+    "issued_at",
+    "digest",
+    "digest_algorithm",
+    "roots",
+)
+
+
+def load_trust_bundle(path: str) -> dict:
+    """Read a versioned TSA trust bundle and reject a digest mismatch.
+
+    Trust material comes from the caller, never from the envelope. A bundle
+    whose recorded digest disagrees with its contents raises instead of
+    verifying: the anchors axis must report it, never pass on it.
+    """
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError as exc:
+        raise VerifierInputError(f"{path}: {exc.strerror or exc}") from exc
+    try:
+        bundle = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeError) as exc:
+        raise VerifierInputError(f"{path}: not a JSON trust bundle") from exc
+    if not isinstance(bundle, dict) or any(k not in bundle for k in TRUST_BUNDLE_REQUIRED_KEYS):
+        raise VerifierInputError(f"{path}: trust bundle misses a required member")
+    ok, _ = verify_trust_bundle(bundle)
+    if not ok:
+        raise VerifierInputError(f"{path}: trust bundle digest mismatch")
+    return bundle
+
+
+def verify_trust_bundle(bundle: dict) -> tuple:
+    """Self-digest check of a trust bundle dict.
+
+    Returns (ok, recorded_digest). The digest is SHA-256 over the JCS
+    canonical bytes of every top-level member except `digest` itself, so a
+    caller holding only the dict can re-derive it without the file.
+    """
+    if not isinstance(bundle, dict):
+        return False, ""
+    recorded = bundle.get("digest")
+    if not isinstance(recorded, str) or not recorded:
+        return False, ""
+    try:
+        body = {k: v for k, v in bundle.items() if k != "digest"}
+        computed = hashlib.sha256(canonical_json(body)).hexdigest()
+    except (TypeError, ValueError):
+        return False, recorded
+    return (computed == recorded), recorded
+
+
+def trust_bundle_identity(bundle: dict | None, source: str | None) -> dict | None:
+    """Identity block for structured results; None when no bundle was supplied."""
+    if bundle is None:
+        return None
+    ok, recorded = verify_trust_bundle(bundle)
+    return {
+        "version": bundle.get("bundle_version"),
+        "digest": recorded,
+        "source": source,
+        "valid": ok,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Standalone Asqav receipt verifier.")
     p.add_argument("--id", help="signature id to fetch from api.asqav.com")
@@ -3734,6 +3842,15 @@ def main() -> int:
         help="pinned TSA public key or X.509 certificate (PEM, DER, or base64); "
         "repeatable. Without one, an RFC 3161 anchor's TSA signature cannot be "
         "trusted offline and the anchors axis reports unverifiable",
+    )
+    p.add_argument(
+        "--trust-bundle",
+        metavar="FILE",
+        help="versioned TSA trust bundle JSON (verifier/trust/tsa-trust-bundle.json "
+        "shape: bundle_version, issued_at, digest, digest_algorithm, roots with "
+        "subject/sha256_der/not_after); the bundle self-digest is verified and "
+        "a mismatch makes the anchors axis unverifiable. The bundle identity "
+        "travels on every structured result; --tsa-key keeps working without one",
     )
     p.add_argument(
         "--bitcoin-headers",
@@ -3784,6 +3901,7 @@ def main() -> int:
         trusted_tsa_keys = _load_tsa_keys(args.tsa_key)
         bitcoin_headers = _load(args.bitcoin_headers) if args.bitcoin_headers else None
         counterparty = _load(args.counterparty) if args.counterparty else None
+        trust_bundle = load_trust_bundle(args.trust_bundle) if args.trust_bundle else None
     except VerifierInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -3796,6 +3914,7 @@ def main() -> int:
         bitcoin_headers=bitcoin_headers,
         counterparty=counterparty,
         required_extensions=args.require_extension or None,
+        trust_bundle=trust_bundle,
     )
 
 

@@ -45,6 +45,14 @@ export const NOT_CHECKED: readonly NotCheckedEntry[] = [
     condition: null,
   },
   {
+    check: "tsa_trusted_list_status",
+    requirement: "anchor trust",
+    reason:
+      "no EU Trusted List status lookup as of the token's genTime; " +
+      "a trust bundle records status asserted at bundle-issue time only",
+    condition: null,
+  },
+  {
     check: "policy_digest_resolution",
     requirement: "verifier check on policy_digest",
     reason:
