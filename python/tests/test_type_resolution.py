@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from asqav.verifier import verify_receipt as vr
-from asqav.verifier.oracle.core import axis_failure_class as oracle_class
+from asqav.verifier.oracle.semantic_classify import classify as oracle_class
 
 ROOT = Path(__file__).parent.parent.parent
 NS_FILE = ROOT / "verifier" / "registry" / "type-namespaces.json"

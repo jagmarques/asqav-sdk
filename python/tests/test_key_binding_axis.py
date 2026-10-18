@@ -23,7 +23,7 @@ from asqav.verifier import verify_receipt as vr
 from asqav.verifier.oracle import ADAPTERS
 from asqav.verifier.oracle import verify as oracle_verify
 from asqav.verifier.oracle.adapters.asqav_native import _UNSIGNED_CLAIM_FIELDS
-from asqav.verifier.oracle.core import _INVALID_FAIL_AXES as ORACLE_INVALID_FAIL_AXES
+from asqav.verifier.oracle.semantic_classify import _ALWAYS_INVALID_AXES as ORACLE_INVALID_FAIL_AXES
 
 CASES_FILE = Path(__file__).parent.parent.parent / "verifier" / "axis-parity-cases.json"
 TABLE = json.loads(CASES_FILE.read_text())
@@ -155,7 +155,7 @@ def test_cli_run_prints_the_axis(capsys) -> None:
     assert code != 0
 
 
-    # Removing key_binding from either _INVALID_FAIL_AXES table fails here.
+    # Removing key_binding from either invalid-axes table fails here.
 def test_a_substituted_key_is_terminal_invalid_not_a_warning() -> None:
     assert "key_binding" in ORACLE_INVALID_FAIL_AXES
     assert "key_binding" in vr._INVALID_FAIL_AXES
