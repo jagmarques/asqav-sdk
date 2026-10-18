@@ -407,6 +407,7 @@ _INVALID_FAIL_AXES = frozenset(
         "counterparty",
         "payload_digest",
         "outer_copies",
+        "required_extensions",
     }
 )
 
@@ -2844,6 +2845,61 @@ def check_expiry(payload: dict, *, now: datetime | None = None):
     return "PASS", f"expires_at {raw} is {delta:.0f}s ahead"
 
 
+def _is_well_formed_beacon_ref(beacon) -> bool:
+    """Shape of an OPTIONAL beacon_ref member (draft 5.5, paragraph 11).
+
+    Source/chain/round/signature/observed_at; mirrors the reference
+    platform's structural rule without authenticating the BLS signature.
+    """
+    if not isinstance(beacon, dict):
+        return False
+    if beacon.get("source") != "drand":
+        return False
+    chain = beacon.get("chain")
+    if not isinstance(chain, str) or len(chain) != 64:
+        return False
+    if any(c not in "0123456789abcdef" for c in chain):
+        return False
+    round_number = beacon.get("round")
+    if isinstance(round_number, bool) or not isinstance(round_number, int):
+        return False
+    if round_number < 1:
+        return False
+    signature = beacon.get("signature")
+    if not isinstance(signature, str) or len(signature) != 96:
+        return False
+    if any(c not in "0123456789abcdef" for c in signature):
+        return False
+    return isinstance(beacon.get("observed_at"), str)
+
+
+#: Optional extensions a selected policy may require this tool to evaluate.
+#: Anything else the policy names is unsupported here and fails closed.
+SUPPORTED_REQUIRED_EXTENSIONS = frozenset({"beacon_ref"})
+
+
+def check_required_extensions(payload: dict, required) -> tuple[str, str]:
+    """Evaluate caller-required optional extensions (criterion 574-D3).
+
+    PASS when every required member is carried and well-formed; FAIL when a
+    supported member is carried malformed (proven non-conformance to the
+    selected policy, hence in _INVALID_FAIL_AXES); SKIPPED when a required
+    member is absent or unsupported, so the receipt never reads as verified.
+    """
+    if not isinstance(payload, dict):
+        return "SKIPPED", "no signed payload; required extensions cannot be evaluated"
+    for name in required or []:
+        if name not in SUPPORTED_REQUIRED_EXTENSIONS:
+            return "SKIPPED", f"required extension {name!r} is not supported by this verifier"
+        if name == "beacon_ref":
+            beacon = payload.get("beacon_ref")
+            if beacon is None:
+                return "SKIPPED", "required beacon_ref is absent from the signed payload"
+            if not _is_well_formed_beacon_ref(beacon):
+                return "FAIL", "required beacon_ref is malformed against the 5.5 shape"
+    return "PASS", "every required extension is carried and well-formed"
+
+
 def check_chain(payload: dict, predecessor_payload: dict | None):
     prev = payload.get("previousReceiptHash")
     if prev == FIRST_RECEIPT_SEED:
@@ -3252,6 +3308,7 @@ def run(
     trusted_tsa_keys=None,
     bitcoin_headers=None,
     counterparty: dict | None = None,
+    required_extensions=None,
 ) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
@@ -3330,6 +3387,8 @@ def run(
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
     results.append(("expiry", *check_expiry(payload)))
+    if required_extensions:
+        results.append(("required_extensions", *check_required_extensions(payload, required_extensions)))
 
     print("Asqav receipt verification")
     print(f"  canonical bytes: sha256:{hashlib.sha256(msg).hexdigest()}")
@@ -3445,6 +3504,7 @@ def run_structured(
     bitcoin_headers=None,
     counterparty: dict | None = None,
     seen_nonces: set | None = None,
+    required_extensions=None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
@@ -3457,6 +3517,12 @@ def run_structured(
     ``seen_nonces`` is the caller's replay index, exactly as ``run()`` takes it: pass
     one to have the nonce axis flag a different receipt reusing an (issuer_id, nonce)
     pair. Without it the axis still reports, and says it holds no index.
+
+    ``required_extensions`` names optional extensions the selected policy requires
+    (criterion 574-D3): each is evaluated per-axis (``required_extensions``); a
+    required member that is absent or unsupported reports SKIPPED, a malformed
+    supported member FAILs invalid, and without the parameter the evaluation is
+    unchanged (no axis appended).
 
     Keys: ``verdict`` ("verified" | "unverified", criteria 418/438);
     ``failure_class`` ("invalid" | "unverifiable" when unverified, else None - the
@@ -3586,6 +3652,8 @@ def run_structured(
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
     axes.append(_struct_axis("expiry", *check_expiry(payload)))
+    if required_extensions:
+        axes.append(_struct_axis("required_extensions", *check_required_extensions(payload, required_extensions)))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
     verdict, failure_class = _fold_verdict(
@@ -3645,7 +3713,9 @@ def tsa_key_material(blob: bytes) -> bytes:
     try:
         return base64.b64decode(text, validate=True)
     except Exception:
-        return bytes(text)
+        # Raw binary passes through untouched (574-D3): stripping a binary
+        # key with whitespace edge bytes would shorten it and break verifies.
+        return bytes(blob)
 
 
 def main() -> int:
@@ -3676,6 +3746,15 @@ def main() -> int:
         "--counterparty",
         metavar="FILE",
         help="complete originating signing envelope JSON for the counterparty binding check",
+    )
+    p.add_argument(
+        "--require-extension",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="optional extension the selected policy requires (repeatable; "
+        "supported: beacon_ref). A required member that is absent or "
+        "unsupported reports unverifiable; a malformed one fails invalid",
     )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
@@ -3716,6 +3795,7 @@ def main() -> int:
         trusted_tsa_keys=trusted_tsa_keys,
         bitcoin_headers=bitcoin_headers,
         counterparty=counterparty,
+        required_extensions=args.require_extension or None,
     )
 
 
