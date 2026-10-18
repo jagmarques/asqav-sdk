@@ -10,7 +10,7 @@ const VERDICT_UNVERIFIED: Verdict = "unverified";
 const FAILURE_INVALID: FailureClass = "invalid";
 const FAILURE_UNVERIFIABLE: FailureClass = "unverifiable";
 
-/** Axes whose FAIL proves a binding failed (418 invalid limb). */
+/** Axes whose FAIL proves a binding failed (invalid limb) */
 const ALWAYS_INVALID_AXES: ReadonlySet<string> = new Set([
   "signature",
   "anchors",
@@ -26,9 +26,9 @@ const ALWAYS_INVALID_AXES: ReadonlySet<string> = new Set([
   "seq",
 ]);
 
-/** Axes that report but never fold the verdict (expiry-never-folds rule). */
+/** Axes that report but never fold the verdict (expiry-never-folds rule) */
 const NON_FOLDING_AXES: ReadonlySet<string> = new Set(["expiry"]);
-/** A skipped check blocks, except the chain axis. */
+/** A skipped check blocks, except the chain axis */
 const TOLERATED_SKIP_AXES: ReadonlySet<string> = new Set(["chain"]);
 
 /** Classify one axis outcome; table axes prove a binding failure */
