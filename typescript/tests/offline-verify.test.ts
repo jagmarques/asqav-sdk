@@ -655,7 +655,7 @@ describe("verifyReceiptOffline result shape", () => {
     // Same literal set as _TS_KEYS in the Python offline-API test
     expect(Object.keys(result).sort()).toEqual([
       "axes", "context", "coverage", "failureClass", "firstFailingEdge",
-      "fmt", "notChecked", "signer", "verdict",
+      "fmt", "notChecked", "signer", "trustBundle", "verdict",
     ]);
   });
 });

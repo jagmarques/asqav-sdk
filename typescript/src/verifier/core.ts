@@ -37,6 +37,18 @@ export interface AxisResult {
 }
 
 /** The aggregate outcome of verifying one receipt. */
+/** Versioned trust identity, mirrored from Python's trust_bundle. */
+export interface TrustBundleIdentity {
+  /** Bundle version the result was verified under. */
+  version: number | string | null;
+  /** Recorded bundle digest the run verified against. */
+  digest: string | null;
+  /** Where the bundle came from (e.g. bundle file name). */
+  source: string | null;
+  /** Whether the bundle self-digest verified. */
+  valid: boolean;
+}
+
 export interface VerifyResult {
   /** The matched adapter name, or "unknown". */
   fmt: string;
@@ -58,6 +70,8 @@ export interface VerifyResult {
   firstFailingEdge: string | null;
   /** The checks this result does not claim, beside the claim it makes. */
   notChecked: NotCheckedEntry[];
+  /** Trust identity; null here, TS evaluates no bundles. Parity field. */
+  trustBundle: TrustBundleIdentity | null;
   /** The coverage block, mirrored from the reviewer's tool: snake_case keys are deliberate. */
   coverage: Coverage;
   /** Resolved invocation context, so a disagreement attributes to an input. */
@@ -230,7 +244,7 @@ const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NEST
 function earlyUnverified(fmt: string, note: string): VerifyResult {
   const axes = [axis("structure", FAIL, note)];
   const [verdict, failureClass] = foldVerdict(axes, false);
-  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
+  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null };
 }
 
 /** Unverified/unverifiable for input refused before hashing (runner form) */
@@ -260,6 +274,7 @@ export function verify(
       firstFailingEdge: firstFailingEdge(axes),
       notChecked: notCheckedDeclaration(),
       coverage: coverageDeclaration(axes),
+      trustBundle: null,
       context: resolved,
     };
   }
@@ -291,6 +306,7 @@ export function verify(
       firstFailingEdge: early.firstFailingEdge,
       notChecked: early.notChecked,
       coverage: early.coverage,
+      trustBundle: null,
       context: resolved,
     };
   }
@@ -310,5 +326,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), context: resolved };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null, context: resolved };
 }
