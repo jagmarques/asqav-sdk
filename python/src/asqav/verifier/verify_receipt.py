@@ -2827,6 +2827,51 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
     return "PASS", f"counterparty binding rederives from the supplied {receipt_ref}"
 
 
+def check_directory_substitution(payload: dict, jwks: dict, prior_jwks: dict | None):
+    """Report directory substitution against retained evidence (628 T-a).
+
+    Returns None when there is no retained directory to compare or no
+    contradiction, leaving the legacy path untouched. Otherwise a
+    (result, note) pair: the retained directory pins the signed
+    key_thumbprint to one key while the current directory binds a
+    different key to the same kid or agent.
+    """
+    if prior_jwks is None or not isinstance(payload, dict):
+        return None
+    claimed = payload.get("key_thumbprint")
+    if not isinstance(claimed, str) or not is_well_formed(claimed):
+        return None
+    prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
+    if not isinstance(prior_keys, list):
+        return None
+    prior_hits = [
+        k for k in prior_keys
+        if isinstance(k, dict)
+        and k.get("key_thumbprint") == claimed
+        and isinstance(k.get("public_key"), str)
+    ]
+    if len(prior_hits) != 1:
+        return None
+    (prior_entry,) = prior_hits
+    cur_keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    cur_keys = cur_keys if isinstance(cur_keys, list) else []
+    if any(isinstance(k, dict) and k.get("public_key") == prior_entry.get("public_key")
+           for k in cur_keys):
+        return None
+    kid = prior_entry.get("kid")
+    agent = prior_entry.get("agent_id")
+    if not any(isinstance(k, dict)
+               and (k.get("kid") == kid or k.get("agent_id") == agent)
+               and k.get("public_key") != prior_entry.get("public_key")
+               for k in cur_keys):
+        return None
+    return ("SKIPPED",
+            "directory_substitution: retained directory binds "
+            f"{claimed} to kid {kid!r} agent {agent!r}; the current "
+            "directory binds a different key there, so the binding "
+            "cannot be recomputed")
+
+
 def check_key_binding(payload: dict, alg, public_key):
     """Recompute the signed key_thumbprint from the resolved key and compare.
 
@@ -3275,8 +3320,48 @@ def _signature_object(envelope: dict, payload: dict) -> dict:
     return sig_obj if isinstance(sig_obj, dict) else {}
 
 
+def check_rotation_succession(entry, eff_pk, prior_jwks):
+    """Report unevidenced rotation against retained evidence (628 T-b).
+
+    Returns None when there is no retained directory, no retained pin for
+    the resolved identity, the verifying key is still published there, or
+    the signature did not verify. Else a (result, note) pair: the current
+    key differs from every retained key for the same kid or agent with no
+    transition authorization from the retained key.
+    """
+    if prior_jwks is None or eff_pk is None or not isinstance(entry, dict):
+        return None
+    prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
+    if not isinstance(prior_keys, list):
+        return None
+    kid = entry.get("kid")
+    agent = entry.get("agent_id")
+    retained = [
+        k for k in prior_keys
+        if isinstance(k, dict)
+        and (k.get("kid") == kid or k.get("agent_id") == agent)
+        and isinstance(k.get("public_key"), str)
+    ]
+    if not retained:
+        return None
+    eff_b64 = base64.b64encode(eff_pk).decode()
+    if any(k.get("public_key") == eff_b64 for k in retained):
+        return None
+    if any(k.get("status") == "revoked" for k in retained):
+        case = "removed_old_key"
+        why = "the retained key is revoked and cannot authorize succession"
+    else:
+        case = "forged_transition"
+        why = "with no transition authorization from the retained key"
+    return ("SKIPPED",
+            f"{case}: verifying key differs from every retained "
+            f"key for kid {kid!r} agent {agent!r} {why}, so succession "
+            "cannot be established")
+
+
 def _key_and_signature_rows(
-    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+    prior_jwks=None,
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the verifying key.
 
@@ -3325,6 +3410,11 @@ def _key_and_signature_rows(
         ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor)),
         ("signature", *sig_res),
     ]
+    # Succession replaces only the resolution report, and only when the
+    # signature verified: an unverified key has no succession to evaluate.
+    _succession = check_rotation_succession(entry, _verifying_key(rows, eff_pk), prior_jwks)
+    if _succession is not None:
+        rows = [("issuer_key", *_succession)] + rows[1:]
     return rows, eff_pk, eff_alg, bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
 
@@ -3544,6 +3634,7 @@ def run_structured(
     required_extensions=None,
     trust_bundle: dict | None = None,
     trust_bundle_source: str | None = None,
+    prior_jwks: dict | None = None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
@@ -3690,13 +3781,17 @@ def run_structured(
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
-        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+        prior_jwks=prior_jwks,
     )
     axes.extend(_struct_axis(*row) for row in rows)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
-    axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
+    _kb = check_directory_substitution(payload, jwks, prior_jwks)
+    if _kb is None:
+        _kb = check_key_binding(payload, eff_alg, eff_pk)
+    axes.append(_struct_axis("key_binding", *_kb))
     axes.append(
         _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
