@@ -83,4 +83,26 @@ describe("retain live results", () => {
     expect(out.differing).toContain("verificationTime");
     expect(out.differing).toContain("contentHashes");
   });
+
+  it("carries trust-policy and profile provenance (624 C4/C7)", () => {
+    const { digest } = expiringDoc();
+    const store = new AssessmentStore();
+    const first = recordVerifyResult(store, digest, {
+      axes: [{ axis: "expiry", result: "PASS" }],
+      verdict: "verified",
+      failureClass: null,
+      context: { policyRevision: "P1", trustPolicyId: "T1", profileRevision: "prof-9" },
+    });
+    expect(first.context["trustPolicyId"]).toBe("T1");
+    expect(first.context["profileRevision"]).toBe("prof-9");
+    const second = reassessVerifyResult(store, digest, {
+      axes: [{ axis: "expiry", result: "PASS" }],
+      verdict: "verified",
+      failureClass: null,
+      context: { policyRevision: "P2", trustPolicyId: "T2", profileRevision: "prof-10" },
+    }, "2030-01-01T00:00:00Z", "policy-updated");
+    expect(second.context["trustPolicyId"]).toBe("T2");
+    expect(store.replay(digest)).toEqual(first);
+    expect(store.verifyChain()).toBe(true);
+  });
 });
