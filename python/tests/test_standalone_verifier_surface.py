@@ -89,6 +89,24 @@ def test_the_file_level_apache_exception_stays_documented() -> None:
     assert "file-level" in text and "Apache-2.0" in text
 
 
+def test_spdx_scope_stays_single_file() -> None:
+    py_src = REPO_ROOT / "python" / "src"
+    hits = [
+        p
+        for p in sorted(py_src.rglob("*.py"))
+        if "SPDX-License-Identifier" in p.read_text()
+    ]
+    expected = py_src / "asqav" / "verifier" / "verify_receipt.py"
+    assert hits == [expected], f"SPDX scope drift: {hits}"
+    ts_root = REPO_ROOT / "typescript" / "src"
+    ts_hits = [
+        p
+        for p in sorted(ts_root.rglob("*.ts"))
+        if "SPDX-License-Identifier" in p.read_text()
+    ]
+    assert ts_hits == [], f"SPDX scope drift under typescript/src: {ts_hits}"
+
+
 #: Refuses outbound sockets and any asqav import in the child, so a verifier
 #: that reached for the network or the producer package fails loudly
 SITECUSTOMIZE = """

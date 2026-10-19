@@ -2759,12 +2759,14 @@ class Agent:
         for a in actions:
             if "action_type" not in a:
                 raise ValueError("each action must include 'action_type'")
+            # Same per-item builder as sign(): hash-only digests the context locally.
             body_actions.append(
-                {
-                    "action_type": resolve_pattern(a["action_type"]),
-                    "context": a.get("context") or {},
-                    "session_id": self._session_id,
-                }
+                _build_sign_body(
+                    action_type=resolve_pattern(a["action_type"]),
+                    context=a.get("context") or {},
+                    session_id=self._session_id,
+                    agent_id=self.agent_id,
+                )
             )
 
         data = _post(

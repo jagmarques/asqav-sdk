@@ -104,13 +104,13 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 67,
-    "action_ref": 63,
-    "policy_digest": 61,
-    "previousReceiptHash": 60,
+    "sig": 73,
+    "action_ref": 69,
+    "policy_digest": 67,
+    "previousReceiptHash": 66,
     "key_thumbprint": 3,
-    "payload_digest": 57,
-    "envelope_hash": 8,
+    "payload_digest": 63,
+    "envelope_hash": 12,
     "canonical": 0,
 }
 
@@ -169,8 +169,13 @@ PINNED_SIG = {
     'asqav-37-counterparty-divergent-terms': 'CaXqppYvh1nnO29VnjKNwBttWUtXOQdD4/5zfI5CTzzzn5dvLkkOIU4GPaGu0m9OY1ZYctQwxgcgiXwuoZBnBg==',
     'asqav-38-counterparty-received-only': 'GWMUl05X3dPX6z0YtM6nqFGvRsYjlSbMY2yx0NLILiA230SWg5RWhCBIvbgpFhhvnct9SUAkei4ijKUZJAJeCg==',
     'asqav-39-counterparty-cross-replay': '8aYaCZz/81DFnBgm54lnc7cuhg0Z5MsGU7mS3wpNoOTTUsP83JhCg/C3oS3lkQPPEY7IQOoBwUOhF5/wJf9FCA==',
+    'asqav-40-counterparty-self-binding': 'ImK18weJ9yP3p245Rx8j5Hb892es1woZ/ZfEir5AHetwMlxGojNOuSDh0zbNjlVKW5zw+7WcQvu67fz7VcluAA==',
+    'asqav-41-counterparty-omitted-peer': 'CF8o+MpIuELLOlFZOZj19CR6p4ymM9p/8btWVNL+qF2/1BRXF0BztwjAMwrxHWnS7Hncxd77A/oCZ5uDwfJfCA==',
+    'asqav-42-counterparty-same-binding-second-ack': 'xAI2/G3TUGLETuJxvhPfMup3QjQSdOTi7OKEnmDHVqCS7wpLt+whBG1LaasifTD7CQIvqW20IE+EFDdwDd6PDQ==',
+    'asqav-43-counterparty-unknown-member': 'nIrGxlg3XbDDMygLaWeLEaigKQxlDmob7BtfU78bEnyv4bSqwOz9pbrU4jaLRP+uUxGX/XYUQadkkLxcpLl4Cg==',
     'asqav-42-keyed-digest-unverifiable': 'jpwrSvphAO+Sf+uZVr3pBCNpIQ+l/T3OzzKbqS1t4vShAdOIVSvJ2ZXb+jemE9+Do1VjMEvzwI/u74r8XVwpCQ==',
     'asqav-38-protectmcp-unknown-invalid': 'lmRzAdp5YvCyLK2cQ+Xf2/0JIZ/AzfFgXjXzvPt5K1nLPykQNfa/1OjwwLIi6QnQnjVfQlB+xBjEz0V1x8MoBA==',
+    'asqav-39-foreign-namespace-reported': 'YnpbyeBUflaipkX3TQB1flng2Ae//RE4M/gAdwUkA+33fecJhHiTmyiXBPazw66mFr/fSqwFE/kbaESpSN4+DA==',
     'asqav-39-malformed-type': '0ZnelkJ9t6zbAAeF08bFtJUG11RyTgnMhj84E5pKnAWeAHnGbPbMJv/GgXib9mc5Ipu28V/fkm2b3a9kwCYOAA==',
 }
 
@@ -224,9 +229,14 @@ PINNED_ACTION_REF = {
     'asqav-37-counterparty-divergent-terms': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
     'asqav-38-counterparty-received-only': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
     'asqav-39-counterparty-cross-replay': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
+    'asqav-40-counterparty-self-binding': 'sha256:eaa40a5ece963896517978a26f1bec6355de3513ece6afb800c15034c8b712df',
+    'asqav-41-counterparty-omitted-peer': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
+    'asqav-42-counterparty-same-binding-second-ack': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
+    'asqav-43-counterparty-unknown-member': 'sha256:6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9',
     'asqav-42-keyed-digest-unverifiable': 'sha256:24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9',
     'asqav-42-revoked-before-issuance': 'sha256:c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124',
     'asqav-38-protectmcp-unknown-invalid': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
+    'asqav-39-foreign-namespace-reported': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
     'asqav-39-malformed-type': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
 }
 
@@ -278,9 +288,14 @@ PINNED_POLICY_DIGEST = {
     'asqav-37-counterparty-divergent-terms': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
     'asqav-38-counterparty-received-only': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
     'asqav-39-counterparty-cross-replay': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
+    'asqav-40-counterparty-self-binding': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
+    'asqav-41-counterparty-omitted-peer': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
+    'asqav-42-counterparty-same-binding-second-ack': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
+    'asqav-43-counterparty-unknown-member': 'sha256:57ccec5e5c18d08dc1f94b16a500d29307748a022709cf0291bc368b5f01178b',
     'asqav-42-keyed-digest-unverifiable': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     'asqav-42-revoked-before-issuance': 'sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7',
     'asqav-38-protectmcp-unknown-invalid': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    'asqav-39-foreign-namespace-reported': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     'asqav-39-malformed-type': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
 }
 
@@ -332,9 +347,14 @@ PINNED_PREV_HASH = {
     'asqav-37-counterparty-divergent-terms': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-38-counterparty-received-only': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-39-counterparty-cross-replay': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-40-counterparty-self-binding': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-41-counterparty-omitted-peer': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-42-counterparty-same-binding-second-ack': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-43-counterparty-unknown-member': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-42-keyed-digest-unverifiable': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-42-revoked-before-issuance': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-38-protectmcp-unknown-invalid': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-39-foreign-namespace-reported': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-39-malformed-type': '0000000000000000000000000000000000000000000000000000000000000000',
 }
 
@@ -391,9 +411,14 @@ PINNED_PAYLOAD_DIGEST = {
     'asqav-37-counterparty-divergent-terms': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
     'asqav-38-counterparty-received-only': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
     'asqav-39-counterparty-cross-replay': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
+    'asqav-40-counterparty-self-binding': {'hash': 'eaa40a5ece963896517978a26f1bec6355de3513ece6afb800c15034c8b712df', 'size': 48},
+    'asqav-41-counterparty-omitted-peer': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
+    'asqav-42-counterparty-same-binding-second-ack': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
+    'asqav-43-counterparty-unknown-member': {'hash': '6200a624fcf21e5d33f120a3624f7e317a1d36eb550078602dcc3494656343c9', 'size': 45},
     'asqav-42-keyed-digest-unverifiable': {'hash': '24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9', 'size': 25},
     'asqav-42-revoked-before-issuance': {'hash': 'c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124', 'size': 101},
     'asqav-38-protectmcp-unknown-invalid': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
+    'asqav-39-foreign-namespace-reported': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
     'asqav-39-malformed-type': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
 }
 
@@ -408,6 +433,10 @@ PINNED_ENVELOPE_HASH = {
     'asqav-36-counterparty-origin-forged': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
     'asqav-37-counterparty-divergent-terms': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
     'asqav-39-counterparty-cross-replay': 'xxTSAmzdM1Act3omGEhYR5GfMnUC+C/P6+dZjRm8XIo=',
+    'asqav-40-counterparty-self-binding': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
+    'asqav-41-counterparty-omitted-peer': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
+    'asqav-42-counterparty-same-binding-second-ack': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
+    'asqav-43-counterparty-unknown-member': 'xGgBJ3O8Brf3zwSG04Vfyw/YDgwsyJD/KhJslNBZBGo=',
 }
 
 #: Outer-copy vectors keep asqav-06's signed payload and edit only unsigned
@@ -446,6 +475,15 @@ PINNED_ACTION_REF["asqav-54-kms-signed"] = 'sha256:1153ce45e4f31303469cf813b71ad
 PINNED_POLICY_DIGEST["asqav-54-kms-signed"] = 'sha256:841c46462a28db90e77440342e78306b689ad71856a62c7dc0ea0a19d08e8d35'
 PINNED_PREV_HASH["asqav-54-kms-signed"] = '0000000000000000000000000000000000000000000000000000000000000000'
 PINNED_PAYLOAD_DIGEST["asqav-54-kms-signed"] = {'hash': '1153ce45e4f31303469cf813b71adef24395f903fe86973ffa22ff97be674590', 'size': 58}
+#: asqav-55 is the 574 C474 hash-mode heartbeat vector; every derived member pinned.
+PINNED_SIG["asqav-55-heartbeat"] = (
+    "gk8oCAWmz90cWuRvhGCLuX+MWSfDIfSG8q4955rbu9IfC6UiaqalrUpG+qISGHMhcfYYi/"
+    "KSCg0K++0K9I8EBw=="
+)
+PINNED_ACTION_REF["asqav-55-heartbeat"] = 'sha256:7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5'
+PINNED_POLICY_DIGEST["asqav-55-heartbeat"] = 'sha256:5ad43b4f600334357a2c88aa28708b8560320a1a1e5f2a729415b4fd836e467c'
+PINNED_PREV_HASH["asqav-55-heartbeat"] = '0000000000000000000000000000000000000000000000000000000000000000'
+PINNED_PAYLOAD_DIGEST["asqav-55-heartbeat"] = {'hash': '7637becd5a123db9370f14f1dd0902c4b5a8111b9d7b0a77e67807214fb125d5', 'size': 23}
 
 
 

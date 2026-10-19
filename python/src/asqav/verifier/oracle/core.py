@@ -17,6 +17,8 @@ from asqav import strict_json
 from ..verify_receipt import NOT_CHECKED, not_checked_declaration
 from . import crypto
 from .adapter import FormatAdapter, VerificationContext
+from .semantic import fold_independent
+from .semantic_classify import classify as classify_failure
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
 #: tokens stay internal; the surface a caller reads speaks these three only.
@@ -112,76 +114,8 @@ def _oracle_coverage(axis_names: list[str]) -> dict:
     return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
 
 
-#: Axes whose FAIL proves a cryptographic/policy binding failure (invalid).
-_INVALID_FAIL_AXES = frozenset(
-    {
-        "signature",
-        "anchors",
-        "issuer_bind",
-        "key_status",
-        "key_binding",
-        "counterparty",
-        "payload_digest",
-        "outer_copies",
-        "nonce",
-        "parent_signature",
-        "pdp_signature",
-        # A gap proves receipts were withheld and a malformed counter was signed as-is;
-        # both are proven defects, not a recompute that could not finish.
-        "seq",
-    }
-)
-
-
-def axis_failure_class(axis: str, result: str, note: str) -> str | None:
-    """Map one axis outcome to its failure class (criterion 418).
-
-    PASS carries none; SKIPPED means recomputation could not complete
-    (unverifiable); a FAIL is invalid when a binding was proven broken and
-    unverifiable when the receipt's own bytes stopped the recompute. A FAIL this
-    table does not name reads unverifiable: an unclassified failure is never
-    reported as a proven binding failure.
-    """
-    if result == crypto.PASS:
-        return None
-    if result == crypto.SKIPPED:
-        return FAILURE_UNVERIFIABLE
-    if axis in _INVALID_FAIL_AXES:
-        return FAILURE_INVALID
-    if axis == "chain":
-        # A mismatched link or a cross-format predecessor is a proven break; a
-        # predecessor the canonicaliser cannot walk stops the recompute instead.
-        if note.startswith("chain break:") or note == "predecessor is a different receipt format":
-            return FAILURE_INVALID
-        return FAILURE_UNVERIFIABLE
-    if axis == "skew":
-        if note.startswith("unparseable issued_at"):
-            return FAILURE_UNVERIFIABLE
-        return FAILURE_INVALID
-    if axis == "structure":
-        if note.startswith("unsupported ACTA alg") or note.startswith(
-            "unsupported signature algorithm"
-        ):
-            return FAILURE_INVALID
-        if note.startswith("key_purpose mismatch"):
-            return FAILURE_INVALID
-        if "signing-key DID != issuer DID" in note:
-            return FAILURE_INVALID
-        if note.startswith("proof @context is not a prefix"):
-            return FAILURE_INVALID
-        if note.startswith("unregistered type ") or note.startswith(
-            "malformed type "
-        ):
-            return FAILURE_INVALID
-        return FAILURE_UNVERIFIABLE
-    if axis == "expiry":
-        if note.startswith("unreadable expires_at"):
-            return FAILURE_UNVERIFIABLE
-        return FAILURE_INVALID
-    # issuer_key / ingest and anything unlisted: the recompute could not complete.
-    return FAILURE_UNVERIFIABLE
-
-
+    # Failure classification lives in ``semantic_classify`` (criterion 574
+    # D5a): derived from criterion 418, not ported from another table.
 #: Fixed leading axis order every adapter walks, before its format-specific extras.
 #: Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
 AXIS_ORDER_PREFIX = ("structure", "signature", "chain", "seq")
@@ -193,8 +127,8 @@ def first_failing_edge(axes: list[AxisResult]) -> str | None:
     Walks the axes as reported, which is the fixed order `verify` builds, so the
     answer never depends on which check happened to be evaluated first internally.
 
-    The two exclusions mirror `fold_verdict` exactly, and are the whole reason
-    this is not simply "the first non-PASS axis": the expiry axis reports on its
+    The two exclusions mirror the semantic table exactly, and are the whole
+    reason this is not simply "the first non-PASS axis": the expiry axis reports on its
     own and never folds the verdict (criterion 426), and a SKIPPED chain is
     tolerated where any other SKIPPED blocks. Without them a verified receipt
     that is merely expired would name an edge, reporting a failure that did not
@@ -213,24 +147,8 @@ def first_failing_edge(axes: list[AxisResult]) -> str | None:
     return None
 
 
-    # Fold per-axis outcomes into the public verdict + failure class (418/438).
-def fold_verdict(axes: list[AxisResult], keyed: bool) -> tuple[str, str | None]:
-    failed = [a for a in axes if a.result == crypto.FAIL and a.axis != "expiry"]
-    blocking_skip = any(a.result == crypto.SKIPPED and a.axis != "chain" for a in axes)
-    if failed:
-        # A proven binding failure dominates a malformed-member failure: the
-        # receipt is invalid on the strongest ground the axes established.
-        classes = {a.failure_class for a in failed}
-        failure_class = FAILURE_INVALID if FAILURE_INVALID in classes else FAILURE_UNVERIFIABLE
-        return VERDICT_UNVERIFIED, failure_class
-    if blocking_skip:
-        return VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE
-    if keyed:
-        return VERDICT_VERIFIED_KEYED, None
-    return VERDICT_VERIFIED, None
-
-
-    # Return the first adapter whose structural fingerprint matches ``doc``.
+    # The verdict aggregation lives in ``semantic`` (criterion 574 D5):
+    # independently derived from 418/438/426, not ported from this fold.
 def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
     if not isinstance(doc, dict):
         # A non-object receipt (array, string, number, null) matches no format;
@@ -240,7 +158,7 @@ def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
 
 
 def _axis(axis: str, result: str, note: str) -> AxisResult:
-    return AxisResult(axis, result, note, axis_failure_class(axis, result, note))
+    return AxisResult(axis, result, note, classify_failure(axis, result, note))
 
 
 #: Structure-axis note for the malformed third spelling of "no anchors": the member
@@ -295,8 +213,8 @@ def _chain_axis(
 def _seq_axis(
     ad: FormatAdapter, doc: dict, adapters: list[FormatAdapter], predecessor: dict | None
 ) -> AxisResult:
-    # A gap is omission evidence. Never SKIPPED: fold_verdict blocks on a non-chain
-    # SKIPPED, so a receipt with no counter would regress to unverified.
+    # A gap is omission evidence. Never SKIPPED: the semantic fold blocks on
+    # a non-chain SKIPPED, so a receipt with no counter regresses.
     seq = ad.seq_of(doc)
     if seq is None:
         return _axis("seq", crypto.PASS, "no seq member; receipt is not part of a counted series")
@@ -366,7 +284,7 @@ def _early_unverified(
     fmt: str, note: str, context: VerificationContext | None = None,
 ) -> VerifyResult:
     axes = [_axis("structure", crypto.FAIL, note)]
-    verdict, failure_class = fold_verdict(axes, keyed=False)
+    verdict, failure_class = fold_independent(axes, keyed=False)
     return VerifyResult(
         fmt=fmt,
         axes=axes,
@@ -392,7 +310,7 @@ def verify(
     resolved = context or VerificationContext()
     if ad is None:
         axes = [_axis("structure", crypto.FAIL, "no adapter recognises this receipt")]
-        verdict, failure_class = fold_verdict(axes, keyed=False)
+        verdict, failure_class = fold_independent(axes, keyed=False)
         return VerifyResult(
             fmt="unknown",
             axes=axes,
@@ -432,7 +350,7 @@ def verify(
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426);
     # a keyed digest reports verified_keyed, never plain verified (criterion 438).
-    verdict, failure_class = fold_verdict(axes, keyed=ad.keyed_digest(doc))
+    verdict, failure_class = fold_independent(axes, keyed=ad.keyed_digest(doc))
     signer = ad.attestation(doc).get("signer")
     return VerifyResult(
         fmt=ad.name,

@@ -23,7 +23,7 @@ from pathlib import Path
 from asqav.verifier import verify_receipt as vr
 from asqav.verifier.oracle import ADAPTERS, VerificationContext
 from asqav.verifier.oracle import verify as oracle_verify
-from asqav.verifier.oracle.core import _INVALID_FAIL_AXES as ORACLE_INVALID_FAIL_AXES
+from asqav.verifier.oracle.semantic_classify import _ALWAYS_INVALID_AXES as ORACLE_INVALID_FAIL_AXES
 
 CASES_FILE = Path(__file__).parent.parent.parent / "verifier" / "axis-parity-cases.json"
 TABLE = json.loads(CASES_FILE.read_text())
