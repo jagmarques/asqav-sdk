@@ -3320,8 +3320,43 @@ def _signature_object(envelope: dict, payload: dict) -> dict:
     return sig_obj if isinstance(sig_obj, dict) else {}
 
 
+def check_rotation_succession(entry, eff_pk, prior_jwks):
+    """Report unevidenced rotation against retained evidence (628 T-b).
+
+    Returns None when there is no retained directory, no retained pin for
+    the resolved identity, the verifying key is still published there, or
+    the signature did not verify. Else a (result, note) pair: the current
+    key differs from every retained key for the same kid or agent with no
+    transition authorization from the retained key.
+    """
+    if prior_jwks is None or eff_pk is None or not isinstance(entry, dict):
+        return None
+    prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
+    if not isinstance(prior_keys, list):
+        return None
+    kid = entry.get("kid")
+    agent = entry.get("agent_id")
+    retained = [
+        k for k in prior_keys
+        if isinstance(k, dict)
+        and (k.get("kid") == kid or k.get("agent_id") == agent)
+        and isinstance(k.get("public_key"), str)
+    ]
+    if not retained:
+        return None
+    eff_b64 = base64.b64encode(eff_pk).decode()
+    if any(k.get("public_key") == eff_b64 for k in retained):
+        return None
+    return ("SKIPPED",
+            "forged_transition: verifying key differs from every retained "
+            f"key for kid {kid!r} agent {agent!r} with no transition "
+            "authorization from the retained key, so succession cannot "
+            "be established")
+
+
 def _key_and_signature_rows(
-    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+    prior_jwks=None,
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the verifying key.
 
@@ -3370,6 +3405,11 @@ def _key_and_signature_rows(
         ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor)),
         ("signature", *sig_res),
     ]
+    # Succession replaces only the resolution report, and only when the
+    # signature verified: an unverified key has no succession to evaluate.
+    _succession = check_rotation_succession(entry, _verifying_key(rows, eff_pk), prior_jwks)
+    if _succession is not None:
+        rows = [("issuer_key", *_succession)] + rows[1:]
     return rows, eff_pk, eff_alg, bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
 
@@ -3736,7 +3776,8 @@ def run_structured(
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
-        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+        prior_jwks=prior_jwks,
     )
     axes.extend(_struct_axis(*row) for row in rows)
 
