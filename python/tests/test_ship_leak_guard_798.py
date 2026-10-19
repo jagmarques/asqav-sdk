@@ -20,7 +20,8 @@ TS_DIST = ROOT / "typescript" / "dist"
 
 PRIVATE_HOST = re.compile(
     r"hetzner|coolify|staging|\.internal\b|0\.0\.0\.0"
-    r"|10\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}",
+    r"|10\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}"
+    r"|169\.254\.\d{1,3}\.\d{1,3}|://[A-Za-z0-9.-]*\.(local|lan)\b",
     re.IGNORECASE,
 )
 SOURCE_MAP = re.compile(r"sourceMappingURL|\.map\.js", re.IGNORECASE)
@@ -76,7 +77,7 @@ def test_built_dist_has_no_source_maps() -> None:
     maps = [p for p in TS_DIST.rglob("*.map")]
     assert maps == [], [str(p) for p in maps[:5]]
     # CI builds dist before pytest, so this scans the real shipped bytes.
-    hits = _scan_tree(TS_DIST, ".js", ".cjs", ".mjs")
+    hits = _scan_tree(TS_DIST, ".js", ".cjs", ".mjs", ".d.ts", ".d.mts")
     assert hits == [], hits[:10]
 
 
@@ -96,11 +97,25 @@ def test_planted_private_hostname_fails(tmp_path: Path) -> None:
     assert _findings(planted.read_text())
 
 
+def test_planted_local_and_lan_hostnames_fail(tmp_path: Path) -> None:
+    body = 'A = "http://asqav-hub.local:8000"\nB = "http://nas.lan:5000"\n'
+    assert _findings(_planted(tmp_path, "b2.py", body).read_text())
+
+
 def test_planted_live_token_fails(tmp_path: Path) -> None:
     planted = _planted(tmp_path, "c.py", 'token = "ghp_abcdefghijklmnopqrstuvwx"\n')
     assert _findings(planted.read_text())
 
 
+def test_planted_sk_live_token_fails(tmp_path: Path) -> None:
+    tok = "sk_live_" + "9f8K2mZx" + "QvBn4Lp7"
+    assert _findings(_planted(tmp_path, "c2.py", f'token = "{tok}"\n').read_text())
+
+
 def test_documented_example_secret_passes(tmp_path: Path) -> None:
-    body = 'api_key = "sk_live_your_key_here"  # example from the docs\n'
+    # Built from parts so no token-shaped literal lands in the tree; the hint
+    # sits inside the token, proving detector and allowlist both engage.
+    tok = "sk_live_" + "example" + "0" * 10
+    body = f'api_key = "{tok}"  # example from the docs\n'
+    assert SK_LIVE.search(body), "example must reach the detector"
     assert _findings(_planted(tmp_path, "d.py", body).read_text()) == []
