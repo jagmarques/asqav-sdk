@@ -327,6 +327,66 @@ def run_bindings(iterations: int, seed: int) -> dict:
     return {"engines": sorted(available), "counts": dict(counts), "divergences": divergences}
 
 
+#: Prefix for unregistered members planted by the unknown-member case.
+#: Real unregistered names sort anywhere; the fuzz uses one fixed
+#: prefix so survival is checkable per document.
+UNKNOWN_MEMBER_PREFIX = "x_unknown_"
+
+
+def generate_with_unknown_members(rng: random.Random):
+    """One receipt-shaped doc carrying unregistered top-level members."""
+    doc = generate(rng)
+    if not isinstance(doc, dict):
+        doc = {"root": doc}
+    for _ in range(rng.randint(1, 3)):
+        doc[f"{UNKNOWN_MEMBER_PREFIX}{rng.randint(0, 99999)}"] = _rand_value(
+            rng, depth=2, unsafe_numbers=False)
+    return doc
+
+
+def run_unknown_members(iterations: int, seed: int) -> list[dict]:
+    """Zero divergences, and every unknown member survives every engine.
+
+    Canonicalization is member-agnostic by design: an unregistered member
+    must round-trip byte-identically (registry status lives in the
+    verifier, never in the canonicalizer). An empty list means agreement.
+    """
+    rng = random.Random(seed)
+    docs = [generate_with_unknown_members(rng) for _ in range(iterations)]
+    divergences: list[dict] = []
+
+    sdk = [sdk_canonical(d) for d in docs]
+    standalone = [standalone_canonical(d) for d in docs]
+    cloud = [cloud_canonical(d) for d in docs] if cloud_canonical else None
+    ts = ts_canonical_batch(docs)
+    ts_verifier = ts_verifier_canonical_batch(docs)
+
+    for i, doc in enumerate(docs):
+        seen = {"sdk": sdk[i], "standalone": standalone[i]}
+        if cloud is not None:
+            seen["cloud"] = cloud[i]
+        if ts is not None:
+            seen["typescript"] = ts[i]
+        if ts_verifier is not None:
+            seen["typescript-verifier"] = ts_verifier[i]
+        if len(set(seen.values())) > 1:
+            divergences.append({
+                "index": i, "seed": seed, "document": doc,
+                "bytes": {k: v.decode("utf-8", "replace") for k, v in seen.items()},
+            })
+            continue
+        unknown = {k: doc[k] for k in doc if k.startswith(UNKNOWN_MEMBER_PREFIX)}
+        for engine, raw in seen.items():
+            back = json.loads(raw.decode("utf-8"))
+            for key, value in unknown.items():
+                if back.get(key) != value:
+                    divergences.append({
+                        "index": i, "seed": seed, "engine": engine,
+                        "dropped": key, "document": doc,
+                    })
+    return divergences
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--iterations", type=int, default=500)
@@ -339,7 +399,9 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"REFUSING: {exc}")
         return 2
-    divergences = run(args.iterations, args.seed, args.unsafe_numbers) + bindings["divergences"]
+    divergences = (run(args.iterations, args.seed, args.unsafe_numbers)
+                   + run_unknown_members(args.iterations, args.seed)
+                   + bindings["divergences"])
     engines = engines_available()
     print(f"engines compared: {', '.join(engines)}")
     print(f"iterations: {args.iterations}  seed: {args.seed}")
