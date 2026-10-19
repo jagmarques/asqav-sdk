@@ -31,6 +31,10 @@ class VerificationContext:
     revocation_snapshot: Any = None
     #: Policy revision the caller evaluated against (attribution only).
     policy_revision: Any = None
+    #: Trust-policy identity the caller evaluated against (attribution only).
+    trust_policy_id: Any = None
+    #: Profile revision the caller evaluated against (attribution only).
+    profile_revision: Any = None
     #: Evidence cutoff the caller evaluated against (attribution only).
     evidence_knowledge_cutoff: Any = None
     #: Event time the caller evaluated against (attribution only).
