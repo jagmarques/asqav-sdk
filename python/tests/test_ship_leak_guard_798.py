@@ -75,6 +75,9 @@ def test_built_dist_has_no_source_maps() -> None:
         pytest.skip("no local dist build; publish builds it")
     maps = [p for p in TS_DIST.rglob("*.map")]
     assert maps == [], [str(p) for p in maps[:5]]
+    # CI builds dist before pytest, so this scans the real shipped bytes.
+    hits = _scan_tree(TS_DIST, ".js", ".cjs", ".mjs")
+    assert hits == [], hits[:10]
 
 
 def _planted(tmp_path: Path, name: str, body: str) -> Path:
