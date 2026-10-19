@@ -38,6 +38,10 @@ const ALLOWED_TYPES = new Set([
 // Edition this verifier resolves type names against
 export const REGISTRY_EDITION = "2026-09-15.v1";
 
+// Upstream registry version the vendored set reconciles:
+// v1.1.0 nine plus draft-defined oversight_ruling, pending registration
+export const REGISTRY_VERSION = "1.1.0";
+
 // Draft-registered namespaces (anchor iana-type-namespaces), all ten
 export const REGISTRY_NAMESPACES: ReadonlySet<string> = new Set([
   "protectmcp:decision",
