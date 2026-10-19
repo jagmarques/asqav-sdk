@@ -2516,8 +2516,8 @@ NOT_CHECKED = (
         "check": "policy_digest_resolution",
         "requirement": "verifier check on policy_digest",
         "reason": (
-            "the referenced policy artefact is not fetched or rehashed; the digest is "
-            "checked for shape only, and resolving it needs the Audit Pack manifest"
+            "the referenced policy artefact is not fetched, rehashed, or otherwise "
+            "evaluated; resolving it needs the Audit Pack manifest"
         ),
         "condition": None,
     },
