@@ -4,6 +4,7 @@
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { exceedsDepth } from "./canonical.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
+import { REGISTRY_EDITION, REGISTRY_VERSION } from "./vrShim.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 import { classifyFailure, foldIndependent } from "./semantic.js";
 
@@ -72,6 +73,9 @@ export interface VerifyResult {
   notChecked: NotCheckedEntry[];
   /** Trust identity; null here, TS evaluates no bundles. Parity field. */
   trustBundle: TrustBundleIdentity | null;
+  /** Registry edition + upstream version this result resolved against (625). */
+  registryEdition: string;
+  registryVersion: string;
   /** The coverage block, mirrored from the reviewer's tool: snake_case keys are deliberate. */
   coverage: Coverage;
   /** Resolved invocation context, so a disagreement attributes to an input. */
@@ -244,7 +248,7 @@ const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NEST
 function earlyUnverified(fmt: string, note: string): VerifyResult {
   const axes = [axis("structure", FAIL, note)];
   const [verdict, failureClass] = foldVerdict(axes, false);
-  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null };
+  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null, registryEdition: REGISTRY_EDITION, registryVersion: REGISTRY_VERSION };
 }
 
 /** Unverified/unverifiable for input refused before hashing (runner form) */
@@ -275,6 +279,8 @@ export function verify(
       notChecked: notCheckedDeclaration(),
       coverage: coverageDeclaration(axes),
       trustBundle: null,
+      registryEdition: REGISTRY_EDITION,
+      registryVersion: REGISTRY_VERSION,
       context: resolved,
     };
   }
@@ -307,6 +313,8 @@ export function verify(
       notChecked: early.notChecked,
       coverage: early.coverage,
       trustBundle: null,
+      registryEdition: REGISTRY_EDITION,
+      registryVersion: REGISTRY_VERSION,
       context: resolved,
     };
   }
@@ -326,5 +334,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null, context: resolved };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null, registryEdition: REGISTRY_EDITION, registryVersion: REGISTRY_VERSION, context: resolved };
 }

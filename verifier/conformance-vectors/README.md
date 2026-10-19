@@ -144,9 +144,10 @@ covers it.
 - `asqav-41-counterparty-omitted-peer` — verified
 - `asqav-42-counterparty-same-binding-second-ack` — verified
 - `asqav-43-counterparty-unknown-member` — verified
-- `asqav-37-unregistered-namespace-reported` — unverified (unregistered_namespace)
+- `asqav-37-unregistered-namespace-reported` — unverified (registered_but_unimplemented; directory name predates the taxonomy fix)
 - `asqav-38-unknown-member-preserved` — verified
 - `asqav-38-protectmcp-unknown-invalid` — unverified (unregistered_protectmcp_type)
+- `asqav-39-foreign-namespace-reported` — unverified (unregistered_namespace; preservation: foreign stays SKIPPED)
 - `asqav-39-absent-version` — unverified
 - `asqav-39-malformed-type` — unverified (malformed_type)
 - `asqav-40-unrecognised-version` — unverified

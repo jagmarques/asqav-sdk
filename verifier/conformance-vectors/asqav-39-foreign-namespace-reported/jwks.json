@@ -1,0 +1,11 @@
+{
+  "keys": [
+    {
+      "kid": "asqav-foreign-namespace-vec-key",
+      "issuer_id": "Asqav Ltd",
+      "alg": "Ed25519",
+      "status": "active",
+      "public_key": "n4SCtinf4Qy2EMYOVpHqZeNbSaYvLajXauwVSFDTM4U="
+    }
+  ]
+}

@@ -1,5 +1,16 @@
 {
   "registry_edition": "2026-09-15.v1",
+  "registry_source": {
+    "repo": "jagmarques/asqav-registry",
+    "path": "registry/type-namespaces.json",
+    "commit": "5be4167d7f9d9590c0783b505a9802d0a4a6e613",
+    "version": "1.1.0",
+    "updated": "2026-09-01",
+    "bytes": "upstream-type-namespaces.json"
+  },
+  "pending_registration": [
+    "protectmcp:lifecycle:oversight_ruling"
+  ],
   "namespaces": [
     {
       "namespace": "protectmcp:acknowledgment",
