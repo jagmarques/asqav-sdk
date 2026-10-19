@@ -19,6 +19,8 @@ const CONTEXT_FIELDS = [
   "trustRoots",
   "revocationSnapshot",
   "policyRevision",
+  "trustPolicyId",
+  "profileRevision",
   "evidenceKnowledgeCutoff",
   "evaluationTime",
   "eventTime",
