@@ -264,6 +264,96 @@ PINNED_PAYLOAD_MEMBERS = {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "size": 0
         }
+    },
+    "counterparty_binding_scope_minus_anchors": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_anchors_included_rejected": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_legacy_scope_absent": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_unrecognised_scope": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_peer_swapped": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_origin_signature_forged": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_divergent_terms_two_signatures": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_received_only_acknowledgement": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_cross_interaction_replay": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_origin_unavailable": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
     }
 }
 
@@ -273,6 +363,21 @@ PINNED_SIGNATURES = {
         "alg": "ML-DSA-65",
         "kid": "00000000000000000098",
         "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
+    },
+    "counterparty_binding_origin_two_anchors": {
+        "alg": "ML-DSA-65",
+        "kid": "00000000000000000098",
+        "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
+    },
+    "counterparty_binding_origin_forged": {
+        "alg": "ML-DSA-65",
+        "kid": "00000000000000000098",
+        "sig": "AAAA_synthetic_signature_bytes_base64_placeholder_for_vector_only_AAAA"
+    },
+    "counterparty_binding_origin_divergent": {
+        "alg": "ML-DSA-65",
+        "kid": "00000000000000000098",
+        "sig": "divergent-valid-signature-bytes-not-verified-here"
     }
 }
 
@@ -430,6 +535,22 @@ def test_no_derived_member_escapes_a_pin() -> None:
         for member in ("canonical", "sha256"):
             assert member in vector, f"{name}: missing {member}"
         assert name in PINNED_SHA256, f"{name}: sha256 is not pinned"
+
+def test_every_input_derived_member_has_a_literal_pin() -> None:
+    """Per-member closure: an input-level derived member must sit under a
+    literal pin for its own vector, not merely ride along on a vector name."""
+    for name, vector in _vectors().items():
+        payload = vector.get("input", {})
+        if not isinstance(payload, dict):
+            continue
+        for member in ("previousReceiptHash", "policy_digest", "action_ref",
+                       "payload_digest"):
+            if member in payload:
+                assert name in PINNED_PAYLOAD_MEMBERS, (
+                    f"{name}.{member} has no literal pin")
+        if "signature" in payload:
+            assert name in PINNED_SIGNATURES, (
+                f"{name}.signature has no literal pin")
 
 
 class TestTheCorpusSpellsNoAnchorsOneWay:
