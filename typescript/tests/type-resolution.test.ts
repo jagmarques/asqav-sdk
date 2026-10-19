@@ -98,7 +98,7 @@ describe("type resolution rows", () => {
 
   it("verify result carries registry edition and version", () => {
     const dir = resolve(__dirname, "..", "..", "verifier", "conformance-vectors", "asqav-25-payload-digest-rederives");
-    const receipt = runnerLoadJson(join(dir, "receipt.json"));
+    const receipt = runnerLoadJson(join(dir, "receipt.json")) ?? {};
     const result = verify(receipt, ADAPTERS, keyProviderFor(dir, "asqav-native"));
     expect(result.registryEdition).toBe("2026-09-15.v1");
     expect(result.registryVersion).toBe("1.1.0");
