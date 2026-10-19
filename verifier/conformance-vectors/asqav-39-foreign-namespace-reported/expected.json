@@ -1,0 +1,7 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "reason_code": "unregistered_namespace",
+  "failure_class": "unverifiable",
+    "notes": "Correctly signed receipt in the foreign acme namespace no registry carries; structure axis reports SKIPPED, never FAIL (preservation control: pins the arm against future hardening)."
+}

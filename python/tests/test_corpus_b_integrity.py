@@ -104,12 +104,12 @@ PINNED_MEMBER_NAMES = frozenset(
 
 #: Census pins: how many receipts carry each kind. Corpus growth fails here.
 EXPECTED_PIN_COUNTS = {
-    "sig": 72,
-    "action_ref": 68,
-    "policy_digest": 66,
-    "previousReceiptHash": 65,
+    "sig": 73,
+    "action_ref": 69,
+    "policy_digest": 67,
+    "previousReceiptHash": 66,
     "key_thumbprint": 3,
-    "payload_digest": 62,
+    "payload_digest": 63,
     "envelope_hash": 12,
     "canonical": 0,
 }
@@ -175,6 +175,7 @@ PINNED_SIG = {
     'asqav-43-counterparty-unknown-member': 'nIrGxlg3XbDDMygLaWeLEaigKQxlDmob7BtfU78bEnyv4bSqwOz9pbrU4jaLRP+uUxGX/XYUQadkkLxcpLl4Cg==',
     'asqav-42-keyed-digest-unverifiable': 'jpwrSvphAO+Sf+uZVr3pBCNpIQ+l/T3OzzKbqS1t4vShAdOIVSvJ2ZXb+jemE9+Do1VjMEvzwI/u74r8XVwpCQ==',
     'asqav-38-protectmcp-unknown-invalid': 'lmRzAdp5YvCyLK2cQ+Xf2/0JIZ/AzfFgXjXzvPt5K1nLPykQNfa/1OjwwLIi6QnQnjVfQlB+xBjEz0V1x8MoBA==',
+    'asqav-39-foreign-namespace-reported': 'YnpbyeBUflaipkX3TQB1flng2Ae//RE4M/gAdwUkA+33fecJhHiTmyiXBPazw66mFr/fSqwFE/kbaESpSN4+DA==',
     'asqav-39-malformed-type': '0ZnelkJ9t6zbAAeF08bFtJUG11RyTgnMhj84E5pKnAWeAHnGbPbMJv/GgXib9mc5Ipu28V/fkm2b3a9kwCYOAA==',
 }
 
@@ -235,6 +236,7 @@ PINNED_ACTION_REF = {
     'asqav-42-keyed-digest-unverifiable': 'sha256:24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9',
     'asqav-42-revoked-before-issuance': 'sha256:c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124',
     'asqav-38-protectmcp-unknown-invalid': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
+    'asqav-39-foreign-namespace-reported': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
     'asqav-39-malformed-type': 'sha256:a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03',
 }
 
@@ -293,6 +295,7 @@ PINNED_POLICY_DIGEST = {
     'asqav-42-keyed-digest-unverifiable': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     'asqav-42-revoked-before-issuance': 'sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7',
     'asqav-38-protectmcp-unknown-invalid': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    'asqav-39-foreign-namespace-reported': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     'asqav-39-malformed-type': 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
 }
 
@@ -351,6 +354,7 @@ PINNED_PREV_HASH = {
     'asqav-42-keyed-digest-unverifiable': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-42-revoked-before-issuance': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-38-protectmcp-unknown-invalid': '0000000000000000000000000000000000000000000000000000000000000000',
+    'asqav-39-foreign-namespace-reported': '0000000000000000000000000000000000000000000000000000000000000000',
     'asqav-39-malformed-type': '0000000000000000000000000000000000000000000000000000000000000000',
 }
 
@@ -414,6 +418,7 @@ PINNED_PAYLOAD_DIGEST = {
     'asqav-42-keyed-digest-unverifiable': {'hash': '24f86d3f9d9a3bfb54fdef5679dcd7a46f0238434d27dc3b29d2991f54ba3ae9', 'size': 25},
     'asqav-42-revoked-before-issuance': {'hash': 'c48bab61608f31ad7253a8dd87dec54466f10de7435bdfd955a60d4a9675c124', 'size': 101},
     'asqav-38-protectmcp-unknown-invalid': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
+    'asqav-39-foreign-namespace-reported': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
     'asqav-39-malformed-type': {'hash': 'a1a897fc4033626781dc02900303d6bbacd65d32c330860cf1e1b9ae1f02ba03', 'size': 25},
 }
 

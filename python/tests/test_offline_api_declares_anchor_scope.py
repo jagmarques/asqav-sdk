@@ -24,7 +24,7 @@ _VECTORS = (
 _TS_KEYS = {
     "fmt", "axes", "verdict", "failureClass", "signer",
     "firstFailingEdge", "notChecked", "coverage", "context",
-    "trustBundle",
+    "trustBundle", "registryEdition", "registryVersion",
 }
 
 
