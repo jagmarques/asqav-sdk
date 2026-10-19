@@ -2827,6 +2827,51 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
     return "PASS", f"counterparty binding rederives from the supplied {receipt_ref}"
 
 
+def check_directory_substitution(payload: dict, jwks: dict, prior_jwks: dict | None):
+    """Report directory substitution against retained evidence (628 T-a).
+
+    Returns None when there is no retained directory to compare or no
+    contradiction, leaving the legacy path untouched. Otherwise a
+    (result, note) pair: the retained directory pins the signed
+    key_thumbprint to one key while the current directory binds a
+    different key to the same kid or agent.
+    """
+    if prior_jwks is None or not isinstance(payload, dict):
+        return None
+    claimed = payload.get("key_thumbprint")
+    if not isinstance(claimed, str) or not is_well_formed(claimed):
+        return None
+    prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
+    if not isinstance(prior_keys, list):
+        return None
+    prior_hits = [
+        k for k in prior_keys
+        if isinstance(k, dict)
+        and k.get("key_thumbprint") == claimed
+        and isinstance(k.get("public_key"), str)
+    ]
+    if len(prior_hits) != 1:
+        return None
+    (prior_entry,) = prior_hits
+    cur_keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    cur_keys = cur_keys if isinstance(cur_keys, list) else []
+    if any(isinstance(k, dict) and k.get("public_key") == prior_entry.get("public_key")
+           for k in cur_keys):
+        return None
+    kid = prior_entry.get("kid")
+    agent = prior_entry.get("agent_id")
+    if not any(isinstance(k, dict)
+               and (k.get("kid") == kid or k.get("agent_id") == agent)
+               and k.get("public_key") != prior_entry.get("public_key")
+               for k in cur_keys):
+        return None
+    return ("SKIPPED",
+            "directory_substitution: retained directory binds "
+            f"{claimed} to kid {kid!r} agent {agent!r}; the current "
+            "directory binds a different key there, so the binding "
+            "cannot be recomputed")
+
+
 def check_key_binding(payload: dict, alg, public_key):
     """Recompute the signed key_thumbprint from the resolved key and compare.
 
@@ -3544,6 +3589,7 @@ def run_structured(
     required_extensions=None,
     trust_bundle: dict | None = None,
     trust_bundle_source: str | None = None,
+    prior_jwks: dict | None = None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
@@ -3696,7 +3742,10 @@ def run_structured(
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
-    axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
+    _kb = check_directory_substitution(payload, jwks, prior_jwks)
+    if _kb is None:
+        _kb = check_key_binding(payload, eff_alg, eff_pk)
+    axes.append(_struct_axis("key_binding", *_kb))
     axes.append(
         _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
