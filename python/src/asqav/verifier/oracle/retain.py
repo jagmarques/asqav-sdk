@@ -22,6 +22,8 @@ _CONTEXT_FIELDS = (
     "trust_roots",
     "revocation_snapshot",
     "policy_revision",
+    "trust_policy_id",
+    "profile_revision",
     "evidence_knowledge_cutoff",
     "evaluation_time",
     "event_time",
