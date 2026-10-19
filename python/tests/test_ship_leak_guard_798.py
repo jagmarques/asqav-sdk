@@ -19,7 +19,8 @@ TS_SRC = ROOT / "typescript" / "src"
 TS_DIST = ROOT / "typescript" / "dist"
 
 PRIVATE_HOST = re.compile(
-    r"hetzner|coolify|staging|\.internal\b|0\.0\.0\.0|10\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}",
+    r"hetzner|coolify|staging|\.internal\b|0\.0\.0\.0"
+    r"|10\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}",
     re.IGNORECASE,
 )
 SOURCE_MAP = re.compile(r"sourceMappingURL|\.map\.js", re.IGNORECASE)
@@ -83,7 +84,8 @@ def test_planted_source_map_fails(tmp_path: Path) -> None:
 
 
 def test_planted_private_hostname_fails(tmp_path: Path) -> None:
-    assert _findings(_planted(tmp_path, "b.py", 'HOST = "https://api-coolify-01.internal"\n').read_text())
+    planted = _planted(tmp_path, "b.py", 'HOST = "https://api-coolify-01.internal"\n')
+    assert _findings(planted.read_text())
 
 
 def test_planted_live_token_fails(tmp_path: Path) -> None:
