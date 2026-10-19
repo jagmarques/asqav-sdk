@@ -1,19 +1,27 @@
 // Type resolution per draft anchor `type`
 // protectmcp-absent is non-conformance = invalid; foreign/gap unverifiable
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { axisFailureClass } from "../src/verifier/core.js";
+import { axisFailureClass, verify } from "../src/verifier/core.js";
+import { ADAPTERS } from "../src/verifier/index.js";
+import {
+  keyProviderFor,
+  loadJson as runnerLoadJson,
+} from "../src/verifier/runner.js";
 import {
   REGISTRY_EDITION,
   REGISTRY_NAMESPACES,
+  REGISTRY_VERSION,
   checkStructure,
 } from "../src/verifier/vrShim.js";
 
 const NS_FILE = resolve(__dirname, "..", "..", "verifier", "registry", "type-namespaces.json");
 const DOC = JSON.parse(readFileSync(NS_FILE, "utf-8")) as {
   registry_edition: string;
+  registry_source: { version: string; updated: string };
+  pending_registration: string[];
   namespaces: { namespace: string }[];
 };
 
@@ -79,5 +87,20 @@ describe("type resolution rows", () => {
   it("literals match the registry file", () => {
     expect(REGISTRY_NAMESPACES).toEqual(new Set(DOC.namespaces.map((e) => e.namespace)));
     expect(REGISTRY_EDITION).toBe(DOC.registry_edition);
+    expect(REGISTRY_VERSION).toBe(DOC.registry_source.version);
+  });
+
+  it("reports the upstream registry version, not the edition", () => {
+    expect(DOC.registry_source.version).toBe("1.1.0");
+    expect(DOC.registry_source.updated).toBe("2026-09-01");
+    expect(DOC.pending_registration).toEqual(["protectmcp:lifecycle:oversight_ruling"]);
+  });
+
+  it("verify result carries registry edition and version", () => {
+    const dir = resolve(__dirname, "..", "..", "verifier", "conformance-vectors", "asqav-25-payload-digest-rederives");
+    const receipt = runnerLoadJson(join(dir, "receipt.json"));
+    const result = verify(receipt, ADAPTERS, keyProviderFor(dir, "asqav-native"));
+    expect(result.registryEdition).toBe("2026-09-15.v1");
+    expect(result.registryVersion).toBe("1.1.0");
   });
 });

@@ -82,6 +82,29 @@ def test_registry_edition_reported() -> None:
     assert vr.run_structured([], {})["registry_edition"] == want
 
 
+def test_registry_version_reported() -> None:
+    doc = json.loads(NS_FILE.read_text())
+    src = doc["registry_source"]
+    assert (src["version"], src["updated"]) == ("1.1.0", "2026-09-01")
+    assert doc["pending_registration"] == ["protectmcp:lifecycle:oversight_ruling"]
+    vec = ROOT / "verifier" / "conformance-vectors" / "asqav-25-payload-digest-rederives"
+    env = json.loads((vec / "receipt.json").read_text())
+    jwks = json.loads((vec / "jwks.json").read_text())
+    assert vr.run_structured(env, jwks)["registry_version"] == "1.1.0"
+    assert vr.run_structured([], {})["registry_version"] == "1.1.0"
+
+
+def test_registry_provenance_matches_upstream() -> None:
+    up_file = ROOT / "verifier" / "registry" / "upstream-type-namespaces.json"
+    upstream = json.loads(up_file.read_text())
+    doc = json.loads(NS_FILE.read_text())
+    assert upstream["version"] == doc["registry_source"]["version"]
+    assert upstream["updated"] == doc["registry_source"]["updated"]
+    up = {e["namespace"] for e in upstream["entries"]}
+    effective = {e["namespace"] for e in doc["namespaces"]}
+    assert effective == up | set(doc["pending_registration"])
+
+
 def test_namespace_set_matches_draft() -> None:
     got = {e["namespace"] for e in json.loads(NS_FILE.read_text())["namespaces"]}
     assert got == DRAFT_TEN
