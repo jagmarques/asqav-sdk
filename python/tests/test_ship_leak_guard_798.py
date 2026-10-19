@@ -43,7 +43,12 @@ def _findings(text: str) -> list[str]:
     if LIVE_SECRET.search(text):
         out.append("live secret shape")
     for line in text.splitlines():
-        if SK_LIVE.search(line) and not EXAMPLE_HINT.search(line):
+        live = [
+            token
+            for token in SK_LIVE.findall(line)
+            if not EXAMPLE_HINT.search(token) and "..." not in line
+        ]
+        if live:
             out.append(f"non-example secret: {line.strip()[:60]}")
             break
     return out
