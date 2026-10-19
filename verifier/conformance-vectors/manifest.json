@@ -716,8 +716,8 @@
     "dir": "asqav-37-unregistered-namespace-reported",
     "format": "asqav-native",
     "outcome": "unverified",
-    "reason_code": "unregistered_namespace",
-    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace; structure axis reports SKIPPED, verdict unverified/unverifiable.",
+    "reason_code": "registered_but_unimplemented",
+    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace this verifier release does not implement; structure axis reports SKIPPED, verdict unverified/unverifiable.",
     "failure_class": "unverifiable"
   },
   {
@@ -734,6 +734,14 @@
     "failure_class": "invalid",
     "reason_code": "unregistered_protectmcp_type",
     "notes": "protectmcp-prefixed type no registry carries; structure FAILs invalid, a receipt non-conformance rather than an unverifiable shrug (criterion 524)."
+  },
+  {
+    "dir": "asqav-39-foreign-namespace-reported",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "unregistered_namespace",
+    "notes": "Correctly signed receipt in the foreign acme namespace no registry carries; structure SKIPPED, never FAIL (preservation: a future strictness must not harden this arm; criterion 625)."
   },
   {
     "dir": "asqav-39-absent-version",
