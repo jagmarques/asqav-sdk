@@ -41,15 +41,29 @@ export const NOT_CHECKED: readonly NotCheckedEntry[] = [
   {
     check: "tsa_certificate_revocation",
     requirement: "anchor trust",
-    reason: "no CRL or OCSP lookup, so a revoked TSA certificate is not detected",
+    reason:
+      "no live CRL or OCSP lookup offline; revocation status is asserted " +
+      "at trust-bundle issue time per root, so a later revocation is missed " +
+      "until the bundle is refreshed (see the revocation policy in " +
+      "docs/offline-verification.md)",
+    condition:
+      "a newer trust bundle (bundle_version/issued_at) or freshly re-pinned " +
+      "--tsa-key material narrows the assertion lag",
+  },
+  {
+    check: "tsa_trusted_list_status",
+    requirement: "anchor trust",
+    reason:
+      "no EU Trusted List status lookup as of the token's genTime; " +
+      "a trust bundle records status asserted at bundle-issue time only",
     condition: null,
   },
   {
     check: "policy_digest_resolution",
     requirement: "verifier check on policy_digest",
     reason:
-      "the referenced policy artefact is not fetched or rehashed; the digest is checked " +
-      "for shape only, and resolving it needs the Audit Pack manifest",
+      "the referenced policy artefact is not fetched, rehashed, or otherwise " +
+      "evaluated; resolving it needs the Audit Pack manifest",
     condition: null,
   },
   {

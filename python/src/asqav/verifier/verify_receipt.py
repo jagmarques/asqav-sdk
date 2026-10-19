@@ -124,6 +124,10 @@ ALLOWED_TYPES = {
 #: verifier/registry/type-namespaces.json (criterion 524)
 REGISTRY_EDITION = "2026-09-15.v1"
 
+#: Upstream registry version the vendored set reconciles (registry_source
+#: in the same file; criterion 625): v1.1.0 nine plus oversight_ruling.
+REGISTRY_VERSION = "1.1.0"
+
 #: Draft-registered namespaces (anchor iana-type-namespaces), all ten
 #: The engine implements ALLOWED_TYPES; oversight_ruling names the gap
 REGISTRY_NAMESPACES = frozenset(
@@ -407,6 +411,7 @@ _INVALID_FAIL_AXES = frozenset(
         "counterparty",
         "payload_digest",
         "outer_copies",
+        "required_extensions",
     }
 )
 
@@ -1433,7 +1438,7 @@ AnchorEvaluation = namedtuple("AnchorEvaluation", ("result", "note", "trusted_ti
 ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash", "tsa_url", "operator_id"})
 
 
-def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None) -> AnchorEvaluation:
+def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None) -> AnchorEvaluation:
     """Cryptographically evaluate every anchor against the envelope digest.
 
     Shape rules are unchanged (malformed entries FAIL, absent/empty SKIPs), but a
@@ -1441,6 +1446,10 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     entry cryptographically verifies, FAILs when any entry's check runs and fails,
     and reports SKIPPED (unverifiable) when a check cannot complete offline. Anchors
     declared ``status: pending``/``failed`` never count as trusted anchors.
+
+    A supplied trust bundle whose recorded digest disagrees with its contents
+    reports the whole axis SKIPPED: trust material that fails its own check
+    can neither verify nor invalidate, only decline.
     """
     anchors = envelope.get("anchors")
     # Absent is a legitimate no-anchors receipt (SKIPPED); a present non-list
@@ -1454,6 +1463,15 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
         return AnchorEvaluation("FAIL", f"anchors field is not a list (got {type(anchors).__name__})", [])
     if not anchors:
         return AnchorEvaluation("SKIPPED", "no anchors on this receipt", [])
+    if trust_bundle is not None:
+        _tb_ok, _tb_digest = verify_trust_bundle(trust_bundle)
+        if not _tb_ok:
+            return AnchorEvaluation(
+                "SKIPPED",
+                f"trust bundle digest mismatch (recorded {_tb_digest or 'absent'}); "
+                "pinned keys not evaluated",
+                [],
+            )
     try:
         _env_jcs = envelope_minus_anchors_jcs(envelope)
         bound = hashlib.sha256(_env_jcs).digest()
@@ -1533,10 +1551,11 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     return AnchorEvaluation("PASS", "; ".join(lines), trusted_times)
 
 
-def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None):
+def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None):
     """(result, note) for the anchors axis; see evaluate_anchors."""
     ev = evaluate_anchors(
-        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers,
+        trust_bundle=trust_bundle,
     )
     return ev.result, ev.note
 
@@ -2473,15 +2492,32 @@ NOT_CHECKED = (
     {
         "check": "tsa_certificate_revocation",
         "requirement": "anchor trust",
-        "reason": "no CRL or OCSP lookup, so a revoked TSA certificate is not detected",
+        "reason": (
+            "no live CRL or OCSP lookup offline; revocation status is asserted "
+            "at trust-bundle issue time per root, so a later revocation is missed "
+            "until the bundle is refreshed (see the revocation policy in "
+            "docs/offline-verification.md)"
+        ),
+        "condition": (
+            "a newer trust bundle (bundle_version/issued_at) or freshly re-pinned "
+            "--tsa-key material narrows the assertion lag"
+        ),
+    },
+    {
+        "check": "tsa_trusted_list_status",
+        "requirement": "anchor trust",
+        "reason": (
+            "no EU Trusted List status lookup as of the token's genTime; "
+            "a trust bundle records status asserted at bundle-issue time only"
+        ),
         "condition": None,
     },
     {
         "check": "policy_digest_resolution",
         "requirement": "verifier check on policy_digest",
         "reason": (
-            "the referenced policy artefact is not fetched or rehashed; the digest is "
-            "checked for shape only, and resolving it needs the Audit Pack manifest"
+            "the referenced policy artefact is not fetched, rehashed, or otherwise "
+            "evaluated; resolving it needs the Audit Pack manifest"
         ),
         "condition": None,
     },
@@ -2791,6 +2827,51 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
     return "PASS", f"counterparty binding rederives from the supplied {receipt_ref}"
 
 
+def check_directory_substitution(payload: dict, jwks: dict, prior_jwks: dict | None):
+    """Report directory substitution against retained evidence (628 T-a).
+
+    Returns None when there is no retained directory to compare or no
+    contradiction, leaving the legacy path untouched. Otherwise a
+    (result, note) pair: the retained directory pins the signed
+    key_thumbprint to one key while the current directory binds a
+    different key to the same kid or agent.
+    """
+    if prior_jwks is None or not isinstance(payload, dict):
+        return None
+    claimed = payload.get("key_thumbprint")
+    if not isinstance(claimed, str) or not is_well_formed(claimed):
+        return None
+    prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
+    if not isinstance(prior_keys, list):
+        return None
+    prior_hits = [
+        k for k in prior_keys
+        if isinstance(k, dict)
+        and k.get("key_thumbprint") == claimed
+        and isinstance(k.get("public_key"), str)
+    ]
+    if len(prior_hits) != 1:
+        return None
+    (prior_entry,) = prior_hits
+    cur_keys = jwks.get("keys") if isinstance(jwks, dict) else None
+    cur_keys = cur_keys if isinstance(cur_keys, list) else []
+    if any(isinstance(k, dict) and k.get("public_key") == prior_entry.get("public_key")
+           for k in cur_keys):
+        return None
+    kid = prior_entry.get("kid")
+    agent = prior_entry.get("agent_id")
+    if not any(isinstance(k, dict)
+               and (k.get("kid") == kid or k.get("agent_id") == agent)
+               and k.get("public_key") != prior_entry.get("public_key")
+               for k in cur_keys):
+        return None
+    return ("SKIPPED",
+            "directory_substitution: retained directory binds "
+            f"{claimed} to kid {kid!r} agent {agent!r}; the current "
+            "directory binds a different key there, so the binding "
+            "cannot be recomputed")
+
+
 def check_key_binding(payload: dict, alg, public_key):
     """Recompute the signed key_thumbprint from the resolved key and compare.
 
@@ -2842,6 +2923,61 @@ def check_expiry(payload: dict, *, now: datetime | None = None):
     if delta < 0:
         return "FAIL", f"expires_at {raw} lapsed {-delta:.0f}s ago"
     return "PASS", f"expires_at {raw} is {delta:.0f}s ahead"
+
+
+def _is_well_formed_beacon_ref(beacon) -> bool:
+    """Shape of an OPTIONAL beacon_ref member (draft 5.5, paragraph 11).
+
+    Source/chain/round/signature/observed_at; mirrors the reference
+    platform's structural rule without authenticating the BLS signature.
+    """
+    if not isinstance(beacon, dict):
+        return False
+    if beacon.get("source") != "drand":
+        return False
+    chain = beacon.get("chain")
+    if not isinstance(chain, str) or len(chain) != 64:
+        return False
+    if any(c not in "0123456789abcdef" for c in chain):
+        return False
+    round_number = beacon.get("round")
+    if isinstance(round_number, bool) or not isinstance(round_number, int):
+        return False
+    if round_number < 1:
+        return False
+    signature = beacon.get("signature")
+    if not isinstance(signature, str) or len(signature) != 96:
+        return False
+    if any(c not in "0123456789abcdef" for c in signature):
+        return False
+    return isinstance(beacon.get("observed_at"), str)
+
+
+#: Optional extensions a selected policy may require this tool to evaluate.
+#: Anything else the policy names is unsupported here and fails closed.
+SUPPORTED_REQUIRED_EXTENSIONS = frozenset({"beacon_ref"})
+
+
+def check_required_extensions(payload: dict, required) -> tuple[str, str]:
+    """Evaluate caller-required optional extensions (criterion 574-D3).
+
+    PASS when every required member is carried and well-formed; FAIL when a
+    supported member is carried malformed (proven non-conformance to the
+    selected policy, hence in _INVALID_FAIL_AXES); SKIPPED when a required
+    member is absent or unsupported, so the receipt never reads as verified.
+    """
+    if not isinstance(payload, dict):
+        return "SKIPPED", "no signed payload; required extensions cannot be evaluated"
+    for name in required or []:
+        if name not in SUPPORTED_REQUIRED_EXTENSIONS:
+            return "SKIPPED", f"required extension {name!r} is not supported by this verifier"
+        if name == "beacon_ref":
+            beacon = payload.get("beacon_ref")
+            if beacon is None:
+                return "SKIPPED", "required beacon_ref is absent from the signed payload"
+            if not _is_well_formed_beacon_ref(beacon):
+                return "FAIL", "required beacon_ref is malformed against the 5.5 shape"
+    return "PASS", "every required extension is carried and well-formed"
 
 
 def check_chain(payload: dict, predecessor_payload: dict | None):
@@ -3184,8 +3320,48 @@ def _signature_object(envelope: dict, payload: dict) -> dict:
     return sig_obj if isinstance(sig_obj, dict) else {}
 
 
+def check_rotation_succession(entry, eff_pk, prior_jwks):
+    """Report unevidenced rotation against retained evidence (628 T-b).
+
+    Returns None when there is no retained directory, no retained pin for
+    the resolved identity, the verifying key is still published there, or
+    the signature did not verify. Else a (result, note) pair: the current
+    key differs from every retained key for the same kid or agent with no
+    transition authorization from the retained key.
+    """
+    if prior_jwks is None or eff_pk is None or not isinstance(entry, dict):
+        return None
+    prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
+    if not isinstance(prior_keys, list):
+        return None
+    kid = entry.get("kid")
+    agent = entry.get("agent_id")
+    retained = [
+        k for k in prior_keys
+        if isinstance(k, dict)
+        and (k.get("kid") == kid or k.get("agent_id") == agent)
+        and isinstance(k.get("public_key"), str)
+    ]
+    if not retained:
+        return None
+    eff_b64 = base64.b64encode(eff_pk).decode()
+    if any(k.get("public_key") == eff_b64 for k in retained):
+        return None
+    if any(k.get("status") == "revoked" for k in retained):
+        case = "removed_old_key"
+        why = "the retained key is revoked and cannot authorize succession"
+    else:
+        case = "forged_transition"
+        why = "with no transition authorization from the retained key"
+    return ("SKIPPED",
+            f"{case}: verifying key differs from every retained "
+            f"key for kid {kid!r} agent {agent!r} {why}, so succession "
+            "cannot be established")
+
+
 def _key_and_signature_rows(
-    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+    jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+    prior_jwks=None,
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the verifying key.
 
@@ -3234,6 +3410,11 @@ def _key_and_signature_rows(
         ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor)),
         ("signature", *sig_res),
     ]
+    # Succession replaces only the resolution report, and only when the
+    # signature verified: an unverified key has no succession to evaluate.
+    _succession = check_rotation_succession(entry, _verifying_key(rows, eff_pk), prior_jwks)
+    if _succession is not None:
+        rows = [("issuer_key", *_succession)] + rows[1:]
     return rows, eff_pk, eff_alg, bound_counterparty_kid(acknowledging_kid, eff_kid, eff_issuer)
 
 
@@ -3252,6 +3433,8 @@ def run(
     trusted_tsa_keys=None,
     bitcoin_headers=None,
     counterparty: dict | None = None,
+    required_extensions=None,
+    trust_bundle: dict | None = None,
 ) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
@@ -3312,7 +3495,8 @@ def run(
     # Evaluated once, up front: the anchors axis reports it, and the key_status
     # axis weighs its cryptographically-proven timing against any revoked_at.
     anchor_eval = evaluate_anchors(
-        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers,
+        trust_bundle=trust_bundle,
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
@@ -3330,6 +3514,8 @@ def run(
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
     results.append(("skew", *check_skew(payload.get("issued_at", ""))))
     results.append(("expiry", *check_expiry(payload)))
+    if required_extensions:
+        results.append(("required_extensions", *check_required_extensions(payload, required_extensions)))
 
     print("Asqav receipt verification")
     print(f"  canonical bytes: sha256:{hashlib.sha256(msg).hexdigest()}")
@@ -3445,6 +3631,10 @@ def run_structured(
     bitcoin_headers=None,
     counterparty: dict | None = None,
     seen_nonces: set | None = None,
+    required_extensions=None,
+    trust_bundle: dict | None = None,
+    trust_bundle_source: str | None = None,
+    prior_jwks: dict | None = None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict.
 
@@ -3458,13 +3648,24 @@ def run_structured(
     one to have the nonce axis flag a different receipt reusing an (issuer_id, nonce)
     pair. Without it the axis still reports, and says it holds no index.
 
+    ``required_extensions`` names optional extensions the selected policy requires
+    (criterion 574-D3): each is evaluated per-axis (``required_extensions``); a
+    required member that is absent or unsupported reports SKIPPED, a malformed
+    supported member FAILs invalid, and without the parameter the evaluation is
+    unchanged (no axis appended).
+
     Keys: ``verdict`` ("verified" | "unverified", criteria 418/438);
     ``failure_class`` ("invalid" | "unverifiable" when unverified, else None - the
     two are never collapsed, criterion 418); ``axes``, a list of
     ``{"name", "result", "note", "failure_class"}``; ``canonical_sha256``, hex
     SHA-256 of the canonical payload bytes; ``kid``; and ``alg``, verbatim from the
     wire (ML-DSA-65 cloud-issued, Ed25519/ES256 local).
+
+    ``trust_bundle`` carries the versioned trust identity (``version``,
+    ``digest``, ``source``, ``valid``) when the caller supplied a bundle,
+    else None; it is present on every result including early refusals.
     """
+    _tb_identity = trust_bundle_identity(trust_bundle, trust_bundle_source)
     refusal = _input_refusal(envelope)
     whole_predecessor = predecessor_payload
     predecessor_payload = _predecessor_payload(predecessor_payload)
@@ -3480,6 +3681,8 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
+            "trust_bundle": _tb_identity,
         }
     acknowledging_kid = counterparty_acknowledging_kid(envelope)
     raw_entry = envelope
@@ -3505,6 +3708,8 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
+            "trust_bundle": _tb_identity,
         }
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
     if shape is None:
@@ -3521,6 +3726,8 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
+            "trust_bundle": _tb_identity,
         }
 
     sig_obj = _signature_object(envelope, payload)
@@ -3541,6 +3748,8 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
+            "trust_bundle": _tb_identity,
         }
     try:
         msg = canonical_json(payload)
@@ -3557,6 +3766,8 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
+            "trust_bundle": _tb_identity,
         }
 
     axes: list[dict] = []
@@ -3565,17 +3776,22 @@ def run_structured(
     # Evaluated once, up front: the anchors axis reports it, and the key_status
     # axis weighs its cryptographically-proven timing against any revoked_at.
     anchor_eval = evaluate_anchors(
-        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers
+        envelope, trusted_tsa_keys=trusted_tsa_keys, bitcoin_headers=bitcoin_headers,
+        trust_bundle=trust_bundle,
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
-        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+        prior_jwks=prior_jwks,
     )
     axes.extend(_struct_axis(*row) for row in rows)
 
     # Outside the else on purpose: a receipt binding no thumbprint still reports the
     # axis, so the report says the binding was not checked rather than staying silent.
-    axes.append(_struct_axis("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
+    _kb = check_directory_substitution(payload, jwks, prior_jwks)
+    if _kb is None:
+        _kb = check_key_binding(payload, eff_alg, eff_pk)
+    axes.append(_struct_axis("key_binding", *_kb))
     axes.append(
         _struct_axis("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid))
     )
@@ -3586,6 +3802,8 @@ def run_structured(
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
     axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
     axes.append(_struct_axis("expiry", *check_expiry(payload)))
+    if required_extensions:
+        axes.append(_struct_axis("required_extensions", *check_required_extensions(payload, required_extensions)))
 
     # Expiry reports on its own axis and never folds the verdict (criterion 426).
     verdict, failure_class = _fold_verdict(
@@ -3603,6 +3821,8 @@ def run_structured(
         "kid": kid,
         "alg": alg,
         "registry_edition": REGISTRY_EDITION,
+        "registry_version": REGISTRY_VERSION,
+        "trust_bundle": _tb_identity,
     }
 
 
@@ -3645,7 +3865,78 @@ def tsa_key_material(blob: bytes) -> bytes:
     try:
         return base64.b64decode(text, validate=True)
     except Exception:
-        return bytes(text)
+        # Raw binary passes through untouched (574-D3): stripping a binary
+        # key with whitespace edge bytes would shorten it and break verifies.
+        return bytes(blob)
+
+
+#: Members a versioned TSA trust bundle must carry. The digest covers every
+#: other top-level member, so the file is self-verifying: any edit that does
+#: not recompute the digest fails the check below.
+TRUST_BUNDLE_REQUIRED_KEYS = (
+    "bundle_version",
+    "issued_at",
+    "digest",
+    "digest_algorithm",
+    "roots",
+)
+
+
+def load_trust_bundle(path: str) -> dict:
+    """Read a versioned TSA trust bundle and reject a digest mismatch.
+
+    Trust material comes from the caller, never from the envelope. A bundle
+    whose recorded digest disagrees with its contents raises instead of
+    verifying: the anchors axis must report it, never pass on it.
+    """
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError as exc:
+        raise VerifierInputError(f"{path}: {exc.strerror or exc}") from exc
+    try:
+        bundle = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeError) as exc:
+        raise VerifierInputError(f"{path}: not a JSON trust bundle") from exc
+    if not isinstance(bundle, dict) or any(k not in bundle for k in TRUST_BUNDLE_REQUIRED_KEYS):
+        raise VerifierInputError(f"{path}: trust bundle misses a required member")
+    ok, _ = verify_trust_bundle(bundle)
+    if not ok:
+        raise VerifierInputError(f"{path}: trust bundle digest mismatch")
+    return bundle
+
+
+def verify_trust_bundle(bundle: dict) -> tuple:
+    """Self-digest check of a trust bundle dict.
+
+    Returns (ok, recorded_digest). The digest is SHA-256 over the JCS
+    canonical bytes of every top-level member except `digest` itself, so a
+    caller holding only the dict can re-derive it without the file.
+    """
+    if not isinstance(bundle, dict):
+        return False, ""
+    recorded = bundle.get("digest")
+    if not isinstance(recorded, str) or not recorded:
+        return False, ""
+    try:
+        body = {k: v for k, v in bundle.items() if k != "digest"}
+        computed = hashlib.sha256(canonical_json(body)).hexdigest()
+    except (TypeError, ValueError):
+        return False, recorded
+    return (computed == recorded), recorded
+
+
+def trust_bundle_identity(bundle: dict | None, source: str | None) -> dict | None:
+    """Identity block for structured results; None when no bundle was supplied."""
+    if bundle is None:
+        return None
+    ok, recorded = verify_trust_bundle(bundle)
+    return {
+        "version": bundle.get("bundle_version"),
+        "digest": recorded,
+        "source": source,
+        "valid": ok,
+    }
 
 
 def main() -> int:
@@ -3666,6 +3957,15 @@ def main() -> int:
         "trusted offline and the anchors axis reports unverifiable",
     )
     p.add_argument(
+        "--trust-bundle",
+        metavar="FILE",
+        help="versioned TSA trust bundle JSON (verifier/trust/tsa-trust-bundle.json "
+        "shape: bundle_version, issued_at, digest, digest_algorithm, roots with "
+        "subject/sha256_der/not_after); the bundle self-digest is verified and "
+        "a mismatch makes the anchors axis unverifiable. The bundle identity "
+        "travels on every structured result; --tsa-key keeps working without one",
+    )
+    p.add_argument(
         "--bitcoin-headers",
         metavar="FILE",
         help="JSON map of bitcoin block height to {\"merkle_root\": <display hex>, "
@@ -3676,6 +3976,15 @@ def main() -> int:
         "--counterparty",
         metavar="FILE",
         help="complete originating signing envelope JSON for the counterparty binding check",
+    )
+    p.add_argument(
+        "--require-extension",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="optional extension the selected policy requires (repeatable; "
+        "supported: beacon_ref). A required member that is absent or "
+        "unsupported reports unverifiable; a malformed one fails invalid",
     )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
@@ -3705,6 +4014,7 @@ def main() -> int:
         trusted_tsa_keys = _load_tsa_keys(args.tsa_key)
         bitcoin_headers = _load(args.bitcoin_headers) if args.bitcoin_headers else None
         counterparty = _load(args.counterparty) if args.counterparty else None
+        trust_bundle = load_trust_bundle(args.trust_bundle) if args.trust_bundle else None
     except VerifierInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -3716,6 +4026,8 @@ def main() -> int:
         trusted_tsa_keys=trusted_tsa_keys,
         bitcoin_headers=bitcoin_headers,
         counterparty=counterparty,
+        required_extensions=args.require_extension or None,
+        trust_bundle=trust_bundle,
     )
 
 

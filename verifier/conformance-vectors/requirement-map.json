@@ -667,6 +667,22 @@
       "skew": "PASS",
       "expiry": "PASS"
     },
+    "asqav-39-foreign-namespace-reported": {
+      "structure": "SKIPPED",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
     "asqav-39-malformed-type": {
       "structure": "FAIL",
       "nonce": "PASS",
@@ -680,6 +696,22 @@
       "outer_copies": "PASS",
       "chain": "PASS",
       "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-40-counterparty-self-binding": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -699,8 +731,40 @@
       "skew": "PASS",
       "expiry": "PASS"
     },
+    "asqav-41-counterparty-omitted-peer": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
     "asqav-41-hash-unrecognised-version": {
       "payload": "FAIL"
+    },
+    "asqav-42-counterparty-same-binding-second-ack": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
+      "skew": "PASS",
+      "expiry": "PASS"
     },
     "asqav-42-keyed-digest-unverifiable": {
       "structure": "PASS",
@@ -731,6 +795,22 @@
       "outer_copies": "PASS",
       "chain": "PASS",
       "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-43-counterparty-unknown-member": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "PASS",
       "skew": "PASS",
       "expiry": "PASS"
     },
@@ -898,6 +978,22 @@
       "expiry": "PASS"
     },
     "asqav-54-kms-signed": {
+      "structure": "PASS",
+      "nonce": "PASS",
+      "issuer_key": "PASS",
+      "issuer_bind": "PASS",
+      "key_status": "PASS",
+      "signature": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "outer_copies": "PASS",
+      "chain": "PASS",
+      "anchors": "SKIPPED",
+      "skew": "PASS",
+      "expiry": "PASS"
+    },
+    "asqav-55-heartbeat": {
       "structure": "PASS",
       "nonce": "PASS",
       "issuer_key": "PASS",
@@ -1994,6 +2090,29 @@
       ],
       "not_exercised": []
     },
+    "asqav-39-foreign-namespace-reported": {
+      "declared_outcome": "unverified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-STRUCTURE"
+      ]
+    },
     "asqav-39-malformed-type": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
@@ -2016,6 +2135,28 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-40-counterparty-self-binding": {
+      "declared_outcome": "verified",
+      "observed_verdict": "verified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
     },
     "asqav-40-unrecognised-version": {
       "declared_outcome": "unverified",
@@ -2040,6 +2181,28 @@
         "REQ-STRUCTURE"
       ]
     },
+    "asqav-41-counterparty-omitted-peer": {
+      "declared_outcome": "verified",
+      "observed_verdict": "verified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
+    },
     "asqav-41-hash-unrecognised-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
@@ -2061,6 +2224,28 @@
         "REQ-SKEW",
         "REQ-STRUCTURE"
       ]
+    },
+    "asqav-42-counterparty-same-binding-second-ack": {
+      "declared_outcome": "verified",
+      "observed_verdict": "verified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
     },
     "asqav-42-keyed-digest-unverifiable": {
       "declared_outcome": "unverified",
@@ -2107,6 +2292,28 @@
       "not_exercised": [
         "REQ-ANCHOR"
       ]
+    },
+    "asqav-43-counterparty-unknown-member": {
+      "declared_outcome": "verified",
+      "observed_verdict": "verified",
+      "exercises": [
+        "REQ-ANCHOR",
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": []
     },
     "asqav-43-outer-copies-agree": {
       "declared_outcome": "verified",
@@ -2361,6 +2568,29 @@
       ]
     },
     "asqav-54-kms-signed": {
+      "declared_outcome": "verified",
+      "observed_verdict": "unverified",
+      "exercises": [
+        "REQ-CHAIN",
+        "REQ-COUNTERPARTY",
+        "REQ-EXPIRY",
+        "REQ-ISSUER-BIND",
+        "REQ-KEY-RESOLUTION",
+        "REQ-KEY-STATUS",
+        "REQ-KEY-THUMBPRINT",
+        "REQ-KEYED-DIGEST",
+        "REQ-NONCE",
+        "REQ-OUTER-COPIES",
+        "REQ-PAYLOAD-DIGEST",
+        "REQ-SIGNATURE",
+        "REQ-SKEW",
+        "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR"
+      ]
+    },
+    "asqav-55-heartbeat": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
       "exercises": [
@@ -2689,10 +2919,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -2703,7 +2938,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-KEY-RESOLUTION": [
       "asqav-01-genesis-permit",
@@ -2747,10 +2983,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -2761,7 +3002,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-ISSUER-BIND": [
       "asqav-01-genesis-permit",
@@ -2805,10 +3047,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -2819,7 +3066,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-KEY-STATUS": [
       "asqav-01-genesis-permit",
@@ -2862,10 +3110,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -2876,7 +3129,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-KEY-THUMBPRINT": [
       "asqav-01-genesis-permit",
@@ -2920,10 +3174,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -2934,7 +3193,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-CHAIN": [
       "asqav-01-genesis-permit",
@@ -2978,10 +3238,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -2992,7 +3257,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-ANCHOR": [
       "asqav-24-anchor-block-hash-prod",
@@ -3004,7 +3270,11 @@
       "asqav-36-counterparty-origin-forged",
       "asqav-37-counterparty-divergent-terms",
       "asqav-38-counterparty-received-only",
-      "asqav-39-counterparty-cross-replay"
+      "asqav-39-counterparty-cross-replay",
+      "asqav-40-counterparty-self-binding",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
+      "asqav-43-counterparty-unknown-member"
     ],
     "REQ-SKEW": [
       "asqav-01-genesis-permit",
@@ -3048,10 +3318,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3062,7 +3337,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-EXPIRY": [
       "asqav-01-genesis-permit",
@@ -3106,10 +3382,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3120,7 +3401,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-NONCE": [
       "asqav-01-genesis-permit",
@@ -3164,10 +3446,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3178,7 +3465,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-PAYLOAD-DIGEST": [
       "asqav-01-genesis-permit",
@@ -3222,9 +3510,14 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3235,7 +3528,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-KEYED-DIGEST": [
       "asqav-01-genesis-permit",
@@ -3279,9 +3573,14 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3292,7 +3591,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-OUTER-COPIES": [
       "asqav-01-genesis-permit",
@@ -3336,10 +3636,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3350,7 +3655,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-COUNTERPARTY": [
       "asqav-01-genesis-permit",
@@ -3392,10 +3698,15 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-absent-version",
       "asqav-39-counterparty-cross-replay",
+      "asqav-39-foreign-namespace-reported",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3406,7 +3717,8 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ],
     "REQ-STRUCTURE": [
       "asqav-01-genesis-permit",
@@ -3450,8 +3762,12 @@
       "asqav-38-unknown-member-preserved",
       "asqav-39-counterparty-cross-replay",
       "asqav-39-malformed-type",
+      "asqav-40-counterparty-self-binding",
+      "asqav-41-counterparty-omitted-peer",
+      "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
+      "asqav-43-counterparty-unknown-member",
       "asqav-43-outer-copies-agree",
       "asqav-44-outer-signed-at-edited",
       "asqav-45-outer-agent-id-edited",
@@ -3462,14 +3778,15 @@
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
       "asqav-53-payload-digest-no-context",
-      "asqav-54-kms-signed"
+      "asqav-54-kms-signed",
+      "asqav-55-heartbeat"
     ]
   },
   "unmapped_requirements": [],
   "unmapped_detail": {},
   "unmapped_note": "These are normative requirements no vector in this corpus exercises. They are published because an unmapped requirement stays unmapped however many vectors exist, so growing the corpus does not remove one from this list; writing a vector that reaches it does.",
   "counts": {
-    "asqav_native_vectors": 61,
+    "asqav_native_vectors": 67,
     "interop_fixtures": 52,
     "requirements": 15,
     "requirements_covered": 15,

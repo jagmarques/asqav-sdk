@@ -140,9 +140,16 @@ covers it.
 - `asqav-37-counterparty-divergent-terms` — unverified (counterparty_mismatch)
 - `asqav-38-counterparty-received-only` — unverified (counterparty_malformed)
 - `asqav-39-counterparty-cross-replay` — unverified (counterparty_mismatch)
-- `asqav-37-unregistered-namespace-reported` — unverified (unregistered_namespace)
+- `asqav-40-counterparty-self-binding` — verified
+- `asqav-41-counterparty-omitted-peer` — verified
+- `asqav-42-counterparty-same-binding-second-ack` — verified
+- `asqav-43-counterparty-unknown-member` — verified
+- `asqav-37-unregistered-namespace-reported` — unverified (registered_but_unimplemented; directory name predates the taxonomy fix)
 - `asqav-38-unknown-member-preserved` — verified
+- `asqav-38-protectmcp-unknown-invalid` — unverified (unregistered_protectmcp_type)
+- `asqav-39-foreign-namespace-reported` — unverified (unregistered_namespace; preservation: foreign stays SKIPPED)
 - `asqav-39-absent-version` — unverified
+- `asqav-39-malformed-type` — unverified (malformed_type)
 - `asqav-40-unrecognised-version` — unverified
 - `asqav-41-hash-unrecognised-version` — unverified
 - `asqav-42-keyed-digest-unverifiable` — unverified (payload_digest_unchecked)
@@ -156,7 +163,10 @@ covers it.
 - `asqav-50-outer-flat-signature-agent-id-edited` — unverified (outer_copy_mismatch)
 - `asqav-51-outer-envelope-signature-action-type-edited` — unverified (outer_copy_mismatch)
 - `asqav-52-outer-flat-hash-unsigned-members` — verified
+- `asqav-42-revoked-before-issuance` — unverified (key_revoked)
+- `asqav-53-payload-digest-no-context` — verified
 - `asqav-54-kms-signed` — verified
+- `asqav-55-heartbeat` — verified
 <!-- vectors-list:end -->
 
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;

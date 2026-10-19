@@ -125,6 +125,17 @@ signer makes that anchor fail, which marks the receipt `invalid`. The pack's own
 snapshot and any TSA entries it carries in `tsa_trust` are written by whoever produced the
 pack, so they are never treated as trusted.
 
+### Trust-bundle revocation policy
+
+The shipped bundle (`verifier/trust/tsa-trust-bundle.json`) records each
+root's `trusted_list_status_asserted_at`: that date is the revocation
+assertion, not a live check. Offline verification performs no CRL or OCSP
+fetch, so a root revoked after the bundle's `issued_at` still verifies until
+the bundle is replaced. Refreshing means replacing the file with a newer
+`bundle_version`; every result carries its `trust_bundle` identity (version,
+digest, source), so compare it against the bundle file you hold and
+re-verify when they differ.
+
 Without `--jwks`, the command checks the pack against its own snapshot. The best result is
 then `self-consistent, not anchored to a trusted key`, with exit code `2`, and the report
 says the keys are self-asserted. It never exits `0` in that mode. The report prints the

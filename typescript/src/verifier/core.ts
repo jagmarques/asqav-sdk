@@ -1,12 +1,12 @@
-/**
- * The shared verification core - format detection, dispatch and the verdict, a port of the Python
- * oracle's `core.py`. It proves only what the bytes prove, never the behaviour of the recorded action.
- */
+/** Shared core: detection, dispatch and the verdict */
+/** Verdict rules live in semantic.ts; proves only what the bytes prove */
 
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { exceedsDepth } from "./canonical.js";
 import { FAIL, PASS, SKIPPED, verifySignature, type VerifyState } from "./crypto.js";
+import { REGISTRY_EDITION, REGISTRY_VERSION } from "./vrShim.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
+import { classifyFailure, foldIndependent } from "./semantic.js";
 
 /**
  * Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
@@ -38,6 +38,18 @@ export interface AxisResult {
 }
 
 /** The aggregate outcome of verifying one receipt. */
+/** Versioned trust identity, mirrored from Python's trust_bundle. */
+export interface TrustBundleIdentity {
+  /** Bundle version the result was verified under. */
+  version: number | string | null;
+  /** Recorded bundle digest the run verified against. */
+  digest: string | null;
+  /** Where the bundle came from (e.g. bundle file name). */
+  source: string | null;
+  /** Whether the bundle self-digest verified. */
+  valid: boolean;
+}
+
 export interface VerifyResult {
   /** The matched adapter name, or "unknown". */
   fmt: string;
@@ -59,66 +71,21 @@ export interface VerifyResult {
   firstFailingEdge: string | null;
   /** The checks this result does not claim, beside the claim it makes. */
   notChecked: NotCheckedEntry[];
+  /** Trust identity; null here, TS evaluates no bundles. Parity field. */
+  trustBundle: TrustBundleIdentity | null;
+  /** Registry edition + upstream version this result resolved against (625). */
+  registryEdition: string;
+  registryVersion: string;
   /** The coverage block, mirrored from the reviewer's tool: snake_case keys are deliberate. */
   coverage: Coverage;
   /** Resolved invocation context, so a disagreement attributes to an input. */
   context?: VerificationContext;
 }
 
-/** Axes whose FAIL proves a cryptographic/policy binding failure (invalid). */
-const INVALID_FAIL_AXES = new Set([
-  "signature",
-  "anchors",
-  "issuer_bind",
-  "key_status",
-  "key_binding",
-  "counterparty",
-  "payload_digest",
-  "outer_copies",
-  "nonce",
-  "parent_signature",
-  "pdp_signature",
-  // A gap proves receipts were withheld and a malformed counter was signed as-is;
-  // both are proven defects, not a recompute that could not finish.
-  "seq",
-]);
-
-/**
- * Map one axis outcome to its failure class (criterion 418). A FAIL is invalid when a binding was proven
- * broken, unverifiable when the recompute could not finish; an unlisted FAIL reads unverifiable.
- */
+/** Classify one axis outcome; rules live in semantic.ts */
+/** Kept as the public name for existing importers */
 export function axisFailureClass(axis: string, result: VerifyState, note: string): FailureClass | null {
-  if (result === PASS) return null;
-  if (result === SKIPPED) return FAILURE_UNVERIFIABLE;
-  if (INVALID_FAIL_AXES.has(axis)) return FAILURE_INVALID;
-  if (axis === "chain") {
-    // A mismatched link or a cross-format predecessor is a proven break; a
-    // predecessor the canonicaliser cannot walk stops the recompute instead.
-    if (note.startsWith("chain break:") || note === "predecessor is a different receipt format") {
-      return FAILURE_INVALID;
-    }
-    return FAILURE_UNVERIFIABLE;
-  }
-  if (axis === "skew") {
-    if (note.startsWith("unparseable issued_at")) return FAILURE_UNVERIFIABLE;
-    return FAILURE_INVALID;
-  }
-  if (axis === "structure") {
-    if (note.startsWith("unsupported ACTA alg") || note.startsWith("unsupported signature algorithm")) {
-      return FAILURE_INVALID;
-    }
-    if (note.startsWith("key_purpose mismatch")) return FAILURE_INVALID;
-    if (note.includes("signing-key DID != issuer DID")) return FAILURE_INVALID;
-    if (note.startsWith("proof @context is not a prefix")) return FAILURE_INVALID;
-    if (note.startsWith("unregistered type ") || note.startsWith("malformed type ")) return FAILURE_INVALID;
-    return FAILURE_UNVERIFIABLE;
-  }
-  if (axis === "expiry") {
-    if (note.startsWith("unreadable expires_at")) return FAILURE_UNVERIFIABLE;
-    return FAILURE_INVALID;
-  }
-  // issuer_key / ingest and anything unlisted: the recompute could not complete.
-  return FAILURE_UNVERIFIABLE;
+  return classifyFailure(axis, result, note);
 }
 
 function axis(axis: string, result: VerifyState, note: string): AxisResult {
@@ -154,10 +121,8 @@ function structureAxis(ad: FormatAdapter, doc: Record<string, unknown>): AxisRes
  */
 export const AXIS_ORDER_PREFIX = ["structure", "signature", "chain", "seq"] as const;
 
-/**
- * Name the earliest axis in report order that drove the verdict away from verified.
- * Exclusions mirror `foldVerdict` (expiry never folds; SKIPPED chain is tolerated, others are not).
- */
+/** Earliest axis in report order that drove the verdict away */
+/** Exclusions mirror the semantic table: expiry never folds, chain tolerated */
 export function firstFailingEdge(axes: AxisResult[]): string | null {
   for (const a of axes) {
     if (a.result === FAIL && a.axis !== "expiry") return a.axis;
@@ -166,27 +131,13 @@ export function firstFailingEdge(axes: AxisResult[]): string | null {
   return null;
 }
 
-/**
- * Fold per-axis outcomes into the public verdict + failure class (418/438).
- * A port of the Python `fold_verdict`.
- */
+/** Fold per-axis outcomes; rules live in semantic.ts */
+/** Kept as the public name for existing importers */
 export function foldVerdict(
   axes: AxisResult[],
   keyed: boolean,
 ): readonly [Verdict, FailureClass | null] {
-  const failed = axes.filter((a) => a.result === FAIL && a.axis !== "expiry");
-  const blockingSkip = axes.some((a) => a.result === SKIPPED && a.axis !== "chain");
-  if (failed.length > 0) {
-    // A proven binding failure dominates a malformed-member failure: the
-    // receipt is invalid on the strongest ground the axes established.
-    const failureClass = failed.some((a) => a.failureClass === FAILURE_INVALID)
-      ? FAILURE_INVALID
-      : FAILURE_UNVERIFIABLE;
-    return [VERDICT_UNVERIFIED, failureClass];
-  }
-  if (blockingSkip) return [VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE];
-  if (keyed) return [VERDICT_VERIFIED_KEYED, null];
-  return [VERDICT_VERIFIED, null];
+  return foldIndependent(axes, keyed);
 }
 
 /** Return the first adapter whose structural fingerprint matches `doc`. */
@@ -250,8 +201,8 @@ function chainAxis(
   return axis("chain", FAIL, `chain break: expected ${exp}.. got ${actual.slice(0, 16)}..`);
 }
 
-// A gap is omission evidence. Never SKIPPED: foldVerdict blocks on a non-chain
-// SKIPPED, so a receipt with no counter would regress to unverified.
+// A gap is omission evidence. Never SKIPPED: the semantic table blocks on a
+// non-chain SKIPPED, so a receipt with no counter regresses to unverified
 function seqAxis(
   ad: FormatAdapter,
   doc: Record<string, unknown>,
@@ -297,7 +248,7 @@ const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NEST
 function earlyUnverified(fmt: string, note: string): VerifyResult {
   const axes = [axis("structure", FAIL, note)];
   const [verdict, failureClass] = foldVerdict(axes, false);
-  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes) };
+  return { fmt, axes, verdict, failureClass, signer: null, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null, registryEdition: REGISTRY_EDITION, registryVersion: REGISTRY_VERSION };
 }
 
 /** Unverified/unverifiable for input refused before hashing (runner form) */
@@ -327,6 +278,9 @@ export function verify(
       firstFailingEdge: firstFailingEdge(axes),
       notChecked: notCheckedDeclaration(),
       coverage: coverageDeclaration(axes),
+      trustBundle: null,
+      registryEdition: REGISTRY_EDITION,
+      registryVersion: REGISTRY_VERSION,
       context: resolved,
     };
   }
@@ -358,6 +312,9 @@ export function verify(
       firstFailingEdge: early.firstFailingEdge,
       notChecked: early.notChecked,
       coverage: early.coverage,
+      trustBundle: null,
+      registryEdition: REGISTRY_EDITION,
+      registryVersion: REGISTRY_VERSION,
       context: resolved,
     };
   }
@@ -377,5 +334,5 @@ export function verify(
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;
-  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), context: resolved };
+  return { fmt: ad.name, axes, verdict, failureClass, signer, firstFailingEdge: firstFailingEdge(axes), notChecked: notCheckedDeclaration(), coverage: coverageDeclaration(axes), trustBundle: null, registryEdition: REGISTRY_EDITION, registryVersion: REGISTRY_VERSION, context: resolved };
 }

@@ -192,6 +192,8 @@ from .retry import with_async_retry, with_retry
 from .scope import ScopeToken, create_scope_token, is_replay, verify_scope_token
 from .verifier.oracle import ADAPTERS as _ADAPTERS
 from .verifier.oracle import verify as _oracle_verify
+from .verifier.verify_receipt import REGISTRY_EDITION as _REGISTRY_EDITION
+from .verifier.verify_receipt import REGISTRY_VERSION as _REGISTRY_VERSION
 from .verifier.verify_receipt import fetch_jwks
 
 __version__ = "0.10.13"
@@ -481,6 +483,7 @@ def verify_receipt_offline(
           - ``"first_failing_edge"``: earliest non-passing axis, else None
           - ``"not_checked"``: the checks this result does not claim
           - ``"coverage"``: stopped_at plus checks_not_evaluated beside it
+          - ``"registry_edition"`` / ``"registry_version"``: registry pins
 
     Example::
 
@@ -515,6 +518,13 @@ def verify_receipt_offline(
         "first_failing_edge": vr.first_failing_edge,
         "not_checked": vr.not_checked,
         "coverage": vr.coverage,
+        # The lightweight offline path performs no bundle evaluation; the key
+        # stays for twin parity with the TS verifier and the structured API.
+        "trust_bundle": None,
+        # Registry edition + upstream version, mirroring run_structured
+        # and the TS twin so the key sets stay identical.
+        "registry_edition": _REGISTRY_EDITION,
+        "registry_version": _REGISTRY_VERSION,
         # Mirrors the TS twin's resolved context; unset hints are omitted like undefined.
         "context": {
             k: v for k, v in (vars(vr.context) if vr.context else {}).items() if v is not None

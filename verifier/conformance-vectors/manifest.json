@@ -685,11 +685,39 @@
     "failure_class": "invalid"
   },
   {
+    "dir": "asqav-40-counterparty-self-binding",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Self-binding verifies: origin and acknowledger are the same party and no axis compares them."
+  },
+  {
+    "dir": "asqav-41-counterparty-omitted-peer",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Omitted peer verifies: without expect_ack_from the kid cross-check is skipped."
+  },
+  {
+    "dir": "asqav-42-counterparty-same-binding-second-ack",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Same binding bytes verify a second ack: one origin corroborates two acknowledgments."
+  },
+  {
+    "dir": "asqav-43-counterparty-unknown-member",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Unknown binding member verifies: the axis reads known keys and ignores the rest."
+  },
+  {
     "dir": "asqav-37-unregistered-namespace-reported",
     "format": "asqav-native",
     "outcome": "unverified",
-    "reason_code": "unregistered_namespace",
-    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace; structure axis reports SKIPPED, verdict unverified/unverifiable.",
+    "reason_code": "registered_but_unimplemented",
+    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace this verifier release does not implement; structure axis reports SKIPPED, verdict unverified/unverifiable.",
     "failure_class": "unverifiable"
   },
   {
@@ -706,6 +734,14 @@
     "failure_class": "invalid",
     "reason_code": "unregistered_protectmcp_type",
     "notes": "protectmcp-prefixed type no registry carries; structure FAILs invalid, a receipt non-conformance rather than an unverifiable shrug (criterion 524)."
+  },
+  {
+    "dir": "asqav-39-foreign-namespace-reported",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "unregistered_namespace",
+    "notes": "Correctly signed receipt in the foreign acme namespace no registry carries; structure SKIPPED, never FAIL (preservation: a future strictness must not harden this arm; criterion 625)."
   },
   {
     "dir": "asqav-39-absent-version",
@@ -845,5 +881,12 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "Payload-mode receipt signed by a test KMS for 569 C9: ML-DSA-65 key from the published seed in verifier/mint_kms_signed_vector.py, SPKI in kms_spki_der_b64.txt, kid resolves to the AKP JWK. Expiry set ahead so the expiry axis stays PASS."
+  },
+  {
+    "dir": "asqav-55-heartbeat",
+    "format": "asqav-native",
+    "outcome": "verified",
+    "reason_code": "",
+    "notes": "Hash-mode heartbeat (criterion 574 C474): type protectmcp:lifecycle, decision observation, interval in metadata.heartbeat_description, no action_type member, seq 1 on a genesis chain. Signed policy_digest commits to the liveness_heartbeat artefact."
   }
 ]

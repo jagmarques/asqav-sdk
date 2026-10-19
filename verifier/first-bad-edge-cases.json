@@ -92,6 +92,7 @@
     "asqav-38-protectmcp-unknown-invalid": "structure",
     "asqav-38-unknown-member-preserved": null,
     "asqav-39-absent-version": "structure",
+    "asqav-39-foreign-namespace-reported": "structure",
     "asqav-39-malformed-type": "structure",
     "asqav-40-unrecognised-version": "structure",
     "asqav-41-hash-unrecognised-version": "structure",
@@ -111,8 +112,13 @@
     "asqav-37-counterparty-divergent-terms": "counterparty",
     "asqav-38-counterparty-received-only": "counterparty",
     "asqav-39-counterparty-cross-replay": "counterparty",
+    "asqav-40-counterparty-self-binding": null,
+    "asqav-41-counterparty-omitted-peer": null,
+    "asqav-42-counterparty-same-binding-second-ack": null,
+    "asqav-43-counterparty-unknown-member": null,
     "asqav-42-revoked-before-issuance": "key_status",
     "asqav-53-payload-digest-no-context": null,
-    "asqav-54-kms-signed": null
+    "asqav-54-kms-signed": null,
+    "asqav-55-heartbeat": null
   }
 }

@@ -1,0 +1,6 @@
+{
+  "format": "asqav-native",
+  "outcome": "verified",
+  "reason_code": "",
+  "notes": "Same binding bytes verify a second ack: one origin corroborates two acknowledgments."
+}
