@@ -20,6 +20,46 @@ import differential_fuzz as fuzz  # noqa: E402
 
 SEEDS = [0, 1, 2, 3]
 ITERATIONS = 250
+UNKNOWN_ITERATIONS = 100
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_unknown_members_survive_all_engines(seed: int) -> None:
+    """Unregistered members round-trip byte-identically (626-F).
+
+    The registry distinction lives in the verifier, never in the
+    canonicalizer: dropping or mangling an unknown member is a divergence.
+    """
+    divergences = fuzz.run_unknown_members(iterations=UNKNOWN_ITERATIONS, seed=seed)
+    assert not divergences, (
+        f"unknown-member divergence at seed {seed}: "
+        f"{json.dumps(divergences[0], ensure_ascii=False)[:800]}"
+    )
+
+
+def test_unknown_corpus_plants_unregistered_names() -> None:
+    """Anti-vacuous: the case actually carries unknown members."""
+    import random
+
+    rng = random.Random(0)
+    docs = [fuzz.generate_with_unknown_members(rng) for _ in range(UNKNOWN_ITERATIONS)]
+    planted = {k for d in docs for k in d if k.startswith(fuzz.UNKNOWN_MEMBER_PREFIX)}
+    assert len(planted) >= UNKNOWN_ITERATIONS, "case planted no unknown members"
+
+
+def test_gate_detects_a_dropping_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control: an engine that strips unknown members fails the case."""
+    real_canonical = fuzz.sdk_canonical
+
+    def dropping_canonical(obj: object) -> bytes:
+        if isinstance(obj, dict):
+            obj = {k: v for k, v in obj.items() if not k.startswith(fuzz.UNKNOWN_MEMBER_PREFIX)}
+        return real_canonical(obj)
+
+    monkeypatch.setattr(fuzz, "sdk_canonical", dropping_canonical)
+    assert fuzz.run_unknown_members(iterations=UNKNOWN_ITERATIONS, seed=0), (
+        "the fuzz gate passed an engine dropping unknown members; it has no bite"
+    )
 
 
     # One engine cannot diverge from itself, so a green run would prove nothing.
