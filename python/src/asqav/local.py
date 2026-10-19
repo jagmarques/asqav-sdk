@@ -85,7 +85,7 @@ class LocalQueue:
     def sync(
         self, on_progress: Callable[[str, bool, str | None], Any] | None = None
     ) -> dict[str, Any]:
-        from .client import _post
+        from .client import _build_sign_body, _post
 
         items = self.list_pending()
         synced = 0
@@ -99,9 +99,16 @@ class LocalQueue:
             context = item.get("context", {})
 
             try:
+                # Same body builder as Agent.sign(): under hash-only (the Asqav cloud
+                # default) the queued context is digested locally and never sent.
                 _post(
                     f"/agents/{agent_id}/sign",
-                    {"action_type": action_type, "context": context},
+                    _build_sign_body(
+                        action_type=action_type,
+                        context=context,
+                        session_id=None,
+                        agent_id=agent_id,
+                    ),
                 )
                 # Success - remove from queue
                 filepath = self.queue_dir / f"{item_id}.json"
