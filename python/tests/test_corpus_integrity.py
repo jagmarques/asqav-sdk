@@ -171,6 +171,12 @@ PINNED_ENVELOPE_HASH = {
     "counterparty_binding_opaque_receipt_ref": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_transport_label_non_trust":
         "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_peer_swapped": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_origin_signature_forged": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_divergent_terms_two_signatures":
+        "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_origin_unavailable": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_cross_interaction_replay": "VjA4s+Jc8ys7jD0nRCHKQhuIBbIAqynlxaxvzYrGy3s=",
 }
 
 #: The non-wire renderings of the same digest carried under ``expected``.
@@ -206,6 +212,30 @@ PINNED_ENVELOPE_HASH_RENDERINGS = {
     "counterparty_binding_base64url_tolerance": {
         "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
         "envelope_hash_base64url": "dXqDdpt_tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8="
+    },
+    "counterparty_binding_peer_swapped": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_origin_signature_forged": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_divergent_terms_two_signatures": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_origin_unavailable": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_cross_interaction_replay": {
+        "envelope_hash_base64": "VjA4s+Jc8ys7jD0nRCHKQhuIBbIAqynlxaxvzYrGy3s=",
+        "envelope_hash_hex": "563038b3e25cf32b3b8c3d274421ca421b8805b200ab29e5c5ac6fcd8ac6cb7b"
+    },
+    "counterparty_binding_received_only_acknowledgement": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
     }
 }
 
@@ -381,6 +411,48 @@ PINNED_SIGNATURES = {
     }
 }
 
+#: Nested payload quartets of the two-envelope vectors, verbatim. Their
+#: ``input`` carries ``{anchors, payload, signature}``; the quartet lives
+#: one level down under ``input.payload``.
+PINNED_NESTED_PAYLOAD_MEMBERS = {
+    "counterparty_binding_envelope_byte_equality": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_origin_two_anchors": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_origin_forged": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_origin_divergent": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:9999888877776666555544443333222211110000ffffeeeeddddccccbbbb",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    }
+}
+
 #: The exact document each refused-parse vector publishes, verbatim. A vector that pins a
 #: REFUSAL has no canonical form, so its contract with implementers is these bytes.
 PINNED_REFUSED_DOCUMENT = {
@@ -444,6 +516,13 @@ def test_payload_derived_members_are_the_pinned_literals(name: str, members: dic
 @pytest.mark.parametrize("name,signature", sorted(PINNED_SIGNATURES.items()))
 def test_signatures_are_the_pinned_literals(name: str, signature: dict) -> None:
     assert _vectors()[name]["input"]["signature"] == signature
+
+
+@pytest.mark.parametrize("name,members", sorted(PINNED_NESTED_PAYLOAD_MEMBERS.items()))
+def test_nested_payload_members_are_the_pinned_literals(name: str, members: dict) -> None:
+    payload = _vectors()[name]["input"]["payload"]
+    for member, value in members.items():
+        assert payload[member] == value, f"{name}.input.payload.{member} moved from the pin"
 
 
     # The three encodings under `expected` must all decode to the same digest, and that
@@ -537,8 +616,10 @@ def test_no_derived_member_escapes_a_pin() -> None:
         assert name in PINNED_SHA256, f"{name}: sha256 is not pinned"
 
 def test_every_input_derived_member_has_a_literal_pin() -> None:
-    """Per-member closure: an input-level derived member must sit under a
-    literal pin for its own vector, not merely ride along on a vector name."""
+    """Member-to-pin-source closure: every derived member string in the
+    corpus sits under a literal pin for its own vector — top-level input
+    members, the wire envelope hash, nested input.payload members and
+    expected renderings alike."""
     for name, vector in _vectors().items():
         payload = vector.get("input", {})
         if not isinstance(payload, dict):
@@ -551,6 +632,24 @@ def test_every_input_derived_member_has_a_literal_pin() -> None:
         if "signature" in payload:
             assert name in PINNED_SIGNATURES, (
                 f"{name}.signature has no literal pin")
+        binding = payload.get("counterparty_binding", {})
+        if isinstance(binding, dict) and "envelope_hash" in binding:
+            assert name in PINNED_ENVELOPE_HASH, (
+                f"{name}.counterparty_binding.envelope_hash has no literal pin")
+        nested = payload.get("payload", {})
+        if isinstance(nested, dict):
+            for member in ("previousReceiptHash", "policy_digest",
+                           "action_ref", "payload_digest"):
+                if member in nested:
+                    assert name in PINNED_NESTED_PAYLOAD_MEMBERS, (
+                        f"{name}.input.payload.{member} has no literal pin")
+        expected = vector.get("expected", {})
+        if isinstance(expected, dict):
+            for member in ("envelope_hash_base64", "envelope_hash_hex",
+                           "envelope_hash_base64url"):
+                if member in expected:
+                    assert name in PINNED_ENVELOPE_HASH_RENDERINGS, (
+                        f"{name}.expected.{member} has no literal pin")
 
 
 class TestTheCorpusSpellsNoAnchorsOneWay:
