@@ -124,6 +124,10 @@ ALLOWED_TYPES = {
 #: verifier/registry/type-namespaces.json (criterion 524)
 REGISTRY_EDITION = "2026-09-15.v1"
 
+#: Upstream registry version the vendored set reconciles (registry_source
+#: in the same file; criterion 625): v1.1.0 nine plus oversight_ruling.
+REGISTRY_VERSION = "1.1.0"
+
 #: Draft-registered namespaces (anchor iana-type-namespaces), all ten
 #: The engine implements ALLOWED_TYPES; oversight_ruling names the gap
 REGISTRY_NAMESPACES = frozenset(
@@ -3586,6 +3590,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
             "trust_bundle": _tb_identity,
         }
     acknowledging_kid = counterparty_acknowledging_kid(envelope)
@@ -3612,6 +3617,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
             "trust_bundle": _tb_identity,
         }
     shape = _scan_shape(envelope, max_depth=MAX_NESTING_DEPTH)
@@ -3629,6 +3635,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
             "trust_bundle": _tb_identity,
         }
 
@@ -3650,6 +3657,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
             "trust_bundle": _tb_identity,
         }
     try:
@@ -3667,6 +3675,7 @@ def run_structured(
             "kid": None,
             "alg": None,
             "registry_edition": REGISTRY_EDITION,
+            "registry_version": REGISTRY_VERSION,
             "trust_bundle": _tb_identity,
         }
 
@@ -3717,6 +3726,7 @@ def run_structured(
         "kid": kid,
         "alg": alg,
         "registry_edition": REGISTRY_EDITION,
+        "registry_version": REGISTRY_VERSION,
         "trust_bundle": _tb_identity,
     }
 
