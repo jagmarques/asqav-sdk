@@ -3347,11 +3347,16 @@ def check_rotation_succession(entry, eff_pk, prior_jwks):
     eff_b64 = base64.b64encode(eff_pk).decode()
     if any(k.get("public_key") == eff_b64 for k in retained):
         return None
+    if any(k.get("status") == "revoked" for k in retained):
+        case = "removed_old_key"
+        why = "the retained key is revoked and cannot authorize succession"
+    else:
+        case = "forged_transition"
+        why = "with no transition authorization from the retained key"
     return ("SKIPPED",
-            "forged_transition: verifying key differs from every retained "
-            f"key for kid {kid!r} agent {agent!r} with no transition "
-            "authorization from the retained key, so succession cannot "
-            "be established")
+            f"{case}: verifying key differs from every retained "
+            f"key for kid {kid!r} agent {agent!r} {why}, so succession "
+            "cannot be established")
 
 
 def _key_and_signature_rows(
