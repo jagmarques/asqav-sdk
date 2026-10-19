@@ -5,6 +5,21 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`sign_batch()` and the offline queue's `sync()` now honour hash-only mode** (criterion 797).
+  Both built their request bodies by hand with the raw `context`, so against the Asqav cloud they
+  put prompts and tool arguments on the wire (the cloud then refused them with
+  `MODE_NOT_ALLOWED`). They now use the same body builder as `sign()`, so the context is hashed
+  locally and only the digest and whitelisted labels are sent.
+
+### Added
+
+- **Egress test** (`python/tests/test_no_sensitive_egress.py`,
+  `typescript/tests/noSensitiveEgress.test.ts`). Plants a prompt, a file body and a secret-shaped
+  value, captures every request at the HTTP transport and fails if any of them is sent. A
+  full-payload run is the negative control and must be caught.
+
 ## [0.10.13] - 2026-10-16
 
 ### Changed
