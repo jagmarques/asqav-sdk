@@ -308,3 +308,40 @@ def test_run_structured_bad_signature_stays_invalid_with_active_key():
     sig = next(a for a in result["axes"] if a["name"] == "signature")
     assert sig["result"] == "FAIL"
     assert result["failure_class"] == "invalid"
+
+
+def test_check_key_status_decommissioned_never_passes_as_active():
+    res, note = v.check_key_status("decommissioned", "2026-06-01T00:00:00Z")
+    assert res == "SKIPPED"
+    assert "decommissioned" in note.lower()
+
+
+def test_check_key_status_unknown_never_passes_as_active():
+    for unknown in (None, ""):
+        res, note = v.check_key_status(unknown, "2026-06-01T00:00:00Z")
+        assert res == "SKIPPED"
+        assert "unknown" in note.lower()
+
+
+def test_check_key_status_compromise_reason_names_compromise():
+    res, note = v.check_key_status(
+        "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        revocation_reason="compromised",
+    )
+    assert res == "SKIPPED"
+    assert "compromised" in note.lower()
+
+
+def test_check_key_status_literal_unknown_never_passes():
+    res, note = v.check_key_status("unknown", "2026-06-01T00:00:00Z")
+    assert res == "SKIPPED"
+    assert "unknown" in note.lower()
+
+
+def test_check_key_status_non_string_reason_never_crashes():
+    res, note = v.check_key_status(
+        "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        revocation_reason=123,
+    )
+    assert res == "SKIPPED"
+    assert "revoked" in note.lower()
