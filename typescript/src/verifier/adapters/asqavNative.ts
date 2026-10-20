@@ -378,7 +378,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
     // Offline anchor presence is unverifiable (anchors unsigned); pass false
     // so a forged anchor never rides a revoked key to PASS.
     const status = (entry.status as string) ?? null;
-    const [res, note] = checkKeyStatus(status, issuedAt, revokedAtOf(entry), false);
+    const [res, note] = checkKeyStatus(status, issuedAt, revokedAtOf(entry), false,
+      typeof entry.revocation_reason === "string" ? entry.revocation_reason : null);
     // The key that verified is bound back to the issuer the signed bytes name.
     const keyIssuer = keyIssuerOf(entry);
     const [bindRes, bindNote] = hashMode

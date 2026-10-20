@@ -439,6 +439,11 @@ export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: stri
   return k !== null && typeof k.revoked_at === "string" ? k.revoked_at : null;
 }
 
+/** Return the JWKS revocation_reason for kid if published, else null. */
+export function resolveRevocationReason(jwks: Record<string, unknown> | null, kid: string): string | null {
+  const k = matchKey(jwks, kid);
+  return k !== null && typeof k.revocation_reason === "string" ? k.revocation_reason : null;
+}
 /** Return the org id the JWKS publishes for `kid` (mirrors `resolve_key_org`). */
 export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string): string | null {
   const k = matchKey(jwks, kid);
@@ -1024,11 +1029,20 @@ export function checkKeyStatus(
   issuedAt: string,
   revokedAt: string | null,
   hasTrustedAnchor: boolean,
+  revocationReason: string | null = null,
 ): readonly [VerifyState, string] {
   const s = (status ?? "").toLowerCase();
+  if (s === "decommissioned") {
+    return ["SKIPPED", `signing key decommissioned; issuance at ${issuedAt} cannot be placed against retirement`];
+  }
+  if (s === "" || s === "unknown") {
+    return ["SKIPPED", "signing key status unknown; cannot confirm the key was active"];
+  }
   if (!REVOKED_KEY_STATUSES.has(s)) {
     return ["PASS", `signing key status ${JSON.stringify(status)} is active`];
   }
+  const reason = typeof revocationReason === "string" ? revocationReason : "";
+  const kind = s === "compromised" || reason.toLowerCase() === "compromised" ? "compromised" : s;
   if (revokedAt) {
     try {
       // Pinned grammar, not `new Date`: the basic form parses nowhere now, so
@@ -1039,12 +1053,12 @@ export function checkKeyStatus(
         return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
       }
       if (rev <= iss) {
-        return ["FAIL", `signing key revoked at ${revokedAt} on/before issuance ${issuedAt}`];
+        return ["FAIL", `signing key ${kind} at ${revokedAt} on/before issuance ${issuedAt}`];
       }
       if (!hasTrustedAnchor) {
-        return ["SKIPPED", `signing key revoked at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`];
+        return ["SKIPPED", `signing key ${kind} at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`];
       }
-      return ["PASS", `signing key revoked at ${revokedAt}, after issuance ${issuedAt}`];
+      return ["PASS", `signing key ${kind} at ${revokedAt}, after issuance ${issuedAt}`];
     } catch {
       return ["FAIL", `signing key status ${JSON.stringify(status)}; unparseable revoked_at/issued_at`];
     }

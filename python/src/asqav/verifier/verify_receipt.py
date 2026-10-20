@@ -1955,7 +1955,7 @@ def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
     return any(t <= rev for t in trusted_times)
 
 
-def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False):
+def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False, revocation_reason=None):
     """Gate the verdict on the signing key's published status.
 
     A revoked key never PASSes on receipt timestamps alone: producer-attested
@@ -1963,10 +1963,22 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
 
     has_trusted_anchor must be an anchor the caller verified as pre-revocation;
     presence alone never suffices, and the default False never hides behind it.
+    Retirement, compromise and unknown are distinct non-passing outcomes.
     """
     s = (status or "").lower()
+    if s == "decommissioned":
+        return "SKIPPED", (
+            f"signing key decommissioned; issuance at {issued_at} cannot be "
+            "placed against retirement"
+        )
+    if not s or s == "unknown":
+        return "SKIPPED", (
+            "signing key status unknown; cannot confirm the key was active"
+        )
     if s not in REVOKED_KEY_STATUSES:
         return "PASS", f"signing key status {status!r} is active"
+    reason = revocation_reason if isinstance(revocation_reason, str) else ""
+    kind = "compromised" if (s == "compromised" or reason.lower() == "compromised") else s
     if revoked_at:
         # Pinned grammar first: bare fromisoformat reads the basic form on 3.11+
         # but raises on 3.10, so the same stamp drew different verdicts per version
@@ -1975,14 +1987,14 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
         if rev is None or iss is None:
             return "FAIL", f"signing key status {status!r}; unparseable revoked_at/issued_at"
         if rev <= iss:
-            return "FAIL", f"signing key revoked at {revoked_at} on/before issuance {issued_at}"
+            return "FAIL", f"signing key {kind} at {revoked_at} on/before issuance {issued_at}"
         if not has_trusted_anchor:
             return (
                 "SKIPPED",
-                f"signing key revoked at {revoked_at}; issued_at {issued_at} is "
+                f"signing key {kind} at {revoked_at}; issued_at {issued_at} is "
                 f"self-attested, no anchor proves pre-revocation timing",
             )
-        return "PASS", f"signing key revoked at {revoked_at}, after issuance {issued_at}"
+        return "PASS", f"signing key {kind} at {revoked_at}, after issuance {issued_at}"
     return (
         "SKIPPED",
         f"signing key status {status!r}; no revoked_at published, cannot place "
@@ -3295,6 +3307,7 @@ def _agent_fallback_signature(
                 revoked_at_of(entry_a),
                 pk_a,
                 alg_a,
+                entry_a.get("revocation_reason"),
             )
         elif exhausted:
             agent_note = "; no key published for this agent verified"
@@ -3386,7 +3399,7 @@ def _key_and_signature_rows(
         sig = decoded if decoded is not None else b""
         sig_res = verify_signature(pk, msg, sig, alg or jwks_alg)
     eff_kid = kid if kid and kid in (entry.get("issuer_id"), entry.get("kid")) else entry.get("kid")
-    eff = (status, eff_kid, key_issuer_of(entry), revoked_at_of(entry), pk, jwks_alg)
+    eff = (status, eff_kid, key_issuer_of(entry), revoked_at_of(entry), pk, jwks_alg, entry.get("revocation_reason") if isinstance(entry, dict) else None)
     agent_note = ""
     if sig_res[0] != "PASS" and carrier is not None:
         sig_res, eff, agent_note = _agent_fallback_signature(
@@ -3398,7 +3411,7 @@ def _key_and_signature_rows(
             sig_res[1] + "; accepted under legacy encoding policy: "
             + LEGACY_ENCODING_POLICY,
         )
-    eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg = eff
+    eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg, eff_reason = eff
     # Only a cryptographically verified anchor at or before revoked_at proves
     # pre-revocation timing; presence alone never upgrades a revoked key.
     trusted_anchor = _has_trusted_pre_revocation_anchor(anchor_eval.trusted_times, eff_revoked_at)
@@ -3407,7 +3420,7 @@ def _key_and_signature_rows(
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))),
-        ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor)),
+        ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor, eff_reason)),
         ("signature", *sig_res),
     ]
     # Succession replaces only the resolution report, and only when the

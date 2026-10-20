@@ -5,7 +5,7 @@
 
 import { verifySignature } from "./crypto.js";
 import { DuplicateMemberError, parseJsonStrict } from "./canonical.js";
-import { b64decode, resolveKey, resolveRevokedAt } from "./vrShim.js";
+import { b64decode, resolveKey, resolveRevocationReason, resolveRevokedAt } from "./vrShim.js";
 
 /** DSSE payloadType for an in-toto Statement (mirrors `core/dsse.py`). */
 export const IN_TOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
@@ -107,8 +107,16 @@ function evaluateKeyStatus(jwks: Record<string, unknown> | null, kid: string): K
     return { good: false, note: `key ${kid} revoked at ${revokedAt}; attestation cannot be trusted`, pub, alg };
   }
   const s = (status ?? "").toLowerCase();
+  if (s === "decommissioned") {
+    return { good: false, note: `key ${kid} decommissioned; attestation cannot be trusted`, pub, alg };
+  }
+  if (s === "") {
+    return { good: false, note: `key ${kid} status unknown; attestation cannot be trusted`, pub, alg };
+  }
   if (REVOKED_KEY_STATUSES.has(s)) {
-    return { good: false, note: `key ${kid} status ${JSON.stringify(status)} is not active`, pub, alg };
+    const reason = resolveRevocationReason(jwks, kid);
+    const kind = s === "compromised" || (reason ?? "").toLowerCase() === "compromised" ? "compromised" : s;
+    return { good: false, note: `key ${kid} status ${kind} is not active`, pub, alg };
   }
   return { good: true, note: `key ${kid} status ${JSON.stringify(status ?? "active")} is active`, pub, alg };
 }
