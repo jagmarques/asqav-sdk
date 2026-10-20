@@ -354,6 +354,83 @@ def test_signed_window_starting_after_revocation_is_invalid() -> None:
     assert report["exit_code"] == 1
 
 
+def test_duplicate_signature_id_in_a_signed_pack_is_invalid() -> None:
+    """Two entries claiming one id are a fork of the entry set, not a verified pack."""
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    m = _minted()
+    m["pack"]["receipts"][1]["signature_id"] = m["pack"]["receipts"][0]["signature_id"]
+    msg = vr.canonical_json(pv.signed_bundle_payload(m["pack"]))
+    m["pack"].update(
+        bundle_digest="sha256:" + hashlib.sha256(msg).hexdigest(),
+        bundle_signature=base64.b64encode(ML_DSA_65.sign(m["sk"], msg)).decode(),
+    )
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["status"] == pv.INVALID
+    reasons = [reason for entry in report["receipts"] for reason in entry["reasons"]]
+    assert any("duplicate entry" in reason for reason in reasons)
+
+
+def test_boolean_receipt_count_is_invalid() -> None:
+    """true equals 1 in Python, so the type check, not the value, closes this."""
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    m = _minted()
+    m["pack"]["receipt_count"] = True
+    msg = vr.canonical_json(pv.signed_bundle_payload(m["pack"]))
+    m["pack"].update(
+        bundle_digest="sha256:" + hashlib.sha256(msg).hexdigest(),
+        bundle_signature=base64.b64encode(ML_DSA_65.sign(m["sk"], msg)).decode(),
+    )
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["bundle"]["status"] == pv.INVALID
+    assert "receipt_count" in report["bundle"]["reason"]
+
+
+def test_dangling_mapping_reference_in_a_signed_pack_is_invalid() -> None:
+    """The mapping is edited and the bundle re-signed, so only the reference is wrong."""
+    m = _minted()
+    m["pack"]["regime_mapping"] = {"dora": ["sig_ghost"]}
+    _seal(m["pack"], m["sk"], m["pk"])
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["bundle"]["status"] == pv.INVALID
+    assert "sig_ghost" in report["bundle"]["reason"]
+
+
+def _resign(pack: dict, sk) -> None:
+    from dilithium_py.ml_dsa import ML_DSA_65
+
+    msg = vr.canonical_json(pv.signed_bundle_payload(pack))
+    pack.update(
+        bundle_digest="sha256:" + hashlib.sha256(msg).hexdigest(),
+        bundle_signature=base64.b64encode(ML_DSA_65.sign(sk, msg)).decode(),
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (Path(__file__).parents[2] / "conformance" / "pack-parity-cases.json").read_text()
+    )["cases"],
+    ids=lambda case: case["name"],
+)
+def test_shared_parity_vector(case) -> None:
+    """The same vector file drives the Python and TypeScript pack verifiers."""
+    m = _minted()
+    pack = m["pack"]
+    if case["mutation"] == "duplicate_signature_id":
+        pack["receipts"][1]["signature_id"] = pack["receipts"][0]["signature_id"]
+    elif case["mutation"] == "receipt_count_boolean":
+        pack["receipt_count"] = True
+    elif case["mutation"] == "dangling_mapping_reference":
+        pack["regime_mapping"] = {"dora": ["sig_ghost"]}
+    else:
+        pytest.fail(f"unknown mutation {case['mutation']}")
+    _resign(pack, m["sk"])
+    report = pv.verify_pack(pack, jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["status"] == case["expected"]
+
+
 def test_compromised_bundle_key_is_invalid() -> None:
     m = _minted()
     m["jwks"]["keys"][0].update(

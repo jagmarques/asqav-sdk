@@ -163,8 +163,14 @@ def mapping_issues(pack: dict[str, Any]) -> list[str]:
         if isinstance(e, dict) and isinstance(e.get("signature_id"), str)
     }
     issues = []
-    if "receipt_count" in pack and pack["receipt_count"] != len(receipts):
-        issues.append("receipt_count does not match the number of receipts")
+    if "receipt_count" in pack:
+        count = pack["receipt_count"]
+        if (
+            not isinstance(count, int)
+            or isinstance(count, bool)
+            or count != len(receipts)
+        ):
+            issues.append("receipt_count does not match the number of receipts")
     mapping = pack.get("regime_mapping")
     if not isinstance(mapping, dict):
         return issues

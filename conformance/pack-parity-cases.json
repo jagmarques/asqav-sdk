@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "description": "Audit-pack rules both SDKs and the cloud verifier must reject; each case mutates a correctly signed pack and re-signs it, so only the named rule can be the reason.",
+  "cloud_counterpart": "asqav tests/test_audit_pack_mapping_resolution.py",
+  "cases": [
+    {"name": "duplicate_signature_id", "mutation": "duplicate_signature_id", "expected": "invalid"},
+    {"name": "receipt_count_boolean", "mutation": "receipt_count_boolean", "expected": "invalid"},
+    {"name": "dangling_mapping_reference", "mutation": "dangling_mapping_reference", "expected": "invalid"}
+  ]
+}
