@@ -71,6 +71,12 @@ PINNED_SHA256 = {
     "counterparty_binding_anchors_included_rejected": "85004158dcf9345ef58eed4178bbfea481a38f0b8cb2a1970785d892980695dc",
     "counterparty_binding_legacy_scope_absent": "9ea6a8cfad32136b496f8aff707dedf53e40f7bc13499f23d8acf598ced6e945",
     "counterparty_binding_unrecognised_scope": "8f008eafa83e78228aa107d8d819d866f2ca94a017cdd01dd168ee2c19c2ad09",
+    "counterparty_binding_profiled_terms":
+        "874cb6d293bf1ba4f02e7d51d6def5a6dc3ba166096125326c3bf709c76f969d",
+    "counterparty_binding_unsupported_profile":
+        "3c6a4fbffa464da5acea986e4798f76c1994f5bedc6c971d4591f4279bed4eaa",
+    "counterparty_binding_terms_digest_mismatch":
+        "abb99d831f3134144564723fdc4f8d24401936a3c3758b26c78df99bea8252b5",
     "minimal_read": "991033e23a3e0939c258e10f2f8f88183d9bcdb08de62ef02446e11e0819c671",
     "tool_call_with_counterparty":
         "a6c39c3b6e09761a141148c0862edbeaeb59642b4e0a1e4a85d6fba63f634ff4",
@@ -132,6 +138,9 @@ PINNED_CANONICAL_LENGTH = {
     "counterparty_binding_anchors_included_rejected": 918,
     "counterparty_binding_legacy_scope_absent": 879,
     "counterparty_binding_unrecognised_scope": 914,
+    "counterparty_binding_profiled_terms": 1054,
+    "counterparty_binding_unsupported_profile": 936,
+    "counterparty_binding_terms_digest_mismatch": 1061,
     "minimal_read": 40,
     "tool_call_with_counterparty": 212,
     "traced_child_action": 130,
@@ -162,6 +171,9 @@ PINNED_CANONICAL_LENGTH = {
 #: The wire ``counterparty_binding.envelope_hash`` string, exactly as published,
 #: in the alphabet each vector exercises.
 PINNED_ENVELOPE_HASH = {
+    "counterparty_binding_profiled_terms": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_unsupported_profile": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+    "counterparty_binding_terms_digest_mismatch": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_scope_minus_anchors": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
     "counterparty_binding_anchors_included_rejected": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
     "counterparty_binding_legacy_scope_absent": "NuUlbDlAp3frTk/GsI/LMfHlo1LIJzaqezJXiYC16bQ=",
@@ -181,6 +193,18 @@ PINNED_ENVELOPE_HASH = {
 
 #: The non-wire renderings of the same digest carried under ``expected``.
 PINNED_ENVELOPE_HASH_RENDERINGS = {
+    "counterparty_binding_profiled_terms": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_unsupported_profile": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
+    "counterparty_binding_terms_digest_mismatch": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
+    },
     "counterparty_binding_scope_minus_anchors": {
         "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
         "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef"
@@ -241,6 +265,33 @@ PINNED_ENVELOPE_HASH_RENDERINGS = {
 
 #: Remaining derived payload members, verbatim.
 PINNED_PAYLOAD_MEMBERS = {
+    "counterparty_binding_profiled_terms": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_unsupported_profile": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
+    "counterparty_binding_terms_digest_mismatch": {
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "payload_digest": {
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+        }
+    },
     "counterparty_binding_happy_path": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
         "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
