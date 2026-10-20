@@ -463,3 +463,21 @@ def test_pack_dict_holding_an_integer_past_2_53_is_not_verifiable_offline() -> N
     assert "+/-2**53" in report["bundle"]["reason"]
     entry = {**m["pack"]["receipts"][0], "note": -(2**53) - 1}
     assert pv.verify_entry(entry, m["jwks"], tsa_keys=tsa)["status"] == pv.NOT_OFFLINE
+
+
+def test_dangling_mapping_reference_invalidates_the_pack() -> None:
+    m = _minted()
+    pack = copy.deepcopy(m["pack"])
+    pack["regime_mapping"] = {"dora": ["sig_ghost"]}
+    report = pv.verify_pack(pack, jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["status"] == pv.INVALID and report["exit_code"] == 1
+    assert "sig_ghost" in report["bundle"]["reason"]
+
+
+def test_receipt_count_mismatch_invalidates_the_pack() -> None:
+    m = _minted()
+    pack = copy.deepcopy(m["pack"])
+    pack["receipt_count"] = len(pack["receipts"]) + 1
+    report = pv.verify_pack(pack, jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["status"] == pv.INVALID and report["exit_code"] == 1
+    assert "receipt_count" in report["bundle"]["reason"]

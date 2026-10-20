@@ -296,3 +296,25 @@ describe("audit-pack verify --offline", () => {
     expect(report.exit_code).toBe(1);
   });
 });
+
+describe("mapping resolution", () => {
+  it("fails a pack whose mapping reference matches no entry", () => {
+    const m = minted();
+    m.pack.regime_mapping = { dora: ["sig_ghost"] };
+    seal(m.pack, m.keys.secretKey, m.keys.publicKey);
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.status).toBe("invalid");
+    expect(report.exit_code).toBe(1);
+    expect(report.bundle.reason).toContain("sig_ghost");
+  });
+
+  it("fails a pack whose receipt_count disagrees with the receipts", () => {
+    const m = minted();
+    seal(m.pack, m.keys.secretKey, m.keys.publicKey);
+    const tampered = JSON.parse(JSON.stringify(m.pack));
+    tampered.receipt_count = tampered.receipts.length + 1;
+    const report = verifyAuditPackOffline(JSON.stringify(tampered), JSON.stringify(m.jwks));
+    expect(report.status).toBe("invalid");
+    expect(report.bundle.reason).toContain("receipt_count");
+  });
+});
