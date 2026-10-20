@@ -368,6 +368,16 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
     });
   });
 
+  it("init --write leaves an existing asqav_governance.ts untouched", async () => {
+    await inTempCwd(async (cwd) => {
+      const written = path.join(cwd, "asqav_governance.ts");
+      fs.writeFileSync(written, "// mine", "utf-8");
+      await runCli(["init", "--write"]);
+      expect(fs.readFileSync(written, "utf-8")).toBe("// mine");
+      expect(output()).toContain("already exists; leaving it untouched");
+    });
+  });
+
   it("init --demo skips without a key", async () => {
     await inTempCwd(async () => {
       await runCli(["init", "--demo"]);

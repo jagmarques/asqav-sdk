@@ -668,7 +668,7 @@ def test_no_derived_member_escapes_a_pin() -> None:
 
 def test_every_input_derived_member_has_a_literal_pin() -> None:
     """Member-to-pin-source closure: every derived member string in the
-    corpus sits under a literal pin for its own vector — top-level input
+    corpus sits under a literal pin for its own vector - top-level input
     members, the wire envelope hash, nested input.payload members and
     expected renderings alike."""
     for name, vector in _vectors().items():

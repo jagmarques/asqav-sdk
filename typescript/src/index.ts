@@ -809,8 +809,8 @@ export interface SessionResponse {
   endedAt?: string;
 }
 
-/** Granular sub-checks the cloud returns alongside `verified`; `validationLabel` is the
- * dominant failure reason. The IETF sub-axes populate only on compliance-mode receipts. */
+/** Detailed sub-checks beside `verified`; `validationLabel` is the main
+ * failure reason. IETF sub-axes fill only on compliance-mode receipts */
 export interface VerificationDetail {
   signerKeyMatch: boolean;
   signatureValid: boolean;

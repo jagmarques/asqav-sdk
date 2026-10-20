@@ -1198,11 +1198,12 @@ async function cmdInit(args: string[]): Promise<void> {
 
   if (write) {
     const target = "asqav_governance.ts";
-    if (fs.existsSync(target)) {
-      process.stdout.write(`\n${target} already exists; leaving it untouched.\n`);
-    } else {
-      fs.writeFileSync(target, snippet, "utf-8");
+    try {
+      fs.writeFileSync(target, snippet, { encoding: "utf-8", flag: "wx" });
       process.stdout.write(`\nWrote ${target}\n`);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      process.stdout.write(`\n${target} already exists; leaving it untouched.\n`);
     }
   }
 

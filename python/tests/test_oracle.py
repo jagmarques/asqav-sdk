@@ -73,7 +73,7 @@ def test_verifier_ships_inside_the_asqav_package() -> None:
     assert '"src/asqav"' in text  # the package selector that carries the verifier
     # No cross-root force-include at WHEEL stage: the default build makes the wheel
     # FROM the sdist, where ../ sources no longer resolve (FileNotFoundError). An
-    # sdist-stage mapping into src/ is fine — the wheel picks it up via packages.
+    # sdist-stage mapping into src/ is fine - the wheel picks it up via packages.
     wheel_section = text.split("[tool.hatch.build.targets.wheel]", 1)[1]
     assert "../" not in wheel_section, "wheel-stage cross-root force-include"
 

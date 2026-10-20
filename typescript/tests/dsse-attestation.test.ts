@@ -144,6 +144,28 @@ describe("verifyAttestation - key status (no network)", () => {
     expect(result.axes.key_status.result).toBe("FAIL");
   });
 
+  it("returns FAIL for the literal unknown status", () => {
+    const { envelope, jwks } = loadVector();
+    (jwks.keys as Array<Record<string, unknown>>)[0].status = "unknown";
+
+    const result = verifyAttestation(envelope, jwks);
+    expect(result.verdict).toBe("FAIL");
+    expect(result.axes.key_status.result).toBe("FAIL");
+    expect(result.axes.key_status.note).toMatch(/unknown/i);
+  });
+
+  it("names compromise even when revoked_at is also published", () => {
+    const { envelope, jwks } = loadVector();
+    const key = (jwks.keys as Array<Record<string, unknown>>)[0];
+    key.status = "revoked";
+    key.revocation_reason = "compromised";
+    key.revoked_at = "2026-12-01T00:00:00+00:00";
+
+    const result = verifyAttestation(envelope, jwks);
+    expect(result.verdict).toBe("FAIL");
+    expect(result.axes.key_status.note).toMatch(/compromised/i);
+  });
+
   it("returns FAIL when the kid is unknown to the JWKS", () => {
     const { envelope } = loadVector();
     const result = verifyAttestation(envelope, { keys: [] });

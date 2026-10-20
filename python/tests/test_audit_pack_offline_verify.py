@@ -354,6 +354,26 @@ def test_signed_window_starting_after_revocation_is_invalid() -> None:
     assert report["exit_code"] == 1
 
 
+def test_compromised_bundle_key_is_invalid() -> None:
+    m = _minted()
+    m["jwks"]["keys"][0].update(
+        status="revoked", revocation_reason="compromised", revoked_at="2027-01-01T00:00:00Z"
+    )
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["bundle"]["status"] == pv.INVALID, report["bundle"]
+    assert report["bundle"]["reason"] == "bundle signing key compromised"
+    assert report["exit_code"] == 1
+
+
+def test_unknown_bundle_key_status_is_not_verifiable() -> None:
+    m = _minted()
+    m["jwks"]["keys"][0]["status"] = "unknown"
+    report = pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=_tsa_bytes(m["tsa"]))
+    assert report["bundle"]["status"] == pv.NOT_OFFLINE, report["bundle"]
+    assert report["bundle"]["reason"] == "bundle signing key status unknown"
+    assert report["exit_code"] == 2
+
+
 def test_docs_say_what_tsa_key_takes_and_that_todays_packs_cannot_exit_0() -> None:
     doc = (Path(__file__).parents[2] / "docs" / "offline-verification.md").read_text()
     body = doc.split("## Whole Audit Pack offline")[1].split("## TypeScript")[0]
