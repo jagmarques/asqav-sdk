@@ -1,7 +1,7 @@
 # LiteLLM integration (cloud-signed receipts)
 
 LiteLLM ships a built-in `asqav` callback that writes a local, tamper-evident
-audit ledger — no setup, no account. That is the on-ramp. This page covers the
+audit ledger - no setup, no account. That is the on-ramp. This page covers the
 next step: [asqav](https://pypi.org/project/asqav/)'s cloud signing, which
 turns each LiteLLM call into a third-party-verifiable receipt.
 
@@ -16,13 +16,13 @@ It is deliberately local-first:
 
 - no network, no asqav account, no keys;
 - the chain proves a record was not altered after the fact;
-- it does not produce a third-party-verifiable receipt — anyone with write
+- it does not produce a third-party-verifiable receipt - anyone with write
   access to the file could have authored the whole chain.
 
 asqav's cloud signing adds the missing layer. For each call it signs the
 call's mapped fields and content digests with the agent's key through the
 asqav cloud, producing an ML-DSA receipt that any third party can verify
-against the agent's published key — without trusting the machine that logged
+against the agent's published key - without trusting the machine that logged
 the call.
 
 ## Enable the local ledger (no account needed)
@@ -73,8 +73,8 @@ litellm.callbacks = ["asqav", AsqavSigningLogger(agent_name="my-llm-agent")]
 
 ### Guardrail seam
 
-`AsqavGuardrail` signs the call lifecycle instead of (or as well as) the
-completed call — pre-call, post-call, error, and moderation events:
+`AsqavGuardrail` signs each lifecycle event (pre-call, post-call, error and
+moderation) instead of, or as well as, the completed call:
 
 ```python
 from asqav.extras.litellm import AsqavGuardrail
@@ -110,7 +110,7 @@ Checks the local JSONL index and reports the signed receipts it can verify.
   reconstructing it.
 - Streamed calls expose no aggregated response object, so
   `response_content_digest` is `None` for them (the request side still signs).
-- With no resolvable key the logger warns once and no-ops — it never silently
+- With no resolvable key the logger warns once and no-ops - it never silently
   pretends to sign.
 - LiteLLM is an optional extra; the module raises a clear install error only
   when used without it.

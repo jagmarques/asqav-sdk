@@ -5,8 +5,8 @@ retained original, and `retain.reassess_and_classify` is the
 retention-layer caller the prescription asked for: reassess raises
 unless an original exists, so both comparanda are real, and it
 imports only `disagreement` (cycle-free). The rest of the
-verification layer — format adapters, dispatch, corpus runner and
-the store itself — holds no retained original to classify against
+verification layer - format adapters, dispatch, corpus runner and
+the store itself - holds no retained original to classify against
 (`runner.py` references no store) and stays classification-free.
 Tests read the sources; they change no product bytes. TS has no
 oracle CLI and no equivalent boundary, so this guard covers the
