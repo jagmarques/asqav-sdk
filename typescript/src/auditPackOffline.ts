@@ -163,8 +163,30 @@ function revocationOutcome(pack: Obj, entry: Obj): BundleResult {
   );
 }
 
+/** First mapping reference that resolves to no receipt entry, else null */
+function mappingProblem(pack: Obj): string | null {
+  const receipts: unknown[] = Array.isArray(pack.receipts) ? pack.receipts : [];
+  const known = new Set(receipts.flatMap((e) => isObj(e) && typeof e.signature_id === "string" ? [e.signature_id] : []));
+  if ("receipt_count" in pack && pack.receipt_count !== receipts.length) {
+    return "receipt_count does not match the number of receipts";
+  }
+  const mapping = isObj(pack.regime_mapping) ? (pack.regime_mapping as Obj) : null;
+  if (mapping === null) return null;
+  for (const [regime, ids] of Object.entries(mapping)) {
+    if (!Array.isArray(ids)) continue;
+    for (const ref of ids) {
+      if (typeof ref !== "string" || !known.has(ref)) {
+        return `regime_mapping ${JSON.stringify(regime)} references unknown signature_id ${JSON.stringify(ref)}`;
+      }
+    }
+  }
+  return null;
+}
+
 /** Recompute the bundle digest, check its signature and key */
 export function checkBundle(pack: Obj, jwks: unknown): BundleResult {
+  const dangling = mappingProblem(pack);
+  if (dangling !== null) return outcome("invalid", `pack: ${dangling}`);
   const material = bundleMaterial(pack);
   if ("status" in material) return material;
   const { msg, key, sig, alg } = material;
