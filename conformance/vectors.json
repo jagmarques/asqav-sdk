@@ -1252,6 +1252,175 @@
       },
       "canonical": "{\"action_id\":\"act_counterparty_unavailable\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
       "sha256": "b6f72c4a7b12981e512e7b730e0a268576254b5d4b2bb69a8b74a11969dc12fd"
+    },
+    {
+      "name": "counterparty_binding_profiled_terms",
+      "description": "Profiled binding carrying the exact endorsed terms and their recomputable digest.",
+      "input": {
+        "action_id": "act_counterparty_profiled_terms",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp",
+          "scope": "envelope_minus_anchors",
+          "profile_version": "0.1",
+          "terms": {
+            "amount": 100,
+            "currency": "EUR",
+            "scope": "invoice:42"
+          },
+          "terms_digest": "h2NGVSK8thHzPwMlJyvpcjTzElYuTjBhpObRYlJEyU4="
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": true,
+      "reason": "A profile-declaring binding whose terms digest recomputes is the honest bilateral case.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": true,
+        "binding_label": "matches",
+        "failure_class": null,
+        "affected_axes": [
+          "binding_digest",
+          "profile"
+        ]
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_profiled_terms\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"profile_version\":\"0.1\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"terms\":{\"amount\":100,\"currency\":\"EUR\",\"scope\":\"invoice:42\"},\"terms_digest\":\"h2NGVSK8thHzPwMlJyvpcjTzElYuTjBhpObRYlJEyU4=\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "874cb6d293bf1ba4f02e7d51d6def5a6dc3ba166096125326c3bf709c76f969d"
+    },
+    {
+      "name": "counterparty_binding_unsupported_profile",
+      "description": "Binding declares a profile version this SDK does not implement.",
+      "input": {
+        "action_id": "act_counterparty_unsupported_profile",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp",
+          "scope": "envelope_minus_anchors",
+          "profile_version": "9.9"
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": true,
+      "reason": "Must-understand: an unknown profile is refused, never downgraded.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": null,
+        "binding_label": "profile_unsupported",
+        "failure_class": "unverifiable",
+        "affected_axes": [
+          "profile"
+        ]
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_unsupported_profile\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"profile_version\":\"9.9\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "3c6a4fbffa464da5acea986e4798f76c1994f5bedc6c971d4591f4279bed4eaa"
+    },
+    {
+      "name": "counterparty_binding_terms_digest_mismatch",
+      "description": "Binding carries terms whose digest does not recompute over them.",
+      "input": {
+        "action_id": "act_counterparty_terms_digest_mismatch",
+        "action_ref": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "agent_id": "agt_acknowledger_B",
+        "counterparty_binding": {
+          "envelope_hash": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+          "expect_ack_from": "00000000000000000098",
+          "receipt_ref": "asqav-receipt://org_demo/agt_originator_A/seq/0001",
+          "transport_label": "mcp",
+          "scope": "envelope_minus_anchors",
+          "profile_version": "0.1",
+          "terms": {
+            "amount": 100,
+            "currency": "EUR",
+            "scope": "invoice:42"
+          },
+          "terms_digest": "Qg/S+Gw+SVkgZpu0XDoUMCyndOntVTxeensRF0nExJ0="
+        },
+        "decision": "allow",
+        "issued_at": "2026-05-18T20:00:01+00:00",
+        "issuer_id": "00000000000000000098",
+        "org_id": "org_demo",
+        "payload_digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        "policy_digest": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sandbox_state": "live",
+        "tool_name": "database.query",
+        "type": "protectmcp:acknowledgment",
+        "v": 1
+      },
+      "expected_verify": true,
+      "reason": "Two endorsements over different terms never constitute agreement.",
+      "expected": {
+        "envelope_hash_base64": "dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=",
+        "envelope_hash_hex": "757a83769b7fb4163b20b30931ccd8c3ab31f2f3e6402157311f16dc00d6d9ef",
+        "originating_envelope_ref": "counterparty_binding_origin_two_anchors",
+        "binding_result": false,
+        "binding_label": "malformed",
+        "failure_class": "invalid",
+        "affected_axes": [
+          "profile"
+        ]
+      },
+      "generation": {
+        "counterparty_digest_members": [
+          "payload",
+          "signature"
+        ]
+      },
+      "canonical": "{\"action_id\":\"act_counterparty_terms_digest_mismatch\",\"action_ref\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"agent_id\":\"agt_acknowledger_B\",\"counterparty_binding\":{\"envelope_hash\":\"dXqDdpt/tBY7ILMJMczYw6sx8vPmQCFXMR8W3ADW2e8=\",\"expect_ack_from\":\"00000000000000000098\",\"profile_version\":\"0.1\",\"receipt_ref\":\"asqav-receipt://org_demo/agt_originator_A/seq/0001\",\"scope\":\"envelope_minus_anchors\",\"terms\":{\"amount\":100,\"currency\":\"EUR\",\"scope\":\"invoice:42\"},\"terms_digest\":\"Qg/S+Gw+SVkgZpu0XDoUMCyndOntVTxeensRF0nExJ0=\",\"transport_label\":\"mcp\"},\"decision\":\"allow\",\"issued_at\":\"2026-05-18T20:00:01+00:00\",\"issuer_id\":\"00000000000000000098\",\"org_id\":\"org_demo\",\"payload_digest\":{\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"size\":0},\"policy_digest\":\"sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888\",\"previousReceiptHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sandbox_state\":\"live\",\"tool_name\":\"database.query\",\"type\":\"protectmcp:acknowledgment\",\"v\":1}",
+      "sha256": "abb99d831f3134144564723fdc4f8d24401936a3c3758b26c78df99bea8252b5"
     }
   ]
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,14 +13,55 @@ from ._jcs import canonical_json
 
 __all__ = [
     "ACKNOWLEDGMENT_RECEIPT_TYPE",
+    "BINDING_SCOPE",
+    "BINDING_MEMBERS",
+    "PROFILE_VERSION",
     "CounterpartyBinding",
     "compute_counterparty_binding",
+    "terms_digest_of",
     "verify_counterparty_binding",
 ]
 
 #: Receipt type emitted by an acknowledging agent (B) over an originating receipt.
 ACKNOWLEDGMENT_RECEIPT_TYPE: str = "protectmcp:acknowledgment"
 BINDING_SCOPE = "envelope_minus_anchors"
+
+#: Cross-org interaction profile version this SDK can speak (must-understand).
+PROFILE_VERSION = "0.1"
+
+#: Members a profile-declaring binding may carry; anything else is refused.
+BINDING_MEMBERS = frozenset({
+    "envelope_hash", "receipt_ref", "expect_ack_from", "transport_label",
+    "scope", "profile_version", "terms", "terms_digest",
+})
+
+
+def _reject_negative_zero(value: Any) -> None:
+    """A -0.0 term would hash differently across JCS implementations, so refuse it."""
+    if isinstance(value, float) and value == 0.0 and math.copysign(1.0, value) < 0:
+        raise ValueError(
+            "counterparty_binding_malformed: terms carry a negative zero"
+        )
+    if isinstance(value, dict):
+        for item in value.values():
+            _reject_negative_zero(item)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_negative_zero(item)
+
+
+def terms_digest_of(terms: Any) -> str:
+    """SHA-256 over JCS bytes of the exact terms object (matches the cloud)."""
+    if not isinstance(terms, dict):
+        raise ValueError("counterparty_binding_malformed: terms must be an object")
+    _reject_negative_zero(terms)
+    try:
+        encoded = canonical_json(terms)
+    except (TypeError, ValueError, RecursionError, UnicodeError) as exc:
+        raise ValueError(
+            "counterparty_binding_malformed: terms are not canonically encodable"
+        ) from exc
+    return base64.b64encode(hashlib.sha256(encoded).digest()).decode()
 
 
 @dataclass
@@ -48,6 +90,18 @@ class CounterpartyBinding:
         default=None,
         metadata={"description": "Digest projection; populated by the computation helper."},
     )
+    profile_version: str | None = field(
+        default=None,
+        metadata={"description": "Cross-org interaction profile version (absent is legacy)."},
+    )
+    terms: dict[str, Any] | None = field(
+        default=None,
+        metadata={"description": "Exact endorsed terms; terms_digest recomputes over it."},
+    )
+    terms_digest: str | None = field(
+        default=None,
+        metadata={"description": "base64 SHA-256 of the terms object's JCS bytes."},
+    )
 
     def to_wire(self) -> dict[str, Any]:
         """Serialize the supplied members without assigning an unchecked digest a scope."""
@@ -61,6 +115,12 @@ class CounterpartyBinding:
             out["transport_label"] = self.transport_label
         if self.scope is not None:
             out["scope"] = self.scope
+        if self.profile_version is not None:
+            out["profile_version"] = self.profile_version
+        if self.terms is not None:
+            out["terms"] = self.terms
+        if self.terms_digest is not None:
+            out["terms_digest"] = self.terms_digest
         return out
 
 
@@ -102,12 +162,21 @@ def compute_counterparty_binding(
     receipt_ref: str | None = None,
     expect_ack_from: str | None = None,
     transport_label: str | None = None,
+    profile_version: str | None = None,
+    terms: dict[str, Any] | None = None,
 ) -> CounterpartyBinding:
     """Build a :class:`CounterpartyBinding` for the originating envelope.
 
     Pass the peer's original signing envelope. Hosted admission needs an explicit
     originating signature_id as receipt_ref; the action_id fallback is an offline locator.
+    A declared ``profile_version`` must be one this SDK implements; ``terms`` are
+    hashed so the peer's digest recomputes exactly.
     """
+    if profile_version is not None and profile_version != PROFILE_VERSION:
+        raise ValueError(
+            f"counterparty_profile_unsupported: {profile_version!r} is not {PROFILE_VERSION!r}"
+        )
+    digest = terms_digest_of(terms) if terms is not None else None
     if receipt_ref is None:
         payload = (
             originating_envelope.get("payload") if isinstance(originating_envelope, dict) else None
@@ -126,6 +195,9 @@ def compute_counterparty_binding(
         expect_ack_from=expect_ack_from,
         transport_label=transport_label,
         scope=BINDING_SCOPE,
+        profile_version=profile_version,
+        terms=terms,
+        terms_digest=digest,
     )
 
 
@@ -177,6 +249,23 @@ def verify_counterparty_binding(
         return CounterpartyBindingVerification(None, None, None, "legacy_scope")
     if binding["scope"] != BINDING_SCOPE:
         return CounterpartyBindingVerification(None, None, None, "unrecognised_scope")
+    profile_version = binding.get("profile_version")
+    if profile_version is not None:
+        if profile_version != PROFILE_VERSION:
+            return CounterpartyBindingVerification(None, None, None, "profile_unsupported")
+        if set(binding) - BINDING_MEMBERS:
+            return CounterpartyBindingVerification(False, False, None, "malformed")
+    terms = binding.get("terms")
+    terms_digest = binding.get("terms_digest")
+    if "terms" in binding or "terms_digest" in binding:
+        if not isinstance(terms_digest, str) or not isinstance(terms, dict):
+            return CounterpartyBindingVerification(False, False, None, "malformed")
+        try:
+            recomputed = terms_digest_of(terms)
+        except ValueError:
+            return CounterpartyBindingVerification(False, False, None, "malformed")
+        if recomputed != terms_digest:
+            return CounterpartyBindingVerification(False, False, None, "malformed")
     expected_hash = _binding_digest(binding)
     if expected_hash is None:
         return CounterpartyBindingVerification(False, False, None, "malformed")
