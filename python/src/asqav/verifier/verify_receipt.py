@@ -2791,25 +2791,37 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
         return "SKIPPED", "legacy_scope: the signed binding omits its digest scope"
     if cpb["scope"] != "envelope_minus_anchors":
         return "SKIPPED", "unrecognised_scope: the signed digest scope is unsupported"
-    from ..counterparty import BINDING_MEMBERS, PROFILE_VERSION, terms_digest_of
-
-    profile_version = cpb.get("profile_version")
-    if profile_version is not None:
-        if profile_version != PROFILE_VERSION:
-            return "SKIPPED", "profile_unsupported: the signed profile version is unsupported"
-        if set(cpb) - BINDING_MEMBERS:
-            return "FAIL", "counterparty_binding carries a member this verifier does not implement"
-    if "terms" in cpb or "terms_digest" in cpb:
-        terms = cpb.get("terms")
-        terms_digest = cpb.get("terms_digest")
-        if not isinstance(terms, dict) or not isinstance(terms_digest, str):
-            return "FAIL", "counterparty_binding terms and terms_digest must travel together"
+    profile_declared = (
+        cpb.get("profile_version") is not None
+        or "terms" in cpb
+        or "terms_digest" in cpb
+    )
+    if profile_declared:
         try:
-            recomputed = terms_digest_of(terms)
-        except ValueError:
-            return "FAIL", "counterparty_binding terms are not canonically encodable"
-        if recomputed != terms_digest:
-            return "FAIL", "counterparty_terms_mismatch: terms_digest does not recompute over terms"
+            from ..counterparty import BINDING_MEMBERS, PROFILE_VERSION, terms_digest_of
+        except ImportError:
+            # The copied standalone file has no package to read the registry from.
+            return (
+                "SKIPPED",
+                "profile_unsupported: the standalone verifier cannot read the profile registry",
+            )
+        profile_version = cpb.get("profile_version")
+        if profile_version is not None:
+            if profile_version != PROFILE_VERSION:
+                return "SKIPPED", "profile_unsupported: the signed profile version is unsupported"
+            if set(cpb) - BINDING_MEMBERS:
+                return "FAIL", "counterparty_binding carries a member this verifier does not implement"
+        if "terms" in cpb or "terms_digest" in cpb:
+            terms = cpb.get("terms")
+            terms_digest = cpb.get("terms_digest")
+            if not isinstance(terms, dict) or not isinstance(terms_digest, str):
+                return "FAIL", "counterparty_binding terms and terms_digest must travel together"
+            try:
+                recomputed = terms_digest_of(terms)
+            except ValueError:
+                return "FAIL", "counterparty_binding terms are not canonically encodable"
+            if recomputed != terms_digest:
+                return "FAIL", "counterparty_terms_mismatch: terms_digest does not recompute over terms"
 
     receipt_ref = cpb.get("receipt_ref")
     envelope_hash = cpb.get("envelope_hash")
