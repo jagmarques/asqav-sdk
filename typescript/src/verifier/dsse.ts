@@ -5,17 +5,20 @@
 
 import { verifySignature } from "./crypto.js";
 import { DuplicateMemberError, parseJsonStrict } from "./canonical.js";
-import { b64decode, resolveKey, resolveRevocationReason, resolveRevokedAt } from "./vrShim.js";
+import {
+  REVOKED_KEY_STATUSES,
+  b64decode,
+  keyStatusKind,
+  resolveKey,
+  resolveRevocationReason,
+  resolveRevokedAt,
+} from "./vrShim.js";
 
 /** DSSE payloadType for an in-toto Statement (mirrors `core/dsse.py`). */
 export const IN_TOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
 
 /** in-toto Statement v1 `_type` sentinel (mirrors `core/dsse.py`). */
 export const IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
-
-// Same revoked set as `vrShim.checkKeyStatus`; an attestation from one of these
-// keys must not PASS offline.
-const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -102,20 +105,22 @@ function evaluateKeyStatus(jwks: Record<string, unknown> | null, kid: string): K
   if (pub === null) {
     return { good: false, note: `no key published for kid ${JSON.stringify(kid)}`, pub: null, alg: null };
   }
+  const s = (status ?? "").toLowerCase();
+  const kind = keyStatusKind(status, resolveRevocationReason(jwks, kid));
+  if (kind === "compromised") {
+    return { good: false, note: `key ${kid} compromised; attestation cannot be trusted`, pub, alg };
+  }
   const revokedAt = resolveRevokedAt(jwks, kid);
   if (revokedAt) {
     return { good: false, note: `key ${kid} revoked at ${revokedAt}; attestation cannot be trusted`, pub, alg };
   }
-  const s = (status ?? "").toLowerCase();
   if (s === "decommissioned") {
     return { good: false, note: `key ${kid} decommissioned; attestation cannot be trusted`, pub, alg };
   }
-  if (s === "") {
+  if (s === "" || s === "unknown") {
     return { good: false, note: `key ${kid} status unknown; attestation cannot be trusted`, pub, alg };
   }
   if (REVOKED_KEY_STATUSES.has(s)) {
-    const reason = resolveRevocationReason(jwks, kid);
-    const kind = s === "compromised" || (reason ?? "").toLowerCase() === "compromised" ? "compromised" : s;
     return { good: false, note: `key ${kid} status ${kind} is not active`, pub, alg };
   }
   return { good: true, note: `key ${kid} status ${JSON.stringify(status ?? "active")} is active`, pub, alg };
