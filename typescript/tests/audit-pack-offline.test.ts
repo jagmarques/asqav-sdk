@@ -248,6 +248,29 @@ describe("audit-pack verify --offline", () => {
     expect(report.exit_code).toBe(2);
   });
 
+  it("fails a bundle signed by a compromised key", () => {
+    const m = minted();
+    Object.assign(m.jwks.keys[0], {
+      status: "revoked",
+      revocation_reason: "compromised",
+      revoked_at: "2027-01-01T00:00:00Z",
+    });
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.bundle).toMatchObject({ status: "invalid", reason: "bundle signing key compromised" });
+    expect(report.exit_code).toBe(1);
+  });
+
+  it("leaves a bundle key with no known status not verifiable", () => {
+    const m = minted();
+    m.jwks.keys[0].status = "unknown";
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.bundle).toMatchObject({
+      status: "not_verifiable_offline",
+      reason: "bundle signing key status unknown",
+    });
+    expect(report.exit_code).toBe(2);
+  });
+
   it("fails a bundle whose signed window starts after the key was revoked", () => {
     const m = minted();
     Object.assign(m.jwks.keys[0], { status: "revoked", revoked_at: "2026-06-18T00:00:00Z" });

@@ -79,6 +79,59 @@ def test_check_key_status_revoked_after_issuance_passes_with_anchor():
     assert res == "PASS"
 
 
+def test_check_key_status_compromised_fails_even_with_anchor_and_late_revocation():
+    res, note = v.check_key_status(
+        "compromised", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        has_trusted_anchor=True,
+    )
+    assert res == "FAIL"
+    assert "compromised" in note
+
+
+def test_check_key_status_revoked_with_compromise_reason_fails():
+    res, note = v.check_key_status(
+        "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        has_trusted_anchor=True, revocation_reason="compromised",
+    )
+    assert res == "FAIL"
+    assert "compromised" in note
+
+
+def test_check_key_status_compromise_reason_wins_over_an_active_label():
+    res, note = v.check_key_status(
+        "active", "2026-05-01T00:00:00Z", revocation_reason="compromised"
+    )
+    assert res == "FAIL"
+    assert "compromised" in note
+
+
+def test_check_key_status_compromise_reason_wins_over_decommissioned():
+    res, _ = v.check_key_status(
+        "decommissioned", "2026-05-01T00:00:00Z", revocation_reason="compromised"
+    )
+    assert res == "FAIL"
+
+
+def test_check_key_status_compromised_without_revoked_at_fails():
+    res, _ = v.check_key_status("compromised", "2026-05-01T00:00:00Z")
+    assert res == "FAIL"
+
+
+def test_run_threads_the_compromise_reason_into_the_key_status_axis():
+    """Dropping the reason at the call site must fail this: status alone says revoked."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    jwks = _jwks("revoked", revoked_at="2026-06-01T00:00:00Z")
+    jwks["keys"][0]["revocation_reason"] = "compromised"
+    result = v.run_structured(envelope, jwks, None)
+    axis = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert axis["result"] == "FAIL"
+    assert "compromised" in axis["note"]
+
+
 # --- standalone verify_receipt.run ---
 
 
@@ -328,7 +381,7 @@ def test_check_key_status_compromise_reason_names_compromise():
         "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
         revocation_reason="compromised",
     )
-    assert res == "SKIPPED"
+    assert res == "FAIL"
     assert "compromised" in note.lower()
 
 
@@ -345,3 +398,71 @@ def test_check_key_status_non_string_reason_never_crashes():
     )
     assert res == "SKIPPED"
     assert "revoked" in note.lower()
+
+
+def _ed25519_pair():
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    sk = Ed25519PrivateKey.generate()
+    pk = sk.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return sk, pk
+
+
+def test_agent_fallback_threads_the_compromise_reason():
+    import base64
+
+    from asqav.verifier.oracle.canonical import asqav_jcs
+
+    issuer_sk, issuer_pk = _ed25519_pair()
+    agent_sk, agent_pk = _ed25519_pair()
+    payload = dict(_payload(), agent_id="agt_x", org_id="org_x")
+    message = asqav_jcs(payload)
+    envelope = {
+        "payload": payload,
+        "signature": {
+            "alg": "ED25519",
+            "kid": "agent-revoked-001",
+            "sig": base64.b64encode(agent_sk.sign(message)).decode(),
+        },
+        "anchors": [],
+    }
+    jwks = {
+        "keys": [
+            {
+                "kid": "agent-revoked-001",
+                "issuer_id": "agent-revoked-001",
+                "alg": "ED25519",
+                "public_key": base64.b64encode(issuer_pk).decode(),
+                "status": "active",
+            },
+            {
+                "kid": "key_agent",
+                "issuer_id": "agent-revoked-001",
+                "agent_id": "agt_x",
+                "org_id": "org_x",
+                "alg": "ED25519",
+                "public_key": base64.b64encode(agent_pk).decode(),
+                "status": "revoked",
+                "revocation_reason": "compromised",
+                "revoked_at": "2026-06-01T00:00:00Z",
+            },
+        ]
+    }
+    result = v.run_structured(envelope, jwks, None)
+    axis = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert axis["result"] == "FAIL", axis
+    assert "compromised" in axis["note"]
+
+
+def test_oracle_adapter_threads_the_compromise_reason():
+    jwks = _jwks("revoked", revoked_at="2026-06-01T00:00:00Z")
+    jwks["keys"][0]["revocation_reason"] = "compromised"
+    doc = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+    }
+    axes = AsqavNativeAdapter().extra_axes(doc, jwks)
+    key_status = next(axis for axis in axes if axis[0] == "key_status")
+    assert key_status[1] == "FAIL", key_status
+    assert "compromised" in key_status[2]

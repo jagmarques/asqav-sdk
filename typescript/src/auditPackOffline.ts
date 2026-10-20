@@ -1,6 +1,7 @@
 // Offline whole-pack check mirroring Python pack_verify, no network
 // No RFC3161 or OTS evaluation: anchored receipts stay not verifiable
 
+import { REVOKED_KEY_STATUSES, keyStatusKind } from "./verifier/vrShim.js";
 import { verifyReceiptOffline } from "./index.js";
 import type { AxisResult } from "./verifier/core.js";
 import { asqavJcs, parseJsonPreservingFloats } from "./verifier/canonical.js";
@@ -48,7 +49,6 @@ const EXIT_CODES: Record<PackOverall, number> = {
   invalid: 1,
 };
 const BUNDLE_ALGS = new Set(["ML-DSA-65", "ED25519", "ES256"]);
-const REVOKED_STATUSES = new Set(["revoked", "suspended", "compromised"]);
 const FIRST_SEED = "0".repeat(64);
 const PRESENCE_MEMBERS = [
   "content_disclosure",
@@ -137,7 +137,14 @@ function bundleKeyProblem(pack: Obj, entry: Obj | undefined, alg: string): Bundl
     return outcome("invalid", "bundle signing key belongs to another organization");
   }
   const status = String(entry.status ?? "").toLowerCase();
-  if (REVOKED_STATUSES.has(status) || entry.revoked_at || entry.suspended_at) return revocationOutcome(pack, entry);
+  const reason = typeof entry.revocation_reason === "string" ? entry.revocation_reason : null;
+  if (keyStatusKind(entry.status === undefined ? null : String(entry.status), reason) === "compromised") {
+    return outcome("invalid", "bundle signing key compromised");
+  }
+  if (status === "" || status === "unknown") {
+    return outcome("not_verifiable_offline", "bundle signing key status unknown");
+  }
+  if (REVOKED_KEY_STATUSES.has(status) || entry.revoked_at || entry.suspended_at) return revocationOutcome(pack, entry);
   return null;
 }
 

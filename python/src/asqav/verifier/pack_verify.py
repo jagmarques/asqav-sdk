@@ -141,6 +141,10 @@ def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, trusted_times:
     if org and entry.get("org_id") and entry.get("org_id") != org:
         return _outcome(INVALID, "bundle signing key belongs to another organization")
     status = str(entry.get("status") or "").lower()
+    if vr.key_status_kind(status, entry.get("revocation_reason")) == "compromised":
+        return _outcome(INVALID, "bundle signing key compromised")
+    if not status or status == "unknown":
+        return _outcome(NOT_OFFLINE, "bundle signing key status unknown")
     if status in vr.REVOKED_KEY_STATUSES or entry.get("revoked_at") or entry.get("suspended_at"):
         return _revocation_outcome(pack, entry, trusted_times)
     return None

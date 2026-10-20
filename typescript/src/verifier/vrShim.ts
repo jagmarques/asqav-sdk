@@ -1020,7 +1020,14 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
 }
 
 // Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
-const REVOKED_KEY_STATUSES = new Set(["revoked", "suspended", "compromised"]);
+export const REVOKED_KEY_STATUSES: ReadonlySet<string> = new Set(["revoked", "suspended", "compromised"]);
+
+/** The effective key state; compromise wins over any other label. */
+export function keyStatusKind(status: string | null, revocationReason: string | null = null): string {
+  const s = (status ?? "").toLowerCase();
+  const reason = typeof revocationReason === "string" ? revocationReason.toLowerCase() : "";
+  return s === "compromised" || reason === "compromised" ? "compromised" : s;
+}
 
 // Gate on the key's JWKS status (mirrors `check_key_status`). Without a trusted anchor
 // issued_at is self-attested and backdateable, so downgrade to SKIPPED.
@@ -1032,6 +1039,10 @@ export function checkKeyStatus(
   revocationReason: string | null = null,
 ): readonly [VerifyState, string] {
   const s = (status ?? "").toLowerCase();
+  const kind = keyStatusKind(status, revocationReason);
+  if (kind === "compromised") {
+    return ["FAIL", `signing key compromised at ${revokedAt ?? "an unpublished time"}; a compromised key never verifies`];
+  }
   if (s === "decommissioned") {
     return ["SKIPPED", `signing key decommissioned; issuance at ${issuedAt} cannot be placed against retirement`];
   }
@@ -1041,8 +1052,6 @@ export function checkKeyStatus(
   if (!REVOKED_KEY_STATUSES.has(s)) {
     return ["PASS", `signing key status ${JSON.stringify(status)} is active`];
   }
-  const reason = typeof revocationReason === "string" ? revocationReason : "";
-  const kind = s === "compromised" || reason.toLowerCase() === "compromised" ? "compromised" : s;
   if (revokedAt) {
     try {
       // Pinned grammar, not `new Date`: the basic form parses nowhere now, so
