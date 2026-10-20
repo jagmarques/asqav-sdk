@@ -44,7 +44,11 @@ def test_fingerprint_regeneration_preserves_negative_scope_and_digest_recipes():
                             "counterparty_binding_peer_swapped", "counterparty_binding_origin_signature_forged",
                             "counterparty_binding_divergent_terms_two_signatures",
                             "counterparty_binding_received_only_acknowledgement",
-                            "counterparty_binding_cross_interaction_replay", "counterparty_binding_origin_unavailable"}
+                            "counterparty_binding_cross_interaction_replay",
+                            "counterparty_binding_origin_unavailable",
+                            "counterparty_binding_profiled_terms",
+                            "counterparty_binding_unsupported_profile",
+                            "counterparty_binding_terms_digest_mismatch"}
 
 
 def test_signed_generator_is_deterministic_and_check_never_writes(tmp_path, monkeypatch):

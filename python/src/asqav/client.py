@@ -2136,6 +2136,8 @@ class Agent:
         context: dict[str, Any] | None = None,
         expect_ack_from: str | None = None,
         transport_label: str | None = None,
+        profile_version: str | None = None,
+        terms: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign this agent's acknowledgment of a peer agent's receipt.
 
@@ -2159,6 +2161,8 @@ class Agent:
             receipt_ref=ref,
             expect_ack_from=expect_ack_from,
             transport_label=transport_label,
+            profile_version=profile_version,
+            terms=terms,
         )
         return self.sign(
             action_type,
