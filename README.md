@@ -1,4 +1,4 @@
-# Asqav SDK — Python + TypeScript
+# Asqav SDK: Python + TypeScript
 
 [![PyPI](https://img.shields.io/pypi/v/asqav)](https://pypi.org/project/asqav/)
 [![npm](https://img.shields.io/npm/v/@asqav/sdk)](https://www.npmjs.com/package/@asqav/sdk)
@@ -6,8 +6,8 @@
 Client SDKs for [asqav.com](https://asqav.com), the evidence layer for AI agents.
 
 Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65 (FIPS 204,
-post-quantum), timestamped against independent witnesses, and verifiable by anyone —
-auditor, counterparty, regulator — **without an Asqav account and without trusting us**.
+post-quantum), timestamped against independent witnesses, and verifiable by anyone -
+auditor, counterparty, regulator - **without an Asqav account and without trusting us**.
 
 Source-available client SDK under Elastic License 2.0; open verifier and conformance vectors under Apache-2.0; commercial signing service.
 
@@ -111,11 +111,11 @@ the bytes match; `verify_counterparty_binding` re-checks it offline.
 
 ## Per-language guides
 
-The package READMEs are the reference for each language — quick start, CLI, data-handling
+The package READMEs are the reference for each language - quick start, CLI, data-handling
 modes, framework integrations, offline verification, and what a receipt does not prove:
 
-- **[python/README.md](python/README.md)** — also rendered on [PyPI](https://pypi.org/project/asqav/)
-- **[typescript/README.md](typescript/README.md)** — also rendered on [npm](https://www.npmjs.com/package/@asqav/sdk)
+- **[python/README.md](python/README.md)**: also rendered on [PyPI](https://pypi.org/project/asqav/)
+- **[typescript/README.md](typescript/README.md)**: also rendered on [npm](https://www.npmjs.com/package/@asqav/sdk)
 
 ## Capture coverage
 
@@ -228,16 +228,16 @@ Every asqav integration signs actions, but only some can refuse one. The five
 coverage classes below are the honest vocabulary (derived from the per-integration
 classification with code cites; the Dify row is the residual shape):
 
-- **harness_enforced** — a hook the runtime fires for *every* tool call and that *can block*.
-- **framework_callback** — a hook/callback the framework fires as part of its normal loop.
-- **in_path_proxy** — asqav sits in the call path by wrapping the callee.
-- **model_invoked** — a tool the model must *choose* to call; bypassable by design.
-- **passive** — telemetry recorded after the fact; cannot block.
+- **harness_enforced**: a hook the runtime fires for *every* tool call and that *can block*.
+- **framework_callback**: a hook/callback the framework fires as part of its normal loop.
+- **in_path_proxy**: asqav sits in the call path by wrapping the callee.
+- **model_invoked**: a tool the model must *choose* to call; bypassable by design.
+- **passive**: telemetry recorded after the fact; cannot block.
 
 Tiers follow `website/docs/enforcement.html`: **Strong** refuses by construction on
 covered calls; **Bounded** gates through a framework mechanism that may need
 opt-in (a flag, wrapping); **Detectable** leaves a signed record but cannot refuse.
-Ground rule: never build a model_invoked surface — a tool the model must choose
+Ground rule: never build a model_invoked surface - a tool the model must choose
 to call is bypassable by design, and the Dify Agent path below is the shipped
 instance of that residual shape.
 
@@ -280,9 +280,9 @@ covers the 29 distribution integrations.)
 
 ## Ecosystem
 
-- [`asqav` on PyPI](https://pypi.org/project/asqav/) — the Python SDK
-- [`@asqav/sdk` on npm](https://www.npmjs.com/package/@asqav/sdk) — the TypeScript SDK
-- [asqav-compliance](https://github.com/jagmarques/asqav-compliance) — CI/CD compliance scanner
+- [`asqav` on PyPI](https://pypi.org/project/asqav/): the Python SDK
+- [`@asqav/sdk` on npm](https://www.npmjs.com/package/@asqav/sdk): the TypeScript SDK
+- [asqav-compliance](https://github.com/jagmarques/asqav-compliance): CI/CD compliance scanner
 
 ## Links
 
