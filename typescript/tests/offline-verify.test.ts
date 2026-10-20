@@ -158,7 +158,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     expect(keyAxis?.result).toBe("SKIPPED");
   });
 
-  it("compromised key also SKIPs the key_status axis (REVOKED_KEY_STATUSES parity)", () => {
+  it("compromised key FAILs the key_status axis", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
     const compJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
@@ -166,7 +166,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const result = verifyReceiptOffline(receipt, compJwks);
     expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
-    expect(keyAxis?.result).toBe("SKIPPED");
+    expect(keyAxis?.result).toBe("FAIL");
   });
 
   it("revoked key with revoked_at AFTER issuance INCOMPLETE without anchor (c386 backdating fix)", () => {
@@ -201,9 +201,23 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     expect(keyAxis?.note).toMatch(/no anchor|self-attested/i);
   });
 
-  it("c386: compromised-key backdated receipt, offline, no anchor, must NOT PASS", () => {
-    // Key now compromised but signed issued_at is BEFORE revoked_at: offline with no
-    // anchor that stamp is forgeable, so PASS is forbidden.
+  it("compromise reason on a revoked key FAILs the axis end to end", () => {
+    const receipt = loadJson(REVOKED_DIR, "receipt.json");
+    const jwks = loadJson(REVOKED_DIR, "jwks.json") as Record<string, unknown>;
+    const key = (jwks.keys as Array<Record<string, unknown>>)[0];
+    key.status = "revoked";
+    key.revocation_reason = "compromised";
+    key.revoked_at = "2026-12-01T00:00:00+00:00";
+    const result = verifyReceiptOffline(receipt, jwks);
+    expect(result.verdict).toBe("unverified");
+    const keyAxis = result.axes.find((a) => a.axis === "key_status");
+    expect(keyAxis?.result).toBe("FAIL");
+    expect(keyAxis?.note).toMatch(/compromised/i);
+  });
+
+  it("c386: compromised-key backdated receipt, offline, no anchor, must FAIL", () => {
+    // Signed issued_at is before revoked_at, yet compromise decides offline
+    // on its own: the axis FAILs without consulting an anchor
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const compromisedJwks = JSON.parse(JSON.stringify(loadJson(REVOKED_DIR, "jwks.json"))) as Record<string, unknown>;
     ((compromisedJwks.keys as Array<Record<string, unknown>>)[0]).status = "compromised";
@@ -212,7 +226,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     expect(result.verdict).not.toBe("verified");
     expect(result.verdict).toBe("unverified");
     const keyAxis = result.axes.find((a) => a.axis === "key_status");
-    expect(keyAxis?.result).toBe("SKIPPED");
+    expect(keyAxis?.result).toBe("FAIL");
+    expect(keyAxis?.note).toMatch(/compromised/i);
   });
 
   it("revoked key with revoked_at AT issuance fails (at-or-before rule)", () => {

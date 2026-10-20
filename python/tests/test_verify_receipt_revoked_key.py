@@ -79,6 +79,44 @@ def test_check_key_status_revoked_after_issuance_passes_with_anchor():
     assert res == "PASS"
 
 
+def test_check_key_status_compromised_fails_even_with_anchor_and_late_revocation():
+    res, note = v.check_key_status(
+        "compromised", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        has_trusted_anchor=True,
+    )
+    assert res == "FAIL"
+    assert "compromised" in note
+
+
+def test_check_key_status_revoked_with_compromise_reason_fails():
+    res, note = v.check_key_status(
+        "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
+        has_trusted_anchor=True, revocation_reason="compromised",
+    )
+    assert res == "FAIL"
+    assert "compromised" in note
+
+
+def test_check_key_status_compromised_without_revoked_at_fails():
+    res, _ = v.check_key_status("compromised", "2026-05-01T00:00:00Z")
+    assert res == "FAIL"
+
+
+def test_run_threads_the_compromise_reason_into_the_key_status_axis():
+    """Dropping the reason at the call site must fail this: status alone says revoked."""
+    envelope = {
+        "payload": _payload(),
+        "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
+        "anchors": [],
+    }
+    jwks = _jwks("revoked", revoked_at="2026-06-01T00:00:00Z")
+    jwks["keys"][0]["revocation_reason"] = "compromised"
+    result = v.run_structured(envelope, jwks, None)
+    axis = next(a for a in result["axes"] if a["name"] == "key_status")
+    assert axis["result"] == "FAIL"
+    assert "compromised" in axis["note"]
+
+
 # --- standalone verify_receipt.run ---
 
 
@@ -328,7 +366,7 @@ def test_check_key_status_compromise_reason_names_compromise():
         "revoked", "2026-05-01T00:00:00Z", revoked_at="2026-06-01T00:00:00Z",
         revocation_reason="compromised",
     )
-    assert res == "SKIPPED"
+    assert res == "FAIL"
     assert "compromised" in note.lower()
 
 
