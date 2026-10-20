@@ -323,7 +323,7 @@ def test_sign_action_async_observe_skips_network(mock_agent_cls):
     adapter._agent.sign.assert_not_called()
 
 
-    # An explicit api_key= actually initialises the client (was silently ignored).
+    # An explicit api_key= initialises the client.
 @patch("asqav.extras._base._client.init")
 @patch("asqav.extras._base.Agent")
 def test_api_key_argument_initialises_client(mock_agent_cls, mock_init):

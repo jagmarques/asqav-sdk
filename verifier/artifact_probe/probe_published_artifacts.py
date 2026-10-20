@@ -244,12 +244,12 @@ def probe_corpus_against_installed_python(version: str) -> list[str]:
             if first:
                 drift.append(
                     f"{n}: declared {r['declared']!r}, observed {r['observed']!r}"
-                    f" — {first['name']}: {first['result']} — {first['note']}"
+                    f" - {first['name']}: {first['result']} - {first['note']}"
                 )
             else:
                 drift.append(
                     f"{n}: declared {r['declared']!r}, observed {r['observed']!r}"
-                    " — every reported axis PASSes"
+                    " - every reported axis PASSes"
                 )
         if drift:
             print()

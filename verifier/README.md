@@ -66,8 +66,8 @@ python -m asqav.verifier.verify_receipt --receipt receipt.json --jwks jwks.json 
 ```
 
 This tool resolves keys through the JWK Set only. The draft lists three
-resolution inputs — "independently authenticated JWK Sets, configured
-trust anchors or authenticated historical exports" — and a key carried
+resolution inputs - "independently authenticated JWK Sets, configured
+trust anchors or authenticated historical exports" - and a key carried
 in an Audit Pack is an input, not a trust anchor: "a carried public key
 alone is not a trust anchor", and the verifier "MUST NOT prefer a
 caller-supplied key merely because it appears in an Audit Pack".
@@ -183,7 +183,7 @@ the committed map drifts from the corpus.
 `independent-runs.json` records recomputations of this corpus run by third
 parties from the published text alone, one entry per run. The file is
 append-only: an entry is never edited or removed. An entry is the runner's own
-claim, with the runner's own non-claims — it is not an Asqav endorsement, and
+claim, with the runner's own non-claims - it is not an Asqav endorsement, and
 the file's purpose line says so. A test keeps the list honest: it refuses an
 entry whose pinned asqav-sdk commit is not in this repository's history or
 whose vector names are not directories in the corpus at that commit.
@@ -192,7 +192,7 @@ whose vector names are not directories in the corpus at that commit.
 
 `artifact_probe/probe_published_artifacts.py` installs the PUBLISHED wheel and
 the PUBLISHED npm package into throwaway environments with the source tree off
-the path, and checks every entry point the packaged READMEs document — the
+the path, and checks every entry point the packaged READMEs document - the
 repository's own tests prove the repository, not the artifact a user installs.
 The `Artifact probe` workflow (`.github/workflows/artifact-probe.yml`) runs it
 weekly, on demand, and after every successful Publish, failing when the probe

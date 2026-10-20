@@ -110,10 +110,8 @@ class ActaAdapter(FormatAdapter):
         payload = doc.get("payload", {})
         prev = payload.get("previousReceiptHash")
         is_genesis = "previousReceiptHash" not in payload
-        # Chain hash covers the full predecessor receipt, signature included.
-        # The carried value selects the recomputed form: ACTA -03 §6.7 carries
-        # "sha256:" + hex, -02 the bare hex. An unknown prefix never normalises
-        # into a pass - the comparison just fails, as a wrong digest does.
+        # Hash of the full predecessor, signature included; "sha256:" + hex or bare
+        # hex selects the form, and an unknown prefix fails like a wrong digest.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,

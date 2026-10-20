@@ -6,7 +6,7 @@ unverifiable; the two never collapse), 438 (keyed digests report
 verified_keyed, never plain verified), 426 (expiry reports but never
 folds), and the chain tolerance (a skipped chain is the expected shape
 of a genesis receipt, not a gap). The aggregation is an exhaustive
-lookup over four booleans — no branch chain to mirror another
+lookup over four booleans - no branch chain to mirror another
 implementation. The oracle's ``verify`` uses it; corpus parity suites
 differentially check it against the standalone verifier's own fold.
 """
