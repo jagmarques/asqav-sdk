@@ -20,7 +20,7 @@ Corpus B is ``verifier/conformance-vectors``: one directory per vector, each
 with a ``receipt.json``. Like corpus A's file this one says WHAT the bytes
 are: every expected value below is a literal string copied from the published
 file, never recomputed at assertion time. A tamper vector's pins record its
-tampered values (a forged ``sig``, a wrong ``envelope_hash``) — the pin says
+tampered values (a forged ``sig``, a wrong ``envelope_hash``) - the pin says
 what the corpus carries, including intentional breakage.
 
 Long lines are deliberate: each pin stays on one line so the published bytes
@@ -39,7 +39,7 @@ Sibling checks, deliberately kept separate:
 Two vectors need a reading note. ``asqav-11-dup-member-toplevel`` carries its
 ``payload`` member twice with different derived values; ``json.load`` keeps
 the last block and these pins record that last-wins parse. The vector exists
-to pin duplicate-member refusal — strict parsers reject it before any member
+to pin duplicate-member refusal - strict parsers reject it before any member
 is read. ``asqav-05``/``asqav-10`` are hash-mode receipts (``payload`` null)
 carrying ``policy_digest`` at the top level instead of under ``payload``.
 """

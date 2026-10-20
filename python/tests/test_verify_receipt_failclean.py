@@ -302,8 +302,8 @@ def _deep_dict(depth: int) -> dict:
 
 
 def test_contains_non_finite_survives_deep_nesting() -> None:
-    # A ~1500-deep payload used to raise RecursionError out of the (recursive)
-    # guard itself; the iterative walk must return a plain bool instead.
+    # A ~1500-deep payload must not raise RecursionError out of the guard;
+    # the iterative walk returns a plain bool.
     deep = _deep_dict(1500)
     assert vr._contains_non_finite(deep) is False
 
