@@ -121,6 +121,19 @@ describe("compromise is decisive (criterion 810)", () => {
     expect(res).toBe("FAIL");
   });
 
+  it("lets compromise decide even when the status label says active", () => {
+    const [res, note] = checkKeyStatus(
+      "active", "2026-05-01T00:00:00Z", null, false, "compromised",
+    );
+    expect(res).toBe("FAIL");
+    expect(note.toLowerCase()).toContain("compromised");
+  });
+
+  it("lets compromise decide over a decommissioned label too", () => {
+    const [res] = checkKeyStatus("decommissioned", "2026-05-01T00:00:00Z", null, false, "compromised");
+    expect(res).toBe("FAIL");
+  });
+
   it("keeps a retired (not compromised) key passing with a trusted anchor", () => {
     const [res] = checkKeyStatus("revoked", "2026-05-01T00:00:00Z", "2026-06-01T00:00:00Z", true);
     expect(res).toBe("PASS");

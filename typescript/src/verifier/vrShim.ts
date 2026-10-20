@@ -1039,6 +1039,10 @@ export function checkKeyStatus(
   revocationReason: string | null = null,
 ): readonly [VerifyState, string] {
   const s = (status ?? "").toLowerCase();
+  const kind = keyStatusKind(status, revocationReason);
+  if (kind === "compromised") {
+    return ["FAIL", `signing key compromised at ${revokedAt ?? "an unpublished time"}; a compromised key never verifies`];
+  }
   if (s === "decommissioned") {
     return ["SKIPPED", `signing key decommissioned; issuance at ${issuedAt} cannot be placed against retirement`];
   }
@@ -1047,10 +1051,6 @@ export function checkKeyStatus(
   }
   if (!REVOKED_KEY_STATUSES.has(s)) {
     return ["PASS", `signing key status ${JSON.stringify(status)} is active`];
-  }
-  const kind = keyStatusKind(status, revocationReason);
-  if (kind === "compromised") {
-    return ["FAIL", `signing key compromised at ${revokedAt ?? "an unpublished time"}; a compromised key never verifies`];
   }
   if (revokedAt) {
     try {

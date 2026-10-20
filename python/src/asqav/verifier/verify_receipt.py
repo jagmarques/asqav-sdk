@@ -1966,6 +1966,12 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     Retirement, compromise and unknown are distinct non-passing outcomes.
     """
     s = (status or "").lower()
+    kind = key_status_kind(status, revocation_reason)
+    if kind == "compromised":
+        return "FAIL", (
+            f"signing key compromised at {revoked_at or 'an unpublished time'}; "
+            "a compromised key never verifies"
+        )
     if s == "decommissioned":
         return "SKIPPED", (
             f"signing key decommissioned; issuance at {issued_at} cannot be "
@@ -1977,12 +1983,6 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
         )
     if s not in REVOKED_KEY_STATUSES:
         return "PASS", f"signing key status {status!r} is active"
-    kind = key_status_kind(status, revocation_reason)
-    if kind == "compromised":
-        return "FAIL", (
-            f"signing key compromised at {revoked_at or 'an unpublished time'}; "
-            "a compromised key never verifies"
-        )
     if revoked_at:
         # Pinned grammar first: bare fromisoformat reads the basic form on 3.11+
         # but raises on 3.10, so the same stamp drew different verdicts per version
