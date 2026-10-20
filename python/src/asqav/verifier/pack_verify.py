@@ -4,6 +4,7 @@ Nothing here reaches the network."""
 from __future__ import annotations
 
 import hashlib
+from typing import Any
 
 from asqav.verifier import verify_receipt as vr
 
@@ -145,12 +146,44 @@ def _bundle_key_problem(pack: dict, entry: dict | None, alg: str, trusted_times:
     return None
 
 
+def mapping_issues(pack: dict[str, Any]) -> list[str]:
+    """Pack-level reasons when mapping references resolve to no entry.
+
+    Draft-09: every reference resolves to exactly one entry; count matches.
+    """
+    receipts = pack.get("receipts")
+    if not isinstance(receipts, list):
+        receipts = []
+    known = {
+        e.get("signature_id") for e in receipts
+        if isinstance(e, dict) and isinstance(e.get("signature_id"), str)
+    }
+    issues = []
+    if "receipt_count" in pack and pack["receipt_count"] != len(receipts):
+        issues.append("receipt_count does not match the number of receipts")
+    mapping = pack.get("regime_mapping")
+    if not isinstance(mapping, dict):
+        return issues
+    for regime, ids in mapping.items():
+        if not isinstance(ids, list):
+            continue
+        for ref in ids:
+            if not isinstance(ref, str) or ref not in known:
+                issues.append(
+                    f"regime_mapping {regime!r} references unknown signature_id {ref!r}"
+                )
+    return issues
+
+
 def check_bundle(pack: dict, jwks: dict, trusted_times: list | None = None) -> dict:
     """Recompute the bundle digest, verify its signature, and tie the key to the key set.
     ``trusted_times`` (anchor times proven by pinned TSA keys) place a revocation in time."""
     if vr._holds_unsafe_integer(pack, jwks):
         # Raw-text ingest refuses such a pack; so does a parsed dict.
         return _outcome(NOT_OFFLINE, f"pack: {vr._UNSAFE_INTEGER_INPUT_NOTE}")
+    dangling = mapping_issues(pack)
+    if dangling:
+        return _outcome(INVALID, f"pack: {dangling[0]}")
     material = _bundle_material(pack)
     if isinstance(material, dict):
         return material
