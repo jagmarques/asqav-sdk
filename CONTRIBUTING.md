@@ -1,8 +1,6 @@
 # Contributing to Asqav SDK
 
-First off, thank you for considering contributing to Asqav SDK! It's people like you that make open source such a great tool for the community.
-
-Following these guidelines helps to communicate that you respect the time of the developers managing and developing this open-source project. In return, they should reciprocate that respect in addressing your issue, assessing changes, and helping you finalize your pull requests.
+Thank you for contributing to the Asqav SDK.
 
 ## Table of Contents
 1. [Code of Conduct](#code-of-conduct)
@@ -71,8 +69,8 @@ change; both start the same way.
    uv sync --all-extras
    ```
 
-   Or use a plain virtual environment. Include the `dev` extra (not just
-   `httpx`) or `pytest`/`ruff`/`mypy` will not be installed:
+   Or use a plain virtual environment. Include the `dev` extra so the test
+   and lint tools install:
    ```bash
    cd python
    python -m venv venv
