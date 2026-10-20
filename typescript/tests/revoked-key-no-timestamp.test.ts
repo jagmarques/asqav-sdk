@@ -86,7 +86,7 @@ describe("four-state key distinction (criterion 574/F5)", () => {
 
   it("names a compromise reason distinctly", () => {
     const [res, note] = checkKeyStatus("revoked", "2026-05-01T00:00:00Z", ISSUED_AT, false, "compromised");
-    expect(res).toBe("SKIPPED");
+    expect(res).toBe("FAIL");
     expect(note.toLowerCase()).toContain("compromised");
   });
 });
@@ -102,5 +102,27 @@ describe("four-state hardening (criterion 574/F5 critic follow-ups)", () => {
     const [res, note] = checkKeyStatus("revoked", "2026-05-01T00:00:00Z", ISSUED_AT, false, 123 as unknown as string);
     expect(res).toBe("SKIPPED");
     expect(note.toLowerCase()).toContain("revoked");
+  });
+});
+
+describe("compromise is decisive (criterion 810)", () => {
+  it("FAILs a compromised key after issuance even with a trusted anchor", () => {
+    const [res, note] = checkKeyStatus(
+      "compromised", "2026-05-01T00:00:00Z", "2026-06-01T00:00:00Z", true,
+    );
+    expect(res).toBe("FAIL");
+    expect(note.toLowerCase()).toContain("compromised");
+  });
+
+  it("FAILs a revoked key whose reason is compromised, anchor or not", () => {
+    const [res] = checkKeyStatus(
+      "revoked", "2026-05-01T00:00:00Z", "2026-06-01T00:00:00Z", true, "compromised",
+    );
+    expect(res).toBe("FAIL");
+  });
+
+  it("keeps a retired (not compromised) key passing with a trusted anchor", () => {
+    const [res] = checkKeyStatus("revoked", "2026-05-01T00:00:00Z", "2026-06-01T00:00:00Z", true);
+    expect(res).toBe("PASS");
   });
 });
