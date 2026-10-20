@@ -359,7 +359,8 @@ class AsqavNativeAdapter(FormatAdapter):
         # Only a caller-verified anchor counts as trusted timing. This adapter pins no
         # TSA material, so it passes False: a forged anchor never rides a revoked key.
         res, note = _vr.check_key_status(
-            entry.get("status"), issued_at, _vr.revoked_at_of(entry), False
+            entry.get("status"), issued_at, _vr.revoked_at_of(entry), False,
+            entry.get("revocation_reason"),
         )
         return axes + [("key_status", res, note), ("issuer_bind", *bind)]
 
