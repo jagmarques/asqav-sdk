@@ -58,11 +58,23 @@ const BINDING_MEMBERS = new Set([
   "terms_digest",
 ]);
 
+function rejectNegativeZero(value: unknown): void {
+  if (typeof value === "number" && Object.is(value, -0)) {
+    throw new Error("counterparty_binding_malformed: terms carry a negative zero");
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) rejectNegativeZero(item);
+  } else if (isObject(value)) {
+    for (const item of Object.values(value)) rejectNegativeZero(item);
+  }
+}
+
 /** SHA-256 over JCS bytes of the exact terms object (matches the cloud). */
 export function termsDigestOf(terms: unknown): string {
   if (!isObject(terms)) {
     throw new Error("counterparty_binding_malformed: terms must be an object");
   }
+  rejectNegativeZero(terms);
   return createHash("sha256").update(canonicalJson(terms)).digest("base64");
 }
 

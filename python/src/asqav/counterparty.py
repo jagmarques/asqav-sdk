@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -13,6 +14,7 @@ from ._jcs import canonical_json
 __all__ = [
     "ACKNOWLEDGMENT_RECEIPT_TYPE",
     "BINDING_SCOPE",
+    "BINDING_MEMBERS",
     "PROFILE_VERSION",
     "CounterpartyBinding",
     "compute_counterparty_binding",
@@ -28,16 +30,31 @@ BINDING_SCOPE = "envelope_minus_anchors"
 PROFILE_VERSION = "0.1"
 
 #: Members a profile-declaring binding may carry; anything else is refused.
-_BINDING_MEMBERS = frozenset({
+BINDING_MEMBERS = frozenset({
     "envelope_hash", "receipt_ref", "expect_ack_from", "transport_label",
     "scope", "profile_version", "terms", "terms_digest",
 })
+
+
+def _reject_negative_zero(value: Any) -> None:
+    """A -0.0 term would hash differently across JCS implementations, so refuse it."""
+    if isinstance(value, float) and value == 0.0 and math.copysign(1.0, value) < 0:
+        raise ValueError(
+            "counterparty_binding_malformed: terms carry a negative zero"
+        )
+    if isinstance(value, dict):
+        for item in value.values():
+            _reject_negative_zero(item)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_negative_zero(item)
 
 
 def terms_digest_of(terms: Any) -> str:
     """SHA-256 over JCS bytes of the exact terms object (matches the cloud)."""
     if not isinstance(terms, dict):
         raise ValueError("counterparty_binding_malformed: terms must be an object")
+    _reject_negative_zero(terms)
     try:
         encoded = canonical_json(terms)
     except (TypeError, ValueError, RecursionError, UnicodeError) as exc:
@@ -236,11 +253,11 @@ def verify_counterparty_binding(
     if profile_version is not None:
         if profile_version != PROFILE_VERSION:
             return CounterpartyBindingVerification(None, None, None, "profile_unsupported")
-        if set(binding) - _BINDING_MEMBERS:
+        if set(binding) - BINDING_MEMBERS:
             return CounterpartyBindingVerification(False, False, None, "malformed")
     terms = binding.get("terms")
     terms_digest = binding.get("terms_digest")
-    if terms is not None or terms_digest is not None:
+    if "terms" in binding or "terms_digest" in binding:
         if not isinstance(terms_digest, str) or not isinstance(terms, dict):
             return CounterpartyBindingVerification(False, False, None, "malformed")
         try:

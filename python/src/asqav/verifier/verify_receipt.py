@@ -2791,21 +2791,17 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
         return "SKIPPED", "legacy_scope: the signed binding omits its digest scope"
     if cpb["scope"] != "envelope_minus_anchors":
         return "SKIPPED", "unrecognised_scope: the signed digest scope is unsupported"
+    from ..counterparty import BINDING_MEMBERS, PROFILE_VERSION, terms_digest_of
+
     profile_version = cpb.get("profile_version")
     if profile_version is not None:
-        if profile_version != "0.1":
+        if profile_version != PROFILE_VERSION:
             return "SKIPPED", "profile_unsupported: the signed profile version is unsupported"
-        known = {
-            "envelope_hash", "receipt_ref", "expect_ack_from", "transport_label",
-            "scope", "profile_version", "terms", "terms_digest",
-        }
-        if set(cpb) - known:
+        if set(cpb) - BINDING_MEMBERS:
             return "FAIL", "counterparty_binding carries a member this verifier does not implement"
-    terms = cpb.get("terms")
-    terms_digest = cpb.get("terms_digest")
-    if terms is not None or terms_digest is not None:
-        from ..counterparty import terms_digest_of
-
+    if "terms" in cpb or "terms_digest" in cpb:
+        terms = cpb.get("terms")
+        terms_digest = cpb.get("terms_digest")
         if not isinstance(terms, dict) or not isinstance(terms_digest, str):
             return "FAIL", "counterparty_binding terms and terms_digest must travel together"
         try:

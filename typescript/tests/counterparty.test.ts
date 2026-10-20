@@ -223,3 +223,32 @@ describe("profiled bilateral binding", () => {
     expect(outcome.label).toBe("malformed");
   });
 });
+
+describe("profile terms portability", () => {
+  it("refuses a negative-zero term instead of hashing it two ways", () => {
+    expect(() => termsDigestOf({ amount: -0 })).toThrow(/negative zero/);
+    const orig = origEnvelope();
+    const wire = { ...computeCounterpartyBinding(orig, { profileVersion: PROFILE_VERSION, terms: { amount: 1 } }) };
+    wire.terms = { amount: -0 };
+    wire.terms_digest = "AAAA";
+    const outcome = verifyCounterpartyBinding(
+      { payload: { counterparty_binding: wire }, signature: { kid: "kid-B" } },
+      orig,
+    );
+    expect(outcome).toMatchObject({ valid: false, label: "malformed" });
+  });
+
+  it("refuses null terms rather than treating them as absent", () => {
+    const orig = origEnvelope();
+    const wire = {
+      ...computeCounterpartyBinding(orig, { profileVersion: PROFILE_VERSION, terms: { amount: 1 } }),
+    } as unknown as Record<string, unknown>;
+    wire.terms = null;
+    wire.terms_digest = null;
+    const outcome = verifyCounterpartyBinding(
+      { payload: { counterparty_binding: wire }, signature: { kid: "kid-B" } },
+      orig,
+    );
+    expect(outcome).toMatchObject({ valid: false, label: "malformed" });
+  });
+});

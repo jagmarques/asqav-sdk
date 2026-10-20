@@ -314,3 +314,27 @@ def test_verify_refuses_unknown_member_on_a_profiled_binding():
     wire["required_extension"] = True
     result = verify_counterparty_binding(_ack_with_binding(wire), env)
     assert (result.valid, result.label) == (False, "malformed")
+
+
+def test_negative_zero_terms_are_refused():
+    with pytest.raises(ValueError):
+        terms_digest_of({"amount": -0.0})
+    env = _orig_envelope()
+    wire = compute_counterparty_binding(
+        env, profile_version=PROFILE_VERSION, terms={"amount": 1}
+    ).to_wire()
+    wire["terms"] = {"amount": -0.0}
+    wire["terms_digest"] = "AAAA"
+    result = verify_counterparty_binding(_ack_with_binding(wire), env)
+    assert (result.valid, result.label) == (False, "malformed")
+
+
+def test_null_terms_are_refused_not_treated_as_absent():
+    env = _orig_envelope()
+    wire = compute_counterparty_binding(
+        env, profile_version=PROFILE_VERSION, terms={"amount": 1}
+    ).to_wire()
+    wire["terms"] = None
+    wire["terms_digest"] = None
+    result = verify_counterparty_binding(_ack_with_binding(wire), env)
+    assert (result.valid, result.label) == (False, "malformed")
