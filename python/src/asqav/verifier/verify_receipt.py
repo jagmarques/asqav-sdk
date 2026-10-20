@@ -1931,6 +1931,13 @@ def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
 REVOKED_KEY_STATUSES = {"revoked", "suspended", "compromised"}
 
 
+def key_status_kind(status: object, revocation_reason: object = None) -> str:
+    """The effective key state: compromise wins over every other published label."""
+    s = (status or "").lower() if isinstance(status, str) else ""
+    reason = revocation_reason.lower() if isinstance(revocation_reason, str) else ""
+    return "compromised" if s == "compromised" or reason == "compromised" else s
+
+
 def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
     """True when a cryptographically verified anchor proves the envelope existed
     at or before the key's revoked_at.
@@ -1959,6 +1966,12 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
     Retirement, compromise and unknown are distinct non-passing outcomes.
     """
     s = (status or "").lower()
+    kind = key_status_kind(status, revocation_reason)
+    if kind == "compromised":
+        return "FAIL", (
+            f"signing key compromised at {revoked_at or 'an unpublished time'}; "
+            "a compromised key never verifies"
+        )
     if s == "decommissioned":
         return "SKIPPED", (
             f"signing key decommissioned; issuance at {issued_at} cannot be "
@@ -1970,8 +1983,6 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
         )
     if s not in REVOKED_KEY_STATUSES:
         return "PASS", f"signing key status {status!r} is active"
-    reason = revocation_reason if isinstance(revocation_reason, str) else ""
-    kind = "compromised" if (s == "compromised" or reason.lower() == "compromised") else s
     if revoked_at:
         # Pinned grammar first: bare fromisoformat reads the basic form on 3.11+
         # but raises on 3.10, so the same stamp drew different verdicts per version
