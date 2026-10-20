@@ -40,12 +40,8 @@ __all__ = [
     "assert_canonical_integers",
 ]
 
-#: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
-#: representable and both emit the same digits for it, while 2**53 + 1 has no exact
-#: double and JavaScript rounds it. One ABOVE JavaScript's Number.isSafeInteger bound,
-#: deliberately: the upstream interop vector `number_2_to_53` pins 2**53 as canonical.
-#: The bound also excludes every integer at or above 1e21, where JavaScript's toString
-#: switches to exponential notation and Python's str does not.
+#: Largest integer both SDKs canonicalise identically (2**53 + 1 has no exact double).
+#: One above Number.isSafeInteger: the upstream vector `number_2_to_53` pins 2**53.
 MAX_CANONICAL_INTEGER = 2**53
 
 #: Largest integer magnitude the Asqav profile admits: draft Section 4 ends the

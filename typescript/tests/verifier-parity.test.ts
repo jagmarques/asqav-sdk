@@ -204,11 +204,8 @@ describe("parseJsonPreservingFloats matches JSON.parse structure (Node 18+ safe)
 describe("integers beyond +/-2**53 are refused at ingest (no cross-SDK divergence)", () => {
   const dec = new TextDecoder();
 
-  // These two cases used to assert that the parser PRESERVED such an integer, so that
-  // 2^53+1 and 2^53 stayed distinct. Preserving is not enough: the doors path and any
-  // caller who reaches us through JSON.parse has ALREADY rounded, and a rounded 2^53 is
-  // indistinguishable from a genuine one. Refusal at the parse boundary is the only
-  // point where the two SDKs can still be made to agree.
+  // JSON.parse callers have already rounded such an integer, so only refusal
+  // at the parse boundary keeps the two SDKs in agreement
   it("refuses 2^53+1, which has no exact double", () => {
     expect(() => parseJsonPreservingFloats('{"n":9007199254740993}')).toThrow(
       /canonical integer range/,
