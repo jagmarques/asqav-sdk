@@ -3,8 +3,8 @@
 Python SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents.
 
 Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65 (FIPS 204,
-post-quantum), timestamped against independent witnesses, and verifiable by anyone —
-auditor, counterparty, regulator — **without an Asqav account and without trusting us**.
+post-quantum), timestamped against independent witnesses, and verifiable by anyone -
+auditor, counterparty, regulator - **without an Asqav account and without trusting us**.
 
 Zero native dependencies. Cryptography runs server-side.
 
@@ -41,7 +41,7 @@ anchor confirms.
 
 ## Verify it without an account
 
-This is the point of the whole thing — the receipt stands on its own:
+This is the point of the whole thing - the receipt stands on its own:
 
 Run this right now, with no key and no signup:
 
@@ -67,7 +67,7 @@ asqav verify <your_signature_id>
 
 Offline or air-gapped, snapshot the keys once and verify with no network at all. This
 re-derives the signature itself, so it needs the `verify` extra
-(`dilithium-py` for ML-DSA-65, `cryptography` for the Ed25519 and ES256 axes — without it
+(`dilithium-py` for ML-DSA-65, `cryptography` for the Ed25519 and ES256 axes - without it
 those signatures report INCOMPLETE rather than verifying):
 
 ```bash
@@ -104,10 +104,10 @@ LocalQueue().sync()            # {"synced": N, "failed": M}
 
 The SDK picks the safer default for where you point it:
 
-- **Cloud (`*.asqav.com`)** — hash-only. A SHA-256 fingerprint is computed locally and only
+- **Cloud (`*.asqav.com`)**: hash-only. A SHA-256 fingerprint is computed locally and only
   the hash plus `action_type`, `agent_id`, `session_id`, `model_name`, `tool_name` is sent.
   Prompts and tool arguments never leave your side.
-- **Self-hosted** — full payload, so the server can run policy checks and richer audit.
+- **Self-hosted**: full payload, so the server can run policy checks and richer audit.
 
 ```python
 asqav.init(api_key="...", base_url="https://api.asqav.com", mode="hash-only")

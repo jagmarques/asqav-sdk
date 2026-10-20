@@ -22,7 +22,7 @@ criterion 672's audit is the method this mechanizes).
 
 Derived members this script owns, per vector directory:
 
-* ``previousReceiptHash`` — from ``predecessor.json`` under the vector's OWN
+* ``previousReceiptHash`` - from ``predecessor.json`` under the vector's OWN
   chain rule: asqav-native chains ``sha256(JCS(predecessor.payload))``, acta
   chains ``sha256(JCS({payload, signature}))`` of the full signed
   predecessor. One rule for all reports a false positive on
@@ -30,10 +30,10 @@ Derived members this script owns, per vector directory:
   carry a ``sha256:`` prefix (the ACTA -03 form); the hex is derived, the
   form is authored and is preserved. No ``predecessor.json`` means genesis:
   the hash must be all zeros.
-* ``payload_digest`` — ``{hash, size}`` over the JCS of the context carried
+* ``payload_digest`` - ``{hash, size}`` over the JCS of the context carried
   in the same receipt. No carried context, or a keyed ``hash_algo`` (an HMAC
   under holder key material), means unrecomputable, not drift.
-* ``counterparty_binding.envelope_hash`` — standard-base64
+* ``counterparty_binding.envelope_hash`` - standard-base64
   ``sha256(JCS({payload, signature}))`` of ``originating_envelope.json``.
   A binding that names no originating envelope file is a failure: a digest
   with no stated origin is the exact shape that let corpus A go stale.
@@ -49,12 +49,12 @@ vector exists to break (``chain`` -> previousReceiptHash,
 ``payload_digest_mismatch`` -> payload_digest, ``counterparty_mismatch`` ->
 envelope_hash). A skip that re-derives cleanly is a STALE SKIP and fails:
 the list must stay honest. Reasons that name no recomputed member
-(``issuer_signature``, ``counterparty_legacy_scope`` — whose digest is
-correct and only the scope is wrong — and the rest) skip nothing.
+(``issuer_signature``, ``counterparty_legacy_scope`` - whose digest is
+correct and only the scope is wrong - and the rest) skip nothing.
 
 Run ``python verifier/regen_conformance_vectors.py`` after an intentional
-corpus edit, then ``python verifier/freeze_corpus_lock.py`` to move the pins
-— the re-freeze is the LAST step. ``--check`` exits nonzero on any drift
+corpus edit, then ``python verifier/freeze_corpus_lock.py`` to move the pins;
+the re-freeze is the LAST step. ``--check`` exits nonzero on any drift
 without writing, which is what CI runs. Write mode swaps published value
 bytes surgically and refuses any value that does not occur exactly once, so
 it can neither reformat the twelve nonstandard receipts nor collapse

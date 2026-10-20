@@ -3,8 +3,8 @@
 TypeScript SDK for [asqav.com](https://asqav.com), the evidence layer for AI agents.
 
 Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65 (FIPS 204,
-post-quantum), timestamped against independent witnesses, and verifiable by anyone —
-auditor, counterparty, regulator — **without an Asqav account and without trusting us**.
+post-quantum), timestamped against independent witnesses, and verifiable by anyone -
+auditor, counterparty, regulator - **without an Asqav account and without trusting us**.
 
 Zero native dependencies. Cryptography runs server-side.
 
@@ -68,7 +68,7 @@ Hooks and detectors still apply across clients. The returned objects are ordinar
 
 ## Verify it without an account
 
-This is the point of the whole thing — the receipt stands on its own:
+This is the point of the whole thing - the receipt stands on its own:
 
 Run this right now, with no key and no signup:
 
@@ -156,10 +156,10 @@ shared conformance corpus.
 
 The SDK picks the safer default for where you point it:
 
-- **Cloud (`*.asqav.com`)** — hash-only. A SHA-256 fingerprint is computed locally and only
+- **Cloud (`*.asqav.com`)**: hash-only. A SHA-256 fingerprint is computed locally and only
   the hash plus `actionType`, `agentId`, `sessionId`, `modelName`, `toolName` is sent.
   Prompts and tool arguments never leave your process.
-- **Self-hosted** — full payload, so the server can run policy checks and richer audit.
+- **Self-hosted**: full payload, so the server can run policy checks and richer audit.
 
 ```ts
 await init({ apiKey: "...", baseUrl: "https://api.asqav.com", mode: "hash-only" });
@@ -201,11 +201,11 @@ Full command reference: [asqav.com/docs/cli](https://asqav.com/docs/cli).
 
 Native adapters under `@asqav/sdk/extras/*`:
 
-- **Vercel AI SDK** — `createAsqavExporter`, passed to `experimental_telemetry`. Every span
+- **Vercel AI SDK**: `createAsqavExporter`, passed to `experimental_telemetry`. Every span
   becomes a signed action.
-- **LangChain.js** — `AsqavCallbackHandler`, passed to `callbacks: [handler]`.
-- **Mastra** — `AsqavMastraHook`, attached to a Mastra agent.
-- **OpenAI Agents JS** — `AsqavOpenAIAgentsAdapter`, wrapping a tool.
+- **LangChain.js**: `AsqavCallbackHandler`, passed to `callbacks: [handler]`.
+- **Mastra**: `AsqavMastraHook`, attached to a Mastra agent.
+- **OpenAI Agents JS**: `AsqavOpenAIAgentsAdapter`, wrapping a tool.
 
 Each needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and Haystack
 follow the same Hooks API; the Python SDK has the richer ecosystem. Parity status:

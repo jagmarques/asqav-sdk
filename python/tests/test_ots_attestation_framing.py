@@ -26,7 +26,7 @@ _VECTOR = (
     Path(__file__).resolve().parents[2]
     / "verifier" / "conformance-vectors" / "asqav-24-anchor-block-hash-prod"
 )
-#: Block 965451's merkle root in display order, reversed to internal order —
+#: Block 965451's merkle root in display order, reversed to internal order -
 #: the value the proof's op chain must evaluate to (ANCHOR-MATERIAL.md records
 #: the two public sources for it).
 _BLOCK_965451_ROOT_DISPLAY = "76e472dea0ba9cb2adafe0d47ef54b5928c8a9443201300c848c77894e54c57c"
