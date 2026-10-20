@@ -174,7 +174,11 @@ function revocationOutcome(pack: Obj, entry: Obj): BundleResult {
 function mappingProblem(pack: Obj): string | null {
   const receipts: unknown[] = Array.isArray(pack.receipts) ? pack.receipts : [];
   const known = new Set(receipts.flatMap((e) => isObj(e) && typeof e.signature_id === "string" ? [e.signature_id] : []));
-  if ("receipt_count" in pack && pack.receipt_count !== receipts.length) {
+  const declaredCount = pack.receipt_count;
+  if (
+    "receipt_count" in pack &&
+    (typeof declaredCount !== "number" || !Number.isInteger(declaredCount) || declaredCount !== receipts.length)
+  ) {
     return "receipt_count does not match the number of receipts";
   }
   const mapping = isObj(pack.regime_mapping) ? (pack.regime_mapping as Obj) : null;
