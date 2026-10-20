@@ -102,7 +102,7 @@ Each signed record has a `mode` field on `signature_records` with value `"hash"`
 A verifier CAN tell a keyed (salted) context digest from a plain one: the discriminator is the `hash_algo` member of the signed record, which sits inside the signed field set so it cannot be flipped without breaking the signature.
 
 - **`hash_algo: "hmac-sha256"`** means the context digest is keyed (HMAC-SHA256 under the org salt). It is internally consistent but not third-party re-derivable, so a fully-checked receipt reports the verdict `verified_keyed`, never plain `verified`.
-- **`hash_algo: "sha256"`**, or an absent `hash_algo` (which defaults to `sha256`), means the digest is the plain SHA-256 fingerprint above, re-derivable by anyone from the original `(action_type, context)` pair, and the verdict is `verified`.
+- **`hash_algo: "sha256"`** (also the default when `hash_algo` is absent) means the digest is the plain SHA-256 fingerprint above, re-derivable by anyone from the original `(action_type, context)` pair. The verdict is `verified`.
 
 Verifiers MUST NOT report a keyed digest as plain `verified`: the two are different statements, and only the unkeyed one is independently reproducible.
 

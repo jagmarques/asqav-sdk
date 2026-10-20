@@ -73,8 +73,8 @@ litellm.callbacks = ["asqav", AsqavSigningLogger(agent_name="my-llm-agent")]
 
 ### Guardrail seam
 
-`AsqavGuardrail` signs the call lifecycle instead of (or as well as) the
-completed call - pre-call, post-call, error, and moderation events:
+`AsqavGuardrail` signs each lifecycle event (pre-call, post-call, error and
+moderation) instead of, or as well as, the completed call:
 
 ```python
 from asqav.extras.litellm import AsqavGuardrail
