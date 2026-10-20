@@ -489,12 +489,8 @@ class DuplicateMemberError(ValueError):
     """
 
 
-#: Largest integer magnitude both SDKs canonicalise identically: 2**53 is exactly
-#: representable and both emit the same digits for it, while 2**53 + 1 has no exact
-#: double and JavaScript rounds it. One ABOVE JavaScript's Number.isSafeInteger bound,
-#: deliberately: the upstream interop vector `number_2_to_53` pins 2**53 as canonical.
-#: The bound also excludes every integer at or above 1e21, where JavaScript's toString
-#: switches to exponential notation and Python's str does not.
+#: Largest integer both SDKs canonicalise identically (2**53 + 1 has no exact double).
+#: One above Number.isSafeInteger: the upstream vector `number_2_to_53` pins 2**53.
 MAX_CANONICAL_INTEGER = 2**53
 
 #: Asqav profile bound: draft Section 4 ends the safe interval at 2**53 - 1.
@@ -1452,11 +1448,8 @@ def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=N
     can neither verify nor invalidate, only decline.
     """
     anchors = envelope.get("anchors")
-    # Absent is a legitimate no-anchors receipt (SKIPPED); a present non-list
-    # value ({} / "" / 0) is malformed and FAILs, never laundered to []. A wire
-    # "anchors": null reaches here only from a direct caller: run_structured FAILs
-    # it at the structure gate, and normalise_envelope projects absent and null to
-    # the same None, so this layer cannot tell the two spellings apart.
+    # Absent is SKIPPED; a present non-list ({} / "" / 0) FAILs. run_structured
+    # refuses a wire null at the structure gate; here None is absent or null.
     if anchors is None:
         return AnchorEvaluation("SKIPPED", "no anchors on this receipt", [])
     if not isinstance(anchors, list):
@@ -2482,15 +2475,8 @@ def check_outer_copies(raw: dict, msg: bytes, key_bytes=None, key_kid=None):
     return _outer_copy_note(_outer_copy_outcomes(raw, payload, sig_obj, msg, key_bytes), raw)
 
 
-#: What this verifier does NOT check, declared in the output rather than in a document.
-#:
-#: A verifier that reports only what it checked lets a reader mistake silence for
-#: coverage. Every result carries this list, passing results included, so the
-#: reader sees the boundary of the claim beside the claim itself instead of having
-#: to find it in a README that ships separately from the tool.
-#:
-#: `condition` is None when the check is never performed at any invocation, and
-#: names the input that would enable it when the gap is one this caller can close.
+#: What this verifier does not check, carried in every result so silence never reads
+#: as coverage. `condition` names the input that enables a check, else None.
 NOT_CHECKED = (
     {
         "check": "tsa_certificate_path",
@@ -2620,7 +2606,7 @@ def coverage_declaration(axes: list) -> dict:
     path always ends at expiry); the early returns stop at the structure gate
     (their axes name the failing input member), so it reads "structure" there.
     checks_not_evaluated lists one not_implemented entry per NOT_CHECKED row,
-    then — on an early return — one not_reached entry per axis of the full
+    then - on an early return - one not_reached entry per axis of the full
     order after the stop point that the result does not carry.
     """
     entries = [
@@ -3567,11 +3553,8 @@ def _struct_axis(name: str, result: str, note: str, applicability: str | None = 
     return axis
 
 
-#: Structure-axis note for the malformed third spelling of "no anchors": the member
-#: absent and the member present as an empty array are the conformant spellings; a
-#: JSON null is found in the wild and is malformed, reported unverifiable rather
-#: than read as either. Verbatim in all three engines; a wording drift fails the
-#: cross-language anchor-shape tests.
+#: Note for "anchors": null, the malformed spelling of no anchors (absent or [] conform).
+#: Verbatim in all three engines; the cross-language anchor-shape tests pin it.
 _ANCHORS_NULL_NOTE = (
     "anchors is null: malformed; absent or [] is the conformant spelling of no anchors"
 )
