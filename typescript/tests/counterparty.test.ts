@@ -12,8 +12,10 @@ import {
   RECEIPT_TYPE_NAMESPACE,
 } from "../src/index.js";
 import {
+  PROFILE_VERSION,
   computeCounterpartyBinding,
   computeEnvelopeHash,
+  termsDigestOf,
   verifyCounterpartyBinding,
   type CounterpartyBinding,
 } from "../src/counterparty.js";
@@ -156,5 +158,68 @@ describe("cross-sdk byte-stability", () => {
       .update(canonicalJson({ payload: env.payload, signature: env.signature }))
       .digest("base64");
     expect(binding.envelope_hash).toBe(recomputed);
+  });
+});
+
+describe("profiled bilateral binding", () => {
+  const terms = { scope: "invoice:42", amount: 100, currency: "EUR" };
+
+  it("emits profile_version and a recomputable terms_digest", () => {
+    const binding = computeCounterpartyBinding(origEnvelope(), {
+      profileVersion: PROFILE_VERSION,
+      terms,
+    });
+    const expected = createHash("sha256").update(canonicalJson(terms)).digest("base64");
+    expect(binding.profile_version).toBe(PROFILE_VERSION);
+    expect(binding.terms).toEqual(terms);
+    expect(binding.terms_digest).toBe(expected);
+    expect(termsDigestOf(terms)).toBe(expected);
+  });
+
+  it("refuses an unimplemented profile version at construction", () => {
+    expect(() =>
+      computeCounterpartyBinding(origEnvelope(), { profileVersion: "9.9" }),
+    ).toThrow(/counterparty_profile_unsupported/);
+  });
+
+  it("verifies a self-consistent profiled binding", () => {
+    const orig = origEnvelope();
+    const binding = computeCounterpartyBinding(orig, {
+      profileVersion: PROFILE_VERSION,
+      terms,
+    });
+    const ack = {
+      payload: { v: 1, type: ACKNOWLEDGMENT_RECEIPT_TYPE, counterparty_binding: binding },
+      signature: { alg: "ml-dsa-65", kid: "kid-B", sig: "BBBB" },
+    };
+    const outcome = verifyCounterpartyBinding(ack, orig);
+    expect(outcome.valid).toBe(true);
+    expect(outcome.label).toBe("matches");
+  });
+
+  it("refuses an unknown profile version instead of downgrading", () => {
+    const orig = origEnvelope();
+    const binding = { ...computeCounterpartyBinding(orig), profile_version: "9.9" };
+    const outcome = verifyCounterpartyBinding(
+      { payload: { counterparty_binding: binding }, signature: { kid: "kid-B" } },
+      orig,
+    );
+    expect(outcome.valid).toBeNull();
+    expect(outcome.label).toBe("profile_unsupported");
+  });
+
+  it("refuses terms whose digest does not recompute", () => {
+    const orig = origEnvelope();
+    const binding = computeCounterpartyBinding(orig, {
+      profileVersion: PROFILE_VERSION,
+      terms,
+    });
+    const tampered = { ...binding, terms: { ...terms, amount: 101 } };
+    const outcome = verifyCounterpartyBinding(
+      { payload: { counterparty_binding: tampered }, signature: { kid: "kid-B" } },
+      orig,
+    );
+    expect(outcome.valid).toBe(false);
+    expect(outcome.label).toBe("malformed");
   });
 });

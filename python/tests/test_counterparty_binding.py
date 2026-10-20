@@ -18,14 +18,18 @@ import hashlib
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav._jcs import canonical_json
 from asqav.client import verify_compliance_receipt
 from asqav.counterparty import (
     ACKNOWLEDGMENT_RECEIPT_TYPE,
+    PROFILE_VERSION,
     CounterpartyBinding,
     compute_counterparty_binding,
+    terms_digest_of,
     verify_counterparty_binding,
 )
 
@@ -231,3 +235,82 @@ def test_verify_compliance_receipt_payload_only_without_expect_ack_from_still_wo
         ack["payload"], originating_envelope=orig
     )
     assert result.counterparty_binding_verified is True
+
+
+def test_profiled_binding_emits_version_and_recomputable_terms_digest():
+    env = _orig_envelope()
+    terms = {"scope": "invoice:42", "amount": 100, "currency": "EUR"}
+    binding = compute_counterparty_binding(
+        env, profile_version=PROFILE_VERSION, terms=terms
+    )
+    assert binding.profile_version == PROFILE_VERSION
+    assert binding.terms == terms
+    expected = base64.b64encode(hashlib.sha256(canonical_json(terms)).digest()).decode()
+    assert binding.terms_digest == expected
+    wire = binding.to_wire()
+    assert wire["profile_version"] == PROFILE_VERSION
+    assert wire["terms_digest"] == expected
+
+
+def test_unknown_profile_version_is_refused_at_construction():
+    with pytest.raises(ValueError, match="counterparty_profile_unsupported"):
+        compute_counterparty_binding(_orig_envelope(), profile_version="9.9")
+
+
+def test_divergent_terms_produce_different_digests():
+    a = terms_digest_of({"amount": 100})
+    b = terms_digest_of({"amount": 101})
+    assert a != b
+
+
+def _ack_with_binding(binding_wire: dict) -> dict:
+    return {
+        "payload": {"v": 1, "type": ACKNOWLEDGMENT_RECEIPT_TYPE,
+                    "counterparty_binding": binding_wire},
+        "signature": {"alg": "ml-dsa-65", "kid": "kid-B", "sig": "BBBB"},
+    }
+
+
+def test_verify_accepts_profiled_binding():
+    env = _orig_envelope()
+    binding = compute_counterparty_binding(
+        env, profile_version=PROFILE_VERSION, terms={"scope": "invoice:42"}
+    )
+    result = verify_counterparty_binding(_ack_with_binding(binding.to_wire()), env)
+    assert (result.valid, result.label) == (True, "matches")
+
+
+def test_verify_refuses_unknown_profile_version_without_downgrade():
+    env = _orig_envelope()
+    wire = compute_counterparty_binding(env).to_wire()
+    wire["profile_version"] = "9.9"
+    result = verify_counterparty_binding(_ack_with_binding(wire), env)
+    assert (result.valid, result.label) == (None, "profile_unsupported")
+
+
+def test_verify_refuses_digest_that_does_not_recompute_over_terms():
+    env = _orig_envelope()
+    wire = compute_counterparty_binding(
+        env, profile_version=PROFILE_VERSION, terms={"amount": 100}
+    ).to_wire()
+    wire["terms"]["amount"] = 101
+    result = verify_counterparty_binding(_ack_with_binding(wire), env)
+    assert (result.valid, result.label) == (False, "malformed")
+
+
+def test_verify_refuses_terms_digest_without_terms():
+    env = _orig_envelope()
+    wire = compute_counterparty_binding(
+        env, profile_version=PROFILE_VERSION, terms={"amount": 100}
+    ).to_wire()
+    wire.pop("terms")
+    result = verify_counterparty_binding(_ack_with_binding(wire), env)
+    assert (result.valid, result.label) == (False, "malformed")
+
+
+def test_verify_refuses_unknown_member_on_a_profiled_binding():
+    env = _orig_envelope()
+    wire = compute_counterparty_binding(env, profile_version=PROFILE_VERSION).to_wire()
+    wire["required_extension"] = True
+    result = verify_counterparty_binding(_ack_with_binding(wire), env)
+    assert (result.valid, result.label) == (False, "malformed")

@@ -23,6 +23,12 @@ export interface CounterpartyBinding {
   expect_ack_from?: string;
   transport_label?: string;
   scope?: string;
+  /** Interaction profile version; absent means the legacy unprofiled path. */
+  profile_version?: string;
+  /** Exact endorsed terms; `terms_digest` must recompute over it. */
+  terms?: Record<string, unknown>;
+  /** base64 SHA-256 of the terms object's JCS bytes. */
+  terms_digest?: string;
 }
 
 /**
@@ -33,10 +39,32 @@ export interface CounterpartyBindingVerification {
   valid: boolean | null;
   envelopeHashMatches: boolean | null;
   kidMatches: boolean | null;
-  label: "matches" | "mismatch" | "unresolved" | "kid_mismatch" | "malformed" | "legacy_scope" | "unrecognised_scope" | null;
+  label: "matches" | "mismatch" | "unresolved" | "kid_mismatch" | "malformed" | "legacy_scope" | "unrecognised_scope" | "profile_unsupported" | null;
 }
 
 export const BINDING_SCOPE = "envelope_minus_anchors";
+
+/** Interaction profile version this SDK can speak (must-understand). */
+export const PROFILE_VERSION = "0.1";
+
+const BINDING_MEMBERS = new Set([
+  "envelope_hash",
+  "receipt_ref",
+  "expect_ack_from",
+  "transport_label",
+  "scope",
+  "profile_version",
+  "terms",
+  "terms_digest",
+]);
+
+/** SHA-256 over JCS bytes of the exact terms object (matches the cloud). */
+export function termsDigestOf(terms: unknown): string {
+  if (!isObject(terms)) {
+    throw new Error("counterparty_binding_malformed: terms must be an object");
+  }
+  return createHash("sha256").update(canonicalJson(terms)).digest("base64");
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -108,6 +136,10 @@ export interface ComputeCounterpartyBindingOptions {
   expectAckFrom?: string;
   /** Optional operational transport hint (`mcp` | `bus` | `http`). */
   transportLabel?: string;
+  /** Declared profile version; unknown is refused, never downgraded. */
+  profileVersion?: string;
+  /** Exact endorsed terms; the emitted digest recomputes over them. */
+  terms?: Record<string, unknown>;
 }
 
 /**
@@ -145,6 +177,18 @@ export function computeCounterpartyBinding(
   if (options.transportLabel !== undefined) {
     binding.transport_label = options.transportLabel;
   }
+  if (options.profileVersion !== undefined) {
+    if (options.profileVersion !== PROFILE_VERSION) {
+      throw new Error(
+        `counterparty_profile_unsupported: ${JSON.stringify(options.profileVersion)} is not ${JSON.stringify(PROFILE_VERSION)}`,
+      );
+    }
+    binding.profile_version = options.profileVersion;
+  }
+  if (options.terms !== undefined) {
+    binding.terms = options.terms;
+    binding.terms_digest = termsDigestOf(options.terms);
+  }
   return binding;
 }
 
@@ -169,6 +213,25 @@ export function verifyCounterpartyBinding(
   if (!isObject(b)) return result(false, "malformed");
   if (!Object.hasOwn(b, "scope")) return result(null, "legacy_scope");
   if (b.scope !== BINDING_SCOPE) return result(null, "unrecognised_scope");
+  const profileVersion = b.profile_version;
+  if (profileVersion !== undefined && profileVersion !== null) {
+    if (profileVersion !== PROFILE_VERSION) return result(null, "profile_unsupported");
+    if (Object.keys(b).some(key => !BINDING_MEMBERS.has(key))) return result(false, "malformed");
+  }
+  const terms = b.terms;
+  const declaredTermsDigest = b.terms_digest;
+  if (terms !== undefined || declaredTermsDigest !== undefined) {
+    if (typeof declaredTermsDigest !== "string" || !isObject(terms)) {
+      return result(false, "malformed");
+    }
+    let recomputed: string;
+    try {
+      recomputed = termsDigestOf(terms);
+    } catch {
+      return result(false, "malformed");
+    }
+    if (recomputed !== declaredTermsDigest) return result(false, "malformed");
+  }
   const expectedHash = bindingDigest(b);
   if (expectedHash === null) return result(false, "malformed");
   let actualHash: Buffer;

@@ -244,8 +244,11 @@ export {
 
 // Counterparty acknowledgment binding (IETF -04 counterparty_binding extension).
 export {
+  BINDING_SCOPE,
+  PROFILE_VERSION,
   computeCounterpartyBinding,
   computeEnvelopeHash,
+  termsDigestOf,
   verifyCounterpartyBinding,
   type CounterpartyBinding,
   type CounterpartyBindingVerification,
@@ -2119,6 +2122,8 @@ export class Agent {
       context?: Record<string, unknown>;
       expectAckFrom?: string;
       transportLabel?: string;
+      profileVersion?: string;
+      terms?: Record<string, unknown>;
     } = {},
   ): Promise<SignatureResponse> {
     const ref = options.receiptRef ?? peerReceipt.signature_id;
@@ -2129,6 +2134,8 @@ export class Agent {
       receiptRef: ref,
       expectAckFrom: options.expectAckFrom,
       transportLabel: options.transportLabel,
+      profileVersion: options.profileVersion,
+      terms: options.terms,
     });
     return this.sign({
       actionType: options.actionType ?? "a2a:acknowledge",
