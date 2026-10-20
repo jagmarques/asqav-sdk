@@ -248,6 +248,28 @@ describe("audit-pack verify --offline", () => {
     expect(report.exit_code).toBe(2);
   });
 
+  it("rejects a boolean receipt_count even though true equals 1 in loose compares", () => {
+    const m = minted();
+    m.pack.receipt_count = true;
+    const msg = asqavJcs(signedBundlePayload(m.pack));
+    m.pack.bundle_digest = `sha256:${sha256Hex(msg)}`;
+    m.pack.bundle_signature = b64(ml_dsa65.sign(msg, m.keys.secretKey));
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.bundle.status).toBe("invalid");
+    expect(report.bundle.reason).toContain("receipt_count");
+  });
+
+  it("rejects a duplicate signature_id in a re-signed pack", () => {
+    const m = minted();
+    m.pack.receipts[SECOND].signature_id = m.pack.receipts[FIRST].signature_id;
+    const msg = asqavJcs(signedBundlePayload(m.pack));
+    m.pack.bundle_digest = `sha256:${sha256Hex(msg)}`;
+    m.pack.bundle_signature = b64(ml_dsa65.sign(msg, m.keys.secretKey));
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.status).toBe("invalid");
+    expect(report.summary.invalid).toBeGreaterThan(0);
+  });
+
   it("fails a bundle signed by a compromised key", () => {
     const m = minted();
     Object.assign(m.jwks.keys[0], {
@@ -339,5 +361,29 @@ describe("mapping resolution", () => {
     const report = verifyAuditPackOffline(JSON.stringify(tampered), JSON.stringify(m.jwks));
     expect(report.status).toBe("invalid");
     expect(report.bundle.reason).toContain("receipt_count");
+  });
+});
+
+describe("shared pack parity vectors", () => {
+  const cases = JSON.parse(
+    readFileSync(resolve(__dirname, "..", "..", "conformance", "pack-parity-cases.json"), "utf-8"),
+  ).cases as Array<{ name: string; mutation: string; expected: string }>;
+
+  it.each(cases.map((c) => [c.name, c] as const))("rejects %s", (_name, c) => {
+    const m = minted();
+    if (c.mutation === "duplicate_signature_id") {
+      m.pack.receipts[SECOND].signature_id = m.pack.receipts[FIRST].signature_id;
+    } else if (c.mutation === "receipt_count_boolean") {
+      m.pack.receipt_count = true;
+    } else if (c.mutation === "dangling_mapping_reference") {
+      m.pack.regime_mapping = { dora: ["sig_ghost"] };
+    } else {
+      throw new Error(`unknown mutation ${c.mutation}`);
+    }
+    const msg = asqavJcs(signedBundlePayload(m.pack));
+    m.pack.bundle_digest = `sha256:${sha256Hex(msg)}`;
+    m.pack.bundle_signature = b64(ml_dsa65.sign(msg, m.keys.secretKey));
+    const report = verifyAuditPackOffline(JSON.stringify(m.pack), JSON.stringify(m.jwks));
+    expect(report.status).toBe(c.expected);
   });
 });
