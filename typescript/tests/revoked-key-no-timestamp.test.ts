@@ -68,3 +68,39 @@ describe("revoked key without a published revoked_at (criterion 276)", () => {
     expect(res).toBe("SKIPPED");
   });
 });
+
+describe("four-state key distinction (criterion 574/F5)", () => {
+  it("never PASSes a decommissioned key as active", () => {
+    const [res, note] = checkKeyStatus("decommissioned", ISSUED_AT, null, false);
+    expect(res).toBe("SKIPPED");
+    expect(note.toLowerCase()).toContain("decommissioned");
+  });
+
+  it("never PASSes an unknown status as active", () => {
+    for (const unknown of [null, ""]) {
+      const [res, note] = checkKeyStatus(unknown, ISSUED_AT, null, false);
+      expect(res).toBe("SKIPPED");
+      expect(note.toLowerCase()).toContain("unknown");
+    }
+  });
+
+  it("names a compromise reason distinctly", () => {
+    const [res, note] = checkKeyStatus("revoked", "2026-05-01T00:00:00Z", ISSUED_AT, false, "compromised");
+    expect(res).toBe("SKIPPED");
+    expect(note.toLowerCase()).toContain("compromised");
+  });
+});
+
+describe("four-state hardening (criterion 574/F5 critic follow-ups)", () => {
+  it("SKIPs the literal unknown status too", () => {
+    const [res, note] = checkKeyStatus("unknown", ISSUED_AT, null, false);
+    expect(res).toBe("SKIPPED");
+    expect(note.toLowerCase()).toContain("unknown");
+  });
+
+  it("never crashes on a non-string revocation reason", () => {
+    const [res, note] = checkKeyStatus("revoked", "2026-05-01T00:00:00Z", ISSUED_AT, false, 123 as unknown as string);
+    expect(res).toBe("SKIPPED");
+    expect(note.toLowerCase()).toContain("revoked");
+  });
+});
