@@ -3,10 +3,13 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
-## [Unreleased]
+## [0.10.14] - 2026-10-21
 
 ### Fixed
 
+- **The published package pages state the nonce replay bound.** Both language
+  READMEs name the HTTP 409 refusal a re-used nonce meets while an earlier live
+  receipt holds it, and when the token frees.
 - **`sign_batch()` and the offline queue's `sync()` now honour hash-only mode** (criterion 797).
   Both built their request bodies by hand with the raw `context`, so against the Asqav cloud they
   put prompts and tool arguments on the wire (the cloud then refused them with
