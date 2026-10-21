@@ -5,11 +5,11 @@ anchors axis. Neither is secret: the certificates are the ones embedded in the
 receipt's own timestamp-authority token, and the block header is Bitcoin
 public data.
 
-- `tsa_trust.pem` — the two certificates embedded in the token (leaf
+- `tsa_trust.pem`: the two certificates embedded in the token (leaf
   `CN=tsa.izenpe.com`, issuer `CN=SUBCA QC IZENPE - TSA`), PEM. Byte equality
   with the token's embedded certificates was verified with the module's own
   parser (`_parse_time_stamp_resp(token)["certs"]` per block, both directions).
-- `bitcoin_headers.json` — block 965451's header fields the OpenTimestamps
+- `bitcoin_headers.json`: block 965451's header fields the OpenTimestamps
   check reads: `hash`, `merkle_root` (display hex; the checker reverses it to
   internal order), and `time` (ISO 8601 UTC). The proof's op chain evaluates to
   this merkle root, so the attestation lands in this block.
