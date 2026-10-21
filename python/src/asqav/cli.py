@@ -165,6 +165,25 @@ def verify(
         raise typer.Exit(code=1)
 
 
+NOT_PROVEN = (
+    "Completeness of the record set: a verifier sees only the receipts presented to it.",
+    "Honesty of the operator's inputs: a valid signature proves the record was signed, "
+    "not that its contents are true.",
+)
+
+
+def _yes_no_axis(value: bool, yes: str, no: str) -> str:
+    return yes if value else no
+
+
+def _tsa_party(independence: str | None) -> str:
+    if independence == "valid":
+        return "independent TSA"
+    if independence == "invalid":
+        return "TSA, independence failed"
+    return "TSA, independence pending"
+
+
 def _verify_json(result: Any) -> dict[str, Any]:
     # JSON form of a verification, with the signature and anchor axes on top.
     from asqav.client import _anchor_state, _signature_valid
@@ -182,6 +201,7 @@ def _verify_json(result: Any) -> dict[str, Any]:
         "signed_at": result.signed_at,
         "verified": result.verified,
         "verification_url": result.verification_url,
+        "not_proven": list(NOT_PROVEN),
         "verification_detail": (
             {
                 "signer_key_match": detail.signer_key_match,
@@ -193,6 +213,7 @@ def _verify_json(result: Any) -> dict[str, Any]:
                 "chain_valid": detail.chain_valid,
                 "anchor_status_ots": detail.anchor_status_ots,
                 "anchor_status_rfc3161": detail.anchor_status_rfc3161,
+                "anchor_independent_rfc3161": detail.anchor_independent_rfc3161,
                 "missing_fields": detail.missing_fields,
             }
             if detail
@@ -224,16 +245,23 @@ def _print_verify_text(result: Any) -> None:
     detail = result.verification_detail
     if detail is not None:
         print(f"Validation: {detail.validation_label}")
+        print(f"Key binding: {_yes_no_axis(detail.signer_key_match, 'matches', 'changed')}")
+        print(f"Algorithm: {_yes_no_axis(detail.algorithm_match, 'matches', 'mismatch')}")
         if detail.chain_valid is not None:
             print(f"Chain valid: {detail.chain_valid}")
+            print(f"Chain link: {'valid' if detail.chain_valid else 'invalid'}")
         if detail.anchor_status_ots is not None:
-            print(f"Anchor (OTS): {detail.anchor_status_ots}")
+            print(f"OpenTimestamps (Bitcoin): {detail.anchor_status_ots}")
         if detail.anchor_status_rfc3161 is not None:
-            print(f"Anchor (RFC 3161): {detail.anchor_status_rfc3161}")
+            print(f"RFC 3161 timestamp ({_tsa_party(detail.anchor_independent_rfc3161)}): "
+                  f"{detail.anchor_status_rfc3161}")
         if detail.signed_at_skew_seconds is not None:
             print(f"signed_at skew: {detail.signed_at_skew_seconds}s")
         if detail.missing_fields:
             print(f"Missing fields: {', '.join(detail.missing_fields)}")
+    print("Not proven by this receipt:")
+    for line in NOT_PROVEN:
+        print(f"  {line}")
 
 
 @app.command("verify-litellm-log")
