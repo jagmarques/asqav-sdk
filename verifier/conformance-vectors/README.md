@@ -185,11 +185,12 @@ from the `did:key` identifier; did:agent / did:web vectors carry `did_map.json`.
 Vector provenance, the upstream commit SHAs, and the re-signing of the
 agent-receipts PASS vectors with the upstream keypair are recorded in `UPSTREAM.md`.
 
-## Corpus freeze at v1 (criterion 420)
+## Rolling corpus lock (criterion 420)
 
-This corpus is frozen at version 1. `manifest.lock.json` pins every file in
-the tree by SHA-256 and byte length, and carries the digest of the lock
-itself; any drift fails CI.
+This corpus carries a rolling lock. `manifest.lock.json` records the current
+`corpus_version` with its completed-cut history, pins every file in the tree
+by SHA-256 and byte length, and carries the digest of the lock itself; any
+drift fails CI.
 
 - Lock digest: pinned in the lock's own `digest` field and reproduced in the
   repo as the `VERIFIER_LOCK_DIGEST` constant in
