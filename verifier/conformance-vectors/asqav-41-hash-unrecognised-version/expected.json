@@ -2,5 +2,6 @@
   "format": "asqav-native",
   "outcome": "unverified",
   "reason_code": "",
-  "notes": "Hash-mode receipt displaying v=99 whose signature was computed over v=1 flat fields. The displayed v binds the reconstructed bytes, so both oracles report signature FAIL (invalid). Relabelling v to 2 keeps signature FAIL. Regression pin for version-into-signed-fields (674 C3)."
+  "notes": "Hash-mode receipt displaying v=99 whose signature was computed over v=1 flat fields. The displayed v binds the reconstructed bytes, so both oracles report signature FAIL (invalid). Relabelling v to 2 keeps signature FAIL. Regression pin for version-into-signed-fields (674 C3).",
+  "failure_class": "invalid"
 }

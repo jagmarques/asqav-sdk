@@ -15,7 +15,7 @@ re-derive the key and reproduce every signature byte.
 
 asqav-09 shares asqav-08's context and digest by construction: it is 08's
 payload with one member flipped, so the digest still recomputes and the
-signature axis is what FAILs — the designed failure.
+signature axis is what FAILs: the designed failure.
 
 Usage: python verifier/conformance-vectors/gen_v2_signer_vectors.py
 Re-freeze the corpus lock afterwards: python verifier/freeze_corpus_lock.py
