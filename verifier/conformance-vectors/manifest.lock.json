@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 61,
+  "corpus_version": 62,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -308,13 +308,18 @@
       "version": 60,
       "files": 422,
       "digest": "049f227de267e230b52911a4367874126d892d8f8d0d7ce8da4079171a0dd39c"
+    },
+    {
+      "version": 61,
+      "files": 422,
+      "digest": "b8c2f2fd1c8b97c0f30a0e7a1cf71732ea56a65ad17ef86de87827b3bb865e8c"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "7bb4e81973677dd52b78bfbbceeafc41e48d4a10de9376cfc66f31eb61c310ad",
-      "bytes": 12013
+      "sha256": "7f9bdd3fdd69afdde820dc6134ba3792d1e140d29bbd63dcc54bd3eb508ae0a1",
+      "bytes": 12082
     },
     {
       "path": "UPSTREAM.md",
@@ -1323,8 +1328,8 @@
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/ANCHOR-MATERIAL.md",
-      "sha256": "9c75aa2de7573f2297205289c77e3de63672d561e9aa202aeccb359cfb69a896",
-      "bytes": 2597
+      "sha256": "0e33949e62f12eacc5208e68816044256562442152a2d39d5b39dc818dc8375c",
+      "bytes": 2591
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/bitcoin_headers.json",
@@ -1728,8 +1733,8 @@
     },
     {
       "path": "asqav-39-absent-version/expected.json",
-      "sha256": "2d807122b4e0b1bad9f3cdea588236518085073f8032ded87bad5fa179a799a5",
-      "bytes": 397
+      "sha256": "42152a668576cf575d0df4a7db5cb5a1ce5a31d170b5fc269b711816579c190f",
+      "bytes": 436
     },
     {
       "path": "asqav-39-absent-version/jwks.json",
@@ -1823,8 +1828,8 @@
     },
     {
       "path": "asqav-40-unrecognised-version/expected.json",
-      "sha256": "cbf7226db9a1ac0288c64d05f08097eed75e17cb30a992cc3889e42eddeab1d9",
-      "bytes": 396
+      "sha256": "de25e6d914038d14aa93c568d66851f441c8968b49243ecb46fe78e18af3e1c9",
+      "bytes": 435
     },
     {
       "path": "asqav-40-unrecognised-version/jwks.json",
@@ -1863,8 +1868,8 @@
     },
     {
       "path": "asqav-41-hash-unrecognised-version/expected.json",
-      "sha256": "140f97fb3c759ba570d7e228c23e994b754e677e6c37e21dd98ac988399e58d6",
-      "bytes": 371
+      "sha256": "6ee505bb0cfb383a5c250a7f1e1b2cef3ba3ad61e3f7600d0e8d34e7718d6cdc",
+      "bytes": 401
     },
     {
       "path": "asqav-41-hash-unrecognised-version/jwks.json",
@@ -2273,8 +2278,8 @@
     },
     {
       "path": "gen_v2_signer_vectors.py",
-      "sha256": "54b4a6b07b157016cb3d9ce315bc6b6ced34d7f142739daa0058bdc4ebaeacda",
-      "bytes": 6757
+      "sha256": "3bd8ffaa66a7f431ba4c673957e9b37e3c3322b3f59474513b2c2ba86be5508e",
+      "bytes": 6754
     },
     {
       "path": "manifest.json",
@@ -2338,8 +2343,8 @@
     },
     {
       "path": "w3c-vc-02-tamper-subject/expected.json",
-      "sha256": "6e8b825f03e8004eb25c33c6a48d0994cdfb2e673a530be655e5039ec6c0e584",
-      "bytes": 221
+      "sha256": "9b2900ff26e8ce13e67c158a171e3ca55e2204a664406db8a2133bb38f970839",
+      "bytes": 251
     },
     {
       "path": "w3c-vc-02-tamper-subject/receipt.json",
@@ -2353,8 +2358,8 @@
     },
     {
       "path": "w3c-vc-03-tamper-proofvalue/expected.json",
-      "sha256": "e3b48a3feb74e0b3ad1f3953e28ccecb004a39c500a1f9837a7a6358d542061d",
-      "bytes": 226
+      "sha256": "5b159b5e550462464c71a70ba08b30d20890e0f3b216ed34fc0fb5a97b2a5944",
+      "bytes": 256
     },
     {
       "path": "w3c-vc-03-tamper-proofvalue/receipt.json",
@@ -2368,8 +2373,8 @@
     },
     {
       "path": "w3c-vc-04-wrong-key-injected/expected.json",
-      "sha256": "cb1929a9a2e99c50366235c1ec328e9bb9ddee011efb512ea45325621b9f1b63",
-      "bytes": 246
+      "sha256": "f69189381e1e0ed17757c6ae86c3dff69f04c8b7f27efe41202d78e07f5577e8",
+      "bytes": 276
     },
     {
       "path": "w3c-vc-04-wrong-key-injected/receipt.json",
@@ -2378,8 +2383,8 @@
     },
     {
       "path": "w3c-vc-05-no-did-document/expected.json",
-      "sha256": "bfa3c724fb68a3a46d5245aa612a32a7024cfde675e6b0f25d249e53db5aff2c",
-      "bytes": 278
+      "sha256": "a8214f6a38f0d8d8098a1223ef7132533d1137f28c34f444460c6eaa659145cd",
+      "bytes": 313
     },
     {
       "path": "w3c-vc-05-no-did-document/receipt.json",
@@ -2403,8 +2408,8 @@
     },
     {
       "path": "w3c-vc-07-dup-member/expected.json",
-      "sha256": "39dedc558c062a68e5c3f50ac9aac8c5661da9217de5c920be7cdba1aa1c8f49",
-      "bytes": 279
+      "sha256": "2eb99e823d666a5adf761d5a12e697f879a3287f90b18edc0a7517b9e0c31635",
+      "bytes": 314
     },
     {
       "path": "w3c-vc-07-dup-member/receipt.json",
@@ -2452,5 +2457,5 @@
       ]
     }
   },
-  "digest": "b8c2f2fd1c8b97c0f30a0e7a1cf71732ea56a65ad17ef86de87827b3bb865e8c"
+  "digest": "6f7608e069fe682af38de47344f0f76eda7730dc233ee739430955bc199dcf19"
 }
