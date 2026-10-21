@@ -44,15 +44,42 @@ def _readme_list() -> list[str]:
     return lines[start + 1 : end]
 
 
+def _expected_lines() -> list[str]:
+    """The index the README carries, built from manifest.json alone.
+
+    The separator is written out here on purpose: the corpus README's index
+    format is a published contract, so a test that only re-ran the renderer
+    would agree with a renderer that drifts.
+    """
+    lines = []
+    for entry in _manifest():
+        outcome = entry["outcome"]
+        if entry.get("reason_code"):
+            outcome = f"{outcome} ({entry['reason_code']})"
+        lines.append(f"- `{entry['dir']}`: {outcome}")
+    return lines
+
+
+def test_manifest_dirs_keep_the_code_span_well_formed() -> None:
+    for entry in _manifest():
+        directory = entry["dir"]
+        assert "`" not in directory, directory
+        assert ":" not in directory, directory
+
+
+def test_renderer_emits_the_published_index_format() -> None:
+    assert _renderer()._render(_manifest()) == _expected_lines()
+
+
 def test_readme_index_is_the_current_render_of_the_manifest() -> None:
-    expected = _renderer()._render(_manifest())
-    assert _readme_list() == expected
+    assert _readme_list() == _expected_lines()
 
 
-def test_index_lines_use_the_renderer_separator() -> None:
-    for line in _readme_list():
-        assert line.startswith("- `") and "`: " in line, line
-        assert EM_DASH not in line, line
+def test_index_lines_carry_one_well_formed_code_span() -> None:
+    directories = [entry["dir"] for entry in _manifest()]
+    for line, directory in zip(_readme_list(), directories, strict=True):
+        assert line.count("`") == 2, line
+        assert line.startswith(f"- `{directory}`: "), line
 
 
 def test_readme_carries_no_em_dash() -> None:
