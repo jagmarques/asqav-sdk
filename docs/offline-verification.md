@@ -419,6 +419,14 @@ receipt. Three names differ, and these three are the whole difference:
 asserts both tables above against the axis names they return, so a drift in either
 direction fails the suite rather than aging quietly in this file.
 
+`python -m asqav.verifier.oracle receipt.json --keys jwks.json` (the neutral CLI) and
+the `@asqav/sdk/verifier` entry point run the same format-adapter pipeline. On the same
+receipt they report the same axis names as the two offline APIs; a format that carries
+an in-band anchor or issuer key adds `anchors` or `issuer_key` for that entry, and an
+entry without a supplied predecessor or without exported copies omits `seq` or
+`outer_copies`. The parity test above also runs the CLI on the genesis vector and
+compares its axes with the offline API's list.
+
 ## Anchor binding
 
 `anchors` sits outside the signed bytes, so that axis is the one an altered envelope
