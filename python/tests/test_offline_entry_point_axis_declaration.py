@@ -26,6 +26,7 @@ REPO = Path(__file__).parent.parent.parent
 DOC_FILE = REPO / "docs" / "offline-verification.md"
 TS_FILE = REPO / "typescript" / "src" / "index.ts"
 VECTOR = REPO / "verifier" / "conformance-vectors" / "asqav-01-genesis-permit"
+ORACLE_PARITY_MARKER = "The parity test above also runs the CLI"
 
 DOC_TEXT = DOC_FILE.read_text(encoding="utf-8")
 TS_TEXT = TS_FILE.read_text(encoding="utf-8")
@@ -213,3 +214,22 @@ def test_every_surface_states_the_skew_bound_the_code_applies():
     assert bound in (asqav.verify_receipt_offline.__doc__ or "")
     assert bound in _ts_jsdoc("verifyReceiptOffline")
     assert bound in DOC_TEXT
+
+
+def test_neutral_cli_reports_the_same_axes_as_the_offline_api() -> None:
+    """E5: the documented CLI parity claim is executed, not asserted in prose."""
+    import subprocess
+    import sys
+
+    assert ORACLE_PARITY_MARKER in DOC_TEXT
+    proc = subprocess.run(
+        [
+            sys.executable, "-m", "asqav.verifier.oracle", str(VECTOR / "receipt.json"),
+            "--keys", str(VECTOR / "jwks.json"),
+        ],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    report = json.loads(proc.stdout)
+    assert report["verdict"] == "verified"
+    assert [axis["axis"] for axis in report["axes"]] == _offline_axes()
