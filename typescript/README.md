@@ -182,6 +182,12 @@ const sig = await agent.sign({
 });
 ```
 
+`nonce` is an opaque per-call token (12 random bytes when omitted). The cloud refuses a
+value a live signature for the same agent in the same organisation already holds, answering
+HTTP 409, so the field bounds replay while that earlier receipt is inside its validity
+window. A receipt whose `validUntil` has passed frees the token; one signed with no expiry
+keeps it.
+
 ## CLI
 
 ```bash
