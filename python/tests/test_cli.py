@@ -392,8 +392,8 @@ def test_verify_text_shows_ietf_axes(mock_verify: MagicMock) -> None:
     result = runner.invoke(app, ["verify", "sig_ietf"])
     assert result.exit_code == 0
     assert "Chain valid: True" in result.output
-    assert "Anchor (OTS): pending" in result.output
-    assert "Anchor (RFC 3161): valid" in result.output
+    assert "OpenTimestamps (Bitcoin): pending" in result.output
+    assert "RFC 3161 timestamp (TSA, independence pending): valid" in result.output
     assert "skew: 1.234" in result.output
 
 
@@ -1696,3 +1696,81 @@ def test_migrate_run_v3_22_calls_endpoint(
     assert "/maintenance/run-migration-v3-22" in req.full_url
     assert req.headers.get("X-maintenance-key") == "mk_test"
     assert "v3-22" in result.output
+
+
+@patch("asqav.verify_signature")
+def test_verify_text_names_the_binding_tsa_party_and_not_proven_list(
+    mock_verify: MagicMock,
+) -> None:
+    """A reader sees each axis and the two things a receipt never proves (762 C8)."""
+    from asqav import VerificationDetail
+
+    mock_verify.return_value = MagicMock(
+        verified=True,
+        agent_name="anchored",
+        agent_id="agent_anchored",
+        action_type="api:call",
+        algorithm="ml-dsa-65",
+        verification_detail=VerificationDetail(
+            signer_key_match=True,
+            signature_valid=True,
+            algorithm_match=True,
+            agent_active=True,
+            validation_label="valid",
+            chain_valid=True,
+            anchor_status_ots="valid",
+            anchor_status_rfc3161="valid",
+            anchor_independent_rfc3161="valid",
+        ),
+    )
+    result = runner.invoke(app, ["verify", "sig_anchored"])
+    assert result.exit_code == 0
+    assert "Key binding: matches" in result.output
+    assert "Algorithm: matches" in result.output
+    assert "Chain link: valid" in result.output
+    assert "OpenTimestamps (Bitcoin): valid" in result.output
+    assert "RFC 3161 timestamp (independent TSA): valid" in result.output
+    assert "Not proven by this receipt:" in result.output
+    assert "Completeness of the record set" in result.output
+    assert "Honesty of the operator's inputs" in result.output
+
+
+@patch("asqav.verify_signature")
+def test_verify_json_carries_the_not_proven_list_and_tsa_independence(
+    mock_verify: MagicMock,
+) -> None:
+    import json
+
+    from asqav import VerificationDetail
+
+    mock_verify.return_value = MagicMock(
+        signature_id="sig_tampered",
+        agent_id="agent_t",
+        agent_name="tampered",
+        action_id="act_t",
+        action_type="api:call",
+        algorithm="ml-dsa-65",
+        signed_at=1717171717.0,
+        verified=False,
+        verification_url="https://verify.example/sig_tampered",
+        verification_detail=VerificationDetail(
+            signer_key_match=False,
+            signature_valid=False,
+            algorithm_match=True,
+            agent_active=True,
+            validation_label="invalid_signature",
+            anchor_status_ots="pending",
+            anchor_status_rfc3161="valid",
+            anchor_independent_rfc3161="invalid",
+        ),
+    )
+    result = runner.invoke(app, ["verify", "sig_tampered", "--output", "json"])
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["verification_detail"]["anchor_independent_rfc3161"] == "invalid"
+    assert payload["signature_valid"] is False
+    assert payload["not_proven"] == [
+        "Completeness of the record set: a verifier sees only the receipts presented to it.",
+        "Honesty of the operator's inputs: a valid signature proves the record was signed, "
+        "not that its contents are true.",
+    ]

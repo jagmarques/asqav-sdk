@@ -709,6 +709,7 @@ class VerificationDetail:
     anchor_valid_rfc3161: bool | None = None
     anchor_status_ots: str | None = None
     anchor_status_rfc3161: str | None = None
+    anchor_independent_rfc3161: str | None = None
     missing_fields: list[str] | None = None
     policy_digest_resolved: bool | None = None
     duplicate_emission_candidate: bool | None = None
@@ -3804,6 +3805,7 @@ def verify_signature(signature_id: str) -> VerificationResponse:
             anchor_valid_rfc3161=detail_raw.get("anchor_valid_rfc3161"),
             anchor_status_ots=detail_raw.get("anchor_status_ots"),
             anchor_status_rfc3161=detail_raw.get("anchor_status_rfc3161"),
+            anchor_independent_rfc3161=detail_raw.get("anchor_independent_rfc3161"),
             missing_fields=detail_raw.get("missing_fields"),
             policy_digest_resolved=detail_raw.get("policy_digest_resolved"),
             duplicate_emission_candidate=detail_raw.get("duplicate_emission_candidate"),
