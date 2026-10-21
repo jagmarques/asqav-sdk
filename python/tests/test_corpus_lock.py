@@ -5,12 +5,21 @@ manifest.lock.json; the lock's own digest is pinned here and in each corpus
 README. This module re-derives every pin with hashlib + pathlib and fails loud
 on any drift. The second independent path re-derives the same pins through the
 sha256sum binary: verifier/check_corpus_lock.sh (CI runs both).
+
+The verifier corpus README also carries the generated vector index, so this
+module owns the index's format (criterion 821): the renderer produces it, the
+lock pins the bytes, and the negative control runs the real lock checker over
+a copy with an em dash written into the index.
 """
 
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -24,7 +33,10 @@ VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 # The lock digests, reproduced beside each lock's own digest field and in the corpus
 # READMEs. A regenerated lock that forgets to update these is drift, not a refresh.
 FINGERPRINT_LOCK_DIGEST = "511989671a21de1f8be82ab1c53a6e8f5c568e5c17abec25faeca0169b623877"
-VERIFIER_LOCK_DIGEST = "049f227de267e230b52911a4367874126d892d8f8d0d7ce8da4079171a0dd39c"
+VERIFIER_LOCK_DIGEST = "b8c2f2fd1c8b97c0f30a0e7a1cf71732ea56a65ad17ef86de87827b3bb865e8c"
+
+# The em dash, written as an escape so the guard does not carry the character it forbids.
+EM_DASH = "\u2014"
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -198,3 +210,76 @@ def test_walkthrough_fixtures_are_locked_corpus_bytes() -> None:
         assert (fixtures / fixture).read_bytes() == source.read_bytes(), (
             f"verifier/docs/fixtures/{fixture} drifted from {source}"
         )
+
+    # The generated vector index in the verifier corpus README (criterion 821).
+    # The renderer owns the format and the lock owns the bytes.
+
+
+def _renderer():
+    """The index renderer, loaded from the path the corpus lock pins."""
+    spec = importlib.util.spec_from_file_location(
+        "render_vector_list", _REPO_ROOT / "verifier" / "render_vector_list.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _vector_manifest() -> list[dict]:
+    return json.loads((VERIFIER_ROOT / "manifest.json").read_text(encoding="utf-8"))
+
+
+def _readme_bytes() -> bytes:
+    return (VERIFIER_ROOT / "README.md").read_bytes()
+
+
+def test_vector_list_lines_use_colon() -> None:
+    entries = _vector_manifest()
+    lines = _renderer()._render(entries)
+    assert len(lines) == len(entries)
+    for entry, line in zip(entries, lines, strict=True):
+        assert line.startswith(f"- `{entry['dir']}`: "), line
+        # One code span per line: a directory name that carries a backtick
+        # would break the span, and the index must not render it.
+        assert line.count("`") == 2, line
+        assert EM_DASH not in line, line
+
+
+def test_render_vector_list_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    renderer = _renderer()
+    target = tmp_path / "README.md"
+    target.write_bytes(_readme_bytes())
+    monkeypatch.setattr(renderer, "README", target)
+    assert renderer.main() == 0
+    first = target.read_bytes()
+    assert renderer.main() == 0
+    assert target.read_bytes() == first
+    assert first == _readme_bytes(), "the committed README is not the renderer's output"
+
+
+def test_readme_has_no_em_dash() -> None:
+    assert EM_DASH not in (VERIFIER_ROOT / "README.md").read_text(encoding="utf-8")
+
+
+def test_lock_rejects_em_dash_readme(tmp_path: Path) -> None:
+    # The negative control runs the real lock checker over a copy that carries
+    # an em dash, then re-freezes that copy and checks it a second time.
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    shutil.copytree(_REPO_ROOT / "verifier", corpus / "verifier")
+    shutil.copytree(_REPO_ROOT / "conformance", corpus / "conformance")
+    readme = corpus / "verifier" / "conformance-vectors" / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8") + " " + EM_DASH, encoding="utf-8")
+    check = corpus / "verifier" / "check_corpus_lock.sh"
+    drifted = subprocess.run(["bash", str(check)], capture_output=True, text=True)
+    assert drifted.returncode == 1, drifted.stdout + drifted.stderr
+    assert "README.md" in drifted.stdout + drifted.stderr
+    frozen = subprocess.run(
+        [sys.executable, str(corpus / "verifier" / "freeze_corpus_lock.py")],
+        capture_output=True,
+        text=True,
+    )
+    assert frozen.returncode == 0, frozen.stdout + frozen.stderr
+    refrozen = subprocess.run(["bash", str(check)], capture_output=True, text=True)
+    assert refrozen.returncode == 0, refrozen.stdout + refrozen.stderr
+
