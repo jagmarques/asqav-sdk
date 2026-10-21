@@ -169,17 +169,6 @@ covers it.
 - `asqav-55-heartbeat`: verified
 <!-- vectors-list:end -->
 
-Three vectors report on the namespace taxonomy.
-`asqav-37-unregistered-namespace-reported` carries the reason code
-`registered_but_unimplemented`: the namespace it uses is draft-registered but
-this verifier release does not implement it. The structure axis reports SKIPPED
-for it, and its directory name was set before the taxonomy fix.
-`asqav-38-protectmcp-unknown-invalid` carries a protectmcp-prefixed type that
-no registry carries. The structure axis FAILs it and the class is invalid.
-`asqav-39-foreign-namespace-reported` carries a foreign namespace that no
-registry carries. The structure axis stays SKIPPED and never FAIL for it. A
-future strictness must not harden that arm (criterion 625).
-
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;
 an incorrect three-key digest; a missing scope member; and a scope this profile
 does not define. Each acknowledgment
