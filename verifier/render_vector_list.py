@@ -8,7 +8,7 @@ The list lives between marker comments in verifier/conformance-vectors/README.md
     <!-- vectors-list:end -->
 
 Everything between the markers is replaced with one line per manifest entry, in
-manifest order: ``- `dir` — outcome (reason_code)`` (the parenthetical is
+manifest order: ``- `dir`: outcome (reason_code)`` (the parenthetical is
 omitted when reason_code is empty). Run twice: the second run must be a
 no-op, which is what makes the list drift-proof.
 
@@ -37,7 +37,7 @@ def _render(entries: list[dict]) -> list[str]:
         outcome = entry["outcome"]
         if entry.get("reason_code"):
             outcome = f"{outcome} ({entry['reason_code']})"
-        lines.append(f"- `{entry['dir']}` — {outcome}")
+        lines.append(f"- `{entry['dir']}`: {outcome}")
     return lines
 
 
