@@ -427,6 +427,11 @@ entry without a supplied predecessor or without exported copies omits `seq` or
 `outer_copies`. The parity test above also runs the CLI on the genesis vector and
 compares its axes with the offline API's list.
 
+`asqav audit-pack verify --offline` is a different surface by design: it reports a
+pack-level status (`verified`, `not_verifiable_offline`, `invalid`, `self_consistent`)
+and one status per entry, not the receipt axes above. The pack caveats it carries are
+listed under [Whole Audit Pack offline](#whole-audit-pack-offline).
+
 ## Anchor binding
 
 `anchors` sits outside the signed bytes, so that axis is the one an altered envelope
