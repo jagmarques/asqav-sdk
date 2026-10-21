@@ -33,7 +33,7 @@ VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 # The lock digests, reproduced beside each lock's own digest field and in the corpus
 # READMEs. A regenerated lock that forgets to update these is drift, not a refresh.
 FINGERPRINT_LOCK_DIGEST = "511989671a21de1f8be82ab1c53a6e8f5c568e5c17abec25faeca0169b623877"
-VERIFIER_LOCK_DIGEST = "b8c2f2fd1c8b97c0f30a0e7a1cf71732ea56a65ad17ef86de87827b3bb865e8c"
+VERIFIER_LOCK_DIGEST = "6f7608e069fe682af38de47344f0f76eda7730dc233ee739430955bc199dcf19"
 
 # The em dash, written as an escape so the guard does not carry the character it forbids.
 EM_DASH = "\u2014"
