@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   scan-pr-text:
+    # Dependabot bodies quote upstream release notes, which are not our writing
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
