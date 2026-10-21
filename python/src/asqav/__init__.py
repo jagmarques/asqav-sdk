@@ -196,7 +196,7 @@ from .verifier.verify_receipt import REGISTRY_EDITION as _REGISTRY_EDITION
 from .verifier.verify_receipt import REGISTRY_VERSION as _REGISTRY_VERSION
 from .verifier.verify_receipt import fetch_jwks
 
-__version__ = "0.10.13"
+__version__ = "0.10.14"
 __all__ = [
     # Initialization
     "init",
