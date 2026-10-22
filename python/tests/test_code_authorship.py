@@ -258,7 +258,7 @@ def test_unknown_capture_layer_not_authoritative() -> None:
 
 
 def test_non_object_envelope_rejected_cleanly() -> None:
-    verification = verify_code_authorship_envelope(None)  # type: ignore
+    verification = verify_code_authorship_envelope(None)  # type: ignore[arg-type]
     assert verification.passed is False
     assert "envelope_not_an_object" in verification.reasons
 

@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import ast
 import io
+import re
 import tokenize
 from pathlib import Path
 
+# NEGCTL: test_verbosity.py plants each bad input and runs it through scan.
 DOCSTRING_MAX_LINES = 6
 DOCSTRING_MAX_WIDTH = 100
 COMMENT_MAX_CHARS = 80
@@ -21,6 +23,8 @@ __all__ = [
     "scan",
 ]
 
+# A tool directive cannot be reworded, so it is not prose to measure.
+_PRAGMA = re.compile(r"#\s*(noqa\b|type:\s*ignore\b|pragma:|fmt:)")
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
 
@@ -64,7 +68,7 @@ def _comment_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
     lines = source.splitlines()
     reader = io.StringIO(source).readline
     for token in tokenize.generate_tokens(reader):
-        if token.type != tokenize.COMMENT:
+        if token.type != tokenize.COMMENT or _PRAGMA.match(token.string):
             continue
         if len(lines[token.start[0] - 1]) > COMMENT_MAX_CHARS:
             hits.append((path, token.start[0], "comment"))

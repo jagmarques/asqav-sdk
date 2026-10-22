@@ -106,17 +106,12 @@ def _install_llamaindex_mocks() -> None:
         "llama_index.core.callbacks.schema"
     )
 
-    handler_mod = llama_index_core_callbacks_base_handler
-    handler_mod.BaseCallbackHandler = BaseCallbackHandler  # type: ignore
-    llama_index_core_callbacks_schema.CBEventType = CBEventType  # type: ignore
+    llama_index_core_callbacks_base_handler.BaseCallbackHandler = BaseCallbackHandler  # type: ignore[attr-defined]
+    llama_index_core_callbacks_schema.CBEventType = CBEventType  # type: ignore[attr-defined]
 
-    llama_index_core_callbacks.base_handler = (  # type: ignore
-        llama_index_core_callbacks_base_handler
-    )
-    llama_index_core_callbacks.schema = (  # type: ignore
-        llama_index_core_callbacks_schema
-    )
-    llama_index_core.callbacks = llama_index_core_callbacks  # type: ignore
+    llama_index_core_callbacks.base_handler = llama_index_core_callbacks_base_handler  # type: ignore[attr-defined]
+    llama_index_core_callbacks.schema = llama_index_core_callbacks_schema  # type: ignore[attr-defined]
+    llama_index_core.callbacks = llama_index_core_callbacks  # type: ignore[attr-defined]
     llama_index.core = llama_index_core  # type: ignore[attr-defined]
 
     sys.modules["llama_index"] = llama_index

@@ -814,7 +814,7 @@ def _agent_jwks(sign: bool):
 def _ed25519_available() -> bool:
     try:
         import cryptography  # noqa: F401
-        import cryptography.hazmat.primitives.asymmetric.ed25519  # noqa: F401
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: F401
 
         return True
     except ImportError:

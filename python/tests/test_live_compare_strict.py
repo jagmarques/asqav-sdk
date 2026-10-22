@@ -53,9 +53,7 @@ def test_no_result_or_digest_channel() -> None:
     assert not any("digest" in name or "result" in name for name in names)
     allow, deny = _raw("conflict-allow"), _raw("conflict-deny")
     with pytest.raises(TypeError):
-        compare_live_strict(
-            allow, deny, first_result=_verify(allow)
-        )  # type: ignore
+        compare_live_strict(allow, deny, first_result=_verify(allow))  # type: ignore[call-arg]
 
 
 def test_strict_derives_envelope_from_the_verified_bytes() -> None:

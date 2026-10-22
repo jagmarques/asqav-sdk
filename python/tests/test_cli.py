@@ -1250,7 +1250,7 @@ def test_org_set_compliance_strict_requires_one_flag() -> None:
 def test_keys_generate_ed25519(tmp_path) -> None:
     pytest_skipif_no_crypto = False
     try:
-        from cryptography.hazmat.primitives.asymmetric import ed25519  # noqa
+        from cryptography.hazmat.primitives.asymmetric import ed25519  # noqa: F401
     except ImportError:
         pytest_skipif_no_crypto = True
     if pytest_skipif_no_crypto:

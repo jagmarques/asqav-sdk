@@ -41,7 +41,7 @@ sys.modules.setdefault(
     "litellm.integrations.custom_logger", _mock_custom_logger
 )
 
-from asqav.extras.litellm import AsqavSigningLogger, _content_digest  # noqa
+from asqav.extras.litellm import AsqavSigningLogger, _content_digest  # noqa: E402
 
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig_abc123",

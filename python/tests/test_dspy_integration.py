@@ -36,7 +36,7 @@ def _install_dspy_mocks() -> type:
     dspy_utils = ModuleType("dspy.utils")
     dspy_utils_callback = ModuleType("dspy.utils.callback")
 
-    dspy_utils_callback.BaseCallback = BaseCallback  # type: ignore
+    dspy_utils_callback.BaseCallback = BaseCallback  # type: ignore[attr-defined]
     dspy_utils.callback = dspy_utils_callback  # type: ignore[attr-defined]
     dspy.utils = dspy_utils  # type: ignore[attr-defined]
 

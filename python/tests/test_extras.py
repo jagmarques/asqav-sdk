@@ -56,16 +56,12 @@ def test_all_extra_includes_everything():
     all_deps = opt_deps["all"]
 
     # Each framework extra's deps should appear in 'all'
-    framework_extras = [
-        "httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents",
-    ]
+    framework_extras = ["httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents"]  # noqa: E501
     for extra in framework_extras:
         for dep in opt_deps[extra]:
             # Strip version specifiers for matching
             dep_name = dep.split(">=")[0].split("<=")[0].split("==")[0].strip()
-            all_dep_names = [
-                d.split(">=")[0].split("<=")[0].split("==")[0].strip() for d in all_deps
-            ]
+            all_dep_names = [d.split(">=")[0].split("<=")[0].split("==")[0].strip() for d in all_deps]  # noqa: E501
             assert dep_name in all_dep_names, (
                 f"Dep '{dep_name}' from extra '{extra}' not found in 'all'"
             )

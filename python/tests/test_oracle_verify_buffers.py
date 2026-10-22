@@ -6,13 +6,8 @@ import pytest
 
 pytest.importorskip("cryptography")
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import (  # noqa: E402
-    Ed25519PrivateKey,
-)
-from cryptography.hazmat.primitives.serialization import (  # noqa: E402
-    Encoding,
-    PublicFormat,
-)
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
 
 from asqav.verifier.oracle import crypto  # noqa: E402
 

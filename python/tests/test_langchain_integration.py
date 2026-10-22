@@ -40,9 +40,7 @@ def _install_langchain_mocks() -> type:
         "langchain_core.tracers",
         "langchain_core.tracers.context",
     ):
-        _original_modules[mod_name] = (  # type: ignore
-            sys.modules.get(mod_name, _MISSING)
-        )
+        _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)  # type: ignore[arg-type]
 
     # Create BaseCallbackHandler as a real class (not MagicMock) so MRO works.
     class BaseCallbackHandler:
@@ -77,19 +75,13 @@ def _install_langchain_mocks() -> type:
     langchain_core_tracers = ModuleType("langchain_core.tracers")
     langchain_core_tracers_context = ModuleType("langchain_core.tracers.context")
 
-    langchain_core_callbacks.BaseCallbackHandler = (  # type: ignore
-        BaseCallbackHandler
-    )
+    langchain_core_callbacks.BaseCallbackHandler = BaseCallbackHandler  # type: ignore[attr-defined]
     langchain_core_outputs.LLMResult = LLMResult  # type: ignore[attr-defined]
-    langchain_core_tracers_context.register_configure_hook = (  # type: ignore
-        register_configure_hook
-    )
-    langchain_core.callbacks = langchain_core_callbacks  # type: ignore
-    langchain_core.outputs = langchain_core_outputs  # type: ignore
-    langchain_core.tracers = langchain_core_tracers  # type: ignore
-    langchain_core_tracers.context = (  # type: ignore
-        langchain_core_tracers_context
-    )
+    langchain_core_tracers_context.register_configure_hook = register_configure_hook  # type: ignore[attr-defined]
+    langchain_core.callbacks = langchain_core_callbacks  # type: ignore[attr-defined]
+    langchain_core.outputs = langchain_core_outputs  # type: ignore[attr-defined]
+    langchain_core.tracers = langchain_core_tracers  # type: ignore[attr-defined]
+    langchain_core_tracers.context = langchain_core_tracers_context  # type: ignore[attr-defined]
 
     sys.modules["langchain_core"] = langchain_core
     sys.modules["langchain_core.callbacks"] = langchain_core_callbacks

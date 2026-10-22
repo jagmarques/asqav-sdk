@@ -71,6 +71,16 @@ def test_trailing_comment_is_measured_by_its_physical_line(tmp_path: Path) -> No
     assert scan(tmp_path) == [(path, 1, "comment")]
 
 
+def test_pragma_is_exempt_and_prose_beside_it_is_not(tmp_path: Path) -> None:
+    """NEGCTL: a long noqa or type pragma passes; a long prose comment fails."""
+    pad = "x" * 60
+    _write(tmp_path / "pragma.py", f"{pad} = 1  # noqa: E501 and more words\n")
+    _write(tmp_path / "typed.py", f"{pad} = 1  # type: ignore[attr-defined]\n")
+    assert scan(tmp_path) == []
+    prose = _write(tmp_path / "prose.py", f"{pad} = 1  # prose past the budget\n")
+    assert scan(tmp_path) == [(prose, 1, "comment")]
+
+
 def test_wide_docstring_line_fails(tmp_path: Path) -> None:
     """NEGCTL: a docstring line past the width budget is reported."""
     at = '"""' + "x" * (DOCSTRING_MAX_WIDTH - 6) + '"""\n'

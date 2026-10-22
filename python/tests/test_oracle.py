@@ -623,7 +623,7 @@ def test_four_way_format_exclusion() -> None:
 # --- agent-receipts adapter (W3C-VC AgentReceipt) + upstream interop ---
 
 from asqav.verifier.oracle.canonical import jcs_rfc8785  # noqa: E402
-from asqav.verifier.oracle.did import b58btc_decode, resolve_ed25519_key  # noqa
+from asqav.verifier.oracle.did import b58btc_decode, resolve_ed25519_key  # noqa: E402
 
 _INTEROP = _CORPUS / "agentreceipts-upstream-interop"
 
@@ -923,7 +923,7 @@ def test_aerf_malformed_parent_pdp_signature_fails_does_not_crash() -> None:
 
 # --- Authproof adapter (ES256 over insertion-order JSON.stringify) ---
 
-from asqav.verifier.oracle.adapters.authproof import AuthproofAdapter  # noqa
+from asqav.verifier.oracle.adapters.authproof import AuthproofAdapter  # noqa: E402
 
 
 def _authproof_receipt() -> dict:
@@ -993,9 +993,7 @@ def test_non_dict_receipt_fails_closed_never_crashes() -> None:
 # Pipelock EvidenceReceipt v2 adapter. Fixture: Go reference output from
 # luckyPipewrench/pipelock-verify-python@9eaff72; RFC 8032 7.1 test-1 signer key
 
-from asqav.verifier.oracle.adapters.pipelock import (  # noqa: E402
-    PipelockEvidenceAdapter,
-)
+from asqav.verifier.oracle.adapters.pipelock import PipelockEvidenceAdapter  # noqa: E402
 
 #: RFC 8032 test-1 public key (hex) - the Go reference uses it for all fixtures.
 _PIPELOCK_PUB_HEX = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
