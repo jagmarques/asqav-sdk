@@ -1,15 +1,5 @@
-"""The format-adapter seam - six methods that describe one receipt format.
-
-Everything format-specific lives behind this seam; everything shared (the JCS
-canonicaliser, the Ed25519 / ML-DSA verify, the SHA-256 chain walk, the vector
-runner) is infrastructure the core drives. A new format is one ``FormatAdapter``
-subclass, no change to the core.
-
-The single most error-prone divergence between formats is the signing input: some
-sign DIRECTLY over the canonical bytes, others hash-then-sign, and each strips a
-different field set before canonicalising. ``signing_input`` encodes that per
-format so the core never has to know.
-"""
+"""The format-adapter seam: six methods that describe one receipt format.
+Format-specific code lives here; the core drives only shared infrastructure."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -20,7 +10,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class VerificationContext:
-    """Caller-supplied comparison input for one invocation; never key material."""
+    """Caller-supplied comparison input; never key material."""
 
     originating_envelope: Any = None
     #: Wall-clock override the time axes evaluate against; None = now.
@@ -65,12 +55,7 @@ def resolve_evaluation_now(evaluation_time: Any) -> datetime | None:
 @dataclass(frozen=True)
 class SignatureMaterial:
     """The bytes and metadata needed to check one issuer signature.
-
-    Fields:
-      sig: raw signature bytes (already decoded from hex / base64url / multibase).
-      alg: algorithm token routed through ``crypto.verify_signature``.
-      kid: key identifier used by ``resolve_key`` to find the public key.
-    """
+    sig is raw bytes, alg routes the verifier, kid finds the key."""
 
     sig: bytes
     alg: str
@@ -80,14 +65,7 @@ class SignatureMaterial:
 @dataclass(frozen=True)
 class ChainStep:
     """The hash-chain linkage for one receipt.
-
-    Fields:
-      prev_field: the value of the format's previous-hash field, or None when the
-        format omits it on genesis (AERF) - distinct from an explicit-null genesis.
-      is_genesis: True when this receipt declares itself first on its chain.
-      recompute: callable(predecessor_doc) -> hex digest, encoding which bytes the
-        format hashes (e.g. AERF hashes the signable payload, sig excluded).
-    """
+    prev_field None on AERF genesis; is_genesis and recompute walk the chain."""
 
     prev_field: str | None
     is_genesis: bool
@@ -96,11 +74,7 @@ class ChainStep:
 
 class FormatAdapter(ABC):
     """One receipt format's binding to the shared verification core.
-
-    Subclasses implement the six methods below. ``name`` labels the format in
-    results and the vector manifest. ``detect`` is a cheap structural fingerprint
-    (no crypto) the dispatcher uses to pick the adapter for a parsed receipt.
-    """
+    Subclasses implement six methods; ``detect`` is a structural fingerprint."""
 
     #: Stable format label surfaced in results and the vector manifest.
     name: str = "abstract"
@@ -142,15 +116,8 @@ class FormatAdapter(ABC):
         pass
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
-        """Format-specific axes beyond structure / issuer-signature / chain.
-
-        Returns a list of ``(axis_name, result, note)`` where result is PASS /
-        FAIL / SKIPPED. The default is none; a format whose verification procedure
-        layers additional REQUIRED checks (a multi-signer counter-signature, a
-        policy-binding signature, a transparency-log inclusion proof) returns one
-        tuple per check so a missing-but-required or invalid layer FAILs the
-        verdict rather than passing on the issuer signature alone.
-        """
+        """Format-specific axes beyond structure, signature and chain.
+        ``(axis, result, note)`` per required check; a missing layer FAILs."""
         return []
 
     def seq_of(self, doc: dict) -> Any:
@@ -185,5 +152,5 @@ class FormatAdapter(ABC):
         self, doc: dict, predecessor: Any = None, predecessor_fmt: str | None = None,
         counterparty: Any = None,
     ) -> str | None:
-        """Refusal note or None; default no-op, the core reports a note early."""
+        """Refusal note or None; default no-op, the core notes it early."""
         return None

@@ -1,10 +1,5 @@
-"""Compare two live VerifyResults, then classify (488 C19, C5 core).
-
-The C12 compare and C13 classify steps never ran over live oracle output.
-This adapter maps both results to the retained shape and runs that same
-compare-before-classify path. Retention stays optional: digests ride as
-caller-stated input bytes, and predicate terms attach as AgreementRef.
-"""
+"""Compare two live VerifyResults, then classify. Both results map to
+the retained shape and run compare-before-classify; retention optional."""
 from __future__ import annotations
 
 import hashlib
@@ -82,7 +77,6 @@ def compare_live(
     second_bytes: bytes | None = None,
 ) -> Disagreement:
     """Map two live results to views, then compare and classify.
-
     Digests ride as caller-stated input bytes by default; pass the raw
     receipt bytes to bind them (a stated digest that is not the bytes'
     sha256 raises instead of classifying). Envelopes default-bind the
@@ -112,16 +106,7 @@ def compare_live_strict(
     second_context: VerificationContext | None = None,
 ) -> Disagreement:
     """Strict live compare: the entry verifies the bytes itself (488 C26, C29).
-
-    No digest or result parameter exists, so no unbound or foreign-result
-    call is expressible; digests derive from the stated bytes and both
-    compared results come from re-verifying those bytes under one context.
-    Envelopes derive from the same bytes (C29): caller terms attach, but a
-    stated kid/signature contradicting the bytes raises. Per-side trust
-    (C33): pass first_context/second_context to verify each side under
-    its own context; differing trust dims then classify instead of
-    hiding behind one shared context. Omitted sides fall back to
-    context, so existing single-context calls are unchanged."""
+    It takes no digest or result, so no call is unbound or foreign-result."""
     first_doc, second_doc = json.loads(first_bytes), json.loads(second_bytes)
     first = verify(first_doc, ADAPTERS,
                    context=first_context if first_context is not None else context)
@@ -209,17 +194,7 @@ def classify_and_attribute(
     agreement: object | None = None,
 ) -> tuple[Disagreement, SpecCase]:
     """Review a live reassessment against its retained original (488 C27).
-
-    The production caller of the attribution path: the original comes
-    from the store (missing retention raises instead of classifying),
-    the live result and reruns map to views, and attribute_split
-    classifies plus runs the spec-bug bar. Pure review: the store
-    is never mutated here. The live agreement is the caller-derived
-    envelope (488 C39b: re-derived from bytes, never stored); reruns
-    re-execute the same bytes so they share it. A ref-less retained
-    original predates ref retention (same digest, same derivability),
-    so the pair compares ref-less and the gap is named on the way
-    out; modern pairs compare ref to ref."""
+    The store is never mutated; a missing retention raises, never classifies."""
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")

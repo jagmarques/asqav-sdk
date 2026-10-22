@@ -1,17 +1,7 @@
-"""Universal neutral verifier - verify agent receipts across formats.
-
-The oracle EXTENDS the standalone Asqav verifier (``asqav/verifier/verify_receipt.py``)
-to verify rival and sibling receipt formats behind one seam. It proves only what
-a verifier can prove from the bytes: a valid signature over the canonical bytes,
-a reproducible hash-chain link, and structural presence at time T. It never
-attests behaviour or correctness of the recorded action.
-
-Public surface:
-  - ``FormatAdapter``  : the 6-method per-format seam.
-  - ``ADAPTERS``       : ordered registry the dispatcher walks for detection.
-  - ``verify``         : verify one parsed receipt; returns a ``VerifyResult``.
-  - ``VerifyResult`` / ``AxisResult`` : structured outcome.
-"""
+"""Universal neutral verifier for agent receipts across formats.
+It extends the standalone Asqav verifier to rival formats behind one seam."""
+# Formats plug in through ``FormatAdapter``; outcomes come back as
+# ``VerifyResult`` with per-axis ``AxisResult`` entries.
 from __future__ import annotations
 
 from .adapter import ChainStep, FormatAdapter, SignatureMaterial, VerificationContext
@@ -24,7 +14,7 @@ from .adapters.pipelock import PipelockEvidenceAdapter
 from .adapters.w3c_vc import W3cVcAdapter
 from .core import AxisResult, VerifyResult, verify
 
-#: Detection fingerprints are mutually exclusive, so registration order is not load-bearing.
+#: Fingerprints are exclusive, so registration order is not load-bearing.
 ADAPTERS: list[FormatAdapter] = [
     AsqavNativeAdapter(),
     AerfAdapter(),

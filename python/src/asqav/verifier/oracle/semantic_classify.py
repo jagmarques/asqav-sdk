@@ -1,28 +1,5 @@
-"""Independent failure classification for the oracle (criterion 574 D5a).
-
-Derived from criterion 418, not ported from any verifier's table: INVALID
-means a resolved key and a cryptographic binding failed; UNVERIFIABLE
-means the recompute could not complete. Each axis entry below cites the
-code contract proving its FAIL implies resolved inputs (unresolvable
-inputs SKIP upstream and never reach FAIL). The oracle's ``_axis``
-constructor uses ``classify``; a standing corpus gate proves behavior
-is preserved. Agreement of two independent derivations is evidence.
-
-Derivation per axis (418 invalid limb: resolved key + binding failed;
-anything unresolvable SKIPs upstream): signature SKIPs when no key
-resolves; key_status and issuer_bind only weigh a resolved entry;
-key_binding SKIPs when unrecomputable, FAILs malformed claims as
-signed-byte defects; counterparty SKIPs what it cannot resolve,
-FAILs malformed/mismatched claims; payload_digest FAILs on malformed
-shape or carried-context disagreement; outer_copies FAILs on
-disagreement with signed bytes; nonce FAILs on a proven duplicate
-pair; seq FAILs on withheld or malformed counters; parent/pdp
-signatures FAIL on absent-required or failed verification with
-resolved keys, SKIP otherwise; anchors FAILs on malformed/untrusted
-material, SKIPs when absent. Note-dependent axes (chain/skew/
-structure/expiry) split proven breaks from stops by note; anything
-unlisted never proves a break.
-"""
+"""Oracle failure classes (574 D5a, from 418): INVALID a resolved key and failed
+binding, UNVERIFIABLE a stopped recompute. _axis delegates to classify."""
 from __future__ import annotations
 
 from . import crypto
@@ -32,7 +9,7 @@ from . import crypto
 FAILURE_INVALID = "invalid"
 FAILURE_UNVERIFIABLE = "unverifiable"
 
-#: Axes whose FAIL proves a binding failed (418 invalid; see docstring).
+#: Axes whose FAIL proves a binding failed (418 invalid; see classify).
 _ALWAYS_INVALID_AXES = frozenset(
     {
         "signature",
@@ -52,13 +29,8 @@ _ALWAYS_INVALID_AXES = frozenset(
 
 
 def classify(axis: str, result: str, note: str) -> str | None:
-    """Map one axis outcome to its failure class (criterion 418).
-
-    PASS carries none; SKIPPED means the recompute could not complete.
-    A FAIL on a table axis is a proven binding failure (invalid); the
-    note-dependent axes below split proven breaks (invalid) from stops
-    (unverifiable); anything unlisted never proves a break.
-    """
+    """Map an axis outcome to its failure class; FAIL needs resolved inputs.
+    FAILs: seq a bad counter, parent/pdp no sig, key_binding a bad claim."""
     if result == crypto.PASS:
         return None
     if result == crypto.SKIPPED:
