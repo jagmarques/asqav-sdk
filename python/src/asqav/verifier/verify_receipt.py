@@ -17,8 +17,8 @@
 # Licensed Apache-2.0 (a file-level exception to the Elastic-2.0 SDK) so it
 # ships in the exit artifact as a free, dependency-light offline tool.
 
-"""Standalone Asqav receipt verifier: stdlib, optional crypto deps.
-Offline: signature, JCS bytes, chain, expiry, issuer binding, anchors."""
+"""Standalone Asqav receipt verifier: stdlib, optional crypto deps. Offline:
+signature, JCS, chain, expiry, issuer, anchors. A skipped check never PASSes."""
 
 from __future__ import annotations
 
@@ -516,8 +516,8 @@ def _raw_float(literal):
 
 
 def _parse_object(text: str, source: str) -> dict:
-    """Parse ``text`` as a JSON object, or raise VerifierInputError.
-    """
+    """Parse ``text`` as a JSON object, or raise VerifierInputError. Duplicate
+    names and ints past 2**53 are refused: last-wins bytes are never hashed."""
     if not text or not text.strip():
         raise VerifierInputError(f"{source}: empty input, expected a JSON object")
     try:
@@ -927,7 +927,7 @@ _PEM_BLOCK_RE = re.compile(rb"-----BEGIN [^-]+-----.*?-----END [^-]+-----\s*", r
 
 def _tsa_key_candidates(trusted_tsa_keys):
     """Split pinned TSA material into (raw key bytes, cryptography public keys).
-    """
+    Without cryptography PEM/X.509 entries read unverifiable, never trusted."""
     raw, pkeys = [], []
     try:
         from cryptography import x509
@@ -1057,8 +1057,8 @@ def _verify_tsa_signature(
 def _check_rfc3161_anchor(
     blob: bytes, bound: bytes, trusted_tsa_keys, env_jcs: bytes | None = None
 ) -> tuple[str, str, object]:
-    """One RFC 3161 anchor -> (outcome, detail, genTime when verified).
-    ``env_jcs`` re-derives the imprint for a non-sha256 algorithm."""
+    """One RFC 3161 anchor -> (outcome, detail, genTime when verified). Trust is
+    the pinned TSA keys, never the unsigned envelope. ``env_jcs``: imprints."""
     # Every DER walk stays inside this guard: an escaping exception exits 1
     # (invalid), claiming a binding failure for input never evaluated.
     try:
@@ -1245,8 +1245,8 @@ def _derive_block_id(header: dict, merkle_internal: bytes):
 
 
 def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, str, object]:
-    """One OpenTimestamps anchor -> (outcome, detail, block time).
-    The proof commitment must equal the envelope digest and reach a root."""
+    """One OpenTimestamps anchor -> (outcome, detail, block time). Commitment
+    must equal the envelope digest; with no header source, never a PASS."""
     try:
         if len(blob) > _OTS_MAX_BLOB or not blob.startswith(_OTS_MAGIC):
             raise _AnchorParseError("not a detached .ots proof")
@@ -1329,7 +1329,7 @@ ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash"
 
 def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None) -> AnchorEvaluation:
     """Cryptographically evaluate every anchor against the envelope digest.
-    """
+    Presence never PASSes; a trust bundle with a wrong digest SKIPs the axis."""
     anchors = envelope.get("anchors")
     # Absent is SKIPPED; a present non-list ({} / "" / 0) FAILs. run_structured
     # refuses a wire null at the structure gate; here None is absent or null.
@@ -1439,8 +1439,7 @@ def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None
 def normalise_envelope(raw: dict) -> dict:
     """Project any shape, including an Audit Pack export, onto the 3-key
     envelope; export-side ids and copies are dropped before any axis."""
-    # Demand a mapping envelope, a payload mapping, and a triple inside the
-    # signature slot.
+    # A signature object plus a payload dict: keep exactly the three members.
     sig = raw.get("signature")
     if isinstance(sig, dict) and isinstance(raw.get("payload"), dict):
         return {"payload": raw["payload"], "signature": sig, "anchors": raw.get("anchors")}
@@ -1506,8 +1505,8 @@ def _match_key_by_id(jwks: dict, kid: str):
 
 
 def _key_bound_to_claimant(k: dict, issuer_id, org_id=None):
-    """Return True when a key's published issuer or org equals the claim.
-    agent_id is attacker-controlled, so this claim bind decides the key."""
+    """True when a key's published issuer or org equals the claim. agent_id is
+    attacker-controlled, so this bind picks the key; hash mode signs org_id."""
     issuer_bound = issuer_id and issuer_id == k.get("issuer_id")
     org_bound = org_id and org_id == k.get("org_id")
     return bool(issuer_bound or org_bound)
@@ -1588,18 +1587,22 @@ def match_signing_key(
     jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None, key_thumbprint=None
 ):
     """Return the one jwks entry a receipt's signature is checked against.
-    """
-    # ``thumbprint`` tags the rotated key; ``org_id`` records the hash-mode
-    # agent; signed bytes enclose two labels.
+    Order carries the security: directory position binds nothing."""
+    # The signed key_thumbprint names one exact key, even after a rotation. If
+    # it names a non-signer, the agent bind finds the signer; key_binding FAILs.
     entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
     if entry is not None:
         return entry
     entry = _match_key_by_id(jwks, kid)
     if entry is not None:
         return entry
+    # The agent bind carries the org_id a hash-mode receipt signs, and runs
+    # before the loose match.
     entry = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
     if entry is not None:
         return entry
+    # Loosest: an org-shaped kid matches every sibling key alike, so list
+    # position would pick one; the exact matches above run first.
     return _match_key(jwks, kid)
 
 
@@ -1707,8 +1710,8 @@ _ORG_ID_RE = re.compile(
 
 
 def _is_org_id(value) -> bool:
-    """True for a canonical dashed UUID, the only form
-    an org id takes on the wire. Strict on purpose."""
+    """True for a canonical dashed UUID, the only org id form on the wire.
+    Strict: urn:uuid: or undashed text would false-FAIL an honest receipt."""
     return isinstance(value, str) and _ORG_ID_RE.fullmatch(value) is not None
 
 
@@ -2259,12 +2262,12 @@ def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
 
 
 def check_outer_copies(raw: dict, msg: bytes, key_bytes=None, key_kid=None):
-    """(result, note) for the outer_copies axis. ``raw`` is the entry as
-    received, ``msg`` the signed bytes, ``key_bytes``/``key_kid`` the key."""
-    # ``copies`` never appears in hash mode; the unsigned roster includes a
-    # ``key_id`` differing from ``key_kid``.
+    """(result, note) for the outer_copies axis. No signature covers an export's
+    plain copies, so each is compared with its signed value: mismatch FAILs."""
     payload = raw.get("payload") if isinstance(raw, dict) else None
     if not isinstance(payload, dict):
+        # A flat hash-mode receipt has no copies; list what it does not sign,
+        # including a key_id other than the verifying key_kid.
         if isinstance(raw, dict) and _is_flat_hash_receipt(raw):
             return _flat_outer_note(raw, key_bytes, key_kid)
         return "PASS", "no signed payload object; no outer copies compared"
@@ -2397,7 +2400,7 @@ _FULL_AXIS_ORDER = (
 
 def coverage_declaration(axes: list) -> dict:
     """The coverage block every result carries beside its non-coverage list.
-    """
+    stopped_at is None on a full run; an early return lists not_reached axes."""
     entries = [
         {
             "id": row["check"],
@@ -2422,10 +2425,10 @@ def coverage_declaration(axes: list) -> dict:
 
 
 def check_payload_digest(payload: dict) -> tuple[str, str, str]:
-    """Recompute payload_digest from the receipt's context.
-    """
-    # Omit this and a signer pairs a truthful context with an unrelated digest;
-    # all verifiers would accept it.
+    """Recompute payload_digest from the receipt's context. Absence PASSes:
+    hash mode and redacted receipts carry no context, which is ordinary."""
+    # Without this, a signer could pair a benign context with a digest that
+    # commits to other content and every verifier would pass it.
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no digest to recompute", "evaluated"
     digest = payload.get("payload_digest")
@@ -2535,6 +2538,8 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no counterparty binding to check"
     cpb = payload.get("counterparty_binding")
+    # Absence PASSes, the ordinary case. A claim this verifier cannot resolve
+    # SKIPs, which blocks, so it never reads as corroborated; malformed FAILs.
     if "counterparty_binding" not in payload:
         return "PASS", "no counterparty binding; content is unilaterally asserted"
     if not isinstance(cpb, dict):
@@ -2667,6 +2672,8 @@ def check_key_binding(payload: dict, alg, public_key):
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; binding not checked"
     claimed = payload.get("key_thumbprint")
+    # Legacy receipts bind no key; a skip would block every one, so PASS. An
+    # unrecomputable binding SKIPs, which blocks, so it never reads verified.
     if claimed is None:
         return "PASS", "receipt binds no key_thumbprint; binding not checked"
     if not is_well_formed(claimed):
@@ -2734,8 +2741,8 @@ SUPPORTED_REQUIRED_EXTENSIONS = frozenset({"beacon_ref"})
 
 
 def check_required_extensions(payload: dict, required) -> tuple[str, str]:
-    """Evaluate caller-required optional extensions (criterion 574-D3).
-    """
+    """Evaluate caller-required optional extensions (criterion 574-D3). SKIPPED
+    if absent or unsupported, so it never reads verified; FAIL if malformed."""
     if not isinstance(payload, dict):
         return "SKIPPED", "no signed payload; required extensions cannot be evaluated"
     for name in required or []:
@@ -3095,8 +3102,8 @@ def _signature_object(envelope: dict, payload: dict) -> dict:
 
 
 def check_rotation_succession(entry, eff_pk, prior_jwks):
-    """Report unevidenced rotation against retained evidence (628 T-b).
-    """
+    """Report unevidenced rotation against retained evidence (628 T-b). None if
+    unverified, unretained or still published; else SKIPPED, which blocks."""
     if prior_jwks is None or eff_pk is None or not isinstance(entry, dict):
         return None
     prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
