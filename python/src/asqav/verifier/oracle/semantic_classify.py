@@ -2,7 +2,7 @@
 INVALID means a resolved key and a binding failed; UNVERIFIABLE means the recompute could not complete.
 A FAIL needs resolved inputs, so an unresolvable one SKIPs upstream; the per-axis preconditions are
 in ``classify``. The axes in _ALWAYS_INVALID_AXES FAIL invalid; chain, skew, structure and expiry
-split proven breaks from stops by note; an unlisted axis is never a break."""
+split proven breaks from stops by note; a PASS carries none, and an unlisted axis is never a break."""
 # anchors FAILs on malformed or untrusted material, SKIPs when absent.
 from __future__ import annotations
 
