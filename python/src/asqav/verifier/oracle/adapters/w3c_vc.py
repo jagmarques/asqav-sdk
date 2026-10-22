@@ -1,8 +1,8 @@
 """W3C VC 2.0 adapter - DataIntegrityProof with the eddsa-jcs-2022 cryptosuite. A VC 2.0 envelope
 (``@context`` starting with the credentials/v2 URL, ``type`` with ``VerifiableCredential``,
 ``issuer``, ``credentialSubject``) secured by a ``DataIntegrityProof`` (eddsa-jcs-2022,
-vc-di-eddsa): Ed25519 signs ``SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))`` -
-strict RFC 8785 JCS over ``proof`` minus ``proofValue`` and credential minus ``proof``; base58btc
+vc-di-eddsa): Ed25519 (RFC 8032) signs ``SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))``
+- strict RFC 8785 JCS over ``proof`` minus ``proofValue`` and credential minus ``proof``; base58btc
 ``proofValue``. Structure is stricter than the suite spec (no normative proofPurpose check):"""
 # requires assertionMethod, binds the verificationMethod DID to the issuer DID,
 # fail-closed, mirroring the agentreceipts adapter.
