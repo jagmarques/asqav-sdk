@@ -194,6 +194,47 @@ def test_scan_reports_a_missing_path(tmp_path):
     assert conciseness.main(["--path", str(tmp_path / "absent.py")]) == 2
 
 
+def test_scan_reports_an_empty_tree(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert conciseness.main(["--path", str(empty)]) == 2
+
+
+def test_scan_counts_a_misplaced_string_statement(tmp_path):
+    copy = tmp_path / "misplaced.py"
+    body = "\n".join(f"    line {number}" for number in range(6))
+    copy.write_text(f'def f():\n    value = 1\n    """one\n{body}\n    """\n', encoding="utf-8")
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstrings == 1, counts.findings
+
+
+def test_scan_counts_an_f_string_statement(tmp_path):
+    copy = tmp_path / "fstring.py"
+    body = "\n".join(f"    line {number}" for number in range(6))
+    copy.write_text(f'def f():\n    value = 1\n    f"""one\n{body}\n    """\n', encoding="utf-8")
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstrings == 1, counts.findings
+
+
+def test_scan_reads_a_case_variant_file(tmp_path):
+    (tmp_path / "UPPER.PY").write_text("# " + "x" * 79 + "\n", encoding="utf-8")
+    counts = conciseness.scan_tree(tmp_path)
+    assert counts.files_scanned == 1
+    assert counts.comment_lines == 1, counts.findings
+
+
+def test_scan_follows_a_symlinked_directory(tmp_path):
+    target = tmp_path / "real"
+    target.mkdir()
+    (target / "linked.py").write_text("# " + "x" * 79 + "\n", encoding="utf-8")
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "link").symlink_to(target, target_is_directory=True)
+    counts = conciseness.scan_tree(tree)
+    assert counts.files_scanned == 1
+    assert counts.comment_lines == 1, counts.findings
+
+
 def test_verify_receipt_stdlib_only():
     tree = ast.parse(VERIFY_RECEIPT.read_text(encoding="utf-8"))
     roots: set[str] = set()
