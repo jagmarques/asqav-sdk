@@ -106,12 +106,17 @@ def _install_llamaindex_mocks() -> None:
         "llama_index.core.callbacks.schema"
     )
 
-    llama_index_core_callbacks_base_handler.BaseCallbackHandler = BaseCallbackHandler  # type: ignore[attr-defined]
-    llama_index_core_callbacks_schema.CBEventType = CBEventType  # type: ignore[attr-defined]
+    handler_mod = llama_index_core_callbacks_base_handler
+    handler_mod.BaseCallbackHandler = BaseCallbackHandler  # type: ignore
+    llama_index_core_callbacks_schema.CBEventType = CBEventType  # type: ignore
 
-    llama_index_core_callbacks.base_handler = llama_index_core_callbacks_base_handler  # type: ignore[attr-defined]
-    llama_index_core_callbacks.schema = llama_index_core_callbacks_schema  # type: ignore[attr-defined]
-    llama_index_core.callbacks = llama_index_core_callbacks  # type: ignore[attr-defined]
+    llama_index_core_callbacks.base_handler = (  # type: ignore
+        llama_index_core_callbacks_base_handler
+    )
+    llama_index_core_callbacks.schema = (  # type: ignore
+        llama_index_core_callbacks_schema
+    )
+    llama_index_core.callbacks = llama_index_core_callbacks  # type: ignore
     llama_index.core = llama_index_core  # type: ignore[attr-defined]
 
     sys.modules["llama_index"] = llama_index
@@ -156,7 +161,7 @@ def handler() -> AsqavLlamaIndexHandler:
 # === Subclass check ===
 
 
-    # AsqavLlamaIndexHandler must be a subclass of LlamaIndex BaseCallbackHandler.
+    # AsqavLlamaIndexHandler must subclass the LlamaIndex BaseCallbackHandler.
 def test_is_base_callback_handler_subclass() -> None:
     assert issubclass(AsqavLlamaIndexHandler, BaseCallbackHandler)
 
@@ -260,7 +265,7 @@ def test_on_event_start_reranking(handler: AsqavLlamaIndexHandler) -> None:
     )
 
 
-    # on_event_start signs llamaindex.sub_question.start for sub-question events.
+    # on_event_start signs llamaindex.sub_question.start for sub-questions.
 def test_on_event_start_sub_question(handler: AsqavLlamaIndexHandler) -> None:
     handler.on_event_start(CBEventType.SUB_QUESTION, {"sub_question": "why?"}, "evt-8")
     handler._sign_action.assert_called_once_with(
@@ -395,7 +400,7 @@ def test_on_event_end_ignores_chunking(handler: AsqavLlamaIndexHandler) -> None:
 # === on_event_start/end - user-configured event_starts_to_ignore ===
 
 
-    # Events in event_starts_to_ignore are skipped even if in _SIGNED_EVENT_TYPES.
+    # Events in event_starts_to_ignore are skipped even if signed
 def test_event_starts_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
     with (
         patch("asqav.client._api_key", "sk_test"),

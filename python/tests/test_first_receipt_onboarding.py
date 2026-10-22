@@ -314,7 +314,7 @@ def test_async_client_reads_config_set_by_init(stub: _Stub) -> None:
 
 
 def _python_blocks(output: str) -> list[str]:
-    # Sections between "--- title ---" lines that compile as Python and use asqav.
+    # Sections between "--- title ---" lines that compile as Python with asqav.
     blocks, current = [], []
     for line in output.splitlines() + ["--- end ---"]:
         if line.startswith("--- "):

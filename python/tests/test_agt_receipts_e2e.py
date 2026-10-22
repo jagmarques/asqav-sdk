@@ -1,8 +1,4 @@
-"""Asqav signs Microsoft AGT receipts and AGT's own verifier consumes the link (criterion 763).
-Runs the real AGT package against a local stand-in for the Asqav agent and sign endpoints on 127.0.0.1
-that mints ML-DSA-65 receipts. Nothing reaches api.asqav.com. ASQAV_AGT_REQUIRED=1 turns a missing AGT
-into a failure; ASQAV_AGT_PROFILE_REQUIRED=1 does the same for AGT's external-authorization profile.
-"""
+"""Asqav signs AGT receipts and AGT's own verifier consumes them (763)."""
 
 from __future__ import annotations
 

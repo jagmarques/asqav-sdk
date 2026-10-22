@@ -190,7 +190,7 @@ class _Platform:
 
 def _run_hook(platform: _Platform, tmp_path) -> subprocess.CompletedProcess[str]:
     """`asqav hook pretool` as the harness runs it, pointed at the local platform."""
-    # The tree under test comes first on the path, so a stale install cannot answer.
+    # The tree under test is first on the path; a stale install cannot answer.
     src = os.path.dirname(os.path.dirname(os.path.abspath(asqav.__file__)))
     env = {
         "PATH": os.environ.get("PATH", ""),

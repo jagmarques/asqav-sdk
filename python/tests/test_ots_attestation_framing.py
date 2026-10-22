@@ -1,11 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The OpenTimestamps attestation framing: varbytes payload, LEB128 height.
-An attestation serialises as tag + varbytes(payload); a Bitcoin attestation's payload is the height,
-LEB128 varuint (notary.py read_varuint, "unsigned little-endian base128"). The parser read the height varuint
-straight after the tag and grouped the bytes big-endian: asqav-24's proof (payload cb f6 3a, height 965451)
-read the length byte as height 3, leaving the height bytes "trailing"; no upgraded proof completed offline.
-"""
+"""The OpenTimestamps attestation framing: varbytes payload, LEB128 height."""
 
 from __future__ import annotations
 
@@ -66,7 +61,7 @@ def test_attestation_payload_with_a_lying_length_byte_raises() -> None:
 
 def test_attestation_payload_not_one_varuint_raises() -> None:
     """The height varuint must consume the payload exactly."""
-    # tag 0x00 + bitcoin tag + varbytes(len=2, payload 00 00): two varuints' worth.
+    # tag 0x00 + bitcoin tag + varbytes(len=2, payload 00 00): two varuints.
     blob = b"\x00" + bytes.fromhex("0588960d73d71901") + b"\x02\x00\x00"
     with pytest.raises(v._AnchorParseError):
         v._ots_item(0x00, blob, 1, b"\x00" * 32, 0, v._OtsState())

@@ -1,9 +1,4 @@
-"""Anti-vacuous tests for offline attestation verification (criterion 281).
-Prove the SDK re-derives the cloud's statementHash byte for byte from the original claim, that a
-tampered claim or receipt fails, and that a good receipt yields the distinct "verified_keyed"
-outcome (commitment not re-derivable) rather than a plain verified verdict. The golden statementHash
-was captured from the cloud route's merged canonicalization (src/asqav_cloud/api/routes/attestations.py),
-not a live call."""
+"""Anti-vacuous tests for offline attestation verification (criterion 281)."""
 
 from __future__ import annotations
 
@@ -43,7 +38,7 @@ _AGENT_ID = "agt_test"
 _ORG_ID = "org_test"
 
 
-    # Return (sign(message) -> bytes, verify(message, sig) -> bool) for a fresh key.
+    # Return (sign(msg) -> bytes, verify(msg, sig) -> bool) for a fresh key.
 def _ed25519_signer():
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -76,7 +71,7 @@ def _signed_message(claim: dict = _CLAIM) -> bytes:
     )
 
 
-    # Build a small Merkle tree and return (root, inclusionProof dict) for index.
+    # Build a small Merkle tree; return (root, inclusionProof dict) for index.
 def _tree_head_and_proof(index: int = 2, size: int = 4):
     leaves = [merkle_leaf_hash(f"entry-{i}".encode()) for i in range(size)]
     proof = merkle_inclusion_proof(leaves, index)

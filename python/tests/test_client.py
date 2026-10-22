@@ -112,7 +112,7 @@ def test_request_action(mock_post: object) -> None:
     # request_action includes params in the request body when provided.
 @patch("asqav.client._post")
 def test_request_action_with_params(mock_post: object) -> None:
-    mock_post.return_value = MOCK_SESSION_WITH_PARAMS  # type: ignore[attr-defined]
+    mock_post.return_value = MOCK_SESSION_WITH_PARAMS  # type: ignore
 
     params = {"target": "us-east-1", "version": "2.0"}
     result = asqav.request_action(

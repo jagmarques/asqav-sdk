@@ -42,8 +42,8 @@ def _install_strands_mocks() -> type:
     strands_hooks = ModuleType("strands.hooks")
     strands_hooks.HookProvider = HookProvider  # type: ignore[attr-defined]
     strands_hooks.HookRegistry = HookRegistry  # type: ignore[attr-defined]
-    strands_hooks.BeforeModelCallEvent = BeforeModelCallEvent  # type: ignore[attr-defined]
-    strands_hooks.AfterModelCallEvent = AfterModelCallEvent  # type: ignore[attr-defined]
+    strands_hooks.BeforeModelCallEvent = BeforeModelCallEvent  # type: ignore
+    strands_hooks.AfterModelCallEvent = AfterModelCallEvent  # type: ignore
     strands.hooks = strands_hooks  # type: ignore[attr-defined]
     sys.modules["strands"] = strands
     sys.modules["strands.hooks"] = strands_hooks

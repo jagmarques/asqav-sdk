@@ -220,7 +220,7 @@ async def test_async_sign(mock_post: AsyncMock) -> None:
 # === Async: verify signature ===
 
 
-    # AsyncAgent.verify calls httpx.AsyncClient.get, returns VerificationResponse.
+    # AsyncAgent.verify calls httpx.AsyncClient.get, returns the response.
 @pytest.mark.asyncio
 async def test_async_verify() -> None:
     from unittest.mock import patch as sync_patch
@@ -260,7 +260,10 @@ async def test_async_verify() -> None:
     )
 
     # Mock _get_config to return valid config
-    with sync_patch("asqav.async_client._get_config", return_value=("https://api.asqav.com/api/v1", "sk_test")):  # noqa: E501
+    with sync_patch(
+        "asqav.async_client._get_config",
+        return_value=("https://api.asqav.com/api/v1", "sk_test"),
+    ):
         # Mock httpx.AsyncClient
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response

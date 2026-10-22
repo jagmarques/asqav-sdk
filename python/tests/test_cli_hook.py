@@ -29,7 +29,7 @@ _PRETOOL_EVENT = {
 }
 
 
-    # Run `asqav hook <subcommand> --dry-run`, pipe event JSON, return parsed body.
+    # Run `asqav hook <subcommand> --dry-run` on event JSON; return the body.
 def _invoke_hook(subcommand: str, event: dict, extra_args: list[str] | None = None) -> dict:
     args = ["hook", subcommand, "--dry-run"] + (extra_args or [])
     result = runner.invoke(app, args, input=json.dumps(event))
@@ -40,7 +40,7 @@ def _invoke_hook(subcommand: str, event: dict, extra_args: list[str] | None = No
 # === posttool honesty invariant ===
 
 
-    # action_type is tool:<tool_name> for posttool, lowercased as sign() sends it.
+    # action_type is tool:<tool_name> for posttool, lowercased as sign() does.
 def test_posttool_dry_run_action_type() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
     assert body["action_type"] == "tool:bash"
@@ -79,7 +79,7 @@ def test_posttool_honesty_invariant_receipt_type() -> None:
     assert body["receipt_type"] == "protectmcp:observation:result_bound"
 
 
-    # posttool must never emit a :decision receipt (would be a false attestation).
+    # posttool never emits a :decision receipt (a false attestation).
 def test_posttool_no_decision_receipt_type() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
     assert body.get("receipt_type") != "protectmcp:decision"
@@ -131,7 +131,7 @@ def test_pretool_blocks_on_non_object_scalar() -> None:
     assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
 
 
-    # A well-formed event but no ASQAV_API_KEY/ASQAV_AGENT_ID must exit 2 (block).
+    # A well-formed event without ASQAV_API_KEY/ASQAV_AGENT_ID must exit 2.
 def test_pretool_blocks_on_missing_identity(monkeypatch) -> None:
     monkeypatch.delenv("ASQAV_API_KEY", raising=False)
     monkeypatch.delenv("ASQAV_AGENT_ID", raising=False)

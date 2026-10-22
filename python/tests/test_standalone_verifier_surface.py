@@ -1,9 +1,4 @@
-"""The standalone verifier artifact carries zero asqav producer dependency (421).
-verify_receipt.py is the exit-artifact tool: one file, stdlib plus optional cryptographic
-dependencies, no asqav producer module. The AST pins the import surface, and a subprocess runs the
-copied file in a bare directory with the asqav package refused at import time, against the
-published ML-DSA-65 receipt.
-"""
+"""The standalone verifier has zero asqav producer dependency (421)."""
 
 from __future__ import annotations
 
@@ -65,7 +60,7 @@ def _module_names() -> list[tuple[str, bool]]:
 
 def test_import_surface_is_stdlib_plus_optional_crypto_only() -> None:
     # cryptography joins dilithium_py as an optional lazy import: the RFC 3161
-    # check decodes pinned X.509 TSA certificates, degrades to unverifiable without.
+    # check decodes pinned X.509 TSA certificates, unverifiable without them.
     allowed = set(sys.stdlib_module_names) | {"dilithium_py", "cryptography"}
     for root, _lazy in _module_names():
         assert root != "asqav", "the standalone verifier must never import producer code"
@@ -141,12 +136,7 @@ sys.meta_path.insert(0, _RefuseAsqav())
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_standalone_file_verifies_the_published_receipt_without_asqav(tmp_path) -> None:
-    """The published receipt offline: imprint proven, TSA untrusted, never verified.
-    Since the cryptographic anchor check landed, presence no longer yields a verified verdict:
-    the receipt's RFC3161 token commits this envelope (the imprint matches), but the TSA trust
-    anchor is not pinned by this fixture, so the anchors axis reports unverifiable and the
-    verdict caps at unverified/unverifiable. A caller holding the TSA chain passes it via
-    --tsa-key for the full verified path (covered in test_exit_artifact_cli)."""
+    """The published receipt offline: imprint proven, TSA untrusted."""
     shutil.copy(VERIFIER_SOURCE, tmp_path / "verify_receipt.py")
     shutil.copy(FIXTURES / "published-receipt.json", tmp_path / "receipt.json")
     shutil.copy(FIXTURES / "published-jwks.json", tmp_path / "jwks.json")
@@ -175,7 +165,7 @@ def test_standalone_file_verifies_the_published_receipt_without_asqav(tmp_path) 
     assert "[  ok] signature" in proc.stdout, proc.stdout
     assert "[skip] anchors" in proc.stdout, proc.stdout
     assert "imprint matches" in proc.stdout, proc.stdout
-    # The lapsed signed expiry reports on its own axis and never folds the verdict
+    # The lapsed signed expiry reports on its own axis, never folds the verdict
     assert "[FAIL] expiry" in proc.stdout, proc.stdout
 
     receipt = json.loads((tmp_path / "receipt.json").read_text())

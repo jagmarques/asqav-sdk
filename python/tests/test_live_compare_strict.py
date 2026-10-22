@@ -1,9 +1,4 @@
-"""Strict live compare: the entry verifies the bytes itself (488 C26, C29).
-No digest or result parameter exists, so no unbound or foreign-result call is expressible; classification runs
-over re-verified bytes, and all oracle output here is live. C29 binds the verified envelope: the entry derives
-kid/signature from the same bytes it verifies (no envelope parameter exists, so no stated envelope is
-expressible except caller terms); a contradicting envelope raises.
-"""
+"""Strict live compare: the entry verifies the bytes itself (488 C26, C29)."""
 from __future__ import annotations
 
 import hashlib
@@ -58,7 +53,9 @@ def test_no_result_or_digest_channel() -> None:
     assert not any("digest" in name or "result" in name for name in names)
     allow, deny = _raw("conflict-allow"), _raw("conflict-deny")
     with pytest.raises(TypeError):
-        compare_live_strict(allow, deny, first_result=_verify(allow))  # type: ignore[call-arg]
+        compare_live_strict(
+            allow, deny, first_result=_verify(allow)
+        )  # type: ignore
 
 
 def test_strict_derives_envelope_from_the_verified_bytes() -> None:

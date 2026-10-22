@@ -1,9 +1,4 @@
-"""SDK-side tests for the counterparty acknowledgment binding (IETF -04).
-Covers: envelope_hash byte-stability (matches the cloud's compute_envelope_hash), compute_counterparty_binding
-default and explicit-locator paths, verify_counterparty_binding matches / mismatch / kid-mismatch / unresolved
-labels, verify_compliance_receipt binding presence blocks passing when scope or originating bytes are
-unavailable. The cloud is the authoritative verifier; these pin the SDK's local sanity-check
-semantics so customer-side reproduction stays byte-stable."""
+"""SDK-side tests for the counterparty acknowledgment binding (IETF -04)."""
 
 from __future__ import annotations
 

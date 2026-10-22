@@ -1,11 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The independent-runs registry is honest: every entry pins real history.
-``verifier/independent-runs.json`` records outside recomputations of the corpus.
-An entry naming a commit this repository never had, or a vector the corpus did
-not carry at that commit, is not evidence - it is marketing. These tests refuse
-both, keeping the file an append-only log of runs against bytes that existed.
-"""
+"""The independent-runs registry is honest: every entry pins real history."""
 
 from __future__ import annotations
 
@@ -123,7 +118,7 @@ def test_date_is_iso_and_the_code_flag_is_a_bool(entry: dict) -> None:
         date.fromisoformat(entry["date"])
     except ValueError:
         pytest.fail(f"{entry['id']}: date {entry['date']!r} is not an ISO date")
-    # bool must not slip in as 0/1: isinstance(True, int) is True, so check exact.
+    # bool must not slip in as 0/1 (isinstance(True, int)), so check the type.
     assert type(entry["uses_asqav_code"]) is bool
 
 

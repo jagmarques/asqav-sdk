@@ -1,9 +1,4 @@
-"""v:2 receipt acceptance in the neutral oracle verifier. The neutral verifier holds no org secret, so it
-cannot recompute the per-org ``_asqav_tid`` canary. It verifies the Ed25519 signature over the canonical
-body that INCLUDES ``signer`` + ``_asqav_tid``, surfaces ``signer`` in the verdict, and treats a missing
-canary as neutral (never a failure). Because ``signer`` sits inside the signed body, tampering it must
-FAIL verification. Byte-pinned to the backend v:2 signed body (context-store v2-signed-body-shape).
-"""
+"""v:2 receipt acceptance in the neutral oracle verifier."""
 from __future__ import annotations
 
 import copy
@@ -90,8 +85,8 @@ def test_v2_tampered_canary_corpus_vector_fails() -> None:
 def test_missing_canary_is_not_a_failure() -> None:
     receipt, jwks = _v2()
     del receipt["payload"]["_asqav_tid"]
-    # Re-sign is out of scope for the neutral verifier; dropping the field breaks
-    # the signature, so assert only that the absence itself raises no canary axis.
+    # Re-sign is out of scope for the neutral verifier; dropping the field
+    # breaks the signature, so assert only that absence raises no canary axis.
     res = verify(receipt, ADAPTERS, key_provider=jwks)
     assert not any(a.axis == "canary" for a in res.axes)
 
@@ -106,7 +101,7 @@ def test_v1_vector_still_verifies_and_exposes_no_signer() -> None:
     assert res.signer is None
 
 
-    # attestation() surfaces signer from the payload, not loose envelope metadata.
+    # attestation() surfaces signer from the payload, not loose envelope data.
 def test_adapter_attestation_reads_only_signed_payload() -> None:
     ad = AsqavNativeAdapter()
     receipt, _ = _v2()

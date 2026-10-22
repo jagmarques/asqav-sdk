@@ -16,6 +16,7 @@ import pytest
 from tests._verbosity import (
     COMMENT_MAX_CHARS,
     DOCSTRING_MAX_LINES,
+    DOCSTRING_MAX_WIDTH,
     python_files,
     scan,
 )
@@ -23,8 +24,8 @@ from tests._verbosity import (
 TESTS = Path(__file__).resolve().parent
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
-# NEGCTL: the planted inputs are a docstring one line over the budget, a
-# comment one character over it and a file the parser cannot read.
+# NEGCTL plants: a docstring, a docstring line and a comment one over budget,
+# an indented comment over it and a file the parser cannot read.
 
 
 def _write(path: Path, text: str) -> Path:
@@ -53,6 +54,30 @@ def test_long_comment_fails(tmp_path: Path) -> None:
     assert scan(tmp_path) == []
     over = _write(tmp_path / "over.py", "#" + "x" * COMMENT_MAX_CHARS + "\n")
     assert scan(tmp_path) == [(over, 1, "comment")]
+
+
+def test_indented_comment_is_measured_by_its_physical_line(tmp_path: Path) -> None:
+    """NEGCTL: a 79-char comment indented four spaces is an 83-char line."""
+    comment = "#" + "x" * (COMMENT_MAX_CHARS - 2)
+    assert len(comment) == COMMENT_MAX_CHARS - 1
+    path = _write(tmp_path / "indented.py", f"def f():\n    {comment}\n    return 1\n")
+    assert scan(tmp_path) == [(path, 2, "comment")]
+
+
+def test_trailing_comment_is_measured_by_its_physical_line(tmp_path: Path) -> None:
+    """NEGCTL: a short trailing comment on a long code line is reported."""
+    code = "value = " + "1 + " * 18 + "1"
+    path = _write(tmp_path / "trailing.py", f"{code}  # short\n")
+    assert scan(tmp_path) == [(path, 1, "comment")]
+
+
+def test_wide_docstring_line_fails(tmp_path: Path) -> None:
+    """NEGCTL: a docstring line past the width budget is reported."""
+    at = '"""' + "x" * (DOCSTRING_MAX_WIDTH - 6) + '"""\n'
+    _write(tmp_path / "at.py", at)
+    assert scan(tmp_path) == []
+    over = _write(tmp_path / "over.py", '"""' + "x" * (DOCSTRING_MAX_WIDTH - 5) + '"""\n')
+    assert scan(tmp_path) == [(over, 1, "docstring-width")]
 
 
 def test_unparseable_file_raises(tmp_path: Path) -> None:

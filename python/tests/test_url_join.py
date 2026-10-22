@@ -1,9 +1,4 @@
-"""URL-join regression tests for the stdlib (no-httpx) fallback.
-A plain `pip install asqav` ships without httpx, so the SDK falls back to urllib. That path used
-urljoin(base, "/agents/create"), and urljoin RESETS a leading-slash path to the host root: the
-/api/v1 prefix was stripped and the first quickstart call 404ed. These tests pin _join_url and
-that the urllib fallback requests the exact URL the httpx client would.
-"""
+"""URL-join regression tests for the stdlib (no-httpx) fallback."""
 
 import urllib.request
 from unittest.mock import MagicMock

@@ -399,6 +399,6 @@ def test_verify_hash_chain_actually_verifies_link_values() -> None:
     results = _verify_hash_chain(sigs_data)
     assert results[0] is True
     assert results[1] is False
-    # Third link's hash comes from sig 1's envelope (unchanged), so it stays True.
+    # Third link's hash comes from sig 1's envelope (unchanged): stays True.
     assert results[2] is True
 

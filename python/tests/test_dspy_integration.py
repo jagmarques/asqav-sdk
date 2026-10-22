@@ -36,7 +36,7 @@ def _install_dspy_mocks() -> type:
     dspy_utils = ModuleType("dspy.utils")
     dspy_utils_callback = ModuleType("dspy.utils.callback")
 
-    dspy_utils_callback.BaseCallback = BaseCallback  # type: ignore[attr-defined]
+    dspy_utils_callback.BaseCallback = BaseCallback  # type: ignore
     dspy_utils.callback = dspy_utils_callback  # type: ignore[attr-defined]
     dspy.utils = dspy_utils  # type: ignore[attr-defined]
 
@@ -109,7 +109,7 @@ def test_on_module_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
-    # on_module_end signs dspy.module.end with ok=False and exception name on error.
+    # on_module_end signs dspy.module.end with ok=False and the exception name.
 def test_on_module_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     cb.on_module_end("call-2", None, ValueError("bad input"))
     cb._sign_action.assert_called_once_with(

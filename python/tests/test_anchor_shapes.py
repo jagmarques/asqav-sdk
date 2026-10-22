@@ -1,11 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The three anchors wire shapes: absent, empty array, and null. Per the profile, an ABSENT member and one
-present as an EMPTY ARRAY are both conformant and mean the same thing (no anchor presented); a JSON null is
-a third shape found in the wild, is MALFORMED, and must be reported unverifiable, not read as either. None
-changes a digest: anchors sits outside the signed bytes, so asqav-17's Ed25519 signature stays valid under
-all three spellings, and the corpus twins (asqav-27 absent, asqav-28 null) pin the outcomes end to end.
-"""
+"""The three anchors wire shapes: absent, empty array, and null."""
 
 from __future__ import annotations
 

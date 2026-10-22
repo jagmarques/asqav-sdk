@@ -1,9 +1,4 @@
-"""W3C VC 2.0 eddsa-jcs-2022 adapter tests.
-
-Covers the DataIntegrityProof path: did:web resolution from an injected DID document (offline, fail-closed),
-did:key self-resolution, hashData signing, tamper rejection, the @context prefix transform and the validity
-window; corpus vectors w3c-vc-01..08 run through the shared runner; these tests pin the axis behaviour.
-"""
+"""W3C VC 2.0 eddsa-jcs-2022 adapter tests."""
 from __future__ import annotations
 
 import json
@@ -131,7 +126,7 @@ def test_w3c_vc_other_cryptosuite_is_algorithm_mismatch() -> None:
     assert res.failure_class == "invalid"
 
 
-    # proofPurpose must be assertionMethod for a credential assertion (fail closed).
+    # proofPurpose must be assertionMethod for a credential (fail closed).
 def test_w3c_vc_proofpurpose_must_be_assertion_method() -> None:
     doc = _load("w3c-vc-01-didweb-happy-path", "receipt.json")
     doc["proof"]["proofPurpose"] = "authentication"
@@ -139,7 +134,7 @@ def test_w3c_vc_proofpurpose_must_be_assertion_method() -> None:
     assert result == "FAIL" and "proofPurpose" in note
 
 
-    # An attacker's valid signature under an issuer-uncontrolled key never verifies.
+    # An attacker's valid sig under an issuer-uncontrolled key never passes.
 @requires_ed25519
 def test_w3c_vc_issuer_must_control_signing_key_no_impersonation() -> None:
     from cryptography.hazmat.primitives import serialization
@@ -155,8 +150,8 @@ def test_w3c_vc_issuer_must_control_signing_key_no_impersonation() -> None:
     ad = W3cVcAdapter()
     doc["proof"]["proofValue"] = "z" + _b58_encode(sk.sign(ad.signing_input(doc)))
     res = verify(doc, ADAPTERS)
-    assert res.axis("signature").result == crypto.PASS  # attacker's sig is cryptographically valid
-    assert res.axis("structure").result == crypto.FAIL  # but signing-key DID != issuer
+    assert res.axis("signature").result == crypto.PASS  # attacker sig valid
+    assert res.axis("structure").result == crypto.FAIL  # key DID != issuer
     assert res.verdict == "unverified"
     assert res.failure_class == "invalid"
 
@@ -164,7 +159,7 @@ def test_w3c_vc_issuer_must_control_signing_key_no_impersonation() -> None:
 _B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
-    # base58btc encoder for fixtures (mirrors the decoder pinned in test_oracle).
+    # base58btc encoder for fixtures (mirrors the decoder in test_oracle).
 def _b58_encode(data: bytes) -> str:
     num = int.from_bytes(data, "big")
     out = []
@@ -175,7 +170,7 @@ def _b58_encode(data: bytes) -> str:
     return "1" * pad + "".join(reversed(out))
 
 
-    # A proof @context that prefixes the document @context is signed and verifies.
+    # A proof @context that prefixes the document @context signs and verifies.
 @requires_ed25519
 def test_w3c_vc_proof_context_prefix_transform() -> None:
     from cryptography.hazmat.primitives import serialization

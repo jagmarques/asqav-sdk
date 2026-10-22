@@ -1,8 +1,4 @@
-"""Store hardening (488 C18): duplicate guard, orphan raise, link validation.
-A second original for the same bytes is rejected (reassess instead of shadowing); a reassessment without
-a retained original is rejected; a restored log whose reassessment links a missing or foreign original,
-whose original supersedes, or whose kind is unknown is rejected.
-"""
+"""Store hardening (488 C18): duplicate guard, orphan raise, link validation."""
 from __future__ import annotations
 
 import json

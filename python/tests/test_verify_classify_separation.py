@@ -1,17 +1,10 @@
-"""Classification lives at the review boundary, not in verify() (488 C38). `record`/`review` in `__main__.py`
-classify live input against a retained original; `retain.reassess_and_classify` is the retention caller:
-it raises unless an original exists, so both comparanda are real, and it imports only `disagreement`. The
-layer's other parts - adapters, dispatch, corpus runner, the store - hold no retained original and stay
-classification-free. TS has no oracle CLI, so the guard covers the Python oracle only (DECISION-C2-TS).
-"""
+"""Classification lives at the review boundary, not in verify() (488 C38)."""
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
 _ORACLE = Path(__file__).resolve().parent.parent / "src" / "asqav" / "verifier" / "oracle"
-
-# These tests read the sources; they change no product bytes.
 
 #: Files that verify or store but must never classify (488 C38).
 _PURE_FILES = [

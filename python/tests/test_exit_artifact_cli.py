@@ -1,9 +1,4 @@
-"""The exit-artifact command a customer is told to run, run as written.
-
-Other CLI tests call main() in-process, which cannot catch a file that stopped standing on its own
-or an import resolving only in the repo. This runs the real command in a subprocess, in a
-directory holding only the exit-artifact files, network blocked, over an anchored ML-DSA-65
-receipt: intact PASSes, tampered FAILs. The receipt is minted here, so both halves stay time-independent."""
+"""The exit-artifact command a customer is told to run, run as written."""
 
 from __future__ import annotations
 
@@ -56,8 +51,8 @@ except ImportError:  # pragma: no cover - optional dep
     _DILITHIUM_AVAILABLE = False
 
 
-    # An anchored ML-DSA-65 receipt plus the JWKS an export archives. The RFC3161
-    # token is real; the caller pins the TSA key (--tsa-key), presence never PASSes.
+    # An anchored ML-DSA-65 receipt plus the JWKS an export archives. The
+    # RFC3161 token is real; the caller pins the TSA key, presence never PASSes.
 def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
     import hashlib
 
@@ -78,7 +73,7 @@ def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
         "policy_digest": "sha256:" + "c" * 64,
         "previousReceiptHash": "0" * 64,
         "decision": "allow",
-        # Far future, so the run does not start failing on its own expiry one day.
+        # Far future, so the run does not start failing on its own expiry.
         "expires_at": "2099-01-01T00:00:00.000000Z",
     }
     sig = ML_DSA_65.sign(sk, vr.canonical_json(payload))
@@ -104,7 +99,7 @@ def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
 
 
     # Write the files an exit artifact carries, and nothing else. The pinned TSA
-    # key ships beside them the way the walkthrough's <asqav-tsa-chain.pem> does.
+    # key ships beside them as the walkthrough's <asqav-tsa-chain.pem> does.
 def _lay_out_exit_artifact(root: Path, receipt: dict, jwks: dict, tsa_pk: bytes) -> None:
     shutil.copy(VERIFIER_SOURCE, root / "verify_receipt.py")
     (root / "receipt.json").write_text(json.dumps(receipt))
@@ -138,7 +133,7 @@ def _run_documented_command(root: Path, *extra: str) -> subprocess.CompletedProc
     )
 
 
-    # Without this control, a passing offline run proves nothing about the network.
+    # Without it, a passing offline run proves nothing about the network.
 def test_the_network_block_actually_blocks(tmp_path: Path) -> None:
     (tmp_path / "sitecustomize.py").write_text(SITECUSTOMIZE)
     probe = "import urllib.request; urllib.request.urlopen('https://api.asqav.com/', timeout=5)"
@@ -168,12 +163,7 @@ def test_exit_artifact_command_passes_an_intact_pair(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_exit_artifact_command_without_tsa_key_never_passes_on_presence(tmp_path: Path) -> None:
-    """The documented command alone: anchors report unverifiable, never verified.
-
-    The token's imprint matches (the offline proof the timestamp covers these bytes), but
-    without pinned TSA key material the TSA signature cannot be trusted, so the
-    no-PASS-on-presence rule caps the verdict at unverified/unverifiable. The verified path
-    above adds --tsa-key."""
+    """The documented command alone: anchors unverifiable, never verified."""
     receipt, jwks, tsa_pk = _anchored_mldsa_pair()
     _lay_out_exit_artifact(tmp_path, receipt, jwks, tsa_pk)
     proc = _run_documented_command(tmp_path)
@@ -206,7 +196,7 @@ def test_exit_artifact_command_fails_a_tampered_jwks(tmp_path: Path) -> None:
     assert "=> unverified (failure_class: invalid)" in proc.stdout, proc.stdout
 
 
-    # The exit artifact ships one file, so it must not import the rest of the SDK.
+    # The exit artifact ships one file, so it must not import the SDK
 def test_the_verifier_file_stands_alone() -> None:
     source = VERIFIER_SOURCE.read_text()
     assert "SPDX-License-Identifier: Apache-2.0" in source

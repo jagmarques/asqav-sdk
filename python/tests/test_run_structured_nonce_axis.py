@@ -1,8 +1,4 @@
-"""run_structured reports the nonce axis that run() reports.
-run() took a seen_nonces index and reported a nonce axis; run_structured took no index and
-reported no such axis, so the same receipt checked through the two documented surfaces produced
-different axis lists, and a caller using the structured surface got no replay signal at all.
-"""
+"""run_structured reports the nonce axis that run() reports."""
 
 from __future__ import annotations
 

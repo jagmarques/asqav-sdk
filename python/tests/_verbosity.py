@@ -1,11 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The verbosity counter the python tests are held to.
-
-Two budgets: a docstring block spans at most six physical lines and a comment
-line at most eighty characters. The counter is stdlib only, and the tests
-drive it over a file they write (the NEGCTL cases).
-"""
+"""Verbosity counter: docstring 6 lines/100 columns, comment 80 columns."""
 
 from __future__ import annotations
 
@@ -15,9 +10,16 @@ import tokenize
 from pathlib import Path
 
 DOCSTRING_MAX_LINES = 6
+DOCSTRING_MAX_WIDTH = 100
 COMMENT_MAX_CHARS = 80
 
-__all__ = ["COMMENT_MAX_CHARS", "DOCSTRING_MAX_LINES", "python_files", "scan"]
+__all__ = [
+    "COMMENT_MAX_CHARS",
+    "DOCSTRING_MAX_LINES",
+    "DOCSTRING_MAX_WIDTH",
+    "python_files",
+    "scan",
+]
 
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
@@ -33,6 +35,7 @@ def python_files(root: Path) -> list[Path]:
 def _docstring_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
     """The docstrings of one source that span more than the budget."""
     hits: list[tuple[Path, int, str]] = []
+    lines = source.splitlines()
     tree = ast.parse(source, filename=str(path))
     for node in ast.walk(tree):
         if not isinstance(node, _OWNERS):
@@ -49,15 +52,21 @@ def _docstring_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
             continue
         if end - start + 1 > DOCSTRING_MAX_LINES:
             hits.append((path, start, "docstring"))
+        for number in range(start, end + 1):
+            if len(lines[number - 1]) > DOCSTRING_MAX_WIDTH:
+                hits.append((path, number, "docstring-width"))
     return hits
 
 
 def _comment_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
-    """The comment lines of one source that run past the budget."""
+    """The comment lines of one source whose line runs past the budget."""
     hits: list[tuple[Path, int, str]] = []
+    lines = source.splitlines()
     reader = io.StringIO(source).readline
     for token in tokenize.generate_tokens(reader):
-        if token.type == tokenize.COMMENT and len(token.string) > COMMENT_MAX_CHARS:
+        if token.type != tokenize.COMMENT:
+            continue
+        if len(lines[token.start[0] - 1]) > COMMENT_MAX_CHARS:
             hits.append((path, token.start[0], "comment"))
     return hits
 

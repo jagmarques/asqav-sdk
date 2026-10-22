@@ -30,7 +30,7 @@ _MISSING = object()
 _FAKE_CONFIGURE_HOOKS: list = []
 
 
-    # Inject fake langchain_core modules and return the BaseCallbackHandler class.
+    # Inject fake langchain_core modules; return the BaseCallbackHandler class.
 def _install_langchain_mocks() -> type:
     # Save originals so we can restore later
     for mod_name in (
@@ -40,7 +40,9 @@ def _install_langchain_mocks() -> type:
         "langchain_core.tracers",
         "langchain_core.tracers.context",
     ):
-        _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)  # type: ignore[arg-type]
+        _original_modules[mod_name] = (  # type: ignore
+            sys.modules.get(mod_name, _MISSING)
+        )
 
     # Create BaseCallbackHandler as a real class (not MagicMock) so MRO works.
     class BaseCallbackHandler:
@@ -75,13 +77,19 @@ def _install_langchain_mocks() -> type:
     langchain_core_tracers = ModuleType("langchain_core.tracers")
     langchain_core_tracers_context = ModuleType("langchain_core.tracers.context")
 
-    langchain_core_callbacks.BaseCallbackHandler = BaseCallbackHandler  # type: ignore[attr-defined]
+    langchain_core_callbacks.BaseCallbackHandler = (  # type: ignore
+        BaseCallbackHandler
+    )
     langchain_core_outputs.LLMResult = LLMResult  # type: ignore[attr-defined]
-    langchain_core_tracers_context.register_configure_hook = register_configure_hook  # type: ignore[attr-defined]
-    langchain_core.callbacks = langchain_core_callbacks  # type: ignore[attr-defined]
-    langchain_core.outputs = langchain_core_outputs  # type: ignore[attr-defined]
-    langchain_core.tracers = langchain_core_tracers  # type: ignore[attr-defined]
-    langchain_core_tracers.context = langchain_core_tracers_context  # type: ignore[attr-defined]
+    langchain_core_tracers_context.register_configure_hook = (  # type: ignore
+        register_configure_hook
+    )
+    langchain_core.callbacks = langchain_core_callbacks  # type: ignore
+    langchain_core.outputs = langchain_core_outputs  # type: ignore
+    langchain_core.tracers = langchain_core_tracers  # type: ignore
+    langchain_core_tracers.context = (  # type: ignore
+        langchain_core_tracers_context
+    )
 
     sys.modules["langchain_core"] = langchain_core
     sys.modules["langchain_core.callbacks"] = langchain_core_callbacks
@@ -100,7 +108,7 @@ def _remove_langchain_mocks() -> None:
         else:
             sys.modules[mod_name] = original  # type: ignore[assignment]
 
-    # Clear the cached asqav.extras.langchain module so imports re-check the guard.
+    # Clear the cached asqav.extras.langchain module so imports re-check.
     sys.modules.pop("asqav.extras.langchain", None)
 
 

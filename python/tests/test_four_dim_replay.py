@@ -1,9 +1,4 @@
-"""Four-dimension replay with declared per-dim effects (488 C17, C9 core). Event time varies as its
-own frozen doc variant (different issued_at, separately digest-keyed) under one shared context: it
-moves the skew axis. evaluation_time moves the expiry axis. policy_revision,
-evidence_knowledge_cutoff and trust_roots move nothing in the current oracle (declared passengers:
-the adapter reads none of them). Replay means re-execution from retained inputs, not store retrieval.
-"""
+"""Four-dimension replay with declared per-dim effects (488 C17, C9 core)."""
 from __future__ import annotations
 
 import hashlib

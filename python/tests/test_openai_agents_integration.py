@@ -24,7 +24,7 @@ sys.modules["agents.tracing"] = _mock_agents_tracing
 
 sys.modules.pop("asqav.extras.openai_agents", None)
 
-from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa: E402, I001
+from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa
 
 
 # === Helpers: a guardrail with mocked asqav internals ===
@@ -108,7 +108,7 @@ def test_input_truncation():
 # === Output guardrail tests ===
 
 
-    # run_output_guardrail signs an agent:output action with the name and output.
+    # run_output_guardrail signs an agent:output action with name and output.
 def test_output_guardrail_signs_action():
     guardrail = _make_guardrail()
     agent = _mock_agent("writer")
