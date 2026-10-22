@@ -32,7 +32,6 @@ htmlcov/
 .mypy_cache/
 Upsonic/
 .gstack/
-dist/
 
 # local tooling state (never commit)
 .company/
@@ -41,7 +40,6 @@ COMPANY.md
 .claude/
 .planning/
 .cursor/
-COMPANY.md
 CLAUDE.md
 
 # AI dev tool artefacts (not tracked, may contain session data)
@@ -57,3 +55,14 @@ CLAUDE.md
 
 # Local development files kept out of the published tree
 CHANGELOG.md
+
+# Local agent and session output: evidence goes into criteria, never the tree
+CLAUDE.local.md
+/results/
+/scratchpad/
+.relay/
+.playwright-mcp/
+.aider*
+.continue/
+.windsurf/
+.augment/
