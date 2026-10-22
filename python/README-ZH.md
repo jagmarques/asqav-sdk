@@ -4,7 +4,7 @@
   </a>
 </p>
 <p align="center">
-  AI Agent 合规凭证 - 审计追踪、审批、策略门控、合规报告
+  用 Asqav 验证智能体操作<br>为 AI 智能体的操作生成签名记录，客户和审计方无需信任你的日志即可核验。
 </p>
 <p align="center">
   <a href="https://github.com/jagmarques/asqav-sdk">English</a> | 中文文档
