@@ -14,30 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""One `action_ref` form across both corpora, and the three named exceptions.
-
-Every asqav-native `action_ref` carries the one wire form: ``sha256:<64
-lowercase hex>``. That is the whole rule - an opaque producer-chosen identifier
-is not a digest and does not join.
-
-NAMED EXCEPTIONS, deliberately not collapsed to ``sha256:`` +
-``payload_digest.hash`` (the form is the rule; equality with the payload digest
-is not - `action_ref` is a producer-asserted pointer, and nothing in the
-profile binds it to the payload digest):
-
-* ``asqav-06-mldsa65-payload-prod`` - a prod-shaped capture carrying a genuine
-  caller-supplied digest; the wire-legal case the corpus should contain.
-* ``asqav-12-time-edge-expiry`` - carries abab... against payload_digest
-  cdcd... precisely so a verifier confusing the two members fails; collapsing
-  them would delete that coverage while the vector still passed.
-* ``asqav-13-dup-member-nested`` - a duplicate-member refusal vector whose
-  empty-digest ref is deliberate.
-
-Every OTHER directory vector's `action_ref` equals ``sha256:`` +
-``payload_digest.hash``, which the generators now bind by construction; the
-second test keeps that invariant from drifting without enshrining it as a wire
-rule the format does not have.
+"""Every native `action_ref` in both corpora carries the wire form ``sha256:<64 lowercase hex>``;
+an opaque identifier is not a digest, does not join. EXCEPTIONS stay uncollapsed to
+``sha256:``+``payload_digest.hash``: form is rule, digest equality is not (`action_ref` is producer-asserted).
+asqav-06 (caller digest), asqav-12 (abab... vs payload cdcd..., so a verifier mixing them fails), asqav-13
+(dup-member refusal, empty digest). OTHER vectors equal ``sha256:``+``payload_digest.hash``.
 """
+# Collapsing the exceptions would delete that coverage while the vector still
+# passed; the second test keeps the invariant from drifting, not a wire rule.
 
 from __future__ import annotations
 

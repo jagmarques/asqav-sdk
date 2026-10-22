@@ -104,7 +104,7 @@ def test_manifest_covers_every_zone_with_controls() -> None:
     assert {"1e-07", "7.635507284768651e+16", "-0.0", "500.0", "0.5", "5e2", "-0"} <= lexemes
     assert all("binding" in c for c in MANIFEST if c["dir"].startswith("counterparty-"))
     assert sum(c["dir"].endswith("-tamper") for c in MANIFEST) == 10
-    # Integers past 2**53 in signed and unsigned positions, receipts and bindings alike.
+    # Integers past 2**53, signed and unsigned, receipts and bindings alike.
     unsafe = {c["dir"] for c in MANIFEST if c.get("unsafe_integer")}
     parts = ("receipt-unsafe-int-signed", "receipt-unsafe-int-unsigned",
              "receipt-unsafe-int-predecessor", "counterparty-")
