@@ -3,7 +3,7 @@ Returns the raw 32-byte Ed25519 key, or None when it cannot resolve without a ne
 is forbidden to touch. ``did:key`` resolves inline (multibase ``z`` base58btc -> the Ed25519
 frame); every other method resolves from the caller's injected map: a raw 32-byte key or the DID
 document a fetch would have returned. The oracle NEVER fetches a DID document; an unmapped DID
-returns None (fail closed). base58 is encoding, not crypto; the verify is in ``crypto.py``."""
+returns None (fail closed). base58 is encoding, not crypto; the verify stays in ``crypto.py``."""
 from __future__ import annotations
 
 import base64
@@ -17,6 +17,7 @@ _ED25519_MULTICODEC = b"\xed\x01"
 
 
     # Decode a base58btc string to bytes, preserving leading-zero bytes as '1's.
+    # The decoder is pinned by a unit test against the upstream did:key vectors.
 def b58btc_decode(text: str) -> bytes:
     num = 0
     for ch in text:

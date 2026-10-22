@@ -1,11 +1,11 @@
-"""AERF adapter - Ed25519 over RFC 8785 JCS, signed directly (no pre-hash). AERF receipts are flat: Ed25519
-over the RFC 8785 JCS bytes with the non-payload fields stripped (``_STRIP``), signed DIRECTLY; the chain
-hash is SHA-256 of the predecessor's signable payload (signature EXCLUDED), per the AERF SPEC: published spec
-vectors exclude the signature the producer includes, so this adapter targets the spec. Public keys are raw
-32-byte Ed25519; callers pass raw bytes or an RFC 8410 SPKI, decoded by ``_raw_ed25519``. An unverifiable
-layer (its key not supplied) reports SKIPPED: the core reads it as not fully verified, never a PASS."""
-# ``extra_axes`` adds the parent counter-signature and PDP binding over
-# ``{context_hash_sha256, in_policy, policy_hash}``.
+"""AERF adapter - Ed25519 over RFC 8785 JCS, signed directly (no pre-hash). AERF receipts are flat:
+Ed25519 over the RFC 8785 JCS bytes with the non-payload fields stripped (``_STRIP``); the chain hash is
+SHA-256 of the predecessor's signable payload (signature EXCLUDED), per the AERF SPEC, whose vectors
+exclude the signature the producer includes. Public keys are raw 32-byte Ed25519, or an RFC 8410 SPKI
+decoded by ``_raw_ed25519``. Two REQUIRED extra axes: the parent counter-signature and the PDP
+binding over {context_hash_sha256, in_policy, policy_hash}; an unverifiable layer never PASSes."""
+# No multi-signer receipt passes on the issuer signature alone, and the
+# binding keeps a context-A verdict off a context-B receipt.
 from __future__ import annotations
 
 from typing import Any

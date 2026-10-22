@@ -1,9 +1,9 @@
 """Asqav-native adapter - the existing verify_receipt logic. Two wire shapes route here, mutually exclusive:
 COMPLIANCE mode, the 3-key ``{payload, signature, anchors}`` envelope whose ML-DSA-65 signature covers
 the canonical bytes of ``payload``, and HASH mode, a FLAT receipt (``mode:"hash"``, ``payload:null``,
-``signature_b64``) over the flat 11-field object the cloud rebuilds (no pre-hash, no strip). Scope: signature, chain, structure
-only - NOT anchor liveness or skew. Key resolution and the compliance-mode structure check delegate to
-``verify_receipt``: both surfaces stay byte-for-byte identical; the oracle does not re-implement them."""
+``signature_b64``) over the flat 11-field object the cloud rebuilds (no pre-hash, no strip). Scope:
+signature, chain, structure only - NOT anchor liveness or skew. Key resolution and the compliance-mode
+structure check delegate to ``verify_receipt``: both surfaces stay byte-for-byte identical, not re-implemented here."""
 # Canonicalisation goes through ``asqav_jcs``, asserted byte-identical to
 # ``verify_receipt.canonical_json`` by the cloud-parity test.
 from __future__ import annotations

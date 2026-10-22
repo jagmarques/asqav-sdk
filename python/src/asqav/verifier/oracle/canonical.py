@@ -1,9 +1,9 @@
-"""Canonicalization shared across format adapters.
-Three callable shapes, because three signers disagree on "JCS": ``jcs`` (NFC, code-point keys,
-Python numbers - the AERF/ACTA Go dialect); ``jcs_rfc8785`` (RFC 8785: UTF-16 keys, ECMAScript
-numbers, NFC - what agent-receipts signs); ``asqav_jcs`` (the cloud's JCS without NFC,
-byte-identical to ``verify_receipt.canonical_json``). INTEROP: AERF SPEC.md §5.1 cites
-RFC 8785 but its Go reference keeps numbers verbatim, so ``1250.0`` signs as ``1250.0``."""
+"""Canonicalization shared across format adapters. Three signers disagree on "JCS":
+``jcs`` (NFC, code-point keys, Python numbers - the AERF/ACTA Go dialect); ``jcs_rfc8785`` (RFC 8785:
+UTF-16 keys, ECMAScript numbers, NFC - what agent-receipts signs); ``asqav_jcs`` (the cloud's JCS
+without NFC, byte-identical to ``verify_receipt.canonical_json``). ``jcs`` and ``jcs_rfc8785``
+diverge on supplementary-plane keys and on non-integral or large-magnitude numbers. INTEROP: AERF
+SPEC.md §5.1 cites RFC 8785; its Go reference keeps numbers verbatim (``1250.0`` stays ``1250.0``)."""
 from __future__ import annotations
 
 import json

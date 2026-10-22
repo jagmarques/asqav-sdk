@@ -1,9 +1,9 @@
 """ACTA adapter - Ed25519 over the JCS of the payload, signed directly. Targets
 draft-farley-acta-signed-receipts-02: Ed25519 over the JCS of ``payload``, no pre-hash, hex sig. Keys
 resolve from an injected JWK Set (OKP/Ed25519, base64url ``x``), never a live fetch. NOT checked,
-never a false pass: Commitment Mode, SHOULD-support ES256. Asqav-native stays disjoint by the encoding (ACTA hex,
-Asqav-native base64) plus the Asqav-only ``anchors`` key. ``_is_lower_hex`` is the shared discriminator.
-Upstream A2A receipts (no ``type``) get a relaxed schema: issued_at and the signature triple."""
+never a false pass: Commitment Mode (signing SHA-256(JCS(payload))), which the adapter neither
+implements nor tries as a second signing input, and SHOULD-support ES256. Asqav-native stays
+disjoint by the encoding (ACTA hex, base64) plus the Asqav-only ``anchors`` key."""
 # ``type`` lives inside ``payload``, so the signature covers it: removing or
 # altering it breaks the signature.
 from __future__ import annotations
