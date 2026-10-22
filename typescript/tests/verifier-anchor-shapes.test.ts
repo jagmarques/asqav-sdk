@@ -55,7 +55,7 @@ describe("anchors wire shapes", () => {
     expect(r.verdict).toBe("unverified");
     expect(r.failureClass).toBe("unverifiable");
     expect(r.firstFailingEdge).toBe("structure");
-    // The null never reads as "no anchors": no axis claims the skip
+    // null never reads as "no anchors"; no axis claims the skip
     expect(r.axes.some((a) => a.note === "no anchors on this receipt")).toBe(false);
   });
 

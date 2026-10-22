@@ -163,8 +163,7 @@ describe("verifySignature response fields", () => {
   });
 
   it("test_regimes_satisfied_present", async () => {
-    // Cloud added regimes_satisfied after the SDK projection landed; pin that
-    // the SDK parser now reads it
+    // Cloud /verify returns regimes_satisfied; pin that the SDK parser reads it
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(fullCloudPayload()),
     );
@@ -178,7 +177,7 @@ describe("verifySignature response fields", () => {
 
   it("test_anchor_type_accepts_opentimestamps_and_rfc3161", async () => {
     // _project_anchors emits "opentimestamps" (canonical) and
-    // "rfc3161". The SDK parser does not silently rewrite
+    // "rfc3161"; the parser does not rewrite them
     const payload = {
       ...fullCloudPayload(),
       anchors: [

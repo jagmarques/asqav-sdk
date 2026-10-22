@@ -10,7 +10,7 @@ function stampAt(offsetSeconds: number): string {
 }
 
 describe("the skew bound is one-sided", () => {
-  // A frozen clock keeps the boundary cases exact under slow CI workers
+  // A frozen clock keeps boundary cases exact on slow CI
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(Date.parse("2026-08-04T12:00:00Z"));

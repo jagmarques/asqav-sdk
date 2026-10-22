@@ -66,7 +66,7 @@ describe("Agent.create algorithm validation", () => {
   });
 
   // CLIENT-SIDE passthrough only: every member clears local validation
-  // Cloud acceptance is separate; it signs only ml-dsa-{44,65,87}
+  // Cloud signs only ml-dsa-{44,65,87}
   it("passes every SUPPORTED_ALGORITHMS member past client-side validation", async () => {
     for (const alg of SUPPORTED_ALGORITHMS) {
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -87,7 +87,7 @@ describe("Agent.create algorithm validation", () => {
     }
   });
 
-  // Pins the docstring: the rejection message enumerates all five
+  // Pins the docstring: the rejection lists all five
   it("rejection message lists exactly SUPPORTED_ALGORITHMS", async () => {
     await expect(
       Agent.create({ name: "x", algorithm: "rsa-2048" }),
@@ -113,7 +113,7 @@ describe("Agent.create algorithm validation", () => {
     expect(JSON.parse(calledInit.body as string).algorithm).toBe("ed25519");
   });
 
-  // Same as above for es256: client passthrough, not a cloud-acceptance claim
+  // es256: client passthrough, not a cloud-acceptance claim
   it("forwards es256 past client-side validation (mocked transport)", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
@@ -160,7 +160,6 @@ describe("local Ed25519 keypair + sign + verify round-trip", () => {
     expect(typeof sig).toBe("string");
 
     expect(verifyMessage("ed25519", kp.publicKeySpkiB64, message, sig)).toBe(true);
-    // Tamper detection
     const wrong = new TextEncoder().encode("hello asqav!");
     expect(verifyMessage("ed25519", kp.publicKeySpkiB64, wrong, sig)).toBe(false);
   });
@@ -174,7 +173,7 @@ describe("local ES256 keypair + sign + verify round-trip", () => {
     const message = new TextEncoder().encode("compliance receipt");
     const sig = signMessage("es256", kp.privateKeyPkcs8B64, message);
     // IEEE-P1363 / raw r||s for P-256 = 64 bytes = 88 base64 chars
-    // (with optional padding)
+    // (padding optional)
     const decoded = Buffer.from(sig, "base64");
     expect(decoded.length).toBe(64);
 

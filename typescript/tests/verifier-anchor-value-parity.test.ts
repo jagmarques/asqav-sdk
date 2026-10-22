@@ -21,7 +21,7 @@ const ENVELOPE = {
 };
 
 /** Axis result for one anchor value: FAIL on junk, SKIPPED (unverifiable) on
- * shape-valid non-tokens since the cryptographic anchor check landed */
+ * shape-valid non-tokens via the anchor crypto check */
 function axisFor(value: string): string {
   return checkAnchors({ ...ENVELOPE, anchors: [{ type: "rfc3161", value }] })[0];
 }

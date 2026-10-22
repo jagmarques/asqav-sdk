@@ -134,7 +134,7 @@ describe("destructive SQL write bypass fix", () => {
     expect(r.policyAllowed).toBe(true);
   });
 
-  // H3: case-variant and whitespace must not bypass the destructive augment
+  // H3: case or whitespace must not bypass the destructive augment
   it("uppercase DATA:WRITE:SQL:DELETE is blocked by a lowercase data:delete:* policy", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse(activeAgent))
@@ -185,7 +185,7 @@ describe("destructive SQL write bypass fix", () => {
     expect(r.policyAllowed).toBe(false);
   });
 
-  // M1: extended destructive verbs each match the delete augment
+  // M1: extended destructive verbs match the delete augment
   it.each(["GRANT", "REVOKE", "REPLACE", "COPY", "UPSERT"])(
     "data:delete:* policy blocks data:write:sql:%s (extended destructive verb)",
     async (verb) => {

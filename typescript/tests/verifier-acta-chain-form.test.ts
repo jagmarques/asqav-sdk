@@ -1,5 +1,5 @@
-// The ACTA chain recompute follows the form of the carried link (ACTA -03 §6.7)
-// Mirrors python/tests/test_acta_chain_form.py
+// ACTA chain recompute follows the carried link's form (ACTA -03 §6.7)
+// Python twin: test_acta_chain_form.py
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

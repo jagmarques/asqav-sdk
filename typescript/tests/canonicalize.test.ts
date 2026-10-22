@@ -154,7 +154,7 @@ describe("RFC 8785 astral key ordering", () => {
     expect(createHash("sha256").update(produced).digest("hex")).not.toBe(
       v.non_conformant_sha256,
     );
-    // Anti-vacuous: the rejected form is a reordering of the same members
+    // Anti-vacuous: the rejected form reorders the same members
     expect(Object.keys(JSON.parse(produced)).sort()).toEqual(
       Object.keys(JSON.parse(v.non_conformant_canonical)).sort(),
     );

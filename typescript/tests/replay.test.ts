@@ -116,7 +116,7 @@ describe("verifyChain (v2, IETF profile)", () => {
     ).toThrow(TypeError);
   });
 
-  // H12: chain digest scope matches cloud (payload-only, not full envelope)
+  // H12: chain digest scope matches cloud: payload only
   it("unwraps bundle-shaped envelopes and hashes only `payload`", () => {
     const p0 = makeEnvelope(0, FIRST_RECEIPT_SEED);
     const h0 = sha256Hex(canonicalJson(p0));
@@ -143,7 +143,7 @@ describe("verifyChain (v2, IETF profile)", () => {
 
   it("detects a single forged link in a 3-receipt chain", () => {
     const records = buildChain(3);
-    // Forge: rewrite the third record's previousReceiptHash to junk
+    // Forge the third record's previousReceiptHash
     (records[2].signedEnvelope as Record<string, unknown>).previousReceiptHash =
       "f".repeat(64);
     const result = verifyChain(records);

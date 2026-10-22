@@ -28,7 +28,7 @@ describe("cross-language adversarial case table", () => {
       const axes: Record<string, string> = {};
       for (const a of result.axes) axes[a.axis] = a.result;
       expect(result.verdict, `${c.name}: axes ${JSON.stringify(axes)}`).toBe(c.expect.verdict);
-      // invalid and unverifiable are never collapsed (criterion 418)
+      // invalid and unverifiable never collapse (criterion 418)
       expect(result.failureClass, `${c.name}: axes ${JSON.stringify(axes)}`).toBe(
         c.expect.failure_class,
       );

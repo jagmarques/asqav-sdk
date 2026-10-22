@@ -19,8 +19,7 @@ describe("generateNonce", () => {
   });
 
   it("uses globalThis.crypto so the ESM .mjs bundle does not require() crypto", () => {
-    // If require() were used, this test would throw in an ESM context
-    // Vitest runs in Node ESM mode, so a CJS require() shim would surface here
+    // Vitest runs as Node ESM, so a CJS require() shim would throw here
     expect(() => generateNonce()).not.toThrow();
   });
 });

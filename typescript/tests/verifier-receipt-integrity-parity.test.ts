@@ -106,7 +106,7 @@ describe("receipt-internal integrity parity", () => {
     });
   }
 
-  // Deleting any of the three adapter pushes fails here
+  // Deleting any adapter push fails here
   it("emits payload_digest, counterparty and skew from the oracle", () => {
     const axes = new Set(verify(receipt(), ADAPTERS, jwks()).axes.map((a) => a.axis));
     for (const name of ["payload_digest", "counterparty", "skew"]) {
@@ -146,7 +146,7 @@ describe("receipt-internal integrity parity", () => {
     expect(axis.failureClass).toBe("invalid");
   });
 
-  // Absence must PASS: a skip blocks every axis but chain
+  // Absence must PASS; a skip blocks all axes but chain
   it("does not block when neither claim is present", () => {
     const doc = receipt();
     const payload = doc.payload as Record<string, unknown>;

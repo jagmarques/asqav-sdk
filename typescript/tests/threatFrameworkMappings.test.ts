@@ -1,5 +1,4 @@
-// Threat-framework taxonomy fields: forwarded verbatim,
-// lists validated (<=128 chars)
+// Threat-framework taxonomy: forwarded verbatim, lists validated (<=128 chars)
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,7 +158,7 @@ describe("threat-framework taxonomy validation", () => {
     await fakeAgent().sign({ actionType: "api:call", context: {}, owaspAgenticTop10: values,
       owaspLlmTop10: ["LLM01"], complianceMode });
     const body = readBody(spy);
-    // TypeScript forwards populated taxonomy fields in both compliance modes
+    // Populated taxonomy fields are forwarded in both compliance modes
     expect(body.owasp_llm_top10).toEqual(["LLM01"]);
     expect(body.owasp_agentic_top10).toEqual(values);
     expect(body.framework_mappings_self_declared).toBeUndefined();

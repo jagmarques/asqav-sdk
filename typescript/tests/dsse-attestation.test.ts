@@ -96,7 +96,7 @@ describe("verifyAttestation - tamper detection (no network)", () => {
 
     const result = verifyAttestation(envelope, jwks);
     expect(result.verdict).toBe("FAIL");
-    // Structure stays well-formed; the signature is what binds the digest
+    // Structure stays well-formed; the signature binds the digest
     expect(result.axes.structure.result).toBe("PASS");
     expect(result.axes.signature.result).toBe("FAIL");
   });
@@ -113,7 +113,7 @@ describe("verifyAttestation - tamper detection (no network)", () => {
     const result = verifyAttestation(envelope, jwks);
     expect(result.verdict).toBe("FAIL");
     expect(result.axes.signature.result).toBe("FAIL");
-    // The key is still active; only the signature is broken
+    // Key still active; only the signature is broken
     expect(result.axes.key_status.result).toBe("PASS");
   });
 });
@@ -216,7 +216,7 @@ describe("verifyAttestation - structure guards (no network)", () => {
 describe("buildPae - DSSEv1 byte-exactness (known-answer)", () => {
   const enc = new TextEncoder();
   // Known-answer hex minted by the verbatim core/dsse.py pae() formula, so this
-  // pins buildPae to the backend byte-for-byte with no hand-copied constant
+  // pins buildPae to the backend byte-for-byte, no hand-copied constant
   const kat = loadJson(join(DIR, "pae_kat.json")) as {
     vectors: Array<{ name: string; payloadType: string; body: string; pae_ascii?: string; pae_hex: string }>;
   };

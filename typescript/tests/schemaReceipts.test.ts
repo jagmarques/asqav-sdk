@@ -90,7 +90,7 @@ describe("agent.sign contextSchema", () => {
     });
 
     const agent = fakeAgent();
-    // Supply keys in deliberate reverse alphabetical order
+    // Keys in reverse alphabetical order
     await agent.sign({
       actionType: "api:call",
       context: { userId: "u1", score: 3, active: true },
@@ -103,7 +103,7 @@ describe("agent.sign contextSchema", () => {
       const publicKeys = Object.keys(ctx).filter((k) => !k.startsWith("_"));
       expect(publicKeys).toEqual([...publicKeys].sort());
     }
-    // Even if context is hashed (hash mode), the fetch was reached
+    // Even in hash mode the fetch was reached
     expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0);
   });
 
@@ -160,7 +160,7 @@ describe("agent.sign contextSchema", () => {
     ).rejects.toThrowError(ValidationError);
 
     // Non-vacuity: if validation were removed, this assertion would fail
-    // because fetch would be called
+    // because fetch runs
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

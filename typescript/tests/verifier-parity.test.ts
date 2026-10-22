@@ -29,7 +29,7 @@ import {
 const CORPUS_ROOT = resolve(__dirname, "..", "..", "verifier", "conformance-vectors");
 
 function loadJson(path: string): Record<string, unknown> {
-  // Float-preserving so `500.0` literals survive to the canonicaliser
+  // Float-preserving so `500.0` reaches the canonicaliser
   return parseJsonPreservingFloats(readFileSync(path, "utf-8")) as Record<string, unknown>;
 }
 
@@ -39,7 +39,7 @@ describe("verifier parity gate (THE GATE)", () => {
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
 
-    // Print the same per-vector report the Python runner.main() prints
+    // Print the per-vector report Python's runner.main() prints
     const report = results
       .map((r) => {
         const mark = tolerated(r) ? "ok" : "FAIL";
@@ -69,7 +69,7 @@ describe("verifier parity gate (THE GATE)", () => {
       expect(r.expectedFailureClass, `${r.dir} pins a failure_class`).not.toBe("");
       expect(r.actualFailureClass, `${r.dir}: ${r.detail}`).toBe(r.expectedFailureClass);
     }
-    // Both criteria-418 classes are exercised by the corpus
+    // The corpus hits both criteria-418 classes
     const classes = new Set(unverified.map((r) => r.actualFailureClass));
     expect(classes).toContain("invalid");
     expect(classes).toContain("unverifiable");

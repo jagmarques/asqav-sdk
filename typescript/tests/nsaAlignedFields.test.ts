@@ -411,7 +411,7 @@ describe("Rule 11: digest_format_guard", () => {
   }
 
   // tool_fingerprint uses the bare cloud wire form (32 hex, no prefix),
-  // distinct from the self-describing sha256:<64-hex> form of the others
+  // unlike the others' sha256:<64-hex> form
   it("tool_fingerprint: 32 bare hex passes", async () => {
     const spy = vi
       .spyOn(globalThis, "fetch")

@@ -25,7 +25,7 @@ function makeFakeAgent(opts: { failWith?: Error } = {}) {
   return { agent, calls, sign };
 }
 
-// Wait one tick so fire-and-forget promises resolve
+// Lets fire-and-forget promises resolve
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("mapSpanNameToActionType", () => {

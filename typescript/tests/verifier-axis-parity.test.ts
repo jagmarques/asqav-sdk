@@ -1,5 +1,5 @@
 // Anchor, skew, expiry and nesting-depth parity, TS half. One JSON table drives
-// both verifiers; python/tests/test_axis_parity_cases.py reads the same file
+// both verifiers; python/tests/test_axis_parity_cases.py reads it
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -153,7 +153,7 @@ describe("anchor-binding axis parity", () => {
       const [result, note] = checkAnchors(c.envelope);
       expect(result, c.name).toBe(c.expect.result);
       // The digest in the note is the JCS of the envelope minus anchors, so an
-      // exact match also proves the two canonicalisers agree byte for byte
+      // exact match proves both canonicalisers agree byte for byte
       expect(note, c.name).toBe(c.expect.note);
     });
   }
@@ -173,7 +173,7 @@ describe("anchor divergence from the Python verifier", () => {
       const [result, note] = checkAnchors(c.envelope);
       expect(result, c.name).toBe(c.expect_ts.result);
       expect(note, c.name).toContain(c.expect_ts.note_contains);
-      // The divergence itself: Python reaches a verdict this shim cannot
+      // The divergence: Python reaches a verdict this shim cannot
       expect(result, c.name).not.toBe(c.expect_python.result);
     });
   }
@@ -203,7 +203,7 @@ describe("signed-expiry axis parity", () => {
   it("is populated in both directions", () => {
     expect(TABLE.expiry.length).toBeGreaterThanOrEqual(15);
     // A table of only-PASS or only-FAIL cases cannot tell a working axis from a
-    // stuck one, so both directions have to be present
+    // stuck one, so both must be present
     expect(new Set(TABLE.expiry.map((c) => c.expect.result))).toEqual(new Set(["PASS", "FAIL"]));
   });
 
@@ -224,7 +224,7 @@ describe("signed-expiry axis parity", () => {
 
   it("reads only the signed bytes", () => {
     // anchors and the envelope keys are unsigned, so an expires_at beside the
-    // payload must not move a lapsed receipt's window
+    // payload never moves a lapsed receipt's window
     const signed = { expires_at: "2020-01-01T00:00:00Z" };
     expect(checkExpiry(signed)[0]).toBe("FAIL");
     const raw = { payload: { ...signed }, signature: "AAAA", expires_at: "2099-01-01T00:00:00Z" };
@@ -255,7 +255,7 @@ describe("pipelock chain_prev_hash parity", () => {
 
   it("never reads a producer-set value as an absent link", () => {
     // A non-string chain_prev_hash narrowed to null would read as genesis and
-    // PASS the chain axis on a receipt Python leaves unchecked
+    // PASS a chain axis Python leaves unchecked
     const laundered = TABLE.chain_prev_hash
       .filter((c) => c.expect.chain === "SKIPPED")
       .filter((c) => {
@@ -294,7 +294,7 @@ describe("envelope normalisation parity", () => {
 
 describe("the verifier entry point publishes every axis helper", () => {
   // Callers reach these through `@asqav/sdk/verifier`. Drop the subpath and the
-  // in-repo imports still resolve while an installed package sees nothing
+  // in-repo imports resolve while an installed package sees nothing
   it("keeps the ./verifier subpath in the exports map", () => {
     const pkg = JSON.parse(
       readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"),
@@ -445,7 +445,7 @@ describe("nesting-depth gate parity", () => {
 
   it("returns a verdict instead of exhausting the stack", () => {
     // Nesting inside the signed payload reaches the recursive JCS encoder,
-    // which throws RangeError out of the call without the gate
+    // which throws RangeError without the gate
     let node: Record<string, unknown> = { leaf: 1 };
     for (let i = 0; i < 20000; i++) node = { n: node };
     const receipt = nestedReceipt(0);

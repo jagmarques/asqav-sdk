@@ -15,7 +15,7 @@ function load(vec: string, name: string): Record<string, unknown> {
 }
 
 function withSeq(doc: Record<string, unknown>, seq: unknown): Record<string, unknown> {
-  // Injection breaks the signature, so assertions read the seq axis directly
+  // Injection breaks the signature, so read the seq axis directly
   const out = JSON.parse(JSON.stringify(doc));
   (out.payload as Record<string, unknown>).seq = seq;
   return out;
@@ -70,7 +70,7 @@ describe("seq continuity axis", () => {
     const axis = res.axes.find((a) => a.axis === "seq")!;
     expect(axis.result).toBe(FAIL);
     expect(axis.note).toContain("3 receipt(s) withheld between 7 and 11");
-    // A proven omission is a binding failure, not an incomplete recompute
+    // Proven omission: a binding failure, not an incomplete recompute
     expect(axis.failureClass).toBe("invalid");
     expect(res.verdict).toBe("unverified");
   });
@@ -125,7 +125,7 @@ describe("seq continuity axis", () => {
   });
 
   it("refuses a counter pasted onto a hash-mode receipt", () => {
-    // Hash mode signs flat fields only, so a pasted seq is an unsigned claim
+    // Hash mode signs flat fields only; a pasted seq is unsigned
     const doc = load("asqav-05-hash-mode-prod", "receipt.json");
     const jwks = load("asqav-05-hash-mode-prod", "jwks.json");
     const clean = verify(doc, ADAPTERS, jwks, null);

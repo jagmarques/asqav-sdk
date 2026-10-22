@@ -78,7 +78,7 @@ describe("RECEIPT_TYPE_NAMESPACE", () => {
         "protectmcp:lifecycle:risk_acceptance",
         "protectmcp:observation",
         // NSA CSI U/OO/6030316-26 alignment (cloud 0.5.0): result-bound
-        // observation receipts use the `:result_bound` suffix
+        // observation receipts use `:result_bound`
         "protectmcp:observation:result_bound",
         "protectmcp:restraint",
       ],
@@ -308,7 +308,7 @@ describe("agent.sign capture_topology + observation wire fields", () => {
       policyDecision: value.startsWith("protectmcp:lifecycle") ? "none" : "permit",
     };
     // Rule 9 (NSA CSI U/OO/6030316-26 alignment): configuration_change
-    // receipts MUST carry config_manifest_digest
+    // MUST carry config_manifest_digest
     if (value === "protectmcp:lifecycle:configuration_change") {
       opts.configManifestDigest = `sha256:${"0".repeat(64)}`;
     }

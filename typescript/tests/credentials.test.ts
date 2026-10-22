@@ -97,7 +97,7 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
     return home;
   }
 
-  // Run a callback in an empty temp cwd (for `init` framework detection)
+  // Run fn in an empty temp cwd for `init` framework detection
   async function inTempCwd(fn: (cwd: string) => Promise<void>): Promise<void> {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "asqav-cwd-"));
     tempDirs.push(cwd);

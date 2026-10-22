@@ -315,7 +315,7 @@ describe("Agent.sign body shape across modes", () => {
       (fetchSpy.mock.calls[0]![1] as RequestInit).body as string,
     );
 
-    // A keyed digest must never be labelled plain sha256 on the wire
+    // A keyed digest must never be labelled plain sha256
     expect(plainBody.hash_algo).toBe("sha256");
     expect(saltedBody.hash_algo).toBe("hmac-sha256");
     expect(saltedBody.hash.startsWith("sha256:")).toBe(true);

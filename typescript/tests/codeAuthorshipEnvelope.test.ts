@@ -153,7 +153,7 @@ describe("submitCodeAuthorship", () => {
     expect(body.author).toBe("human:alice@example.com");
     expect(body.anchor).toBe("https://github.com/owner/repo/pull/7");
 
-    // The authoritative subject digest is the SERVER value, not the client's
+    // The subject digest is the SERVER value, not the client's
     expect(result.subjectDigest).toBe(SERVER_HEX);
     expect(result.serverDigest).toBe("sha256:" + SERVER_HEX);
     expect(result.captureLayer).toBe("github_sha_pull");

@@ -162,8 +162,7 @@ describe("agent.sign with detectors", () => {
   it("allow detector: sign POST is called and _detectors in context", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    // First call: agent create (GET /agents/agt_det_test)
-    // Since we use Agent.attach, only the sign POST happens
+    // Agent.attach skips the GET; only the sign POST happens
     fetchSpy.mockResolvedValueOnce(jsonResponse(okBody()));
 
     registerDetector(allowDetector);

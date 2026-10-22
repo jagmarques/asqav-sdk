@@ -1,5 +1,5 @@
-// Loader for verifier/counterparty-float-cases.json, the shared float table
-// Its expected hashes are Python's compute_envelope_hash output
+// Loads verifier/counterparty-float-cases.json, the shared float table
+// Expected hashes are Python's compute_envelope_hash output
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
