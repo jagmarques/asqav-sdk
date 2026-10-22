@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The counter holds the python tests to the docstring and comment budgets.
 
-Every test here drives the real counter over a file it writes, so a bad input
-is measured the same way the python tests are.
+The bad inputs are planted in a file the test writes, so they are measured the
+same way the python tests are; two tests measure the tree itself.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ from tests._verbosity import (
 TESTS = Path(__file__).resolve().parent
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
-# NEGCTL: the planted inputs are a docstring one line over the budget and a
-# comment one character over it.
+# NEGCTL: the planted inputs are a docstring one line over the budget, a
+# comment one character over it and a file the parser cannot read.
 
 
 def _write(path: Path, text: str) -> Path:
