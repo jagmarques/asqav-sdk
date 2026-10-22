@@ -1,16 +1,9 @@
 """Agreement/predicate reference and comparanda comparison (488 C12, C29).
-
-One of C5's seven comparanda has no object anywhere: the cross-organization
-agreement/predicate version. Decision (recorded 2026-10-16, reversible):
-reference terms by id + version + sha256 of canonical terms bytes; never
-embedded, never minting authority. The compare step reports per-comparandum
-equality only; classification stays a later slice.
-
-C29 binds the verified envelope: AgreementRef carries the kid + signature
-the bytes were verified under, derived from those bytes through the adapter
-seam (never caller-stated). A stated envelope that contradicts the bytes
-raises instead of classifying (the C24 digest rule, applied to the envelope).
-Terms stay caller-attached: the cross-org terms object does not exist yet."""
+One of C5's seven comparanda has no object: the cross-organization agreement/predicate version.
+Decision (2026-10-16, reversible): reference terms by id + version + sha256 of canonical bytes;
+never embedded, never minting authority. The compare step reports per-comparandum equality only;
+classification stays a later slice. C29 binds the verified envelope from the bytes, never caller-stated
+(see AgreementRef). Terms stay caller-attached: the cross-org terms object does not exist yet."""
 from __future__ import annotations
 
 import hashlib

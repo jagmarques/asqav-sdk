@@ -1,28 +1,10 @@
-"""Independent failure classification for the oracle (criterion 574 D5a).
-
-Derived from criterion 418, not ported from any verifier's table: INVALID
-means a resolved key and a cryptographic binding failed; UNVERIFIABLE
-means the recompute could not complete. Each axis entry below cites the
-code contract proving its FAIL implies resolved inputs (unresolvable
-inputs SKIP upstream and never reach FAIL). The oracle's ``_axis``
-constructor uses ``classify``; a standing corpus gate proves behavior
-is preserved. Agreement of two independent derivations is evidence.
-
-Derivation per axis (418 invalid limb: resolved key + binding failed;
-anything unresolvable SKIPs upstream): signature SKIPs when no key
-resolves; key_status and issuer_bind only weigh a resolved entry;
-key_binding SKIPs when unrecomputable, FAILs malformed claims as
-signed-byte defects; counterparty SKIPs what it cannot resolve,
-FAILs malformed/mismatched claims; payload_digest FAILs on malformed
-shape or carried-context disagreement; outer_copies FAILs on
-disagreement with signed bytes; nonce FAILs on a proven duplicate
-pair; seq FAILs on withheld or malformed counters; parent/pdp
-signatures FAIL on absent-required or failed verification with
-resolved keys, SKIP otherwise; anchors FAILs on malformed/untrusted
-material, SKIPs when absent. Note-dependent axes (chain/skew/
-structure/expiry) split proven breaks from stops by note; anything
-unlisted never proves a break.
-"""
+"""Independent failure classification for the oracle (574 D5a). Criterion 418, not a verifier's table:
+INVALID means a resolved key and a binding failed; UNVERIFIABLE means the recompute could not complete.
+Each axis cites the contract proving its FAIL implies resolved inputs; unresolvable SKIPs upstream. Axes
+in _ALWAYS_INVALID_AXES FAIL invalid; key_binding SKIPs when unrecomputable, FAILs malformed claims as
+signed-byte defects; counterparty SKIPs what it cannot resolve, FAILs a malformed/mismatched claim; chain,
+skew, structure and expiry split proven breaks from stops by note; an unlisted axis is never a break."""
+# anchors FAILs on malformed or untrusted material, SKIPs when absent.
 from __future__ import annotations
 
 from . import crypto
@@ -53,12 +35,12 @@ _ALWAYS_INVALID_AXES = frozenset(
 
 def classify(axis: str, result: str, note: str) -> str | None:
     """Map one axis outcome to its failure class (criterion 418).
-
-    PASS carries none; SKIPPED means the recompute could not complete.
-    A FAIL on a table axis is a proven binding failure (invalid); the
-    note-dependent axes below split proven breaks (invalid) from stops
-    (unverifiable); anything unlisted never proves a break.
+    PASS carries none; SKIPPED means the recompute could not complete. A table-axis
+    FAIL is a proven binding failure (invalid); note-dependent axes split proven
+    breaks (invalid) from stops (unverifiable); an unlisted axis never proves a break.
     """
+    # The oracle's ``_axis`` constructor uses this; a standing corpus gate proves
+    # behavior is preserved.
     if result == crypto.PASS:
         return None
     if result == crypto.SKIPPED:

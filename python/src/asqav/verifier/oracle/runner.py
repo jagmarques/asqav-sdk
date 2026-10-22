@@ -1,20 +1,9 @@
 """Conformance-vector runner - drive the oracle over the vector corpus.
-
-The corpus uses the AERF dir-per-vector layout as a superset: a top-level
-``manifest.json`` lists ``{dir, format, outcome, failure_class, reason_code,
-notes}`` and each ``<NN-name>/`` directory carries ``receipt.json``, an
-``expected.json``, optional ``predecessor.json`` for chain vectors, and optional
-key material (``jwks.json`` for Asqav-native, ``keys.json`` mapping key_id->hex
-for AERF).
-
-``outcome`` speaks the public verdict vocabulary (criteria 418/438):
-verified / verified_keyed / unverified, and an ``unverified`` entry pins its
-``failure_class`` (invalid / unverifiable) so the two classes are never
-collapsed. ``run_corpus`` returns one ``VectorOutcome`` per vector so callers
-can assert counts. Every receipt/record file is parsed with duplicate-member
-rejection (criterion 419); a receipt that fails to parse is a terminal
-unverified/unverifiable outcome, never verified.
-"""
+The corpus uses the AERF dir-per-vector layout as a superset: ``manifest.json``
+lists ``{dir, format, outcome, failure_class, reason_code, notes}`` and each
+``<NN-name>/`` carries ``receipt.json``, ``expected.json`` and optional key
+material; the layout, the verdict vocabulary (418/438) and the 419 rule are in
+``verifier/conformance-vectors/README.md``. A parse failure is never verified."""
 from __future__ import annotations
 
 import json
@@ -38,17 +27,11 @@ _OUTCOME_TO_VERDICT = {
 @dataclass(frozen=True)
 class VectorOutcome:
     """The result of running one corpus vector against the oracle.
-
-    Fields:
-      dir: the vector directory name.
-      expected_outcome: the manifest's verified / verified_keyed / unverified.
-      actual_verdict: the oracle's verdict in the same vocabulary.
-      ok: True when the actual verdict (and pinned failure class) matches.
-      reason_code: the manifest reason_code for this vector.
-      detail: per-axis notes for a failing match.
-      expected_failure_class: the manifest failure_class pin ("" when unpinned).
-      actual_failure_class: the oracle failure_class ("" on a verified verdict).
-    """
+    Fields: dir is the vector directory name; expected_outcome is the manifest's
+    verified / verified_keyed / unverified; actual_verdict is the oracle's verdict in
+    the same vocabulary; ok is True when the actual verdict (and pinned failure
+    class) matches; reason_code and detail are the manifest code and per-axis notes;
+    expected_failure_class and actual_failure_class are the manifest pin and the verdict."""
 
     dir: str
     expected_outcome: str
@@ -120,7 +103,7 @@ def run_one(
         key_provider = _key_provider(vec_dir, fmt)
     except (strict_json.DuplicateMemberError, strict_json.UnsafeIntegerError,
             json.JSONDecodeError, UnicodeDecodeError) as exc:
-        # Terminal ingest failure (419), an integer past 2**53 included: nothing is verified.
+        # Terminal ingest failure (419), incl. an integer past 2**53: nothing verified.
         return _parse_failure_outcome(
             vec_dir.name, expected_outcome, expected_failure_class, reason_code, exc
         )
@@ -179,8 +162,7 @@ def _default_corpus_root() -> Path:
     The corpus stays at ``<repo>/verifier/conformance-vectors`` so the TypeScript
     parity gate and the published governance URL keep pointing at one place. An
     installed wheel does not ship the corpus, so this default only resolves in a
-    source checkout; the ``ASQAV_CONFORMANCE_VECTORS`` env var overrides it.
-    """
+    source checkout; ``ASQAV_CONFORMANCE_VECTORS`` overrides it."""
     env = os.environ.get("ASQAV_CONFORMANCE_VECTORS")
     if env:
         return Path(env)

@@ -53,12 +53,10 @@ MISSING_EVIDENCE = "missing_evidence"
 
 def conflict_kind(first: dict, second: dict) -> str | None:
     """Name the conflict shape for one subject (488 C7).
-
     Same bytes with both sides carrying differing signed terms is a
     contradictory-terms conflict; same bytes with evidence on one side
     only is missing evidence. Different bytes carry no conflict call.
-    Terms win only when both sides are evidenced; an empty side
-    reads as missing first."""
+    Terms win only when both sides are evidenced; an empty side reads as missing first."""
     if first.get("doc_sha256") != second.get("doc_sha256"):
         return None
     first_axes = first.get("axes") or {}
