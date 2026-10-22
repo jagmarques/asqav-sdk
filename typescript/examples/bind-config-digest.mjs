@@ -10,8 +10,8 @@ import { init, Agent } from "@asqav/sdk";
 // your AGENTS.md, a manifest or an image digest on disk
 const MANIFEST_URL = new URL("./agent-manifest.example.json", import.meta.url);
 
-// Pin the binding keys so a receipt that claims a config always carries both
-// the digest and the artifact kind. Extra context keys pass through
+// Pin both keys so a receipt claiming a config carries its digest and kind;
+// extra context keys pass through
 const CONFIG_BINDING_SCHEMA = {
   config_digest: { type: "string", required: true },
   config_kind: { type: "string", required: true },
