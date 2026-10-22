@@ -1,7 +1,5 @@
-/**
- * 10-minute quickstart: govern() -> agent.sign() -> verify.
- * Run: ASQAV_API_KEY=sk_... npx tsx quickstart.ts
- */
+/** 10-minute quickstart: govern() -> agent.sign() -> verify;
+ * run: ASQAV_API_KEY=sk_... npx tsx quickstart.ts */
 
 import { govern } from "@asqav/sdk";
 
