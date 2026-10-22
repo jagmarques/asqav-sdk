@@ -20,6 +20,8 @@ an opaque identifier is not a digest, does not join. EXCEPTIONS stay uncollapsed
 asqav-06 (caller digest), asqav-12 (abab... vs payload cdcd..., so a verifier mixing them fails), asqav-13
 (dup-member refusal, empty digest). OTHER vectors equal ``sha256:``+``payload_digest.hash``.
 """
+# Collapsing the exceptions would delete that coverage while the vector still
+# passed; the second test keeps the invariant from drifting, not a wire rule.
 
 from __future__ import annotations
 
