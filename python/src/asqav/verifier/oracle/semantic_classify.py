@@ -30,7 +30,7 @@ _ALWAYS_INVALID_AXES = frozenset(
 
 def classify(axis: str, result: str, note: str) -> str | None:
     """Map one axis outcome to its failure class (criterion 418).
-A FAIL needs resolved inputs; per-axis preconditions live in ``classify``."""
+    A FAIL needs resolved inputs; per-axis rules live in ``classify``."""
     # ``_axis`` in the oracle delegates here; the corpus suite pins that
     # behaviour from moving.
     if result == crypto.PASS:

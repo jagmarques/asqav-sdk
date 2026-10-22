@@ -106,7 +106,7 @@ def compare_live_strict(
     second_context: VerificationContext | None = None,
 ) -> Disagreement:
     """Strict live compare: the entry verifies the bytes itself (488 C26, C29).
-No digest or result input exists, so no unbound or foreign-result call can."""
+    It takes no digest or result, so no call is unbound or foreign-result."""
     first_doc, second_doc = json.loads(first_bytes), json.loads(second_bytes)
     first = verify(first_doc, ADAPTERS,
                    context=first_context if first_context is not None else context)
@@ -194,7 +194,7 @@ def classify_and_attribute(
     agreement: object | None = None,
 ) -> tuple[Disagreement, SpecCase]:
     """Review a live reassessment against its retained original (488 C27).
-The store is never mutated; a missing retention raises, it does not classify."""
+    The store is never mutated; a missing retention raises, never classifies."""
     original = store.replay(doc_sha256)
     if original is None:
         raise ValueError("no retained original for this digest; record first")

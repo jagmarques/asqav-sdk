@@ -1,6 +1,7 @@
 """ACTA adapter: Ed25519 over JCS of ``payload``, hex signature, no pre-hash.
-Keys come from injected JWK Set; Commitment Mode and ES256 are NOT checked."""
-# ``chain`` sits in the signed unit, so any change breaks verification.
+Keys: injected JWKS, never a live fetch; Commitment Mode, ES256 NOT checked."""
+# Disjoint from Asqav-native by hex sig and anchors. ``chain`` sits in the
+# signed unit, so any change breaks verification.
 from __future__ import annotations
 
 from typing import Any
@@ -24,7 +25,7 @@ def _safe_hex(value: Any) -> bytes:
 
 def _is_lower_hex(s: Any) -> bool:
     """True for an ACTA signature: non-empty, even-length lowercase hex.
-POSITIVE test only: base64 carries uppercase or ``+``/``=``, all hex-invalid."""
+    POSITIVE test only: base64 has uppercase or ``+``/``=``, not hex."""
     return (
         isinstance(s, str)
         and len(s) > 0

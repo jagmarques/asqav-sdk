@@ -116,7 +116,7 @@ def resolve_ed25519_key(
     did_url: str, injected: dict | None = None
 ) -> tuple[bytes | None, str]:
     """Resolve a verificationMethod DID URL to ``(raw_key_or_None, note)``.
-Full DID first, then the bare DID; an unmapped DID is None (fail closed)."""
+    Full DID first, then the bare DID; an unmapped DID is None (fail closed)."""
     if not isinstance(did_url, str) or not did_url.startswith("did:"):
         return None, f"not a DID URL: {did_url!r}"
     bare = did_url.split("#", 1)[0]

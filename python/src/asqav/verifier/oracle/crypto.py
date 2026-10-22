@@ -43,7 +43,7 @@ def verify_ed25519(pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
 
 def verify_es256(pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
     """ES256 (ECDSA P-256 over SHA-256) via ``cryptography``; SKIP when absent.
-The key is a 65-byte uncompressed point; the ``r || s`` sig converts to DER."""
+    Key: 65-byte uncompressed point; the ``r || s`` sig converts to DER."""
     try:
         from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives import hashes

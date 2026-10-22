@@ -1,5 +1,5 @@
 """agent-receipts adapter: W3C-VC AgentReceipt, Ed25519 over
-strict RFC 8785 JCS."""
+strict RFC 8785 JCS. Keys: did:key or injected map, never a live fetch."""
 from __future__ import annotations
 
 import base64
@@ -73,8 +73,8 @@ class AgentReceiptsAdapter(FormatAdapter):
         )
 
     def schema(self, doc: dict) -> tuple[str, str]:
-        """Structural check; returns ``(result, note)``.
-        """
+        """Structural check; the verificationMethod DID must equal issuer.id,
+        stricter than spec, fail-closed until DID-document resolution."""
         required = (
             "@context",
             "id",

@@ -190,6 +190,38 @@ def test_docstring_line_at_the_width_is_accepted(tmp_path):
     assert counts.docstring_lines == 0, counts.findings
 
 
+def _plant_dedented_docstring(tmp_path: Path, text_width: int) -> Path:
+    """A verifier copy with a function whose docstring line sits at column 0."""
+    copy = _copy_of_verify_receipt(tmp_path)
+    planted = "\n".join(
+        [
+            "",
+            "",
+            "def _planted_dedent():",
+            '    """Summary.',
+            "d" * (text_width - 3) + '"""',
+        ]
+    )
+    with copy.open("a", encoding="utf-8") as handle:
+        handle.write(planted + "\n")
+    return copy
+
+
+# NEGCTL: the dedented line fits the width at column 0 but not at its indent.
+def test_negctl_dedented_docstring_line(tmp_path):
+    copy = _plant_dedented_docstring(tmp_path, conciseness.MAX_COMMENT_CHARS)
+    counts = conciseness.scan_tree(copy)
+    assert counts.files_scanned == 1
+    assert counts.docstring_lines == 1, counts.findings
+    assert conciseness.main(["--path", str(copy)]) != 0
+
+
+def test_dedented_docstring_line_within_the_width_is_accepted(tmp_path):
+    copy = _plant_dedented_docstring(tmp_path, conciseness.MAX_COMMENT_CHARS - 4)
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstring_lines == 0, counts.findings
+
+
 def test_scan_reports_a_file_it_cannot_read(tmp_path):
     tree = tmp_path / "tree"
     tree.mkdir()

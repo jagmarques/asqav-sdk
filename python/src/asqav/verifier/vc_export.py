@@ -44,7 +44,7 @@ def _detect_format(receipt: dict) -> str:
 
 def _signing_input_b64(receipt: dict, fmt: str) -> str | None:
     """Base64 of the exact canonical bytes the source signature covers,
-if reproducible; the oracle adapter encodes the signing-input rule."""
+    if reproducible; the oracle adapter encodes the signing-input rule."""
     import base64
 
     for adapter in ADAPTERS:
@@ -59,7 +59,7 @@ if reproducible; the oracle adapter encodes the signing-input rule."""
 
 def _native_subject(receipt: dict) -> tuple[dict, dict, str | None]:
     """Map an Asqav-native receipt (compliance or hash) to subject, proofbits,
-issuer."""
+    issuer."""
     if receipt.get("mode") == "hash" and receipt.get("payload") is None:
         # Flat hash-mode /sign output.
         subject = {
@@ -147,7 +147,7 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
 
 def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
     """Present an Asqav receipt as a W3C VC 2.0 envelope (export only).
-Pure and offline: no signing, no network, no mutation of ``receipt``."""
+    Pure and offline: no signing, no network, no mutation of ``receipt``."""
     if not isinstance(receipt, dict):
         raise TypeError("receipt must be a parsed JSON object (dict)")
 

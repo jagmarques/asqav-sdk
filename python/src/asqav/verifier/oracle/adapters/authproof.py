@@ -84,7 +84,7 @@ class AuthproofAdapter(FormatAdapter):
 
     def signing_input(self, doc: dict) -> bytes:
         """The SDK signs ``JSON.stringify`` of the receipt minus ``signature``.
-``json.dumps`` matches it byte for byte; non-integer floats are the one gap."""
+        ``json.dumps`` matches it bytewise; non-integer floats differ."""
         body = {k: v for k, v in doc.items() if k != "signature"}
         return json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 

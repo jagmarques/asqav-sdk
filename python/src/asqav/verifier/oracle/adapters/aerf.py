@@ -1,7 +1,7 @@
-"""AERF adapter: Ed25519 over RFC 8785 JCS, no pre-hash, flat receipts.
-Chain hash covers the predecessor payload; agentmint's signature is excluded."""
-# No multi-signer receipt passes on the issuer signature alone, and the
-# binding keeps a context-A verdict off a context-B receipt.
+"""AERF adapter: Ed25519 over RFC 8785 JCS, no pre-hash; chain omits the sig.
+REQUIRED: parent counter-sig, PDP binding; unverifiable layers never PASS."""
+# No multi-signer receipt passes on the issuer sig alone; the PDP binding over
+# context/in_policy/policy_hash keeps a context-A verdict off a context-B one.
 from __future__ import annotations
 
 from typing import Any

@@ -32,7 +32,7 @@ FAILURE_UNVERIFIABLE = "unverifiable"
 @dataclass(frozen=True)
 class AxisResult:
     """One verification axis outcome.
-axis and result tokens, a report note, and failure_class: None only on PASS."""
+    axis and result tokens, a note, and failure_class: None only on PASS."""
 
     axis: str
     result: str
@@ -43,7 +43,7 @@ axis and result tokens, a report note, and failure_class: None only on PASS."""
 @dataclass
 class VerifyResult:
     """The aggregate outcome of verifying one receipt.
-verified needs every non-skipped axis and a signature; expiry never folds."""
+    verified needs every non-skipped axis and a sig; expiry never folds."""
 
     fmt: str
     axes: list[AxisResult] = field(default_factory=list)
@@ -105,7 +105,7 @@ AXIS_ORDER_PREFIX = ("structure", "signature", "chain", "seq")
 
 def first_failing_edge(axes: list[AxisResult]) -> str | None:
     """Name the first axis in report order that moved the verdict off verified.
-Expiry never folds; a skipped chain is tolerated where other SKIPs block."""
+    Expiry never folds; a skipped chain is tolerated where other SKIPs block."""
     for a in axes:
         if a.result == crypto.FAIL and a.axis != "expiry":
             return a.axis
@@ -213,7 +213,7 @@ _TOO_DEEP_NOTE = f"receipt nesting exceeds the supported depth (> {MAX_NESTING_D
 
 def _exceeds_depth(obj: Any, max_depth: int) -> bool:
     """True when ``obj`` nests deeper than ``max_depth``, walked with a stack.
-No recursion, so the check cannot overflow before it caps a crashing receipt."""
+    No recursion, so it cannot overflow before it caps a crashing receipt."""
     stack: list[tuple[Any, int]] = [(obj, 0)]
     while stack:
         cur, depth = stack.pop()

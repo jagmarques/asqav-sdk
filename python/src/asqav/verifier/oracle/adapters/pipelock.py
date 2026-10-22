@@ -130,7 +130,7 @@ class PipelockEvidenceAdapter(FormatAdapter):
 
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
         """Return the raw 32-byte Ed25519 key from the caller's key provider.
-The receipt embeds no key, so a missing map entry SKIPs it (INCOMPLETE)."""
+        No key is embedded, so a missing map entry SKIPs it (INCOMPLETE)."""
         kid = doc.get("signature", {}).get("signer_key_id", "")
         provider = key_provider or {}
         material = provider.get(kid)

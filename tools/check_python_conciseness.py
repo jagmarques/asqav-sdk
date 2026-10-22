@@ -74,7 +74,7 @@ def python_files(root: Path) -> list[Path]:
 
 def comment_blocks(source: str) -> list[list[tokenize.TokenInfo]]:
     """Group the comment tokens of one file into blocks. A block is a run
-of comment lines; blank lines do not end it, so splitting cannot reset."""
+    of comment lines; blank lines do not end it, so splitting cannot reset."""
     blocks: list[list[tokenize.TokenInfo]] = []
     current: list[tokenize.TokenInfo] = []
     last_line = 0
@@ -94,7 +94,7 @@ of comment lines; blank lines do not end it, so splitting cannot reset."""
 
 def license_header_lines(source: str) -> list[str]:
     """The pinned licence header of a file, or an empty list. It is the
-opening block ending at SPDX; an edited header is counted normally."""
+    opening block ending at SPDX; an edited header is counted normally."""
     blocks = comment_blocks(source)
     if not blocks or blocks[0][0].start[0] != 1:
         return []
@@ -109,10 +109,10 @@ opening block ending at SPDX; an edited header is counted normally."""
     return prefix if digest == LICENSE_HEADER_SHA256 else []
 
 
-def _string_statements(tree: ast.AST) -> list[tuple[int, int, str]]:
-    """The line, span and owner of every string statement of a tree. A
-docstring is one; other strings and f-strings are counted like one."""
-    found: list[tuple[int, int, str]] = []
+def _string_statements(tree: ast.AST) -> list[tuple[int, int, int, str]]:
+    """Line, column, span and owner of every string statement. A
+    docstring is one; other strings and f-strings are counted like one."""
+    found: list[tuple[int, int, int, str]] = []
     for node in ast.walk(tree):
         body = getattr(node, "body", None)
         if not isinstance(body, list):
@@ -127,7 +127,9 @@ docstring is one; other strings and f-strings are counted like one."""
                 continue
             span = statement.end_lineno - statement.lineno + 1
             name = getattr(node, "name", None) or "<module>"
-            found.append((statement.lineno, span, f"docstring of {name}"))
+            found.append(
+                (statement.lineno, statement.col_offset, span, f"docstring of {name}")
+            )
     return found
 
 
@@ -138,14 +140,18 @@ def scan_file(path: Path) -> Counts:
     counts.files_scanned = 1
     tree = ast.parse(source, filename=str(path))
     lines = source.splitlines()
-    for line, span, owner in _string_statements(tree):
+    for line, column, span, owner in _string_statements(tree):
         if span > MAX_DOCSTRING_LINES:
             counts.docstrings += 1
             counts.findings.append(
                 f"{path}:{line}: {owner} spans {span} lines (max {MAX_DOCSTRING_LINES})"
             )
         for offset in range(span):
-            width = len(lines[line - 1 + offset])
+            text = lines[line - 1 + offset]
+            width = len(text)
+            if offset and text.strip():
+                # A dedented line is measured at its docstring's own indent.
+                width = max(width, column + len(text.lstrip()))
             if width > MAX_COMMENT_CHARS:
                 counts.docstring_lines += 1
                 counts.findings.append(

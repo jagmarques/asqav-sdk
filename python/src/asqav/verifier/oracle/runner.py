@@ -150,7 +150,7 @@ def _tolerated(outcome: VectorOutcome) -> bool:
 
 def _default_corpus_root() -> Path:
     """Resolve the conformance-vector corpus at the repo root.
-It stays at ``<repo>/verifier/conformance-vectors`` so both consumers agree."""
+    It is ``<repo>/verifier/conformance-vectors`` so both consumers agree."""
     env = os.environ.get("ASQAV_CONFORMANCE_VECTORS")
     if env:
         return Path(env)

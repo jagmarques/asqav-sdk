@@ -44,7 +44,7 @@ _UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash", "key_thumbprint", 
 
 def _is_hash_mode(doc: dict) -> bool:
     """True for a flat hash-mode receipt (mode=hash, null payload, a sig).
-Routing reads the signed unit's shape only, so an added field picks no axis."""
+    Routing reads the signed unit's shape only; added fields pick no axis."""
     if doc.get("mode") != "hash" or isinstance(doc.get("payload"), dict):
         return False
     return bool(doc.get("signature_b64") or doc.get("signature"))
@@ -156,7 +156,7 @@ class AsqavNativeAdapter(FormatAdapter):
 
     def _signing_key_entry(self, doc: dict, jwks: dict) -> dict | None:
         """The one jwks entry this receipt's signature is checked against.
-kid is outside the signed bytes; the agent match needs the signed issuer_id."""
+        kid is unsigned; the agent match needs the signed issuer_id."""
         payload = _payload(doc)
         return _vr.match_signing_key(
             jwks,
@@ -195,7 +195,7 @@ kid is outside the signed bytes; the agent match needs the signed issuer_id."""
 
     def _hash_mode_signing_input(self, doc: dict) -> bytes:
         """Rebuild the object the cloud's hash mode signs, then canonicalise.
-Mirrors ``agents.py::_build_signing_message`` by field; ``asqav_jcs`` sorts."""
+        Mirrors ``agents.py::_build_signing_message``; ``asqav_jcs`` sorts."""
         return asqav_jcs(_flat_signed_fields(doc))
 
     def chain_step(self, doc: dict) -> ChainStep:
@@ -264,7 +264,7 @@ Mirrors ``agents.py::_build_signing_message`` by field; ``asqav_jcs`` sorts."""
         self, doc: dict, key_provider: Any, context: VerificationContext | None = None,
     ) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, key revocation, and issuer.
-A revoked key or republished issuer never PASSes, as in /verify."""
+        A revoked key or republished issuer never PASSes, as in /verify."""
         # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
         # expires_at, and reading the flat doc would gate on an uncovered field.
         hash_mode = _is_hash_mode(doc)

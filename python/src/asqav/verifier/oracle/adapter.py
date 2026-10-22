@@ -55,7 +55,7 @@ def resolve_evaluation_now(evaluation_time: Any) -> datetime | None:
 @dataclass(frozen=True)
 class SignatureMaterial:
     """The bytes and metadata needed to check one issuer signature.
-sig is raw bytes, alg routes the verifier, kid finds the key."""
+    sig is raw bytes, alg routes the verifier, kid finds the key."""
 
     sig: bytes
     alg: str
@@ -65,7 +65,7 @@ sig is raw bytes, alg routes the verifier, kid finds the key."""
 @dataclass(frozen=True)
 class ChainStep:
     """The hash-chain linkage for one receipt.
-prev_field None on AERF genesis; is_genesis and recompute walk the chain."""
+    prev_field None on AERF genesis; is_genesis and recompute walk the chain."""
 
     prev_field: str | None
     is_genesis: bool
@@ -74,7 +74,7 @@ prev_field None on AERF genesis; is_genesis and recompute walk the chain."""
 
 class FormatAdapter(ABC):
     """One receipt format's binding to the shared verification core.
-Subclasses implement six methods; ``detect`` is a structural fingerprint."""
+    Subclasses implement six methods; ``detect`` is a structural fingerprint."""
 
     #: Stable format label surfaced in results and the vector manifest.
     name: str = "abstract"
@@ -117,7 +117,7 @@ Subclasses implement six methods; ``detect`` is a structural fingerprint."""
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         """Format-specific axes beyond structure, signature and chain.
-Return ``(axis_name, result, note)`` per required check; missing layer FAILs."""
+        ``(axis, result, note)`` per required check; a missing layer FAILs."""
         return []
 
     def seq_of(self, doc: dict) -> Any:

@@ -1,4 +1,4 @@
-"""W3C VC 2.0 adapter: eddsa-jcs-2022 proof, base58btc ``proofValue``.
+"""W3C VC 2.0 eddsa-jcs-2022, base58btc proofValue; no network DID resolution.
 Ed25519 signs SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))."""
 # Hard-fails unless the document names ``assertionMethod`` and ties the
 # verification method's DID to the issuer's own.

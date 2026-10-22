@@ -1,5 +1,5 @@
-"""CLI for the oracle: ``python -m asqav.verifier.oracle receipt.json``.
-Exit 0 verified, 1 invalid, 2 unverifiable; ``record``/``review`` persist."""
+"""Oracle CLI; exit 0 verified, 1 invalid, 2 unverifiable. Strict ingest rejects
+a duplicate member name before hashing; ``review`` never mutates the store."""
 # Ships inside the standalone ``asqav-verify`` executable; stays offline and
 # opens only paths given on the command line.
 from __future__ import annotations
@@ -135,7 +135,7 @@ def _load_context(path: str | None) -> VerificationContext | None:
 
 def record(store_path: str, receipt_path: str, reason: str | None = None) -> int:
     """Retain one live assessment (488 C32, C2 flow caller).
-New bytes print the digest; retained reassess; 0 reviewed, 1 split, 2 error."""
+    New: print digest; retained: reassess. Exit 0 reviewed, 1 split, 2 error."""
     raw, receipt = _load_raw(receipt_path)
     digest = hashlib.sha256(raw).hexdigest()
     try:
@@ -228,8 +228,8 @@ def review(store_path: str, receipt_path: str,
         # the caller-stated context (C36); defaults when unstated.
         reruns.append(verify(rerun_doc, ADAPTERS, context=live_context))
     result = verify(receipt, ADAPTERS, context=live_context)
-    # Live envelope re-derived from bytes; the stored ref is the other side.
-    # comparandum, never this side. Unboundable receipts have no live envelope.
+    # Live envelope re-derived from bytes; the stored ref is the other
+    # comparandum, never this side. Unboundable receipts have none.
     try:
         live_agreement = asdict(envelope_of(receipt, ADAPTERS))
     except ValueError:

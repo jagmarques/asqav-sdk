@@ -98,7 +98,7 @@ def _thumbprint(entry: dict, alg: str, key: bytes) -> str | None:
 
 def _bundle_material(pack: dict):
     """(message, key, signature, alg) or an invalid outcome; a missing
-member is never benign."""
+    member is never benign."""
     digest, sig, key_b64 = (pack.get(k) for k in ("bundle_digest", "bundle_signature", "bundle_public_key"))
     if not all(isinstance(v, str) and v for v in (digest, sig, key_b64)):
         return _outcome(INVALID, "pack carries no bundle signature")
@@ -117,7 +117,7 @@ member is never benign."""
 
 def _revocation_outcome(pack: dict, entry: dict, trusted_times: list) -> dict:
     """Not verifiable when a key was revoked after signing; invalid only
-when signing after the revocation is proven."""
+    when signing after the revocation is proven."""
     label = str(entry.get("status") or "revoked").lower()
     when = entry.get("revoked_at") or entry.get("suspended_at")
     rev = vr._parse_stamp(when) if when else None
@@ -190,7 +190,7 @@ def mapping_issues(pack: dict[str, Any]) -> list[str]:
 
 def check_bundle(pack: dict, jwks: dict, trusted_times: list | None = None) -> dict:
     """Recompute the bundle digest, verify its signature, and tie the key
-to the key set; pinned TSA anchor times place a revocation in time."""
+    to the key set; pinned TSA anchor times place a revocation in time."""
     if vr._holds_unsafe_integer(pack, jwks):
         # Raw-text ingest refuses such a pack; so does a parsed dict.
         return _outcome(NOT_OFFLINE, f"pack: {vr._UNSAFE_INTEGER_INPUT_NOTE}")
@@ -297,7 +297,7 @@ def chain_issues(receipts: list, envelopes: dict, by_seq: dict) -> dict:
 
 def chain_context(receipts: list) -> tuple:
     """(index -> predecessor payload, index -> invalid reasons) for its
-receipts."""
+    receipts."""
     envelopes = _envelopes(receipts)
     by_seq, by_hash = _index(envelopes)
     issues = chain_issues(receipts, envelopes, by_seq)
@@ -373,7 +373,7 @@ def _flat_signature_results(entry: dict, jwks: dict) -> list:
 
 def _flat_result(entry: dict, jwks: dict) -> dict:
     """A flat receipt is never verified offline; a signature its agent's
-keys all reject is invalid."""
+    keys all reject is invalid."""
     out = _bare(NOT_OFFLINE, _FLAT_REASON)
     results = _flat_signature_results(entry, jwks)
     if "PASS" in results:
@@ -400,7 +400,7 @@ def verify_entry(entry, jwks: dict, predecessor=None, *, tsa_keys=None, headers=
 
 def trusted_anchor_times(receipts: list, tsa_keys: list, headers) -> list:
     """Anchor times the pinned TSA keys or supplied block data prove,
-across the pack."""
+    across the pack."""
     times: list = []
     for entry in receipts:
         if isinstance(entry, dict) and isinstance(entry.get("payload"), dict):
@@ -424,7 +424,7 @@ def _apply(result: dict, issues: list, bundle_ok: bool) -> dict:
 
 def verify_pack(pack: dict, *, jwks: dict | None = None, tsa_keys=None, bitcoin_headers=None) -> dict:
     """Per-receipt and pack report. Trust comes only from ``jwks`` and
-``tsa_keys``; without ``jwks`` the pack snapshot is self_consistent."""
+    ``tsa_keys``; without ``jwks`` the pack snapshot is self_consistent."""
     anchored = isinstance(jwks, dict)
     key_set = jwks if anchored else pack.get("jwks")
     key_set = key_set if isinstance(key_set, dict) else {"keys": []}
