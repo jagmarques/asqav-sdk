@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Count the over-long Python docstrings, comment lines and comment blocks.
 
-The SDK's Python sources are held to three budgets: a docstring block spans at
-most six physical lines, a comment line at most eighty characters and a
-comment block at most two comment lines.
+The SDK's Python sources are held to four budgets: a docstring block spans at
+most six physical lines, a docstring line and a comment line at most eighty
+characters, and a comment block at most two comment lines.
 """
 
 from __future__ import annotations
@@ -40,9 +40,10 @@ _STRUCTURAL_TOKENS = frozenset(
 
 @dataclass
 class Counts:
-    """The three budgets measured over one scanned tree."""
+    """The budgets measured over one scanned tree."""
 
     docstrings: int = 0
+    docstring_lines: int = 0
     comment_lines: int = 0
     comment_blocks: int = 0
     files_scanned: int = 0
@@ -50,8 +51,13 @@ class Counts:
 
     @property
     def total(self) -> int:
-        """The number of findings over all three budgets."""
-        return self.docstrings + self.comment_lines + self.comment_blocks
+        """The number of findings over every budget."""
+        return (
+            self.docstrings
+            + self.docstring_lines
+            + self.comment_lines
+            + self.comment_blocks
+        )
 
 
 def python_files(root: Path) -> list[Path]:
@@ -146,12 +152,21 @@ def scan_file(path: Path) -> Counts:
     source = path.read_text(encoding="utf-8")
     counts.files_scanned = 1
     tree = ast.parse(source, filename=str(path))
+    lines = source.splitlines()
     for line, span, owner in _string_statements(tree):
         if span > MAX_DOCSTRING_LINES:
             counts.docstrings += 1
             counts.findings.append(
                 f"{path}:{line}: {owner} spans {span} lines (max {MAX_DOCSTRING_LINES})"
             )
+        for offset in range(span):
+            width = len(lines[line - 1 + offset])
+            if width > MAX_COMMENT_CHARS:
+                counts.docstring_lines += 1
+                counts.findings.append(
+                    f"{path}:{line + offset}: docstring line is {width} characters"
+                    f" (max {MAX_COMMENT_CHARS})"
+                )
     header = license_header_lines(source)
     blocks = comment_blocks(source)
     exempt = set()
@@ -187,6 +202,7 @@ def scan_tree(root: Path) -> Counts:
     for path in files:
         counts = scan_file(path)
         total.docstrings += counts.docstrings
+        total.docstring_lines += counts.docstring_lines
         total.comment_lines += counts.comment_lines
         total.comment_blocks += counts.comment_blocks
         total.files_scanned += counts.files_scanned
@@ -214,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"counting check: {root}: {error}", file=sys.stderr)
             return 2
         total.docstrings += counts.docstrings
+        total.docstring_lines += counts.docstring_lines
         total.comment_lines += counts.comment_lines
         total.comment_blocks += counts.comment_blocks
         total.files_scanned += counts.files_scanned
@@ -222,6 +239,10 @@ def main(argv: list[str] | None = None) -> int:
         print(finding)
     print(f"counting check: {total.files_scanned} file(s) under {', '.join(args.path)}")
     print(f"counting check: docstrings over {MAX_DOCSTRING_LINES} lines: {total.docstrings}")
+    print(
+        f"counting check: docstring lines over {MAX_COMMENT_CHARS} characters:"
+        f" {total.docstring_lines}"
+    )
     print(f"counting check: comment lines over {MAX_COMMENT_CHARS} characters: {total.comment_lines}")
     print(f"counting check: comment blocks over {MAX_COMMENT_BLOCK_LINES} lines: {total.comment_blocks}")
     return 1 if total.total else 0

@@ -1,9 +1,8 @@
-"""Universal neutral verifier - verify agent receipts across formats.
-The oracle EXTENDS the standalone Asqav verifier (``asqav/verifier/verify_receipt.py``)
-to verify rival and sibling receipt formats behind one seam. It proves only what a
-verifier can prove from the bytes: a valid signature over the canonical bytes, a
-reproducible hash-chain link and structural presence at time T, never behaviour or
-correctness of the recorded action. Public surface: ``__all__``."""
+"""Universal neutral verifier - verify agent receipts across formats. The oracle
+EXTENDS the standalone Asqav verifier
+(``asqav/verifier/verify_receipt.py``)
+to verify rival and sibling receipt formats behind one seam.
+"""
 # ``FormatAdapter`` is the 6-method per-format seam; ``VerifyResult`` and
 # ``AxisResult`` are the structured outcome.
 from __future__ import annotations

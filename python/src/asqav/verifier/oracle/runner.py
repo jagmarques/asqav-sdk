@@ -1,9 +1,5 @@
 """Conformance-vector runner - drive the oracle over the vector corpus.
-The corpus uses the AERF dir-per-vector layout as a superset: ``manifest.json``
-lists ``{dir, format, outcome, failure_class, reason_code, notes}`` and each
-``<NN-name>/`` carries ``receipt.json``, ``expected.json`` and optional key
-material; the layout, the verdict vocabulary (418/438) and the 419 rule are in
-``verifier/conformance-vectors/README.md``. A parse failure is never verified."""
+"""
 from __future__ import annotations
 
 import json
@@ -27,11 +23,7 @@ _OUTCOME_TO_VERDICT = {
 @dataclass(frozen=True)
 class VectorOutcome:
     """The result of running one corpus vector against the oracle.
-    Fields: dir is the vector directory name; expected_outcome is the manifest's
-    verified / verified_keyed / unverified; actual_verdict is the oracle's verdict in
-    the same vocabulary; ok is True when the actual verdict (and pinned failure
-    class) matches; reason_code and detail are the manifest code and per-axis notes;
-    expected_failure_class and actual_failure_class are the manifest pin and the verdict."""
+    """
 
     dir: str
     expected_outcome: str
@@ -159,10 +151,10 @@ def _tolerated(outcome: VectorOutcome) -> bool:
 def _default_corpus_root() -> Path:
     """Resolve the conformance-vector corpus at the repo root for dev/CI runs.
 
-    The corpus stays at ``<repo>/verifier/conformance-vectors`` so the TypeScript
-    parity gate and the published governance URL keep pointing at one place. An
-    installed wheel does not ship the corpus, so this default only resolves in a
-    source checkout; ``ASQAV_CONFORMANCE_VECTORS`` overrides it."""
+    The corpus stays at ``<repo>/verifier/conformance-vectors`` so the
+    TypeScript
+    parity gate and the published governance URL keep pointing at one place.
+    """
     env = os.environ.get("ASQAV_CONFORMANCE_VECTORS")
     if env:
         return Path(env)

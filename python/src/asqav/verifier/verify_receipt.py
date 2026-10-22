@@ -16,12 +16,12 @@
 # Licensed Apache-2.0 (a file-level exception to the Elastic-2.0 SDK) so it
 # ships in the exit artifact as a free, dependency-light offline tool.
 
-"""Standalone Asqav receipt verifier: stdlib, optional crypto deps. Checks offline: signature (ML-DSA-65/FIPS
-204, Ed25519, ES256), canonical bytes (JCS/RFC 8785), chain link, expiry, issuer key/binding, and
-each anchor's own RFC 3161 or OpenTimestamps proof. NOT checked: a TSA chain walk to a public root
-(offline trust comes only from the pinned TSA keys), OTS block placement without a header source,
-policy_digest. The full not-checked list travels in every result under not_checked (the NOT_CHECKED
-rows in this file); scope, optional dependencies and CLI usage: docs/offline-verification.md."""
+"""Standalone Asqav receipt verifier: stdlib, optional crypto deps. Checks
+offline: signature (ML-DSA-65/FIPS
+204, Ed25519, ES256), canonical bytes (JCS/RFC 8785), chain link, expiry,
+issuer key/binding, and
+each anchor's own RFC 3161 or OpenTimestamps proof.
+"""
 
 from __future__ import annotations
 
@@ -176,10 +176,10 @@ def _utf16_ordered(obj):
 def canonical_json(obj, default=None) -> bytes:
     """JCS canonical bytes - byte-identical to the server's canonical_json.
 
-    Member names in UTF-16 code-unit order (RFC 8785 section 3.2.3), no whitespace,
-    UTF-8, NaN/Infinity rejected. json.dumps(sort_keys=True) orders by code point
-    instead, which diverges above U+FFFF, so this sorts explicitly: the exact byte
-    string the server signs and the verifier must reproduce."""
+    Member names in UTF-16 code-unit order (RFC 8785 section 3.2.3), no
+    whitespace,
+    UTF-8, NaN/Infinity rejected.
+    """
     return json.dumps(
         _utf16_ordered(obj),
         sort_keys=False,
@@ -191,10 +191,8 @@ def canonical_json(obj, default=None) -> bytes:
 
 
 def canonical_json_pre_cutover(obj) -> bytes:
-    """The code-point member order the platform emitted before JCS_UTF16_CUTOVER.
-
-    Diagnostic only: a signature that verifies solely under these bytes is reported
-    as the legacy dialect and never as verified.
+    """The code-point member order the platform emitted before
+    JCS_UTF16_CUTOVER.
     """
     return json.dumps(
         obj,
@@ -206,7 +204,9 @@ def canonical_json_pre_cutover(obj) -> bytes:
 
 
 def has_supplementary_member_name(obj) -> bool:
-    """True when any object member name, at any depth, carries a character above U+FFFF."""
+    """True when any object member name, at any depth, carries a character above
+    U+FFFF.
+    """
     stack = [obj]
     while stack:
         node = stack.pop()
@@ -230,8 +230,9 @@ def _issued_before_cutover(payload: dict) -> bool:
 def _pre_cutover_diagnostic(payload: dict, sig: bytes, candidates, sig_res):
     """Name the legacy dialect when that is the only reason a signature fails.
 
-    Runs only for a receipt issued before JCS_UTF16_CUTOVER whose member names reach
-    above U+FFFF. The result stays FAIL: the dialect is reported, never accepted.
+    Runs only for a receipt issued before JCS_UTF16_CUTOVER whose member names
+    reach
+    above U+FFFF.
     """
     if not has_supplementary_member_name(payload) or not _issued_before_cutover(payload):
         return sig_res
@@ -300,10 +301,8 @@ def _sig_alphabet_twin(env: dict) -> dict | None:
 def _scan_shape(obj, max_depth: int | None = None) -> str | None:
     """Iteratively walk ``obj``; returns "non_finite", "too_deep", or None (ok).
 
-    Explicit stack, no recursion: depth alone cannot crash this walk. With
-    ``max_depth``, nesting past it reports "too_deep" before the caller hands the
-    structure to canonical_json's recursive stdlib encoder, which crashes past
-    ~1000 levels on CPython <= 3.12."""
+    Explicit stack, no recursion: depth alone cannot crash this walk.
+    """
     stack = [(obj, 0)]
     while stack:
         cur, depth = stack.pop()
@@ -384,10 +383,10 @@ _INVALID_FAIL_AXES = frozenset(
 def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
     """Map one axis outcome to its failure class (criterion 418).
 
-    PASS carries none; SKIPPED means the recompute could not complete (unverifiable); a
-    FAIL is invalid when a binding was proven broken and unverifiable when the receipt's
-    own bytes stopped the recompute. Mirrors the oracle's ``core.axis_failure_class``
-    byte for byte; an unnamed FAIL reads unverifiable, never a proven binding failure."""
+    A PASS carries none; SKIPPED means the recompute could not complete; a FAIL
+    is invalid when a binding was proven broken, unverifiable when the bytes
+    stopped the recompute. Mirrors the oracle's ``core.axis_failure_class``.
+    """
     if result == "PASS":
         return None
     if result == "SKIPPED":
@@ -447,8 +446,8 @@ class DuplicateMemberError(ValueError):
 
     The stdlib decoder is last-wins on duplicates, which would hash the bytes an
     attacker kept and drop the ones they replaced, so a duplicated name is a
-    terminal parse failure raised before any hashing. Self-contained here (mirrors
-    ``asqav/strict_json.py``) because this file ships standalone."""
+    terminal parse failure raised before any hashing.
+    """
 
 
 #: Largest integer both SDKs canonicalise alike (2**53 + 1 has no exact double).
@@ -461,11 +460,11 @@ MAX_PROFILE_INTEGER = 2**53 - 1
 
 
 class UnsafeIntegerError(ValueError):
-    """An integer with no exact double; two readers would canonicalise it differently.
+    """An integer with no exact double; two readers would canonicalise it
+    differently.
 
     A JavaScript reader rounds such a value while Python keeps it, so the same
-    receipt produces two byte strings and one digest each. Refusing it at ingest is
-    what keeps a verdict meaningful. Mirrors ``asqav/strict_json.py``.
+    receipt produces two byte strings and one digest each.
     """
 
 
@@ -545,11 +544,7 @@ def _raw_float(literal):
 
 def _parse_object(text: str, source: str) -> dict:
     """Parse ``text`` as a JSON object, or raise VerifierInputError.
-
-    Rejects empty input, any non-object (array/string/number/null), and any
-    duplicated member name at any depth (419), so a later ``.get`` never lands on a
-    non-dict and last-wins bytes never reach the canonicaliser. Also rejects an
-    integer outside +/-2**53, which no two readers canonicalise alike."""
+    """
     if not text or not text.strip():
         raise VerifierInputError(f"{source}: empty input, expected a JSON object")
     try:
@@ -611,8 +606,8 @@ def fetch_jwks(url: str = JWKS_URL, *, timeout: int = 30) -> dict:
 
     Snapshot this before going air-gapped and pass the result to
     ``verify_receipt_offline(receipt, jwks)`` or ``run(envelope, jwks, ...)``.
-    The endpoint is public and unauthenticated. Returns the parsed JWKS dict with
-    a ``"keys"`` list."""
+    The endpoint is public and unauthenticated.
+    """
     return _get_json(url, timeout=timeout)
 
 
@@ -672,7 +667,8 @@ def akp_jwk(*, alg: str, public_key: bytes) -> dict:
 def jwk_thumbprint(jwk: dict) -> str:
     """Return `sha256:<hex>` for a JWK already reduced to its required members.
 
-    Sorting here is what RFC 7638 section 3 calls for, so the caller cannot change
+    Sorting here is what RFC 7638 section 3 calls for, so the caller cannot
+    change
     the digest by handing the members in a different order.
     """
     return f"sha256:{hashlib.sha256(canonical_json(jwk)).hexdigest()}"
@@ -718,7 +714,9 @@ def _safe_b64(v: object) -> bool:
 
 
 class _AnchorParseError(ValueError):
-    """A token blob did not parse; the anchor reports unverifiable, never a crash."""
+    """A token blob did not parse; the anchor reports unverifiable, never a
+    crash.
+    """
 
 
     # Read one DER TLV at ``off``; return (tag, content bytes, next offset).
@@ -969,11 +967,7 @@ _PEM_BLOCK_RE = re.compile(rb"-----BEGIN [^-]+-----.*?-----END [^-]+-----\s*", r
 
 def _tsa_key_candidates(trusted_tsa_keys):
     """Split pinned TSA material into (raw key bytes, cryptography public keys).
-
-    A PEM/DER X.509 certificate or public key needs ``cryptography`` to decode; without it
-    those entries are unusable and the caller's axis reports unverifiable rather than trusting
-    anything. Raw bytes pass through for the ML-DSA / Ed25519 paths. A PEM file may carry
-    several blocks (a chain), one candidate per block, so a bundle is not one unusable entry."""
+    """
     raw, pkeys = [], []
     try:
         from cryptography import x509
@@ -1025,8 +1019,7 @@ def _verify_tsa_signature(
 
     Returns "verified", "invalid" (a usable key was present and no signature
     verified), or "unverifiable" (no usable key material or optional dep).
-    ``digest_alg`` is consulted only under the bare rsaEncryption OID, which names
-    no hash of its own; an unknown digest there reads unverifiable."""
+    """
     raw_keys, pkeys = _tsa_key_candidates(trusted_tsa_keys)
     usable = False
     if sig_alg in _ML_DSA_SIG_OIDS:
@@ -1104,11 +1097,12 @@ def _verify_tsa_signature(
 def _check_rfc3161_anchor(
     blob: bytes, bound: bytes, trusted_tsa_keys, env_jcs: bytes | None = None
 ) -> tuple[str, str, object]:
-    """One RFC 3161 anchor -> (outcome, detail, genTime when verified). ``env_jcs`` is the JCS of the envelope
-    minus anchors, needed only to re-derive the digest under a non-sha256 messageImprint algorithm;
-    ``bound`` is its sha256. The imprint comparison is stdlib-only; the TSA signature needs pinned key
-    material (dilithium-py for ML-DSA, cryptography for RSA/ECDSA/Ed25519). A full PKI chain walk is
-    out of scope offline: trust comes from the caller's allowlist, never from the unsigned envelope."""
+    """One RFC 3161 anchor -> (outcome, detail, genTime when verified).
+    ``env_jcs`` is the JCS of the envelope
+    minus anchors, needed only to re-derive the digest under a non-sha256
+    messageImprint algorithm;
+    ``bound`` is its sha256.
+    """
     # Every DER walk stays inside this guard: an escaping exception exits 1
     # (invalid), claiming a binding failure for input never evaluated.
     try:
@@ -1295,11 +1289,12 @@ def _derive_block_id(header: dict, merkle_internal: bytes):
 
 
 def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, str, object]:
-    """One OpenTimestamps anchor -> (outcome, detail, block time when verified). Offline-checkable portion:
-    the proof's initial commitment must equal this envelope's digest, and the op chain evaluates to a
-    merkle root. Placing that root in a block needs a caller-supplied header source; without one the block
-    portion reports unverifiable, never a PASS. A source carrying only hash/merkle_root/time is accepted on
-    the merkle match alone; a source with the six derive fields must also reproduce the claimed block id."""
+    """One OpenTimestamps anchor -> (outcome, detail, block time when verified).
+    Offline-checkable portion:
+    the proof's initial commitment must equal this envelope's digest, and the
+    op chain evaluates to a
+    merkle root.
+    """
     try:
         if len(blob) > _OTS_MAX_BLOB or not blob.startswith(_OTS_MAGIC):
             raise _AnchorParseError("not a detached .ots proof")
@@ -1381,12 +1376,8 @@ ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash"
 
 
 def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None) -> AnchorEvaluation:
-    """Cryptographically evaluate every anchor against the envelope digest. Shape rules are unchanged
-    (malformed entries FAIL, absent/empty SKIPs), but a shape-valid entry no longer PASSes on presence:
-    the axis PASSes only when every entry verifies, FAILs when any check runs and fails, and SKIPs when
-    a check cannot complete offline. ``status: pending``/``failed`` anchors never count as trusted,
-    and a trust bundle whose digest disagrees with its contents reports the whole axis SKIPPED: trust
-    material that fails its own check can neither verify nor invalidate, only decline."""
+    """Cryptographically evaluate every anchor against the envelope digest.
+    """
     anchors = envelope.get("anchors")
     # Absent is SKIPPED; a present non-list ({} / "" / 0) FAILs. run_structured
     # refuses a wire null at the structure gate; here None is absent or null.
@@ -1494,11 +1485,12 @@ def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None
 
 
 def normalise_envelope(raw: dict) -> dict:
-    """Project any receipt shape onto the canonical 3-key envelope. An Audit Pack export carries ``{payload,
-    signature, anchors}`` plus export-side members (ids, base64 copies of the bytes); only the three
-    canonical members are kept, so no export-side member reaches an axis. The hosted ``/verify/{id}`` JSON
-    nests the signed dict under ``payload`` and exposes the signature object as ``signature_envelope``
-    (plus a flat-string ``signature``); rebuild from those so ``run()`` sees one shape."""
+    """Project any receipt shape onto the canonical 3-key envelope. An Audit
+    Pack export carries ``{payload,
+    signature, anchors}`` plus export-side members (ids, base64 copies of the
+    bytes); only the three
+    canonical members are kept, so no export-side member reaches an axis.
+    """
     # A top-level signature object plus a payload dict: keep exactly three members.
     sig = raw.get("signature")
     if isinstance(sig, dict) and isinstance(raw.get("payload"), dict):
@@ -1551,8 +1543,7 @@ def _match_key(jwks: dict, kid: str):
 def _match_key_by_id(jwks: dict, kid: str):
     """Return the first usable jwks entry whose crypto key id is exactly kid.
 
-    A key id names one key, so it decides on its own. The looser issuer-id match in
-    ``_match_key`` answers for every key an org publishes, which is a set, not a key.
+    A key id names one key, so it decides on its own.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -1570,10 +1561,10 @@ def _match_key_by_id(jwks: dict, kid: str):
 def _key_bound_to_claimant(k: dict, issuer_id, org_id=None):
     """Return True when a key's published issuer or org equals the claimed one.
 
-    agent_id is attacker-controlled, so this claim bind, not the agent match alone,
-    decides which sibling a receipt verifies against. A hash-mode receipt signs the
-    raw org_id rather than issuer_id, so the org binding answers for that shape and
-    names exactly one signer."""
+    agent_id is attacker-controlled, so this claim bind, not the agent match
+    alone,
+    decides which sibling a receipt verifies against.
+    """
     issuer_bound = issuer_id and issuer_id == k.get("issuer_id")
     org_bound = org_id and org_id == k.get("org_id")
     return bool(issuer_bound or org_bound)
@@ -1584,11 +1575,8 @@ _AGENT_BIND_CANDIDATE_CAP = 8
 
 
 def _match_keys_by_agent(jwks: dict, agent_id, issuer_id, org_id=None) -> list:
-    """Return every usable jwks entry for an agent key bound to a claimed issuer.
-
-    The single agent-side matcher, so the entry a signature verifies against is the same
-    entry every published field is read from. A rotation leaves an agent with more than
-    one published key, so this answers with the whole candidate set, not a guess.
+    """Return every usable jwks entry for an agent key bound to a claimed
+    issuer.
     """
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
@@ -1614,11 +1602,8 @@ def _match_key_by_agent(jwks: dict, agent_id, issuer_id, org_id=None):
 
 
 def _select_agent_bound_key(jwks: dict, agent_id, issuer_id, org_id, msg, sig, alg_hint):
-    """Return (entry, signature result, exhausted) for the agent-bound key that signed msg.
-
-    Every candidate sharing the agent bind is tried, bounded by the candidate cap, and the
-    one whose signature verifies is kept; when none does, the first is returned so the
-    report can say the whole set was tried. Revocation is never weighed here.
+    """Return (entry, signature result, exhausted) for the agent-bound key that
+    signed msg.
     """
     candidates = _match_keys_by_agent(jwks, agent_id, issuer_id, org_id)
     if not candidates:
@@ -1635,10 +1620,10 @@ def _select_agent_bound_key(jwks: dict, agent_id, issuer_id, org_id, msg, sig, a
 def _match_key_by_thumbprint(jwks: dict, thumbprint, agent_id=None, kid=None):
     """Return the one usable jwks entry publishing exactly this key_thumbprint.
 
-    The thumbprint sits inside the signed bytes and names one key in one step, so it
-    outranks every unsigned or set-valued identifier. Sibling rows can publish one
-    key under different ids and statuses, so a tie is broken by the signed agent_id
-    and then by the envelope kid; list position decides nothing on its own."""
+    The thumbprint sits inside the signed bytes and names one key in one step,
+    so it
+    outranks every unsigned or set-valued identifier.
+    """
     if not isinstance(thumbprint, str) or not is_well_formed(thumbprint):
         return None
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
@@ -1665,12 +1650,8 @@ def _match_key_by_thumbprint(jwks: dict, thumbprint, agent_id=None, kid=None):
 def match_signing_key(
     jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None, key_thumbprint=None
 ):
-    """Return the one jwks entry a receipt's signature is checked against. Order: signed key_thumbprint, exact
-    key id, agent bind, bare-kid issuer match: one entry serves the signature and the key's status and issuer:
-    resolving them separately lets a receipt verify against a key found one way while revocation and issuer
-    read a key found the other. An org-shaped kid matches each sibling alike and list position picks one, so
-    position binds nothing. A thumbprint naming the key the signature was not made with is caught downstream:
-    the signature fails, the agent bind finds the real signer, key_binding reports the substitution."""
+    """Return the one jwks entry a receipt's signature is checked against.
+    """
     # Thumbprint, agent_id, issuer_id sit in the signed bytes: the thumbprint names
     # the exact key after a rotation; the agent bind carries a hash-mode org_id.
     entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
@@ -1737,18 +1718,16 @@ def resolve_key_issuer(jwks: dict, kid: str):
     """Return the issuer id the jwks publishes for the key kid resolves to.
 
     Reads the same entry resolve_key returns, so the bind weighs the key that
-    actually verified. None when kid resolves nothing or publishes no string issuer.
+    actually verified. None when kid resolves nothing or publishes no string
+    issuer.
     """
     return key_issuer_of(_match_key(jwks, kid))
 
 
 def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str, org_id: str | None = None):
-    """Return (public_key_bytes, status, alg, kid, key_issuer_id) for an agent key.
-
-    Cloud receipts set signature.kid to the issuer (org) id but sign with the agent's
-    own key, and the JWKS publishes agent_id per key, so the signing key resolves by
-    agent_id. agent_id is attacker-controlled, so a match also needs the key's published
-    issuer_id (or org_id) to equal the claimed issuer, or any org's key would verify it."""
+    """Return (public_key_bytes, status, alg, kid, key_issuer_id) for an agent
+    key.
+    """
     k = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
     if k is None:
         return None, None, None, None, None
@@ -1765,8 +1744,7 @@ def resolve_revoked_at(jwks: dict, kid: str):
     """Return the JWKS revoked_at for kid if published, else None.
 
     Optional field: the public JWKS publishes status today but not the
-    timestamp, so the key-status axis falls back to a bare status gate. Reads the
-    same entry resolve_key returns, so every axis weighs one key, not two.
+    timestamp, so the key-status axis falls back to a bare status gate.
     """
     return revoked_at_of(_match_key(jwks, kid))
 
@@ -1789,7 +1767,8 @@ def check_issuer_binding(key_issuer_id, claimed_issuer_id):
 def resolve_key_org(jwks: dict, kid: str):
     """Return the org id the jwks publishes for the key kid resolves to, if any.
 
-    A value that is not an org id cannot serve as one, so it reads as unpublished
+    A value that is not an org id cannot serve as one, so it reads as
+    unpublished
     and the issuer branch decides, rather than counting as a mismatch.
     """
     return key_org_of(_match_key(jwks, kid))
@@ -1803,11 +1782,10 @@ _ORG_ID_RE = re.compile(
 
 
 def _is_org_id(value) -> bool:
-    """True for a canonical dashed UUID, the only form an org id takes on the wire.
+    """True for a canonical dashed UUID, the only form an org id takes on the
+    wire.
 
-    Strict on purpose. A permissive parse would read urn:uuid: or undashed text as
-    an org id and then FAIL the bind against the canonical org_id beside it, which
-    false-FAILs an honest receipt. Anything else is a label: SKIP, never PASS.
+    Strict on purpose.
     """
     return isinstance(value, str) and _ORG_ID_RE.fullmatch(value) is not None
 
@@ -1823,12 +1801,9 @@ def _org_key(value):
 
 
 def check_org_binding(key_issuer_id, key_org_id, claimed_org_id):
-    """Bind a hash-mode receipt's org_id to the org the directory names for its key.
-
-    issuer_id is the org's legal entity or its id, so it equals org_id only while no
-    org sets a legal entity; prefer the published per-key org_id, the field the
-    server can guarantee equal. With neither, the claim is not comparable offline:
-    SKIP rather than FAIL an honest receipt."""
+    """Bind a hash-mode receipt's org_id to the org the directory names for its
+    key.
+    """
     if not isinstance(claimed_org_id, str) or not claimed_org_id:
         return "FAIL", f"receipt org_id is {claimed_org_id!r}, so there is no org to bind"
     if _org_key(claimed_org_id) in (_org_key(key_org_id), _org_key(key_issuer_id)):
@@ -1850,18 +1825,18 @@ REVOKED_KEY_STATUSES = {"revoked", "suspended", "compromised"}
 
 
 def key_status_kind(status: object, revocation_reason: object = None) -> str:
-    """The effective key state: compromise wins over every other published label."""
+    """The effective key state: compromise wins over every other published
+    label.
+    """
     s = (status or "").lower() if isinstance(status, str) else ""
     reason = revocation_reason.lower() if isinstance(revocation_reason, str) else ""
     return "compromised" if s == "compromised" or reason == "compromised" else s
 
 
 def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
-    """True when a verified anchor proves the envelope existed at or before revoked_at.
-
-    Only then is the self-attested issued_at corroborated: an anchor proves the envelope (payload +
-    signature) existed at the anchor's own proven time, so a time at/before revocation rules out a
-    signature made with the revoked key. An anchor with no proven time (an unplaced OTS proof) is False."""
+    """True when a verified anchor proves the envelope existed at or before
+    revoked_at.
+    """
     if not trusted_times or not revoked_at:
         return False
     rev = _parse_stamp(revoked_at)
@@ -1871,12 +1846,11 @@ def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
 
 
 def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False, revocation_reason=None):
-    """Gate the verdict on the signing key's published status.
-    A revoked key never PASSes on receipt timestamps alone: producer-attested time
+    """Gate the verdict on the signing key's published status. A revoked key
+    never PASSes on receipt timestamps alone: producer-attested
+    time
     without a verified anchor SKIPs; revocation at/before issuance FAILs.
-    has_trusted_anchor must be an anchor the caller verified as pre-revocation;
-    presence alone never suffices, and the default False never hides behind it.
-    Retirement, compromise and unknown are distinct non-passing outcomes."""
+    """
     s = (status or "").lower()
     kind = key_status_kind(status, revocation_reason)
     if kind == "compromised":
@@ -2009,11 +1983,11 @@ def _check_clock_range(tail: str) -> None:
 
 
 def _extended_offset(issued_at: str) -> str:
-    """Rewrite a basic-format UTC offset to the extended form, else pass through.
+    """Rewrite a basic-format UTC offset to the extended form, else pass
+    through.
 
     One receipt has to draw one verdict on every supported Python: "+0200" reads
-    FAIL on 3.10 and PASS on 3.11 without this. An out-of-range field raises,
-    since CPython 3.11+ reads "+0260" as a 3-hour offset and shifts the instant.
+    FAIL on 3.10 and PASS on 3.11 without this.
     """
     date, tail = issued_at[:10], issued_at[10:]
     _check_clock_range(tail)
@@ -2037,10 +2011,10 @@ _EXTENDED_STAMP_RE = re.compile(
 def _parse_stamp(value: object):
     """Parse an ISO-8601 stamp, or None when it is unreadable.
 
-    One parser for every time axis, so a stamp the skew axis refuses is not quietly
-    accepted by the expiry axis. A stamp with no zone reads as UTC. The grammar is
-    matched explicitly before fromisoformat, whose acceptance of the basic form
-    differs by version; one stamp must draw one verdict on all."""
+    One parser for every time axis, so a stamp the skew axis refuses is not
+    quietly
+    accepted by the expiry axis. A stamp with no zone reads as UTC.
+    """
     text = str(value)
     if _EXTENDED_STAMP_RE.match(text) is None:
         return None
@@ -2200,7 +2174,9 @@ def _same_bytes(outer: object, expected: bytes) -> bool:
 
 
 def _same_json(outer: object, signed: object) -> bool:
-    """Equal once canonicalised; a value that cannot be canonicalised is unequal."""
+    """Equal once canonicalised; a value that cannot be canonicalised is
+    unequal.
+    """
     try:
         return canonical_json(outer) == canonical_json(signed)
     except Exception:
@@ -2208,13 +2184,17 @@ def _same_json(outer: object, signed: object) -> bool:
 
 
 def _signed_twin(payload: dict, name: str):
-    """A signed member's value, None when it is absent or withheld from the export."""
+    """A signed member's value, None when it is absent or withheld from the
+    export.
+    """
     twin = payload.get(name)
     return None if twin == _WITHHELD_MARKER else twin
 
 
 def _text_copy_outcomes(raw: dict, payload: dict) -> list:
-    """(member, agrees) per carried text copy; agrees is None with no signed twin."""
+    """(member, agrees) per carried text copy; agrees is None with no signed
+    twin.
+    """
     out = []
     for outer, signed in _OUTER_TEXT_COPIES:
         if raw.get(outer) is None:
@@ -2242,7 +2222,9 @@ def _time_copy_outcomes(raw: dict, payload: dict) -> list:
 
 
 def _envelope_copy_outcomes(raw: dict, sig_obj: dict) -> list:
-    """algorithm and the signature strings against the normalised signature object."""
+    """algorithm and the signature strings against the normalised signature
+    object.
+    """
     out = []
     twin_sig = _strict_b64(sig_obj.get("sig"))
     if raw.get("algorithm") is not None:
@@ -2277,7 +2259,8 @@ def _byte_copy_outcomes(raw: dict, msg: bytes, key_bytes) -> list:
 
 
 def _stray_outcome(value: object, payload: dict, name: str):
-    """A member under a signed member's name must equal it; any other name has no twin.
+    """A member under a signed member's name must equal it; any other name has
+    no twin.
 
     The hosted response names itself type "signature", which is no receipt type.
     """
@@ -2293,7 +2276,9 @@ def _unit_order(name: str) -> bytes:
 
 
 def _stray_outcomes(raw: dict, payload: dict, sig_obj: dict) -> list:
-    """Top-level members outside the export shape, then extras inside the signature object."""
+    """Top-level members outside the export shape, then extras inside the
+    signature object.
+    """
     top = sorted((k for k in raw if k not in _OUTER_MEMBERS and raw[k] is not None), key=_unit_order)
     out = [(k, _stray_outcome(raw[k], payload, k)) for k in top]
     extra = sorted((k for k in sig_obj if k not in _SIGNATURE_MEMBERS and sig_obj[k] is not None), key=_unit_order)
@@ -2311,7 +2296,9 @@ _FLAT_FRAMING = frozenset(("anchors", "algorithm"))
 
 
 def _is_flat_hash_receipt(raw: dict) -> bool:
-    """A flat hash-mode receipt: mode=hash, no payload object, a signature (the oracle's rule)."""
+    """A flat hash-mode receipt: mode=hash, no payload object, a signature (the
+    oracle's rule).
+    """
     if raw.get("mode") != "hash" or isinstance(raw.get("payload"), dict):
         return False
     return bool(raw.get("signature_b64") or raw.get("signature"))
@@ -2336,7 +2323,9 @@ def _flat_member_bound(raw: dict, name: str, key_bytes, key_kid) -> bool:
 
 
 def _flat_outer_note(raw: dict, key_bytes, key_kid) -> tuple:
-    """A flat receipt signs its own fields, so it has no copies; list what it signs not."""
+    """A flat receipt signs its own fields, so it has no copies; list what it
+    signs not.
+    """
     names = sorted(
         (k for k in raw if raw[k] is not None and not _flat_member_bound(raw, k, key_bytes, key_kid)),
         key=_unit_order,
@@ -2355,7 +2344,9 @@ def _outer_copy_outcomes(raw: dict, payload: dict, sig_obj: dict, msg: bytes, ke
 
 
 def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
-    """Fold per-member outcomes into the (result, note) of the outer_copies axis."""
+    """Fold per-member outcomes into the (result, note) of the outer_copies
+    axis.
+    """
     bad = [m for m, ok in outcomes if ok is False]
     unattested = [m for m, ok in outcomes if ok is None]
     unattested += [m for m in _OUTER_UNATTESTED if m in raw]
@@ -2375,12 +2366,12 @@ def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
 
 
 def check_outer_copies(raw: dict, msg: bytes, key_bytes=None, key_kid=None):
-    """(result, note) for the outer_copies axis. ``raw`` is the entry as received, ``msg`` the canonical
-    signed bytes, ``key_bytes`` the key the signature verified under (None when it did not verify) and
-    ``key_kid`` that key's kid. An Audit Pack entry restates signed values as members no signature covers, so
-    an edit to one still verifies "signature valid". Each copy is compared with the signed value it restates;
-    a disagreement FAILs the axis, so the verdict is unverified (invalid). A member with no signed counterpart
-    is listed, never trusted. Signature copies are weighed against the normalised signature object."""
+    """(result, note) for the outer_copies axis. ``raw`` is the entry as
+    received, ``msg`` the canonical
+    signed bytes, ``key_bytes`` the key the signature verified under (None
+    when it did not verify) and
+    ``key_kid`` that key's kid.
+    """
     # A flat hash-mode receipt has no copies: its unsigned members are listed, incl.
     # a ``key_id`` other than ``key_kid``.
     payload = raw.get("payload") if isinstance(raw, dict) else None
@@ -2516,12 +2507,8 @@ _FULL_AXIS_ORDER = (
 
 
 def coverage_declaration(axes: list) -> dict:
-    """The coverage block every result carries beside its non-coverage list. The shape mirrors the
-    reviewer's tool so the two read side by side: stopped_at is None when evaluation ran the full axis
-    sequence (the normal path always ends at expiry); the early returns stop at the structure gate
-    (their axes name the failing input member), so it reads "structure" there. checks_not_evaluated
-    lists one not_implemented entry per NOT_CHECKED row, then - on an early return - one not_reached
-    entry per axis of the full order after the stop point that the result does not carry."""
+    """The coverage block every result carries beside its non-coverage list.
+    """
     entries = [
         {
             "id": row["check"],
@@ -2546,12 +2533,8 @@ def coverage_declaration(axes: list) -> dict:
 
 
 def check_payload_digest(payload: dict) -> tuple[str, str, str]:
-    """Recompute payload_digest from the receipt's context. A receipt carrying BOTH the context and a digest
-    over it is checkable offline, and disagreement means one is a lie: the digest is what downstream binds
-    to, so a receipt whose context does not hash to its own digest is inconsistent. Absence PASSes on both
-    sides: hash mode carries no context and a payload-mode receipt may omit it (redaction, or an org not
-    storing it), so a missing context is ordinary, never a failure. Returns (result, note, applicability):
-    absence reports "not_applicable", else "evaluated", so no consumer parses notes (criterion 487)."""
+    """Recompute payload_digest from the receipt's context.
+    """
     # Without this check an issuer could sign a benign context beside a digest
     # committing to something else and every verifier passed it.
     if not isinstance(payload, dict):
@@ -2623,7 +2606,9 @@ def check_payload_digest(payload: dict) -> tuple[str, str, str]:
 
 
 def _envelope_hash(envelope: dict) -> str:
-    """Hash payload and the exact signature object, excluding all outer export members."""
+    """Hash payload and the exact signature object, excluding all outer export
+    members.
+    """
     if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), dict):
         raise ValueError("originating payload is unavailable")
     signature = envelope.get("signature")
@@ -2642,7 +2627,9 @@ _COUNTERPARTY_KID_UNSET = object()
 
 
 def counterparty_acknowledging_kid(envelope: dict):
-    """Read an actual wire kid, without normalization's synthesized issuer fallback."""
+    """Read an actual wire kid, without normalization's synthesized issuer
+    fallback.
+    """
     signature = envelope.get("signature")
     if not isinstance(signature, dict):
         signature = envelope.get("signature_envelope")
@@ -2650,17 +2637,19 @@ def counterparty_acknowledging_kid(envelope: dict):
 
 
 def bound_counterparty_kid(kid, signing_kid, signing_issuer):
-    """Require the advertised identifier to name the directory's selected signing key."""
+    """Require the advertised identifier to name the directory's selected
+    signing key.
+    """
     return kid if isinstance(kid, str) and kid in (signing_kid, signing_issuer) else None
 
 
 def check_counterparty_binding(payload: dict, originator: dict | None = None, *, acknowledging_kid=_COUNTERPARTY_KID_UNSET):
-    """Weigh a claimed cross-agent binding instead of letting it ride unchecked. counterparty_binding is
-    caller-supplied: an issuer can attach one asserting "the counterparty acknowledged this" over a
-    receipt nobody saw. The hosted verifier resolves receipt_ref against its database; offline there
-    is none, so a fabricated binding reached a verified verdict. Absence PASSes: a receipt claiming no
-    corroboration is ordinary; a skip would block every one. An unresolvable claim reports SKIPPED, which
-    blocks, so it never reads as corroborated. A malformed or mismatched binding proves a break and FAILs."""
+    """Weigh a claimed cross-agent binding instead of letting it ride unchecked.
+    counterparty_binding is
+    caller-supplied: an issuer can attach one asserting "the counterparty
+    acknowledged this" over a
+    receipt nobody saw.
+    """
     # Same rule the anchors follow: presence alone never passes the axis.
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no counterparty binding to check"
@@ -2755,10 +2744,10 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
 def check_directory_substitution(payload: dict, jwks: dict, prior_jwks: dict | None):
     """Report directory substitution against retained evidence (628 T-a).
 
-    Returns None when there is no retained directory to compare or no contradiction,
-    leaving the legacy path untouched. Otherwise a (result, note) pair: the retained
-    directory pins the signed key_thumbprint to one key while the current directory
-    binds a different key to the same kid or agent."""
+    Returns None when there is no retained directory to compare or no
+    contradiction,
+    leaving the legacy path untouched.
+    """
     if prior_jwks is None or not isinstance(payload, dict):
         return None
     claimed = payload.get("key_thumbprint")
@@ -2796,12 +2785,12 @@ def check_directory_substitution(payload: dict, jwks: dict, prior_jwks: dict | N
 
 
 def check_key_binding(payload: dict, alg, public_key):
-    """Recompute the signed key_thumbprint from the resolved key. The receipt names its key INSIDE the signed
-    bytes, so a swapped key stops rederiving the digest. A mismatch is a proven binding break (``key_binding``
-    is in ``_INVALID_FAIL_AXES``): the verdict is unverified (invalid). Absence stays conformant: PASS with
-    a note, never a skip blocking pre-binding receipts. Unrecomputable - no key resolved, or a key not raw
-    ML-DSA of the width its alg fixes - reports SKIPPED, which blocks, never reading verified. ``public_key``
-    is the key the signature axis verified against, not the kid, as issuer_bind and key_status resolve."""
+    """Recompute the signed key_thumbprint from the resolved key. The receipt
+    names its key INSIDE the signed
+    bytes, so a swapped key stops rederiving the digest. A mismatch is a
+    proven binding break (``key_binding``
+    is in ``_INVALID_FAIL_AXES``): the verdict is unverified (invalid).
+    """
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; binding not checked"
     claimed = payload.get("key_thumbprint")
@@ -2873,11 +2862,7 @@ SUPPORTED_REQUIRED_EXTENSIONS = frozenset({"beacon_ref"})
 
 def check_required_extensions(payload: dict, required) -> tuple[str, str]:
     """Evaluate caller-required optional extensions (criterion 574-D3).
-
-    PASS when every required member is carried and well-formed; FAIL when a
-    supported member is carried malformed (proven non-conformance to the selected
-    policy, hence in _INVALID_FAIL_AXES); SKIPPED when a required member is absent
-    or unsupported, so the receipt never reads as verified."""
+    """
     if not isinstance(payload, dict):
         return "SKIPPED", "no signed payload; required extensions cannot be evaluated"
     for name in required or []:
@@ -2953,8 +2938,11 @@ def check_controls_evaluated(payload: dict):
 
 
 def check_nonce(payload: dict, seen_nonces: set | None = None):
-    """Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
-    (issuer_id, nonce) pair fails, re-verifying the identical receipt does not."""
+    """Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt
+    reusing an
+    (issuer_id, nonce) pair fails, re-verifying the identical receipt does
+    not.
+    """
     nonce = payload.get("nonce")
     if nonce is None or nonce == "":
         return "PASS", "receipt declares no nonce; nothing to flag"
@@ -3039,7 +3027,9 @@ def check_structure(payload: dict):
 
 
 def is_current_profile_version(value) -> bool:
-    """True for numeric v=1 (1.0 selects too); booleans, v2, missing never select."""
+    """True for numeric v=1 (1.0 selects too); booleans, v2, missing never
+    select.
+    """
     if isinstance(value, bool):
         return False
     if isinstance(value, int):
@@ -3048,12 +3038,15 @@ def is_current_profile_version(value) -> bool:
 
 
 def is_recognised_wire_version(value) -> bool:
-    """True for an integer v in RECOGNISED_WIRE_VERSIONS; booleans and floats never select."""
+    """True for an integer v in RECOGNISED_WIRE_VERSIONS; booleans and floats
+    never select.
+    """
     return type(value) is int and value in RECOGNISED_WIRE_VERSIONS
 
 
 def is_recognised_mode(value) -> bool:
-    """True for a string mode in RECOGNISED_MODES; anything else never selects."""
+    """True for a string mode in RECOGNISED_MODES; anything else never selects.
+    """
     return type(value) is str and value in RECOGNISED_MODES
 
 
@@ -3183,7 +3176,8 @@ def _profile_range_refusal(payload, sig_obj, predecessor_payload, counterparty, 
 def _agent_fallback_signature(
     jwks, payload, envelope, msg, sig, alg, jwks_alg, pk, sig_res, eff
 ):
-    """Adopt a verifying agent key, else note exhaustion; returns updated state."""
+    """Adopt a verifying agent key, else note exhaustion; returns updated state.
+    """
     # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
     # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
     agent_id = payload.get("agent_id") or envelope.get("agent_id")
@@ -3218,7 +3212,9 @@ def _agent_fallback_signature(
 
 
 def _signature_object(envelope: dict, payload: dict) -> dict:
-    """The {alg, kid, sig} object of a normalised envelope, derived from a flat string."""
+    """The {alg, kid, sig} object of a normalised envelope, derived from a flat
+    string.
+    """
     sig_obj = envelope.get("signature", {})
     if isinstance(sig_obj, str):  # flat-string signature, derive the object
         return {
@@ -3233,11 +3229,7 @@ def _signature_object(envelope: dict, payload: dict) -> dict:
 
 def check_rotation_succession(entry, eff_pk, prior_jwks):
     """Report unevidenced rotation against retained evidence (628 T-b).
-
-    Returns None when there is no retained directory, no retained pin for the resolved
-    identity, the verifying key is still published there, or the signature did not
-    verify. Else a (result, note) pair: the current key differs from every retained key
-    for the same kid or agent with no transition authorization from the retained key."""
+    """
     if prior_jwks is None or eff_pk is None or not isinstance(entry, dict):
         return None
     prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
@@ -3272,10 +3264,10 @@ def _key_and_signature_rows(
     jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
     prior_jwks=None,
 ):
-    """Rows for issuer_key, issuer_bind, key_status and signature, plus the verifying key.
+    """Rows for issuer_key, issuer_bind, key_status and signature, plus the
+    verifying key.
 
-    Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``. The key the signature
-    axis actually verified against is what key_binding and outer_copies weigh.
+    Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``.
     """
     entry = _signing_key_entry(jwks, kid, payload, envelope)
     pk, status, jwks_alg = _entry_material(entry)
@@ -3328,7 +3320,9 @@ def _key_and_signature_rows(
 
 
 def _verifying_key(rows, eff_pk):
-    """The key bytes the signature row verified under, None when it did not PASS."""
+    """The key bytes the signature row verified under, None when it did not
+    PASS.
+    """
     passed = any(name == "signature" and res == "PASS" for name, res, _ in rows)
     return eff_pk if passed else None
 
@@ -3542,12 +3536,10 @@ def run_structured(
     trust_bundle_source: str | None = None,
     prior_jwks: dict | None = None,
 ) -> dict:
-    """Verify a receipt offline and return a structured result dict, as ``run()``. ``predecessor_payload`` may
-    be the whole predecessor envelope. ``seen_nonces`` is the caller's replay index: pass one to flag an
-    (issuer_id, nonce) reuse; without it the axis still reports, holding no index. ``required_extensions``
-    names optional extensions the policy requires (criterion 574-D3), each per-axis: absent or unsupported
-    SKIPs, malformed FAILs invalid; without the parameter the evaluation is unchanged, no axis appended.
-    Keys: ``verdict``, ``failure_class``, ``axes``, ``canonical_sha256``, ``kid``, ``alg``, ``trust_bundle``."""
+    """Verify a receipt offline and return a structured result dict, as
+    ``run()``. ``predecessor_payload`` may
+    be the whole predecessor envelope.
+    """
     # Verdict: verified, verified_keyed or unverified; failure class: invalid or
     # unverifiable. Each axis dict carries name, result, note and failure_class.
     _tb_identity = trust_bundle_identity(trust_bundle, trust_bundle_source)
@@ -3743,7 +3735,9 @@ def _load_tsa_keys(paths) -> list:
 
 
 def tsa_key_material(blob: bytes) -> bytes:
-    """One TSA key or certificate as the anchor check takes it: PEM kept, base64 decoded."""
+    """One TSA key or certificate as the anchor check takes it: PEM kept, base64
+    decoded.
+    """
     text = blob.strip()
     if text.startswith(b"-----BEGIN"):
         return text + b"\n"
@@ -3811,7 +3805,8 @@ def verify_trust_bundle(bundle: dict) -> tuple:
 
 
 def trust_bundle_identity(bundle: dict | None, source: str | None) -> dict | None:
-    """Identity block for structured results; None when no bundle was supplied."""
+    """Identity block for structured results; None when no bundle was supplied.
+    """
     if bundle is None:
         return None
     ok, recorded = verify_trust_bundle(bundle)

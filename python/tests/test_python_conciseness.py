@@ -58,6 +58,7 @@ def test_verifier_scope_counts_zero():
     counts = conciseness.scan_tree(VERIFIER_DIR)
     assert counts.files_scanned > 0
     assert counts.docstrings == 0, counts.findings
+    assert counts.docstring_lines == 0, counts.findings
     assert counts.comment_lines == 0, counts.findings
     assert counts.comment_blocks == 0, counts.findings
 
@@ -123,6 +124,74 @@ def test_license_header_digest_is_pinned(tmp_path):
     assert conciseness.license_header_lines(copy.read_text(encoding="utf-8")) == []
     counts = conciseness.scan_tree(copy)
     assert counts.comment_blocks == 1, counts.findings
+
+
+def test_negctl_docstring_line_over_the_width(tmp_path):
+    copy = _copy_of_verify_receipt(tmp_path)
+    planted = "\n".join(
+        [
+            "",
+            "",
+            '"""' + "x" * (conciseness.MAX_COMMENT_CHARS - 2),
+            "y" * (conciseness.MAX_COMMENT_CHARS - 4),
+            '"""',
+        ]
+    )
+    with copy.open("a", encoding="utf-8") as handle:
+        handle.write(planted + "\n")
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstring_lines == 1, counts.findings
+    assert conciseness.main(["--path", str(copy)]) != 0
+
+
+def test_negctl_joined_docstring_line(tmp_path):
+    copy = _copy_of_verify_receipt(tmp_path)
+    planted = "\n".join(
+        [
+            "",
+            "",
+            '"""' + "z" * (conciseness.MAX_COMMENT_CHARS + 39),
+            '"""',
+        ]
+    )
+    with copy.open("a", encoding="utf-8") as handle:
+        handle.write(planted + "\n")
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstring_lines == 1, counts.findings
+    assert conciseness.main(["--path", str(copy)]) != 0
+
+
+def test_negctl_hundred_char_docstring_line(tmp_path):
+    copy = _copy_of_verify_receipt(tmp_path)
+    planted = "\n".join(
+        [
+            "",
+            "",
+            '"""' + "q" * 98,
+            '"""',
+        ]
+    )
+    with copy.open("a", encoding="utf-8") as handle:
+        handle.write(planted + "\n")
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstring_lines == 1, counts.findings
+    assert conciseness.main(["--path", str(copy)]) != 0
+
+
+def test_docstring_line_at_the_width_is_accepted(tmp_path):
+    copy = _copy_of_verify_receipt(tmp_path)
+    planted = "\n".join(
+        [
+            "",
+            "",
+            '"""' + "w" * (conciseness.MAX_COMMENT_CHARS - 3),
+            '"""',
+        ]
+    )
+    with copy.open("a", encoding="utf-8") as handle:
+        handle.write(planted + "\n")
+    counts = conciseness.scan_tree(copy)
+    assert counts.docstring_lines == 0, counts.findings
 
 
 def test_scan_reports_a_file_it_cannot_read(tmp_path):

@@ -1,9 +1,9 @@
-"""Export-only shim: an Asqav receipt presented in W3C Verifiable Credential 2.0 shape.
-EU-lane presentation, NOT a wire token, NOT a first-class internal type, NOT a verification
-path. ``to_vc_envelope`` maps action/agent fields into a VC ``credentialSubject``, carrying the
-ORIGINAL Asqav signature verbatim - it re-signs nothing. An Asqav receipt signs its own Asqav
-canonical bytes, a VC suite signs the VC's own bytes, so relabelling would look forged; the
-export emits the NON-STANDARD ``AsqavReceiptSignature2026`` proof; a generic VC verifier MUST decline it."""
+"""Export-only shim: an Asqav receipt presented in W3C Verifiable Credential 2.0
+shape. EU-lane presentation, NOT a wire token, NOT a first-class internal
+type, NOT
+a verification
+path.
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -47,11 +47,10 @@ def _detect_format(receipt: dict) -> str:
 
 
 def _signing_input_b64(receipt: dict, fmt: str) -> str | None:
-    """Base64 of the exact canonical bytes the source signature covers, if reproducible.
+    """Base64 of the exact canonical bytes the source signature covers, if
+    reproducible.
 
-    The oracle's adapter for this format already encodes the signing input rule. Reusing
-    it keeps the pointer honest: it is the same bytes the verifier would re-derive, not a
-    second guess. ``None`` when the format is unknown or the bytes cannot be rebuilt.
+    The oracle's adapter for this format already encodes the signing input rule.
     """
     import base64
 
@@ -66,10 +65,8 @@ def _signing_input_b64(receipt: dict, fmt: str) -> str | None:
 
 
 def _native_subject(receipt: dict) -> tuple[dict, dict, str | None]:
-    """Map an Asqav-native receipt (compliance or hash mode) to (subject, proofbits, issuer).
-
-    ``proofbits`` is ``{sig, alg, kid}`` pulled verbatim from the source so the proof block
-    preserves the original signature byte-for-byte.
+    """Map an Asqav-native receipt (compliance or hash mode) to (subject,
+    proofbits, issuer).
     """
     if receipt.get("mode") == "hash" and receipt.get("payload") is None:
         # Flat hash-mode /sign output.
@@ -118,12 +115,9 @@ def _native_subject(receipt: dict) -> tuple[dict, dict, str | None]:
 
 
 def _agentreceipts_subject(receipt: dict) -> tuple[dict, dict, str | None]:
-    """Map a W3C-VC AgentReceipt's fields into the Asqav presentation subject + proofbits.
-
-    The source proof is Ed25519 over the receipt's strict-JCS bytes; its ``proofValue`` is
-    carried verbatim. The export still re-labels it Asqav-native, because once the envelope
-    shape changes (type + credentialSubject re-keyed) the original proof no longer verifies
-    as a standard VC over THESE bytes - so presenting it as standard would lie."""
+    """Map a W3C-VC AgentReceipt's fields into the Asqav presentation subject +
+    proofbits.
+    """
     sub = receipt.get("credentialSubject", {}) if isinstance(receipt.get("credentialSubject"), dict) else {}
     proof = receipt.get("proof", {}) if isinstance(receipt.get("proof"), dict) else {}
     issuer = receipt.get("issuer")
@@ -162,12 +156,11 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
 
 
 def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
-    """Present an Asqav receipt as a W3C Verifiable Credential 2.0 envelope (export only).
+    """Present an Asqav receipt as a W3C Verifiable Credential 2.0 envelope
+    (export only).
 
-    Pure and offline: no signing, no network, no mutation of ``receipt``. ``format`` is an
-    optional hint; when omitted the oracle's detection is reused. The ``proof`` is the
-    NON-STANDARD ``AsqavReceiptSignature2026`` carrying the original Asqav signature verbatim
-    and a pointer to the bytes it covers, with ``proofIsAsqavNative: True``."""
+    Pure and offline: no signing, no network, no mutation of ``receipt``.
+    """
     if not isinstance(receipt, dict):
         raise TypeError("receipt must be a parsed JSON object (dict)")
 

@@ -1,9 +1,6 @@
-"""agent-receipts adapter - W3C-VC AgentReceipt, Ed25519 over strict RFC 8785 JCS.
-The signature is Ed25519 over the strict JCS bytes of the receipt with ``proof`` removed,
-signed DIRECTLY (no pre-hash); ``proof.type`` is ``Ed25519Signature2020``, ``proof.proofValue``
-multibase ``u`` (base64url, no padding). Canonical form: ``jcs_rfc8785`` (UTF-16 key sort,
-ECMAScript numbers), NOT the AERF/ACTA ``jcs`` dialect; the key resolves from
-``proof.verificationMethod`` (did:key inline, else an injected map, never a live fetch)."""
+"""agent-receipts adapter - W3C-VC AgentReceipt, Ed25519 over strict RFC 8785
+JCS.
+"""
 from __future__ import annotations
 
 import base64
@@ -78,11 +75,7 @@ class AgentReceiptsAdapter(FormatAdapter):
 
     def schema(self, doc: dict) -> tuple[str, str]:
         """Structural check; returns ``(result, note)``.
-
-        Issuer binding: the strict ``verificationMethod`` DID == ``issuer.id`` check is
-        intentionally stricter than the spec, which leaves controller indirection to DID
-        resolution the oracle does not perform; it is fail-closed and revisited when
-        DID-document resolution lands."""
+        """
         required = (
             "@context",
             "id",
