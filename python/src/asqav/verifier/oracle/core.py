@@ -1,11 +1,8 @@
 """The shared verification core - format detection, dispatch, and the verdict.
-
-``verify(doc, ...)`` detects the format, then drives the adapter through the
-shared axes: structure, signature, chain. It proves only what the bytes prove -
-a valid signature over the canonical bytes, a reproducible chain link, and
-structural presence at time T. It never attests the behaviour or correctness of
-the recorded action.
-"""
+``verify(doc, ...)`` detects the format, then drives the adapter through the shared
+axes: structure, signature, chain. It proves only what the bytes prove - a valid
+signature over the canonical bytes, a reproducible chain link, and structural
+presence at time T - never the behaviour or correctness of the recorded action."""
 from __future__ import annotations
 
 import hashlib
@@ -18,6 +15,9 @@ from ..verify_receipt import NOT_CHECKED, not_checked_declaration
 from . import crypto
 from .adapter import FormatAdapter, VerificationContext
 from .semantic import fold_independent
+
+# Failure classification lives in ``semantic_classify`` (criterion 574
+# D5a): derived from criterion 418, not ported from another table.
 from .semantic_classify import classify as classify_failure
 
 #: Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
@@ -35,13 +35,9 @@ FAILURE_UNVERIFIABLE = "unverifiable"
 @dataclass(frozen=True)
 class AxisResult:
     """One verification axis outcome.
-
-    Fields:
-      axis: which check (structure / signature / chain).
-      result: PASS / FAIL / SKIPPED (internal token).
-      note: human-readable detail for the report.
-      failure_class: invalid / unverifiable for a non-PASS axis, None on PASS.
-    """
+    Fields: axis (structure / signature / chain); result (PASS / FAIL / SKIPPED,
+    internal token); note (human-readable report detail); failure_class (invalid /
+    unverifiable for a non-PASS axis, None on PASS)."""
 
     axis: str
     result: str
@@ -52,14 +48,11 @@ class AxisResult:
 @dataclass
 class VerifyResult:
     """The aggregate outcome of verifying one receipt.
-
     ``verdict`` is ``verified`` only when every non-skipped axis passed AND the
-    signature was actually checked; ``verified_keyed`` when the digest is keyed
-    (internally consistent but not third-party re-derivable). A skipped signature
-    downgrades to ``unverified`` with ``failure_class=unverifiable``, never a
-    verified, mirroring the standalone verifier. The expiry axis never folds the
-    verdict (426). Defaults fail closed: an unfolded result reads unverified.
-    """
+    signature was checked; ``verified_keyed`` when the digest is keyed (internally
+    consistent, not third-party re-derivable). A skipped signature downgrades to
+    ``unverified``/``unverifiable``, never verified, as in the standalone verifier.
+    Expiry never folds the verdict (426); defaults fail closed (unfolded = unverified)."""
 
     fmt: str
     axes: list[AxisResult] = field(default_factory=list)
@@ -68,8 +61,8 @@ class VerifyResult:
     #: In-body origin attestation (v:2 ``signer``), surfaced from the signed
     #: payload. None when the receipt carries none (v:1). Never gates the verdict.
     signer: str | None = None
-    #: Earliest axis in report order that did not PASS, else None. Reported so two verifiers
-    #: disagreeing about WHICH check failed first is as visible as disagreeing about the verdict.
+    #: Earliest axis in report order that did not PASS, else None. Reported so a
+    #: disagreement on WHICH check failed first is as visible as on the verdict.
     first_failing_edge: str | None = None
     #: Resolved invocation context, so a disagreement attributes to an input.
     context: VerificationContext | None = None
@@ -114,31 +107,18 @@ def _oracle_coverage(axis_names: list[str]) -> dict:
     return {"stopped_at": stopped_at, "checks_not_evaluated": entries}
 
 
-    # Failure classification lives in ``semantic_classify`` (criterion 574
-    # D5a): derived from criterion 418, not ported from another table.
-#: Fixed leading axis order every adapter walks, before its format-specific extras.
-#: Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
+#: Fixed leading axis order every adapter walks, before its format extras.
+#: Pinned so a reorder fails a gate instead of renaming which edge is "first".
 AXIS_ORDER_PREFIX = ("structure", "signature", "chain", "seq")
 
 
 def first_failing_edge(axes: list[AxisResult]) -> str | None:
     """Name the earliest axis in report order that drove the verdict away from verified.
-
-    Walks the axes as reported, which is the fixed order `verify` builds, so the
-    answer never depends on which check happened to be evaluated first internally.
-
-    The two exclusions mirror the semantic table exactly, and are the whole
-    reason this is not simply "the first non-PASS axis": the expiry axis reports on its
-    own and never folds the verdict (criterion 426), and a SKIPPED chain is
-    tolerated where any other SKIPPED blocks. Without them a verified receipt
-    that is merely expired would name an edge, reporting a failure that did not
-    happen. Kept in step by a corpus-wide gate asserting this returns None for
-    exactly the verified verdicts.
-
-    SKIPPED counts otherwise: an axis that could not be checked is where the
-    chain of reasoning stopped being clean, and naming only a FAIL would let an
-    unverifiable receipt report no failing edge at all.
-    """
+    Walks the axes in the fixed reported order, so the answer never depends on which
+    check ran first. Exclusions mirror the semantic table: expiry never folds the
+    verdict (426); a SKIPPED chain is tolerated where any other SKIPPED blocks, else
+    an expired verified receipt would name an edge. A corpus-wide gate asserts None
+    for exactly the verified verdicts. SKIPPED counts: an unchecked axis stopped the reasoning clean."""
     for a in axes:
         if a.result == crypto.FAIL and a.axis != "expiry":
             return a.axis
@@ -161,7 +141,7 @@ def _axis(axis: str, result: str, note: str) -> AxisResult:
     return AxisResult(axis, result, note, classify_failure(axis, result, note))
 
 
-#: Note for "anchors": null, the malformed spelling of no anchors (absent or [] conform).
+#: Note for "anchors": null, malformed; absent or [] is the conformant spelling.
 #: Verbatim in all three engines; the cross-language anchor-shape tests pin it.
 _ANCHORS_NULL_NOTE = (
     "anchors is null: malformed; absent or [] is the conformant spelling of no anchors"
@@ -195,7 +175,7 @@ def _chain_axis(
         return _axis("chain", crypto.PASS, "genesis receipt (no predecessor link)")
     if predecessor is None:
         return _axis("chain", crypto.SKIPPED, "no predecessor supplied")
-    # A chain link must stay within one format; a cross-format predecessor is not a valid link.
+    # A chain link must stay in one format; a cross-format predecessor is invalid.
     pred_ad = detect(predecessor, adapters)
     if pred_ad is None or pred_ad.name != ad.name:
         return _axis("chain", crypto.FAIL, "predecessor is a different receipt format")
@@ -238,7 +218,7 @@ def _seq_axis(
     )
 
 
-#: Max nesting the recursive JCS encoder tolerates, mirrors the standalone verifier cap.
+#: Max nesting the recursive JCS encoder tolerates, mirrors the standalone cap.
 MAX_NESTING_DEPTH = 200
 
 _TOO_DEEP_NOTE = f"receipt nesting exceeds the supported depth (> {MAX_NESTING_DEPTH} levels)"
@@ -265,7 +245,7 @@ def _exceeds_depth(obj: Any, max_depth: int) -> bool:
 _UNSAFE_INTEGER_NOTE = "an integer outside +/-2**53 has no exact double; raw-text ingest refuses it"
 
 
-    # Same refusal strict ingest gives raw text, so a parsed dict cannot verify past it.
+    # Same refusal strict ingest gives raw text, so a parsed dict cannot pass it.
 def _holds_unsafe_integer(*inputs: Any) -> bool:
     try:
         for value in inputs:
@@ -275,7 +255,7 @@ def _holds_unsafe_integer(*inputs: Any) -> bool:
     return False
 
 
-    # One-axis unverified result for a pre-axis input refusal (depth, profile range).
+    # One-axis unverified result for a pre-axis refusal (depth, profile range).
 def _early_unverified(
     fmt: str, note: str, context: VerificationContext | None = None,
 ) -> VerifyResult:
@@ -318,7 +298,7 @@ def verify(
             coverage=_oracle_coverage([a.axis for a in axes]),
         )
     # An over-nested receipt would crash the recursive JCS encoder. Cap it here and
-    # report unverified/unverifiable, never a verified, matching the standalone gate.
+    # report unverified/unverifiable, never verified, matching the standalone gate.
     if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
     ):

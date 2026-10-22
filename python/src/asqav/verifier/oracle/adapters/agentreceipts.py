@@ -1,24 +1,9 @@
 """agent-receipts adapter - W3C-VC AgentReceipt, Ed25519 over strict RFC 8785 JCS.
-
-An AgentReceipt is a W3C Verifiable Credential 2.0 envelope: top-level ``@context``,
-``id``, ``type`` (``["VerifiableCredential", "AgentReceipt"]``), ``issuer``,
-``issuanceDate``, ``credentialSubject``, and a ``proof``. The signature is Ed25519
-over the strict JCS bytes of the receipt with the ``proof`` member removed, signed
-DIRECTLY (no pre-hash) per the agent-receipts signing rule. The ``proof.type`` is
-``Ed25519Signature2020`` and ``proof.proofValue`` is multibase ``u`` (base64url, no
-padding).
-
-This adapter uses ``jcs_rfc8785`` (UTF-16 key sort, ECMAScript numbers), NOT the
-AERF/ACTA ``jcs`` dialect: the agent-receipts producers sign true strict-JCS bytes and
-the upstream canonicalization vectors pin that. The signing key is resolved from
-``proof.verificationMethod`` through the shared DID resolver - did:key inline, every
-other method from an injected map (the oracle never fetches a DID document).
-
-Chain rule: ``credentialSubject.chain.previous_receipt_hash`` is ``"sha256:"`` +
-hex(SHA-256(JCS(predecessor without proof))). Genesis carries the field present and
-explicitly ``null`` (the field MUST always be present; ``null`` is not the same as
-omitting it) - the opposite of the AERF omit-on-genesis rule.
-"""
+The signature is Ed25519 over the strict JCS bytes of the receipt with ``proof`` removed,
+signed DIRECTLY (no pre-hash); ``proof.type`` is ``Ed25519Signature2020``, ``proof.proofValue``
+multibase ``u`` (base64url, no padding). Canonical form: ``jcs_rfc8785`` (UTF-16 key sort,
+ECMAScript numbers), NOT the AERF/ACTA ``jcs`` dialect; the key resolves from
+``proof.verificationMethod`` (did:key inline, else an injected map, never a live fetch)."""
 from __future__ import annotations
 
 import base64
@@ -51,7 +36,8 @@ def _chain(doc: dict) -> dict:
     return sub.get("chain", {}) if isinstance(sub, dict) else {}
 
 
-    # agent-receipts AgentReceipt - Ed25519 over strict RFC 8785 JCS, proof excluded.
+    # agent-receipts AgentReceipt - Ed25519 over strict RFC 8785 JCS, proof removed.
+    # Chain: "sha256:" + hex of JCS(predecessor without proof); genesis null.
 class AgentReceiptsAdapter(FormatAdapter):
 
     name = "agentreceipts"
@@ -95,9 +81,8 @@ class AgentReceiptsAdapter(FormatAdapter):
 
         Issuer binding: the strict ``verificationMethod`` DID == ``issuer.id`` check is
         intentionally stricter than the spec, which leaves controller indirection to DID
-        resolution the oracle does not perform. It is fail-closed and revisited when
-        DID-document resolution lands.
-        """
+        resolution the oracle does not perform; it is fail-closed and revisited when
+        DID-document resolution lands."""
         required = (
             "@context",
             "id",
@@ -120,7 +105,7 @@ class AgentReceiptsAdapter(FormatAdapter):
         issuer_did = issuer.get("id") if isinstance(issuer, dict) else issuer
         vm_did = doc.get("proof", {}).get("verificationMethod", "").split("#")[0]
         if not vm_did or vm_did != issuer_did:
-            # did:key carries its key in-receipt; bind to issuer or anyone self-signs as a victim
+            # did:key carries its key in-receipt; bind to issuer, never a self-signed victim
             return "FAIL", "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)"
         chain = _chain(doc)
         if "previous_receipt_hash" not in chain:
