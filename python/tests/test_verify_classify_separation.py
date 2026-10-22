@@ -11,6 +11,8 @@ from pathlib import Path
 
 _ORACLE = Path(__file__).resolve().parent.parent / "src" / "asqav" / "verifier" / "oracle"
 
+# These tests read the sources; they change no product bytes.
+
 #: Files that verify or store but must never classify (488 C38).
 _PURE_FILES = [
     "adapter.py",

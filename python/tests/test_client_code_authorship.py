@@ -31,7 +31,8 @@ GOOD_AUTHORED_BY = {
     "attestation_source": "GitHub Copilot session export",
 }
 
-
+# The enforced rules: the change_digest shape, the change_class vocabulary, the
+# authored_by attestation-source rule, the field fence and compliance_mode.
 def _agent() -> Agent:
     return Agent(
         agent_id="agent_code",
