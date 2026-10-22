@@ -22,9 +22,8 @@ MAX_DOCSTRING_LINES = 6
 MAX_COMMENT_CHARS = 80
 MAX_COMMENT_BLOCK_LINES = 2
 
-# The Apache-2.0 header of the standalone verifier, pinned by the digest of
-# its text: the exemption follows the header, not the file name, so a header
-# that is edited or a comment that merely mentions the licence is counted.
+# The Apache-2.0 header of the standalone verifier, pinned by its digest, so the
+# exemption follows the header text, not the file name.
 LICENSE_HEADER_SHA256 = "e6e7c4d87cfb25d4c262f62f06ef57f555ce812f87b2976488d8f02f9f953208"
 
 _STRUCTURAL_TOKENS = frozenset(
@@ -116,13 +115,13 @@ def license_header_lines(source: str) -> list[str]:
     return prefix if digest == LICENSE_HEADER_SHA256 else []
 
 
-def _string_statements(tree: ast.AST) -> list[tuple[int, str]]:
-    """The span and owner of every string statement of a tree.
+def _string_statements(tree: ast.AST) -> list[tuple[int, int, str]]:
+    """The line, the span and the owner of every string statement of a tree.
 
     A docstring is a string statement, so a string that is not the first
     statement of a body, or an f-string, is counted like one.
     """
-    found: list[tuple[int, str]] = []
+    found: list[tuple[int, int, str]] = []
     for node in ast.walk(tree):
         body = getattr(node, "body", None)
         if not isinstance(body, list):
@@ -131,15 +130,13 @@ def _string_statements(tree: ast.AST) -> list[tuple[int, str]]:
             if not isinstance(statement, ast.Expr):
                 continue
             value = statement.value
-            if isinstance(value, ast.Constant) and isinstance(value.value, str):
-                text = value.value
-            elif isinstance(value, ast.JoinedStr):
-                text = "".join(part.value for part in value.values if isinstance(part, ast.Constant))
-            else:
+            if not isinstance(value, (ast.Constant, ast.JoinedStr)):
+                continue
+            if isinstance(value, ast.Constant) and not isinstance(value.value, str):
                 continue
             span = statement.end_lineno - statement.lineno + 1
             name = getattr(node, "name", None) or "<module>"
-            found.append((span, f"docstring of {name}"))
+            found.append((statement.lineno, span, f"docstring of {name}"))
     return found
 
 
@@ -149,11 +146,11 @@ def scan_file(path: Path) -> Counts:
     source = path.read_text(encoding="utf-8")
     counts.files_scanned = 1
     tree = ast.parse(source, filename=str(path))
-    for span, owner in _string_statements(tree):
+    for line, span, owner in _string_statements(tree):
         if span > MAX_DOCSTRING_LINES:
             counts.docstrings += 1
             counts.findings.append(
-                f"{path}:{span}: {owner} spans {span} lines (max {MAX_DOCSTRING_LINES})"
+                f"{path}:{line}: {owner} spans {span} lines (max {MAX_DOCSTRING_LINES})"
             )
     header = license_header_lines(source)
     blocks = comment_blocks(source)
