@@ -8,7 +8,7 @@ import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { init, Agent } from "@asqav/sdk";
 
-// Stripe stub. Replace with the real Stripe call in production
+// Stub: swap in the real Stripe call for production
 async function stripeRefundStub(args: {
   chargeId: string;
   amountCents: number;

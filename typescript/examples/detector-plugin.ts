@@ -12,8 +12,8 @@ import {
 
 const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/;
 
-// Tiny custom detector so this runs with no extra install. The reference
-// PresidioDetector (PII) and OpaDetector (policy) live in @asqav/sdk/extras
+// Tiny detector needing no install; PresidioDetector (PII) and OpaDetector
+// (policy) live in @asqav/sdk/extras
 const ssnDetector = {
   name: "ssn-regex",
   inspect(_actionType: string, context: Record<string, unknown>): DetectorResult {
@@ -34,10 +34,9 @@ async function main(): Promise<void> {
   init({ apiKey });
   const agent = await Agent.create({ name: "detector-demo" });
 
-  // failOpen defaults to false: a detector error blocks rather than bypasses
+  // failOpen is false by default: a detector error blocks
   registerDetector(ssnDetector);
 
-  // Clean context: allowed, and the receipt records the detector verdict
   console.log("Signing a clean action (detector allows)...");
   const sig = await agent.sign({
     actionType: "email:send",
@@ -46,7 +45,6 @@ async function main(): Promise<void> {
   console.log(`  signatureId : ${sig.signatureId}`);
   console.log(`  verify      : ${sig.verificationUrl}`);
 
-  // Sensitive context: the detector denies, sign() blocks before the network
   console.log("\nSigning an action with an SSN (detector denies)...");
   try {
     await agent.sign({

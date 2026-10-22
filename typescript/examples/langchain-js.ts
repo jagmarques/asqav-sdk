@@ -9,7 +9,7 @@ import { z } from "zod";
 import { init, Agent } from "@asqav/sdk";
 import { enableLangchainGovernance } from "@asqav/sdk/extras/langchain";
 
-// Stripe stub. Replace with the real Stripe call in production
+// Stub: swap in the real Stripe call for production
 async function stripeRefundStub(args: {
   chargeId: string;
   amountCents: number;
@@ -24,8 +24,8 @@ async function stripeRefundStub(args: {
 async function main(): Promise<void> {
   init({ apiKey: process.env.ASQAV_API_KEY });
 
-  // Default-on: signs chain/tool/LLM lifecycle receipts, no per-call callbacks
-  // the explicit agent.sign in the refund tool records the high-value intent
+  // Signs chain/tool/LLM lifecycle receipts with no per-invoke callbacks;
+  // agent.sign in the refund tool still records the high-value intent
   await enableLangchainGovernance({ agentName: "support-bot-governance" });
 
   const agent = await Agent.create({
@@ -90,7 +90,6 @@ async function main(): Promise<void> {
 
   console.log("Model tool calls:", JSON.stringify(response.tool_calls, null, 2));
 
-  // Execute any tool calls the model proposed
   for (const call of response.tool_calls ?? []) {
     if (call.name === "refund") {
       const result = await refund.invoke(call);
