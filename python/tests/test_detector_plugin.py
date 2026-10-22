@@ -28,7 +28,7 @@ from asqav._detectors import (
 from asqav.client import Agent
 
 
-# ─── Shared helpers ───────────────────────────────────────────────────────────
+# === Shared helpers ===
 
 
 def _agent() -> Agent:
@@ -92,7 +92,7 @@ def _reset_detectors():
     clear_detectors()
 
 
-# ─── Unit: run_detectors ──────────────────────────────────────────────────────
+# === Unit: run_detectors ===
 
 
 def test_no_detectors_returns_empty_list() -> None:
@@ -176,7 +176,7 @@ def test_none_context_is_treated_as_empty() -> None:
     assert len(records) == 1
 
 
-# ─── Integration: Agent.sign path ─────────────────────────────────────────────
+# === Integration: Agent.sign path ===
 
 
     # Allow detector: sign POST is made AND _detectors appears in context.
@@ -276,7 +276,7 @@ def test_additive_no_detector_body_unchanged() -> None:
     )
 
 
-# ─── Unit: DetectorPlugin protocol ────────────────────────────────────────────
+# === Unit: DetectorPlugin protocol ===
 
 
     # Any object with name + inspect satisfies DetectorPlugin (structural).
@@ -294,7 +294,7 @@ def test_detector_blocked_error_attributes() -> None:
     assert err.docs_url.startswith("https://")
 
 
-# ─── Reference detector: PresidioDetector ────────────────────────────────────
+# === Reference detector: PresidioDetector ===
 
 
     # PresidioDetector returns deny + labels when Presidio finds PII.
@@ -342,7 +342,7 @@ def test_presidio_detector_import_error_without_extra() -> None:
             _load_analyzer()
 
 
-# ─── Reference detector: OpaDetector ─────────────────────────────────────────
+# === Reference detector: OpaDetector ===
 
 
 def test_opa_detector_allow_on_true_result() -> None:
