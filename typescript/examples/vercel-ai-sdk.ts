@@ -1,16 +1,14 @@
-/**
- * Vercel AI SDK + Asqav cookbook: wraps a tool so every invocation signs an ML-DSA audit
- * record before the side effect runs, leaving the intent in the trail if it throws.
- */
+/** Vercel AI SDK + Asqav cookbook: wraps a tool so each invocation signs an
+ * ML-DSA audit record before the side effect, leaving intent in the trail. */
 // Install: npm install @asqav/sdk ai @ai-sdk/openai zod
-// Env: ASQAV_API_KEY (asqav.com) + OPENAI_API_KEY.  Run: tsx examples/vercel-ai-sdk.ts
+// ASQAV_API_KEY + OPENAI_API_KEY (asqav.com); tsx examples/vercel-ai-sdk.ts
 
 import { tool, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { init, Agent } from "@asqav/sdk";
 
-// Stripe stub. Replace with the real Stripe call in production.
+// Stub: swap in the real Stripe call for production
 async function stripeRefundStub(args: {
   chargeId: string;
   amountCents: number;
@@ -41,8 +39,8 @@ async function main(): Promise<void> {
       reason: z.string().describe("Short reason for the refund"),
     }),
     execute: async ({ chargeId, amountCents, reason }) => {
-      // Sign the intent FIRST: if the refund throws, the receipt still proves what the
-      // agent decided. complianceMode adds a conformant chain link + fail-closed anchoring.
+      // Sign the intent FIRST: a throw still proves what the agent decided;
+      // complianceMode adds a conformant chain link + fail-closed anchoring
       const sig = await agent.sign({
         actionType: "stripe:refund",
         context: { chargeId, amountCents, reason, model: "gpt-4o" },
