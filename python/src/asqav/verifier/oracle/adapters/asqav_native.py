@@ -1,7 +1,5 @@
-"""Asqav-native adapter: the existing verify_receipt logic, two wire shapes.
-COMPLIANCE (3-key ML-DSA) and HASH (flat signed receipt); both delegate."""
-# ``asqav_jcs`` output must byte-match ``verify_receipt.canonical_json``;
-# the parity suite guarantees that.
+"""Asqav-native adapter: verify_receipt logic in two wire shapes, COMPLIANCE
+(3-key ML-DSA) and HASH (flat). asqav_jcs must byte-match canonical_json."""
 from __future__ import annotations
 
 import inspect
