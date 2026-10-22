@@ -1,11 +1,9 @@
 """SDK parity for the build-provenance 4-tuple wire fields.
 
-The cloud accepts ``executable_hash``, ``sbom_digest``,
-``slsa_provenance_pointer``, and ``supply_chain_pointer`` as optional
-fields on the signed Compliance Receipt. The SDK forwards each verbatim,
-validates the ``sha256:<64-hex>`` shape on the two digest fields, and
-validates http(s) URL form on the two pointer fields.
-"""
+The cloud accepts ``executable_hash``, ``sbom_digest``, ``slsa_provenance_pointer``, and
+``supply_chain_pointer`` as optional fields on the signed Compliance Receipt. The SDK
+forwards each verbatim, validates the ``sha256:<64-hex>`` shape on the two digest fields,
+and validates http(s) URL form on the two pointer fields."""
 
 from __future__ import annotations
 

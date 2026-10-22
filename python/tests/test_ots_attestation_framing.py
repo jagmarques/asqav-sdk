@@ -1,15 +1,10 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
 """The OpenTimestamps attestation framing: varbytes payload, LEB128 height.
-
-An attestation serialises as tag + varbytes(payload), and a Bitcoin
-attestation's payload is the block height as a LEB128 varuint
-(opentimestamps/core/notary.py TimeAttestation.deserialize, and
-serialize.py's read_varuint/write_varuint, "unsigned little-endian base128").
-The parser read the height varuint straight after the tag and grouped the
-bytes big-endian: asqav-24's production proof (payload cb f6 3a, height
-965451) consumed the length byte as height 3 and left the height bytes
-"trailing", so no upgraded proof could ever complete offline.
+An attestation serialises as tag + varbytes(payload); a Bitcoin attestation's payload is the height,
+LEB128 varuint (notary.py read_varuint, "unsigned little-endian base128"). The parser read the height varuint
+straight after the tag and grouped the bytes big-endian: asqav-24's proof (payload cb f6 3a, height 965451)
+read the length byte as height 3, leaving the height bytes "trailing"; no upgraded proof completed offline.
 """
 
 from __future__ import annotations
@@ -26,9 +21,8 @@ _VECTOR = (
     Path(__file__).resolve().parents[2]
     / "verifier" / "conformance-vectors" / "asqav-24-anchor-block-hash-prod"
 )
-#: Block 965451's merkle root in display order, reversed to internal order -
-#: the value the proof's op chain must evaluate to (ANCHOR-MATERIAL.md records
-#: the two public sources for it).
+#: Block 965451's merkle root in display order, reversed to internal order - the
+#: value the proof's op chain must evaluate to (ANCHOR-MATERIAL.md records it).
 _BLOCK_965451_ROOT_DISPLAY = "76e472dea0ba9cb2adafe0d47ef54b5928c8a9443201300c848c77894e54c57c"
 
 

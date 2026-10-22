@@ -1,14 +1,10 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The artifact probe's corpus loop runs each vector the way the requirement-map
-builder does.
-
-The probe writes its loop as a source string and executes it inside a throwaway
-venv against the INSTALLED package, so a repository test cannot call it
-directly. What it can do is execute the same bytes: ``_CORPUS_RUNNER_SOURCE``
-is the module-level constant the probe writes, and this file exec's it against
-the source package, so a drift between the loop the probe ships and the loop
-under test fails here instead of in the weekly artifact.
+"""The artifact probe's corpus loop runs each vector the way the requirement-map builder does. The probe
+writes its loop as a source string and executes it inside a throwaway venv against the INSTALLED package, so
+a repository test cannot call it directly. What it can do is execute the same bytes: ``_CORPUS_RUNNER_SOURCE``
+is the module-level constant the probe writes, and this file exec's it against the source package, so
+a drift between the loop the probe ships and the loop under test fails here instead of in the weekly artifact.
 """
 
 from __future__ import annotations
@@ -40,13 +36,10 @@ _LOOP_SOURCE = _load_loop_source()
 
 
 def _run_corpus_loop(monkeypatch, spy=None) -> dict:
-    """Execute the probe's loop source in-process against the local corpus.
-
-    The source reads the corpus path from sys.argv and prints one JSON object;
-    both are captured. A spy, when given, replaces run_structured BEFORE the
-    exec: the loop's own ``from ... import run_structured`` resolves the
-    attribute at exec time, so it binds the spy, and the spy records exactly
-    what the loop hands the verifier.
+    """Execute the probe's loop source in-process against the local corpus. The source reads the corpus path
+    from sys.argv and prints one JSON object; both are captured. A spy, when given, replaces run_structured
+    BEFORE the exec: the loop's own ``from ... import run_structured`` resolves the attribute at exec time, so
+    it binds the spy, and the spy records exactly what the loop hands the verifier.
     """
     if spy is not None:
         monkeypatch.setattr(vr, "run_structured", spy)

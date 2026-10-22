@@ -15,8 +15,8 @@ import pytest
 
 VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.json"
 
-# Closed Literal mirrored from the cloud SignRequest. passive_telemetry is observation-only;
-# github_sha_pull is the server-stamped authoritative code-authorship capture layer.
+# Closed Literal mirrored from the cloud SignRequest: passive_telemetry is
+# observation-only; github_sha_pull: server-stamped code-authorship capture.
 CAPTURE_TOPOLOGY_VOCABULARY: frozenset[str] = frozenset(
     {
         "in_process_sdk",
@@ -56,15 +56,15 @@ def test_vectors_schema_metadata() -> None:
 
 
 
-    # A vector whose DOCUMENT is refused (asqav-25) carries `input_text` and no parsed
-    # `input`, because a document that never parses has no canonical form to pin.
+    # A vector whose DOCUMENT is refused (asqav-25) carries `input_text` and no
+    # parsed `input`: a document that never parses has no canonical form to pin.
 def _canonicalizing_vectors(d: dict) -> list[dict]:
     out = [v for v in d["vectors"] if "input" in v]
     assert out, "no canonicalizing vectors found"
     return out
 
 
-    # Every vector carries exactly one of `input` or `input_text`, never both, never neither.
+    # Every vector carries exactly one of `input` or `input_text`, never both.
 def test_every_vector_declares_its_input_form() -> None:
     d = json.loads(VECTORS_PATH.read_text())
     for v in d["vectors"]:
@@ -131,7 +131,7 @@ def test_nonce_mismatch_vector_has_peer_sent_nonce() -> None:
     assert v["input"].get("client_nonce") != v["peer_sent_nonce"]
 
 
-# === capture_topology vocabulary parity (IETF -04 appendix + cloud SignRequest) ===
+# === capture_topology vocabulary parity (IETF -04 appendix + SignRequest) ===
 
 
     # Return all conformance vectors that exercise the capture_topology field.

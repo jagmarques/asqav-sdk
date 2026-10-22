@@ -1,10 +1,8 @@
 """The float table the TypeScript verifier checks equals what Python computes (criterion 747).
-
 Python writes a float with repr: 1e-07 not 1e-7, 7.635507284768651e+16 not 76355072847686510.0,
 -0.0 kept. verifier/float-repr-cases.json pins that for seeded random floats in the split zones
 (1e-9 to 1e-4, 1e16 to 1e21, signed zero) and general doubles; the TypeScript half is
-typescript/tests/verifier-float-repr.test.ts and reads the same file.
-"""
+typescript/tests/verifier-float-repr.test.ts and reads the same file."""
 
 from __future__ import annotations
 
