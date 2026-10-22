@@ -1,7 +1,7 @@
 """CLI entry point for the neutral verifier: ``python -m asqav.verifier.oracle receipt.json [--keys
 keys.json]``. ``record store.jsonl receipt.json`` retains a live assessment; the reassessment is persisted.
 ``review store.jsonl receipt.json [--rerun-a a.json --rerun-b b.json]`` compares a live receipt with its
-retained original. ``--keys``: a JWKS dict for Asqav-native, a ``{key_id: hex}`` map for AERF, a ``{key_id:
+retained original and never mutates the store. ``--keys``: a JWKS dict for Asqav-native, a ``{key_id: hex}`` map for AERF, a ``{key_id:
 pem}`` map for ACTA, a did_map for agentreceipts; did:key receipts self-resolve. Strict ingest (419)
 rejects a duplicate JSON member name pre-hash. Exit: 0 verified, 1 invalid, 2 unverifiable (not verified)."""
 # This is the entry point bundled into the single-file ``asqav-verify`` binary:
