@@ -103,14 +103,11 @@ def reassess_and_classify(
     reason: str | None = None,
 ) -> tuple[AssessmentEntry, Disagreement, SpecCase]:
     """Reassess retained bytes, then classify against the original (488 C38).
-
-    The retention-layer classification caller: reassess raises unless
-    a retained original exists, so both comparanda are real. Views
-    carry the stored envelope refs (488 C39b: original vs new entry),
-    exactly like classify_and_attribute without reruns. A ref-less
-    original compares ref-less with the gap named, per the rule in
-    live_compare.classify_and_attribute. The reason names the driver
-    (e.g. key-compromised) so the revision is labelled, never silent."""
+    The retention-layer classification caller: reassess raises unless a retained original
+    exists, so both comparanda are real. Views carry the stored envelope refs (488 C39b:
+    original vs new entry), exactly like classify_and_attribute without reruns. A ref-less
+    original compares ref-less with the gap named, per live_compare.classify_and_attribute. The
+    reason names the driver (e.g. key-compromised) so the revision is labelled, never silent."""
     entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement,
                                      reason=reason)
     original = store.replay(doc_sha256)

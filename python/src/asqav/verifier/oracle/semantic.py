@@ -1,15 +1,9 @@
 """Independent verdict semantics for the oracle (criterion 574 D5).
-
-Derived from the normative rules, not by porting any verifier's fold:
-418 (a proven binding failure is invalid; anything else is
-unverifiable; the two never collapse), 438 (keyed digests report
-verified_keyed, never plain verified), 426 (expiry reports but never
-folds), and the chain tolerance (a skipped chain is the expected shape
-of a genesis receipt, not a gap). The aggregation is an exhaustive
-lookup over four booleans - no branch chain to mirror another
-implementation. The oracle's ``verify`` uses it; corpus parity suites
-differentially check it against the standalone verifier's own fold.
-"""
+Derived from the normative rules, not ported from any verifier's fold: 418 (a proven binding failure is
+invalid; anything else unverifiable; the two never collapse), 438 (keyed digests report verified_keyed,
+never plain verified), 426 (expiry reports but never folds), and the chain tolerance (a skipped chain
+is genesis-shaped, not a gap). The aggregation is an exhaustive lookup over four booleans - no branch
+chain. The oracle's ``verify`` uses it; corpus parity suites check it against the standalone fold."""
 from __future__ import annotations
 
 from typing import Any
