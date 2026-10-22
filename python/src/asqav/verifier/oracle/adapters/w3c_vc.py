@@ -3,7 +3,7 @@
 ``issuer``, ``credentialSubject``) secured by a ``DataIntegrityProof`` (eddsa-jcs-2022,
 vc-di-eddsa): Ed25519 (RFC 8032) signs ``SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))``
 - strict RFC 8785 JCS over ``proof`` minus ``proofValue`` and credential minus ``proof``; base58btc
-``proofValue``. Structure is stricter than the suite spec (no normative proofPurpose check):"""
+``proofValue``. The structure is stricter than the suite spec, which does not check proofPurpose."""
 # requires assertionMethod, binds the verificationMethod DID to the issuer DID,
 # fail-closed, mirroring the agentreceipts adapter.
 from __future__ import annotations

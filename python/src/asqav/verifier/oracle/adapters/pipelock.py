@@ -121,7 +121,7 @@ class PipelockEvidenceAdapter(FormatAdapter):
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         sig_proof = doc.get("signature", {})
         sig_value = sig_proof.get("signature", "")
-        # Strip the ``ed25519:`` prefix before hex-decoding.
+        # Strip the ``ed25519:`` prefix before hex-decoding (128 hex chars).
         if isinstance(sig_value, str) and sig_value.startswith(_SIG_PREFIX):
             sig_bytes = _safe_hex(sig_value[len(_SIG_PREFIX):])
         else:

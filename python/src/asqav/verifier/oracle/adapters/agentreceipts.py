@@ -36,8 +36,8 @@ def _chain(doc: dict) -> dict:
     return sub.get("chain", {}) if isinstance(sub, dict) else {}
 
 
-    # agent-receipts AgentReceipt - Ed25519 over strict RFC 8785 JCS, proof removed.
-    # Chain: "sha256:" + hex of JCS(predecessor without proof); genesis null.
+    # agent-receipts: chain is "sha256:" + hex of JCS(predecessor without proof).
+    # Genesis carries the field null, unlike the AERF omit-on-genesis rule.
 class AgentReceiptsAdapter(FormatAdapter):
 
     name = "agentreceipts"

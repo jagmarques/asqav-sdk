@@ -82,6 +82,7 @@ class AerfAdapter(FormatAdapter):
     def chain_step(self, doc: dict) -> ChainStep:
         prev = doc.get("previous_receipt_hash")
         is_genesis = "previous_receipt_hash" not in doc
+        # Genesis omits the field; a present null is a malformed genesis, not a link.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,

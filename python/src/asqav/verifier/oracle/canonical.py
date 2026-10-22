@@ -4,8 +4,8 @@
 vectors); ``asqav_jcs`` (the cloud's JCS, no NFC, byte-identical to ``verify_receipt.canonical_json``).
 ``jcs`` and ``jcs_rfc8785`` diverge on supplementary-plane keys and on non-integral or
 large-magnitude numbers."""
-# INTEROP: AERF SPEC.md §5.1 cites RFC 8785, but its Go reference keeps
-# numbers verbatim, so ``1250.0`` signs as ``1250.0``.
+# INTEROP: AERF SPEC.md §5.1 cites RFC 8785, but its Go reference
+# (canonical.go) keeps numbers verbatim; the agent-receipts spec cites RFC 8785.
 from __future__ import annotations
 
 import json
