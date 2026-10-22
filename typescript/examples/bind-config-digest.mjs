@@ -1,18 +1,18 @@
-/** Bind an agent's declared configuration into the signed receipt: SHA-256 whatever declares
- * what it may be (manifest, AGENTS.md, image digest, SBOM) into the schema-pinned sign context.
- */
-// No new wire field. Run: ASQAV_API_KEY=sk_... node examples/bind-config-digest.mjs
+/** Bind the declared config (manifest, AGENTS.md, image digest, SBOM) into the
+ * signed receipt as a SHA-256 digest in the schema-pinned sign context. */
+// No new wire field. Run: ASQAV_API_KEY=sk_...
+//   node examples/bind-config-digest.mjs
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { init, Agent } from "@asqav/sdk";
 
 // The declaration you want bound to every receipt this agent signs. In a real
-// deployment this is your AGENTS.md, a manifest, or an image digest on disk.
+// deployment this is your AGENTS.md, a manifest, or an image digest on disk
 const MANIFEST_URL = new URL("./agent-manifest.example.json", import.meta.url);
 
 // Pin the binding keys so a receipt that claims a config always carries both
-// the digest and what kind of artifact it hashes. Extra context keys pass through.
+// the digest and the artifact kind. Extra context keys pass through
 const CONFIG_BINDING_SCHEMA = {
   config_digest: { type: "string", required: true },
   config_kind: { type: "string", required: true },
@@ -37,7 +37,7 @@ async function main() {
   console.log(`config_digest: ${digest}`);
 
   // Bind the digest into the action the agent is signing. Anyone verifying
-  // the receipt sees exactly which declared config authorized this action.
+  // the receipt sees exactly which declared config authorized this action
   const sig = await agent.sign({
     actionType: "payment:refund",
     context: {

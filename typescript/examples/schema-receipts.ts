@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   console.log("Signing with a valid, schema-validated context...");
   const sig = await agent.sign({
     actionType: "payment:initiate",
-    // Deliberately unsorted: SDK normalises to alphabetical key order.
+    // Deliberately unsorted: SDK normalises to alphabetical key order
     context: {
       userId:   "user_abc123",
       currency: "EUR",
