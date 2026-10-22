@@ -1,7 +1,5 @@
-/**
- * Anchor value base64 tolerance, differential against Python. The anchors field is unsigned
- * and attacker-steerable, so the permissive direction (a false PASS) is asserted at zero.
- */
+// Anchor value base64 tolerance, differential against Python: the field is
+// unsigned and attacker-steerable, so a false PASS is asserted at zero
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -22,8 +20,8 @@ const ENVELOPE = {
   signature: { alg: "ML-DSA-65", kid: "k1", sig: "AAAA" },
 };
 
-/** The axis result for one anchor value: FAIL on junk, SKIPPED (unverifiable) on
- * shape-valid non-tokens since the cryptographic anchor check landed. */
+/** Axis result for one anchor value: FAIL on junk, SKIPPED (unverifiable) on
+ * shape-valid non-tokens since the cryptographic anchor check landed */
 function axisFor(value: string): string {
   return checkAnchors({ ...ENVELOPE, anchors: [{ type: "rfc3161", value }] })[0];
 }
@@ -34,7 +32,7 @@ describe("anchor value base64 parity", () => {
     const wide = VALUES.filter((c) => [...c.value].some((ch) => ch.codePointAt(0)! > 127));
     expect(wide.length).toBeGreaterThanOrEqual(350);
     // Both directions present: junk FAILs (invalid), shape-valid non-tokens
-    // SKIP (unverifiable, never PASS on presence).
+    // SKIP as unverifiable, never PASS on presence
     expect(VALUES.filter((c) => c.expect.axis === "FAIL").length).toBeGreaterThanOrEqual(100);
     expect(VALUES.filter((c) => c.expect.axis === "SKIPPED").length).toBeGreaterThanOrEqual(100);
   });

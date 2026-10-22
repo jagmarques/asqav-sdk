@@ -1,7 +1,5 @@
-/**
- * THE GATE: the TS verifier must reproduce the Python oracle's verdicts across the corpus,
- * byte-match the upstream canonicalization vectors, and verify the real Authproof receipt.
- */
+// THE GATE: the TS verifier must reproduce the Python oracle's verdicts across
+// the corpus, byte-match upstream canonicalization vectors, verify Authproof
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -31,7 +29,7 @@ import {
 const CORPUS_ROOT = resolve(__dirname, "..", "..", "verifier", "conformance-vectors");
 
 function loadJson(path: string): Record<string, unknown> {
-  // Float-preserving so `500.0` literals survive to the canonicaliser.
+  // Float-preserving so `500.0` literals survive to the canonicaliser
   return parseJsonPreservingFloats(readFileSync(path, "utf-8")) as Record<string, unknown>;
 }
 
@@ -41,7 +39,7 @@ describe("verifier parity gate (THE GATE)", () => {
     const mismatches = results.filter((r) => !tolerated(r));
     const passed = results.filter(tolerated).length;
 
-    // Print the same per-vector report the Python runner.main() prints.
+    // Print the same per-vector report the Python runner.main() prints
     const report = results
       .map((r) => {
         const mark = tolerated(r) ? "ok" : "FAIL";
@@ -59,8 +57,8 @@ describe("verifier parity gate (THE GATE)", () => {
   });
 
   it("pins failure_class byte-for-byte with the Python oracle for every unverified vector", () => {
-    // Criteria 418/438: invalid and unverifiable must never collapse, and both languages
-    // must agree which class each failing vector lands in. The optional-dep vector is skipped.
+    // Criteria 418/438: invalid never collapses into unverifiable; both
+    // languages agree on each failing vector's class; optional-dep is skipped
     const results = runCorpus(CORPUS_ROOT);
     const unverified = results.filter(
       (r) => r.expectedOutcome === "unverified" && r.reasonCode !== "signature_skipped_no_dilithium",
@@ -71,7 +69,7 @@ describe("verifier parity gate (THE GATE)", () => {
       expect(r.expectedFailureClass, `${r.dir} pins a failure_class`).not.toBe("");
       expect(r.actualFailureClass, `${r.dir}: ${r.detail}`).toBe(r.expectedFailureClass);
     }
-    // Both criteria-418 classes are exercised by the corpus.
+    // Both criteria-418 classes are exercised by the corpus
     const classes = new Set(unverified.map((r) => r.actualFailureClass));
     expect(classes).toContain("invalid");
     expect(classes).toContain("unverifiable");
@@ -119,8 +117,8 @@ describe("real Authproof receipt verifies (ES256 path)", () => {
 });
 
 describe("canonical-bytes cross-check (TS signing_input sha256 == Python)", () => {
-  // Each TS signing_input sha256 is pinned to the digest the Python oracle's adapter
-  // produces for the same receipt, so a canonicaliser drift on either side reddens here.
+  // Each TS signing_input sha256 is pinned to the digest of the Python oracle
+  // adapter on the same receipt, so canonicaliser drift on either side fails
   const pinned: Record<string, { fmt: string; sha: string }> = {
     "aerf-01-genesis": {
       fmt: "aerf",
@@ -159,8 +157,8 @@ describe("canonical-bytes cross-check (TS signing_input sha256 == Python)", () =
 });
 
 describe("parseJsonPreservingFloats matches JSON.parse structure (Node 18+ safe)", () => {
-  // The parser is hand-rolled (no Node 21+ reviver context.source); it must agree
-  // with JSON.parse on everything except the deliberate float/big-int preservation.
+  // The parser is hand-rolled (no Node 21+ reviver context.source) and must
+  // agree with JSON.parse except for the deliberate float/big-int preservation
   const unwrap = (v: unknown): unknown => {
     if (v && typeof v === "object" && "value" in v && Object.keys(v).length === 1) return (v as { value: number }).value;
     if (v && typeof v === "object" && "value" in v && "lexeme" in v && Object.keys(v).length === 2) return (v as { value: number }).value;
@@ -279,8 +277,8 @@ const FIRST_BAD_EDGE = resolve(__dirname, "..", "..", "verifier", "first-bad-edg
 
 describe("first-bad-edge parity (criterion 490)", () => {
   it("reproduces the pinned first-bad-edge for every corpus vector", () => {
-    // The same frozen table the Python gate drives: a verdict alone hides two verifiers
-    // agreeing a receipt is unverified while disagreeing about WHICH check failed first.
+    // Same frozen table as the Python gate: a verdict alone hides two verifiers
+    // agreeing it is unverified but disagreeing on which check failed first
     const table = JSON.parse(readFileSync(FIRST_BAD_EDGE, "utf-8")).cases as Record<
       string,
       string | null
@@ -301,8 +299,8 @@ describe("first-bad-edge parity (criterion 490)", () => {
         const keyProvider = keyProviderFor(vecDir, entry.format);
         got = verify(receipt, ADAPTERS, keyProvider, predecessor, { originatingEnvelope: runnerLoadJson(join(vecDir, "originating_envelope.json")) }).firstFailingEdge;
       } catch {
-        // Terminal at ingest. Both halves must agree on WHICH vectors these are,
-        // so a parser-strictness divergence fails here too.
+        // Terminal at ingest; both halves must agree on which vectors
+        // these are, so a parser-strictness divergence fails here too
         got = "__ingest_error__";
       }
       const want = table[entry.dir];
@@ -312,8 +310,8 @@ describe("first-bad-edge parity (criterion 490)", () => {
   });
 
   it("names an edge for exactly the unverified verdicts", () => {
-    // Held independently on the TS side: firstFailingEdge's exclusions (expiry never folds,
-    // a SKIPPED chain does not block) must track foldVerdict's, or an expired receipt names one.
+    // Held on the TS side: firstFailingEdge's exclusions (expiry never folds,
+    // a SKIPPED chain does not block) must track foldVerdict's
     const manifest = JSON.parse(
       readFileSync(join(CORPUS_ROOT, "manifest.json"), "utf-8"),
     ) as { dir: string; format: string }[];

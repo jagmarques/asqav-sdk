@@ -1,5 +1,5 @@
-// Hash-mode kid is the ORG id, so the agent bind must pick the real signer, not the first
-// sibling. ANTI-VACUOUS: the signer is the last of three, so kid-first resolution FAILs.
+// Hash-mode kid is the ORG id, so the agent bind must pick the real signer
+// ANTI-VACUOUS: signer is last of three, so kid-first resolution FAILs
 
 import { describe, expect, it } from "vitest";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";

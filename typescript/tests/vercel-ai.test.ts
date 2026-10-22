@@ -6,10 +6,8 @@ import {
 } from "../src/extras/vercel-ai.js";
 import type { Agent } from "../src/index.js";
 
-/**
- * Build a fake Asqav `Agent` whose `sign` records every call. We deliberately
- * avoid the real client (no network, no init()) so these tests stay hermetic.
- */
+/** Fake Asqav `Agent` whose `sign` records every call; no real client, no
+ * network, no init(), so these tests stay hermetic */
 function makeFakeAgent(opts: { failWith?: Error } = {}) {
   const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
   const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
@@ -27,7 +25,7 @@ function makeFakeAgent(opts: { failWith?: Error } = {}) {
   return { agent, calls, sign };
 }
 
-// Wait one tick so fire-and-forget promises resolve.
+// Wait one tick so fire-and-forget promises resolve
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("mapSpanNameToActionType", () => {

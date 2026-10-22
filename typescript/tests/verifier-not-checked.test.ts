@@ -1,7 +1,5 @@
-/**
- * Non-coverage is declared on every `verify()` result, passing ones included.
- * A port of python/tests/test_not_checked_declaration.py.
- */
+// Non-coverage is declared on every `verify()` result, passing ones included
+// A port of python/tests/test_not_checked_declaration.py
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -36,7 +34,7 @@ describe("notChecked declaration", () => {
       expect(entry.check).toBeTruthy();
       expect(entry.check).toBe(entry.check.toLowerCase());
       expect(entry.reason.trim()).toBeTruthy();
-      // `condition` is deliberately nullable: null means never performed.
+      // `condition` is deliberately nullable: null means never performed
       expect(entry.condition === null || entry.condition.trim().length > 0).toBe(true);
     }
   });
@@ -66,7 +64,7 @@ describe("notChecked declaration", () => {
     const [receipt, jwks] = loadVector("asqav-01-genesis-permit");
     const result = verify(receipt, ADAPTERS, jwks);
     const signature = result.axes.find((a) => a.axis === "signature");
-    // PASS here proves the crypto ran, so the declaration rides a real verified.
+    // PASS here proves the crypto ran, so the declaration rides a real verified
     expect(signature?.result).toBe("PASS");
     expect(result.verdict).toBe("verified");
     expect(result.notChecked).toHaveLength(NOT_CHECKED.length);
@@ -82,7 +80,7 @@ describe("notChecked declaration", () => {
   });
 
   it("is on every return path of verify(), parsed from source", () => {
-    // Parsed rather than exercised: the path no test reaches would ship undeclared.
+    // Parsed, not exercised: a path no test reaches would ship undeclared
     const source = readFileSync(resolve(__dirname, "..", "src", "verifier", "core.ts"), "utf-8");
     const file = ts.createSourceFile("core.ts", source, ts.ScriptTarget.Latest, true);
     let verifyBody: ts.Block | undefined;
@@ -114,7 +112,7 @@ describe("notChecked declaration", () => {
 });
 
 // The axes after the structure gate on the normal path, pinned verbatim so a
-// reorder of the verifier's sequence fails here instead of editing the pin.
+// reorder of the verifier's sequence fails here instead of editing the pin
 const AXES_AFTER_STRUCTURE = [
   "signature",
   "chain",
@@ -134,7 +132,7 @@ describe("coverage declaration", () => {
   it("rides a full run with stopped_at null and the not_implemented table", () => {
     const [receipt, jwks] = loadVector("asqav-01-genesis-permit");
     const result = verify(receipt, ADAPTERS, jwks);
-    // The pin is the live axis sequence itself: the coverage constant must track it.
+    // The pin is the live axis sequence: the coverage constant must track it
     expect(result.axes.map((a) => a.axis)).toEqual(["structure", ...AXES_AFTER_STRUCTURE]);
     expect(result.coverage.stopped_at).toBeNull();
     const entries = result.coverage.checks_not_evaluated;
@@ -154,7 +152,7 @@ describe("coverage declaration", () => {
     const entries = result.coverage.checks_not_evaluated;
     const notImpl = entries.filter((e) => e.reason === "not_implemented");
     const notReached = entries.filter((e) => e.reason === "not_reached");
-    // not_implemented entries come first, in NOT_CHECKED table order.
+    // not_implemented entries come first, in NOT_CHECKED table order
     expect(notImpl.map((e) => e.id)).toEqual(NOT_CHECKED.map((e) => e.check));
     expect(notReached.map((e) => e.id)).toEqual(AXES_AFTER_STRUCTURE);
     for (const entry of notReached) {
@@ -182,7 +180,7 @@ describe("coverage declaration", () => {
   });
 
   it("is on every return path of verify(), parsed from source", () => {
-    // Parsed rather than exercised: the path no test reaches would ship undeclared.
+    // Parsed, not exercised: a path no test reaches would ship undeclared
     const source = readFileSync(resolve(__dirname, "..", "src", "verifier", "core.ts"), "utf-8");
     const file = ts.createSourceFile("core.ts", source, ts.ScriptTarget.Latest, true);
     let verifyBody: ts.Block | undefined;

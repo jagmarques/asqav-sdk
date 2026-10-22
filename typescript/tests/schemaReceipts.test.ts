@@ -1,5 +1,5 @@
-/** Opt-in schema-driven structured receipts (criterion 328): a valid context sorts and fetches,
- * an invalid one raises ValidationError without fetching, and no schema is unchanged. */
+/** Opt-in schema-driven receipts (criterion 328): a valid context sorts and
+ * fetches, an invalid one raises ValidationError, no schema is unchanged */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -90,7 +90,7 @@ describe("agent.sign contextSchema", () => {
     });
 
     const agent = fakeAgent();
-    // Supply keys in deliberate reverse alphabetical order.
+    // Supply keys in deliberate reverse alphabetical order
     await agent.sign({
       actionType: "api:call",
       context: { userId: "u1", score: 3, active: true },
@@ -103,7 +103,7 @@ describe("agent.sign contextSchema", () => {
       const publicKeys = Object.keys(ctx).filter((k) => !k.startsWith("_"));
       expect(publicKeys).toEqual([...publicKeys].sort());
     }
-    // Even if context is hashed (hash mode), the fetch was reached.
+    // Even if context is hashed (hash mode), the fetch was reached
     expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0);
   });
 
@@ -160,7 +160,7 @@ describe("agent.sign contextSchema", () => {
     ).rejects.toThrowError(ValidationError);
 
     // Non-vacuity: if validation were removed, this assertion would fail
-    // because fetch would be called.
+    // because fetch would be called
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

@@ -1,7 +1,5 @@
-/**
- * Seq continuity axis, TS half of test_seq_continuity_axis.py. The no-SKIPPED gate matters
- * most: foldVerdict blocks on a non-chain SKIPPED, so a counter-less receipt would flip.
- */
+// Seq continuity axis, TS half of test_seq_continuity_axis.py. The no-SKIPPED
+// gate matters most: foldVerdict blocks on a non-chain SKIPPED axis
 
 import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -17,7 +15,7 @@ function load(vec: string, name: string): Record<string, unknown> {
 }
 
 function withSeq(doc: Record<string, unknown>, seq: unknown): Record<string, unknown> {
-  // Injection breaks the signature, so assertions read the seq axis directly.
+  // Injection breaks the signature, so assertions read the seq axis directly
   const out = JSON.parse(JSON.stringify(doc));
   (out.payload as Record<string, unknown>).seq = seq;
   return out;
@@ -72,7 +70,7 @@ describe("seq continuity axis", () => {
     const axis = res.axes.find((a) => a.axis === "seq")!;
     expect(axis.result).toBe(FAIL);
     expect(axis.note).toContain("3 receipt(s) withheld between 7 and 11");
-    // A proven omission is a binding failure, not an incomplete recompute.
+    // A proven omission is a binding failure, not an incomplete recompute
     expect(axis.failureClass).toBe("invalid");
     expect(res.verdict).toBe("unverified");
   });
@@ -87,7 +85,7 @@ describe("seq continuity axis", () => {
   });
 
   it("refuses a malformed counter but accepts legal absence", () => {
-    // true matters because a loose truthiness check would read it as the counter 1.
+    // true matters: a loose truthiness check would read it as the counter 1
     for (const bad of [true, false, "8", 0, -1, 1.5, [8], { n: 8 }]) {
       const axis = seqAxisOf(withSeq(load("asqav-01-genesis-permit", "receipt.json"), bad));
       expect(axis.result, `${JSON.stringify(bad)} must not pass as a counter`).toBe(FAIL);
@@ -118,7 +116,7 @@ describe("seq continuity axis", () => {
   });
 
   it("never compares counters across formats", () => {
-    // A foreign receipt's counter is not this series; comparing would fake a gap.
+    // A foreign receipt's counter is not this series; comparing fakes a gap
     const pred = load("acta-01-genesis", "receipt.json");
     pred.seq = 99;
     const axis = seqAxisOf(withSeq(load("asqav-01-genesis-permit", "receipt.json"), 2), pred);
@@ -127,7 +125,7 @@ describe("seq continuity axis", () => {
   });
 
   it("refuses a counter pasted onto a hash-mode receipt", () => {
-    // Hash mode signs flat fields only, so a pasted seq is an unsigned claim.
+    // Hash mode signs flat fields only, so a pasted seq is an unsigned claim
     const doc = load("asqav-05-hash-mode-prod", "receipt.json");
     const jwks = load("asqav-05-hash-mode-prod", "jwks.json");
     const clean = verify(doc, ADAPTERS, jwks, null);

@@ -1,7 +1,5 @@
-/**
- * Anchor, skew, expiry and nesting-depth parity, TS half. One JSON table drives both
- * verifiers; python/tests/test_axis_parity_cases.py reads the same file.
- */
+// Anchor, skew, expiry and nesting-depth parity, TS half. One JSON table drives
+// both verifiers; python/tests/test_axis_parity_cases.py reads the same file
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -9,8 +7,8 @@ import { describe, expect, it } from "vitest";
 
 import { verifyReceiptOffline } from "../src/index.js";
 import { checkCounterpartyBinding } from "../src/verifier/vrShim.js";
-// Imported from the published `@asqav/sdk/verifier` entry, not the inner module, so
-// a caller following the docs reaches every piece the Python surface exposes.
+// Imported from the published `@asqav/sdk/verifier` entry, not the inner
+// module, so a documented caller reaches every piece the Python surface has
 import {
   checkAnchors,
   checkExpiry,
@@ -108,7 +106,7 @@ function loadVector(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(resolve(PIPELOCK_VECTOR, file), "utf-8")) as Record<string, unknown>;
 }
 
-/** A receipt whose only defect is `depth` levels of nesting outside the signed payload. */
+/** A receipt whose only defect is `depth` nesting levels outside the payload */
 function nestedReceipt(depth: number): Record<string, unknown> {
   let node: Record<string, unknown> = { leaf: 1 };
   for (let i = 0; i < depth; i++) node = { n: node };
@@ -155,14 +153,14 @@ describe("anchor-binding axis parity", () => {
       const [result, note] = checkAnchors(c.envelope);
       expect(result, c.name).toBe(c.expect.result);
       // The digest in the note is the JCS of the envelope minus anchors, so an
-      // exact match also proves the two canonicalisers agree byte for byte.
+      // exact match also proves the two canonicalisers agree byte for byte
       expect(note, c.name).toBe(c.expect.note);
     });
   }
 });
 
-// Rows where the halves legitimately disagree: this shim carries no anchor cryptography
-// (criterion 446). The Python side of the same rows is asserted in its parity test.
+// Rows where the halves disagree: this shim has no anchor cryptography
+// (criterion 446); the Python side is asserted in its parity test
 describe("anchor divergence from the Python verifier", () => {
   it("the divergence table is populated and two-sided", () => {
     expect(TABLE.anchors_divergence.length).toBeGreaterThanOrEqual(2);
@@ -175,7 +173,7 @@ describe("anchor divergence from the Python verifier", () => {
       const [result, note] = checkAnchors(c.envelope);
       expect(result, c.name).toBe(c.expect_ts.result);
       expect(note, c.name).toContain(c.expect_ts.note_contains);
-      // The divergence itself: Python reaches a verdict this shim cannot.
+      // The divergence itself: Python reaches a verdict this shim cannot
       expect(result, c.name).not.toBe(c.expect_python.result);
     });
   }
@@ -205,7 +203,7 @@ describe("signed-expiry axis parity", () => {
   it("is populated in both directions", () => {
     expect(TABLE.expiry.length).toBeGreaterThanOrEqual(15);
     // A table of only-PASS or only-FAIL cases cannot tell a working axis from a
-    // stuck one, so both directions have to be present.
+    // stuck one, so both directions have to be present
     expect(new Set(TABLE.expiry.map((c) => c.expect.result))).toEqual(new Set(["PASS", "FAIL"]));
   });
 
@@ -226,7 +224,7 @@ describe("signed-expiry axis parity", () => {
 
   it("reads only the signed bytes", () => {
     // anchors and the envelope keys are unsigned, so an expires_at beside the
-    // payload must not move a lapsed receipt's window.
+    // payload must not move a lapsed receipt's window
     const signed = { expires_at: "2020-01-01T00:00:00Z" };
     expect(checkExpiry(signed)[0]).toBe("FAIL");
     const raw = { payload: { ...signed }, signature: "AAAA", expires_at: "2099-01-01T00:00:00Z" };
@@ -257,7 +255,7 @@ describe("pipelock chain_prev_hash parity", () => {
 
   it("never reads a producer-set value as an absent link", () => {
     // A non-string chain_prev_hash narrowed to null would read as genesis and
-    // PASS the chain axis on a receipt Python leaves unchecked.
+    // PASS the chain axis on a receipt Python leaves unchecked
     const laundered = TABLE.chain_prev_hash
       .filter((c) => c.expect.chain === "SKIPPED")
       .filter((c) => {
@@ -279,8 +277,8 @@ describe("envelope normalisation parity", () => {
   for (const c of TABLE.normalise) {
     it(c.name, () => {
       const env = normaliseEnvelope(c.raw);
-      // The digest is the bytes the anchors axis binds, so an exact match proves
-      // both halves normalise and canonicalise the same envelope.
+      // The digest is what the anchors axis binds: a match proves both halves
+      // normalise and canonicalise the same envelope
       expect(sha256Hex(envelopeMinusAnchorsJcs(env)), c.name).toBe(c.expect.digest);
       expect(checkAnchors(env)[0], c.name).toBe(c.expect.anchors_axis);
     });
@@ -296,7 +294,7 @@ describe("envelope normalisation parity", () => {
 
 describe("the verifier entry point publishes every axis helper", () => {
   // Callers reach these through `@asqav/sdk/verifier`. Drop the subpath and the
-  // in-repo imports still resolve while an installed package sees nothing.
+  // in-repo imports still resolve while an installed package sees nothing
   it("keeps the ./verifier subpath in the exports map", () => {
     const pkg = JSON.parse(
       readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"),
@@ -322,8 +320,8 @@ describe("nesting-depth gate parity", () => {
     expect(MAX_NESTING_DEPTH).toBe(200);
   });
 
-  // The envelope key and the leaf each add a level, so 198 wrappers sit exactly at
-  // the cap and 199 cross it. Python answers the same way for the same two docs.
+  // The envelope key and the leaf each add a level, so 198 wrappers sit at
+  // the cap and 199 cross it. Python answers the same for the same two docs
   it("passes a receipt at the cap", () => {
     const r = verifyReceiptOffline(nestedReceipt(MAX_NESTING_DEPTH - 2), JWKS);
     expect(r.axes.find((a) => a.axis === "structure")?.result).toBe("PASS");
@@ -446,8 +444,8 @@ describe("nesting-depth gate parity", () => {
   });
 
   it("returns a verdict instead of exhausting the stack", () => {
-    // Nesting inside the signed payload reaches the recursive JCS encoder, which
-    // throws RangeError out of the call without the gate.
+    // Nesting inside the signed payload reaches the recursive JCS encoder,
+    // which throws RangeError out of the call without the gate
     let node: Record<string, unknown> = { leaf: 1 };
     for (let i = 0; i < 20000; i++) node = { n: node };
     const receipt = nestedReceipt(0);

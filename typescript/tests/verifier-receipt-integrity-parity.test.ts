@@ -1,7 +1,5 @@
-/**
- * Receipt-internal integrity axes, TS half, reading the same axis-parity-cases.json as Python
- * so a rule drifting in one language fails a suite. Covers payload_digest and counterparty_binding.
- */
+// Receipt-internal integrity axes, TS half, reading axis-parity-cases.json like
+// Python; covers payload_digest and counterparty_binding
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -108,7 +106,7 @@ describe("receipt-internal integrity parity", () => {
     });
   }
 
-  // Deleting any of the three adapter pushes fails here.
+  // Deleting any of the three adapter pushes fails here
   it("emits payload_digest, counterparty and skew from the oracle", () => {
     const axes = new Set(verify(receipt(), ADAPTERS, jwks()).axes.map((a) => a.axis));
     for (const name of ["payload_digest", "counterparty", "skew"]) {
@@ -148,7 +146,7 @@ describe("receipt-internal integrity parity", () => {
     expect(axis.failureClass).toBe("invalid");
   });
 
-  // Absence must PASS: a skip blocks every axis but chain.
+  // Absence must PASS: a skip blocks every axis but chain
   it("does not block when neither claim is present", () => {
     const doc = receipt();
     const payload = doc.payload as Record<string, unknown>;

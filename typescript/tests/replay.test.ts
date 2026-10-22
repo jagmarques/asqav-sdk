@@ -1,7 +1,5 @@
-/**
- * Offline chain verification: v2 links are previousReceiptHash[i+1] = sha256(canonicalJson(env[i]))
- * seeded with 64 zeros. Builds a synthetic chain, then mutates each link to confirm detection.
- */
+// Offline chain verification: v2 links are sha256(canonicalJson(env[i])),
+// seeded with 64 zeros. A synthetic chain is mutated per link to test detection
 
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -70,7 +68,7 @@ describe("verifyChain (v2, IETF profile)", () => {
 
   it("detects a tampered envelope mid-chain", () => {
     const records = buildChain(3);
-    // Mutate the second record's payload_digest so the [1]->[2] chain link diverges.
+    // Mutate the second record's payload_digest so the [1]->[2] link diverges
     (records[1].signedEnvelope as Record<string, unknown>).payload_digest =
       `sha256:${"f".repeat(64)}`;
     const result = verifyChain(records);
@@ -118,7 +116,7 @@ describe("verifyChain (v2, IETF profile)", () => {
     ).toThrow(TypeError);
   });
 
-  // H12: chain digest scope matches cloud (payload-only, not full envelope).
+  // H12: chain digest scope matches cloud (payload-only, not full envelope)
   it("unwraps bundle-shaped envelopes and hashes only `payload`", () => {
     const p0 = makeEnvelope(0, FIRST_RECEIPT_SEED);
     const h0 = sha256Hex(canonicalJson(p0));
@@ -145,7 +143,7 @@ describe("verifyChain (v2, IETF profile)", () => {
 
   it("detects a single forged link in a 3-receipt chain", () => {
     const records = buildChain(3);
-    // Forge: rewrite the third record's previousReceiptHash to junk.
+    // Forge: rewrite the third record's previousReceiptHash to junk
     (records[2].signedEnvelope as Record<string, unknown>).previousReceiptHash =
       "f".repeat(64);
     const result = verifyChain(records);

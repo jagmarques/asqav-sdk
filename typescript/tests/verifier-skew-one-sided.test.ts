@@ -1,5 +1,5 @@
-// The clock-skew axis is one-sided: a stamp past the future bound fails while a backdated one
-// passes, since the wall clock cannot detect a lie about the past. Same bound as Python.
+// Clock skew is one-sided: a stamp past the future bound fails, a backdated one
+// passes (no clock detects a lie about the past); same bound as Python
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +10,7 @@ function stampAt(offsetSeconds: number): string {
 }
 
 describe("the skew bound is one-sided", () => {
-  // A frozen clock keeps the boundary cases exact under slow CI workers.
+  // A frozen clock keeps the boundary cases exact under slow CI workers
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(Date.parse("2026-08-04T12:00:00Z"));

@@ -1,7 +1,5 @@
-/**
- * SDK parity for `witnessPolicy` -> `witness_policy`: required in [1, witnesses.length],
- * witnesses a non-empty subset of rfc3161/opentimestamps, and `rekor` rejected.
- */
+// SDK parity for `witnessPolicy` -> `witness_policy`: in [1, witnesses.length],
+// witnesses a non-empty subset of rfc3161/opentimestamps, `rekor` rejected
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -98,7 +96,7 @@ describe("witnessPolicy shape guards", () => {
         actionType: "deploy:release",
         context: { k: "v" },
         complianceMode: true,
-        // rekor is not a shipped witness.
+        // Only rfc3161 and opentimestamps ship as witnesses
         witnessPolicy: { required: 1, witnesses: ["rekor"] as never },
       }),
     ).rejects.toThrow(/witness_policy_unknown_witness/);

@@ -1,7 +1,5 @@
-/**
- * SDK parity for the risk-acceptance receipt, mirroring the cloud SignRequest validators:
- * nine fields forwarded verbatim, field-fenced to the type, complianceMode required.
- */
+// SDK parity for the risk-acceptance receipt, mirroring cloud SignRequest:
+// nine fields forwarded verbatim, fenced to the type, complianceMode required
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

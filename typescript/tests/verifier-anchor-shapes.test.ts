@@ -1,7 +1,5 @@
-// The three anchors wire shapes through verify(): the member absent and the member
-// present as an empty array are one conformant fact; a JSON null is a malformed third
-// shape and FAILs the structure axis, reported unverified/unverifiable. Mirrors
-// python/tests/test_anchor_shapes.py; the corpus twins are asqav-27 and asqav-28.
+// The three anchors wire shapes through verify(): absent member and empty array
+// are one fact, null FAILs the structure axis (corpus asqav-27, asqav-28)
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -12,8 +10,8 @@ import { ADAPTERS } from "../src/verifier/index.js";
 
 const VECTORS = resolve(__dirname, "..", "..", "verifier", "conformance-vectors");
 
-// The one sentence every engine reports for the malformed shape, pinned verbatim
-// so a wording drift in either language fails here and in the Python half.
+// Sentence every engine reports for the malformed shape, pinned verbatim
+// so wording drift in either language fails here and in the Python half
 const ANCHORS_NULL_NOTE =
   "anchors is null: malformed; absent or [] is the conformant spelling of no anchors";
 
@@ -27,7 +25,7 @@ function vector(name: string) {
   return { receipt, jwks, predecessor };
 }
 
-// The skew note embeds live wall-clock seconds; everything else is deterministic.
+// The skew note embeds live wall-clock seconds; the rest is deterministic
 const maskSkew = (note: string): string => note.replace(/-?\d+s\b/g, "<n>s");
 
 function shape(r: VerifyResult): unknown[][] {
@@ -57,7 +55,7 @@ describe("anchors wire shapes", () => {
     expect(r.verdict).toBe("unverified");
     expect(r.failureClass).toBe("unverifiable");
     expect(r.firstFailingEdge).toBe("structure");
-    // The null never reads as "no anchors": no axis claims the skip.
+    // The null never reads as "no anchors": no axis claims the skip
     expect(r.axes.some((a) => a.note === "no anchors on this receipt")).toBe(false);
   });
 
