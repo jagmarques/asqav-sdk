@@ -1,9 +1,9 @@
 """Shared DID resolver - ``resolve_ed25519_key`` maps a verificationMethod DID URL to a raw Ed25519 key.
-Returns the raw 32-byte Ed25519 key, or None when it cannot resolve without a network the oracle
-must not touch. ``did:key`` resolves inline (multibase ``z`` base58btc -> the Ed25519 frame);
-every other method resolves from the caller's injected map: a raw 32-byte key or the DID document
-a fetch would have returned. The oracle NEVER fetches a DID document; an unmapped DID is None
-(fail closed). The resolver is adapter-agnostic, so a later ERC-8004 hook reuses it; the verify is in crypto.py."""
+Returns the raw 32-byte Ed25519 key, or None when it cannot resolve without a network the oracle must
+not touch. ``did:key`` resolves inline (multibase ``z`` base58btc -> the Ed25519 frame); every other
+method resolves from the caller's injected map: a raw 32-byte key or the DID document a fetch would
+have returned. The oracle NEVER fetches a DID document; an unmapped DID is None (fail closed). The
+resolver is adapter-agnostic, so a later ERC-8004 hook reuses it; the verify uses ``cryptography``."""
 from __future__ import annotations
 
 import base64
