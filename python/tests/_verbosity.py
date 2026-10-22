@@ -43,9 +43,12 @@ def _docstring_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
         value = body[0].value
         if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
             continue
-        span = body[0].end_lineno - body[0].lineno + 1
-        if span > DOCSTRING_MAX_LINES:
-            hits.append((path, body[0].lineno, "docstring"))
+        start = body[0].lineno
+        end = body[0].end_lineno
+        if start is None or end is None:
+            continue
+        if end - start + 1 > DOCSTRING_MAX_LINES:
+            hits.append((path, start, "docstring"))
     return hits
 
 
