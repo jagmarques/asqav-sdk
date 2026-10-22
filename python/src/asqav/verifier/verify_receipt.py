@@ -3546,10 +3546,10 @@ def run_structured(
     be the whole predecessor envelope. ``seen_nonces`` is the caller's replay index: pass one to flag an
     (issuer_id, nonce) reuse; without it the axis still reports, holding no index. ``required_extensions``
     names optional extensions the policy requires (criterion 574-D3), each per-axis: absent or unsupported
-    SKIPs, malformed FAILs invalid; without the parameter the evaluation is unchanged, no axis appended. Keys:
-    ``verdict``, ``failure_class``, ``axes``, ``canonical_sha256``, ``kid``, ``alg``, ``trust_bundle``."""
-    # The two failure classes are never collapsed; ``trust_bundle`` is present on
-    # every result, including the early refusals.
+    SKIPs, malformed FAILs invalid; without the parameter the evaluation is unchanged, no axis appended.
+    Keys: ``verdict``, ``failure_class``, ``axes``, ``canonical_sha256``, ``kid``, ``alg``, ``trust_bundle``."""
+    # Verdict: verified or unverified. Failure class: invalid or unverifiable.
+    # Each axis dict carries name, result, note and class; trust_bundle is there.
     _tb_identity = trust_bundle_identity(trust_bundle, trust_bundle_source)
     refusal = _input_refusal(envelope)
     whole_predecessor = predecessor_payload

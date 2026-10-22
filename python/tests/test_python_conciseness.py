@@ -115,6 +115,29 @@ def test_license_header_must_open_the_file(tmp_path):
 
 # NEGCTL: each case plants the bad input into a real copy of the verifier and
 # runs the real scan over it, so a check that stopped flagging fails here.
+def test_license_header_digest_is_pinned(tmp_path):
+    copy = _copy_of_verify_receipt(tmp_path)
+    lines = copy.read_text(encoding="utf-8").splitlines()
+    lines[0] = "# Copyright 2025 Asqav"
+    copy.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert conciseness.license_header_lines(copy.read_text(encoding="utf-8")) == []
+    counts = conciseness.scan_tree(copy)
+    assert counts.comment_blocks == 1, counts.findings
+
+
+def test_scan_reports_a_file_it_cannot_read(tmp_path):
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "gone.py").symlink_to(tmp_path / "missing.py")
+    try:
+        conciseness.scan_tree(tree)
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError("a file that cannot be read must raise, never scan as empty")
+    assert conciseness.main(["--path", str(tree)]) == 2
+
+
 def test_negctl_three_line_block(tmp_path):
     copy = _copy_of_verify_receipt(tmp_path)
     source = copy.read_text(encoding="utf-8")

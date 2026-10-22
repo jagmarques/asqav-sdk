@@ -1,9 +1,8 @@
 """Independent failure classification for the oracle (574 D5a). Criterion 418, not a verifier's table:
 INVALID means a resolved key and a binding failed; UNVERIFIABLE means the recompute could not complete.
-Each axis cites the contract proving its FAIL implies resolved inputs; unresolvable SKIPs upstream. Axes
-in _ALWAYS_INVALID_AXES FAIL invalid; key_binding SKIPs when unrecomputable, FAILs malformed claims as
-signed-byte defects; counterparty SKIPs what it cannot resolve, FAILs a malformed/mismatched claim; chain,
-skew, structure and expiry split proven breaks from stops by note; an unlisted axis is never a break."""
+A FAIL needs resolved inputs, so an unresolvable one SKIPs upstream; the per-axis preconditions are
+in ``classify``. The axes in _ALWAYS_INVALID_AXES FAIL invalid; chain, skew, structure and expiry
+split proven breaks from stops by note; an unlisted axis is never a break."""
 # anchors FAILs on malformed or untrusted material, SKIPs when absent.
 from __future__ import annotations
 
@@ -34,11 +33,12 @@ _ALWAYS_INVALID_AXES = frozenset(
 
 
 def classify(axis: str, result: str, note: str) -> str | None:
-    """Map one axis outcome to its failure class (criterion 418).
-    PASS carries none; SKIPPED means the recompute could not complete. A table-axis
-    FAIL is a proven binding failure (invalid); note-dependent axes split proven
-    breaks (invalid) from stops (unverifiable); an unlisted axis never proves a break.
-    """
+    """Map one axis outcome to its failure class (criterion 418). Preconditions: signature SKIPs with no key
+    resolved; key_status/issuer_bind weigh a resolved entry; key_binding SKIPs when unrecomputable, FAILs a
+    malformed claim; counterparty SKIPs what it cannot resolve, FAILs a mismatch; payload_digest FAILs on a
+    malformed shape or a context disagreement; outer_copies FAILs on a disagreement with the signed bytes;
+    nonce FAILs on a proven duplicate pair; seq FAILs on a withheld counter; parent/pdp FAIL on a failed
+    verification with resolved keys; anchors FAILs on malformed or untrusted material, SKIPs when absent."""
     # The oracle's ``_axis`` constructor uses this; a standing corpus gate proves
     # behavior is preserved.
     if result == crypto.PASS:

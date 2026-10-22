@@ -4,8 +4,8 @@ resolve from an injected JWK Set (OKP/Ed25519, base64url ``x``), never a live fe
 never a false pass: Commitment Mode (signing SHA-256(JCS(payload))), which the adapter neither
 implements nor tries as a second signing input, and SHOULD-support ES256. Asqav-native stays
 disjoint by the encoding (ACTA hex, base64) plus the Asqav-only ``anchors`` key."""
-# ``type`` lives inside ``payload``, so the signature covers it: removing or
-# altering it breaks the signature.
+# The chain field lives inside ``payload``, so the signature covers it:
+# removing or altering it breaks the signature.
 from __future__ import annotations
 
 from typing import Any
