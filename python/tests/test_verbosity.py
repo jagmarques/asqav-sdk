@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests._verbosity import COMMENT_MAX_CHARS, DOCSTRING_MAX_LINES, scan
 
 # NEGCTL: the planted inputs are a docstring one line over the budget and a
@@ -42,3 +44,14 @@ def test_long_comment_fails(tmp_path: Path) -> None:
     assert scan(tmp_path) == []
     over = _write(tmp_path / "over.py", "#" + "x" * COMMENT_MAX_CHARS + "\n")
     assert scan(tmp_path) == [(over, 1, "comment")]
+
+
+def test_unparseable_file_raises(tmp_path: Path) -> None:
+    """A file that cannot be parsed raises, and an empty tree is not clean."""
+    _write(tmp_path / "bad.py", "def (\n")
+    with pytest.raises(SyntaxError):
+        scan(tmp_path)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(ValueError):
+        scan(empty)
