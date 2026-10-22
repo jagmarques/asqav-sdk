@@ -1,33 +1,11 @@
-"""AERF adapter - Ed25519 over RFC 8785 JCS, signed directly (no pre-hash).
-
-AERF receipts are a flat object (not an envelope). The signature is Ed25519 over
-the full RFC 8785 JCS bytes of the receipt with the non-payload fields stripped -
-``signature``, ``timestamp``, ``parent_signature``, ``parent_key_id``,
-``log_inclusion_proof`` - signed DIRECTLY, with no pre-hash.
-
-Chain rule follows the AERF SPEC, not the agentmint reference producer: the
-``previous_receipt_hash`` is the SHA-256 of the predecessor's signable payload
-with the SAME field set stripped, i.e. the signature is EXCLUDED from the chain
-hash. (The agentmint producer includes the signature; the published spec vectors
-exclude it, so this adapter targets the spec.) Genesis OMITS the field entirely;
-a present ``previous_receipt_hash: null`` is a malformed genesis, not a link.
-
-Beyond the issuer signature and chain, AERF layers two conditionally-REQUIRED
-signature checks the neutral verifier reproduces in ``extra_axes`` so a
-multi-signer receipt cannot pass on the issuer signature alone:
-  - parent counter-signature: REQUIRED when ``impact_tags`` is non-empty; the
-    parent key signs the SAME stripped canonical payload as the issuer.
-  - PDP binding: REQUIRED when ``impact_tags`` is non-empty; the PDP key signs the
-    canonical tuple ``{context_hash_sha256, in_policy, policy_hash}``, which binds
-    the verdict to one context so a verdict for context A cannot be replayed onto a
-    receipt claiming context B.
-A required-but-missing or present-but-invalid layer FAILs; an unverifiable layer
-(its key not supplied) reports SKIPPED, which the core treats as not-fully-verified,
-never a PASS.
-
-Public keys are the raw 32-byte Ed25519 form; callers pass either raw bytes or an
-RFC 8410 SPKI value, decoded by ``_raw_ed25519``.
-"""
+"""AERF adapter - Ed25519 over RFC 8785 JCS, signed directly (no pre-hash). AERF receipts are flat: Ed25519
+over the RFC 8785 JCS bytes with the non-payload fields stripped (``_STRIP``), signed DIRECTLY; the chain
+hash is SHA-256 of the predecessor's signable payload (signature EXCLUDED), per the AERF SPEC: published spec
+vectors exclude the signature the producer includes, so this adapter targets the spec. Public keys are raw
+32-byte Ed25519; callers pass raw bytes or an RFC 8410 SPKI, decoded by ``_raw_ed25519``. An unverifiable
+layer (its key not supplied) reports SKIPPED: the core reads it as not fully verified, never a PASS."""
+# ``extra_axes`` adds the parent counter-signature and PDP binding over
+# ``{context_hash_sha256, in_policy, policy_hash}``.
 from __future__ import annotations
 
 from typing import Any
@@ -37,14 +15,14 @@ from ..canonical import jcs
 from ..core import sha256_hex
 from ..crypto import FAIL, PASS, SKIPPED, verify_signature
 
-#: Fields removed before canonicalising for both the signature and the chain hash.
+#: Fields removed before canonicalising for the signature and the chain hash.
 _STRIP = ("signature", "timestamp", "parent_signature", "parent_key_id", "log_inclusion_proof")
 
 #: Ed25519 SPKI header (12-byte prefix + 32 raw key bytes).
 _SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 
-    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
+    # Decode a hex string; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -130,7 +108,8 @@ class AerfAdapter(FormatAdapter):
             return "FAIL", "genesis must omit previous_receipt_hash, not set it null"
         return "PASS", "required fields present; type notarised_evidence"
 
-        # Parent counter-signature and PDP binding per the AERF procedure.
+        # The parent key signs the same stripped payload; both checks are REQUIRED when
+        # impact_tags is set; missing or invalid FAILs, an unsupplied key SKIPS.
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         axes: list[tuple[str, str, str]] = []
         has_impact = bool(doc.get("impact_tags"))

@@ -1,54 +1,11 @@
-"""CLI entry point for the universal neutral verifier.
-
-Verify one agent receipt from the command line, across every format the oracle
-knows, with one self-contained call::
-
-    python -m asqav.verifier.oracle receipt.json [--keys keys.json] [--predecessor pred.json]
-
-It loads the receipt (strict ingest: a duplicated JSON member name at any depth
-is a terminal parse failure, rejected before any hashing - criterion 419), runs
-:func:`verify` over the bundled ``ADAPTERS``, prints the verdict and per-axis
-result as JSON, and sets the exit status from the verdict vocabulary
-(criteria 418/438):
-
-  - 0  verified / verified_keyed
-  - 1  unverified, failure_class=invalid (a binding was proven broken)
-  - 2  unverified, failure_class=unverifiable (verification could not complete)
-
-Exit 2 is NOT a verified outcome: it means a check (the signature, typically)
-could not be run, and the verifier never reports a broken receipt as verified.
-
-``--keys`` is the format-shaped key provider: a JWKS dict for Asqav-native, a
-``{key_id: hex}`` map for AERF, an ``{key_id: pem}`` map for ACTA, or a did_map
-for agentreceipts. did:key receipts self-resolve and need no ``--keys``.
-
-A second command records a live assessment into the retained log::
-
-    python -m asqav.verifier.oracle record store.jsonl receipt.json
-
-It verifies the receipt, appends the assessment (a missing store file
-starts a new log; a broken one fails), and prints the digest. Bytes
-already retained reassess instead: the reassessment is persisted and
-classified against the retained original. A third
-command reviews a live reassessment against its retained original::
-
-    python -m asqav.verifier.oracle review store.jsonl receipt.json [--rerun-a a.json --rerun-b b.json]
-
-It loads the retained log (a broken chain is a terminal failure), verifies the
-receipt plus reruns (a rerun that is not a re-execution of the reviewed bytes
-is a terminal failure), and runs the full attribution pipeline
-(:func:`classify_and_attribute <asqav.verifier.oracle.live_compare.classify_and_attribute>`).
-It prints the disagreement and spec-case outcome as JSON and exits 0 when
-reviewed, 1 on an unexplained split (it needs investigation), 2 on an
-input or retention failure. ``review`` never mutates the store file.
-With ``--context ctx.json`` the live side (receipt plus reruns) verifies
-under those caller-stated trust/time inputs, so a trust-split between
-the retained era and now classifies instead of hiding behind defaults.
-
-This is the entry point bundled into the single-file ``asqav-verify`` binary, so
-it stays free of network calls and reads only the files named on the command
-line.
-"""
+"""CLI entry point for the neutral verifier: ``python -m asqav.verifier.oracle receipt.json [--keys
+keys.json]``. ``record store.jsonl receipt.json`` retains a live assessment; the reassessment is persisted.
+``review store.jsonl receipt.json [--rerun-a a.json --rerun-b b.json]`` compares a live receipt with its
+retained original. ``--keys``: a JWKS dict for Asqav-native, a ``{key_id: hex}`` map for AERF, a ``{key_id:
+pem}`` map for ACTA, a did_map for agentreceipts; did:key receipts self-resolve. Strict ingest (419)
+rejects a duplicate JSON member name pre-hash. Exit: 0 verified, 1 invalid, 2 unverifiable (not verified)."""
+# This is the entry point bundled into the single-file ``asqav-verify`` binary:
+# no network call, and it reads only the files named on the command line.
 from __future__ import annotations
 
 import argparse
@@ -100,7 +57,7 @@ def _load(path: str | None) -> dict | None:
     try:
         return strict_json.loads(text)
     except (strict_json.DuplicateMemberError, strict_json.UnsafeIntegerError) as exc:
-        # Terminal ingest failure (419): never hash or verify last-wins or rounded bytes.
+        # Terminal ingest failure (419): never hash last-wins or rounded bytes.
         print(f"asqav-verify: {path} rejected: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
     except json.JSONDecodeError as exc:
@@ -118,7 +75,7 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
     try:
         return raw, strict_json.loads(raw.decode("utf-8"))
     except (strict_json.DuplicateMemberError, strict_json.UnsafeIntegerError) as exc:
-        # Terminal ingest failure (419): never hash or verify last-wins or rounded bytes.
+        # Terminal ingest failure (419): never hash last-wins or rounded bytes.
         print(f"asqav-verify: {path} rejected: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -126,9 +83,8 @@ def _load_raw(path: str) -> tuple[bytes, dict]:
         raise SystemExit(2) from None
 
 
-# --context accepts only the retained attribution fields (488 C37):
-# originating_envelope drives verification but is never retained, so a
-# stated envelope would be a live input invisible to attribution.
+# --context accepts only the retained attribution fields (488 C37): a stated
+# originating_envelope is never retained, so it would not reach attribution.
 _CONTEXT_TEXT_FIELDS = ("evaluator", "revocation_snapshot", "policy_revision",
                         "evidence_knowledge_cutoff", "evaluation_time",
                         "event_time", "effective_time")
@@ -184,11 +140,10 @@ def _load_context(path: str | None) -> VerificationContext | None:
 def record(store_path: str, receipt_path: str, reason: str | None = None) -> int:
     """Retain one live assessment (488 C32, C2 flow caller).
 
-    New bytes append an original and print the digest (exit 0). Bytes
-    already retained reassess instead: the reassessment is persisted,
-    then classified against the retained original through
-    reassess_and_classify (exit 0 reviewed, 1 unexplained split).
-    Store or input failures exit 2."""
+    New bytes append an original and print the digest (exit 0); bytes already
+    retained reassess instead, the reassessment is persisted then classified
+    against the retained original through reassess_and_classify (exit 0 reviewed,
+    1 unexplained split). Store or input failures exit 2."""
     raw, receipt = _load_raw(receipt_path)
     digest = hashlib.sha256(raw).hexdigest()
     try:
@@ -281,9 +236,8 @@ def review(store_path: str, receipt_path: str,
         # the caller-stated context (C36); defaults when unstated.
         reruns.append(verify(rerun_doc, ADAPTERS, context=live_context))
     result = verify(receipt, ADAPTERS, context=live_context)
-    # Live envelope re-derived from bytes (488 C39b); the stored
-    # ref is the other comparandum, never this side. Unboundable
-    # receipts review with no live envelope, same as record().
+    # Live envelope re-derived from bytes (488 C39b); the stored ref is the other
+    # comparandum, never this side. Unboundable receipts have no live envelope.
     try:
         live_agreement = asdict(envelope_of(receipt, ADAPTERS))
     except ValueError:

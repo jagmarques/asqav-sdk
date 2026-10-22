@@ -1,47 +1,27 @@
 """Export-only shim: an Asqav receipt presented in W3C Verifiable Credential 2.0 shape.
-
-EU-lane presentation. This is NOT a wire token, NOT a first-class internal type, and
-NOT a verification path. ``to_vc_envelope`` maps an Asqav receipt's action/agent fields
-into a VC ``credentialSubject`` so a VC-shaped consumer can read them, but it carries the
-ORIGINAL Asqav signature verbatim - it does not re-sign anything.
-
-WHY THE PROOF CANNOT BE A STANDARD VC SUITE
--------------------------------------------
-An Asqav receipt is signed with ML-DSA-65 (or Ed25519 / ES256) over the Asqav canonical
-bytes of the *receipt's own* payload. A registered VC proof (``Ed25519Signature2020``,
-``DataIntegrityProof`` with ``eddsa-rdfc-2022``, ...) is a signature over the *VC's* own
-canonical bytes. Those two byte strings differ, so relabelling the Asqav signature as a
-standard suite would produce a credential that any conformant VC verifier would reject -
-a forged-looking VC. To stay honest the export emits an explicit, self-descriptive
-NON-STANDARD proof type (``AsqavReceiptSignature2026``) that:
-
-  - carries the original signature value (base64 / hex) and its algorithm and key id,
-  - points at the EXACT canonical bytes the signature covers (``signingInput``) so an
-    Asqav-aware verifier can re-check, and
-  - never claims to be a registered VC cryptosuite.
-
-A top-level ``proofIsAsqavNative: true`` marker makes the boundary unmistakable: this is
-an Asqav receipt wearing a VC envelope, not a standard-suite-signed VC. Verifying it
-needs an Asqav-aware verifier; a generic VC verifier MUST decline it.
-"""
+EU-lane presentation, NOT a wire token, NOT a first-class internal type, NOT a verification
+path. ``to_vc_envelope`` maps action/agent fields into a VC ``credentialSubject``, carrying the
+ORIGINAL Asqav signature verbatim - it re-signs nothing. An Asqav receipt signs its own Asqav
+canonical bytes, a VC suite signs the VC's own bytes, so relabelling would look forged; the
+export emits the NON-STANDARD ``AsqavReceiptSignature2026`` proof; a generic VC verifier MUST decline it."""
 from __future__ import annotations
 
 from typing import Any
 
 from .oracle import ADAPTERS
 
-#: The VC ``@context`` entries - the v2 base plus the Asqav presentation vocabulary.
+#: The VC ``@context`` entries - v2 base plus the Asqav presentation vocabulary.
 VC_V2_CONTEXT = "https://www.w3.org/ns/credentials/v2"
 ASQAV_CONTEXT = "https://asqav.com/context/compliance-receipt/v1"
 
-#: The non-standard, self-descriptive proof type. NOT a registered VC cryptosuite.
+#: The non-standard, self-descriptive proof type. NOT a VC cryptosuite.
 ASQAV_PROOF_TYPE = "AsqavReceiptSignature2026"
 
-#: The credential type pair. Deliberately NOT ``AgentReceipt`` - that token belongs to a
+#: The credential type pair. NOT ``AgentReceipt`` - that token belongs to a
 #: different, standard-suite-signed format and must not be borrowed here.
 VC_CREDENTIAL_TYPE = ["VerifiableCredential", "AsqavComplianceReceipt"]
 
-#: Registered VC proof suites the export must never claim to be (honesty guard reference).
+#: Registered VC proof suites the export must never claim to be.
 STANDARD_VC_PROOF_TYPES = frozenset(
     {
         "Ed25519Signature2020",
@@ -141,10 +121,9 @@ def _agentreceipts_subject(receipt: dict) -> tuple[dict, dict, str | None]:
     """Map a W3C-VC AgentReceipt's fields into the Asqav presentation subject + proofbits.
 
     The source proof is Ed25519 over the receipt's strict-JCS bytes; its ``proofValue`` is
-    carried verbatim. The export still re-labels it Asqav-native, because once the
-    envelope shape changes (type + credentialSubject re-keyed) the original proof no longer
-    verifies as a standard VC over THESE bytes - so presenting it as standard would lie.
-    """
+    carried verbatim. The export still re-labels it Asqav-native, because once the envelope
+    shape changes (type + credentialSubject re-keyed) the original proof no longer verifies
+    as a standard VC over THESE bytes - so presenting it as standard would lie."""
     sub = receipt.get("credentialSubject", {}) if isinstance(receipt.get("credentialSubject"), dict) else {}
     proof = receipt.get("proof", {}) if isinstance(receipt.get("proof"), dict) else {}
     issuer = receipt.get("issuer")
@@ -170,8 +149,8 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
         return _agentreceipts_subject(receipt)
     if fmt == "asqav-native":
         return _native_subject(receipt)
-    # Best-effort generic mapping for the other oracle formats; the proof still carries the
-    # raw signature and stays non-standard, so no false standard-VC claim is possible.
+    # Best-effort generic mapping for the other oracle formats; the proof still
+    # carries the raw signature and stays non-standard, so no false standard claim.
     payload = receipt.get("payload") if isinstance(receipt.get("payload"), dict) else receipt
     sig = receipt.get("signature")
     if isinstance(sig, dict):
@@ -185,18 +164,10 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
 def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
     """Present an Asqav receipt as a W3C Verifiable Credential 2.0 envelope (export only).
 
-    Pure and offline: no signing, no network, no mutation of ``receipt``. The returned
-    credential's ``proof`` is the NON-STANDARD ``AsqavReceiptSignature2026`` carrying the
-    original Asqav signature verbatim and a pointer to the bytes it covers. It is NOT a
-    standard-suite-signed VC and a generic VC verifier MUST decline it.
-
-    Args:
-      receipt: a parsed Asqav (or oracle-recognised) receipt dict.
-      format: optional format hint; when omitted the oracle's detection is reused.
-
-    Returns:
-      A VC 2.0 dict with ``proofIsAsqavNative: True``.
-    """
+    Pure and offline: no signing, no network, no mutation of ``receipt``. ``format`` is an
+    optional hint; when omitted the oracle's detection is reused. The ``proof`` is the
+    NON-STANDARD ``AsqavReceiptSignature2026`` carrying the original Asqav signature verbatim
+    and a pointer to the bytes it covers, with ``proofIsAsqavNative: True``."""
     if not isinstance(receipt, dict):
         raise TypeError("receipt must be a parsed JSON object (dict)")
 
@@ -233,7 +204,7 @@ def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
     return envelope
 
 
-    # Best-effort issuance timestamp from the mapped action or source payload, or ``None``.
+    # Best-effort issuance timestamp from the mapped action or payload, else None.
 def _valid_from(subject: dict) -> str | None:
     action = subject.get("action")
     if isinstance(action, dict) and action.get("timestamp"):

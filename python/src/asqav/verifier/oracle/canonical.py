@@ -1,36 +1,9 @@
 """Canonicalization shared across format adapters.
-
-Three callable shapes, because three signers disagree on what "JCS" means:
-
-  - ``jcs(obj)``         : NFC-normalised, Python ``sort_keys`` (Unicode code
-                           point) ordering, numbers preserved as Python emits
-                           them. This matches the AERF and ACTA reference
-                           producers, whose Go canonicaliser writes numbers
-                           verbatim and sorts keys byte-wise. For their ASCII
-                           field set the code-point order equals the byte order,
-                           so this reproduces exactly the bytes those producers
-                           signed.
-  - ``jcs_rfc8785(obj)`` : strict RFC 8785 - UTF-16 code-unit key ordering and
-                           ECMAScript ``Number.prototype.toString`` number output,
-                           plus NFC. This is what the agent-receipts producers
-                           sign, and it byte-matches the agent-receipts upstream
-                           canonicalization vectors. The two diverge from ``jcs``
-                           on supplementary-plane keys and on non-integral or
-                           large-magnitude numbers.
-  - ``asqav_jcs(obj)``   : the Asqav cloud's JCS WITHOUT NFC, kept
-                           byte-identical to ``verify_receipt.canonical_json`` so
-                           the native adapter reproduces exactly what the cloud
-                           signed. Keys are UTF-16 ordered like ``jcs_rfc8785``;
-                           it differs from that one only by omitting NFC and by
-                           keeping Python's number output.
-
-INTEROP NOTE: AERF SPEC.md §5.1 and the agent-receipts spec both cite "full RFC
-8785 (JCS)", but the AERF Go reference (``verifiers/go/internal/aerf/canonical.go``)
-preserves numbers via ``json.Number`` verbatim and sorts with ``sort.Strings``
-(UTF-8 byte order), so an AERF receipt carrying ``1250.0`` is signed over the
-bytes ``1250.0``, not the RFC 8785 ``1250``. ``jcs`` therefore deliberately keeps
-the AERF dialect; only the agent-receipts adapter uses ``jcs_rfc8785``.
-"""
+Three callable shapes, because three signers disagree on "JCS": ``jcs`` (NFC, code-point keys,
+Python numbers - the AERF/ACTA Go dialect); ``jcs_rfc8785`` (RFC 8785: UTF-16 keys, ECMAScript
+numbers, NFC - what agent-receipts signs); ``asqav_jcs`` (the cloud's JCS without NFC,
+byte-identical to ``verify_receipt.canonical_json``). INTEROP: AERF SPEC.md §5.1 cites
+RFC 8785 but its Go reference keeps numbers verbatim, so ``1250.0`` signs as ``1250.0``."""
 from __future__ import annotations
 
 import json
@@ -114,7 +87,7 @@ def _number_8785(value: float) -> str:
     return _ecma_float(float(value))
 
 
-    # Non-integral float as ECMA-262 6.1.6.1.20 Number-to-String (shortest round-trip).
+    # Non-integral float: shortest round-trip Number-to-String, ECMA-262 6.1.6.1.20.
 def _ecma_float(value: float) -> str:
     sign = "-" if value < 0 else ""
     s, exp = _shortest_digits(abs(value))
@@ -130,7 +103,7 @@ def _ecma_float(value: float) -> str:
     return f"{sign}{tail}e{'+' if n - 1 >= 0 else '-'}{abs(n - 1)}"
 
 
-    # Return (digit string with no trailing zeros, base-10 exponent) for a positive float.
+    # Return (digits with no trailing zeros, base-10 exponent) for a positive float.
 def _shortest_digits(value: float) -> tuple[str, int]:
     mantissa, _, exp = repr(value).partition("e")
     exponent = int(exp) if exp else 0
@@ -146,7 +119,7 @@ def _shortest_digits(value: float) -> tuple[str, int]:
     return digits, exponent
 
 
-    # RFC 8785 serialisation: UTF-16 sorted keys, ECMAScript numbers, minimal strings.
+    # RFC 8785 serialisation: UTF-16 keys, ECMAScript numbers, minimal strings.
 def _serialize_8785(obj: Any) -> str:
     if obj is None or isinstance(obj, bool):
         return json.dumps(obj)

@@ -1,15 +1,9 @@
 """The format-adapter seam - six methods that describe one receipt format.
-
 Everything format-specific lives behind this seam; everything shared (the JCS
 canonicaliser, the Ed25519 / ML-DSA verify, the SHA-256 chain walk, the vector
-runner) is infrastructure the core drives. A new format is one ``FormatAdapter``
-subclass, no change to the core.
-
-The single most error-prone divergence between formats is the signing input: some
-sign DIRECTLY over the canonical bytes, others hash-then-sign, and each strips a
-different field set before canonicalising. ``signing_input`` encodes that per
-format so the core never has to know.
-"""
+runner) is infrastructure the core drives, so a new format is one ``FormatAdapter``
+subclass with no core change. The most error-prone divergence between formats is
+the signing input, which ``signing_input`` encodes per format so the core never knows."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -68,9 +62,8 @@ class SignatureMaterial:
 
     Fields:
       sig: raw signature bytes (already decoded from hex / base64url / multibase).
-      alg: algorithm token routed through ``crypto.verify_signature``.
-      kid: key identifier used by ``resolve_key`` to find the public key.
-    """
+      alg: algorithm token routed through ``crypto.verify_signature``; kid: key
+      identifier used by ``resolve_key`` to find the public key."""
 
     sig: bytes
     alg: str
@@ -81,13 +74,10 @@ class SignatureMaterial:
 class ChainStep:
     """The hash-chain linkage for one receipt.
 
-    Fields:
-      prev_field: the value of the format's previous-hash field, or None when the
-        format omits it on genesis (AERF) - distinct from an explicit-null genesis.
-      is_genesis: True when this receipt declares itself first on its chain.
-      recompute: callable(predecessor_doc) -> hex digest, encoding which bytes the
-        format hashes (e.g. AERF hashes the signable payload, sig excluded).
-    """
+    Fields: prev_field is the format's previous-hash field, or None when the format
+    omits it on genesis (AERF) - distinct from an explicit-null genesis; is_genesis
+    is True when this receipt declares itself first on its chain; recompute is a
+    callable(predecessor_doc) -> hex digest; AERF hashes signable payload, no sig."""
 
     prev_field: str | None
     is_genesis: bool
@@ -143,14 +133,11 @@ class FormatAdapter(ABC):
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         """Format-specific axes beyond structure / issuer-signature / chain.
-
-        Returns a list of ``(axis_name, result, note)`` where result is PASS /
-        FAIL / SKIPPED. The default is none; a format whose verification procedure
-        layers additional REQUIRED checks (a multi-signer counter-signature, a
-        policy-binding signature, a transparency-log inclusion proof) returns one
-        tuple per check so a missing-but-required or invalid layer FAILs the
-        verdict rather than passing on the issuer signature alone.
-        """
+        Returns a list of ``(axis_name, result, note)`` where result is PASS / FAIL /
+        SKIPPED. The default is none; a format whose verification procedure layers
+        additional REQUIRED checks (a multi-signer counter-signature, a policy-binding
+        signature, a transparency-log inclusion proof) returns one tuple per check, so a
+        missing-but-required or invalid layer FAILs the verdict, not a pass on the issuer signature alone."""
         return []
 
     def seq_of(self, doc: dict) -> Any:
