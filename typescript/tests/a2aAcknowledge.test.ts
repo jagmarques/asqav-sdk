@@ -1,7 +1,5 @@
-/**
- * Agent-to-agent receipts: acknowledgments bound to the sender's bytes.
- * Mirrors python/tests/test_a2a_acknowledge.py.
- */
+// Agent-to-agent receipts: acknowledgments bound to the sender's bytes
+// Mirrors python/tests/test_a2a_acknowledge.py
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

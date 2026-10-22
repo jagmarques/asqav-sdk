@@ -1,7 +1,5 @@
-/**
- * Offline DSSE attestation: the happy path runs the committed ML-DSA-65 vector and negatives
- * are derived by mutation, so each FAIL is anti-vacuous. No network; disk or in-process only.
- */
+// Offline DSSE attestation: the happy path runs the committed ML-DSA-65 vector,
+// negatives are derived by mutation so each FAIL is anti-vacuous. No network
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -33,7 +31,7 @@ function decodeStatement(envelope: Record<string, unknown>): Record<string, unkn
   return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
 }
 
-/** Re-encode a (mutated) Statement back into envelope.payload as standard base64. */
+/** Re-encode a mutated Statement into envelope.payload as base64 */
 function reencodePayload(envelope: Record<string, unknown>, statement: Record<string, unknown>): void {
   envelope.payload = Buffer.from(new TextEncoder().encode(JSON.stringify(statement))).toString("base64");
 }
@@ -98,7 +96,7 @@ describe("verifyAttestation - tamper detection (no network)", () => {
 
     const result = verifyAttestation(envelope, jwks);
     expect(result.verdict).toBe("FAIL");
-    // Structure stays well-formed; the signature is what binds the digest.
+    // Structure stays well-formed; the signature is what binds the digest
     expect(result.axes.structure.result).toBe("PASS");
     expect(result.axes.signature.result).toBe("FAIL");
   });
@@ -115,7 +113,7 @@ describe("verifyAttestation - tamper detection (no network)", () => {
     const result = verifyAttestation(envelope, jwks);
     expect(result.verdict).toBe("FAIL");
     expect(result.axes.signature.result).toBe("FAIL");
-    // The key is still active; only the signature is broken.
+    // The key is still active; only the signature is broken
     expect(result.axes.key_status.result).toBe("PASS");
   });
 });
@@ -218,7 +216,7 @@ describe("verifyAttestation - structure guards (no network)", () => {
 describe("buildPae - DSSEv1 byte-exactness (known-answer)", () => {
   const enc = new TextEncoder();
   // Known-answer hex minted by the verbatim core/dsse.py pae() formula, so this
-  // pins buildPae to the backend byte-for-byte with no hand-copied constant.
+  // pins buildPae to the backend byte-for-byte with no hand-copied constant
   const kat = loadJson(join(DIR, "pae_kat.json")) as {
     vectors: Array<{ name: string; payloadType: string; body: string; pae_ascii?: string; pae_hex: string }>;
   };

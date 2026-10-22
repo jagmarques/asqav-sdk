@@ -1,7 +1,5 @@
-/**
- * Acceptor-side admission control (criterion 472, B15), TS half of test_acceptor.py. These
- * rules refuse receipts the VERIFIER accepts, so the fixtures are minted, not edited.
- */
+// Acceptor admission control (criterion 472, B15), TS half of test_acceptor.py
+// Rules refuse receipts the VERIFIER accepts, so fixtures are minted
 
 import { createHash, createPrivateKey, createPublicKey, sign as nodeSign } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -20,7 +18,7 @@ const ISSUER = "Asqav Ltd";
 const ZERO_DIGEST = createHash("sha256").update("").digest("hex");
 
 // The verifier verifies Ed25519 through node:crypto, so sign through it too
-// rather than pulling a second implementation into the fixtures.
+// rather than pulling a second implementation into the fixtures
 const PKCS8_ED25519_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 const SPKI_ED25519_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
@@ -42,7 +40,7 @@ function rawPublicKey(): Buffer {
 }
 
 function jcs(obj: unknown): Buffer {
-  // Matches the oracle's asqavJcs for these flat, ASCII payloads.
+  // Matches the oracle's asqavJcs for these flat, ASCII payloads
   return Buffer.from(canonical(obj), "utf-8");
 }
 
@@ -156,7 +154,7 @@ describe("acceptor: expiry is an acceptor rule, not a verdict", () => {
     chained({ seq: 7 }, { seq: 8, expires_at: when.toISOString() });
 
   it("the verifier still calls an expired receipt verified", () => {
-    // The premise the rule rests on, asserted rather than assumed.
+    // The premise the rule rests on, asserted rather than assumed
     const { receipt, jwks, predecessor } = expiring(new Date(Date.now() - 86_400_000));
     const result = verify(receipt, ADAPTERS, jwks, predecessor);
     const expiry = result.axes.find((a) => a.axis === "expiry");
@@ -173,7 +171,7 @@ describe("acceptor: expiry is an acceptor rule, not a verdict", () => {
   });
 
   it("admits an unexpired receipt", () => {
-    // The control. Without it the rule could refuse everything and pass.
+    // The control. Without it the rule could refuse everything and pass
     const { receipt, jwks, predecessor } = expiring(new Date(Date.now() + 86_400_000));
     const got = checkPeerReceipt(receipt, { keyProvider: jwks, predecessor });
     expect(got.accepted, got.reason).toBe(true);
@@ -218,7 +216,7 @@ describe("acceptor: seq downgrade", () => {
 
   it("still admits a peer that never carried one", () => {
     // Absence stays legal, or every receipt minted before the counter shipped
-    // would be refused by an acceptor.
+    // would be refused by an acceptor
     const { receipt, jwks, predecessor } = chained({}, {});
     const got = checkPeerReceipt(receipt, { keyProvider: jwks, predecessor });
     expect(got.accepted, got.reason).toBe(true);
@@ -332,8 +330,8 @@ describe("acceptor middleware (Connect/Express adapter)", () => {
   }
 
   it("refuses a request carrying no receipt", () => {
-    // Fails closed. Admitting an unsigned request while refusing a badly-signed
-    // one would be worse than no middleware: the cheapest bypass is to send nothing.
+    // Fails closed: admitting unsigned yet refusing badly-signed is worse than
+    // no middleware, since the cheapest bypass is to send nothing
     const got = drive(acceptorMiddleware(), {});
     expect(got.status).toBe(403);
     expect(got.reached).toBe(false);
@@ -355,7 +353,7 @@ describe("acceptor middleware (Connect/Express adapter)", () => {
   });
 
   it("an admissible receipt reaches the handler", () => {
-    // The control. Without it the middleware could refuse everything and pass.
+    // The control. Without it the middleware could refuse everything and pass
     const { receipt, jwks, predecessor } = chained({ seq: 7 }, { seq: 8 });
     const mw = acceptorMiddleware({ keyProvider: jwks, predecessorFor: () => predecessor });
     const got = drive(mw, { "x-asqav-receipt": JSON.stringify(receipt) });

@@ -1,7 +1,5 @@
-/**
- * The CommonJS build defines RawFloat once, so entries mixed in one process
- * give the verdicts ESM gives. Builds with the package.json build flags.
- */
+// The CommonJS build defines RawFloat once, so entries mixed in one process
+// give the verdicts ESM gives. Builds with the package.json build flags
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";

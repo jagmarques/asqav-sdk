@@ -55,7 +55,7 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "asqav-creds-"));
     tempDirs.push(tmp);
-    // Isolate the file-backed chain so no test reads a real ~/.asqav/credentials.
+    // Isolate the file chain so no test reads a real ~/.asqav/credentials
     process.env.ASQAV_CREDENTIALS_PATH = path.join(tmp, "credentials");
     delete process.env.ASQAV_API_KEY;
     delete process.env.ASQAV_API_BASE;
@@ -85,8 +85,8 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
     return out + err;
   }
 
-  // Switch to the default ~/.asqav path under a temp HOME (drop the env override),
-  // mirroring the Python `home` fixture.
+  // Use the default ~/.asqav path under a temp HOME, dropping the env override
+  // like the Python `home` fixture
   function useDefaultPath(): string {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "asqav-home-"));
     tempDirs.push(home);
@@ -97,7 +97,7 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
     return home;
   }
 
-  // Run a callback in an empty temp cwd (for `init` framework detection).
+  // Run a callback in an empty temp cwd (for `init` framework detection)
   async function inTempCwd(fn: (cwd: string) => Promise<void>): Promise<void> {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "asqav-cwd-"));
     tempDirs.push(cwd);
@@ -197,7 +197,7 @@ describe("credentials layer + onboarding CLI (TypeScript)", () => {
 
   it("rejects a traversal ASQAV_CREDENTIALS_PATH and writes nothing outside", () => {
     const home = useDefaultPath();
-    // String concat (not path.join) so the literal ".." survives into the env value.
+    // Concat, not path.join, so the literal ".." survives into the env value
     const traversal = `${home}/../escaped_creds.json`;
     process.env.ASQAV_CREDENTIALS_PATH = traversal;
     expect(() => credentialsPath()).toThrow(/path traversal/);

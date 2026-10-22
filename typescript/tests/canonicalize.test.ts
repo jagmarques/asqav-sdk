@@ -1,7 +1,5 @@
-/**
- * Cross-language conformance: the TS fingerprint helpers must agree with
- * conformance/vectors.json byte-for-byte, the same file the Python tests validate.
- */
+// Cross-language conformance: the TS fingerprint helpers agree with
+// conformance/vectors.json byte-for-byte, as the Python tests validate
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -23,13 +21,12 @@ const vectorsPath = resolve(__dirname, "..", "..", "conformance", "vectors.json"
 const { vectors: allVectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {
   vectors: Vector[];
 };
-// A refused-document vector (asqav-25) carries `input_text` and no parsed `input`, so it
-// has no canonical bytes for these helpers to reproduce. Its refusal is pinned in
-// verifier-parity.test.ts instead.
+// A refused-document vector (asqav-25) has input_text, no parsed input, so
+// nothing to reproduce; its refusal is pinned in verifier-parity.test.ts
 const vectors = allVectors.filter((v) => "input" in v);
 
-// Closed Literal mirrored from the cloud SignRequest. passive_telemetry is observation-only;
-// github_sha_pull is the server-stamped authoritative code-authorship capture layer.
+// Closed Literal mirrored from the cloud SignRequest; passive_telemetry is
+// observation-only, github_sha_pull is the server-stamped authoritative layer
 const CAPTURE_TOPOLOGY_VOCABULARY = new Set([
   "in_process_sdk",
   "network_proxy",
@@ -157,7 +154,7 @@ describe("RFC 8785 astral key ordering", () => {
     expect(createHash("sha256").update(produced).digest("hex")).not.toBe(
       v.non_conformant_sha256,
     );
-    // Anti-vacuous: the rejected form is a reordering of the same members.
+    // Anti-vacuous: the rejected form is a reordering of the same members
     expect(Object.keys(JSON.parse(produced)).sort()).toEqual(
       Object.keys(JSON.parse(v.non_conformant_canonical)).sort(),
     );

@@ -1,7 +1,5 @@
-/**
- * The negative half of verify-response-fields.test.ts: a sign response missing action_id or
- * signature_id must throw one typed AsqavResponseError naming the field, never undefined.
- */
+// Negative half of verify-response-fields.test.ts: a sign response missing
+// action_id or signature_id throws a typed AsqavResponseError, never undefined
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

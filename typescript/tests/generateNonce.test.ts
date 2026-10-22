@@ -1,7 +1,5 @@
-/**
- * ESM bundle crypto regression: tsup turns require("node:crypto") into a __require() shim that
- * throws in pure-ESM Node 22, so generateNonce uses globalThis.crypto.getRandomValues.
- */
+// ESM bundle crypto regression: tsup turns require("node:crypto") into a
+// __require() shim that throws on Node 22; generateNonce uses globalThis.crypto
 
 import { describe, expect, it } from "vitest";
 import { generateNonce } from "../src/index.js";
@@ -21,8 +19,8 @@ describe("generateNonce", () => {
   });
 
   it("uses globalThis.crypto so the ESM .mjs bundle does not require() crypto", () => {
-    // If require() were used, this test would throw in an ESM context.
-    // Vitest runs in Node ESM mode, so a CJS require() shim would surface here.
+    // If require() were used, this test would throw in an ESM context
+    // Vitest runs in Node ESM mode, so a CJS require() shim would surface here
     expect(() => generateNonce()).not.toThrow();
   });
 });
