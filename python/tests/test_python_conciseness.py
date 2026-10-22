@@ -1,22 +1,25 @@
 """The counting check holds the verifier sources to the conciseness budget.
 
-The check in tools/ measures three budgets over a scanned tree: a docstring
-block of at most six lines, a comment line of at most eighty characters and a
-comment block of at most two comment lines. These tests run the real check
-over the verifier and plant the bad inputs it has to reject.
-"""
+The check in tools/ measures three budgets over a scanned tree: a docstring block
+of at most six lines, a comment line of at most eighty characters and a comment
+block of at most two comment lines. These tests run the real check over the
+verifier and plant the bad inputs it has to reject."""
 
 from __future__ import annotations
 
 import ast
+import importlib.util
 import shutil
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "tools"))
-
-import check_python_conciseness as conciseness  # noqa: E402
+_SPEC = importlib.util.spec_from_file_location(
+    "check_python_conciseness", REPO_ROOT / "tools" / "check_python_conciseness.py"
+)
+conciseness = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = conciseness
+_SPEC.loader.exec_module(conciseness)
 
 VERIFIER_DIR = REPO_ROOT / "python" / "src" / "asqav" / "verifier"
 VERIFY_RECEIPT = VERIFIER_DIR / "verify_receipt.py"
@@ -110,6 +113,8 @@ def test_license_header_must_open_the_file(tmp_path):
     assert counts.comment_blocks == 1, counts.findings
 
 
+# NEGCTL: each case plants the bad input into a real copy of the verifier and
+# runs the real scan over it, so a check that stopped flagging fails here.
 def test_negctl_three_line_block(tmp_path):
     copy = _copy_of_verify_receipt(tmp_path)
     source = copy.read_text(encoding="utf-8")
