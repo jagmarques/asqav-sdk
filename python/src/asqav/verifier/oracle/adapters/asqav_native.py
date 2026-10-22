@@ -155,10 +155,8 @@ class AsqavNativeAdapter(FormatAdapter):
         )
 
     def _signing_key_entry(self, doc: dict, jwks: dict) -> dict | None:
-        """The one jwks entry this receipt's signature is checked against.
+        """The one jwks entry every axis, signature included, resolves through.
         kid and agent_id are attacker-set; match on the signed issuer_id."""
-        # Every axis resolves via this entry: a second kid lookup could verify
-        # one key yet hide its revocation from the other axes.
         payload = _payload(doc)
         return _vr.match_signing_key(
             jwks,
