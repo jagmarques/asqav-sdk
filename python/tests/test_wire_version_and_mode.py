@@ -14,25 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""`v` and `mode` are REQUIRED on every asqav-native vector, and forbidden elsewhere.
-
-The draft makes both members REQUIRED on the signed payload (5.1.1 for ``v``,
-5.1.2 for ``mode``). This corpus went 22 vectors deep without either of them,
-and nothing noticed, because the only thing that catches a missing member today
-is the signature breaking - which catches an EDITED vector and misses a
-REGENERATED one. A generator that stops emitting ``v`` and re-signs produces a
-valid receipt that every other test accepts.
-
-That is the hole this file closes, and it is why the file exists separately from
-the signature checks: presence is asserted directly against the bytes, not
-inferred from a verdict.
-
-The second test asserts the opposite direction and matters just as much. 5.3's
-interoperability note makes the ABSENCE of ``v`` the normative discriminator
-between a receipt of this profile and a bare upstream receipt. So the non-asqav
-families MUST NOT gain it: adding ``v`` to an ``acta-*`` vector would not be a
-tidy-up, it would delete the discriminator's only negative evidence and make
-5.3's rule untestable.
+"""`v` and `mode` are REQUIRED on every asqav-native vector and forbidden elsewhere; the draft requires both
+on the payload (5.1.1 ``v``, 5.1.2 ``mode``). Only a broken signature catches a missing member: an EDITED
+vector, not a REGENERATED one, so a re-signing generator yields a valid receipt. Presence is asserted against
+the bytes, not a verdict. 5.3 makes the ABSENCE of ``v`` the discriminator from a bare upstream receipt, so
+non-asqav families MUST NOT gain it: that deletes the only negative evidence.
 """
 
 from __future__ import annotations
@@ -47,22 +33,20 @@ from asqav.verifier.oracle import ADAPTERS, crypto, verify
 
 _VECTOR_ROOT = Path(__file__).parent.parent.parent / "verifier" / "conformance-vectors"
 
-#: Recognised wire versions. asqav-08/09 pin ``v: 2`` as a VERIFIED signer canary,
-#: so the set is at least {1, 2}; widening it is a registry decision, not a test edit.
+#: Recognised versions. asqav-08/09 pin ``v: 2`` as a VERIFIED signer canary:
+#: at least {1, 2}; widening it is a registry decision, not a test edit.
 RECOGNISED_V = frozenset({1, 2})
 
-#: The two capture modes the corpus uses. ``hash`` goes with the flat shape whose
-#: ``payload`` is null; ``payload`` goes with a real signed payload object.
+#: The two capture modes the corpus uses: ``hash`` for the flat shape whose
+#: ``payload`` is null; ``payload`` for a real signed payload object.
 RECOGNISED_MODE = frozenset({"hash", "payload"})
 
 #: Families that MUST NOT carry ``v``. Their receipts are bare upstream-format
 #: receipts and their lack of ``v`` is what 5.3 discriminates on.
 FOREIGN_PREFIXES = ("acta-", "agentreceipts-", "aerf-", "pipelock-", "w3c-", "authproof-", "dsse-")
 
-#: Named negative vectors for draft 5.2.1 (criterion 674): their whole point is a
-#: missing or unrecognised ``v`` under an otherwise valid signature, and both
-#: oracles must report them unverified. They are exempt from the census below by
-#: name so the generator-regression protection stays intact for every other vector.
+#: Negative vectors for 5.2.1 (criterion 674): a missing or unrecognised ``v``
+#: under a valid signature, unverified by both oracles; exempt from the census.
 VERSION_NEGATIVE_VECTORS = frozenset(
     {
         "asqav-39-absent-version",
@@ -81,12 +65,10 @@ def _receipt_files(prefix: str):
 
 
 def _signed_members(doc: dict) -> tuple[dict, str]:
-    """Return the object the signed members live in, and which position that is.
-
-    Payload-mode receipts carry them inside ``payload``. The flat hash-mode shape
-    has ``payload`` null and carries them at the top level (5.1.1 states both
-    positions), so a checker that only looks inside ``payload`` reports a false
-    absence on exactly the production-captured vectors.
+    """Return the object the signed members live in, and which position that is. Payload-mode receipts carry
+    them inside ``payload``; the flat hash-mode shape has ``payload`` null and carries them at the top level
+    (5.1.1 states both positions), so a checker that only looks inside ``payload`` reports a false absence on
+    exactly the production-captured vectors.
     """
     payload = doc.get("payload")
     if isinstance(payload, dict):
@@ -139,18 +121,11 @@ def test_v_and_mode_carry_only_recognised_values() -> None:
 
 
 def test_a_flat_shaped_receipt_is_always_hash_mode() -> None:
-    """A receipt whose ``payload`` is null cannot be payload-mode.
-
-    Only this ONE direction holds, and the corpus is the reason the converse is not
-    asserted here: ``asqav-08``, ``asqav-09`` and ``asqav-24`` carry a real payload
-    OBJECT and ``mode`` ``hash``. That is correct and not a defect - ``mode`` records
-    how the ACTION was captured (whether the caller sent the content or only its
-    digest), not what the envelope looks like, so a hash-mode receipt can still carry
-    a payload object holding metadata and the digest.
-
-    An earlier draft of this test asserted the converse and went red against those
-    three vectors. The rule was invented, the corpus was right, and the assertion was
-    removed rather than the vectors changed.
+    """A receipt whose ``payload`` is null cannot be payload-mode. Only this ONE direction holds, and the
+    corpus is the reason the converse is not asserted here: ``asqav-08``, ``asqav-09`` and ``asqav-24`` carry
+    a real payload OBJECT and ``mode`` ``hash``. That is correct, not a defect: ``mode`` records how the
+    ACTION was captured (content or digest), not the envelope shape, so a hash-mode receipt can still carry a
+    payload object holding metadata and the digest.
     """
     wrong = [
         (label, members.get("mode"))

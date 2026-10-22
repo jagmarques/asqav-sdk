@@ -149,7 +149,7 @@ def stub() -> Any:
 
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
-    # Default base is a closed local port and asqav.com never resolves, so no test reaches prod.
+    # Closed local port and unresolvable asqav.com: no test reaches prod.
     for name in ("ASQAV_API_URL", "ASQAV_API_BASE", "ASQAV_API_KEY", "ASQAV_MODE"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("ASQAV_CREDENTIALS_PATH", str(tmp_path / "credentials"))

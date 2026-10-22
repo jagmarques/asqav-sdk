@@ -1,12 +1,8 @@
-"""SDK half of the authoritative code-authorship path (POST /v1/code-authorship).
-
-The client supplies an ADVISORY change digest. The server re-fetches the commit,
-recomputes the canonical diff, and signs an in-toto Statement whose
-``subject[0].digest.sha256`` is the SERVER digest. These tests pin: the advisory
-digest computation, the wire body the submit helper posts, the authoritative
-envelope parsing, and the capture-layer observation-decision rule
-(``github_sha_pull`` is authoritative; ``in_process_sdk`` / ``passive_telemetry``
-are observation only and never authoritative).
+"""SDK half of the authoritative code-authorship path (POST /v1/code-authorship). The client supplies an
+ADVISORY change digest. The server re-fetches the commit, recomputes the canonical diff, and signs an in-toto
+Statement whose ``subject[0].digest.sha256`` is the SERVER digest. They pin the advisory digest computation,
+the wire body, envelope parsing, and the capture-layer observation-decision rule (``github_sha_pull``
+is authoritative; ``in_process_sdk`` / ``passive_telemetry`` are observation only, never authoritative).
 """
 
 from __future__ import annotations
@@ -182,7 +178,7 @@ def test_submit_omits_absent_optional_fields() -> None:
     assert body == {"repo": "owner/repo", "commit_sha": "c" * 40}
 
 
-    # digest_match reports advisory-vs-server agreement. The subject is the server's.
+    # digest_match reports advisory-vs-server agreement, the server's subject.
 def test_result_exposes_digest_match_semantics() -> None:
     advisory = "sha256:" + "1" * 64
     server_hex = "2" * 64

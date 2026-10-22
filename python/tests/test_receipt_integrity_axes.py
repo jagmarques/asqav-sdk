@@ -1,16 +1,8 @@
-"""Receipt-internal integrity axes, Python half.
-
-Two classes of claim an issuer could previously assert unchecked:
-
-  - `payload_digest` over a `context` the receipt carries itself. Recomputable
-    with NO external data, so a receipt whose own context does not hash to its
-    own digest is provably inconsistent. Nothing checked it before.
-  - `counterparty_binding`, which asserts a counterparty acknowledged the action.
-    The hosted verifier resolves it against its database; an offline third party
-    has none, so a fabricated binding reached a plain verified verdict.
-
-The shared table in verifier/axis-parity-cases.json drives this file and
-typescript/tests/verifier-receipt-integrity-parity.test.ts.
+"""Receipt-internal integrity axes, Python half. Two receipt-internal axes an issuer could assert unchecked.
+`payload_digest` is recomputable with NO external data, so a receipt whose own context does not hash to its
+digest is provably inconsistent. `counterparty_binding` asserts a counterparty acknowledged the action: only
+the hosted verifier can resolve it (an offline third party has no database), so a fabricated binding reached
+a verified verdict. verifier/axis-parity-cases.json drives this file and its TypeScript twin.
 """
 
 from __future__ import annotations

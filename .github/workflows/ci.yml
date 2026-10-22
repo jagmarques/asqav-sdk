@@ -108,6 +108,10 @@ jobs:
         working-directory: typescript
       - run: pip install -e "./python[all,dev]" pytest ruff
       - run: ruff check python/src
+      # Conciseness budget (criterion 820): a docstring block spans at most six
+      # lines, a comment line at most eighty characters and a comment block at
+      # most two comment lines, measured over the Python tests.
+      - run: python tools/check_python_conciseness.py --path python/tests
       - run: pytest python/tests -v --tb=short --continue-on-collection-errors
 
   wire-vocabulary:

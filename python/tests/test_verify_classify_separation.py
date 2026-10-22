@@ -1,16 +1,8 @@
-"""Classification lives at the review boundary, not in verify() (488 C38).
-
-`record`/`review` in `__main__.py` classify live input against a
-retained original, and `retain.reassess_and_classify` is the
-retention-layer caller the prescription asked for: reassess raises
-unless an original exists, so both comparanda are real, and it
-imports only `disagreement` (cycle-free). The rest of the
-verification layer - format adapters, dispatch, corpus runner and
-the store itself - holds no retained original to classify against
-(`runner.py` references no store) and stays classification-free.
-Tests read the sources; they change no product bytes. TS has no
-oracle CLI and no equivalent boundary, so this guard covers the
-Python oracle only (DECISION-C2-TS).
+"""Classification lives at the review boundary, not in verify() (488 C38). `record`/`review` in `__main__.py`
+classify live input against a retained original; `retain.reassess_and_classify` is the retention caller:
+it raises unless an original exists, so both comparanda are real, and it imports only `disagreement`. The
+layer's other parts - adapters, dispatch, corpus runner, the store - hold no retained original and stay
+classification-free. TS has no oracle CLI, so the guard covers the Python oracle only (DECISION-C2-TS).
 """
 from __future__ import annotations
 
@@ -28,9 +20,8 @@ _PURE_FILES = [
     *(f"adapters/{p.name}" for p in sorted((_ORACLE / "adapters").glob("*.py"))),
 ]
 
-#: Classification references: long entry names plus the import and
-#: call shapes a bare `from .disagreement import classify` wiring
-#: would take (CRITIC-C38: plain substrings miss that path).
+#: Classification references: entry names plus the import and call shapes a
+#: bare `from .disagreement import classify` wiring takes (CRITIC-C38).
 _CLASSIFY_PATTERNS = (
     "classify_and_attribute",
     "attribute_live_split",

@@ -287,7 +287,7 @@ def test_a_receipt_for_another_agent_still_blocks_end_to_end(monkeypatch) -> Non
     assert "agent mismatch" in result.output
 
 
-# === the receipt must name THIS invocation, and nothing after signing may exit open ===
+# === the receipt must name THIS invocation; nothing after it exits open ===
 
 _CALL = {
     "session_id": "s-replay",
@@ -302,8 +302,8 @@ def test_a_receipt_minted_for_call_one_does_not_open_an_identical_call_two(monke
     first = _run_gate(monkeypatch, signer, _CALL)
     assert first.exit_code == 0, first.output
     call_one = json.loads(json.dumps(signer.last_response))
-    # Same tool, input and session inside the freshness window, a different invocation:
-    # the platform (or whoever holds the response channel) hands back call one's receipt.
+    # Same tool, input and session in the freshness window, a different invocation:
+    # whoever holds the response channel hands back call one's receipt.
     monkeypatch.setattr(signer, "post", lambda *_a, **_k: json.loads(json.dumps(call_one)))
     second = _run_gate(monkeypatch, signer, {**_CALL, "tool_use_id": "toolu_B"})
     assert second.exit_code == 2, second.output
@@ -408,7 +408,7 @@ def test_clear_context_blocks_because_the_real_body_carries_no_digest(monkeypatc
     assert "does not match the digest the gate sent" in result.output
 
 
-# === the gate never exits 1: exit 1 is a non-blocking error and the tool would run ===
+# === the gate never exits 1: it is non-blocking, the tool would run ===
 
 
 def _unreachable_signer() -> _Signer:

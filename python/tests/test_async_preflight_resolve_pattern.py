@@ -27,7 +27,7 @@ AGENT = AsyncAgent(
     created_at=1700000000.0,
 )
 
-# Policy whose action_pattern matches 'data:read:sql:*' (the resolved form of 'sql-read').
+# Policy whose action_pattern matches 'data:read:sql:*' (resolved 'sql-read').
 _SQL_READ_BLOCK_POLICY = [
     {
         "is_active": True,
@@ -38,7 +38,7 @@ _SQL_READ_BLOCK_POLICY = [
 ]
 
 
-    # Passing the semantic alias 'sql-read' triggers a glob policy on the resolved form.
+    # Passing the alias 'sql-read' triggers a glob policy on the resolved form.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_preflight_resolves_pattern_before_policy_check(mock_get: AsyncMock) -> None:
