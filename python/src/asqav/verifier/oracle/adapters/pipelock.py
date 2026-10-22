@@ -1,46 +1,7 @@
-"""Pipelock EvidenceReceipt v2 adapter - Ed25519 over JCS with zeroed signature.
-
-Targets Pipelock v2.x EvidenceReceipt v2 as implemented in the Python verifier
-``luckyPipewrench/pipelock-verify-python`` (cloned at commit
-``9eaff72a87b3b412945fac6de07739bc2bef2116``). The authoritative signing rule
-is in ``pipelock_verify/_evidence.py::_signable_preimage``.
-
-Signing rule: clone the receipt dict, zero out the ``signature`` object
-(all four fields set to empty strings), then JCS-canonicalize the result.
-The signature is Ed25519 PureEdDSA over those bytes; the 64-byte signature
-is hex-encoded with an ``ed25519:`` prefix (``ed25519:<128 hex chars>``).
-
-Key resolution: EvidenceReceipt v2 does NOT embed its signer public key in
-the envelope. The caller must supply the raw 32-byte Ed25519 key hex via the
-key provider, keyed by ``signature.signer_key_id``. When the key is absent
-the signature axis SKIPS and the verdict is INCOMPLETE, never a hiding PASS.
-
-Chain rule: ``chain_seq`` is a monotonic sequence counter; ``chain_prev_hash``
-is ``"sha256:" + hex(SHA-256(JCS(full predecessor receipt)))`` for non-genesis
-receipts. Genesis receipts set ``chain_prev_hash`` to ``"genesis"`` or
-``"sha256:0"`` (both are accepted). The chain axis hash covers the full
-predecessor receipt INCLUDING its signature (unlike AERF which strips it).
-
-Canonicalization: Pipelock v2 uses strict RFC 8785 JCS (NFC strings,
-lexicographic codepoint key sort, integer-only numeric values, no whitespace).
-This is the same dialect as the agentreceipts adapter; we reuse ``jcs_rfc8785``
-which byte-matches pipelock's Go canonicaliser for all-ASCII field sets and
-NFC input.
-
-WHAT IS VERIFIED:
-  - Structure: required envelope fields, ``record_type``, ``receipt_version``,
-    ``payload_kind`` in the known set, ``signature.algorithm == ed25519``,
-    key-purpose authority-matrix check, RFC 3339 timestamp.
-  - Signature: Ed25519 over JCS(receipt with zeroed sig), PASS / FAIL / SKIPPED.
-  - Chain: ``chain_prev_hash == "sha256:" + sha256_hex(JCS(predecessor))``.
-
-WHAT IS NOT VERIFIED (the signature layer closes this):
-  - Payload semantic validity (13 payload kinds; we check required-field
-    presence only for ``proxy_decision`` - the format of the conformance fixture
-    - and skip deep validation for the other 12).
-  - Key-directory liveness (the oracle never fetches a directory).
-  - Clock skew.
-"""
+"""Pipelock EvidenceReceipt v2 adapter: Ed25519 over JCS, signature zeroed.
+Envelope, payload_kind, key purpose, timestamp, signature and chain VERIFIED."""
+# OUT OF SCOPE: payload meaning (``proxy_decision`` gets one field check),
+# whether the key directory is live, and clock skew.
 from __future__ import annotations
 
 from typing import Any
@@ -108,7 +69,7 @@ _PAYLOAD_AUTHORITY: dict[str, str] = {
 _SIGNATURE_FIELDS = frozenset({"signer_key_id", "key_purpose", "algorithm", "signature"})
 
 
-    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
+    # Decode hex; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -156,7 +117,7 @@ class PipelockEvidenceAdapter(FormatAdapter):
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         sig_proof = doc.get("signature", {})
         sig_value = sig_proof.get("signature", "")
-        # Strip the ``ed25519:`` prefix before hex-decoding.
+        # Strip the ``ed25519:`` prefix before hex-decoding (128 hex chars).
         if isinstance(sig_value, str) and sig_value.startswith(_SIG_PREFIX):
             sig_bytes = _safe_hex(sig_value[len(_SIG_PREFIX):])
         else:
@@ -168,11 +129,8 @@ class PipelockEvidenceAdapter(FormatAdapter):
         )
 
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
-        """Return the raw 32-byte Ed25519 key from the caller-supplied key provider.
-
-        EvidenceReceipt v2 does NOT embed its public key. The caller passes a
-        ``{signer_key_id: hex_or_bytes}`` map. If the key is absent the axis SKIPs.
-        """
+        """Return the raw 32-byte Ed25519 key from the caller's key provider.
+        No key is embedded, so a missing map entry SKIPs it (INCOMPLETE)."""
         kid = doc.get("signature", {}).get("signer_key_id", "")
         provider = key_provider or {}
         material = provider.get(kid)
@@ -208,7 +166,7 @@ class PipelockEvidenceAdapter(FormatAdapter):
         if missing:
             return "FAIL", f"pipelock-evidence-v2 missing required fields: {','.join(missing)}"
 
-        # record_type and receipt_version are the detection discriminators; re-check for schema.
+        # record_type and receipt_version detect the format; recheck schema.
         if doc.get("record_type") != _RECORD_TYPE:
             return "FAIL", f"record_type must be {_RECORD_TYPE!r}"
         if doc.get("receipt_version") != _RECEIPT_VERSION:
