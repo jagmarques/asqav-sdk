@@ -1,9 +1,5 @@
-"""AERF adapter - Ed25519 over RFC 8785 JCS, signed directly (no pre-hash). AERF receipts are flat:
-Ed25519 over the RFC 8785 JCS bytes with the non-payload fields stripped (``_STRIP``); the chain hash is
-SHA-256 of the predecessor's signable payload (signature EXCLUDED), per the AERF SPEC, whose vectors
-exclude the signature the agentmint producer includes. Public keys are raw 32-byte Ed25519, or an RFC 8410 SPKI
-decoded by ``_raw_ed25519``. Two REQUIRED extra axes: the parent counter-signature and the PDP
-binding over {context_hash_sha256, in_policy, policy_hash}; an unverifiable layer never PASSes."""
+"""AERF adapter: Ed25519 over RFC 8785 JCS, no pre-hash, flat receipts.
+Chain hash covers the predecessor payload; agentmint's signature is excluded."""
 # No multi-signer receipt passes on the issuer signature alone, and the
 # binding keeps a context-A verdict off a context-B receipt.
 from __future__ import annotations
@@ -22,7 +18,7 @@ _STRIP = ("signature", "timestamp", "parent_signature", "parent_key_id", "log_in
 _SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 
-    # Decode a hex string; b'' on malformed input so verify FAILs, never crashes.
+    # Decode hex; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -82,7 +78,7 @@ class AerfAdapter(FormatAdapter):
     def chain_step(self, doc: dict) -> ChainStep:
         prev = doc.get("previous_receipt_hash")
         is_genesis = "previous_receipt_hash" not in doc
-        # Genesis omits the field; a present null is a malformed genesis, not a link.
+        # Genesis omits it; a present null is malformed, not a link.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,
@@ -109,7 +105,7 @@ class AerfAdapter(FormatAdapter):
             return "FAIL", "genesis must omit previous_receipt_hash, not set it null"
         return "PASS", "required fields present; type notarised_evidence"
 
-        # The parent key signs the same stripped payload; both checks are REQUIRED when
+        # Parent key signs the stripped payload; both are REQUIRED when
         # impact_tags is set; missing or invalid FAILs, an unsupplied key SKIPS.
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
         axes: list[tuple[str, str, str]] = []

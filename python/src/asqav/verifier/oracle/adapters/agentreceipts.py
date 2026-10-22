@@ -1,6 +1,5 @@
-"""agent-receipts adapter - W3C-VC AgentReceipt, Ed25519 over strict RFC 8785
-JCS.
-"""
+"""agent-receipts adapter: W3C-VC AgentReceipt, Ed25519 over
+strict RFC 8785 JCS."""
 from __future__ import annotations
 
 import base64
@@ -33,7 +32,7 @@ def _chain(doc: dict) -> dict:
     return sub.get("chain", {}) if isinstance(sub, dict) else {}
 
 
-    # agent-receipts: chain is "sha256:" + hex of JCS(predecessor without proof).
+    # agent-receipts: chain is "sha256:" + hex JCS(predecessor without proof).
     # Genesis carries the field null, unlike the AERF omit-on-genesis rule.
 class AgentReceiptsAdapter(FormatAdapter):
 
@@ -98,7 +97,7 @@ class AgentReceiptsAdapter(FormatAdapter):
         issuer_did = issuer.get("id") if isinstance(issuer, dict) else issuer
         vm_did = doc.get("proof", {}).get("verificationMethod", "").split("#")[0]
         if not vm_did or vm_did != issuer_did:
-            # did:key carries its key in-receipt; bind to issuer, never a self-signed victim
+            # in-receipt did:key must bind to issuer, never the signer
             return "FAIL", "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)"
         chain = _chain(doc)
         if "previous_receipt_hash" not in chain:

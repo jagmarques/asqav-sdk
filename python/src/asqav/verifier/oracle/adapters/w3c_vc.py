@@ -1,11 +1,7 @@
-"""W3C VC 2.0 adapter - DataIntegrityProof with the eddsa-jcs-2022 cryptosuite. A VC 2.0 envelope
-(``@context`` starting with the credentials/v2 URL, ``type`` with ``VerifiableCredential``,
-``issuer``, ``credentialSubject``) secured by a ``DataIntegrityProof`` (eddsa-jcs-2022,
-vc-di-eddsa): Ed25519 (RFC 8032) signs ``SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))``
-- strict RFC 8785 JCS over ``proof`` minus ``proofValue`` and credential minus ``proof``; base58btc
-``proofValue``. The structure is stricter than the suite spec, which does not check proofPurpose."""
-# requires assertionMethod, binds the verificationMethod DID to the issuer DID,
-# fail-closed, mirroring the agentreceipts adapter.
+"""W3C VC 2.0 adapter: eddsa-jcs-2022 proof, base58btc ``proofValue``.
+Ed25519 signs SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))."""
+# Hard-fails unless the document names ``assertionMethod`` and ties the
+# verification method's DID to the issuer's own.
 from __future__ import annotations
 
 import hashlib
@@ -73,7 +69,7 @@ def _unsecured(doc: dict) -> dict:
     return body
 
 
-    # True when the proof's @context is absent or prefixes the document's, in order.
+    # True when proof @context is absent or prefixes the document's.
 def _context_prefix_ok(doc: dict) -> bool:
     ctx = _proof(doc).get("@context")
     if ctx is None:
@@ -121,7 +117,7 @@ class W3cVcAdapter(FormatAdapter):
         return resolve_ed25519_key(vm if isinstance(vm, str) else "", key_provider)
 
     def signing_input(self, doc: dict) -> bytes:
-        # hashData = SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecured)) (vc-di-eddsa)
+        # hashData = SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecured))
         options_hash = hashlib.sha256(jcs_rfc8785(_proof_options(doc))).digest()
         document_hash = hashlib.sha256(jcs_rfc8785(_unsecured(doc))).digest()
         return options_hash + document_hash
@@ -173,7 +169,7 @@ class W3cVcAdapter(FormatAdapter):
         return "PASS", "required VC 2.0 fields present; DataIntegrityProof eddsa-jcs-2022"
 
     def extra_axes(self, doc: dict, key_provider: Any) -> list[tuple[str, str, str]]:
-        """validFrom/validUntil bound validity; the expiry axis never folds the verdict (426)."""
+        """validFrom/validUntil bound validity; expiry never folds (426)."""
         now = datetime.now(timezone.utc)
         valid_from = doc.get("validFrom")
         if valid_from is not None:

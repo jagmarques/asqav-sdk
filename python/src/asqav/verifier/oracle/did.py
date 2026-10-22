@@ -1,9 +1,5 @@
-"""Shared DID resolver - ``resolve_ed25519_key`` maps a verificationMethod DID URL to a raw Ed25519 key.
-Returns the raw 32-byte Ed25519 key, or None when it cannot resolve without a network the oracle must
-not touch. ``did:key`` resolves inline (multibase ``z`` base58btc -> the Ed25519 frame); every other
-method resolves from the caller's injected map: a raw 32-byte key or the DID document a fetch would
-have returned. The oracle NEVER fetches a DID document; an unmapped DID is None (fail closed). The
-resolver is adapter-agnostic, so a later ERC-8004 hook reuses it; the verify uses ``cryptography``."""
+"""Shared DID resolver: verificationMethod DID URL to a raw Ed25519 key.
+did:key resolves inline; any other method reads the caller's map. No network."""
 from __future__ import annotations
 
 import base64
@@ -16,7 +12,7 @@ _B58_INDEX = {ch: i for i, ch in enumerate(_B58_ALPHABET)}
 _ED25519_MULTICODEC = b"\xed\x01"
 
 
-    # Base58 is encoding, not crypto: the decoder keeps the leading-zero bytes as
+    # Base58 is encoding, not crypto: the decoder keeps leading-zero bytes as
     # '1's, pinned by a unit test against the upstream did:key vectors.
 def b58btc_decode(text: str) -> bytes:
     num = 0
@@ -120,10 +116,7 @@ def resolve_ed25519_key(
     did_url: str, injected: dict | None = None
 ) -> tuple[bytes | None, str]:
     """Resolve a verificationMethod DID URL to ``(raw_key_or_None, note)``.
-    did:key resolves inline; every other method resolves from ``injected`` keyed by the
-    full DID URL first, then by the bare DID (fragment stripped). An injected value is
-    a raw 32-byte key (bytes or hex) or the DID document the method's fetch would have
-    returned. No network."""
+Full DID first, then the bare DID; an unmapped DID is None (fail closed)."""
     if not isinstance(did_url, str) or not did_url.startswith("did:"):
         return None, f"not a DID URL: {did_url!r}"
     bare = did_url.split("#", 1)[0]

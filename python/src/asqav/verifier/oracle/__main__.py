@@ -1,11 +1,7 @@
-"""CLI entry point for the neutral verifier: ``python -m asqav.verifier.oracle receipt.json``.
-``record store.jsonl receipt.json`` retains a live assessment; the reassessment is persisted.
-``review store.jsonl receipt.json`` compares a live receipt with its retained original and never
-mutates the store. ``--keys`` is the format-shaped key provider (a JWKS dict, a ``{key_id: hex}``
-or ``{key_id: pem}`` map, or a did_map); did:key receipts self-resolve. Strict ingest (419) rejects
-a duplicate JSON member name pre-hash. Exit: 0 verified, 1 invalid, 2 unverifiable (not verified)."""
-# This is the entry point bundled into the single-file ``asqav-verify`` binary:
-# no network call, and it reads only the files named on the command line.
+"""CLI for the oracle: ``python -m asqav.verifier.oracle receipt.json``.
+Exit 0 verified, 1 invalid, 2 unverifiable; ``record``/``review`` persist."""
+# Ships inside the standalone ``asqav-verify`` executable; stays offline and
+# opens only paths given on the command line.
 from __future__ import annotations
 
 import argparse
@@ -139,11 +135,7 @@ def _load_context(path: str | None) -> VerificationContext | None:
 
 def record(store_path: str, receipt_path: str, reason: str | None = None) -> int:
     """Retain one live assessment (488 C32, C2 flow caller).
-
-    New bytes append an original and print the digest (exit 0); bytes already
-    retained reassess instead, the reassessment is persisted then classified
-    against the retained original through reassess_and_classify (exit 0 reviewed,
-    1 unexplained split). Store or input failures exit 2."""
+New bytes print the digest; retained reassess; 0 reviewed, 1 split, 2 error."""
     raw, receipt = _load_raw(receipt_path)
     digest = hashlib.sha256(raw).hexdigest()
     try:
@@ -236,7 +228,7 @@ def review(store_path: str, receipt_path: str,
         # the caller-stated context (C36); defaults when unstated.
         reruns.append(verify(rerun_doc, ADAPTERS, context=live_context))
     result = verify(receipt, ADAPTERS, context=live_context)
-    # Live envelope re-derived from bytes (488 C39b); the stored ref is the other
+    # Live envelope re-derived from bytes; the stored ref is the other side.
     # comparandum, never this side. Unboundable receipts have no live envelope.
     try:
         live_agreement = asdict(envelope_of(receipt, ADAPTERS))

@@ -1,9 +1,5 @@
 """The counting check holds the verifier sources to the conciseness budget.
-
-The check in tools/ measures three budgets over a scanned tree: a docstring block
-of at most six lines, a comment line of at most eighty characters and a comment
-block of at most two comment lines. These tests run the real check over the
-verifier and plant the bad inputs it has to reject."""
+These tests run the real check and plant the inputs it must reject."""
 
 from __future__ import annotations
 

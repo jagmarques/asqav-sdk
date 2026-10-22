@@ -95,7 +95,7 @@ def run_one(
         key_provider = _key_provider(vec_dir, fmt)
     except (strict_json.DuplicateMemberError, strict_json.UnsafeIntegerError,
             json.JSONDecodeError, UnicodeDecodeError) as exc:
-        # Terminal ingest failure (419), incl. an integer past 2**53: nothing verified.
+        # Terminal ingest failure, e.g. an integer past 2**53: never verified.
         return _parse_failure_outcome(
             vec_dir.name, expected_outcome, expected_failure_class, reason_code, exc
         )
@@ -149,12 +149,8 @@ def _tolerated(outcome: VectorOutcome) -> bool:
 
 
 def _default_corpus_root() -> Path:
-    """Resolve the conformance-vector corpus at the repo root for dev/CI runs.
-
-    The corpus stays at ``<repo>/verifier/conformance-vectors`` so the
-    TypeScript
-    parity gate and the published governance URL keep pointing at one place.
-    """
+    """Resolve the conformance-vector corpus at the repo root.
+It stays at ``<repo>/verifier/conformance-vectors`` so both consumers agree."""
     env = os.environ.get("ASQAV_CONFORMANCE_VECTORS")
     if env:
         return Path(env)

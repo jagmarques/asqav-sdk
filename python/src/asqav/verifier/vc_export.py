@@ -1,9 +1,5 @@
-"""Export-only shim: an Asqav receipt presented in W3C Verifiable Credential 2.0
-shape. EU-lane presentation, NOT a wire token, NOT a first-class internal
-type, NOT
-a verification
-path.
-"""
+"""Export-only shim: an Asqav receipt in W3C VC 2.0 shape. EU-lane
+presentation, not a wire token, internal type, or verification path."""
 from __future__ import annotations
 
 from typing import Any
@@ -47,11 +43,8 @@ def _detect_format(receipt: dict) -> str:
 
 
 def _signing_input_b64(receipt: dict, fmt: str) -> str | None:
-    """Base64 of the exact canonical bytes the source signature covers, if
-    reproducible.
-
-    The oracle's adapter for this format already encodes the signing input rule.
-    """
+    """Base64 of the exact canonical bytes the source signature covers,
+if reproducible; the oracle adapter encodes the signing-input rule."""
     import base64
 
     for adapter in ADAPTERS:
@@ -65,9 +58,8 @@ def _signing_input_b64(receipt: dict, fmt: str) -> str | None:
 
 
 def _native_subject(receipt: dict) -> tuple[dict, dict, str | None]:
-    """Map an Asqav-native receipt (compliance or hash mode) to (subject,
-    proofbits, issuer).
-    """
+    """Map an Asqav-native receipt (compliance or hash) to subject, proofbits,
+issuer."""
     if receipt.get("mode") == "hash" and receipt.get("payload") is None:
         # Flat hash-mode /sign output.
         subject = {
@@ -115,9 +107,7 @@ def _native_subject(receipt: dict) -> tuple[dict, dict, str | None]:
 
 
 def _agentreceipts_subject(receipt: dict) -> tuple[dict, dict, str | None]:
-    """Map a W3C-VC AgentReceipt's fields into the Asqav presentation subject +
-    proofbits.
-    """
+    """Map a W3C-VC AgentReceipt's fields into Asqav subject + proofbits."""
     sub = receipt.get("credentialSubject", {}) if isinstance(receipt.get("credentialSubject"), dict) else {}
     proof = receipt.get("proof", {}) if isinstance(receipt.get("proof"), dict) else {}
     issuer = receipt.get("issuer")
@@ -144,7 +134,7 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
     if fmt == "asqav-native":
         return _native_subject(receipt)
     # Best-effort generic mapping for the other oracle formats; the proof still
-    # carries the raw signature and stays non-standard, so no false standard claim.
+    # carries the raw signature and stays non-standard: no standard claim.
     payload = receipt.get("payload") if isinstance(receipt.get("payload"), dict) else receipt
     sig = receipt.get("signature")
     if isinstance(sig, dict):
@@ -156,11 +146,8 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
 
 
 def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
-    """Present an Asqav receipt as a W3C Verifiable Credential 2.0 envelope
-    (export only).
-
-    Pure and offline: no signing, no network, no mutation of ``receipt``.
-    """
+    """Present an Asqav receipt as a W3C VC 2.0 envelope (export only).
+Pure and offline: no signing, no network, no mutation of ``receipt``."""
     if not isinstance(receipt, dict):
         raise TypeError("receipt must be a parsed JSON object (dict)")
 
@@ -197,7 +184,7 @@ def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
     return envelope
 
 
-    # Best-effort issuance timestamp from the mapped action or payload, else None.
+    # Best-effort issuance timestamp from the action or payload, else None.
 def _valid_from(subject: dict) -> str | None:
     action = subject.get("action")
     if isinstance(action, dict) and action.get("timestamp"):

@@ -1,11 +1,7 @@
-"""Asqav-native adapter - the existing verify_receipt logic. Two wire shapes route here, mutually exclusive:
-COMPLIANCE mode, the 3-key ``{payload, signature, anchors}`` envelope whose ML-DSA-65 signature covers
-the canonical bytes of ``payload``, and HASH mode, a FLAT receipt (``mode:"hash"``, ``payload:null``,
-``signature_b64``) over the flat 11-field object the cloud rebuilds (no pre-hash, no strip). Scope:
-signature, chain, structure only - NOT anchor liveness or skew. Key resolution and the compliance-mode
-structure check delegate to ``verify_receipt``: both surfaces stay byte-for-byte identical, not re-implemented here."""
-# Canonicalisation goes through ``asqav_jcs``, asserted byte-identical to
-# ``verify_receipt.canonical_json`` by the cloud-parity test.
+"""Asqav-native adapter: the existing verify_receipt logic, two wire shapes.
+COMPLIANCE (3-key ML-DSA) and HASH (flat signed receipt); both delegate."""
+# ``asqav_jcs`` output must byte-match ``verify_receipt.canonical_json``;
+# the parity suite guarantees that.
 from __future__ import annotations
 
 import inspect
@@ -47,12 +43,8 @@ _UNSIGNED_CLAIM_FIELDS = ("issuer_id", "previousReceiptHash", "key_thumbprint", 
 
 
 def _is_hash_mode(doc: dict) -> bool:
-    """True for a flat hash-mode signature receipt (mode=hash, null payload, a sig).
-
-    Routing reads the shape of the signed unit and nothing else: a dict ``payload`` is
-    the compliance signed unit, any other shape routes here. No field an attacker can
-    add or omit moves a doc between the paths, so an added field cannot select a
-    weaker axis set. A doc displaying claims outside its signed unit FAILs, not rerouted."""
+    """True for a flat hash-mode receipt (mode=hash, null payload, a sig).
+Routing reads the signed unit's shape only, so an added field picks no axis."""
     if doc.get("mode") != "hash" or isinstance(doc.get("payload"), dict):
         return False
     return bool(doc.get("signature_b64") or doc.get("signature"))
@@ -103,7 +95,7 @@ def _flat_signed_fields(doc: dict) -> dict:
     }
 
 
-    # Decode signature material; b'' on bad input so verify FAILs, never crashes.
+    # Decode signature; b'' on bad input so verify FAILs, never crashes.
 def _safe_b64(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -114,7 +106,7 @@ def _safe_b64(value: Any) -> bytes:
 
 
 def _context_call_style(method: Any) -> str:
-    """How an extra_axes override takes context: positional, keyword, or not at all."""
+    """How an extra_axes override takes context: positional, keyword, none."""
     try:
         params = list(inspect.signature(method).parameters.values())
     except (TypeError, ValueError):
@@ -136,7 +128,7 @@ class AsqavNativeAdapter(FormatAdapter):
         if _is_hash_mode(doc):
             return True
         sig = doc.get("signature")
-        # An ACTA receipt carries a lowercase-hex sig; decline it to stay disjoint.
+        # An ACTA receipt carries a lowercase-hex sig; decline it as disjoint.
         if isinstance(sig, dict) and _is_lower_hex(sig.get("sig")):
             return False
         payload = doc.get("payload")
@@ -164,11 +156,7 @@ class AsqavNativeAdapter(FormatAdapter):
 
     def _signing_key_entry(self, doc: dict, jwks: dict) -> dict | None:
         """The one jwks entry this receipt's signature is checked against.
-        Cloud receipts set kid to the issuer id; when that resolves nothing the agent's own key
-        answers, mirroring run(). agent_id is attacker-controlled, so the agent match trusts only a
-        key whose published issuer_id equals the one the receipt claims in its signed bytes. Every
-        axis resolves through here: kid lives OUTSIDE the signed bytes, so a second lookup on it is
-        attacker-steerable: an axis that never exists cannot be blocked on, unlike SKIPPED."""
+kid is outside the signed bytes; the agent match needs the signed issuer_id."""
         payload = _payload(doc)
         return _vr.match_signing_key(
             jwks,
@@ -206,11 +194,8 @@ class AsqavNativeAdapter(FormatAdapter):
         return asqav_jcs(_payload(doc))
 
     def _hash_mode_signing_input(self, doc: dict) -> bytes:
-        """Rebuild the flat object the cloud's hash-mode path signs, then canonicalise.
-
-        Mirrors ``agents.py::_build_signing_message`` hash-mode branch field-for-field;
-        ``asqav_jcs`` sorts the keys, so insertion order is cosmetic but kept aligned.
-        """
+        """Rebuild the object the cloud's hash mode signs, then canonicalise.
+Mirrors ``agents.py::_build_signing_message`` by field; ``asqav_jcs`` sorts."""
         return asqav_jcs(_flat_signed_fields(doc))
 
     def chain_step(self, doc: dict) -> ChainStep:
@@ -250,7 +235,7 @@ class AsqavNativeAdapter(FormatAdapter):
         return _vr.check_structure(_payload(doc))
 
     def __init__(self) -> None:
-        # Per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7).
+        # Per instance, so a duplicate (issuer_id, nonce) pair is flagged.
         self._seen_nonces: set[str] = set()
 
     def extra_axes_with_context(
@@ -278,12 +263,8 @@ class AsqavNativeAdapter(FormatAdapter):
     def extra_axes(
         self, doc: dict, key_provider: Any, context: VerificationContext | None = None,
     ) -> list[tuple[str, str, str]]:
-        """Gate the verdict on expiry, the signing key's revocation status, and its issuer.
-
-        A receipt signed by a revoked key, or by a key the directory publishes under a different
-        issuer, must not PASS offline, matching the hosted /verify. No key resolved at all means
-        the signature axis already reports no key, so those axes weigh in only once a key is
-        found. Both wire shapes name their issuer in the signed bytes (issuer_id / org_id)."""
+        """Gate the verdict on expiry, key revocation, and issuer.
+A revoked key or republished issuer never PASSes, as in /verify."""
         # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
         # expires_at, and reading the flat doc would gate on an uncovered field.
         hash_mode = _is_hash_mode(doc)

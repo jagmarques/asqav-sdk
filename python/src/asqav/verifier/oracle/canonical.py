@@ -1,11 +1,7 @@
-"""Canonicalization shared across format adapters. Three signers disagree on "JCS":
-``jcs`` (NFC, code-point keys, Python numbers - the AERF/ACTA Go dialect); ``jcs_rfc8785`` (RFC
-8785: UTF-16 keys, ECMAScript numbers, NFC - what agent-receipts signs, byte-matching its upstream
-vectors); ``asqav_jcs`` (the cloud's JCS, no NFC, byte-identical to ``verify_receipt.canonical_json``).
-``jcs`` and ``jcs_rfc8785`` diverge on supplementary-plane keys and on non-integral or
-large-magnitude numbers."""
-# INTEROP: AERF SPEC.md §5.1 cites RFC 8785, but its Go reference
-# (canonical.go) keeps numbers verbatim; the agent-receipts spec cites RFC 8785.
+"""Canonicalization shared across adapters; the three signers disagree on JCS.
+``jcs``/``jcs_rfc8785`` split on supplementary-plane and non-integral values."""
+# Interop note: AERF's spec names RFC 8785 while its Go code writes floats
+# through unchanged; the receipt spec names RFC 8785 too.
 from __future__ import annotations
 
 import json
@@ -89,7 +85,7 @@ def _number_8785(value: float) -> str:
     return _ecma_float(float(value))
 
 
-    # Non-integral float: shortest round-trip Number-to-String, ECMA-262 6.1.6.1.20.
+    # Non-integral float: shortest round-trip ECMA-262 6.1.6.1.20.
 def _ecma_float(value: float) -> str:
     sign = "-" if value < 0 else ""
     s, exp = _shortest_digits(abs(value))
@@ -105,7 +101,7 @@ def _ecma_float(value: float) -> str:
     return f"{sign}{tail}e{'+' if n - 1 >= 0 else '-'}{abs(n - 1)}"
 
 
-    # Return (digits with no trailing zeros, base-10 exponent) for a positive float.
+    # Return (digits, base-10 exponent) for a float, zeros stripped.
 def _shortest_digits(value: float) -> tuple[str, int]:
     mantissa, _, exp = repr(value).partition("e")
     exponent = int(exp) if exp else 0

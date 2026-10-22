@@ -1,9 +1,5 @@
 """Agreement/predicate reference and comparanda comparison (488 C12, C29).
-One of C5's seven comparanda has no object: the cross-organization agreement/predicate version.
-Decision (2026-10-16, reversible): reference terms by id + version + sha256 of canonical bytes;
-never embedded, never minting authority. The compare step reports per-comparandum equality only;
-classification stays a later slice. C29 binds the verified envelope from the bytes, never caller-stated
-(see AgreementRef). Terms stay caller-attached: the cross-org terms object does not exist yet."""
+Terms carry id, version, sha256 of canonical bytes; never minting authority."""
 from __future__ import annotations
 
 import hashlib

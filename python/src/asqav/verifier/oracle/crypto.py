@@ -1,9 +1,5 @@
 """Signature-verify dispatch shared across format adapters.
-One entry point, ``verify_signature(alg, pk, msg, sig)``, returns a 3-state ``(result, note)``:
-PASS / FAIL / SKIPPED, the standalone verifier's contract, so the oracle never prints a PASS for
-an unchecked signature. ``ML-DSA-65`` reuses ``verify_receipt.verify_signature`` (dilithium-py);
-absent it SKIPs, never FAILs. ``Ed25519`` uses ``cryptography`` when present; absent it SKIPs
-with an install hint. No crypto is hand-rolled; every algorithm uses a vetted library."""
+PASS/FAIL/SKIPPED; a missing library SKIPs. No crypto is hand-rolled."""
 from __future__ import annotations
 
 # The standalone verifier is a package sibling, import-safe (stdlib + argparse
@@ -46,12 +42,8 @@ def verify_ed25519(pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
 
 
 def verify_es256(pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
-    """ES256 (ECDSA P-256 over SHA-256) verify via ``cryptography``; SKIP when absent.
-
-    The public key is the 65-byte uncompressed point (0x04 || X || Y). The signature
-    is the 64-byte raw ``r || s`` form that WebCrypto and JOSE emit; it is converted
-    to DER for the library, which does not accept the raw form directly.
-    """
+    """ES256 (ECDSA P-256 over SHA-256) via ``cryptography``; SKIP when absent.
+The key is a 65-byte uncompressed point; the ``r || s`` sig converts to DER."""
     try:
         from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives import hashes

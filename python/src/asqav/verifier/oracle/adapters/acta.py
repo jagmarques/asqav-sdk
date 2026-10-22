@@ -1,11 +1,6 @@
-"""ACTA adapter - Ed25519 over the JCS of the payload, signed directly. Targets
-draft-farley-acta-signed-receipts-02: Ed25519 over the JCS of ``payload``, no pre-hash, hex sig. Keys
-resolve from an injected JWK Set (OKP/Ed25519, base64url ``x``), never a live fetch. NOT checked,
-never a false pass: Commitment Mode (signing SHA-256(JCS(payload))), which the adapter neither
-implements nor tries as a second signing input, and SHOULD-support ES256. Asqav-native stays
-disjoint by the encoding (ACTA hex, base64) plus the Asqav-only ``anchors`` key."""
-# The chain field lives inside ``payload``, so the signature covers it:
-# removing or altering it breaks the signature.
+"""ACTA adapter: Ed25519 over JCS of ``payload``, hex signature, no pre-hash.
+Keys come from injected JWK Set; Commitment Mode and ES256 are NOT checked."""
+# ``chain`` sits in the signed unit, so any change breaks verification.
 from __future__ import annotations
 
 from typing import Any
@@ -17,7 +12,7 @@ from ..canonical import jcs
 from ..core import sha256_hex
 
 
-    # Decode a hex string; b'' on malformed input so verify FAILs, never crashes.
+    # Decode hex; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -28,11 +23,8 @@ def _safe_hex(value: Any) -> bytes:
 
 
 def _is_lower_hex(s: Any) -> bool:
-    """True for a non-empty even-length lowercase-hex string (an ACTA signature).
-
-    A safe POSITIVE test: base64 (the Asqav-native encoding) carries uppercase
-    and/or `+` `/` `=`, all hex-invalid, so this never matches a base64 signature.
-    """
+    """True for an ACTA signature: non-empty, even-length lowercase hex.
+POSITIVE test only: base64 carries uppercase or ``+``/``=``, all hex-invalid."""
     return (
         isinstance(s, str)
         and len(s) > 0
@@ -84,8 +76,8 @@ class ActaAdapter(FormatAdapter):
         payload = doc.get("payload", {})
         prev = payload.get("previousReceiptHash")
         is_genesis = "previousReceiptHash" not in payload
-        # Full predecessor, signature included; bare hex or "sha256:" (ACTA -03 §6.7)
-        # selects the form; unknown prefix fails; genesis omits it, null is malformed.
+        # Full predecessor, signed; bare hex or "sha256:" (ACTA -03 §6.7)
+        # selects the form; unknown prefix fails; genesis omits it; null is bad.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,

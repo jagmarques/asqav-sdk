@@ -1,11 +1,7 @@
-"""Authproof adapter - ES256 over insertion-order JSON, key embedded as a JWK. The reference JS SDK
-(``Commonguy25/authproof-sdk``, ``src/authproof.js``) is authoritative for the wire shape: a flat object
-signed ECDSA P-256 / SHA-256 over ``JSON.stringify(receipt-without-signature)`` in INSERTION order (not JCS,
-no pre-hash), the signature hex-encoded raw ``r || s``, the signer key embedded as a P-256 JWK. NOT followed:
-the bundled draft-nelson text (base64url sig, content-hash delegationId, canonical JSON). The repo's separate
-Python SDK signs DER over sorted-key JSON with snake_case fields, a distinct, non-interoperable variant."""
-# Interop is proven against a receipt minted by the real JS SDK; no portable
-# vector corpus. Scope: verifies the issuer signature and structural presence.
+"""Authproof adapter: ES256 over insertion-order JSON, per the reference SDK.
+The signature is hex raw ``r || s``, the signer's P-256 JWK embedded; no JCS."""
+# Exercised with bytes from the real JavaScript library, not a portable vector
+# set; only the issuer signature and the document's shape matter.
 from __future__ import annotations
 
 import base64
@@ -33,7 +29,7 @@ _REQUIRED = (
 )
 
 
-    # Decode a hex string; b'' on malformed input so verify FAILs, never crashes.
+    # Decode hex; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -76,7 +72,7 @@ class AuthproofAdapter(FormatAdapter):
     def extract_signature(self, doc: dict) -> SignatureMaterial:
         return SignatureMaterial(sig=_safe_hex(doc.get("signature", "")), alg="ES256", kid="")
 
-        # Return the 65-byte uncompressed P-256 point from the embedded in-band JWK.
+        # Return the 65-byte uncompressed P-256 point from the in-band JWK.
     def resolve_key(self, doc: dict, _key_provider: Any) -> tuple[bytes | None, str]:
         jwk = doc.get("signerPublicKey")
         if not _is_p256_jwk(jwk):
@@ -87,12 +83,8 @@ class AuthproofAdapter(FormatAdapter):
         return b"\x04" + x + y, "resolved embedded P-256 JWK"
 
     def signing_input(self, doc: dict) -> bytes:
-        """The SDK signs ``JSON.stringify`` of the receipt minus ``signature``, key order intact.
-
-        ``json.dumps`` here reproduces ``JSON.stringify`` byte-for-byte for the SDK's
-        string-valued fields (separators and string escaping agree, key order is preserved,
-        non-ASCII is emitted verbatim). The one divergence is non-integer float serialisation,
-        which Authproof's signed schema never carries; a numeric ``metadata`` is the only case to re-check."""
+        """The SDK signs ``JSON.stringify`` of the receipt minus ``signature``.
+``json.dumps`` matches it byte for byte; non-integer floats are the one gap."""
         body = {k: v for k, v in doc.items() if k != "signature"}
         return json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 

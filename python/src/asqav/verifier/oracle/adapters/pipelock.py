@@ -1,11 +1,7 @@
-"""Pipelock EvidenceReceipt v2 adapter - Ed25519 over JCS with zeroed signature. Targets Pipelock
-v2.x EvidenceReceipt v2 as implemented in ``pipelock-verify-python`` (``9eaff72``); the rule is
-``_evidence.py::_signable_preimage``. VERIFIED: envelope structure, ``payload_kind``, the key-purpose
-authority matrix, the RFC 3339 timestamp, the Ed25519 signature and the chain link. ``chain_seq``
-is a monotonic sequence counter. Canonicalisation: strict RFC 8785 JCS (NFC strings, lexicographic
-codepoint key sort, integer-only values, no whitespace), byte-matching pipelock's Go canonicaliser."""
-# NOT VERIFIED: payload semantics (only ``proxy_decision`` gets a field check),
-# key-directory liveness, clock skew.
+"""Pipelock EvidenceReceipt v2 adapter: Ed25519 over JCS, signature zeroed.
+Envelope, payload_kind, key purpose, timestamp, signature and chain VERIFIED."""
+# OUT OF SCOPE: payload meaning (``proxy_decision`` gets one field check),
+# whether the key directory is live, and clock skew.
 from __future__ import annotations
 
 from typing import Any
@@ -73,7 +69,7 @@ _PAYLOAD_AUTHORITY: dict[str, str] = {
 _SIGNATURE_FIELDS = frozenset({"signer_key_id", "key_purpose", "algorithm", "signature"})
 
 
-    # Decode a hex string; b'' on malformed input so verify FAILs, never crashes.
+    # Decode hex; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -133,12 +129,8 @@ class PipelockEvidenceAdapter(FormatAdapter):
         )
 
     def resolve_key(self, doc: dict, key_provider: Any) -> tuple[bytes | None, str]:
-        """Return the raw 32-byte Ed25519 key from the caller-supplied key provider.
-
-        EvidenceReceipt v2 does NOT embed its public key. The caller passes a
-        ``{signer_key_id: hex_or_bytes}`` map. If the key is absent the axis SKIPs:
-        the verdict is INCOMPLETE, never a hiding PASS.
-        """
+        """Return the raw 32-byte Ed25519 key from the caller's key provider.
+The receipt embeds no key, so a missing map entry SKIPs it (INCOMPLETE)."""
         kid = doc.get("signature", {}).get("signer_key_id", "")
         provider = key_provider or {}
         material = provider.get(kid)
@@ -174,7 +166,7 @@ class PipelockEvidenceAdapter(FormatAdapter):
         if missing:
             return "FAIL", f"pipelock-evidence-v2 missing required fields: {','.join(missing)}"
 
-        # record_type and receipt_version detect the format; re-check them for schema.
+        # record_type and receipt_version detect the format; recheck schema.
         if doc.get("record_type") != _RECORD_TYPE:
             return "FAIL", f"record_type must be {_RECORD_TYPE!r}"
         if doc.get("receipt_version") != _RECEIPT_VERSION:

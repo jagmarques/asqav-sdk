@@ -102,11 +102,8 @@ def reassess_and_classify(
     agreement: dict | None = None,
     reason: str | None = None,
 ) -> tuple[AssessmentEntry, Disagreement, SpecCase]:
-    """Reassess retained bytes, then classify against the original (488 C38).
-    The retention-layer classification caller: reassess raises unless a
-    retained original
-    exists, so both comparanda are real.
-    """
+    """Reassess retained bytes, then classify against the original.
+Reassess raises unless a retained original exists, so both sides are real."""
     entry = reassess_verify_result(store, doc_sha256, result, recorded_at, agreement,
                                      reason=reason)
     original = store.replay(doc_sha256)

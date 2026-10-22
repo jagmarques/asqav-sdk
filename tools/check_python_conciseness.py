@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
-"""Count the over-long Python docstrings, comment lines and comment blocks.
-
-The SDK's Python sources are held to four budgets: a docstring block spans at
-most six physical lines, a docstring line and a comment line at most eighty
-characters, and a comment block at most two comment lines.
-"""
+"""Count over-long Python docstrings, comment lines and comment blocks.
+Four budgets: docstring block 6 lines, line 80 chars, comment block 2."""
 
 from __future__ import annotations
 
@@ -77,12 +73,8 @@ def python_files(root: Path) -> list[Path]:
 
 
 def comment_blocks(source: str) -> list[list[tokenize.TokenInfo]]:
-    """Group the comment tokens of one file into blocks.
-
-    A block is a run of comment lines with no code line between them; blank
-    lines do not end a block, so a long comment cannot be split to reset the
-    count.
-    """
+    """Group the comment tokens of one file into blocks. A block is a run
+of comment lines; blank lines do not end it, so splitting cannot reset."""
     blocks: list[list[tokenize.TokenInfo]] = []
     current: list[tokenize.TokenInfo] = []
     last_line = 0
@@ -101,12 +93,8 @@ def comment_blocks(source: str) -> list[list[tokenize.TokenInfo]]:
 
 
 def license_header_lines(source: str) -> list[str]:
-    """The pinned licence header of a file, or an empty list.
-
-    The header is the comment block that opens the file and ends at its SPDX
-    identifier. It is exempt only while its text is the pinned header, so an
-    edited header is counted like any other comment.
-    """
+    """The pinned licence header of a file, or an empty list. It is the
+opening block ending at SPDX; an edited header is counted normally."""
     blocks = comment_blocks(source)
     if not blocks or blocks[0][0].start[0] != 1:
         return []
@@ -122,11 +110,8 @@ def license_header_lines(source: str) -> list[str]:
 
 
 def _string_statements(tree: ast.AST) -> list[tuple[int, int, str]]:
-    """The line, the span and the owner of every string statement of a tree.
-
-    A docstring is a string statement, so a string that is not the first
-    statement of a body, or an f-string, is counted like one.
-    """
+    """The line, span and owner of every string statement of a tree. A
+docstring is one; other strings and f-strings are counted like one."""
     found: list[tuple[int, int, str]] = []
     for node in ast.walk(tree):
         body = getattr(node, "body", None)
