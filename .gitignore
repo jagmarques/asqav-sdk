@@ -54,7 +54,6 @@ CLAUDE.md
 !.env.example
 
 # Local development files kept out of the published tree
-CHANGELOG.md
 
 # Local agent and session output: evidence goes into criteria, never the tree
 CLAUDE.local.md
