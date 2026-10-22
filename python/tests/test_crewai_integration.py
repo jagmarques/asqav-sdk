@@ -231,12 +231,10 @@ def test_enable_wires_both_callbacks():
 
 
 def test_default_on_step_signs_by_default():
-    """A crew step signs a receipt by default after one enable call.
-
-    Non-vacuous: if enable_crew_governance did not set crew.step_callback (the
-    auto-wire), crew.step_callback stays None and calling it raises TypeError,
-    so this assertion fails. Break the ``crew.step_callback = ...`` line in
-    enable_crew_governance and this test fails; restore it and it passes.
+    """A crew step signs a receipt by default after one enable call. Non-vacuous: if enable_crew_governance
+    did not set crew.step_callback (the auto-wire), crew.step_callback stays None and calling it raises
+    TypeError, so this assertion fails. Break the ``crew.step_callback = ...`` line in enable_crew_governance
+    and this test fails; restore it and it passes.
     """
     crew = _DuckCrew()
     with (
@@ -297,11 +295,9 @@ def test_existing_callbacks_preserved():
 
 def test_enable_crew_governance_double_enable_idempotent():
     """Calling enable_crew_governance twice on the same crew signs exactly once per event.
-
-    The check-first guard returns the first hook on the second call, so the
-    crew callbacks are wired only once. hook1 is hook2 (same object), and
-    each event signs exactly once. Remove the check-first guard and this test
-    fails (signs == 2 per event because two hooks are wired).
+    The check-first guard returns the first hook on the second call, so the crew callbacks are wired only
+    once. hook1 is hook2 (same object), and each event signs exactly once. Remove the check-first guard and
+    this test fails (signs == 2 per event because two hooks are wired).
     """
     crew = _DuckCrew()
     with (
@@ -327,11 +323,9 @@ def test_enable_crew_governance_double_enable_idempotent():
 
 def test_enable_crew_governance_double_enable_same_hook_no_orphan():
     """Double enable returns the same hook and calls Agent.create exactly once.
-
-    Non-vacuous: without the check-first guard, Agent.create is called twice
-    (one per enable call) and hook1 is not hook2. Remove the existing-check
-    block in enable_crew_governance and this test fails (create_count==2,
-    hook1 is not hook2).
+    Non-vacuous: without the check-first guard, Agent.create is called twice (one per enable call) and hook1
+    is not hook2. Remove the existing-check block in enable_crew_governance and this test fails
+    (create_count==2, hook1 is not hook2).
     """
     crew = _DuckCrew()
     with (

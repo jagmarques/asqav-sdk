@@ -1,16 +1,9 @@
 """Conformance corpus freeze at v1, verification path A (criterion 420).
 
 Every vector file in both corpora is pinned by SHA-256 and byte length in a
-manifest.lock.json; the lock's own digest is pinned here and in each corpus
-README. This module re-derives every pin with hashlib + pathlib and fails loud
-on any drift. The second independent path re-derives the same pins through the
-sha256sum binary: verifier/check_corpus_lock.sh (CI runs both).
-
-The verifier corpus README also carries the generated vector index, so this
-module owns the index's format (criterion 821): the renderer produces it, the
-lock pins the bytes, and the negative control runs the real lock checker over
-a copy with an em dash written into the index.
-"""
+manifest.lock.json; the lock's digest is pinned here and in the READMEs. Every pin is
+re-derived with hashlib + pathlib, loud on drift, and again via sha256sum. The corpus
+README also carries the generated vector index (821): the renderer owns the format, the lock the bytes."""
 
 from __future__ import annotations
 
@@ -30,12 +23,12 @@ VERIFIER_ROOT = _REPO_ROOT / "verifier" / "conformance-vectors"
 FINGERPRINT_LOCK = FINGERPRINT_ROOT / "manifest.lock.json"
 VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 
-# The lock digests, reproduced beside each lock's own digest field and in the corpus
-# READMEs. A regenerated lock that forgets to update these is drift, not a refresh.
+# The lock digests, beside each lock's own digest field and in the READMEs.
+# A regenerated lock that forgets them is drift, not a refresh.
 FINGERPRINT_LOCK_DIGEST = "511989671a21de1f8be82ab1c53a6e8f5c568e5c17abec25faeca0169b623877"
 VERIFIER_LOCK_DIGEST = "8175b88d346a1c6893087e441ec030f1ffab895e32854522a1c6728cf62e551f"
 
-# The em dash, written as an escape so the guard does not carry the character it forbids.
+# The em dash, written as an escape so the guard does not carry the character.
 EM_DASH = "\u2014"
 
 try:
@@ -70,7 +63,7 @@ def _locks() -> list[tuple[Path, Path, str]]:
         (VERIFIER_ROOT, VERIFIER_LOCK, VERIFIER_LOCK_DIGEST),
     ]
 
-    # The rolling lock is the contract: a version that moves with the bytes, and named
+    # The rolling lock is the contract: a version that moves with the bytes.
 
 
 @pytest.mark.parametrize("root,lock_path,pinned", _locks(), ids=["fingerprint", "verifier"])
@@ -93,7 +86,7 @@ def test_history_records_every_completed_cut(root, lock_path, pinned) -> None:
     for entry in history:
         assert len(entry["digest"]) == 64, lock_path
         assert entry["files"] >= 1, lock_path
-    # The current cut's digest is the lock's own, so it is never inside its own preimage
+    # The current cut's digest is the lock's own, never inside its own preimage
     assert all(e["digest"] != lock["digest"] for e in history), lock_path
 
 

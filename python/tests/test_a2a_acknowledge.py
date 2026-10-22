@@ -1,10 +1,8 @@
 """Agent-to-agent receipts: the sender hands over its receipt, the receiver acknowledges it.
-
-Agent A signs an action and passes ``response.receipt()`` to agent B (in the
-``x-asqav-receipt`` header via ``encode_receipt_header``). B signs a
-``protectmcp:acknowledgment`` with ``Agent.acknowledge``; its
-``counterparty_binding`` commits to A's exact envelope bytes, which is what the
-cloud's admit_counterparty_binding and the offline verifier recompute.
+Agent A signs an action and passes ``response.receipt()`` to agent B (in the ``x-asqav-receipt``
+header via ``encode_receipt_header``). B signs a ``protectmcp:acknowledgment`` with
+``Agent.acknowledge``; its ``counterparty_binding`` commits to A's exact envelope bytes, which is
+what the cloud's admit_counterparty_binding and the offline verifier recompute.
 """
 
 from __future__ import annotations

@@ -1,17 +1,9 @@
 """The exit-artifact command a customer is told to run, run as written.
 
-The exit manifest ships verify_receipt.py beside the receipts and the JWKS archived
-at export, and tells the reader to run one command against them. Every other CLI test
-monkeypatches sys.argv and calls main() in-process, which cannot catch a file that
-stopped standing on its own or an import that only resolves inside the repo.
-
-This runs the real command in a subprocess, in a directory holding nothing but the
-three exit-artifact files, with outbound network blocked, over an anchored ML-DSA-65
-receipt. Intact PASSes, tampered FAILs.
-
-The receipt is minted here so the PASS/FAIL halves stay time-independent; this fixture
-proves the CLI path, not wire-format conformance, which the corpus vectors carry.
-"""
+Other CLI tests call main() in-process, which cannot catch a file that stopped standing on its own
+or an import resolving only in the repo. This runs the real command in a subprocess, in a
+directory holding only the exit-artifact files, network blocked, over an anchored ML-DSA-65
+receipt: intact PASSes, tampered FAILs. The receipt is minted here, so both halves stay time-independent."""
 
 from __future__ import annotations
 
@@ -27,16 +19,16 @@ import pytest
 
 from asqav.verifier import verify_receipt as vr
 
-#: The string the exit manifest emits, from the asqav server's audit_pack export route
-#: ("offline_verification"). Kept verbatim so a drift there shows up as a failure here.
+#: The string the exit manifest emits, from the asqav audit_pack export route
+#: ("offline_verification"). Kept verbatim, so drift there fails here.
 EXIT_MANIFEST_COMMAND = (
     "python verify_receipt.py --receipt <receipt.json> --jwks <jwks.json> --offline"
 )
 
 VERIFIER_SOURCE = Path(vr.__file__)
 
-#: Refuses every outbound connection in the child, so a verifier that reached for the
-#: network instead of the archived JWKS fails loudly rather than passing quietly.
+#: Refuses every outbound connection in the child, so a verifier reaching for
+#: the network instead of the archived JWKS fails loudly, not quietly.
 SITECUSTOMIZE = """
 import socket
 
@@ -64,8 +56,8 @@ except ImportError:  # pragma: no cover - optional dep
     _DILITHIUM_AVAILABLE = False
 
 
-    # An anchored ML-DSA-65 receipt plus the JWKS an export would archive. The RFC3161 token
-    # is real and the caller pins the TSA key (--tsa-key), since presence alone never PASSes.
+    # An anchored ML-DSA-65 receipt plus the JWKS an export archives. The RFC3161
+    # token is real; the caller pins the TSA key (--tsa-key), presence never PASSes.
 def _anchored_mldsa_pair() -> tuple[dict, dict, bytes]:
     import hashlib
 
@@ -168,7 +160,7 @@ def test_exit_artifact_command_passes_an_intact_pair(tmp_path: Path) -> None:
     proc = _run_documented_command(tmp_path, "--tsa-key", "tsa-key.b64")
     assert proc.returncode == 0, f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     assert "=> verified" in proc.stdout, proc.stdout
-    # A verified verdict with a skipped signature axis is the failure this test exists for.
+    # A verified verdict with a skipped signature axis is what this test pins.
     assert "[  ok] signature" in proc.stdout, proc.stdout
     assert "[  ok] anchors" in proc.stdout, proc.stdout
     assert "[  ok] expiry" in proc.stdout, proc.stdout
@@ -178,11 +170,10 @@ def test_exit_artifact_command_passes_an_intact_pair(tmp_path: Path) -> None:
 def test_exit_artifact_command_without_tsa_key_never_passes_on_presence(tmp_path: Path) -> None:
     """The documented command alone: anchors report unverifiable, never verified.
 
-    The token's imprint matches (the offline proof the timestamp covers these
-    bytes), but without pinned TSA key material the TSA signature cannot be
-    trusted, so the draft's no-PASS-on-presence rule caps the verdict at
-    unverified/unverifiable. The verified path above adds --tsa-key.
-    """
+    The token's imprint matches (the offline proof the timestamp covers these bytes), but
+    without pinned TSA key material the TSA signature cannot be trusted, so the
+    no-PASS-on-presence rule caps the verdict at unverified/unverifiable. The verified path
+    above adds --tsa-key."""
     receipt, jwks, tsa_pk = _anchored_mldsa_pair()
     _lay_out_exit_artifact(tmp_path, receipt, jwks, tsa_pk)
     proc = _run_documented_command(tmp_path)

@@ -3,8 +3,7 @@
 `anchors` sits outside the signed bytes, so any relay can steer these values.
 Two invariants: no input escapes as an unhandled exception (the CLI maps one to
 exit 1, indistinguishable from a proven binding failure), and no input reaches
-PASS without a real cryptographic check.
-"""
+PASS without a real cryptographic check."""
 
 from __future__ import annotations
 
@@ -125,8 +124,7 @@ def test_ots_varuint_is_width_bounded():
     The blob carries the real envelope digest so it reaches the width check
     instead of failing the commitment compare first. The parser-level pin
     below is what flips when the cap is raised: end-to-end outcomes stay
-    SKIPPED either way because the detail is not surfaced.
-    """
+    SKIPPED either way because the detail is not surfaced."""
     env = _envelope([])
     digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
     blob = (
@@ -358,8 +356,7 @@ def test_ots_msg_is_append_bounded():
     The blob carries the real envelope digest so it reaches the append
     check instead of failing the commitment compare first. The parser-level
     pin below is what flips when the cap is raised: end-to-end outcomes stay
-    SKIPPED either way because the detail is not surfaced.
-    """
+    SKIPPED either way because the detail is not surfaced."""
     env = _envelope([])
     digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
     arg = b"\x00" * 4100

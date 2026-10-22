@@ -1,14 +1,8 @@
 """Verify the SDK fingerprint helpers agree with conformance/vectors.json byte-for-byte.
 
-If this file fails, either:
-
-1. ``canonicalize.py`` drifted from the JCS subset, or
-2. ``conformance/vectors.json`` was edited without regenerating derived
-   fields (hash, canonical).
-
-A test in ``test_conformance_vectors.py`` already checks the vectors are
-internally consistent. This file additionally checks that the SDK's
-public helpers match those vectors, which is what customers rely on.
+If this file fails, either ``canonicalize.py`` drifted from the JCS subset, or ``conformance/vectors.json``
+was edited without regenerating its derived fields (hash, canonical). ``test_conformance_vectors.py``
+checks the vectors' own consistency; this file checks the SDK's public helpers match them.
 """
 
 from __future__ import annotations
@@ -25,8 +19,8 @@ VECTORS_PATH = Path(__file__).parent.parent.parent / "conformance" / "vectors.js
 
 
 def _load_vectors() -> list[dict]:
-    # A refused-document vector (asqav-25) has no parsed input and so no canonical bytes
-    # for the helpers to reproduce; the refusal itself is pinned in test_strict_json.py.
+    # A refused-document vector (asqav-25) has no parsed input, so no canonical
+    # bytes to reproduce; the refusal itself is pinned in test_strict_json.py.
     return [v for v in json.loads(VECTORS_PATH.read_text())["vectors"] if "input" in v]
 
 
@@ -99,7 +93,7 @@ def test_canonicalize_orders_astral_keys_by_utf16_code_unit() -> None:
     assert canonicalize(positive["input"]).decode("utf-8") == positive["canonical"]
 
 
-    # The code point ordering a non-conformant canonicalizer emits must not be reproduced.
+    # A non-conformant canonicalizer's code point ordering must not be reproduced.
 def test_canonicalize_rejects_code_point_key_order() -> None:
     twin = {v["name"]: v for v in _load_vectors()}[
         "asqav-24-jcs-astral-key-order-codepoint-rejected"
@@ -107,5 +101,5 @@ def test_canonicalize_rejects_code_point_key_order() -> None:
     produced = canonicalize(twin["input"]).decode("utf-8")
     assert produced != twin["non_conformant_canonical"]
     assert hashlib.sha256(produced.encode()).hexdigest() != twin["non_conformant_sha256"]
-    # Anti-vacuous: the rejected form must really be a reordering of the same members.
+    # Anti-vacuous: the rejected form must be a reordering of the same members.
     assert sorted(json.loads(produced)) == sorted(json.loads(twin["non_conformant_canonical"]))

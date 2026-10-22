@@ -1,12 +1,9 @@
 """Zero-dep verifier accepts the risk-acceptance and code-authorship receipt types.
 
-verify_receipt.py carries protectmcp:lifecycle:risk_acceptance and
-protectmcp:lifecycle:code_authorship in ALLOWED_TYPES so the structure axis
-recognises a valid receipt of either type and PASSes on it; an unknown type
-is REPORTED (SKIPPED, naming the namespace), never failed, while the verdict
-stays unverified/unverifiable so nothing unrecognised verifies. These tests
-pin both behaviours.
-"""
+verify_receipt.py carries protectmcp:lifecycle:risk_acceptance and protectmcp:lifecycle:code_authorship
+in ALLOWED_TYPES so the structure axis recognises a valid receipt of either type and PASSes on it; an
+unknown type is REPORTED (SKIPPED, naming the namespace), never failed, while the verdict stays
+unverified/unverifiable so nothing unrecognised verifies. These tests pin both behaviours."""
 
 from __future__ import annotations
 
@@ -566,7 +563,7 @@ def test_run_rejects_attacker_kid_claiming_another_issuer() -> None:
     assert by_org_id == 1, f"attacker org id verified a receipt claiming org-victim (exit {by_org_id})"
 
 
-    # Same forgery through run_structured: issuer_bind FAIL (invalid), signature PASS.
+    # Same forgery via run_structured: issuer_bind FAIL (invalid), sig PASS.
 def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
     payload, sig, jwks = _cross_issuer_forgery()
     result = v.run_structured(_envelope(payload, sig, kid="attacker-key"), jwks, None)

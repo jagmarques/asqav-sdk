@@ -3,8 +3,7 @@
 moto's in-process mock proves bucket logic; this test proves the
 --s3-endpoint-url path against an actual HTTP S3 endpoint in its own
 process. Pages are full-envelope signed pages; everything read back
-re-verifies offline. Skips when the moto server dependencies are absent.
-"""
+re-verifies offline. Skips when the moto server dependencies are absent."""
 
 from __future__ import annotations
 

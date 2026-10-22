@@ -141,7 +141,6 @@ from asqav.extras.llamaindex import AsqavLlamaIndexHandler  # noqa: E402
 # === Fixtures ===
 
 
-    # Create an AsqavLlamaIndexHandler with mocked Agent internals.
 @pytest.fixture()
 def handler() -> AsqavLlamaIndexHandler:
     with (
