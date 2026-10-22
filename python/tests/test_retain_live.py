@@ -64,11 +64,9 @@ def test_freeze_normalizes_nested_datetimes() -> None:
 def test_live_two_era_run_retains_and_replays() -> None:
     """Same bytes at two evaluation times: axis flips, verdict holds.
 
-    Both runs are unverified (signature SKIPPED without a key provider
-    downgrades), but expiry legitimately flips PASS->FAIL with time moved.
-    The store replays the first era; the classifier reports agreement
-    with recorded drift, never a false split.
-    """
+    Both runs are unverified (signature SKIPPED without a key provider downgrades), but expiry legitimately
+    flips PASS->FAIL with time moved. The store replays the first era; the classifier reports agreement with
+    recorded drift, never a false split."""
     doc, digest = _expiring_doc()
     store = AssessmentStore()
     first = record_verify_result(store, digest, verify(

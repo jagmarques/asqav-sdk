@@ -1,16 +1,9 @@
-"""Cryptographic anchor verification (draft: presence without a successful
-check MUST NOT yield valid).
-
-Covers the three anchor outcomes:
-  - verified:     token commits this envelope and its own proof checks out
-                  against caller-pinned trust material (trusted anchor)
-  - invalid:      the check ran and failed (wrong digest, bad TSA signature,
-                  merkle path missing the stated block)
-  - unverifiable: the check could not run offline (junk token, no pinned TSA
-                  key, no bitcoin header source, pending/failed status)
-and the key_status wiring: only a verified anchor whose proven time lands at
-or before revoked_at activates the pre-revocation historical-verify path.
-"""
+"""Cryptographic anchor verification (draft: presence without a successful check MUST NOT yield valid).
+The three anchor outcomes: verified (the token commits this envelope and its own proof checks out
+against caller-pinned trust material), invalid (the check ran and failed: wrong digest, bad TSA
+signature, merkle path missing the stated block), unverifiable (it could not run offline: junk
+token, no pinned TSA key, no bitcoin header source, pending/failed status); and key_status wiring:
+only a verified anchor proven at or before revoked_at activates the historical path."""
 
 from __future__ import annotations
 

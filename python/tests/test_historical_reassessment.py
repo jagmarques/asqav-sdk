@@ -1,9 +1,7 @@
 """Historical reassessment scenarios (624 C4/C7).
-
-(a) prospective policy change and (d) append-with-provenance fail first:
-VerificationContext and the retained context drop trust_policy_id and
-profile_revision. (b) correction handling and (c) key-status controls
-lock shipped behavior that already holds.
+(a) prospective policy change and (d) append-with-provenance fail first: VerificationContext and the
+retained context drop trust_policy_id and profile_revision. (b) correction handling and (c) key-status
+controls lock shipped behavior that already holds.
 """
 from __future__ import annotations
 

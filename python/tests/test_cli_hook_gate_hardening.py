@@ -137,7 +137,7 @@ def test_a_rotated_key_refreshes_the_cache_instead_of_blocking_for_a_day(monkeyp
     payload = _payload("allow", key_thumbprint=new_thumb)
     payload["action_ref"] = _live_digest()
     sig = _Sig("sig_rotated", payload, _signed(payload, new_sk, ml), [])
-    # The cache predates the rotation: same agent_id, the key the receipt does not bind.
+    # Stale cache: same agent_id, but the receipt does not bind that key.
     cli_hook._write_jwks_cache({"keys": [_row(old_pk, "k-old", thumbprint=old_thumb)]})
     calls: list = []
     live = {"keys": [_row(old_pk, "k-old", thumbprint=old_thumb),

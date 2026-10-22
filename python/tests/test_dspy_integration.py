@@ -63,7 +63,6 @@ from asqav.extras.dspy import AsqavDSPyCallback  # noqa: E402
 # === Fixtures ===
 
 
-    # Create an AsqavDSPyCallback with mocked Agent internals.
 @pytest.fixture()
 def cb() -> AsqavDSPyCallback:
     with (

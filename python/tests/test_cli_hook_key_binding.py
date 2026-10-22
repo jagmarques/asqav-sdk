@@ -227,7 +227,7 @@ def _gate(
     return result, platform
 
 
-# Genuine permits: signed by the gated agent's own key, however the receipt names it.
+# Genuine permits: signed by the gated agent's own key, however it is named.
 def _genuine_with_thumbprint(body, cast):
     g = cast["gated"]
     return _mint(body, signer=g, kid=ORG_A, issuer_id=ORG_A, thumb=g.thumb)

@@ -384,7 +384,7 @@ def test_secure_decorator_binds_result(mock_post: MagicMock, mock_patch: MagicMo
     assert error_call[0][1]["result_digest"] == asqav_client._digest_result_value("boom")
 
 
-    # Concurrent first calls to get_agent create exactly one agent (no duplicate race).
+    # Concurrent first calls to get_agent create exactly one agent.
 @patch("asqav.client.Agent.create")
 def test_get_agent_concurrent_first_call_creates_once(mock_create: MagicMock) -> None:
     import threading

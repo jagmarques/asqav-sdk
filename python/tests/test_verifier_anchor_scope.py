@@ -1,10 +1,8 @@
 """The anchors axis hashes the two-key {payload, signature} object the signer committed.
-
-Pinned against a REAL production receipt exported through the Audit Pack on 2026-09-02:
-the export carries thirteen top-level members and re-encodes the signature string in
-standard base64, while the signer anchored the base64url wire string over exactly
-{payload, signature}. Before this fix the standalone verifier reported the untouched
-receipt as invalid.
+Pinned against a REAL production receipt exported through the Audit Pack on 2026-09-02: the export
+carries thirteen top-level members and re-encodes the signature string in standard base64, while
+the signer anchored the base64url wire string over exactly {payload, signature}. Before this fix
+the standalone verifier reported the untouched receipt as invalid.
 """
 from __future__ import annotations
 
