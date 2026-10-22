@@ -1,5 +1,5 @@
-// The anchors axis hashes the two-key {payload, signature} object the signer committed.
-// TS half of test_verifier_anchor_scope.py: export-side members never reach the anchored bytes.
+// The anchors axis hashes the two-key {payload, signature} object signed;
+// export-side members never reach it (test_verifier_anchor_scope.py, TS half)
 
 import { describe, expect, it } from "vitest";
 

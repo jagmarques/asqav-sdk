@@ -81,12 +81,12 @@ describe("asqav CLI (TypeScript)", () => {
     try {
       await runCli(["preflight", "agt_x", "data:read"]);
     } catch (e) {
-      // CLEARED -> no exit; if BLOCKED -> exit 1. Either way swallowed.
+      // CLEARED -> no exit; if BLOCKED -> exit 1. Either way swallowed
     }
     expect(output()).toMatch(/CLEARED|BLOCKED/);
     expect(output()).not.toMatch(/Pro tier/);
     expect(output()).not.toMatch(/Upgrade/);
-    // No /account call is made as a gate; the first request is Agent.get.
+    // No /account call is made as a gate; the first request is Agent.get
     const firstUrl = String(fetchSpy.mock.calls[0]?.[0] ?? "");
     expect(firstUrl).not.toContain("/account");
   });

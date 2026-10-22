@@ -1,8 +1,5 @@
-/**
- * Unsigned outer copies of signed fields (criterion 742). A copy that
- * disagrees with the signed payload must fail the verdict, and the shared
- * case table must give the Python half's answer, note included.
- */
+/** Unsigned outer copies of signed fields: a copy that disagrees with the
+ * signed payload fails the verdict; the shared table matches Python's note. */
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

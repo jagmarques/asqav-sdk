@@ -1,7 +1,5 @@
-/**
- * The counterparty hash of float-preserving input equals the hash Python's
- * canonicaliser gives the same document, at any depth.
- */
+/** The counterparty hash of float-preserving input equals Python's
+ * canonicaliser hash for the same document, at any depth. */
 
 import { describe, expect, it } from "vitest";
 

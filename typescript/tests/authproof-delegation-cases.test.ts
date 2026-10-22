@@ -1,7 +1,5 @@
-/**
- * Shared authproof delegationId format table, TS half: one JSON table drives both adapters, so
- * a regex drifting between languages fails a suite instead of waiting for a reviewer.
- */
+/** Shared authproof delegationId format table, TS half: one JSON table drives
+ * both adapters, so a drifting regex fails a suite, not a reviewer. */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -18,8 +16,8 @@ interface Case {
 const CASES_FILE = resolve(__dirname, "..", "..", "verifier", "authproof-delegation-cases.json");
 const CASES = (JSON.parse(readFileSync(CASES_FILE, "utf-8")) as { cases: Case[] }).cases;
 
-/** A receipt satisfying every detect() condition except the delegationId, so the
- *  detect() boolean isolates the delegationId regex the table pins. */
+/** A receipt satisfying every detect() condition except the delegationId, so
+ * detect() isolates the delegationId regex the table pins. */
 function skeleton(delegationId: string): Record<string, unknown> {
   return {
     delegationId,

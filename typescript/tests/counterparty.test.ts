@@ -1,7 +1,5 @@
-/**
- * Counterparty acknowledgment binding: envelope_hash byte-stability, default vs explicit
- * receipt_ref, each verifyCounterpartyBinding label, and cross-SDK stability with Python.
- */
+/** Counterparty ack binding, SDK parity: envelope_hash byte-stability, default
+ * vs explicit receipt_ref, verifyCounterpartyBinding labels, Python parity. */
 
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
