@@ -1,22 +1,13 @@
 """Signature-verify dispatch shared across format adapters.
-
-One entry point, ``verify_signature(alg, pk, msg, sig)``, returns a 3-state
-``(result, note)`` where result is ``PASS`` / ``FAIL`` / ``SKIPPED`` - the same
-contract the standalone ``verify_receipt`` uses, so the oracle never prints a
-PASS for a signature it could not actually check.
-
-Algorithm wiring:
-  - ``ML-DSA-65`` reuses ``verify_receipt.verify_signature`` (the dilithium-py
-    path); absent the optional dep it SKIPs, never FAILs.
-  - ``Ed25519`` uses the ``cryptography`` library when present; absent it SKIPs
-    with a clear install hint, mirroring the dilithium-py treatment.
-
-No crypto is hand-rolled here; every algorithm delegates to a vetted library.
-"""
+One entry point, ``verify_signature(alg, pk, msg, sig)``, returns a 3-state ``(result, note)``:
+PASS / FAIL / SKIPPED, the standalone verifier's contract, so the oracle never prints a PASS for
+an unchecked signature. ``ML-DSA-65`` reuses ``verify_receipt.verify_signature`` (dilithium-py);
+absent it SKIPs, never FAILs. ``Ed25519`` uses ``cryptography`` when present; absent it SKIPs
+with an install hint. No crypto is hand-rolled; every algorithm uses a vetted library."""
 from __future__ import annotations
 
-# The standalone verifier is a package sibling and is import-safe (stdlib +
-# argparse only at import time); reuse its ML-DSA path instead of duplicating it.
+# The standalone verifier is a package sibling, import-safe (stdlib + argparse
+# at import time); reuse its ML-DSA path instead of duplicating it.
 from asqav.verifier import verify_receipt as _vr
 
 #: Verdict strings shared with verify_receipt so the two surfaces report alike.
@@ -88,7 +79,7 @@ def verify_es256(pk: bytes, msg: bytes, sig: bytes) -> tuple[str, str]:
         return FAIL, f"verify error: {exc}"
 
 
-#: alg token (upper-cased) -> verify callable; the dispatch table the oracle walks.
+#: alg token (upper-cased) -> verify callable; the table the oracle walks.
 _DISPATCH = {
     "ML-DSA-65": verify_ml_dsa_65,
     "ED25519": verify_ed25519,

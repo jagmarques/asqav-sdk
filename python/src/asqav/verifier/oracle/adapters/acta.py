@@ -1,37 +1,9 @@
 """ACTA adapter - Ed25519 over the JCS of the payload, signed directly.
-
-Targets draft-farley-acta-signed-receipts-02 (the draft Asqav profiles). The
-envelope is {payload, signature:{alg, kid, sig}}; the signature is Ed25519 over
-the JCS canonical bytes of the `payload` object, signed DIRECTLY (no pre-hash),
-with the sig as a lowercase hex string.
-
-Rev-02 conformance (asqav profile): `type`, `issued_at` and `issuer_id` are
-REQUIRED and `issuer_id` must equal `signature.kid`; `type` must be a non-empty
-namespaced string. Deliberate deviations: (1) the OPTIONAL Commitment Mode
-(signing SHA-256(JCS(payload))) is NOT implemented - a commitment-mode receipt
-fails the baseline signature check, the honest outcome, never a false pass, and
-the adapter never tries both signing inputs; (2) upstream A2A receipts (no `type`
-field) are verified with a relaxed schema (issued_at + signature triple only),
-since they are not rev-02 receipts; (3) only the mandatory EdDSA (Ed25519) alg is
-checked - the SHOULD-support ES256 is not implemented and is rejected, again
-never a false pass.
-
-Asqav-native is a PROFILE of ACTA, so the payloads look identical; the formats are
-kept disjoint by the signature encoding (ACTA hex, Asqav-native base64) plus the
-Asqav-only `anchors` envelope key. `_is_lower_hex` is the shared discriminator the
-asqav-native adapter also imports so neither claims the other's receipts.
-
-The chain field previousReceiptHash is SHA-256 of the JCS of the FULL predecessor
-receipt INCLUDING its signature (the inverse of AERF, which excludes the
-signature). Two carried forms verify: bare lowercase hex (draft -02) and, per
-ACTA -03 §6.7, the string "sha256:" followed by that hex; the carried value
-selects the recomputed form, and any other prefix fails the comparison rather
-than being normalised into a pass. It lives inside `payload`, so it is covered
-by the signature; removing or altering it breaks the signature. Genesis OMITS
-the field; a present `previousReceiptHash: null` is a malformed genesis, not a
-link. Keys resolve from an injected JWK Set (OKP/Ed25519, base64url `x`), the
-same no-live-fetch model the other adapters use.
-"""
+Targets draft-farley-acta-signed-receipts-02 (the draft Asqav profiles): Ed25519 over the JCS
+bytes of ``payload``, no pre-hash, hex sig; rev-02 requires ``type``, ``issued_at``,
+``issuer_id`` (== ``signature.kid``) and a non-empty namespaced ``type``. Keys resolve from an
+injected JWK Set (OKP/Ed25519, base64url ``x``), never a live fetch.
+NOT checked, never a false pass: Commitment Mode, SHOULD-support ES256, rev-02 for A2A receipts."""
 from __future__ import annotations
 
 from typing import Any
@@ -43,7 +15,7 @@ from ..canonical import jcs
 from ..core import sha256_hex
 
 
-    # Decode a hex string; b'' on any malformed input so verify FAILs, never crashes.
+    # Decode a hex string; b'' on malformed input so verify FAILs, never crashes.
 def _safe_hex(value: Any) -> bytes:
     if not isinstance(value, str):
         return b""
@@ -110,8 +82,8 @@ class ActaAdapter(FormatAdapter):
         payload = doc.get("payload", {})
         prev = payload.get("previousReceiptHash")
         is_genesis = "previousReceiptHash" not in payload
-        # Hash of the full predecessor, signature included; "sha256:" + hex or bare
-        # hex selects the form, and an unknown prefix fails like a wrong digest.
+        # Full predecessor, signature included; bare hex or "sha256:" (ACTA -03 §6.7)
+        # selects the form; unknown prefix fails; genesis omits it, null is malformed.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,
@@ -142,7 +114,7 @@ class ActaAdapter(FormatAdapter):
         # False-attestation guard: issuer_id must match the signing kid.
         if "issuer_id" in payload and payload["issuer_id"] != sig.get("kid"):
             return "FAIL", "issuer_id must match signature.kid"
-        # Bind alg to the EdDSA baseline; reject registry algs this verifier does not check.
+        # Bind alg to the EdDSA baseline; reject registry algs not checked here.
         if sig.get("alg") not in ("EdDSA", "Ed25519"):
             return "FAIL", f"unsupported ACTA alg {sig.get('alg')!r}; only EdDSA baseline is implemented"
         return "PASS", "rev-02 required fields present; issuer_id matches kid; EdDSA baseline"

@@ -1,27 +1,9 @@
 """W3C VC 2.0 adapter - DataIntegrityProof with the eddsa-jcs-2022 cryptosuite.
-
-A Verifiable Credential 2.0 envelope (``@context`` starting with the credentials/v2
-URL, ``type`` including ``VerifiableCredential``, ``issuer``, ``credentialSubject``)
-secured by a ``DataIntegrityProof`` whose ``cryptosuite`` is ``eddsa-jcs-2022``
-(W3C TR vc-di-eddsa): Ed25519 (RFC 8032) signs
-``SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))`` where JCS is
-strict RFC 8785, proofOptions is ``proof`` with ``proofValue`` removed, and
-unsecuredDocument is the credential with ``proof`` removed. ``proofValue`` is the
-raw 64-byte signature multibase base58btc ('z') encoded.
-
-When the proof options carry their own ``@context`` the spec's transform requires
-the document ``@context`` to start with it in order and canonicalises the document
-with the proof's ``@context`` substituted; both rules are enforced here.
-
-The oracle performs NO network DID resolution: ``proof.verificationMethod``
-resolves through the shared DID resolver (did:key inline; did:web and every other
-method from the injected map, either a raw key or the DID document the fetch would
-have returned). Structure is intentionally stricter than the suite spec, which does
-not normatively check proofPurpose: this adapter requires ``assertionMethod`` and
-binds the verificationMethod DID to the issuer DID, fail-closed, mirroring the
-agentreceipts adapter. A W3C VC carries no in-band chain link, so the chain axis
-reports genesis.
-"""
+A VC 2.0 envelope (``@context`` starting with the credentials/v2 URL, ``type`` including
+``VerifiableCredential``, ``issuer``, ``credentialSubject``) secured by a ``DataIntegrityProof``
+with cryptosuite ``eddsa-jcs-2022`` (W3C TR vc-di-eddsa): Ed25519 (RFC 8032) signs
+``SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecuredDocument))`` - strict RFC 8785 JCS over
+``proof`` minus ``proofValue`` and the credential minus ``proof``; base58btc ``proofValue``."""
 from __future__ import annotations
 
 import hashlib
@@ -80,7 +62,7 @@ def _proof_options(doc: dict) -> dict:
     return {k: v for k, v in _proof(doc).items() if k != "proofValue"}
 
 
-    # Document minus proof; the proof's @context substitutes the document's when present.
+    # Document minus proof; the proof's @context replaces the document's if set.
 def _unsecured(doc: dict) -> dict:
     body = {k: v for k, v in doc.items() if k != "proof"}
     ctx = _proof(doc).get("@context")
@@ -89,7 +71,7 @@ def _unsecured(doc: dict) -> dict:
     return body
 
 
-    # True when the proof's @context is absent or prefixes the document @context in order.
+    # True when the proof's @context is absent or prefixes the document's, in order.
 def _context_prefix_ok(doc: dict) -> bool:
     ctx = _proof(doc).get("@context")
     if ctx is None:
@@ -137,7 +119,7 @@ class W3cVcAdapter(FormatAdapter):
         return resolve_ed25519_key(vm if isinstance(vm, str) else "", key_provider)
 
     def signing_input(self, doc: dict) -> bytes:
-        # hashData = SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecured)) (TR vc-di-eddsa)
+        # hashData = SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecured)) (vc-di-eddsa)
         options_hash = hashlib.sha256(jcs_rfc8785(_proof_options(doc))).digest()
         document_hash = hashlib.sha256(jcs_rfc8785(_unsecured(doc))).digest()
         return options_hash + document_hash

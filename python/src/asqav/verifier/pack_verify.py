@@ -11,11 +11,11 @@ from asqav.verifier import verify_receipt as vr
 VERIFIED = "verified"
 NOT_OFFLINE = "not_verifiable_offline"
 INVALID = "invalid"
-#: Pack status when nothing failed but the keys came from the pack itself (no --jwks).
+#: Pack status when nothing failed but the keys came from the pack (no --jwks).
 SELF_CONSISTENT = "self_consistent"
 SELF_CONSISTENT_LABEL = "self-consistent, not anchored to a trusted key"
 
-#: Exit code per pack status: 0 verified under supplied keys, 1 any invalid, else 2.
+#: Exit code per pack status: 0 verified under supplied keys, 1 invalid, else 2.
 EXIT_CODES = {VERIFIED: 0, NOT_OFFLINE: 2, SELF_CONSISTENT: 2, INVALID: 1}
 _RANK = {VERIFIED: 0, NOT_OFFLINE: 1, INVALID: 2}
 _BUNDLE_ALGS = frozenset({"ML-DSA-65", "ED25519", "ES256"})
