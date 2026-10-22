@@ -717,7 +717,7 @@
     "format": "asqav-native",
     "outcome": "unverified",
     "reason_code": "registered_but_unimplemented",
-    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace this verifier release does not implement; structure axis reports SKIPPED, verdict unverified/unverifiable.",
+    "notes": "Correctly signed receipt in the draft-registered oversight_ruling namespace this verifier release does not implement; structure axis reports SKIPPED, verdict unverified/unverifiable. Its directory name predates the taxonomy fix.",
     "failure_class": "unverifiable"
   },
   {
