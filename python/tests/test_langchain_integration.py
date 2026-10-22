@@ -392,12 +392,7 @@ def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
 
 
 def test_on_chain_start_none_serialized_signs_receipt(handler):
-    """on_chain_start with serialized=None still signs a chain:start receipt.
-
-    Non-vacuous: without the isinstance(serialized, dict) guard, serialized.get(...) on
-    None raises AttributeError and LangChain swallows it, so the receipt is silently
-    dropped. Revert the guard and this assertion fails (no sign call).
-    """
+    """on_chain_start with serialized=None still signs a chain:start receipt."""
     handler.on_chain_start(
         serialized=None,
         inputs={"text": "hello"},
@@ -421,12 +416,7 @@ def test_on_chain_start_non_dict_serialized_signs_receipt(handler):
 
 
 def test_on_chain_start_none_serialized_non_dict_inputs_signs_receipt(handler):
-    """on_chain_start(None, 'hello') yields input_keys=[] - never crashes.
-
-    Non-vacuous: without the isinstance(inputs, dict) guard, list('hello'.keys())
-    raises AttributeError and LangChain swallows it, so the receipt is silently
-    dropped. Revert the guard and this test fails (sign not called).
-    """
+    """on_chain_start(None, 'hello') yields input_keys=[], never crashing."""
     handler.on_chain_start(
         serialized=None,
         inputs="hello",  # type: ignore[arg-type]
