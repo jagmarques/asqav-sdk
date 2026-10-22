@@ -30,13 +30,15 @@ _ALWAYS_INVALID_AXES = frozenset(
 
 def classify(axis: str, result: str, note: str) -> str | None:
     """Map one axis outcome to its failure class (criterion 418).
-    A FAIL needs resolved inputs; per-axis rules live in ``classify``."""
+    A FAIL needs resolved inputs; unresolvable ones SKIP upstream."""
     # ``_axis`` in the oracle delegates here; the corpus suite pins that
     # behaviour from moving.
     if result == crypto.PASS:
         return None
     if result == crypto.SKIPPED:
         return FAILURE_UNVERIFIABLE
+    # seq FAILs on a malformed counter; parent/pdp FAIL when a required sig
+    # is absent; key_binding FAILs on a malformed claim.
     if axis in _ALWAYS_INVALID_AXES:
         return FAILURE_INVALID
     if axis == "chain":

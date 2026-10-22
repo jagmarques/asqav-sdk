@@ -156,7 +156,9 @@ class AsqavNativeAdapter(FormatAdapter):
 
     def _signing_key_entry(self, doc: dict, jwks: dict) -> dict | None:
         """The one jwks entry this receipt's signature is checked against.
-        kid is unsigned; the agent match needs the signed issuer_id."""
+        kid and agent_id are attacker-set; match on the signed issuer_id."""
+        # Every axis resolves via this entry: a second kid lookup could verify
+        # one key yet hide its revocation from the other axes.
         payload = _payload(doc)
         return _vr.match_signing_key(
             jwks,
@@ -294,10 +296,13 @@ class AsqavNativeAdapter(FormatAdapter):
         verifying = self._verifying_key(doc, bound_pk, msg)
         kid = entry.get("kid") if verifying is not None and entry is not None else None
         axes.append(("outer_copies", *_vr.check_outer_copies(doc, msg, verifying, kid)))
+        # Key axes weigh in only once a key resolves; with none, the
+        # signature axis already reports the missing key.
         if entry is None:
             return axes
         key_issuer = _vr.key_issuer_of(entry)
-        # The resolved key is bound back to the issuer the signed bytes name.
+        # The resolved key is bound back to the issuer the signed bytes name:
+        # issuer_id in compliance mode, org_id in hash mode.
         if _is_hash_mode(doc):
             issued_at = doc.get("server_timestamp", "")
             bind = _vr.check_org_binding(key_issuer, _vr.key_org_of(entry), doc.get("org_id"))
