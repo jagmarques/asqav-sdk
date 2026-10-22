@@ -1,7 +1,6 @@
-"""ACTA adapter: Ed25519 over JCS of ``payload``, hex signature, no pre-hash.
-Keys: injected JWKS, never a live fetch; Commitment Mode, ES256 NOT checked."""
-# Disjoint from Asqav-native by hex sig and anchors. ``chain`` sits in the
-# signed unit, so any change breaks verification.
+"""ACTA: Ed25519, JCS(payload); disjoint from Asqav-native by hex sig, anchors.
+JWKS injected, never a live fetch; no pre-hash; ES256/Commitment unchecked."""
+# ``chain`` sits in the signed unit, so any change breaks verification.
 from __future__ import annotations
 
 from typing import Any
