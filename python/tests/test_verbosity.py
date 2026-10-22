@@ -1,10 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The counter holds the python tests to the docstring and comment budgets.
-
-The bad inputs are planted in a file the test writes, so they are measured the
-same way the python tests are; two tests measure the tree itself.
-"""
+"""The counter holds the python tests to the docstring and comment budgets."""
 
 from __future__ import annotations
 

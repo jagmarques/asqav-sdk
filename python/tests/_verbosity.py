@@ -76,12 +76,7 @@ def _comment_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
 
 
 def scan(root: Path) -> list[tuple[Path, int, str]]:
-    """Every budget hit under a path, as a (path, line, kind) triple.
-
-    A file that cannot be read, parsed or tokenized raises, and a path with no
-    Python file raises too: an empty result means the tree was measured and
-    holds no hit.
-    """
+    """Every budget hit as (path, line, kind); an unmeasurable tree raises."""
     files = python_files(root)
     if not files:
         raise ValueError(f"no Python file under {root}")
