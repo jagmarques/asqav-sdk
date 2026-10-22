@@ -32,6 +32,9 @@ import pytest
 
 _CORPUS_ROOT = Path(__file__).parent.parent.parent / "verifier" / "conformance-vectors"
 
+#: Sibling checks: regen_conformance_vectors.py --check re-derives the
+#: recomputable members, and manifest.lock.json freezes the corpus bytes.
+
 
 @lru_cache(maxsize=1)
 def _receipts() -> dict[str, dict]:

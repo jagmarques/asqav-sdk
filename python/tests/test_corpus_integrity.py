@@ -20,8 +20,7 @@ never a production-supplied one. The counterparty ``envelope_hash`` was stale in
 built their expectation from the function under test, so neither read the published bytes. Siblings stay
 separate: ``test_canonicalize.py``, ``regen_fingerprint_vectors.py --check`` (CI), ``test_corpus_lock.py``.
 """
-# The corpus-B sibling is ``regen_conformance_vectors.py --check``; the lock
-# freezes the bytes, it does not prove them right.
+# The lock freezes the bytes; it does not prove them right.
 
 from __future__ import annotations
 
