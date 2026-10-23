@@ -1,10 +1,8 @@
 """Tests for the local demo HTTP handler (`asqav demo`).
 
-Covers `DemoHandler.do_POST`, which is uncovered by default because the
-demo server is launched interactively. The strategy is to instantiate a
-`ThreadingHTTPServer` on an ephemeral port and drive it with `urllib`
-so the real handler runs end-to-end against the real `_sign` / `_verify`
-helpers - no mocks on the demo internals.
+Drives `DemoHandler.do_POST` through a `ThreadingHTTPServer` on an ephemeral
+port with `urllib`, so the real handler runs end-to-end against the real
+`_sign` / `_verify` helpers, with no mocks on the demo internals.
 """
 
 from __future__ import annotations
@@ -178,7 +176,7 @@ def test_do_post_verify_with_garbage_returns_invalid() -> None:
 # === Edge case: empty body ===
 
 
-    # Empty body decodes to `{}`; /api/decide path with empty body rejects on decision.
+    # An empty body decodes to `{}`; /api/decide then rejects on decision.
 def test_do_post_empty_body_falls_through_to_404() -> None:
     with _running_server() as (base, _state):
         req = urllib.request.Request(

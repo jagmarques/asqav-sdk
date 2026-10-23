@@ -1,10 +1,8 @@
 """Shared adversarial case table, Python half.
 
 One JSON table drives both the Python and the TypeScript verifier. Each case
-pins a verdict and the result of every axis it names, so a rule that drifts in
-one language fails a suite instead of waiting for a reviewer to notice. The
-TypeScript half lives in typescript/tests/cross-language-cases.test.ts and reads
-the same file.
+pins a verdict and every named axis, so a rule that drifts in one language
+fails a suite. TS half: typescript/tests/cross-language-cases.test.ts.
 """
 
 from __future__ import annotations

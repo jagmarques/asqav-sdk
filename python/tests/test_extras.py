@@ -12,10 +12,8 @@ import pytest
 def _module_installed(name: str) -> bool:
     """True if ``name`` is reachable on the filesystem.
 
-    Pops any pre-existing ``sys.modules`` entry before probing so a mock
-    injected by another test (with ``__spec__ = None``) does not mask
-    a real on-disk install. Restores the entry afterwards so we do not
-    perturb the rest of the test session.
+    Pops any ``sys.modules`` entry before probing so a mock injected by another
+    test (``__spec__ = None``) does not mask a real install, then restores it.
     """
     saved = sys.modules.pop(name, None)
     try:
@@ -95,16 +93,15 @@ def test_extras_package_importable():
 def _purge(*module_names: str) -> None:
     """Drop modules from sys.modules so a fresh import re-runs the guards.
 
-    Other integration tests inject framework mocks (sys.modules["crewai"] = ...).
-    Without this purge the stub re-import sees the mock and skips the
-    ImportError path, so the stub-import test silently passes when the user
-    actually has the framework missing. Fail closed by clearing both.
+    Other tests inject framework mocks (sys.modules["crewai"] = ...); without
+    this purge the stub re-import sees the mock and the ImportError test
+    passes even when the framework is missing. Fail closed by clearing both.
     """
     for name in module_names:
         sys.modules.pop(name, None)
 
 
-    # Importing langchain stub raises ImportError when langchain-core is not installed.
+    # Importing the langchain stub raises ImportError without langchain-core.
 @pytest.mark.skipif(_module_installed("langchain_core"), reason="langchain-core installed; stub error path is unreachable in this env")
 def test_langchain_stub_import_error():
     _purge("asqav.extras.langchain", "langchain_core", "langchain_core.callbacks")
@@ -141,7 +138,7 @@ def test_haystack_stub_import_error():
         import asqav.extras.haystack  # noqa: F401
 
 
-    # Importing openai_agents stub raises ImportError when openai-agents is not installed.
+    # Importing the openai_agents stub raises ImportError without openai-agents.
 @pytest.mark.skipif(_module_installed("agents"), reason="openai-agents installed; stub error path is unreachable in this env")
 def test_openai_agents_stub_import_error():
     _purge("asqav.extras.openai_agents", "agents", "agents.tracing")
