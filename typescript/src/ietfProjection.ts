@@ -1,7 +1,5 @@
-/**
- * Compliance Receipts wire-shape projection helpers: pure offline extraction of the signature envelope
- * and anchors[]. They return the cloud-supplied values, and undefined on non-compliance receipts.
- */
+// Compliance Receipts wire-shape projection helpers: offline extraction of the
+// signature envelope and anchors[]; cloud values, undefined on non-compliance
 
 /** Spec-shape signature envelope. */
 export interface SignatureEnvelope {
@@ -32,10 +30,9 @@ export interface ProjectableResponse {
   [key: string]: unknown;
 }
 
-/**
- * Return `{alg, kid, sig}` when the response carries the object form, else undefined. The cloud emits the
- * object form under compliance_mode and a base64 string in flat mode.
- */
+// The cloud emits the object form under compliance_mode and a base64 string in
+// flat mode
+/** Return `{alg, kid, sig}` for the object form, else undefined */
 export function signatureEnvelopeFromResponse(
   response: ProjectableResponse | null | undefined,
 ): SignatureEnvelope | undefined {

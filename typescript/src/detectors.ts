@@ -1,7 +1,5 @@
-/**
- * Pluggable detector framework (criterion 331): detectors run inside Agent.sign()
- * after normalization; a deny throws DetectorBlockedError. See docs/detector-plugins.
- */
+// Pluggable detector framework: detectors run inside Agent.sign() after
+// normalization; a deny throws DetectorBlockedError (docs/detector-plugins)
 
 /** Verdict returned by a DetectorPlugin's inspect() call. */
 export interface DetectorResult {
@@ -21,14 +19,14 @@ export interface DetectorResult {
 export interface DetectorPlugin {
   /** Stable identifier; appears in the signed receipt _detectors record. */
   name: string;
-  /** Inspect a pending sign action; return a DetectorResult (sync or Promise). */
+  /** Inspect a pending sign action; return a DetectorResult (sync/Promise) */
   inspect(
     actionType: string,
     context: Record<string, unknown>,
   ): DetectorResult | Promise<DetectorResult>;
 }
 
-/** Thrown when a detector returns allow=false or raises with fail_open=false. */
+/** Thrown when a detector returns allow=false or raises with fail_open=false */
 export class DetectorBlockedError extends Error {
   /** Name of the detector that blocked the sign call. */
   detectorName: string;
@@ -92,7 +90,7 @@ export async function runDetectors(
         });
         continue;
       }
-      // Fail-closed: block sign().
+      // Fail-closed: block sign()
       const msg = err instanceof Error ? err.message : String(err);
       const blockResult: DetectorResult = {
         allow: false,
@@ -108,7 +106,7 @@ export async function runDetectors(
       );
     }
 
-    // Back-fill detector name if the result omitted it.
+    // Back-fill detector name if the result omitted it
     if (!result.detector) result = { ...result, detector: detector.name };
     records.push(result);
 

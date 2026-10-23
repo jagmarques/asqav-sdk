@@ -1,7 +1,5 @@
-/**
- * Counterparty acknowledgment binding helpers for the IETF Compliance Receipts profile. The binding
- * travels on the signed payload of B's `protectmcp:acknowledgment` receipt and gates verification.
- */
+// Counterparty acknowledgment binding helpers, IETF Compliance Receipts profile
+// Rides B's signed `protectmcp:acknowledgment` payload and gates verification
 
 import { createHash } from "node:crypto";
 
@@ -13,10 +11,8 @@ import {
   parseJsonPreservingFloats,
 } from "./verifier/canonical.js";
 
-/**
- * Byte binding over payload and the exact signature object.
- * transport_label is an operational hint.
- */
+// transport_label is an operational hint
+/** Byte binding over payload and the exact signature object */
 export interface CounterpartyBinding {
   envelope_hash: string;
   receipt_ref: string;
@@ -31,10 +27,9 @@ export interface CounterpartyBinding {
   terms_digest?: string;
 }
 
-/**
- * Per-axis outcome of the SDK-side counterparty-binding check; `label` is matches | mismatch |
- * unresolved | kid_mismatch, mirroring the cloud's `counterparty_binding_verified` axis.
- */
+// `label` is matches | mismatch | unresolved | kid_mismatch, mirroring the
+// cloud's `counterparty_binding_verified` axis
+/** Per-axis outcome of the SDK-side counterparty-binding check */
 export interface CounterpartyBindingVerification {
   valid: boolean | null;
   envelopeHashMatches: boolean | null;
@@ -138,10 +133,8 @@ function canonicalBytes(projection: unknown): Uint8Array {
 
 /** Options for {@link computeCounterpartyBinding}. */
 export interface ComputeCounterpartyBindingOptions {
-  /**
-   * Pass the originating signature_id for hosted admission;
-   * action_id is an offline fallback.
-   */
+  // action_id is an offline fallback
+  /** Pass the originating signature_id for hosted admission */
   receiptRef?: string;
   /** Optional declared acknowledger identifier; the verifier cross-checks
    * the acknowledging receipt's `signature.kid` against this value. */
@@ -154,10 +147,8 @@ export interface ComputeCounterpartyBindingOptions {
   terms?: Record<string, unknown>;
 }
 
-/**
- * Build from the peer's original signing envelope, retaining the
- * signature object as received.
- */
+// Retains the signature object as received
+/** Build from the peer's original signing envelope */
 export function computeCounterpartyBinding(
   originatingEnvelope: Record<string, unknown>,
   options: ComputeCounterpartyBindingOptions = {},
@@ -204,10 +195,9 @@ export function computeCounterpartyBinding(
   return binding;
 }
 
-/**
- * Re-derive and compare the binding's `envelope_hash`, returning a label that separates a tampered
- * handoff from a missing originator. `kidMatches` is null when `expect_ack_from` was not declared.
- */
+// Returns a label separating a tampered handoff from a missing originator;
+// `kidMatches` is null when `expect_ack_from` was not declared
+/** Re-derive and compare the binding's `envelope_hash` */
 export function verifyCounterpartyBinding(
   acknowledgmentEnvelope: Record<string, unknown>,
   originatingEnvelope: unknown = null,

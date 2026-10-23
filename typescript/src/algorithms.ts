@@ -1,7 +1,7 @@
-// Algorithm agility for receipt signing.
+// Algorithm agility for receipt signing
 
-// Client-side validation set (all five). The cloud signs only ml-dsa-{44,65,87};
-// ed25519/es256 pass locally but the cloud returns HTTP 400, so they are local-only.
+// Client-side validation set (all five); the cloud signs only ml-dsa-{44,65,87}
+// ed25519/es256 pass locally but the cloud returns HTTP 400: local-only
 
 import {
   createPrivateKey,
@@ -45,8 +45,8 @@ export interface LocalKeypair {
   publicKeySpkiB64: string;
 }
 
-// Generate a fresh keypair for a local-signing algorithm.
-// ML-DSA is rejected here because it is server-side only.
+// Generate a fresh keypair for a local-signing algorithm
+// ML-DSA is rejected here because it is server-side only
 export function generateKeypair(algorithm: LocalSigningAlgorithm): LocalKeypair {
   if (algorithm === "ed25519") {
     const { publicKey, privateKey } = generateKeyPairSync("ed25519");
@@ -74,13 +74,13 @@ export function generateKeypair(algorithm: LocalSigningAlgorithm): LocalKeypair 
         .toString("base64"),
     };
   }
-  // Exhaustiveness guard.
+  // Exhaustiveness guard
   const exhaustive: never = algorithm;
   throw new Error(`Unsupported local algorithm: ${exhaustive as string}`);
 }
 
-// Sign canonical bytes with a local keypair. es256 emits IEEE P1363 (raw r||s)
-// to match the cloud verifier; Node defaults ECDSA to DER, so we convert.
+// Sign canonical bytes with a local keypair; es256 emits IEEE P1363 (raw r||s)
+// to match the cloud verifier (Node defaults ECDSA to DER, so we convert)
 export function signMessage(
   algorithm: LocalSigningAlgorithm,
   privateKeyPkcs8B64: string,

@@ -1,7 +1,5 @@
-/**
- * Client-side spend budget tracking mirroring the Python BudgetTracker; each spend is signed so the trail
- * is tamper-evident. Enforcement is the caller's: `check()` is arithmetic, the SDK blocks nothing.
- */
+// Client-side spend budget tracking mirroring the Python BudgetTracker; each
+// spend is signed so the trail is tamper-evident
 
 import type { Agent, SignatureResponse } from "./index.js";
 
@@ -35,10 +33,9 @@ export class BudgetTracker {
     this.currency = options.currency ?? "USD";
   }
 
-  /**
-   * Decide whether a pending action with the given estimated cost is
-   * within budget. Fail-closed on negative, NaN, or infinite costs.
-   */
+  // Fail-closed on negative, NaN, or infinite costs; enforcement is the
+  // caller's: this is arithmetic only and the SDK blocks nothing
+  /** Decide whether a pending action's estimated cost is within budget */
   check(estimatedCost: number): BudgetCheckResult {
     const remaining = this.limit - this.spend;
     const cost = Number(estimatedCost);
@@ -68,10 +65,8 @@ export class BudgetTracker {
     };
   }
 
-  /**
-   * Sign a spend record on the underlying agent. Updates cumulative
-   * spend after the signature is accepted by the server.
-   */
+  // Updates cumulative spend after the signature is accepted by the server
+  /** Sign a spend record on the underlying agent */
   async record(
     actionType: string,
     actualCost: number,
