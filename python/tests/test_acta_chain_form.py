@@ -1,6 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The ACTA chain recompute follows the form of the carried link (ACTA -03 §6.7).
+"""The ACTA chain recompute follows the carried link's form (ACTA -03 §6.7).
 
 The corpus vectors acta-06/07 pin the end-to-end outcomes; these unit tests pin
 the adapter mechanics: prefixed carried value gets a prefixed recompute, bare

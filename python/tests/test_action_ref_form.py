@@ -16,27 +16,9 @@
 
 """One `action_ref` form across both corpora, and the three named exceptions.
 
-Every asqav-native `action_ref` carries the one wire form: ``sha256:<64
-lowercase hex>``. That is the whole rule - an opaque producer-chosen identifier
-is not a digest and does not join.
-
-NAMED EXCEPTIONS, deliberately not collapsed to ``sha256:`` +
-``payload_digest.hash`` (the form is the rule; equality with the payload digest
-is not - `action_ref` is a producer-asserted pointer, and nothing in the
-profile binds it to the payload digest):
-
-* ``asqav-06-mldsa65-payload-prod`` - a prod-shaped capture carrying a genuine
-  caller-supplied digest; the wire-legal case the corpus should contain.
-* ``asqav-12-time-edge-expiry`` - carries abab... against payload_digest
-  cdcd... precisely so a verifier confusing the two members fails; collapsing
-  them would delete that coverage while the vector still passed.
-* ``asqav-13-dup-member-nested`` - a duplicate-member refusal vector whose
-  empty-digest ref is deliberate.
-
-Every OTHER directory vector's `action_ref` equals ``sha256:`` +
-``payload_digest.hash``, which the generators now bind by construction; the
-second test keeps that invariant from drifting without enshrining it as a wire
-rule the format does not have.
+Every asqav-native `action_ref` is ``sha256:<64 lowercase hex>``. Exceptions,
+kept apart from ``sha256:`` + ``payload_digest.hash``: asqav-06 (a genuine
+caller digest), asqav-12 (abab... vs cdcd... by design), asqav-13 (empty ref).
 """
 
 from __future__ import annotations
@@ -73,7 +55,7 @@ AUTHORED_REF_VECTORS = frozenset(
 
 
 def _iter_action_refs():
-    """Yield (location, action_ref, payload_digest_hash_or_None) over both corpora."""
+    """Yield (location, action_ref, payload hash or None) for both corpora."""
     for path in sorted(_VECTOR_ROOT.glob("asqav-*/**/*.json")):
         if path.name not in ("receipt.json", "predecessor.json"):
             continue
