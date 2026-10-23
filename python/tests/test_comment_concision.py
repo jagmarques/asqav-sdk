@@ -92,7 +92,7 @@ def test_trailing_comment_counts_its_column(tmp_path, capsys):
 
 def test_long_tool_directive_comment_passes(tmp_path, capsys):
     pad = "a" * MAX_COMMENT_COLUMNS
-    plant(tmp_path, "x.py", f"y = 1  # noqa: E501 - {pad}\nz = 2  # type: ignore[x]\n")
+    plant(tmp_path, "x.py", f"y = 1  # ruff: {pad}\n")
     assert run(tmp_path, capsys)[0] == 0
 
 
