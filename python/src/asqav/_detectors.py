@@ -11,10 +11,7 @@ try:
     from typing import Protocol, runtime_checkable
 except ImportError:
     # Python 3.7 fallback (SDK requires 3.8+, so this is belt-and-suspenders).
-    from typing_extensions import (  # type: ignore[assignment]
-        Protocol,
-        runtime_checkable,
-    )
+    from typing_extensions import Protocol, runtime_checkable  # type: ignore[assignment]
 
 logger = logging.getLogger("asqav")
 

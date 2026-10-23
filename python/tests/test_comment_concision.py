@@ -90,6 +90,21 @@ def test_trailing_comment_counts_its_column(tmp_path, capsys):
     assert "x.py:1:comment-line" in out
 
 
+def test_long_tool_directive_comment_passes(tmp_path, capsys):
+    pad = "a" * MAX_COMMENT_COLUMNS
+    plant(tmp_path, "x.py", f"y = 1  # noqa: E501 - {pad}\nz = 2  # type: ignore[x]\n")
+    assert run(tmp_path, capsys)[0] == 0
+
+
+# NEGCTL: a long prose comment with a directive word in it still fails.
+def test_directive_word_inside_prose_still_fails(tmp_path, capsys):
+    pad = "a" * MAX_COMMENT_COLUMNS
+    plant(tmp_path, "x.py", f"y = 1  # {pad} noqa\n")
+    code, out, _ = run(tmp_path, capsys)
+    assert code == 1
+    assert "x.py:1:comment-line" in out
+
+
 def test_three_line_comment_block_fails(tmp_path, capsys):
     plant(tmp_path, "x.py", comment_rows(MAX_BLOCK_ROWS + 1))
     code, out, _ = run(tmp_path, capsys)

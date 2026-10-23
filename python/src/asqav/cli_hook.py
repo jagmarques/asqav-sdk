@@ -74,7 +74,7 @@ def _call_with_deadline(fn, deadline: float, *args: Any, **kwargs: Any) -> Any:
     def _target() -> None:
         try:
             box["value"] = fn(*args, **kwargs)
-        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
+        except BaseException as exc:  # noqa: BLE001 - re-raised on the caller's thread
             box["error"] = exc
 
     worker = threading.Thread(target=_target, name="asqav-hook-sign", daemon=True)
@@ -99,7 +99,7 @@ def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
         raise typer.Exit(code=fail_code)
     try:
         event = json_mod.loads(raw)
-    except Exception as exc:  # noqa: BLE001 - deep nesting skips JSON error
+    except Exception as exc:  # noqa: BLE001 - deep nesting and huge ints raise past JSONDecodeError
         print(f"Error: hook event is not valid JSON: {type(exc).__name__}: {exc}", file=sys.stderr)
         raise typer.Exit(code=fail_code) from exc
     if not isinstance(event, dict):
@@ -614,7 +614,7 @@ def _enforce_receipt(
             f"verification did not finish inside the remaining {remaining:g}s of the "
             f"{deadline:g}s deadline"
         )
-    except Exception as exc:  # noqa: BLE001 - any failure is a blocked call
+    except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
         ok, reason = False, f"could not verify the returned receipt: {exc}"
     if not ok:
         print(
@@ -657,7 +657,7 @@ def hook_pretool(
         _pretool_gate(clear_context=clear_context, dry_run=dry_run)
     except typer.Exit:
         raise
-    except Exception as exc:  # noqa: BLE001 - exit 1 lets the tool run
+    except Exception as exc:  # noqa: BLE001 - exit 1 lets the tool run, so nothing escapes
         print(
             f"asqav hook: unexpected {type(exc).__name__}, blocking tool call: {exc}",
             file=sys.stderr,
@@ -741,7 +741,7 @@ def _pretool_gate(*, clear_context: bool, dry_run: bool) -> None:
         )
     except typer.Exit:
         raise
-    except Exception as exc:  # noqa: BLE001 - after signing, never exit open
+    except Exception as exc:  # noqa: BLE001 - nothing after signing may exit open
         print(
             f"asqav hook: could not gate receipt {getattr(sig, 'signature_id', '?')}, "
             f"blocking tool call: {exc}",
