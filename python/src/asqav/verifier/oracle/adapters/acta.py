@@ -69,7 +69,7 @@ class ActaAdapter(FormatAdapter):
         return None, f"kid {kid!r} not in ACTA JWK Set"
 
     def signing_input(self, doc: dict) -> bytes:
-        # Baseline: Ed25519 signs the JCS bytes of the payload directly, no pre-hash.
+        # Baseline: Ed25519 signs the payload's JCS bytes directly, no pre-hash.
         return jcs(doc.get("payload", {}))
 
     def chain_step(self, doc: dict) -> ChainStep:
@@ -95,7 +95,7 @@ class ActaAdapter(FormatAdapter):
             return "FAIL", "ACTA receipt needs object payload and signature"
         missing = [f for f in ("issued_at",) if f not in payload]
         missing += [f"signature.{f}" for f in ("alg", "kid", "sig") if f not in sig]
-        # Rev-02 asqav profile: with `type` present, `issuer_id` is required too.
+        # Rev-02 asqav profile: with `type`, `issuer_id` is required too.
         # Upstream A2A receipts carry neither and stay relaxed (not rev-02).
         if "type" in payload:
             if not isinstance(payload["type"], str) or not payload["type"]:

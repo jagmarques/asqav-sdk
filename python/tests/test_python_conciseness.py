@@ -291,6 +291,43 @@ def test_comment_line_at_the_budget_is_accepted(tmp_path):
     assert counts.comment_lines == 0, counts.findings
 
 
+def _plant_indented_comment(tmp_path: Path, indent: int, token_width: int):
+    """A verifier copy with a comment of this width and indent, and its line."""
+    copy = _copy_of_verify_receipt(tmp_path)
+    lines = copy.read_text(encoding="utf-8").splitlines()
+    index, _ = _first_statement_line("\n".join(lines))
+    lines[index:index] = [" " * indent + "# " + "x" * (token_width - 2)]
+    copy.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return copy, index
+
+
+# NEGCTL: the comment token is under the width; only its 6-space indent
+# takes the line to 82, so a check that measures the token alone passes it.
+def test_negctl_indented_comment_line(tmp_path):
+    copy, index = _plant_indented_comment(tmp_path, 6, conciseness.MAX_COMMENT_CHARS - 4)
+    counts = conciseness.scan_tree(copy)
+    assert counts.files_scanned == 1
+    assert counts.comment_lines == 1, counts.findings
+    assert any(f":{index + 1}:" in f and "82 characters" in f for f in counts.findings)
+    assert conciseness.main(["--path", str(copy)]) != 0
+
+
+def test_indented_comment_line_at_the_budget_is_accepted(tmp_path):
+    copy, _ = _plant_indented_comment(tmp_path, 6, conciseness.MAX_COMMENT_CHARS - 6)
+    counts = conciseness.scan_tree(copy)
+    assert counts.comment_lines == 0, counts.findings
+
+
+# NEGCTL: the trailing comment alone is 70 wide; the code before it makes 81.
+def test_negctl_trailing_comment_line(tmp_path):
+    code = "VALUE = 1  # "
+    copy = tmp_path / "trailing.py"
+    copy.write_text(code + "x" * (conciseness.MAX_COMMENT_CHARS + 1 - len(code)) + "\n")
+    counts = conciseness.scan_tree(copy)
+    assert counts.comment_lines == 1, counts.findings
+    assert conciseness.main(["--path", str(copy)]) != 0
+
+
 def test_scan_reports_a_broken_file(tmp_path):
     broken = tmp_path / "broken.py"
     broken.write_text("def oops(:\n", encoding="utf-8")

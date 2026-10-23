@@ -177,7 +177,7 @@ def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
         "type": list(VC_CREDENTIAL_TYPE),
         "issuer": {"id": issuer_id} if issuer_id is not None else {},
         "validFrom": valid_from,
-        "issuanceDate": valid_from,  # carried for VC 1.1 readers; v2 uses validFrom
+        "issuanceDate": valid_from,  # for VC 1.1 readers; v2 uses validFrom
         "credentialSubject": subject,
         "proof": proof,
         "proofIsAsqavNative": True,
