@@ -1,7 +1,5 @@
-/**
- * IETF Compliance Receipts profile fields on agent.sign(): the camelCase -> snake_case wire
- * mapping, client-side action_ref derivation under complianceMode, and namespace validation.
- */
+// IETF Compliance Receipts profile fields on agent.sign(): camelCase ->
+// snake_case wire mapping, action_ref under complianceMode, namespace checks
 
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -189,23 +187,23 @@ describe("agent.sign IETF profile fields", () => {
         context: {},
         receiptType: t,
       };
-      // Rule 9 lockstep: configuration_change carries config_manifest_digest.
+      // Rule 9: configuration_change carries config_manifest_digest
       if (t === "protectmcp:lifecycle:configuration_change") {
         opts.configManifestDigest = `sha256:${"0".repeat(64)}`;
       }
-      // Rule 9 lockstep: result_bound carries result_digest.
+      // Rule 9: result_bound carries result_digest
       if (t === "protectmcp:observation:result_bound") {
         opts.resultDigest = `sha256:${"0".repeat(64)}`;
       }
-      // Risk-acceptance carries approver_id + acceptance_reason and the
-      // no-policy opt-out (policy_decision='none').
+      // Risk-acceptance carries approver_id + acceptance_reason
+      // and policy_decision='none'
       if (t === "protectmcp:lifecycle:risk_acceptance") {
         opts.approverId = "approver:alice@example.com";
         opts.acceptanceReason = "accepted";
         opts.policyDecision = "none";
       }
-      // Code-authorship carries repo_ref + commit_sha and the no-policy
-      // opt-out (policy_decision='none').
+      // Code-authorship carries repo_ref + commit_sha
+      // and policy_decision='none'
       if (t === "protectmcp:lifecycle:code_authorship") {
         opts.repoRef = "github.com/acme/repo";
         opts.commitSha = "c0ffee0000000000000000000000000000000000";
@@ -356,7 +354,7 @@ describe("agent.sign IETF profile fields", () => {
         actionType: "api:call",
         context: {},
         complianceMode: true,
-        // @ts-expect-error -- intentional: testing runtime guard with a string outside the enum.
+        // @ts-expect-error -- intentional: runtime guard gets a non-enum string
         sandboxState: "sandboxed",
       }),
     ).rejects.toThrow(/invalid_sandbox_state/);

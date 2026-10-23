@@ -1,4 +1,4 @@
-/** verify(id): public no-key verify-by-id with a locally reproduced chainHash. */
+/** verify(id): public keyless verify-by-id with a locally rebuilt chainHash */
 
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -74,7 +74,7 @@ describe("verify (public) base URL resolution", () => {
   it("targets the baseUrl configured through init(), not the hardcoded default", async () => {
     const fetchMock = mockFetch(200, cloudResponse());
     vi.stubGlobal("fetch", fetchMock);
-    // init() throws without an apiKey, so pass a dummy one to redirect keyless verify.
+    // init() throws without an apiKey, so pass a dummy to redirect verify
     init({ apiKey: "dummy_key", baseUrl: "https://custom.example/api/v1" });
     await verify("sig_test_dict");
     const calledUrl = fetchMock.mock.calls[0]?.[0] as string;

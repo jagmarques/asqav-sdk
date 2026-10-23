@@ -1,7 +1,5 @@
-/**
- * Offline receipt verification: fetchJwks + verifyReceiptOffline. Network is mocked where
- * needed; the verifyReceiptOffline tests make none, reading conformance vectors from disk.
- */
+// Offline receipt verification: fetchJwks + verifyReceiptOffline. Network is
+// mocked where needed; verifyReceiptOffline tests read vectors from disk
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -140,7 +138,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
   it("returns PASS for the same receipt when key status is active (anti-vacuous: revocation is what fails it)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
-    // Promote the key to active so revocation is the only difference.
+    // Active key, so revocation is the only difference
     const activeJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((activeJwks.keys as Array<Record<string, unknown>>)[0]).status = "active";
     const result = verifyReceiptOffline(receipt, activeJwks);
@@ -172,8 +170,8 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
   it("revoked key with revoked_at AFTER issuance INCOMPLETE without anchor (c386 backdating fix)", () => {
     const receipt = loadJson(REVOKED_DIR, "receipt.json");
     const revokedJwks = loadJson(REVOKED_DIR, "jwks.json");
-    // The vector ships anchors:[], so issued_at is self-attested and a holder of the
-    // compromised key can backdate it. The verdict must be INCOMPLETE, never a hiding PASS.
+    // Vector ships anchors:[], so issued_at is self-attested: a key holder can
+    // backdate it, so the verdict must be INCOMPLETE, never a hiding PASS
     const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
     const result = verifyReceiptOffline(receipt, futureJwks);
@@ -190,7 +188,7 @@ describe("verifyReceiptOffline - revoked key (CRIT-167, no network)", () => {
     const futureJwks = JSON.parse(JSON.stringify(revokedJwks)) as Record<string, unknown>;
     ((futureJwks.keys as Array<Record<string, unknown>>)[0]).revoked_at = "2026-12-01T00:00:00+00:00";
     // Anchors sit outside the signed payload and are only shape-checked, so a
-    // revoked-key holder can append one. Offline it is not verifiable timing.
+    // revoked-key holder can append one; offline it proves no timing
     const anchored = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
     anchored.anchors = [{ type: "rfc3161", value: "dGVzdC10c3ItY29va2ll", tsa_url: "https://tsa.example/timestamp" }];
     const result = verifyReceiptOffline(anchored, futureJwks);
@@ -287,8 +285,8 @@ describe("verifyReceiptOffline - missing key (no network)", () => {
 // ---------------------------------------------------------------------------
 // ML-DSA-65 path: sign in Node with noble, verify with the oracle
 
-// NOTE: the ML-DSA-65 tests below are same-library round-trips (noble sign + noble verify).
-// They prove wiring, NOT interop with real cloud signatures; a known-answer vector is owed.
+// NOTE: ML-DSA-65 tests below are same-library round-trips (noble sign+verify)
+// They prove wiring, NOT cloud interop; a known-answer vector is owed
 
 describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
   it("verifies a real ML-DSA-65 receipt PASS (noble sign + noble verify)", () => {
@@ -302,8 +300,8 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
   });
 
   it("verifies a well-formed ML-DSA-65 receipt envelope through the oracle", () => {
-    // The oracle signs asqavJcs bytes; this generates with JSON.stringify+sort, close but
-    // not JCS-exact. The round-trip below uses the oracle's actual canonical bytes.
+    // The oracle signs asqavJcs bytes; this uses JSON.stringify+sort, not JCS
+    // The round-trip below uses the oracle's actual canonical bytes
     const { publicKey, secretKey } = ml_dsa65.keygen();
     const pk_b64 = Buffer.from(publicKey).toString("base64");
     const kid = "test-mldsa-roundtrip-01";
@@ -326,7 +324,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
       anchors: [],
     };
 
-    // Use the adapter's signing_input to get the exact canonical bytes.
+    // The adapter's signing_input gives the exact canonical bytes
     const ad = ADAPTERS.find((a) => a.detect(envelope))!;
     expect(ad.name).toBe("asqav-native");
     const canonicalBytes = ad.signingInput(envelope);
@@ -385,17 +383,17 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     expect(sigAxis?.result).toBe("FAIL");
   });
 
-  // Real-cloud ML-DSA-65 payload-mode KAT (asqav-06-mldsa65-payload-prod).
-  // Uses a receipt + JWKS minted from api.asqav.com with mode=full-payload.
+  // Real-cloud ML-DSA-65 payload-mode KAT
+  // receipt + JWKS minted by api.asqav.com, mode=full-payload
   const KAT_DIR = join(VECTORS, "asqav-06-mldsa65-payload-prod");
 
-  // Signed expires_at lapsed 2026-06-20: the expiry axis FAILs alone, the verdict stays PASS (426)
+  // Signed expires_at lapsed: expiry FAILs alone, the verdict stays PASS (426)
   it("verifies a real-cloud ML-DSA-65 payload-mode receipt (KAT - signature axis must be PASS)", () => {
     const receipt = loadJson(KAT_DIR, "receipt.json");
     const jwks = loadJson(KAT_DIR, "jwks.json");
     const result = verifyReceiptOffline(receipt, jwks);
     const sigAxis = result.axes.find((a) => a.axis === "signature");
-    // Must be PASS - SKIPPED or INCOMPLETE means ML-DSA-65 check was bypassed.
+    // SKIPPED or INCOMPLETE means the ML-DSA-65 check was bypassed
     expect(sigAxis?.result).toBe("PASS");
     const expiryAxis = result.axes.find((a) => a.axis === "expiry");
     expect(expiryAxis?.result).toBe("FAIL");
@@ -410,7 +408,7 @@ describe("verifyReceiptOffline - ML-DSA-65 path (@noble/post-quantum)", () => {
     const receipt = loadJson(KAT_DIR, "receipt.json");
     const jwks = loadJson(KAT_DIR, "jwks.json");
     const tampered = JSON.parse(JSON.stringify(receipt)) as Record<string, unknown>;
-    // Flip one payload field - ML-DSA sig over canonical bytes must not match.
+    // Flip one payload field: the ML-DSA sig must not match
     (tampered.payload as Record<string, unknown>).decision = "deny";
     const result = verifyReceiptOffline(tampered, jwks);
     expect(result.verdict).toBe("unverified");
@@ -502,7 +500,7 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
       previousReceiptHash: "0".repeat(64),
       decision: "allow",
     };
-    // kid points at the attacker's OWN published key, not the victim's.
+    // kid names the attacker's OWN published key
     const envelope: Record<string, unknown> = {
       payload,
       signature: { alg: "ML-DSA-65", kid: "attacker-key", sig: "" },
@@ -533,7 +531,7 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
     expect(result.verdict).toBe("unverified");
     const bind = result.axes.find((a) => a.axis === "issuer_bind");
     expect(bind?.result).toBe("FAIL");
-    // The forged signature itself verifies; the bind is what refuses it.
+    // The forged signature verifies; the bind refuses it
     expect(result.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
   });
 
@@ -575,8 +573,8 @@ describe("verifyReceiptOffline - issuer binding (no network)", () => {
   });
 });
 
-// Hash mode: org binding, the unsigned-claim rule, and the crash guard.
-// Mirrors the Python tests one for one so the two languages stay in step.
+// Hash mode: org binding and the unsigned-claim rule, plus the crash guard
+// Mirrors the Python tests one for one
 
 describe("verifyReceiptOffline - hash mode (no network)", () => {
   const VICTIM_ORG = "f94f66c0-c580-432d-a041-29374f7aee07";
@@ -594,7 +592,7 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     for (const f of HASH_SIGNED_FIELDS) signed[f] = doc[f];
     doc.key_id = "attacker-key";
     doc.algorithm = "ML-DSA-65";
-    // Real /sign output carries both, so the fixture carries both.
+    // Real /sign output carries both, so the fixture does
     doc.payload = null;
     doc.anchors = [];
     doc.signature_b64 = Buffer.from(
@@ -611,7 +609,7 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
 
   it("builds a fixture carrying the prod receipt's field set", () => {
     // Fixture practice: a hand-built receipt must carry every field production
-    // emits, so a test can never pass on a shape the cloud does not send.
+    // emits, so no test passes on a shape the cloud never sends
     const real = Object.keys(loadJson(join(VECTORS, "asqav-05-hash-mode-prod"), "receipt.json"));
     const built = new Set(Object.keys(hashModeReceipt(ATTACKER_ORG, ml_dsa65.keygen().secretKey)));
     expect(real.filter((f) => !built.has(f))).toEqual([]);
@@ -623,7 +621,7 @@ describe("verifyReceiptOffline - hash mode (no network)", () => {
     const result = verifyReceiptOffline(doc, hashModeJwks(ATTACKER_ORG, publicKey));
     expect(result.verdict).toBe("unverified");
     expect(result.axes.find((a) => a.axis === "issuer_bind")?.result).toBe("FAIL");
-    // The signature itself verifies; the bind is what refuses it.
+    // The signature verifies; the bind refuses it
     expect(result.axes.find((a) => a.axis === "signature")?.result).toBe("PASS");
   });
 

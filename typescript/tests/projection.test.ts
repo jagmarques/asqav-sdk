@@ -1,7 +1,5 @@
-/**
- * Projection helpers for the three-key envelope: signatureEnvelope(resp) returns {alg,kid,sig}
- * only for the object form, and anchors(resp) is undefined for non-compliance receipts.
- */
+// Projection helpers for the three-key envelope: signatureEnvelope(resp) gives
+// {alg,kid,sig} for the object form only; anchors(resp) is undefined otherwise
 
 import { describe, expect, it } from "vitest";
 

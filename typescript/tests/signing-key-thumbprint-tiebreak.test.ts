@@ -1,5 +1,5 @@
-// Sibling rows publishing one key are narrowed by the signed agent_id and then the envelope kid.
-// TS half of test_verifier_key_resolution.py: list position decides nothing on its own.
+// Sibling rows sharing one key narrow by signed agent_id, then envelope kid
+// TS half of test_verifier_key_resolution.py: list position decides nothing
 
 import { describe, expect, it } from "vitest";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";

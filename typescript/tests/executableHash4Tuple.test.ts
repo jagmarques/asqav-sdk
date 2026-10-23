@@ -1,7 +1,5 @@
-/**
- * SDK parity for the build-provenance 4-tuple: each field is forwarded verbatim, the two
- * digests validated as `sha256:<64-hex>` and the two pointers as http(s) URLs.
- */
+// SDK parity for the build-provenance 4-tuple: each field forwarded verbatim,
+// two digests checked as sha256:<64-hex>, two pointers as http(s) URLs
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

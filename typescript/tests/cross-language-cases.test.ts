@@ -1,7 +1,5 @@
-/**
- * Shared adversarial case table, TS half: one JSON table pins a verdict and every named axis
- * for both verifiers, so a rule drifting in one language fails a suite. Python reads the same file.
- */
+// Shared adversarial case table, TS half: one JSON table pins a verdict and
+// every named axis for both verifiers; Python reads the same file
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -30,7 +28,7 @@ describe("cross-language adversarial case table", () => {
       const axes: Record<string, string> = {};
       for (const a of result.axes) axes[a.axis] = a.result;
       expect(result.verdict, `${c.name}: axes ${JSON.stringify(axes)}`).toBe(c.expect.verdict);
-      // invalid and unverifiable are never collapsed (criterion 418).
+      // invalid and unverifiable never collapse (criterion 418)
       expect(result.failureClass, `${c.name}: axes ${JSON.stringify(axes)}`).toBe(
         c.expect.failure_class,
       );
