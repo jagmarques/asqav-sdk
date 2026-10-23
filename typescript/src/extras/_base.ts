@@ -1,16 +1,13 @@
-/**
- * Base adapter for Asqav framework integrations, mirroring the Python ``asqav.extras._base`` surface.
- * Resolves an Agent and provides a fail-open ``signAction``; adapters compose it rather than inherit.
- */
+// Base adapter for Asqav framework integrations, as Python asqav.extras._base:
+// resolves an Agent, fail-open ``signAction``; adapters compose, not inherit
 
 import { Agent } from "../index.js";
 
 export { safeStringify, toJsonSafeResult } from "../jcs.js";
 
-/**
- * Options accepted by every Asqav adapter constructor. Provide exactly one of ``agent`` (used directly),
- * ``agentId`` (lazy ``Agent.get``), or ``agentName`` (lazy ``Agent.create``).
- */
+// Provide exactly one of ``agent`` (used directly), ``agentId`` (lazy
+// ``Agent.get``) or ``agentName`` (lazy ``Agent.create``)
+/** Options accepted by every Asqav adapter constructor */
 export interface AsqavAdapterOptions {
   /** Pre-built Asqav Agent. Takes precedence over agentId/agentName. */
   agent?: Agent;
@@ -18,15 +15,11 @@ export interface AsqavAdapterOptions {
   agentId?: string;
   /** Name for a new Asqav agent. Resolved lazily via Agent.create. */
   agentName?: string;
-  /**
-   * Optional error sink. Defaults to ``console.warn``. The adapter never
-   * throws into the host AI pipeline; governance must fail-open.
-   */
+  // The adapter never throws into the host AI pipeline: governance fails open
+  /** Optional error sink, defaults to ``console.warn`` */
   onError?: (err: unknown, context: { actionType: string }) => void;
-  /**
-   * When true, the adapter logs what it would sign but skips the network
-   * call. Useful for local development and snapshot testing.
-   */
+  // Useful for local development and snapshot testing
+  /** When true, log what would be signed and skip the network call */
   observe?: boolean;
 }
 
@@ -37,10 +30,9 @@ interface SignActionInput {
   result?: unknown;
 }
 
-/**
- * Shared base for the framework adapters here. Subclasses call ``signAction`` on every framework
- * callback and MUST NOT call the SDK directly, so the fail-open contract lives in one place.
- */
+// Subclasses call ``signAction`` on every framework callback and MUST NOT call
+// the SDK directly, so the fail-open contract lives in one place
+/** Shared base for the framework adapters here */
 export class AsqavAdapter {
   protected readonly options: AsqavAdapterOptions;
   protected agent: Agent | null;
@@ -78,15 +70,13 @@ export class AsqavAdapter {
     return resolved;
   }
 
-  /**
-   * Sign a governance action. Fire-and-forget by default; errors route
-   * through ``options.onError``. This method MUST NOT throw.
-   */
+  // Errors route through ``options.onError``
+  /** Sign a governance action, fire-and-forget; MUST NOT throw */
   protected signAction(input: SignActionInput): void {
     const onError = this.options.onError ?? defaultOnError;
 
     if (this.options.observe) {
-      // observe mode mirrors Python ``AsqavAdapter._observe``.
+      // observe mode mirrors Python ``AsqavAdapter._observe``
       // eslint-disable-next-line no-console
       console.info(
         `[asqav] OBSERVE: would sign ${input.actionType}`,
@@ -95,8 +85,8 @@ export class AsqavAdapter {
       return;
     }
 
-    // Fire-and-forget; never await so callbacks stay synchronous for
-    // host frameworks that expect synchronous return values.
+    // Fire-and-forget; never await so callbacks stay synchronous for host
+    // frameworks that expect synchronous return values
     void (async () => {
       try {
         const agent = await this.resolveAgent();
@@ -109,7 +99,7 @@ export class AsqavAdapter {
         try {
           onError(err, { actionType: input.actionType });
         } catch {
-          // Swallow secondary errors from the user-supplied handler.
+          // Swallow secondary errors from the user-supplied handler
         }
       }
     })();
@@ -121,10 +111,8 @@ function defaultOnError(err: unknown, ctx: { actionType: string }): void {
   console.warn(`[asqav] sign failed for ${ctx.actionType}:`, err);
 }
 
-/**
- * Throw the canonical missing-peer error, mirroring the Python ``ImportError`` contract. ``cause`` keeps
- * the underlying module-resolution error visible to the user.
- */
+// ``cause`` keeps the underlying module-resolution error visible to the user
+/** Throw the canonical missing-peer error (Python ``ImportError`` contract) */
 export function raiseMissingPeer(
   framework: string,
   peer: string,

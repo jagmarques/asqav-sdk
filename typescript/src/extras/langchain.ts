@@ -1,10 +1,10 @@
 // LangChain.js integration. Install @langchain/core, then either
-// enableLangchainGovernance({ agentName }) or AsqavCallbackHandler.create({...}).
+// enableLangchainGovernance({agentName}) or AsqavCallbackHandler.create({...})
 
 import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
-// Local LangChain.js types so this module compiles even when the peer
-// package is not installed. The actual base class is loaded lazily.
+// Local LangChain.js types so this module compiles even when the peer package
+// is not installed; the actual base class is loaded lazily
 
 interface LCSerialized {
   id?: string[];
@@ -23,8 +23,8 @@ interface LCLLMResult {
 }
 
 interface BaseCallbackHandlerLike {
-  // The LangChain.js base class declares many optional handlers. We only
-  // need ours to type-check; consumers receive a real subclass instance.
+  // The LangChain.js base class declares many optional handlers. We only need
+  // ours to type-check; consumers receive a real subclass instance
   name?: string;
 }
 
@@ -36,11 +36,11 @@ function truncate(s: string, max = MAX_PREVIEW): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
-// Lazily import BaseCallbackHandler from @langchain/core.
-// Re-throws a clear error when the optional peer is missing.
+// Lazily import BaseCallbackHandler from @langchain/core
+// Re-throws a clear error when the optional peer is missing
 async function loadBase(): Promise<BaseCallbackHandlerCtor> {
   try {
-    // Dynamic specifier: the peer is optional (package.json peerDependenciesMeta).
+    // Dynamic specifier: optional peer (package.json peerDependenciesMeta)
     // @ts-ignore optional peer dependency
     const mod = (await import("@langchain/core/callbacks/base")) as unknown;
     const ctor = (mod as { BaseCallbackHandler?: BaseCallbackHandlerCtor })
@@ -64,13 +64,13 @@ export interface AsqavCallbackHandlerOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-// Signs chain, tool, and LLM events via the Asqav governance pipeline.
-// Use AsqavCallbackHandler.create() since the peer is loaded asynchronously.
+// Signs chain, tool, and LLM events via the Asqav governance pipeline
+// Use AsqavCallbackHandler.create(): the peer is loaded asynchronously
 export class AsqavCallbackHandler extends AsqavAdapter {
   /** Friendly name surfaced to LangChain's tracing UI. */
   public readonly name: string = "asqav-callback-handler";
 
-  // Async factory: loads BaseCallbackHandler from the optional peer at runtime.
+  // Async factory: loads BaseCallbackHandler from the optional peer at runtime
   static async create(
     opts: AsqavCallbackHandlerOptions,
   ): Promise<AsqavCallbackHandler & BaseCallbackHandlerLike> {
@@ -90,16 +90,16 @@ export class AsqavCallbackHandler extends AsqavAdapter {
         serialized: LCSerialized | null | undefined,
         inputs: Record<string, unknown>,
       ): void {
-        // Guard: LCEL/RunnableLambda passes non-object inputs (str/arr/num).
-        // Object.keys on a string yields index keys ["0","1",...], so guard first.
+        // Guard: LCEL/RunnableLambda passes non-object inputs (str/arr/num)
+        // Object.keys on a string yields ["0","1",...] keys, so guard first
         const input_keys =
           inputs !== null &&
           typeof inputs === "object" &&
           !Array.isArray(inputs)
             ? Object.keys(inputs)
             : [];
-        // serialized may be null on the LCEL/RunnableLambda path; fall back
-        // to a stable "chain" label so the receipt is always signed.
+        // serialized may be null on the LCEL/RunnableLambda path; fall back to
+        // a stable "chain" label so the receipt is always signed
         if (!serialized) {
           this._asqav._emit("chain:start", {
             chain: "chain",
@@ -188,7 +188,7 @@ export class AsqavCallbackHandler extends AsqavAdapter {
       wrapper,
       opts.name ?? "asqav-callback-handler",
     );
-    // Make the underlying signAction reachable through the wrapper.
+    // Make the underlying signAction reachable through the wrapper
     return impl as unknown as AsqavCallbackHandler & BaseCallbackHandlerLike;
   }
 
@@ -205,7 +205,8 @@ interface LangchainContextModule {
   setContextVariable: (name: string, value: unknown) => void;
 }
 
-// Lazily import registerConfigureHook/setContextVariable from @langchain/core/context.
+// Lazily import registerConfigureHook/setContextVariable from
+// @langchain/core/context
 async function loadContext(): Promise<LangchainContextModule> {
   try {
     // @ts-ignore optional peer dependency
@@ -229,14 +230,14 @@ const ASQAV_LC_CONTEXT_VAR = "asqav_langchain_handler";
 let hookRegistered = false;
 
 // Enable default-on governance: register a configure hook once and bind the
-// handler to a context variable so every run signs (fail-open). Returns it.
+// handler to a context variable so every run signs (fail-open); returns it
 export async function enableLangchainGovernance(
   opts: AsqavCallbackHandlerOptions,
 ): Promise<AsqavCallbackHandler & BaseCallbackHandlerLike> {
   const handler = await AsqavCallbackHandler.create(opts);
   const { registerConfigureHook, setContextVariable } = await loadContext();
   // Register the hook once so a second call cannot add a duplicate entry to
-  // langchain-core's hook list and double-sign every action.
+  // langchain-core's hook list and double-sign every action
   if (!hookRegistered) {
     registerConfigureHook({ contextVar: ASQAV_LC_CONTEXT_VAR, inheritable: true });
     hookRegistered = true;

@@ -1,7 +1,5 @@
-/**
- * OpenAI Agents JS integration, mirroring the Python ``AsqavGuardrail`` / ``AsqavTracingProcessor``.
- * Signs agent and tool lifecycle events, fail-open so governance never breaks the agent loop.
- */
+// OpenAI Agents JS integration, as Python ``AsqavGuardrail`` /
+// ``AsqavTracingProcessor``: signs agent and tool lifecycle events, fail-open
 
 import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
@@ -11,10 +9,8 @@ function truncate(s: string, max = MAX_PREVIEW): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
-/**
- * Minimal surface of an OpenAI Agents JS ``tool``: any object with ``name`` and ``execute``, so the
- * adapter never binds to a specific SDK version.
- */
+// Any such object works, so the adapter never binds to a specific SDK version
+/** Minimal surface of an OpenAI Agents JS ``tool``: ``name`` and ``execute`` */
 export interface OpenAIAgentsToolLike<I = unknown, O = unknown> {
   name?: string;
   description?: string;
@@ -26,10 +22,9 @@ export interface AsqavOpenAIAgentsAdapterOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-/**
- * Wraps OpenAI Agents JS tools and run-loop callbacks so every tool-call lifecycle event flows through
- * Asqav. Mirrors the Python ``AsqavGuardrail`` and ``AsqavTracingProcessor``.
- */
+// Every tool-call lifecycle event flows through Asqav; mirrors the Python
+// ``AsqavGuardrail`` and ``AsqavTracingProcessor``
+/** Wraps OpenAI Agents JS tools and run-loop callbacks for Asqav signing */
 export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
   public readonly name: string;
 
@@ -41,7 +36,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
   /** Verify ``@openai/agents`` is installed; throw a clear error if not. */
   static async loadPeer(): Promise<unknown> {
     try {
-      // Optional peer; not declared in normal dependencies.
+      // Optional peer; not declared in normal dependencies
       // @ts-ignore optional peer dependency
       return (await import("@openai/agents")) as unknown;
     } catch (err) {
@@ -54,10 +49,8 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
     }
   }
 
-  /**
-   * Wrap a tool so each invocation signs ``tool:start`` and ``tool:end`` (or ``tool:error``). Returns a
-   * new tool with the same ``name`` / ``description`` and a wrapped ``execute``.
-   */
+  // Returns a new tool: same ``name`` / ``description``, wrapped ``execute``
+  /** Wrap a tool so each call signs ``tool:start`` and ``tool:end`` / error */
   wrapTool<I, O>(tool: OpenAIAgentsToolLike<I, O>): OpenAIAgentsToolLike<I, O> {
     if (typeof tool.execute !== "function") {
       throw new Error("wrapTool: tool.execute must be a function");
