@@ -163,7 +163,7 @@ describe("verifySignature response fields", () => {
   });
 
   it("test_regimes_satisfied_present", async () => {
-    // Cloud /verify returns regimes_satisfied; pin that the SDK parser reads it
+    // Cloud #337 and SDK #160: the SDK parser reads regimes_satisfied
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(fullCloudPayload()),
     );
