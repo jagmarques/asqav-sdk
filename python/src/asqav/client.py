@@ -1311,7 +1311,7 @@ def _validate_code_authorship(
     authored_by: Any,
 ) -> None:
     """Mirror cloud SignRequest._validate_code_authorship_extensions guards.
-    Needs a sha256 change_digest, change_class, repo_ref, commit_sha, mode."""
+    Needs repo_ref, commit_sha, policy none, compliance; checks digest/class."""
     if change_digest is not None and not _SHA256_HEX_RE.match(change_digest):
         raise AsqavValidationError(
             "change_digest_not_sha256_wire_form: must look like "
@@ -1394,7 +1394,7 @@ def _validate_authored_by(ab: Any) -> None:
 
 
 def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None) -> str:
-    """Compute a 32-hex fingerprint over `{tool_name, schema}` (NSA CSI).
+    """32-hex fingerprint over `{tool_name, schema}` (NSA CSI 6030316-26).
     First 32 hex chars of the JCS (RFC 8785) SHA-256, bare."""
     from .canonicalize import canonicalize
 
@@ -2074,7 +2074,7 @@ class Agent:
         change_approval_ref: str | None = None,
         change_class: str | None = None,
         authored_by: "AuthoredBy | dict[str, Any] | None" = None,
-        # Agent-to-agent acknowledgment: binds this receipt to the peer receipt.
+        # Agent-to-agent ack: binds this receipt to the peer receipt it
         # acknowledges. Valid only on receipt_type=protectmcp:acknowledgment.
         counterparty_binding: "CounterpartyBinding | dict[str, Any] | None" = None,
     ) -> SignatureResponse:

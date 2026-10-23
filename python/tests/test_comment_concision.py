@@ -90,10 +90,19 @@ def test_trailing_comment_counts_its_column(tmp_path, capsys):
     assert "x.py:1:comment-line" in out
 
 
-def test_long_tool_directive_comment_passes(tmp_path, capsys):
-    pad = "a" * MAX_COMMENT_COLUMNS
-    plant(tmp_path, "x.py", f"y = 1  # ruff: {pad}\n")
+def test_long_bare_tool_directive_passes(tmp_path, capsys):
+    directive = " ".join(["type:", "ignore[x]"])
+    plant(tmp_path, "x.py", f"y = 1{' ' * MAX_COMMENT_COLUMNS}  # {directive}\n")
     assert run(tmp_path, capsys)[0] == 0
+
+
+# NEGCTL: a long prose comment that merely starts with a directive word fails.
+@pytest.mark.parametrize("word", ["pragma:", "ruff:", "noqa:"])
+def test_directive_prefix_prose_fails(tmp_path, capsys, word):
+    plant(tmp_path, "x.py", f"y = 1  # {word} {'a' * MAX_COMMENT_COLUMNS}\n")
+    code, out, _ = run(tmp_path, capsys)
+    assert code == 1
+    assert "x.py:1:comment-line" in out
 
 
 # NEGCTL: a long prose comment with a directive word in it still fails.
@@ -223,18 +232,38 @@ def test_each_condition_fails_only_on_its_own_kind(tmp_path, capsys, name, text,
 
 
 REPO = SCRIPT.parents[2]
+CLIENT_PATH = (checker.SOURCE_DIR / "client.py").as_posix()
+EXTRAS_PREFIX = (checker.SOURCE_DIR / "extras").as_posix() + "/"
 
 
-# NEGCTL: test_seven_line_docstring_in_client_fails plants client.py findings.
+def client_findings(root):
+    return [f for f in checker.scan(root) if f.path == CLIENT_PATH]
+
+
+def core_findings(root):
+    return [f for f in checker.scan(root) if not f.path.startswith(EXTRAS_PREFIX)]
+
+
+# NEGCTL: a planted 7-line client.py docstring is found by the same filter.
+def test_client_filter_finds_a_planted_docstring(tmp_path):
+    plant(tmp_path, "client.py", func("sign", MAX_DOCSTRING_LINES + 1))
+    assert client_findings(tmp_path) != []
+
+
 def test_client_py_is_concise():
-    found = [f for f in checker.scan(REPO) if f.path == "python/src/asqav/client.py"]
-    assert found == []
+    assert client_findings(REPO) == []
 
 
-# NEGCTL: test_seven_line_docstring_in_client_fails plants client.py findings.
+# NEGCTL: a planted finding in a core module is kept, one in extras/ is not.
+def test_core_filter_keeps_core_and_drops_extras(tmp_path):
+    plant(tmp_path, "extras/hook.py", func("sign", MAX_DOCSTRING_LINES + 1))
+    assert core_findings(tmp_path) == []
+    plant(tmp_path, "core.py", func("sign", MAX_DOCSTRING_LINES + 1))
+    assert core_findings(tmp_path) != []
+
+
 def test_core_modules_are_concise():
-    found = [f for f in checker.scan(REPO) if "/extras/" not in f.path]
-    assert found == []
+    assert core_findings(REPO) == []
 
 
 # NEGCTL: test_seven_line_docstring_in_client_fails runs the same main().

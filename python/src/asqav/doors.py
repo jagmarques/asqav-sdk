@@ -1,5 +1,5 @@
 """Standards-interop "doors": one Asqav receipt, many native envelopes.
-Pure, offline, presentation-only; the signature stays in the receipt."""
+Pure, offline; keys sort per RFC 8785 3.2.3, ints past 2**53 refused."""
 from __future__ import annotations
 
 import hashlib

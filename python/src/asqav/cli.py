@@ -1746,7 +1746,7 @@ def audit_pack_verify(
     ),
 ) -> None:
     """Verify an Audit Pack bundle through the API or with --offline.
-    Exits non-zero on an invalid signature; --offline needs --jwks."""
+    Exits non-zero on a bad signature; --offline exits 0 only with --jwks."""
     if offline:
         _audit_pack_verify_offline(bundle, output, jwks, tsa_key, bitcoin_headers)
         return

@@ -17,7 +17,11 @@ MAX_BLOCK_ROWS = 2
 
 SOURCE_DIR = Path("python/src/asqav")
 EXCLUDED_DIR = "verifier"
-TOOL_DIRECTIVE = re.compile(r"#\s*(noqa|type:\s*ignore|pragma:|ruff:)")
+TOOL_DIRECTIVE = re.compile(
+    r"#\s*(noqa(:\s*[A-Z]+\d+(,\s*[A-Z]+\d+)*)?"
+    r"|type:\s*ignore(\[[a-z-]+(,\s*[a-z-]+)*\])?"
+    r"|pragma:\s*no\s+cover)\s*"
+)
 PARAM_SECTION = re.compile(
     r"^[ \t]*(?:Args:|Parameters:|Parameters[ \t]*\n[ \t]*-{3,})[ \t]*$", re.MULTILINE
 )
@@ -89,7 +93,7 @@ def _comment_findings(text: str, path: str) -> list[Finding]:
                 continue
             row, column = token.start
             too_long = len(token.string) + column > MAX_COMMENT_COLUMNS
-            if too_long and not TOOL_DIRECTIVE.match(token.string):
+            if too_long and not TOOL_DIRECTIVE.fullmatch(token.string):
                 found.append(Finding(path, row, "comment-line"))
             if not lines[row - 1][:column].strip():
                 own_rows.append(row)

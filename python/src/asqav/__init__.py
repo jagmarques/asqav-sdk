@@ -474,7 +474,7 @@ def verify_receipt_offline(
         try:
             strict_json.assert_canonical_integers(predecessor)
         except strict_json.UnsafeIntegerError:
-            # The whole predecessor goes to the core, which refuses raw text.
+            # The core refuses the whole predecessor, as raw-text ingest does.
             predecessor_payload = predecessor
     vr = _oracle_verify(
         receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload,
