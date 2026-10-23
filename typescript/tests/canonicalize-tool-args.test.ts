@@ -1,7 +1,5 @@
-/**
- * `canonicalizeToolArgs` pre-validates tool_args against the no-floats canonicalization rule:
- * canonical JSON only fixes byte-stable output for safe-range integers.
- */
+// `canonicalizeToolArgs` pre-validates tool_args against the no-floats rule:
+// canonical JSON is byte-stable only for safe-range integers
 
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";

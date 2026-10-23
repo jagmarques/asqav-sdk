@@ -1,5 +1,4 @@
-// Prod nests actionRef / previousReceiptHash under `payload`.
-// These cover the payload fallback and top-level precedence.
+// Covers the `payload` fallback and top-level precedence
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,7 +24,7 @@ function fakeAgent(): Agent {
 }
 
 // Mirrors the real prod wire: the top level omits these keys and the
-// values arrive only under `payload`.
+// values sit only under `payload`
 const ACTION_REF =
   "sha256:11894b66385ecd4a2f1be048e496435b91c8eb02ad09105c7be536bd87f9a48c";
 const PREV_HASH = "0".repeat(64);

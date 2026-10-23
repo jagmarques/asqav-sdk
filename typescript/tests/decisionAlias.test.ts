@@ -1,7 +1,5 @@
-/**
- * Spec-shape `decision` alias: DECISION_MAP, mapPolicyDecisionToDecision, and end-to-end
- * propagation (the body carries `decision` under complianceMode; the response surfaces both).
- */
+// Spec-shape `decision` alias: the DECISION_MAP mapping and propagation, with
+// the body carrying it under complianceMode and the response surfacing both
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

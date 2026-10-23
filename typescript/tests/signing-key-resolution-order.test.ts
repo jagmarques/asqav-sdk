@@ -1,5 +1,5 @@
-// The asqav-native adapter resolves the signing key by the signed key_thumbprint first. TS half of
-// test_signing_key_resolution_order.py: two published keys under one issuer in every directory.
+// Asqav-native adapter resolves the signing key by signed key_thumbprint first
+// TS half of test_signing_key_resolution_order.py; two keys per issuer
 
 import { describe, expect, it } from "vitest";
 import { ml_dsa44, ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
@@ -65,7 +65,7 @@ function axesOf(doc: Record<string, unknown>, jwks: Record<string, unknown>) {
 
 describe("signing-key resolution order", () => {
   it("resolves the named agent key, not the revoked sibling, when the signature cannot be checked", () => {
-    // An algorithm outside the profile, as the live ML-DSA-44 canary of 2026-09-02 was.
+    // An algorithm outside the profile, like the live ML-DSA-44 canary
     const old = ml_dsa44.keygen();
     const two = ml_dsa44.keygen();
     const p = payload("agt_two");

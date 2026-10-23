@@ -1,5 +1,5 @@
-// One org, two agent keys: the entry that answers must be the entry that signed. TS half of
-// test_signing_key_sibling.py; every directory here publishes two keys under one issuer.
+// One org, two agent keys: the answering entry must be the one that signed
+// TS half of test_signing_key_sibling.py; each directory has two keys
 
 import { describe, expect, it } from "vitest";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";

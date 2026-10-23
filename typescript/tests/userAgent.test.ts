@@ -1,7 +1,5 @@
-/**
- * Every outbound Node call carries the asqav-js User-Agent, because the edge 403s anonymous
- * default agents. Browsers forbid setting User-Agent on fetch, so the helper returns {} there.
- */
+// Every outbound Node call carries the asqav-js User-Agent, as the edge 403s
+// anonymous agents. Browsers forbid setting it on fetch, so the helper gives {}
 
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

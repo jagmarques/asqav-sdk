@@ -1,7 +1,5 @@
-/**
- * Anchor non-coverage rows stay declared while the TS port is absent.
- * Deleting either row must turn the suite RED; today nothing pins them.
- */
+// Anchor non-coverage rows stay declared until a TS port exists
+// Deleting either row must turn the suite RED
 
 import { describe, expect, it } from "vitest";
 

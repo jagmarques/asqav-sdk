@@ -1,7 +1,5 @@
-/**
- * Tests for the pluggable detector framework (criterion 331). Non-vacuity: dropping
- * the block-throw fails deny tests; dropping the _detectors stamp fails receipt tests.
- */
+// Pluggable detector framework (criterion 331). Non-vacuity: dropping the
+// block-throw fails deny tests, dropping the _detectors stamp fails receipts
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -86,7 +84,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// ─── Unit: runDetectors ───────────────────────────────────────────────────────
+// ─── Unit: runDetectors ──────────────────────────────────────────────────
 
 describe("runDetectors", () => {
   it("returns [] with no detectors registered", async () => {
@@ -164,8 +162,7 @@ describe("agent.sign with detectors", () => {
   it("allow detector: sign POST is called and _detectors in context", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    // First call: agent create (GET /agents/agt_det_test).
-    // Since we use Agent.attach, only the sign POST happens.
+    // Agent.attach skips the GET; only the sign POST happens
     fetchSpy.mockResolvedValueOnce(jsonResponse(okBody()));
 
     registerDetector(allowDetector);

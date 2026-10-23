@@ -1,5 +1,5 @@
-// Doors: one receipt, N standard envelopes, byte-identical inner across all. Per door: valid
-// shape + exact receipt, round-trip inverse, and a parity golden Python checks too.
+// Doors: one receipt, N standard envelopes, byte-identical inner in all
+// Per door: valid shape and round-trip inverse, plus a golden Python checks
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -146,8 +146,8 @@ describe("cross-language parity", () => {
     }
   });
 
-  // Non-vacuous parity: BMP non-ASCII keys and a safe-range integer. Matching the
-  // same shared golden the Python test asserts proves both SDKs agree on this domain.
+  // Non-vacuous parity: BMP non-ASCII keys and a safe-range integer, matching
+  // the shared golden the Python test asserts, so both SDKs agree
   it("safe-domain input matches the shared golden both SDKs check", () => {
     const fixture = JSON.parse(readFileSync(resolve(PARITY, "parity-safe-input.json"), "utf-8"));
     const golden = readFileSync(resolve(PARITY, "parity-safe.jcs"), "utf-8");
@@ -156,8 +156,8 @@ describe("cross-language parity", () => {
     expect(Object.keys(fixture).some((k) => [...k].some((c) => c.charCodeAt(0) > 0x7f))).toBe(true);
   });
 
-  // Both causes are now CLOSED. Key ordering was fixed when Python moved to UTF-16
-  // member order; the number path is fixed by refusing the value rather than rounding it.
+  // Both causes are CLOSED: key order was fixed when Python moved to UTF-16
+  // member order; the number path by refusing the value rather than rounding it
   it("refuses the out-of-domain fixture at the parse boundary, in both SDKs", () => {
     const text = readFileSync(resolve(PARITY, "divergence-input.json"), "utf-8");
     expect(() => parseJsonStrict(text)).toThrow(/canonical integer range/);

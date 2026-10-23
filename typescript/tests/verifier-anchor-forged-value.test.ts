@@ -1,6 +1,4 @@
-/**
- * A forged anchor value must never read as present, mirroring the Python half
- */
+// A forged anchor value never reads as present; mirrors the Python half
 
 import { describe, expect, it } from "vitest";
 
@@ -99,8 +97,8 @@ describe("forged anchor value", () => {
     expect(note).not.toContain("base64-ok");
   });
 
-  // Genuine base64 passes the shape gate, but shape is not proof: since the
-  // cryptographic anchor check landed, a non-token value reports unverifiable.
+  // Genuine base64 passes the shape gate, but shape is not proof:
+  // the anchor crypto check reports a non-token value unverifiable
   it.each(LEGITIMATE)("still accepts %j", (value) => {
     const [state, note] = axisFor(value);
     expect(state).toBe("SKIPPED");
@@ -128,7 +126,7 @@ describe("forged anchor value", () => {
 
   it("keeps every encoding a real signer emits", () => {
     // Every encoding passes the shape gate; the crypto check then reports
-    // unverifiable for a non-token, never PASS.
+    // a non-token unverifiable, never PASS
     for (let n = 1; n <= 128; n++) {
       const raw = Buffer.from(Array.from({ length: n }, (_, i) => (n * 31 + i * 7) % 256));
       const std = raw.toString("base64");

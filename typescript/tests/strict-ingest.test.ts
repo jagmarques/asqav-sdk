@@ -1,7 +1,5 @@
-/**
- * Strict JSON ingest (criterion 419): a duplicated member at ANY depth is terminal before any
- * hashing or signature check, since last-wins would hash the bytes an attacker kept.
- */
+// Strict JSON ingest (criterion 419): a duplicated member at ANY depth is
+// terminal before any hashing, since last-wins would hash the attacker's bytes
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";

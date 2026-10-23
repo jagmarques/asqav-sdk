@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Agent } from "../../src/index.js";
 
-// Fake Asqav agent: hermetic, no init() / network.
+// Fake agent: no init() or network
 function makeFakeAgent() {
   const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
   const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
@@ -32,10 +32,10 @@ describe("AsqavCallbackHandler without @langchain/core installed", () => {
 describe("AsqavCallbackHandler with @langchain/core mocked", () => {
   beforeEach(() => {
     vi.resetModules();
-    // Provide a fake @langchain/core/callbacks/base so loadBase() succeeds.
+    // Fake @langchain/core/callbacks/base so loadBase() succeeds
     vi.doMock("@langchain/core/callbacks/base", () => {
       class BaseCallbackHandler {
-        // The real class has many no-op handlers; an empty base is enough.
+        // The real handlers are no-ops; an empty base is enough
       }
       return { BaseCallbackHandler };
     });
@@ -47,7 +47,7 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
 
   it("signs handleChainStart with null serialized (LCEL/RunnableLambda path)", async () => {
     // Non-vacuous: without the null guard handleChainStart(null) throws on .id
-    // and LangChain drops the receipt fail-open, so removing the guard fails this.
+    // and LangChain drops the receipt fail-open, so removing it fails this
     const { AsqavCallbackHandler } = await import("../../src/extras/langchain.js");
     const { agent, calls, sign } = makeFakeAgent();
     const handler = await AsqavCallbackHandler.create({ agent });
@@ -65,8 +65,8 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
   });
 
   it("signs handleChainStart with non-dict inputs (bare string) yields input_keys=[]", async () => {
-    // Non-vacuous: without the non-dict guard Object.keys("hello") is ["0".."4"],
-    // so reverting the guard fails this assertion.
+    // Non-vacuous: without the non-dict guard Object.keys("hello") yields
+    // indices, so reverting the guard fails this assertion
     const { AsqavCallbackHandler } = await import("../../src/extras/langchain.js");
     const { agent, calls, sign } = makeFakeAgent();
     const handler = await AsqavCallbackHandler.create({ agent });
@@ -136,7 +136,7 @@ describe("AsqavCallbackHandler with @langchain/core mocked", () => {
 
 describe("enableLangchainGovernance default-on", () => {
   // Fake @langchain/core/context: mirrors registerConfigureHook + the
-  // context-variable store the real _configure loop reads from.
+  // context-variable store _configure reads
   const store = new Map<string, unknown>();
   const hooks: Array<{ contextVar?: string; inheritable?: boolean }> = [];
 
@@ -164,8 +164,8 @@ describe("enableLangchainGovernance default-on", () => {
     vi.doUnmock("@langchain/core/context");
   });
 
-  // Replicates langchain's _configure loop: collect handlers whose hook context var is
-  // set, how a run with no explicit callbacks picks up an inheritable handler.
+  // Replicates langchain's _configure loop: collect handlers whose hook var is
+  // set, so a run without callbacks picks up an inheritable handler
   function collectDefaultHandlers(): unknown[] {
     return hooks
       .map((h) => (h.contextVar ? store.get(h.contextVar) : undefined))
@@ -188,7 +188,7 @@ describe("enableLangchainGovernance default-on", () => {
     await enableLangchainGovernance({ agent });
 
     // Non-vacuous: without the auto-attach, collectDefaultHandlers is empty,
-    // nothing signs, and these assertions fail.
+    // nothing signs and this fails
     const attached = collectDefaultHandlers();
     expect(attached.length).toBe(1);
 

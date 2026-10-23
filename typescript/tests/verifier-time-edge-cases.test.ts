@@ -1,5 +1,5 @@
-// Time-edge vectors, TS half (criterion 422). One JSON table drives both verifiers and every
-// case freezes the wall clock, so no verdict depends on the run date.
+// Time-edge vectors, TS half (criterion 422). One JSON table drives both
+// verifiers; every case freezes the wall clock, so no verdict depends on date
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -54,7 +54,7 @@ function loadVector(file: string): Record<string, unknown> {
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
-// The probes pin each instant to the second, so the clock must sit exactly there
+// The probes pin each instant to the second, so the clock sits exactly there
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -80,8 +80,8 @@ describe("the time-edge table is populated", () => {
 describe("DST and offset instants normalise to the pinned UTC instant", () => {
   for (const c of TABLE.instants) {
     it(c.name, () => {
-      // At utc-301s the stamp is 301s ahead and FAILs; at utc-300s and utc it PASSes.
-      // Only the true UTC instant draws all three, pinning the parse on the TS side.
+      // utc-301s: stamp 301s ahead, FAILs; utc-300s and utc PASS
+      // Only the true UTC instant draws all three, which pins the TS parse
       for (const p of c.probes) {
         vi.setSystemTime(Date.parse(p.clock));
         const [result, note] = checkSkew(c.stamp);

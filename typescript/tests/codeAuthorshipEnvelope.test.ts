@@ -1,7 +1,5 @@
-/**
- * SDK half of the authoritative code-authorship path: the client digest is ADVISORY and the
- * server's recomputed one is signed. Only `github_sha_pull` is authoritative.
- */
+// SDK half of the authoritative code-authorship path: the client digest is
+// ADVISORY, the server's recomputed one is signed (github_sha_pull only)
 
 import { createHash } from "node:crypto";
 
@@ -149,13 +147,13 @@ describe("submitCodeAuthorship", () => {
     expect(body.repo).toBe("owner/repo");
     expect(body.commit_sha).toBe("c".repeat(40));
     expect(body.base_sha).toBe("b".repeat(40));
-    // The client digest is advisory. It travels so the server can report a match.
+    // The client digest is advisory; it lets the server report a match
     expect(body.change_digest).toBe(ADVISORY);
     expect(body.change_class).toBe("write");
     expect(body.author).toBe("human:alice@example.com");
     expect(body.anchor).toBe("https://github.com/owner/repo/pull/7");
 
-    // The authoritative subject digest is the SERVER value, not the client's.
+    // The subject digest is the SERVER value, not the client's
     expect(result.subjectDigest).toBe(SERVER_HEX);
     expect(result.serverDigest).toBe("sha256:" + SERVER_HEX);
     expect(result.captureLayer).toBe("github_sha_pull");
@@ -190,7 +188,7 @@ describe("parseCodeAuthorshipResponse digest_match semantics", () => {
       server_digest: "sha256:" + "2".repeat(64),
       digest_match: false,
     });
-    // Advisory digest disagreed, but the bound subject is still the server digest.
+    // Advisory digest disagreed; the bound subject is still the server digest
     expect(result.digestMatch).toBe(false);
     expect(result.advisoryClientDigest).toBe(ADVISORY);
     expect(result.subjectDigest).toBe("2".repeat(64));

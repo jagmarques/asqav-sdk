@@ -1,5 +1,5 @@
-// The offline verifier refuses a receipt whose signed expires_at has passed, read from inside
-// the signed bytes. Python half: python/tests/test_expiry_offline.py
+// Offline verifier refuses a receipt whose signed expires_at has passed, read
+// from the signed bytes. Python half: python/tests/test_expiry_offline.py
 
 import { describe, expect, it } from "vitest";
 
@@ -32,8 +32,8 @@ describe("the offline expiry axis", () => {
   });
 });
 
-// toISOString always emits milliseconds, so ~1 receipt in 60 lands in the 59th second.
-// Number("59.656") read as out of range failed it closed while Python passed the same bytes.
+// toISOString emits milliseconds, so ~1 receipt in 60 lands in the 59th second
+// Number("59.656") read as out of range failed closed; Python passed it
 describe("a fractional second in the 59th second (cross-language parity)", () => {
   const STAMPS = [
     "2099-01-01T06:30:59.656Z",
