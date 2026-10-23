@@ -1,4 +1,4 @@
-"""A reused buffer must never read an earlier verification result (criterion 742)."""
+"""A reused buffer never reads a prior verification result (criterion 742)."""
 
 from __future__ import annotations
 
