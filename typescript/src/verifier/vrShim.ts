@@ -1,5 +1,7 @@
-// Port of the verify_receipt.py helpers the Asqav-native and ACTA adapters
-// reuse, so the TS oracle gets Python's bytes and structure verdict
+/**
+ * A focused port of the `verify_receipt.py` helpers the Asqav-native and ACTA adapters reuse, so
+ * the TS oracle reproduces the same bytes and the same structure verdict as the Python surface.
+ */
 
 import { asqavJcs, exceedsDepth } from "./canonical.js";
 import { sha256Hex, type VerifyState } from "./crypto.js";
@@ -73,7 +75,7 @@ export function isRecognisedMode(value: unknown): boolean {
   return typeof value === "string" && RECOGNISED_MODES.has(value);
 }
 
-/** Closed controls_evaluated key set; mirrors the false-attestation guard */
+/** Closed controls_evaluated key set; mirrors the client false-attestation guard. */
 const ALLOWED_CONTROL_KEYS = new Set([
   "emergency_halt",
   "delegation_scope",
@@ -87,7 +89,7 @@ const ALLOWED_CONTROL_KEYS = new Set([
 /** Bare 64-hex (no prefix); the quorum attestation_hash form. */
 const BARE_SHA256_RE = /^[0-9a-f]{64}$/;
 
-/** Decode standard or url-safe base64, padding-tolerant (as `_b64decode`) */
+/** Decode standard or url-safe base64, padding-tolerant (mirrors `_b64decode`). */
 export function b64decode(value: string): Uint8Array {
   let s = value.replace(/-/g, "+").replace(/_/g, "/");
   s += "=".repeat((-s.length % 4 + 4) % 4);
@@ -98,8 +100,10 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-// Already-canonical or non-hosted shapes pass through (as `normalise_envelope`)
-/** Remap a hosted /verify response into the canonical 3-key envelope */
+/**
+ * Remap a hosted /verify response into the canonical 3-key envelope; already canonical or
+ * non-hosted shapes pass through unchanged (mirrors `normalise_envelope`).
+ */
 export function normaliseEnvelope(raw: Record<string, unknown>): Record<string, unknown> {
   const sig = raw.signature;
   if (isRecord(sig) && isRecord(raw.payload)) {
@@ -128,7 +132,7 @@ export function normaliseEnvelope(raw: Record<string, unknown>): Record<string, 
   };
 }
 
-/** controls_evaluated false-attestation rules (`check_controls_evaluated`) */
+/** False-attestation rules for controls_evaluated (mirrors `check_controls_evaluated`). */
 export function checkControlsEvaluated(
   payload: Record<string, unknown>,
 ): readonly ["PASS" | "FAIL", string] {
@@ -182,9 +186,8 @@ export function checkControlsEvaluated(
   return ["PASS", "controls_evaluated block conforms to the closed key set"];
 }
 
-// A DIFFERENT receipt reusing an (issuer_id, nonce) pair fails; re-verifying
-// the identical receipt does not
-/** Replay-candidate axis over the draft 5.7 nonce */
+/** Replay-candidate axis over the draft 5.7 nonce; a DIFFERENT receipt reusing an
+ * (issuer_id, nonce) pair fails, re-verifying the identical receipt does not. */
 export function checkNonce(
   payload: Record<string, unknown>,
   seenNonces?: Set<string>,
@@ -223,7 +226,7 @@ export function checkNonce(
   return ["PASS", "nonce recorded in the seen-nonce index; no duplicate observed"];
 }
 
-/** Asqav-native structure check, `[result, note]` (`check_structure`) */
+/** Asqav-native structure check; returns `[result, note]` (mirrors `check_structure`). */
 export function checkStructure(payload: Record<string, unknown>): readonly ["PASS" | "FAIL" | "SKIPPED", string] {
   const missing = REQUIRED_FIELDS.filter((f) => !(f in payload));
   if (missing.length > 0) {
@@ -267,7 +270,7 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
 }
 
 // One matcher (mirrors `_match_key`), so key bytes and the key's published
-// issuer always come from the same JWKS entry
+// issuer always come from the same JWKS entry.
 function matchKey(
   jwks: Record<string, unknown> | null,
   kid: string,
@@ -285,7 +288,7 @@ function matchKey(
 }
 
 // Exact key id (mirrors `_match_key_by_id`): a key id names one key, while the
-// issuer match above answers for a whole set
+// issuer match above answers for a whole set.
 function matchKeyById(
   jwks: Record<string, unknown> | null,
   kid: string,
@@ -302,8 +305,8 @@ function matchKeyById(
   return null;
 }
 
-// Agent key bound to the issuer the receipt claims (`_match_key_by_agent`)
-// agent_id is attacker-controlled, so the key's issuer must match signed bytes
+// An agent key bound to the issuer the receipt claims (mirrors `_match_key_by_agent`).
+// agent_id is attacker-controlled, so the key's issuer must match the signed bytes.
 function matchKeyByAgent(
   jwks: Record<string, unknown> | null,
   agentId: unknown,
@@ -325,8 +328,8 @@ function matchKeyByAgent(
   return null;
 }
 
-// Signed key_thumbprint names one key (`_match_key_by_thumbprint`), so it
-// outranks unsigned identifiers; siblings narrow by agent_id, then kid
+// The signed key_thumbprint names one key in one step (mirrors `_match_key_by_thumbprint`), so it
+// outranks every unsigned identifier; sibling rows sharing it are narrowed by agent_id, then kid.
 function matchKeyByThumbprint(
   jwks: Record<string, unknown> | null,
   thumbprint: unknown,
@@ -353,15 +356,16 @@ function matchKeyByThumbprint(
   return narrowed[0];
 }
 
-// First of two identifiers carrying a value. Python falls back on falsy, so an
-// empty string counts as missing in both languages
+// The first of two identifiers that carries a value. Python falls back on falsy, so an empty
+// string is a missing identifier in both languages, not a value that suppresses the fallback.
 export function firstNonEmpty(primary: unknown, fallback: unknown): unknown {
   return primary === undefined || primary === null || primary === "" ? fallback : primary;
 }
 
-// Mirrors `match_signing_key`. Order carries the security: signed
-// key_thumbprint, exact key id, agent bind, bare-kid issuer
-/** The one JWKS entry a receipt's signature is checked against */
+/**
+ * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
+ * Order carries the security: signed key_thumbprint, exact key id, agent bind, bare-kid issuer.
+ */
 export function matchSigningKey(
   jwks: Record<string, unknown> | null,
   kid: string,
@@ -385,8 +389,7 @@ export function keyIssuerOf(entry: Record<string, unknown> | null): string | nul
 
 /** Return the org id a JWKS entry publishes (mirrors `key_org_of`). */
 export function keyOrgOf(entry: Record<string, unknown> | null): string | null {
-  // A value that is not an org id cannot serve as one, so it reads as
-  // unpublished
+  // A value that is not an org id cannot serve as one, so it reads as unpublished.
   return entry !== null && isOrgId(entry.org_id) ? (entry.org_id as string) : null;
 }
 
@@ -395,7 +398,7 @@ export function revokedAtOf(entry: Record<string, unknown> | null): string | nul
   return entry !== null && typeof entry.revoked_at === "string" ? entry.revoked_at : null;
 }
 
-/** `[publicKeyBytes, status, alg]` for `kid` from a JWKS (`resolve_key`) */
+/** Return `[publicKeyBytes, status, alg]` for `kid` from a JWKS dict (mirrors `resolve_key`). */
 export function resolveKey(
   jwks: Record<string, unknown> | null,
   kid: string,
@@ -405,14 +408,14 @@ export function resolveKey(
   return [b64decode(k.public_key as string), (k.status as string) ?? null, (k.alg as string) ?? null];
 }
 
-/** The issuer id the JWKS publishes for `kid` (mirrors `resolve_key_issuer`) */
+/** Return the issuer id the JWKS publishes for `kid` (mirrors `resolve_key_issuer`). */
 export function resolveKeyIssuer(jwks: Record<string, unknown> | null, kid: string): string | null {
   const k = matchKey(jwks, kid);
   return k !== null && typeof k.issuer_id === "string" ? k.issuer_id : null;
 }
 
-// A signature alone never proves authorship (`check_issuer_binding`)
-/** PASS only if the JWKS lists the verifying key under the claimed issuer */
+/** PASS only when the JWKS publishes the verifying key under the claimed
+ *  issuer, so a signature alone never proves authorship (`check_issuer_binding`). */
 export function checkIssuerBinding(
   keyIssuerId: string | null,
   claimedIssuerId: unknown,
@@ -430,7 +433,7 @@ export function checkIssuerBinding(
   ];
 }
 
-/** JWKS revoked_at for kid if published, else null (`resolve_revoked_at`) */
+/** Return the JWKS revoked_at for kid if published, else null (mirrors `resolve_revoked_at`). */
 export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: string): string | null {
   const k = matchKey(jwks, kid);
   return k !== null && typeof k.revoked_at === "string" ? k.revoked_at : null;
@@ -441,31 +444,29 @@ export function resolveRevocationReason(jwks: Record<string, unknown> | null, ki
   const k = matchKey(jwks, kid);
   return k !== null && typeof k.revocation_reason === "string" ? k.revocation_reason : null;
 }
-/** The org id the JWKS publishes for `kid` (mirrors `resolve_key_org`) */
+/** Return the org id the JWKS publishes for `kid` (mirrors `resolve_key_org`). */
 export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string): string | null {
   const k = matchKey(jwks, kid);
-  // A value that is not an org id cannot serve as one, so it reads as
-  // unpublished
+  // A value that is not an org id cannot serve as one, so it reads as unpublished.
   return k !== null && isOrgId(k.org_id) ? (k.org_id as string) : null;
 }
 
-// Same body text as Python _ORG_ID_RE, which anchors with fullmatch instead:
-// python's $ also matches before a trailing newline and this one does not
+// Same body text as the Python _ORG_ID_RE, which anchors with fullmatch instead,
+// since python's $ also matches before a trailing newline and this one does not.
 const ORG_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** True for a canonical dashed UUID, the only org id form on the wire */
+/** True for a canonical dashed UUID, the only form an org id takes on the wire. */
 function isOrgId(value: unknown): boolean {
   return typeof value === "string" && ORG_ID_RE.test(value);
 }
 
-// Hex case carries no meaning in a UUID, so two spellings name one org; folding
-// is limited to org ids (ASCII), so both languages fold identically
+// Hex case carries no meaning in a UUID, so two spellings name one org. Folding
+// is limited to org ids, which are ASCII, so both languages fold identically.
 function orgKey(value: unknown): unknown {
   return isOrgId(value) ? (value as string).toLowerCase() : value;
 }
 
-// Mirrors `check_org_binding`
-/** Bind a hash-mode receipt's org_id to the org the JWKS names */
+/** Bind a hash-mode receipt's org_id to the org the JWKS names (mirrors `check_org_binding`). */
 export function checkOrgBinding(
   keyIssuerId: string | null,
   keyOrgId: string | null,
@@ -490,7 +491,7 @@ export function checkOrgBinding(
   ];
 }
 
-// Python spells these three differently and the note text is read side by side
+// Python spells these three differently and the note text is read side by side.
 function pyStr(v: unknown): string {
   if (v === null || v === undefined) return "None";
   if (v === true) return "True";
@@ -498,17 +499,17 @@ function pyStr(v: unknown): string {
   return String(v);
 }
 
-// Python's repr, for notes read side by side with the Python half's output
-// Strings carry single quotes there, so JSON.stringify would print another note
+// Python's repr, for notes read side by side with the Python half's output.
+// Strings carry single quotes there, so JSON.stringify would print a different note.
 function pyRepr(v: unknown): string {
   if (typeof v !== "string") return pyStr(v);
   const body = v.replace(/\\/g, "\\\\");
-  // Python switches to double quotes when the text holds a ' and no "
+  // Python switches to double quotes when the text holds a single quote and no double.
   if (body.includes("'") && !body.includes('"')) return `"${body}"`;
   return `'${body.replace(/'/g, "\\'")}'`;
 }
 
-// Python names the type in the malformed-value notes, so mirror those names
+// Python names the type in the malformed-value notes, so mirror those names.
 function pyTypeName(v: unknown): string {
   if (v === null || v === undefined) return "NoneType";
   if (Array.isArray(v)) return "list";
@@ -518,7 +519,7 @@ function pyTypeName(v: unknown): string {
   return "dict";
 }
 
-// Python truthiness, which differs from JavaScript's for [] and {}
+// Python truthiness, which differs from JavaScript's for [] and {}.
 function pyTruthy(v: unknown): boolean {
   if (v === null || v === undefined || v === false) return false;
   if (typeof v === "number") return v !== 0 && !Number.isNaN(v);
@@ -528,13 +529,13 @@ function pyTruthy(v: unknown): boolean {
   return true;
 }
 
-// Mirrors base64.b64decode(validate=True): alphabet characters, at most two
-// pads
+// Mirrors base64.b64decode(validate=True): alphabet characters, then at most two pads
 const B64_STRICT = /^[A-Za-z0-9+/]*={0,2}$/;
 
-// Strict on purpose: an out-of-alphabet character is refused, not dropped, so a
-// forged all-punctuation anchor cannot read as present
-/** True when Python's `_safe_b64` accepts `value` */
+/**
+ * True when Python's `_safe_b64` accepts `value`. Strict on purpose: an out-of-alphabet character
+ * is refused, not dropped, so a forged all-punctuation anchor cannot read as present.
+ */
 function safeB64(value: unknown): boolean {
   if (typeof value !== "string") return false;
   const s = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -544,8 +545,8 @@ function safeB64(value: unknown): boolean {
   return padded.replace(/=+$/, "").length > 0;
 }
 
-// JCS bytes of the two-key {payload, signature} object every anchor commits to
-// (`envelope_minus_anchors_jcs`); an export's other members were never signed
+// JCS bytes of the two-key {payload, signature} object, the bytes every anchor commits to
+// (mirrors `envelope_minus_anchors_jcs`). An export's other top-level members were never signed.
 export function envelopeMinusAnchorsJcs(env: Record<string, unknown>): Uint8Array {
   const committed: Record<string, unknown> = {};
   for (const k of ["payload", "signature"]) {
@@ -554,13 +555,13 @@ export function envelopeMinusAnchorsJcs(env: Record<string, unknown>): Uint8Arra
   return asqavJcs(committed);
 }
 
-// ISO 8601 shapes Python's fromisoformat accepts, so a lenient JS date string
-// Python rejects also FAILs; only an uppercase Z is a zone designator
+// ISO 8601 shapes Python's fromisoformat accepts, spelled out so a lenient JS date
+// string Python rejects also FAILs. Only an uppercase Z is a zone designator.
 const ISO_STAMP =
   /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?))?(Z|[+-]\d{2}(?::?\d{2})?)?$/;
 
-// Python treats a stamp with no zone as UTC, JS would read local time Ranges
-// are checked here because Date.parse accepts hour 24 and Python does not
+// Python treats a stamp with no zone as UTC, where JS would read it as local time.
+// Ranges are checked here because Date.parse accepts hour 24 and Python does not.
 export function parseIsoMs(issuedAt: unknown): number | null {
   if (typeof issuedAt !== "string") return null;
   const m = ISO_STAMP.exec(issuedAt);
@@ -568,8 +569,8 @@ export function parseIsoMs(issuedAt: unknown): number | null {
   const [, date, time, zone] = m;
   if (time !== undefined) {
     const [hh, mm, ss] = time.split(":");
-    // Whole seconds only: Number("59.656") > 59 failed second 59 closed; Python
-    // range-checks a two-digit capture, so this agrees
+    // Whole seconds only: Number("59.656") > 59 failed the 59th second closed,
+    // one second in sixty. Python range-checks a two-digit capture, so this agrees.
     const wholeSeconds = (ss ?? "0").split(".")[0];
     if (Number(hh) > 23 || Number(mm) > 59 || Number(wholeSeconds) > 59) return null;
   }
@@ -585,13 +586,13 @@ export function parseIsoMs(issuedAt: unknown): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-// The skew bound is one-sided: only a stamp too far ahead of the wall clock
-// fails, a backdated issued_at harms nothing the clock can detect (as Python)
+// The skew bound is one-sided: only a stamp too far ahead of the wall clock fails,
+// since a backdated issued_at harms nothing the wall clock can detect (mirrors Python)
 function skewWithinBound(skewSeconds: number): boolean {
   return skewSeconds <= SKEW_BOUND_SECONDS;
 }
 
-/** `issued_at` within the wall-clock bound, `[result, note]` (`check_skew`) */
+/** `issued_at` within the wall-clock bound; returns `[result, note]` (mirrors `check_skew`). */
 export function checkSkew(issuedAt: unknown, nowMs: number = Date.now()): readonly [VerifyState, string] {
   const ms = parseIsoMs(issuedAt);
   if (ms === null) {
@@ -756,9 +757,9 @@ function textCopyOutcomes(raw: Record<string, unknown>, payload: Record<string, 
   return out;
 }
 
-// When that time is withheld or unreadable here, the copy is unattested rather
-// than contradicted
-/** signed_at equals issued_at; an observation may carry context.ts there */
+/** signed_at equals issued_at; an observation may carry context.ts there. When
+ * that time is withheld or in a form this check cannot read, the copy is
+ * unattested rather than contradicted. */
 function timeCopyOutcomes(raw: Record<string, unknown>, payload: Record<string, unknown>): CopyOutcome[] {
   if (!present(raw, "signed_at")) return [];
   const observed = payload.type === "protectmcp:observation";
@@ -789,9 +790,12 @@ function envelopeCopyOutcomes(raw: Record<string, unknown>, sigObj: Record<strin
   return out;
 }
 
-// `keyBytes` is the key that verified, null if none; digest and key compare
-// only then (else msg need not be the signed bytes)
-/** The signed-bytes copies and the carried key against what verified */
+/**
+ * The signed-bytes copies and the carried key against what verified.
+ * `keyBytes` is the key the signature verified under, null when it did not.
+ * The digest and the key are compared only then: before that, msg need not be
+ * the signed bytes, so a difference proves nothing.
+ */
 function byteCopyOutcomes(
   raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null,
 ): CopyOutcome[] {
@@ -905,35 +909,37 @@ function outerCopyNote(outcomes: CopyOutcome[], raw: Record<string, unknown>): r
   return ["PASS", parts.join("; ") || "no outer copies carried; the signed payload is the whole receipt"];
 }
 
-// No signature covers a copy, so any disagreement FAILs (unverified, class
-// invalid); a member with no signed counterpart is listed, never trusted
-/** Compare an exported entry's plain copies with the signed values */
-// Mirrors `check_outer_copies`: raw is the entry as received, msg the signed
-// bytes, keyBytes the key the signature verified under (null if it did not)
+/**
+ * Compare the plain copies an exported entry carries with the signed values
+ * they restate (mirrors `check_outer_copies`). No signature covers a copy, so
+ * any disagreement FAILs and the verdict is unverified with class invalid. A
+ * member with no signed counterpart is listed, never trusted. `raw` is the
+ * entry as received, `msg` the canonical signed bytes, `keyBytes` the key the
+ * signature verified under (null when it did not verify). The signature copies
+ * are weighed against the normalised signature object, the one the signature
+ * axis used. A flat hash-mode receipt lists the members it does not sign,
+ * including a `key_id` other than `keyKid`, the kid of the key that verified.
+ */
 export function checkOuterCopies(
   raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null = null, keyKid: string | null = null,
 ): readonly ["PASS" | "FAIL", string] {
   const payload = raw.payload;
   if (!isRecord(payload)) {
-    // A flat hash-mode receipt lists the members it does not sign, including
-    // a key_id other than keyKid, the kid of the key that verified
     if (isFlatHashReceipt(raw)) return flatOuterNote(raw, keyBytes, keyKid);
     return ["PASS", "no signed payload object; no outer copies compared"];
   }
-  // Signature copies are weighed against the normalised signature object,
-  // the one the signature axis used
   const sigObj = normaliseEnvelope(raw).signature;
   const signature = isRecord(sigObj) ? sigObj : {};
   return outerCopyNote(outerCopyOutcomes(raw, payload, signature, msg, keyBytes), raw);
 }
 
-// True once the signed expiry is past (mirrors signature_expired); a negative
-// wall-clock delta, so the verdict is verifier-independent
+// True once the signed expiry sits in the past (mirrors signature_expired). A negative
+// delta from the wall clock, so the verdict never depends on which verifier runs.
 function expiryLapsed(deltaSeconds: number): boolean {
   return deltaSeconds < 0;
 }
 
-/** Axis-only expiry flag (hosted signature_expired); never folds the verdict */
+/** Axis-only expiry flag, mirrors the hosted signature_expired label; never folds the verdict (426). */
 export function checkExpiry(payload: unknown, nowMs: number = Date.now()): readonly [VerifyState, string] {
   if (!isRecord(payload) || !("expires_at" in payload)) {
     return ["PASS", "receipt declares no expiry"];
@@ -950,9 +956,10 @@ export function checkExpiry(payload: unknown, nowMs: number = Date.now()): reado
   return ["PASS", `expires_at ${pyStr(raw)} is ${delta.toFixed(0)}s ahead`];
 }
 
-// This shim runs no ASN.1/CMS or ots evaluation, so it never returns PASS or
-// `invalid`; use Python for that
-/** Report which envelope each anchor binds (`check_anchors`) */
+/**
+ * Report which envelope each anchor binds (mirrors `check_anchors`). This shim runs no ASN.1/CMS or
+ * ots evaluation, so it never returns PASS and never returns `invalid` - use Python for that.
+ */
 export function checkAnchors(envelope: Record<string, unknown>): readonly [VerifyState, string] {
   const anchors = envelope.anchors;
   if (anchors === null || anchors === undefined) {
@@ -968,7 +975,7 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
   try {
     bound = sha256Hex(envelopeMinusAnchorsJcs(envelope));
   } catch {
-    // Defense in depth: core's depth gate should already have rejected this
+    // Defense in depth: core's depth gate should already have rejected this.
     return ["FAIL", "envelope too deeply nested to canonicalise for anchor binding"];
   }
   const lines = [`anchors bind envelope digest sha256:${bound.slice(0, 16)}..`];
@@ -991,7 +998,7 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
     }
     const status = entry.status;
     if (status === "pending" || status === "failed") {
-      // A declared non-anchored status is never a trusted anchor (draft rule)
+      // A declared non-anchored status is never a trusted anchor (draft rule).
       sawUnverifiable = true;
       lines.push(`    - ${pyStr(atype)}: value present, base64-ok; status ${status}, not an anchored proof`);
       continue;
@@ -1008,11 +1015,11 @@ export function checkAnchors(envelope: Record<string, unknown>): readonly [Verif
   if (sawInvalid) {
     return ["FAIL", lines.join("; ")];
   }
-  // No PASS branch: every shape-valid entry above is unverifiable here
+  // No PASS branch: every shape-valid entry above is unverifiable here.
   return ["SKIPPED", lines.join("; ")];
 }
 
-// Mirrors Python REVOKED_KEY_STATUSES; keys with these must not PASS offline
+// Mirrors Python REVOKED_KEY_STATUSES; receipts from these keys must not PASS offline.
 export const REVOKED_KEY_STATUSES: ReadonlySet<string> = new Set(["revoked", "suspended", "compromised"]);
 
 /** The effective key state; compromise wins over any other label. */
@@ -1022,8 +1029,8 @@ export function keyStatusKind(status: string | null, revocationReason: string | 
   return s === "compromised" || reason === "compromised" ? "compromised" : s;
 }
 
-// Gate on the key's JWKS status (mirrors `check_key_status`). Without a trusted
-// anchor issued_at is self-attested and backdateable, so downgrade to SKIPPED
+// Gate on the key's JWKS status (mirrors `check_key_status`). Without a trusted anchor
+// issued_at is self-attested and backdateable, so downgrade to SKIPPED.
 export function checkKeyStatus(
   status: string | null,
   issuedAt: string,
@@ -1071,17 +1078,17 @@ export function checkKeyStatus(
   ];
 }
 
-// RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key, a port of
-// `thumbprint_for_key`; shared axis-parity vectors hold the two copies together
+// RFC 7638 JWK Thumbprint over an ML-DSA (AKP) public key (criterion 458). A port of
+// `thumbprint_for_key`; the shared axis-parity vectors hold the two copies together.
 
 /** draft-ietf-cose-dilithium key type for ML-DSA key pairs. */
 export const AKP_KTY = "AKP";
 
-/** Only well-formed key_thumbprint shape; others are refused, not compared */
+/** The only well-formed key_thumbprint shape; anything else is refused, not compared. */
 const THUMBPRINT_RE = /^sha256:[0-9a-f]{64}$/;
 
-// FIPS 204 public-key widths in bytes. A KMS-backed agent publishes a PEM where
-// a raw key would sit, so width separates the two
+// FIPS 204 public-key widths in bytes, fixed by the standard. A KMS-backed agent
+// publishes a PEM where a raw key would sit, so width is what separates the two.
 const ML_DSA_PUBLIC_KEY_BYTES: Record<string, number> = {
   "ML-DSA-44": 1312,
   "ML-DSA-65": 1952,
@@ -1093,7 +1100,7 @@ export function b64urlNoPad(data: Uint8Array): string {
   return Buffer.from(data).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** True when the bytes are a raw ML-DSA public key of the width `alg` fixes */
+/** True when these bytes are a raw ML-DSA public key of the width `alg` fixes. */
 export function isAkpPublicKey(alg: unknown, publicKey: Uint8Array | null): boolean {
   if (!publicKey || publicKey.length === 0 || typeof alg !== "string") return false;
   const expected = ML_DSA_PUBLIC_KEY_BYTES[alg];
@@ -1105,18 +1112,20 @@ export function isWellFormedThumbprint(value: unknown): boolean {
   return typeof value === "string" && THUMBPRINT_RE.test(value);
 }
 
-// `pub` is base64url WITHOUT padding; thumbprinting the directory's
-// standard-base64 alphabet gives an irreproducible digest
-/** Build the required-members-only AKP JWK the thumbprint is taken over */
+/**
+ * Build the required-members-only AKP JWK the thumbprint is taken over. `pub` is base64url WITHOUT
+ * padding; thumbprinting the directory's standard-base64 alphabet yields an irreproducible digest.
+ */
 export function akpJwk(alg: string, publicKey: Uint8Array): Record<string, string> {
   if (!alg) throw new Error("alg is required to build an AKP JWK");
   if (!publicKey || publicKey.length === 0) throw new Error("public_key is required to build an AKP JWK");
   return { alg, kty: AKP_KTY, pub: b64urlNoPad(publicKey) };
 }
 
-// Sorting is what RFC 7638 section 3 calls for, so member order cannot change
-// the digest
-/** Return `sha256:<hex>` for a JWK reduced to its required members */
+/**
+ * Return `sha256:<hex>` for a JWK already reduced to its required members. Sorting is what RFC 7638
+ * section 3 calls for, so member order cannot change the digest.
+ */
 export function jwkThumbprint(jwk: Record<string, string>): string {
   const canonical = `{${Object.keys(jwk)
     .sort()
@@ -1130,9 +1139,10 @@ export function thumbprintForKey(alg: string, publicKey: Uint8Array): string {
   return jwkThumbprint(akpJwk(alg, publicKey));
 }
 
-// A mismatch is a proven binding break. Absence PASSes as the legacy case; an
-// unrecomputable binding SKIPs and blocks
-/** Recompute the signed key_thumbprint from the resolved key and compare */
+/**
+ * Recompute the signed key_thumbprint from the resolved key and compare; a mismatch is a proven
+ * binding break. Absence PASSes as the legacy case, but an unrecomputable binding SKIPs and blocks.
+ */
 export function checkKeyBinding(
   payload: unknown,
   alg: unknown,
@@ -1164,14 +1174,15 @@ export function checkKeyBinding(
   return ["FAIL", `key_substituted: receipt binds ${claimed}, resolved key computes ${actual}`];
 }
 
-// Receipt-internal integrity: payload_digest vs the carried context, and a
-// counterparty binding (check_payload_digest, check_counterparty_binding)
+// Receipt-internal integrity: payload_digest vs the carried context, and a claimed
+// counterparty binding. Ports of check_payload_digest / check_counterparty_binding.
 
 const LOWER_HEX_64 = /^[0-9a-f]{64}$/;
 
-// The two disagreeing means one is a lie. Absence PASSes: hash mode carries no
-// context and redaction may drop it
-/** Recompute payload_digest from the context carried in the same receipt */
+/**
+ * Recompute payload_digest from the context carried in the same receipt; the two disagreeing means
+ * one is a lie. Absence PASSes: hash mode carries no context and redaction may drop it.
+ */
 export function checkPayloadDigest(payload: unknown): readonly [VerifyState, string, string] {
   if (!isRecord(payload)) return ["PASS", "no signed payload; no digest to recompute", "evaluated"];
   const digest = payload.payload_digest;
@@ -1238,9 +1249,10 @@ export function checkPayloadDigest(payload: unknown): readonly [VerifyState, str
   ];
 }
 
-// Absence PASSes, an unresolvable claim SKIPs and blocks, malformed or
-// mismatched FAILs
-/** Weigh a claimed cross-agent binding instead of letting it ride unchecked */
+/**
+ * Weigh a claimed cross-agent binding instead of letting it ride unchecked. Absence PASSes, an
+ * unresolvable claim SKIPs and blocks, and malformed or mismatched FAILs.
+ */
 export function counterpartyEnvelopeHash(originator: unknown): string {
   if (!isRecord(originator)) throw new Error("originating envelope is unavailable");
   const signature = originator.signature;

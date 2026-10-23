@@ -1,5 +1,7 @@
-// AERF adapter: Ed25519 over RFC 8785 JCS of the receipt minus non-payload
-// fields; non-empty `impact_tags` makes parent counter-sig and PDP REQUIRED
+/**
+ * AERF adapter: Ed25519 over RFC 8785 JCS of the receipt with the non-payload fields stripped, signed
+ * directly. Non-empty `impact_tags` makes the parent counter-signature and PDP binding REQUIRED.
+ */
 
 import {
   FormatAdapter,
@@ -12,7 +14,7 @@ import {
 import { jcs } from "../canonical.js";
 import { FAIL, PASS, SKIPPED, sha256Hex, verifySignature } from "../crypto.js";
 
-/** Fields removed before canonicalising for both signature and chain hash */
+/** Fields removed before canonicalising for both the signature and the chain hash. */
 const STRIP = new Set([
   "signature",
   "timestamp",
@@ -84,7 +86,7 @@ export class AerfAdapter extends FormatAdapter {
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
-    // AERF signs the JCS canonical bytes of the stripped payload directly
+    // AERF signs the JCS canonical bytes of the stripped payload directly.
     return jcs(signable(doc));
   }
 

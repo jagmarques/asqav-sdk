@@ -1,5 +1,7 @@
-// Universal neutral verifier (TS), port of the Python oracle in verifier/oracle
-// Proves only what the bytes prove (signature, chain, structure), no behaviour
+/**
+ * Universal neutral verifier (TypeScript), a port of the Python oracle at `verifier/oracle/`. It proves
+ * only what the bytes prove: signature, chain link and structural presence, never behaviour.
+ */
 
 import { FormatAdapter } from "./adapter.js";
 import { ActaAdapter } from "./adapters/acta.js";
@@ -10,7 +12,7 @@ import { AuthproofAdapter } from "./adapters/authproof.js";
 import { PipelockEvidenceAdapter } from "./adapters/pipelock.js";
 import { W3cVcAdapter } from "./adapters/w3cVc.js";
 
-/** Fingerprints are exclusive, so registration order is not load-bearing */
+/** Detection fingerprints are mutually exclusive, so registration order is not load-bearing. */
 export const ADAPTERS: FormatAdapter[] = [
   new AsqavNativeAdapter(),
   new AerfAdapter(),
@@ -52,8 +54,8 @@ export {
 export type { AxisResult, FailureClass, Verdict, VerifyResult } from "./core.js";
 export { AXIS_ORDER, coverageDeclaration, NOT_CHECKED, notCheckedDeclaration } from "./not-checked.js";
 export type { Coverage, CoverageEntry, NotCheckedEntry } from "./not-checked.js";
-// Axes the oracle leaves out by design, so a TS caller runs what Python runs
-// normaliseEnvelope ships too: skipping it digests other bytes
+// The axes the oracle leaves out by design, so a TypeScript caller runs what a
+// Python caller runs. normaliseEnvelope ships too: skip it and you digest other bytes.
 export {
   checkAnchors,
   checkExpiry,

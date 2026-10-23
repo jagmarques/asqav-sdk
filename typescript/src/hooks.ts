@@ -1,5 +1,7 @@
-// Hooks / middleware as the Python sibling: registerBefore/After, clearHooks
-// Patterns are `*`, a `prefix:*` glob, or an exact action type
+/**
+ * Hooks / middleware system mirroring the Python sibling: registerBefore, registerAfter, clearHooks.
+ * Patterns are `*`, a `prefix:*` glob, or an exact action type.
+ */
 
 import type { SignatureResponse } from "./index.js";
 

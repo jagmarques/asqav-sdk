@@ -1,5 +1,7 @@
-// Acceptor-side admission control for an inbound peer receipt, a port of Python
-// asqav.acceptor: expiry, seq-downgrade, challenge rules the verdict misses
+/**
+ * Acceptor-side admission control for an inbound peer receipt; a rule-for-rule port of
+ * Python `asqav.acceptor`. Adds expiry, seq-downgrade and challenge rules the verdict alone misses.
+ */
 
 import { ADAPTERS } from "./verifier/index.js";
 import {
@@ -12,7 +14,7 @@ import { parseJsonStrict } from "./verifier/canonical.js";
 import type { KeyProvider } from "./verifier/adapter.js";
 import { parseIsoMs } from "./verifier/vrShim.js";
 
-/** Which acceptor rule refused, or "verifier" if the receipt did not verify */
+/** Which acceptor rule refused, or `"verifier"` when the receipt did not verify. */
 export type AcceptorRule = "verifier" | "expiry" | "seq_downgrade" | "challenge";
 
 /** Whether to admit an inbound action, and the single reason why not. */
@@ -21,7 +23,7 @@ export interface AcceptorDecision {
   reason: string;
   verdict: string;
   failureClass: FailureClass | null;
-  /** Earliest check that stopped the receipt: a refusal points at one edge */
+  /** The earliest check that stopped the receipt, so a refusal points at one edge. */
   firstFailingEdge: string | null;
   rule: AcceptorRule | null;
 }
@@ -36,9 +38,10 @@ export interface CheckPeerReceiptOptions {
   now?: Date;
 }
 
-// It proves the same binding to the acceptor while not being third-party
-// re-derivable
-/** `verified_keyed` is admissible: the peer's keyed digest is consistent */
+/**
+ * `verified_keyed` is admissible: the peer's own keyed digest is internally consistent,
+ * proving the same binding to the acceptor while not being third-party re-derivable.
+ */
 const ADMISSIBLE = new Set<string>([VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED]);
 
 // The verifier's pinned stamp grammar, so expiry refuses exactly what skew
@@ -53,9 +56,10 @@ function payloadOf(receipt: Record<string, unknown>): Record<string, unknown> {
   return typeof p === "object" && p !== null ? (p as Record<string, unknown>) : receipt;
 }
 
-// `predecessor` is what lets seq and chain mean anything; refuses on the first
-// failing rule in a fixed order
-/** Decide whether an inbound action carrying `receipt` may be admitted */
+/**
+ * Decide whether an inbound action carrying `receipt` may be admitted. `predecessor` is what
+ * lets seq and chain mean anything; refuses on the first failing rule in a fixed order.
+ */
 export function checkPeerReceipt(
   receipt: Record<string, unknown>,
   options: CheckPeerReceiptOptions = {},
@@ -77,7 +81,7 @@ export function checkPeerReceipt(
 
   const payload = payloadOf(receipt);
 
-  // Expiry, which the verdict deliberately does not carry
+  // Expiry, which the verdict deliberately does not carry (criterion 426).
   const expiresAt = payload.expires_at;
   if (expiresAt !== undefined && expiresAt !== null) {
     const stamp = parseStamp(expiresAt);
@@ -104,7 +108,7 @@ export function checkPeerReceipt(
   }
 
   // A peer that carried a counter and stopped is the one case where absence is
-  // not the legacy case: it is the transition that makes a gap uncheckable
+  // not the legacy case: it is the transition that makes a gap uncheckable.
   if (predecessor !== null && predecessor !== undefined) {
     const prevSeq = payloadOf(predecessor).seq;
     if (Number.isInteger(prevSeq) && !Number.isInteger(payload.seq)) {
@@ -122,7 +126,7 @@ export function checkPeerReceipt(
   }
 
   // A challenge that goes unanswered proved nothing, so requiring it is the
-  // whole point of having issued one
+  // whole point of having issued one.
   if (challenge !== null && challenge !== undefined) {
     const answered = payload.challenge_nonce;
     if (answered === undefined || answered === null) {
@@ -157,14 +161,16 @@ export function checkPeerReceipt(
   };
 }
 
-// --- Connect/Express adapter: wrapper only, no dependency on either; the
-// decision stays in checkPeerReceipt, so mounting this and calling it agree
+// --- Connect/Express adapter: wrapper only, no dependency on either. The decision
+// stays in checkPeerReceipt, so mounting this and calling it directly agree.
 
 /** Header the peer presents its receipt in, JSON or base64-of-JSON. */
 export const DEFAULT_RECEIPT_HEADER = "x-asqav-receipt";
 
-// Pass it as received; a JSON.parse round trip can change float spellings
-/** Encode a receipt for the `x-asqav-receipt` header: base64 JSON, one token */
+/**
+ * Encode a receipt for the `x-asqav-receipt` header: base64 JSON, one token.
+ * Pass it as received; a JSON.parse round trip can change float spellings.
+ */
 export function encodeReceiptHeader(receipt: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(receipt), "utf-8").toString("base64");
 }
@@ -213,9 +219,10 @@ interface AcceptorResponse {
   locals?: Record<string, unknown>;
 }
 
-// Fails CLOSED (no receipt is refused); `predecessorFor` supplies the chain
-// state seq needs
-/** Connect/Express middleware refusing an inadmissible peer receipt */
+/**
+ * Connect/Express middleware refusing a request whose peer receipt is not admissible.
+ * Fails CLOSED (no receipt is refused); `predecessorFor` supplies the chain state seq needs.
+ */
 export function acceptorMiddleware(options: AcceptorMiddlewareOptions = {}) {
   const {
     keyProvider = null,

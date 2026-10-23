@@ -1,5 +1,7 @@
-// Shared DID resolver: verificationMethod DID URL to a raw Ed25519 key, port
-// of oracle did.py; did:key resolves inline, the rest from an injected map
+/**
+ * Shared DID resolver mapping a verificationMethod DID URL to a raw Ed25519 key, a port of the Python
+ * oracle's `did.py`. did:key resolves inline; everything else comes from an injected map, never a fetch.
+ */
 
 /** Bitcoin base58 alphabet - the base58btc encoding multibase 'z' uses. */
 const B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -9,7 +11,7 @@ for (let i = 0; i < B58_ALPHABET.length; i++) B58_INDEX[B58_ALPHABET[i]] = i;
 /** Multicodec prefix for an Ed25519 public key (unsigned-varint 0xed01). */
 const ED25519_MULTICODEC = Uint8Array.from([0xed, 0x01]);
 
-/** Decode base58btc to bytes, keeping leading-zero bytes as '1's */
+/** Decode a base58btc string to bytes, preserving leading-zero bytes as '1's. */
 export function b58btcDecode(text: string): Uint8Array {
   let num = 0n;
   for (const ch of text) {
@@ -38,7 +40,7 @@ function startsWith(buf: Uint8Array, prefix: Uint8Array): boolean {
   return true;
 }
 
-/** Raw 32-byte Ed25519 key from a `did:key` 'z...' identifier, or null */
+/** Return the raw 32-byte Ed25519 key from a `did:key` 'z...' identifier, or null. */
 function decodeDidKey(identifier: string): Uint8Array | null {
   if (!identifier.startsWith("z")) return null;
   let decoded: Uint8Array;
@@ -63,7 +65,7 @@ function hexToBytes(hex: string): Uint8Array | null {
   return out;
 }
 
-/** Coerce injected key material (raw bytes or hex) to raw 32-byte form */
+/** Coerce injected key material (raw bytes or hex string) to raw 32-byte form. */
 function coerceRaw(material: unknown): Uint8Array | null {
   let raw: Uint8Array | null;
   if (material instanceof Uint8Array) {
@@ -83,7 +85,7 @@ function b64urlDecode(value: string): Uint8Array {
   return new Uint8Array(Buffer.from(padded, "base64"));
 }
 
-/** OKP/Ed25519 JWK to a raw 32-byte key; null for other curves or encodings */
+/** OKP/Ed25519 JWK -> raw 32-byte key; null for any other curve or bad encoding. */
 function rawFromJwk(jwk: unknown): Uint8Array | null {
   if (jwk === null || typeof jwk !== "object" || Array.isArray(jwk)) return null;
   const rec = jwk as Record<string, unknown>;
@@ -97,7 +99,7 @@ function rawFromJwk(jwk: unknown): Uint8Array | null {
   return raw.length === 32 ? raw : null;
 }
 
-/** Extract the raw Ed25519 key one DID-document verificationMethod publishes */
+/** Extract the raw Ed25519 key one DID-document verificationMethod publishes. */
 function rawFromVerificationMethod(vm: unknown): Uint8Array | null {
   if (vm === null || typeof vm !== "object" || Array.isArray(vm)) return null;
   const rec = vm as Record<string, unknown>;
@@ -120,8 +122,10 @@ function rawFromVerificationMethod(vm: unknown): Uint8Array | null {
   return null;
 }
 
-// Exact fragment match first, else assertionMethod Ed25519 methods, then any
-/** Walk an injected DID document like a fetched one */
+/**
+ * Walk an injected DID document like the fetched one: exact fragment match first,
+ * else assertionMethod-authorized Ed25519 methods, then any remaining method.
+ */
 function keyFromDidDocument(
   didDoc: Record<string, unknown>,
   didUrl: string,
@@ -156,8 +160,10 @@ function keyFromDidDocument(
   return [null, `no Ed25519 verificationMethod for '${didUrl}' in injected DID document`];
 }
 
-// did:key resolves inline; others come from `injected`, by DID URL then DID
-/** Resolve a verificationMethod DID URL to `[rawKeyOrNull, note]`, offline */
+/**
+ * Resolve a verificationMethod DID URL to `[rawKeyOrNull, note]`. did:key resolves inline; others come
+ * from `injected`, keyed by full DID URL then bare DID. No network.
+ */
 export function resolveEd25519Key(
   didUrl: string,
   injected: Record<string, unknown> | null = null,

@@ -1,5 +1,7 @@
-// Offline chain replay for the IETF Compliance Receipts profile: re-derive each
-// previousReceiptHash for one agent's envelopes, report mismatches; no network
+/**
+ * Offline replay / chain verification for the IETF Compliance Receipts profile: walk ordered envelopes
+ * for one agent, re-derive each `previousReceiptHash`, report mismatches. Network-free by design.
+ */
 
 import { createHash } from "node:crypto";
 
@@ -10,8 +12,10 @@ export const FIRST_RECEIPT_SEED = "0".repeat(64);
 
 /** A single record in the chain to verify. */
 export interface ChainRecord {
-  // Other fields pass through as-is into the JCS canonical bytes
-  /** Full signed envelope as a JSON object; must have `previousReceiptHash` */
+  /**
+   * The full signed envelope as a JSON object; must include `previousReceiptHash`. Other fields pass
+   * through as-is into the JCS canonical bytes.
+   */
   signedEnvelope: Record<string, unknown>;
   /** Optional pre-computed chain hash for this record. When omitted,
    * the verifier derives it from the envelope. */
@@ -30,8 +34,10 @@ export interface ChainStepResult {
   actualPreviousReceiptHash: string;
   /** This record's derived chain hash. */
   derivedChainHash: string;
-  // Catches storage-side mutation; undefined when not supplied
-  /** With `chainHash` on the input: true if it matches the derived value */
+  /**
+   * When `chainHash` was supplied on the input, true if it matches the derived value, catching
+   * storage-side mutation. Undefined when not supplied.
+   */
   storedChainHashMatches?: boolean;
 }
 
@@ -41,13 +47,16 @@ export interface ChainVerificationResult {
   steps: ChainStepResult[];
 }
 
-// Any unrecognized key throws so silent-fallback bugs surface immediately
-/** Reserved for future verifier knobs; no keys are accepted today */
+/**
+ * Reserved for future verifier knobs. No keys are accepted today; any unrecognized key throws so
+ * silent-fallback bugs surface immediately.
+ */
 export type VerifyChainOptions = Record<string, never>;
 
-// Oldest first; returns per-step plus aggregate validity, throws TypeError on
-// any unrecognized `options` key
-/** Re-derive the chain over ordered signed envelopes for one agent */
+/**
+ * Re-derive the chain over an ordered list of signed envelopes for one agent (oldest first) and return
+ * per-step plus aggregate validity. Throws TypeError on any unrecognized `options` key.
+ */
 export function verifyChain(
   records: ChainRecord[],
   options: VerifyChainOptions = {},
@@ -99,15 +108,19 @@ export function verifyChain(
   return { chainIntegrity: allValid, steps };
 }
 
-// sha256(canonicalJson(payload)); bundle-shaped envelopes are unwrapped
-/** Convenience: chain hash for one signed envelope */
+/**
+ * Convenience: derive the chain hash for one signed envelope.
+ *
+ *   sha256(canonicalJson(payload))   // bundle-shaped envelopes are unwrapped
+ */
 export function deriveChainHash(envelope: Record<string, unknown>): string {
   return sha256Hex(canonicalJson(payloadForChain(envelope)));
 }
 
-// Unwraps the bundle-shaped `{payload, signature, anchors}` wrapper when
-// present
-/** Inner compliance payload the cloud hashes for the chain link */
+/**
+ * Return the inner compliance payload the cloud hashes for the chain link, unwrapping the bundle-shaped
+ * `{payload, signature, anchors}` wrapper when present.
+ */
 function payloadForChain(
   envelope: Record<string, unknown>,
 ): Record<string, unknown> {

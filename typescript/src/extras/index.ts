@@ -1,5 +1,7 @@
-// Barrel for Asqav framework adapters; each is also a subpath export so peers
-// stay tree-shakable, this is for callers that use several
+/**
+ * Barrel for Asqav framework adapters. Each is also published as a discrete subpath export so peers stay
+ * tree-shakable; this exists for callers that already depend on several.
+ */
 
 export { AsqavAdapter, raiseMissingPeer, type AsqavAdapterOptions } from "./_base.js";
 export { AsqavCallbackHandler, enableLangchainGovernance } from "./langchain.js";
@@ -12,6 +14,6 @@ export type {
   OpenAIAgentsToolLike,
 } from "./openai-agents.js";
 export { createAsqavExporter, mapSpanNameToActionType } from "./vercel-ai.js";
-// Reference detector extras
+// Reference detector extras (criterion 331).
 export { PresidioDetector } from "./presidio.js";
 export { OpaDetector } from "./opa.js";

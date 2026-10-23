@@ -1,5 +1,7 @@
-// File-backed credential layer storing an API key in ~/.asqav/credentials
-// Resolution mirrors the Python half: explicit argument, environment, then file
+/**
+ * File-backed credential layer storing an API key in ~/.asqav/credentials. Resolution mirrors the Python
+ * half: explicit argument, then environment, then file.
+ */
 
 import fs from "node:fs";
 import os from "node:os";
@@ -17,9 +19,10 @@ function expandHome(raw: string): string {
   return raw;
 }
 
-// Expands a leading "~" and rejects null bytes and traversal components so an
-// attacker-influenced value cannot redirect I/O; throws on a rejected path
-/** Sanitize a caller-supplied path before any file I/O */
+/**
+ * Sanitize a caller-supplied path before any file I/O: expands a leading "~" and rejects null bytes and
+ * traversal components, so an attacker-influenced value cannot redirect I/O. Throws on a rejected path.
+ */
 export function validatedPath(raw: string, source: string): string {
   if (raw.includes("\0")) {
     throw new Error(`${source} must not contain null bytes`);
@@ -31,16 +34,17 @@ export function validatedPath(raw: string, source: string): string {
   return expanded;
 }
 
-// ASQAV_CREDENTIALS_PATH is validated before use, so a traversal value is
-// rejected rather than read or written
-/** Resolve the credentials file: env override, else ~/.asqav/credentials */
+/**
+ * Resolve the credentials file location (env override, else ~/.asqav/credentials). ASQAV_CREDENTIALS_PATH
+ * is validated before use, so a traversal value is rejected rather than read or written.
+ */
 export function credentialsPath(): string {
   const override = process.env.ASQAV_CREDENTIALS_PATH;
   if (override) return validatedPath(override, "ASQAV_CREDENTIALS_PATH");
   return path.join(os.homedir(), ".asqav", "credentials");
 }
 
-/** Read the credentials file; missing or corrupt returns {}, never throws */
+/** Read the credentials file. Missing or corrupt file returns {} (never throws). */
 export function loadCredentials(): Record<string, unknown> {
   try {
     const data = JSON.parse(fs.readFileSync(credentialsPath(), "utf-8"));
@@ -68,7 +72,7 @@ export function saveCredentials(apiKey: string, apiBase?: string): string {
   return file;
 }
 
-/** Resolve an API key: explicit arg, then ASQAV_API_KEY env, then file */
+/** Resolve an API key: explicit arg, then ASQAV_API_KEY env, then credentials file. */
 export function resolveApiKey(explicit?: string): string | null {
   if (explicit) return explicit;
   const envKey = process.env.ASQAV_API_KEY;

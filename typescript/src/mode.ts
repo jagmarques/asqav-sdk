@@ -1,5 +1,7 @@
-// Mode resolver for hash-only vs full-payload signing, as ``asqav._mode``: same
-// precedence (explicit > env > URL auto-detection), same Asqav-cloud-URL rule
+/**
+ * Mode resolver for hash-only vs full-payload signing, mirroring ``asqav._mode``: same precedence
+ * (explicit > env > URL auto-detection) and the same Asqav-cloud-URL rule.
+ */
 
 export type Mode = "hash-only" | "full-payload";
 
@@ -15,8 +17,10 @@ export function isAsqavCloudHost(hostname: string | null | undefined): boolean {
   return h.endsWith(".asqav.com");
 }
 
-// ``"auto"`` defers to env, then URL
-/** Resolve the wire mode from API URL, ASQAV_MODE env and explicit choice */
+/**
+ * Resolve the wire mode for a client from the API URL, the ASQAV_MODE env value, and the caller's
+ * explicit choice. ``"auto"`` defers to env, then URL.
+ */
 export function resolveMode(
   apiBaseUrl: string | null | undefined,
   env: string | null | undefined,

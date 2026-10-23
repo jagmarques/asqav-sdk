@@ -1,5 +1,7 @@
-// ACTA adapter (draft-farley-acta-signed-receipts-02): Ed25519 over JCS of
-// `payload`, hex sig; disjoint from Asqav-native by sig encoding and `anchors`
+/**
+ * ACTA adapter (draft-farley-acta-signed-receipts-02): Ed25519 over the JCS of `payload`, hex sig. Kept
+ * disjoint from Asqav-native by sig encoding and the `anchors` key; Commitment Mode is not implemented.
+ */
 
 import {
   FormatAdapter,
@@ -12,7 +14,7 @@ import { jcs } from "../canonical.js";
 import { sha256Hex } from "../crypto.js";
 import { b64decode } from "../vrShim.js";
 
-/** True for a non-empty even-length lowercase-hex string (an ACTA signature) */
+/** True for a non-empty even-length lowercase-hex string (an ACTA signature). */
 export function isLowerHex(s: unknown): boolean {
   return (
     typeof s === "string" &&
@@ -43,7 +45,7 @@ export class ActaAdapter extends FormatAdapter {
     const payloadIsObj = payload !== null && typeof payload === "object" && !Array.isArray(payload);
     const sigIsObj = sig !== null && typeof sig === "object" && !Array.isArray(sig);
     if (!payloadIsObj || !sigIsObj) return false;
-    if ("anchors" in doc) return false; // Asqav-native envelope marker; never ACTA
+    if ("anchors" in doc) return false; // Asqav-native envelope marker; never ACTA.
     return isLowerHex((sig as Record<string, unknown>).sig);
   }
 
@@ -77,7 +79,7 @@ export class ActaAdapter extends FormatAdapter {
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
-    // Baseline: Ed25519 signs the payload's JCS bytes directly, no pre-hash
+    // Baseline: Ed25519 signs the JCS bytes of the payload directly, no pre-hash.
     return jcs(asRecord(doc.payload));
   }
 
@@ -85,8 +87,10 @@ export class ActaAdapter extends FormatAdapter {
     const payload = asRecord(doc.payload);
     const prev = payload.previousReceiptHash;
     const isGenesis = !("previousReceiptHash" in payload);
-    // Chain hash covers the full predecessor receipt, signature included
-    // The carried value picks the form: -03 §6.7 "sha256:"+hex, -02 bare hex
+    // Chain hash covers the full predecessor receipt, signature included.
+    // The carried value selects the recomputed form: ACTA -03 §6.7 carries
+    // "sha256:" + hex, -02 the bare hex. An unknown prefix never normalises
+    // into a pass - the comparison just fails, as a wrong digest does.
     return {
       prevField: (prev as string | null) ?? null,
       isGenesis,
@@ -108,8 +112,8 @@ export class ActaAdapter extends FormatAdapter {
     const p = payload as Record<string, unknown>;
     const s = sig as Record<string, unknown>;
     const missing: string[] = [];
-    // Require only the temporal anchor + signature triple; `type`/`issuer_id`
-    // are OPTIONAL Asqav-profile fields
+    // Require only the temporal anchor + signature triple; `type`/`issuer_id` are
+    // OPTIONAL Asqav-profile fields.
     for (const f of ["issued_at"]) {
       if (!(f in p)) missing.push(f);
     }
@@ -122,8 +126,8 @@ export class ActaAdapter extends FormatAdapter {
     if ("previousReceiptHash" in p && p.previousReceiptHash === null) {
       return ["FAIL", "genesis must omit previousReceiptHash, not set it null"];
     }
-    // False-attestation guard: a present Asqav-profile `issuer_id` MUST match
-    // the signing kid; absent, there is nothing to contradict
+    // False-attestation guard: when the Asqav-profile `issuer_id` is present it
+    // MUST match the signing kid. Absent it, there is nothing to contradict.
     if ("issuer_id" in p && p.issuer_id !== s.kid) {
       return ["FAIL", "issuer_id must match signature.kid"];
     }
