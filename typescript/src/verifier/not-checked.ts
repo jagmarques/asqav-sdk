@@ -1,15 +1,7 @@
-/**
- * The non-coverage declaration every `verify()` result carries, a mirror of the Python
- * verifier's `NOT_CHECKED`. A verifier that reports only what it checked lets a reader
- * mistake silence for coverage.
- *
- * `condition` is null when the check is never performed at any invocation, and names the
- * input that would enable it when the gap is one this caller can close. This list is longer
- * than the Python one: this port runs no anchor cryptography at all, so the checks Python
- * performs partially are declared here as never performed.
- */
+// Non-coverage declaration each verify() result carries (mirrors Python), so
+// silence is not read as coverage; `condition` null = never run, else the input
 
-/** One declared gap between what this verifier checks and what a receipt claims. */
+/** One declared gap between what this verifier checks and a receipt claims */
 export interface NotCheckedEntry {
   /** The check not performed (snake_case, stable across languages). */
   check: string;
@@ -21,6 +13,8 @@ export interface NotCheckedEntry {
   condition: string | null;
 }
 
+// Longer than Python's list: this port runs no anchor cryptography, so checks
+// Python performs partially are declared here as never performed
 export const NOT_CHECKED: readonly NotCheckedEntry[] = [
   {
     check: "tsa_signature_verification",
@@ -132,21 +126,15 @@ export const NOT_CHECKED: readonly NotCheckedEntry[] = [
   },
 ];
 
-/**
- * Return the non-coverage declaration as a fresh list of fresh entries.
- *
- * Copied on every call so a caller mutating one result cannot narrow what later
- * results declare.
- */
+// Copied per call so a caller mutating one result cannot narrow later ones
+/** Non-coverage declaration as a fresh list of fresh entries */
 export function notCheckedDeclaration(): NotCheckedEntry[] {
   return NOT_CHECKED.map((entry) => ({ ...entry }));
 }
 
-/**
- * The axis order verify() reports on the normal path for this profile's native
- * format (the prefix, then the adapter's extras in order). The coverage block
- * measures "not reached" against this sequence.
- */
+// The prefix, then the adapter extras in order; coverage measures "not reached"
+// against this sequence
+/** Axis order verify() reports on the normal path for the native format */
 export const AXIS_ORDER = [
   "structure",
   "signature",
@@ -167,32 +155,28 @@ export const AXIS_ORDER = [
 export interface CoverageEntry {
   /** The check (a NOT_CHECKED row's `check`, or an axis name). */
   id: string;
-  /** not_implemented: declared and never evaluated; not_reached: evaluation stopped first. */
+  /** not_implemented: never evaluated; not_reached: evaluation stopped first */
   reason: "not_implemented" | "not_reached";
   /** Whether the tool implements the check at all. */
   status: "not_implemented" | "implemented";
   /** The requirement family, on not_implemented entries. */
   requirement?: string;
-  /** The caller input that would enable the check, on not_implemented entries. */
+  /** Caller input that would enable the check, on not_implemented entries */
   condition?: string | null;
 }
 
-/**
- * The coverage block every result carries beside `notChecked`. A wire block
- * mirrored from the reviewer's tool, so the keys stay snake_case deliberately.
- */
+// A wire block mirrored from the reviewer's tool, so keys stay snake_case
+/** Coverage block every result carries beside `notChecked` */
 export interface Coverage {
-  /** null when the full axis sequence ran; else the axis evaluation stopped at. */
+  /** null when the full axis sequence ran, else the axis it stopped at */
   stopped_at: string | null;
-  /** not_implemented entries first (table order), then not_reached axes in axis order. */
+  /** not_implemented first (table order), then not_reached in axis order */
   checks_not_evaluated: CoverageEntry[];
 }
 
-/**
- * Build the coverage declaration for one result's axes. The early returns in
- * verify() stop at the structure gate, so stopped_at reads "structure" there;
- * a run whose axes end at the last axis of AXIS_ORDER ran to the end.
- */
+// Early returns in verify() stop at the structure gate, so stopped_at reads
+// "structure" there; axes ending at the last AXIS_ORDER entry ran to the end
+/** Build the coverage declaration for one result's axes */
 export function coverageDeclaration(axes: ReadonlyArray<{ axis: string }>): Coverage {
   const entries: CoverageEntry[] = NOT_CHECKED.map((row) => ({
     id: row.check,

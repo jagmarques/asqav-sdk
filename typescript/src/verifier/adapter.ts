@@ -1,7 +1,5 @@
-/**
- * The format-adapter seam, a port of the Python oracle's `adapter.py`. Everything format-specific lives
- * behind it; the canonicaliser, verify, chain walk and vector runner are shared infrastructure.
- */
+// Format-adapter seam, port of oracle adapter.py: all format-specific code
+// lives behind it; canonicaliser, verify, chain walk and runner are shared
 
 import type { VerifyState } from "./crypto.js";
 
@@ -17,14 +15,13 @@ export interface SignatureMaterial {
 
 /** The hash-chain linkage for one receipt. */
 export interface ChainStep {
-  /**
-   * The format's previous-hash field value, or null when the format omits it on genesis. Typed unknown
-   * because the wire value is producer-set: a non-string must reach the chain axis as-is.
-   */
+  // Typed unknown because the wire value is producer-set: a non-string
+  // must reach the chain axis as-is
+  /** Previous-hash field value, or null when the format omits it on genesis */
   prevField: unknown;
   /** True when this receipt declares itself first on its chain. */
   isGenesis: boolean;
-  /** Recompute the predecessor's chain digest (encodes which bytes the format hashes). */
+  /** Recompute the predecessor's chain digest (the bytes the format hashes) */
   recompute: (predecessor: Record<string, unknown>) => string;
 }
 
@@ -34,7 +31,7 @@ export type AxisCheck = readonly [VerifyState, string];
 /** A named extra axis: `[axisName, result, note]`. */
 export type ExtraAxis = readonly [string, VerifyState, string];
 
-/** Format-shaped key material the runner injects (a JWKS dict, a key map, or null). */
+/** Format-shaped key material the runner injects (JWKS, key map, or null) */
 export type KeyProvider = Record<string, unknown> | null;
 
 /** Comparison input local to one invocation; never a key provider. */
@@ -58,10 +55,9 @@ export interface VerificationContext {
   readonly evaluator?: unknown;
 }
 
-/**
- * One receipt format's binding to the shared verification core. `name` labels the format in results and
- * the manifest; `detect` is a cheap structural fingerprint with no crypto.
- */
+// `name` labels the format in results and the manifest; `detect` is a cheap
+// structural fingerprint with no crypto
+/** One receipt format's binding to the shared verification core */
 export abstract class FormatAdapter {
   /** Stable format label surfaced in results and the vector manifest. */
   abstract readonly name: string;
@@ -87,10 +83,9 @@ export abstract class FormatAdapter {
   /** Structural check; returns `[result, note]`. */
   abstract schema(doc: Record<string, unknown>): AxisCheck;
 
-  /**
-   * Format-specific axes beyond structure / signature / chain, as `[axisName, result, note]`. Default is
-   * none; a format layering REQUIRED checks returns one tuple each so a missing layer FAILs the verdict.
-   */
+  // Default none; a format layering REQUIRED checks returns one tuple each
+  // so a missing layer FAILs the verdict
+  /** Axes beyond structure/signature/chain, as [axisName, result, note] */
   extraAxes(_doc: Record<string, unknown>, _keyProvider: KeyProvider): ExtraAxis[] {
     return [];
   }
@@ -102,29 +97,27 @@ export abstract class FormatAdapter {
   }
 
   // Raw so the axis can report a malformed counter; extraAxes never sees the
-  // predecessor continuity needs, so the counter is read here instead.
+  // predecessor continuity needs, so the counter is read here instead
   seqOf(_doc: Record<string, unknown>): unknown {
     return null;
   }
 
-  // In-body attestation surfaced in the verdict (e.g. signer). Not a check.
-  // Default none; a format with an in-signed-body attestation returns it.
+  // In-body attestation surfaced in the verdict (e.g. signer), not a check
+  // Default none; a format with an in-signed-body attestation returns it
   attestation(_doc: Record<string, unknown>): Record<string, unknown> {
     return {};
   }
 
-  /**
-   * True when the receipt's digest is keyed (criterion 438): internally consistent but not third-party
-   * re-derivable, so a fully-checked receipt reports `verified_keyed`. Default is false.
-   */
+  // Internally consistent but not third-party re-derivable, so a fully-checked
+  // receipt reports verified_keyed
+  /** True when the receipt's digest is keyed; default false */
   keyedDigest(_doc: Record<string, unknown>): boolean {
     return false;
   }
 
-  /**
-   * Bytes under the format's pre-cutover canonical dialect, or null when no dated dialect applies to
-   * `doc`. A signature passing only under these bytes is reported as that dialect, never as verified.
-   */
+  // A signature passing only under these bytes is reported as that dialect,
+  // never as verified
+  /** Bytes under the format's pre-cutover canonical dialect, else null */
   preCutoverSigningInput(_doc: Record<string, unknown>): Uint8Array | null {
     return null;
   }

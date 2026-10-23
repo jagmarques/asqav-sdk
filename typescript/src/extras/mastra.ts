@@ -1,7 +1,5 @@
-/**
- * Mastra integration. Signs agent step ``before`` / ``after`` events so every tool call, LLM call and
- * workflow step becomes a receipt. Needs the `@mastra/core` peer dependency; see the README.
- */
+// Mastra integration: signs agent step ``before`` / ``after`` events so each
+// tool call, LLM call and workflow step is a receipt; needs `@mastra/core`
 
 import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
@@ -11,10 +9,9 @@ function truncate(s: string, max = MAX_PREVIEW): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
-/**
- * Minimum surface we touch on a Mastra agent. ``@mastra/core`` is never imported at the top level, so
- * the SDK installs cleanly without it.
- */
+// ``@mastra/core`` is never imported at the top level, so the SDK installs
+// cleanly without it
+/** Minimum surface we touch on a Mastra agent */
 interface MastraAgentLike {
   readonly name?: string;
   on?: (event: string, listener: (...args: unknown[]) => void) => unknown;
@@ -36,10 +33,9 @@ export interface AsqavMastraHookOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-/**
- * Mastra hook signing agent step lifecycle events through Asqav. ``before`` and ``after`` are public so
- * callers can wire them into custom middleware or invoke them from tests.
- */
+// ``before`` and ``after`` are public so callers can wire them into custom
+// middleware or call them from tests
+/** Mastra hook signing agent step lifecycle events through Asqav */
 export class AsqavMastraHook extends AsqavAdapter {
   public readonly name: string;
 
@@ -48,13 +44,11 @@ export class AsqavMastraHook extends AsqavAdapter {
     this.name = options.name ?? "asqav-mastra-hook";
   }
 
-  /**
-   * Verify the Mastra peer is installed and return its module. Throws a
-   * clear error matching the Python ImportError contract when missing.
-   */
+  // Throws a clear error matching the Python ImportError contract when missing
+  /** Verify the Mastra peer is installed and return its module */
   static async loadPeer(): Promise<unknown> {
     try {
-      // Optional peer; not declared in normal dependencies.
+      // Optional peer; not declared in normal dependencies
       // @ts-ignore optional peer dependency
       return (await import("@mastra/core")) as unknown;
     } catch (err) {
@@ -67,13 +61,12 @@ export class AsqavMastraHook extends AsqavAdapter {
     }
   }
 
-  /**
-   * Attach to a Mastra agent: subscribes to ``step:before`` / ``step:after`` when the agent exposes an
-   * event emitter, otherwise registers a middleware that wraps each step.
-   */
+  // Uses the agent's event emitter when it exposes one, otherwise registers a
+  // middleware that wraps each step
+  /** Attach to a Mastra agent: subscribe to ``step:before`` / ``step:after`` */
   async attach(agent: MastraAgentLike): Promise<void> {
-    // Validate the peer is available so attach() fails fast with a
-    // helpful message rather than at first event time.
+    // Validate the peer is available so attach() fails fast with a helpful
+    // message rather than at first event time
     await AsqavMastraHook.loadPeer();
 
     if (typeof agent.on === "function") {

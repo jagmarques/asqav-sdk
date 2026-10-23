@@ -11,10 +11,9 @@ type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-/**
- * Canonicalize a JSON-serializable value to JCS bytes. Throws TypeError for values JSON cannot
- * represent (functions, undefined, BigInt, Symbol) and for non-finite numbers.
- */
+// Throws TypeError for values JSON cannot represent (functions, undefined,
+// BigInt, Symbol) and for non-finite numbers
+/** Canonicalize a JSON-serializable value to JCS bytes */
 export function canonicalJson(value: unknown): Uint8Array {
   return new TextEncoder().encode(canonicalString(value));
 }
@@ -59,7 +58,8 @@ function canonicalString(value: unknown): string {
   }
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    // Sort by UTF-16 code unit; JS default Array.prototype.sort on strings already does this.
+    // Sort by UTF-16 code unit; JS default Array.prototype.sort on strings does
+    // this
     const keys = Object.keys(obj).sort();
     const parts: string[] = [];
     for (const k of keys) {
@@ -74,7 +74,7 @@ function canonicalString(value: unknown): string {
 export const MAX_PROFILE_INTEGER = 9007199254740991;
 
 function numberToCanonical(n: number): string {
-  // Map -0 to 0 so equal mathematical values produce identical bytes.
+  // Map -0 to 0 so equal mathematical values produce identical bytes
   if (n === 0) return "0";
   assertProfileRange(n);
   // A fraction came from a float: write Python repr (1e-07, not 1e-7)
@@ -92,10 +92,9 @@ function assertProfileRange(n: number): void {
   }
 }
 
-/**
- * A float literal kept by the float-preserving parser. json.dumps writes
- * repr(float) for it, so follow that, not the JavaScript number form.
- */
+// json.dumps writes repr(float) for it, so follow that, not the JavaScript
+// number form
+/** A float literal kept by the float-preserving parser */
 function floatLeafToCanonical(n: number): string {
   if (!Number.isFinite(n)) {
     throw new TypeError("NaN / Infinity are not allowed in canonical JSON");

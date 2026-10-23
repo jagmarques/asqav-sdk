@@ -1,12 +1,11 @@
-/**
- * Vercel AI SDK adapter. Wires Asqav signing into `experimental_telemetry: { tracer }`, so every
- * span the AI SDK opens becomes an asqav signature on `span.end()`. See the README for usage.
- */
+// Vercel AI SDK adapter: Asqav signing via `experimental_telemetry: { tracer }`
+// Every span the AI SDK opens becomes an asqav signature on `span.end()`
 
 import type { Agent } from "../index.js";
 import { toJsonSafeResult } from "./_base.js";
 
-// Local copies of @opentelemetry/api 1.x types so users without OTel can still import this.
+// Local copies of @opentelemetry/api 1.x types so users without OTel can still
+// import this
 
 type AttributeValue =
   | string
@@ -57,14 +56,12 @@ export interface Tracer {
 
 // === Action-type mapping ===
 
-/**
- * Map a Vercel AI SDK span name (`ai.generateText`, `ai.toolCall`, ...) to an asqav action_type.
- * Full list: https://ai-sdk.dev/docs/ai-sdk-core/telemetry#collected-data.
- */
+// Full list: https://ai-sdk.dev/docs/ai-sdk-core/telemetry#collected-data
+/** Map a Vercel AI SDK span name (`ai.toolCall`, ...) to an action_type */
 export function mapSpanNameToActionType(name: string): string {
   if (!name) return "ai:span";
-  // Tool calls. AI SDK uses `ai.toolCall` as the span name; tool name
-  // travels in attributes (`ai.toolCall.name`).
+  // Tool calls. AI SDK uses `ai.toolCall` as the span name; tool name travels
+  // in attributes (`ai.toolCall.name`)
   if (name === "ai.toolCall" || name.startsWith("ai.toolCall.")) {
     return "ai:tool_call";
   }
@@ -83,7 +80,7 @@ export function mapSpanNameToActionType(name: string): string {
   if (name === "ai.embed" || name === "ai.embedMany" || name.startsWith("ai.embed")) {
     return "ai:embed";
   }
-  // Fallback: replace `ai.foo.bar` -> `ai:foo_bar`.
+  // Fallback: replace `ai.foo.bar` -> `ai:foo_bar`
   if (name.startsWith("ai.")) {
     return `ai:${name.slice(3).replace(/\./g, "_")}`;
   }
@@ -93,24 +90,18 @@ export function mapSpanNameToActionType(name: string): string {
 // === Options ===
 
 export interface CreateAsqavExporterOptions {
-  /**
-   * Pre-built Asqav `Agent`. When provided, `agentId`/`apiKey` are ignored
-   * and the adapter signs against this agent directly.
-   */
+  // The adapter signs against this agent directly
+  /** Pre-built Asqav `Agent`; when provided, `agentId`/`apiKey` are ignored */
   agent?: Agent;
-  /**
-   * Asqav API key. Required when `agent` is not supplied; the adapter
-   * lazily attaches to the named agent on first span using this key.
-   */
+  // The adapter lazily attaches to the named agent on first span using this key
+  /** Asqav API key, required when `agent` is not supplied */
   apiKey?: string;
   /** Asqav agent id to attach to when `agent` is not supplied. */
   agentId?: string;
   /** Optional override for the Asqav base URL. */
   baseUrl?: string;
-  /**
-   * Optional callback invoked when signing fails. Defaults to
-   * `console.warn`. The adapter never throws.
-   */
+  // The adapter never throws
+  /** Callback invoked when signing fails, defaults to `console.warn` */
   onError?: (err: unknown, span: { name: string; attributes: Attributes }) => void;
 }
 
@@ -176,10 +167,9 @@ function makeSpan(
   return span;
 }
 
-/**
- * Build a `Tracer` for `generateText({ experimental_telemetry: { tracer } })`. Each span fires a
- * fire-and-forget `agent.sign` on end; network errors are swallowed so signing never breaks generation.
- */
+// Each span fires a fire-and-forget `agent.sign` on end; network errors are
+// swallowed so signing never breaks generation
+/** Build a `Tracer` for `generateText({ experimental_telemetry })` */
 export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
   if (!opts.agent && !opts.agentId) {
     throw new Error(
@@ -188,14 +178,14 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
   }
 
   const onError = opts.onError ?? ((err, span) => {
-    // Fail-open: never throw, just warn.
+    // Fail-open: never throw, just warn
     // eslint-disable-next-line no-console
     console.warn(`[asqav/vercel-ai] sign failed for span ${span.name}:`, err);
   });
 
   const handleEnd = (state: SpanState): void => {
     if (!opts.agent) {
-      // Lazy attach not supported in v1: require pre-built agent.
+      // Lazy attach not supported in v1: require pre-built agent
       onError(
         new Error("createAsqavExporter requires a pre-built Agent"),
         { name: state.name, attributes: state.attributes },
@@ -221,8 +211,8 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
       context.original_action_type = baseAction;
     }
 
-    // Fire-and-forget. No await, no throw.
-    // 787: span attributes carry the AI SDK outcome; bind them as result
+    // Fire-and-forget. No await, no throw
+    // Span attributes carry the AI SDK outcome; bind them as result
     const outcome = isError && state.exception !== undefined
       ? { error: context.error }
       : { ...state.attributes };
@@ -261,7 +251,7 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
       arg2?: F | unknown,
       arg3?: F,
     ): unknown {
-      // Resolve the (options, context, fn) overload set used by OTel.
+      // Resolve the (options, context, fn) overload set used by OTel
       let options: unknown;
       let fn: F | undefined;
       if (typeof arg1 === "function") {
@@ -284,7 +274,7 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
             span.end();
             throw err;
           }).then((value) => {
-            // Only end if the user's fn didn't already call span.end().
+            // Only end if the user's fn didn't already call span.end()
             span.end();
             return value;
           });
@@ -303,5 +293,5 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
   return tracer;
 }
 
-// Exported for tests.
+// Exported for tests
 export const _internal = { mapSpanNameToActionType, noop };

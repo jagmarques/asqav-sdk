@@ -1,7 +1,5 @@
-/**
- * OpaDetector: POST {opaUrl}/v1/data/{policyPath} with {input:{action_type,context}};
- * {"result": true|false} maps to allow, missing result is deny. See docs/detector-plugins.
- */
+// OpaDetector: POST {opaUrl}/v1/data/{policyPath} {input:{action_type,context}}
+// {"result": bool} maps to allow/deny; missing is deny (docs/detector-plugins)
 
 import type { DetectorPlugin, DetectorResult } from "../detectors.js";
 
@@ -62,7 +60,7 @@ export class OpaDetector implements DetectorPlugin {
       throw new Error(`opa_request_failed: could not reach OPA at ${this._endpoint}: ${msg}`);
     }
 
-    // Missing result key = fail-closed deny.
+    // Missing result key = fail-closed deny
     const allow = data.result !== undefined ? Boolean(data.result) : false;
 
     if (allow) {

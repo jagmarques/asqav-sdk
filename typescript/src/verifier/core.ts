@@ -8,19 +8,15 @@ import { REGISTRY_EDITION, REGISTRY_VERSION } from "./vrShim.js";
 import { notCheckedDeclaration, coverageDeclaration, type Coverage, type NotCheckedEntry } from "./not-checked.js";
 import { classifyFailure, foldIndependent } from "./semantic.js";
 
-/**
- * Public verdict vocabulary (criteria 418/438). The per-axis PASS/FAIL/SKIPPED
- * tokens stay internal; the surface a caller reads speaks these three only.
- */
+// The surface a caller reads speaks these three only
+/** Public verdict vocabulary; per-axis PASS/FAIL/SKIPPED stay internal */
 export const VERDICT_VERIFIED = "verified";
 export const VERDICT_VERIFIED_KEYED = "verified_keyed";
 export const VERDICT_UNVERIFIED = "unverified";
 export type Verdict = "verified" | "verified_keyed" | "unverified";
 
-/**
- * Failure classes carried by every unverified verdict (criterion 418); the two
- * are never collapsed - a proven binding failure is not an incomplete check.
- */
+// Never collapsed: a proven binding failure is not an incomplete check
+/** Failure classes carried by every unverified verdict */
 export const FAILURE_INVALID = "invalid";
 export const FAILURE_UNVERIFIABLE = "unverifiable";
 export type FailureClass = "invalid" | "unverifiable";
@@ -54,20 +50,17 @@ export interface VerifyResult {
   /** The matched adapter name, or "unknown". */
   fmt: string;
   axes: AxisResult[];
-  /**
-   * `verified` only when every non-skipped axis passed AND the signature was checked; `verified_keyed`
-   * when the digest is keyed. Defaults fail closed: an unfolded result reads unverified.
-   */
+  // `verified_keyed` when the digest is keyed; defaults fail closed
+  /** `verified` needs every non-skipped axis PASS and a checked signature */
   verdict: Verdict;
   /** invalid / unverifiable when unverified, else null. */
   failureClass: FailureClass | null;
-  // In-body origin attestation (v:2 signer) from the signed payload.
-  // null for v:1. Never gates the verdict.
+  // In-body origin attestation (v:2 signer) from the signed payload
+  // null for v:1, never gates the verdict
   signer: string | null;
-  /**
-   * Earliest axis in report order that did not PASS, else null. Reported so two verifiers
-   * disagreeing about WHICH check failed first is as visible as disagreeing about the verdict.
-   */
+  // Makes two verifiers disagreeing on WHICH check failed first as visible as
+  // disagreeing on the verdict
+  /** Earliest axis in report order that did not PASS, else null */
   firstFailingEdge: string | null;
   /** The checks this result does not claim, beside the claim it makes. */
   notChecked: NotCheckedEntry[];
@@ -76,7 +69,7 @@ export interface VerifyResult {
   /** Registry edition + upstream version this result resolved against (625). */
   registryEdition: string;
   registryVersion: string;
-  /** The coverage block, mirrored from the reviewer's tool: snake_case keys are deliberate. */
+  /** Coverage block mirrored from the reviewer's tool, snake_case on purpose */
   coverage: Coverage;
   /** Resolved invocation context, so a disagreement attributes to an input. */
   context?: VerificationContext;
@@ -92,21 +85,15 @@ function axis(axis: string, result: VerifyState, note: string): AxisResult {
   return { axis, result, note, failureClass: axisFailureClass(axis, result, note) };
 }
 
-/**
- * Structure-axis note for the malformed third spelling of "no anchors": the member
- * absent and the member present as an empty array are the conformant spellings; a
- * JSON null is found in the wild and is malformed, reported unverifiable rather than
- * read as either. Verbatim in all three engines; a wording drift fails the
- * cross-language anchor-shape tests.
- */
+// Absent and [] are conformant; null is malformed, reported unverifiable
+// Verbatim in all three engines; drift fails cross-language anchor tests
+/** Structure-axis note for the malformed null spelling of "no anchors" */
 const ANCHORS_NULL_NOTE =
   "anchors is null: malformed; absent or [] is the conformant spelling of no anchors";
 
-/**
- * The structure axis: the adapter schema, plus the one envelope-member shape rule the
- * schema cannot see - anchors sits beside the signed payload, so no adapter schema
- * reads it. Caught here, on the document as parsed.
- */
+// anchors sits beside the signed payload, so no adapter schema reads it;
+// it is caught here, on the document as parsed
+/** The structure axis: the adapter schema plus one envelope-member rule */
 function structureAxis(ad: FormatAdapter, doc: Record<string, unknown>): AxisResult {
   const [res, note] = ad.schema(doc);
   if (res === PASS && "anchors" in doc && doc.anchors === null) {
@@ -115,10 +102,8 @@ function structureAxis(ad: FormatAdapter, doc: Record<string, unknown>): AxisRes
   return axis("structure", res, note);
 }
 
-/**
- * Fixed leading axis order every adapter walks, before its format-specific extras.
- * Pinned so a reorder fails a gate instead of quietly renaming which edge is "first".
- */
+// Pinned so a reorder fails a gate instead of quietly renaming "first"
+/** Fixed leading axis order every adapter walks, before its format extras */
 export const AXIS_ORDER_PREFIX = ["structure", "signature", "chain", "seq"] as const;
 
 /** Earliest axis in report order that drove the verdict away */
@@ -188,7 +173,7 @@ function chainAxis(
   if (predecessor === null) {
     return axis("chain", SKIPPED, "no predecessor supplied");
   }
-  // A chain link must stay within one format; a cross-format predecessor is not a valid link.
+  // A chain link must stay within one format; cross-format is not a link
   const predAd = detect(predecessor, adapters);
   if (predAd === null || predAd.name !== ad.name) {
     return axis("chain", FAIL, "predecessor is a different receipt format");
@@ -215,7 +200,7 @@ function seqAxis(
   }
   if (!isCounter(seq)) return axis("seq", FAIL, `malformed seq: ${JSON.stringify(seq)}`);
   if (predecessor === null) return axis("seq", PASS, `seq ${seq}; no predecessor supplied`);
-  // A counter only means anything within one format's own series.
+  // A counter only means anything within one format's own series
   const predAd = detect(predecessor, adapters);
   if (predAd === null || predAd.name !== ad.name) {
     return axis("seq", PASS, `seq ${seq}; predecessor is a different receipt format`);
@@ -234,12 +219,12 @@ function seqAxis(
   return axis("seq", FAIL, `seq gap: ${seq - prev - 1} receipt(s) withheld between ${prev} and ${seq}`);
 }
 
-// A counter is a positive whole number; booleans and 1.5 are not counters.
+// A counter is a positive whole number; booleans and 1.5 are not counters
 function isCounter(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= 1;
 }
 
-/** Max nesting the recursive JCS encoder tolerates, mirrors the Python core cap. */
+/** Max nesting the recursive JCS encoder tolerates, as the Python core cap */
 export const MAX_NESTING_DEPTH = 200;
 
 const TOO_DEEP_NOTE = `receipt nesting exceeds the supported depth (> ${MAX_NESTING_DEPTH} levels)`;
@@ -284,8 +269,8 @@ export function verify(
       context: resolved,
     };
   }
-  // An over-nested receipt would crash the recursive JCS encoder. Cap it here and
-  // report unverified/unverifiable, never a verified, matching the Python gate.
+  // An over-nested receipt would crash the recursive JCS encoder; cap it here
+  // and report unverified/unverifiable, never verified, like the Python gate
   let earlyNote: string | null = null;
   if (
     exceedsDepth(doc, MAX_NESTING_DEPTH) ||
@@ -329,8 +314,8 @@ export function verify(
     axes.push(axis(name, res, note));
   }
 
-  // Expiry reports on its own axis and never folds the verdict (criterion 426);
-  // a keyed digest reports verified_keyed, never plain verified (criterion 438).
+  // Expiry reports on its own axis and never folds the verdict;
+  // a keyed digest reports verified_keyed, never plain verified
   const [verdict, failureClass] = foldVerdict(axes, ad.keyedDigest(doc));
   const signerVal = ad.attestation(doc).signer;
   const signer = typeof signerVal === "string" ? signerVal : null;

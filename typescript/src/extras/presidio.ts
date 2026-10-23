@@ -1,7 +1,5 @@
-/**
- * PresidioDetector: wraps the Presidio REST analyzer; posts stringified context and
- * maps detected entities to a DetectorResult. Docs: microsoft.github.io/presidio.
- */
+// PresidioDetector: wraps the Presidio REST analyzer; posts stringified context
+// and maps detected entities to a DetectorResult (microsoft.github.io/presidio)
 
 import type { DetectorPlugin, DetectorResult } from "../detectors.js";
 
