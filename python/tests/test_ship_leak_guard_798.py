@@ -1,9 +1,8 @@
 """Shipped SDKs leak no server internals (798 D3).
 
-The SDKs are open source by charter; this gate proves they carry nothing
-beyond the public edge: no source maps, no private hostnames, no live
-secrets outside documented examples. Scans the packed trees
-(python/src, typescript/src) plus built dist/ when present.
+The SDKs are open source; this gate proves they carry no source maps, private
+hostnames or live secrets outside documented examples, scanning python/src,
+typescript/src and built dist/ when present.
 """
 from __future__ import annotations
 

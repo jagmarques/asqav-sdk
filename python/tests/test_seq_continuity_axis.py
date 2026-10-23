@@ -39,7 +39,7 @@ def _with_seq(doc: dict, seq: object) -> dict:
 
 @requires_ed25519
 def test_a_receipt_carrying_no_seq_still_verifies() -> None:
-    """A real receipt with no counter must stay verified, not blocked by a SKIPPED."""
+    """A real receipt with no counter stays verified; no SKIPPED blocks it."""
     doc = _load("asqav-01-genesis-permit", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("asqav-01-genesis-permit"))
     assert res.verdict == "verified"
@@ -51,7 +51,7 @@ def test_a_receipt_carrying_no_seq_still_verifies() -> None:
 
 
 def test_the_seq_axis_never_reports_skipped_across_the_whole_corpus() -> None:
-    """Corpus-wide, so a future branch that forgets the no-SKIPPED rule is caught."""
+    """Corpus-wide, so a branch forgetting the no-SKIPPED rule is caught."""
     skipped = []
     for vec_dir in sorted(p for p in _CORPUS.iterdir() if p.is_dir()):
         receipt = vec_dir / "receipt.json"
@@ -117,7 +117,7 @@ def test_a_counter_with_no_predecessor_supplied_passes_with_a_note() -> None:
 
 
 def test_a_predecessor_carrying_no_counter_passes_with_a_note() -> None:
-    """The migration case: the predecessor was minted before the counter shipped."""
+    """Migration: the predecessor was minted before the counter shipped."""
     pred = _load("asqav-03-chain-link", "predecessor.json")
     assert "seq" not in pred["payload"], "fixture must genuinely lack a counter"
     doc = _with_seq(_load("asqav-03-chain-link", "receipt.json"), 2)
@@ -135,7 +135,7 @@ def test_a_malformed_predecessor_counter_fails() -> None:
 
 
 def test_counters_are_never_compared_across_formats() -> None:
-    """A foreign receipt's counter is not this series; comparing would fake a gap."""
+    """A foreign receipt's counter is another series; comparing fakes a gap."""
     pred = _load("acta-01-genesis", "receipt.json")
     pred["seq"] = 99
     doc = _with_seq(_load("asqav-01-genesis-permit", "receipt.json"), 2)
@@ -145,7 +145,7 @@ def test_counters_are_never_compared_across_formats() -> None:
 
 
 def test_a_hash_mode_receipt_cannot_claim_a_counter() -> None:
-    """Hash mode signs flat fields only, so a pasted seq is an unsigned claim."""
+    """Hash mode signs flat fields only: a pasted seq is an unsigned claim."""
     doc = _load("asqav-05-hash-mode-prod", "receipt.json")
     clean = verify(doc, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod"))
     assert clean.axis("structure").result == crypto.PASS

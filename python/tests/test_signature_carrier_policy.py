@@ -1,9 +1,8 @@
 """Signature wire-form reporting (criterion 657 C3).
 
-A verifier that accepts a historical signature encoding names the trusted
-legacy policy in the signature axis note; junk that decodes to nothing is
-refused instead of reported as a crypto mismatch. Fresh unpadded-base64url
-signatures verify silently.
+A historical signature encoding verifies and names its trusted policy in the
+signature axis note; junk decoding to nothing is refused, not a crypto
+mismatch. Fresh unpadded-base64url signatures verify silently.
 """
 
 from __future__ import annotations
