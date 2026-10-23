@@ -1,4 +1,4 @@
-// Criterion 435: closed controls_evaluated key set and duplicate-nonce replay flag.
+// Criterion 435: closed controls_evaluated key set, duplicate-nonce replay flag
 import { describe, expect, it } from "vitest";
 
 import { AsqavNativeAdapter } from "../src/verifier/adapters/asqavNative.js";

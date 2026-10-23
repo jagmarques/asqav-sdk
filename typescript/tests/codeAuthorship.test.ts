@@ -1,7 +1,5 @@
-/**
- * SDK parity for the code-authorship receipt, mirroring the cloud's SignRequest validators.
- * Honest scope: every one of the eight extension fields is producer-asserted, not verified.
- */
+// SDK parity for the code-authorship receipt, mirroring cloud SignRequest
+// Honest scope: all eight extension fields are producer-asserted, not verified
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

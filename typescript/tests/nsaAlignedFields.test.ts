@@ -1,7 +1,5 @@
-/**
- * SDK parity for the NSA-aligned receipt extensions (NSA CSI U/OO/6030316-26): digests are
- * forwarded verbatim, tool_fingerprint is computed, and nonce is auto-generated when omitted.
- */
+// SDK parity for the NSA-aligned receipt extensions (NSA CSI U/OO/6030316-26):
+// digests forwarded verbatim, tool_fingerprint computed, nonce auto-generated
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -311,8 +309,8 @@ describe("Rule 10: expiry_collision_guard", () => {
     const spy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(jsonResponse(okBody()));
-    // Far-future horizon -> a large positive duration. The SDK converts ISO expiresAt
-    // to valid_seconds client-side so the field is never silently dropped.
+    // Far-future horizon -> a large positive duration; the SDK converts ISO
+    // expiresAt to valid_seconds client-side, never silently dropping the field
     await fakeAgent().sign({
       actionType: "api.call",
       complianceMode: true,
@@ -413,7 +411,7 @@ describe("Rule 11: digest_format_guard", () => {
   }
 
   // tool_fingerprint uses the bare cloud wire form (32 hex, no prefix),
-  // distinct from the self-describing sha256:<64-hex> form of the others.
+  // unlike the others' sha256:<64-hex> form
   it("tool_fingerprint: 32 bare hex passes", async () => {
     const spy = vi
       .spyOn(globalThis, "fetch")

@@ -1,8 +1,5 @@
-/**
- * `invocationRef` is forwarded as `invocation_ref`, unfenced.
- * Producer-asserted like `findingRef` / `approvalRef`, valid on any receipt
- * type: pre-action decisions and post-action observations alike.
- */
+// `invocationRef` is forwarded as `invocation_ref`, unfenced; producer-asserted
+// like `findingRef`/`approvalRef`, valid on pre-action and post-action receipts
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

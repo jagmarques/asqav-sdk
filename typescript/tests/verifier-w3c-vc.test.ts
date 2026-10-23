@@ -1,7 +1,5 @@
-/**
- * W3C VC 2.0 eddsa-jcs-2022 adapter, TS half of test_oracle_w3c_vc.py's negatives. Corpus
- * verdicts are gated in verifier-parity.test.ts; this pins the axis-level behaviour.
- */
+// W3C VC 2.0 eddsa-jcs-2022 adapter, TS half of test_oracle_w3c_vc.py negatives
+// Corpus verdicts are gated in verifier-parity.test.ts; this pins the axes
 
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";

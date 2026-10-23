@@ -1,7 +1,5 @@
-/**
- * Canonical-JSON golden vectors for `canonicalJson`, from the canonical-JSON test appendix.
- * Canonical form: https://datatracker.ietf.org/doc/html/rfc8785
- */
+// Canonical-JSON golden vectors for `canonicalJson`, from the test appendix
+// Canonical form: https://datatracker.ietf.org/doc/html/rfc8785
 
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -18,7 +16,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
     const input = { peach: "This sorting order", péché: "is wrong according to French", pêche: "but ordains", sin: "ordering by code unit" };
     const out = decode(canonicalJson(input));
     // Keys sort by JavaScript's default UTF-16 code unit order: ascii letters
-    // precede pre-composed Latin accented letters.
+    // precede pre-composed accented letters
     expect(out).toBe(
       "{\"peach\":\"This sorting order\",\"péché\":\"is wrong according to French\",\"pêche\":\"but ordains\",\"sin\":\"ordering by code unit\"}"
     );
@@ -37,7 +35,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
     const utf8 = new TextEncoder().encode("café");
     const haystack = Buffer.from(bytes);
     expect(haystack.includes(Buffer.from(utf8))).toBe(true);
-    // No \u escape for non-control non-ASCII characters.
+    // No \u escape for non-control non-ASCII
     expect(decode(bytes)).not.toContain("\\u");
   });
 
@@ -82,7 +80,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
   });
 
   it("known SHA-256 digest for the §5.7 chain seed envelope", () => {
-    // First record's previousReceiptHash MUST equal "0"*64 (chain seed).
+    // Chain seed: the first previousReceiptHash MUST equal "0"*64
     const envelope = {
       type: "protectmcp:decision",
       issued_at: "2026-05-04T00:00:00Z",
@@ -98,7 +96,7 @@ describe("canonicalJson() RFC 8785 golden vectors", () => {
     const bytes = canonicalJson(envelope);
     const hex = createHash("sha256").update(bytes).digest("hex");
     expect(hex).toMatch(/^[0-9a-f]{64}$/);
-    // Reproducible across key insertion order.
+    // Stable across key order
     const reordered = {
       receipt_type: "protectmcp:decision",
       previousReceiptHash: "0".repeat(64),

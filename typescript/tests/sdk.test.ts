@@ -131,7 +131,7 @@ describe("agent.sign", () => {
         .digest("hex");
     const parsed = JSON.parse(signInit.body as string);
     // SDK auto-generates a 24-hex-char nonce per call (NSA CSI alignment);
-    // assert the shape, then drop it before the deep-equality check.
+    // assert its shape, then drop it before deep equality
     expect(parsed.nonce).toMatch(/^[0-9a-f]{24}$/);
     delete parsed.nonce;
     expect(parsed).toEqual({

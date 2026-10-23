@@ -1,7 +1,5 @@
-/**
- * Fail-clean robustness (rule 3.12): the neutral verifier returns a verdict, never
- * throws, on malformed input (non-object receipt, non-string alg). Parity with Python.
- */
+// Fail-clean handling (rule 3.12): the neutral verifier returns a verdict and
+// never throws on malformed input (non-object receipt, non-string alg)
 import { describe, expect, it } from "vitest";
 
 import { ADAPTERS } from "../src/verifier/index.js";

@@ -1,7 +1,5 @@
-/**
- * The SDK parser must surface every field cloud `/verify` returns: the IETF projection,
- * bitcoin_anchor, the type discriminator, and each VerificationDetail sub-axis.
- */
+// The SDK parser must surface every field cloud `/verify` returns: the IETF
+// projection, bitcoin_anchor, the type discriminator, each VerificationDetail
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -165,8 +163,7 @@ describe("verifySignature response fields", () => {
   });
 
   it("test_regimes_satisfied_present", async () => {
-    // Cloud PR #337 added regimes_satisfied after the SDK projection
-    // PR #160 landed; pin that the SDK parser now reads it.
+    // Cloud #337 and SDK #160: the SDK parser reads regimes_satisfied
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(fullCloudPayload()),
     );
@@ -180,7 +177,7 @@ describe("verifySignature response fields", () => {
 
   it("test_anchor_type_accepts_opentimestamps_and_rfc3161", async () => {
     // _project_anchors emits "opentimestamps" (canonical) and
-    // "rfc3161". The SDK parser does not silently rewrite.
+    // "rfc3161"; the parser does not rewrite them
     const payload = {
       ...fullCloudPayload(),
       anchors: [

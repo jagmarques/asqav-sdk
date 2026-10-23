@@ -1,7 +1,5 @@
-/**
- * key_thumbprint binding axis, TS half (criterion 458), reading the same axis-parity-cases.json
- * as Python. The wire tests are mutation-shaped: each fails if its own call site is deleted.
- */
+// key_thumbprint binding axis, TS half (criterion 458), reading the same
+// axis-parity-cases.json as Python; each wire test fails if its call is deleted
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -21,7 +19,7 @@ const TABLE = JSON.parse(readFileSync(CASES_FILE, "utf8"));
 
 type KeySpec = { alg: string; fill: number; len: number } | null;
 
-// Expand a table `key` spec into the bytes both languages build it from.
+// Expand a table `key` spec into the bytes both languages use
 function expand(spec: KeySpec): readonly [string | null, Uint8Array | null] {
   if (spec === null) return [null, null];
   return [spec.alg, new Uint8Array(spec.len).fill(spec.fill)];
@@ -68,7 +66,7 @@ function receipt(thumbprint?: string): Record<string, unknown> {
 }
 
 describe("key_thumbprint binding parity", () => {
-  // A table that silently empties would make every case below vacuous.
+  // An empty table would make every case below vacuous
   it("reads a populated shared table", () => {
     expect(TABLE.key_binding.length).toBeGreaterThanOrEqual(15);
     expect(TABLE.key_thumbprint_vectors.length).toBeGreaterThanOrEqual(4);
@@ -92,7 +90,7 @@ describe("key_thumbprint binding parity", () => {
     });
   }
 
-  // pub is unpadded base64url; the directory's own alphabet yields another digest.
+  // pub is unpadded base64url; the directory's alphabet yields another digest
   it("builds pub as unpadded base64url", () => {
     const jwk = akpJwk("ML-DSA-87", new Uint8Array(2592).fill(0xff));
     expect(Object.keys(jwk).sort()).toEqual(["alg", "kty", "pub"]);
@@ -101,7 +99,7 @@ describe("key_thumbprint binding parity", () => {
     expect(jwk.pub.startsWith("____")).toBe(true);
   });
 
-  // RFC 7638 requires lexicographic members whatever order the caller passes.
+  // RFC 7638 requires lexicographic members whatever the input order
   it("ignores member insertion order", () => {
     const pk = new Uint8Array(1952).fill(0x07);
     const ordered = { alg: ALG, kty: "AKP", pub: b64urlNoPad(pk) };
@@ -110,7 +108,7 @@ describe("key_thumbprint binding parity", () => {
     expect(jwkThumbprint(ordered)).toBe(thumbprintForKey(ALG, pk));
   });
 
-  // Deleting the axis from the adapter's extraAxes fails here.
+  // Dropping the axis from extraAxes fails here
   it("emits the axis from the oracle adapter", () => {
     const result = verify(receipt(TP_GOOD), ADAPTERS, jwks(KEY_GOOD));
     const axis = result.axes.find((a) => a.axis === "key_binding");
@@ -129,7 +127,7 @@ describe("key_thumbprint binding parity", () => {
     expect(result.failureClass).toBe("invalid");
   });
 
-  // A skip blocks every axis but chain, so absence must PASS or legacy receipts break.
+  // A skip blocks every axis but chain, so absence must PASS (legacy receipts)
   it("does not block a verdict when no thumbprint is bound", () => {
     const axis = verify(receipt(), ADAPTERS, jwks(KEY_GOOD)).axes.find(
       (a) => a.axis === "key_binding",
@@ -138,7 +136,7 @@ describe("key_thumbprint binding parity", () => {
     expect(axis.failureClass).toBeNull();
   });
 
-  // Removing key_thumbprint from UNSIGNED_CLAIM_FIELDS fails here.
+  // UNSIGNED_CLAIM_FIELDS minus key_thumbprint fails here
   it("refuses a hash-mode receipt displaying an unsigned thumbprint", () => {
     const doc = {
       v: 1,

@@ -1,7 +1,5 @@
-/**
- * CLI_VERSION in src/cli.ts must match package.json, so the CLI cannot print a version the
- * package does not publish (the Python __version__ drift that yanked asqav 0.3.7).
- */
+// CLI_VERSION in src/cli.ts must match package.json, so the CLI cannot print a
+// version the package does not publish (Python __version__ drift, asqav 0.3.7)
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
