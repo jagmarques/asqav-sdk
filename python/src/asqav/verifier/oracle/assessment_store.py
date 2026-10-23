@@ -92,10 +92,8 @@ class AssessmentStore:
         return None
 
     def current(self, doc_sha256: str) -> AssessmentEntry | None:
-        """Latest assessment for these bytes: reassessment wins over the original.
-
-        Readers take current(); replay() stays the contemporaneous original,
-        so a known-wrong frozen verdict is never served as the answer."""
+        """Latest assessment wins; current() serves it, replay() keeps the
+        contemporaneous original, so a frozen wrong verdict is never served."""
         seen: AssessmentEntry | None = None
         for entry in self._entries:
             if entry.doc_sha256 == doc_sha256 and entry.kind in ("original", "reassessment"):

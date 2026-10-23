@@ -1,25 +1,5 @@
-"""Shared DID resolver - map a verificationMethod DID URL to a raw Ed25519 key.
-
-``resolve_ed25519_key(did_url, injected)`` returns the raw 32-byte Ed25519 public
-key for a signer, or None when it cannot resolve without a network the oracle is
-forbidden from touching. Two resolution shapes are supported:
-
-  - ``did:key`` - self-contained. The multibase ``z`` (base58btc) identifier
-    decodes to a multicodec frame: the two-byte ``0xed 0x01`` Ed25519 prefix
-    followed by the 32 raw key bytes. No network, no injected map needed.
-  - ``did:agent`` / ``did:web`` (and any other method) - resolved from an injected
-    map the caller supplies. A value is either a raw key (hex string or bytes,
-    32 bytes) or the DID DOCUMENT the method's network fetch would have returned;
-    the resolver then walks ``verificationMethod`` / ``assertionMethod`` and
-    extracts an Ed25519 key (publicKeyMultibase Multikey, publicKeyJwk OKP, or
-    legacy publicKeyBase58). The oracle NEVER fetches a DID document over the
-    network; an unmapped DID returns None (fail closed).
-
-This resolver is adapter-agnostic so a later ERC-8004 / DID hook reuses it. base58
-is an encoding, not crypto, so the base58btc decoder is implemented here and pinned
-by a unit test against the upstream did:key reference vectors; the Ed25519 verify
-itself stays in ``crypto.py`` behind the ``cryptography`` library.
-"""
+"""Shared DID resolver: verificationMethod DID URL to a raw Ed25519 key.
+did:key resolves inline; any other method reads the caller's map. No network."""
 from __future__ import annotations
 
 import base64
@@ -32,7 +12,8 @@ _B58_INDEX = {ch: i for i, ch in enumerate(_B58_ALPHABET)}
 _ED25519_MULTICODEC = b"\xed\x01"
 
 
-    # Decode a base58btc string to bytes, preserving leading-zero bytes as '1's.
+    # Base58 is encoding, not crypto: the decoder keeps leading-zero bytes as
+    # '1's, pinned by a unit test against the upstream did:key vectors.
 def b58btc_decode(text: str) -> bytes:
     num = 0
     for ch in text:
@@ -109,7 +90,7 @@ def _raw_from_verification_method(vm: object) -> bytes | None:
     return None
 
 
-    # Walk an injected DID document like the fetched one: exact fragment match first,
+    # Walk an injected DID document like the fetched one: exact fragment match,
     # else assertionMethod-authorized Ed25519 methods, then any remaining method.
 def _key_from_did_document(did_doc: dict, did_url: str) -> tuple[bytes | None, str]:
     methods = did_doc.get("verificationMethod")
@@ -135,12 +116,7 @@ def resolve_ed25519_key(
     did_url: str, injected: dict | None = None
 ) -> tuple[bytes | None, str]:
     """Resolve a verificationMethod DID URL to ``(raw_key_or_None, note)``.
-
-    did:key resolves inline; every other method resolves from ``injected`` keyed by
-    the full DID URL first, then by the bare DID (fragment stripped). An injected
-    value is a raw 32-byte key (bytes or hex) or the DID document the method's
-    fetch would have returned. No network.
-    """
+    Full DID first, then the bare DID; an unmapped DID is None (fail closed)."""
     if not isinstance(did_url, str) or not did_url.startswith("did:"):
         return None, f"not a DID URL: {did_url!r}"
     bare = did_url.split("#", 1)[0]
