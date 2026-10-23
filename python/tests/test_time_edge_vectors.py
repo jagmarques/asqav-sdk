@@ -1,11 +1,8 @@
 """Time-edge conformance vectors, Python half (criterion 422).
 
-DST transition days in both hemispheres, ambiguous and nonexistent local times,
-explicit offsets around midnight, and far-past stamps within retention. One JSON
-table drives both verifiers; the TypeScript half lives in
-typescript/tests/verifier-time-edge-cases.test.ts and reads the same file.
-
-Every case freezes the wall clock, so no verdict depends on the run date.
+DST days in both hemispheres, ambiguous and nonexistent local times, offsets
+around midnight and far-past stamps; one JSON table drives both verifiers (TS:
+typescript/tests/verifier-time-edge-cases.test.ts), each with a frozen clock.
 """
 
 from __future__ import annotations
@@ -69,8 +66,8 @@ def test_parse_pins_the_utc_instant(case: dict) -> None:
 
 @pytest.mark.parametrize("case", TABLE["instants"], ids=[c["name"] for c in TABLE["instants"]])
 def test_instant_probes_pin_normalisation(case: dict, monkeypatch) -> None:
-    # At utc-301s the stamp is 301s ahead and FAILs; at utc-300s and utc it PASSes. Only the
-    # true UTC instant draws all three, pinning both the instant and the future-only bound.
+    # At utc-301s the stamp is 301s ahead and FAILs; at utc-300s and utc it
+    # PASSes: only true UTC draws all three, pinning the future-only bound.
     for probe in case["probes"]:
         _freeze(monkeypatch, probe["clock"])
         result, note = vr.check_skew(case["stamp"])
@@ -131,8 +128,8 @@ def test_unreadable_expires_at_fails_closed_on_its_own_axis(monkeypatch) -> None
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_time_edge_corpus_vector_expiry_never_folds_the_verdict() -> None:
-    # asqav-12: +14:00 issued_at with a lapsed expires_at, so expiry FAILs alone and never
-    # folds the verdict (426), pinned by folding the same axes with and without that row.
+    # asqav-12: +14:00 issued_at, lapsed expires_at: expiry FAILs alone and
+    # never folds the verdict (426), pinned by folding with and without the row.
     receipt = json.loads((TIME_EDGE_VECTOR / "receipt.json").read_text())
     jwks = json.loads((TIME_EDGE_VECTOR / "jwks.json").read_text())
     result = vr.run_structured(receipt, jwks)

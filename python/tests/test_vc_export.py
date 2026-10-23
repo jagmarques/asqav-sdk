@@ -1,15 +1,8 @@
 """Export-only VC shim tests - data round-trip + the honesty guard.
 
-The export presents an Asqav receipt in W3C Verifiable Credential 2.0 shape for EU-lane
-consumers. These tests pin two things:
-
-  1. The receipt's key action/agent fields land in the VC ``credentialSubject`` / ``issuer``
-     faithfully, and the original Asqav signature is preserved verbatim in the proof.
-  2. THE HONESTY GUARD: the produced ``proof.type`` is the Asqav non-standard type, never a
-     registered VC suite; and feeding the exported envelope back through the oracle's
-     agentreceipts adapter does NOT yield a false PASS - it is declined / FAILs, because the
-     proof is not a standard VC proof. The export cannot masquerade as a verifiable
-     standard VC.
+The export shows an Asqav receipt in W3C VC 2.0 shape: key fields land in
+``credentialSubject``/``issuer`` with the signature kept verbatim, and the
+non-standard ``proof.type`` never yields a false PASS as a standard VC.
 """
 from __future__ import annotations
 
@@ -36,7 +29,7 @@ def _load(vec: str, name: str = "receipt.json") -> dict:
 # --- (a) data round-trip ---
 
 
-    # An Asqav-native compliance receipt maps agent/action/policy + issuer faithfully.
+    # An Asqav-native compliance receipt maps agent/action/policy + issuer.
 def test_native_receipt_maps_key_fields_into_credential_subject() -> None:
     receipt = _load("asqav-01-genesis-permit")
     vc = to_vc_envelope(receipt)
@@ -53,7 +46,7 @@ def test_native_receipt_maps_key_fields_into_credential_subject() -> None:
     assert vc["validFrom"] == receipt["payload"]["issued_at"]
 
 
-    # A W3C-VC AgentReceipt input maps its action/principal/chain + issuer into the subject.
+    # A W3C-VC AgentReceipt maps action/principal/chain + issuer to the subject.
 def test_agentreceipts_receipt_maps_subject_and_issuer() -> None:
     receipt = _load("agentreceipts-01-didkey-genesis")
     vc = to_vc_envelope(receipt)
@@ -123,7 +116,7 @@ def test_signing_input_pointer_matches_oracle_bytes() -> None:
 # --- (b) THE HONESTY GUARD ---
 
 
-    # The proof.type is the Asqav non-standard type and is NOT any registered VC suite.
+    # proof.type is the Asqav non-standard type, NOT any registered VC suite.
 def test_proof_type_is_asqav_native_never_a_standard_vc_suite() -> None:
     vecs = ("asqav-01-genesis-permit", "agentreceipts-01-didkey-genesis", "asqav-05-hash-mode-prod")
     for vec in vecs:
@@ -138,14 +131,9 @@ def test_proof_type_is_asqav_native_never_a_standard_vc_suite() -> None:
 def test_exported_envelope_does_not_false_pass_the_standard_vc_verifier() -> None:
     """Feeding the export to the oracle does NOT yield a standard-VC PASS.
 
-    The oracle's agentreceipts adapter verifies a standard ``Ed25519Signature2020`` proof
-    over the VC's own JCS bytes. The export carries an Asqav-native signature over the
-    SOURCE receipt's bytes under a non-standard proof type, so it cannot verify as a
-    standard VC. Prove that twice over:
-
-      - the agentreceipts adapter DECLINES the envelope at detection (it is not an
-        ``AgentReceipt`` and has no standard ``proofValue``), and
-      - the full oracle verdict is never PASS.
+    The export signs the SOURCE receipt's bytes under a non-standard proof
+    type, so the agentreceipts adapter DECLINES it at detection and the full
+    oracle verdict is never PASS.
     """
     for vec in ("asqav-01-genesis-permit", "agentreceipts-01-didkey-genesis"):
         vc = to_vc_envelope(_load(vec))
@@ -156,12 +144,11 @@ def test_exported_envelope_does_not_false_pass_the_standard_vc_verifier() -> Non
 
 
 def test_relabelling_export_as_standard_suite_still_cannot_verify() -> None:
-    """Even if an attacker swaps in the standard token, the bytes do not verify as a VC.
+    """With the standard token swapped in, the bytes still fail as a VC.
 
-    Force the envelope to look like a standard AgentReceipt (borrow the type, move the
-    signature into a ``proofValue`` under ``Ed25519Signature2020``). The Asqav signature
-    covers the SOURCE receipt's canonical bytes, never this VC's JCS bytes, so the standard
-    verifier FAILs the signature - it cannot be made to false-PASS.
+    Borrowing AgentReceipt and ``Ed25519Signature2020`` with a ``proofValue``
+    still fails: the Asqav signature covers the SOURCE receipt's bytes, never
+    this VC's JCS bytes, so the standard verifier FAILs the signature.
     """
     receipt = _load("agentreceipts-01-didkey-genesis")
     vc = to_vc_envelope(receipt)
