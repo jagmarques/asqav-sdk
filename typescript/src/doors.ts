@@ -1,5 +1,5 @@
 // Standards-interop doors: one Asqav receipt, N native envelopes, inner receipt
-// byte-identical across every door. Pure and offline. See doors.py.
+// byte-identical across every door; pure and offline (see doors.py)
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "./jcs.js";
@@ -33,7 +33,7 @@ export function canonicalReceiptBytes(receipt: Receipt): Uint8Array {
   return canonicalJson(receipt);
 }
 
-/** `sha256:<hex>` over the raw canonical receipt bytes (the C2PA raw-bytes rule). */
+/** `sha256:<hex>` over the raw canonical receipt bytes (C2PA raw-bytes rule) */
 export function receiptDigest(receipt: Receipt): string {
   return "sha256:" + sha256Hex(receipt);
 }
@@ -80,12 +80,12 @@ const actionId = (r: Receipt) => field(r, "action_id", "action_ref");
 const issuerId = (r: Receipt) => field(r, "issuer_id", "org_id");
 const timestamp = (r: Receipt) => field(r, "issued_at", "server_timestamp");
 
-/** Deterministic offline pointer to the receipt by digest. Not a live endpoint. */
+/** Deterministic offline pointer to the receipt by digest, not a live URL */
 function verifyUrn(receipt: Receipt): string {
   return "urn:asqav:receipt:" + sha256Hex(receipt);
 }
 
-/** Wrap the receipt as a W3C VC 2.0 with the whole receipt as `credentialSubject`. */
+/** Wrap the receipt as a W3C VC 2.0, whole receipt as `credentialSubject` */
 export function toW3cVc(receipt: Receipt, opts: { issuer?: string } = {}): Receipt {
   requireObject(receipt);
   const { sig, alg, kid } = signatureBits(receipt);
@@ -152,7 +152,7 @@ export function toOtelGenaiAttributes(receipt: Receipt): Receipt {
   return attrs;
 }
 
-/** Wrap the receipt as a C2PA third-party assertion using the raw-bytes rule. */
+/** Wrap the receipt as a C2PA third-party assertion, raw-bytes rule */
 export function toC2paAssertion(receipt: Receipt): Receipt {
   requireObject(receipt);
   return {
@@ -169,9 +169,8 @@ export function toC2paAssertion(receipt: Receipt): Receipt {
   };
 }
 
-/**
- * asqav sha256 `receiptCommitment`, not the ERC-8004 keccak256 `requestHash`. See doors.py.
- */
+// See doors.py
+/** asqav sha256 `receiptCommitment`, not ERC-8004 keccak256 `requestHash` */
 export function toErc8004ValidationRequest(
   receipt: Receipt,
   opts: { validator?: string; agentId?: string } = {},
@@ -212,7 +211,7 @@ export function receiptFromCloudEvent(event: Receipt): Receipt {
 }
 
 export function receiptFromOtelGenaiAttributes(attrs: Receipt): Receipt {
-  // Strict ingest (419): a duplicated member name never reaches the caller.
+  // Strict ingest: a duplicated member name never reaches the caller
   return parseJsonStrict(attrs[OTEL_RECEIPT_ATTR] as string) as Receipt;
 }
 

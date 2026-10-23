@@ -1,10 +1,4 @@
-"""Every outbound HTTP call carries the asqav-python User-Agent.
-
-The api.asqav.com edge 403s (Cloudflare error 1010) the bare
-``Python-urllib/x.y`` default, which made every stranger's first sign call
-fail with a bare "HTTP Error 403: Forbidden". These tests pin the header on
-each transport so the regression cannot come back silently.
-"""
+"""Every outbound HTTP call carries the asqav-python User-Agent."""
 
 from __future__ import annotations
 

@@ -21,7 +21,7 @@ from asqav.verifier import verify_receipt as vr
 
 
 def test_run_rejects_non_object_envelope() -> None:
-    # A JSON array (non-object) must not crash run(); unverified/unverifiable -> 2.
+    # A JSON array (non-object) must not crash run(); unverifiable -> 2.
     assert vr.run([], {"keys": []}, None) == 2
 
 
@@ -63,7 +63,7 @@ def test_load_dash_non_object_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_load_missing_file_raises_input_error() -> None:
-    # A missing file surfaces as VerifierInputError, not a raw OSError traceback.
+    # A missing file surfaces as VerifierInputError, not an OSError traceback.
     with pytest.raises(vr.VerifierInputError):
         vr._load("/no/such/receipt/file.json")
 
@@ -75,7 +75,7 @@ def test_check_anchors_rejects_non_list_string() -> None:
 
 
 def test_check_anchors_rejects_non_dict_entries() -> None:
-    # A list of bare strings must not crash on a.get(); each entry FAILs the axis.
+    # A list of bare strings must not crash on a.get(); each entry FAILs.
     result, note = vr.check_anchors({"anchors": ["x"]})
     assert result == "FAIL"
 
@@ -102,7 +102,7 @@ def test_run_structured_handles_malformed_anchor_entries() -> None:
 
 # === criterion 446: complete the fail-clean surface ===
 
-# S1: NaN / Infinity inside the receipt (canonical_json rejects them, allow_nan=False)
+# S1: NaN / Infinity in the receipt (canonical_json rejects them)
 
 
 def _payload() -> dict:
@@ -145,7 +145,7 @@ def test_run_structured_nan_fails_clean() -> None:
     assert out["failure_class"] == "unverifiable"
 
 
-# S2: non-dict "signature" on a flat receipt (no payload wrapper) -> kid = sig_obj.get(...)
+# S2: non-dict "signature" on a flat receipt -> kid = sig_obj.get(...)
 
 
 def test_run_non_dict_signature_fails_clean(capsys) -> None:
@@ -160,7 +160,7 @@ def test_run_structured_non_dict_signature_fails_clean() -> None:
     assert out["verdict"] == "unverified"
 
 
-# S3: malformed JWKS "keys" (string / list of non-dicts) -> resolve_key must not crash
+# S3: malformed JWKS "keys" -> resolve_key must not crash
 
 
 def test_resolve_key_keys_is_string() -> None:
@@ -172,12 +172,12 @@ def test_resolve_key_keys_is_list_of_ints() -> None:
 
 
 def test_resolve_revoked_at_malformed_keys_no_crash() -> None:
-    # The revoked_at helper shares the loop shape; guard it too so a direct call is safe.
+    # The revoked_at helper shares the loop shape; guard it too.
     assert vr.resolve_revoked_at({"keys": "abc"}, "kid-x") is None
     assert vr.resolve_revoked_at({"keys": [123]}, "kid-x") is None
 
 
-# S4: a JWK whose matching key lacks "public_key" -> resolution failure, not KeyError
+# S4: a matching JWK lacks "public_key" -> resolution failure, not KeyError
 
 
 def test_resolve_key_missing_public_key_no_crash() -> None:
@@ -185,7 +185,7 @@ def test_resolve_key_missing_public_key_no_crash() -> None:
     assert vr.resolve_key(jwks, "kid-x") == (None, None, None)
 
 
-# S5: non-string "sig" with a resolvable kid -> _b64decode must not hit .replace on a non-str
+# S5: non-string "sig" with a resolvable kid -> _b64decode must not crash
 
 
 def _resolvable_jwks() -> dict:
@@ -197,7 +197,7 @@ def test_run_non_string_sig_fails_clean(capsys) -> None:
     code = vr.run(env, _resolvable_jwks(), None)
     out = capsys.readouterr().out
     assert code != 0
-    assert "[  ok] issuer_key" in out  # the kid DID resolve; only the sig bytes are bad
+    assert "[  ok] issuer_key" in out  # the kid resolves; only the sig is bad
 
 
 def test_run_structured_non_string_sig_fails_clean() -> None:
@@ -206,7 +206,7 @@ def test_run_structured_non_string_sig_fails_clean() -> None:
     assert out["verdict"] == "unverified"
 
 
-# S6: binary / non-UTF8 --receipt file -> VerifierInputError, not a raw UnicodeDecodeError
+# S6: binary / non-UTF8 file -> VerifierInputError, not a raw UnicodeDecodeError
 
 
 def test_load_binary_file_raises_input_error(tmp_path) -> None:
@@ -247,7 +247,7 @@ def test_check_anchors_empty_list_is_skipped() -> None:
 
 
 def test_normalise_envelope_preserves_falsy_anchors() -> None:
-    # The reconstruct path must hand the malformed anchors value to check_anchors,
+    # The reconstruct path must hand the malformed anchors to check_anchors,
     # not launder it to [] before the guard runs.
     env = vr.normalise_envelope({"payload": _payload(), "anchors": {}})
     assert env["anchors"] == {}
@@ -266,7 +266,7 @@ def _write_receipt(tmp_path, anchors) -> tuple[str, str]:
 @pytest.mark.parametrize("anchors", [{}, "", 0])
 def test_end_to_end_falsy_anchors_fail_malformed(tmp_path, monkeypatch, capsys, anchors) -> None:
     # The contract's end-to-end proof: a --receipt file with a falsy non-list
-    # anchors value must reach check_anchors as malformed, through the whole tool.
+    # anchors value must reach check_anchors as malformed, via the whole tool.
     rp, jp = _write_receipt(tmp_path, anchors)
     monkeypatch.setattr(sys, "argv", ["verify_receipt.py", "--receipt", rp, "--jwks", jp, "--offline"])
     vr.main()
@@ -276,7 +276,7 @@ def test_end_to_end_falsy_anchors_fail_malformed(tmp_path, monkeypatch, capsys, 
 
 
 def test_end_to_end_reconstruct_path_falsy_anchors(tmp_path, monkeypatch, capsys) -> None:
-    # No signature dict -> normalise_envelope reconstruct path -> proves the :222 fix.
+    # No signature dict -> normalise_envelope reconstruct path.
     import json
 
     rp = tmp_path / "receipt.json"
@@ -410,7 +410,7 @@ def test_run_structured_payload_list_names_actual_type() -> None:
     assert "list" in note
 
 
-# === profile safe-integer precheck: current v=1 digest inputs refuse pre-crypto ===
+# === profile safe-integer precheck: v=1 digest inputs refuse pre-crypto ===
 
 
 def _profile_payload(**over) -> dict:
@@ -695,7 +695,7 @@ def test_run_structured_float_and_list_spellings_refuse() -> None:
     payload2 = _profile_payload(scores=[1, 2**53])
     out2 = vr.run_structured(_profile_envelope(payload2), {"keys": []})
     assert "profile range +/-(2**53 - 1)" in out2["axes"][0]["note"]
-    # A parsed Python float came from a float lexeme, so 5.0 refuses like the raw text.
+    # A parsed float came from a float lexeme, so 5.0 refuses like raw text.
     payload3 = _profile_payload(score=5.0, tags=["a"])
     out3 = vr.run_structured(_profile_envelope(payload3), {"keys": []})
     assert "non-integer lexeme '5.0' at $.score" in out3["axes"][0]["note"]

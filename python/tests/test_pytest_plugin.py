@@ -189,7 +189,7 @@ def test_makereport_disabled_does_nothing() -> None:
     assert len(state.signatures) == 0
 
 
-    # If sign() raises, the report.sections records the error but no exception bubbles.
+    # If sign() raises, report.sections records the error; nothing bubbles.
 def test_sign_failure_does_not_mask_test() -> None:
     state = _get_state_for_tests()
     state.enabled = True

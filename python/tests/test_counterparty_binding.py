@@ -1,15 +1,4 @@
-"""SDK-side tests for the counterparty acknowledgment binding (IETF -04).
-
-Covers:
-
-* envelope_hash byte-stability (matches the cloud's compute_envelope_hash).
-* compute_counterparty_binding default and explicit-locator paths.
-* verify_counterparty_binding matches / mismatch / kid-mismatch / unresolved labels.
-* verify_compliance_receipt binding presence blocks passing when scope or originating bytes are unavailable.
-
-The cloud is the authoritative verifier; these tests pin the SDK's local
-sanity-check semantics so customer-side reproduction stays byte-stable.
-"""
+"""SDK-side tests for the counterparty acknowledgment binding (IETF -04)."""
 
 from __future__ import annotations
 
@@ -209,13 +198,7 @@ def test_acknowledgment_receipt_type_in_namespace():
 
 
 def test_verify_compliance_receipt_payload_only_with_expect_ack_from_surfaces_error():
-    """A payload-only caller with expect_ack_from cannot verify the kid axis.
-
-    Regression for the bug where ``{"payload": payload_obj}`` wrapping
-    dropped the signature, leaving ``ack_kid=None`` and producing a
-    silent ``counterparty_binding_kid_mismatch`` false negative against
-    every otherwise-valid acknowledgment.
-    """
+    """A payload-only caller with expect_ack_from cannot verify the kid axis."""
     orig = _orig_envelope()
     ack = _ack_envelope(orig, expect_ack_from="kid-B", ack_kid="kid-B")
     result = verify_compliance_receipt(

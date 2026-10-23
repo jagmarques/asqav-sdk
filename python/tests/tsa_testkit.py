@@ -1,11 +1,4 @@
-"""Mint minimal RFC 3161 TimeStampResp tokens for the anchor-verification tests.
-
-A real TSA token is a CMS SignedData wrapping a TSTInfo; the verifier parses
-the DER directly, so the tests need tokens built byte by byte rather than by a
-TSA service. The shape mirrors the production anchor in
-verifier/docs/fixtures/published-receipt.json: no signedAttrs (the TSA signs
-the eContent bytes directly) and a [0] subjectKeyIdentifier sid.
-"""
+"""Mint minimal RFC 3161 TimeStampResp tokens for anchor tests."""
 
 from __future__ import annotations
 
@@ -83,13 +76,7 @@ def make_signed_attrs(
     content_type_oid: str = _OID_TSTINFO,
     message_digest: bytes | None = None,
 ) -> bytes:
-    """The signedAttrs CONTENT bytes (attributes concatenated, no outer tag).
-
-    Public TSAs all emit signedAttrs; the production fixture does not, so this
-    is what exercises the `_cms_message_digest_ok` / `_cms_signed_bytes` branch.
-    The knobs exist to build the RFC 5652 s11.1 violations the verifier must
-    reject: a missing contentType, and a contentType naming other content.
-    """
+    """The signedAttrs CONTENT bytes (attributes concatenated, no outer tag)."""
     import hashlib
 
     digest = hashlib.sha256(tst).digest() if message_digest is None else message_digest
@@ -123,11 +110,13 @@ def make_timestamp_resp(
     """
     signer_fields = [
         _int(3),
-        sid if sid is not None else _tlv(0xA0, b"\x00" * 20),  # [0] SKI, as in production
+        # [0] SKI, as in production
+        sid if sid is not None else _tlv(0xA0, b"\x00" * 20),
         _seq(_oid(_OID_SHA256), _tlv(0x05, b"")),
     ]
     if signed_attrs is not None:
-        signer_fields.append(_tlv(0xA0, signed_attrs))  # [0] IMPLICIT SignedAttributes
+        # [0] IMPLICIT SignedAttributes
+        signer_fields.append(_tlv(0xA0, signed_attrs))
     signer_fields += [
         _seq(_oid(sig_alg_oid)),
         _oct(signature),
@@ -138,7 +127,8 @@ def make_timestamp_resp(
         _seq(_oid(econtent_type_oid), _tlv(0xA0, _oct(tst))),
     ]
     if certs:
-        sd_items.append(_tlv(0xA0, b"".join(certs)))  # [0] IMPLICIT CertificateSet
+        # [0] IMPLICIT CertificateSet
+        sd_items.append(_tlv(0xA0, b"".join(certs)))
     sd_items.append(_set(_seq(*signer_fields)))
     content_info = _seq(_oid(_OID_SIGNED_DATA), _tlv(0xA0, _seq(*sd_items)))
     return _seq(_seq(_int(status)), content_info)

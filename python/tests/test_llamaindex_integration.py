@@ -141,7 +141,6 @@ from asqav.extras.llamaindex import AsqavLlamaIndexHandler  # noqa: E402
 # === Fixtures ===
 
 
-    # Create an AsqavLlamaIndexHandler with mocked Agent internals.
 @pytest.fixture()
 def handler() -> AsqavLlamaIndexHandler:
     with (
@@ -157,7 +156,7 @@ def handler() -> AsqavLlamaIndexHandler:
 # === Subclass check ===
 
 
-    # AsqavLlamaIndexHandler must be a subclass of LlamaIndex BaseCallbackHandler.
+    # AsqavLlamaIndexHandler must subclass the LlamaIndex BaseCallbackHandler.
 def test_is_base_callback_handler_subclass() -> None:
     assert issubclass(AsqavLlamaIndexHandler, BaseCallbackHandler)
 
@@ -261,7 +260,7 @@ def test_on_event_start_reranking(handler: AsqavLlamaIndexHandler) -> None:
     )
 
 
-    # on_event_start signs llamaindex.sub_question.start for sub-question events.
+    # on_event_start signs llamaindex.sub_question.start for sub-questions.
 def test_on_event_start_sub_question(handler: AsqavLlamaIndexHandler) -> None:
     handler.on_event_start(CBEventType.SUB_QUESTION, {"sub_question": "why?"}, "evt-8")
     handler._sign_action.assert_called_once_with(
@@ -396,7 +395,7 @@ def test_on_event_end_ignores_chunking(handler: AsqavLlamaIndexHandler) -> None:
 # === on_event_start/end - user-configured event_starts_to_ignore ===
 
 
-    # Events in event_starts_to_ignore are skipped even if in _SIGNED_EVENT_TYPES.
+    # Events in event_starts_to_ignore are skipped even if signed
 def test_event_starts_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
     with (
         patch("asqav.client._api_key", "sk_test"),

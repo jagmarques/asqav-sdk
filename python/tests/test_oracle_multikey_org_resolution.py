@@ -1,16 +1,4 @@
-"""A multi-agent org's receipts resolve the actual signer, not the first sibling.
-
-Criterion 232. A cloud hash-mode receipt sets signature.kid to the ORG id and signs
-with the agent's own key, while the directory publishes every key the org owns under
-that same issuer_id/org_id. A kid-shaped match therefore answers for the whole sibling
-set and list position picks one, so a receipt signed by any sibling but the first used
-to verify against the wrong key and read as a false FAIL. These gates pin the agent
-bind (agent_id plus the org_id the receipt signs) that resolves the correct signer.
-
-ANTI-VACUOUS: the signer here is the LAST of three siblings; against the pre-change
-kid-first resolution the signature axis checks the FIRST sibling and FAILs, so the
-PASS assertions only hold once the org-bound agent match resolves the real signer.
-"""
+"""A multi-agent org's receipts resolve the real signer, not the first."""
 
 from __future__ import annotations
 
@@ -33,7 +21,7 @@ requires_ed25519 = pytest.mark.skipif(
 ORG = "org_multikey_shared"
 
 
-    # A hash-mode signing payload naming its agent and org inside the signed bytes.
+    # A hash-mode signing payload naming its agent and org in the signed bytes.
 def _flat(agent_id: str) -> dict:
     return {
         "v": 1,
@@ -50,7 +38,7 @@ def _flat(agent_id: str) -> dict:
     }
 
 
-    # Build the hash-mode receipt envelope signed by sk over the canonical flat bytes.
+    # Build the hash-mode receipt envelope signed by sk over the bytes
 def _sign(flat: dict, sk) -> dict:
     sig = base64.b64encode(sk.sign(asqav_jcs(flat))).decode()
     doc = dict(flat)
@@ -79,7 +67,7 @@ def _sibling_jwks(signer_index: int, public_keys: list[bytes]) -> dict:
     return {"keys": keys}
 
 
-    # A receipt signed by the last of three siblings verifies to PASS, not a false FAIL.
+    # A receipt signed by the last of three siblings verifies PASS, not FAIL.
 @requires_ed25519
 def test_last_sibling_receipt_resolves_the_actual_signer() -> None:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -96,7 +84,7 @@ def test_last_sibling_receipt_resolves_the_actual_signer() -> None:
     assert result.failure_class is None, result.axes
 
 
-    # Whichever sibling signs, the agent bind resolves that sibling's key, never another.
+    # Whichever sibling signs, the agent bind resolves that key, not another's
 @requires_ed25519
 def test_each_sibling_resolves_to_its_own_key() -> None:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -112,7 +100,7 @@ def test_each_sibling_resolves_to_its_own_key() -> None:
         assert verify(receipt, [ad], key_provider=jwks).verdict == "verified"
 
 
-    # A signature from a key the directory does not publish fails, never a false PASS.
+    # A signature from a key the directory omits fails, never a false PASS.
 @requires_ed25519
 def test_forged_signature_against_the_org_still_fails() -> None:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -128,7 +116,7 @@ def test_forged_signature_against_the_org_still_fails() -> None:
     assert result.failure_class == "invalid", result.axes
 
 
-    # agent_id is attacker-controlled: a key from another org never resolves the claim.
+    # agent_id is attacker-controlled: another org's key never resolves it.
 @requires_ed25519
 def test_cross_org_agent_bind_does_not_match() -> None:
     entry = v._match_key_by_agent(

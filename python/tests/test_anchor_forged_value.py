@@ -1,10 +1,4 @@
-"""A forged anchor value must never read as present on the anchors axis.
-
-The anchors field sits outside the signed bytes, so it is attacker steerable. A
-value that is not base64, or that carries no bytes, must not take the axis to
-PASS. A lenient base64 decode drops out-of-alphabet characters, which lets an
-all-punctuation value decode to zero bytes and still report as present.
-"""
+"""A forged anchor value must never read as present on the anchors axis."""
 
 from __future__ import annotations
 

@@ -1,12 +1,4 @@
-"""Doors: one receipt, N standard envelopes, byte-identical inner across all.
-
-Pins three properties per door:
-  1. each wrapper yields a valid schema-shaped envelope containing the exact receipt,
-  2. the round-trip inverse extracts the identical inner receipt,
-  3. Python and TypeScript emit the same JCS bytes for the same input across the
-     JSON-canonicalization-safe domain (BMP keys, integers up to 2**53), with anything
-     outside that domain refused at ingest rather than canonicalised two ways.
-"""
+"""Doors: one receipt, N standard envelopes, byte-identical inner across all."""
 from __future__ import annotations
 
 import json
@@ -160,32 +152,20 @@ def test_parity_golden_matches_python_output() -> None:
         assert doors.canonical_json(doors.wrap_all(receipt)) == golden
 
 
-# --- honest parity boundary of the shared JCS canonicalizer doors serialize with ---
+# --- honest parity boundary of the shared JCS canonicalizer ---
 
 
 def test_parity_safe_domain_matches_shared_golden() -> None:
-    """Non-vacuous parity across the JSON-canonicalization-safe domain.
-
-    Input carries non-ASCII BMP object keys and an integer at the safe-range
-    boundary. Both SDK suites assert their canonical bytes equal this same shared
-    golden, so matching it proves Python and TS agree on the safe domain, unlike
-    the ASCII-only receipt goldens which only exercised the trivial case.
-    """
+    """Non-vacuous parity across the JSON-canonicalization-safe domain."""
     fixture = json.loads((_PARITY / "parity-safe-input.json").read_text(encoding="utf-8"))
     golden = (_PARITY / "parity-safe.jcs").read_bytes()
     assert doors.canonical_json(fixture) == golden
-    assert any(ord(c) > 0x7F for key in fixture for c in key)  # non-ASCII BMP keys
+    assert any(ord(c) > 0x7F for key in fixture for c in key)  # non-ASCII keys
     assert fixture["big"] == 9007199254740991  # integer inside the safe range
 
 
 def test_out_of_domain_fixture_is_refused_at_the_parse_boundary() -> None:
-    """The number path is CLOSED: the value is refused, not rounded.
-
-    This guard used to record a divergence. Both causes are now shut. Key ordering was
-    fixed when Python moved to UTF-16 member order; the number path is fixed here,
-    because an integer beyond +/-2**53 has no exact double and the two SDKs would
-    canonicalise it differently. The refusal happens at ingest, before any hashing.
-    """
+    """The number path is CLOSED: the value is refused, not rounded."""
     text = (_PARITY / "divergence-input.json").read_text(encoding="utf-8")
     with pytest.raises(strict_json.UnsafeIntegerError, match="canonical integer range"):
         strict_json.loads(text)
@@ -196,7 +176,7 @@ def test_canonicaliser_also_refuses_a_value_built_in_process() -> None:
     with pytest.raises(UnsafeIntegerError, match=r"profile range \+/-\(2\*\*53 - 1\)"):
         doors.canonical_json({"n": 2**53 + 1})
     # The profile ends at 2**53 - 1 even though 2**53 round-trips exactly;
-    # generic JCS keeps the upstream-pinned value, the profile producer refuses it.
+    # generic JCS keeps the upstream-pinned value; the profile producer refuses.
     with pytest.raises(UnsafeIntegerError, match=r"profile range \+/-\(2\*\*53 - 1\)"):
         doors.canonical_json({"n": 2**53})
     assert doors.canonical_json({"n": 2**53 - 1}) == b'{"n":9007199254740991}'

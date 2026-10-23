@@ -1,11 +1,4 @@
-"""W3C VC 2.0 eddsa-jcs-2022 adapter tests.
-
-Covers the DataIntegrityProof path: did:web resolution from an injected DID
-document (offline, fail-closed), did:key self-resolution, the hashData signing
-construction, tamper rejection, the @context prefix transform, and the validity
-window. Corpus vectors w3c-vc-01..08 run through the shared runner; the tests
-here pin the axis-level behaviour behind them.
-"""
+"""W3C VC 2.0 eddsa-jcs-2022 adapter tests."""
 from __future__ import annotations
 
 import json
@@ -76,7 +69,7 @@ def test_w3c_vc_tampered_proofvalue_fails_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # A DID document publishing the wrong key fails the signature, never a false pass.
+    # A DID document publishing the wrong key fails the signature axis.
 @requires_ed25519
 def test_w3c_vc_wrong_published_key_fails() -> None:
     doc = _load("w3c-vc-04-wrong-key-injected", "receipt.json")
@@ -86,7 +79,7 @@ def test_w3c_vc_wrong_published_key_fails() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # No injected DID document -> the oracle never fetches; fail closed, not verified.
+    # No injected DID document: the oracle never fetches, it fails closed.
 @requires_ed25519
 def test_w3c_vc_no_did_document_fails_closed() -> None:
     doc = _load("w3c-vc-05-no-did-document", "receipt.json")
@@ -96,7 +89,7 @@ def test_w3c_vc_no_did_document_fails_closed() -> None:
     assert res.failure_class == "unverifiable"
 
 
-    # A lapsed validUntil FAILs the expiry axis alone; the verdict stays verified (426).
+    # A lapsed validUntil FAILs expiry alone; the verdict stays verified (426).
 @requires_ed25519
 def test_w3c_vc_expired_keeps_verified_verdict() -> None:
     doc = _load("w3c-vc-06-expired", "receipt.json")
@@ -119,7 +112,7 @@ def test_w3c_vc_proof_set_is_rejected() -> None:
     assert res.verdict == "unverified"
 
 
-    # A sibling cryptosuite routes to the adapter and FAILs as an algorithm mismatch.
+    # A sibling cryptosuite routes here and FAILs as an algorithm mismatch.
 def test_w3c_vc_other_cryptosuite_is_algorithm_mismatch() -> None:
     doc = _load("w3c-vc-01-didweb-happy-path", "receipt.json")
     doc["proof"]["cryptosuite"] = "eddsa-rdfc-2022"
@@ -133,7 +126,7 @@ def test_w3c_vc_other_cryptosuite_is_algorithm_mismatch() -> None:
     assert res.failure_class == "invalid"
 
 
-    # proofPurpose must be assertionMethod for a credential assertion (fail closed).
+    # proofPurpose must be assertionMethod for a credential (fail closed).
 def test_w3c_vc_proofpurpose_must_be_assertion_method() -> None:
     doc = _load("w3c-vc-01-didweb-happy-path", "receipt.json")
     doc["proof"]["proofPurpose"] = "authentication"
@@ -141,7 +134,7 @@ def test_w3c_vc_proofpurpose_must_be_assertion_method() -> None:
     assert result == "FAIL" and "proofPurpose" in note
 
 
-    # An attacker's valid signature under a key the issuer does not control must not verify.
+    # An attacker's valid sig under an issuer-uncontrolled key never passes.
 @requires_ed25519
 def test_w3c_vc_issuer_must_control_signing_key_no_impersonation() -> None:
     from cryptography.hazmat.primitives import serialization
@@ -157,8 +150,8 @@ def test_w3c_vc_issuer_must_control_signing_key_no_impersonation() -> None:
     ad = W3cVcAdapter()
     doc["proof"]["proofValue"] = "z" + _b58_encode(sk.sign(ad.signing_input(doc)))
     res = verify(doc, ADAPTERS)
-    assert res.axis("signature").result == crypto.PASS  # attacker's sig is cryptographically valid
-    assert res.axis("structure").result == crypto.FAIL  # but signing-key DID != issuer
+    assert res.axis("signature").result == crypto.PASS  # attacker sig valid
+    assert res.axis("structure").result == crypto.FAIL  # key DID != issuer
     assert res.verdict == "unverified"
     assert res.failure_class == "invalid"
 
@@ -166,7 +159,7 @@ def test_w3c_vc_issuer_must_control_signing_key_no_impersonation() -> None:
 _B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
-    # base58btc encoder for test fixtures (mirrors the decoder pinned in test_oracle).
+    # base58btc encoder for fixtures (mirrors the decoder in test_oracle).
 def _b58_encode(data: bytes) -> str:
     num = int.from_bytes(data, "big")
     out = []
@@ -177,13 +170,13 @@ def _b58_encode(data: bytes) -> str:
     return "1" * pad + "".join(reversed(out))
 
 
-    # A proof @context that prefixes the document @context is signed and verifies.
+    # A proof @context that prefixes the document @context signs and verifies.
 @requires_ed25519
 def test_w3c_vc_proof_context_prefix_transform() -> None:
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-    # Re-issue under a fresh did:key issuer (the corpus private key is not recoverable).
+    # Re-issue under a fresh did:key issuer (the corpus key is not recoverable).
     sk = Ed25519PrivateKey.generate()
     pk = sk.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     issuer = "did:key:z" + _b58_encode(b"\xed\x01" + pk)
@@ -198,7 +191,7 @@ def test_w3c_vc_proof_context_prefix_transform() -> None:
     assert res.axis("structure").result == crypto.PASS
     assert res.verdict == "verified"
 
-    # A proof @context the document does not start with is a proven mismatch: invalid.
+    # A proof @context the document does not start with is a mismatch: invalid.
     bad = json.loads(json.dumps(doc))
     bad["proof"]["@context"] = ["https://example.org/other-context"]
     result, note = ad.schema(bad)
@@ -220,7 +213,7 @@ def test_w3c_vc_malformed_proofvalue_fails_closed() -> None:
         assert W3cVcAdapter().extract_signature(forged).sig == b""
 
 
-    # An unreadable validFrom FAILs the expiry axis but never folds the verdict (426).
+    # An unreadable validFrom FAILs expiry but never folds the verdict (426).
 def test_w3c_vc_unreadable_valid_from_reports_on_expiry_axis() -> None:
     doc = _load("w3c-vc-01-didweb-happy-path", "receipt.json")
     doc["validFrom"] = "not-a-date"

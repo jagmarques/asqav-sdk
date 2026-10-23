@@ -1,13 +1,4 @@
-"""Non-coverage is declared in the output, on every result, passing ones included.
-
-A verifier that reports only what it checked lets a reader mistake silence for
-coverage. Prose in a README does not travel with the result and is not machine
-readable, so the boundary of the claim has to sit beside the claim.
-
-These tests pin three things: that the declaration is on every return path this
-function has, that it survives a caller mutating it, and that a newly added
-return path cannot quietly ship without it.
-"""
+"""Non-coverage is declared on every result, passing ones included."""
 
 from __future__ import annotations
 
@@ -120,7 +111,7 @@ def test_coverage_block_on_a_full_run():
     """A receipt that runs the whole sequence reports stopped_at null and the table."""
     receipt, jwks = _vector("asqav-01-genesis-permit")
     result = run_structured(receipt, jwks)
-    # The pin is the live axis sequence itself: the coverage constant must track it.
+    # The pin is the live axis sequence itself: the coverage constant tracks it.
     assert [a["name"] for a in result["axes"]] == ["structure", *_AXES_AFTER_STRUCTURE]
     cov = result["coverage"]
     assert cov["stopped_at"] is None

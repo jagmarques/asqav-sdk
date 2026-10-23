@@ -1,8 +1,4 @@
-"""Key resolution: a thumbprint tie is broken by the signed identifiers, and the agent bind verifies.
-
-Offline: every key pair and directory row is minted here, so a green run says nothing about
-api.asqav.com and everything about the resolver.
-"""
+"""Key resolution: signed identifiers break a thumbprint tie."""
 
 from __future__ import annotations
 
@@ -69,7 +65,7 @@ def _axes(report: dict) -> dict:
     return {a["name"]: a for a in report["axes"]}
 
 
-# === a thumbprint shared by several rows is narrowed by the signed identifiers (448a) ===
+# === a thumbprint shared by rows is narrowed by the signed ids (448a) ===
 
 
 def test_a_kid_naming_the_revoked_duplicate_reaches_key_status_with_that_row() -> None:
@@ -127,7 +123,7 @@ def test_the_signed_agent_id_narrows_a_thumbprint_shared_across_agents() -> None
 
 
 def _rotated_directory(old_pk: bytes, new_pk: bytes) -> dict:
-    # The live directory shape: no key_thumbprint column, the revoked key listed first.
+    # Live directory shape: no key_thumbprint column, revoked key listed first.
     return {
         "keys": [
             _row(old_pk, "k-old", status="revoked", revoked_at="2026-05-01T00:00:00+00:00"),

@@ -1,14 +1,4 @@
-"""Every shipped statement of the offline APIs' axis vocabulary, checked against
-the axes those APIs actually return.
-
-Three surfaces enumerate that vocabulary: the ``verify_receipt_offline``
-docstring, the ``verifyReceiptOffline`` JSDoc and ``docs/offline-verification.md``.
-This module executes the offline entry point and the standalone verifier, then
-asserts all three enumerations equal the names that come back, so a coverage claim
-cannot drift away from the coverage. The clock-shift case pins the one axis the
-three surfaces disagreed about: ``skew`` runs in-line offline and decides the
-verdict.
-"""
+"""The offline APIs' axis vocabulary matches the axes they return."""
 
 from __future__ import annotations
 

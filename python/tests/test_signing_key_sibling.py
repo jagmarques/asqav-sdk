@@ -1,17 +1,4 @@
-"""One org, two agent keys: the entry that answers is the entry that signed.
-
-A cloud receipt names the org in ``signature.kid`` and signs with the agent's own
-key. The published directory carries ``issuer_id`` on every key, so a kid holding
-an org id matches every sibling key that org owns, and position in the list decides
-which one answers. Position is not a bind: the sibling it lands on holds different
-key bytes, a different revocation status and a different agent, so a receipt that
-is cryptographically sound verifies against a key that never signed it.
-
-Every directory here publishes TWO agent keys under one issuer, which is the shape
-of any org running more than a single agent. A one-key directory cannot tell a
-matcher that binds apart from one that returns whatever it reaches first, so it
-proves nothing about which entry answered and why.
-"""
+"""One org, two agent keys: the entry that answers is the entry that signed."""
 
 from __future__ import annotations
 
@@ -51,7 +38,7 @@ def _key(
     }
 
 
-    # A compliance payload naming its issuer and its agent inside the signed bytes.
+    # A compliance payload naming its issuer and agent inside the signed bytes.
 def _payload(agent_id: str = "agt_two", issuer_id: str = ORG) -> dict:
     return {
         "type": "protectmcp:decision",
@@ -83,7 +70,7 @@ def _axes(doc: dict, jwks: dict) -> dict[str, str]:
 # --- the matcher picks the key the signed bytes name ---
 
 
-    # Two siblings share the issuer, so the agent bind decides which one answers.
+    # Two siblings share the issuer, so the agent bind decides which answers.
 def test_org_kid_resolves_the_agent_the_receipt_names() -> None:
     jwks = {"keys": [_key("key-agent-one", "agt_one"), _key("key-agent-two", "agt_two")]}
     entry = v.match_signing_key(jwks, ORG, "agt_two", ORG)
@@ -116,7 +103,7 @@ def test_org_kid_answers_when_the_receipt_names_no_agent() -> None:
     assert entry["kid"] == "key-agent-one"
 
 
-    # An agent with no published key falls back to the issuer match, not to nothing.
+    # An agent with no published key falls back to the issuer match.
 def test_org_kid_answers_for_an_agent_the_directory_omits() -> None:
     jwks = {"keys": [_key("key-agent-one", "agt_one")]}
     entry = v.match_signing_key(jwks, ORG, "agt_absent", ORG)
@@ -136,7 +123,7 @@ def test_three_key_org_resolves_its_middle_signer() -> None:
     assert last["kid"] == "key-agent-three"
 
 
-    # A hash-mode receipt signs the raw org_id, so the org bind names the signer.
+    # A hash-mode receipt signs the raw org_id, so the org names the signer
 def test_three_key_org_binds_the_middle_signer_by_org() -> None:
     def org_key(kid: str, agent_id: str) -> dict:
         return {**_key(kid, agent_id), "org_id": ORG}
@@ -156,7 +143,7 @@ def test_agent_bind_rejects_a_key_published_under_another_issuer() -> None:
     assert v.match_signing_key(jwks, "kid-absent", "agt_two", ORG) is None
 
 
-    # A malformed sibling is a miss, never a crash, and never blocks the real key.
+    # A malformed sibling is a miss, never a crash, and never blocks the key.
 def test_matcher_survives_a_directory_holding_junk_entries() -> None:
     jwks = {"keys": [None, 7, "text", {"kid": "no-bytes", "issuer_id": ORG, "agent_id": "agt_two"},
                      _key("key-agent-two", "agt_two")]}
@@ -218,7 +205,7 @@ def test_oracle_passes_a_receipt_signed_by_the_second_agent() -> None:
     assert res.failure_class is None
 
 
-    # Naming a sibling in the payload never lends that sibling's key to a forgery.
+    # Naming a sibling in the payload never lends its key to a forgery
 def test_oracle_rejects_a_signature_from_the_wrong_agent() -> None:
     ml = _ml_dsa_65()
     one_pk, _one_sk = ml.keygen()
@@ -239,7 +226,7 @@ def test_oracle_rejects_a_signature_from_the_wrong_agent() -> None:
     assert {a.axis: a.result for a in res.axes}["signature"] == "FAIL"
 
 
-    # A valid signature under a foreign org's key never proves the claimed issuer.
+    # A valid signature under a foreign org's key never proves the issuer.
 def test_oracle_rejects_an_agent_key_from_another_org() -> None:
     ml = _ml_dsa_65()
     one_pk, _one_sk = ml.keygen()

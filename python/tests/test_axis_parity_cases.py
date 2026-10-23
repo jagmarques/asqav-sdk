@@ -125,7 +125,7 @@ def test_nesting_depth_profile_parser_wraps_decimals() -> None:
 def test_anchor_case(case: dict) -> None:
     result, note = check_anchors(case["envelope"])
     assert result == case["expect"]["result"], f"{case['name']}: note {note}"
-    # The digest in the note is the JCS of the envelope minus anchors, so an exact
+    # The note digest is the JCS of the envelope minus anchors, so an exact
     # match also proves the two canonicalisers agree byte for byte.
     assert note == case["expect"]["note"], case["name"]
 
@@ -162,7 +162,7 @@ def test_expiry_reads_only_the_signed_bytes() -> None:
     assert axes["expiry"]["result"] == "FAIL", axes["expiry"]
 
 
-    # The reference pipelock receipt with this case's chain_prev_hash substituted.
+    # The reference pipelock receipt with this case's chain_prev_hash.
 def _pipelock_receipt(case: dict) -> dict:
     doc = json.loads((PIPELOCK_VECTOR / "receipt.json").read_text())
     if case.get("omit"):
@@ -208,7 +208,7 @@ def test_chain_prev_hash_table_discriminates() -> None:
 def test_normalise_case(case: dict) -> None:
     env = normalise_envelope(case["raw"])
     digest = hashlib.sha256(envelope_minus_anchors_jcs(env)).hexdigest()
-    # The digest is the bytes the anchors axis binds, so an exact match proves both
+    # The digest is what the anchors axis binds, so an exact match proves both
     # halves normalise and canonicalise the same envelope.
     assert digest == case["expect"]["digest"], case["name"]
     assert check_anchors(env)[0] == case["expect"]["anchors_axis"], case["name"]

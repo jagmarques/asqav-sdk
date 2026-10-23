@@ -24,10 +24,7 @@ sys.modules.pop("asqav.extras.smolagents", None)
 
 from asqav.extras.smolagents import AsqavSmolagentsHook  # noqa: E402
 
-# === Helpers ===
-
-
-    # Create a minimal mock smolagents Tool.
+# === Helpers: a minimal mock smolagents Tool ===
 def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
     tool = MagicMock()
     tool.name = name
@@ -200,7 +197,7 @@ def test_error_message_truncated_to_200_chars(hook: AsqavSmolagentsHook) -> None
 # === Fail-open: signing must never block tool execution ===
 
 
-    # If tool:start signing raises, the tool still executes and returns its result.
+    # If tool:start signing raises, the tool still executes and returns.
 def test_fail_open_tool_start_does_not_block_execution(
     hook: AsqavSmolagentsHook,
 ) -> None:
@@ -232,7 +229,7 @@ def test_fail_open_tool_end_does_not_suppress_result(
     assert result == "the result"
 
 
-    # If tool:error signing raises, the original tool exception is still re-raised.
+    # If tool:error signing raises, the original tool exception is re-raised.
 def test_fail_open_tool_error_does_not_swallow_exception(
     hook: AsqavSmolagentsHook,
 ) -> None:

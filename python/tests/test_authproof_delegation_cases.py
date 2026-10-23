@@ -1,12 +1,4 @@
-"""Shared authproof delegationId format table, Python half.
-
-One JSON table drives both the Python and the TypeScript authproof adapter. Each
-case feeds a delegationId through this language's format-detection validator and
-pins the boolean, so a regex that drifts between languages (a Unicode ``\\d``, a
-``$`` that swallows a trailing newline) fails a suite instead of waiting for a
-reviewer. The TypeScript half lives in
-typescript/tests/authproof-delegation-cases.test.ts and reads the same file.
-"""
+"""Shared authproof delegationId format table, Python half."""
 
 from __future__ import annotations
 

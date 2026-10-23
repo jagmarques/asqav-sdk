@@ -1,7 +1,5 @@
-/**
- * Asqav-native adapter, a port of the Python oracle's `asqav_native.py`. Two wire shapes route here,
- * mutually exclusive at detection: the compliance envelope and the flat hash-mode receipt.
- */
+// Asqav-native adapter, port of oracle asqav_native.py: two wire shapes route
+// here, exclusive at detection: the compliance envelope and flat hash receipt
 
 import {
   FormatAdapter,
@@ -46,7 +44,7 @@ import {
   revokedAtOf,
 } from "../vrShim.js";
 
-/** Field set the cloud's hash-mode signer canonicalises (for the structure check). */
+/** Field set the cloud's hash-mode signer canonicalises (structure check) */
 const HASH_MODE_FIELDS = [
   "v",
   "mode",
@@ -65,15 +63,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-/** True for a flat hash-mode signature receipt (mode=hash, null payload, a sig). */
+/** True for a flat hash-mode signature receipt (mode=hash, null payload) */
 // Claims belonging to the signed payload; hash mode signs the flat fields only,
-// so a thumbprint or seq pasted onto one binds nothing.
+// so a thumbprint or seq pasted onto one binds nothing
 const UNSIGNED_CLAIM_FIELDS = ["issuer_id", "previousReceiptHash", "key_thumbprint", "seq"];
 
-/**
- * alg plus raw public-key bytes of the resolved directory entry. The directory publishes standard
- * base64 while an AKP thumbprint is over unpadded base64url, so the decode precedes the digest.
- */
+// The directory publishes standard base64 but an AKP thumbprint is over
+// unpadded base64url, so the decode precedes the digest
+/** alg plus raw public-key bytes of the resolved directory entry */
 function resolvedKeyMaterial(
   entry: Record<string, unknown> | null,
 ): readonly [unknown, Uint8Array | null] {
@@ -87,7 +84,7 @@ function resolvedKeyMaterial(
 
 function isHashMode(doc: Record<string, unknown>): boolean {
   // Routing reads the shape of the signed unit only: a record payload is the
-  // compliance signed unit, any other shape routes here (mirrors _is_hash_mode).
+  // compliance unit, any other shape routes here (mirrors _is_hash_mode)
   if (doc.mode !== "hash" || isRecord(doc.payload)) return false;
   return Boolean(doc.signature_b64 || doc.signature);
 }
@@ -139,7 +136,7 @@ function hasOwn(obj: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-/** Decode signature material; empty on malformed input so verify FAILs, never crashes. */
+/** Decode signature material; empty on malformed input so verify FAILs */
 function safeB64(value: unknown): Uint8Array {
   if (typeof value !== "string") return new Uint8Array(0);
   try {
@@ -162,17 +159,17 @@ function resolveEvaluationNowMs(evaluationTime: unknown): number {
 export class AsqavNativeAdapter extends FormatAdapter {
   readonly name = "asqav-native";
 
-  /** Shared per instance, so a duplicate (issuer_id, nonce) pair is flagged (draft 5.7). */
+  /** Per-instance, so a duplicate (issuer_id, nonce) is flagged (draft 5.7) */
   private readonly seenNonces = new Set<string>();
 
   detect(doc: Record<string, unknown>): boolean {
     if (isHashMode(doc)) return true;
     const sig = doc.signature;
-    // An ACTA receipt carries a lowercase-hex sig; decline it so the formats stay disjoint.
+    // ACTA carries a lowercase-hex sig; decline it so formats stay disjoint
     if (isRecord(sig) && isLowerHex(sig.sig)) return false;
     const payload = doc.payload;
     if (isRecord(payload) && "previousReceiptHash" in payload) return true;
-    // A bare payload (the conformance-vector shape) is also Asqav-native.
+    // A bare payload (the conformance-vector shape) is also Asqav-native
     return "previousReceiptHash" in doc && "issuer_id" in doc;
   }
 
@@ -197,10 +194,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
     };
   }
 
-  /**
-   * The one JWKS entry this receipt's signature is checked against. Every axis resolves through here: kid
-   * sits outside the signed bytes, so a second independent lookup would be attacker-steerable.
-   */
+  // Every axis resolves through here: kid sits outside the signed bytes, so a
+  // second independent lookup would be attacker-steerable
+  /** The one JWKS entry this receipt's signature is checked against */
   private signingKeyEntry(
     doc: Record<string, unknown>,
     jwks: Record<string, unknown>,
@@ -266,12 +262,12 @@ export class AsqavNativeAdapter extends FormatAdapter {
     if (isHashMode(doc)) {
       return this.hashModeSigningInput(doc);
     }
-    // Asqav signs the canonical bytes of the payload directly, no pre-hash.
+    // Asqav signs the canonical bytes of the payload directly, no pre-hash
     return asqavJcs(payloadOf(doc));
   }
 
-  // Only a payload-mode receipt issued before the cutover with a member name above U+FFFF has
-  // a dated dialect; hash-mode members are ASCII, so both orders coincide there.
+  // Only a payload-mode receipt issued before the cutover with a member name
+  // above U+FFFF has a dated dialect; hash-mode members are ASCII, orders agree
   preCutoverSigningInput(doc: Record<string, unknown>): Uint8Array | null {
     if (isHashMode(doc)) return null;
     const payload = payloadOf(doc);
@@ -287,7 +283,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
 
   chainStep(doc: Record<string, unknown>): ChainStep {
     if (isHashMode(doc)) {
-      // A hash-mode signature receipt carries no in-band chain link of its own.
+      // A hash-mode signature receipt carries no in-band chain link of its own
       return { prevField: null, isGenesis: true, recompute: () => "" };
     }
     const prev = payloadOf(doc).previousReceiptHash;
@@ -307,7 +303,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
       if (missing.length > 0) {
         return ["FAIL", `hash-mode receipt missing fields: ${missing.join(",")}`];
       }
-      // A claim outside the signed field set is unauthenticated whatever it says.
+      // Claim outside the signed field set is unauthenticated whatever it says
       const unsigned = UNSIGNED_CLAIM_FIELDS.filter((f) => f in doc);
       if (unsigned.length > 0) {
         return [
@@ -325,8 +321,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return checkStructure(payloadOf(doc));
   }
 
-  // Gate on expiry, signing key revocation status, and its issuer (mirrors Python extra_axes).
-  // The key axes are a no-op when the key is absent; the signature axis handles that.
+  // Gate on expiry, signing key revocation status and issuer (as extra_axes)
+  // Key axes are a no-op when the key is absent; the signature axis handles it
   extraAxesWithContext(
     doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext,
   ): ExtraAxis[] {
@@ -345,14 +341,14 @@ export class AsqavNativeAdapter extends FormatAdapter {
   extraAxes(doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext = {}): ExtraAxis[] {
     const hashMode = isHashMode(doc);
     const nowMs = resolveEvaluationNowMs(context.evaluationTime);
-    // Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
-    // expires_at, and reading the flat doc would gate on an uncovered field.
+    // Expiry reads only the signed bytes, so no key is needed; hash mode signs
+    // no expires_at, and reading the flat doc would gate on an uncovered field
     const axes: ExtraAxis[] = [["expiry", ...checkExpiry(hashMode ? {} : payloadOf(doc), nowMs)]];
     axes.push(["nonce", ...checkNonce(hashMode ? {} : payloadOf(doc), this.seenNonces)]);
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const entry = this.signingKeyEntry(doc, jwks);
     // Reported before the no-entry return, so a receipt binding no thumbprint
-    // still says so rather than dropping the axis when nothing resolved.
+    // still says so rather than dropping the axis when nothing resolved
     const [boundAlg, boundPk] = resolvedKeyMaterial(entry);
     const signedUnit = hashMode ? {} : payloadOf(doc);
     axes.push(["key_binding", ...checkKeyBinding(signedUnit, boundAlg, boundPk)]);
@@ -363,7 +359,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
     const [pdRes, pdNote] = checkPayloadDigest(signedUnit);
     // ExtraAxis stays a 3-tuple; applicability rides the direct return
     axes.push(["payload_digest", pdRes, pdNote]);
-    // Hash mode signs no issued_at, so skew reads the flat server_timestamp there
+    // Hash mode signs no issued_at, so skew reads flat server_timestamp there
     const stamp = hashMode ? doc.server_timestamp : signedUnit.issued_at;
     axes.push(["skew", ...checkSkew(stamp, nowMs)]);
     // Plain copies beside the signed payload are weighed against it; the key is
@@ -371,16 +367,16 @@ export class AsqavNativeAdapter extends FormatAdapter {
     axes.push(["outer_copies", ...this.outerCopies(doc, boundPk, entry)]);
     if (entry === null) return axes;
     // Both wire shapes name their issuer inside the signed bytes: issuer_id in
-    // compliance mode, org_id in hash mode.
+    // compliance mode, org_id in hash mode
     const issuedAt = hashMode
       ? String(doc.server_timestamp ?? "")
       : String(payloadOf(doc).issued_at ?? "");
     // Offline anchor presence is unverifiable (anchors unsigned); pass false
-    // so a forged anchor never rides a revoked key to PASS.
+    // so a forged anchor never rides a revoked key to PASS
     const status = (entry.status as string) ?? null;
     const [res, note] = checkKeyStatus(status, issuedAt, revokedAtOf(entry), false,
       typeof entry.revocation_reason === "string" ? entry.revocation_reason : null);
-    // The key that verified is bound back to the issuer the signed bytes name.
+    // The key that verified is bound back to the issuer the signed bytes name
     const keyIssuer = keyIssuerOf(entry);
     const [bindRes, bindNote] = hashMode
       ? checkOrgBinding(keyIssuer, keyOrgOf(entry), doc.org_id)
@@ -392,24 +388,23 @@ export class AsqavNativeAdapter extends FormatAdapter {
     ];
   }
 
-  // Hash mode signs the flat field set only, so a seq sitting there binds nothing.
+  // Hash mode signs the flat field set only, so a seq there binds nothing
   seqOf(doc: Record<string, unknown>): unknown {
     if (isHashMode(doc)) return null;
     return payloadOf(doc).seq ?? null;
   }
 
-  // Surface the v:2 in-body signer. null for v:1 and hash-mode. Read only from
-  // the signed payload, so a signer appended as loose metadata is never surfaced.
+  // Surface the v:2 in-body signer; null for v:1 and hash-mode. Read only from
+  // the signed payload, so a loose-metadata signer is never surfaced
   attestation(doc: Record<string, unknown>): Record<string, unknown> {
     if (isHashMode(doc)) return {};
     const signer = payloadOf(doc).signer;
     return signer !== undefined && signer !== null ? { signer } : {};
   }
 
-  /**
-   * A hash-mode digest sealed with the org salt is keyed (criterion 438): internally consistent but not
-   * third-party re-derivable, so a fully-checked receipt reports verified_keyed, never plain verified.
-   */
+  // Internally consistent but not third-party re-derivable, so a fully-checked
+  // receipt reports verified_keyed, never plain verified
+  /** A hash-mode digest sealed with the org salt is keyed */
   keyedDigest(doc: Record<string, unknown>): boolean {
     return isHashMode(doc) && doc.hash_algo === "hmac-sha256";
   }

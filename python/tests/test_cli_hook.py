@@ -14,7 +14,7 @@ from asqav.cli import app  # noqa: E402
 
 runner = CliRunner()
 
-# Sample Claude Code PostToolUse event (offline; no session_id needed for identity).
+# Sample Claude Code PostToolUse event (offline; no session_id for identity).
 _POSTTOOL_EVENT = {
     "session_id": "s1",
     "tool_name": "Bash",
@@ -29,7 +29,7 @@ _PRETOOL_EVENT = {
 }
 
 
-    # Run `asqav hook <subcommand> --dry-run`, pipe event JSON, return parsed body.
+    # Run `asqav hook <subcommand> --dry-run` on event JSON; return the body.
 def _invoke_hook(subcommand: str, event: dict, extra_args: list[str] | None = None) -> dict:
     args = ["hook", subcommand, "--dry-run"] + (extra_args or [])
     result = runner.invoke(app, args, input=json.dumps(event))
@@ -40,7 +40,7 @@ def _invoke_hook(subcommand: str, event: dict, extra_args: list[str] | None = No
 # === posttool honesty invariant ===
 
 
-    # action_type is tool:<tool_name> for posttool, lowercased as sign() sends it.
+    # action_type is tool:<tool_name> for posttool, lowercased as sign() does.
 def test_posttool_dry_run_action_type() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
     assert body["action_type"] == "tool:bash"
@@ -55,7 +55,7 @@ def test_posttool_dry_run_sends_a_digest_not_the_arguments() -> None:
     assert "ls" not in json.dumps(body)
 
 
-    # --clear-context is the opt-in that sends the arguments for the platform to hold.
+    # --clear-context opts in to sending the arguments for the platform to hold.
 def test_posttool_dry_run_clear_context_sends_the_arguments() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT, ["--clear-context"])
     assert body["context"] == {"tool_input": {"command": "ls"}, "_trace_id": "s1"}
@@ -79,7 +79,7 @@ def test_posttool_honesty_invariant_receipt_type() -> None:
     assert body["receipt_type"] == "protectmcp:observation:result_bound"
 
 
-    # posttool must never emit a :decision receipt (would be a false attestation).
+    # posttool never emits a :decision receipt (a false attestation).
 def test_posttool_no_decision_receipt_type() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT)
     assert body.get("receipt_type") != "protectmcp:decision"
@@ -100,11 +100,8 @@ def test_pretool_dry_run_capture_topology() -> None:
     assert body["capture_topology"] == "in_process_sdk"
 
 
-# pretool fails CLOSED: PreToolUse exit 1 is non-blocking and only exit 2 blocks, so a
-# malformed event or missing identity must exit 2 or the gate fails OPEN and runs unsigned.
-
-
-    # Empty stdin must exit 2 (block), not exit 1 (proceed unsigned).
+# pretool fails CLOSED: exit 1 is non-blocking, only exit 2 blocks, so empty
+# stdin or a missing identity must exit 2, never 1 (which proceeds unsigned).
 def test_pretool_blocks_on_empty_stdin() -> None:
     result = runner.invoke(app, ["hook", "pretool"], input="")
     assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
@@ -134,7 +131,7 @@ def test_pretool_blocks_on_non_object_scalar() -> None:
     assert result.exit_code == 2, f"expected block (2), got {result.exit_code}"
 
 
-    # A well-formed event but no ASQAV_API_KEY/ASQAV_AGENT_ID must exit 2 (block).
+    # A well-formed event without ASQAV_API_KEY/ASQAV_AGENT_ID must exit 2.
 def test_pretool_blocks_on_missing_identity(monkeypatch) -> None:
     monkeypatch.delenv("ASQAV_API_KEY", raising=False)
     monkeypatch.delenv("ASQAV_AGENT_ID", raising=False)

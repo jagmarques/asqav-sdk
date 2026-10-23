@@ -1,14 +1,4 @@
-"""Canonical-JSON (JCS) golden vector tests for `asqav._jcs.canonical_json`.
-
-Vectors mirror the canonical-JSON appendix plus a few profile-shaped
-examples (signed envelopes from the IETF Compliance Receipts profile).
-Drift here means the SDK and the cloud disagree on the bytes that get
-signed, which silently breaks signature verification, so this file is a
-hard fail on byte mismatch.
-
-The companion module `asqav.canonicalize.canonicalize` is asserted to
-produce the same bytes so the two public entry points stay in lockstep.
-"""
+"""Canonical-JSON (JCS) golden vector tests for `asqav._jcs.canonical_json`."""
 
 from __future__ import annotations
 

@@ -1,0 +1,88 @@
+# Copyright 2026 Asqav
+# SPDX-License-Identifier: Apache-2.0
+"""Verbosity counter: docstring 6 lines/100 columns, comment 80 columns."""
+
+from __future__ import annotations
+
+import ast
+import io
+import re
+import tokenize
+from pathlib import Path
+
+# NEGCTL: test_verbosity.py plants each bad input and runs it through scan.
+DOCSTRING_MAX_LINES = 6
+DOCSTRING_MAX_WIDTH = 100
+COMMENT_MAX_CHARS = 80
+
+__all__ = [
+    "COMMENT_MAX_CHARS",
+    "DOCSTRING_MAX_LINES",
+    "DOCSTRING_MAX_WIDTH",
+    "python_files",
+    "scan",
+]
+
+# A tool directive cannot be reworded, so it is not prose to measure.
+_PRAGMA = re.compile(r"#\s*(noqa\b|type:\s*ignore\b|pragma:|fmt:)")
+_OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def python_files(root: Path) -> list[Path]:
+    """Every Python file under a path, or the file itself."""
+    path = Path(root)
+    if path.is_file():
+        return [path]
+    return sorted(p for p in path.rglob("*.py") if p.is_file())
+
+
+def _docstring_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
+    """The docstrings of one source that span more than the budget."""
+    hits: list[tuple[Path, int, str]] = []
+    lines = source.splitlines()
+    tree = ast.parse(source, filename=str(path))
+    for node in ast.walk(tree):
+        if not isinstance(node, _OWNERS):
+            continue
+        body = getattr(node, "body", None)
+        if not body or not isinstance(body[0], ast.Expr):
+            continue
+        value = body[0].value
+        if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+            continue
+        start = body[0].lineno
+        end = body[0].end_lineno
+        if start is None or end is None:
+            continue
+        if end - start + 1 > DOCSTRING_MAX_LINES:
+            hits.append((path, start, "docstring"))
+        for number in range(start, end + 1):
+            if len(lines[number - 1]) > DOCSTRING_MAX_WIDTH:
+                hits.append((path, number, "docstring-width"))
+    return hits
+
+
+def _comment_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
+    """The comment lines of one source whose line runs past the budget."""
+    hits: list[tuple[Path, int, str]] = []
+    lines = source.splitlines()
+    reader = io.StringIO(source).readline
+    for token in tokenize.generate_tokens(reader):
+        if token.type != tokenize.COMMENT or _PRAGMA.match(token.string):
+            continue
+        if len(lines[token.start[0] - 1]) > COMMENT_MAX_CHARS:
+            hits.append((path, token.start[0], "comment"))
+    return hits
+
+
+def scan(root: Path) -> list[tuple[Path, int, str]]:
+    """Every budget hit as (path, line, kind); an unmeasurable tree raises."""
+    files = python_files(root)
+    if not files:
+        raise ValueError(f"no Python file under {root}")
+    hits: list[tuple[Path, int, str]] = []
+    for path in files:
+        source = path.read_text(encoding="utf-8")
+        hits.extend(_docstring_hits(source, path))
+        hits.extend(_comment_hits(source, path))
+    return hits

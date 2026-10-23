@@ -1,10 +1,4 @@
-"""The vector-to-requirement mapping is current, derived, and publishes its gaps.
-
-A mapping that drifts from the corpus is worse than none, because it reads as a
-coverage claim while describing a corpus that no longer exists. And a mapping
-without its unmapped half can be made to look complete by growing the corpus,
-which is the failure mode the second half exists to prevent.
-"""
+"""The vector-to-requirement mapping is current, derived, and lists gaps."""
 
 from __future__ import annotations
 
@@ -55,7 +49,7 @@ def test_every_unmapped_requirement_says_why(document):
         detail = document["unmapped_detail"][req]
         assert detail["axis"]
         assert detail["results_seen_across_vectors"], req
-        # Whatever the reason, no vector may have exercised it, or it is not unmapped.
+        # Whatever the reason, no vector may exercise it, or it is not unmapped.
         assert "PASS" not in detail["results_seen_across_vectors"], req
         assert "FAIL" not in detail["results_seen_across_vectors"], req
 

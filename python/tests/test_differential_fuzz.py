@@ -138,12 +138,12 @@ def test_gate_detects_a_code_point_sorting_engine(monkeypatch: pytest.MonkeyPatc
     )
 
 
-    # The engine a customer actually runs offline must be compared, not only the emitter.
+    # The engine a customer runs offline must be compared, not only the emitter.
 def test_standalone_verifier_is_one_of_the_engines() -> None:
     assert "standalone" in fuzz.engines_available()
 
 
-    # The verifier's own asqav dialect joins whenever the verifier bundle is built.
+    # The verifier's own asqav dialect joins whenever its build is present.
 def test_typescript_verifier_engine_joins_when_built() -> None:
     dist = _ROOT / "typescript" / "dist" / "verifier" / "index.js"
     if not dist.exists():
@@ -151,7 +151,7 @@ def test_typescript_verifier_engine_joins_when_built() -> None:
     assert "typescript-verifier" in fuzz.engines_available()
 
 
-    # A verification path sorting by code point must be caught, or the gate is blind to it.
+    # A code-point-sorting verify path must be caught, or the gate is blind.
 def test_gate_detects_a_code_point_sorting_standalone_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
     def code_point_canonical(obj: object) -> bytes:
         return json.dumps(

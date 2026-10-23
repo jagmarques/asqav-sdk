@@ -1,7 +1,5 @@
-/**
- * SDK half of the un-bypassable code-authorship path: the client digest is ADVISORY and the server
- * re-fetches the commit and signs its own. Only `github_sha_pull` is an authoritative capture layer.
- */
+// SDK half of the un-bypassable code-authorship path: the client digest is
+// ADVISORY, the server re-fetches the commit and signs its own
 
 import { createHash } from "node:crypto";
 
@@ -23,16 +21,13 @@ export const INTOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
 /** asset_class the server stamps on the code-authorship predicate. */
 export const CODE_AUTHORSHIP_ASSET_CLASS = "code";
 
-/**
- * The ONLY capture layer that makes a code-authorship receipt authoritative.
- * The server stamps it after re-fetching the commit and recomputing the diff.
- */
+// The server stamps it after re-fetching the commit and recomputing the diff
+/** The ONLY capture layer that makes a code-authorship receipt authoritative */
 export const AUTHORITATIVE_CAPTURE_LAYER = "github_sha_pull";
 
-/**
- * Capture layers that are client self-reports. A code-authorship receipt carrying one is observation
- * only, never an authoritative decision receipt.
- */
+// A code-authorship receipt carrying one is observation only, never an
+// authoritative decision receipt
+/** Capture layers that are client self-reports */
 export const OBSERVATION_ONLY_CAPTURE_LAYERS = [
   "in_process_sdk",
   "passive_telemetry",
@@ -42,10 +37,9 @@ export const OBSERVATION_ONLY_CAPTURE_LAYERS = [
 export const VERDICT_PASS = "PASS";
 export const VERDICT_REJECT = "REJECT";
 
-/**
- * Compute the ADVISORY change digest `sha256:<hex>` over `git diff base..head`, or over the bare head
- * sha when no diff is supplied. The server recomputes and signs its own; this only feeds `digest_match`.
- */
+// Over the bare head sha when no diff is given; the server recomputes and signs
+// its own, this only feeds `digest_match`
+/** ADVISORY change digest `sha256:<hex>` over `git diff base..head` */
 export function computeAdvisoryDigest(
   headSha: string,
   diffText?: string,
@@ -141,10 +135,9 @@ export interface CodeAuthorshipOptions {
   anchor?: string;
 }
 
-/**
- * POST an advisory code-authorship record to /v1/code-authorship; the server recomputes the
- * authoritative digest and signs it. Needs an apiKey holding the `code_authorship:write` scope.
- */
+// The server recomputes the authoritative digest and signs it; needs an apiKey
+// holding the `code_authorship:write` scope
+/** POST an advisory code-authorship record to /v1/code-authorship */
 export async function submitCodeAuthorship(
   options: CodeAuthorshipOptions,
 ): Promise<CodeAuthorshipResult> {
@@ -178,10 +171,9 @@ export interface CodeAuthorshipVerification {
   reasons: string[];
 }
 
-/**
- * Verify the in-toto Statement shape and the capture-layer invariant. The DSSE signature is verified by
- * the standalone verifier or the hosted /verify; this helper is a convenience, not the authority.
- */
+// The DSSE signature is checked by the standalone verifier or hosted /verify;
+// this helper is a convenience, not the authority
+/** Verify the in-toto Statement shape and the capture-layer invariant */
 export function verifyCodeAuthorshipEnvelope(
   envelope: unknown,
 ): CodeAuthorshipVerification {

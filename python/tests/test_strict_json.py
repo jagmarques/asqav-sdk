@@ -1,10 +1,4 @@
-"""Strict JSON ingest (criterion 419): duplicate members fail closed.
-
-Every receipt- and record-parsing path rejects a duplicated JSON member name at
-ANY nesting depth as a terminal parse failure, before any hashing,
-canonicalisation, or signature check. Last-wins ingest would hash the bytes an
-attacker kept and drop the ones they replaced; these tests pin the rejection.
-"""
+"""Strict JSON ingest (criterion 419): duplicate members fail closed."""
 
 from __future__ import annotations
 
@@ -44,7 +38,7 @@ def test_duplicate_member_inside_array_element_rejected() -> None:
         strict_json.loads('{"list": [{"k": 1}, {"k": 2, "k": 3}]}')
 
 
-    # The same member name in SIBLING objects is legal; only one object scope matters.
+    # The same member name in SIBLING objects is legal; only one scope matters.
 def test_same_name_in_sibling_objects_is_allowed() -> None:
     out = strict_json.loads('{"list": [{"k": 1}, {"k": 2}]}')
     assert out == {"list": [{"k": 1}, {"k": 2}]}
@@ -62,7 +56,7 @@ def test_clean_documents_parse_like_stdlib() -> None:
         assert strict_json.loads(text) == json.loads(text), text
 
 
-    # The object_pairs_hook is reserved for duplicate rejection, never overridden.
+    # The object_pairs_hook is reserved for duplicate rejection, not overridden.
 def test_loads_refuses_a_caller_object_pairs_hook() -> None:
     with pytest.raises(ValueError):
         strict_json.loads("{}", object_pairs_hook=dict)
@@ -81,7 +75,7 @@ def test_standalone_duplicate_member_is_terminal_before_hashing() -> None:
         json.loads(text, object_pairs_hook=vr._reject_duplicate_members)
 
 
-    # The OTel GenAI door recovers a receipt only when its JSON is duplicate-free.
+    # The OTel GenAI door recovers a receipt only if its JSON is duplicate-free
 def test_doors_otel_receipt_rejects_duplicate_members() -> None:
     from asqav import doors
 
@@ -98,7 +92,7 @@ def test_corpus_duplicate_member_vectors_never_parse(vec: str) -> None:
         strict_json.loads(raw)
 
 
-    # A mutated receipt with a duplicated member never verifies through the runner.
+    # A mutated receipt with a duplicated member never verifies via the runner.
 @pytest.mark.parametrize("vec", ["asqav-11-dup-member-toplevel", "asqav-13-dup-member-nested"])
 def test_corpus_duplicate_member_vectors_never_verify(vec: str) -> None:
     from asqav.verifier.oracle.runner import run_one
@@ -110,10 +104,10 @@ def test_corpus_duplicate_member_vectors_never_verify(vec: str) -> None:
     assert "terminal parse failure before any hashing" in outcome.detail
 
 
-# --- Integers outside +/-2**53, the second thing the strict door refuses (finding 8) ---
+# --- Integers outside +/-2**53, the second strict-door refusal (finding 8) ---
 
 
-    # An integer with no exact double would canonicalise two ways across the SDKs.
+    # An integer with no exact double would canonicalise two ways across SDKs.
 @pytest.mark.parametrize(
     "literal",
     ["9007199254740993", "-9007199254740993", "1000000000000000000000"],
@@ -123,7 +117,7 @@ def test_integer_outside_the_canonical_range_rejected(literal: str) -> None:
         strict_json.loads('{"n": %s}' % literal)
 
 
-    # 2**53 itself is exactly representable and is pinned canonical by the upstream corpus.
+    # 2**53 itself is exactly representable and canonically pinned by corpus.
 @pytest.mark.parametrize(
     "literal",
     ["9007199254740991", "9007199254740992", "-9007199254740992", "0"],
@@ -143,14 +137,14 @@ def test_nested_unsafe_integer_rejected() -> None:
         strict_json.loads('{"a": {"b": [1, 2, {"c": 9007199254740993}]}}')
 
 
-    # The standalone verifier ships as one file and carries its own copy of the hook.
+    # The standalone verifier ships as one file with its own copy of the hook.
 def test_standalone_verifier_rejects_an_unsafe_integer() -> None:
     with pytest.raises(vr.VerifierInputError, match="canonical integer range"):
         vr._parse_object('{"n": 9007199254740993}', "receipt")
     assert vr._parse_object('{"n": 9007199254740992}', "receipt") == {"n": 9007199254740992}
 
 
-# --- Asqav profile range +/-(2**53 - 1): explicit entry, shared loads unchanged ---
+# --- Asqav profile range +/-(2**53 - 1): explicit entry, shared loads ---
 
 
     # The profile admits the largest safe integer on both signs, nested or not.
@@ -166,7 +160,7 @@ def test_profile_ingest_accepts_the_safe_interval(text: str) -> None:
     assert strict_json.loads_profile(text) == strict_json.loads(text)
 
 
-    # Exactly representable +/-2**53 is outside the profile interval and refuses.
+    # Exactly representable +/-2**53 is outside the profile interval: refused.
 @pytest.mark.parametrize(
     "text",
     [
@@ -189,16 +183,15 @@ def test_profile_ingest_refuses_beyond_the_boundary(literal: str) -> None:
         strict_json.loads_profile('{"n": %s}' % literal)
 
 
-    # Decimal/exponent spellings of the excluded boundary cannot bypass the check.
+    # Decimal/exponent spellings of the excluded boundary cannot bypass it.
 @pytest.mark.parametrize("literal", ["9007199254740992.0", "9.007199254740992e15"])
 def test_profile_ingest_refuses_float_spellings_of_the_boundary(literal: str) -> None:
     with pytest.raises(strict_json.ProfileIntegerError):
         strict_json.loads_profile('{"n": %s}' % literal)
 
 
-    # The string twin, booleans and fractional floats keep their existing behavior.
-    # An integer-valued float spelling (5.0) is refused: the digest would bind
-    # digits the profile never validated as an integer (criterion 684 task 1).
+    # The string twin, booleans and fractional floats keep their behavior; an
+    # integer-valued float (5.0) is refused: it binds unvalidated digits (684).
 def test_profile_ingest_keeps_strings_booleans_and_fractions() -> None:
     assert strict_json.loads_profile('{"n": "9007199254740993"}') == {
         "n": "9007199254740993"
@@ -208,14 +201,14 @@ def test_profile_ingest_keeps_strings_booleans_and_fractions() -> None:
         strict_json.loads_profile('{"n": 5.0}')
 
 
-    # The shared generic entry still accepts +/-2**53: foreign compatibility control.
+    # The shared generic entry still accepts +/-2**53: a foreign-compat control.
 @pytest.mark.parametrize("literal", ["9007199254740992", "-9007199254740992"])
 def test_generic_ingest_still_accepts_the_excluded_boundary(literal: str) -> None:
     assert strict_json.loads('{"n": %s}' % literal) == {"n": int(literal)}
 
 
     # A digest-covered number whose raw lexeme is not an exact integer parses
-    # silently without the lexeme rule: the digest would bind unvalidated digits.
+    # silently without the lexeme rule: the digest would bind unvalidated digits
 def test_profile_ingest_refuses_non_integer_lexeme() -> None:
     with pytest.raises(strict_json.ProfileIntegerError):
         strict_json.loads_profile('{"n":9007199254740991.0000001}')

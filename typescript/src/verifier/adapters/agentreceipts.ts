@@ -1,7 +1,5 @@
-/**
- * agent-receipts adapter: a W3C VC 2.0 envelope, Ed25519 over strict RFC 8785 JCS with `proof` removed.
- * The signing key resolves from `proof.verificationMethod` through the shared DID resolver.
- */
+// agent-receipts adapter: W3C VC 2.0 envelope, Ed25519 over strict JCS minus
+// `proof`; key from proof.verificationMethod via the shared DID resolver
 
 import {
   FormatAdapter,
@@ -83,7 +81,7 @@ export class AgentReceiptsAdapter extends FormatAdapter {
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
-    // Strict-JCS bytes of the receipt minus proof, signed directly (no pre-hash).
+    // Strict-JCS bytes of the receipt minus proof, signed directly, no pre-hash
     return jcsRfc8785(signable(doc));
   }
 

@@ -1,16 +1,4 @@
-"""One key resolution serves the signature axis and the key-status axes alike.
-
-``signature.kid`` sits OUTSIDE the signed payload bytes, so a holder of a receipt can
-rewrite it without disturbing the signature. When the signature axis resolves its key
-through a fallback the gating axes do not share, a rewritten kid makes ``key_status``
-and ``issuer_bind`` resolve nothing and emit no axis at all. The aggregate in
-``oracle/core.py`` weighs the axes that exist, and it can block on an axis reporting
-SKIPPED but not on one that was never emitted, so a receipt signed by a REVOKED key
-reads PASS.
-
-Every gate here pins the invariant that closes that: the entry the signature verifies
-against is the entry every axis reads its published fields from.
-"""
+"""One key resolution serves the signature and key-status axes alike."""
 
 from __future__ import annotations
 
@@ -34,7 +22,7 @@ requires_ed25519 = pytest.mark.skipif(
 ISSUER = "acme-legal-entity"
 AGENT = "agt_shared_resolution"
 REAL_KID = "key-shared-resolution"
-#: A kid the directory answers for nothing, which is what a rewritten kid looks like.
+#: A kid the directory answers for nothing, as a rewritten kid looks.
 ABSENT_KID = "kid-that-resolves-nothing"
 
 
@@ -108,7 +96,7 @@ def test_active_key_passes_the_status_axis_through_the_agent_route() -> None:
     assert axes["issuer_bind"] == "PASS"
 
 
-#: Axes that only exist once a key resolves; expiry reads the signed bytes alone.
+#: Axes that exist only once a key resolves; expiry reads the signed bytes.
 KEY_AXES = {"key_status", "issuer_bind"}
 
 
@@ -189,7 +177,7 @@ def test_rewritten_kid_cannot_flip_a_revoked_receipt_to_pass() -> None:
     honest_res = verify(honest, ad, key_provider=jwks)
     rewritten_res = verify(rewritten, ad, key_provider=jwks)
 
-    # The signature really does check out against the published key in both cases.
+    # The signature does check out against the published key in both cases.
     assert honest_res.axis("signature").result == "PASS"
     assert rewritten_res.axis("signature").result == "PASS"
     # And the revoked status carries the verdict in both cases.

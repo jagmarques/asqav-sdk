@@ -1,14 +1,4 @@
-"""Gates for acceptor-side admission control (criterion 472, B15).
-
-Driven off the real conformance corpus rather than hand-built dicts: every
-receipt here is signed over its own bytes by the corpus's published keys, so a
-refusal has to come from the rule under test and not from a broken signature
-nobody noticed.
-
-The three acceptor-only rules carry the weight. Each one refuses a receipt the
-VERIFIER is content with, which is the whole reason the module exists - a peer
-can weaken the evidence without ever producing an unverified receipt.
-"""
+"""Gates for acceptor-side admission control (criterion 472, B15)."""
 from __future__ import annotations
 
 import base64
@@ -38,8 +28,8 @@ def _vec(name: str):
     return receipt, jwks, predecessor
 
 
-# Properly signed fixtures: the acceptor rules refuse receipts the VERIFIER accepts, so an
-# edited payload would fail the signature first. These mint real ones from the published seed.
+# Properly signed fixtures: the rules refuse receipts the VERIFIER accepts, so
+# edited payload fails the signature first. These mint real ones from the seed.
 
 _SEED_PHRASE = b"asqav conformance corpus v1 seq-continuity signing seed"
 _KID = "asqav-seq-vec-key"

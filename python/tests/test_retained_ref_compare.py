@@ -1,11 +1,4 @@
-"""Stored-vs-live envelope comparison through classification (488 C39b).
-
-C39a carries the bytes-derived envelope ref on retained entries; C39b
-reads it back: the retained view carries the stored ref, the live view
-carries the envelope re-derived from the reviewed bytes (never stored),
-and classify surfaces agreement_version agreement/split plus the
-conflict shape on the Disagreement.
-"""
+"""Stored-vs-live envelope comparison through classification (488 C39b)."""
 from __future__ import annotations
 
 import dataclasses

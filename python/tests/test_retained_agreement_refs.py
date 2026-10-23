@@ -1,10 +1,4 @@
-"""Retained envelope refs ride outside the hash chain (488 C39a).
-
-Recording stores the bytes-derived envelope (kid/signature from
-envelope_of) on the entry for later conflict classification; the ref
-is excluded from the chain hash so old logs still verify and hashes
-never move. Unboundable receipts record with agreement None.
-"""
+"""Retained envelope refs ride outside the hash chain (488 C39a)."""
 from __future__ import annotations
 
 import hashlib

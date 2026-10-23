@@ -1,14 +1,4 @@
-"""SDK parity for the risk-acceptance / exception receipt.
-
-Mirrors the deployed cloud SignRequest validators (routes/agents.py
-``_validate_risk_acceptance_extensions`` + RiskSnapshot) for
-``receipt_type='protectmcp:lifecycle:risk_acceptance'``. The SDK forwards the
-nine extension fields verbatim, validates the sarif_digest shape, the
-risk_snapshot numeric-requires-source rule, the field-fence to the
-risk-acceptance type, and requires compliance_mode so the fields are never
-silently dropped from the signed bytes. Each rejection carries a docs_url
-(rule 3.9).
-"""
+"""SDK parity for the risk-acceptance / exception receipt."""
 
 from __future__ import annotations
 
@@ -203,7 +193,7 @@ def test_validation_error_is_a_valueerror() -> None:
 # === SoD guard: risk_acceptance_self_approval_guard ===
 
 
-    # risk_acceptance_self_approval_guard fires when initiator_id == approver_id.
+    # risk_acceptance_self_approval_guard fires if initiator_id == approver_id.
 @pytest.mark.parametrize("same_id", ["user:alice@example.com", "uuid-1234", "alice"])
 def test_rejects_self_approval(same_id: str) -> None:
     with pytest.raises(AsqavValidationError) as exc:

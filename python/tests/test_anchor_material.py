@@ -1,15 +1,6 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""Per-vector anchor material completes asqav-24's anchors axis offline.
-
-asqav-24-anchor-block-hash-prod ships two pieces of public material beside the
-vector: the TSA certificates embedded in its own timestamp token
-(`tsa_trust.pem`) and the header of the bitcoin block its OpenTimestamps proof
-lands in (`bitcoin_headers.json`). With both, the axis PASSes; with a wrong
-merkle root the OpenTimestamps entry is invalid and the axis FAILs; without
-the TSA file the token is unverifiable and the axis SKIPs. The axis is the
-whole point of shipping the material, so each control asserts on it.
-"""
+"""Per-vector anchor material completes asqav-24's anchors axis offline."""
 
 from __future__ import annotations
 

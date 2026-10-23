@@ -10,13 +10,7 @@ import pytest
 
 
 def _module_installed(name: str) -> bool:
-    """True if ``name`` is reachable on the filesystem.
-
-    Pops any pre-existing ``sys.modules`` entry before probing so a mock
-    injected by another test (with ``__spec__ = None``) does not mask
-    a real on-disk install. Restores the entry afterwards so we do not
-    perturb the rest of the test session.
-    """
+    """True if ``name`` is reachable on the filesystem."""
     saved = sys.modules.pop(name, None)
     try:
         spec = importlib.util.find_spec(name)
@@ -44,7 +38,7 @@ def _read_pyproject() -> dict:
         return tomllib.load(f)
 
 
-    # All 6 framework extras are defined in pyproject.toml optional-dependencies.
+    # All 6 framework extras are defined in pyproject optional-dependencies.
 def test_extras_defined_in_pyproject():
     data = _read_pyproject()
     opt_deps = data["project"]["optional-dependencies"]
@@ -93,18 +87,12 @@ def test_extras_package_importable():
 
 
 def _purge(*module_names: str) -> None:
-    """Drop modules from sys.modules so a fresh import re-runs the guards.
-
-    Other integration tests inject framework mocks (sys.modules["crewai"] = ...).
-    Without this purge the stub re-import sees the mock and skips the
-    ImportError path, so the stub-import test silently passes when the user
-    actually has the framework missing. Fail closed by clearing both.
-    """
+    """Drop modules from sys.modules so a fresh import re-runs the guards."""
     for name in module_names:
         sys.modules.pop(name, None)
 
 
-    # Importing langchain stub raises ImportError when langchain-core is not installed.
+    # Importing the langchain stub raises ImportError without langchain-core.
 @pytest.mark.skipif(_module_installed("langchain_core"), reason="langchain-core installed; stub error path is unreachable in this env")
 def test_langchain_stub_import_error():
     _purge("asqav.extras.langchain", "langchain_core", "langchain_core.callbacks")
@@ -133,7 +121,7 @@ def test_litellm_stub_import_error():
         import asqav.extras.litellm  # noqa: F401
 
 
-    # Importing haystack stub raises ImportError when haystack-ai is not installed.
+    # Importing the haystack stub raises ImportError without haystack-ai.
 @pytest.mark.skipif(_module_installed("haystack"), reason="haystack-ai installed; stub error path is unreachable in this env")
 def test_haystack_stub_import_error():
     _purge("asqav.extras.haystack", "haystack", "haystack.dataclasses")
@@ -141,7 +129,7 @@ def test_haystack_stub_import_error():
         import asqav.extras.haystack  # noqa: F401
 
 
-    # Importing openai_agents stub raises ImportError when openai-agents is not installed.
+    # Importing the openai_agents stub raises ImportError without openai-agents.
 @pytest.mark.skipif(_module_installed("agents"), reason="openai-agents installed; stub error path is unreachable in this env")
 def test_openai_agents_stub_import_error():
     _purge("asqav.extras.openai_agents", "agents", "agents.tracing")

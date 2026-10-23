@@ -133,7 +133,7 @@ def test_sign_metadata_does_not_mutate_original_context(mock_post: object) -> No
     assert "_system_prompt_hash" not in original_ctx
 
 
-    # sign() creates context dict from scratch when context is None and metadata provided.
+    # sign() creates the context dict when context is None and metadata is set.
 @patch("asqav.client._post")
 def test_sign_with_none_context_and_metadata(mock_post: object) -> None:
     mock_post.return_value = MOCK_SIGN_RESPONSE  # type: ignore[attr-defined]

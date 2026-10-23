@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-/**
- * asqav CLI for TypeScript / Node, mirroring the Python `asqav` CLI surface. Every command works on the
- * free tier; the server is the source of truth for what a given key may do.
- */
+// asqav CLI for TypeScript / Node, mirroring the Python `asqav` CLI surface
+// Every command works on the free tier; the server decides what a key may do
 
 import fs from "node:fs";
 import readline from "node:readline";
@@ -87,7 +85,8 @@ async function cmdVerify(args: string[]): Promise<void> {
   const [sigId] = positional(args);
   if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
   const output = parseFlag(args, "output") ?? "text";
-  // Verify is public, but `request` short-circuits on missing config; init with any key.
+  // Verify is public, but `request` short-circuits on missing config; init with
+  // any key
   init({ apiKey: resolveApiKey() ?? "anon" });
   let r: Awaited<ReturnType<typeof verifySignature>>;
   try {
@@ -271,8 +270,8 @@ async function cmdBudgetCheck(args: string[]): Promise<void> {
   ensureApiKey();
   const agent = await Agent.get(agentId);
   const tracker = new BudgetTracker({ agent, limit, currency });
-  // Apply existing spend by recording a synthetic priming amount in memory only.
-  // The CLI doesn't sign anything during 'check'; this matches the Python parity.
+  // Apply existing spend by recording a synthetic priming amount in memory only
+  // The CLI doesn't sign anything during 'check'; this matches Python parity
   (tracker as unknown as { spend: number }).spend = currentSpend;
   const r = tracker.check(estimated);
   if (hasFlag(args, "json")) {
@@ -377,7 +376,7 @@ async function readJsonInput(value: string): Promise<unknown> {
     for await (const chunk of process.stdin) {
       chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer));
     }
-    // Strict ingest (419): a duplicated member name is a terminal parse failure.
+    // Strict ingest: a duplicated member name is a terminal parse failure
     return parseJsonStrict(Buffer.concat(chunks).toString("utf8"));
   }
   const fs = await import("node:fs/promises");
@@ -459,10 +458,9 @@ function validateSignFlags(flags: SignCliFlags): void {
   }
 }
 
-/**
- * Assemble the call-time `context` map: the optional JSON file, the optional policy artefact under a
- * sentinel key, and the `_action_id` sentinel when supplied.
- */
+// Plus the optional policy artefact under a sentinel key, and the `_action_id`
+// sentinel when supplied
+/** Assemble the call-time `context` map: the optional JSON file */
 async function loadSignContext(
   flags: SignCliFlags,
 ): Promise<Record<string, unknown> | undefined> {
@@ -559,7 +557,7 @@ async function cmdSign(args: string[]): Promise<void> {
   try {
     const agent = await Agent.get(flags.agentId as string);
     if (flags.sessionId) {
-      // Internal field used by buildSignBody when the session is bound.
+      // Internal field used by buildSignBody when the session is bound
       (agent as unknown as { sessionId: string }).sessionId = flags.sessionId;
     }
     const sig = await agent.sign(buildSignCallOptions(flags, context));
@@ -667,7 +665,7 @@ async function cmdAuditPackVerify(args: string[]): Promise<void> {
       const fs = await import("node:fs/promises");
       raw = await fs.readFile(bundlePath, "utf8");
     }
-    // Strict ingest (419): a duplicated member name is a terminal parse failure.
+    // Strict ingest: a duplicated member name is a terminal parse failure
     bundle = parseJsonStrict(raw);
   } catch (err) {
     die(`Error reading bundle: ${(err as Error).message}`);
@@ -791,10 +789,9 @@ async function cmdOrgSetComplianceStrict(args: string[]): Promise<void> {
   }
 }
 
-/**
- * Call an admin/owner route that authenticates with a dashboard JWT read from ASQAV_SESSION_TOKEN, not
- * the X-API-Key an agent key carries.
- */
+// The JWT is read from ASQAV_SESSION_TOKEN, not the X-API-Key an agent key
+// carries
+/** Call an admin/owner route authenticated by a dashboard JWT */
 async function sessionRequest(
   method: string,
   path: string,
@@ -885,8 +882,8 @@ async function cmdKeysGenerate(args: string[]): Promise<void> {
     const kp = generateKeypair(algorithm as LocalSigningAlgorithm);
     if (out) {
       const fs = await import("node:fs/promises");
-      // Write the PKCS#8 DER bytes (base64-decoded) so the file is the
-      // raw key material the cloud signing path expects.
+      // Write the PKCS#8 DER bytes (base64-decoded) so the file is the raw key
+      // material the cloud signing path expects
       await fs.writeFile(out, Buffer.from(kp.privateKeyPkcs8B64, "base64"), { mode: 0o600 });
       process.stdout.write(`Private key (PKCS#8 DER) written to ${out} (mode 0600).\n`);
     }
@@ -1070,8 +1067,8 @@ function resolveKeySource(explicit?: string): [string | null, string] {
   return [null, "none"];
 }
 
-// Reads a line without echoing keystrokes. On a TTY, raw mode
-// suppresses echo; on a pipe, readline is safe (nothing is echoed).
+// Reads a line without echoing keystrokes. On a TTY, raw mode suppresses echo;
+// on a pipe, readline is safe (nothing is echoed)
 export function promptHidden(query: string): Promise<string> {
   process.stdout.write(query);
 
@@ -1365,7 +1362,7 @@ export async function runCli(argv: string[]): Promise<void> {
 }
 
 // Entry point when invoked via the bin shim. The compiled bin file is
-// `dist/cli.js`; re-export the runner so the bin script can call it.
+// `dist/cli.js`; re-export the runner so the bin script can call it
 if (process.argv[1]?.endsWith("/asqav") || process.argv[1]?.endsWith("/cli.js") || process.argv[1]?.endsWith("/cli.mjs")) {
   runCli(process.argv.slice(2)).catch((err) => die(`Error: ${(err as Error).message}`));
 }

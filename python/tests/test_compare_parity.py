@@ -1,10 +1,4 @@
-"""Classifier comparison parity (488 C20): exact tuples plus absent parity.
-
-Single-dimension differences surface exactly that comparandum; a
-multi-dimension difference follows COMPARANDA order. Absent, None and a
-sibling null all read the same, and a view without axes compares (as
-empty) instead of diverging by language.
-"""
+"""Classifier comparison parity (488 C20): exact tuples plus absent parity."""
 from __future__ import annotations
 
 from asqav.verifier.oracle.agreement import COMPARANDA, compare_assessments

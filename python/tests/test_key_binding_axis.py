@@ -1,15 +1,4 @@
-"""key_thumbprint binding axis, Python half (criterion 458).
-
-The shared table in verifier/axis-parity-cases.json drives this file and
-typescript/tests/verifier-key-binding-parity.test.ts, so a rule that drifts in one
-language fails a suite.
-
-Beyond the table, the wire tests here are mutation-shaped on purpose: each one
-fails if its own wire is deleted. Criterion 457's lesson was that driving only the
-helper chain leaves the call sites untested, so every place the axis is appended
-and every table entry that makes its FAIL terminal has a test that notices its
-removal.
-"""
+"""key_thumbprint binding axis, Python half (criterion 458)."""
 
 from __future__ import annotations
 
@@ -78,7 +67,6 @@ def _receipt(thumbprint=None) -> dict:
     }
 
 
-# --------------------------------------------------------------------------
 # The shared cross-language table
 
 
@@ -104,7 +92,7 @@ def test_key_binding_axis_table(case) -> None:
     assert case["expect"]["note_contains"] in note, note
 
 
-    # pub is unpadded base64url; the directory's own alphabet yields another digest.
+    # pub is unpadded base64url; the directory's alphabet yields another digest.
 def test_pub_member_uses_unpadded_base64url() -> None:
     jwk = vr.akp_jwk(alg="ML-DSA-87", public_key=bytes([0xFF]) * 2592)
     assert set(jwk) == {"alg", "kty", "pub"}
@@ -113,7 +101,7 @@ def test_pub_member_uses_unpadded_base64url() -> None:
     assert jwk["pub"].startswith("____")
 
 
-    # RFC 7638 requires lexicographic members and no whitespace, whatever the caller passes.
+    # RFC 7638 requires lexicographic members and no whitespace, whatever input.
 def test_thumbprint_ignores_member_insertion_order() -> None:
     pk = bytes([0x07]) * 1952
     ordered = {"alg": ALG, "kty": "AKP", "pub": vr._b64url_nopad(pk)}
@@ -122,7 +110,6 @@ def test_thumbprint_ignores_member_insertion_order() -> None:
     assert vr.jwk_thumbprint(ordered) == vr.thumbprint_for_key(alg=ALG, public_key=pk)
 
 
-# --------------------------------------------------------------------------
 # Wire tests - each fails if its own call site is deleted
 
 
@@ -174,7 +161,7 @@ def test_a_substituted_key_is_terminal_invalid_not_a_warning() -> None:
     assert out["failure_class"] == "invalid"
 
 
-    # A skip blocks every axis but chain, so absence must PASS or all legacy receipts break.
+    # A skip blocks all axes but chain: absence must PASS or legacy breaks.
 def test_absence_does_not_block_a_verdict() -> None:
     binding = oracle_verify(_receipt(None), ADAPTERS, _jwks(KEY_GOOD)).axis("key_binding")
     assert binding.result == "PASS", binding.note
@@ -210,7 +197,7 @@ def test_hash_mode_cannot_display_an_unsigned_thumbprint() -> None:
     assert result.verdict == "unverified"
 
 
-    # Hash mode signs no thumbprint, so a clean hash-mode receipt still reads not-checked.
+    # Hash mode signs no thumbprint: a clean hash-mode receipt is not-checked.
 def test_hash_mode_without_a_thumbprint_reports_not_checked() -> None:
     doc = {
         "v": 1,
