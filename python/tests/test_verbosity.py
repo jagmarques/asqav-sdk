@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.test_python_conciseness import conciseness
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -55,3 +57,14 @@ def test_long_comment_fails(tmp_path):
     assert counts.findings[0].startswith(f"{path}:1: comment line is")
     path.write_text("# " + "x" * (MAX_COMMENT_CHARS - 2) + "\n", encoding="utf-8")
     assert conciseness.scan_tree(tmp_path).findings == []
+
+
+def test_unparseable_file_raises(tmp_path):
+    (tmp_path / "test_broken.py").write_text("def (\n", encoding="utf-8")
+    with pytest.raises(SyntaxError):
+        conciseness.scan_tree(tmp_path)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError):
+        conciseness.scan_tree(empty)
+    assert conciseness.main(["--path", str(empty)]) == 2
