@@ -12,8 +12,8 @@ import pytest
 def _module_installed(name: str) -> bool:
     """True if ``name`` is reachable on the filesystem.
 
-    Pops any ``sys.modules`` entry before probing so a mock injected by another
-    test (``__spec__ = None``) does not mask a real install, then restores it.
+    Pops any ``sys.modules`` entry before probing so another test's mock
+    (``__spec__ = None``) does not mask a real install, then restores it.
     """
     saved = sys.modules.pop(name, None)
     try:
