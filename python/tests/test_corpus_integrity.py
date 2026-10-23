@@ -14,27 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Literal pins for every derived member of conformance/vectors.json (criterion 670).
+"""Literal pins for every derived member of conformance/vectors.json (670).
 
-The corpus is a contract with third-party implementers, so it is FIXTURE DATA: the
-expected value of a derived member is a literal string in this file, never a value
-the production code supplies at assertion time.
-
-That distinction is not academic. The counterparty ``envelope_hash`` was stale in
-five vectors for the life of the file, and the two tests that named it both built
-their expectation by calling ``compute_envelope_hash`` - the function under test -
-against a locally constructed envelope, so neither ever read the published bytes.
-A green suite proved nothing about the file outsiders implement against.
-
-Sibling checks, deliberately kept separate:
-
-* ``test_canonicalize.py`` asserts the SDK's public helpers reproduce these bytes.
-  That is the other direction and is still wanted.
-* ``verifier/regen_fingerprint_vectors.py --check`` re-derives every member from each
-  vector's own input and is what CI runs on every push.
-* ``test_corpus_lock.py`` pins the file's SHA-256 as a whole.
-
-This file is the one that says WHAT the bytes are.
+The corpus is FIXTURE DATA for third-party implementers: each expected derived
+value is a literal here, never supplied by production code at assertion time.
+Siblings: test_canonicalize.py, regen_fingerprint_vectors.py, test_corpus_lock.
 """
 
 from __future__ import annotations
@@ -55,7 +39,7 @@ def _vectors() -> dict[str, dict]:
 
 
 #: SHA-256 of each vector's canonical bytes, verbatim from the published file.
-#: Pinning this pins ``canonical`` transitively: no other byte string has this digest.
+#: This pins ``canonical`` transitively: no other byte string has this digest.
 PINNED_SHA256 = {
     "counterparty_binding_origin_unavailable": "b6f72c4a7b12981e512e7b730e0a268576254b5d4b2bb69a8b74a11969dc12fd",
     "counterparty_binding_cross_interaction_replay": "69d921ed3182791e5f46be5ce1ea722840a56f7dea9e65efefe1bf45e0a2ddc2",
@@ -121,8 +105,8 @@ PINNED_SHA256 = {
         "e1da48c6a6089f06ecb4e0a2259e658e3786b2420f52baccdf929ec6460d7b41",
 }
 
-#: Length of each canonical string, so a published ``canonical`` cannot be swapped
-#: for a different one that happens to carry the pinned digest in its ``sha256``.
+#: Length of each canonical string, so a published ``canonical`` cannot be
+#: swapped for another one carrying the pinned digest in its ``sha256``.
 PINNED_CANONICAL_LENGTH = {
     "counterparty_binding_origin_unavailable": 904,
     "counterparty_binding_cross_interaction_replay": 892,
@@ -462,9 +446,8 @@ PINNED_SIGNATURES = {
     }
 }
 
-#: Nested payload quartets of the two-envelope vectors, verbatim. Their
-#: ``input`` carries ``{anchors, payload, signature}``; the quartet lives
-#: one level down under ``input.payload``.
+#: Nested payload quartets of the two-envelope vectors, verbatim, one level
+#: down under ``input.payload`` of ``{anchors, payload, signature}``.
 PINNED_NESTED_PAYLOAD_MEMBERS = {
     "counterparty_binding_envelope_byte_equality": {
         "previousReceiptHash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -504,15 +487,15 @@ PINNED_NESTED_PAYLOAD_MEMBERS = {
     }
 }
 
-#: The exact document each refused-parse vector publishes, verbatim. A vector that pins a
-#: REFUSAL has no canonical form, so its contract with implementers is these bytes.
+#: The exact document each refused-parse vector publishes, verbatim. A REFUSAL
+#: has no canonical form, so these bytes are its contract with implementers.
 PINNED_REFUSED_DOCUMENT = {
     "asqav-25-number-above-safe-range-rejected": "{\"n\":9007199254740993}",
     "asqav-25-number-above-safe-range-boundary-rejected": "{\"n\":9007199254740992}",
 }
 
-#: Every derived member name this file claims to pin. A derived member added to the
-#: corpus without a literal pin here fails ``test_no_derived_member_escapes_a_pin``.
+#: Every derived member name this file pins. A derived member added to the
+#: corpus without a pin here fails ``test_no_derived_member_escapes_a_pin``.
 PINNED_MEMBER_NAMES = frozenset(
     {"canonical", "sha256", "envelope_hash", "previousReceiptHash", "policy_digest",
       "action_ref", "payload_digest", "key_thumbprint", "sig",
@@ -576,9 +559,8 @@ def test_nested_payload_members_are_the_pinned_literals(name: str, members: dict
         assert payload[member] == value, f"{name}.input.payload.{member} moved from the pin"
 
 
-    # The three encodings under `expected` must all decode to the same digest, and that
-    # digest must be the one the wire member carries. Catches a partial re-pin that
-    # updates one alphabet and forgets another - the exact shape of the original defect.
+    # The three `expected` encodings decode to the wire member's digest, so a
+    # partial re-pin that updates one alphabet and forgets another fails.
 @pytest.mark.parametrize("name", sorted(PINNED_ENVELOPE_HASH_RENDERINGS))
 def test_every_envelope_hash_encoding_decodes_to_one_digest(name: str) -> None:
     vector = _vectors()[name]
@@ -599,10 +581,8 @@ def test_every_envelope_hash_encoding_decodes_to_one_digest(name: str) -> None:
     assert len(digests) == 1, f"{name}: encodings disagree: {sorted(digests)}"
 
 
-    # A vector that carries a counterparty digest MUST declare the scope that digest
-    # was taken under. Re-pinning to envelope_minus_anchors without the scope member
-    # would publish a minus-anchors value on a binding the absent-scope rule reads as
-    # a legacy three-key binding.
+    # A vector with a counterparty digest MUST declare its scope: without it,
+    # an envelope_minus_anchors value reads as a legacy three-key binding.
 def test_every_counterparty_digest_declares_its_scope() -> None:
     for name, vector in _vectors().items():
         binding = vector.get("input", {}).get("counterparty_binding")
@@ -615,8 +595,8 @@ def test_every_counterparty_digest_declares_its_scope() -> None:
                 assert binding.get("scope") == "envelope_minus_anchors", name
 
 
-    # Every derived digest must name the envelope it was taken over, so the corpus is
-    # self-describing and the integrity job can recompute it from the file alone.
+    # Every derived digest names the envelope it was taken over, so the corpus
+    # is self-describing and recomputable from the file alone.
 def test_every_counterparty_vector_names_its_originating_envelope() -> None:
     vectors = _vectors()
     for name, vector in vectors.items():
@@ -704,20 +684,18 @@ def test_every_input_derived_member_has_a_literal_pin() -> None:
 
 
 class TestTheCorpusSpellsNoAnchorsOneWay:
-    """The corpus states no-anchors one way: the member absent or an empty array.
+    """The corpus states no-anchors as the member absent or an empty array.
 
-    Absent and [] are the two conformant spellings of the same fact and the
-    engines treat them identically; a JSON null is a third, malformed spelling
-    that the structure axis FAILs. asqav-28-anchors-null-malformed exists to pin
-    that malformed shape, so it is the one vector the rule below names - every
-    other asqav vector stays under it.
+    Absent and [] are the two conformant spellings and engines treat them
+    alike; a JSON null is malformed and FAILs structure. Only
+    asqav-28-anchors-null-malformed pins that null; every other vector obeys.
     """
 
     #: The one vector that pins the malformed null shape; any other null is drift.
     _MALFORMED_ANCHORS_VECTORS = frozenset({"asqav-28-anchors-null-malformed"})
 
     def test_no_asqav_vector_uses_null_for_no_anchors(self) -> None:
-        """One spelling, pinned, so the corpus cannot drift back to carrying both."""
+        """One spelling, pinned, so the corpus cannot carry both."""
         offenders = []
         for vector_dir in sorted(_VECTOR_ROOT.glob("asqav-*")):
             if not vector_dir.is_dir():
@@ -730,7 +708,7 @@ class TestTheCorpusSpellsNoAnchorsOneWay:
         assert offenders == [], f"anchors null instead of []: {offenders}"
 
     def test_every_anchors_member_is_a_list(self) -> None:
-        """A non-list anchors value is malformed: the verifier FAILs it, never laundered."""
+        """A non-list anchors value is malformed and the verifier FAILs it."""
         for vector_dir in sorted(_VECTOR_ROOT.glob("asqav-*")):
             if not vector_dir.is_dir():
                 continue

@@ -1,7 +1,7 @@
 """The PreToolUse gate's deadline, hash-only default and receipt verification.
 
-Criteria 575, 578 and 579. Every path here is offline: the signer is a stub and the JWK Set is
-minted in the test, so a green run says nothing about api.asqav.com and everything about the gate.
+Criteria 575, 578 and 579. Offline: the signer is a stub and the JWK Set is
+minted in the test, so a green run is about the gate, not api.asqav.com.
 """
 
 from __future__ import annotations
@@ -178,7 +178,7 @@ def _payload(decision: str = "allow") -> dict:
 
 
 def _live_digest() -> str:
-    """The digest the gate itself computes for _PRETOOL_EVENT (what a bound receipt must carry)."""
+    """The gate's own digest of _PRETOOL_EVENT, as a bound receipt carries."""
     body = cli_hook._build_body(
         action_type="tool:Write",
         context={"tool_input": {"file_path": "/tmp/f", "content": "hi"}},
@@ -243,7 +243,7 @@ def test_pretool_accepts_a_receipt_that_verifies_and_labels_a_permit(monkeypatch
 
 
 def test_pretool_blocks_a_non_permit_observation(monkeypatch) -> None:
-    """A verified non-permit decision still exits 2: only a permit opens the gate."""
+    """A verified non-permit still exits 2: only a permit opens the gate."""
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     payload = _payload("observation")
