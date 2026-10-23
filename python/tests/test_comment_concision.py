@@ -198,3 +198,12 @@ def test_each_condition_fails_only_on_its_own_kind(tmp_path, capsys, name, text,
     code, out, _ = run(tmp_path, capsys)
     assert code == 1
     assert {line.rsplit(":", 1)[1] for line in out.splitlines()} == {kind}
+
+
+REPO = SCRIPT.parents[2]
+
+
+# NEGCTL: test_seven_line_docstring_in_client_fails plants client.py findings.
+def test_client_py_is_concise():
+    found = [f for f in checker.scan(REPO) if f.path == "python/src/asqav/client.py"]
+    assert found == []

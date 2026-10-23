@@ -1,22 +1,5 @@
-"""
-Asqav API Client - Thin SDK that connects to asqav.com.
-
-This module provides the API client for connecting to Asqav Cloud.
-All ML-DSA cryptography happens server-side; this SDK handles
-API communication and response parsing.
-
-Example:
-    import asqav
-
-    # Initialize with API key
-    asqav.init(api_key="sk_...")
-
-    # Create an agent (server generates identity)
-    agent = asqav.Agent.create("my-agent")
-
-    # Sign an action (server signs with ML-DSA)
-    signature = agent.sign("read:data", {"file": "config.json"})
-"""
+"""Asqav API client: thin SDK for asqav.com.
+ML-DSA signing runs server-side; this module handles API calls and parsing."""
 
 from __future__ import annotations
 
@@ -74,7 +57,7 @@ def _strict_response_json(response: Any) -> dict[str, Any]:
         raise _non_json_error(exc) from exc
 
 
-    # A 2xx body that is not JSON (a proxy or captive-portal page) as an AsqavResponseError.
+    # A 2xx body that is not JSON (e.g. a proxy page) is an AsqavResponseError.
 def _non_json_error(exc: Exception) -> AsqavResponseError:
     return AsqavResponseError(
         f"the API answered with a non-JSON body ({_one_line(str(exc))}); "
@@ -83,7 +66,7 @@ def _non_json_error(exc: Exception) -> AsqavResponseError:
     )
 
 
-    # Execute function with exponential backoff retry on rate limit/network errors.
+    # Run with exponential backoff retry on rate-limit and network errors.
 def _with_retry(func: Callable[[], Any]) -> Any:
     last_error: Exception | None = None
     for attempt, delay in enumerate(_RETRY_DELAYS):
@@ -138,18 +121,13 @@ except ImportError:
 _api_key: str | None = None
 # Same order as init(); see credentials.resolve_api_base.
 _api_base: str = resolve_api_base()
-# Last base passed to init(); a later init() without one (e.g. via govern()) keeps it.
+# Last base passed to init(); a later init() without one keeps it.
 _explicit_api_base: str | None = None
 
 
 def _join_url(base: str, path: str) -> str:
-    """Join ``base`` and ``path`` preserving the base path component.
-
-    ``urllib.parse.urljoin`` resets a leading-slash path to the host root,
-    which strips the ``/api/v1`` prefix from the default base. Every
-    non-httpx call site must build URLs through this helper so the urllib
-    fallback hits the same path httpx (which merges base_url correctly) does.
-    """
+    """Join ``base`` and ``path`` keeping the base path (``/api/v1``).
+    ``urljoin`` drops it for leading-slash paths; urllib needs it."""
     return base.rstrip("/") + "/" + path.lstrip("/")
 
 
@@ -160,7 +138,7 @@ _mode: str = "full-payload"
 _org_salt: bytes | None = None
 #: Per-request HTTP timeout in seconds; init(timeout=...) overrides it.
 _timeout: float = 30.0
-#: Observer handed the exact body Agent.sign is about to POST (the hook gate reads its hash).
+#: Observer handed the body Agent.sign will POST (the hook gate hashes it).
 _sign_body_tap: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = (
     contextvars.ContextVar("asqav_sign_body_tap", default=None)
 )
@@ -196,7 +174,7 @@ class APIError(AsqavError):
         self.status_code = status_code
 
 
-    # API unreachable (refused, DNS, timeout, TLS); an APIError with status 0, as in TypeScript.
+    # API unreachable (refused, DNS, timeout, TLS): APIError status 0.
     # Not retried, so a caller's deadline (the hook gate's timeout) still holds.
 class AsqavConnectionError(APIError):
 
@@ -204,7 +182,7 @@ class AsqavConnectionError(APIError):
         super().__init__(message, 0)
 
 
-    # One-line connection error naming the URL and a next step; same text as TypeScript.
+    # One-line connection error naming the URL and a next step.
 def _connection_error(url: str, exc: BaseException) -> AsqavConnectionError:
     reason = getattr(exc, "reason", None) or exc
     return AsqavConnectionError(
@@ -219,7 +197,7 @@ def _one_line(text: str, limit: int = 200) -> str:
     return flat if len(flat) <= limit else flat[: limit - 3] + "..."
 
 
-    # Server reason from a JSON error body: detail (str, list or dict) plus code.
+    # Server reason from a JSON error body: detail plus code.
 def _reason_from_body(body: Any) -> str:
     if not isinstance(body, dict):
         return ""
@@ -264,13 +242,8 @@ def _error_message(status: int, text: str, body: Any = None) -> str:
 
 
 class AsqavValidationError(ValueError):
-    """Client-side wire-vocabulary rejection carrying a docs pointer (rule 3.9).
-
-    Subclasses ValueError so existing callers that catch ValueError keep
-    working; the docs_url attribute points a developer at the rule's docs page
-    so they do not have to grep. Message echoes the offending value truncated to
-    64 chars to match the cloud guard-message convention.
-    """
+    """Client-side wire-vocabulary rejection with a docs pointer (rule 3.9).
+    A ValueError; ``docs_url`` names the rule page; the value is cut to 64."""
 
     def __init__(self, message: str, *, docs_url: str) -> None:
         super().__init__(message)
@@ -344,24 +317,15 @@ def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
 
 @dataclass
 class BitcoinAnchor:
-    """Anchor attestation state for a signed action.
-
-    Branch on ``status`` before treating the signature as anchored:
-    - ``none``: no OpenTimestamps proof was attached (free tier path).
-    - ``pending``: OTS stamp submitted, not yet included in a block.
-    - ``confirmed``: OTS calendar upgraded the proof to a specific block.
-    - ``failed``: OTS upgrade failed permanently; treat as unanchored.
-
-    Field names are provider-agnostic so the response shape survives a
-    future switch off OpenTimestamps + Bitcoin.
-    """
+    """Anchor attestation state of a signed action; branch on ``status``.
+    ``none``, ``pending``, ``confirmed`` or ``failed`` (treat as unanchored)."""
 
     status: str
     anchor_tx_ref: str | None = None
     anchor_block_height: int | None = None
 
 
-# Receipt type namespace mirrored from cloud's SignRequest validator so SDK rejects bad inputs.
+# Receipt type namespace mirrored from the cloud SignRequest validator.
 RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     {
         "protectmcp:decision",
@@ -370,11 +334,11 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
         "protectmcp:lifecycle:configuration_change",
         #: risk-acceptance / exception receipt; no-policy lifecycle opt-out.
         "protectmcp:lifecycle:risk_acceptance",
-        #: code-authorship receipt; producer-asserted record of who authored a code change.
+        #: code-authorship receipt; producer-asserted record of who authored it.
         "protectmcp:lifecycle:code_authorship",
         "protectmcp:acknowledgment",
         "protectmcp:observation",
-        #: observation receipts that carry a result_digest use the :result_bound suffix.
+        #: observation receipts with a result_digest use :result_bound
         "protectmcp:observation:result_bound",
     }
 )
@@ -430,8 +394,8 @@ INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
 #: Sandbox-state enum: {enabled, disabled, unavailable}.
 SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "unavailable"})
 
-#: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` extension accepts
-#: only this set (`rekor` rejected, not shipped). Mirrors the governance.json contract.
+#: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` accepts
+#: only this set (`rekor` is rejected). Mirrors the governance.json contract.
 WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
 
 #: Producer-side `capture_topology` mirrored from the cloud SignRequest Literal.
@@ -455,7 +419,7 @@ PolicyDecision = Literal["permit", "deny", "rate_limit", "none"]
 #: receipts emitted under `policy_decision="none"`.
 Decision = Literal["allow", "deny", "rate_limit", "observation"]
 
-#: Capture-topology vocabulary as a Literal for callers preferring the type form.
+#: Capture-topology vocabulary as a Literal for typed callers.
 CaptureTopology = Literal[
     "in_process_sdk",
     "network_proxy",
@@ -488,7 +452,7 @@ def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
     return DECISION_MAP.get((policy_decision or "").lower(), "deny")
 
 
-    # Read a string ``key`` from the sign response ``payload`` object, else None.
+    # Read a string ``key`` from the sign response ``payload``, else None.
 def _payload_field(data: dict[str, Any], key: str) -> str | None:
     payload = data.get("payload")
     if not isinstance(payload, dict):
@@ -497,7 +461,7 @@ def _payload_field(data: dict[str, Any], key: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
-    # Top-level ``action_ref`` wins; compliance-mode clouds nest it under payload.
+    # Top-level ``action_ref`` wins; compliance-mode clouds nest it in payload.
 def _resolve_action_ref(data: dict[str, Any]) -> str | None:
     top = data.get("action_ref")
     if top is not None:
@@ -505,7 +469,7 @@ def _resolve_action_ref(data: dict[str, Any]) -> str | None:
     return _payload_field(data, "action_ref")
 
 
-    # Either casing at top level wins; fall back to the copy nested under payload.
+    # Top-level casing wins; fall back to the copy nested under payload.
 def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
     return (
         data.get("previousReceiptHash")
@@ -515,8 +479,8 @@ def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
     )
 
 
-#: REQUIRED fields on a Compliance Receipt envelope (wire form); the discriminator is
-#: ``type`` and the verdict field is ``decision``. Used by `verify_compliance_receipt`.
+#: REQUIRED fields on a Compliance Receipt envelope (wire form): ``type``
+#: discriminator, ``decision`` verdict. Used by `verify_compliance_receipt`.
 _COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
     "type",
     "issuer_id",
@@ -555,13 +519,13 @@ class SignatureResponse:
     policy_decision: str = "permit"
     authorization_ref: str | None = None
     bitcoin_anchor: BitcoinAnchor | None = None
-    # Multi-party countersigning: peer agent_ids the original signer expects to countersign.
+    # Multi-party countersigning: peer agent_ids expected to countersign.
     required_co_signers: list[str] | None = None
     co_signatures: list[dict[str, Any]] | None = None
     countersign_url: str | None = None
     # True when the server validated a user_intent envelope on this record.
     user_intent_verified: bool | None = None
-    # Compliance Receipts profile fields populated by cloud when compliance_mode=True.
+    # Compliance Receipts profile fields, set by the cloud in compliance_mode.
     compliance_mode: bool = False
     receipt_type: str | None = None
     action_ref: str | None = None
@@ -576,9 +540,9 @@ class SignatureResponse:
     incident_class: str | list[str] | None = None
     reason: str | None = None
     previous_receipt_hash: str | None = None
-    # Spec `decision` token (allow | deny | rate_limit). None on non-compliance receipts.
+    # Spec `decision` token (allow | deny | rate_limit); None off compliance.
     decision: str | None = None
-    # Three-key Compliance Receipts envelope (payload + anchors); None on non-compliance.
+    # Three-key Compliance Receipts envelope (payload + anchors); else None.
     payload: dict[str, Any] | None = None
     anchors: list[dict[str, Any]] | None = None
 
@@ -678,25 +642,8 @@ class CertificateResponse:
 
 @dataclass
 class VerificationDetail:
-    """Granular per-axis verification outcome.
-
-    Optional on the response. `validation_label` vocabulary:
-    valid, invalid_signature, signature_expired, signer_key_changed,
-    algorithm_mismatch, agent_inactive, agent_unknown, chain_break,
-    anchor_invalid, missing_required_field, signed_at_skew,
-    agent_revoked_before_issuance.
-
-    The IETF profile sub-axes (`signed_at_skew_seconds`, `chain_valid`,
-    `anchor_valid_ots`, `anchor_valid_rfc3161`, `anchor_status_ots`,
-    `anchor_status_rfc3161`, `missing_fields`, `policy_digest_resolved`,
-    `duplicate_emission_candidate`, `regimes_satisfied`) populate only
-    when the cloud emits them on a compliance-mode receipt;
-    non-compliance-mode receipts leave them None / empty.
-
-    `regimes_satisfied` is the regulator-token list the cloud derived for
-    the receipt (e.g. `eu_ai_act`, `dora`); empty list when the cloud
-    surface omits the field.
-    """
+    """Granular per-axis verification outcome, optional on the response.
+    `validation_label` is the cloud verdict; IETF sub-axes need compliance."""
 
     signer_key_match: bool
     signature_valid: bool
@@ -719,13 +666,7 @@ class VerificationDetail:
 @dataclass
 class ExecutionEvidence:
     """Execution-evidence projection on a verification response.
-
-    `present` answers whether the receipt bound execution output.
-    `label` vocabulary: result_bound, digest_present, none_by_design,
-    absent. `result_digest` echoes the bound `sha256:<hex>` for offline
-    re-check. `none_by_design` marks a decision receipt, which records
-    the decision and no execution outcome per the boundary.
-    """
+    `label`: result_bound, digest_present, none_by_design or absent."""
 
     present: bool
     label: str
@@ -737,13 +678,7 @@ class ExecutionEvidence:
 @dataclass
 class BitcoinAnchorStatus:
     """Anchor attestation state on a verification response.
-
-    `status` vocabulary: none, pending, confirmed, failed.
-    `anchor_tx_ref` and `anchor_block_height` populate once the
-    OpenTimestamps proof upgrades to a confirmed attestation. Field
-    names are provider-agnostic so the response shape survives a future
-    switch off OpenTimestamps + Bitcoin.
-    """
+    `status`: none, pending, confirmed or failed."""
 
     status: str
     anchor_tx_ref: str | None = None
@@ -752,17 +687,8 @@ class BitcoinAnchorStatus:
 
 @dataclass
 class VerificationResponse:
-    """Public verification response.
-
-    `verified` is signature-only; anchor outcome lives on `bitcoin_anchor`.
-    `signature_envelope` and `anchors` are the IETF Compliance Receipts
-    projection (`{alg, kid}` and the cloud anchors list); both are None
-    on non-compliance-mode receipts. `algorithm_registry_version` is the
-    registry version in force at issuance.
-
-    Inner anchor entries on `anchors` carry a `type` of
-    `"opentimestamps"` or `"rfc3161"`.
-    """
+    """Public verification response; `verified` is signature-only.
+    Anchor outcome is on `bitcoin_anchor`; IETF fields need compliance mode."""
 
     signature_id: str
     agent_id: str
@@ -937,17 +863,8 @@ class ShareRecoveryResponse:
 
 @dataclass
 class PreflightResult:
-    """Result of a pre-flight check combining agent status and policy checks.
-
-    If cleared is True the agent is allowed to proceed with the action.
-    When cleared is False, reasons lists the blocking factors.
-    The explanation field provides a human-readable summary of the result.
-
-    checks_complete is False when a status or policy fetch errored, so the
-    check could not run to a verdict. In that case cleared is also False, so
-    a transient error never reads as a pass. The caller decides whether to
-    proceed on an incomplete check.
-    """
+    """Result of a pre-flight check of agent status and policy.
+    ``cleared`` lets the agent proceed; ``checks_complete`` False: an error."""
 
     cleared: bool
     agent_active: bool
@@ -996,12 +913,7 @@ def span(
     attributes: dict[str, Any] | None = None,
 ) -> Generator[Span, None, None]:
     """Create a traced span with automatic signing.
-
-    Example:
-        with asqav.span("api:openai", {"model": "gpt-4"}) as s:
-            response = openai.chat.completions.create(...)
-            s.set_attribute("tokens", response.usage.total_tokens)
-    """
+    Example: ``with asqav.span("api:openai", {"model": "gpt-4"}) as s:``"""
     global _current_span, _span_stack
 
     span_obj = Span(
@@ -1159,10 +1071,10 @@ def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str
     return "sha256:" + hashlib.sha256(canonicalize_action(action_type, context)).hexdigest()
 
 
-#: Wire format for caller-supplied sha256 digest fields; matches helper output byte-for-byte.
+#: Wire format for caller-supplied sha256 digest fields (matches helper output).
 _SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
 
-#: Bare 64-hex (no self-describing prefix); the controls_evaluated quorum.attestation_hash form.
+#: Bare 64-hex, no prefix; the controls_evaluated quorum.attestation_hash form.
 _BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 #: Server-built control keys an enumerable controls_evaluated block may carry;
@@ -1180,22 +1092,14 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
 )
 
 
-#: Wire format for ``tool_fingerprint``: 32 bare lowercase hex chars (SHA-256[:32]); the
-#: cloud validates the bare form, not the ``sha256:<hex>`` form the other digests use.
+#: Wire format for ``tool_fingerprint``: 32 bare lowercase hex (SHA-256[:32]);
+#: unlike the ``sha256:<hex>`` form of the other digests.
 _TOOL_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
 class RiskSnapshot(TypedDict, total=False):
-    """Producer-asserted point-in-time snapshot of third-party risk signals.
-
-    Mirrors the cloud RiskSnapshot model (routes/agents.py). Every value is a
-    snapshot the producer READ at ``snapshot_at`` from ``snapshot_source``;
-    Asqav never fetches, computes, verifies, or vouches for any of them. The
-    ``snapshot_at`` + ``snapshot_source`` labels are normative: a numeric
-    (``epss`` / ``cvss`` / ``cvss_vector`` / ``kev_listed``) without
-    ``snapshot_source`` is rejected so a value can never appear unlabeled and be
-    mistaken for an Asqav-derived score. Numerics are strings on the wire.
-    """
+    """Producer-asserted snapshot of third-party risk signals.
+    Asqav vouches for none; a numeric needs ``snapshot_source``."""
 
     #: RFC 3339 read-time of the signals (REQUIRED). Producer-asserted.
     snapshot_at: str
@@ -1214,21 +1118,14 @@ class RiskSnapshot(TypedDict, total=False):
 
 
 class AuthoredBy(TypedDict, total=False):
-    """Producer-asserted author of a code change on a code-authorship receipt.
-
-    Mirrors the cloud AuthoredBy model (routes/agents.py). Every value is
-    producer-asserted; Asqav never verifies the identity, the model, or the
-    change. ``model_id`` / ``model_version`` are a machine-authorship claim: if
-    either is populated, ``attestation_source`` is REQUIRED so the claim is
-    recorded as producer-asserted and is never read as an Asqav-verified
-    attestation.
-    """
+    """Producer-asserted author of a code change (cloud AuthoredBy model).
+    A ``model_id`` / ``model_version`` requires ``attestation_source``."""
 
     #: Human author identity (free-text id / email). Producer-asserted.
     human_id: str
     #: Model id if a model authored the change. Requires attestation_source.
     model_id: str
-    #: Model version if a model authored the change. Requires attestation_source.
+    #: Model version if a model authored the change; needs attestation_source.
     model_version: str
     #: Free-text label naming where the machine-authorship claim came from.
     #: REQUIRED when model_id / model_version is present.
@@ -1237,12 +1134,7 @@ class AuthoredBy(TypedDict, total=False):
 
 def _validate_risk_snapshot(rs: Any) -> None:
     """Mirror cloud RiskSnapshot._validate_snapshot_shape + _check_risk_snapshot.
-
-    Rejects a snapshot that is not an object, that is missing snapshot_at, that
-    carries a numeric without snapshot_source, that passes a non-string epss /
-    cvss, or that passes an empty / malformed cve_ids list. Verbatim guard
-    tokens match the cloud so SDK and cloud errors round-trip.
-    """
+    Rejects a malformed snapshot, numeric without source, or bad cve_ids."""
     if not isinstance(rs, dict):
         raise AsqavValidationError(
             "risk_snapshot_not_object: risk_snapshot must be an object of "
@@ -1290,7 +1182,7 @@ def _validate_risk_snapshot(rs: Any) -> None:
 
 
 #: The risk-acceptance signed-payload extension fields, fenced to the
-#: protectmcp:lifecycle:risk_acceptance receipt type (mirrors cloud SignRequest).
+#: protectmcp:lifecycle:risk_acceptance receipt type (cloud SignRequest).
 _RISK_ACCEPTANCE_RECEIPT_TYPE = "protectmcp:lifecycle:risk_acceptance"
 
 
@@ -1309,16 +1201,8 @@ def _validate_risk_acceptance(
     approval_ref: str | None,
     risk_snapshot: Any,
 ) -> None:
-    """Mirror the cloud SignRequest._validate_risk_acceptance_extensions guards.
-
-    sarif_digest must be a sha256:<64 hex> existence proof. The extension fields
-    are fenced to receipt_type=protectmcp:lifecycle:risk_acceptance; a
-    risk-acceptance receipt requires approver_id + acceptance_reason and signs
-    via policy_decision='none' so the no-false-attestation guard stays honest.
-    The risk fields project into the signed bytes only on the compliance-mode
-    path, so the SDK requires compliance_mode=True (mirrors the cloud
-    compliance-mode guard) rather than silently dropping the fields.
-    """
+    """Mirror cloud SignRequest._validate_risk_acceptance_extensions guards.
+    Needs sha256 sarif_digest, approver_id, reason, policy none, compliance."""
     if sarif_digest is not None and not _SHA256_HEX_RE.match(sarif_digest):
         raise AsqavValidationError(
             "sarif_digest_not_sha256_wire_form: must look like "
@@ -1383,7 +1267,7 @@ def _validate_risk_acceptance(
 
 
 #: The code-authorship signed-payload extension fields, fenced to the
-#: protectmcp:lifecycle:code_authorship receipt type (mirrors cloud SignRequest).
+#: protectmcp:lifecycle:code_authorship receipt type (cloud SignRequest).
 _CODE_AUTHORSHIP_RECEIPT_TYPE = "protectmcp:lifecycle:code_authorship"
 
 
@@ -1426,22 +1310,8 @@ def _validate_code_authorship(
     change_class: str | None,
     authored_by: Any,
 ) -> None:
-    """Mirror the cloud SignRequest._validate_code_authorship_extensions guards.
-
-    change_digest must be a sha256:<64 hex> existence proof. change_class is a
-    closed read|write|delete|execute|deploy vocabulary. authored_by is an
-    object; a populated model_id / model_version requires
-    authored_by.attestation_source so a model claim is never read as
-    Asqav-verified. The extension fields are fenced to
-    receipt_type=protectmcp:lifecycle:code_authorship; a code-authorship receipt
-    requires repo_ref + commit_sha and signs via policy_decision='none' so the
-    no-false-attestation guard stays honest. The fields project into the signed
-    bytes only on the compliance-mode path, so the SDK requires
-    compliance_mode=True (mirrors the cloud compliance-mode guard) rather than
-    silently dropping the fields. Honest-scope: every field is
-    producer-asserted / recorded-not-verified; Asqav never re-runs the diff,
-    resolves the refs, or attests the model.
-    """
+    """Mirror cloud SignRequest._validate_code_authorship_extensions guards.
+    Needs a sha256 change_digest, change_class, repo_ref, commit_sha, mode."""
     if change_digest is not None and not _SHA256_HEX_RE.match(change_digest):
         raise AsqavValidationError(
             "change_digest_not_sha256_wire_form: must look like "
@@ -1505,12 +1375,7 @@ def _validate_code_authorship(
 
 def _validate_authored_by(ab: Any) -> None:
     """Mirror the cloud AuthoredBy validator (routes/agents.py).
-
-    authored_by must be an object. A populated model_id / model_version is a
-    machine-authorship claim and requires authored_by.attestation_source so the
-    model claim is recorded as producer-asserted, never read as an
-    Asqav-verified attestation.
-    """
+    A model_id / model_version requires authored_by.attestation_source."""
     if not isinstance(ab, dict):
         raise AsqavValidationError(
             "authored_by_not_object: authored_by must be an object naming the "
@@ -1529,14 +1394,8 @@ def _validate_authored_by(ab: Any) -> None:
 
 
 def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None) -> str:
-    """Compute a deterministic 32-bare-hex fingerprint over `{tool_name, schema}`.
-
-    NSA CSI U/OO/6030316-26 binds receipts to the exact tool surface the
-    agent invoked. The fingerprint is byte-deterministic under JCS (RFC
-    8785) so the SDK and cloud agree when the cloud rehashes for tamper
-    detection. The cloud requires the first 32 hex chars of the SHA-256
-    digest, bare (no ``sha256:`` prefix), matching ``_TOOL_FINGERPRINT_RE``.
-    """
+    """Compute a 32-hex fingerprint over `{tool_name, schema}` (NSA CSI).
+    First 32 hex chars of the JCS (RFC 8785) SHA-256, bare."""
     from .canonicalize import canonicalize
 
     payload = canonicalize({"tool_name": tool_name, "schema": tool_schema or {}})
@@ -1544,17 +1403,8 @@ def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None
 
 
 def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
-    """Compute the canonical ``sha256:<hex>`` of a runtime configuration manifest.
-
-    NSA CSI U/OO/6030316-26 anchors the "silent capability creep" audit on
-    ``protectmcp:lifecycle:configuration_change`` receipts (rule 9). This
-    helper produces a digest byte-deterministic under JCS (RFC 8785) so two
-    auditors who receive the same manifest dict produce identical digests
-    regardless of insertion order. Output matches ``_SHA256_HEX_RE`` byte-
-    for-byte; callers that pre-compute via ``json.dumps`` will fail the
-    ``digest_format_guard`` only when the format is wrong, but the
-    semantic-drift risk is documented in the README.
-    """
+    """Compute the canonical ``sha256:<hex>`` of a configuration manifest.
+    JCS (RFC 8785) digest; NSA CSI 6030316-26 audits capability creep."""
     from .canonicalize import canonicalize
 
     return "sha256:" + hashlib.sha256(canonicalize(manifest)).hexdigest()
@@ -1562,13 +1412,7 @@ def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
 
 def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
     """Compute the canonical ``sha256:<hex>`` of a CVE inventory snapshot.
-
-    NSA CSI U/OO/6030316-26 anchors the "known-vulnerable invocation" audit
-    on receipts that carry ``cve_inventory_digest``. The helper takes the
-    list of CVE records (any JSON-serialisable shape) and produces a digest
-    byte-deterministic under JCS (RFC 8785). Output matches
-    ``_SHA256_HEX_RE`` byte-for-byte.
-    """
+    JCS (RFC 8785) digest of the record list (NSA CSI 6030316-26)."""
     from .canonicalize import canonicalize
 
     return "sha256:" + hashlib.sha256(canonicalize(cve_list)).hexdigest()
@@ -1576,13 +1420,7 @@ def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
 
 def _generate_nonce() -> str:
     """Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
-
-    The cloud refuses a nonce a live signature for the same agent in the same
-    organisation already holds, answering HTTP 409, so the field bounds replay
-    while that earlier receipt is inside its validity window. The window itself
-    is set by `valid_seconds` / `expires_at`, which makes verify return
-    `signature_expired` once it passes and frees the token for re-use.
-    """
+    The cloud answers 409 while a live signature holds it; expiry frees it."""
     import secrets as _secrets
 
     return _secrets.token_hex(12)
@@ -1613,7 +1451,7 @@ def _build_sign_body(
         else:
             digest_hex = hashlib.sha256(canonical_bytes).hexdigest()
             hash_algo = "sha256"
-        # Wire digest keeps the sha256:<32-byte hex> shape; hash_algo names the keyedness
+        # Wire digest keeps the sha256:<hex> shape; hash_algo names the keying.
         digest = f"sha256:{digest_hex}"
         metadata: dict[str, Any] = {
             "agent_id": agent_id,
@@ -1621,7 +1459,7 @@ def _build_sign_body(
         }
         if session_id is not None:
             metadata["session_id"] = session_id
-        # Opt-in via underscored sentinel keys; nothing else from context travels.
+        # Opt in via underscored sentinel keys; no other context travels.
         for src_key, dst_key in (
             ("_model_name", "model_name"),
             ("_tool_name", "tool_name"),
@@ -1730,7 +1568,7 @@ def _prepare_sign_context(
             validate_context_schema(context, context_schema)
         context = normalize_context(context)
 
-    # Pluggable detector gate (criterion 331), fail-closed; runs after normalize.
+    # Pluggable detector gate (331), fail-closed; after normalize.
     from ._detectors import run_detectors
 
     _detector_records = run_detectors(action_type, context)
@@ -1742,13 +1580,8 @@ def _prepare_sign_context(
 
 
 def _digest_result_value(result: bytes | str | dict | list) -> str:
-    """Compute the canonical ``sha256:<hex>`` of a tool result (criterion 787).
-
-    Dicts/lists are JCS-canonicalised so key order never changes the digest;
-    strings encode as UTF-8; bytes hash raw. Anything JCS refuses falls back
-    to str(), so fail-open paths always bind an outcome instead of throwing.
-    Output matches the server's ``sha256:<64 hex>`` result_digest wire shape.
-    """
+    """Compute the canonical ``sha256:<hex>`` of a tool result.
+    JCS for dicts and lists, UTF-8 for strings, raw bytes; else str()."""
     import hashlib
 
     if isinstance(result, bytes):
@@ -1795,7 +1628,7 @@ def _validate_sign_vocabulary(
             f"invalid_capture_topology: must be one of {sorted(CAPTURE_TOPOLOGY_NAMESPACE)}."
         )
     # Rule 8 (lockstep with cloud SignRequest validator): passive_telemetry
-    # pairs only with protectmcp:observation or protectmcp:observation:result_bound.
+    # pairs only with protectmcp:observation[:result_bound].
     if (
         capture_topology == "passive_telemetry"
         and receipt_type is not None
@@ -2141,17 +1974,7 @@ class Agent:
         terms: dict[str, Any] | None = None,
     ) -> SignatureResponse:
         """Sign this agent's acknowledgment of a peer agent's receipt.
-
-        ``peer_receipt`` is the envelope the peer sent (``{payload, signature}``,
-        as from :meth:`SignatureResponse.receipt` or the ``x-asqav-receipt``
-        header). The acknowledgment is a ``protectmcp:acknowledgment`` receipt
-        whose ``counterparty_binding`` commits to the peer envelope's exact
-        bytes, so either side can later prove what was sent and what was
-        acknowledged. ``receipt_ref`` is the peer's ``signature_id``; it is read
-        from the envelope's top-level ``signature_id`` when omitted. The cloud
-        admits the binding only when that receipt is visible to this
-        organization (its own, or published) and the bytes match.
-        """
+        ``peer_receipt`` is the peer's envelope; the binding commits to it."""
         ref = receipt_ref or peer_receipt.get("signature_id")
         if not isinstance(ref, str) or not ref:
             raise ValueError(
@@ -2251,7 +2074,7 @@ class Agent:
         change_approval_ref: str | None = None,
         change_class: str | None = None,
         authored_by: "AuthoredBy | dict[str, Any] | None" = None,
-        # Agent-to-agent acknowledgment: binds this receipt to the peer receipt it
+        # Agent-to-agent acknowledgment: binds this receipt to the peer receipt.
         # acknowledges. Valid only on receipt_type=protectmcp:acknowledgment.
         counterparty_binding: "CounterpartyBinding | dict[str, Any] | None" = None,
     ) -> SignatureResponse:
@@ -2433,8 +2256,7 @@ class Agent:
         )
 
         # Surface bad arguments client-side; the cloud re-validates.
-        # Default-send the outcome (criterion 787): an explicit result_digest
-        # wins; otherwise a given result is digested and sent.
+        # Default-send the outcome (787): result_digest wins, else digest it.
         if result_digest is None and result is not None:
             result_digest = _digest_result_value(result)
         _validate_sign_vocabulary(
@@ -2448,7 +2270,7 @@ class Agent:
             result_digest=result_digest,
         )
         # Risk-acceptance receipt: shape + namespace fence + no-policy opt-out,
-        # lockstep with the cloud SignRequest._validate_risk_acceptance_extensions.
+        # lockstep with cloud SignRequest._validate_risk_acceptance_extensions.
         _validate_risk_acceptance(
             receipt_type=receipt_type,
             compliance_mode=compliance_mode,
@@ -2464,7 +2286,7 @@ class Agent:
             risk_snapshot=risk_snapshot,
         )
         # Code-authorship receipt: shape + namespace fence + no-policy opt-out,
-        # lockstep with the cloud SignRequest._validate_code_authorship_extensions.
+        # lockstep with cloud SignRequest._validate_code_authorship_extensions.
         _validate_code_authorship(
             receipt_type=receipt_type,
             compliance_mode=compliance_mode,
@@ -2483,14 +2305,14 @@ class Agent:
             counterparty_binding, receipt_type=receipt_type, compliance_mode=compliance_mode
         )
 
-        # Rule 10: an absolute horizon and a duration together are ambiguous; reject both.
+        # Rule 10: an absolute horizon and a duration together are ambiguous.
         if valid_seconds is not None and expires_at is not None:
             raise ValueError(
                 "expiry_collision_guard: pass either valid_seconds or "
                 "expires_at, not both (rule 10)"
             )
 
-        # Convert absolute expires_at to client-computed valid_seconds (cloud owns time-binding).
+        # Convert absolute expires_at to valid_seconds (the cloud owns time).
         if expires_at is not None:
             from datetime import datetime, timezone
             from math import ceil
@@ -2507,7 +2329,7 @@ class Agent:
             now = datetime.now(timezone.utc)
             valid_seconds = max(1, ceil((expires_at_dt - now).total_seconds()))
 
-        # Rule 11 lockstep: per-field tokens mirror cloud <field>_not_sha256_wire_form.
+        # Rule 11 lockstep: tokens mirror cloud <field>_not_sha256_wire_form.
         _validate_sign_extensions(
             config_manifest_digest=config_manifest_digest,
             cve_inventory_digest=cve_inventory_digest,
@@ -2538,7 +2360,7 @@ class Agent:
         if tool_fingerprint is None and tool_name is not None and tool_schema is not None:
             tool_fingerprint = _compute_tool_fingerprint(tool_name, tool_schema)
 
-        # Fill the nonce wire field when omitted. The cloud stores it with no re-use check.
+        # Fill the nonce wire field when omitted; the cloud has no re-use check.
         if nonce is None:
             nonce = _generate_nonce()
 
@@ -2613,10 +2435,10 @@ class Agent:
         if co_signers:
             body["co_signers"] = list(co_signers)
         # Issuer mandate the sign is authorised under; the cloud re-verifies it
-        # and builds the signed authorized_under_mandate attestation server-side.
+        # and builds the signed authorized_under_mandate attestation there.
         if mandate_id is not None:
             body["mandate_id"] = mandate_id
-        # Opaque caller token; the cloud answers 409 if a live signature already holds it.
+        # Opaque caller token; the cloud answers 409 if a live signature has it.
         if nonce is not None:
             body["nonce"] = nonce
         if valid_seconds is not None:
@@ -2648,7 +2470,7 @@ class Agent:
             co_signatures=data.get("co_signatures"),
             countersign_url=data.get("countersign_url"),
             user_intent_verified=data.get("user_intent_verified"),
-            # Accept both camelCase `previousReceiptHash` and snake_case alias on the wire.
+            # Accept camelCase `previousReceiptHash` and its snake_case alias.
             compliance_mode=bool(data.get("compliance_mode", False)),
             receipt_type=data.get("receipt_type"),
             action_ref=_resolve_action_ref(data),
@@ -2764,7 +2586,7 @@ class Agent:
         for a in actions:
             if "action_type" not in a:
                 raise ValueError("each action must include 'action_type'")
-            # Same per-item builder as sign(): hash-only digests the context locally.
+            # Same per-item builder as sign(): the context is digested locally.
             body_actions.append(
                 _build_sign_body(
                     action_type=resolve_pattern(a["action_type"]),
@@ -3110,14 +2932,8 @@ class Agent:
         )
 
     def get_certificate(self) -> CertificateResponse:
-        """Get the agent's identity certificate.
-
-        The certificate contains the ML-DSA public key in PEM format
-        for independent verification.
-
-        Returns:
-            CertificateResponse with certificate details.
-        """
+        """Get the agent's identity certificate (ML-DSA public key in PEM).
+        Returns: CertificateResponse."""
         data = _get(f"/agents/{self.agent_id}/certificate")
 
         return CertificateResponse(
@@ -3180,14 +2996,7 @@ class Agent:
         compliance_mode: bool = True,
     ) -> SignatureResponse:
         """Sign a follow-up result receipt linked to an earlier receipt (787).
-
-        For sign-then-run flows: the intent receipt is signed before the
-        tool runs, then this attaches the outcome afterwards. The follow-up
-        carries ``receipt_type='protectmcp:observation:result_bound'`` and
-        ``action_ref`` naming the originating receipt/action, so verifiers
-        join outcome to intent. The digest is computed from ``result`` and
-        sent by default; an explicit ``result_digest`` wins.
-        """
+        Uses ``result_bound`` and ``action_ref``; ``result_digest`` wins."""
         return self.sign(
             action_type,
             result=result,
@@ -3200,19 +3009,8 @@ class Agent:
 
 
 def health_check() -> dict[str, Any]:
-    """Check API connectivity and return server status.
-
-    Returns:
-        Dict with server status info.
-
-    Raises:
-        AuthenticationError: If API key is invalid.
-        APIError: If the API is unreachable.
-
-    Example:
-        status = asqav.health_check()
-        print(f"API version: {status['version']}")
-    """
+    """Check API connectivity and return the server status dict.
+    Raises AuthenticationError (bad key) or APIError (unreachable)."""
     return _get("/health")
 
 
@@ -3417,7 +3215,7 @@ def _delete(path: str) -> dict[str, Any]:
         return _urllib_request("DELETE", path)
 
 
-    # Send one request on the shared httpx client; transport failures become AsqavConnectionError.
+    # Send one request on the shared httpx client; transport errors raise.
 def _httpx_call(verb: str, path: str, data: Any = _NO_BODY) -> dict[str, Any]:
     kwargs = {} if data is _NO_BODY else {"json": data}
     try:
@@ -3493,7 +3291,7 @@ def _urllib_request(
         raise _connection_error(url, e) from e
 
 
-    # Body of a urllib HTTPError as text ("" when unreadable), so the server reason survives.
+    # Body of a urllib HTTPError as text ("" if unreadable) to keep the reason.
 def _http_error_text(err: Any) -> str:
     try:
         raw = err.read()
@@ -3508,17 +3306,10 @@ _global_agent_lock = threading.Lock()
 
 
 def get_agent() -> Agent:
-    """Get the global agent for decorator use.
-
-    Returns:
-        The global Agent instance.
-
-    Raises:
-        AsqavError: If no agent is configured.
-    """
+    """Get the global agent for decorator use; raises AsqavError if unset."""
     global _global_agent
     if _global_agent is None:
-        # Serialise auto-creation: racing first calls would register duplicate agents.
+        # Serialise auto-creation: racing first calls would register duplicates.
         with _global_agent_lock:
             if _global_agent is None:
                 name = _auto_generate_name()
@@ -3735,7 +3526,7 @@ def get_session_signatures(session_id: str) -> list[SignedActionResponse]:
     ]
 
 
-    # GET the public /verify document; errors map to APIError or AsqavConnectionError.
+    # GET the public /verify document; errors map to APIError.
 def _fetch_verification(url: str) -> dict[str, Any]:
     if _HTTPX_AVAILABLE:
         try:
@@ -3858,15 +3649,15 @@ def verify_signature(signature_id: str) -> VerificationResponse:
     )
 
 
-#: Labels where a valid signature only waits on its anchor; any other label is a rejection.
+#: Labels where a valid signature only waits on its anchor; others reject.
 _ANCHOR_WAIT_LABELS = frozenset(
     {"valid", "anchor_pending", "anchor_pending_no_cryptographic_proof"}
 )
-#: Labels the cloud counts as a pass with verified false (asqav routes/verify.py:1340).
+#: Labels the cloud counts as a pass with verified false (routes/verify.py).
 _PASS_LABELS = frozenset({"valid_commitment_not_rederivable"})
 
 
-    # True when the server accepts the receipt, or the signature holds and only the anchor waits.
+    # True when the server accepts, or only the anchor is still pending.
 def _signature_valid(resp: Any) -> bool:
     if resp.verified is True:
         return True
@@ -3878,7 +3669,7 @@ def _signature_valid(resp: Any) -> bool:
     return bool(detail.signature_valid) and detail.validation_label in _ANCHOR_WAIT_LABELS
 
 
-    # Anchor state of a verification: confirmed, invalid, pending, none or unknown.
+    # Anchor state: confirmed, invalid, pending, none or unknown.
 def _anchor_state(detail: Any) -> str:
     if not isinstance(detail, VerificationDetail):
         return "unknown"
@@ -3938,22 +3729,7 @@ def verify(signature_id: str) -> dict[str, Any]:
 @dataclass
 class ComplianceReceiptVerification:
     """Outcome of the SDK-side Compliance Receipt sanity check.
-
-    The cloud is the authoritative verifier; this helper is a
-    convenience for callers who want to reject obviously bad receipts
-    before involving the network. Each boolean reflects one MUST clause
-    on the IETF Compliance Receipts profile.
-
-    See https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
-
-    `errors` carries a per-clause failure code so a CLI / dashboard can
-    show the user which clause failed. Codes mirror the cloud's
-    `validation_label` vocabulary in `routes/verify.py`.
-
-    `counterparty_binding_verified` is None when the binding is absent or its
-    scope/origin bytes are unavailable; True/False when the originating
-    envelope was supplied and the recomputed digest was compared.
-    """
+    Each boolean is one MUST clause; the cloud is the authoritative verifier."""
 
     valid: bool
     fields_present: bool
@@ -3980,7 +3756,7 @@ def _compliance_receipt_skew(signed: dict[str, Any], now: float | None, errors: 
                 s = str(issued_at).replace("Z", "+00:00")
                 ts = datetime.fromisoformat(s).timestamp()
             wall = now if now is not None else time.time()
-            # Reject future skew > SKEW_BOUND_SECONDS; past skew bounded by retention.
+            # Reject future skew > SKEW_BOUND_SECONDS; past follows retention.
             skew = ts - wall
             skew_within_bound = skew <= SKEW_BOUND_SECONDS
             if not skew_within_bound:
@@ -4003,7 +3779,7 @@ def _compliance_receipt_chain(
         # First record on the chain; nothing to rederive.
         pass
     elif predecessor_envelope is not None:
-        # Cloud hashes the inner compliance payload only; the bundle-shaped wrapper diverges.
+        # Cloud hashes only the inner compliance payload, not the bundle.
         _inner = predecessor_envelope.get("payload")
         if isinstance(_inner, dict) and (
             "signature" in predecessor_envelope or "anchors" in predecessor_envelope
@@ -4015,7 +3791,7 @@ def _compliance_receipt_chain(
         if actual_prev != expected_prev:
             chain_link_rederives = False
             errors.append("chain_link_mismatch")
-    # No predecessor supplied: leave chain_link_rederives=True (unchecked is not failed).
+    # No predecessor given: leave chain_link_rederives=True (unchecked).
     return chain_link_rederives
 
 
@@ -4048,7 +3824,7 @@ def _compliance_receipt_counterparty(
 
 
 def _compliance_receipt_controls(_payload: dict[str, Any], errors: list[str]) -> None:
-    # Reject a malformed controls_evaluated (lockstep with false_control_attestation_guard).
+    # Reject malformed controls_evaluated (see false_control_attestation_guard).
     if isinstance(_payload, dict):
         _ce = _payload.get("controls_evaluated")
         if _ce is not None:
@@ -4081,7 +3857,7 @@ def _compliance_receipt_controls(_payload: dict[str, Any], errors: list[str]) ->
 
 
 def _compliance_receipt_mandate(_payload: dict[str, Any], errors: list[str]) -> None:
-    # Reject a malformed authorized_under_mandate (lockstep with false_mandate_attestation_guard).
+    # Reject malformed authorized_under_mandate (false_mandate guard).
     if isinstance(_payload, dict):
         _aum = _payload.get("authorized_under_mandate")
         if _aum is not None:
@@ -4124,7 +3900,7 @@ def verify_compliance_receipt(
     if missing:
         errors.append(f"missing_fields:{','.join(missing)}")
 
-    # 2. ``type`` namespace. Wire field is ``type``; ``receipt_type`` accepted too.
+    # 2. ``type`` namespace; ``receipt_type`` is accepted too.
     rt = signed.get("type") or signed.get("receipt_type")
     receipt_type_in_namespace = rt in RECEIPT_TYPE_NAMESPACE
     if not receipt_type_in_namespace:
@@ -4134,7 +3910,7 @@ def verify_compliance_receipt(
 
     chain_link_rederives = _compliance_receipt_chain(envelope, predecessor_envelope, errors)
 
-    # 5. Conditional MUSTs: sandbox_state, reason on deny/rate_limit, anchors[].value.
+    # 5. Conditional MUSTs: sandbox_state, deny/rate_limit reason, anchors value
     _payload = signed
     if isinstance(_payload, dict):
         _sandbox = _payload.get("sandbox_state")
@@ -4159,7 +3935,7 @@ def verify_compliance_receipt(
 
     _compliance_receipt_controls(_payload, errors)
 
-    # Conditional-MUST failures surface through `errors` and `valid` only (no per-axis flag).
+    # Conditional-MUST failures surface via `errors` and `valid` only.
     _conditional_must_fail = any(
         e.startswith(
             (
@@ -5234,20 +5010,8 @@ class BudgetCheckResult:
 
 
 class BudgetTracker:
-    """Client-side spend tracker over signed `agent.sign()` records, tamper-evident and
-    replayable. Fails closed; caller enforces (the Asqav API does not).
-
-    Example:
-        agent = asqav.Agent.create("my-agent")
-        budget = asqav.BudgetTracker(agent, limit=10.0, currency="USD")
-
-        decision = budget.check(estimated_cost=0.25)
-        if not decision.allowed:
-            raise RuntimeError(decision.reason)
-
-        # ... perform the action ...
-        budget.record("api:openai", actual_cost=0.23, context={"model": "gpt-4"})
-    """
+    """Client-side spend tracker over signed `agent.sign()` records.
+    Tamper-evident and replayable; fails closed; the caller enforces."""
 
     def __init__(self, agent: Agent, limit: float, currency: str = "USD"):
         if limit < 0:
