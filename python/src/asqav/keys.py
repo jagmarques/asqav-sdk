@@ -10,12 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-# Profile-recognised algorithm identifiers; mirrors cloud's SignatureRecord.algorithm column.
+# Profile-recognised algorithm ids; mirrors the cloud SignatureRecord column.
 ALGORITHM_ML_DSA_65 = "ml-dsa-65"
 ALGORITHM_ED25519 = "ed25519"
 ALGORITHM_ES256 = "es256"
 
-#: Algorithms `generate_local_keypair` can mint locally (ML-DSA-65 is cloud-KMS only).
+#: Algorithms `generate_local_keypair` mints locally (ML-DSA-65 is KMS-only).
 SUPPORTED_ALGORITHMS: frozenset[str] = frozenset(
     {ALGORITHM_ED25519, ALGORITHM_ES256}
 )

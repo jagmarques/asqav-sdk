@@ -1,17 +1,5 @@
-"""Haystack integration for asqav.
-
-Install: pip install asqav[haystack]
-
-Usage::
-
-    import asqav
-    from asqav.extras.haystack import AsqavComponent
-    from haystack import Pipeline
-
-    asqav.init("sk_live_...")
-    pipe = Pipeline()
-    pipe.add_component("asqav", AsqavComponent(agent_name="my-pipeline"))
-"""
+"""Haystack integration for asqav (pip install asqav[haystack]).
+Add ``AsqavComponent(agent_name=...)`` to a Pipeline to sign its runs."""
 
 from __future__ import annotations
 

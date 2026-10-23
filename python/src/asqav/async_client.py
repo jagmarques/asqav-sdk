@@ -51,7 +51,7 @@ def _ensure_initialized() -> None:
     _get_config()
 
 
-    # Read ``(api_base, api_key)`` live from the client module, as set by asqav.init().
+    # Read ``(api_base, api_key)`` live from the client module (set by init()).
 def _get_config() -> tuple[str, str]:
     from . import client as _client_mod
 
@@ -138,7 +138,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         return result
 
 
-    # Async agent representation; mirrors the sync :class:`Agent` over async HTTP.
+    # Async agent representation; mirrors the sync :class:`Agent`.
 @dataclass
 class AsyncAgent:
 
@@ -193,7 +193,7 @@ class AsyncAgent:
             created_at=_parse_timestamp(require_field(data, "created_at")),
         )
 
-        # Sign an action cryptographically (async); ``co_signers`` lists countersigner agents.
+        # Sign an action (async); ``co_signers`` lists countersigner agents.
     async def sign(
         self,
         action_type: str,
@@ -290,7 +290,7 @@ class AsyncAgent:
             compliance_mode=True,
         )
 
-        # Countersign an existing signature record (async); appends to ``co_signatures``.
+        # Countersign a signature record (async); appends co_signatures.
     async def countersign(self, signature_id: str) -> SignatureResponse:
         data = await _async_post(
             f"/agents/{self.agent_id}/countersign/{signature_id}",
@@ -329,7 +329,7 @@ class AsyncAgent:
             started_at=data["started_at"],
         )
 
-        # End the current session (async); ``status`` is completed/error/timeout.
+        # End the current session (async); ``status``: completed/error/timeout.
     async def end_session(self, status: str = "completed") -> SessionResponse:
         if not self._session_id:
             raise AsqavError("No active session")
@@ -351,14 +351,8 @@ class AsyncAgent:
         )
 
     async def preflight(self, action_type: str) -> PreflightResult:
-        """Pre-flight check (async): revocation + suspension + policy status.
-
-        Fail-closed on error: if a status or policy fetch errors out, the
-        check could not complete, so cleared is False and checks_complete is
-        False. A transient outage never silently clears a revoked or blocked
-        agent. Inspect checks_complete to tell a real verdict from an
-        unfinished one. Mirrors the sync Agent.preflight semantics.
-        """
+        """Pre-flight check (async): revocation, suspension and policy status.
+        Fail-closed like the sync Agent.preflight; check ``checks_complete``."""
         action_type = resolve_pattern(action_type)
         agent_active = True
         policy_allowed = True

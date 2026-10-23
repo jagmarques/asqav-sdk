@@ -1,33 +1,5 @@
-"""Pluggable detector framework for asqav (criterion 331).
-
-Detectors run inside Agent.sign() after context normalization and before
-the HTTP call. If any detector denies the action, sign() raises
-DetectorBlockedError and no POST is made.
-
-Usage::
-
-    import asqav
-    from asqav._detectors import DetectorPlugin, DetectorResult
-
-    class MyDetector:
-        name = "my-detector"
-
-        def inspect(self, action_type: str, context: dict) -> DetectorResult:
-            if "ssn" in str(context):
-                return DetectorResult(allow=False, labels=["SSN"], reason="PII found")
-            return DetectorResult(allow=True)
-
-    asqav.register_detector(MyDetector())
-
-    # Now agent.sign() will call MyDetector.inspect() on every sign call.
-
-Fail-closed semantics: if a detector's inspect() raises an exception, sign()
-blocks by default. Pass fail_open=True to register_detector() to allow sign()
-to proceed even when that detector errors.
-
-The signed receipt context carries the verdict under the ``_detectors`` key
-so the signed bytes prove which detectors fired and why.
-"""
+"""Pluggable detector framework, run in Agent.sign() before the HTTP call.
+A denying detector raises DetectorBlockedError; an erroring one blocks."""
 
 from __future__ import annotations
 
@@ -49,15 +21,7 @@ _DETECTOR_DOCS_URL = "https://asqav.com/docs/detector-plugins"
 @dataclass
 class DetectorResult:
     """Result returned by a DetectorPlugin.inspect() call.
-
-    Fields:
-        allow:      True = sign proceeds; False = sign is blocked.
-        confidence: Confidence score in [0.0, 1.0]. Informational only.
-        labels:     Semantic tags fired (e.g. entity types, policy IDs).
-        detector:   Name of the detector that produced this result.
-                    Auto-filled by the registry from DetectorPlugin.name.
-        reason:     Human-readable explanation for the decision.
-    """
+    Fields: allow, confidence in [0, 1], labels, detector (auto), reason."""
 
     allow: bool
     confidence: float = 1.0
@@ -85,26 +49,14 @@ class DetectorPlugin(Protocol):
     name: str
 
     def inspect(self, action_type: str, context: dict[str, Any]) -> DetectorResult:
-        """Inspect a pending sign action.
-
-        Args:
-            action_type: The action type string passed to Agent.sign().
-            context:     The normalized context dict (after schema step).
-
-        Returns:
-            DetectorResult with allow=True to permit or allow=False to deny.
-        """
+        """Inspect a pending sign action; return a DetectorResult.
+        ``action_type`` and normalized ``context`` come from Agent.sign()."""
         ...
 
 
 class DetectorBlockedError(Exception):
     """Raised when a detector denies a sign() call.
-
-    Attributes:
-        detector_name: Name of the detector that blocked.
-        result:        The full DetectorResult from the blocking detector.
-        docs_url:      Docs pointer for the feature.
-    """
+    Carries ``detector_name``, the blocking ``result`` and ``docs_url``."""
 
     def __init__(self, message: str, result: DetectorResult) -> None:
         super().__init__(message)
@@ -119,13 +71,7 @@ _registry: list[tuple[DetectorPlugin, bool]] = []
 
 def register_detector(detector: DetectorPlugin, *, fail_open: bool = False) -> None:
     """Register a detector to run on every Agent.sign() call.
-
-    Args:
-        detector:  Any object satisfying the DetectorPlugin protocol.
-        fail_open: When True, errors from this detector's inspect() are logged
-                   and ignored (sign proceeds). Default is fail-closed: an
-                   inspect() exception blocks sign().
-    """
+    ``fail_open=True`` ignores its errors; the default fails closed."""
     _registry.append((detector, fail_open))
 
 
@@ -139,20 +85,7 @@ def run_detectors(
     context: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
     """Run all registered detectors; raise DetectorBlockedError on first deny.
-
-    Args:
-        action_type: Action type forwarded from Agent.sign().
-        context:     Normalized context dict (may be None).
-
-    Returns:
-        List of result dicts (one per registered detector). Empty when no
-        detectors are registered; callers add this to context only when
-        non-empty to keep the signed body identical to today's baseline.
-
-    Raises:
-        DetectorBlockedError: When any detector returns allow=False or raises
-            (and fail_open=False for that detector).
-    """
+    Returns one result dict per detector (none if empty)."""
     if not _registry:
         return []
 
@@ -170,7 +103,7 @@ def run_detectors(
                     exc,
                     exc_info=True,
                 )
-                # Record a synthetic error result so the receipt reflects what happened.
+                # Record a synthetic error result so the receipt shows it.
                 records.append(
                     DetectorResult(
                         allow=True,
