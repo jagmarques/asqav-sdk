@@ -1,14 +1,8 @@
 """SDK parity for the code-authorship receipt.
 
-Mirrors the deployed cloud SignRequest validators (routes/agents.py
-``_validate_code_authorship_extensions`` + AuthoredBy) for
-``receipt_type='protectmcp:lifecycle:code_authorship'``. The SDK forwards the
-eight extension fields verbatim, validates the change_digest shape, the
-change_class closed vocabulary, the authored_by model-requires-attestation_source
-rule, the field-fence to the code-authorship type, and requires compliance_mode
-so the fields are never silently dropped from the signed bytes. Honest-scope:
-every field is producer-asserted / recorded-not-verified; Asqav never re-runs the
-diff or attests the model. Each rejection carries a docs_url (rule 3.9).
+Mirrors the cloud validators for ``protectmcp:lifecycle:code_authorship``:
+eight fields forwarded verbatim, change_digest shape, change_class vocabulary,
+authored_by rules, type fence, required compliance_mode; refusals have docs_url.
 """
 
 from __future__ import annotations

@@ -1,13 +1,8 @@
 """SDK parity for the risk-acceptance / exception receipt.
 
-Mirrors the deployed cloud SignRequest validators (routes/agents.py
-``_validate_risk_acceptance_extensions`` + RiskSnapshot) for
-``receipt_type='protectmcp:lifecycle:risk_acceptance'``. The SDK forwards the
-nine extension fields verbatim, validates the sarif_digest shape, the
-risk_snapshot numeric-requires-source rule, the field-fence to the
-risk-acceptance type, and requires compliance_mode so the fields are never
-silently dropped from the signed bytes. Each rejection carries a docs_url
-(rule 3.9).
+Mirrors the cloud validators for ``protectmcp:lifecycle:risk_acceptance``:
+nine fields forwarded verbatim, sarif_digest shape, numeric risk_snapshot needs
+a source, type fence, required compliance_mode; refusals carry a docs_url.
 """
 
 from __future__ import annotations
