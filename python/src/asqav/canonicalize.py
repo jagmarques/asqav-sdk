@@ -28,13 +28,13 @@ def canonicalize_action(
     return canonicalize({"action_type": action_type, "context": context or {}})
 
 
-    # Return JCS JSON bytes for ``obj``; matches the conformance vectors byte-for-byte.
+    # Return JCS JSON bytes for ``obj``; byte-equal to the conformance vectors.
 def canonicalize(obj: Any) -> bytes:
     # Delegates to the single JCS implementation so the two cannot drift apart.
     return canonical_json(obj)
 
 
-    # Return JSON pointer to the first float in ``value`` (depth-first); ``bool`` is JCS-safe.
+    # JSON pointer to the first float in ``value`` (depth-first); bool is safe.
 def _find_float_pointer(value: Any, pointer: str) -> str | None:
     if isinstance(value, bool):
         return None

@@ -207,3 +207,9 @@ REPO = SCRIPT.parents[2]
 def test_client_py_is_concise():
     found = [f for f in checker.scan(REPO) if f.path == "python/src/asqav/client.py"]
     assert found == []
+
+
+# NEGCTL: test_seven_line_docstring_in_client_fails plants client.py findings.
+def test_core_modules_are_concise():
+    found = [f for f in checker.scan(REPO) if "/extras/" not in f.path]
+    assert found == []

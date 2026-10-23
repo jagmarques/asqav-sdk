@@ -1,18 +1,5 @@
-"""SDK half of the un-bypassable code-authorship path.
-
-POST /v1/code-authorship is the authoritative ingress: the client supplies an
-ADVISORY change digest (sha256 of ``git diff base..head``) and the server
-re-fetches the commit, recomputes the canonical diff, and signs an in-toto
-Statement whose ``subject[0].digest.sha256`` is the SERVER-recomputed hash.
-The client digest is never trusted. ``digest_match`` only reports whether the
-advisory value agreed with the server's.
-
-The authoritative capture layer for a code-authorship receipt is
-``github_sha_pull``. A receipt whose capture layer is ``in_process_sdk`` or
-``passive_telemetry`` is a client self-report and can NEVER be an authoritative
-decision receipt (observation only), mirroring the cloud's
-``observation_decision_not_allowed`` rule.
-"""
+"""SDK half of the code-authorship path (POST /v1/code-authorship).
+The client digest is advisory; the server recomputes and signs its own hash."""
 
 from __future__ import annotations
 
@@ -40,7 +27,7 @@ CODE_AUTHORSHIP_ASSET_CLASS: str = "code"
 #: The server stamps it after re-fetching the commit and recomputing the diff.
 AUTHORITATIVE_CAPTURE_LAYER: str = "github_sha_pull"
 
-#: Capture layers that are client self-reports. A code-authorship receipt carrying one
+#: Client self-report capture layers. A code-authorship receipt carrying one
 #: is observation only, never an authoritative decision receipt.
 OBSERVATION_ONLY_CAPTURE_LAYERS: frozenset[str] = frozenset(
     {"in_process_sdk", "passive_telemetry"}
@@ -56,15 +43,8 @@ def compute_advisory_digest(
     head_sha: str,
     diff_text: str | None = None,
 ) -> str:
-    """Compute the ADVISORY change digest ``sha256:<hex>``.
-
-    The advisory digest is sha256 of ``git diff base..head``. When ``diff_text``
-    is supplied it is hashed directly (tests, or callers that already hold the
-    diff). With no base the bare head sha is hashed so the field is always a
-    well-formed ``sha256:<64 hex>`` existence proof. The server recomputes its
-    own digest and signs that. This value only lets the server report
-    ``digest_match``.
-    """
+    """Compute the ADVISORY change digest ``sha256:<hex>`` of the diff.
+    Hashes ``diff_text`` if given; with no base, the bare head sha."""
     if diff_text is None:
         if base_sha:
             out = subprocess.run(
@@ -141,7 +121,7 @@ class CodeAuthorshipResult:
             raw=data,
         )
 
-        # True when the bound subject digest equals the server-recomputed digest.
+        # True when the bound subject digest equals the server-recomputed one.
     @property
     def subject_matches_server(self) -> bool:
         if self.subject_digest is None or self.server_digest is None:
@@ -160,12 +140,7 @@ def submit_code_authorship(
     anchor: str | None = None,
 ) -> CodeAuthorshipResult:
     """POST an advisory code-authorship record to /v1/code-authorship.
-
-    ``change_digest`` is ADVISORY (sha256 of ``git diff base..head``). The
-    server recomputes the authoritative digest and signs it. Requires
-    ``asqav.init(api_key=...)`` with a key holding the ``code_authorship:write``
-    scope. Returns the parsed authoritative envelope.
-    """
+    Needs a key with ``code_authorship:write``; returns the server envelope."""
     from . import client as _client
 
     body: dict[str, Any] = {"repo": repo, "commit_sha": commit_sha}
@@ -206,15 +181,8 @@ class CodeAuthorshipVerification:
 
 
 def verify_code_authorship_envelope(envelope: dict[str, Any]) -> CodeAuthorshipVerification:
-    """Verify the code-authorship structural + capture-layer invariant.
-
-    Checks the in-toto Statement shape (``_type``, ``predicateType``), that
-    ``subject[0].digest.sha256`` is present, and the capture-layer rule:
-    ``github_sha_pull`` is authoritative, ``in_process_sdk`` / ``passive_telemetry``
-    are observation only and never authoritative. The cryptographic DSSE
-    signature is verified by the standalone verifier or the hosted /verify. The
-    cloud is the authoritative verifier and this helper is a convenience.
-    """
+    """Verify the code-authorship structure and capture-layer invariant.
+    Checks the in-toto Statement; the DSSE signature is the verifier's job."""
     reasons: list[str] = []
 
     if not isinstance(envelope, dict):

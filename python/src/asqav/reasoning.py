@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-    # Return hex SHA-256 of ``data`` (dicts/lists JSON-serialized; bytes pass through).
+    # Return hex SHA-256 of ``data`` (dict/list as JSON; bytes pass through).
 def _sha256(data: Any) -> str:
     if isinstance(data, bytes):
         payload = data

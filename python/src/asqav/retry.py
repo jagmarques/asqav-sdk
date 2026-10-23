@@ -16,7 +16,7 @@ from typing import Any, TypeVar
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-    # Return True for retryable exceptions: rate-limit, 5xx, connection, timeout.
+    # Return True for retryable exceptions: rate-limit, 5xx, network, timeout
 def _is_retryable(exc: Exception) -> bool:
     from .client import APIError, AuthenticationError, RateLimitError
 
@@ -50,7 +50,7 @@ def _calculate_delay(
     return delay
 
 
-    # Decorator that retries sync functions with exponential backoff + optional jitter.
+    # Decorator retrying sync functions with exponential backoff and jitter.
 def with_retry(
     max_retries: int = 3,
     base_delay: float = 0.5,
@@ -78,7 +78,7 @@ def with_retry(
     return decorator
 
 
-    # Decorator that retries async functions with exponential backoff + optional jitter.
+    # Decorator retrying async functions with exponential backoff and jitter.
 def with_async_retry(
     max_retries: int = 3,
     base_delay: float = 0.5,

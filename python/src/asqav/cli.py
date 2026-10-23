@@ -1,34 +1,5 @@
-"""
-asqav CLI - AI agent governance from the terminal.
-
-Every command wraps a public Python API; both surfaces accept the same
-arguments and return the same data, so anything callable here is also
-callable programmatically.
-
-Requires: pip install asqav[cli]
-
-Commands:
-    asqav verify <signature_id>                - Verify a signature (public)
-    asqav agents list / create <name> / revoke - Manage agents
-    asqav sessions list / end <session_id>     - Manage sessions
-    asqav policies list / create / delete      - Manage org policies
-    asqav webhooks list / create / delete      - Manage webhooks
-    asqav replay <agent_id> <session_id>       - Replay a session's audit trail
-    asqav preflight <agent_id> <action>        - Pre-flight (revocation + policy)
-    asqav budget check / record                - Budget gate / signed spend record
-    asqav approve <session_id> <entity_id>     - Sign off a multi-party session
-    asqav compliance frameworks / export       - List frameworks / export bundle
-    asqav compliance templates / report / reports / download - Cloud reports
-    asqav audit-pack verify <bundle>           - Verify a holder-supplied bundle
-    asqav audit-pack verify --offline <pack>   - Verify a whole pack with no network
-    asqav org halt / resume <org_id>           - Org-wide emergency kill-switch (admin)
-    asqav keys create / list / revoke          - Account API key management (admin)
-    asqav observability summary / metrics      - Read 24h metrics
-    asqav sync                                 - Sync local queue to API
-    asqav queue list / count / clear           - Manage local queue
-    asqav demo / quickstart / doctor           - Onboarding + diagnostics
-    asqav --version                            - Show version
-"""
+"""asqav CLI - AI agent governance from the terminal (pip install asqav[cli]).
+Every command wraps a public Python API; run ``asqav --help`` for the list."""
 
 from __future__ import annotations
 
@@ -39,13 +10,13 @@ try:
     import typer
 except ImportError:
     print('CLI requires typer. Install with: pip install "asqav[cli]"', file=sys.stderr)
-    # Exit 1 is a non-blocking error to the harness, so the PreToolUse gate must exit 2.
+    # Exit 1 does not block the harness, so the PreToolUse gate must exit 2.
     sys.exit(2 if sys.argv[1:3] == ["hook", "pretool"] else 1)
 
 from asqav import __version__
 from asqav._useragent import USER_AGENT
 
-# Harness hooks (Claude Code PostToolUse/PreToolUse). Distinct from asqav/hooks.py,
+# Harness hooks (Claude Code PostToolUse/PreToolUse); not asqav/hooks.py,
 # which is in-process sign callbacks the agent opts into.
 from asqav.cli_hook import hook_app
 from asqav.credentials import resolve_api_base, resolve_api_key
@@ -122,16 +93,7 @@ def verify(
     ),
 ) -> None:
     """Verify a signature by ID (public, no auth needed).
-
-    Prints signature validity and anchor state on separate lines, so a fresh
-    receipt reads "Signature: valid" while its timestamp anchor is pending.
-    A receipt the server rejects reads "Signature: invalid (<label>)" and
-    exits 1.
-    With ``--output json`` returns the full ``VerificationResponse`` plus
-    the IETF profile sub-axes (`chain_valid`, `anchor_status_ots`,
-    `anchor_status_rfc3161`, `signed_at_skew_seconds`, `missing_fields`)
-    when the cloud emitted them.
-    """
+    Prints validity and anchor state; a rejected receipt exits 1."""
     import json as json_mod
     import urllib.error
 
@@ -152,7 +114,7 @@ def verify(
         print(f"Error: {exc}")
         raise typer.Exit(code=1) from exc
     except (httpx.RequestError, urllib.error.URLError) as exc:
-        # Connection refused / DNS / timeout: one readable line, not a raw traceback.
+        # Connection refused / DNS / timeout: one readable line, no traceback.
         print(f"Error: could not reach the Asqav API ({exc})")
         raise typer.Exit(code=1) from exc
 
@@ -160,7 +122,7 @@ def verify(
         print(json_mod.dumps(_verify_json(result), indent=2, default=str))
     else:
         _print_verify_text(result)
-    # A rejection the server reports exits non-zero; a pending anchor alone does not.
+    # A server rejection exits non-zero; a pending anchor alone does not.
     if not _signature_valid(result):
         raise typer.Exit(code=1)
 
@@ -274,13 +236,7 @@ def verify_litellm_log(
     ),
 ) -> None:
     """Verify every receipt in a litellm signing-log index, rolling up N/N.
-
-    Reads the JSONL index that ``AsqavSigningLogger`` appends one line per
-    LLM call (each carrying a ``signature_id``) and verifies each receipt
-    via the public ``/verify`` route, reusing the same path as ``asqav
-    verify``. Prints ``verified N/N`` and exits non-zero if any receipt
-    fails or any line is unverifiable, so it works as a gate.
-    """
+    Prints ``verified N/N`` and exits non-zero if any receipt fails."""
     import json as json_mod
 
     from asqav import APIError, strict_json, verify_signature
@@ -344,13 +300,8 @@ def verify_litellm_log(
 
 
 def _load_json_arg(source: str, label: str) -> dict | None:
-    """Load a JSON arg from a file path, stdin (`-`), or return None when empty.
-
-    Used by `sign` for `--action-json` and `--policy-artefact`. Exits 1 on
-    OSError, JSONDecodeError, a duplicated member name (419) or an integer
-    past 2**53, with a clear
-    `label`-prefixed message so the caller knows which arg failed.
-    """
+    """Load a JSON arg from a file path, stdin (`-`), or None when empty.
+    Exits 1 with a `label`-prefixed message on a bad file or integer."""
     import json as json_mod
 
     from asqav import strict_json
@@ -524,12 +475,7 @@ def sign(
     output: str = typer.Option("text", "--output", "-o", help="Output format: text or json."),
 ) -> None:
     """Issue a Compliance Receipt via the cloud `/agents/{id}/sign` route.
-
-    Mirrors :py:meth:`asqav.Agent.sign` end-to-end so any flag here maps
-    1:1 to a kwarg on the SDK call. Reads ``--action-json`` from a path
-    or stdin when ``-`` is passed; the SDK then computes ``action_ref``
-    from the JCS bytes if ``--action-ref`` was not supplied.
-    """
+    Mirrors :py:meth:`asqav.Agent.sign`; each flag maps 1:1 to a kwarg."""
     _init_sdk()
     from asqav import Agent, APIError
 
@@ -568,7 +514,7 @@ def sign(
         agent._session_id = session_id  # type: ignore[attr-defined]
 
     if algorithm and algorithm != getattr(agent, "algorithm", None):
-        # Algorithm is bound server-side; surface mismatch so callers see intent vs actual.
+        # Algorithm is bound server-side; surface a mismatch so callers see it.
         print(
             f"Warning: --algorithm={algorithm} differs from agent.algorithm="
             f"{agent.algorithm}. The cloud signs under the agent's algorithm."
@@ -614,13 +560,8 @@ def replay(
         help="Write the timeline to FILE (JSON). Implies --json.",
     ),
 ) -> None:
-    """Replay an agent's audit trail. Wraps asqav.replay() / asqav.replay_from_bundle().
-
-    Online:
-        asqav replay agt_x7y8z9 sess_abc123
-    Offline (from a bundle):
-        asqav replay --bundle compliance-bundle.json
-    """
+    """Replay an agent's audit trail (asqav.replay / replay_from_bundle).
+    Online: ``asqav replay AGENT SESSION``; offline: ``--bundle FILE``."""
     import json as json_mod
 
     if bundle:
@@ -1067,7 +1008,7 @@ def demo(
     serve(port=port, open_browser=not no_browser)
 
 
-#: Canonical first-receipt snippet; README, docs and the dashboard print the same text.
+#: Canonical first-receipt snippet; README, docs and dashboard print it too.
 FIRST_RECEIPT_KEY_STEP = "export ASQAV_API_KEY=<paste your key here>"
 FIRST_RECEIPT_SNIPPET = (
     "import asqav\n"
@@ -1136,7 +1077,7 @@ def _detect_framework() -> str:
 
 
 def _onboarding_snippet(framework: str) -> str:
-    # Canonical first-receipt snippet plus a governed function flavoured for the framework.
+    # Canonical first-receipt snippet plus a governed function per framework.
     action = {
         "openai": "api:openai:chat",
         "anthropic": "api:anthropic:messages",
@@ -1156,7 +1097,7 @@ def _onboarding_snippet(framework: str) -> str:
 
 
 def _resolve_key_source(explicit: str | None) -> tuple[str | None, str]:
-    # Resolve an API key and report which source supplied it (arg/env/file/none).
+    # Resolve an API key and report its source (arg/env/file/none).
     import os
 
     from asqav.credentials import load_credentials
@@ -1196,7 +1137,7 @@ def login(
 
     base = api_base or None
     try:
-        # Validate against the base being saved, never the file this login replaces.
+        # Validate against the base being saved, not the file login replaces.
         asqav.init(api_key=api_key, base_url=resolve_api_base(base, use_file=False))
         _get("/agents")
     except Exception as exc:
@@ -1347,8 +1288,8 @@ def doctor() -> None:
             + "  API reachable (no key)"
         )
 
-    # Check 2b: force the stdlib fallback path (_urllib_request + _join_url) against
-    # /agents (exists only under the API prefix); /health passes even with a broken join.
+    # Check 2b: force the stdlib fallback path (_urllib_request + _join_url) via
+    # /agents (only under the API prefix); /health passes with a broken join.
     if api_key:
         from asqav import client as _probe_mod
         from asqav.client import APIError as _APIError
@@ -1384,8 +1325,8 @@ def doctor() -> None:
             + "  URL join probe (no key)"
         )
 
-    # Check 3: API edge accepts this client (catches the Cloudflare browser-integrity
-    # 403/1010 block that fails sign calls while the key-authed health check looks fine).
+    # Check 3: API edge accepts this client (catches the Cloudflare 403/1010
+    # block that fails sign calls while the key-authed health check looks fine).
     import urllib.error
     import urllib.request
 
@@ -1674,20 +1615,7 @@ def audit_pack_export(
     ),
 ) -> None:
     """Export a signed Audit Pack bundle for receipts in [start, end).
-
-    Calls POST `/audit-pack/export`. The bundle is signed with the org's
-    most-recent active agent key over the JCS-canonical bundle bytes, so
-    a verifier can rederive the digest and check the signature offline.
-
-    THE BUNDLE SIGNATURE AND THE RECEIPT SIGNATURES ARE DIFFERENT THINGS. By
-    default every receipt's signed bytes are withheld and `content_disclosure.mode`
-    reads `digest_only`, so a recipient can check the bundle's own signature but
-    cannot verify a single receipt inside it: the preimage is absent. Pass
-    ``--include-signed-bytes`` when the recipient is expected to verify the
-    receipts themselves, which is the usual reason for sending a pack to an
-    auditor. Content minimisation is the reason for the default, so choose it
-    deliberately rather than by omission.
-    """
+    Signed bytes are withheld unless ``--include-signed-bytes``."""
     import json as json_mod
 
     _init_sdk()
@@ -1817,16 +1745,8 @@ def audit_pack_verify(
         help="With --offline: JSON map of block height to merkle_root and time.",
     ),
 ) -> None:
-    """Verify an Audit Pack bundle, through the API or with --offline on this machine.
-
-    Without --offline it calls POST `/audit-pack/verify`: the cloud re-derives
-    the bundle digest and per-receipt signatures and signs its report. Exits
-    non-zero when the bundle signature is invalid, so it works as a gate.
-
-    With --offline nothing leaves the machine. Each receipt is reported
-    verified, not verifiable offline (with the reason) or invalid. Exit code
-    0 needs --jwks and every receipt verified; any invalid exits 1, else 2.
-    """
+    """Verify an Audit Pack bundle through the API or with --offline.
+    Exits non-zero on an invalid signature; --offline needs --jwks."""
     if offline:
         _audit_pack_verify_offline(bundle, output, jwks, tsa_key, bitcoin_headers)
         return
@@ -2021,14 +1941,8 @@ def _put_s3_cursor(s3_client, dest, cursor):
 
 
 def _verify_archive_page(page: dict) -> bytes:
-    """Check a server archive page digest + signature offline (761).
-
-    The digest runs over the full server envelope, not the
-    organization/receipts subset; the Ed25519/ES256/ML-DSA-65 signature
-    verifies against the bundled page_public_key. Raises ValueError when
-    anything is missing, mismatched, or unverifiable: an unverified page
-    never reaches customer storage.
-    """
+    """Check a server archive page digest + signature offline.
+    Raises ValueError on anything missing, mismatched or unverifiable."""
     import base64 as base64_mod
     import hashlib as hashlib_mod
 
@@ -2167,14 +2081,8 @@ def payloads_erase(
     signature_id: str = typer.Argument(help="Signature whose payload bytes are erased."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
-    """Erase the persisted JSON payload for a signature record.
-
-    Calls DELETE `/signatures/payloads/{signature_id}`. The cryptographic
-    `message` bytes and chain hash stay untouched so the receipt remains
-    verifiable; the human-readable JSON payload is replaced with a
-    tombstone marker. Idempotent: replaying on an already-erased record
-    returns 204.
-    """
+    """Erase the persisted JSON payload for a signature record (idempotent).
+    Calls DELETE `/signatures/payloads/{signature_id}`; stays verifiable."""
     if not yes:
         ok = typer.confirm(
             f"Erase payload for {signature_id}? Verification stays intact, "
@@ -2205,15 +2113,8 @@ def _session_request(
     path: str,
     data: dict | None = None,
 ) -> Any:
-    """Call an admin/owner route that authenticates with a dashboard JWT.
-
-    The emergency-halt and account-API-key routes resolve the caller via
-    `get_current_user` (cookie or `Authorization: Bearer <jwt>`), not the
-    `X-API-Key` an agent key carries. Reads the JWT from
-    `ASQAV_SESSION_TOKEN` and sends it as a Bearer header. Exits 1 with a
-    clear message when the var is unset. Returns the parsed JSON body, or
-    None for a 204.
-    """
+    """Call an admin/owner route authenticated by a dashboard JWT.
+    Reads `ASQAV_SESSION_TOKEN`; exits 1 if unset; returns the JSON body."""
     import json as json_mod
     import os
     import urllib.error
@@ -2285,12 +2186,7 @@ def org_halt(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
     """Raise the org-wide emergency halt (kill-switch).
-
-    Calls POST `/orgs/{org_id}/emergency-halt`. While the halt is active
-    every new sign and countersign fails closed with HTTP 403 until an
-    admin lifts it via `asqav org resume`. Admin/owner-scoped, so it reads
-    a dashboard session token from `ASQAV_SESSION_TOKEN`, not an agent key.
-    """
+    POST `/orgs/{org_id}/emergency-halt`; new signs fail closed until resume."""
     if not yes:
         ok = typer.confirm(
             f"Halt org {org_id}? Every new sign and countersign will fail "
@@ -2336,12 +2232,7 @@ def org_set_compliance_strict(
     disable: bool = typer.Option(False, "--disable", help="Turn strict mode off."),
 ) -> None:
     """Toggle per-org `compliance_mode_strict`.
-
-    When True, the cloud rejects any sign request that is not flagged
-    `compliance_mode=true` with HTTP 412 so non-instrumented call paths
-    cannot slip past the receipts trail. Calls PATCH
-    `/orgs/{org_id}` with `{"compliance_mode_strict": <bool>}`.
-    """
+    PATCH `/orgs/{org_id}`; unflagged sign requests then get HTTP 412."""
     if enable == disable:
         print("Error: pass exactly one of --enable or --disable.")
         raise typer.Exit(code=1)
@@ -2432,13 +2323,8 @@ def keys_create(
         help="Mint the key for a specific org (owner/admin only). Defaults to the caller's org.",
     ),
 ) -> None:
-    """Mint a new account API key. The full key is shown once.
-
-    Calls POST `/keys`. Admin/owner-scoped via `get_current_user`, so it
-    reads a dashboard session token from `ASQAV_SESSION_TOKEN` rather than
-    an agent API key. Copy the printed `key` immediately; it is never shown
-    again.
-    """
+    """Mint a new account API key; the full key is shown once.
+    Calls POST `/keys` with the `ASQAV_SESSION_TOKEN` dashboard token."""
     body: dict = {"name": name, "scopes": list(scope)}
     if organization_id:
         body["organization_id"] = organization_id
@@ -2608,7 +2494,7 @@ def migrate_run(
         print("Error: ASQAV_MAINTENANCE_KEY env var is required for migration commands.")
         raise typer.Exit(code=1)
 
-    # `_post` cannot inject headers, so build a one-off urllib request with X-Maintenance-Key.
+    # `_post` cannot inject headers, so use urllib with X-Maintenance-Key.
     from asqav import init as _init
 
     api_key = resolve_api_key()
@@ -2955,6 +2841,6 @@ def observability_metrics(
 
 
 
-# Lets `python -m asqav.cli ...` dispatch the same app as the `asqav` console script.
+# Lets `python -m asqav.cli ...` dispatch the same app as the console script.
 if __name__ == "__main__":
     app()

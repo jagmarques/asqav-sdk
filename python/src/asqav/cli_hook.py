@@ -1,13 +1,5 @@
-"""asqav hook - sign Claude Code harness hook events via the cloud sign endpoint.
-
-This is the HARNESS-HOOK surface: Claude Code fires `asqav hook posttool`/`pretool`
-with the hook event JSON on stdin, and the command signs it through
-`asqav.client.sign()`. It is NOT `asqav/hooks.py` (those are in-process sign
-callbacks the agent opts into). Honesty invariant: a posttool receipt observed the
-action after it ran, so it forces capture_topology=passive_telemetry and a
-receipt_type the cloud's rule-8 false_attestation_guard accepts. A posttool path
-can never emit a :decision.
-"""
+"""asqav hook: sign Claude Code harness hook events via the cloud sign endpoint.
+Not `asqav/hooks.py`. A posttool receipt is passive_telemetry, no :decision."""
 
 from __future__ import annotations
 
@@ -24,7 +16,7 @@ try:
     import typer
 except ImportError:
     print('CLI requires typer. Install with: pip install "asqav[cli]"', file=sys.stderr)
-    # Exit 1 is a non-blocking error to the harness, so the PreToolUse gate must exit 2.
+    # Exit 1 does not block the harness, so the PreToolUse gate must exit 2.
     sys.exit(2 if sys.argv[1:3] == ["hook", "pretool"] else 1)
 
 from asqav.code_authorship import CODE_AUTHORSHIP_WRITE_SCOPE
@@ -39,23 +31,23 @@ hook_app = typer.Typer(
 #: API-key scope the code-authorship command requires on the configured key.
 REQUIRED_SCOPE = CODE_AUTHORSHIP_WRITE_SCOPE
 
-# rule 8 accepts only these two receipt_types under passive_telemetry. A posttool
-# receipt is structurally pinned to this set so it cannot claim a decision.
+# rule 8 accepts only these two receipt_types under passive_telemetry; a
+# receipt is pinned to this set so it cannot claim a decision.
 _OBSERVATION = "protectmcp:observation"
 _OBSERVATION_RESULT_BOUND = "protectmcp:observation:result_bound"
 _DECISION = "protectmcp:decision"
 _LIFECYCLE = "protectmcp:lifecycle"
 
-#: Seconds the gate waits for the signer before it blocks; ASQAV_HOOK_DEADLINE_SECONDS overrides.
+#: Seconds the gate waits for the signer before blocking (env overrides).
 _DEADLINE_ENV = "ASQAV_HOOK_DEADLINE_SECONDS"
 _DEFAULT_DEADLINE_SECONDS = 5.0
-#: Budget the verification phase keeps even when the signer spent the whole deadline.
+#: Budget verification keeps even when the signer spent the whole deadline.
 _MIN_VERIFY_BUDGET_SECONDS = 0.5
-#: Where the gate keeps the JWK Set it verifies permits against; ASQAV_HOOK_JWKS_CACHE overrides.
+#: Where the gate caches the JWK Set it verifies against (env overrides).
 _JWKS_CACHE_ENV = "ASQAV_HOOK_JWKS_CACHE"
 _JWKS_CACHE_MAX_AGE_SECONDS = 24 * 3600
 _JWKS_PAGE_CAP = 8
-#: Floor on any single socket timeout, so a nearly-spent budget still makes one honest attempt.
+#: Floor on any socket timeout, so a spent budget still makes one attempt.
 _MIN_SOCKET_TIMEOUT_SECONDS = 0.05
 
 
@@ -76,19 +68,13 @@ def _deadline_seconds() -> float:
 
 def _call_with_deadline(fn, deadline: float, *args: Any, **kwargs: Any) -> Any:
     """Run fn on a daemon thread and give up after deadline seconds.
-
-    A daemon thread never blocks interpreter exit, so a signer that hangs past the
-    deadline cannot hold the harness hostage until the harness limit, which the Claude
-    Code hooks reference gives as "Defaults: 600 for `command`, `http`, and `mcp_tool`;
-    30 for `prompt`; 60 for `agent`."
-    (https://code.claude.com/docs/en/hooks, accessed 2026-09-02).
-    """
+    A daemon thread never blocks exit; a hung signer cannot hold the harness."""
     box: dict[str, Any] = {}
 
     def _target() -> None:
         try:
             box["value"] = fn(*args, **kwargs)
-        except BaseException as exc:  # noqa: BLE001 - re-raised on the caller's thread
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
             box["error"] = exc
 
     worker = threading.Thread(target=_target, name="asqav-hook-sign", daemon=True)
@@ -113,7 +99,7 @@ def _read_event(*, fail_code: int = 1) -> dict[str, Any]:
         raise typer.Exit(code=fail_code)
     try:
         event = json_mod.loads(raw)
-    except Exception as exc:  # noqa: BLE001 - deep nesting and huge ints raise past JSONDecodeError
+    except Exception as exc:  # noqa: BLE001 - deep nesting skips JSON error
         print(f"Error: hook event is not valid JSON: {type(exc).__name__}: {exc}", file=sys.stderr)
         raise typer.Exit(code=fail_code) from exc
     if not isinstance(event, dict):
@@ -130,7 +116,7 @@ def _result_digest(tool_response: Any) -> str:
     return f"sha256:{digest}"
 
 
-    # Build the body sign() POSTs: the SDK's own context and body builders, no re-impl.
+    # Build the body sign() POSTs from the SDK's own context and body builders.
 def _build_body(
     *,
     action_type: str,
@@ -149,8 +135,8 @@ def _build_body(
     wire_action, wire_context = _prepare_sign_context(
         action_type=action_type, context=context, trace_id=fields.pop("trace_id", None)
     )
-    # The wire mode is a module global the SDK resolves at init; the hook pins it
-    # explicitly so a dry run shows the bytes the live hook sends.
+    # The wire mode is a module global the SDK resolves at init; the hook pins
+    # so a dry run shows the bytes the live hook sends.
     previous = _client._mode
     _client._mode = "full-payload" if clear_context else "hash-only"
     try:
@@ -173,14 +159,8 @@ def _map_event(
     bind_result: bool,
     policy_decision: str | None,
 ) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
-    """Map a Claude Code hook event to sign() inputs (action_type, context, session, fields).
-
-    Field map (snake_case keys confirmed against code.claude.com/docs/en/hooks):
-    action_type=tool:<tool_name>; context={tool_input}; session_id and trace_id
-    from session_id. result_digest is added only when binding a tool result.
-    invocation_ref forwards a nonempty string tool_use_id verbatim, else is
-    omitted (never synthesized, never falls back to session_id: the trace).
-    """
+    """Map a Claude Code hook event to sign() inputs (action_type, context).
+    action_type=tool:<tool_name>; invocation_ref is the tool_use_id."""
     tool_name = event.get("tool_name", "unknown")
     tool_input = event.get("tool_input", {})
     session_id = event.get("session_id", "") or ""
@@ -202,7 +182,7 @@ def _map_event(
     return action_type, context, session_id, compliance_fields
 
 
-    # Return (api_key, agent_id) from the credential chain + env, or error clearly.
+    # Return (api_key, agent_id) from the credential chain and env, or error.
 def _require_identity() -> tuple[str, str]:
     api_key = resolve_api_key()
     agent_id = os.environ.get("ASQAV_AGENT_ID")
@@ -221,7 +201,7 @@ def _require_identity() -> tuple[str, str]:
     return api_key, agent_id  # type: ignore[return-value]
 
 
-    # Init the SDK, fetch the agent, sign. Returns (receipt, digest POSTed); raises on failure.
+    # Init the SDK, fetch the agent, sign; return (receipt, digest POSTed).
 def _sign_event(
     *,
     action_type: str,
@@ -235,8 +215,8 @@ def _sign_event(
 ) -> tuple[Any, str]:
     import asqav
 
-    # Hash-only by default: the tool arguments are digested here and never leave the
-    # machine; --clear-context opts a deployment into sending them for the platform to hold.
+    # Hash-only by default: tool arguments are digested here and never sent;
+    # --clear-context opts a deployment into sending them.
     asqav.init(
         api_key=api_key,
         mode="full-payload" if clear_context else "hash-only",
@@ -247,8 +227,8 @@ def _sign_event(
         agent._session_id = session_id  # type: ignore[attr-defined]
     kwargs = {k: v for k, v in compliance_fields.items() if v is not None}
     kwargs.pop("compliance_mode", None)
-    # The digest comes from the body sign() hands to the wire, never from the response
-    # and never from a second build that would run before-hooks and detectors again.
+    # The digest comes from the body sign() hands to the wire, not the response
+    # or a second build that would rerun before-hooks and detectors.
     from asqav import client as _client
 
     sent: dict[str, str] = {}
@@ -387,14 +367,14 @@ def _kid_absent_reason(keys: list[dict[str, Any]], signature: Any) -> str:
 
 
 def _key_present(jwks: dict[str, Any], payload: dict[str, Any], signature: Any = None) -> bool:
-    # A cached set may predate the agent's key; the caller refreshes once on a miss.
+    # A cached set may predate the agent's key; the caller refreshes once.
     return not _key_absent_reason(jwks, payload, signature)
 
 
 def _missing_agent_key(
     jwks: dict[str, Any], agent_id: str, payload: dict[str, Any], signature: Any
 ) -> str:
-    # An empty set is its own reason, not "names no key", which would blame the receipt.
+    # An empty set is its own reason, not "names no key" (blames the receipt)
     if not jwks["keys"]:
         return f"the published set holds no key for the gated agent {agent_id}"
     return _key_absent_reason(jwks, payload, signature)
@@ -416,8 +396,8 @@ def _agent_key_set(
     missing = _missing_agent_key(jwks, agent_id, payload, signature)
     if not missing:
         return jwks, ""
-    # One refresh answers a rotation; a set that still names no key ends here with the
-    # reason, instead of re-reading the whole directory on every tool call.
+    # One refresh answers a rotation; a set still naming no key ends here with
+    # the reason, not a re-read of the directory on every tool call.
     left = stop - time.monotonic()
     if left <= 0:
         return {}, f"the gate's deadline was spent before a refresh could answer: {missing}"
@@ -430,7 +410,7 @@ def _agent_key_set(
     return jwks, ""
 
 
-#: Axes that establish the returned receipt really is a platform signature over these bytes.
+#: Axes that establish the receipt is a platform signature over these bytes.
 _PERMIT_AXES = ("signature", "issuer_bind", "key_status", "key_binding")
 
 
@@ -448,11 +428,11 @@ def _request_binding_failure(
             f"gate sent {expected_agent_id!r}"
         )
     receipt_digest = payload.get("hash") or payload.get("action_ref")
-    # No digest sent (--clear-context) binds nothing, so even an empty match blocks
+    # No digest sent (--clear-context) binds nothing, so an empty match blocks
     if not sent_hash or receipt_digest != sent_hash:
         return "receipt digest does not match the digest the gate sent"
-    # The cloud signs invocation_ref at the top level of the payload; a receipt minted for
-    # another call with the same tool, input and session carries a different one.
+    # The cloud signs invocation_ref at the payload top level; a receipt for
+    # another call with the same tool, input and session carries another one.
     got = payload.get("invocation_ref")
     if got != expected_invocation_ref:
         return (
@@ -483,14 +463,8 @@ def _verify_returned_receipt(
     expected_agent_id: str,
     expected_invocation_ref: str,
 ) -> tuple[bool, str]:
-    """Verify the receipt the signer returned against the published JWK Set.
-
-    Returns (ok, reason). The signature-related axes must all PASS; anchors and the
-    chain are outside a single receipt's reach and are not required here. The
-    receipt must then answer THIS request: same agent, same action digest, the same
-    tool invocation (tool_use_id), fresh inside the gate deadline. Anything
-    else is (False, reason).
-    """
+    """Verify the signer receipt against the published JWK Set: (ok, reason).
+    Signature axes must pass and the receipt must answer THIS request, fresh."""
     from asqav.verifier import verify_receipt as _vr
 
     payload = getattr(sig, "payload", None)
@@ -520,7 +494,7 @@ def _verify_returned_receipt(
     return True, f"signature verified against the published JWK Set (kid {signature.get('kid')})"
 
 
-#: Wire decisions that deny the call; the gate must block on them, never announce a success.
+#: Wire decisions that deny the call; the gate blocks, never announces success.
 _BLOCKING_DECISIONS = ("deny", "rate_limit")
 
 
@@ -613,7 +587,7 @@ def hook_posttool(
 
 
 def _tool_use_id(event: dict[str, Any]) -> str | None:
-    # The id _map_event forwards as invocation_ref; None when the host sent none.
+    # The id _map_event forwards as invocation_ref; None when the host sent none
     value = event.get("tool_use_id")
     return value if isinstance(value, str) and value != "" else None
 
@@ -640,7 +614,7 @@ def _enforce_receipt(
             f"verification did not finish inside the remaining {remaining:g}s of the "
             f"{deadline:g}s deadline"
         )
-    except Exception as exc:  # noqa: BLE001 - any failure here is a blocked call
+    except Exception as exc:  # noqa: BLE001 - any failure is a blocked call
         ok, reason = False, f"could not verify the returned receipt: {exc}"
     if not ok:
         print(
@@ -650,7 +624,7 @@ def _enforce_receipt(
         raise typer.Exit(code=2)
     decision = _wire_decision(sig)
     if decision in _BLOCKING_DECISIONS:
-        # A verified receipt that carries a denial is still a denial; exit 2 blocks the tool.
+        # A verified receipt carrying a denial is still a denial; exit 2 blocks.
         print(f"blocked {sig.signature_id}: {decision}", file=sys.stderr)
         raise typer.Exit(code=2)
     if decision != "allow":
@@ -678,20 +652,12 @@ def hook_pretool(
     ),
 ) -> None:
     """Sign a Claude Code PreToolUse event (FAIL-CLOSED gate).
-
-    The host shell decided before the tool ran, so this is a real decision:
-    in_process_sdk + protectmcp:decision + policy_decision=permit. Exit 2 BLOCKS
-    the tool call when the signer is unreachable, signing errors, the signer does
-    not answer inside the deadline, or the returned receipt does not verify
-    against the published JWK Set. There is no tool result pre-execution, so no
-    result_digest. A malformed/empty event also blocks (exit 2): the gate fails
-    closed on every failure path, never open.
-    """
+    Exit 2 blocks the tool on any signer, deadline, verify or event error."""
     try:
         _pretool_gate(clear_context=clear_context, dry_run=dry_run)
     except typer.Exit:
         raise
-    except Exception as exc:  # noqa: BLE001 - exit 1 lets the tool run, so nothing escapes
+    except Exception as exc:  # noqa: BLE001 - exit 1 lets the tool run
         print(
             f"asqav hook: unexpected {type(exc).__name__}, blocking tool call: {exc}",
             file=sys.stderr,
@@ -724,7 +690,7 @@ def _pretool_gate(*, clear_context: bool, dry_run: bool) -> None:
         print(json_mod.dumps(body, indent=2, default=str))
         return
 
-    # Fail-closed: an event without tool_use_id leaves no way to bind a permit to this call.
+    # Fail-closed: no tool_use_id leaves no way to bind a permit to this call.
     invocation_ref = _tool_use_id(event)
     if invocation_ref is None:
         print(
@@ -733,7 +699,7 @@ def _pretool_gate(*, clear_context: bool, dry_run: bool) -> None:
             file=sys.stderr,
         )
         raise typer.Exit(code=2)
-    # Fail-closed: any failure to reach the signer or sign blocks the tool (exit 2).
+    # Fail-closed: any failure to reach or sign with the signer blocks (exit 2).
     api_key = resolve_api_key()
     agent_id = os.environ.get("ASQAV_AGENT_ID")
     if not api_key or not agent_id:
@@ -775,7 +741,7 @@ def _pretool_gate(*, clear_context: bool, dry_run: bool) -> None:
         )
     except typer.Exit:
         raise
-    except Exception as exc:  # noqa: BLE001 - nothing after signing may exit open
+    except Exception as exc:  # noqa: BLE001 - after signing, never exit open
         print(
             f"asqav hook: could not gate receipt {getattr(sig, 'signature_id', '?')}, "
             f"blocking tool call: {exc}",
@@ -803,14 +769,7 @@ def hook_code_authorship(
     ),
 ) -> None:
     """Record code authorship via POST /v1/code-authorship.
-
-    Computes an ADVISORY change digest (sha256 of ``git diff base..head``) and
-    posts it with the repo and commit. The server re-fetches the commit,
-    recomputes the canonical diff, and signs the authoritative in-toto
-    Statement. ``subject[0].digest.sha256`` is the server digest, and
-    ``digest_match`` reports whether the advisory value agreed. Requires a key
-    with the ``code_authorship:write`` scope.
-    """
+    Posts an ADVISORY change digest, which the server recomputes."""
     from asqav.code_authorship import compute_advisory_digest, submit_code_authorship
 
     advisory = compute_advisory_digest(base_sha or None, commit_sha)
