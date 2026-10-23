@@ -64,7 +64,7 @@ export interface AsqavCallbackHandlerOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-// Signs chain, tool, and LLM events via the Asqav governance pipeline
+// Signs chain and tool events plus LLM calls via the Asqav governance pipeline
 // Use AsqavCallbackHandler.create(): the peer is loaded asynchronously
 export class AsqavCallbackHandler extends AsqavAdapter {
   /** Friendly name surfaced to LangChain's tracing UI. */
