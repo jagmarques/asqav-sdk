@@ -2,5 +2,25 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Real prod hash-mode receipt (asqav-05, ML-DSA-65) with action_type, agent_name, decision, signed_at and verified added. A flat receipt signs its own fields, so those members are not copies of anything signed: the signature still verifies and the outer_copies axis passes while listing them as not signed."
+  "notes": "Real prod hash-mode receipt (asqav-05, ML-DSA-65) with action_type, agent_name, decision, signed_at and verified added. A flat receipt signs its own fields, so those members are not copies of anything signed: the signature still verifies and the outer_copies axis passes while listing them as not signed.",
+  "axis_scope": {
+    "exercised": [],
+    "not_applicable": [
+      "REQ-ANCHOR",
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ]
+  }
 }

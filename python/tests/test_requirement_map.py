@@ -8,8 +8,10 @@ which is the failure mode the second half exists to prevent.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -24,6 +26,57 @@ GENERATOR = ROOT / "verifier" / "build_requirement_map.py"
 def document():
     assert MAP.exists(), f"{MAP} is not published"
     return json.loads(MAP.read_text())
+
+
+def _builder():
+    spec = importlib.util.spec_from_file_location("build_requirement_map", GENERATOR)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+BUILDER = _builder()
+
+
+def _assert_axis_scope_matches(corpus: pathlib.Path, document: dict) -> None:
+    """Each manifest-native vector declares the map's exercised/not split."""
+    manifest = json.loads((corpus / "manifest.json").read_text())
+    native = [e["dir"] for e in manifest if e["format"] == BUILDER.NATIVE_FORMAT]
+    assert len(native) == len(document["vectors"])
+    for name in native:
+        vec = document["vectors"][name]
+        expected = json.loads((corpus / name / "expected.json").read_text())
+        assert BUILDER.AXIS_SCOPE_KEY in expected, name
+        assert expected[BUILDER.AXIS_SCOPE_KEY] == {
+            BUILDER.AXIS_SCOPE_EXERCISED: vec["exercises"],
+            BUILDER.AXIS_SCOPE_NOT_APPLICABLE: vec["not_exercised"],
+        }, name
+
+
+def test_axis_scope_matches_requirement_map(document):
+    """A vector's declared axis scope is the one the verifier run derived."""
+    _assert_axis_scope_matches(BUILDER.VECTORS, document)
+
+
+def test_axis_scope_declaring_an_exercised_axis_not_applicable_fails(document, tmp_path):
+    """NEGCTL: asqav-24 waiving REQ-ANCHOR, which it exercises, is drift."""
+    keep = {"manifest.json", "expected.json"}
+    corpus = tmp_path / BUILDER.VECTORS.name
+    shutil.copytree(
+        BUILDER.VECTORS,
+        corpus,
+        ignore=lambda d, names: [n for n in names if n not in keep and "." in n],
+    )
+    _assert_axis_scope_matches(corpus, document)
+    name, req = "asqav-24-anchor-block-hash-prod", "REQ-ANCHOR"
+    assert req in BUILDER.REQUIREMENTS
+    assert req in document["vectors"][name]["exercises"]
+    path = corpus / name / "expected.json"
+    expected = json.loads(path.read_text())
+    expected[BUILDER.AXIS_SCOPE_KEY][BUILDER.AXIS_SCOPE_NOT_APPLICABLE].append(req)
+    path.write_text(json.dumps(expected))
+    with pytest.raises(AssertionError, match=name):
+        _assert_axis_scope_matches(corpus, document)
 
 
 def test_regenerating_reproduces_the_published_map(document, tmp_path):

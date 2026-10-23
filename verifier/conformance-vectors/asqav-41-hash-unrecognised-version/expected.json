@@ -3,5 +3,25 @@
   "outcome": "unverified",
   "reason_code": "",
   "notes": "Hash-mode receipt displaying v=99 whose signature was computed over v=1 flat fields. The displayed v binds the reconstructed bytes, so both oracles report signature FAIL (invalid). Relabelling v to 2 keeps signature FAIL. Regression pin for version-into-signed-fields (674 C3).",
-  "failure_class": "invalid"
+  "failure_class": "invalid",
+  "axis_scope": {
+    "exercised": [],
+    "not_applicable": [
+      "REQ-ANCHOR",
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ]
+  }
 }

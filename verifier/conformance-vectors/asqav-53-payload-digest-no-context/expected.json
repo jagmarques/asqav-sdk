@@ -2,5 +2,26 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Signed receipt carrying payload_digest but no context: the digest is never recomputed, so the payload_digest axis PASSes as not_applicable rather than passing on silence. The honest-absence half of the rederives pair with asqav-25."
+  "notes": "Signed receipt carrying payload_digest but no context: the digest is never recomputed, so the payload_digest axis PASSes as not_applicable rather than passing on silence. The honest-absence half of the rederives pair with asqav-25.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

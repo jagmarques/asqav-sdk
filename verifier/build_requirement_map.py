@@ -115,10 +115,36 @@ REQUIREMENTS = {
 #: means the check did not run, so it is not coverage.
 _EXERCISED = {"PASS", "FAIL"}
 
+#: The format a vector maps against the profile; every other is interop.
+NATIVE_FORMAT = "asqav-native"
+
+#: The expected.json member naming the axes a native vector's verdict covers,
+#: written from this map's exercises and not_exercised, never typed by hand.
+AXIS_SCOPE_KEY = "axis_scope"
+AXIS_SCOPE_EXERCISED = "exercised"
+AXIS_SCOPE_NOT_APPLICABLE = "not_applicable"
+
 
 def _load(directory: pathlib.Path, name: str):
     path = directory / name
     return json.loads(path.read_text()) if path.exists() else None
+
+
+def write_axis_scopes(vectors: dict) -> int:
+    """Write each native expected.json's axis_scope; return how many moved."""
+    moved = 0
+    for name, entry in vectors.items():
+        path = VECTORS / name / "expected.json"
+        expected = json.loads(path.read_text())
+        expected[AXIS_SCOPE_KEY] = {
+            AXIS_SCOPE_EXERCISED: entry["exercises"],
+            AXIS_SCOPE_NOT_APPLICABLE: entry["not_exercised"],
+        }
+        text = json.dumps(expected, indent=2) + "\n"
+        if path.read_text() != text:
+            path.write_text(text)
+            moved += 1
+    return moved
 
 
 def main() -> int:
@@ -133,7 +159,7 @@ def main() -> int:
         if expected is None:
             continue
         fmt = expected.get("format", "unknown")
-        if fmt != "asqav-native":
+        if fmt != NATIVE_FORMAT:
             interop[directory.name] = {
                 "format": fmt,
                 "exercises_profile_requirements": False,
@@ -149,6 +175,7 @@ def main() -> int:
         if receipt is None or jwks is None:
             by_vector[directory.name] = {
                 "exercises": [],
+                "not_exercised": sorted(REQUIREMENTS),
                 "note": "no receipt/jwks pair to run; nothing derived",
             }
             continue
@@ -247,6 +274,7 @@ def main() -> int:
     }
     OUT.write_text(json.dumps(document, indent=2, sort_keys=False) + "\n")
     print(f"wrote {OUT.relative_to(ROOT.parent)}")
+    print(f"  axis_scope rewritten : {write_axis_scopes(by_vector)} expected.json")
     print(f"  asqav-native vectors : {len(by_vector)}")
     print(f"  interop fixtures     : {len(interop)}")
     print(f"  requirements covered : {len(REQUIREMENTS) - len(unmapped)}/{len(REQUIREMENTS)}")
