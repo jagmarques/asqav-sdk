@@ -108,7 +108,7 @@ def test_input_truncation():
 # === Output guardrail tests ===
 
 
-    # run_output_guardrail signs an agent:output action with the name and output.
+    # run_output_guardrail signs an agent:output action with name and output.
 def test_output_guardrail_signs_action():
     guardrail = _make_guardrail()
     agent = _mock_agent("writer")

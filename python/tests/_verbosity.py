@@ -1,24 +1,30 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The verbosity counter the python tests are held to.
-
-Two budgets: a docstring block spans at most six physical lines and a comment
-line at most eighty characters. The counter is stdlib only, and the tests
-drive it over a file they write (the NEGCTL cases).
-"""
+"""Verbosity counter: docstring 6 lines/100 columns, comment 80 columns."""
 
 from __future__ import annotations
 
 import ast
 import io
+import re
 import tokenize
 from pathlib import Path
 
+# NEGCTL: test_verbosity.py plants each bad input and runs it through scan.
 DOCSTRING_MAX_LINES = 6
+DOCSTRING_MAX_WIDTH = 100
 COMMENT_MAX_CHARS = 80
 
-__all__ = ["COMMENT_MAX_CHARS", "DOCSTRING_MAX_LINES", "python_files", "scan"]
+__all__ = [
+    "COMMENT_MAX_CHARS",
+    "DOCSTRING_MAX_LINES",
+    "DOCSTRING_MAX_WIDTH",
+    "python_files",
+    "scan",
+]
 
+# A tool directive cannot be reworded, so it is not prose to measure.
+_PRAGMA = re.compile(r"#\s*(noqa\b|type:\s*ignore\b|pragma:|fmt:)")
 _OWNERS = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
 
@@ -33,6 +39,7 @@ def python_files(root: Path) -> list[Path]:
 def _docstring_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
     """The docstrings of one source that span more than the budget."""
     hits: list[tuple[Path, int, str]] = []
+    lines = source.splitlines()
     tree = ast.parse(source, filename=str(path))
     for node in ast.walk(tree):
         if not isinstance(node, _OWNERS):
@@ -49,26 +56,27 @@ def _docstring_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
             continue
         if end - start + 1 > DOCSTRING_MAX_LINES:
             hits.append((path, start, "docstring"))
+        for number in range(start, end + 1):
+            if len(lines[number - 1]) > DOCSTRING_MAX_WIDTH:
+                hits.append((path, number, "docstring-width"))
     return hits
 
 
 def _comment_hits(source: str, path: Path) -> list[tuple[Path, int, str]]:
-    """The comment lines of one source that run past the budget."""
+    """The comment lines of one source whose line runs past the budget."""
     hits: list[tuple[Path, int, str]] = []
+    lines = source.splitlines()
     reader = io.StringIO(source).readline
     for token in tokenize.generate_tokens(reader):
-        if token.type == tokenize.COMMENT and len(token.string) > COMMENT_MAX_CHARS:
+        if token.type != tokenize.COMMENT or _PRAGMA.match(token.string):
+            continue
+        if len(lines[token.start[0] - 1]) > COMMENT_MAX_CHARS:
             hits.append((path, token.start[0], "comment"))
     return hits
 
 
 def scan(root: Path) -> list[tuple[Path, int, str]]:
-    """Every budget hit under a path, as a (path, line, kind) triple.
-
-    A file that cannot be read, parsed or tokenized raises, and a path with no
-    Python file raises too: an empty result means the tree was measured and
-    holds no hit.
-    """
+    """Every budget hit as (path, line, kind); an unmeasurable tree raises."""
     files = python_files(root)
     if not files:
         raise ValueError(f"no Python file under {root}")

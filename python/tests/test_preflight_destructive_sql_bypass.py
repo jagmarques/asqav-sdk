@@ -1,9 +1,4 @@
-"""Destructive SQL bypass fix: augment-match policy coverage.
-
-A data:write:sql: action carrying a destructive verb (DELETE, DROP, TRUNCATE, ALTER)
-must also match a data:delete:* block policy. The original write match must still fire
-too (regression guard). Reads and non-destructive writes must not be affected. These
-fail against a bare startswith matcher."""
+"""Destructive SQL bypass fix: augment-match policy coverage."""
 
 from __future__ import annotations
 
@@ -125,7 +120,7 @@ def test_delete_policy_blocks_write_sql_truncate(mock_post, mock_get):
     assert result.policy_allowed is False
 
 
-    # Regression guard: data:write:sql:* policy still blocks a DELETE write action.
+    # Regression guard: data:write:sql:* policy still blocks a DELETE write.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
@@ -156,7 +151,7 @@ def test_negative_delete_policy_does_not_block_benign_write(mock_post, mock_get)
     assert result.policy_allowed is True
 
 
-    # data:delete:* policy must not block data:read:sql:SELECT delete_flag FROM t.
+    # data:delete:* policy must not block data:read:sql:SELECT delete_flag.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
@@ -171,7 +166,7 @@ def test_negative_delete_policy_does_not_block_read_mentioning_delete(mock_post,
     assert result.policy_allowed is True
 
 
-    # deleted_at in a write action does not trigger the destructive verb detection.
+    # deleted_at in a write action does not trigger destructive verb detection.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
@@ -199,7 +194,7 @@ _UPPER_WRITE_SQL_POLICY = [
 # H3: case-variant + whitespace must not bypass matching
 
 
-    # Uppercase and whitespace variants produce the same candidates as lowercase.
+    # Uppercase and whitespace variants give the same candidates as lowercase.
 def test_action_candidates_normalize_case_and_whitespace():
     from asqav._sql_match import action_candidates
 
@@ -212,7 +207,7 @@ def test_action_candidates_normalize_case_and_whitespace():
     assert "data:delete:sql:delete from users" in base
 
 
-    # A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE.
+    # A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
@@ -347,7 +342,7 @@ async def test_async_negative_delete_policy_does_not_block_insert(mock_get):
     assert result.policy_allowed is True
 
 
-    # Async: data:delete:* does not block data:read:sql:SELECT delete_flag FROM t.
+    # Async: data:delete:* does not block data:read:sql:SELECT delete_flag.
 @pytest.mark.asyncio
 @patch("asqav.async_client._async_get", new_callable=AsyncMock)
 async def test_async_negative_delete_policy_does_not_block_read(mock_get):

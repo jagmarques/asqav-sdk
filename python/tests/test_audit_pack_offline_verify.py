@@ -554,7 +554,7 @@ def test_pack_dict_holding_an_integer_past_2_53_is_not_verifiable_offline() -> N
     tsa = _tsa_bytes(m["tsa"])
     assert pv.verify_pack(m["pack"], jwks=m["jwks"], tsa_keys=tsa)["status"] == pv.VERIFIED
     pack = copy.deepcopy(m["pack"])
-    pack["note"] = 2**53 + 1  # outside the bundle digest, so only the range check catches it
+    pack["note"] = 2**53 + 1  # outside the digest: only the range check sees it
     report = pv.verify_pack(pack, jwks=m["jwks"], tsa_keys=tsa)
     assert report["status"] == pv.NOT_OFFLINE and report["exit_code"] == 2
     assert "+/-2**53" in report["bundle"]["reason"]

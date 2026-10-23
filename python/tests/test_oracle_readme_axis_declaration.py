@@ -1,9 +1,4 @@
-"""The oracle README's asqav-native axis claim, checked against the axes the
-oracle actually returns. The README once said the oracle runs only the signature, chain and structure-presence
-axes and does NOT run clock-skew. Execution shows it runs thirteen axes with skew live in-line (a frozen clock
-fails skew and flips the verdict to unverified/invalid). This module executes the oracle on two asqav-native
-vectors and asserts the README's enumeration equals the names that come back, so the claim cannot drift again.
-"""
+"""The oracle README's axis claim matches the axes the oracle returns."""
 
 from __future__ import annotations
 

@@ -1,9 +1,4 @@
-"""The standalone verifier resolves the signing key by what the receipt signed, not list position.
-A cloud receipt's envelope kid is the org id, which every sibling key publishes as issuer_id, so a
-loose match answers with whichever sibling is listed first. The signed key_thumbprint and agent_id
-name the real key; the matcher reads them first. Every directory here publishes more than one key
-per issuer, the shape that exposes a matcher returning whatever it reaches first.
-"""
+"""The standalone verifier resolves the key by what was signed, not order."""
 
 from __future__ import annotations
 
@@ -91,7 +86,7 @@ def test_unsupported_alg_resolves_the_named_agent_key_not_the_revoked_sibling() 
 
 
 def test_rotated_agent_resolves_by_signed_thumbprint_across_two_published_keys() -> None:
-    """Two active keys for one agent, the stale one listed first; the thumbprint picks the signer."""
+    """Two keys, stale one first: the signed thumbprint picks the signer."""
     ml = _ml_dsa_65()
     stale_pk, _ = ml.keygen()
     new_pk, new_sk = ml.keygen()
@@ -136,7 +131,7 @@ def test_thumbprint_naming_an_unused_key_is_reported_as_substitution() -> None:
 
 
 def test_thumbprint_of_a_foreign_org_key_cannot_pass_the_issuer_bind() -> None:
-    """An attacker binding their own published key's thumbprint verifies the signature and fails the bind."""
+    """A foreign org key's thumbprint passes the sig but fails the bind."""
     ml = _ml_dsa_65()
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _ = ml.keygen()

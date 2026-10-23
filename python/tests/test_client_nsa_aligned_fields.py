@@ -1,9 +1,4 @@
-"""SDK parity for the cycle-30 NSA-aligned receipt extensions. NSA CSI U/OO/6030316-26 adds to the cloud
-`SignRequest`: ``result_digest``, ``expires_at``, ``nonce``, ``tool_fingerprint``, ``config_manifest_digest``,
-``cve_inventory_digest``. The SDK forwards them verbatim, computes ``tool_fingerprint`` from ``tool_name`` + a
-JSON schema, and generates a 24-hex-char ``nonce`` when omitted. Cloud rule 9: a ``configuration_change``
-receipt without ``config_manifest_digest`` fails before the HTTP roundtrip.
-"""
+"""SDK parity for the cycle-30 NSA-aligned receipt extensions."""
 
 from __future__ import annotations
 
@@ -443,7 +438,7 @@ class TestDigestFormatGuard:
             )
         assert captured["body"]["tool_fingerprint"] == fp
 
-        # Anything other than the ``sha256:`` prefix raises the verbatim cloud token.
+        # Anything but the ``sha256:`` prefix raises the verbatim cloud token.
     @pytest.mark.parametrize(
         "field",
         ["config_manifest_digest", "cve_inventory_digest"],

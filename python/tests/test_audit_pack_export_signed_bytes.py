@@ -1,9 +1,4 @@
-"""The Audit Pack CLI can ask for a pack whose receipts are verifiable.
-The export sent no `include_signed_bytes`, so it took the server default and
-every receipt came back with its signed bytes withheld: the recipient could
-check the bundle's own signature and not one receipt inside it, because the
-preimage was absent. There was no flag to ask for anything else.
-"""
+"""The Audit Pack CLI can ask for a pack whose receipts are verifiable."""
 
 from __future__ import annotations
 

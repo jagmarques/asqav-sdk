@@ -14,13 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Literal pins for every derived member of conformance/vectors.json (criterion 670). The corpus
-is a contract with implementers: it is FIXTURE DATA, so a derived member's expected value is a literal,
-never a production-supplied one. The counterparty ``envelope_hash`` was stale in five vectors; those tests
-built their expectation from the function under test, so neither read the published bytes. Siblings stay
-separate: ``test_canonicalize.py``, ``regen_fingerprint_vectors.py --check`` (CI), ``test_corpus_lock.py``.
-"""
-# The lock freezes the bytes; it does not prove them right.
+"""Literal pins for every derived member of conformance/vectors.json (670)."""
 
 from __future__ import annotations
 
@@ -589,9 +583,9 @@ def test_every_counterparty_digest_declares_its_scope() -> None:
         binding = vector.get("input", {}).get("counterparty_binding")
         if isinstance(binding, dict) and "envelope_hash" in binding:
             if name == "counterparty_binding_legacy_scope_absent":
-                assert "scope" not in binding  # Named historical absence fixture.
+                assert "scope" not in binding  # Historical absence fixture.
             elif name == "counterparty_binding_unrecognised_scope":
-                assert binding["scope"] == "unsupported_fixture_scope"  # Named unsupported-scope fixture.
+                assert binding["scope"] == "unsupported_fixture_scope"
             else:
                 assert binding.get("scope") == "envelope_minus_anchors", name
 
@@ -636,7 +630,7 @@ def test_no_derived_member_escapes_a_pin() -> None:
     )
     for name, vector in _vectors().items():
         if "input_text" in vector:
-            # A refused document has no canonical form; its bytes are pinned instead.
+            # A refused document has no canonical form; its bytes are pinned.
             assert name in PINNED_REFUSED_DOCUMENT, f"{name}: refused document not pinned"
             assert "canonical" not in vector and "sha256" not in vector, (
                 f"{name}: a refused document must not publish a canonical form"
@@ -685,13 +679,9 @@ def test_every_input_derived_member_has_a_literal_pin() -> None:
 
 
 class TestTheCorpusSpellsNoAnchorsOneWay:
-    """The corpus states no-anchors one way: the member absent or an empty array. Absent and [] are the two
-    conformant spellings of the same fact and the engines treat them identically; a JSON null is a third,
-    malformed spelling that the structure axis FAILs. asqav-28-anchors-null-malformed pins that malformed
-    shape, so it is the one vector the rule below names - every other asqav vector stays under it.
-    """
+    """The corpus states no-anchors one way: absent member or empty array."""
 
-    #: The one vector that pins the malformed null shape; any other null is drift.
+    #: The one vector pinning the malformed null shape; any other null is drift.
     _MALFORMED_ANCHORS_VECTORS = frozenset({"asqav-28-anchors-null-malformed"})
 
     def test_no_asqav_vector_uses_null_for_no_anchors(self) -> None:

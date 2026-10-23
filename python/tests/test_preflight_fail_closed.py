@@ -116,7 +116,7 @@ def test_non_dict_status_does_not_clear(mock_post, mock_get, status_body):
     assert "could not verify" in result.explanation.lower()
 
 
-    # An active agent with no blocking policy still clears, checks_complete True.
+    # An active agent with no blocking policy clears, checks_complete True.
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")

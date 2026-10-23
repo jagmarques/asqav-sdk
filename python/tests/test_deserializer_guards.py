@@ -1,9 +1,4 @@
-"""Required-field deserializer guards raise AsqavResponseError, not a
-raw KeyError, when a cloud response omits a field the SDK requires.
-Companion to test_verify_response_fields.py (positive case, all fields present): a response
-missing a required field surfaces one typed, catchable ``AsqavResponseError`` naming
-the field, never a bare ``KeyError`` at a random dict index (rule 3.9).
-"""
+"""Required-field guards raise AsqavResponseError, not a raw KeyError."""
 
 from __future__ import annotations
 

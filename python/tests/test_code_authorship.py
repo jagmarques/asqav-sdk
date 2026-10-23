@@ -1,9 +1,4 @@
-"""SDK half of the authoritative code-authorship path (POST /v1/code-authorship). The client supplies an
-ADVISORY change digest. The server re-fetches the commit, recomputes the canonical diff, and signs an in-toto
-Statement whose ``subject[0].digest.sha256`` is the SERVER digest. They pin the advisory digest computation,
-the wire body, envelope parsing, and the capture-layer observation-decision rule (``github_sha_pull``
-is authoritative; ``in_process_sdk`` / ``passive_telemetry`` are observation only, never authoritative).
-"""
+"""SDK half of the authoritative code-authorship path (/v1/code-authorship)."""
 
 from __future__ import annotations
 
@@ -150,7 +145,7 @@ def test_submit_posts_advisory_digest_to_code_authorship_endpoint() -> None:
     assert body["repo"] == "owner/repo"
     assert body["commit_sha"] == "c" * 40
     assert body["base_sha"] == "b" * 40
-    # The client digest is advisory. It travels so the server can report a match.
+    # The client digest is advisory; the server reports whether it matches.
     assert body["change_digest"] == "sha256:" + "1" * 64
     assert body["change_class"] == "write"
     assert body["author"] == "human:alice@example.com"
@@ -198,7 +193,7 @@ def test_result_exposes_digest_match_semantics() -> None:
             "digest_match": False,
         }
     )
-    # Advisory digest disagreed, but the bound subject is still the server digest.
+    # The advisory digest disagreed; the bound subject is the server digest.
     assert result.digest_match is False
     assert result.advisory_client_digest == advisory
     assert result.subject_digest == server_hex
@@ -219,7 +214,7 @@ def test_github_sha_pull_envelope_is_authoritative_and_passes() -> None:
     assert verification.subject_digest == "a" * 64
 
 
-    # in_process_sdk and passive_telemetry are observation only, never a decision.
+    # in_process_sdk and passive_telemetry observe only, never decide.
 @pytest.mark.parametrize("layer", sorted(OBSERVATION_ONLY_CAPTURE_LAYERS))
 def test_observation_capture_layer_is_never_authoritative(layer: str) -> None:
     envelope = _server_envelope(server_digest_hex="a" * 64, capture_layer=layer)

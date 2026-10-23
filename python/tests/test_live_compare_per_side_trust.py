@@ -1,8 +1,4 @@
-"""Per-side trust contexts in the strict entry (488 C33, C5 remainder).
-The strict entries verified both sides under one shared context, so distinct per-side trust inputs
-were inexpressible. Sides now verify under their own contexts; differing trust dims classify
-instead of hiding. Omitted sides fall back to the shared context.
-"""
+"""Per-side trust contexts in the strict entry (488 C33, C5 remainder)."""
 from __future__ import annotations
 
 import json

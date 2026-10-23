@@ -1,9 +1,4 @@
-"""Shipped verdict vocabulary + exit-code contract (criteria 418/438).
-The public surfaces speak verified / verified_keyed / unverified, and every unverified verdict carries a
-failure_class of invalid or unverifiable - the two are never collapsed. Exit codes keep the stable
-mapping: verified/verified_keyed -> 0, unverified+invalid -> 1, unverified+unverifiable -> 2 (the
-blocked state the old INCOMPLETE verdict carried).
-"""
+"""Shipped verdict vocabulary + exit-code contract (criteria 418/438)."""
 
 from __future__ import annotations
 
@@ -113,7 +108,7 @@ def _keyed_hash_mode_receipt():
     return doc, jwks
 
 
-    # A keyed digest that fully checks reports verified_keyed, never verified (438).
+    # A keyed digest that checks reports verified_keyed, not verified (438).
 def test_keyed_digest_reports_verified_keyed_never_plain_verified() -> None:
     pytest.importorskip("cryptography")
     doc, jwks = _keyed_hash_mode_receipt()

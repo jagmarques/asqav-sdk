@@ -1,9 +1,4 @@
-"""Independent verdict semantics for the oracle (criterion 574 D5). The ``oracle.semantic`` aggregation is
-derived from the normative rules (418/438/426 + chain tolerance), not ported from a verifier. These tests pin
-that derivation three ways: the vocabulary matches the core's (shared surface, separate logic); a hand-derived
-truth table covers every rule, including what naive ports get wrong (expiry failure still verifies, chain skip
-tolerated, keying never rescues a failure); and real corpus vectors keep their verdicts through the fold. A
-naive "any FAIL is invalid, any SKIP blocks, keyed always wins" fold fails four of these patterns."""
+"""Independent verdict semantics for the oracle (criterion 574 D5)."""
 from __future__ import annotations
 
 import json

@@ -1278,7 +1278,7 @@ def test_keys_generate_ml_dsa_errors() -> None:
 # === audit-pack verify ===
 
 
-    # audit-pack verify posts the bundle wrapped in {bundle: ...} and prints VALID.
+    # audit-pack verify posts the bundle wrapped in {bundle: ...}; prints VALID.
 @patch("asqav.client._post")
 @patch("asqav.init")
 def test_audit_pack_verify_valid(
@@ -1377,7 +1377,7 @@ def test_org_resume_calls_deactivate_route(mock_session: MagicMock) -> None:
     assert path == "/orgs/org_x/emergency-halt/deactivate"
 
 
-    # org halt fails closed with a clear message when ASQAV_SESSION_TOKEN is unset.
+    # org halt fails closed with a clear message if ASQAV_SESSION_TOKEN is unset
 def test_org_halt_requires_session_token() -> None:
     result = runner.invoke(
         app,

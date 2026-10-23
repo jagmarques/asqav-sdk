@@ -21,7 +21,7 @@ from asqav.verifier import verify_receipt as vr
 
 
 def test_run_rejects_non_object_envelope() -> None:
-    # A JSON array (non-object) must not crash run(); unverified/unverifiable -> 2.
+    # A JSON array (non-object) must not crash run(); unverifiable -> 2.
     assert vr.run([], {"keys": []}, None) == 2
 
 
@@ -63,7 +63,7 @@ def test_load_dash_non_object_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_load_missing_file_raises_input_error() -> None:
-    # A missing file surfaces as VerifierInputError, not a raw OSError traceback.
+    # A missing file surfaces as VerifierInputError, not an OSError traceback.
     with pytest.raises(vr.VerifierInputError):
         vr._load("/no/such/receipt/file.json")
 
@@ -75,7 +75,7 @@ def test_check_anchors_rejects_non_list_string() -> None:
 
 
 def test_check_anchors_rejects_non_dict_entries() -> None:
-    # A list of bare strings must not crash on a.get(); each entry FAILs the axis.
+    # A list of bare strings must not crash on a.get(); each entry FAILs.
     result, note = vr.check_anchors({"anchors": ["x"]})
     assert result == "FAIL"
 
@@ -197,7 +197,7 @@ def test_run_non_string_sig_fails_clean(capsys) -> None:
     code = vr.run(env, _resolvable_jwks(), None)
     out = capsys.readouterr().out
     assert code != 0
-    assert "[  ok] issuer_key" in out  # the kid DID resolve; only the sig bytes are bad
+    assert "[  ok] issuer_key" in out  # the kid resolves; only the sig is bad
 
 
 def test_run_structured_non_string_sig_fails_clean() -> None:
@@ -247,7 +247,7 @@ def test_check_anchors_empty_list_is_skipped() -> None:
 
 
 def test_normalise_envelope_preserves_falsy_anchors() -> None:
-    # The reconstruct path must hand the malformed anchors value to check_anchors,
+    # The reconstruct path must hand the malformed anchors to check_anchors,
     # not launder it to [] before the guard runs.
     env = vr.normalise_envelope({"payload": _payload(), "anchors": {}})
     assert env["anchors"] == {}
@@ -266,7 +266,7 @@ def _write_receipt(tmp_path, anchors) -> tuple[str, str]:
 @pytest.mark.parametrize("anchors", [{}, "", 0])
 def test_end_to_end_falsy_anchors_fail_malformed(tmp_path, monkeypatch, capsys, anchors) -> None:
     # The contract's end-to-end proof: a --receipt file with a falsy non-list
-    # anchors value must reach check_anchors as malformed, through the whole tool.
+    # anchors value must reach check_anchors as malformed, via the whole tool.
     rp, jp = _write_receipt(tmp_path, anchors)
     monkeypatch.setattr(sys, "argv", ["verify_receipt.py", "--receipt", rp, "--jwks", jp, "--offline"])
     vr.main()
