@@ -1,7 +1,5 @@
-/**
- * Pipelock EvidenceReceipt v2 adapter: Ed25519 over strict RFC 8785 JCS with the `signature` object
- * zeroed. The caller supplies the signer key; absent, the signature axis SKIPs rather than hiding a PASS.
- */
+// Pipelock EvidenceReceipt v2 adapter: Ed25519 over strict RFC 8785 JCS, the
+// `signature` object zeroed; caller supplies the key, absent it the axis SKIPs
 
 import {
   FormatAdapter,
@@ -68,10 +66,8 @@ function safeHex(value: unknown): Uint8Array {
   return out;
 }
 
-/**
- * Build the signable preimage: the full receipt with the `signature` sub-object zeroed, then JCS
- * RFC 8785. Mirrors `pipelock_verify._evidence._signable_preimage`.
- */
+// Mirrors `pipelock_verify._evidence._signable_preimage`
+/** Build the signable preimage: full receipt, `signature` zeroed, then JCS */
 function signablePreimage(doc: Record<string, unknown>): Uint8Array {
   const clone: Record<string, unknown> = { ...doc };
   clone["signature"] = {
@@ -83,7 +79,7 @@ function signablePreimage(doc: Record<string, unknown>): Uint8Array {
   return jcsRfc8785(clone);
 }
 
-/** SHA-256 of the full receipt (signature included) - the chain hash primitive. */
+/** SHA-256 of the whole receipt incl. signature: the chain hash primitive */
 function fullReceiptHash(doc: Record<string, unknown>): string {
   return sha256Hex(jcsRfc8785(doc));
 }
@@ -141,8 +137,8 @@ export class PipelockEvidenceAdapter extends FormatAdapter {
 
   chainStep(doc: Record<string, unknown>): ChainStep {
     const prev = doc["chain_prev_hash"] ?? null;
-    // A non-string chain_prev_hash is a value the producer set, not an absent
-    // link, so it is carried through and never laundered into a genesis PASS.
+    // A non-string chain_prev_hash is a producer-set value, not an absent link:
+    // carried through, never laundered into a genesis PASS
     const isGenesis = prev === null || (typeof prev === "string" && GENESIS_SENTINELS.has(prev));
     return {
       prevField: prev,

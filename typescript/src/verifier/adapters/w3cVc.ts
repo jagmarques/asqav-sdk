@@ -1,7 +1,5 @@
-/**
- * W3C VC 2.0 adapter for DataIntegrityProof with the eddsa-jcs-2022 cryptosuite, a port of the Python
- * `w3c_vc.py`. Stricter than the suite: assertionMethod only, and the signing-key DID must equal issuer.
- */
+// W3C VC 2.0 adapter: DataIntegrityProof eddsa-jcs-2022, port of w3c_vc.py
+// Stricter than the suite: assertionMethod only, key DID must equal issuer
 
 import { createHash } from "node:crypto";
 
@@ -25,7 +23,7 @@ function asRecord(v: unknown): Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
 
-/** The doc's proof member when it is a single object; {} for absent/list proofs. */
+/** The doc's proof member when a single object; {} for absent/list proofs */
 function proofOf(doc: Record<string, unknown>): Record<string, unknown> {
   return asRecord(doc.proof);
 }
@@ -54,7 +52,7 @@ function parseDatetime(value: unknown): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-/** proof minus proofValue - the exact object the spec canonicalises for hash one. */
+/** proof minus proofValue: the object the spec canonicalises for hash one */
 function proofOptions(doc: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(proofOf(doc))) {
@@ -63,7 +61,7 @@ function proofOptions(doc: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-/** Document minus proof; the proof's @context substitutes the document's when present. */
+/** Document minus proof; a present proof @context replaces the doc's */
 function unsecured(doc: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(doc)) {
@@ -74,7 +72,7 @@ function unsecured(doc: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-/** True when the proof's @context is absent or prefixes the document @context in order. */
+/** True when the proof @context is absent or prefixes the doc's, in order */
 function contextPrefixOk(doc: Record<string, unknown>): boolean {
   const ctx = proofOf(doc)["@context"];
   if (ctx === undefined) return true;
@@ -96,7 +94,7 @@ function sha256(data: Uint8Array): Uint8Array {
   return new Uint8Array(createHash("sha256").update(Buffer.from(data)).digest());
 }
 
-/** W3C VC 2.0 - DataIntegrityProof eddsa-jcs-2022, Ed25519 over RFC 8785 JCS. */
+/** W3C VC 2.0 DataIntegrityProof eddsa-jcs-2022: Ed25519 over RFC 8785 JCS */
 export class W3cVcAdapter extends FormatAdapter {
   readonly name = "w3c-vc";
 
@@ -138,7 +136,7 @@ export class W3cVcAdapter extends FormatAdapter {
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
-    // hashData = SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecured)) (TR vc-di-eddsa)
+    // vc-di-eddsa: SHA-256(JCS(proofOptions)) || SHA-256(JCS(unsecured))
     const optionsHash = sha256(jcsRfc8785(proofOptions(doc)));
     const documentHash = sha256(jcsRfc8785(unsecured(doc)));
     return Uint8Array.from([...optionsHash, ...documentHash]);
@@ -207,7 +205,7 @@ export class W3cVcAdapter extends FormatAdapter {
     return ["PASS", "required VC 2.0 fields present; DataIntegrityProof eddsa-jcs-2022"];
   }
 
-  /** validFrom/validUntil bound validity; the expiry axis never folds the verdict (426). */
+  /** validFrom/validUntil bound validity; expiry never folds the verdict */
   extraAxes(doc: Record<string, unknown>, _keyProvider: KeyProvider): ExtraAxis[] {
     const now = Date.now();
     const validFrom = doc.validFrom;
