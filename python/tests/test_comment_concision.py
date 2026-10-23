@@ -91,7 +91,10 @@ def test_trailing_comment_counts_its_column(tmp_path, capsys):
 
 
 def test_long_bare_tool_directive_passes(tmp_path, capsys):
-    plant(tmp_path, "x.py", f"y = 1{' ' * MAX_COMMENT_COLUMNS}  # pragma: no cover\n")
+    source = REPO / checker.SOURCE_DIR / "extras" / "langchain.py"
+    line = next(row for row in source.read_text().splitlines() if "# type:" in row)
+    assert len(line) > MAX_COMMENT_COLUMNS
+    plant(tmp_path, "x.py", line + "\n    pass\n")
     assert run(tmp_path, capsys)[0] == 0
 
 
