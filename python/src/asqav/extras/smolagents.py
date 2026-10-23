@@ -1,26 +1,5 @@
-"""smolagents (Hugging Face) integration for asqav.
-
-Install: pip install asqav[smolagents]
-
-Usage::
-
-    from smolagents import tool, CodeAgent, HfApiModel
-    from asqav.extras.smolagents import AsqavSmolagentsHook
-
-    hook = AsqavSmolagentsHook(agent_name="my-smolagent")
-
-    @tool
-    def search_web(query: str) -> str:
-        \"\"\"Search the web for information.
-
-        Args:
-            query: The search query string.
-        \"\"\"
-        return "results"
-
-    signed_search = hook.wrap_tool(search_web)
-    agent = CodeAgent(tools=[signed_search], model=HfApiModel())
-"""
+"""smolagents (Hugging Face) integration (pip install asqav[smolagents]).
+``AsqavSmolagentsHook(...).wrap_tool(tool)`` signs each tool call."""
 
 from __future__ import annotations
 

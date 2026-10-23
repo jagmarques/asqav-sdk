@@ -1,20 +1,5 @@
-"""LlamaIndex integration for asqav.
-
-Install: pip install asqav[llamaindex]
-
-Usage::
-
-    import asqav
-    from llama_index.core.callbacks import CallbackManager
-    from asqav.extras.llamaindex import AsqavLlamaIndexHandler
-
-    asqav.init(api_key="...")
-    handler = AsqavLlamaIndexHandler(agent_name="my-agent")
-    callback_manager = CallbackManager([handler])
-
-    # Pass callback_manager to your LlamaIndex components.
-    # All LLM, query, retrieval, tool, and agent events are automatically signed.
-"""
+"""LlamaIndex integration for asqav (pip install asqav[llamaindex]).
+``CallbackManager([AsqavLlamaIndexHandler(...)])`` signs LLM/query events."""
 
 from __future__ import annotations
 

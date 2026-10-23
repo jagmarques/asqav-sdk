@@ -1,24 +1,5 @@
-"""OpenAI Agents SDK integration for asqav.
-
-Install: pip install asqav[openai-agents]
-
-Provides two integration points:
-
-- ``AsqavGuardrail`` - signs input/output events on agent runs.
-- ``AsqavTracingProcessor`` - signs trace and span lifecycle events
-  as governance records via the OpenAI Agents tracing pipeline.
-
-Usage::
-
-    from asqav.extras.openai_agents import AsqavGuardrail, AsqavTracingProcessor
-    from agents import Agent, add_trace_processor
-
-    # Guardrail (audit-only, never blocks)
-    agent = Agent(name="my-agent", guardrails=[AsqavGuardrail(agent_name="my-openai-agent")])
-
-    # Tracing processor (signs every trace/span lifecycle event)
-    add_trace_processor(AsqavTracingProcessor(agent_name="my-openai-agent"))
-"""
+"""OpenAI Agents SDK integration (pip install asqav[openai-agents]).
+``AsqavGuardrail`` signs I/O events; ``AsqavTracingProcessor`` signs spans."""
 
 from __future__ import annotations
 

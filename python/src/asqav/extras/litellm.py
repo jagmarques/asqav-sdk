@@ -1,27 +1,5 @@
-"""LiteLLM integration for asqav.
-
-Install: pip install asqav[litellm]
-
-Two adapters live here:
-
-``AsqavGuardrail``
-    Proxy-guardrail seam (pre/post-call hooks). Signs request lifecycle
-    events when wired as a LiteLLM guardrail.
-
-``AsqavSigningLogger``
-    CustomLogger logging seam. Signs each successful LLM call via the
-    Asqav cloud (ML-DSA receipt) and writes a local JSONL index line so
-    the cloud signature and the local record are stitched together.
-
-Usage (signing logger)::
-
-    import asqav
-    from asqav.extras.litellm import AsqavSigningLogger
-    import litellm
-
-    asqav.init("sk_live_...")
-    litellm.callbacks = [AsqavSigningLogger()]
-"""
+"""LiteLLM integration for asqav (pip install asqav[litellm]).
+``AsqavGuardrail`` signs proxy hooks; ``AsqavSigningLogger`` signs LLM calls."""
 
 from __future__ import annotations
 
@@ -122,14 +100,8 @@ class AsqavGuardrail(AsqavAdapter):
         original_exception: Exception,
         user_api_key_dict: dict,
     ) -> None:
-        """Sign after a failed LLM call.
-
-        Surfaces error events under `risk_class="medium"` so the IETF
-        Compliance Receipts profile sees a controlled-vocabulary risk
-        signal even when callers do not configure compliance_mode. The
-        cloud only emits risk_class on the signed envelope under
-        compliance_mode; outside it the value is dropped.
-        """
+        """Sign after a failed LLM call, under `risk_class="medium"`.
+        The cloud keeps risk_class on the envelope only in compliance_mode."""
         await self._sign_action_async(
             "llm:error",
             {
@@ -308,7 +280,7 @@ class AsqavSigningLogger(CustomLogger):
         self._lock = threading.Lock()
         self._warned = False
 
-        # Key resolution mirrors AsqavAdapter: explicit key, env, file, then init() key.
+        # Key resolution mirrors AsqavAdapter: explicit key, env, file, init()
         resolved_key = resolve_api_key(api_key) or _client._api_key
         self._adapter: AsqavAdapter | None = None
         if not resolved_key:
@@ -328,7 +300,7 @@ class AsqavSigningLogger(CustomLogger):
             )
             self._adapter = None
 
-        # Warn once that signing is off so the logger never looks like enforcement.
+        # Warn once that signing is off so it never looks like enforcement.
     def _warn_no_key(self) -> None:
         if not self._warned:
             logger.warning(
@@ -371,7 +343,7 @@ class AsqavSigningLogger(CustomLogger):
                 "AsqavSigningLogger sign/index failed (fail-soft): %s", exc
             )
 
-        # Append one JSONL index line stitching local digests to the cloud receipt.
+        # Append one JSONL index line tying local digests to the receipt.
     def _append_index(self, fields: dict[str, Any], sig: Any) -> None:
         record = {
             "ts": time.time(),

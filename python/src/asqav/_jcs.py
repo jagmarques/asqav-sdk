@@ -15,7 +15,7 @@ __all__ = ["canonical_json"]
 
     # UTF-16 code-unit sort key for a JSON member name (RFC 8785 section 3.2.3).
 def _utf16_order(key: str) -> bytes:
-    # Big-endian UTF-16 bytes compare in the same order as the code units they encode.
+    # Big-endian UTF-16 bytes sort like the code units they encode.
     return key.encode("utf-16-be")
 
 
@@ -43,7 +43,6 @@ def _utf16_ordered(obj: Any) -> Any:
     return obj
 
 
-    # Return canonical JCS bytes for ``obj``, byte-identical to the cloud.
 #: Asqav profile bound: draft Section 4 ends the safe interval at 2**53 - 1.
 #: Exactly representable 2**53 is refused here; generic JCS keeps accepting it.
 MAX_PROFILE_INTEGER = 2**53 - 1

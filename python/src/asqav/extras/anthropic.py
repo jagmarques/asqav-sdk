@@ -1,26 +1,5 @@
-"""Anthropic SDK integration for asqav.
-
-Install: pip install asqav[anthropic]
-
-Wraps anthropic.Anthropic so every messages.create call produces a
-signed asqav receipt automatically.
-
-Usage::
-
-    from asqav.extras.anthropic import AsqavAnthropic
-    client = AsqavAnthropic(
-        anthropic_api_key="sk-ant-...",
-        asqav_api_key="sk_live_...",
-        agent_name="my-claude-agent",
-    )
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": "Hello"}],
-    )
-    print(response.content[0].text)
-    print(response._asqav_receipt.verification_url)
-"""
+"""Anthropic SDK integration for asqav (pip install asqav[anthropic]).
+Wraps anthropic.Anthropic; each messages.create call yields a receipt."""
 
 from __future__ import annotations
 

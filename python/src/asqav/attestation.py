@@ -1,20 +1,5 @@
 """Offline verification for opaque-claim attestation receipts.
-
-Mirrors the statement-hash canonicalization the asqav cloud pins for
-POST /attestations, so a caller holding the ORIGINAL claim can re-derive
-the statement hash a receipt commits to, check asqav's signature over the
-signed message, and check the inclusion proof against a signed tree head.
-
-The verdict is deliberately distinct from a plain pass. The receipt's
-commitment is an HMAC sealed with a key only the holder has, so a verifier
-can confirm the commitment was hashed and signed but can never re-derive it
-from the claim. A good receipt therefore yields a "verified, commitment not
-re-derivable" outcome, never a plain PASS.
-
-The statement-hash and signed-message shapes mirror the cloud route
-src/asqav_cloud/api/routes/attestations.py byte for byte. The Merkle helpers
-mirror src/asqav_cloud/core/merkle.py (certificate-transparency 6962-style).
-"""
+A good receipt is "verified, commitment not re-derivable", not a plain PASS."""
 
 from __future__ import annotations
 
@@ -47,7 +32,7 @@ __all__ = [
 ATTESTATION_STATEMENT_SCHEMA = "asqav.attestation/1"
 DEFAULT_COMMITMENT_ALG = "HMAC-SHA256"
 
-#: Public verdict vocabulary (criteria 418/438). An attestation receipt is verified_keyed,
+#: Verdict vocabulary (418/438). An attestation receipt is verified_keyed,
 #: never plain verified: the HMAC commitment is sealed with a holder-only key.
 VERDICT_VERIFIED_KEYED = "verified_keyed"
 VERDICT_UNVERIFIED = "unverified"
@@ -61,7 +46,7 @@ _AXIS_FAIL = "FAIL"
 _AXIS_SKIP = "SKIP"
 _AXIS_NOT_REDERIVABLE = "NOT_REDERIVABLE"
 
-# Merkle domain separation, mirroring the cloud (6962-style second-preimage guard).
+# Merkle domain separation, mirroring the cloud (6962-style).
 _LEAF_PREFIX = b"\x00"
 _NODE_PREFIX = b"\x01"
 
@@ -145,7 +130,7 @@ def _largest_power_of_two_below(n: int) -> int:
     return k
 
 
-    # Merkle tree hash over already-hashed leaves. Empty tree hashes SHA256(b"").
+    # Merkle tree hash over already-hashed leaves; empty tree is SHA256(b"").
 def merkle_root(leaves: list[bytes]) -> bytes:
     n = len(leaves)
     if n == 0:
@@ -277,7 +262,7 @@ def verify_attestation_offline(
     else:
         axes.append(_axis("statement_hash", _AXIS_FAIL, "claim does not match the receipt hash"))
 
-    # Signature axis: verify over the exact signed message and bind it to the claim.
+    # Signature axis: verify the exact signed message and bind it to the claim.
     if signed_message is None or verify_signature is None:
         axes.append(_axis("signature", _AXIS_SKIP, "no signed message or verifier supplied"))
     else:
@@ -303,7 +288,7 @@ def verify_attestation_offline(
         else:
             axes.append(_axis("inclusion", _AXIS_FAIL, "proof does not match the tree head"))
 
-    # Commitment axis: the holder key is required and absent, so this is structural.
+    # Commitment axis: the holder key is absent, so this is structural.
     axes.append(
         _axis(
             "commitment",
@@ -321,7 +306,7 @@ def verify_attestation_offline(
     }
 
 
-    # Verify the receipt signature over the signed message and bind it to the claim.
+    # Verify the signature over the signed message and bind it to the claim.
 def _check_signature(
     signed_message: bytes,
     receipt: dict[str, Any],
@@ -329,7 +314,7 @@ def _check_signature(
     verify_signature: Callable[[bytes, bytes], bool],
 ) -> tuple[str, str]:
     try:
-        # Strict ingest (419): a duplicated member name never reaches the bind check.
+        # Strict ingest (419): a duplicated member never reaches the bind check.
         message_obj = strict_json.loads(signed_message)
     except strict_json.DuplicateMemberError as exc:
         return _AXIS_FAIL, f"signed message rejected: {exc}"

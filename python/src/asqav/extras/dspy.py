@@ -1,18 +1,5 @@
-"""DSPy integration for asqav.
-
-Install: pip install asqav[dspy]
-
-Usage::
-
-    import asqav
-    import dspy
-    from asqav.extras.dspy import AsqavDSPyCallback
-
-    asqav.init(api_key="...")
-    dspy.configure(callbacks=[AsqavDSPyCallback(agent_name="my-agent")])
-
-    # All subsequent DSPy module, LM, and tool calls are automatically signed.
-"""
+"""DSPy integration for asqav (pip install asqav[dspy]).
+``dspy.configure(callbacks=[AsqavDSPyCallback(...)])`` signs every call."""
 
 from __future__ import annotations
 

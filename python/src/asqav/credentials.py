@@ -1,10 +1,5 @@
-"""File-backed credential layer for the Asqav SDK.
-
-Stores an API key (and optional API base) in ``~/.asqav/credentials`` so the SDK
-and CLI can resolve a key without an environment variable. Resolution mirrors
-:mod:`asqav.local`: explicit argument, then environment, then file. The API base
-order is documented on :func:`resolve_api_base`.
-"""
+"""File-backed credential layer for the Asqav SDK (``~/.asqav/credentials``).
+Resolution mirrors :mod:`asqav.local`: argument, then environment, then file."""
 
 from __future__ import annotations
 
@@ -28,12 +23,7 @@ CREDENTIALS_PATH = Path(os.path.expanduser("~")) / ".asqav" / "credentials"
 
 def _validated_fs_path(raw: str, source: str) -> Path:
     """Sanitize a caller-supplied path before any file I/O.
-
-    Expands a leading ``~`` and rejects the two classic path-injection vectors,
-    null bytes and traversal (``..``) components, so an attacker-influenced
-    value cannot redirect a read, write, or chmod to an arbitrary location.
-    Raises ``ValueError`` on a rejected path.
-    """
+    Expands ``~``; raises ``ValueError`` on null bytes or ``..`` components."""
     if "\x00" in raw:
         raise ValueError(f"{source} must not contain null bytes")
     expanded = os.path.expanduser(raw)
@@ -55,7 +45,7 @@ def credentials_path() -> Path:
     return Path(os.path.expanduser("~")) / ".asqav" / "credentials"
 
 
-    # Read the credentials file. Missing or corrupt file returns {} (never raises).
+    # Read the credentials file; a missing or corrupt file returns {}.
 def load_credentials() -> dict[str, object]:
     try:
         data = json.loads(credentials_path().read_text(encoding="utf-8"))
@@ -81,7 +71,7 @@ def save_credentials(api_key: str, api_base: str | None = None) -> Path:
     return path
 
 
-    # Resolve an API key: explicit arg, then ASQAV_API_KEY env, then credentials file.
+    # Resolve an API key: argument, then ASQAV_API_KEY, then credentials file.
 def resolve_api_key(explicit: str | None = None) -> str | None:
     if explicit:
         return explicit

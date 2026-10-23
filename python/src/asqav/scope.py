@@ -32,7 +32,7 @@ class ScopeToken:
 
     # -- helpers --------------------------------------------------------------
 
-        # Return an ``Authorization`` header dict; ``disclose=None`` includes all disclosures.
+        # Return an ``Authorization`` header dict; ``disclose=None`` sends all.
     def to_header(self, disclose: list[str] | None = None) -> dict[str, str]:
         if disclose is not None:
             parts = [self.jwt]
@@ -87,7 +87,7 @@ class ScopeToken:
 # -- factory ----------------------------------------------------------------
 
 
-    # Issue a portable :class:`ScopeToken` for an agent over the given action patterns.
+    # Issue a portable :class:`ScopeToken` for an agent over action patterns.
 def create_scope_token(
     agent: Agent,
     actions: list[str],

@@ -37,7 +37,7 @@ class Session:
         return self._agent.sign(action_type, context, **kwargs)
 
 
-    # Context manager that groups sign calls; signs ``session:error`` on exception.
+    # Context manager grouping sign calls; signs ``session:error`` on exception.
 @contextmanager
 def session() -> Generator[Session, None, None]:
     agent = get_agent()
@@ -59,7 +59,7 @@ def session() -> Generator[Session, None, None]:
         agent.end_session(status="completed")
 
 
-    # Async counterpart of :func:`session`; signs ``session:error`` on exception.
+    # Async counterpart of :func:`session`; signs ``session:error`` on error.
 @asynccontextmanager
 async def async_session() -> AsyncGenerator[Session, None]:
     agent = get_agent()
@@ -84,15 +84,8 @@ async def async_session() -> AsyncGenerator[Session, None]:
 
 
 def sign(func: Any = None, *, action_type: str | None = None) -> Any:
-    """Decorator that auto-signs function execution (sync + async, with or without parens).
-
-    ``action_type`` overrides the default ``"function:call"``.
-
-    Trust contract (fail-closed): the ``function:call`` sign runs BEFORE the wrapped
-    body. If signing is refused (a blocked policy, a non-2xx response, or a network
-    error), the raised error propagates and the body never executes. Unsigned actions
-    abort by default - the caller does not need to check a return value to stay safe.
-    """
+    """Decorator that auto-signs function execution (sync and async).
+    Fail-closed: ``function:call`` is signed BEFORE the body."""
 
     def decorator(fn: Any) -> Any:
         call_type = action_type or "function:call"

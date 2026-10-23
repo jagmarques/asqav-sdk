@@ -17,7 +17,7 @@ from ._jcs import canonical_json
 from .client import SignedActionResponse, get_session_signatures
 from .compliance import ComplianceBundle
 
-#: Seed planted as `previousReceiptHash` on the first record per chain (mirrors cloud).
+#: Seed planted as `previousReceiptHash` on a chain's first record.
 FIRST_RECEIPT_SEED: str = "0" * 64
 
 
@@ -52,7 +52,7 @@ class ReplayStep:
     explanation: str
     # Predecessor's chain hash; verify_chain recomputes and compares.
     prev_chain_hash: str | None = None
-    # Full signed envelope bytes; verify_chain hashes byte-for-byte when present.
+    # Full signed envelope bytes; verify_chain hashes them byte-for-byte.
     signed_envelope: dict[str, Any] | None = None
 
 
@@ -64,7 +64,7 @@ class ReplayTimeline:
     session_id: str
     steps: list[ReplayStep] = field(default_factory=list)
     chain_integrity: bool = True
-    # True only when every compliance-mode step verified byte-for-byte from its signed envelope.
+    # True only when every compliance-mode step verified from its envelope.
     compliance_chain_valid: bool = True
     start_time: float | None = None
     end_time: float | None = None
@@ -265,7 +265,7 @@ def replay(agent_id: str, session_id: str) -> ReplayTimeline:
     return _build_timeline(agent_id, session_id, raw_sigs)
 
 
-    # Reconstruct a :class:`ReplayTimeline` from a :class:`ComplianceBundle` export offline.
+    # Rebuild a :class:`ReplayTimeline` from a :class:`ComplianceBundle`.
 def replay_from_bundle(bundle: ComplianceBundle) -> ReplayTimeline:
     agent_id = ""
     session_id = ""
@@ -336,7 +336,7 @@ def _build_timeline(
             prev_hash = hashlib.sha256(canonical_json(envelope)).hexdigest()
         chain_hashes.append(prev_hash)
 
-    # Freshly built: initial chain_valid is True everywhere; verify_chain() catches later tampering.
+    # Freshly built: chain_valid starts True; verify_chain() catches tampering.
     steps: list[ReplayStep] = []
     for i, sig in enumerate(sorted_sigs):
         explanation = _build_explanation(sig.action_type, sig.payload)

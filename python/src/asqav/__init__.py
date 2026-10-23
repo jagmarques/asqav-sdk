@@ -1,31 +1,5 @@
-"""
-asqav - AI agent governance: audit trails, policy enforcement, compliance.
-
-Thin SDK that connects to asqav.com. All ML-DSA cryptography happens server-side.
-
-Quick Start:
-    import asqav
-
-    asqav.init(api_key="sk_...")
-    agent = asqav.Agent.create("my-agent")
-    sig = agent.sign("api:call", {"model": "gpt-4"})
-
-With Tracing:
-    import asqav
-
-    asqav.init()
-
-    with asqav.span("api:openai", {"model": "gpt-4"}) as s:
-        response = client.chat.completions.create(...)
-        s.set_attribute("tokens", response.usage.total_tokens)
-
-With Decorators:
-    @asqav.secure
-    def my_agent_function():
-        return "Cryptographically signed"
-
-Get your API key at asqav.com
-"""
+"""asqav - AI agent governance: audit trails, policy enforcement, compliance.
+Thin SDK for asqav.com; ML-DSA signing happens server-side."""
 
 from . import doors, strict_json
 from ._detectors import (
@@ -368,7 +342,7 @@ __all__ = [
     "SKEW_BOUND_SECONDS",
     "ComplianceReceiptVerification",
     "verify_compliance_receipt",
-    # Counterparty acknowledgment binding (IETF -04 counterparty_binding extension)
+    # Counterparty acknowledgment binding (IETF -04 counterparty_binding)
     "ACKNOWLEDGMENT_RECEIPT_TYPE",
     "CounterpartyBinding",
     "CounterpartyBindingVerification",
@@ -394,7 +368,7 @@ __all__ = [
     # Offline / air-gapped verification helpers
     "fetch_jwks",
     "verify_receipt_offline",
-    # Opaque-claim attestation commitments and offline verification (criterion 281)
+    # Opaque-claim attestation commitments and offline verification
     "new_opening",
     "commit",
     "compute_statement_hash",
@@ -500,7 +474,7 @@ def verify_receipt_offline(
         try:
             strict_json.assert_canonical_integers(predecessor)
         except strict_json.UnsafeIntegerError:
-            # The whole predecessor goes to the core, which refuses it as raw-text ingest does.
+            # The core refuses the whole predecessor, as raw-text ingest does.
             predecessor_payload = predecessor
     vr = _oracle_verify(
         receipt, _ADAPTERS, key_provider=jwks, predecessor=predecessor_payload,
@@ -525,7 +499,7 @@ def verify_receipt_offline(
         # and the TS twin so the key sets stay identical.
         "registry_edition": _REGISTRY_EDITION,
         "registry_version": _REGISTRY_VERSION,
-        # Mirrors the TS twin's resolved context; unset hints are omitted like undefined.
+        # Mirrors the TS twin's resolved context; unset hints are omitted.
         "context": {
             k: v for k, v in (vars(vr.context) if vr.context else {}).items() if v is not None
         },

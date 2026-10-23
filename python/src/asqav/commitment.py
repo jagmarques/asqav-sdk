@@ -1,16 +1,5 @@
-"""Caller-held keyed commitments for opaque-claim attestations.
-
-Builds a randomised keyed commitment locally so a caller can seal a claim
-before submitting it to asqav's /attestations route. The commitment is an
-HMAC the caller seals with a key only they hold, so asqav can never open it.
-
-The keyed framing (opening, label, version, data) follows the IETF KeyTrans
-protocol draft: https://datatracker.ietf.org/doc/draft-ietf-keytrans-protocol/
-
-SECURITY: the key is generated and held by the CALLER. This module never
-sends, logs, persists, or default-generates key material. Key bytes only
-ever live in the caller's memory for the lifetime of the HMAC call.
-"""
+"""Caller-held keyed commitments for opaque claims (draft-ietf-keytrans).
+The caller holds the key; this module never generates, stores or sends it."""
 
 from __future__ import annotations
 
@@ -39,13 +28,8 @@ def commit(
     version: int,
     data: bytes,
 ) -> str:
-    """Return lowercase hex of HMAC-SHA256 over the framed commitment input.
-
-    The MAC input is ``opening || label || version || data`` with the label
-    UTF-8 encoded and the version as a 4-byte big-endian integer, the keyed
-    framing from the IETF KeyTrans draft. The caller supplies ``key``. This
-    function never generates, stores, logs, or transmits the key.
-    """
+    """Return hex HMAC-SHA256 over ``opening || label || version || data``.
+    The caller supplies ``key``; it is never generated, stored or sent."""
     # Key material is caller-owned. It is read here and nowhere else, and it
     # never leaves the caller's process. Do not add a default or a fallback.
     framed = opening + label.encode("utf-8") + version.to_bytes(4, "big") + data

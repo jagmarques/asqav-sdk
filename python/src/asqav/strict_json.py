@@ -1,21 +1,5 @@
-"""Strict JSON ingest for receipts and records (criterion 419).
-
-Every receipt- and record-parsing path routes through ``loads`` so a duplicated
-JSON member name at ANY nesting depth is a terminal parse failure, raised before
-any hashing, canonicalisation, or signature check. The stdlib ``json`` decoder is
-last-wins on duplicate members, which would silently hash the bytes an attacker
-kept and drop the ones they replaced; refusing the document outright is the only
-fail-closed reading.
-
-The standalone verifier (``verifier/verify_receipt.py``) ships as one file and
-carries its own copy of this hook rather than importing this module.
-
-Integers outside +/-2**53 are refused here too. Beyond that magnitude an integer
-has no exact IEEE-754 double, so a JavaScript reader rounds it while Python keeps
-it: the same receipt canonicalises to two different byte strings and its signature
-verifies in one implementation and fails in the other. Refusing at ingest is the
-only reading that keeps the two SDKs byte-identical.
-"""
+"""Strict JSON ingest for receipts and records.
+Duplicate member names and integers beyond +/-2**53 fail before any hashing."""
 
 from __future__ import annotations
 
@@ -40,8 +24,8 @@ __all__ = [
     "assert_canonical_integers",
 ]
 
-#: Largest integer both SDKs canonicalise identically (2**53 + 1 has no exact double).
-#: One above Number.isSafeInteger: the upstream vector `number_2_to_53` pins 2**53.
+#: Largest integer both SDKs canonicalise identically (no exact double above).
+#: One above Number.isSafeInteger; vector `number_2_to_53` pins 2**53.
 MAX_CANONICAL_INTEGER = 2**53
 
 #: Largest integer magnitude the Asqav profile admits: draft Section 4 ends the
@@ -99,7 +83,7 @@ def reject_unsafe_integer(literal: str) -> int:
     return value
 
 
-    # Parse JSON with duplicate-member and unsafe-integer rejection at every depth.
+    # Parse JSON rejecting duplicate members and unsafe integers at any depth.
 def loads(text: str | bytes, **kwargs: Any) -> Any:
     for reserved in ("object_pairs_hook", "parse_int"):
         if reserved in kwargs:
@@ -112,7 +96,7 @@ def loads(text: str | bytes, **kwargs: Any) -> Any:
     )
 
 
-    # Refuse any parsed int or integer-valued float outside the profile interval.
+    # Refuse any parsed int or integral float outside the profile interval.
 def assert_profile_integers(obj: Any) -> None:
     stack: list[tuple[Any, str]] = [(obj, "$")]
     while stack:
@@ -153,7 +137,7 @@ def assert_profile_integers(obj: Any) -> None:
             stack.extend((v, f"{path}[{i}]") for i, v in enumerate(node))
 
 
-    # Refuse a parsed int outside +/-2**53 at any depth, as strict ingest would have.
+    # Refuse a parsed int outside +/-2**53 at any depth.
     # Dict API callers get the same refusal as raw text callers.
 def assert_canonical_integers(obj: Any) -> None:
     stack: list[Any] = [obj]
@@ -176,7 +160,7 @@ def assert_canonical_integers(obj: Any) -> None:
             stack.extend(node)
 
 
-    # Strict ingest plus the narrower Asqav profile range; shared loads unchanged.
+    # Strict ingest plus the narrower Asqav profile range.
 def loads_profile(text: str | bytes, **kwargs: Any) -> Any:
     for reserved in ("object_pairs_hook", "parse_int", "parse_float"):
         if reserved in kwargs:

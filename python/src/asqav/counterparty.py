@@ -22,7 +22,7 @@ __all__ = [
     "verify_counterparty_binding",
 ]
 
-#: Receipt type emitted by an acknowledging agent (B) over an originating receipt.
+#: Receipt type emitted by an acknowledging agent (B) over an originating one.
 ACKNOWLEDGMENT_RECEIPT_TYPE: str = "protectmcp:acknowledgment"
 BINDING_SCOPE = "envelope_minus_anchors"
 
@@ -135,7 +135,7 @@ def compute_envelope_hash(envelope: dict[str, Any]) -> str:
     ):
         raise ValueError("counterparty_origin_unavailable: signature object is incomplete")
     try:
-        # Raw-text ingest refuses the whole origin over such an integer; so does a dict.
+        # Raw-text ingest refuses the origin on such an integer; so does a dict.
         strict_json.assert_canonical_integers(envelope)
     except strict_json.UnsafeIntegerError as exc:
         raise ValueError("counterparty_origin_unavailable: integer outside +/-2**53") from exc
@@ -166,12 +166,7 @@ def compute_counterparty_binding(
     terms: dict[str, Any] | None = None,
 ) -> CounterpartyBinding:
     """Build a :class:`CounterpartyBinding` for the originating envelope.
-
-    Pass the peer's original signing envelope. Hosted admission needs an explicit
-    originating signature_id as receipt_ref; the action_id fallback is an offline locator.
-    A declared ``profile_version`` must be one this SDK implements; ``terms`` are
-    hashed so the peer's digest recomputes exactly.
-    """
+    Hosted admission needs an explicit signature_id as receipt_ref."""
     if profile_version is not None and profile_version != PROFILE_VERSION:
         raise ValueError(
             f"counterparty_profile_unsupported: {profile_version!r} is not {PROFILE_VERSION!r}"

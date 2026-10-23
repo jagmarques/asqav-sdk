@@ -1,19 +1,5 @@
-"""LangChain integration for asqav.
-
-Install: pip install asqav[langchain]
-
-Default-on (one call, no per-invoke config)::
-
-    from asqav.extras.langchain import enable_langchain_governance
-    enable_langchain_governance(agent_name="my-langchain-agent")
-    chain.invoke(input)  # signs receipts, no config={"callbacks": [...]}
-
-Manual attach (unchanged, still supported)::
-
-    from asqav.extras.langchain import AsqavCallbackHandler
-    handler = AsqavCallbackHandler(agent_name="my-langchain-agent")
-    chain.invoke(input, config={"callbacks": [handler]})
-"""
+"""LangChain integration for asqav (pip install asqav[langchain]).
+``enable_langchain_governance()`` or ``AsqavCallbackHandler`` signs runs."""
 
 from __future__ import annotations
 
@@ -177,7 +163,7 @@ class AsqavCallbackHandler(BaseCallbackHandler, AsqavAdapter):  # type: ignore[m
 
 # -- Default-on entrypoint -----------------------------------------------------
 
-# LangChain auto-attaches the handler once its ContextVar is set and the hook is registered.
+# LangChain attaches the handler once its ContextVar is set and the hook is on.
 _ASQAV_LC_HANDLER: ContextVar[AsqavCallbackHandler | None] = ContextVar(
     "asqav_langchain_handler", default=None
 )
@@ -192,13 +178,7 @@ def enable_langchain_governance(
     observe: bool = False,
 ) -> AsqavCallbackHandler:
     """Turn on default-on asqav governance for LangChain in one call.
-
-    After this call every chain, tool, and LLM run in the current context
-    signs an asqav receipt with no per-invoke ``config={"callbacks": [...]}``.
-    It registers a langchain_core configure hook once and binds the handler to
-    a ContextVar; LangChain's run configuration then attaches it to every run.
-    Signing stays fail-open and the returned handler holds the signatures.
-    """
+    Registers a configure hook once; every run signs a receipt, fail-open."""
     global _hook_registered
     from langchain_core.tracers.context import register_configure_hook
 

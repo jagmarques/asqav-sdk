@@ -1,31 +1,5 @@
 """Acceptor-side admission control for an inbound peer receipt.
-
-An Acceptor is the party on the receiving end of an agent-to-agent action. This
-module answers one question: may this inbound action be admitted, given the
-receipt the peer presented?
-
-It is deliberately NOT a thin wrapper over the verifier. Three of its rules do
-not follow from the verdict alone, and each exists because a peer could
-otherwise weaken the evidence without ever producing an unverified receipt:
-
-  Expiry.   The verifier reports expiry on its own axis and never folds it into
-            the verdict, so a lapsed receipt still reads `verified`. That is
-            correct for a verifier - the signature really is good - and wrong for
-            an acceptor, which is deciding about an action happening NOW.
-
-  Seq downgrade. A peer that has been emitting a counter and then stops emitting
-            one makes contiguity uncheckable across that link. Absence has to
-            stay legal in general (receipts predate the member), but an acceptor
-            holding a predecessor that carried one is watching the exact
-            transition that hides a withheld receipt.
-
-  Challenge. A challenge the acceptor issued but the receipt does not answer is
-            a challenge that proved nothing. "Verify it when present" alone
-            would let a peer skip freshness by simply omitting the member.
-
-The verification itself is the shared oracle's, not a reimplementation, so an
-acceptor and an offline auditor cannot disagree about the same bytes.
-"""
+Adds expiry, seq-downgrade and challenge rules on top of the shared verifier."""
 
 from __future__ import annotations
 
@@ -48,20 +22,15 @@ __all__ = [
     "encode_receipt_header",
 ]
 
-#: Verdicts an acceptor may admit. `verified_keyed` counts: the peer's own keyed digest
-#: is internally consistent, proving the same binding while not third-party re-derivable.
+#: Verdicts an acceptor may admit; `verified_keyed` counts (own keyed digest
+#: is consistent, but not third-party re-derivable).
 _ADMISSIBLE_VERDICTS = frozenset({VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED})
 
 
 @dataclass(frozen=True)
 class AcceptorDecision:
     """Whether to admit an inbound action, and the single reason why not.
-
-    ``first_failing_edge`` names the earliest check that stopped the receipt, so
-    a refusal points at one edge rather than handing back a wall of axes.
-    ``rule`` names which acceptor rule refused, and is ``"verifier"`` when the
-    receipt simply did not verify.
-    """
+    ``first_failing_edge`` is the first failed check; ``rule`` the refuser."""
 
     accepted: bool
     reason: str
@@ -87,15 +56,7 @@ def check_peer_receipt(
     now: datetime | None = None,
 ) -> AcceptorDecision:
     """Decide whether an inbound action carrying ``receipt`` may be admitted.
-
-    ``predecessor`` is the last receipt this acceptor admitted from the same
-    peer chain; supplying it is what lets the seq and chain axes mean anything,
-    since neither can detect a gap against nothing. ``challenge`` is the nonce
-    this acceptor issued for this exchange, if it issued one.
-
-    Refuses on the first rule that fails, in a fixed order, so the reason is
-    deterministic for the same inputs.
-    """
+    Refuses on the first failing rule, in a fixed order."""
     result = verify(receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor)
 
     if result.verdict not in _ADMISSIBLE_VERDICTS:
@@ -189,7 +150,7 @@ def check_peer_receipt(
     )
 
 
-# --- ASGI adapter: wrapper only, no FastAPI/Starlette/Quart dependency. The decision
+# --- ASGI adapter, no framework dependency. The decision
 # stays in check_peer_receipt, so mounting this and calling it directly agree.
 
 #: Header the peer presents its receipt in, JSON or base64-of-JSON.
@@ -227,19 +188,7 @@ def _decode_receipt(raw: bytes) -> dict | None:
 
 class AcceptorMiddleware:
     """ASGI middleware refusing a request whose peer receipt is not admissible.
-
-    Fails CLOSED: a request carrying no receipt, or one whose header does not
-    parse, is refused. An acceptor that admitted an unsigned request while
-    refusing a badly-signed one would be strictly worse than having no middleware
-    at all, because the cheapest bypass would be to send nothing.
-
-    ``predecessor_for`` supplies the last receipt admitted from the same peer
-    chain; without it the seq and chain axes have nothing to compare against and
-    a gap cannot be detected. ``challenge_for`` supplies the nonce this acceptor
-    issued for the exchange, if any. Both take the parsed receipt and are
-    deliberately caller-supplied: where that state lives is the deployer's
-    choice, and guessing it here would be wrong for most of them.
-    """
+    Fails CLOSED; ``predecessor_for``/``challenge_for`` are caller-supplied."""
 
     def __init__(
         self,

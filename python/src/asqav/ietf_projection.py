@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-    # Return ``{alg, kid, sig}`` for compliance-mode receipts, else ``None`` (flat shape).
+    # Return ``{alg, kid, sig}`` for compliance-mode receipts, else ``None``.
 def signature_envelope_from_response(response: Any) -> dict[str, str] | None:
     sig = _get(response, "signature")
     if isinstance(sig, dict):

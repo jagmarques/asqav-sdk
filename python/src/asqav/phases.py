@@ -69,15 +69,8 @@ def sign_with_phases(
     trace_id: str | None = None,
     result: Any = None,
 ) -> PhaseChain:
-    """Execute the full three-phase signing flow.
-
-    Phase 1 (Intent): Sign what the agent wants to do
-    Phase 2 (Decision): Preflight check - policy evaluates
-    Phase 3 (Execution): Sign what actually happened (only if approved)
-
-    Each phase produces a receipt linked to the previous one. Pass result
-    when signing post-execution so the execution receipt binds the outcome.
-    """
+    """Execute the three-phase signing flow: intent, decision, execution.
+    Each receipt links to the previous one; ``result`` binds the outcome."""
     from .client import generate_trace_id
 
     tid = trace_id or generate_trace_id()

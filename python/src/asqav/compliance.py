@@ -68,7 +68,7 @@ FRAMEWORKS = {
     },
 }
 
-    # Compute Merkle root from hex hashes (binary tree, odd levels duplicate the tail).
+    # Merkle root from hex hashes (binary tree, odd levels repeat the tail).
 def _compute_merkle_root(hashes: list[str]) -> str:
     if not hashes:
         return hashlib.sha256(b"").hexdigest()
@@ -93,7 +93,7 @@ def _receipt_hash(receipt: dict) -> str:
     return hashlib.sha256(canonical_json(receipt)).hexdigest()
 
 
-    # Convert a SignatureResponse, SignedActionResponse, or dict to a receipt dict.
+    # Convert a SignatureResponse, SignedActionResponse or dict to a receipt.
 def _normalize_signature(sig: Any) -> dict:
     if isinstance(sig, dict):
         return sig

@@ -1,33 +1,5 @@
-"""Strands Agents integration for asqav.
-
-Install: pip install asqav[strands]
-
-Auto-signs every model call from a Strands ``Agent`` via the typed hooks API
-(``BeforeModelCallEvent`` and ``AfterModelCallEvent``). Each model call yields
-an ``strands:model_call`` governance signature with input/output hashes, model
-name, and latency. Signing is fail-open so governance never breaks the agent.
-
-This adapter is implemented as a thin wrapper over the Asqav SDK's generic
-hooks system (:mod:`asqav.hooks`). Input/output hashing is registered as an
-internal ``before`` hook so the same pattern is available to any user
-integration.
-
-Usage::
-
-    import asqav
-    from asqav.extras.strands import AsqavStrandsHooks
-    from strands import Agent
-
-    asqav.init(api_key="sk_...")
-    hooks = AsqavStrandsHooks(agent_name="my-strands-agent")
-
-    agent = Agent(hooks=[hooks])
-    agent("What is the capital of France?")
-
-References:
-    https://strandsagents.com/latest/documentation/docs/user-guide/safety-security/hooks/
-    https://github.com/strands-agents/sdk-python/issues/2079
-"""
+"""Strands Agents integration for asqav (pip install asqav[strands]).
+Signs each model call via the typed hooks API; signing is fail-open."""
 
 from __future__ import annotations
 

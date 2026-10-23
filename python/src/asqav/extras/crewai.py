@@ -1,31 +1,5 @@
-"""CrewAI integration for asqav.
-
-Default-on (one call, no per-crew callback wiring)::
-
-    import asqav
-    from asqav.extras.crewai import enable_crew_governance
-
-    asqav.init("sk_...")
-    crew = Crew(agents=[...], tasks=[...])
-    enable_crew_governance(crew, agent_name="my-crew")
-    crew.kickoff()  # every step and task now signs a receipt
-
-Manual attach (unchanged, still supported)::
-
-    from asqav.extras.crewai import AsqavCrewHook
-    hook = AsqavCrewHook(agent_name="my-crew")
-    crew = Crew(
-        agents=[...],
-        tasks=[...],
-        step_callback=hook.step_callback,
-        task_callback=hook.task_callback,
-    )
-
-crewai is duck-typed, not imported: this module has no hard crewai dependency,
-so it imports cleanly even where the crewai extra is unavailable. The crewai
-extra is intentionally empty because crewai pulls chromadb (CVE-2025-47947);
-install crewai yourself. See ``docs/integrations-crewai.md``.
-"""
+"""CrewAI integration for asqav; crewai is duck-typed, never imported.
+``enable_crew_governance(crew)`` signs each step and task."""
 
 from __future__ import annotations
 
@@ -219,7 +193,7 @@ class AsqavGuardrailProvider(AsqavAdapter):
 # -- Default-on entrypoint -----------------------------------------------------
 
 
-    # Chain an existing callback with the asqav one, preserving existing behavior.
+    # Chain an existing callback with the asqav one, keeping existing behavior.
 def _compose(
     existing: Callable[[Any], Any] | None,
     added: Callable[[Any], Any],
@@ -246,17 +220,7 @@ def enable_crew_governance(
     observe: bool = False,
 ) -> AsqavCrewHook:
     """Turn on default-on asqav governance for a CrewAI crew in one call.
-
-    Wires the crew's ``step_callback`` and ``task_callback`` to an
-    ``AsqavCrewHook`` so every step and task signs an asqav receipt without any
-    manual per-crew callback config. Any callbacks the crew already has are kept
-    and run first (additive). ``crew`` is duck-typed, so no crewai import is
-    needed. Signing stays fail-open and the returned hook holds the signatures.
-
-    Idempotent: the first call stores the hook on the crew as
-    ``_asqav_crew_hook``; a later call returns that same hook and does not wire
-    a second callback layer or create another agent.
-    """
+    Keeps existing callbacks, fails open, and is idempotent per crew."""
     # Check before construct: avoid creating an orphan agent on a second call.
     existing = getattr(crew, "_asqav_crew_hook", None)
     if existing is not None:

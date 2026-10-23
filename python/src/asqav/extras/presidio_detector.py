@@ -1,18 +1,5 @@
 """PresidioDetector: wraps Microsoft Presidio Analyzer for PII detection.
-
-Install: ``pip install asqav[presidio]``
-
-Usage::
-
-    from asqav.extras.presidio_detector import PresidioDetector
-    import asqav
-
-    asqav.register_detector(PresidioDetector())
-
-The detector stringifies the context dict and scans it with Presidio's
-AnalyzerEngine. Any high-confidence PII entities (>= threshold) trigger
-an allow=False result. Entity types become labels on the result.
-"""
+High-confidence entities (>= threshold) give allow=False with entity labels."""
 
 from __future__ import annotations
 

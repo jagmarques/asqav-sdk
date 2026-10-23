@@ -19,7 +19,7 @@ logger = logging.getLogger("asqav")
 __all__ = ["AsqavAdapter"]
 
 
-    # Convert CamelCase class name to kebab-case (e.g. AsqavCrewHook -> asqav-crew-hook).
+    # Convert a CamelCase class name to kebab-case (AsqavX -> asqav-x).
 def _class_name_to_agent_name(cls_name: str) -> str:
     # Insert hyphen before uppercase letters, then lowercase
     s = re.sub(r"(?<=[a-z0-9])([A-Z])", r"-\1", cls_name)
@@ -91,14 +91,8 @@ class AsqavAdapter:
         context: dict | None = None,
         **compliance_kwargs,
     ) -> SignatureResponse | None:
-        """Async-context wrapper for ``_sign_action``.
-
-        ``Agent.sign`` is a synchronous HTTP round trip; calling it directly
-        from an async framework hook blocks the host's event loop for the
-        full request (seconds when the cloud anchors via an external TSA).
-        This runs it on a worker thread instead so concurrent requests keep
-        flowing. Async hooks must use this, never ``_sign_action`` directly.
-        """
+        """Async-context wrapper for ``_sign_action``, run on a worker thread.
+        Agent.sign blocks on HTTP; async hooks must use this."""
         if self._observe:
             logger.info(
                 "OBSERVE: would sign %s with context %s", action_type, context
