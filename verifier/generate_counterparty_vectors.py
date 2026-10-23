@@ -8,6 +8,7 @@ import argparse
 import base64
 import copy
 import hashlib
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -21,7 +22,7 @@ sys.path.insert(0, str(ROOT / "python" / "tests"))
 from tsa_testkit import make_timestamp_resp, make_tst_info  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "verifier"))
-from build_requirement_map import AXIS_SCOPE_KEY  # noqa: E402
+AXIS_SCOPE_KEY = importlib.import_module("build_requirement_map").AXIS_SCOPE_KEY
 
 SCOPE = "envelope_minus_anchors"
 CASES = (
