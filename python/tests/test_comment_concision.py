@@ -20,7 +20,7 @@ MAX_COMMENT_COLUMNS = checker.MAX_COMMENT_COLUMNS
 MAX_DOCSTRING_LINES = checker.MAX_DOCSTRING_LINES
 main = checker.main
 
-PKG = Path("python/src/asqav")
+PKG = checker.SOURCE_DIR
 
 
 def plant(root: Path, name: str, text: str) -> None:
@@ -91,8 +91,7 @@ def test_trailing_comment_counts_its_column(tmp_path, capsys):
 
 
 def test_long_bare_tool_directive_passes(tmp_path, capsys):
-    directive = " ".join(["type:", "ignore[x]"])
-    plant(tmp_path, "x.py", f"y = 1{' ' * MAX_COMMENT_COLUMNS}  # {directive}\n")
+    plant(tmp_path, "x.py", f"y = 1{' ' * MAX_COMMENT_COLUMNS}  # pragma: no cover\n")
     assert run(tmp_path, capsys)[0] == 0
 
 
