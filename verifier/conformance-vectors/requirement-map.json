@@ -1,6 +1,7 @@
 {
   "generated_by": "verifier/build_requirement_map.py",
   "how": "Each asqav-native vector is run through the offline verifier and the axes it actually exercises are read off the result. A SKIPPED axis is not coverage, whatever a vector's notes claim.",
+  "observed_verdict_note": "observed_verdict is an axis-scoped result: it covers only the axes in the vector's axis_scope.exercised, not a full-profile verdict. The anchor material this run reads ships in the vector beside the receipt (corpus_anchor_material); none is trusted material supplied apart from the corpus, so trusted_anchor_material_supplied is false and an anchors PASS shows the check ran, not that a trusted root confirmed it.",
   "axis_results": {
     "asqav-01-genesis-permit": {
       "structure": "PASS",
@@ -1091,6 +1092,9 @@
     "asqav-01-genesis-permit": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1114,6 +1118,9 @@
     "asqav-02-genesis-deny": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1137,6 +1144,9 @@
     "asqav-03-chain-link": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1160,6 +1170,9 @@
     "asqav-04-tamper-sig": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1183,6 +1196,9 @@
     "asqav-05-hash-mode-prod": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [],
       "not_exercised": [
         "REQ-ANCHOR",
@@ -1205,6 +1221,9 @@
     "asqav-06-mldsa65-payload-prod": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1228,6 +1247,9 @@
     "asqav-07-revoked-key": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1251,6 +1273,9 @@
     "asqav-08-v2-signer-canary": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1274,6 +1299,9 @@
     "asqav-09-v2-signer-tampered": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1297,6 +1325,9 @@
     "asqav-10-hash-mode-multikey": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [],
       "not_exercised": [
         "REQ-ANCHOR",
@@ -1319,6 +1350,9 @@
     "asqav-11-dup-member-toplevel": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1342,6 +1376,9 @@
     "asqav-12-time-edge-expiry": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1365,6 +1402,9 @@
     "asqav-13-dup-member-nested": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1388,6 +1428,9 @@
     "asqav-14-omitted-action-chain": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1411,6 +1454,9 @@
     "asqav-15-unsigned-gap": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1434,6 +1480,9 @@
     "asqav-16-chain-emission-blocked": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1457,6 +1506,9 @@
     "asqav-17-seq-contiguous": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1480,6 +1532,9 @@
     "asqav-18-seq-gap": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1503,6 +1558,9 @@
     "asqav-19-seq-non-monotonic": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1526,6 +1584,9 @@
     "asqav-20-seq-absent": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1549,6 +1610,9 @@
     "asqav-21-key-thumbprint-binds": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1572,6 +1636,9 @@
     "asqav-22-key-substituted": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1595,6 +1662,9 @@
     "asqav-23-anchor-status-pending": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1618,6 +1688,12 @@
     "asqav-24-anchor-block-hash-prod": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "bitcoin_headers.json",
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1640,6 +1716,9 @@
     "asqav-25-payload-digest-rederives": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1663,6 +1742,9 @@
     "asqav-26-payload-digest-mismatch": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1686,6 +1768,9 @@
     "asqav-27-anchors-absent": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1709,6 +1794,9 @@
     "asqav-28-anchors-null-malformed": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-STRUCTURE"
       ],
@@ -1732,6 +1820,9 @@
     "asqav-29-article-50-lifecycle-disclosure": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1755,6 +1846,11 @@
     "asqav-31-counterparty-scope-match": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1777,6 +1873,11 @@
     "asqav-32-counterparty-anchors-included": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1799,6 +1900,11 @@
     "asqav-33-counterparty-scope-absent": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1822,6 +1928,11 @@
     "asqav-34-counterparty-scope-unknown": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1845,6 +1956,11 @@
     "asqav-35-counterparty-peer-swapped": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1867,6 +1983,9 @@
     "asqav-35-invocation-ref-binds-pre-post": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1890,6 +2009,11 @@
     "asqav-36-counterparty-origin-forged": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1912,6 +2036,9 @@
     "asqav-36-invocation-ref-duplicate-emission": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1935,6 +2062,11 @@
     "asqav-37-counterparty-divergent-terms": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -1957,6 +2089,9 @@
     "asqav-37-unregistered-namespace-reported": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -1980,6 +2115,11 @@
     "asqav-38-counterparty-received-only": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -2002,6 +2142,9 @@
     "asqav-38-protectmcp-unknown-invalid": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2025,6 +2168,9 @@
     "asqav-38-unknown-member-preserved": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2048,6 +2194,9 @@
     "asqav-39-absent-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2071,6 +2220,11 @@
     "asqav-39-counterparty-cross-replay": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -2093,6 +2247,9 @@
     "asqav-39-foreign-namespace-reported": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2116,6 +2273,9 @@
     "asqav-39-malformed-type": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2139,6 +2299,11 @@
     "asqav-40-counterparty-self-binding": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -2161,6 +2326,9 @@
     "asqav-40-unrecognised-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2184,6 +2352,11 @@
     "asqav-41-counterparty-omitted-peer": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -2206,6 +2379,9 @@
     "asqav-41-hash-unrecognised-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [],
       "not_exercised": [
         "REQ-ANCHOR",
@@ -2228,6 +2404,11 @@
     "asqav-42-counterparty-same-binding-second-ack": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -2250,6 +2431,9 @@
     "asqav-42-keyed-digest-unverifiable": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2273,6 +2457,9 @@
     "asqav-42-revoked-before-issuance": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2296,6 +2483,11 @@
     "asqav-43-counterparty-unknown-member": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [
+        "tsa_trust.pem"
+      ],
       "exercises": [
         "REQ-ANCHOR",
         "REQ-CHAIN",
@@ -2318,6 +2510,9 @@
     "asqav-43-outer-copies-agree": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2341,6 +2536,9 @@
     "asqav-44-outer-signed-at-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2364,6 +2562,9 @@
     "asqav-45-outer-agent-id-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2387,6 +2588,9 @@
     "asqav-46-outer-action-type-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2410,6 +2614,9 @@
     "asqav-47-outer-message-copy-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2433,6 +2640,9 @@
     "asqav-48-outer-public-key-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2456,6 +2666,9 @@
     "asqav-49-outer-flat-signature-agree": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2479,6 +2692,9 @@
     "asqav-50-outer-flat-signature-agent-id-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2502,6 +2718,9 @@
     "asqav-51-outer-envelope-signature-action-type-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2525,6 +2744,9 @@
     "asqav-52-outer-flat-hash-unsigned-members": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [],
       "not_exercised": [
         "REQ-ANCHOR",
@@ -2547,6 +2769,9 @@
     "asqav-53-payload-digest-no-context": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2570,6 +2795,9 @@
     "asqav-54-kms-signed": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
@@ -2593,6 +2821,9 @@
     "asqav-55-heartbeat": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "observed_verdict_scope": "axis_scope.exercised",
+      "trusted_anchor_material_supplied": false,
+      "corpus_anchor_material": [],
       "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",

@@ -124,6 +124,16 @@ AXIS_SCOPE_KEY = "axis_scope"
 AXIS_SCOPE_EXERCISED = "exercised"
 AXIS_SCOPE_NOT_APPLICABLE = "not_applicable"
 
+#: Names observed_verdict's scope: only the axes in axis_scope's exercised
+#: list, an axis-scoped result, never a full-profile verdict.
+OBSERVED_VERDICT_SCOPE_KEY = "observed_verdict_scope"
+OBSERVED_VERDICT_SCOPE = "axis_scope.exercised"
+
+#: Anchor material from outside the vector. Vector files ship beside the
+#: receipt, so they are corpus-supplied and listed apart, never trusted.
+TRUSTED_ANCHOR_MATERIAL_KEY = "trusted_anchor_material_supplied"
+CORPUS_ANCHOR_MATERIAL_KEY = "corpus_anchor_material"
+
 
 def _load(directory: pathlib.Path, name: str):
     path = directory / name
@@ -210,9 +220,20 @@ def main() -> int:
         )
         for req in exercised:
             covered[req].append(directory.name)
+        corpus_material = sorted(
+            name
+            for name, given in (
+                (tsa_trust.name, trusted_tsa_keys),
+                ("bitcoin_headers.json", bitcoin_headers),
+            )
+            if given is not None
+        )
         by_vector[directory.name] = {
             "declared_outcome": expected.get("outcome"),
             "observed_verdict": result["verdict"],
+            OBSERVED_VERDICT_SCOPE_KEY: OBSERVED_VERDICT_SCOPE,
+            TRUSTED_ANCHOR_MATERIAL_KEY: False,
+            CORPUS_ANCHOR_MATERIAL_KEY: corpus_material,
             "exercises": exercised,
             "not_exercised": sorted(
                 req
@@ -247,6 +268,14 @@ def main() -> int:
             "Each asqav-native vector is run through the offline verifier and the "
             "axes it actually exercises are read off the result. A SKIPPED axis is "
             "not coverage, whatever a vector's notes claim."
+        ),
+        "observed_verdict_note": (
+            "observed_verdict is an axis-scoped result: it covers only the axes in "
+            "the vector's axis_scope.exercised, not a full-profile verdict. The "
+            "anchor material this run reads ships in the vector beside the receipt "
+            "(corpus_anchor_material); none is trusted material supplied apart from "
+            "the corpus, so trusted_anchor_material_supplied is false and an anchors "
+            "PASS shows the check ran, not that a trusted root confirmed it."
         ),
         # The per-vector axis evidence the coverage lists are derived from, published
         # so a reader can check the derivation rather than trust it. Results only:

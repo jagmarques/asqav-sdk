@@ -8,6 +8,7 @@ which is the failure mode the second half exists to prevent.
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import pathlib
@@ -77,6 +78,35 @@ def test_axis_scope_declaring_an_exercised_axis_not_applicable_fails(document, t
     path.write_text(json.dumps(expected))
     with pytest.raises(AssertionError, match=name):
         _assert_axis_scope_matches(corpus, document)
+
+
+def _assert_verdict_scope_and_anchor_flag(document: dict) -> None:
+    """Each verdict names its axis scope; no vector claims trusted anchors."""
+    for name, vec in document["vectors"].items():
+        scope = vec[BUILDER.OBSERVED_VERDICT_SCOPE_KEY]
+        assert scope == BUILDER.OBSERVED_VERDICT_SCOPE, name
+        assert vec[BUILDER.TRUSTED_ANCHOR_MATERIAL_KEY] is False, name
+
+
+def test_observed_verdict_axis_scoped_and_anchor_material_flag(document):
+    """asqav-24 ships anchor material beside its receipt, which is not trust."""
+    _assert_verdict_scope_and_anchor_flag(document)
+    vec = document["vectors"]["asqav-24-anchor-block-hash-prod"]
+    assert vec[BUILDER.CORPUS_ANCHOR_MATERIAL_KEY]
+    assert vec[BUILDER.TRUSTED_ANCHOR_MATERIAL_KEY] is False
+
+
+def test_trusted_flag_or_unscoped_verdict_fails_the_check(document):
+    """NEGCTL: a True anchor flag or a dropped scope label is caught."""
+    name = "asqav-24-anchor-block-hash-prod"
+    flagged = copy.deepcopy(document)
+    flagged["vectors"][name][BUILDER.TRUSTED_ANCHOR_MATERIAL_KEY] = True
+    with pytest.raises(AssertionError, match=name):
+        _assert_verdict_scope_and_anchor_flag(flagged)
+    unscoped = copy.deepcopy(document)
+    unscoped["vectors"][name][BUILDER.OBSERVED_VERDICT_SCOPE_KEY] = "full-profile"
+    with pytest.raises(AssertionError, match=name):
+        _assert_verdict_scope_and_anchor_flag(unscoped)
 
 
 def test_regenerating_reproduces_the_published_map(document, tmp_path):
