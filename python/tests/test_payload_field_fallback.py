@@ -1,9 +1,7 @@
 """The sign response resolves action_ref and previous_receipt_hash from payload.
-
-Compliance-mode clouds nest ``action_ref`` and ``previousReceiptHash`` inside
-the receipt ``payload`` rather than at the top level of the sign response, so a
-top-level-only read surfaced None for both on the quickstart flow. The client
-reads the top level first, then falls back to the payload copy, and leaves the
+Compliance-mode clouds nest ``action_ref`` and ``previousReceiptHash`` inside the receipt ``payload``
+rather than at the top level of the sign response, so a top-level-only read surfaced None for both on the
+quickstart flow. The client reads the top level first, then falls back to the payload copy, and leaves the
 payload object itself unchanged.
 """
 

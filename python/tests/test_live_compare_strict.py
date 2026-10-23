@@ -1,13 +1,8 @@
 """Strict live compare: the entry verifies the bytes itself (488 C26, C29).
-
-No digest or result parameter exists, so no unbound or foreign-result call
-is expressible; classification always runs over re-verified bytes. All
-oracle output here is live.
-
-C29 binds the verified envelope: the entry derives kid/signature from the
-same bytes it verifies (no envelope parameter exists, so no stated envelope
-is expressible except caller terms); a caller-stated envelope contradicting
-the bytes raises instead of classifying.
+No digest or result parameter exists, so no unbound or foreign-result call is expressible; classification runs
+over re-verified bytes, and all oracle output here is live. C29 binds the verified envelope: the entry derives
+kid/signature from the same bytes it verifies (no envelope parameter exists, so no stated envelope is
+expressible except caller terms); a contradicting envelope raises.
 """
 from __future__ import annotations
 

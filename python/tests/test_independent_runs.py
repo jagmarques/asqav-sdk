@@ -1,12 +1,10 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
 """The independent-runs registry is honest: every entry pins real history.
-
 ``verifier/independent-runs.json`` records outside recomputations of the corpus.
-An entry that names a commit this repository never had, or a vector the corpus
-did not carry at that commit, is not evidence - it is marketing. These tests
-refuse both, so the file stays an append-only log of runs that actually
-happened against bytes that actually existed.
+An entry naming a commit this repository never had, or a vector the corpus did
+not carry at that commit, is not evidence - it is marketing. These tests refuse
+both, keeping the file an append-only log of runs against bytes that existed.
 """
 
 from __future__ import annotations

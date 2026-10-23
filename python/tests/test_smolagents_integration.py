@@ -24,10 +24,7 @@ sys.modules.pop("asqav.extras.smolagents", None)
 
 from asqav.extras.smolagents import AsqavSmolagentsHook  # noqa: E402
 
-# === Helpers ===
-
-
-    # Create a minimal mock smolagents Tool.
+# === Helpers: a minimal mock smolagents Tool ===
 def _make_tool(name: str, forward_result: Any = "result") -> MagicMock:
     tool = MagicMock()
     tool.name = name

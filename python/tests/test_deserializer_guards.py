@@ -1,11 +1,8 @@
 """Required-field deserializer guards raise AsqavResponseError, not a
 raw KeyError, when a cloud response omits a field the SDK requires.
-
-Companion to test_verify_response_fields.py, which pins the positive
-case (all fields present). This file pins the negative case: a
-response missing a required field must surface one typed, catchable
-``AsqavResponseError`` naming the field, never a bare ``KeyError`` at
-a random dict index (rule 3.9).
+Companion to test_verify_response_fields.py (positive case, all fields present): a response
+missing a required field surfaces one typed, catchable ``AsqavResponseError`` naming
+the field, never a bare ``KeyError`` at a random dict index (rule 3.9).
 """
 
 from __future__ import annotations
