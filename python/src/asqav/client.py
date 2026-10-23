@@ -2014,6 +2014,8 @@ class Agent:
         co_signers: list[str] | None = None,
         mandate_id: str | None = None,
         user_intent: dict[str, Any] | None = None,
+        # nonce: per-call token; the cloud answers 409 while a live receipt
+        # for this agent in this org holds it (python/README.md, nonce)
         nonce: str | None = None,
         valid_seconds: int | None = None,
         expected_executor_pubkey_b64: str | None = None,
@@ -2167,13 +2169,6 @@ class Agent:
                 raises ``expiry_collision_guard``. Passing neither falls
                 back to the server-side default
                 (``valid_seconds=86400``).
-            nonce: Opaque per-call token, 24 hex chars auto-generated when
-                omitted. The cloud stores it verbatim and runs no
-                uniqueness check, so re-sending the same value produces a
-                second accepted signature and a caller leaning on it for
-                replay protection has none. The enforced control is the
-                validity window: pass ``valid_seconds`` or ``expires_at``
-                and verify returns ``signature_expired`` once it passes.
             tool_schema: Optional JSON schema describing the tool surface.
                 When provided alongside ``tool_name`` and
                 ``tool_fingerprint`` is omitted, the SDK computes the
