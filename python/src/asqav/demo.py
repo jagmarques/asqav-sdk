@@ -1,13 +1,5 @@
-"""Asqav demo - local interactive governance dashboard.
-
-Runs at http://localhost:3030 with 4 pre-loaded scenarios. No signup, no
-Docker, no API key. Everything is in-memory: a tiny policy engine, an
-Ed25519 signer for receipts, and an HTTP server that renders approval
-cards in the browser. The user can approve or deny each scenario and get
-a verifiable receipt.
-
-Usage: `asqav demo`
-"""
+"""Asqav demo: local interactive governance dashboard.
+Runs at http://localhost:3030 with 4 in-memory scenarios; no signup or key."""
 
 # ruff: noqa: E501
 
@@ -408,7 +400,7 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                 "risk_class": scenario.get("risk_classification", "unknown"),
                 "receipt_type": "protectmcp:decision",
                 "policy_decision": policy_decision_value,
-                "scenario_decision": decision,  # demo UI keeps "approved"/"rejected"
+                "scenario_decision": decision,  # UI keeps approved/rejected
                 "timestamp": int(time.time()),
             })
             self.state.approvals[sid] = {"decision": decision, "reason": reason, "receipt": receipt}

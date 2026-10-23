@@ -1,35 +1,5 @@
-"""Lightweight, dependency-free context-schema validator (criterion 328).
-
-Schema spec: a dict mapping field names to a field descriptor.
-
-Field descriptor keys:
-    type     - one of "string" | "number" | "boolean" | "object" | "array"
-    required - bool, defaults to False
-
-Example::
-
-    schema = {
-        "user_id": {"type": "string", "required": True},
-        "score":   {"type": "number"},
-        "tags":    {"type": "array"},
-    }
-
-Pass to ``Agent.sign(..., context_schema=schema)``. The SDK validates the
-context dict against the schema and raises ``AsqavValidationError`` on
-mismatch before any network call. On success the context is returned with
-keys in stable sorted order so audit trails are consistent and queryable.
-
-You may instead pass a callable as ``context_schema``:
-
-    def my_validator(ctx: dict) -> None:
-        import jsonschema
-        jsonschema.validate(ctx, MY_FULL_JSON_SCHEMA)
-
-    agent.sign("action", ctx, context_schema=my_validator)
-
-A callable receives the (possibly None-coerced-to-{}) context dict and must
-raise on invalid input. The built-in path needs no new runtime dependency.
-"""
+"""Dependency-free context-schema validator for ``Agent.sign``.
+A ``{field: {"type": ..., "required": ...}}`` dict or a raising callable."""
 
 from __future__ import annotations
 
@@ -55,21 +25,7 @@ def validate_context_schema(
     schema: dict[str, Any],
 ) -> None:
     """Validate *context* against the built-in *schema* descriptor.
-
-    Raises ``AsqavValidationError`` on the first offending field so the
-    developer sees one clear message rather than a list dump.
-
-    Args:
-        context: The context dict passed to ``Agent.sign()``. ``None`` is
-            treated as an empty dict (no user keys supplied).
-        schema:  A ``{field_name: {"type": ..., "required": ...}}`` mapping.
-
-    Raises:
-        AsqavValidationError: When a required field is absent or a value
-            does not match its declared type.
-        ValueError: When the schema itself uses an unknown type name; this
-            is a programmer error, not a runtime data error.
-    """
+    ``None`` counts as ``{}``; raises ``AsqavValidationError`` on a bad one."""
     # Lazy import to avoid circular dependency with client.py.
     from .client import AsqavValidationError
 
@@ -116,14 +72,8 @@ def validate_context_schema(
 
 
 def normalize_context(context: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Return *context* with keys in stable sorted order.
-
-    Stable key order means two sign() calls with identical data but
-    different insertion orders produce the same signed bytes, making
-    receipts consistent and queryable.
-
-    Returns ``None`` unchanged; an empty dict becomes ``{}``.
-    """
+    """Return *context* with keys in stable sorted order, so signed bytes match.
+    ``None`` is returned unchanged."""
     if context is None:
         return None
     return dict(sorted(context.items()))

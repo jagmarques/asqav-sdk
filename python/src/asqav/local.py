@@ -61,7 +61,7 @@ class LocalQueue:
             "status": "pending",
         }
 
-        # Write-then-rename: a crash never leaves a truncated .json list_pending skips.
+        # Write-then-rename: a crash never leaves a truncated .json behind.
         filepath = self.queue_dir / f"{item_id}.json"
         tmp_path = self.queue_dir / f"{item_id}.json.tmp"
         tmp_path.write_text(json.dumps(payload, indent=2))
@@ -99,8 +99,8 @@ class LocalQueue:
             context = item.get("context", {})
 
             try:
-                # Same body builder as Agent.sign(): under hash-only (the Asqav cloud
-                # default) the queued context is digested locally and never sent.
+                # Same body builder as Agent.sign(): under hash-only the context
+                # is digested locally and never sent.
                 _post(
                     f"/agents/{agent_id}/sign",
                     _build_sign_body(

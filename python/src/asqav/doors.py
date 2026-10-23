@@ -1,34 +1,5 @@
 """Standards-interop "doors": one Asqav receipt, many native envelopes.
-
-Each door wraps the SAME receipt object verbatim into a standard envelope an agent
-framework already consumes: a W3C Verifiable Credential, a CloudEvents event, an OTel
-GenAI attribute map, a C2PA assertion, and an ERC-8004 validationRequest shape.
-
-The inner receipt is byte-identical across every door: the receipt dict is embedded
-unchanged (VC ``credentialSubject``, CloudEvents ``data``, C2PA ``data.receipt``,
-ERC-8004 ``receipt``) or, for the flat OTel attribute map, carried as its JCS string
-under ``asqav.receipt``. Every door has an inverse that returns the exact same receipt.
-
-All functions are pure and offline: no signing, no network, no mutation of the input,
-no wall-clock reads. Timestamps and ids come only from the receipt itself.
-
-Cross-SDK parity scope: the Python and TypeScript SDKs emit byte-identical envelope bytes
-for the same receipt across every object key, including keys with characters above
-U+FFFF, because both order member names by UTF-16 code unit per RFC 8785 section 3.2.3.
-Integers beyond +/-2**53 are REFUSED at ingest rather than canonicalised, because beyond
-that magnitude a value has no exact IEEE-754 double: Python keeps it and a JavaScript
-reader rounds it, so the same receipt would carry two different canonical byte strings and
-one digest each. An earlier note here claimed such integers were outside the canonical
-domain and that "every parser will reject them outright"; that was wrong and was the stated
-reason the divergence stayed pinned instead of fixed. No parser rejects them on its own -
-Python's json.loads keeps 9007199254740993 exactly and JavaScript's JSON.parse silently
-rounds it to 9007199254740992, neither raising - so the refusal has to be ours. The doors
-parity tests now pin that refusal in both SDKs.
-
-This is presentation only. A door does NOT re-sign; the authoritative Asqav signature
-stays inside the embedded receipt. A generic VC / C2PA verifier reads the shape but must
-use an Asqav-aware verifier to check the signature.
-"""
+Pure, offline; keys sort per RFC 8785 3.2.3, ints past 2**53 refused."""
 from __future__ import annotations
 
 import hashlib
@@ -71,12 +42,12 @@ OTEL_SIGNATURE_ATTR = "asqav.signature"
 ERC8004_ZERO_ADDRESS = "0x" + "00" * 20
 
 
-    # Return the JCS canonical bytes of ``receipt``; the same bytes both SDKs hash.
+    # Return the JCS canonical bytes of ``receipt``; both SDKs hash the same.
 def canonical_receipt_bytes(receipt: dict) -> bytes:
     return canonical_json(receipt)
 
 
-    # ``sha256:<hex>`` over the raw canonical receipt bytes (the C2PA raw-bytes rule).
+    # ``sha256:<hex>`` over the raw canonical receipt bytes (C2PA rule).
 def receipt_digest(receipt: dict) -> str:
     return "sha256:" + hashlib.sha256(canonical_receipt_bytes(receipt)).hexdigest()
 
@@ -132,7 +103,7 @@ def _timestamp(receipt: dict) -> Any:
     return _field(receipt, "issued_at", "server_timestamp")
 
 
-    # A deterministic offline pointer to the receipt by digest. Not a live endpoint.
+    # A deterministic offline pointer to the receipt by digest; not an endpoint.
 def _verify_urn(receipt: dict) -> str:
     return "urn:asqav:receipt:" + receipt_digest(receipt).split(":", 1)[1]
 
@@ -250,14 +221,7 @@ def to_erc8004_validation_request(
     agent_id: str | None = None,
 ) -> dict:
     """Wrap the receipt as an ERC-8004 ``validationRequest`` call shape.
-
-    ``receiptCommitment`` is a bytes32 asqav commitment: sha256 over the canonical receipt
-    bytes. It is NOT the native ERC-8004 ``requestHash``, which the ERC-8004 ecosystem
-    recomputes with keccak256. A keccak256 variant that fills the on-chain ``requestHash``
-    slot is the interop follow-up (keccak256 is not in the Python stdlib, so it would add a
-    runtime dependency the base SDK install does not carry). The full receipt rides under
-    ``receipt`` so the inner object stays byte-identical to the other doors.
-    """
+    ``receiptCommitment`` is sha256 of canonical bytes, not keccak256."""
     _require_dict(receipt)
     resolved_agent = agent_id if agent_id is not None else _agent_id(receipt)
     digest_hex = hashlib.sha256(canonical_receipt_bytes(receipt)).hexdigest()
@@ -274,7 +238,7 @@ def to_erc8004_validation_request(
     }
 
 
-    # Return every door for ``receipt`` keyed by standard name; one inner object, N skins.
+    # Return every door for ``receipt`` keyed by standard name.
 def wrap_all(receipt: dict) -> dict:
     _require_dict(receipt)
     return {
