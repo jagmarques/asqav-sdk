@@ -1,16 +1,8 @@
 """Receipt-internal integrity axes, Python half.
 
-Two classes of claim an issuer could previously assert unchecked:
-
-  - `payload_digest` over a `context` the receipt carries itself. Recomputable
-    with NO external data, so a receipt whose own context does not hash to its
-    own digest is provably inconsistent. Nothing checked it before.
-  - `counterparty_binding`, which asserts a counterparty acknowledged the action.
-    The hosted verifier resolves it against its database; an offline third party
-    has none, so a fabricated binding reached a plain verified verdict.
-
-The shared table in verifier/axis-parity-cases.json drives this file and
-typescript/tests/verifier-receipt-integrity-parity.test.ts.
+Checks `payload_digest` over the receipt's own `context` (recomputable with no
+external data) and `counterparty_binding`, which offline has no database to
+resolve. verifier/axis-parity-cases.json drives this and the TS half.
 """
 
 from __future__ import annotations
@@ -224,7 +216,7 @@ def test_absence_of_both_claims_does_not_block() -> None:
 
 
 def _genuinely_signed(payload_digest: dict | None) -> tuple[dict, dict]:
-    """A receipt genuinely Ed25519-signed over its final payload (criterion 727)."""
+    """A receipt Ed25519-signed over its final payload (criterion 727)."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 

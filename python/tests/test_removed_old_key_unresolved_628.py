@@ -1,10 +1,8 @@
 """Removed old key (628 T-c): the retained key the rotation replaces is revoked.
 
-Same shape as T-b (K2 verifies and binds, retained evidence pins K1 for the
-same kid/agent, no transition authorization), except the retained K1 carries
-revoked status. The report must name removed_old_key rather than the generic
-forged_transition: a revoked key cannot authorize succession. Active-status
-retained keys keep the T-b tag (pinned by its test).
+As T-b (K2 verifies and binds, retained K1 for the same kid/agent, no
+transition authorization) but with K1 revoked: the report names removed_old_key,
+not forged_transition. Active retained keys keep the T-b tag.
 """
 
 from __future__ import annotations

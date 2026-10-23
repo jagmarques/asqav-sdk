@@ -1,8 +1,8 @@
-"""The corpus-B regen check treats a keyed payload_digest as unrecomputable, not drift.
+"""The corpus-B regen check treats a keyed payload_digest as unrecomputable.
 
-asqav-42 carries an HMAC digest (hash_algo hmac-sha256) under holder key material no
-verifier holds, so recomputing it as plain sha256 would report false drift. The same
-vector with the keyed marker removed must still drift, or the skip would be vacuous.
+asqav-42 carries an HMAC digest (hmac-sha256) under holder key material no
+verifier holds, so a plain sha256 recompute would report false drift. With the
+keyed marker removed the vector must still drift, or the skip is vacuous.
 """
 from __future__ import annotations
 
