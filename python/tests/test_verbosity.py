@@ -3,6 +3,7 @@ Each case runs the real scan; the planted files are the negative controls."""
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from tests.test_python_conciseness import conciseness
 TESTS_DIR = Path(__file__).resolve().parent
 MAX_DOCSTRING_LINES = conciseness.MAX_DOCSTRING_LINES
 MAX_COMMENT_CHARS = conciseness.MAX_COMMENT_CHARS
+DOC_NODES = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
 
 def _test_with_docstring(tmp_path: Path, lines: int) -> Path:
@@ -21,6 +23,20 @@ def _test_with_docstring(tmp_path: Path, lines: int) -> Path:
     target = tmp_path / "test_planted.py"
     target.write_text(source, encoding="utf-8")
     return target
+
+
+def _blank_first_lines(root: Path) -> list[tuple[Path, int]]:
+    """Every docstring under root whose first line is blank."""
+    found: list[tuple[Path, int]] = []
+    for path in conciseness.python_files(root):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, DOC_NODES):
+                continue
+            doc = ast.get_docstring(node, clean=False)
+            if doc is not None and not doc.split("\n")[0].strip():
+                found.append((path, node.body[0].lineno))
+    return found
 
 
 def test_tests_tree_has_zero_hits():
@@ -68,3 +84,15 @@ def test_unparseable_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         conciseness.scan_tree(empty)
     assert conciseness.main(["--path", str(empty)]) == 2
+
+
+def test_docstrings_name_behaviour():
+    assert conciseness.python_files(TESTS_DIR)
+    assert _blank_first_lines(TESTS_DIR) == []
+
+
+# NEGCTL: a docstring that opens on a blank line is reported.
+def test_blank_first_docstring_line_fails(tmp_path):
+    path = tmp_path / "test_blank.py"
+    path.write_text('def test_x():\n    """\n    Summary.\n    """\n', encoding="utf-8")
+    assert _blank_first_lines(tmp_path) == [(path, 2)]
