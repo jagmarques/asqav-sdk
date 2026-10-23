@@ -128,6 +128,13 @@ def test_public_args_docstring_passes(tmp_path, capsys):
     assert run(tmp_path, capsys)[0] == 0
 
 
+def test_numpy_parameters_docstring_passes(tmp_path, capsys):
+    rows = ["Summary.", "", "Parameters", "----------", "key:", "    the key."]
+    body = "\n".join(f"    {row}" for row in rows + ["more"] * MAX_DOCSTRING_LINES)
+    plant(tmp_path, "client.py", f'def sign(key):\n    """{body[4:]}\n    """\n    return key\n')
+    assert run(tmp_path, capsys)[0] == 0
+
+
 def test_private_args_docstring_fails(tmp_path, capsys):
     plant(tmp_path, "client.py", func("_sign", MAX_DOCSTRING_LINES + 3, args=True))
     code, out, _ = run(tmp_path, capsys)
@@ -228,3 +235,9 @@ def test_client_py_is_concise():
 def test_core_modules_are_concise():
     found = [f for f in checker.scan(REPO) if "/extras/" not in f.path]
     assert found == []
+
+
+# NEGCTL: test_seven_line_docstring_in_client_fails runs the same main().
+def test_sdk_tree_is_concise(capsys):
+    assert checker.scan(REPO) == []
+    assert run(REPO, capsys) == (0, "", "")

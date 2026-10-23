@@ -18,7 +18,9 @@ MAX_BLOCK_ROWS = 2
 SOURCE_DIR = Path("python/src/asqav")
 EXCLUDED_DIR = "verifier"
 TOOL_DIRECTIVE = re.compile(r"#\s*(noqa|type:\s*ignore|pragma:|ruff:)")
-PARAM_SECTION = re.compile(r"^\s*(Args|Parameters):\s*$", re.MULTILINE)
+PARAM_SECTION = re.compile(
+    r"^[ \t]*(?:Args:|Parameters:|Parameters[ \t]*\n[ \t]*-{3,})[ \t]*$", re.MULTILINE
+)
 
 DocNode = ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
 

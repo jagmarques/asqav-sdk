@@ -51,7 +51,7 @@ def _exception_name(exc: BaseException | None) -> str | None:
         return "Exception"
 
 
-    # Asqav adapter for instructor clients; fail-open (extraction runs even if Asqav is down).
+    # Asqav adapter for instructor clients; fail-open (runs if Asqav is down).
 class AsqavInstructorHook(AsqavAdapter):
 
     def __init__(
@@ -65,7 +65,7 @@ class AsqavInstructorHook(AsqavAdapter):
 
     # === Public attachment surface ===
 
-        # Register this hook on an instructor client (sync or async; both expose ``.on()``).
+        # Register this hook on an instructor client (sync or async)
     def attach(self, client: Any) -> None:
         if not hasattr(client, "on"):
             raise TypeError(

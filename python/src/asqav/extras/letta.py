@@ -1,19 +1,5 @@
-"""letta (MemGPT) integration for asqav.
-
-Install: pip install asqav[letta]
-
-Usage::
-
-    from letta_client import Letta
-    from asqav.extras.letta import AsqavLettaHook
-
-    hook = AsqavLettaHook(agent_name="memory-agent")
-    client = hook.wrap_client(Letta(api_key="..."))
-
-    # All memory reads and writes are now signed.
-    block = client.agents.blocks.retrieve("human", agent_id="agent-123")
-    client.agents.blocks.update("human", agent_id="agent-123", value="New content")
-"""
+"""letta (MemGPT) integration for asqav (pip install asqav[letta]).
+``AsqavLettaHook(...).wrap_client(Letta(...))`` signs memory access."""
 
 from __future__ import annotations
 

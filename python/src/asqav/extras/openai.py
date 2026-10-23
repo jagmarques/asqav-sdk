@@ -1,27 +1,5 @@
-"""OpenAI SDK integration for asqav.
-
-Install: pip install asqav[openai]
-
-Wraps ``openai.OpenAI`` so every ``chat.completions.create`` call produces a
-signed asqav receipt automatically. The OpenAI response is returned unchanged.
-The receipt metadata is attached as ``response._asqav_receipt``.
-
-Usage::
-
-    from asqav.extras.openai import AsqavOpenAI
-
-    client = AsqavOpenAI(
-        openai_api_key="sk-...",
-        asqav_api_key="sk_live_...",
-        agent_name="my-openai-agent",
-    )
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": "Hello"}],
-    )
-    print(response.choices[0].message.content)
-    print(response._asqav_receipt.verification_url)
-"""
+"""OpenAI SDK integration for asqav (pip install asqav[openai]).
+Wraps openai.OpenAI; each call is signed, response gets ``_asqav_receipt``."""
 
 from __future__ import annotations
 

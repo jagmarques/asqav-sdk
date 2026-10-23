@@ -1,23 +1,5 @@
-"""OpaDetector: posts action/context to an OPA REST endpoint for policy decisions.
-
-Install: no extra dep needed; uses httpx if available (pip install asqav[httpx])
-or falls back to stdlib urllib.
-
-Usage::
-
-    from asqav.extras.opa_detector import OpaDetector
-    import asqav
-
-    asqav.register_detector(OpaDetector(
-        opa_url="http://localhost:8181",
-        policy_path="asqav/action/allow",
-    ))
-
-OPA endpoint: ``POST {opa_url}/v1/data/{policy_path}``
-Request body: ``{"input": {"action_type": ..., "context": ...}}``
-Expected response: ``{"result": true}`` or ``{"result": false}``
-A missing ``result`` key is treated as deny (fail-closed).
-"""
+"""OpaDetector: posts action/context to an OPA REST endpoint for a decision.
+Uses httpx if available, else urllib; a missing ``result`` key is a deny."""
 
 from __future__ import annotations
 
