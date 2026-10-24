@@ -290,8 +290,8 @@ export function verifySignature(pk: Buffer, msg: Buffer, sig: Buffer, alg: unkno
   }
   try {
     createPublicKey({ key: spki(["608648016503040312"], pk), format: "der", type: "spki" });
-  } catch {
-    return ["SKIPPED", "this Node runtime's node:crypto has no ML-DSA-65; run the Python verifier"];
+  } catch (exc) {
+    return ["SKIPPED", `node:crypto here has no ML-DSA-65 (${(exc as Error).message}); run the Python verifier`];
   }
   return check(spki(["608648016503040312"], pk), null, false, "ML-DSA-65");
 }
@@ -437,8 +437,8 @@ export function checkPayloadDigest(payload: Obj): [AxisResult, string] {
   let encoded: Buffer;
   try {
     encoded = canonicalJson(payload.context);
-  } catch {
-    return ["SKIPPED", "context is not canonicalisable, so payload_digest cannot be recomputed"];
+  } catch (exc) {
+    return ["SKIPPED", `context is not canonicalisable (${(exc as Error).message}), so payload_digest cannot be recomputed`];
   }
   const actual = sha256Hex(encoded);
   if (actual !== claimed) {
