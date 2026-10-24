@@ -12,7 +12,11 @@ from asqav import strict_json
 from ..verify_receipt import evaluate_anchors
 from . import ADAPTERS, crypto
 from .core import (
-    FAILURE_UNVERIFIABLE, VERDICT_UNVERIFIED, VERDICT_VERIFIED, AxisResult, verify,
+    FAILURE_UNVERIFIABLE,
+    VERDICT_UNVERIFIED,
+    VERDICT_VERIFIED,
+    AxisResult,
+    verify,
 )
 from .semantic_classify import classify
 
