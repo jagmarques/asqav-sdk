@@ -575,7 +575,7 @@
     "format": "asqav-native",
     "outcome": "verified",
     "reason_code": "",
-    "notes": "Production receipt (ML-DSA-65, hash-mode, seq 63 with its seq-62 predecessor) whose opentimestamps entry carries status anchored and anchor_block_hash - the real Bitcoin block hash at which the commitment upgraded (height 965451). Signature, key thumbprint and chain verify offline; the anchors axis SKIPs because completing it needs TSA key material and Bitcoin headers, which the corpus ships but the runner does not load."
+    "notes": "Production receipt (ML-DSA-65, hash-mode, seq 63 with its seq-62 predecessor) whose opentimestamps entry carries status anchored and anchor_block_hash - the real Bitcoin block hash at which the commitment upgraded (height 965451). Signature, key thumbprint and chain verify offline. The requirement-map run loads the corpus-shipped tsa_trust.pem and bitcoin_headers.json, so its anchors axis runs, with trusted_anchor_material_supplied false; the oracle runner, given no trusted anchor material, SKIPs the anchors axis."
   },
   {
     "dir": "asqav-27-anchors-absent",

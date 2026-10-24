@@ -1,6 +1,6 @@
 {
   "generated_by": "verifier/build_requirement_map.py",
-  "how": "Each asqav-native vector is run through the offline verifier and the axes it actually exercises are read off the result. A SKIPPED axis is not coverage, whatever a vector's notes claim.",
+  "how": "Each asqav-native vector is run through the offline verifier and the axes it actually exercises are read off the result. A SKIPPED axis is not coverage, whatever a vector's notes claim. run_structured refuses a flat hash-mode receipt, so such a vector's axes and verdict are read off the oracle instead, and derived_by names which one ran.",
   "observed_verdict_note": "observed_verdict is an axis-scoped result: it covers only the axes in the vector's axis_scope.exercised, not a full-profile verdict. The anchor material this run reads ships in the vector beside the receipt (corpus_anchor_material); none is trusted material supplied apart from the corpus, so trusted_anchor_material_supplied is false and an anchors PASS shows the check ran, not that a trusted root confirmed it.",
   "axis_results": {
     "asqav-01-genesis-permit": {
@@ -68,7 +68,20 @@
       "expiry": "PASS"
     },
     "asqav-05-hash-mode-prod": {
-      "payload": "FAIL"
+      "structure": "PASS",
+      "signature": "PASS",
+      "chain": "PASS",
+      "seq": "PASS",
+      "expiry": "PASS",
+      "nonce": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "skew": "PASS",
+      "outer_copies": "PASS",
+      "key_status": "PASS",
+      "issuer_bind": "PASS",
+      "anchors": "not_applicable"
     },
     "asqav-06-mldsa65-payload-prod": {
       "structure": "PASS",
@@ -135,7 +148,20 @@
       "expiry": "PASS"
     },
     "asqav-10-hash-mode-multikey": {
-      "payload": "FAIL"
+      "structure": "PASS",
+      "signature": "PASS",
+      "chain": "PASS",
+      "seq": "PASS",
+      "expiry": "PASS",
+      "nonce": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "skew": "PASS",
+      "outer_copies": "PASS",
+      "key_status": "PASS",
+      "issuer_bind": "PASS",
+      "anchors": "not_applicable"
     },
     "asqav-11-dup-member-toplevel": {
       "structure": "PASS",
@@ -749,7 +775,20 @@
       "expiry": "PASS"
     },
     "asqav-41-hash-unrecognised-version": {
-      "payload": "FAIL"
+      "structure": "SKIPPED",
+      "signature": "FAIL",
+      "chain": "PASS",
+      "seq": "PASS",
+      "expiry": "PASS",
+      "nonce": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "skew": "PASS",
+      "outer_copies": "PASS",
+      "key_status": "PASS",
+      "issuer_bind": "PASS",
+      "anchors": "not_applicable"
     },
     "asqav-42-counterparty-same-binding-second-ack": {
       "structure": "PASS",
@@ -960,7 +999,20 @@
       "expiry": "FAIL"
     },
     "asqav-52-outer-flat-hash-unsigned-members": {
-      "payload": "FAIL"
+      "structure": "PASS",
+      "signature": "PASS",
+      "chain": "PASS",
+      "seq": "PASS",
+      "expiry": "PASS",
+      "nonce": "PASS",
+      "key_binding": "PASS",
+      "counterparty": "PASS",
+      "payload_digest": "PASS",
+      "skew": "PASS",
+      "outer_copies": "PASS",
+      "key_status": "PASS",
+      "issuer_bind": "PASS",
+      "anchors": "not_applicable"
     },
     "asqav-53-payload-digest-no-context": {
       "structure": "PASS",
@@ -1092,6 +1144,7 @@
     "asqav-01-genesis-permit": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1118,6 +1171,7 @@
     "asqav-02-genesis-deny": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1144,6 +1198,7 @@
     "asqav-03-chain-link": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1170,6 +1225,7 @@
     "asqav-04-tamper-sig": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1195,18 +1251,16 @@
     },
     "asqav-05-hash-mode-prod": {
       "declared_outcome": "unverified",
-      "observed_verdict": "unverified",
+      "observed_verdict": "verified",
+      "derived_by": "oracle",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
-      "exercises": [],
-      "not_exercised": [
-        "REQ-ANCHOR",
+      "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
-        "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
         "REQ-KEYED-DIGEST",
@@ -1216,11 +1270,16 @@
         "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-KEY-RESOLUTION"
       ]
     },
     "asqav-06-mldsa65-payload-prod": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1247,6 +1306,7 @@
     "asqav-07-revoked-key": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1273,6 +1333,7 @@
     "asqav-08-v2-signer-canary": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1299,6 +1360,7 @@
     "asqav-09-v2-signer-tampered": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1324,18 +1386,16 @@
     },
     "asqav-10-hash-mode-multikey": {
       "declared_outcome": "verified",
-      "observed_verdict": "unverified",
+      "observed_verdict": "verified",
+      "derived_by": "oracle",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
-      "exercises": [],
-      "not_exercised": [
-        "REQ-ANCHOR",
+      "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
-        "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
         "REQ-KEYED-DIGEST",
@@ -1345,11 +1405,16 @@
         "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-KEY-RESOLUTION"
       ]
     },
     "asqav-11-dup-member-toplevel": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1376,6 +1441,7 @@
     "asqav-12-time-edge-expiry": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1402,6 +1468,7 @@
     "asqav-13-dup-member-nested": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1428,6 +1495,7 @@
     "asqav-14-omitted-action-chain": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1454,6 +1522,7 @@
     "asqav-15-unsigned-gap": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1480,6 +1549,7 @@
     "asqav-16-chain-emission-blocked": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1506,6 +1576,7 @@
     "asqav-17-seq-contiguous": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1532,6 +1603,7 @@
     "asqav-18-seq-gap": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1558,6 +1630,7 @@
     "asqav-19-seq-non-monotonic": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1584,6 +1657,7 @@
     "asqav-20-seq-absent": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1610,6 +1684,7 @@
     "asqav-21-key-thumbprint-binds": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1636,6 +1711,7 @@
     "asqav-22-key-substituted": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1662,6 +1738,7 @@
     "asqav-23-anchor-status-pending": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1688,6 +1765,7 @@
     "asqav-24-anchor-block-hash-prod": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -1716,6 +1794,7 @@
     "asqav-25-payload-digest-rederives": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1742,6 +1821,7 @@
     "asqav-26-payload-digest-mismatch": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1768,6 +1848,7 @@
     "asqav-27-anchors-absent": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1794,6 +1875,7 @@
     "asqav-28-anchors-null-malformed": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1820,6 +1902,7 @@
     "asqav-29-article-50-lifecycle-disclosure": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -1846,6 +1929,7 @@
     "asqav-31-counterparty-scope-match": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -1873,6 +1957,7 @@
     "asqav-32-counterparty-anchors-included": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -1900,6 +1985,7 @@
     "asqav-33-counterparty-scope-absent": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -1928,6 +2014,7 @@
     "asqav-34-counterparty-scope-unknown": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -1956,6 +2043,7 @@
     "asqav-35-counterparty-peer-swapped": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -1983,6 +2071,7 @@
     "asqav-35-invocation-ref-binds-pre-post": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2009,6 +2098,7 @@
     "asqav-36-counterparty-origin-forged": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2036,6 +2126,7 @@
     "asqav-36-invocation-ref-duplicate-emission": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2062,6 +2153,7 @@
     "asqav-37-counterparty-divergent-terms": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2089,6 +2181,7 @@
     "asqav-37-unregistered-namespace-reported": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2115,6 +2208,7 @@
     "asqav-38-counterparty-received-only": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2142,6 +2236,7 @@
     "asqav-38-protectmcp-unknown-invalid": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2168,6 +2263,7 @@
     "asqav-38-unknown-member-preserved": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2194,6 +2290,7 @@
     "asqav-39-absent-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2220,6 +2317,7 @@
     "asqav-39-counterparty-cross-replay": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2247,6 +2345,7 @@
     "asqav-39-foreign-namespace-reported": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2273,6 +2372,7 @@
     "asqav-39-malformed-type": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2299,6 +2399,7 @@
     "asqav-40-counterparty-self-binding": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2326,6 +2427,7 @@
     "asqav-40-unrecognised-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2352,6 +2454,7 @@
     "asqav-41-counterparty-omitted-peer": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2379,17 +2482,15 @@
     "asqav-41-hash-unrecognised-version": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "oracle",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
-      "exercises": [],
-      "not_exercised": [
-        "REQ-ANCHOR",
+      "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
-        "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
         "REQ-KEYED-DIGEST",
@@ -2397,13 +2498,18 @@
         "REQ-OUTER-COPIES",
         "REQ-PAYLOAD-DIGEST",
         "REQ-SIGNATURE",
-        "REQ-SKEW",
+        "REQ-SKEW"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-KEY-RESOLUTION",
         "REQ-STRUCTURE"
       ]
     },
     "asqav-42-counterparty-same-binding-second-ack": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2431,6 +2537,7 @@
     "asqav-42-keyed-digest-unverifiable": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2457,6 +2564,7 @@
     "asqav-42-revoked-before-issuance": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2483,6 +2591,7 @@
     "asqav-43-counterparty-unknown-member": {
       "declared_outcome": "verified",
       "observed_verdict": "verified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [
@@ -2510,6 +2619,7 @@
     "asqav-43-outer-copies-agree": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2536,6 +2646,7 @@
     "asqav-44-outer-signed-at-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2562,6 +2673,7 @@
     "asqav-45-outer-agent-id-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2588,6 +2700,7 @@
     "asqav-46-outer-action-type-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2614,6 +2727,7 @@
     "asqav-47-outer-message-copy-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2640,6 +2754,7 @@
     "asqav-48-outer-public-key-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2666,6 +2781,7 @@
     "asqav-49-outer-flat-signature-agree": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2692,6 +2808,7 @@
     "asqav-50-outer-flat-signature-agent-id-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2718,6 +2835,7 @@
     "asqav-51-outer-envelope-signature-action-type-edited": {
       "declared_outcome": "unverified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2743,18 +2861,16 @@
     },
     "asqav-52-outer-flat-hash-unsigned-members": {
       "declared_outcome": "verified",
-      "observed_verdict": "unverified",
+      "observed_verdict": "verified",
+      "derived_by": "oracle",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
-      "exercises": [],
-      "not_exercised": [
-        "REQ-ANCHOR",
+      "exercises": [
         "REQ-CHAIN",
         "REQ-COUNTERPARTY",
         "REQ-EXPIRY",
         "REQ-ISSUER-BIND",
-        "REQ-KEY-RESOLUTION",
         "REQ-KEY-STATUS",
         "REQ-KEY-THUMBPRINT",
         "REQ-KEYED-DIGEST",
@@ -2764,11 +2880,16 @@
         "REQ-SIGNATURE",
         "REQ-SKEW",
         "REQ-STRUCTURE"
+      ],
+      "not_exercised": [
+        "REQ-ANCHOR",
+        "REQ-KEY-RESOLUTION"
       ]
     },
     "asqav-53-payload-digest-no-context": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2795,6 +2916,7 @@
     "asqav-54-kms-signed": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -2821,6 +2943,7 @@
     "asqav-55-heartbeat": {
       "declared_outcome": "verified",
       "observed_verdict": "unverified",
+      "derived_by": "verify_receipt.run_structured",
       "observed_verdict_scope": "axis_scope.exercised",
       "trusted_anchor_material_supplied": false,
       "corpus_anchor_material": [],
@@ -3113,10 +3236,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3155,6 +3280,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3168,6 +3294,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3241,10 +3368,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3283,6 +3412,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3296,6 +3426,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3305,9 +3436,11 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3346,6 +3479,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3359,6 +3493,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3368,10 +3503,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3410,6 +3547,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3423,6 +3561,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3432,10 +3571,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3474,6 +3615,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3487,6 +3629,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3512,10 +3655,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3554,6 +3699,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3567,6 +3713,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3576,10 +3723,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3618,6 +3767,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3631,6 +3781,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3640,10 +3791,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3682,6 +3835,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3695,6 +3849,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3704,10 +3859,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3746,6 +3903,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-revoked-before-issuance",
       "asqav-43-counterparty-unknown-member",
@@ -3758,6 +3916,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3767,10 +3926,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3809,6 +3970,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-revoked-before-issuance",
       "asqav-43-counterparty-unknown-member",
@@ -3821,6 +3983,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3830,10 +3993,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3872,6 +4037,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3885,6 +4051,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3894,10 +4061,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -3934,6 +4103,7 @@
       "asqav-40-counterparty-self-binding",
       "asqav-40-unrecognised-version",
       "asqav-41-counterparty-omitted-peer",
+      "asqav-41-hash-unrecognised-version",
       "asqav-42-counterparty-same-binding-second-ack",
       "asqav-42-keyed-digest-unverifiable",
       "asqav-42-revoked-before-issuance",
@@ -3947,6 +4117,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"
@@ -3956,10 +4127,12 @@
       "asqav-02-genesis-deny",
       "asqav-03-chain-link",
       "asqav-04-tamper-sig",
+      "asqav-05-hash-mode-prod",
       "asqav-06-mldsa65-payload-prod",
       "asqav-07-revoked-key",
       "asqav-08-v2-signer-canary",
       "asqav-09-v2-signer-tampered",
+      "asqav-10-hash-mode-multikey",
       "asqav-11-dup-member-toplevel",
       "asqav-12-time-edge-expiry",
       "asqav-13-dup-member-nested",
@@ -4008,6 +4181,7 @@
       "asqav-49-outer-flat-signature-agree",
       "asqav-50-outer-flat-signature-agent-id-edited",
       "asqav-51-outer-envelope-signature-action-type-edited",
+      "asqav-52-outer-flat-hash-unsigned-members",
       "asqav-53-payload-digest-no-context",
       "asqav-54-kms-signed",
       "asqav-55-heartbeat"

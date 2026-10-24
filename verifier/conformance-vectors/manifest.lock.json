@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 67,
+  "corpus_version": 68,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -338,13 +338,18 @@
       "version": 66,
       "files": 422,
       "digest": "e8f2cdc6c936316d61281153848925b6976608eb40e91afdb3499511f12ca813"
+    },
+    {
+      "version": 67,
+      "files": 422,
+      "digest": "5761a49aec677b5f7884b69a8d63b8b6e2b11cda6764c3e65f689c6c87e99cca"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "67bb470c8dd651131c0bdd500c5ce8b991755ae0e78c2aeda29165e8887ea8c1",
-      "bytes": 13758
+      "sha256": "e7e39a51c52ba435111cb69105c3b305d08242e316cdfe7c1920f51dc3a49d4c",
+      "bytes": 14062
     },
     {
       "path": "UPSTREAM.md",
@@ -1028,8 +1033,8 @@
     },
     {
       "path": "asqav-05-hash-mode-prod/expected.json",
-      "sha256": "c2b6789136546a363bb3a0e7101b5efe542c12d76815b16651a622e154314307",
-      "bytes": 921
+      "sha256": "2b4c3b4cae290577f136c7aff2924209aeb06e1360dd10ab24c512b9f153d472",
+      "bytes": 925
     },
     {
       "path": "asqav-05-hash-mode-prod/jwks.json",
@@ -1108,8 +1113,8 @@
     },
     {
       "path": "asqav-10-hash-mode-multikey/expected.json",
-      "sha256": "6288349ab1f882e0a03bc8a6d48fba8455da92423b96ce05fc2dee8c7b8b81ce",
-      "bytes": 947
+      "sha256": "e2d3735a61d8055caa5a45f64d41b5ef71d8422e498728f88cb478bc14c57b6f",
+      "bytes": 951
     },
     {
       "path": "asqav-10-hash-mode-multikey/jwks.json",
@@ -1363,8 +1368,8 @@
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/expected.json",
-      "sha256": "1afd4460228fec134235cd5d2b48e4d5f3c671ed45fd812fde66fc3743879b7b",
-      "bytes": 1330
+      "sha256": "5ebd399adda3879a38eb743649b0bf7b77e4a8956b59e26ec6f4edc4ecd667eb",
+      "bytes": 1515
     },
     {
       "path": "asqav-24-anchor-block-hash-prod/jwks.json",
@@ -1893,8 +1898,8 @@
     },
     {
       "path": "asqav-41-hash-unrecognised-version/expected.json",
-      "sha256": "e3073979410bc62c0e215fcf0babae6a5c15b37e9f66ecb2bda5cc3ab68ee38e",
-      "bytes": 827
+      "sha256": "59b71efbf90064b38f2e8d1d9e7e2c604e06b183fd7f636aa342664330d8289e",
+      "bytes": 831
     },
     {
       "path": "asqav-41-hash-unrecognised-version/jwks.json",
@@ -2123,8 +2128,8 @@
     },
     {
       "path": "asqav-52-outer-flat-hash-unsigned-members/expected.json",
-      "sha256": "32d7a903491cb4b298ea30488d7a5c8ad13b78ebf4112f886a4021a9c3c39773",
-      "bytes": 822
+      "sha256": "02be1ca4d4a469aebea96d45706afc93e66bcfb8fcf5325d47d3e8995e24e894",
+      "bytes": 826
     },
     {
       "path": "asqav-52-outer-flat-hash-unsigned-members/jwks.json",
@@ -2308,8 +2313,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "b615a399664e748107296b5c3c8490579fb531daad97de9f7e936c2cbaa38f16",
-      "bytes": 42934
+      "sha256": "dbeb7655eecb0179bd6a11483f356d1eddc7ae909b913f8b4b82c3f8252aa7ae",
+      "bytes": 43029
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2343,8 +2348,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "b8e488eb6fe5b7add8eaa46439c7a5bfc72cede43a201e8c1edd62e93c259a68",
-      "bytes": 128107
+      "sha256": "e82ce41613dc3a3a5296759d71ad7d82f9d0218326fd4c7a97cb3bf3249405e4",
+      "bytes": 135262
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2482,5 +2487,5 @@
       ]
     }
   },
-  "digest": "5761a49aec677b5f7884b69a8d63b8b6e2b11cda6764c3e65f689c6c87e99cca"
+  "digest": "205d8c338f1d394f6bbcb8041593ac2108f4293bfe481dbfd2361aadb49e11cd"
 }

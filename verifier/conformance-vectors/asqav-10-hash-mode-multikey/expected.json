@@ -4,14 +4,11 @@
   "reason_code": "",
   "notes": "Hash-mode receipt signed by the LAST of three sibling keys that share issuer_id/org_id; signature.kid is the org id, so a kid-shaped match answers for every sibling and list position would pick the wrong one. The agent bind (agent_id plus the org_id the receipt signs) resolves the actual signer. ANTI-VACUOUS: pre-change kid-first resolution verifies the first sibling and FAILs. Parity vector: both PY and TS oracles must PASS.",
   "axis_scope": {
-    "exercised": [],
-    "not_applicable": [
-      "REQ-ANCHOR",
+    "exercised": [
       "REQ-CHAIN",
       "REQ-COUNTERPARTY",
       "REQ-EXPIRY",
       "REQ-ISSUER-BIND",
-      "REQ-KEY-RESOLUTION",
       "REQ-KEY-STATUS",
       "REQ-KEY-THUMBPRINT",
       "REQ-KEYED-DIGEST",
@@ -21,6 +18,10 @@
       "REQ-SIGNATURE",
       "REQ-SKEW",
       "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR",
+      "REQ-KEY-RESOLUTION"
     ]
   }
 }

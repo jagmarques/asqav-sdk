@@ -113,10 +113,16 @@ def test_trusted_flag_or_unscoped_verdict_fails_the_check(document):
 def test_regenerating_reproduces_the_published_map(document, tmp_path):
     """The committed map is what the generator produces from today's corpus."""
     before = MAP.read_text()
+    declared = {p: p.read_text() for p in BUILDER.VECTORS.glob("*/expected.json")}
     result = subprocess.run(
         [sys.executable, str(GENERATOR)], capture_output=True, text=True, cwd=ROOT
     )
+    rewritten = {p: text for p, text in declared.items() if p.read_text() != text}
+    for path, text in rewritten.items():
+        path.write_text(text)
+    assert not rewritten, f"stale axis_scope in {sorted(p.parent.name for p in rewritten)}"
     assert result.returncode == 0, result.stderr
+    assert "axis_scope rewritten : 0 " in result.stdout
     after = MAP.read_text()
     if after != before:
         MAP.write_text(before)
@@ -124,6 +130,32 @@ def test_regenerating_reproduces_the_published_map(document, tmp_path):
             "requirement-map.json is stale: the corpus moved without the map being "
             "regenerated. Run python3 verifier/build_requirement_map.py and commit."
         )
+
+
+def _assert_verified_vectors_exercise_signature(document: dict) -> None:
+    """A verified native vector never waives the signature check."""
+    for name, vec in document["vectors"].items():
+        if vec.get("declared_outcome") in _renderer()._VERIFIED_OUTCOMES:
+            assert BUILDER.SIGNATURE_REQUIREMENT in vec["exercises"], name
+
+
+def test_verified_native_vectors_exercise_the_signature(document):
+    """asqav-52's flat hash-mode receipt is read off the oracle verifying it."""
+    _assert_verified_vectors_exercise_signature(document)
+    vec = document["vectors"]["asqav-52-outer-flat-hash-unsigned-members"]
+    assert vec[BUILDER.DERIVED_BY_KEY] == BUILDER.DERIVED_BY_ORACLE
+    outer = "REQ-OUTER-COPIES"
+    assert outer in BUILDER.REQUIREMENTS
+    assert outer in vec["exercises"]
+
+
+def test_verified_vector_waiving_the_signature_fails_the_check(document):
+    """NEGCTL: asqav-52 with REQ-SIGNATURE moved to not_exercised is refused."""
+    name = "asqav-52-outer-flat-hash-unsigned-members"
+    waived = copy.deepcopy(document)
+    waived["vectors"][name]["exercises"].remove(BUILDER.SIGNATURE_REQUIREMENT)
+    with pytest.raises(AssertionError, match=name):
+        _assert_verified_vectors_exercise_signature(waived)
 
 
 def test_the_unmapped_list_is_published_even_when_it_is_empty(document):
@@ -218,7 +250,10 @@ def _assert_readme_rows_match_map(readme_text: str, document: dict) -> int:
             continue
         name, word = row.groups()
         if word in verified:
-            assert not document["vectors"][name]["not_exercised"], name
+            vec = document["vectors"][name]
+            assert not vec["not_exercised"], name
+            corpus_only = not vec[BUILDER.TRUSTED_ANCHOR_MATERIAL_KEY]
+            assert not (vec[BUILDER.CORPUS_ANCHOR_MATERIAL_KEY] and corpus_only), name
         elif line.startswith(f"- `{name}`: {_renderer().AXIS_SCOPED_LABEL} "):
             scoped += 1
     return scoped
@@ -232,8 +267,12 @@ def test_corpus_readme_states_axis_scope(document):
     manifest = json.loads((BUILDER.VECTORS / "manifest.json").read_text())
     notes = next(e["notes"] for e in manifest if e["dir"] == ANCHORED_VECTOR)
     expected = json.loads((BUILDER.VECTORS / ANCHORED_VECTOR / "expected.json").read_text())
+    material = document["vectors"][ANCHORED_VECTOR][BUILDER.CORPUS_ANCHOR_MATERIAL_KEY]
     for claim_text in (notes, expected["notes"]):
         assert NO_ANCHOR_MATERIAL_CLAIM not in claim_text
+        assert all(name in claim_text for name in material), claim_text
+        assert BUILDER.TRUSTED_ANCHOR_MATERIAL_KEY in claim_text
+    assert f"- `{ANCHORED_VECTOR}`: {_renderer().AXIS_SCOPED_LABEL} " in text
 
 
 def test_bare_verified_row_on_a_partial_vector_fails_the_readme_check(document):
