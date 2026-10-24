@@ -1,4 +1,4 @@
-"""The counting check holds python/tests to the docstring and comment caps.
+"""tools/check_python_conciseness.py holds python/tests to its caps.
 Each case runs the real scan; the planted files are the negative controls."""
 
 from __future__ import annotations
