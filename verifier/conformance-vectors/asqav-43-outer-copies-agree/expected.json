@@ -2,5 +2,26 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. Every plain copy agrees with the signed payload, so the outer_copies axis passes. signature_id is not carried (no signed counterpart). Control for asqav-44..48."
+  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. Every plain copy agrees with the signed payload, so the outer_copies axis passes. signature_id is not carried (no signed counterpart). Control for asqav-44..48.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

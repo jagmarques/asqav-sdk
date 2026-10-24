@@ -9,8 +9,16 @@ from pathlib import Path
 
 from asqav import strict_json
 
-from . import ADAPTERS
-from .core import FAILURE_UNVERIFIABLE, VERDICT_UNVERIFIED, VERDICT_VERIFIED, verify
+from ..verify_receipt import evaluate_anchors
+from . import ADAPTERS, crypto
+from .core import (
+    FAILURE_UNVERIFIABLE,
+    VERDICT_UNVERIFIED,
+    VERDICT_VERIFIED,
+    AxisResult,
+    verify,
+)
+from .semantic_classify import classify as classify_failure
 
 #: manifest outcome tokens -> the VerifyResult.verdict they must produce.
 _OUTCOME_TO_VERDICT = {
@@ -18,6 +26,49 @@ _OUTCOME_TO_VERDICT = {
     "verified_keyed": "verified_keyed",
     "unverified": "unverified",
 }
+
+
+#: Anchors axis status for a receipt that carries no anchors.
+NOT_APPLICABLE = "not_applicable"
+ANCHORS_AXIS = "anchors"
+#: Trusted anchor material evaluate_anchors takes, apart from the receipt.
+TRUSTED_MATERIAL_KEYS = ("trusted_tsa_keys", "bitcoin_headers", "trust_bundle")
+
+#: The expected.json member naming the requirements a vector's verdict covers.
+AXIS_SCOPE_KEY = "axis_scope"
+AXIS_SCOPE_EXERCISED = "exercised"
+AXIS_SCOPE_NOT_APPLICABLE = "not_applicable"
+#: The requirement the anchors axis is evidence for.
+ANCHOR_REQUIREMENT = "REQ-ANCHOR"
+
+
+def _anchors_skip_note(axis_scope: object) -> str:
+    """Why anchors SKIP; names a declaration that calls them not applicable."""
+    waived = axis_scope.get(AXIS_SCOPE_NOT_APPLICABLE) if isinstance(axis_scope, dict) else None
+    if isinstance(waived, list) and ANCHOR_REQUIREMENT in waived:
+        return (
+            f"receipt carries anchors, yet expected.json {AXIS_SCOPE_KEY} declares "
+            f"{ANCHOR_REQUIREMENT} {AXIS_SCOPE_NOT_APPLICABLE}; no trusted anchor "
+            "material supplied, so not checked"
+        )
+    return "receipt carries anchors; no trusted anchor material supplied apart from it"
+
+
+def anchors_axis(
+    receipt: object, trusted_material: dict | None = None, axis_scope: object = None
+) -> AxisResult:
+    """Anchors axis beside the verdict, never folded into it; only a real proof
+    PASSes. No trusted material: SKIP. A declaration never waives material."""
+    anchors = receipt.get("anchors") if isinstance(receipt, dict) else None
+    if anchors is None or anchors == []:
+        return AxisResult(ANCHORS_AXIS, NOT_APPLICABLE, "receipt carries no anchors")
+    supplied = {k: v for k, v in (trusted_material or {}).items() if v is not None}
+    if isinstance(anchors, list) and not supplied:
+        return AxisResult(
+            ANCHORS_AXIS, crypto.SKIPPED, _anchors_skip_note(axis_scope), FAILURE_UNVERIFIABLE,
+        )
+    ev = evaluate_anchors(receipt, **{k: supplied[k] for k in TRUSTED_MATERIAL_KEYS if k in supplied})
+    return AxisResult(ANCHORS_AXIS, ev.result, ev.note, classify_failure(ANCHORS_AXIS, ev.result, ev.note))
 
 
 @dataclass(frozen=True)
@@ -33,6 +84,7 @@ class VectorOutcome:
     detail: str
     expected_failure_class: str = ""
     actual_failure_class: str = ""
+    anchors: AxisResult | None = None
 
 
 def _load(path: Path) -> dict | None:
@@ -80,6 +132,24 @@ def _parse_failure_outcome(
     )
 
 
+def load_inputs(vec_dir: Path, fmt: str) -> tuple:
+    """A vector's oracle inputs: receipt, predecessor, envelope, keys."""
+    return (
+        _load(vec_dir / "receipt.json"),
+        _load(vec_dir / "predecessor.json"),
+        _load(vec_dir / "originating_envelope.json"),
+        _key_provider(vec_dir, fmt),
+    )
+
+
+def verify_inputs(receipt, predecessor, originating_envelope, key_provider):
+    """Run the oracle over the inputs load_inputs returns."""
+    from .adapter import VerificationContext
+
+    return verify(receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor,
+                  context=VerificationContext(originating_envelope))
+
+
     # Run a single vector directory and compare against its expected outcome.
 def run_one(
     vec_dir: Path,
@@ -89,20 +159,18 @@ def run_one(
     expected_failure_class: str = "",
 ) -> VectorOutcome:
     try:
-        receipt = _load(vec_dir / "receipt.json")
-        predecessor = _load(vec_dir / "predecessor.json")
-        originating_envelope = _load(vec_dir / "originating_envelope.json")
-        key_provider = _key_provider(vec_dir, fmt)
+        inputs = load_inputs(vec_dir, fmt)
     except (strict_json.DuplicateMemberError, strict_json.UnsafeIntegerError,
             json.JSONDecodeError, UnicodeDecodeError) as exc:
         # Terminal ingest failure, e.g. an integer past 2**53: never verified.
         return _parse_failure_outcome(
             vec_dir.name, expected_outcome, expected_failure_class, reason_code, exc
         )
-    from .adapter import VerificationContext
-
-    result = verify(receipt, ADAPTERS, key_provider=key_provider, predecessor=predecessor,
-                    context=VerificationContext(originating_envelope))
+    receipt = inputs[0]
+    # The corpus declaration, not an input: unparseable JSON raises here.
+    declared = _load(vec_dir / "expected.json")
+    axis_scope = declared.get(AXIS_SCOPE_KEY) if isinstance(declared, dict) else None
+    result = verify_inputs(*inputs)
 
     want_verdict = _OUTCOME_TO_VERDICT.get(expected_outcome)
     ok = want_verdict is not None and result.verdict == want_verdict
@@ -119,6 +187,7 @@ def run_one(
         detail,
         expected_failure_class,
         actual_failure_class,
+        anchors_axis(receipt, axis_scope=axis_scope),
     )
 
 

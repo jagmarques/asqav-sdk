@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "invalid",
   "reason_code": "unregistered_protectmcp_type",
-  "notes": "Payload-mode genesis with a protectmcp-prefixed type no registry carries: the structure axis FAILs and the class is invalid, a non-conformance of the receipt, not an unverifiable shrug (criterion 524)."
+  "notes": "Payload-mode genesis with a protectmcp-prefixed type no registry carries: the structure axis FAILs and the class is invalid, a non-conformance of the receipt, not an unverifiable shrug (criterion 524).",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

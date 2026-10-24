@@ -2,5 +2,25 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Self-binding verifies: origin and acknowledger are the same party and no axis compares them."
+  "notes": "Self-binding verifies: origin and acknowledger are the same party and no axis compares them.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-ANCHOR",
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": []
+  }
 }
