@@ -10,3 +10,7 @@ The Apache terms for that file are at
 https://www.apache.org/licenses/LICENSE-2.0 (verifier/LICENSE-APACHE in the
 source repository). The rest of src/verifier, the compiled dist/ bundle and
 every other file in this package remain under the SDK's Elastic terms.
+
+conformance-vectors/ carries the conformance corpus with its own NOTICE and
+LICENSE, staged from the repository at pack time; this notice does not
+change the corpus terms.
