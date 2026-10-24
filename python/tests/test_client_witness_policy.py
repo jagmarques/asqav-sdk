@@ -1,11 +1,8 @@
 """SDK parity for the ``witness_policy`` wire field.
 
-The cloud accepts an optional ``witness_policy`` object on the signed
-Compliance Receipt with shape
-``{"required": int, "witnesses": [<subset of "rfc3161",
-"opentimestamps">]}``. The SDK forwards it verbatim and validates the
-shape client-side: ``required`` in ``[1, len(witnesses)]``, ``witnesses``
-a non-empty subset of the two shipped witnesses, and ``rekor`` rejected.
+The SDK forwards ``{"required": int, "witnesses": [...]}`` verbatim and checks
+``required`` in ``[1, len(witnesses)]``, ``witnesses`` a non-empty subset of
+"rfc3161"/"opentimestamps", and ``rekor`` rejected.
 """
 
 from __future__ import annotations

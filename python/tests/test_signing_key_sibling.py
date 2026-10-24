@@ -1,16 +1,8 @@
 """One org, two agent keys: the entry that answers is the entry that signed.
 
-A cloud receipt names the org in ``signature.kid`` and signs with the agent's own
-key. The published directory carries ``issuer_id`` on every key, so a kid holding
-an org id matches every sibling key that org owns, and position in the list decides
-which one answers. Position is not a bind: the sibling it lands on holds different
-key bytes, a different revocation status and a different agent, so a receipt that
-is cryptographically sound verifies against a key that never signed it.
-
-Every directory here publishes TWO agent keys under one issuer, which is the shape
-of any org running more than a single agent. A one-key directory cannot tell a
-matcher that binds apart from one that returns whatever it reaches first, so it
-proves nothing about which entry answered and why.
+A cloud receipt names the org in ``signature.kid``, which matches every
+sibling key, so list position would pick a key with other bytes, status and
+agent. Every directory here publishes TWO agent keys under one issuer.
 """
 
 from __future__ import annotations

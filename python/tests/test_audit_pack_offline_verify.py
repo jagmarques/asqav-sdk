@@ -1,5 +1,5 @@
-"""`asqav audit-pack verify --offline` over a real pack (one flat, two chained receipts with
-pending OTS anchors) and a minted RFC3161 pack, with the network refused."""
+"""`asqav audit-pack verify --offline` over a real pack (one flat, two chained
+receipts, pending OTS anchors) and a minted RFC3161 pack, network refused."""
 
 from __future__ import annotations
 
@@ -247,7 +247,7 @@ def _seal(pack: dict, sk, pk: bytes) -> dict:
 
 
 def _minted(seqs=(1, 2, 3), *, carry_tsa=False, expires_at="2099-01-01T00:00:00.000000Z") -> dict:
-    """An RFC3161-anchored chain, the holder's key set and the TSA keys, sealed with the key."""
+    """An RFC3161-anchored chain, holder and TSA keys, sealed by the key."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
     pk, sk = ML_DSA_65.keygen()
@@ -355,7 +355,7 @@ def test_signed_window_starting_after_revocation_is_invalid() -> None:
 
 
 def test_duplicate_signature_id_in_a_signed_pack_is_invalid() -> None:
-    """Two entries claiming one id are a fork of the entry set, not a verified pack."""
+    """Two entries claiming one id fork the entry set; not a verified pack."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
     m = _minted()
@@ -372,7 +372,7 @@ def test_duplicate_signature_id_in_a_signed_pack_is_invalid() -> None:
 
 
 def test_boolean_receipt_count_is_invalid() -> None:
-    """true equals 1 in Python, so the type check, not the value, closes this."""
+    """true == 1 in Python, so the type check, not the value, closes this."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
     m = _minted()
@@ -388,7 +388,7 @@ def test_boolean_receipt_count_is_invalid() -> None:
 
 
 def test_dangling_mapping_reference_in_a_signed_pack_is_invalid() -> None:
-    """The mapping is edited and the bundle re-signed, so only the reference is wrong."""
+    """Mapping edited, bundle re-signed: only the reference is wrong."""
     m = _minted()
     m["pack"]["regime_mapping"] = {"dora": ["sig_ghost"]}
     _seal(m["pack"], m["sk"], m["pk"])

@@ -1,10 +1,8 @@
-"""Rotation succession (628 T-b): a verifying key the retained directory never authorized.
+"""Rotation succession (628 T-b): K2 verifies but was never authorized.
 
-K2 signs and the current directory publishes K2, so signature and binding
-rederive. The retained directory pins K1 for the same kid/agent with no
-transition authorization to K2. With retained evidence supplied, issuer_key
-must report an explicit forged_transition unresolved result. Without it the
-legacy verdict is unchanged (T2 safety pin).
+K2 signs and is published, so signature and binding rederive; the retained
+directory pins K1 for the same kid/agent with no transition to K2. With it,
+issuer_key reports forged_transition unresolved; without, the verdict holds.
 """
 
 from __future__ import annotations
