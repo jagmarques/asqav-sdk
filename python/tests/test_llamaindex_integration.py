@@ -138,8 +138,6 @@ _install_llamaindex_mocks()
 
 from asqav.extras.llamaindex import AsqavLlamaIndexHandler  # noqa: E402
 
-# === Fixtures ===
-
 
     # Create an AsqavLlamaIndexHandler with mocked Agent internals.
 @pytest.fixture()

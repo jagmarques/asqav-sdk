@@ -1,11 +1,8 @@
 """Wire spec_case into the live path (488 C25, C2 core).
 
-attribute_live_split maps live results (+ live reruns) to views, then
-classifies and attributes; attribute_split is the same pipeline over
-retained views. Reachable branches run fully live. The candidate branch
-cannot: verdicts fold from axes (oracle semantic table), so one oracle
-version never splits on identical views - the split there is synthetic
-and marked as such, while digests, axes, contexts and reruns stay live.
+attribute_live_split maps live results and reruns to views, then classifies
+and attributes, as attribute_split does over retained views. The candidate
+branch's split is synthetic and marked: one oracle never splits equal views.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Local `verify_compliance_receipt`: required fields, namespace, skew, chain."""
+"""Local `verify_compliance_receipt` checks fields, namespace, skew, chain."""
 
 from __future__ import annotations
 

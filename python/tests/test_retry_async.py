@@ -80,8 +80,6 @@ def test_no_retry_on_auth_error() -> None:
     assert call_count == 1  # No retry
 
 
-# === Retry: client error (4xx, not 429) is NOT retried ===
-
 
     # APIError with 400 status is raised immediately without retry.
 def test_no_retry_on_client_error() -> None:
@@ -97,8 +95,6 @@ def test_no_retry_on_client_error() -> None:
         bad_request()
     assert call_count == 1  # No retry
 
-
-# === Retry: exhaustion raises last error ===
 
 
     # After max_retries attempts, the last error is raised.
@@ -220,7 +216,7 @@ async def test_async_sign(mock_post: AsyncMock) -> None:
 # === Async: verify signature ===
 
 
-    # AsyncAgent.verify calls httpx.AsyncClient.get and returns VerificationResponse.
+    # AsyncAgent.verify calls AsyncClient.get and returns VerificationResponse.
 @pytest.mark.asyncio
 async def test_async_verify() -> None:
     from unittest.mock import patch as sync_patch

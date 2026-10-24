@@ -50,7 +50,7 @@ EXPECTED_ROWS = {
 
 
 def _shipped_adapters() -> set[str]:
-    """Row names for every adapter module on disk, so the table cannot lag the code."""
+    """Row names for each adapter module on disk, so the table keeps up."""
     names = {
         f"{p.stem} (python)"
         for p in PY_EXTRAS.glob("*.py")

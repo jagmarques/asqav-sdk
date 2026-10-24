@@ -1,9 +1,8 @@
 """Anchor-verification hardening: malformed input never crashes or over-claims.
 
 `anchors` sits outside the signed bytes, so any relay can steer these values.
-Two invariants: no input escapes as an unhandled exception (the CLI maps one to
-exit 1, indistinguishable from a proven binding failure), and no input reaches
-PASS without a real cryptographic check.
+No input escapes as an unhandled exception (the CLI maps one to exit 1, like a
+proven binding failure), and no input reaches PASS without a real check.
 """
 
 from __future__ import annotations
@@ -108,7 +107,7 @@ def test_malformed_der_never_raises(blob):
 
 
 def test_deeply_nested_der_does_not_recurse():
-    """The DER walk is iterative; 10k nested SEQUENCEs must not blow the stack."""
+    """The iterative DER walk survives 10k nested SEQUENCEs."""
     blob = b""
     for _ in range(10000):
         blob = b"\x30" + _len(len(blob)) + blob
@@ -123,9 +122,8 @@ def test_ots_varuint_is_width_bounded():
     """A varuint past the width cap is rejected even when the blob commits.
 
     The blob carries the real envelope digest so it reaches the width check
-    instead of failing the commitment compare first. The parser-level pin
-    below is what flips when the cap is raised: end-to-end outcomes stay
-    SKIPPED either way because the detail is not surfaced.
+    before the commitment compare. The parser-level pin below flips when the
+    cap is raised; end-to-end outcomes stay SKIPPED (detail not surfaced).
     """
     env = _envelope([])
     digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
@@ -328,7 +326,7 @@ def test_fold_verdict_keyed_never_collapses_to_verified():
 
 
 def test_keyed_receipt_failing_a_check_stays_unverified():
-    """`verified_keyed` is a PASSING verdict; it must not mask a real failure."""
+    """`verified_keyed` is a PASSING verdict; it never masks a real failure."""
     failing = [("signature", "FAIL", "bad signature")]
     verdict, fc = vr._fold_verdict(failing, keyed=True)
     assert verdict == vr.VERDICT_UNVERIFIED
@@ -355,10 +353,9 @@ def test_ots_blob_is_size_bounded():
 def test_ots_msg_is_append_bounded():
     """A committing append past the message cap is rejected mid-chain.
 
-    The blob carries the real envelope digest so it reaches the append
-    check instead of failing the commitment compare first. The parser-level
-    pin below is what flips when the cap is raised: end-to-end outcomes stay
-    SKIPPED either way because the detail is not surfaced.
+    The blob carries the real envelope digest so it reaches the append check
+    before the commitment compare. The parser-level pin below flips when the
+    cap is raised; end-to-end outcomes stay SKIPPED (detail not surfaced).
     """
     env = _envelope([])
     digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()

@@ -1,6 +1,6 @@
 """Differential fuzz gate: the canonicalizers must not disagree.
 
-Runs a fixed, seeded corpus so a failure is reproducible from the seed printed in
+Runs a fixed, seeded corpus so a failure reproduces from the seed printed in
 the report. The TypeScript engine joins only when ``typescript/dist`` is built;
 the Python engines always compare, so the gate never silently degrades to one.
 """
@@ -77,7 +77,7 @@ def test_at_least_two_engines_are_compared(capsys: pytest.CaptureFixture[str]) -
 def test_a_built_typescript_bundle_joins_both_of_its_engines() -> None:
     """With typescript/dist built, all four engines compare, verifier included.
 
-    The verifier engine is the one the SDK emitter cannot stand in for: it is the
+    The SDK emitter cannot stand in for the verifier engine: it is the
     canonicalizer a third party runs, so a roster missing it hides exactly the
     divergence class the corpus exists to catch.
     """
@@ -138,7 +138,7 @@ def test_gate_detects_a_code_point_sorting_engine(monkeypatch: pytest.MonkeyPatc
     )
 
 
-    # The engine a customer actually runs offline must be compared, not only the emitter.
+    # The engine a customer runs offline is compared, not only the emitter.
 def test_standalone_verifier_is_one_of_the_engines() -> None:
     assert "standalone" in fuzz.engines_available()
 
@@ -151,7 +151,7 @@ def test_typescript_verifier_engine_joins_when_built() -> None:
     assert "typescript-verifier" in fuzz.engines_available()
 
 
-    # A verification path sorting by code point must be caught, or the gate is blind to it.
+    # A verify path sorting by code point must be caught, or the gate is blind.
 def test_gate_detects_a_code_point_sorting_standalone_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
     def code_point_canonical(obj: object) -> bytes:
         return json.dumps(

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Count over-long Python docstrings, comment lines and comment blocks.
-Four budgets: docstring block 6 lines, line 80 chars, comment block 2."""
+Budgets: docstring 6 lines, line 80 chars, block 2, a non-blank first line."""
 
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ MAX_COMMENT_BLOCK_LINES = 2
 # exemption follows the header text, not the file name.
 LICENSE_HEADER_SHA256 = "e6e7c4d87cfb25d4c262f62f06ef57f555ce812f87b2976488d8f02f9f953208"
 
+_DOC_NODES = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+
 _STRUCTURAL_TOKENS = frozenset(
     {
         tokenize.COMMENT,
@@ -42,6 +44,7 @@ class Counts:
     docstring_lines: int = 0
     comment_lines: int = 0
     comment_blocks: int = 0
+    blank_first_lines: int = 0
     files_scanned: int = 0
     findings: list[str] = field(default_factory=list)
 
@@ -53,6 +56,7 @@ class Counts:
             + self.docstring_lines
             + self.comment_lines
             + self.comment_blocks
+            + self.blank_first_lines
         )
 
 
@@ -158,6 +162,16 @@ def scan_file(path: Path) -> Counts:
                     f"{path}:{line + offset}: docstring line is {width} characters"
                     f" (max {MAX_COMMENT_CHARS})"
                 )
+    for node in ast.walk(tree):
+        if not isinstance(node, _DOC_NODES):
+            continue
+        doc = ast.get_docstring(node, clean=False)
+        if doc is not None and not doc.split("\n")[0].strip():
+            counts.blank_first_lines += 1
+            name = getattr(node, "name", None) or "<module>"
+            counts.findings.append(
+                f"{path}:{node.body[0].lineno}: docstring of {name} opens on a blank line"
+            )
     header = license_header_lines(source)
     blocks = comment_blocks(source)
     exempt = set()
@@ -198,6 +212,7 @@ def scan_tree(root: Path) -> Counts:
         total.docstring_lines += counts.docstring_lines
         total.comment_lines += counts.comment_lines
         total.comment_blocks += counts.comment_blocks
+        total.blank_first_lines += counts.blank_first_lines
         total.files_scanned += counts.files_scanned
         total.findings.extend(counts.findings)
     if not files:
@@ -226,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
         total.docstring_lines += counts.docstring_lines
         total.comment_lines += counts.comment_lines
         total.comment_blocks += counts.comment_blocks
+        total.blank_first_lines += counts.blank_first_lines
         total.files_scanned += counts.files_scanned
         total.findings.extend(counts.findings)
     for finding in total.findings:
@@ -238,6 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"counting check: comment lines over {MAX_COMMENT_CHARS} characters: {total.comment_lines}")
     print(f"counting check: comment blocks over {MAX_COMMENT_BLOCK_LINES} lines: {total.comment_blocks}")
+    print(f"counting check: docstrings opening on a blank line: {total.blank_first_lines}")
     return 1 if total.total else 0
 
 

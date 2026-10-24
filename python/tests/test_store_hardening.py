@@ -1,9 +1,8 @@
 """Store hardening (488 C18): duplicate guard, orphan raise, link validation.
 
-A second original for the same bytes is rejected (reassess instead of
-shadowing); a reassessment without a retained original is rejected; a
-restored log whose reassessment links a missing or foreign original, whose
-original supersedes, or whose kind is unknown is rejected.
+Rejected: a second original for the same bytes, a reassessment without a
+retained original, and a restored log linking a missing or foreign original,
+whose original supersedes, or whose kind is unknown.
 """
 from __future__ import annotations
 

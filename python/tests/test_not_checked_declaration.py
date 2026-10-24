@@ -1,12 +1,8 @@
-"""Non-coverage is declared in the output, on every result, passing ones included.
+"""Non-coverage is declared in the output, on every result, passing ones too.
 
-A verifier that reports only what it checked lets a reader mistake silence for
-coverage. Prose in a README does not travel with the result and is not machine
-readable, so the boundary of the claim has to sit beside the claim.
-
-These tests pin three things: that the declaration is on every return path this
-function has, that it survives a caller mutating it, and that a newly added
-return path cannot quietly ship without it.
+A verifier reporting only what it checked lets silence pass for coverage, and
+README prose does not travel with the result. Pinned: the declaration is on
+every return path, survives caller mutation, and no new path can omit it.
 """
 
 from __future__ import annotations
@@ -73,7 +69,7 @@ def test_present_on_a_fully_evaluated_receipt_whose_signature_verified():
 
 
 def test_a_caller_cannot_narrow_what_later_results_declare():
-    """Each result gets its own copy, so mutation does not reach the constant."""
+    """Each result gets its own copy, so mutation never reaches the constant."""
     first = run_structured("not an envelope", {})
     first["not_checked"].clear()
     first_entry = not_checked_declaration()[0]
@@ -85,9 +81,8 @@ def test_a_caller_cannot_narrow_what_later_results_declare():
 def test_every_return_path_of_run_structured_declares_it():
     """The anti-regression gate: a new early return cannot omit the declaration.
 
-    Parsed from the source rather than exercised, because the point is to catch a
-    return path no test happens to reach - which is exactly the path that would
-    ship undeclared.
+    Parsed from the source rather than exercised, to catch a return path no
+    test happens to reach, which is the path that would ship undeclared.
     """
     source = pathlib.Path(
         __import__("asqav.verifier.verify_receipt", fromlist=["_"]).__file__
@@ -117,7 +112,7 @@ _AXES_AFTER_STRUCTURE = (
 
 
 def test_coverage_block_on_a_full_run():
-    """A receipt that runs the whole sequence reports stopped_at null and the table."""
+    """A full-sequence receipt reports stopped_at null and the table."""
     receipt, jwks = _vector("asqav-01-genesis-permit")
     result = run_structured(receipt, jwks)
     # The pin is the live axis sequence itself: the coverage constant must track it.
@@ -151,7 +146,7 @@ def test_coverage_block_on_the_early_returns():
 
 
 def test_coverage_not_implemented_ids_match_the_table_in_order():
-    """Parity: the block's not_implemented ids ARE this language's table, in order."""
+    """Parity: not_implemented ids ARE this language's table, in order."""
     for axes in ([], [{"name": "expiry"}]):
         entries = coverage_declaration(axes)["checks_not_evaluated"]
         not_impl = [e["id"] for e in entries if e["reason"] == "not_implemented"]

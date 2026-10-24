@@ -1,9 +1,8 @@
-"""Asqav signs Microsoft AGT receipts and AGT's own verifier consumes the link (criterion 763).
+"""Asqav signs Microsoft AGT receipts; AGT's own verifier consumes the link.
 
-Runs the real AGT package against a local stand-in for the Asqav agent and sign
-endpoints on 127.0.0.1 that mints ML-DSA-65 receipts. Nothing reaches api.asqav.com.
-ASQAV_AGT_REQUIRED=1 turns a missing AGT into a failure; ASQAV_AGT_PROFILE_REQUIRED=1
-does the same for AGT's external-authorization profile.
+The real AGT package runs against a 127.0.0.1 stand-in minting ML-DSA-65
+receipts; nothing reaches api.asqav.com. ASQAV_AGT_REQUIRED=1 and
+ASQAV_AGT_PROFILE_REQUIRED=1 fail on a missing AGT or AGT profile.
 """
 
 from __future__ import annotations
@@ -135,7 +134,7 @@ class _AsqavStub:
         }
 
     def mint(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Shape the payload like the cloud: org_id always, issuer_id is the legal entity if set."""
+        """Cloud payload shape: org_id; issuer_id is the legal entity if set."""
         seq = len(self.sign_posts)
         if "hash" in body:
             digest = {"hash": body["hash"][len("sha256:"):], "size": body["payload_size"]}
@@ -218,7 +217,7 @@ def _agt_receipts(seed: str, *tools: str) -> list[Any]:
 
 
 def _reload(receipt: Any) -> Any:
-    """Round-trip through the JSON AGT exports, as an offline verifier would read it."""
+    """Round-trip the AGT JSON exports as an offline verifier reads them."""
     names = {f.name for f in dataclasses.fields(agt.GovernanceReceipt)}
     data = json.loads(json.dumps(receipt.to_dict()))
     return agt.GovernanceReceipt(**{k: v for k, v in data.items() if k in names})
@@ -406,7 +405,7 @@ VICTIM_ORG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 def _resign(
     server: _AsqavStub, envelope: dict[str, Any], *, sk: bytes | None = None, **edits: Any
 ) -> dict[str, Any]:
-    """Re-sign an Asqav envelope after editing its payload (stand-in key unless ``sk``)."""
+    """Re-sign an edited Asqav envelope (stand-in key unless ``sk``)."""
     forged = json.loads(json.dumps(envelope))
     for key, value in edits.items():
         if value is None:
