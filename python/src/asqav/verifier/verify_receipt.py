@@ -994,7 +994,7 @@ def _verify_tsa_signature(
             try:
                 if mod.verify(pk, signed, signature):
                     return "verified"
-            except Exception:  # wrong-size or malformed key; try the next
+            except Exception:  # wrong-size or malformed candidate key; try the next
                 continue
     elif sig_alg == _OID_ED25519:
         try:
