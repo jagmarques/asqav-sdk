@@ -96,7 +96,7 @@ def _signable_preimage(doc: dict) -> bytes:
     return jcs_rfc8785(clone)
 
 
-    # SHA-256 of JCS(full receipt including its signature) - the chain primitive.
+    # SHA-256 of JCS(full receipt, signature included) - the chain primitive.
 def _full_receipt_hash(doc: dict) -> str:
     return sha256_hex(jcs_rfc8785(doc))
 
@@ -106,7 +106,7 @@ class PipelockEvidenceAdapter(FormatAdapter):
 
     name = "pipelock-evidence-v2"
 
-        # Cheap structural fingerprint: record_type + receipt_version, no crypto.
+        # Cheap fingerprint: record_type + receipt_version, no crypto.
     def detect(self, doc: dict) -> bool:
         return (
             doc.get("record_type") == _RECORD_TYPE
@@ -150,10 +150,10 @@ class PipelockEvidenceAdapter(FormatAdapter):
 
     def chain_step(self, doc: dict) -> ChainStep:
         prev = doc.get("chain_prev_hash")
-        # Genesis is an absent field or a sentinel. The isinstance guard keeps an
-        # unhashable value from raising, and a non-string is never an absent link.
+        # Genesis is an absent field or a sentinel. The isinstance guard keeps
+        # an unhashable value from raising; a non-string is never genesis.
         is_genesis = prev is None or (isinstance(prev, str) and prev in _GENESIS_SENTINELS)
-        # Chain hash covers the full predecessor receipt including its signature.
+        # Chain hash covers the full predecessor receipt, signature included.
         return ChainStep(
             prev_field=prev,
             is_genesis=is_genesis,
