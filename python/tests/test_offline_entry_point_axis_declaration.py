@@ -1,4 +1,9 @@
-"""The offline APIs' axis vocabulary matches the axes they return."""
+"""Every shipped statement of the offline APIs axis vocabulary, checked against the axes
+those APIs actually return: the ``verify_receipt_offline`` docstring, the ``verifyReceiptOffline`` JSDoc and
+``docs/offline-verification.md`` must all equal the names the executed entry point and standalone verifier
+return, so a coverage claim cannot drift from the coverage. The clock-shift case pins the one axis the three
+surfaces disagreed about: ``skew`` runs in-line offline and decides the verdict.
+"""
 
 from __future__ import annotations
 

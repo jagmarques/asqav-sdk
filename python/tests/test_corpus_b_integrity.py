@@ -14,7 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Literal pins for every derived member of corpus B (criterion 693)."""
+"""Literal pins for corpus B's derived members (criterion 693). Every expected value is a literal string
+copied from the file, never recomputed. A tamper vector's pins record its tampered values (forged ``sig``,
+wrong ``envelope_hash``): the pin says what the corpus carries, breakage included. Long lines keep the bytes
+greppable. ``asqav-11-dup-member-toplevel`` carries ``payload`` twice; ``json.load`` keeps the last block, so
+the pins record it. ``asqav-05``/``asqav-10`` are hash-mode receipts, ``policy_digest`` at top level.
+"""
 
 from __future__ import annotations
 
@@ -26,6 +31,9 @@ from pathlib import Path
 import pytest
 
 _CORPUS_ROOT = Path(__file__).parent.parent.parent / "verifier" / "conformance-vectors"
+
+#: Sibling checks: regen_conformance_vectors.py --check re-derives the
+#: recomputable members, and manifest.lock.json freezes the corpus bytes.
 
 
 @lru_cache(maxsize=1)
@@ -53,7 +61,7 @@ def _sig_of(name: str, receipt: dict) -> str:
     signature = receipt.get("signature")
     if isinstance(signature, str):  # flat spelling: the string is the sig
         return signature
-    if not isinstance(signature, dict):  # hosted spelling: object renamed
+    if not isinstance(signature, dict):  # hosted spelling: the object is renamed
         signature = receipt.get("signature_envelope")
     assert isinstance(signature, dict) and isinstance(signature.get("sig"), str), name
     return signature["sig"]

@@ -1,4 +1,9 @@
-"""Receipt-internal integrity axes, Python half."""
+"""Receipt-internal integrity axes, Python half. Two receipt-internal axes an issuer could assert unchecked.
+`payload_digest` is recomputable with NO external data, so a receipt whose own context does not hash to its
+digest is provably inconsistent. `counterparty_binding` asserts a counterparty acknowledged the action: only
+the hosted verifier can resolve it (an offline third party has no database), so a fabricated binding reached
+a verified verdict. verifier/axis-parity-cases.json drives this file and its TypeScript twin.
+"""
 
 from __future__ import annotations
 
@@ -183,7 +188,7 @@ def test_a_fabricated_counterparty_binding_cannot_read_as_corroborated() -> None
     axis = oracle_verify(_receipt(counterparty_binding=forged), ADAPTERS, _jwks()).axis(
         "counterparty"
     )
-    # SKIPPED blocks the verdict, so the claim never rides along as support
+    # SKIPPED blocks the verdict, so the claim never rides along as corroboration
     assert axis.result == "SKIPPED", axis.note
     assert axis.failure_class == "unverifiable"
     assert "unresolved:" in axis.note

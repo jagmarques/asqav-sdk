@@ -1,4 +1,9 @@
-"""Cryptographic anchor verification: presence alone is never valid."""
+"""Cryptographic anchor verification (draft: presence without a successful check MUST NOT yield valid).
+The three anchor outcomes: verified (the token commits this envelope and its own proof checks out
+against caller-pinned trust material), invalid (the check ran and failed: wrong digest, bad TSA
+signature, merkle path missing the stated block), unverifiable (it could not run offline: junk
+token, no pinned TSA key, no bitcoin header source, pending/failed status); and key_status wiring:
+only a verified anchor proven at or before revoked_at activates the historical path."""
 
 from __future__ import annotations
 
@@ -311,7 +316,7 @@ def _signed_revoked_env(gen_time: str):
 def test_pre_revocation_receipt_passes_with_verified_anchor() -> None:
     """Draft historical verify: signed before revocation, proven by the anchor."""
     pytest.importorskip("dilithium_py")
-    env, jwks, tsa_pk = _signed_revoked_env("20260601000000Z")  # pre-revoke
+    env, jwks, tsa_pk = _signed_revoked_env("20260601000000Z")  # before revoked_at
     result = v.run_structured(env, jwks, None, trusted_tsa_keys=[tsa_pk])
     ks = next(a for a in result["axes"] if a["name"] == "key_status")
     assert ks["result"] == "PASS", ks
@@ -320,7 +325,7 @@ def test_pre_revocation_receipt_passes_with_verified_anchor() -> None:
 
 def test_anchor_after_revocation_does_not_prove_pre_revocation_timing() -> None:
     pytest.importorskip("dilithium_py")
-    env, jwks, tsa_pk = _signed_revoked_env("20260801000000Z")  # post-revoke
+    env, jwks, tsa_pk = _signed_revoked_env("20260801000000Z")  # after revoked_at
     result = v.run_structured(env, jwks, None, trusted_tsa_keys=[tsa_pk])
     ks = next(a for a in result["axes"] if a["name"] == "key_status")
     assert ks["result"] == "SKIPPED", ks
@@ -330,7 +335,7 @@ def test_anchor_after_revocation_does_not_prove_pre_revocation_timing() -> None:
 def test_unverified_anchor_never_upgrades_a_revoked_key() -> None:
     pytest.importorskip("dilithium_py")
     env, jwks, _tsa_pk = _signed_revoked_env("20260601000000Z")
-    # No pinned TSA key: the anchor is untrusted, so key_status stays SKIPPED.
+    # No pinned TSA key: the anchor cannot be trusted, so key_status stays SKIPPED.
     result = v.run_structured(env, jwks, None)
     ks = next(a for a in result["axes"] if a["name"] == "key_status")
     assert ks["result"] == "SKIPPED", ks

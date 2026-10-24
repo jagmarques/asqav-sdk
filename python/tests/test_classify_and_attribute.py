@@ -1,4 +1,9 @@
-"""Reassessment review through the production attribution caller (488 C27)."""
+"""Reassessment review through the production attribution caller (488 C27).
+classify_and_attribute reviews a live result against its retained original: the store supplies the
+original view, live results map to views, and the attribution pipeline classifies plus runs the
+spec-bug bar. Tests address the caller only, never attribute_split/spec_case/compare directly. The
+candidate branch stays synthetic-marked like C25: verdicts fold from axes, so one oracle version
+never splits on identical views, while digests, axes, contexts and reruns stay live."""
 from __future__ import annotations
 
 import dataclasses

@@ -1,4 +1,8 @@
-"""Offline API declares its anchor scope (criterion 677)."""
+"""Offline API declares its anchor scope (criterion 677).
+verify_receipt_offline must carry the same scope declaration as its TypeScript twin: every result
+names what it did not check, so a reader never mistakes silence for coverage. At base this returns
+exactly ["axes","failure_class","fmt","verdict"].
+"""
 from __future__ import annotations
 
 import json

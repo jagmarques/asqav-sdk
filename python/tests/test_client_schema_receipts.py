@@ -1,4 +1,9 @@
-"""Tests for opt-in schema-driven structured receipts (criterion 328)."""
+"""Tests for opt-in schema-driven structured receipts (criterion 328).
+Three core contract proofs (non-vacuous): (a) a valid context passes validation and sign() is
+called with the normalized (key-sorted) context; (b) an invalid context (missing required field
+or wrong type) raises AsqavValidationError and sign is NOT called (network never reached); (c) no
+schema supplied gives unchanged behavior. Non-vacuity probe: case (b) asserts the test would
+FAIL if validation were skipped (the error comes from the SDK, not a missing stub call)."""
 
 from __future__ import annotations
 

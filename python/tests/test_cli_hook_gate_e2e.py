@@ -120,7 +120,7 @@ class _Signer:
             "previousReceiptHash": "0" * 64,
             "decision": "allow",
         }
-        # The cloud signs the caller's invocation_ref into the payload.
+        # The cloud signs the caller's invocation_ref into the payload, top level.
         if body.get("invocation_ref") is not None and not self.omit_invocation_ref:
             payload["invocation_ref"] = body["invocation_ref"]
         envelope = {
@@ -302,7 +302,7 @@ def test_a_receipt_minted_for_call_one_does_not_open_an_identical_call_two(monke
     first = _run_gate(monkeypatch, signer, _CALL)
     assert first.exit_code == 0, first.output
     call_one = json.loads(json.dumps(signer.last_response))
-    # Same tool, input and session in the freshness window, another invocation:
+    # Same tool, input and session in the freshness window, a different invocation:
     # whoever holds the response channel hands back call one's receipt.
     monkeypatch.setattr(signer, "post", lambda *_a, **_k: json.loads(json.dumps(call_one)))
     second = _run_gate(monkeypatch, signer, {**_CALL, "tool_use_id": "toolu_B"})

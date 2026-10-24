@@ -1,4 +1,9 @@
-"""SDK parity for `capture_topology` + `observation` decision vocabulary."""
+"""SDK parity for `capture_topology` + `observation` decision vocabulary.
+
+Covers the cycle-12/13 cloud + IETF -04 deliverables: the wire `decision`
+vocabulary gains `observation` (paired with internal `policy_decision="none"`
+on `protectmcp:lifecycle` receipts) and the producer-side `capture_topology`
+metadata travels on `SignRequest` as a closed Literal of five values."""
 
 from __future__ import annotations
 
@@ -265,7 +270,7 @@ def test_receipt_type_parametrised_accepts_all_values(value: str) -> None:
     # Lifecycle namespace pairs with `none` to exercise the opt-out path.
     if value.startswith("protectmcp:lifecycle"):
         kwargs["policy_decision"] = "none"
-    # Rule 9: configuration_change receipts MUST carry the config digest.
+    # Rule 9 lockstep: configuration_change receipts MUST carry the config digest.
     if value == "protectmcp:lifecycle:configuration_change":
         kwargs["config_manifest_digest"] = "sha256:" + "0" * 64
     # Rule 9 lockstep: result_bound receipts MUST carry result_digest.

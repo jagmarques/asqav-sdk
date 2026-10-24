@@ -1,4 +1,9 @@
-"""SDK parser surfaces every field the cloud `/verify` returns."""
+"""SDK parser surfaces every field the cloud `/verify` returns.
+The cloud's `VerificationResponse` (in `asqav_cloud/api/routes/verify.py`) emits the IETF
+projection (`signature_envelope`, `anchors`, `algorithm_registry_version`), the Bitcoin anchor
+block, the receipt `type` discriminator, and the `VerificationDetail` sub-axes
+(`anchor_valid_ots`, `anchor_valid_rfc3161`, `policy_digest_resolved`, `duplicate_emission_candidate`,
+`regimes_satisfied`). These tests pin that the SDK parser populates the dataclasses with all of them."""
 
 from __future__ import annotations
 

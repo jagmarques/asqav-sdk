@@ -1,4 +1,9 @@
-"""The hook forwards `tool_use_id` as `invocation_ref` on both hook paths."""
+"""The hook forwards `tool_use_id` as `invocation_ref` on both paths: a pre-action decision receipt
+and a post-action observation receipt for the same call carry the SAME value, so a reader can
+SEE duplicate emissions. Absent or non-string inputs omit the field: nothing is synthesised,
+no fallback to `session_id` (the trace, not the invocation). Visibility only: no de-duplication,
+no rejection on this field. The `_map_event` kwargs mirror the real `hook_pretool`/`hook_posttool`
+sites; the CLI controls call the real entry points, so semantics cannot drift."""
 
 from __future__ import annotations
 

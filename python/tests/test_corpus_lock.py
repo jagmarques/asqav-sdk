@@ -1,4 +1,9 @@
-"""Conformance corpus freeze at v1, verification path A (criterion 420)."""
+"""Conformance corpus freeze at v1, verification path A (criterion 420).
+
+Every vector file in both corpora is pinned by SHA-256 and byte length in a
+manifest.lock.json; the lock's digest is pinned here and in the READMEs. Every pin is
+re-derived with hashlib + pathlib, loud on drift, and again via sha256sum. The corpus
+README also carries the generated vector index (821): the renderer owns the format, the lock the bytes."""
 
 from __future__ import annotations
 
@@ -137,7 +142,7 @@ def test_ed25519_corpus_seed_rederives_the_public_key() -> None:
     )
     assert pub == acta["public_key_hex"], "published Ed25519 seed does not match its key"
 
-    # The published ML-DSA-65 seed regenerates the key and the pinned KAT sig
+    # The published ML-DSA-65 seed regenerates the key and the pinned KAT signature
     # byte for byte (dilithium-py deterministic=True, the FIPS 204 pure variant)
 
 

@@ -1,4 +1,9 @@
-"""Zero-dep verifier accepts risk-acceptance and code-authorship types."""
+"""Zero-dep verifier accepts the risk-acceptance and code-authorship receipt types.
+
+verify_receipt.py carries protectmcp:lifecycle:risk_acceptance and protectmcp:lifecycle:code_authorship
+in ALLOWED_TYPES so the structure axis recognises a valid receipt of either type and PASSes on it; an
+unknown type is REPORTED (SKIPPED, naming the namespace), never failed, while the verdict stays
+unverified/unverifiable so nothing unrecognised verifies. These tests pin both behaviours."""
 
 from __future__ import annotations
 
@@ -39,7 +44,7 @@ def test_structure_accepts_risk_acceptance() -> None:
 
 
 def test_structure_reports_unknown_type() -> None:
-    """A protectmcp: value missing from the vocabulary FAILs as invalid."""
+    """A protectmcp: value absent from the vocabulary FAILs as invalid (registered namespace, unknown value)."""
     payload = _risk_payload()
     payload["type"] = "protectmcp:not_a_real_type"
     res, note = v.check_structure(payload)
@@ -293,7 +298,7 @@ def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
     signing_key = Ed25519PrivateKey.generate()
     other_key = Ed25519PrivateKey.generate()
     msg = v.canonical_json({"type": "protectmcp:decision", "agent_id": "agt_probe"})
-    # Signature made by `other_key`, but the JWKS ties agent_id to `signing_key`
+    # Signature made by `other_key`, but the JWKS ties agent_id to `signing_key`.
     wrong_sig = base64.b64encode(other_key.sign(msg)).decode()
     jwks = {
         "keys": [
@@ -404,15 +409,14 @@ def test_run_agent_id_fallback_rejects_forged_issuer() -> None:
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _victim_sk = ml.keygen()
     payload = _valid_payload("org-victim", "agt_attacker")
-    sig = ml.sign(attacker_sk, v.canonical_json(payload))  # attacker key
+    sig = ml.sign(attacker_sk, v.canonical_json(payload))  # signed with attacker key
     jwks = {
         "keys": [
             _jwks_key("victim-key", "agt_victim", "org-victim", victim_pk),
             _jwks_key("attacker-key", "agt_attacker", "org-attacker", attacker_pk),
         ]
     }
-    # attacker key rejected
-    assert v.run(_envelope(payload, sig), jwks, None) == 1
+    assert v.run(_envelope(payload, sig), jwks, None) == 1  # bound: attacker key rejected
 
 
 def test_run_agent_id_fallback_passes_legit_multi_agent() -> None:
@@ -426,15 +430,12 @@ def test_run_agent_id_fallback_passes_legit_multi_agent() -> None:
     sig = ml.sign(a2_sk, v.canonical_json(payload))  # signed by agent two
     jwks = {
         "keys": [
-            # issuer-kid hits this
-            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),
-            # real signer via agent_id
-            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),
+            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),  # issuer-kid hits this
+            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),  # real signer via agent_id
         ]
     }
     env, tsa_pk = _trusted_envelope(payload, sig)
-    # fallback resolves the bound signer
-    assert v.run(env, jwks, None, trusted_tsa_keys=[tsa_pk]) == 0
+    assert v.run(env, jwks, None, trusted_tsa_keys=[tsa_pk]) == 0  # fallback resolves the bound signer
 
 
     # A flipped signature byte on the legit multi-agent receipt FAILs.
@@ -454,7 +455,7 @@ def test_run_tampered_signature_fails() -> None:
     assert v.run(_envelope(payload, bytes(sig)), jwks, None) == 1
 
 
-    # Mutating a payload field after signing FAILs; the signature is unbound.
+    # Mutating a payload field after signing FAILs; the signature no longer binds.
 def test_run_tampered_payload_fails() -> None:
     ml = _ml_dsa_65()
     a1_pk, _a1_sk = ml.keygen()
@@ -484,10 +485,8 @@ def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
     sig = ml.sign(a2_sk, v.canonical_json(payload))  # signed by agent two
     jwks = {
         "keys": [
-            # issuer-kid hits this
-            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),
-            # real signer via agent_id
-            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),
+            _jwks_key("agent-one", "agt_one", "org-legit", a1_pk),  # issuer-kid hits this
+            _jwks_key("agent-two", "agt_two", "org-legit", a2_pk),  # real signer via agent_id
         ]
     }
     env, tsa_pk = _trusted_envelope(payload, sig)
@@ -507,7 +506,7 @@ def test_run_structured_agent_id_fallback_rejects_forged_issuer() -> None:
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _victim_sk = ml.keygen()
     payload = _valid_payload("org-victim", "agt_attacker")
-    sig = ml.sign(attacker_sk, v.canonical_json(payload))  # attacker key
+    sig = ml.sign(attacker_sk, v.canonical_json(payload))  # signed with attacker key
     jwks = {
         "keys": [
             _jwks_key("victim-key", "agt_victim", "org-victim", victim_pk),
@@ -600,7 +599,7 @@ def test_extended_offset_rejects_out_of_range_minute() -> None:
 
 
 def test_out_of_range_offset_fails_closed_on_the_skew_axis() -> None:
-    # Criterion 342: an out-of-range offset reads unparseable, so skew refuses
+    # Criterion 342: an out-of-range offset reads unparseable, so skew refuses it
     result, note = v.check_skew("2026-05-04T12:00:00+0260")
     assert result == "FAIL"
     assert "unparseable" in note

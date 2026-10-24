@@ -1,4 +1,9 @@
-"""SDK fingerprint helpers agree with conformance/vectors.json byte for byte."""
+"""Verify the SDK fingerprint helpers agree with conformance/vectors.json byte-for-byte.
+
+If this file fails, either ``canonicalize.py`` drifted from the JCS subset, or ``conformance/vectors.json``
+was edited without regenerating its derived fields (hash, canonical). ``test_conformance_vectors.py``
+checks the vectors' own consistency; this file checks the SDK's public helpers match them.
+"""
 
 from __future__ import annotations
 
@@ -88,7 +93,7 @@ def test_canonicalize_orders_astral_keys_by_utf16_code_unit() -> None:
     assert canonicalize(positive["input"]).decode("utf-8") == positive["canonical"]
 
 
-    # A non-conformant canonicalizer's code point ordering is not reproduced.
+    # A non-conformant canonicalizer's code point ordering must not be reproduced.
 def test_canonicalize_rejects_code_point_key_order() -> None:
     twin = {v["name"]: v for v in _load_vectors()}[
         "asqav-24-jcs-astral-key-order-codepoint-rejected"

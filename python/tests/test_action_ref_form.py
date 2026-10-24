@@ -14,7 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""One `action_ref` form across both corpora, and the three named exceptions."""
+"""Every native `action_ref` in both corpora carries the wire form ``sha256:<64 lowercase hex>``;
+an opaque identifier is not a digest, does not join. EXCEPTIONS stay uncollapsed to
+``sha256:``+``payload_digest.hash``: form is rule, digest equality is not (`action_ref` is producer-asserted).
+asqav-06 (caller digest), asqav-12 (abab... vs payload cdcd..., so a verifier mixing them fails), asqav-13
+(dup-member refusal, empty digest). OTHER vectors equal ``sha256:``+``payload_digest.hash``.
+"""
+# Collapsing the exceptions would delete that coverage while the vector still
+# passed; the second test keeps the invariant from drifting, not a wire rule.
 
 from __future__ import annotations
 

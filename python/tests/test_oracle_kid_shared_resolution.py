@@ -1,4 +1,9 @@
-"""One key resolution serves the signature and key-status axes alike."""
+"""One key resolution serves the signature and key-status axes. ``signature.kid`` sits OUTSIDE the signed
+payload bytes, so a holder can rewrite it undisturbed. A signature axis resolving through a fallback the
+gating axes lack leaves ``key_status`` and ``issuer_bind`` emitting no axis; the aggregate in
+``oracle/core.py`` blocks on SKIPPED, not on one never emitted, so a REVOKED-signed receipt reads PASS. Every
+gate pins the closing invariant: the entry the signature verifies against is the entry every axis reads.
+"""
 
 from __future__ import annotations
 
@@ -177,7 +182,7 @@ def test_rewritten_kid_cannot_flip_a_revoked_receipt_to_pass() -> None:
     honest_res = verify(honest, ad, key_provider=jwks)
     rewritten_res = verify(rewritten, ad, key_provider=jwks)
 
-    # The signature does check out against the published key in both cases.
+    # The signature really does check out against the published key in both cases.
     assert honest_res.axis("signature").result == "PASS"
     assert rewritten_res.axis("signature").result == "PASS"
     # And the revoked status carries the verdict in both cases.

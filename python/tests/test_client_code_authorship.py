@@ -1,4 +1,9 @@
-"""SDK parity for the code-authorship receipt."""
+"""SDK parity for the code-authorship receipt: mirrors the cloud validators (routes/agents.py
+``_validate_code_authorship_extensions``) for ``receipt_type='protectmcp:lifecycle:code_authorship'``:
+the eight fields are forwarded verbatim; each enforced rule has a named test, so none drops
+out of the signed bytes. Honest-scope: fields are producer-asserted / recorded-not-verified;
+Asqav never re-runs the diff or attests the model. Rejections carry a docs_url (rule 3.9).
+"""
 
 from __future__ import annotations
 
@@ -26,7 +31,8 @@ GOOD_AUTHORED_BY = {
     "attestation_source": "GitHub Copilot session export",
 }
 
-
+# The enforced rules: the change_digest shape, the change_class vocabulary, the
+# authored_by attestation-source rule, the field fence and compliance_mode.
 def _agent() -> Agent:
     return Agent(
         agent_id="agent_code",

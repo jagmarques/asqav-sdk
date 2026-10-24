@@ -1,4 +1,9 @@
-"""Anchor verification: malformed input never crashes or over-claims."""
+"""Anchor-verification hardening: malformed input never crashes or over-claims.
+
+`anchors` sits outside the signed bytes, so any relay can steer these values.
+Two invariants: no input escapes as an unhandled exception (the CLI maps one to
+exit 1, indistinguishable from a proven binding failure), and no input reaches
+PASS without a real cryptographic check."""
 
 from __future__ import annotations
 
@@ -114,7 +119,12 @@ def test_deeply_nested_der_does_not_recurse():
 
 
 def test_ots_varuint_is_width_bounded():
-    """A varuint past the width cap is rejected even when the blob commits."""
+    """A varuint past the width cap is rejected even when the blob commits.
+
+    The blob carries the real envelope digest so it reaches the width check
+    instead of failing the commitment compare first. The parser-level pin
+    below is what flips when the cap is raised: end-to-end outcomes stay
+    SKIPPED either way because the detail is not surfaced."""
     env = _envelope([])
     digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
     blob = (
@@ -196,8 +206,7 @@ def test_signed_attrs_without_content_type_is_rejected():
 def test_signed_attrs_with_wrong_content_type_is_rejected():
     env = _envelope([])
     tst = make_tst_info(_bound_for(env))
-    # id-data
-    attrs = make_signed_attrs(tst, content_type_oid="1.2.840.113549.1.7.1")
+    attrs = make_signed_attrs(tst, content_type_oid="1.2.840.113549.1.7.1")  # id-data
     token, pk = _ml_dsa_token(tst, signed_attrs=attrs)
     ev = vr.evaluate_anchors(
         _envelope([_anchor("rfc3161", token)]), trusted_tsa_keys=[pk]
@@ -342,7 +351,12 @@ def test_ots_blob_is_size_bounded():
 
 
 def test_ots_msg_is_append_bounded():
-    """A committing append past the message cap is rejected mid-chain."""
+    """A committing append past the message cap is rejected mid-chain.
+
+    The blob carries the real envelope digest so it reaches the append
+    check instead of failing the commitment compare first. The parser-level
+    pin below is what flips when the cap is raised: end-to-end outcomes stay
+    SKIPPED either way because the detail is not surfaced."""
     env = _envelope([])
     digest = hashlib.sha256(vr.envelope_minus_anchors_jcs(env)).digest()
     arg = b"\x00" * 4100

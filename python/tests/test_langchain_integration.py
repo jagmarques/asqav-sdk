@@ -30,7 +30,7 @@ _MISSING = object()
 _FAKE_CONFIGURE_HOOKS: list = []
 
 
-    # Inject fake langchain_core modules; return the BaseCallbackHandler class.
+    # Inject fake langchain_core modules and return the BaseCallbackHandler class.
 def _install_langchain_mocks() -> type:
     # Save originals so we can restore later
     for mod_name in (
@@ -100,7 +100,7 @@ def _remove_langchain_mocks() -> None:
         else:
             sys.modules[mod_name] = original  # type: ignore[assignment]
 
-    # Clear the cached asqav.extras.langchain module so imports re-check.
+    # Clear the cached asqav.extras.langchain module so imports re-check the guard.
     sys.modules.pop("asqav.extras.langchain", None)
 
 
@@ -392,7 +392,12 @@ def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
 
 
 def test_on_chain_start_none_serialized_signs_receipt(handler):
-    """on_chain_start with serialized=None still signs a chain:start receipt."""
+    """on_chain_start with serialized=None still signs a chain:start receipt.
+
+    Non-vacuous: without the isinstance(serialized, dict) guard, serialized.get(...) on
+    None raises AttributeError and LangChain swallows it, so the receipt is silently
+    dropped. Revert the guard and this assertion fails (no sign call).
+    """
     handler.on_chain_start(
         serialized=None,
         inputs={"text": "hello"},
@@ -416,7 +421,12 @@ def test_on_chain_start_non_dict_serialized_signs_receipt(handler):
 
 
 def test_on_chain_start_none_serialized_non_dict_inputs_signs_receipt(handler):
-    """on_chain_start(None, 'hello') yields input_keys=[], never crashing."""
+    """on_chain_start(None, 'hello') yields input_keys=[] - never crashes.
+
+    Non-vacuous: without the isinstance(inputs, dict) guard, list('hello'.keys())
+    raises AttributeError and LangChain swallows it, so the receipt is silently
+    dropped. Revert the guard and this test fails (sign not called).
+    """
     handler.on_chain_start(
         serialized=None,
         inputs="hello",  # type: ignore[arg-type]

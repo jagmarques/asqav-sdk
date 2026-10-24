@@ -1,4 +1,9 @@
-"""Oracle `review` command: files in, attribution out (488 C28, C2 flow)."""
+"""Oracle `review` command: files in, attribution out (488 C28, C2 flow).
+First production flow over attribution: main(["review", store, receipt, ...]) loads a retained log,
+verifies the receipt, reruns live, and runs classify_and_attribute. Tests address main() only,
+never library entries. The candidate leg uses a prior-version-style store record (marked synthetic
+like C25): a live verdict flip recorded under a valid chain, reviewed against current live output.
+"""
 from __future__ import annotations
 
 import dataclasses

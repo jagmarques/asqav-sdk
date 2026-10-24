@@ -14,7 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""`v`/`mode` are REQUIRED on asqav-native vectors, forbidden elsewhere."""
+"""`v` and `mode` are REQUIRED on every asqav-native vector and forbidden elsewhere; the draft requires both
+on the payload (5.1.1 ``v``, 5.1.2 ``mode``). Only a broken signature catches a missing member: an EDITED
+vector, not a REGENERATED one, so a re-signing generator yields a valid receipt. Presence is asserted against
+the bytes, not a verdict. 5.3 makes the ABSENCE of ``v`` the discriminator from a bare upstream receipt, so
+non-asqav families MUST NOT gain it: that deletes the only negative evidence.
+"""
 
 from __future__ import annotations
 
@@ -60,7 +65,11 @@ def _receipt_files(prefix: str):
 
 
 def _signed_members(doc: dict) -> tuple[dict, str]:
-    """Return the object holding the signed members, and its position."""
+    """Return the object the signed members live in, and which position that is. Payload-mode receipts carry
+    them inside ``payload``; the flat hash-mode shape has ``payload`` null and carries them at the top level
+    (5.1.1 states both positions), so a checker that only looks inside ``payload`` reports a false absence on
+    exactly the production-captured vectors.
+    """
     payload = doc.get("payload")
     if isinstance(payload, dict):
         return payload, "payload"
@@ -112,7 +121,12 @@ def test_v_and_mode_carry_only_recognised_values() -> None:
 
 
 def test_a_flat_shaped_receipt_is_always_hash_mode() -> None:
-    """A receipt whose ``payload`` is null cannot be payload-mode."""
+    """A receipt whose ``payload`` is null cannot be payload-mode. Only this ONE direction holds, and the
+    corpus is the reason the converse is not asserted here: ``asqav-08``, ``asqav-09`` and ``asqav-24`` carry
+    a real payload OBJECT and ``mode`` ``hash``. That is correct, not a defect: ``mode`` records how the
+    ACTION was captured (content or digest), not the envelope shape, so a hash-mode receipt can still carry a
+    payload object holding metadata and the digest.
+    """
     wrong = [
         (label, members.get("mode"))
         for label, doc in _asqav_receipts()

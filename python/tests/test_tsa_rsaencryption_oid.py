@@ -1,6 +1,11 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""RFC 3161 tokens under the bare rsaEncryption OID verify with pinned keys."""
+"""RFC 3161 tokens signed under the bare rsaEncryption OID verify with
+pinned material. RFC 5652 permits 1.2.840.113549.1.1.1 as the SignerInfo signatureAlgorithm, the hash taken
+from the SignerInfo digestAlgorithm, and real TSAs emit exactly that shape: the corpus's production token
+(asqav-24-anchor-block-hash-prod) is signed by tsa.izenpe.com under rsaEncryption with sha256. The dispatch
+used to know only the shaNNNWithRSAEncryption identifiers, so no pinned material could ever verify this token.
+"""
 
 from __future__ import annotations
 

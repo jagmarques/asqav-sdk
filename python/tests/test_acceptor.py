@@ -1,4 +1,9 @@
-"""Gates for acceptor-side admission control (criterion 472, B15)."""
+"""Gates for acceptor-side admission control (criterion 472, B15).
+Driven off the real conformance corpus, not hand-built dicts: every receipt is signed over its own
+bytes by the corpus's published keys, so a refusal comes from the rule under test, not a broken
+signature. The three acceptor-only rules carry the weight: each refuses a receipt the VERIFIER
+accepts, which is why the module exists: a peer can weaken the evidence without an unverified receipt.
+"""
 from __future__ import annotations
 
 import base64

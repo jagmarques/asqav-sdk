@@ -15,7 +15,7 @@ import pytest
 _SRC = os.path.join(os.path.dirname(__file__), "..", "src")
 _SNIPPET = (
     "import sys\n"
-    "sys.modules['typer'] = None\n"  # None makes `import typer` raise
+    "sys.modules['typer'] = None\n"  # a None entry makes `import typer` raise ImportError
     "sys.argv = ['asqav'] + sys.argv[1:]\n"
     "import importlib\n"
     "importlib.import_module({module!r})\n"

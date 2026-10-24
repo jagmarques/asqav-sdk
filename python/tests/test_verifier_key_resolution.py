@@ -1,4 +1,8 @@
-"""Key resolution: signed identifiers break a thumbprint tie."""
+"""Key resolution: a thumbprint tie is broken by the signed identifiers, and the agent bind verifies.
+
+Offline: every key pair and directory row is minted here, so a green run says nothing about
+api.asqav.com and everything about the resolver.
+"""
 
 from __future__ import annotations
 

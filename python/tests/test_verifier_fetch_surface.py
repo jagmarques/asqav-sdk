@@ -1,4 +1,9 @@
-"""Fetch guard: the verifier fetches only https same-host JSON (628 T3)."""
+"""Fetch-surface guard: the verifier fetches only https same-host JSON (628 T3).
+A verifier library must never turn a URL into a local-file read or a cleartext
+request. These tests pin that fetch_jwks rejects file:// and http:// with a
+scheme error (not a downstream parse/network error) and that the redirect
+handler refuses cross-host hops while allowing same-host ones.
+"""
 
 import re
 import urllib.request

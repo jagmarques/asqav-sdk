@@ -1,4 +1,8 @@
-"""C7 scenario families (488 C14): success, contradiction, missing, drift."""
+"""C7 scenario families (488 C14): success, contradiction, missing, drift.
+
+The criterion's four disagreement scenarios, reproduced end to end from retained assessments through the
+classifier. Family 2 carries two assessments of identical inputs with contradictory verdicts; family 3
+drops the agreement comparandum on one side; family 4 varies only trust/time inputs."""
 from __future__ import annotations
 
 from asqav.verifier.oracle.agreement import AgreementRef

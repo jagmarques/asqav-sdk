@@ -1,4 +1,9 @@
-"""Tests for IETF Compliance Receipts profile sign-path fields."""
+"""Tests for IETF Compliance Receipts profile sign-path fields - each asserts one SDK behaviour.
+The new kwargs travel to the cloud body; `receipt_type` outside the `protectmcp:*` namespace is rejected
+client-side before any HTTP call; `compliance_mode=True` with no caller `action_ref` makes the SDK compute
+`sha256:` + sha256 over canonical JSON of ``{"action_type", "context"}``; the parser surfaces the new fields
+the cloud emits. The cloud's pydantic validator is exercised in `tests/conformance/test_ietf_vectors.py`.
+"""
 
 from __future__ import annotations
 
@@ -65,7 +70,7 @@ def test_receipt_type_namespace_constant() -> None:
             "protectmcp:lifecycle:configuration_change",
             # risk-acceptance / exception receipt; no-policy lifecycle opt-out.
             "protectmcp:lifecycle:risk_acceptance",
-            # code-authorship receipt: producer-asserted record of the author.
+            # code-authorship receipt; producer-asserted record of who authored a change.
             "protectmcp:lifecycle:code_authorship",
             "protectmcp:acknowledgment",
             "protectmcp:observation",

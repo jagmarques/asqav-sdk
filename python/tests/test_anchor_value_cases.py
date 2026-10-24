@@ -1,4 +1,9 @@
-"""Anchor value base64 tolerance, Python half."""
+"""Anchor value base64 tolerance, Python half.
+
+One corpus drives both halves. The anchors field is unsigned and attacker
+steerable, so the TypeScript half additionally asserts that no disagreement runs
+in the permissive direction. The TypeScript half lives in
+typescript/tests/verifier-anchor-value-parity.test.ts and reads the same file."""
 
 from __future__ import annotations
 
@@ -24,7 +29,7 @@ def test_corpus_is_populated() -> None:
     assert len(VALUES) >= 900, f"corpus has only {len(VALUES)} values"
     wide = [c for c in VALUES if any(ord(ch) > 127 for ch in c["value"])]
     assert len(wide) >= 350, f"only {len(wide)} values carry a non-ASCII codepoint"
-    # A shape-valid value reports SKIPPED, not PASS. Both directions
+    # A shape-valid value reports SKIPPED (unverifiable), not PASS. Both directions
     # must be present or the corpus cannot tell a working gate from a stuck one.
     failing = [c for c in VALUES if c["expect"]["axis"] == "FAIL"]
     assert len(failing) >= 100, f"only {len(failing)} values are expected to fail"

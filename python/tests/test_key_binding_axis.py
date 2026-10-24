@@ -1,4 +1,9 @@
-"""key_thumbprint binding axis, Python half (criterion 458)."""
+"""key_thumbprint binding axis, Python half (criterion 458). The table in verifier/axis-parity-cases.json
+drives this file and the TypeScript parity test, so a rule that drifts in one language fails a suite. The wire
+tests are mutation-shaped on purpose: each one fails if its own wire is deleted. Criterion 457's lesson:
+driving only the helper chain leaves call sites untested, so every append site of the axis and every
+FAIL-terminal table entry has a test that notices its removal.
+"""
 
 from __future__ import annotations
 
@@ -92,7 +97,7 @@ def test_key_binding_axis_table(case) -> None:
     assert case["expect"]["note_contains"] in note, note
 
 
-    # pub is unpadded base64url; the directory's alphabet yields another digest.
+    # pub is unpadded base64url; the directory's own alphabet yields another digest.
 def test_pub_member_uses_unpadded_base64url() -> None:
     jwk = vr.akp_jwk(alg="ML-DSA-87", public_key=bytes([0xFF]) * 2592)
     assert set(jwk) == {"alg", "kty", "pub"}
@@ -101,7 +106,7 @@ def test_pub_member_uses_unpadded_base64url() -> None:
     assert jwk["pub"].startswith("____")
 
 
-    # RFC 7638 requires lexicographic members and no whitespace, whatever input.
+    # RFC 7638 requires lexicographic members and no whitespace, whatever the input.
 def test_thumbprint_ignores_member_insertion_order() -> None:
     pk = bytes([0x07]) * 1952
     ordered = {"alg": ALG, "kty": "AKP", "pub": vr._b64url_nopad(pk)}
@@ -161,7 +166,7 @@ def test_a_substituted_key_is_terminal_invalid_not_a_warning() -> None:
     assert out["failure_class"] == "invalid"
 
 
-    # A skip blocks all axes but chain: absence must PASS or legacy breaks.
+    # A skip blocks all axes but chain: absence must PASS or legacy receipts break.
 def test_absence_does_not_block_a_verdict() -> None:
     binding = oracle_verify(_receipt(None), ADAPTERS, _jwks(KEY_GOOD)).axis("key_binding")
     assert binding.result == "PASS", binding.note
@@ -197,7 +202,7 @@ def test_hash_mode_cannot_display_an_unsigned_thumbprint() -> None:
     assert result.verdict == "unverified"
 
 
-    # Hash mode signs no thumbprint: a clean hash-mode receipt is not-checked.
+    # Hash mode signs no thumbprint, so a clean hash-mode receipt reads not-checked.
 def test_hash_mode_without_a_thumbprint_reports_not_checked() -> None:
     doc = {
         "v": 1,

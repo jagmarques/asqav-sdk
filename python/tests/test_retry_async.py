@@ -220,7 +220,7 @@ async def test_async_sign(mock_post: AsyncMock) -> None:
 # === Async: verify signature ===
 
 
-    # AsyncAgent.verify calls httpx.AsyncClient.get, returns the response.
+    # AsyncAgent.verify calls httpx.AsyncClient.get, returns VerificationResponse.
 @pytest.mark.asyncio
 async def test_async_verify() -> None:
     from unittest.mock import patch as sync_patch

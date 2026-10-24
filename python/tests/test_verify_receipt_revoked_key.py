@@ -1,4 +1,8 @@
-"""Offline verifier gates the verdict on the signing key's revocation status."""
+"""Offline verifier gates the verdict on the signing key's revocation status.
+A receipt signed by a key the JWKS marks revoked must not PASS offline, matching the hosted /verify.
+Offline the verifier cannot verify a timestamp anchor, so a revoked key never rides a forgeable
+anchor to PASS: the key_status axis is FAIL or SKIPPED and the verdict is never PASS.
+"""
 
 from __future__ import annotations
 
@@ -26,8 +30,7 @@ def _jwks(status: str, revoked_at=None) -> dict:
         "kid": "agent-revoked-001",
         "issuer_id": "agent-revoked-001",
         "alg": "ML-DSA-65",
-        # base64 placeholder, never reached for revoked key gate
-        "public_key": "QUFBQQ==",
+        "public_key": "QUFBQQ==",  # base64 placeholder, never reached for revoked key gate
         "status": status,
     }
     if revoked_at is not None:
@@ -130,7 +133,7 @@ def test_run_threads_the_compromise_reason_into_the_key_status_axis():
 # --- standalone verify_receipt.run ---
 
 
-    # A revoked-key receipt yields unverified (invalid), never verified.
+    # A revoked-key receipt yields unverified (invalid), never verified, from run().
 def test_run_revoked_key_does_not_pass(capsys):
     envelope = {
         "payload": _payload(),
@@ -227,8 +230,7 @@ def test_run_structured_forged_anchor_does_not_upgrade_revoked_key():
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
-        # base64('test'), not a token
-        "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],
+        "anchors": [{"type": "rfc3161", "value": "dGVzdA=="}],  # base64('test'), not a token
     }
     result = v.run_structured(
         envelope, _jwks("revoked", revoked_at="2026-07-01T00:00:00Z"), None
@@ -271,7 +273,7 @@ def _axis(axes, name):
     return next(a for a in axes if a[0] == name)
 
 
-    # The asqav-native adapter skips the key_status axis for a revoked key
+    # The asqav-native adapter surfaces a skipped key_status axis for a revoked key
 def test_oracle_revoked_key_axis_skipped():
     doc = {
         "payload": _payload(),

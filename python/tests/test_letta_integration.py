@@ -64,7 +64,7 @@ def hook() -> AsqavLettaHook:
 # === Canonical API: positional block_label, keyword-only agent_id ===
 
 
-    # retrieve('human', agent_id='agent-123') matches the letta-client signature
+    # retrieve('human', agent_id='agent-123') matches the letta-client signature.
 def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -76,7 +76,7 @@ def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
     assert ctx["agent_id"] == "agent-123"
 
 
-    # update('persona', agent_id='a', value='v') matches the letta-client shape.
+    # update('persona', agent_id='a', value='v') matches the letta-client signature.
 def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -87,7 +87,7 @@ def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
     assert ctx["agent_id"] == "agent-456"
 
 
-    # A partial update omitting value (a limit update) writes no memory:write.
+    # Partial update omitting value (e.g. a limit update) writes no memory:write.
 def test_update_without_value_does_not_sign_memory_write(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -99,7 +99,7 @@ def test_update_without_value_does_not_sign_memory_write(hook: AsqavLettaHook) -
     # Partial update is forwarded to the original update without value kwarg.
 def test_update_without_value_still_calls_original(hook: AsqavLettaHook) -> None:
     client = _make_client()
-    original_update = client.agents.blocks.update  # captured before the wrap
+    original_update = client.agents.blocks.update  # capture before wrap replaces it
     hook.wrap_client(client)
     client.agents.blocks.update("human", agent_id="a", limit=2000)
 
@@ -161,7 +161,7 @@ def test_wrap_client_retrieve_returns_original_result(hook: AsqavLettaHook) -> N
 # === wrap_client: memory:write ===
 
 
-    # wrap_client signs memory:write with agent_id, block_label, length, preview
+    # wrap_client signs memory:write with agent_id, block_label, length and preview.
 def test_wrap_client_signs_memory_write(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -335,7 +335,7 @@ def test_error_message_truncated_to_200_chars(hook: AsqavLettaHook) -> None:
 # === Fail-open: signing must never block memory operations ===
 
 
-    # If memory:read signing raises, retrieve still executes and returns.
+    # If memory:read signing raises, retrieve still executes and returns its result.
 def test_fail_open_memory_read_does_not_block_retrieve(hook: AsqavLettaHook) -> None:
     sentinel = object()
     client = _make_client(retrieve_result=sentinel)
@@ -346,7 +346,7 @@ def test_fail_open_memory_read_does_not_block_retrieve(hook: AsqavLettaHook) -> 
     assert result is sentinel
 
 
-    # If memory:write signing raises, update still executes and returns.
+    # If memory:write signing raises, update still executes and returns its result.
 def test_fail_open_memory_write_does_not_block_update(hook: AsqavLettaHook) -> None:
     sentinel = object()
     client = _make_client(update_result=sentinel)
@@ -378,7 +378,7 @@ def test_fail_open_memory_write_end_does_not_suppress_result(
     assert result is sentinel
 
 
-    # If memory:read.error signing raises, the retrieve error is still raised.
+    # If memory:read.error signing raises, the retrieve error is still re-raised.
 def test_fail_open_read_error_signing_does_not_swallow_exception(
     hook: AsqavLettaHook,
 ) -> None:

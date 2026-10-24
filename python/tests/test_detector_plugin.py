@@ -1,4 +1,9 @@
-"""Tests for pluggable detector framework (criterion 331)."""
+"""Tests for pluggable detector framework (criterion 331).
+Non-vacuity mapping (mutant → what breaks it): remove DetectorBlockedError raise in run_detectors
+→ deny/fail-closed tests fail; remove _detectors stamp into context → allow/receipt-records tests
+fail; remove fail_open branch in run_detectors → fail_open tests fail; remove _registry guard →
+additive test fails (unexpected _detectors key). Each test asserts on the specific mechanism.
+"""
 
 from __future__ import annotations
 

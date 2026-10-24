@@ -109,7 +109,7 @@ def test_on_module_end_signs_ok(cb: AsqavDSPyCallback) -> None:
     )
 
 
-    # on_module_end signs dspy.module.end with ok=False and the exception name.
+    # on_module_end signs dspy.module.end with ok=False and exception name on error.
 def test_on_module_end_signs_exception(cb: AsqavDSPyCallback) -> None:
     cb.on_module_end("call-2", None, ValueError("bad input"))
     cb._sign_action.assert_called_once_with(

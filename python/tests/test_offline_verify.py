@@ -120,7 +120,7 @@ def test_verify_receipt_offline_tampered_payload_directly():
 def test_verify_receipt_offline_no_key_in_jwks():
     receipt = _load(PASS_VECTOR / "receipt.json")
     result = asqav.verify_receipt_offline(receipt, {"keys": []})
-    # Oracle SKIPs the signature if the key is absent: the check is incomplete.
+    # Oracle SKIPs the signature when the key is absent; the check cannot complete.
     assert result["verdict"] == "unverified"
     assert result["failure_class"] == "unverifiable"
     sig_axis = next((a for a in result["axes"] if a["name"] == "signature"), None)
@@ -364,7 +364,7 @@ def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields()
     assert asqav.verify_receipt_offline(clean, jwks)["verdict"] == "verified"
 
     doc = dict(clean)
-    # Unsigned in hash mode, so a consumer reading these fields sees a victim.
+    # Unsigned in hash mode, so a consumer reading these fields sees a victim claim.
     doc["issuer_id"] = "org-victim"
     doc["previousReceiptHash"] = "0" * 64
     result = asqav.verify_receipt_offline(doc, jwks)
@@ -401,7 +401,7 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat():
     jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
     result = asqav.verify_receipt_offline(receipt, jwks)
     sig_axis = next(a for a in result["axes"] if a["name"] == "signature")
-    # Must be PASS - SKIPPED or INCOMPLETE means the ML-DSA-65 was bypassed.
+    # Must be PASS - SKIPPED or INCOMPLETE means the ML-DSA-65 check was bypassed.
     assert (
         sig_axis["result"] == "PASS"
     ), f"ML-DSA-65 signature axis must be PASS (not SKIPPED/INCOMPLETE/FAIL); got: {sig_axis}"
@@ -422,7 +422,7 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_payload():
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
     jwks = _load(MLDSA_KAT_VECTOR / "jwks.json")
     tampered = copy.deepcopy(receipt)
-    # Flip one payload field - the ML-DSA sig over the bytes must not match.
+    # Flip one payload field - the ML-DSA sig over canonical bytes must not match.
     tampered["payload"]["decision"] = "deny"
     result = asqav.verify_receipt_offline(tampered, jwks)
     assert (

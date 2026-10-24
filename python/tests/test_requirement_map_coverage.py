@@ -1,6 +1,11 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""The corpus requirement map must name the corpus it was built from."""
+"""The corpus requirement map must name the corpus it was built from.
+`verifier/build_requirement_map.py` writes `requirement-map.json` from the corpus; the corpus lock pins
+its bytes, so it cannot drift. A vector added without regenerating leaves the map short; the lock stays
+green. This module compares map with corpus, names what is missing, so the job names the missing vector.
+`test_requirement_map.py` rebuilds it byte for byte; this one reads corpus and map only.
+"""
 
 from __future__ import annotations
 

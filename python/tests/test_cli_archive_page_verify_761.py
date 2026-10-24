@@ -1,4 +1,9 @@
-"""Archive page offline verification (criterion 761, integrated path)."""
+"""Archive page offline verification (criterion 761, integrated path).
+_verify_archive_page must accept exactly what GET /audit-pack/archive emits - the full envelope digest plus a
+signature that verifies against the bundled key - and reject everything else. The subset-digest test is the
+regression for the reported defect: the old CLI recomputed over {organization_id, receipts}, so genuine server
+pages aborted at cursor 0.
+"""
 
 from __future__ import annotations
 
