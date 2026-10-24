@@ -201,6 +201,15 @@ anchor alone. A pack that Python marks `invalid` on that ground exits `2` in Typ
 
 The TypeScript SDK ships ML-DSA-65 via `@noble/post-quantum` (pure JS, no WASM).
 
+`@noble/post-quantum` is pinned to the exact version `0.6.1` in `typescript/package.json`
+and the lockfile, never a range. Audit status, from the library's README
+(https://github.com/paulmillr/noble-post-quantum, fetched 2026-10-24): "The library has
+not been independently audited yet." The README records one self-audit, "at version 0.6.1,
+in Apr 2026, it was audited by ourselves (self-audited)". The pin is that version. The
+README also links an independent ACVP reproducibility study against 0.7.0 and calls it
+"reproducibility study, not an audit". As of that date no third-party audit was published
+there. The library does not claim constant-time execution.
+
 ```typescript
 import { fetchJwks, verifyReceiptOffline } from "@asqav/sdk";
 import { writeFileSync, readFileSync } from "node:fs";
