@@ -18,7 +18,7 @@ from .core import (
     AxisResult,
     verify,
 )
-from .semantic_classify import classify
+from .semantic_classify import classify as classify_failure
 
 #: manifest outcome tokens -> the VerifyResult.verdict they must produce.
 _OUTCOME_TO_VERDICT = {
@@ -68,7 +68,7 @@ def anchors_axis(
             ANCHORS_AXIS, crypto.SKIPPED, _anchors_skip_note(axis_scope), FAILURE_UNVERIFIABLE,
         )
     ev = evaluate_anchors(receipt, **{k: supplied[k] for k in TRUSTED_MATERIAL_KEYS if k in supplied})
-    return AxisResult(ANCHORS_AXIS, ev.result, ev.note, classify(ANCHORS_AXIS, ev.result, ev.note))
+    return AxisResult(ANCHORS_AXIS, ev.result, ev.note, classify_failure(ANCHORS_AXIS, ev.result, ev.note))
 
 
 @dataclass(frozen=True)
