@@ -100,7 +100,7 @@ def test_pretool_dry_run_capture_topology() -> None:
     assert body["capture_topology"] == "in_process_sdk"
 
 
-# pretool fails CLOSED: bad input exits 2, as PreToolUse exit 1 is non-blocking.
+# pretool fails CLOSED: bad input or no identity exits 2; exit 1 runs unsigned.
 
 
     # Empty stdin must exit 2 (block), not exit 1 (proceed unsigned).

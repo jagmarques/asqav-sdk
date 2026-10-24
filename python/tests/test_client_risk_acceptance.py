@@ -2,7 +2,7 @@
 
 Mirrors the cloud validators for ``protectmcp:lifecycle:risk_acceptance``:
 nine fields forwarded verbatim, sarif_digest shape, numeric risk_snapshot needs
-a source, type fence, required compliance_mode; refusals carry a docs_url.
+a source, type fence, required compliance_mode; docs_url refusals (rule 3.9).
 """
 
 from __future__ import annotations

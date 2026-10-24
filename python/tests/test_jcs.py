@@ -1,8 +1,8 @@
 """Canonical-JSON (JCS) golden vector tests for `asqav._jcs.canonical_json`.
 
-Vectors mirror the canonical-JSON appendix plus profile-shaped envelopes. A
-byte mismatch means the SDK and cloud sign different bytes, so it hard-fails;
-`asqav.canonicalize.canonicalize` must produce the same bytes.
+Vectors mirror the canonical-JSON appendix plus IETF Compliance Receipts
+profile envelopes. A byte mismatch means the SDK and cloud sign different
+bytes, so it hard-fails; `asqav.canonicalize.canonicalize` must match.
 """
 
 from __future__ import annotations

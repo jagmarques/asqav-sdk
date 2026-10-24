@@ -1,8 +1,8 @@
 """SDK parity for the code-authorship receipt.
 
-Mirrors the cloud validators for ``protectmcp:lifecycle:code_authorship``:
-eight fields forwarded verbatim, change_digest shape, change_class vocabulary,
-authored_by rules, type fence, required compliance_mode; refusals have docs_url.
+Mirrors the cloud ``protectmcp:lifecycle:code_authorship`` validators: eight
+producer-asserted fields verbatim, change_digest shape, change_class vocabulary,
+authored_by rules, type fence, compliance_mode; docs_url refusals (rule 3.9).
 """
 
 from __future__ import annotations

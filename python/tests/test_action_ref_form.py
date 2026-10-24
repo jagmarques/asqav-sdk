@@ -18,7 +18,7 @@
 
 Every asqav-native `action_ref` is ``sha256:<64 lowercase hex>``. Exceptions,
 kept apart from ``sha256:`` + ``payload_digest.hash``: asqav-06 (a genuine
-caller digest), asqav-12 (abab... vs cdcd... by design), asqav-13 (empty ref).
+caller digest), asqav-12 (abab... vs cdcd...), asqav-13 (empty-input digest).
 """
 
 from __future__ import annotations
