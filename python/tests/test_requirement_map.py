@@ -12,6 +12,7 @@ import copy
 import importlib.util
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -191,3 +192,58 @@ def test_anchor_material_vector_exercises_req_anchor(document):
         "asqav-42-counterparty-same-binding-second-ack", "asqav-43-counterparty-unknown-member",
     ]
     assert document["unmapped_requirements"] == []
+
+
+README = ROOT / "verifier" / "conformance-vectors" / "README.md"
+RENDERER = ROOT / "verifier" / "render_vector_list.py"
+#: The claim asqav-24's notes made while the corpus shipped the material.
+NO_ANCHOR_MATERIAL_CLAIM = "does not ship"
+ANCHORED_VECTOR = "asqav-24-anchor-block-hash-prod"
+
+
+def _renderer():
+    spec = importlib.util.spec_from_file_location("render_vector_list", RENDERER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _assert_readme_rows_match_map(readme_text: str, document: dict) -> int:
+    """Return the scoped row count; a bare-verified row needs full coverage."""
+    verified = _renderer()._VERIFIED_OUTCOMES
+    scoped = 0
+    for line in readme_text.splitlines():
+        row = re.match(r"- `([^`]+)`: (\S+)", line)
+        if not row or row.group(1) not in document["vectors"]:
+            continue
+        name, word = row.groups()
+        if word in verified:
+            assert not document["vectors"][name]["not_exercised"], name
+        elif line.startswith(f"- `{name}`: {_renderer().AXIS_SCOPED_LABEL} "):
+            scoped += 1
+    return scoped
+
+
+def test_corpus_readme_states_axis_scope(document):
+    """No partial vector reads bare verified; asqav-24 claims no gap."""
+    text = README.read_text()
+    assert _assert_readme_rows_match_map(text, document) > 0
+    assert _renderer().AXIS_SCOPED_LABEL in text
+    manifest = json.loads((BUILDER.VECTORS / "manifest.json").read_text())
+    notes = next(e["notes"] for e in manifest if e["dir"] == ANCHORED_VECTOR)
+    expected = json.loads((BUILDER.VECTORS / ANCHORED_VECTOR / "expected.json").read_text())
+    for claim_text in (notes, expected["notes"]):
+        assert NO_ANCHOR_MATERIAL_CLAIM not in claim_text
+
+
+def test_bare_verified_row_on_a_partial_vector_fails_the_readme_check(document):
+    """NEGCTL: asqav-01 rewritten to bare verified is refused."""
+    text = README.read_text()
+    renderer = _renderer()
+    name = "asqav-01-genesis-permit"
+    assert document["vectors"][name]["not_exercised"]
+    scoped_row = next(r for r in text.splitlines() if r.startswith(f"- `{name}`: "))
+    assert renderer.AXIS_SCOPED_LABEL in scoped_row
+    bare = text.replace(scoped_row, f"- `{name}`: verified")
+    with pytest.raises(AssertionError, match=name):
+        _assert_readme_rows_match_map(bare, document)

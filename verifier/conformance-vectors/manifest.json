@@ -575,7 +575,7 @@
     "format": "asqav-native",
     "outcome": "verified",
     "reason_code": "",
-    "notes": "Production receipt (ML-DSA-65, hash-mode, seq 63 with its seq-62 predecessor) whose opentimestamps entry carries status anchored and anchor_block_hash - the real Bitcoin block hash at which the commitment upgraded (height 965451). Signature, key thumbprint and chain verify offline; the anchors axis SKIPs for want of TSA key material and Bitcoin headers, which the corpus does not ship."
+    "notes": "Production receipt (ML-DSA-65, hash-mode, seq 63 with its seq-62 predecessor) whose opentimestamps entry carries status anchored and anchor_block_hash - the real Bitcoin block hash at which the commitment upgraded (height 965451). Signature, key thumbprint and chain verify offline; the anchors axis SKIPs because completing it needs TSA key material and Bitcoin headers, which the corpus ships but the runner does not load."
   },
   {
     "dir": "asqav-27-anchors-absent",
