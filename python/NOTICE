@@ -9,5 +9,8 @@ Copyright 2026 Asqav
 
 The Apache terms for that file are in licenses/Apache-2.0.txt. The broader
 verifier package and its oracle remain under the SDK's Elastic terms.
+The repository's only other Apache-2.0 file is the TypeScript port
+typescript/src/verifier/verify-receipt.ts, which ships in the npm package,
+not in this distribution.
 The distribution's combined license expression describes these file scopes;
 it does not offer a choice of licenses for the SDK.

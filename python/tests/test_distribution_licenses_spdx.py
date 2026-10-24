@@ -131,3 +131,21 @@ def test_negctl_ts_verifier_reaches_beyond_node_builtins(tmp_path, text):
     code, err = _planted_gate(tmp_path, TS_APACHE[0], text, 3)
     assert code == 1
     assert TS_APACHE[0] in err
+
+
+CARRIERS = ("README.md", "python/README.md", "python/NOTICE")
+
+
+def _unnamed(text: str) -> list[str]:
+    names = [rel.removeprefix("python/src/") for rel in checker.APACHE_SPDX_FILES]
+    return [name for name in names if name not in text]
+
+
+@pytest.mark.parametrize("carrier", CARRIERS)
+def test_license_carriers_name_every_apache_file(carrier):
+    assert _unnamed((REPO / carrier).read_text()) == []
+
+
+def test_negctl_carrier_missing_the_ts_file_is_caught():
+    text = (REPO / "README.md").read_text().replace(TS_APACHE[0], "typescript/src/verifier/")
+    assert _unnamed(text) == [TS_APACHE[0]]

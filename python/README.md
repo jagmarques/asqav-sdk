@@ -210,6 +210,8 @@ Aligns with NIST FIPS 204 (ML-DSA), RFC 8785 (JCS) and NSA CSI U/OO/6030316-26.
 The SDK uses [Elastic License 2.0](LICENSE). The standalone
 `asqav/verifier/verify_receipt.py` file has an Apache-2.0 header;
 its terms are included in [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt).
+The repository's only other Apache-2.0 file is its TypeScript port,
+`typescript/src/verifier/verify-receipt.ts`, shipped in the npm package.
 The broader verifier package and oracle remain under Elastic terms.
 
 Wheels and source distributions include these terms and the file-scope

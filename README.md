@@ -9,7 +9,7 @@ Every agent action gets a signed, hash-chained **compliance receipt**: ML-DSA-65
 post-quantum), timestamped against independent witnesses, and verifiable by anyone -
 auditor, counterparty, regulator - **without an Asqav account and without trusting us**.
 
-Source-available client SDK under Elastic License 2.0; open verifier and conformance vectors under Apache-2.0; commercial signing service.
+Source-available client SDK under Elastic License 2.0; commercial signing service. Apache-2.0 covers exactly two verifier files, `python/src/asqav/verifier/verify_receipt.py` and `typescript/src/verifier/verify-receipt.ts`, and the Asqav-authored conformance vectors under `conformance/` and `verifier/conformance-vectors/` (see their NOTICE files); the rest of both verifier packages stays under Elastic License 2.0.
 
 Zero native dependencies in either SDK. Cryptography runs server-side.
 
@@ -291,4 +291,4 @@ covers the 29 distribution integrations.)
 
 ## License
 
-Source-available client SDK under Elastic License 2.0; open verifier and conformance vectors under Apache-2.0; commercial signing service. Get an API key at [asqav.com](https://asqav.com).
+Source-available client SDK under Elastic License 2.0; commercial signing service. Apache-2.0 covers exactly two verifier files, `python/src/asqav/verifier/verify_receipt.py` and `typescript/src/verifier/verify-receipt.ts`, and the Asqav-authored conformance vectors under `conformance/` and `verifier/conformance-vectors/` (see their NOTICE files); the rest of both verifier packages stays under Elastic License 2.0. Get an API key at [asqav.com](https://asqav.com).
