@@ -70,7 +70,7 @@ def test_axis_scope_declaring_an_exercised_axis_not_applicable_fails(document, t
         ignore=lambda d, names: [n for n in names if n not in keep and "." in n],
     )
     _assert_axis_scope_matches(corpus, document)
-    name, req = "asqav-24-anchor-block-hash-prod", "REQ-ANCHOR"
+    name, req = "asqav-24-anchor-block-hash-prod", BUILDER.ANCHOR_REQUIREMENT
     assert req in BUILDER.REQUIREMENTS
     assert req in document["vectors"][name]["exercises"]
     path = corpus / name / "expected.json"

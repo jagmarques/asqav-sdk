@@ -19,6 +19,7 @@ Writes: verifier/conformance-vectors/requirement-map.json
 
 from __future__ import annotations
 
+import importlib
 import json
 import pathlib
 import sys
@@ -28,19 +29,14 @@ VECTORS = ROOT / "conformance-vectors"
 OUT = VECTORS / "requirement-map.json"
 sys.path.insert(0, str(ROOT.parent / "python" / "src"))
 
-from asqav.verifier.oracle.runner import (  # noqa: E402
-    ANCHOR_REQUIREMENT,
-    AXIS_SCOPE_EXERCISED,
-    AXIS_SCOPE_KEY,
-    AXIS_SCOPE_NOT_APPLICABLE,
-    anchors_axis,
-    load_inputs,
-    verify_inputs,
-)
-from asqav.verifier.verify_receipt import (  # noqa: E402
-    _is_flat_hash_receipt,
-    run_structured,
-)
+from asqav.verifier.verify_receipt import run_structured  # noqa: E402
+
+_RUNNER = importlib.import_module("asqav.verifier.oracle.runner")
+_is_flat_hash_receipt = importlib.import_module(run_structured.__module__)._is_flat_hash_receipt
+ANCHOR_REQUIREMENT = _RUNNER.ANCHOR_REQUIREMENT
+AXIS_SCOPE_KEY = _RUNNER.AXIS_SCOPE_KEY
+AXIS_SCOPE_EXERCISED = _RUNNER.AXIS_SCOPE_EXERCISED
+AXIS_SCOPE_NOT_APPLICABLE = _RUNNER.AXIS_SCOPE_NOT_APPLICABLE
 
 #: The requirement a verified vector never leaves unexercised.
 SIGNATURE_REQUIREMENT = "REQ-SIGNATURE"
@@ -160,9 +156,9 @@ def _load(directory: pathlib.Path, name: str):
 
 def _oracle_axes(directory: pathlib.Path) -> tuple:
     """The oracle's verdict and (axis, result, note) list, anchors included."""
-    inputs = load_inputs(directory, NATIVE_FORMAT)
-    oracle = verify_inputs(*inputs)
-    axes = [*oracle.axes, anchors_axis(inputs[0])]
+    inputs = _RUNNER.load_inputs(directory, NATIVE_FORMAT)
+    oracle = _RUNNER.verify_inputs(*inputs)
+    axes = [*oracle.axes, _RUNNER.anchors_axis(inputs[0])]
     return oracle.verdict, [(a.axis, a.result, a.note) for a in axes]
 
 
