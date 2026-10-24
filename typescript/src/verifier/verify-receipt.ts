@@ -707,6 +707,7 @@ export function main(argv: string[], out: (line: string) => void = console.log):
   return result.failureClass === "invalid" ? 1 : 2;
 }
 
-if (typeof process !== "undefined" && /verify-receipt\.(ts|js|mjs|cjs)$/.test(process.argv[1] ?? "")) {
+const evaluated = process.execArgv.some((a) => /^(-e|-p|--eval|--print)(=|$)/.test(a));
+if (!evaluated && /verify-receipt\.(ts|js|mjs|cjs)$/.test(process.argv[1] ?? "")) {
   process.exitCode = main(process.argv.slice(2));
 }

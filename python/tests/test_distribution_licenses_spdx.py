@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -149,3 +150,54 @@ def test_license_carriers_name_every_apache_file(carrier):
 def test_negctl_carrier_missing_the_ts_file_is_caught():
     text = (REPO / "README.md").read_text().replace(TS_APACHE[0], "typescript/src/verifier/")
     assert _unnamed(text) == [TS_APACHE[0]]
+
+
+PINNED = (
+    "SKEW_BOUND_SECONDS",
+    "MAX_NESTING_DEPTH",
+    "FIRST_RECEIPT_SEED",
+    "REQUIRED_FIELDS",
+    "ALLOWED_TYPES",
+)
+_TS_DUMP = (
+    "const m = await import(process.argv[1]); const out = {};"
+    "for (const k of process.argv.slice(2)) out[k] = m[k] instanceof Set ? [...m[k]].sort() : m[k];"
+    "console.log(JSON.stringify(out));"
+)
+
+
+def _python_constants() -> dict:
+    rel = next(rel for rel in checker.APACHE_SPDX_FILES if rel.endswith(".py"))
+    spec = importlib.util.spec_from_file_location("standalone_verify_receipt", REPO / rel)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    out = {name: getattr(module, name) for name in PINNED}
+    out["REQUIRED_FIELDS"] = list(out["REQUIRED_FIELDS"])
+    out["ALLOWED_TYPES"] = sorted(out["ALLOWED_TYPES"])
+    return out
+
+
+def _ts_constants(path: Path) -> dict:
+    if shutil.which("node") is None:
+        pytest.skip("node is not installed")
+    run = subprocess.run(
+        ["node", "--no-warnings", "--input-type=module", "-e", _TS_DUMP, str(path), *PINNED],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(run.stdout)
+
+
+def test_ts_verifier_constants_match_the_python_verifier():
+    assert _ts_constants(REPO / TS_APACHE[0]) == _python_constants()
+
+
+def test_negctl_ts_constant_drift_is_caught(tmp_path):
+    want = _python_constants()
+    pinned = f"SKEW_BOUND_SECONDS = {want['SKEW_BOUND_SECONDS']}"
+    text = (REPO / TS_APACHE[0]).read_text()
+    assert pinned in text
+    copy = tmp_path / "verify-receipt.ts"
+    copy.write_text(text.replace(pinned, f"SKEW_BOUND_SECONDS = {want['SKEW_BOUND_SECONDS'] + 1}"))
+    assert _ts_constants(copy) != want
