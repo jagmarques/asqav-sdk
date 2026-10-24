@@ -27,8 +27,6 @@ sys.modules.pop("asqav.extras.openai_agents", None)
 from asqav.extras.openai_agents import AsqavGuardrail, GuardrailResult  # noqa: E402, I001
 
 
-# === Helpers ===
-
 
     # Create a guardrail with mocked asqav internals.
 def _make_guardrail() -> AsqavGuardrail:
@@ -48,7 +46,7 @@ def _mock_agent(name: str = "my-agent") -> MagicMock:
 # === Input guardrail tests ===
 
 
-    # run_input_guardrail signs an agent:input action with agent name and input info.
+    # run_input_guardrail signs agent:input with the agent name and input info.
 def test_input_guardrail_signs_action():
     guardrail = _make_guardrail()
     agent = _mock_agent("summarizer")
@@ -111,7 +109,7 @@ def test_input_truncation():
 # === Output guardrail tests ===
 
 
-    # run_output_guardrail signs an agent:output action with agent name and output info.
+    # run_output_guardrail signs agent:output with agent name and output info.
 def test_output_guardrail_signs_action():
     guardrail = _make_guardrail()
     agent = _mock_agent("writer")

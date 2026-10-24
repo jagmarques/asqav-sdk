@@ -2,14 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The OpenTimestamps attestation framing: varbytes payload, LEB128 height.
 
-An attestation serialises as tag + varbytes(payload), and a Bitcoin
-attestation's payload is the block height as a LEB128 varuint
-(opentimestamps/core/notary.py TimeAttestation.deserialize, and
-serialize.py's read_varuint/write_varuint, "unsigned little-endian base128").
-The parser read the height varuint straight after the tag and grouped the
-bytes big-endian: asqav-24's production proof (payload cb f6 3a, height
-965451) consumed the length byte as height 3 and left the height bytes
-"trailing", so no upgraded proof could ever complete offline.
+An attestation is tag + varbytes(payload); a Bitcoin payload is the height as
+a LEB128 varuint (opentimestamps notary.py, serialize.py read_varuint). The
+big-endian read took asqav-24's length byte (cb f6 3a, 965451) as height 3.
 """
 
 from __future__ import annotations
@@ -26,9 +21,8 @@ _VECTOR = (
     Path(__file__).resolve().parents[2]
     / "verifier" / "conformance-vectors" / "asqav-24-anchor-block-hash-prod"
 )
-#: Block 965451's merkle root in display order, reversed to internal order -
-#: the value the proof's op chain must evaluate to (ANCHOR-MATERIAL.md records
-#: the two public sources for it).
+#: Block 965451's merkle root, reversed to internal order: the value the proof's
+#: op chain must evaluate to (ANCHOR-MATERIAL.md records its public sources).
 _BLOCK_965451_ROOT_DISPLAY = "76e472dea0ba9cb2adafe0d47ef54b5928c8a9443201300c848c77894e54c57c"
 
 
@@ -57,13 +51,13 @@ def test_production_proof_parses_to_the_end_with_the_real_height() -> None:
 
 
 def test_varuint_is_leb128() -> None:
-    """Multi-byte varuints group little-endian: cb f6 3a is 965451, not 1243962."""
+    """Varuints group little-endian: cb f6 3a is 965451, not 1243962."""
     assert v._ots_varuint(bytes.fromhex("cbf63a"), 0) == (965451, 3)
     assert v._ots_varuint(bytes([0x00]), 0) == (0, 1)
 
 
 def test_attestation_payload_with_a_lying_length_byte_raises() -> None:
-    """A varbytes whose length prefix disagrees with its content is a parse error."""
+    """A varbytes length prefix disagreeing with its content fails to parse."""
     # tag 0x00 + 8-byte bitcoin tag + varbytes length 5 + only 2 payload bytes
     blob = b"\x00" + bytes.fromhex("0588960d73d71901") + b"\x05" + b"\xcb\xf6"
     with pytest.raises(v._AnchorParseError):

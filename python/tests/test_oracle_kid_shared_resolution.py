@@ -1,15 +1,8 @@
 """One key resolution serves the signature axis and the key-status axes alike.
 
-``signature.kid`` sits OUTSIDE the signed payload bytes, so a holder of a receipt can
-rewrite it without disturbing the signature. When the signature axis resolves its key
-through a fallback the gating axes do not share, a rewritten kid makes ``key_status``
-and ``issuer_bind`` resolve nothing and emit no axis at all. The aggregate in
-``oracle/core.py`` weighs the axes that exist, and it can block on an axis reporting
-SKIPPED but not on one that was never emitted, so a receipt signed by a REVOKED key
-reads PASS.
-
-Every gate here pins the invariant that closes that: the entry the signature verifies
-against is the entry every axis reads its published fields from.
+``signature.kid`` is unsigned: a rewritten kid that only the signature axis
+resolves leaves ``key_status`` and ``issuer_bind`` unemitted, so a REVOKED key
+reads PASS. Each gate pins that every axis reads the entry the signature used.
 """
 
 from __future__ import annotations
@@ -34,7 +27,7 @@ requires_ed25519 = pytest.mark.skipif(
 ISSUER = "acme-legal-entity"
 AGENT = "agt_shared_resolution"
 REAL_KID = "key-shared-resolution"
-#: A kid the directory answers for nothing, which is what a rewritten kid looks like.
+#: A kid the directory answers for nothing, as a rewritten kid looks.
 ABSENT_KID = "kid-that-resolves-nothing"
 
 
@@ -108,7 +101,7 @@ def test_active_key_passes_the_status_axis_through_the_agent_route() -> None:
     assert axes["issuer_bind"] == "PASS"
 
 
-#: Axes that only exist once a key resolves; expiry reads the signed bytes alone.
+#: Axes emitted only once a key resolves; expiry reads the signed bytes alone.
 KEY_AXES = {"key_status", "issuer_bind"}
 
 
@@ -165,7 +158,7 @@ def test_match_signing_key_prefers_the_kid_entry() -> None:
 def test_rewritten_kid_cannot_flip_a_revoked_receipt_to_pass() -> None:
     """The whole point: one unsigned byte field cannot buy a PASS.
 
-    The payload bytes and the signature are identical across both documents, so the
+    Payload bytes and signature are identical across both documents, so the
     only difference an attacker introduces is the kid the directory resolves by.
     """
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey

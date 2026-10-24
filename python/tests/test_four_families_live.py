@@ -1,10 +1,8 @@
 """Four disagreement families through the live oracle (488 C22, C7 core).
 
-Unifies C14's synthetic families with C21's real signatures and C17's
-time drift: every family runs verify() + compare_live() over real oracle
-output, never hand-built views. Success agrees; contradictory signed
-terms stay a different subject; dropped evidence fails only the
-signature axis; trust/time drift agrees with verification_time recorded.
+Every family runs verify() + compare_live() over real oracle output: success
+agrees; contradictory signed terms stay a different subject; dropped evidence
+fails only the signature axis; trust/time drift agrees, verification_time kept.
 """
 from __future__ import annotations
 

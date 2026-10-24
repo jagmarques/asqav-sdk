@@ -1,13 +1,8 @@
 """Every shipped statement of the offline APIs' axis vocabulary, checked against
 the axes those APIs actually return.
 
-Three surfaces enumerate that vocabulary: the ``verify_receipt_offline``
-docstring, the ``verifyReceiptOffline`` JSDoc and ``docs/offline-verification.md``.
-This module executes the offline entry point and the standalone verifier, then
-asserts all three enumerations equal the names that come back, so a coverage claim
-cannot drift away from the coverage. The clock-shift case pins the one axis the
-three surfaces disagreed about: ``skew`` runs in-line offline and decides the
-verdict.
+The ``verify_receipt_offline`` docstring, ``verifyReceiptOffline`` JSDoc and
+docs/offline-verification.md all equal the returned axes, ``skew`` included.
 """
 
 from __future__ import annotations
@@ -125,7 +120,7 @@ def _skew_denials(text: str) -> list[str]:
 
 
 class _FrozenPast(_dt.datetime):
-    """A wall clock behind the vector's issued_at, so only the skew axis fails."""
+    """A wall clock behind the vector's issued_at: only the skew axis fails."""
 
     @classmethod
     def now(cls, tz=None):  # noqa: ARG003 - signature mirrors datetime.now
@@ -217,7 +212,7 @@ def test_every_surface_states_the_skew_bound_the_code_applies():
 
 
 def test_neutral_cli_reports_the_same_axes_as_the_offline_api() -> None:
-    """E5: the documented CLI parity claim is executed, not asserted in prose."""
+    """E5: the documented CLI parity claim is executed, not just stated."""
     import subprocess
     import sys
 

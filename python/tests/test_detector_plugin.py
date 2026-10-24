@@ -1,12 +1,8 @@
 """Tests for pluggable detector framework (criterion 331).
 
-Non-vacuity mapping (mutant → what breaks it):
-  - Remove DetectorBlockedError raise in run_detectors → deny/fail-closed tests fail.
-  - Remove _detectors stamp into context → allow/receipt-records tests fail.
-  - Remove fail_open branch in run_detectors → fail_open tests fail.
-  - Remove _registry guard → additive test fails (unexpected _detectors key).
-
-Each test asserts on the specific mechanism, not just the outcome.
+Non-vacuity: dropping the DetectorBlockedError raise, the _detectors stamp,
+the fail_open branch or the _registry guard each fails a test here, as each
+test asserts on the mechanism, not just the outcome.
 """
 
 from __future__ import annotations

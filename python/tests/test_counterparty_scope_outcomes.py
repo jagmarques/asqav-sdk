@@ -1,4 +1,4 @@
-"""Binding scope is checked before digest resolution and stays distinct from integrity."""
+"""Binding scope is checked before digest resolution, apart from integrity."""
 
 import base64
 import copy

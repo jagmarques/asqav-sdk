@@ -1,8 +1,7 @@
 """Offline verifier gates the verdict on the signing key's revocation status.
 
 A receipt signed by a key the JWKS marks revoked must not PASS offline, matching
-the hosted /verify. Offline the verifier cannot verify a timestamp anchor, so a
-revoked key never rides a forgeable anchor to PASS: the key_status axis is FAIL or
+the hosted /verify; with no verifiable anchor offline, key_status is FAIL or
 SKIPPED and the verdict is never PASS.
 """
 
@@ -118,7 +117,7 @@ def test_check_key_status_compromised_without_revoked_at_fails():
 
 
 def test_run_threads_the_compromise_reason_into_the_key_status_axis():
-    """Dropping the reason at the call site must fail this: status alone says revoked."""
+    """Dropping the reason at the call site fails this: status says revoked."""
     envelope = {
         "payload": _payload(),
         "signature": {"alg": "ML-DSA-65", "kid": "agent-revoked-001", "sig": "AAAA"},
@@ -245,8 +244,8 @@ def test_run_structured_forged_anchor_does_not_upgrade_revoked_key():
 def test_offline_forged_anchor_revoked_key_verdict_not_pass():
     """End-to-end: a revoked key cannot mint a verified verdict by appending a
     forged anchor. A real ML-DSA-65 signature over a backdated payload verifies
-    (the holder keeps the key), but the forged anchor must not upgrade it, so the
-    verdict is unverified/unverifiable (pending anchor without cryptographic proof)."""
+    (the holder keeps the key), but the forged anchor never upgrades it, so the
+    verdict is unverified/unverifiable: a pending anchor without proof."""
     import base64
 
     pytest.importorskip("dilithium_py")

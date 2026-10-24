@@ -3,12 +3,8 @@
 """The artifact probe's corpus loop runs each vector the way the requirement-map
 builder does.
 
-The probe writes its loop as a source string and executes it inside a throwaway
-venv against the INSTALLED package, so a repository test cannot call it
-directly. What it can do is execute the same bytes: ``_CORPUS_RUNNER_SOURCE``
-is the module-level constant the probe writes, and this file exec's it against
-the source package, so a drift between the loop the probe ships and the loop
-under test fails here instead of in the weekly artifact.
+The probe exec's ``_CORPUS_RUNNER_SOURCE`` in a venv against the INSTALLED
+package; this file exec's the same bytes against the source package.
 """
 
 from __future__ import annotations
@@ -42,11 +38,9 @@ _LOOP_SOURCE = _load_loop_source()
 def _run_corpus_loop(monkeypatch, spy=None) -> dict:
     """Execute the probe's loop source in-process against the local corpus.
 
-    The source reads the corpus path from sys.argv and prints one JSON object;
-    both are captured. A spy, when given, replaces run_structured BEFORE the
-    exec: the loop's own ``from ... import run_structured`` resolves the
-    attribute at exec time, so it binds the spy, and the spy records exactly
-    what the loop hands the verifier.
+    The source reads the corpus path from sys.argv and prints one JSON object.
+    A spy, when given, replaces run_structured BEFORE the exec, so the loop's
+    own import binds it and it records what the loop hands the verifier.
     """
     if spy is not None:
         monkeypatch.setattr(vr, "run_structured", spy)
@@ -58,7 +52,7 @@ def _run_corpus_loop(monkeypatch, spy=None) -> dict:
 
 
 def test_asqav_24_observes_verified_with_its_shipped_anchor_material(monkeypatch) -> None:
-    """asqav-24 ships tsa_trust.pem + bitcoin_headers.json; handed in the builder's
+    """asqav-24 ships tsa_trust.pem and bitcoin_headers.json; in the builder's
     shapes, the anchors axis completes and the declared verified reproduces."""
     out = _run_corpus_loop(monkeypatch)
     r24 = out["asqav-24-anchor-block-hash-prod"]
