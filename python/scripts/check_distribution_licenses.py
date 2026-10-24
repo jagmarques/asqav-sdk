@@ -3,6 +3,8 @@
 import argparse
 import hashlib
 import lzma
+import os
+import re
 import sys
 import tarfile
 import zipfile
@@ -24,6 +26,11 @@ CORPUS_DIR = "asqav/conformance_vectors"
 CORPUS_MIN_EXPECTED = 118
 #: 118 shipped expected.json; dsse-attestation-ml-dsa-65 sits outside
 #: manifest.json, so the manifest census stays 117.
+
+#: The only repo paths granted Apache-2.0; widening the grant is irrevocable.
+APACHE_SPDX_FILES = ("python/src/asqav/verifier/verify_receipt.py",)
+SPDX_SCAN_DIRS = ("python/src", "typescript/src")
+SPDX_MARKER = re.compile(rb"spdx-license-identifier", re.IGNORECASE)
 
 
 def require(condition: bool, message: str) -> None:
@@ -115,19 +122,48 @@ def check_corpus(members: dict[str, bytes]) -> None:
         require(members[matches[0]] == want, f"missing or changed license: {CORPUS_DIR}/{name}")
 
 
+def find_spdx_files(root: Path) -> list[str]:
+    """Repo paths under SPDX_SCAN_DIRS whose bytes carry an SPDX marker."""
+    hits = []
+    for scan in SPDX_SCAN_DIRS:
+        require((root / scan).is_dir(), f"no {scan} directory under {root}")
+        for top, dirs, names in os.walk(root / scan):
+            dirs.sort()
+            for name in sorted(names):
+                path = Path(top) / name
+                if path.is_file() and SPDX_MARKER.search(path.read_bytes()):
+                    hits.append(path.relative_to(root).as_posix())
+    return hits
+
+
+def check_spdx_scope(root: Path) -> None:
+    found = find_spdx_files(root)
+    stray = [path for path in found if path not in APACHE_SPDX_FILES]
+    require(not stray, f"SPDX header outside APACHE_SPDX_FILES: {', '.join(stray)}")
+    missing = [path for path in APACHE_SPDX_FILES if path not in found]
+    require(not missing, f"APACHE_SPDX_FILES entry lost its header: {', '.join(missing)}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("wheel", type=Path)
-    parser.add_argument("sdist", type=Path)
+    parser.add_argument("wheel", type=Path, nargs="?")
+    parser.add_argument("sdist", type=Path, nargs="?")
+    parser.add_argument("--root", type=Path, default=ROOT.parent)
     args = parser.parse_args(argv)
+    archives = args.wheel is not None or args.sdist is not None
     try:
-        require(
-            args.wheel.suffix == ".whl" and args.sdist.name.endswith(".tar.gz"),
-            "supply one wheel followed by one .tar.gz source archive",
-        )
-        expected = references(ROOT)
-        check_archive(args.wheel, expected)
-        check_archive(args.sdist, expected)
+        check_spdx_scope(args.root)
+        if archives:
+            require(
+                args.wheel is not None
+                and args.sdist is not None
+                and args.wheel.suffix == ".whl"
+                and args.sdist.name.endswith(".tar.gz"),
+                "supply one wheel followed by one .tar.gz source archive",
+            )
+            expected = references(ROOT)
+            check_archive(args.wheel, expected)
+            check_archive(args.sdist, expected)
     except (
         OSError,
         ValueError,
@@ -140,7 +176,9 @@ def main(argv: list[str] | None = None) -> int:
     ) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1
-    print("OK: wheel and source archive license files, metadata and verifier bytes")
+    print(f"OK: SPDX headers only in {', '.join(APACHE_SPDX_FILES)}")
+    if archives:
+        print("OK: wheel and source archive license files, metadata and verifier bytes")
     return 0
 
 
