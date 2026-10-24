@@ -293,7 +293,7 @@ def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
     signing_key = Ed25519PrivateKey.generate()
     other_key = Ed25519PrivateKey.generate()
     msg = v.canonical_json({"type": "protectmcp:decision", "agent_id": "agt_probe"})
-    # Signed by `other_key`, but the JWKS ties agent_id to `signing_key`.
+    # Signature made by `other_key`, but the JWKS ties agent_id to `signing_key`
     wrong_sig = base64.b64encode(other_key.sign(msg)).decode()
     jwks = {
         "keys": [

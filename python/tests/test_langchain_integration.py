@@ -42,7 +42,7 @@ def _install_langchain_mocks() -> type:
     ):
         _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)  # type: ignore[arg-type]
 
-    # A real BaseCallbackHandler class, not a MagicMock, so the MRO works.
+    # Create BaseCallbackHandler as a real class (not MagicMock) so MRO works.
     class BaseCallbackHandler:
 
         def __init__(self) -> None:

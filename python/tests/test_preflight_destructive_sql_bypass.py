@@ -207,7 +207,7 @@ def test_action_candidates_normalize_case_and_whitespace():
     assert "data:delete:sql:delete from users" in base
 
 
-    # A lowercase data:delete:* policy blocks uppercase DATA:WRITE:SQL:DELETE.
+    # A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
