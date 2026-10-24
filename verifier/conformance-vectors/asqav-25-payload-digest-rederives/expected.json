@@ -2,5 +2,26 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Payload-mode genesis carrying BOTH context and payload_digest: hash is SHA-256 over the JCS of the carried context and size its byte length (25), so the payload_digest axis recomputes and PASSes rather than passing on absence. The dedicated honest half of the rederives/mismatch pair with asqav-26, which commits to a different context than the one carried. The digest is computed with stdlib json.dumps in JCS shape, never through the verifier's canonical_json."
+  "notes": "Payload-mode genesis carrying BOTH context and payload_digest: hash is SHA-256 over the JCS of the carried context and size its byte length (25), so the payload_digest axis recomputes and PASSes rather than passing on absence. The dedicated honest half of the rederives/mismatch pair with asqav-26, which commits to a different context than the one carried. The digest is computed with stdlib json.dumps in JCS shape, never through the verifier's canonical_json.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

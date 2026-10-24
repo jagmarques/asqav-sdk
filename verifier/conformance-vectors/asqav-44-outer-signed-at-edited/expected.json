@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "invalid",
   "reason_code": "outer_copy_mismatch",
-  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. The outer signed_at is moved to 3 March while the signed issued_at stays in June. The signed bytes are untouched, so the signature axis still passes; the outer_copies axis FAILs and the verdict is unverified/invalid."
+  "notes": "Real prod payload-mode receipt (asqav-06, ML-DSA-65) with the export-side copies added from its own signed payload. The outer signed_at is moved to 3 March while the signed issued_at stays in June. The signed bytes are untouched, so the signature axis still passes; the outer_copies axis FAILs and the verdict is unverified/invalid.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

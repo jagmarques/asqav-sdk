@@ -8,6 +8,7 @@ import argparse
 import base64
 import copy
 import hashlib
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -19,6 +20,9 @@ ROOT = Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "verifier" / "conformance-vectors"
 sys.path.insert(0, str(ROOT / "python" / "tests"))
 from tsa_testkit import make_timestamp_resp, make_tst_info  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "verifier"))
+AXIS_SCOPE_KEY = importlib.import_module("build_requirement_map").AXIS_SCOPE_KEY
 
 SCOPE = "envelope_minus_anchors"
 CASES = (
@@ -207,11 +211,21 @@ def _probe_fixtures(origin: dict, digest: str) -> dict[str, dict[str, object]]:
     return out
 
 
+def _keep_axis_scope(path: Path, expected: dict) -> dict:
+    # build_requirement_map.py writes axis_scope; keep it, never author it
+    if path.exists() and AXIS_SCOPE_KEY in (prior := json.loads(path.read_text())):
+        return {**expected, AXIS_SCOPE_KEY: prior[AXIS_SCOPE_KEY]}
+    return expected
+
+
 def generated_files() -> dict[Path, str]:
     output = {}
     for name, files in fixtures().items():
         for filename, value in files.items():
-            output[CORPUS / name / filename] = value if isinstance(value, str) else json.dumps(value, indent=2) + "\n"
+            path = CORPUS / name / filename
+            if filename == "expected.json":
+                value = _keep_axis_scope(path, value)
+            output[path] = value if isinstance(value, str) else json.dumps(value, indent=2) + "\n"
     return output
 
 
