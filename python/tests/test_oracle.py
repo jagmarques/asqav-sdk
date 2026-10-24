@@ -20,7 +20,13 @@ from asqav.verifier.oracle.adapters.aerf import AerfAdapter
 from asqav.verifier.oracle.adapters.agentreceipts import AgentReceiptsAdapter
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
 from asqav.verifier.oracle.core import AxisResult
+from asqav.verifier.oracle import runner
 from asqav.verifier.oracle.runner import ANCHORS_AXIS, NOT_APPLICABLE, anchors_axis, run_one
+from asqav.verifier.oracle.runner import (
+    ANCHOR_REQUIREMENT,
+    AXIS_SCOPE_KEY,
+    AXIS_SCOPE_NOT_APPLICABLE,
+)
 from asqav.verifier.oracle.runner import main as runner_main
 from asqav.verifier.oracle.runner import run_corpus
 from asqav.verifier.oracle.runner import _key_provider as _runner_key_provider
@@ -1531,7 +1537,7 @@ _ANCHORED_VECTOR = "asqav-24-anchor-block-hash-prod"
 
 def _run_vector(vec_dir: Path):
     entry = next(e for e in json.loads((_CORPUS / "manifest.json").read_text())
-                 if e["dir"] == _ANCHORED_VECTOR)
+                 if e["dir"] == vec_dir.name)
     return run_one(vec_dir, entry["format"], entry["outcome"])
 
 
@@ -1557,13 +1563,62 @@ def test_anchors_axis_skipped_without_trusted_material(tmp_path: Path) -> None:
     assert _run_vector(bare).anchors.result == NOT_APPLICABLE
 
 
-def test_anchors_axis_presence_stub_fails_the_check() -> None:
-    """NEGCTL: an axis that passes on anchor presence is refused."""
+def _presence_axis(*_args, **_kwargs) -> AxisResult:
+    return AxisResult(ANCHORS_AXIS, crypto.PASS, "anchors present")
+
+
+def test_anchors_axis_presence_stub_fails_the_check(tmp_path: Path, monkeypatch) -> None:
+    """NEGCTL: bogus material never PASSes the shipped axis, and a presence
+    stub planted in the runner fails the ACCEPT test."""
     receipt = _load(_ANCHORED_VECTOR, "receipt.json")
-    presence = lambda doc: AxisResult(ANCHORS_AXIS, crypto.PASS, "anchors present")
-    with pytest.raises(AssertionError):
-        _assert_anchors_skipped(presence, receipt)
-    _assert_anchors_skipped(anchors_axis, receipt)
+    bogus = {"trusted_tsa_keys": [b"not a cert"], "bitcoin_headers": {}}
+    axis = anchors_axis(receipt, bogus)
+    assert axis.result != crypto.PASS
+    assert axis.note
+    monkeypatch.setattr(runner, "anchors_axis", _presence_axis)
+    with pytest.raises(AssertionError, match=crypto.SKIPPED):
+        test_anchors_axis_skipped_without_trusted_material(tmp_path)
+
+
+_DECLARED_VECTOR = "asqav-23-anchor-status-pending"
+
+
+def _assert_anchors_skip_names_declaration(vec_dir: Path) -> None:
+    axis = _run_vector(vec_dir).anchors
+    assert axis.result == crypto.SKIPPED
+    assert AXIS_SCOPE_KEY in axis.note, axis.note
+    assert ANCHOR_REQUIREMENT in axis.note, axis.note
+
+
+def test_anchors_axis_reads_the_declared_axis_scope() -> None:
+    """asqav-23 declares REQ-ANCHOR not_applicable on an anchored receipt."""
+    declared = _load(_DECLARED_VECTOR, "expected.json")[AXIS_SCOPE_KEY]
+    assert ANCHOR_REQUIREMENT in declared[AXIS_SCOPE_NOT_APPLICABLE]
+    assert _load(_DECLARED_VECTOR, "receipt.json")["anchors"]
+    _assert_anchors_skip_names_declaration(_CORPUS / _DECLARED_VECTOR)
+
+
+def test_anchors_axis_without_the_declaration_fails_the_check(tmp_path: Path) -> None:
+    """NEGCTL: asqav-23 without REQ-ANCHOR in not_applicable is caught."""
+    vec = tmp_path / _DECLARED_VECTOR
+    shutil.copytree(_CORPUS / _DECLARED_VECTOR, vec)
+    expected = json.loads((vec / "expected.json").read_text())
+    expected[AXIS_SCOPE_KEY][AXIS_SCOPE_NOT_APPLICABLE].remove(ANCHOR_REQUIREMENT)
+    (vec / "expected.json").write_text(json.dumps(expected))
+    with pytest.raises(AssertionError, match=AXIS_SCOPE_KEY):
+        _assert_anchors_skip_names_declaration(vec)
+
+
+def test_declared_not_applicable_never_waives_trusted_material() -> None:
+    """A not_applicable declaration cannot stop supplied material checking."""
+    vec = _CORPUS / _ANCHORED_VECTOR
+    material = {
+        "trusted_tsa_keys": [(vec / "tsa_trust.pem").read_bytes()],
+        "bitcoin_headers": _load(_ANCHORED_VECTOR, "bitcoin_headers.json"),
+    }
+    waiver = {AXIS_SCOPE_NOT_APPLICABLE: [ANCHOR_REQUIREMENT]}
+    receipt = _load(_ANCHORED_VECTOR, "receipt.json")
+    assert anchors_axis(receipt, material, waiver).result == crypto.PASS
 
 
 @pytest.mark.parametrize("anchors", [{}, "x", 0])
