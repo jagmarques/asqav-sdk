@@ -1,4 +1,4 @@
-"""Pin the pytest plugin's default framework key to one that exists in FRAMEWORKS."""
+"""The pytest plugin's default framework key exists in FRAMEWORKS."""
 
 from __future__ import annotations
 

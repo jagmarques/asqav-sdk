@@ -1,4 +1,4 @@
-"""Conflict-kind vocabulary (488 C7): contradictory terms vs missing evidence."""
+"""Conflict kinds (488 C7): contradictory terms vs missing evidence."""
 from __future__ import annotations
 
 from asqav.verifier.oracle.agreement import AgreementRef

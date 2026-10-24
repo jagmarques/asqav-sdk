@@ -1,4 +1,4 @@
-"""Criterion 435: closed controls_evaluated key set and duplicate-nonce replay flag."""
+"""Closed controls_evaluated key set and duplicate-nonce replay flag (435)."""
 
 from __future__ import annotations
 

@@ -1,10 +1,8 @@
 """Policy-required optional extensions, Python half (criterion 574-D3).
 
-A selected policy can require an optional extension the default evaluation
-never checks. The standalone verifier then evaluates it per-axis: a carried
-and well-formed member passes, a malformed one fails invalid, and an absent
-or unsupported one skips unverifiable, so the receipt never reads as
-verified. Without the --require-extension input the evaluation is unchanged.
+A policy can require an extension the default evaluation skips; the verifier
+then passes a well-formed member, fails a malformed one invalid, and skips an
+absent one unverifiable. Without --require-extension nothing changes.
 """
 
 from __future__ import annotations
@@ -163,7 +161,7 @@ def test_required_unsupported_extension_blocks_unverifiable() -> None:
 
 
 def test_flag_is_what_evaluates_the_beacon() -> None:
-    """The same malformed receipt verifies without the flag and fails with it."""
+    """One malformed receipt verifies without the flag and fails with it."""
     payload, sig, jwks = _signed(beacon_ref=_beacon(round=0))
     env, tsa_pk = _trusted_envelope(payload, sig, kid="k1")
     plain = vr.run_structured(env, jwks, None, trusted_tsa_keys=[tsa_pk])

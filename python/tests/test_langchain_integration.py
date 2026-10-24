@@ -25,8 +25,8 @@ _original_modules: dict[str, ModuleType | None] = {}
 _MISSING = object()
 
 
-# Fake registry mirroring langchain_core's private _configure_hooks list: each entry is the
-# (context_var, inheritable, handle_class, env_var) tuple the _configure loop iterates.
+# Fake of langchain_core's private _configure_hooks list: each entry is the
+# (context_var, inheritable, handle_class, env_var) tuple _configure iterates.
 _FAKE_CONFIGURE_HOOKS: list = []
 
 
@@ -42,8 +42,7 @@ def _install_langchain_mocks() -> type:
     ):
         _original_modules[mod_name] = sys.modules.get(mod_name, _MISSING)  # type: ignore[arg-type]
 
-    # Create BaseCallbackHandler as a real class (not MagicMock) so MRO works
-        # Mock LangChain BaseCallbackHandler.
+    # Mock BaseCallbackHandler as a real class (not MagicMock) so MRO works
     class BaseCallbackHandler:
 
         def __init__(self) -> None:
@@ -101,8 +100,7 @@ def _remove_langchain_mocks() -> None:
         else:
             sys.modules[mod_name] = original  # type: ignore[assignment]
 
-    # Also clear the cached asqav.extras.langchain module so future imports
-    # re-evaluate the try/except ImportError guard.
+    # Clear the cached asqav.extras.langchain so imports re-run the guard.
     sys.modules.pop("asqav.extras.langchain", None)
 
 
@@ -111,8 +109,6 @@ LLMResult = _install_langchain_mocks()
 
 from asqav.extras.langchain import AsqavCallbackHandler  # noqa: E402, I001
 
-
-# === Fixtures ===
 
 
     # Create an AsqavCallbackHandler with mocked Agent internals.
@@ -369,7 +365,7 @@ def test_enable_registers_configure_hook(clean_hook_state):
 
 
 def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
-    """A run that passes NO callbacks still signs, via the auto-attached handler.
+    """A run passing NO callbacks still signs, via the auto-attached handler.
 
     Non-vacuous: if enable_langchain_governance did not register the hook and
     bind the ContextVar (the auto-attach), _collect_default_handlers finds no
@@ -399,10 +395,9 @@ def test_default_on_signs_without_explicit_callbacks(clean_hook_state):
 def test_on_chain_start_none_serialized_signs_receipt(handler):
     """on_chain_start with serialized=None still signs a chain:start receipt.
 
-    Non-vacuous: without the isinstance(serialized, dict) guard, calling
-    serialized.get(...) on None raises AttributeError; LangChain swallows the
-    callback exception so the receipt is silently dropped. Revert the guard
-    in on_chain_start and this assertion fails (no sign call).
+    Non-vacuous: without the isinstance(serialized, dict) guard, .get on None
+    raises AttributeError, LangChain swallows it and the receipt is dropped,
+    so this assertion fails (no sign call).
     """
     handler.on_chain_start(
         serialized=None,
@@ -429,10 +424,9 @@ def test_on_chain_start_non_dict_serialized_signs_receipt(handler):
 def test_on_chain_start_none_serialized_non_dict_inputs_signs_receipt(handler):
     """on_chain_start(None, 'hello') yields input_keys=[] - never crashes.
 
-    Non-vacuous: without the isinstance(inputs, dict) guard, calling
-    list('hello'.keys()) raises AttributeError; LangChain swallows the exception
-    so the receipt is silently dropped. Revert the guard and this test fails
-    (sign not called, AttributeError swallowed).
+    Non-vacuous: without the isinstance(inputs, dict) guard, 'hello'.keys()
+    raises AttributeError, LangChain swallows it and the receipt is dropped,
+    so this test fails (sign not called).
     """
     handler.on_chain_start(
         serialized=None,

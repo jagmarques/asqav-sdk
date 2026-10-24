@@ -1,8 +1,8 @@
-"""The PreToolUse gate against the body the real Agent.sign POSTs (criterion 578).
+"""The PreToolUse gate against the body Agent.sign POSTs (criterion 578).
 
-Only the client's network edge is stubbed (_get, _post) plus the JWK Set fetch. The signer
-stub signs over the body it actually received, so the receipt is bound to the sent bytes and
-never to a digest the gate rebuilds. Offline: a green run says nothing about api.asqav.com.
+Only the network edge (_get, _post) and the JWK Set fetch are stubbed. The
+signer stub signs the body it received, binding the receipt to the sent bytes,
+not a rebuilt digest. Offline: a green run says nothing about api.asqav.com.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def _ml_dsa_65():
 
 
 def _digest_as_spelled(monkeypatch, session_id: str) -> str:
-    """The hash-only digest over the event exactly as the host spells it (no normalising)."""
+    """Hash-only digest over the event as the host spells it, unnormalised."""
     monkeypatch.setattr(_client, "_mode", "hash-only")
     return _client._build_sign_body(
         action_type="tool:Bash",
@@ -60,7 +60,7 @@ def _flip_last_char(digest: str) -> str:
 
 
 class _Signer:
-    """Stands in for the platform: signs an allow receipt over the body it received."""
+    """Platform stand-in: signs an allow receipt over the body it received."""
 
     def __init__(
         self, *, alter_digest: bool = False, omit_invocation_ref: bool = False
@@ -222,7 +222,7 @@ def test_the_posted_body_is_the_lowercased_action_with_the_trace_id_in_the_conte
 
 
 def test_a_receipt_bound_to_the_unnormalised_digest_is_refused(monkeypatch) -> None:
-    """A digest over the event as spelled (not as Agent.sign sends it) must not open the gate."""
+    """A digest of the event as spelled, not as sent, never opens the gate."""
     event = {
         "session_id": "s-trace-1",
         "tool_use_id": "toolu_ls",
@@ -287,7 +287,7 @@ def test_a_receipt_for_another_agent_still_blocks_end_to_end(monkeypatch) -> Non
     assert "agent mismatch" in result.output
 
 
-# === the receipt must name THIS invocation, and nothing after signing may exit open ===
+# === the receipt names THIS invocation; nothing after signing exits open ===
 
 _CALL = {
     "session_id": "s-replay",
@@ -302,8 +302,8 @@ def test_a_receipt_minted_for_call_one_does_not_open_an_identical_call_two(monke
     first = _run_gate(monkeypatch, signer, _CALL)
     assert first.exit_code == 0, first.output
     call_one = json.loads(json.dumps(signer.last_response))
-    # Same tool, input and session inside the freshness window, a different invocation:
-    # the platform (or whoever holds the response channel) hands back call one's receipt.
+    # Same tool, input and session in the freshness window, another invocation:
+    # whoever holds the response channel hands back call one's receipt.
     monkeypatch.setattr(signer, "post", lambda *_a, **_k: json.loads(json.dumps(call_one)))
     second = _run_gate(monkeypatch, signer, {**_CALL, "tool_use_id": "toolu_B"})
     assert second.exit_code == 2, second.output
@@ -408,7 +408,7 @@ def test_clear_context_blocks_because_the_real_body_carries_no_digest(monkeypatc
     assert "does not match the digest the gate sent" in result.output
 
 
-# === the gate never exits 1: exit 1 is a non-blocking error and the tool would run ===
+# === the gate never exits 1: exit 1 is non-blocking and the tool would run ===
 
 
 def _unreachable_signer() -> _Signer:

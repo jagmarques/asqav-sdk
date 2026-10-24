@@ -1,12 +1,8 @@
 """Unsigned outer copies of signed fields (criterion 742).
 
-An Audit Pack entry restates signed values (agent, action, time, signature string,
-key, signed bytes) as plain top-level members no signature covers. Before the
-outer_copies axis an edit to one of them still read "signature valid" in every
-verifier. These tests pin that a copy disagreeing with the signed payload fails
-the verdict in the standalone verifier and in the oracle behind
-``verify_receipt_offline``, and that the shared case table gives the same answer,
-note included, as the TypeScript half.
+An Audit Pack entry restates signed values as unsigned top-level members. A
+copy disagreeing with the signed payload fails the verdict in the standalone
+verifier and the offline oracle, and the case table matches the TS half.
 """
 
 from __future__ import annotations

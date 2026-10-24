@@ -1,9 +1,8 @@
 """Strict JSON ingest (criterion 419): duplicate members fail closed.
 
-Every receipt- and record-parsing path rejects a duplicated JSON member name at
-ANY nesting depth as a terminal parse failure, before any hashing,
-canonicalisation, or signature check. Last-wins ingest would hash the bytes an
-attacker kept and drop the ones they replaced; these tests pin the rejection.
+Every receipt- and record-parsing path rejects a duplicated member name at ANY
+depth as a terminal parse failure, before hashing or signature checks, since
+last-wins ingest would hash the bytes an attacker kept.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ def test_duplicate_member_inside_array_element_rejected() -> None:
         strict_json.loads('{"list": [{"k": 1}, {"k": 2, "k": 3}]}')
 
 
-    # The same member name in SIBLING objects is legal; only one object scope matters.
+    # The same name in SIBLING objects is legal; only one object scope counts.
 def test_same_name_in_sibling_objects_is_allowed() -> None:
     out = strict_json.loads('{"list": [{"k": 1}, {"k": 2}]}')
     assert out == {"list": [{"k": 1}, {"k": 2}]}
@@ -110,7 +109,7 @@ def test_corpus_duplicate_member_vectors_never_verify(vec: str) -> None:
     assert "terminal parse failure before any hashing" in outcome.detail
 
 
-# --- Integers outside +/-2**53, the second thing the strict door refuses (finding 8) ---
+# --- Integers past +/-2**53: the strict door's second refusal (finding 8) ---
 
 
     # An integer with no exact double would canonicalise two ways across the SDKs.
@@ -123,7 +122,7 @@ def test_integer_outside_the_canonical_range_rejected(literal: str) -> None:
         strict_json.loads('{"n": %s}' % literal)
 
 
-    # 2**53 itself is exactly representable and is pinned canonical by the upstream corpus.
+    # 2**53 is exactly representable; the upstream corpus pins it canonical.
 @pytest.mark.parametrize(
     "literal",
     ["9007199254740991", "9007199254740992", "-9007199254740992", "0"],
@@ -143,14 +142,14 @@ def test_nested_unsafe_integer_rejected() -> None:
         strict_json.loads('{"a": {"b": [1, 2, {"c": 9007199254740993}]}}')
 
 
-    # The standalone verifier ships as one file and carries its own copy of the hook.
+    # The one-file standalone verifier carries its own copy of the hook.
 def test_standalone_verifier_rejects_an_unsafe_integer() -> None:
     with pytest.raises(vr.VerifierInputError, match="canonical integer range"):
         vr._parse_object('{"n": 9007199254740993}', "receipt")
     assert vr._parse_object('{"n": 9007199254740992}', "receipt") == {"n": 9007199254740992}
 
 
-# --- Asqav profile range +/-(2**53 - 1): explicit entry, shared loads unchanged ---
+# --- Profile range +/-(2**53 - 1): explicit entry, shared loads unchanged ---
 
 
     # The profile admits the largest safe integer on both signs, nested or not.
@@ -196,9 +195,8 @@ def test_profile_ingest_refuses_float_spellings_of_the_boundary(literal: str) ->
         strict_json.loads_profile('{"n": %s}' % literal)
 
 
-    # The string twin, booleans and fractional floats keep their existing behavior.
-    # An integer-valued float spelling (5.0) is refused: the digest would bind
-    # digits the profile never validated as an integer (criterion 684 task 1).
+    # The string twin, booleans and fractional floats are unchanged; 5.0 is
+    # refused: its digits were never validated as an integer (684 task 1).
 def test_profile_ingest_keeps_strings_booleans_and_fractions() -> None:
     assert strict_json.loads_profile('{"n": "9007199254740993"}') == {
         "n": "9007199254740993"
@@ -208,7 +206,7 @@ def test_profile_ingest_keeps_strings_booleans_and_fractions() -> None:
         strict_json.loads_profile('{"n": 5.0}')
 
 
-    # The shared generic entry still accepts +/-2**53: foreign compatibility control.
+    # The shared generic entry accepts +/-2**53: foreign compatibility control.
 @pytest.mark.parametrize("literal", ["9007199254740992", "-9007199254740992"])
 def test_generic_ingest_still_accepts_the_excluded_boundary(literal: str) -> None:
     assert strict_json.loads('{"n": %s}' % literal) == {"n": int(literal)}

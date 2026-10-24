@@ -1,15 +1,8 @@
 """Cryptographic anchor verification (draft: presence without a successful
 check MUST NOT yield valid).
 
-Covers the three anchor outcomes:
-  - verified:     token commits this envelope and its own proof checks out
-                  against caller-pinned trust material (trusted anchor)
-  - invalid:      the check ran and failed (wrong digest, bad TSA signature,
-                  merkle path missing the stated block)
-  - unverifiable: the check could not run offline (junk token, no pinned TSA
-                  key, no bitcoin header source, pending/failed status)
-and the key_status wiring: only a verified anchor whose proven time lands at
-or before revoked_at activates the pre-revocation historical-verify path.
+Outcomes: verified, invalid (check failed), unverifiable (cannot run offline).
+Only a verified anchor timed at or before revoked_at allows historical verify.
 """
 
 from __future__ import annotations
@@ -121,7 +114,7 @@ def test_rfc3161_junk_token_is_unverifiable_not_invalid() -> None:
 
 
 def test_rsa_tsa_cert_allowlist_verifies() -> None:
-    """The cryptography path: TSA cert pinned by the caller, sid issuerAndSerial."""
+    """The cryptography path: caller-pinned TSA cert, sid issuerAndSerial."""
     pytest.importorskip("cryptography")
     import datetime as dt
 
@@ -193,7 +186,7 @@ def _varbytes(payload: bytes) -> bytes:
 
 
 def _mint_ots(digest32: bytes, height: int) -> tuple[str, bytes]:
-    """A proof digest->append->sha256->bitcoin attestation; returns (b64, root)."""
+    """A digest->append->sha256->bitcoin proof; returns (b64, root)."""
     suffix = b"merkle-sibling"
     root = hashlib.sha256(digest32 + suffix).digest()
     body = (
@@ -321,7 +314,7 @@ def _signed_revoked_env(gen_time: str):
 
 
 def test_pre_revocation_receipt_passes_with_verified_anchor() -> None:
-    """Draft historical verify: signed before revocation, proven by the anchor."""
+    """Historical verify: signed before revocation, proven by the anchor."""
     pytest.importorskip("dilithium_py")
     env, jwks, tsa_pk = _signed_revoked_env("20260601000000Z")  # before revoked_at
     result = v.run_structured(env, jwks, None, trusted_tsa_keys=[tsa_pk])

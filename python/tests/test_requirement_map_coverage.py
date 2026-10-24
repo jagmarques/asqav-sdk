@@ -2,16 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The corpus requirement map must name the corpus it was built from.
 
-`verifier/build_requirement_map.py` writes `requirement-map.json` from the
-corpus, and the corpus lock pins the map's bytes, so the map cannot drift
-silently. A vector added to the corpus without regenerating the map leaves the
-map short, and the lock check stays green because the map's own bytes did not
-change. This module compares the map with the corpus and names what is
-missing, so the corpus job can say which vector the map forgot.
-
-The generator's own check, in `test_requirement_map.py`, rebuilds the map and
-compares it byte for byte. This one reads the corpus and the map only, so it
-is cheap enough for the job that runs on every corpus change.
+The lock pins `requirement-map.json`'s bytes, so a vector added without a regen
+leaves the map short while the lock stays green. This compares map and corpus
+and names the missing vector; test_requirement_map.py rebuilds it byte for byte.
 """
 
 from __future__ import annotations
@@ -29,7 +22,7 @@ NATIVE_FORMAT = "asqav-native"
 
 
 def _corpus_dirs() -> tuple[set[str], set[str]]:
-    """The native vectors and the interoperability fixtures, read from the corpus."""
+    """The native vectors and interop fixtures, read from the corpus."""
     native: set[str] = set()
     interop: set[str] = set()
     for directory in sorted(p for p in CORPUS.iterdir() if p.is_dir()):

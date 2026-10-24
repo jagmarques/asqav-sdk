@@ -1,9 +1,8 @@
 """Verify Agent.sign() request body shape across modes.
 
 We patch the module-level ``_post`` helper in ``asqav.client`` and assert
-on the body it would have sent. Avoiding ``httpx.MockTransport`` keeps
-this test independent of the optional httpx dep and matches the existing
-``patch("asqav.client._post")`` pattern used elsewhere in the test suite.
+on the body it would have sent, without the optional httpx dependency,
+matching the ``patch("asqav.client._post")`` pattern elsewhere.
 """
 
 from __future__ import annotations

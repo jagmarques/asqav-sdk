@@ -1,10 +1,8 @@
-"""Egress proof: the bytes the SDK puts on the wire to the Asqav cloud never carry
+"""Egress proof: SDK bytes on the wire to the Asqav cloud never carry
 a prompt, a file body or a secret-shaped value from the action context.
 
-Every request is captured at the httpx transport (the real serialized body, URL
-and headers), so the check covers whatever any code path builds, not one helper.
-The negative control runs the same flows in full-payload mode, which is a leak
-by design, and proves the scanner reports it.
+Requests are captured at the httpx transport (body, URL, headers), covering
+every code path; the negative control's full-payload mode leaks by design.
 """
 
 from __future__ import annotations
@@ -73,7 +71,7 @@ def _forms(value: str) -> list[str]:
 
 
 def find_leaks(captured: list[bytes]) -> list[str]:
-    """Return 'label in request N' for every planted value found in any request."""
+    """'label in request N' for each planted value found in any request."""
     hits = []
     for i, raw in enumerate(captured):
         text = raw.decode("utf-8", "replace")

@@ -1,10 +1,8 @@
 """Timestamp grammar pinned on the key-status axis (criterion 336).
 
-The skew axis gates stamps through _EXTENDED_STAMP_RE before fromisoformat,
-but check_key_status parsed revoked_at/issued_at with bare fromisoformat: the
-basic form 20200101T000000Z raised on 3.10 yet parsed on 3.11+, so one stamp
-drew different verdicts per interpreter. Both stamps now pass the pinned
-grammar first; anything outside it FAILs identically everywhere.
+check_key_status gates revoked_at/issued_at through the skew axis's pinned
+grammar before fromisoformat, so the basic form 20200101T000000Z FAILs on
+every interpreter instead of only on 3.10.
 """
 
 from __future__ import annotations

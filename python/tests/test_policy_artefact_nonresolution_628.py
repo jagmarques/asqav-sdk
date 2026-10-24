@@ -1,13 +1,8 @@
 """Policy artefacts never resolve (628 T-d): the digest is unevaluated.
 
-One keypair signs two receipts identical except policy_digest. Both
-reports must carry exactly the same axis-name list with no policy-named
-axis, identical per-axis results, and no policy-resolution claim in any
-note (the single allowed "policy" hit is signature's static legacy
-encoding-policy note). This pins the draft rule that a new policy root
-does not retro-authorize material committed under a prior root. Full
-replacement semantics need a wire policy-identity field that does not
-exist; that blocker is recorded, not worked around here.
+Two receipts from one keypair differ only in policy_digest; both reports carry
+the same axes and results, with no policy-resolution claim. A new policy root
+does not retro-authorize prior material; full replacement needs a wire field.
 """
 
 from __future__ import annotations

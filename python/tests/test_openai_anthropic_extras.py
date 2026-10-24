@@ -1,11 +1,8 @@
 """Tests for the asqav[openai] and asqav[anthropic] extras.
 
-Each extra wraps the vendor SDK so every chat call produces a signed asqav
-receipt attached as ``response._asqav_receipt``. The vendor SDKs are mocked
-via ``sys.modules`` so these tests run without openai or anthropic installed
-and without any network access. Signing is fail-soft by design (matching the
-rest of the extras: signing records governance, it does not enforce it), so a
-sign failure must never block the underlying LLM call.
+Each extra wraps the vendor SDK so every chat call attaches a signed receipt as
+``response._asqav_receipt``. Vendor SDKs are mocked via ``sys.modules``, with no
+network. Signing is fail-soft: a sign failure never blocks the LLM call.
 """
 
 from __future__ import annotations

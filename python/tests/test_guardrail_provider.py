@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Inject a fake crewai module so the real import succeeds without crewai installed.
+# Inject a fake crewai module so the real import works without crewai.
 _fake_crewai = types.ModuleType("crewai")
 sys.modules["crewai"] = _fake_crewai
 
@@ -17,8 +17,6 @@ sys.modules.pop("asqav.extras.crewai", None)
 
 from asqav.client import PreflightResult, SignatureResponse  # noqa: E402
 from asqav.extras.crewai import AsqavGuardrailProvider  # noqa: E402
-
-# === Fixtures ===
 
 
     # Create an AsqavGuardrailProvider with mocked Agent.

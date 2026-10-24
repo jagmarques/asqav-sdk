@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# === Inject fake instructor.core.hooks module before importing the integration ===
+# === Inject a fake instructor.core.hooks before importing the integration ===
 
 _MISSING = object()
 _original_modules: dict[str, ModuleType | object] = {}

@@ -1,10 +1,8 @@
 """Tests for :func:`asqav.canonicalize_tool_args`.
 
-The helper pre-validates ``tool_args`` payloads against the
-Compliance Receipts canonicalization rule: no floats in the signed
-canonical scope, because canonical JSON only fixes byte-stable numeric
-output for safe-range integers. Floats drift across runtimes and
-break verifier equality.
+The helper rejects floats in ``tool_args`` (Compliance Receipts canonical
+scope): canonical JSON fixes byte-stable numbers only for safe-range integers,
+and floats drift across runtimes, breaking verifier equality.
 """
 
 from __future__ import annotations

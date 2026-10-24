@@ -1,10 +1,8 @@
 """Shipped verdict vocabulary + exit-code contract (criteria 418/438).
 
-The public surfaces speak verified / verified_keyed / unverified, and every
-unverified verdict carries a failure_class of invalid or unverifiable - the two
-are never collapsed. Exit codes keep the stable mapping: verified/verified_keyed
--> 0, unverified+invalid -> 1, unverified+unverifiable -> 2 (the blocked state
-the old INCOMPLETE verdict carried).
+Surfaces speak verified / verified_keyed / unverified; every unverified carries
+failure_class invalid or unverifiable, never collapsed. Exit codes: verified*
+-> 0, unverified+invalid -> 1, unverified+unverifiable -> 2.
 """
 
 from __future__ import annotations

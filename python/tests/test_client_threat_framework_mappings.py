@@ -1,13 +1,8 @@
 """SDK parity for the threat-framework taxonomy wire fields.
 
-The cloud accepts optional fields on the signed Compliance
-Receipt: ``mitre_techniques``, ``mitre_atlas``, ``owasp_llm_top10``, ``owasp_agentic_top10``,
-``nist_ai_rmf``, ``iso_42001``, ``eu_ai_act_articles``, and
-``rfc3161_timestamp``. The SDK forwards each verbatim, validates each
-list field as a non-empty list of strings (each entry <= 128 chars),
-and validates ``rfc3161_timestamp`` as base64. The cloud auto-flips
-``framework_mappings_self_declared`` to ``true`` whenever any of the
-list fields is populated; the SDK does not need to set the flag.
+The SDK forwards the mitre/owasp/nist/iso/eu_ai_act list fields and
+``rfc3161_timestamp`` verbatim, checks each list is non-empty strings of <=128
+chars and the timestamp is base64; the cloud sets the self-declared flag.
 """
 
 from __future__ import annotations

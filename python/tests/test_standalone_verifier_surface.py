@@ -1,9 +1,8 @@
-"""The standalone verifier artifact carries zero asqav producer dependency (421).
+"""The standalone verifier artifact carries no asqav producer dependency (421).
 
-verify_receipt.py is the exit-artifact tool: one file, stdlib plus optional
-cryptographic dependencies, no asqav producer module. The AST pins the import
-surface, and a subprocess runs the copied file in a bare directory with the
-asqav package refused at import time, against the published ML-DSA-65 receipt.
+verify_receipt.py is one file, stdlib plus optional crypto dependencies. The
+AST pins its imports, and a subprocess runs the copy in a bare directory with
+asqav refused at import, against the published ML-DSA-65 receipt.
 """
 
 from __future__ import annotations
@@ -65,8 +64,8 @@ def _module_names() -> list[tuple[str, bool]]:
 
 
 def test_import_surface_is_stdlib_plus_optional_crypto_only() -> None:
-    # cryptography joins dilithium_py as an optional lazy import: the RFC 3161 check decodes
-    # pinned X.509 TSA certificates with it, and degrades to unverifiable without.
+    # cryptography joins dilithium_py as an optional lazy import: the RFC 3161
+    # check decodes pinned X.509 TSA certs with it, else reports unverifiable.
     allowed = set(sys.stdlib_module_names) | {"dilithium_py", "cryptography"}
     for root, _lazy in _module_names():
         assert root != "asqav", "the standalone verifier must never import producer code"
@@ -142,14 +141,11 @@ sys.meta_path.insert(0, _RefuseAsqav())
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_standalone_file_verifies_the_published_receipt_without_asqav(tmp_path) -> None:
-    """The published receipt offline: imprint proven, TSA untrusted, never verified.
+    """The published receipt offline: imprint proven, TSA untrusted, unverified.
 
-    Since the cryptographic anchor check landed, presence no longer yields a
-    verified verdict: the receipt's RFC3161 token commits this envelope (the
-    imprint matches), but the TSA trust anchor is not pinned by this fixture,
-    so the anchors axis reports unverifiable and the verdict caps at
-    unverified/unverifiable. A caller holding the TSA chain passes it via
-    --tsa-key for the full verified path (covered in test_exit_artifact_cli).
+    The RFC3161 token commits this envelope, but the TSA anchor is not pinned
+    here, so anchors report unverifiable and the verdict caps there; a caller
+    with the TSA chain passes --tsa-key (see test_exit_artifact_cli).
     """
     shutil.copy(VERIFIER_SOURCE, tmp_path / "verify_receipt.py")
     shutil.copy(FIXTURES / "published-receipt.json", tmp_path / "receipt.json")

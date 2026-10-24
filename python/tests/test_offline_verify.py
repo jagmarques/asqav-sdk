@@ -27,7 +27,6 @@ def _load(p: Path) -> dict:
     return json.loads(p.read_text())
 
 
-# ---------------------------------------------------------------------------
 # Hard-ban all HTTP while these tests run.
 
 
@@ -42,8 +41,7 @@ def _forbid_network(monkeypatch):
     yield
 
 
-# fetch_jwks smoke-test (network forbidden -> RuntimeError), proving the helper is
-# exported and wired to the network call.
+# fetch_jwks smoke-test: network forbidden -> RuntimeError proves the wiring.
 
 
     # fetch_jwks must be importable from the top-level asqav namespace.
@@ -66,7 +64,6 @@ def test_fetch_jwks_hits_network(monkeypatch):
     assert "jwks.json" in called[0] or ".well-known" in called[0]
 
 
-# ---------------------------------------------------------------------------
 # verify_receipt_offline: PASS path using the conformance-vector jwks.
 
 
@@ -92,7 +89,6 @@ def test_verify_receipt_offline_axes_structure():
     assert result["fmt"] == "asqav-native"
 
 
-# ---------------------------------------------------------------------------
 # verify_receipt_offline: FAIL on tampered receipt.
 
 
@@ -119,11 +115,10 @@ def test_verify_receipt_offline_tampered_payload_directly():
     assert result["failure_class"] == "invalid"
 
 
-# ---------------------------------------------------------------------------
 # verify_receipt_offline: INCOMPLETE when JWKS has no matching key.
 
 
-    # Missing key in JWKS -> signature SKIPPED -> unverified/unverifiable (never verified).
+    # No JWKS key -> signature SKIPPED -> unverified/unverifiable.
 def test_verify_receipt_offline_no_key_in_jwks():
     receipt = _load(PASS_VECTOR / "receipt.json")
     result = asqav.verify_receipt_offline(receipt, {"keys": []})
@@ -135,8 +130,7 @@ def test_verify_receipt_offline_no_key_in_jwks():
     assert sig_axis["result"] in ("SKIPPED", "FAIL")
 
 
-# ML-DSA-65: PASS with dilithium-py present, else SKIPPED. Same-library round-trips, so
-# they prove wiring, NOT interop with real cloud signatures (known-answer vector is owed).
+# ML-DSA-65 round-trips (SKIPPED without dilithium-py) prove wiring only.
 
 
     # Generate a real ML-DSA-65 receipt + JWKS using dilithium-py.
@@ -270,7 +264,7 @@ _HASH_SIGNED_FIELDS = (
 
 
 def _hash_mode_receipt(org_id: str, key_id: str, secret_key):
-    """A real hash-mode /sign receipt: the 11 signed fields plus the wire fields.
+    """A real hash-mode /sign receipt: 11 signed fields plus the wire fields.
     Signed over the bytes the cloud signs, so only the bind weighs the org."""
     import base64
 
@@ -305,7 +299,7 @@ def _hash_mode_receipt(org_id: str, key_id: str, secret_key):
 
 
 def test_hash_mode_fixture_matches_the_prod_receipt_shape():
-    """Fixture practice: a hand-built receipt must carry the prod field set, so a
+    """A hand-built receipt must carry the prod field set, so a
     test can never pass on a shape production does not emit."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
@@ -316,7 +310,7 @@ def test_hash_mode_fixture_matches_the_prod_receipt_shape():
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_rejects_hash_mode_claiming_another_org():
-    """FORGERY in hash mode, the default /sign shape: org_id is a required signed
+    """FORGERY in hash mode (default /sign shape): org_id is a required signed
     field, so a receipt claiming the victim's org must be refused."""
     _envelope_unused, jwks = _cross_issuer_forgery_and_jwks()
     from dilithium_py.ml_dsa import ML_DSA_65
@@ -348,7 +342,7 @@ def test_verify_receipt_offline_rejects_hash_mode_claiming_another_org():
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields():
-    """A hash-mode receipt that also displays issuer_id or previousReceiptHash is
+    """A hash-mode receipt also showing issuer_id or previousReceiptHash is
     presenting claims its signature does not cover, so it is refused."""
     import base64
 
@@ -377,7 +371,7 @@ def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields()
     doc["previousReceiptHash"] = "0" * 64
     result = asqav.verify_receipt_offline(doc, jwks)
     assert result["verdict"] == "unverified", f"axes: {result['axes']}"
-    # The compliance rule set applied, so the doc is judged on the claim it displays.
+    # The compliance rule set applies: the doc is judged on the claim it shows.
     structure = next(a for a in result["axes"] if a["name"] == "structure")
     assert structure["result"] == "FAIL", f"structure axis: {structure}"
 
@@ -386,7 +380,7 @@ def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields()
 def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
     """FORGERY through the public offline API: the attacker signs with their own
     published ML-DSA-65 key, points signature.kid at it, and claims the victim's
-    issuer_id. The signature is genuine, so only the issuer bind can refuse it."""
+    issuer_id. The signature is genuine: only the issuer bind can refuse it."""
     envelope, jwks = _cross_issuer_forgery_and_jwks()
     result = asqav.verify_receipt_offline(envelope, jwks)
     assert result["verdict"] == "unverified", f"axes: {result['axes']}"
@@ -397,12 +391,12 @@ def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
     assert sig_axis["result"] == "PASS", "the forged signature verifies; the bind is what refuses it"
 
 
-# Real-cloud ML-DSA-65 known-answer test (asqav-06-mldsa65-payload-prod), minted from
+# Real-cloud ML-DSA-65 KAT (asqav-06-mldsa65-payload-prod), minted from
 # api.asqav.com: the signature axis must be PASS, not SKIPPED or INCOMPLETE.
 MLDSA_KAT_VECTOR = VECTORS / "asqav-06-mldsa65-payload-prod"
 
 
-    # Real-cloud ML-DSA-65 KAT: signature PASS; lapsed expiry stays on its own axis (426).
+    # Cloud ML-DSA-65 KAT: signature PASS; lapsed expiry is its own axis (426).
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat():
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
@@ -468,8 +462,7 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
     assert sig_axis["result"] == "FAIL"
 
 
-# run_structured uses the standalone verify_receipt engine (ML-DSA-65 only), so the
-# Ed25519 vector correctly returns unverified/unverifiable rather than verified.
+# run_structured's standalone engine is ML-DSA-65 only: Ed25519 is unverifiable.
 
 
     # run_structured() is callable from the verifier module and returns a dict.
@@ -477,14 +470,14 @@ def test_run_structured_directly():
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = vr.run_structured(receipt, jwks)
-    # The standalone engine only verifies ML-DSA-65; Ed25519 is SKIPPED -> unverifiable.
+    # Standalone engine: ML-DSA-65 only, so Ed25519 is SKIPPED -> unverifiable.
     assert result["verdict"] in ("verified", "unverified")
     assert isinstance(result["axes"], list)
     assert result["canonical_sha256"] is not None
 
 
 # criterion 446: a malformed JWKS must not crash the public offline API. Each
-# reached verify_receipt.resolve_key via asqav_native.py and raised before the guard.
+# reached resolve_key via asqav_native.py and raised before the guard.
 
 
 def test_offline_api_missing_public_key_no_crash():
@@ -520,8 +513,8 @@ def _hash_mode_jwks(issuer_id: str, pub, org_id: str | None = None) -> dict:
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_hash_mode_org_with_a_legal_entity_does_not_false_fail():
-    """issuer_id is legal_entity or org.id while org_id is always org.id, so they
-    diverge once an org sets a legal entity. The honest receipt must not FAIL, and
+    """issuer_id is legal_entity or org.id, org_id always org.id, so they
+    diverge once an org sets a legal entity. The honest receipt never FAILs and
     verifies once the directory publishes org_id per key."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
@@ -542,7 +535,7 @@ def test_hash_mode_org_with_a_legal_entity_does_not_false_fail():
 
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_hash_mode_cross_org_still_fails_when_the_directory_names_an_org():
-    """The legal-entity allowance must not soften the forgery: when the directory
+    """The legal-entity allowance never softens the forgery: when the directory
     names a real org for the key, a receipt claiming a different one FAILs."""
     from dilithium_py.ml_dsa import ML_DSA_65
 
@@ -558,7 +551,7 @@ def test_hash_mode_cross_org_still_fails_when_the_directory_names_an_org():
 
 
 def test_unmodified_prod_vector_with_unsigned_claims_does_not_crash():
-    """Regression guard: the real prod receipt plus unsigned claim fields gives a
+    """The real prod receipt plus unsigned claim fields gives a
     clean FAIL, never a TypeError out of the compliance path."""
     V = VECTORS / "asqav-05-hash-mode-prod"
     doc = _load(V / "receipt.json")

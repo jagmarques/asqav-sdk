@@ -1,14 +1,8 @@
-"""SDK parity for the cycle-30 NSA-aligned receipt extensions.
+"""SDK parity for the NSA-aligned receipt extensions.
 
-Five new wire fields land on the cloud `SignRequest` per NSA CSI
-U/OO/6030316-26: ``result_digest``, ``expires_at``, ``nonce``,
-``tool_fingerprint``, ``config_manifest_digest`` and
-``cve_inventory_digest``. The SDK forwards the caller-supplied digests
-verbatim, computes ``tool_fingerprint`` from ``tool_name`` + a JSON
-schema, and auto-generates a 24-hex-char ``nonce`` when the caller omits
-one. The cross-field validator mirrors cloud rule 9: a
-``protectmcp:lifecycle:configuration_change`` receipt without
-``config_manifest_digest`` fails before the HTTP roundtrip.
+Six wire fields per NSA CSI U/OO/6030316-26 (result_digest, expires_at, nonce,
+tool_fingerprint, config_manifest_digest, cve_inventory_digest). The SDK
+derives tool_fingerprint, auto-generates a 24-hex nonce and enforces rule 9.
 """
 
 from __future__ import annotations

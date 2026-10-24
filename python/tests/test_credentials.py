@@ -1,4 +1,4 @@
-"""Tests for the file-backed credential layer and the onboarding CLI commands."""
+"""Tests for the file-backed credential layer and the onboarding CLI."""
 
 from __future__ import annotations
 

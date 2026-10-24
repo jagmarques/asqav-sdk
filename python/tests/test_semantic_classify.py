@@ -1,14 +1,8 @@
 """Independent failure classification for the oracle (criterion 574 D5a).
 
-The table in ``oracle.semantic_classify`` derives each axis's class
-from criterion 418 (invalid = resolved key + binding failed;
-unverifiable = recompute could not complete) plus the axis contract
-proving FAIL implies resolved inputs. These tests pin the derivation:
-literals match the core surface; every always-invalid axis maps FAIL
-to invalid; every note-dependent branch and the default map as 418
-requires; real corpus vectors keep their verdicts through the new
-path. A flat port (all FAILs invalid, or all FAILs unverifiable)
-fails these patterns.
+``oracle.semantic_classify`` derives each axis class from criterion 418
+(invalid = resolved key + failed binding; unverifiable = recompute incomplete).
+Pinned: literals, always-invalid axes, note-dependent branches, corpus verdicts.
 """
 from __future__ import annotations
 

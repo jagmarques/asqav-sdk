@@ -1,4 +1,4 @@
-"""The float table the TypeScript SDK checks equals what Python computes (criterion 744)."""
+"""The TypeScript SDK float table matches Python's values (criterion 744)."""
 
 from __future__ import annotations
 

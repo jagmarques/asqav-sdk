@@ -1,11 +1,8 @@
 """Shared authproof delegationId format table, Python half.
 
-One JSON table drives both the Python and the TypeScript authproof adapter. Each
-case feeds a delegationId through this language's format-detection validator and
-pins the boolean, so a regex that drifts between languages (a Unicode ``\\d``, a
-``$`` that swallows a trailing newline) fails a suite instead of waiting for a
-reviewer. The TypeScript half lives in
-typescript/tests/authproof-delegation-cases.test.ts and reads the same file.
+One JSON table drives both authproof adapters; each case pins this language's
+validator boolean, so a drifting regex (a Unicode ``\\d``, a ``$`` eating a
+newline) fails. TS half: typescript/tests/authproof-delegation-cases.test.ts.
 """
 
 from __future__ import annotations
@@ -24,7 +21,7 @@ _ADAPTER = AuthproofAdapter()
 
 
 def _skeleton(delegation_id: str) -> dict:
-    """A receipt that satisfies every detect() condition except the delegationId.
+    """A receipt meeting every detect() condition except the delegationId.
 
     Only the delegationId varies across cases, so the detect() boolean isolates
     the delegationId regex - the thing the cross-language table pins.

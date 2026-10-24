@@ -1,10 +1,8 @@
 """Mint minimal RFC 3161 TimeStampResp tokens for the anchor-verification tests.
 
-A real TSA token is a CMS SignedData wrapping a TSTInfo; the verifier parses
-the DER directly, so the tests need tokens built byte by byte rather than by a
-TSA service. The shape mirrors the production anchor in
-verifier/docs/fixtures/published-receipt.json: no signedAttrs (the TSA signs
-the eContent bytes directly) and a [0] subjectKeyIdentifier sid.
+The verifier parses CMS SignedData DER directly, so tokens are built byte by
+byte, shaped like verifier/docs/fixtures/published-receipt.json: no
+signedAttrs (the TSA signs eContent directly), a [0] subjectKeyIdentifier sid.
 """
 
 from __future__ import annotations
@@ -62,7 +60,7 @@ _OID_ML_DSA_65 = "2.16.840.1.101.3.4.3.18"
 
 
 def make_tst_info(digest32: bytes, gen_time: str = "20260601000000Z") -> bytes:
-    """A TSTInfo committing digest32, signed-content form the verifier parses."""
+    """A TSTInfo committing digest32, in the signed form the verifier parses."""
     return _seq(
         _int(1),
         _oid("1.2.3.4"),  # policy OID, opaque to the check
@@ -85,10 +83,9 @@ def make_signed_attrs(
 ) -> bytes:
     """The signedAttrs CONTENT bytes (attributes concatenated, no outer tag).
 
-    Public TSAs all emit signedAttrs; the production fixture does not, so this
-    is what exercises the `_cms_message_digest_ok` / `_cms_signed_bytes` branch.
-    The knobs exist to build the RFC 5652 s11.1 violations the verifier must
-    reject: a missing contentType, and a contentType naming other content.
+    The production fixture has no signedAttrs, so this exercises the
+    `_cms_message_digest_ok` / `_cms_signed_bytes` branch; the knobs build the
+    RFC 5652 s11.1 violations: no contentType, or one naming other content.
     """
     import hashlib
 
@@ -101,7 +98,7 @@ def make_signed_attrs(
 
 
 def signed_attrs_signing_input(attrs: bytes) -> bytes:
-    """Bytes a CMS signature covers when signedAttrs is present: SET OF re-tag."""
+    """Bytes a CMS signature covers with signedAttrs present: SET OF re-tag."""
     return _tlv(0x31, attrs)
 
 

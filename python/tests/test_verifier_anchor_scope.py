@@ -1,10 +1,8 @@
-"""The anchors axis hashes the two-key {payload, signature} object the signer committed.
+"""The anchors axis hashes the {payload, signature} pair the signer committed.
 
-Pinned against a REAL production receipt exported through the Audit Pack on 2026-09-02:
-the export carries thirteen top-level members and re-encodes the signature string in
-standard base64, while the signer anchored the base64url wire string over exactly
-{payload, signature}. Before this fix the standalone verifier reported the untouched
-receipt as invalid.
+Pinned to a REAL Audit Pack export: thirteen top-level members and a
+standard-base64 signature, while the signer anchored the base64url wire
+string over exactly {payload, signature}. The untouched receipt never FAILs.
 """
 from __future__ import annotations
 
@@ -41,7 +39,7 @@ def test_the_anchored_bytes_are_the_two_key_object_only() -> None:
 
 
 def test_the_rfc3161_imprint_of_a_real_receipt_is_never_reported_invalid() -> None:
-    """The gate for the false accusation: an untouched production receipt must not FAIL."""
+    """An untouched production receipt must not FAIL (false accusation)."""
     ev = vr.evaluate_anchors(vr.normalise_envelope(RECEIPT))
     assert ev.result != "FAIL", ev.note
     assert "different digest" not in ev.note, ev.note
@@ -58,7 +56,7 @@ def test_the_signature_axis_still_verifies_the_real_receipt() -> None:
 
 
 def test_a_standard_base64_export_of_a_base64url_commitment_is_recognised() -> None:
-    """The migration-window tolerance: the commitment was made over the base64url string."""
+    """Migration tolerance: the commitment covers the base64url string."""
     sig_std = RECEIPT["signature"]["sig"]
     raw = base64.b64decode(sig_std + "=" * (-len(sig_std) % 4))
     sig_url = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
@@ -73,7 +71,7 @@ def test_a_standard_base64_export_of_a_base64url_commitment_is_recognised() -> N
 
 
 def test_a_tampered_payload_is_still_a_proven_mismatch() -> None:
-    """The tolerance must not launder a real tamper: a changed payload fails both alphabets."""
+    """No laundering: a changed payload fails under both alphabets."""
     tampered = json.loads(json.dumps(RECEIPT))
     tampered["payload"]["seq"] = (tampered["payload"].get("seq") or 0) + 1
     ev = vr.evaluate_anchors(vr.normalise_envelope(tampered))

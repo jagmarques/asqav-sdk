@@ -1,9 +1,8 @@
 """Normalization-context widening (criterion 488, T1).
 
 The verifier records the inputs a disagreement attributes to: two runs over
-byte-identical receipt bytes must be able to differ ONLY by the evaluation
-context they were given, and an empty context must preserve every current
-outcome. The pre-change failure is a TypeError on the new keywords.
+identical receipt bytes differ ONLY by evaluation context, and an empty
+context preserves every outcome.
 """
 from __future__ import annotations
 

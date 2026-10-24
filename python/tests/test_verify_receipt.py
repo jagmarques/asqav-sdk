@@ -1,11 +1,8 @@
-"""Zero-dep verifier accepts the risk-acceptance and code-authorship receipt types.
+"""Zero-dep verifier accepts the risk-acceptance and code-authorship types.
 
-verify_receipt.py carries protectmcp:lifecycle:risk_acceptance and
-protectmcp:lifecycle:code_authorship in ALLOWED_TYPES so the structure axis
-recognises a valid receipt of either type and PASSes on it; an unknown type
-is REPORTED (SKIPPED, naming the namespace), never failed, while the verdict
-stays unverified/unverifiable so nothing unrecognised verifies. These tests
-pin both behaviours.
+verify_receipt.py lists both lifecycle types in ALLOWED_TYPES, so structure
+PASSes on them; an unknown type is REPORTED (SKIPPED, naming the namespace),
+never failed, and the verdict stays unverified/unverifiable.
 """
 
 from __future__ import annotations
@@ -47,7 +44,7 @@ def test_structure_accepts_risk_acceptance() -> None:
 
 
 def test_structure_reports_unknown_type() -> None:
-    """A protectmcp: value absent from the vocabulary FAILs as invalid (registered namespace, unknown value)."""
+    """An unknown protectmcp: value FAILs as invalid (registered namespace)."""
     payload = _risk_payload()
     payload["type"] = "protectmcp:not_a_real_type"
     res, note = v.check_structure(payload)
@@ -69,7 +66,7 @@ def test_structure_accepts_recognised_wire_versions() -> None:
 
 def test_structure_reports_absent_wire_version() -> None:
     """A receipt with no v member is not a Compliance Receipt of this document;
-    the note is distinct from the unsupported-value note and never reads as v1."""
+    its note differs from the unsupported-value note and never reads as v1."""
     payload = _risk_payload()
     del payload["v"]
     res, note = v.check_structure(payload)
@@ -80,7 +77,7 @@ def test_structure_reports_absent_wire_version() -> None:
 
 def test_structure_reports_unsupported_wire_version() -> None:
     """Every unrecognised value SKIPs unverifiable with its repr, never fails,
-    and never selects: 99, '1', None, 0, -1, plus True and 1.0 (strict int only)."""
+    never selects: 99, '1', None, 0, -1, True and 1.0 (strict int only)."""
     for bad in (99, "1", None, 0, -1, True, 1.0):
         payload = _risk_payload()
         payload["v"] = bad
@@ -245,7 +242,7 @@ def test_verify_signature_nonstring_alg_skips_clean() -> None:
 
 
 def test_check_key_status_tz_mismatch_fails_clean() -> None:
-    """Revoked-before-issuance with a tz-aware revoked_at and tz-naive issued_at FAILs
+    """Revoked-before-issuance, tz-aware revoked_at and tz-naive issued_at FAILs
     the axis, never raises a naive-vs-aware TypeError."""
     result, _ = v.check_key_status(
         "revoked", "2026-06-01T00:00:00", "2026-05-04T12:00:00+00:00"
@@ -254,15 +251,15 @@ def test_check_key_status_tz_mismatch_fails_clean() -> None:
 
 
 def test_check_skew_tz_naive_issued_at_no_crash() -> None:
-    """A tz-naive issued_at must produce a verdict, never a naive-vs-aware TypeError
+    """A tz-naive issued_at gives a verdict, never a naive-vs-aware TypeError
     in the wall-clock subtraction."""
     result, _ = v.check_skew("2026-05-04T00:00:00")
     assert result in ("PASS", "FAIL")
 
 
 def test_resolve_key_by_agent_id_matches_agent_id() -> None:
-    """The signing key is resolvable by the receipt's agent_id (cloud receipts set
-    kid to the issuer/org id but sign with the agent's own key), but only when the
+    """The signing key resolves by the receipt's agent_id (cloud receipts set
+    kid to the issuer/org id but sign with the agent's key), but only when the
     key's issuer_id equals the receipt's claimed issuer."""
     jwks = {
         "keys": [
@@ -289,7 +286,7 @@ def test_resolve_key_by_agent_id_matches_agent_id() -> None:
 
 def test_agent_id_fallback_never_trusts_a_non_verifying_key() -> None:
     """The agent_id fallback only trusts an agent key that actually verifies the
-    signature; a signature made by a different key still FAILs (no false pass)."""
+    signature; one made by a different key still FAILs (no false pass)."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives.serialization import (
         Encoding,
@@ -406,8 +403,8 @@ def _trusted_envelope(payload: dict, sig: bytes, kid: str | None = None):
 
 def test_run_agent_id_fallback_rejects_forged_issuer() -> None:
     """FORGERY: a receipt signed by org-attacker's real ML-DSA-65 agent key but
-    claiming issuer_id=org-victim must FAIL. The fallback only trusts a key whose
-    issuer_id equals the claimed issuer, so the cross-issuer key never PASSes."""
+    claiming issuer_id=org-victim FAILs. The fallback only trusts a key whose
+    issuer_id is the claimed issuer, so the cross-issuer key never PASSes."""
     ml = _ml_dsa_65()
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _victim_sk = ml.keygen()
@@ -425,7 +422,7 @@ def test_run_agent_id_fallback_rejects_forged_issuer() -> None:
 def test_run_agent_id_fallback_passes_legit_multi_agent() -> None:
     """LEGIT offline PASS: an org with two agents. The receipt is signed by the
     second agent; the issuer-kid resolves the first (wrong) sibling, and the
-    agent_id fallback resolves the real signer whose issuer_id matches -> PASS."""
+    agent_id fallback resolves the real, issuer-matching signer -> PASS."""
     ml = _ml_dsa_65()
     a1_pk, _a1_sk = ml.keygen()
     a2_pk, a2_sk = ml.keygen()
@@ -479,8 +476,8 @@ def test_run_tampered_payload_fails() -> None:
 
 
 def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
-    """run_structured mirrors run(): the issuer-kid resolves the wrong sibling, the
-    signature fails, and the agent_id fallback resolves the real signer -> verified."""
+    """run_structured mirrors run(): the issuer-kid picks the wrong sibling, the
+    signature fails and the agent_id fallback finds the signer -> verified."""
     ml = _ml_dsa_65()
     a1_pk, _a1_sk = ml.keygen()
     a2_pk, a2_sk = ml.keygen()
@@ -502,7 +499,7 @@ def test_run_structured_agent_id_fallback_passes_legit_multi_agent() -> None:
 
 
 def test_run_structured_agent_id_fallback_rejects_forged_issuer() -> None:
-    """run_structured inherits run()'s bind: a receipt signed by org-attacker's key
+    """run_structured has run()'s bind: a receipt signed by org-attacker's key
     but claiming issuer_id=org-victim is unverified/invalid, since the fallback
     trusts only a key whose issuer_id equals the claimed issuer."""
     ml = _ml_dsa_65()
@@ -566,7 +563,7 @@ def test_run_rejects_attacker_kid_claiming_another_issuer() -> None:
     assert by_org_id == 1, f"attacker org id verified a receipt claiming org-victim (exit {by_org_id})"
 
 
-    # Same forgery through run_structured: issuer_bind FAIL (invalid), signature PASS.
+    # Same forgery via run_structured: issuer_bind FAIL (invalid), sig PASS.
 def test_run_structured_rejects_attacker_kid_claiming_another_issuer() -> None:
     payload, sig, jwks = _cross_issuer_forgery()
     result = v.run_structured(_envelope(payload, sig, kid="attacker-key"), jwks, None)
@@ -703,7 +700,7 @@ def test_run_prints_nonce_axis(capsys) -> None:
 
 def test_alg_is_reported_verbatim_from_the_wire(capsys) -> None:
     """The signature algorithm is per-receipt (ML-DSA-65 cloud, Ed25519/ES256
-    local); both surfaces report the signature.alg wire value, not a constant."""
+    local); both surfaces report the wire signature.alg, not a constant."""
     envelope = {
         "payload": _risk_payload(),
         "signature": {"alg": "Ed25519", "kid": "c37probe-org-00001", "sig": "AAAA"},

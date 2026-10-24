@@ -1,7 +1,7 @@
 """The PreToolUse gate when the cli extra is missing (criterion 578).
 
-Exit 1 is a non-blocking error to the harness, so a gate that cannot import typer must
-exit 2 or every tool call runs ungated. The import is blocked in a child process.
+Exit 1 is non-blocking to the harness, so a gate that cannot import typer
+must exit 2 or tool calls run ungated. A child process blocks the import.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Tests for audit trail replay - timeline reconstruction and chain verification."""
+"""Audit trail replay: timeline reconstruction and chain verification."""
 
 from __future__ import annotations
 
@@ -188,11 +188,11 @@ class TestChainVerification:
         results = _verify_hash_chain(sig_dicts)
         assert results[0] is True
         assert results[1] is False
-        # Step 2's link still matches step 1's *derived* hash (corruption is on the recorded link).
+        # Step 2's link matches step 1's *derived* hash; only the record is bad.
         assert results[2] is True
 
     def test_tampered_entry_detected(self):
-        """Changing a field mid-chain should break chain integrity for that step.
+        """Changing a field mid-chain breaks chain integrity for that step.
 
         We test this by building a timeline, then manually flipping chain_valid
         on a middle step and confirming chain_integrity reflects it.

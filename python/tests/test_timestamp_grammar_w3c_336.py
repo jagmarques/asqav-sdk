@@ -1,9 +1,8 @@
 """xsd:datetime grammar pinned on the W3C VC adapter (criterion 336).
 
-_parse_datetime parsed proof.created/validFrom/validUntil with bare
-fromisoformat while the TypeScript twin regex-pins the shape, so the basic
-form drew different verdicts per interpreter. Python now gates the same
-shape first; out-of-grammar stamps read unreadable on every engine.
+_parse_datetime gates proof.created/validFrom/validUntil on the shape the
+TypeScript twin pins, so out-of-grammar stamps read unreadable on every
+engine.
 """
 
 from __future__ import annotations

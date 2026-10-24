@@ -1,7 +1,7 @@
 """Shape predicates the two languages must answer identically.
 
-Python half of typescript/tests/verifier-cross-language-parity.test.ts: the same inputs, the
-same answers, so a receipt earns the same note whichever engine a customer runs.
+Python half of typescript/tests/verifier-cross-language-parity.test.ts: same
+inputs, same answers, so a receipt earns one note whichever engine runs.
 """
 
 from __future__ import annotations

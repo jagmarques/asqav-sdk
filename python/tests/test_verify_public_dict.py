@@ -1,9 +1,8 @@
 """asqav.verify(id) returns a plain dict with a locally reproduced chain_hash.
 
-Regression guard for the goal9 flagship README example
-(``asqav.verify`` -> ``result["verified"]`` / ``result["agent_id"]`` /
-``result["chain_hash"]``). It must resolve to the real, no-key public verify
-path, and chain_hash must equal sha256(canonical_json(payload)).
+The README's ``asqav.verify`` -> ``result["verified"]`` / ``["agent_id"]`` /
+``["chain_hash"]`` example resolves to the real no-key public verify path,
+and chain_hash equals sha256(canonical_json(payload)).
 """
 
 from __future__ import annotations

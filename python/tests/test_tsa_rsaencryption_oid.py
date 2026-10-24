@@ -1,13 +1,10 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
-"""RFC 3161 tokens signed under the bare rsaEncryption OID verify with pinned material.
+"""RFC 3161 tokens signed under bare rsaEncryption verify with pinned material.
 
-RFC 5652 permits 1.2.840.113549.1.1.1 as the SignerInfo signatureAlgorithm, the
-hash taken from the SignerInfo digestAlgorithm, and real TSAs emit exactly that
-shape: the corpus's production token (asqav-24-anchor-block-hash-prod) is signed
-by tsa.izenpe.com under rsaEncryption with sha256. The dispatch used to know
-only the shaNNNWithRSAEncryption identifiers, so no pinned material could ever
-verify this token.
+RFC 5652 permits 1.2.840.113549.1.1.1 as SignerInfo signatureAlgorithm, the
+hash from digestAlgorithm; asqav-24's production token (tsa.izenpe.com) uses
+exactly that with sha256, so the dispatch must accept it.
 """
 
 from __future__ import annotations
@@ -50,7 +47,7 @@ def _bound_and_env_jcs() -> tuple[bytes, bytes]:
 
 
 def test_token_shape_is_the_bare_rsaencryption_oid() -> None:
-    """The fixture really is the shape under test, or the tests below pass vacuously."""
+    """The fixture is the shape under test, or the tests below are vacuous."""
     info = v._parse_time_stamp_resp(_token())
     assert info["sig_alg"] == _RSA_ENCRYPTION_OID
     assert info["digest_alg"] == "2.16.840.1.101.3.4.2.1"  # sha256
@@ -108,7 +105,7 @@ def test_flipped_cms_signature_byte_is_invalid() -> None:
 
 
 def test_unknown_digest_oid_with_rsaencryption_is_unverifiable() -> None:
-    """A digest OID the table does not know: unverifiable, never a crash or a pass."""
+    """An unknown digest OID is unverifiable, never a crash or a pass."""
     state = v._verify_tsa_signature(
         _RSA_ENCRYPTION_OID,
         b"\x00",

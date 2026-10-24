@@ -1,13 +1,8 @@
 """Gates for acceptor-side admission control (criterion 472, B15).
 
-Driven off the real conformance corpus rather than hand-built dicts: every
-receipt here is signed over its own bytes by the corpus's published keys, so a
-refusal has to come from the rule under test and not from a broken signature
-nobody noticed.
-
-The three acceptor-only rules carry the weight. Each one refuses a receipt the
-VERIFIER is content with, which is the whole reason the module exists - a peer
-can weaken the evidence without ever producing an unverified receipt.
+Driven off the real conformance corpus: every receipt is signed by the corpus's
+published keys, so a refusal comes from the rule under test. Each of the three
+acceptor-only rules refuses a receipt the VERIFIER accepts.
 """
 from __future__ import annotations
 
@@ -38,8 +33,8 @@ def _vec(name: str):
     return receipt, jwks, predecessor
 
 
-# Properly signed fixtures: the acceptor rules refuse receipts the VERIFIER accepts, so an
-# edited payload would fail the signature first. These mint real ones from the published seed.
+# Signed fixtures: the acceptor rules refuse receipts the VERIFIER accepts, so
+# an edited payload would fail the signature first; mint from the seed.
 
 _SEED_PHRASE = b"asqav conformance corpus v1 seq-continuity signing seed"
 _KID = "asqav-seq-vec-key"
@@ -101,7 +96,7 @@ def _signed_jwks() -> dict:
 
 
 def _chained(first_extra: dict, second_extra: dict):
-    """A predecessor and the successor that links to it, both properly signed."""
+    """A predecessor and the successor that links to it, both signed."""
     first = _signed("act_1", "0" * 64, **first_extra)
     link = hashlib.sha256(_jcs(first["payload"])).hexdigest()
     second = _signed("act_2", link, **second_extra)
@@ -136,7 +131,7 @@ class TestRefusesWhatDoesNotVerify:
         assert got.rule == "verifier"
 
     def test_a_substituted_key_is_refused(self) -> None:
-        """The signature verifies against the published key; only the binding fails.
+        """The published key verifies the signature; only the binding fails.
 
         Exactly the case an acceptor must not wave through: nothing about the
         signature looks wrong.
@@ -250,7 +245,7 @@ class TestSeqDowngrade:
 
 class TestChallenge:
     """A challenge the acceptor issued but the receipt does not answer proved
-    nothing, so 'verify it when present' alone would let a peer skip freshness."""
+    nothing: 'verify it when present' alone would let a peer skip freshness."""
 
     def test_an_unanswered_challenge_is_refused(self) -> None:
         doc, jwks, pred = _chained({"seq": 7}, {"seq": 8})
@@ -278,7 +273,7 @@ class TestChallenge:
 
     def test_an_unsolicited_challenge_answer_is_not_grounds_for_refusal(self) -> None:
         """A receipt may carry a nonce for a peer that issued one; an acceptor
-        that issued none has nothing to compare and must not invent a mismatch."""
+        that issued none has nothing to compare and invents no mismatch."""
         doc, jwks, pred = _chained({"seq": 7}, {"seq": 8, "challenge_nonce": "chal-other"})
         got = check_peer_receipt(doc, key_provider=jwks, predecessor=pred)
         assert got.accepted, got.reason
@@ -319,7 +314,7 @@ class TestAsgiMiddleware:
     """
 
     def _run(self, mw, headers, path="/act"):
-        """Drive the middleware as an ASGI server would; return (status, body, reached)."""
+        """Run the middleware as ASGI does; return (status, body, reached)."""
         import asyncio
 
         reached: list[bool] = []
@@ -392,7 +387,7 @@ class TestAsgiMiddleware:
         assert reached
 
     def test_a_non_http_scope_passes_through(self) -> None:
-        """Lifespan and websocket scopes carry no receipt; passing them through is
+        """Lifespan/websocket scopes carry no receipt; passing them through is
         not a bypass because no inbound ACTION rides on them."""
         import asyncio
 
@@ -412,7 +407,7 @@ class TestAsgiMiddleware:
         assert reached
 
     def test_the_decision_is_handed_to_the_app(self) -> None:
-        """A downstream handler should be able to read why it was admitted rather
+        """A downstream handler can read why it was admitted rather
         than verifying a second time."""
         import asyncio
 

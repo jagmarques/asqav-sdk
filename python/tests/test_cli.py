@@ -223,7 +223,7 @@ def test_sign_agent_get_api_error_exits_1(
 def test_sign_json_output_with_policy_artefact_and_algo_mismatch(
     mock_init: MagicMock, mock_get: MagicMock, tmp_path
 ) -> None:
-    """Exercise --output json + --policy-artefact + algorithm mismatch + --session-id.
+    """Run --output json, --policy-artefact, alg mismatch and --session-id.
 
     Covers: JSON renderer, _load_json_arg file branch, _build_sign_context
     policy_artefact wiring, the algorithm-mismatch warning, and the
@@ -1702,7 +1702,7 @@ def test_migrate_run_v3_22_calls_endpoint(
 def test_verify_text_names_the_binding_tsa_party_and_not_proven_list(
     mock_verify: MagicMock,
 ) -> None:
-    """A reader sees each axis and the two things a receipt never proves (762 C8)."""
+    """Shows each axis and the two things a receipt never proves (762 C8)."""
     from asqav import VerificationDetail
 
     mock_verify.return_value = MagicMock(

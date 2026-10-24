@@ -1,9 +1,8 @@
 """Archive sync against a real local S3-compatible process (761).
 
-moto's in-process mock proves bucket logic; this test proves the
---s3-endpoint-url path against an actual HTTP S3 endpoint in its own
-process. Pages are full-envelope signed pages; everything read back
-re-verifies offline. Skips when the moto server dependencies are absent.
+moto's in-process mock proves bucket logic; this proves --s3-endpoint-url
+against a real HTTP S3 endpoint. Signed full-envelope pages re-verify offline
+on read back. Skips when the moto server dependencies are absent.
 """
 
 from __future__ import annotations

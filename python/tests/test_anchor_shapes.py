@@ -2,13 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The three anchors wire shapes: absent, empty array, and null.
 
-The profile states it once: the member ABSENT and the member present as an
-EMPTY ARRAY are both conformant and mean the same thing (no anchor presented);
-a JSON null is a third shape found in the wild, is MALFORMED, and must be
-reported unverifiable rather than read as either. None of the three changes
-any digest: anchors sits outside the signed bytes, so asqav-17's Ed25519
-signature stays valid under all three spellings, and the two corpus twins
-(asqav-27 absent, asqav-28 null) pin the outcomes end to end.
+ABSENT and EMPTY ARRAY are conformant and mean no anchor; a JSON null is
+MALFORMED and reported unverifiable. None changes a digest: asqav-17 stays
+valid under all three, and asqav-27 (absent) and asqav-28 (null) pin outcomes.
 """
 
 from __future__ import annotations
@@ -42,7 +38,7 @@ def _vector(name: str):
 
 
 def _mask_skew(note: str) -> str:
-    # The skew note embeds live wall-clock seconds; everything else is deterministic.
+    # The skew note embeds wall-clock seconds; the rest is deterministic.
     return re.sub(r"-?\d+s\b", "<n>s", note)
 
 
@@ -61,7 +57,7 @@ def _oracle_shape(result) -> list:
 
 def test_run_structured_absent_and_empty_array_are_one_fact() -> None:
     """asqav-27 (member absent) and asqav-17 (member present as []) must be
-    indistinguishable in every axis result, the verdict, and the canonical bytes."""
+    identical in every axis result, the verdict, and the canonical bytes."""
     receipt17, jwks, pred = _vector("asqav-17-seq-contiguous")
     receipt27, _, _ = _vector("asqav-27-anchors-absent")
     out17 = v.run_structured(receipt17, jwks, pred)
@@ -73,8 +69,8 @@ def test_run_structured_absent_and_empty_array_are_one_fact() -> None:
 
 
 def test_run_structured_null_anchors_is_malformed_not_no_anchors() -> None:
-    """asqav-28 (``"anchors": null``): the structure axis FAILs, naming the member
-    and the shape; the verdict reads unverified/unverifiable; the anchors axis is
+    """asqav-28 (``"anchors": null``): the structure axis FAILs, naming member
+    and shape; the verdict is unverified/unverifiable; the anchors axis is
     never reached, so null is not reported as "no anchors on this receipt"."""
     receipt, jwks, pred = _vector("asqav-28-anchors-null-malformed")
     out = v.run_structured(receipt, jwks, pred)
@@ -91,7 +87,7 @@ def test_run_structured_null_anchors_is_malformed_not_no_anchors() -> None:
 
 
 def test_oracle_absent_and_empty_array_are_one_fact() -> None:
-    """The oracle's axis results for asqav-27 equal asqav-17's, verdict included."""
+    """The oracle's axes for asqav-27 equal asqav-17's, verdict included."""
     receipt17, jwks, pred = _vector("asqav-17-seq-contiguous")
     receipt27, _, _ = _vector("asqav-27-anchors-absent")
     res17 = oracle_verify(receipt17, ADAPTERS, key_provider=jwks, predecessor=pred)
@@ -103,7 +99,7 @@ def test_oracle_absent_and_empty_array_are_one_fact() -> None:
 
 
 def test_oracle_null_anchors_is_malformed_not_no_anchors() -> None:
-    """The oracle FAILs asqav-28 at the structure axis: unverified, unverifiable,
+    """The oracle FAILs asqav-28 at structure: unverified, unverifiable,
     first failing edge structure - never a silent read of null as no anchors."""
     receipt, jwks, pred = _vector("asqav-28-anchors-null-malformed")
     res = oracle_verify(receipt, ADAPTERS, key_provider=jwks, predecessor=pred)
@@ -217,7 +213,7 @@ def test_unknown_anchor_member_yields_byte_identical_axis() -> None:
 
     Unknown members are ignored by the checks and preserved in the envelope, so
     member growth across revisions can neither fail nor silently alter an axis.
-    The probe member is asserted undeclared so the test cannot pass vacuously."""
+    The probe member is asserted undeclared, so the test is not vacuous."""
     assert "proof_of_future" not in v.ANCHOR_ENTRY_MEMBERS
     receipt, jwks, pred = _vector("asqav-24-anchor-block-hash-prod")
     assert receipt.get("anchors"), "control: the pinned vector carries anchors"

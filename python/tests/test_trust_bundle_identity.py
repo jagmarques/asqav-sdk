@@ -1,16 +1,5 @@
 # Copyright 2026 Asqav
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
 """Versioned TSA trust bundle identity on structured results (criterion 584).
 
 Two different pinned-trust inputs must yield different trust_bundle digests;
@@ -45,7 +34,7 @@ def _vector():
 
 
 def _rebind(bundle: dict, roots: list) -> dict:
-    """A second bundle over different roots with a correctly recomputed digest."""
+    """A second bundle over other roots with a correctly recomputed digest."""
     other = copy.deepcopy(bundle)
     other["roots"] = roots
     body = {k: val for k, val in other.items() if k != "digest"}
@@ -79,7 +68,7 @@ def test_two_bundles_yield_different_identity_digests() -> None:
 
 
 def test_trusted_list_status_stays_declared() -> None:
-    """The EU Trusted List gap rides the NOT_CHECKED declaration, not silence."""
+    """The EU Trusted List gap is in the NOT_CHECKED declaration, not silent."""
     assert "tsa_trusted_list_status" in {e["check"] for e in v.NOT_CHECKED}
     assert "tsa_trusted_list_status" in {
         e["check"] for e in v.not_checked_declaration()

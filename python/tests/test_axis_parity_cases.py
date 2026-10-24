@@ -1,6 +1,6 @@
 """Anchor-binding, clock-skew, and signed-expiry axis parity, Python half.
 
-One JSON table drives both the Python and the TypeScript axis implementations, so
+One JSON table drives the Python and TypeScript axis implementations, so
 a rule that drifts in one language fails a suite. The TypeScript half lives in
 typescript/tests/verifier-axis-parity.test.ts and reads the same file.
 """
@@ -113,7 +113,7 @@ def test_nesting_depth_counterparty_case(
 
 
 def test_nesting_depth_profile_parser_wraps_decimals() -> None:
-    """The RawFloat arm of the table is real, and the wrapper is a scalar float."""
+    """The table's RawFloat arm is real, and the wrapper is a scalar float."""
     leaf = strict_json.loads_profile('{"leaf":1.5}')["leaf"]
     assert isinstance(leaf, strict_json.RawFloat)
     assert isinstance(leaf, float)
@@ -147,7 +147,7 @@ def test_expiry_case(case: dict) -> None:
 def test_expiry_reads_only_the_signed_bytes() -> None:
     """An expires_at outside the signed payload must not move the window.
 
-    anchors and the envelope keys are unsigned, so a lapsed receipt that carries a
+    anchors and envelope keys are unsigned, so a lapsed receipt that carries a
     future expires_at beside its payload has to stay FAIL.
     """
     signed = {"expires_at": "2020-01-01T00:00:00Z"}
@@ -190,7 +190,7 @@ def test_chain_prev_hash_case(case: dict) -> None:
 def test_chain_prev_hash_table_discriminates() -> None:
     """Both a genesis PASS and a non-genesis SKIPPED have to be present.
 
-    A table of one outcome cannot tell a working genesis rule from one that reads
+    A one-outcome table cannot tell a working genesis rule from one that reads
     every value as an absent link.
     """
     chains = {c["expect"]["chain"] for c in TABLE["chain_prev_hash"]}

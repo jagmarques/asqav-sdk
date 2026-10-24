@@ -1,14 +1,8 @@
 """The hook forwards `tool_use_id` as `invocation_ref` on both hook paths.
 
-A pre-action decision receipt and a post-action observation receipt for the
-same tool call carry the SAME value, so a reader can SEE duplicate emissions.
-Absent or non-string inputs omit the field entirely: nothing is synthesised
-and there is no fallback to `session_id` (the trace, not the invocation).
-Visibility only: no de-duplication, no rejection keyed on this field.
-
-The `_map_event` kwargs below mirror the real `hook_pretool` / `hook_posttool`
-call sites exactly; the CLI controls beneath invoke the real entry points so
-the entrypoint semantics cannot drift behind these unit tests.
+Pre-action and post-action receipts for one tool call carry the SAME value, so
+duplicates are visible; absent or non-string input omits the field, with no
+`session_id` fallback. Visibility only: nothing dedupes or rejects on it.
 """
 
 from __future__ import annotations

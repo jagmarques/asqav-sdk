@@ -1,10 +1,8 @@
-"""The standalone verifier resolves the signing key by what the receipt signed, not list position.
+"""The standalone verifier picks the signing key by what was signed, not order.
 
-The envelope kid of a cloud receipt is the org id, which every sibling key of the
-org publishes as issuer_id, so a loose match answers with whichever sibling is listed first. The
-signed key_thumbprint and the signed agent_id name the real key; the matcher reads them first.
-Every directory here publishes more than one key under one issuer, the shape that exposes a
-matcher which returns whatever it reaches first.
+A cloud receipt's kid is the org id, which every sibling key publishes as
+issuer_id; the signed key_thumbprint and agent_id name the real key and are
+read first. Every directory here publishes several keys under one issuer.
 """
 
 from __future__ import annotations
@@ -73,9 +71,8 @@ def _axes(report: dict) -> dict[str, tuple[str, str]]:
 
 
 def test_unsupported_alg_resolves_the_named_agent_key_not_the_revoked_sibling() -> None:
-    """Signature SKIPPED (an algorithm outside the profile), so no failure ever triggered the
-    old agent-bind fallback and the revoked sibling's status was reported. Mirrors the live
-    canary of 2026-09-02."""
+    """Signature SKIPPED (alg outside the profile) never reaches a fallback:
+    key_status reads the named agent's key, not the revoked sibling."""
     ml44 = pytest.importorskip("dilithium_py.ml_dsa").ML_DSA_44
     old_pk, _ = ml44.keygen()
     two_pk, two_sk = ml44.keygen()
@@ -93,7 +90,7 @@ def test_unsupported_alg_resolves_the_named_agent_key_not_the_revoked_sibling() 
 
 
 def test_rotated_agent_resolves_by_signed_thumbprint_across_two_published_keys() -> None:
-    """Two active keys for one agent, the stale one listed first; the thumbprint picks the signer."""
+    """Two active keys, the stale one first: the thumbprint picks the signer."""
     ml = _ml_dsa_65()
     stale_pk, _ = ml.keygen()
     new_pk, new_sk = ml.keygen()
@@ -109,7 +106,7 @@ def test_rotated_agent_resolves_by_signed_thumbprint_across_two_published_keys()
 
 
 def test_rotated_agent_without_a_thumbprint_verifies_against_the_key_that_signed() -> None:
-    """A directory publishing no thumbprint still resolves the signer: every candidate is tried."""
+    """With no published thumbprint, every candidate is tried for the signer."""
     ml = _ml_dsa_65()
     stale_pk, _ = ml.keygen()
     new_pk, new_sk = ml.keygen()
@@ -122,7 +119,7 @@ def test_rotated_agent_without_a_thumbprint_verifies_against_the_key_that_signed
 
 
 def test_thumbprint_naming_an_unused_key_is_reported_as_substitution() -> None:
-    """A thumbprint for key D while key C signed: C verifies, D was bound, the binding breaks."""
+    """Thumbprint of D, C signed: C verifies, D is bound, the binding breaks."""
     ml = _ml_dsa_65()
     c_pk, c_sk = ml.keygen()
     d_pk, _ = ml.keygen()
@@ -138,7 +135,7 @@ def test_thumbprint_naming_an_unused_key_is_reported_as_substitution() -> None:
 
 
 def test_thumbprint_of_a_foreign_org_key_cannot_pass_the_issuer_bind() -> None:
-    """An attacker binding their own published key's thumbprint verifies the signature and fails the bind."""
+    """An attacker's own thumbprint verifies the signature, fails the bind."""
     ml = _ml_dsa_65()
     attacker_pk, attacker_sk = ml.keygen()
     victim_pk, _ = ml.keygen()

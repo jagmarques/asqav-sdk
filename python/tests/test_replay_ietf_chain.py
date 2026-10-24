@@ -132,19 +132,6 @@ def test_v2_verify_chain_detects_tamper() -> None:
     assert timeline.steps[1].chain_valid is False
 
 
-
-# === _step_chain_hash helper ===
-
-
-
-
-
-# === _step_chain_hash helper ===
-
-
-
-
-
 # === Empty timeline ===
 
 
@@ -264,7 +251,7 @@ def test_to_dict_includes_signed_envelope_and_compliance_flag() -> None:
     assert d["steps"][0]["signed_envelope"] == env0
 
 
-# === H12 + H13: chain digest scope matches cloud + verifier actually verifies ===
+# === H12 + H13: chain digest scope matches cloud; the verifier verifies ===
 
 
 def _cloud_payload(idx: int, prev_hash: str) -> dict:
@@ -407,6 +394,6 @@ def test_verify_hash_chain_actually_verifies_link_values() -> None:
     results = _verify_hash_chain(sigs_data)
     assert results[0] is True
     assert results[1] is False
-    # Third link's hash is derived from sig 1's envelope (unchanged), so it stays True.
+    # Link 3's hash derives from sig 1's unchanged envelope, so it stays True.
     assert results[2] is True
 

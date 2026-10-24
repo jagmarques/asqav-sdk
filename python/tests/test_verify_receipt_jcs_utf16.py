@@ -1,8 +1,8 @@
-"""The standalone verifier reproduces RFC 8785 member order and names the legacy dialect.
+"""Standalone verifier: RFC 8785 member order, and the legacy dialect named.
 
-Criterion 566. ``verify_receipt.py`` is the tool the exit manifest tells a customer to run,
-so its ``canonical_json`` must produce the bytes the platform signs for every member name,
-including names above U+FFFF where a code-point sort silently diverges.
+Criterion 566. ``verify_receipt.py``, the exit-manifest tool, must produce
+the platform's signed bytes for every member name, including names above
+U+FFFF where a code-point sort silently diverges.
 """
 
 from __future__ import annotations

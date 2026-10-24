@@ -1,4 +1,4 @@
-"""Integration docs name the current release rather than a frozen version (646)."""
+"""Integration docs name the current release, not a frozen version (646)."""
 
 from pathlib import Path
 
@@ -13,7 +13,7 @@ def test_github_actions_guide_names_the_release_history_not_a_frozen_pin() -> No
 
 
 def test_no_integration_guide_pins_an_asqav_release() -> None:
-    """A literal release pin in prose ages into a claim the shipped SDK no longer supports."""
+    """A literal release pin in prose ages into a stale claim about the SDK."""
     import re
 
     frozen = re.compile(r"asqav==\d+\.\d+\.\d+")
