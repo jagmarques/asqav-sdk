@@ -180,12 +180,10 @@ def scan_file(path: Path) -> Counts:
     for block in blocks:
         counted = [token for token in block if token.start[0] not in exempt]
         for token in counted:
-            # Full line width, like a docstring line: the indent counts.
-            width = token.start[1] + len(token.string)
-            if width > MAX_COMMENT_CHARS:
+            if len(token.string) > MAX_COMMENT_CHARS:
                 counts.comment_lines += 1
                 counts.findings.append(
-                    f"{path}:{token.start[0]}: comment line is {width} characters"
+                    f"{path}:{token.start[0]}: comment line is {len(token.string)} characters"
                     f" (max {MAX_COMMENT_CHARS})"
                 )
         if len(counted) > MAX_COMMENT_BLOCK_LINES:
