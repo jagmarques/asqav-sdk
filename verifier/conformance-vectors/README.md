@@ -37,12 +37,12 @@ reported `unverified`/`unverifiable` before any hashing. `asqav-11` and
 `asqav-12` pin the top-level and nested cases.
 
 An asqav-native `expected.json` also declares `axis_scope`, `exercised` and
-`not_applicable`, copied from `requirement-map.json`. The `outcome` is
-oracle-axis-scoped: it covers the requirements in `axis_scope.exercised`, not a
-full-profile verdict. The map labels each `observed_verdict` the same way
-(`observed_verdict_scope`) and flags with `trusted_anchor_material_supplied`
-whether anchor material came apart from the receipt. The runner's anchors axis
-SKIPs when a receipt carries anchors and no such material, and is
+`not_applicable`, copied from `requirement-map.json`. Each `outcome` is
+oracle-axis-scoped: it covers the requirements in `axis_scope.exercised` and
+is no full-profile verdict. Each `observed_verdict` in the map says so
+(`observed_verdict_scope`), and `trusted_anchor_material_supplied` flags
+whether anchor material came apart from the receipt. On a receipt that
+carries anchors with no such material, the anchors axis SKIPs; it is
 `not_applicable` only when the receipt carries none.
 
 ## Run
