@@ -121,8 +121,8 @@ class FormatAdapter(ABC):
         return []
 
     def seq_of(self, doc: dict) -> Any:
-        # Raw so the axis can report a malformed counter; extra_axes never sees the
-        # predecessor continuity needs, so the counter is read here instead.
+        # Raw so the axis can report a malformed counter; extra_axes never sees
+        # the predecessor continuity needs, so the counter is read here.
         return None
 
     def extra_axes_with_context(

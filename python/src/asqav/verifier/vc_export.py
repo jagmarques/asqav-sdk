@@ -1,5 +1,5 @@
-"""Export-only shim: an Asqav receipt in W3C VC 2.0 shape. EU-lane
-presentation, not a wire token, internal type, or verification path."""
+"""Export-only shim: an Asqav receipt in W3C VC 2.0 shape (EU-lane), not a wire
+token or verification path. The proof covers Asqav bytes, not the VC's."""
 from __future__ import annotations
 
 from typing import Any
@@ -107,7 +107,8 @@ def _native_subject(receipt: dict) -> tuple[dict, dict, str | None]:
 
 
 def _agentreceipts_subject(receipt: dict) -> tuple[dict, dict, str | None]:
-    """Map a W3C-VC AgentReceipt's fields into Asqav subject + proofbits."""
+    """Map a W3C-VC AgentReceipt's fields into Asqav subject + proofbits. The
+    envelope change voids the standard proof; it is relabelled Asqav-native."""
     sub = receipt.get("credentialSubject", {}) if isinstance(receipt.get("credentialSubject"), dict) else {}
     proof = receipt.get("proof", {}) if isinstance(receipt.get("proof"), dict) else {}
     issuer = receipt.get("issuer")
@@ -146,8 +147,8 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
 
 
 def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
-    """Present an Asqav receipt as a W3C VC 2.0 envelope (export only).
-    Pure and offline: no signing, no network, no mutation of ``receipt``."""
+    """Present a receipt as a W3C VC 2.0 envelope: offline, no signing, no
+    mutation of ``receipt``; generic verifiers MUST decline its proof."""
     if not isinstance(receipt, dict):
         raise TypeError("receipt must be a parsed JSON object (dict)")
 
@@ -176,7 +177,7 @@ def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
         "type": list(VC_CREDENTIAL_TYPE),
         "issuer": {"id": issuer_id} if issuer_id is not None else {},
         "validFrom": valid_from,
-        "issuanceDate": valid_from,  # carried for VC 1.1 readers; v2 uses validFrom
+        "issuanceDate": valid_from,  # for VC 1.1 readers; v2 uses validFrom
         "credentialSubject": subject,
         "proof": proof,
         "proofIsAsqavNative": True,

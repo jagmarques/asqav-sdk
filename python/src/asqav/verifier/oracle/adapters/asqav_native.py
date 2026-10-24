@@ -198,7 +198,7 @@ class AsqavNativeAdapter(FormatAdapter):
 
     def chain_step(self, doc: dict) -> ChainStep:
         if _is_hash_mode(doc):
-            # A hash-mode signature receipt carries no in-band chain link of its own.
+            # A hash-mode signature receipt carries no in-band chain link.
             return ChainStep(prev_field=None, is_genesis=True, recompute=lambda _pred: "")
         prev = _payload(doc).get("previousReceiptHash")
         is_genesis = prev == _vr.FIRST_RECEIPT_SEED
@@ -213,8 +213,8 @@ class AsqavNativeAdapter(FormatAdapter):
             missing = [f for f in _HASH_MODE_FIELDS if doc.get(f) is None and f != "policy_digest"]
             if missing:
                 return "FAIL", f"hash-mode receipt missing fields: {','.join(missing)}"
-            # A claim outside the signed field set is unauthenticated, whatever it
-            # says, so refuse it rather than reporting on bytes nobody signed.
+            # A claim outside the signed field set is unauthenticated, whatever
+            # it says, so refuse it rather than report on bytes nobody signed.
             unsigned = [f for f in _UNSIGNED_CLAIM_FIELDS if f in doc]
             if unsigned:
                 return "FAIL", (
@@ -239,7 +239,7 @@ class AsqavNativeAdapter(FormatAdapter):
     def extra_axes_with_context(
         self, doc: dict, key_provider: Any, context: VerificationContext,
     ) -> list[tuple[str, str, str]]:
-        # A subclass may still override extra_axes with the older two-argument form.
+        # A subclass may override extra_axes with the older two-argument form.
         style = _context_call_style(self.extra_axes)
         if style == "positional":
             axes = self.extra_axes(doc, key_provider, context)
@@ -263,8 +263,8 @@ class AsqavNativeAdapter(FormatAdapter):
     ) -> list[tuple[str, str, str]]:
         """Gate the verdict on expiry, key revocation, and issuer.
         A revoked key or republished issuer never PASSes, as in /verify."""
-        # Expiry reads only the signed bytes, so no key is needed. Hash mode signs no
-        # expires_at, and reading the flat doc would gate on an uncovered field.
+        # Needs no key: expiry is read off the signed payload. A hash-mode
+        # receipt signs no expires_at; its unsigned flat doc must not drive it.
         hash_mode = _is_hash_mode(doc)
         signed = {} if hash_mode else _payload(doc)
         now = resolve_evaluation_now(getattr(context, "evaluation_time", None))
@@ -272,22 +272,22 @@ class AsqavNativeAdapter(FormatAdapter):
         axes.append(("nonce", *_vr.check_nonce(signed, self._seen_nonces)))
         jwks = key_provider or {"keys": []}
         entry = self._signing_key_entry(doc, jwks)
-        # Reported before the no-entry return, so a receipt binding no thumbprint
+        # Reported before the no-entry return, so a receipt with no thumbprint
         # still says so rather than dropping the axis when nothing resolved.
         bound_alg, bound_pk = _resolved_key_material(entry)
         axes.append(("key_binding", *_vr.check_key_binding(signed, bound_alg, bound_pk)))
-        # No database offline, so a claimed binding reports unresolved rather than
+        # No database offline, so a claimed binding reports unresolved, not
         # riding along as corroboration nobody checked
         kid = _vr.counterparty_acknowledging_kid(doc)
         axes.append(("counterparty", *_vr.check_counterparty_binding(signed, acknowledging_kid=kid)))
         pd_res, pd_note, _pd_app = _vr.check_payload_digest(signed)
         # Oracle axes stay 3-tuples; applicability surfaces in run_structured
         axes.append(("payload_digest", pd_res, pd_note))
-        # Hash mode signs no issued_at, so skew reads the flat server_timestamp; without
-        # this the oracle accepted a 2099 issue time the standalone verifier refuses.
+        # Hash mode signs no issued_at, so skew reads the flat server_timestamp;
+        # without it a 2099 issue time passed, which the standalone refuses.
         stamp = doc.get("server_timestamp", "") if hash_mode else signed.get("issued_at", "")
         axes.append(("skew", *_vr.check_skew(stamp, now=now)))
-        # Weigh the plain copies against the signed payload and the key that verified
+        # Weigh the plain copies against the signed payload and the verified key
         msg = self.signing_input(doc)
         verifying = self._verifying_key(doc, bound_pk, msg)
         kid = entry.get("kid") if verifying is not None and entry is not None else None
@@ -306,8 +306,8 @@ class AsqavNativeAdapter(FormatAdapter):
             payload = _payload(doc)
             issued_at = payload.get("issued_at", "")
             bind = _vr.check_issuer_binding(key_issuer, payload.get("issuer_id"))
-        # Only a caller-verified anchor counts as trusted timing. This adapter pins no
-        # TSA material, so it passes False: a forged anchor never rides a revoked key.
+        # Only a caller-verified anchor is trusted timing. This adapter pins no
+        # TSA material, so it passes False: no forged anchor rides revoked keys.
         res, note = _vr.check_key_status(
             entry.get("status"), issued_at, _vr.revoked_at_of(entry), False,
             entry.get("revocation_reason"),
@@ -315,7 +315,7 @@ class AsqavNativeAdapter(FormatAdapter):
         return axes + [("key_status", res, note), ("issuer_bind", *bind)]
 
     def seq_of(self, doc: dict) -> Any:
-        # Hash mode signs the flat field set only, so a seq sitting there binds nothing.
+        # Hash mode signs the flat fields only, so a seq there binds nothing.
         if _is_hash_mode(doc):
             return None
         return _payload(doc).get("seq")
@@ -350,7 +350,7 @@ class AsqavNativeAdapter(FormatAdapter):
             if not _vr.is_current_profile_version(doc.get("v")):
                 return None
             return _vr.profile_range_note(_flat_signed_fields(doc))
-        # The standalone rule itself, so both Python verifiers refuse the same inputs.
+        # The standalone rule itself, so both verifiers refuse the same inputs.
         env = _vr.normalise_envelope(doc)
         same_fmt = isinstance(predecessor, dict) and predecessor_fmt == self.name
         return _vr._profile_range_refusal(

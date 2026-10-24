@@ -28,18 +28,18 @@ def b58btc_decode(text: str) -> bytes:
     # Return the raw 32-byte Ed25519 key from a ``did:key`` 'z...' identifier.
 def _decode_did_key(identifier: str) -> bytes | None:
     if not identifier.startswith("z"):
-        return None  # multibase base58btc is the only did:key form this resolver decodes
+        return None  # only multibase base58btc did:key is decoded here
     try:
         decoded = b58btc_decode(identifier[1:])
     except ValueError:
         return None
     if not decoded.startswith(_ED25519_MULTICODEC):
-        return None  # not an Ed25519 did:key (e.g. did:key for a different curve)
+        return None  # not an Ed25519 did:key (e.g. a different curve)
     key = decoded[len(_ED25519_MULTICODEC) :]
     return key if len(key) == 32 else None
 
 
-    # Coerce injected key material (raw bytes or hex string) to raw 32-byte form.
+    # Coerce injected key material (raw bytes or hex) to raw 32-byte form.
 def _coerce_raw(material: object) -> bytes | None:
     if isinstance(material, bytes):
         raw = material
@@ -53,7 +53,7 @@ def _coerce_raw(material: object) -> bytes | None:
     return raw if len(raw) == 32 else None
 
 
-    # OKP/Ed25519 JWK -> raw 32-byte key; None for any other curve or bad encoding.
+    # OKP/Ed25519 JWK -> raw 32-byte key; None for other curves or bad bytes.
 def _raw_from_jwk(jwk: object) -> bytes | None:
     if not isinstance(jwk, dict) or jwk.get("kty") != "OKP" or jwk.get("crv") != "Ed25519":
         return None
@@ -73,7 +73,7 @@ def _raw_from_verification_method(vm: object) -> bytes | None:
         return None
     multibase = vm.get("publicKeyMultibase")
     if isinstance(multibase, str):
-        # A Multikey multibase value is shaped exactly like a did:key identifier.
+        # A Multikey multibase value is shaped exactly like a did:key id.
         key = _decode_did_key(multibase)
         if key is not None:
             return key
@@ -91,7 +91,7 @@ def _raw_from_verification_method(vm: object) -> bytes | None:
 
 
     # Walk an injected DID document like the fetched one: exact fragment match,
-    # else assertionMethod-authorized Ed25519 methods, then any remaining method.
+    # else assertionMethod-authorized Ed25519 methods, then any other method.
 def _key_from_did_document(did_doc: dict, did_url: str) -> tuple[bytes | None, str]:
     methods = did_doc.get("verificationMethod")
     methods = [vm for vm in methods if isinstance(vm, dict)] if isinstance(methods, list) else []

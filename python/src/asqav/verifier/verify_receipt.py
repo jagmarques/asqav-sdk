@@ -17,8 +17,8 @@
 # Licensed Apache-2.0 (a file-level exception to the Elastic-2.0 SDK) so it
 # ships in the exit artifact as a free, dependency-light offline tool.
 
-"""Standalone Asqav receipt verifier: stdlib, optional crypto deps.
-Offline: signature, JCS bytes, chain, expiry, issuer binding, anchors."""
+"""Standalone Asqav receipt verifier: stdlib, optional crypto deps. Offline:
+signature, JCS, chain, expiry, issuer, anchors. A skipped check never PASSes."""
 
 from __future__ import annotations
 
@@ -212,7 +212,7 @@ def has_supplementary_member_name(obj) -> bool:
 
 
 def _issued_before_cutover(payload: dict) -> bool:
-    # An unreadable issued_at earns no retry; the receipt is simply not verified.
+    # An unreadable issued_at earns no retry; the receipt is not verified.
     issued = _parse_stamp(payload.get("issued_at", ""))
     cutover = _parse_stamp(JCS_UTF16_CUTOVER)
     return issued is not None and cutover is not None and issued < cutover
@@ -254,7 +254,7 @@ def _describe_value(value) -> str:
 
 # JCS bytes of the two-key {payload, signature} object every anchor commits to.
 def envelope_minus_anchors_jcs(env: dict) -> bytes:
-    # An Audit Pack export carries more top-level members than the signer anchored;
+    # An Audit Pack export has more top-level members than the signer anchored;
     # only payload and signature were committed, so only those two are hashed.
     return canonical_json({k: env[k] for k in ("payload", "signature") if k in env})
 
@@ -398,7 +398,7 @@ def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
 
     # Fold per-axis (name, result, note) rows into verdict + failure class.
 def _fold_verdict(results, keyed: bool = False) -> tuple[str, str | None]:
-    # Expiry reports on its own axis and never folds the verdict (criterion 426).
+    # Expiry is its own axis and never folds the verdict.
     failed = [(n, r, note) for n, r, note in results if r == "FAIL" and n != "expiry"]
     # A skipped chain (no predecessor supplied) is expected and does not block a
     # verified verdict; any other skip downgrades to unverified/unverifiable.
@@ -516,8 +516,8 @@ def _raw_float(literal):
 
 
 def _parse_object(text: str, source: str) -> dict:
-    """Parse ``text`` as a JSON object, or raise VerifierInputError.
-    """
+    """Parse ``text`` as a JSON object, or raise VerifierInputError. Duplicate
+    names and ints past 2**53 are refused: last-wins bytes are never hashed."""
     if not text or not text.strip():
         raise VerifierInputError(f"{source}: empty input, expected a JSON object")
     try:
@@ -545,7 +545,7 @@ def _parse_object(text: str, source: str) -> dict:
 class _SameHostRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Refuse cross-host redirects; a hop elsewhere is not the issuer."""
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN202
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
         if urllib.parse.urlsplit(newurl).hostname != urllib.parse.urlsplit(
             req.full_url
         ).hostname:
@@ -605,7 +605,7 @@ def _b64url_nopad(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
 
 
-    # True when these bytes are a raw ML-DSA public key of the width `alg` fixes.
+    # True when the bytes are a raw ML-DSA public key of the width alg fixes.
 def is_akp_public_key(*, alg: str, public_key: bytes | None) -> bool:
     if not public_key:
         return False
@@ -810,7 +810,7 @@ def _parse_time_stamp_resp(der: bytes) -> dict:
     if not status_fields or status_fields[0][0] != 0x02:
         raise _AnchorParseError("PKIStatusInfo without status integer")
     status = int.from_bytes(status_fields[0][1], "big")
-    if status not in (0, 1):  # granted / grantedWithMods; anything else is a refusal
+    if status not in (0, 1):  # granted or grantedWithMods; else a refusal
         return {"status": status}
     if len(resp) < 2 or resp[1][0] != 0x30:
         raise _AnchorParseError("granted status but no timeStampToken")
@@ -846,7 +846,8 @@ def _parse_time_stamp_resp(der: bytes) -> dict:
     si = _der_children(signer_infos[0][1])
     if len(si) < 5:
         raise _AnchorParseError("SignerInfo too short")
-    # version, sid, digestAlgorithm, [signedAttrs], signatureAlgorithm, signature
+    # SignerInfo: version, sid, digestAlgorithm, [signedAttrs],
+    # signatureAlgorithm, signature
     rest = si[3:]
     signed_attrs = None
     if rest[0][0] == 0xA0:
@@ -927,7 +928,7 @@ _PEM_BLOCK_RE = re.compile(rb"-----BEGIN [^-]+-----.*?-----END [^-]+-----\s*", r
 
 def _tsa_key_candidates(trusted_tsa_keys):
     """Split pinned TSA material into (raw key bytes, cryptography public keys).
-    """
+    Without cryptography, PEM/X.509 entries stay raw bytes, never trusted."""
     raw, pkeys = [], []
     try:
         from cryptography import x509
@@ -999,8 +1000,8 @@ def _verify_tsa_signature(
         try:
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
         except ImportError:
-            # cryptography is optional; without it this branch reports unverifiable,
-            # as the RSA/ECDSA one does, rather than raising out of the anchors axis.
+            # cryptography is optional; without it this branch is unverifiable,
+            # like the RSA/ECDSA one, not raising out of the anchors axis.
             return "unverifiable"
 
         for pk in raw_keys:
@@ -1057,8 +1058,8 @@ def _verify_tsa_signature(
 def _check_rfc3161_anchor(
     blob: bytes, bound: bytes, trusted_tsa_keys, env_jcs: bytes | None = None
 ) -> tuple[str, str, object]:
-    """One RFC 3161 anchor -> (outcome, detail, genTime when verified).
-    ``env_jcs`` re-derives the imprint for a non-sha256 algorithm."""
+    """One RFC 3161 anchor -> (outcome, detail, genTime when verified). Trust is
+    the pinned TSA keys, never the unsigned envelope. ``env_jcs``: imprints."""
     # Every DER walk stays inside this guard: an escaping exception exits 1
     # (invalid), claiming a binding failure for input never evaluated.
     try:
@@ -1245,8 +1246,8 @@ def _derive_block_id(header: dict, merkle_internal: bytes):
 
 
 def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, str, object]:
-    """One OpenTimestamps anchor -> (outcome, detail, block time).
-    The proof commitment must equal the envelope digest and reach a root."""
+    """One OpenTimestamps anchor -> (outcome, detail, block time). Commitment
+    must equal the envelope digest; with no header source, never a PASS."""
     try:
         if len(blob) > _OTS_MAX_BLOB or not blob.startswith(_OTS_MAGIC):
             raise _AnchorParseError("not a detached .ots proof")
@@ -1256,7 +1257,7 @@ def _check_ots_anchor(blob: bytes, bound: bytes, bitcoin_headers) -> tuple[str, 
         off += 1
         hash_op = blob[off]
         off += 1
-        if hash_op != 0x08:  # the envelope digest is sha256; other ops cannot commit it
+        if hash_op != 0x08:  # digest is sha256; other ops cannot commit it
             raise _AnchorParseError("proof does not commit a sha256 digest")
         committed, blob_rest = blob[off : off + 32], off + 32
         if len(committed) != 32:
@@ -1329,7 +1330,7 @@ ANCHOR_ENTRY_MEMBERS = frozenset({"type", "value", "status", "anchor_block_hash"
 
 def evaluate_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None, trust_bundle=None) -> AnchorEvaluation:
     """Cryptographically evaluate every anchor against the envelope digest.
-    """
+    Presence never PASSes; a trust bundle with a wrong digest SKIPs the axis."""
     anchors = envelope.get("anchors")
     # Absent is SKIPPED; a present non-list ({} / "" / 0) FAILs. run_structured
     # refuses a wire null at the structure gate; here None is absent or null.
@@ -1439,8 +1440,7 @@ def check_anchors(envelope: dict, *, trusted_tsa_keys=None, bitcoin_headers=None
 def normalise_envelope(raw: dict) -> dict:
     """Project any shape, including an Audit Pack export, onto the 3-key
     envelope; export-side ids and copies are dropped before any axis."""
-    # Demand a mapping envelope, a payload mapping, and a triple inside the
-    # signature slot.
+    # A signature object plus a payload dict: keep exactly the three members.
     sig = raw.get("signature")
     if isinstance(sig, dict) and isinstance(raw.get("payload"), dict):
         return {"payload": raw["payload"], "signature": sig, "anchors": raw.get("anchors")}
@@ -1506,8 +1506,8 @@ def _match_key_by_id(jwks: dict, kid: str):
 
 
 def _key_bound_to_claimant(k: dict, issuer_id, org_id=None):
-    """Return True when a key's published issuer or org equals the claim.
-    agent_id is attacker-controlled, so this claim bind decides the key."""
+    """True when a key's published issuer or org equals the claim. agent_id is
+    attacker-controlled, so this bind picks the key; hash mode signs org_id."""
     issuer_bound = issuer_id and issuer_id == k.get("issuer_id")
     org_bound = org_id and org_id == k.get("org_id")
     return bool(issuer_bound or org_bound)
@@ -1588,23 +1588,27 @@ def match_signing_key(
     jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None, key_thumbprint=None
 ):
     """Return the one jwks entry a receipt's signature is checked against.
-    """
-    # ``thumbprint`` tags the rotated key; ``org_id`` records the hash-mode
-    # agent; signed bytes enclose two labels.
+    Order carries the security: directory position binds nothing."""
+    # The signed key_thumbprint names one exact key, even after a rotation. If
+    # it names a non-signer, the agent bind finds the signer; key_binding FAILs.
     entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
     if entry is not None:
         return entry
     entry = _match_key_by_id(jwks, kid)
     if entry is not None:
         return entry
+    # The agent bind carries the org_id a hash-mode receipt signs, and runs
+    # before the loose match.
     entry = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
     if entry is not None:
         return entry
+    # Loosest: an org-shaped kid matches every sibling key alike, so list
+    # position would pick one; the exact matches above run first.
     return _match_key(jwks, kid)
 
 
 def _entry_material(entry):
-    # (public_key_bytes, status, alg) of a matched entry, or three Nones for a miss.
+    # (public_key_bytes, status, alg) of a matched entry; three Nones on a miss.
     if entry is None:
         return None, None, None
     return _b64decode(entry["public_key"]), entry.get("status"), entry.get("alg")
@@ -1622,13 +1626,13 @@ def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
     )
 
 
-    # Return the issuer id a jwks entry publishes, or None when it names no string.
+    # Return the issuer id a jwks entry publishes, or None if not a string.
 def key_issuer_of(entry):
     issuer = entry.get("issuer_id") if entry else None
     return issuer if isinstance(issuer, str) else None
 
 
-    # Return the org id a jwks entry publishes, or None when the value is not one.
+    # Return the org id a jwks entry publishes, or None if the value is not one.
 def key_org_of(entry):
     org = entry.get("org_id") if entry else None
     return org if _is_org_id(org) else None
@@ -1707,8 +1711,8 @@ _ORG_ID_RE = re.compile(
 
 
 def _is_org_id(value) -> bool:
-    """True for a canonical dashed UUID, the only form
-    an org id takes on the wire. Strict on purpose."""
+    """True for a canonical dashed UUID, the only org id form on the wire.
+    Strict: urn:uuid: or undashed text would false-FAIL an honest receipt."""
     return isinstance(value, str) and _ORG_ID_RE.fullmatch(value) is not None
 
 
@@ -1783,7 +1787,7 @@ def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor
         return "PASS", f"signing key status {status!r} is active"
     if revoked_at:
         # Pinned grammar first: bare fromisoformat reads the basic form on 3.11+
-        # but raises on 3.10, so the same stamp drew different verdicts per version
+        # but raises on 3.10, so one stamp drew different verdicts per version
         rev = _parse_stamp(revoked_at)
         iss = _parse_stamp(issued_at)
         if rev is None or iss is None:
@@ -2259,12 +2263,12 @@ def _outer_copy_note(outcomes: list, raw: dict) -> tuple:
 
 
 def check_outer_copies(raw: dict, msg: bytes, key_bytes=None, key_kid=None):
-    """(result, note) for the outer_copies axis. ``raw`` is the entry as
-    received, ``msg`` the signed bytes, ``key_bytes``/``key_kid`` the key."""
-    # ``copies`` never appears in hash mode; the unsigned roster includes a
-    # ``key_id`` differing from ``key_kid``.
+    """(result, note) for the outer_copies axis. No signature covers an export's
+    plain copies, so each is compared with its signed value: mismatch FAILs."""
     payload = raw.get("payload") if isinstance(raw, dict) else None
     if not isinstance(payload, dict):
+        # A flat hash-mode receipt has no copies; list what it does not sign,
+        # including a key_id other than the verifying key_kid.
         if isinstance(raw, dict) and _is_flat_hash_receipt(raw):
             return _flat_outer_note(raw, key_bytes, key_kid)
         return "PASS", "no signed payload object; no outer copies compared"
@@ -2397,7 +2401,7 @@ _FULL_AXIS_ORDER = (
 
 def coverage_declaration(axes: list) -> dict:
     """The coverage block every result carries beside its non-coverage list.
-    """
+    stopped_at is None on a full run; an early return lists not_reached axes."""
     entries = [
         {
             "id": row["check"],
@@ -2422,10 +2426,10 @@ def coverage_declaration(axes: list) -> dict:
 
 
 def check_payload_digest(payload: dict) -> tuple[str, str, str]:
-    """Recompute payload_digest from the receipt's context.
-    """
-    # Omit this and a signer pairs a truthful context with an unrelated digest;
-    # all verifiers would accept it.
+    """Recompute payload_digest from the receipt's context. Absence PASSes:
+    hash mode and redacted receipts carry no context, which is ordinary."""
+    # Without this, a signer could pair a benign context with a digest that
+    # commits to other content and every verifier would pass it.
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no digest to recompute", "evaluated"
     digest = payload.get("payload_digest")
@@ -2447,8 +2451,8 @@ def check_payload_digest(payload: dict) -> tuple[str, str, str]:
             "evaluated",
         )
     if payload.get("context") is None:
-        # An explicit null reads as absent: the hosted verifier returns payload: null
-        # for redacted and hash-only receipts, and null is not a context to hash
+        # Null reads as absent: the hosted verifier returns payload: null for
+        # redacted and hash-only receipts, and null is not a context to hash
         return (
             "PASS",
             "no context carried; payload_digest not recomputable here",
@@ -2535,6 +2539,8 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; no counterparty binding to check"
     cpb = payload.get("counterparty_binding")
+    # Absence PASSes, the ordinary case. A claim this verifier cannot resolve
+    # SKIPs, which blocks, so it never reads as corroborated; malformed FAILs.
     if "counterparty_binding" not in payload:
         return "PASS", "no counterparty binding; content is unilaterally asserted"
     if not isinstance(cpb, dict):
@@ -2552,7 +2558,7 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
         try:
             from ..counterparty import BINDING_MEMBERS, PROFILE_VERSION, terms_digest_of
         except ImportError:
-            # The copied standalone file has no package to read the registry from.
+            # A copied standalone file has no package to read the registry from.
             return (
                 "SKIPPED",
                 "profile_unsupported: the standalone verifier cannot read the profile registry",
@@ -2598,7 +2604,7 @@ def check_counterparty_binding(payload: dict, originator: dict | None = None, *,
         return "FAIL", "counterparty_binding.transport_label is not a string"
 
     if not isinstance(originator, dict):
-        # Structurally sound but nothing here corroborates it; blocking on purpose
+        # Structurally sound but nothing corroborates it; blocking on purpose
         return "SKIPPED", (
             f"unresolved: counterparty binding claims {receipt_ref}; no originating receipt supplied, "
             "so the corroboration is unchecked"
@@ -2667,6 +2673,8 @@ def check_key_binding(payload: dict, alg, public_key):
     if not isinstance(payload, dict):
         return "PASS", "no signed payload; binding not checked"
     claimed = payload.get("key_thumbprint")
+    # Legacy receipts bind no key; a skip would block every one, so PASS. An
+    # unrecomputable binding SKIPs, which blocks, so it never reads verified.
     if claimed is None:
         return "PASS", "receipt binds no key_thumbprint; binding not checked"
     if not is_well_formed(claimed):
@@ -2674,8 +2682,8 @@ def check_key_binding(payload: dict, alg, public_key):
     if not public_key:
         return "SKIPPED", "no signing key resolved, so the bound key_thumbprint cannot be recomputed"
     if not isinstance(alg, str) or not is_akp_public_key(alg=alg, public_key=public_key):
-        # A KMS-backed row publishes a PEM in this column, and a PEM is not the key
-        # material an AKP `pub` carries, so the digest is not reconstructible here
+        # A KMS-backed row publishes a PEM here, and a PEM is not the key
+        # material an AKP `pub` carries, so the digest is not reconstructible
         return "SKIPPED", (
             "resolved key is not raw ML-DSA material, so the bound key_thumbprint "
             "cannot be recomputed"
@@ -2734,8 +2742,8 @@ SUPPORTED_REQUIRED_EXTENSIONS = frozenset({"beacon_ref"})
 
 
 def check_required_extensions(payload: dict, required) -> tuple[str, str]:
-    """Evaluate caller-required optional extensions (criterion 574-D3).
-    """
+    """Evaluate caller-required optional extensions (criterion 574-D3). SKIPPED
+    if absent or unsupported, so it never reads verified; FAIL if malformed."""
     if not isinstance(payload, dict):
         return "SKIPPED", "no signed payload; required extensions cannot be evaluated"
     for name in required or []:
@@ -2826,7 +2834,7 @@ def check_nonce(payload: dict, seen_nonces: set | None = None):
     try:
         identity = hashlib.sha256(canonical_json(payload)).hexdigest()
     except (ValueError, TypeError, RecursionError):
-        # Internal identity for the seen-nonce index only; never externally recomputed.
+        # Identity for the seen-nonce index only; never recomputed externally.
         identity = hashlib.sha256(
             json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
         ).hexdigest()
@@ -2867,7 +2875,7 @@ def check_structure(payload: dict):
             "profile membership unverifiable, reported not failed"
         )
     # Draft 5.3: absence never reads as v1; only the recognised set verifies.
-    # An unrecognised v is unverifiable, reported not failed, shape never guessed.
+    # An unrecognised v is unverifiable, not failed; the shape is never guessed.
     if "v" not in payload:
         return "SKIPPED", (
             "no v member: not a Compliance Receipt of this document; "
@@ -2929,7 +2937,7 @@ def profile_range_note(obj) -> str | None:
             continue
         if isinstance(node, float):
             # A parsed float came from a float lexeme, so 500.0 and -0.0 bind
-            # digits the profile never validated as an integer, lexeme kept or not.
+            # digits the profile never checked as an integer, lexeme or not.
             lexeme = node.lexeme if isinstance(node, _RawFloat) else repr(node)
             if (
                 not re.fullmatch(r"-?\d+", lexeme)
@@ -3014,7 +3022,7 @@ def _counterparty_commitment_reached(payload, counterparty) -> bool:
     return isinstance(counterparty, dict)
 
 
-    # Refusal note when current-profile digest inputs violate the range, else None.
+    # Refusal note when current-profile digest inputs break the range, or None.
 def _profile_range_refusal(payload, sig_obj, predecessor_payload, counterparty, anchors):
     if not is_current_profile_version(payload.get("v")):
         return None
@@ -3046,8 +3054,8 @@ def _agent_fallback_signature(
 ):
     """Adopt a verifying agent key, else note exhaustion; returns updated state.
     """
-    # Cloud receipts sign with the agent key though kid is the issuer id; fall back.
-    # agent_id is attacker-controlled, so trust only a key whose issuer_id matches.
+    # The agent's own key signs though kid names the issuer; look it up.
+    # agent_id is forgeable, so accept only a key published under that issuer.
     agent_id = payload.get("agent_id") or envelope.get("agent_id")
     org_bind = payload.get("org_id") or envelope.get("org_id")
     entry_a, sig_res_a, exhausted = _select_agent_bound_key(
@@ -3095,8 +3103,8 @@ def _signature_object(envelope: dict, payload: dict) -> dict:
 
 
 def check_rotation_succession(entry, eff_pk, prior_jwks):
-    """Report unevidenced rotation against retained evidence (628 T-b).
-    """
+    """Report unevidenced rotation against retained evidence (628 T-b). None if
+    unverified, unretained or still published; else SKIPPED, which blocks."""
     if prior_jwks is None or eff_pk is None or not isinstance(entry, dict):
         return None
     prior_keys = prior_jwks.get("keys") if isinstance(prior_jwks, dict) else None
@@ -3270,8 +3278,8 @@ def run(
     )
     results.extend(rows)
 
-    # Outside the else on purpose: a receipt binding no thumbprint still reports the
-    # axis, so the report says the binding was not checked, not silent.
+    # Outside the else on purpose: a receipt binding no thumbprint still reports
+    # the axis, so the report says the binding was not checked, not silent.
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
     results.append(("payload_digest", *check_payload_digest(payload)[:2]))
@@ -3293,7 +3301,7 @@ def run(
         mark = {"PASS": "ok", "FAIL": "FAIL", "SKIPPED": "skip"}[res]
         print(f"  [{mark:>4}] {name:<11} {note}")
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426).
+    # Expiry is its own axis and never folds the verdict.
     verdict, failure_class = _fold_verdict(results, keyed=is_keyed_digest(payload))
     if verdict in (VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED):
         code = 0
@@ -3369,11 +3377,11 @@ def _input_refusal(envelope) -> dict | None:
     # A wire "anchors": null is the malformed third spelling of "no anchors"
     # (absent and [] are the conformant two); normalise_envelope would hide it.
     if "anchors" in envelope and envelope["anchors"] is None:
-        # Only payload-mode receipts spell "no anchors"; others hit the payload gate.
+        # Only payload mode spells "no anchors"; others hit the payload gate.
         payload = envelope.get("payload", envelope)
         if not isinstance(payload, dict):
             return None
-        # An unrecognised version reports first, so every engine states one fact.
+        # An unrecognised version reports first, so each engine states one fact.
         if not is_recognised_wire_version(payload.get("v")):
             return None
         return _struct_axis("structure", "FAIL", _ANCHORS_NULL_NOTE)
@@ -3490,7 +3498,7 @@ def run_structured(
     try:
         msg = canonical_json(payload)
     except RecursionError:
-        # Defense in depth; the shape gate above should already have caught this.
+        # Defense in depth; the shape gate above should have caught this.
         axes = [_struct_axis("input", "FAIL", _SHAPE_MESSAGES["too_deep"])]
         return {
             "not_checked": not_checked_declaration(),
@@ -3522,8 +3530,8 @@ def run_structured(
     )
     axes.extend(_struct_axis(*row) for row in rows)
 
-    # Outside the else on purpose: a receipt binding no thumbprint still reports the
-    # axis, so the report says the binding was not checked, not silent.
+    # Outside the else on purpose: a receipt binding no thumbprint still reports
+    # the axis, so the report says the binding was not checked, not silent.
     _kb = check_directory_substitution(payload, jwks, prior_jwks)
     if _kb is None:
         _kb = check_key_binding(payload, eff_alg, eff_pk)
@@ -3541,7 +3549,7 @@ def run_structured(
     if required_extensions:
         axes.append(_struct_axis("required_extensions", *check_required_extensions(payload, required_extensions)))
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426).
+    # Expiry is its own axis and never folds the verdict.
     verdict, failure_class = _fold_verdict(
         [(a["name"], a["result"], a["note"]) for a in axes],
         keyed=is_keyed_digest(payload),

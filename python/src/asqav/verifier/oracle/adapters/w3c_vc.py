@@ -23,7 +23,7 @@ _CRYPTOSUITE = "eddsa-jcs-2022"
 _XSD_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|z|[+-]\d{2}:\d{2})$")
 
 
-    # The doc's proof member when it is a single object; {} for absent/list proofs.
+    # The doc's proof member if a single object; {} for absent/list proofs.
 def _proof(doc: dict) -> dict:
     proof = doc.get("proof")
     return proof if isinstance(proof, dict) else {}
@@ -55,7 +55,7 @@ def _parse_datetime(value: object) -> datetime | None:
     return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
 
 
-    # proof minus proofValue - the exact object the spec canonicalises for hash one.
+    # proof minus proofValue - the object the spec canonicalises for hash one.
 def _proof_options(doc: dict) -> dict:
     return {k: v for k, v in _proof(doc).items() if k != "proofValue"}
 
@@ -98,8 +98,8 @@ class W3cVcAdapter(FormatAdapter):
             return False
         proof = doc.get("proof")
         candidates = [proof] if isinstance(proof, dict) else (proof if isinstance(proof, list) else [])
-        # Any DataIntegrityProof on a VC routes here; the cryptosuite check belongs
-        # to the schema axis so a sibling suite reports as an algorithm mismatch
+        # Any DataIntegrityProof on a VC routes here; the cryptosuite check is
+        # the schema axis's, so a sibling suite reports as an algorithm mismatch
         return any(isinstance(p, dict) and p.get("type") == _PROOF_TYPE for p in candidates)
 
     def extract_signature(self, doc: dict) -> SignatureMaterial:
@@ -156,7 +156,7 @@ class W3cVcAdapter(FormatAdapter):
         if issuer is None or not issuer.startswith("did:"):
             return "FAIL", "issuer must be a DID"
         if vm.split("#", 1)[0] != issuer:
-            # bind the signing key to the issuer or anyone self-signs as a victim
+            # bind the key to the issuer or anyone self-signs as a victim
             return "FAIL", "proof.verificationMethod is not controlled by issuer (signing-key DID != issuer DID)"
         subject = doc.get("credentialSubject")
         if not isinstance(subject, dict) and not (isinstance(subject, list) and subject):

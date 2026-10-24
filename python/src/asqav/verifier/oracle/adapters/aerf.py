@@ -47,7 +47,7 @@ def _resolve_raw(key_provider: Any, kid: str) -> bytes | None:
     return _raw_ed25519(material if isinstance(material, bytes) else _safe_hex(material))
 
 
-    # AERF notarised-evidence receipt - Ed25519 over JCS, sig excluded from chain.
+    # AERF notarised-evidence receipt - Ed25519 over JCS, sig out of the chain.
 class AerfAdapter(FormatAdapter):
 
     name = "aerf"

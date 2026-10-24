@@ -20,7 +20,7 @@ def _nfc(obj: Any) -> Any:
     return obj
 
 
-    # AERF/ACTA-dialect JCS: NFC, code-point key sort, numbers as Python emits them.
+    # AERF/ACTA JCS dialect: NFC, code-point key sort, Python-emitted numbers.
 def jcs(obj: Any) -> bytes:
     return json.dumps(
         _nfc(obj), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
@@ -90,7 +90,7 @@ def _ecma_float(value: float) -> str:
     sign = "-" if value < 0 else ""
     s, exp = _shortest_digits(abs(value))
     k = len(s)
-    n = exp + k  # decimal point sits after digit n; ECMAScript chooses fixed vs exponential by n
+    n = exp + k  # point after digit n; ECMAScript picks fixed/exponential by n
     if k <= n <= 21:
         return f"{sign}{s}{'0' * (n - k)}"
     if 0 < n <= 21:

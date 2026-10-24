@@ -25,19 +25,19 @@ _TABLE: dict[tuple[bool, bool, bool, bool], tuple[str, str | None]] = {
     (False, False, False, False): ("verified", None),  # clean receipt
     (False, False, False, True): ("verified_keyed", None),  # 438
     (False, False, True, False): ("unverified", "unverifiable"),  # gap
-    (False, False, True, True): ("unverified", "unverifiable"),  # gap beats keyed
+    (False, False, True, True): ("unverified", "unverifiable"),  # gap > keyed
     (False, True, False, False): ("unverified", "unverifiable"),  # 418
-    (False, True, False, True): ("unverified", "unverifiable"),  # 418 beats keyed
+    (False, True, False, True): ("unverified", "unverifiable"),  # 418 > keyed
     (False, True, True, False): ("unverified", "unverifiable"),  # 418
-    (False, True, True, True): ("unverified", "unverifiable"),  # 418 beats keyed
+    (False, True, True, True): ("unverified", "unverifiable"),  # 418 > keyed
     (True, False, False, False): ("unverified", "invalid"),  # 418 dominance
-    (True, False, False, True): ("unverified", "invalid"),  # 418 beats keyed
+    (True, False, False, True): ("unverified", "invalid"),  # 418 > keyed
     (True, False, True, False): ("unverified", "invalid"),  # 418 dominance
-    (True, False, True, True): ("unverified", "invalid"),  # 418 beats keyed
+    (True, False, True, True): ("unverified", "invalid"),  # 418 > keyed
     (True, True, False, False): ("unverified", "invalid"),  # 418 dominance
-    (True, True, False, True): ("unverified", "invalid"),  # 418 beats keyed
+    (True, True, False, True): ("unverified", "invalid"),  # 418 > keyed
     (True, True, True, False): ("unverified", "invalid"),  # 418 dominance
-    (True, True, True, True): ("unverified", "invalid"),  # 418 beats keyed
+    (True, True, True, True): ("unverified", "invalid"),  # 418 > keyed
 }
 
 

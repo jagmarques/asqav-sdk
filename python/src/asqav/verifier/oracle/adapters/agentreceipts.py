@@ -14,7 +14,7 @@ from ..did import resolve_ed25519_key
 _SHA256_PREFIX = "sha256:"
 
 
-    # The receipt with ``proof`` removed - the exact object the signature covers.
+    # The receipt minus ``proof`` - the exact object the signature covers.
 def _signable(doc: dict) -> dict:
     return {k: v for k, v in doc.items() if k != "proof"}
 
@@ -58,7 +58,7 @@ class AgentReceiptsAdapter(FormatAdapter):
         return resolve_ed25519_key(kid, key_provider)
 
     def signing_input(self, doc: dict) -> bytes:
-        # Strict-JCS bytes of the receipt minus proof, signed directly (no pre-hash).
+        # Strict-JCS bytes of the receipt minus proof, signed with no pre-hash.
         return jcs_rfc8785(_signable(doc))
 
     def chain_step(self, doc: dict) -> ChainStep:

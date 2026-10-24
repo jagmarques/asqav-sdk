@@ -50,7 +50,7 @@ class VerifyResult:
     verdict: str = VERDICT_UNVERIFIED
     failure_class: str | None = FAILURE_UNVERIFIABLE
     #: In-body origin attestation (v:2 ``signer``), surfaced from the signed
-    #: payload. None when the receipt carries none (v:1). Never gates the verdict.
+    #: payload. None when the receipt has none (v:1). Never gates the verdict.
     signer: str | None = None
     #: Earliest axis in report order that did not PASS, else None. Reported so a
     #: disagreement on WHICH check failed first is as visible as on the verdict.
@@ -119,7 +119,7 @@ def first_failing_edge(axes: list[AxisResult]) -> str | None:
 def detect(doc: dict, adapters: list[FormatAdapter]) -> FormatAdapter | None:
     if not isinstance(doc, dict):
         # A non-object receipt (array, string, number, null) matches no format;
-        # the adapters assume a dict, so guard here rather than crash in detect().
+        # the adapters assume a dict, so guard here, not crash in detect().
         return None
     return next((a for a in adapters if a.detect(doc)), None)
 
@@ -281,7 +281,7 @@ def verify(
             not_checked=not_checked_declaration(),
             coverage=_oracle_coverage([a.axis for a in axes]),
         )
-    # An over-nested receipt would crash the recursive JCS encoder. Cap it here and
+    # An over-nested receipt would crash the recursive JCS encoder. Cap it and
     # report unverifiable, never verified, matching the standalone gate.
     if _exceeds_depth(doc, MAX_NESTING_DEPTH) or (
         predecessor is not None and _exceeds_depth(predecessor, MAX_NESTING_DEPTH)
@@ -308,8 +308,8 @@ def verify(
     axes.extend(_axis(name, res, note) for name, res, note in
                 ad.extra_axes_with_context(doc, key_provider, resolved))
 
-    # Expiry reports on its own axis and never folds the verdict (criterion 426);
-    # a keyed digest reports verified_keyed, never plain verified (criterion 438).
+    # Expiry is its own axis and never folds the verdict; a keyed digest
+    # is verified_keyed, never plain verified.
     verdict, failure_class = fold_independent(axes, keyed=ad.keyed_digest(doc))
     signer = ad.attestation(doc).get("signer")
     return VerifyResult(
