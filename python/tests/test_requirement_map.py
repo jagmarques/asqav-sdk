@@ -1,9 +1,7 @@
-"""The vector-to-requirement mapping is current, derived, and publishes its gaps.
+"""The vector-to-requirement mapping is current, derived, and publishes gaps.
 
-A mapping that drifts from the corpus is worse than none, because it reads as a
-coverage claim while describing a corpus that no longer exists. And a mapping
-without its unmapped half can be made to look complete by growing the corpus,
-which is the failure mode the second half exists to prevent.
+A mapping that drifts from the corpus reads as a false coverage claim, and one
+without its unmapped half can look complete by growing the corpus.
 """
 
 from __future__ import annotations
@@ -166,7 +164,7 @@ def test_the_unmapped_list_is_published_even_when_it_is_empty(document):
 
 
 def test_every_unmapped_requirement_says_why(document):
-    """A gap without a reason is not actionable, so it does not count as declared."""
+    """A gap without a reason is not actionable, so it is not declared."""
     for req in document["unmapped_requirements"]:
         detail = document["unmapped_detail"][req]
         assert detail["axis"]
@@ -206,7 +204,7 @@ def test_seq_chain_vector_chain_axis_is_pass_in_the_committed_map(document):
 
 
 def test_anchor_material_vector_exercises_req_anchor(document):
-    """asqav-24 ships public anchor material, so the committed map shows the axis PASS.
+    """asqav-24 ships anchor material, so the committed map shows the axis PASS.
 
     The builder hands run_structured the vector's tsa_trust.pem and
     bitcoin_headers.json; without that pass-through the anchors axis SKIPs and

@@ -43,7 +43,7 @@ class AssessmentEntry:
         body = {k: v for k, v in asdict(self).items()
                 if k not in ("entry_hash", "agreement", "reason")}
         digest = hashlib.sha256(_canonical(body)).hexdigest()
-        # The ref and the label ride along unchained; the digest covers the rest.
+        # The ref and label ride along unchained; the digest covers the rest.
         return AssessmentEntry(**{**body, "agreement": self.agreement,
                                   "reason": self.reason, "entry_hash": digest})
 

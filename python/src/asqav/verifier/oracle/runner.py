@@ -100,13 +100,13 @@ def _key_provider(vec_dir: Path, fmt: str):
     if fmt == "acta":
         return _load(vec_dir / "acta-keys.json")
     if fmt == "agentreceipts":
-        # did:key receipts self-resolve (no file); did:agent/web carry an injected map.
+        # did:key receipts self-resolve; did:agent/web carry an injected map.
         return _load(vec_dir / "did_map.json")
     if fmt == "w3c-vc":
-        # did:web resolves from an injected DID-document map; the oracle never fetches.
+        # did:web resolves from an injected DID-document map; never fetched.
         return _load(vec_dir / "did_map.json")
     if fmt == "pipelock-evidence-v2":
-        # keys.json: {signer_key_id: hex_32_bytes} - the raw Ed25519 key, no embedding.
+        # keys.json: {signer_key_id: hex_32_bytes} - the raw Ed25519 key.
         return _load(vec_dir / "keys.json")
     return None
 

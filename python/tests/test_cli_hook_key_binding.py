@@ -1,7 +1,7 @@
-"""The PreToolUse gate opens only for a key published for the gated agent (criterion 741).
+"""The PreToolUse gate opens only for a key published for the gated agent (741).
 
-Each test runs the real `asqav hook pretool` entrypoint in a subprocess against a local
-fake of the platform: the agent, sign and key-directory endpoints on 127.0.0.1. Nothing
+Each test runs the real `asqav hook pretool` in a subprocess against a local
+platform fake (agent, sign and key-directory endpoints on 127.0.0.1). Nothing
 here reaches api.asqav.com, so a green run says nothing about production.
 """
 
@@ -89,7 +89,7 @@ def _mint(
     issuer_id: str,
     thumb: str | None,
 ) -> dict[str, Any]:
-    """A receipt that names the gated agent and answers the POSTed body, signed by signer."""
+    """Signer's receipt naming the gated agent and answering the POSTed body."""
     digest = body["hash"]
     payload: dict[str, Any] = {
         "type": "protectmcp:decision",
@@ -189,7 +189,7 @@ class _Platform:
 
 
 def _run_hook(platform: _Platform, tmp_path) -> subprocess.CompletedProcess[str]:
-    """`asqav hook pretool` as the harness runs it, pointed at the local platform."""
+    """`asqav hook pretool` as the harness runs it, on the local platform."""
     # The tree under test comes first on the path, so a stale install cannot answer.
     src = os.path.dirname(os.path.dirname(os.path.abspath(asqav.__file__)))
     env = {
@@ -227,7 +227,7 @@ def _gate(
     return result, platform
 
 
-# Genuine permits: signed by the gated agent's own key, however the receipt names it.
+# Genuine permits: signed by the gated agent's key, whatever name it carries.
 def _genuine_with_thumbprint(body, cast):
     g = cast["gated"]
     return _mint(body, signer=g, kid=ORG_A, issuer_id=ORG_A, thumb=g.thumb)
@@ -300,7 +300,7 @@ def test_a_receipt_naming_the_gated_agent_but_signed_by_another_agents_key_exits
 
 
 def test_a_published_key_with_no_agent_id_cannot_open_the_gate(cast, tmp_path) -> None:
-    """The cloud always publishes agent_id, so an entry without it is fail-closed."""
+    """The cloud always publishes agent_id; an entry without it fails closed."""
     rows = [cast["gated"].row(agent_id=""), cast["sibling"].row(), cast["foreign"].row()]
     result, _platform = _gate(cast, tmp_path, _genuine_with_thumbprint, directory=rows)
     assert result.returncode == 2, result.stderr

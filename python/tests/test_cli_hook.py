@@ -14,7 +14,7 @@ from asqav.cli import app  # noqa: E402
 
 runner = CliRunner()
 
-# Sample Claude Code PostToolUse event (offline; no session_id needed for identity).
+# Sample Claude Code PostToolUse event (offline; identity needs no session_id).
 _POSTTOOL_EVENT = {
     "session_id": "s1",
     "tool_name": "Bash",
@@ -55,7 +55,7 @@ def test_posttool_dry_run_sends_a_digest_not_the_arguments() -> None:
     assert "ls" not in json.dumps(body)
 
 
-    # --clear-context is the opt-in that sends the arguments for the platform to hold.
+    # --clear-context opts in to sending the arguments for the platform to hold.
 def test_posttool_dry_run_clear_context_sends_the_arguments() -> None:
     body = _invoke_hook("posttool", _POSTTOOL_EVENT, ["--clear-context"])
     assert body["context"] == {"tool_input": {"command": "ls"}, "_trace_id": "s1"}
@@ -100,8 +100,7 @@ def test_pretool_dry_run_capture_topology() -> None:
     assert body["capture_topology"] == "in_process_sdk"
 
 
-# pretool fails CLOSED: PreToolUse exit 1 is non-blocking and only exit 2 blocks, so a
-# malformed event or missing identity must exit 2 or the gate fails OPEN and runs unsigned.
+# pretool fails CLOSED: bad input or no identity exits 2; exit 1 runs unsigned.
 
 
     # Empty stdin must exit 2 (block), not exit 1 (proceed unsigned).

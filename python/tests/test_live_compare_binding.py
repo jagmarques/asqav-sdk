@@ -1,9 +1,8 @@
 """Digest-to-bytes binding over live compare (488 C24, C5 core).
 
-A stated digest classifies as-is by default; passing the raw receipt
-bytes binds it (mismatch raises instead of classifying). Retention uses
-the existing store: both live assessments are recorded first, and the
-compare runs over the retained inputs' re-execution.
+A stated digest classifies as-is by default; the raw receipt bytes bind it
+(a mismatch raises). Both live assessments are recorded in the existing store
+first, and the compare runs over the retained inputs' re-execution.
 """
 from __future__ import annotations
 

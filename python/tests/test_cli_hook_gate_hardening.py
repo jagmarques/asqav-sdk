@@ -1,7 +1,7 @@
-"""The PreToolUse gate's cache predicate, verification budget and decision vocabulary.
+"""The PreToolUse gate cache predicate, verify budget and decision vocabulary.
 
-Offline throughout: the signer is a stub, the JWK Set is minted here and every fetch is
-monkeypatched, so a green run says nothing about api.asqav.com and everything about the gate.
+Offline: the signer is a stub, the JWK Set is minted here and every fetch is
+monkeypatched, so a green run is about the gate, not api.asqav.com.
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ def test_a_rotated_key_refreshes_the_cache_instead_of_blocking_for_a_day(monkeyp
     payload = _payload("allow", key_thumbprint=new_thumb)
     payload["action_ref"] = _live_digest()
     sig = _Sig("sig_rotated", payload, _signed(payload, new_sk, ml), [])
-    # The cache predates the rotation: same agent_id, the key the receipt does not bind.
+    # The cache predates rotation: same agent_id, a key the receipt never binds.
     cli_hook._write_jwks_cache({"keys": [_row(old_pk, "k-old", thumbprint=old_thumb)]})
     calls: list = []
     live = {"keys": [_row(old_pk, "k-old", thumbprint=old_thumb),
@@ -251,7 +251,7 @@ def test_a_rate_limit_receipt_is_announced_as_blocked_and_exits_two(monkeypatch)
 
 def _bound_gate(monkeypatch, *, agent_id: str = AGENT, issued_at: str | None = None,
                 clear_context: bool = False, action_ref: str | None = None):
-    """Run the gate on a validly signed allow receipt, varying one binding at a time."""
+    """Gate a validly signed allow receipt, varying one binding at a time."""
     ml = _ml_dsa_65()
     pk, sk = ml.keygen()
     thumb = vr.thumbprint_for_key(alg="ML-DSA-65", public_key=pk)
@@ -308,7 +308,7 @@ def test_clear_context_always_blocks_because_there_is_no_digest_to_bind(monkeypa
 
 
 def test_clear_context_blocks_a_receipt_with_an_empty_digest(monkeypatch) -> None:
-    """An empty action_ref equals the empty digest a --clear-context gate sends."""
+    """An empty action_ref equals the empty digest --clear-context sends."""
     result = _bound_gate(monkeypatch, clear_context=True, action_ref="")
     assert result.exit_code == 2, result.output
     assert "digest does not match" in result.output

@@ -1,7 +1,7 @@
-"""Version consistency: __version__ in asqav/__init__.py must match version in pyproject.toml.
+"""Version consistency: asqav __version__ matches the pyproject.toml version.
 
-Prevents the drift bug that yanked 0.3.7 from PyPI (where pyproject.toml shipped a
-version different from asqav.__version__).
+A mismatch yanked 0.3.7 from PyPI (pyproject.toml shipped a version
+different from asqav.__version__).
 """
 
 from __future__ import annotations

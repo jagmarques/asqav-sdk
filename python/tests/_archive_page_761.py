@@ -1,9 +1,8 @@
 """Shared full-envelope archive pages (criterion 761).
 
 The server digests {organization_id, request, window, next_cursor,
-has_more, receipts}; pages built any other way are rejected by
-_verify_archive_page. Every helper here signs real bytes so the CLI
-verification path runs exactly as it does against a live server.
+has_more, receipts}; _verify_archive_page rejects pages built otherwise.
+Every helper signs real bytes, so CLI verification runs as against a server.
 """
 
 from __future__ import annotations

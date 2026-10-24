@@ -1,10 +1,8 @@
 """Oracle `review --context`: a live trust-split through main() (488 C36).
 
-The production caller always verified the live side under defaults, so
-trust roots / evaluator / evaluation time could never vary live: the
-trust-split arm of C2 was untestable through main(). With --context the
-live side (receipt plus reruns) verifies under caller-stated inputs.
-Tests address main() only, never the library entries directly.
+With --context the live side (receipt plus reruns) verifies under
+caller-stated trust roots, evaluator and evaluation time, so C2's trust-split
+arm is testable. Tests address main() only, never the library entries.
 """
 from __future__ import annotations
 

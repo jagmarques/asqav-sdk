@@ -1,12 +1,8 @@
 """Anti-vacuous tests for offline attestation verification (criterion 281).
 
-Prove the SDK re-derives the cloud's statementHash byte for byte from the
-original claim, that a tampered claim or receipt fails, and that a good
-receipt yields the distinct "verified_keyed" outcome (commitment not
-re-derivable) rather than a plain verified verdict.
-
-The golden statementHash below was captured from the cloud route's merged
-canonicalization (src/asqav_cloud/api/routes/attestations.py), not a live call.
+The SDK re-derives the cloud's statementHash byte for byte; a tampered claim or
+receipt fails; a good receipt yields "verified_keyed", not plain verified. The
+golden statementHash is from the cloud route's canonicalization, not a call.
 """
 
 from __future__ import annotations
