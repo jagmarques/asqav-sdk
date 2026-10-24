@@ -118,51 +118,39 @@ export function parseStrictJson(text: string, source = "input"): Json {
     }
     return value === 0 ? 0 : value;
   };
-  const value = (depth: number): Json => {
-    if (depth > MAX_NESTING_DEPTH) fail(`nesting exceeds ${MAX_NESTING_DEPTH} levels`);
+  const close = (end: string): boolean => {
     ws();
-    const c = text[i];
-    if (c === "{") {
-      const obj: Obj = {};
-      i++;
+    if (text[i] !== end) return false;
+    i++;
+    return true;
+  };
+  const object = (depth: number): Obj => {
+    const obj: Obj = {};
+    if (close("}")) return obj;
+    for (;;) {
       ws();
-      if (text[i] === "}") {
-        i++;
-        return obj;
-      }
-      for (;;) {
-        ws();
-        if (text[i] !== '"') fail("not valid JSON (expected a member name)");
-        const key = str();
-        if (has(obj, key)) {
-          fail(`duplicate JSON member name: ${JSON.stringify(key)}`);
-        }
-        ws();
-        if (text[i++] !== ":") fail("not valid JSON (expected ':')");
-        Object.defineProperty(obj, key, {
-          value: value(depth + 1), enumerable: true, writable: true, configurable: true,
-        });
-        ws();
-        if (text[i++] === "}") return obj;
-        if (text[i - 1] !== ",") fail("not valid JSON (expected ',' or '}')");
-      }
-    }
-    if (c === "[") {
-      const arr: Json[] = [];
-      i++;
+      if (text[i] !== '"') fail("not valid JSON (expected a member name)");
+      const key = str();
+      if (has(obj, key)) fail(`duplicate JSON member name: ${JSON.stringify(key)}`);
       ws();
-      if (text[i] === "]") {
-        i++;
-        return arr;
-      }
-      for (;;) {
-        arr.push(value(depth + 1));
-        ws();
-        if (text[i++] === "]") return arr;
-        if (text[i - 1] !== ",") fail("not valid JSON (expected ',' or ']')");
-      }
+      if (text[i++] !== ":") fail("not valid JSON (expected ':')");
+      Object.defineProperty(obj, key, {
+        value: value(depth + 1), enumerable: true, writable: true, configurable: true,
+      });
+      if (close("}")) return obj;
+      if (text[i++] !== ",") fail("not valid JSON (expected ',' or '}')");
     }
-    if (c === '"') return str();
+  };
+  const array = (depth: number): Json[] => {
+    const arr: Json[] = [];
+    if (close("]")) return arr;
+    for (;;) {
+      arr.push(value(depth + 1));
+      if (close("]")) return arr;
+      if (text[i++] !== ",") fail("not valid JSON (expected ',' or ']')");
+    }
+  };
+  const literal = (): Json => {
     for (const [word, lit] of [["true", true], ["false", false], ["null", null]] as const) {
       if (text.startsWith(word, i)) {
         i += word.length;
@@ -170,6 +158,15 @@ export function parseStrictJson(text: string, source = "input"): Json {
       }
     }
     return num();
+  };
+  const value = (depth: number): Json => {
+    if (depth > MAX_NESTING_DEPTH) fail(`nesting exceeds ${MAX_NESTING_DEPTH} levels`);
+    ws();
+    const c = text[i];
+    if (c === "{" || c === "[") i++;
+    if (c === "{") return object(depth);
+    if (c === "[") return array(depth);
+    return c === '"' ? str() : literal();
   };
   if (!text.trim()) fail("empty input, expected a JSON object");
   const out = value(0);
@@ -299,25 +296,31 @@ export function verifySignature(pk: Buffer, msg: Buffer, sig: Buffer, alg: unkno
 const STAMP_RE =
   /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?(Z|[+-]\d{2}(?::?\d{2})?)?$/;
 
+function utcDay(y: number, mo: number, d: number): number | null {
+  const day = new Date(0);
+  day.setUTCFullYear(y, mo - 1, d);
+  const same = day.getUTCFullYear() === y && day.getUTCMonth() === mo - 1 && day.getUTCDate() === d;
+  return same && y >= 1 ? day.getTime() / 1000 : null;
+}
+
+function zoneOffset(zone: string | undefined): number | null {
+  if (!zone || zone === "Z") return 0;
+  const oh = Number(zone.slice(1, 3));
+  const om = Number(zone.slice(3).replace(":", "") || 0);
+  if (oh > 23 || om > 59) return null;
+  return (zone[0] === "-" ? -1 : 1) * (oh * 3600 + om * 60);
+}
+
 /** Epoch seconds of an ISO-8601 stamp, or null; no zone reads as UTC. */
 export function parseStamp(value: unknown): number | null {
   const m = STAMP_RE.exec(String(value));
   if (!m) return null;
   const [y, mo, d, hh, mi, ss] = [1, 2, 3, 4, 5, 6].map((k) => Number(m[k] ?? 0));
-  const day = new Date(0);
-  day.setUTCFullYear(y, mo - 1, d);
-  const sameDay = day.getUTCFullYear() === y && day.getUTCMonth() === mo - 1 && day.getUTCDate() === d;
-  if (!sameDay || y < 1 || hh > 23 || mi > 59 || ss > 59) return null;
-  let offset = 0;
-  const zone = m[8];
-  if (zone && zone !== "Z") {
-    const oh = Number(zone.slice(1, 3));
-    const om = Number(zone.slice(3).replace(":", "") || 0);
-    if (oh > 23 || om > 59) return null;
-    offset = (zone[0] === "-" ? -1 : 1) * (oh * 3600 + om * 60);
-  }
+  const day = utcDay(y, mo, d);
+  const offset = zoneOffset(m[8]);
+  if (day === null || offset === null || hh > 23 || mi > 59 || ss > 59) return null;
   const frac = m[7] ? Number(`0.${m[7]}`) : 0;
-  return day.getTime() / 1000 + hh * 3600 + mi * 60 + ss + frac - offset;
+  return day + hh * 3600 + mi * 60 + ss + frac - offset;
 }
 
 export function normaliseEnvelope(raw: Obj): Obj {
@@ -368,26 +371,32 @@ function profileRangeNote(node: Json, path = "$"): string | null {
 
 const isCurrentProfile = (v: Json | undefined) => v === 1 || (v instanceof PyFloat && v.value === 1);
 
+const absent = (v: Json | undefined) => v === undefined || v === null;
+
+function quorumOk(q: Json | undefined): boolean {
+  if (absent(q)) return true;
+  const ah = isObj(q) ? q.attestation_hash : undefined;
+  return isObj(q) && q.fired === true && typeof ah === "string" && /^[0-9a-f]{64}$/.test(ah);
+}
+
+function policyOk(p: Json | undefined): boolean {
+  if (absent(p)) return true;
+  const mc = isObj(p) ? p.matched_count : undefined;
+  return isObj(p) && p.evaluated === true && isInt(mc) && mc >= 1;
+}
+
 export function checkControlsEvaluated(payload: Obj): [AxisResult, string] {
   const ce = payload.controls_evaluated;
   const guard = "(false_control_attestation_guard)";
-  if (ce === undefined || ce === null) return ["PASS", "receipt declares no controls_evaluated block"];
+  if (absent(ce)) return ["PASS", "receipt declares no controls_evaluated block"];
   if (!isObj(ce)) return ["FAIL", `controls_evaluated must be an object ${guard}`];
   const unknown = Object.keys(ce).filter((k) => !ALLOWED_CONTROL_KEYS.has(k)).sort();
   if (unknown.length) return ["FAIL", `controls_evaluated keys outside the closed set: ${unknown.join(",")} ${guard}`];
-  const q = ce.quorum;
-  if (q !== undefined && q !== null) {
-    const ah = isObj(q) ? q.attestation_hash : undefined;
-    if (!isObj(q) || q.fired !== true || typeof ah !== "string" || !/^[0-9a-f]{64}$/.test(ah)) {
-      return ["FAIL", `quorum member requires fired=true and a bare 64-hex attestation_hash ${guard}`];
-    }
+  if (!quorumOk(ce.quorum)) {
+    return ["FAIL", `quorum member requires fired=true and a bare 64-hex attestation_hash ${guard}`];
   }
-  const p = ce.policy;
-  if (p !== undefined && p !== null) {
-    const mc = isObj(p) ? p.matched_count : undefined;
-    if (!isObj(p) || p.evaluated !== true || !isInt(mc) || mc < 1) {
-      return ["FAIL", `policy member requires evaluated=true and a real matched_count >= 1 ${guard}`];
-    }
+  if (!policyOk(ce.policy)) {
+    return ["FAIL", `policy member requires evaluated=true and a real matched_count >= 1 ${guard}`];
   }
   return ["PASS", "controls_evaluated block conforms to the closed key set"];
 }
@@ -416,27 +425,22 @@ export function isKeyedDigest(payload: Obj): boolean {
   return typeof algo !== "string" || algo.trim().toLowerCase() !== "sha256";
 }
 
-export function checkPayloadDigest(payload: Obj): [AxisResult, string] {
-  const digest = payload.payload_digest;
-  if (digest === undefined || digest === null) return ["PASS", "receipt binds no payload_digest; nothing to recompute"];
-  if (!isObj(digest)) return ["FAIL", `payload_digest is ${show(digest)}, not an object`];
+function digestShapeFault(digest: Obj): string | null {
   const claimed = digest.hash;
   if (typeof claimed !== "string" || !/^[0-9a-f]{64}$/.test(claimed)) {
-    return ["FAIL", `payload_digest.hash ${show(claimed)} is not 64 lowercase hex`];
+    return `payload_digest.hash ${show(claimed)} is not 64 lowercase hex`;
   }
   const size = digest.size;
   if (has(digest, "size") && (!isInt(size) || size < 0)) {
-    return ["FAIL", `payload_digest.size ${show(size)} is not a non-negative integer`];
+    return `payload_digest.size ${show(size)} is not a non-negative integer`;
   }
-  if (payload.context === undefined || payload.context === null) {
-    return ["PASS", "no context carried; payload_digest not recomputable here"];
-  }
-  if (isKeyedDigest(payload)) {
-    return ["SKIPPED", "keyed payload_digest needs holder key material to recompute; recorded as unverifiable, never a mismatch"];
-  }
+  return null;
+}
+
+function rederiveDigest(context: Json, claimed: string, size: Json | undefined): [AxisResult, string] {
   let encoded: Buffer;
   try {
-    encoded = canonicalJson(payload.context);
+    encoded = canonicalJson(context);
   } catch (exc) {
     return ["SKIPPED", `context is not canonicalisable (${(exc as Error).message}), so payload_digest cannot be recomputed`];
   }
@@ -448,6 +452,19 @@ export function checkPayloadDigest(payload: Obj): [AxisResult, string] {
     return ["FAIL", `payload_digest_mismatch: size claims ${size}, canonical context is ${encoded.length} bytes`];
   }
   return ["PASS", `payload_digest rederives from the carried context (${encoded.length} bytes)`];
+}
+
+export function checkPayloadDigest(payload: Obj): [AxisResult, string] {
+  const digest = payload.payload_digest;
+  if (absent(digest)) return ["PASS", "receipt binds no payload_digest; nothing to recompute"];
+  if (!isObj(digest)) return ["FAIL", `payload_digest is ${show(digest)}, not an object`];
+  const fault = digestShapeFault(digest);
+  if (fault) return ["FAIL", fault];
+  if (absent(payload.context)) return ["PASS", "no context carried; payload_digest not recomputable here"];
+  if (isKeyedDigest(payload)) {
+    return ["SKIPPED", "keyed payload_digest needs holder key material to recompute; recorded as unverifiable, never a mismatch"];
+  }
+  return rederiveDigest(payload.context as Json, digest.hash as string, digest.size);
 }
 
 export function checkChain(payload: Obj, predecessor: Json | undefined): [AxisResult, string] {
@@ -481,22 +498,27 @@ export function checkExpiry(payload: Obj, now: number): [AxisResult, string] {
   return ["PASS", `expires_at ${show(payload.expires_at)} is ${delta.toFixed(0)}s ahead`];
 }
 
+function revokedStatus(kind: string, status: Json | undefined, issuedAt: Json | undefined, revokedAt: Json | undefined): [AxisResult, string] {
+  if (!revokedAt) {
+    return ["SKIPPED", `signing key status ${show(status)}; no revoked_at published, cannot place issuance relative to revocation`];
+  }
+  const rev = parseStamp(revokedAt);
+  const iss = parseStamp(issuedAt ?? "");
+  if (rev === null || iss === null) return ["FAIL", `signing key status ${show(status)}; unparseable revoked_at/issued_at`];
+  if (rev <= iss) return ["FAIL", `signing key ${kind} at ${revokedAt} on/before issuance ${issuedAt}`];
+  return ["SKIPPED", `signing key ${kind} at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`];
+}
+
 export function checkKeyStatus(status: Json | undefined, issuedAt: Json | undefined, revokedAt: Json | undefined, reason: Json | undefined): [AxisResult, string] {
   const s = typeof status === "string" ? status.toLowerCase() : "";
   const r = typeof reason === "string" ? reason.toLowerCase() : "";
-  const kind = s === "compromised" || r === "compromised" ? "compromised" : s;
-  if (kind === "compromised") return ["FAIL", `signing key compromised at ${revokedAt || "an unpublished time"}; a compromised key never verifies`];
+  if (s === "compromised" || r === "compromised") {
+    return ["FAIL", `signing key compromised at ${revokedAt || "an unpublished time"}; a compromised key never verifies`];
+  }
   if (s === "decommissioned") return ["SKIPPED", `signing key decommissioned; issuance at ${issuedAt} cannot be placed against retirement`];
   if (!s || s === "unknown") return ["SKIPPED", "signing key status unknown; cannot confirm the key was active"];
   if (!REVOKED_KEY_STATUSES.has(s)) return ["PASS", `signing key status ${show(status)} is active`];
-  if (revokedAt) {
-    const rev = parseStamp(revokedAt);
-    const iss = parseStamp(issuedAt ?? "");
-    if (rev === null || iss === null) return ["FAIL", `signing key status ${show(status)}; unparseable revoked_at/issued_at`];
-    if (rev <= iss) return ["FAIL", `signing key ${kind} at ${revokedAt} on/before issuance ${issuedAt}`];
-    return ["SKIPPED", `signing key ${kind} at ${revokedAt}; issued_at ${issuedAt} is self-attested, no anchor proves pre-revocation timing`];
-  }
-  return ["SKIPPED", `signing key status ${show(status)}; no revoked_at published, cannot place issuance relative to revocation`];
+  return revokedStatus(s, status, issuedAt, revokedAt);
 }
 
 function usableKeys(jwks: Json): Obj[] {
@@ -585,87 +607,151 @@ export interface VerifyOptions {
   now?: number;
 }
 
+interface KeyRows {
+  axes: [string, [AxisResult, string]][];
+  pk: Buffer | null;
+  alg: Json | undefined;
+}
+
+interface Signed {
+  jwks: Json;
+  payload: Obj;
+  env: Obj;
+  sigObj: Obj;
+  msg: Buffer;
+}
+
+function signatureObject(env: Obj, payload: Obj): Obj {
+  if (isObj(env.signature)) return env.signature;
+  if (typeof env.signature !== "string") return {};
+  return { alg: env.algorithm ?? "ML-DSA-65", kid: payload.issuer_id ?? "", sig: env.signature };
+}
+
+function profileRefusal(payload: Obj, env: Obj, sigObj: Obj, predPayload: Json | undefined): string | null {
+  if (!isCurrentProfile(payload.v)) return null;
+  const anchored = Array.isArray(env.anchors) && env.anchors.length > 0;
+  const nonGenesis = predPayload !== undefined && payload.previousReceiptHash !== FIRST_RECEIPT_SEED;
+  return profileRangeNote(payload) ??
+    (anchored ? profileRangeNote(sigObj) : null) ??
+    (nonGenesis ? profileRangeNote(predPayload as Json) : null);
+}
+
+/** Try the issuer's agent-bound keys after a failed check, as Python does. */
+function agentFallback(s: Signed, sig: Buffer, alg: Json | undefined): { entry: Obj; res: [AxisResult, string] } | null | "exhausted" {
+  const agentId = s.payload.agent_id || s.env.agent_id;
+  const cands = agentKeys(s.jwks, agentId, s.payload.issuer_id, s.payload.org_id || s.env.org_id);
+  for (const k of cands.slice(0, 8)) {
+    const res = verifySignature(looseB64(k.public_key as string), s.msg, sig, k.alg || alg);
+    if (res[0] === "PASS") return { entry: k, res };
+  }
+  return cands.length ? "exhausted" : null;
+}
+
+interface SignatureCheck {
+  entry: Obj;
+  kid: Json | undefined;
+  res: [AxisResult, string];
+  agentNote: string;
+}
+
+function checkSignatureWith(s: Signed, matched: Obj): SignatureCheck {
+  const kid = s.sigObj.kid ?? "";
+  const alg = s.sigObj.alg ?? "ML-DSA-65";
+  const rawSig = s.sigObj.sig;
+  const sig = typeof rawSig === "string" && rawSig ? strictB64(rawSig) : null;
+  const ownKid = kid && (kid === matched.issuer_id || kid === matched.kid) ? kid : matched.kid;
+  if (!sig) return { entry: matched, kid: ownKid, res: ["FAIL", "signature string is not decodable base64"], agentNote: "" };
+  const out: SignatureCheck = {
+    entry: matched, kid: ownKid, res: verifySignature(looseB64(matched.public_key as string), s.msg, sig, alg || matched.alg), agentNote: "",
+  };
+  const fallback = out.res[0] === "PASS" ? null : agentFallback(s, sig, alg || matched.alg);
+  if (fallback === "exhausted") out.agentNote = "; no key published for this agent verified";
+  else if (fallback) Object.assign(out, { entry: fallback.entry, kid: fallback.entry.kid, res: fallback.res });
+  out.res = withEncodingPolicy(out.res, rawSig as string);
+  return out;
+}
+
+function withEncodingPolicy(res: [AxisResult, string], rawSig: string): [AxisResult, string] {
+  if (res[0] !== "PASS" || !/[+/=]/.test(rawSig)) return res;
+  return ["PASS", `${res[1]}; accepted under legacy encoding policy: pre-2026-09-02 profile transport`];
+}
+
+function issuerBindAxis(entry: Obj, claimed: Json | undefined): [AxisResult, string] {
+  const issuer = typeof entry.issuer_id === "string" ? entry.issuer_id : null;
+  return typeof claimed === "string" && claimed !== "" && issuer === claimed
+    ? ["PASS", `signing key is published under the claimed issuer ${claimed}`]
+    : ["FAIL", `signing key is published under issuer ${show(issuer)}, not the claimed issuer ${show(claimed)}`];
+}
+
+function keyAndSignatureRows(s: Signed, matched: Obj): KeyRows {
+  const { entry, kid, res, agentNote } = checkSignatureWith(s, matched);
+  return {
+    axes: [
+      ["issuer_key", ["PASS", `resolved signing key ${kid} (status=${entry.status ?? "None"})${agentNote}`]],
+      ["issuer_bind", issuerBindAxis(entry, s.payload.issuer_id)],
+      ["key_status", checkKeyStatus(entry.status, s.payload.issued_at ?? "", entry.revoked_at, entry.revocation_reason)],
+      ["signature", res],
+    ],
+    pk: looseB64(entry.public_key as string),
+    alg: entry.alg,
+  };
+}
+
+function nonceAxis(payload: Obj): [AxisResult, string] {
+  return absent(payload.nonce) || payload.nonce === ""
+    ? ["PASS", "receipt declares no nonce; nothing to flag"]
+    : ["PASS", "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false"];
+}
+
+function outerAxis(receipt: Obj): [AxisResult, string] {
+  const outer = Object.keys(receipt).filter((k) => !OUTER_FREE.has(k));
+  return outer.length
+    ? ["SKIPPED", `outer members ${outer.join(",")} not compared by this standalone file; run the full verifier`]
+    : ["PASS", "no outer copies carried; the signed payload is the whole receipt"];
+}
+
+function refused(why: string): Verification {
+  return { verdict: "unverified", failureClass: "unverifiable", axes: [], refusal: why, canonicalSha256: null };
+}
+
 /** Verify one receipt against a local JWKS object; nothing is fetched. */
 export function verifyReceipt(receipt: Json, jwks: Json, opts: VerifyOptions = {}): Verification {
-  const refuse = (why: string): Verification => ({
-    verdict: "unverified", failureClass: "unverifiable", axes: [], refusal: why, canonicalSha256: null,
-  });
-  if (!isObj(receipt)) return refuse(`expected a JSON object receipt, got ${show(receipt)}`);
+  if (!isObj(receipt)) return refused(`expected a JSON object receipt, got ${show(receipt)}`);
   const env = normaliseEnvelope(receipt);
   const payload = has(env, "payload") ? env.payload : env;
-  if (!isObj(payload)) return refuse(`receipt payload not available from this surface (got ${show(payload)})`);
+  if (!isObj(payload)) return refused(`receipt payload not available from this surface (got ${show(payload)})`);
   const pred = opts.predecessor;
   const predPayload = isObj(pred) && has(pred, "payload") ? pred.payload : pred;
-  const sigObj: Obj = isObj(env.signature) ? env.signature : typeof env.signature === "string"
-    ? { alg: env.algorithm ?? "ML-DSA-65", kid: payload.issuer_id ?? "", sig: env.signature } : {};
-  if (isCurrentProfile(payload.v)) {
-    const nonGenesis = predPayload !== undefined && payload.previousReceiptHash !== FIRST_RECEIPT_SEED;
-    const note = profileRangeNote(payload) ??
-      (Array.isArray(env.anchors) && env.anchors.length ? profileRangeNote(sigObj) : null) ??
-      (nonGenesis ? profileRangeNote(predPayload as Json) : null);
-    if (note) return refuse(note);
-  }
+  const sigObj = signatureObject(env, payload);
+  const note = profileRefusal(payload, env, sigObj, predPayload);
+  if (note) return refused(note);
   let msg: Buffer;
   try {
     msg = canonicalJson(payload);
   } catch (exc) {
-    return refuse((exc as Error).message);
+    return refused((exc as Error).message);
   }
   const now = opts.now ?? Date.now() / 1000;
-  const kid = sigObj.kid ?? "";
-  const alg = sigObj.alg ?? "ML-DSA-65";
   const axes: Axis[] = [];
-  const add = (name: string, [result, note]: [AxisResult, string]) => axes.push({ name, result, note });
+  const add = (name: string, [result, axisNote]: [AxisResult, string]) => axes.push({ name, result, note: axisNote });
   add("structure", checkStructure(payload));
-  add("nonce", payload.nonce === undefined || payload.nonce === null || payload.nonce === ""
-    ? ["PASS", "receipt declares no nonce; nothing to flag"]
-    : ["PASS", "nonce present; this surface holds no seen-nonce index, so duplicate_emission_candidate stays false"]);
-  let entry = matchSigningKey(jwks, kid, payload, env);
-  let effPk: Buffer | null = null;
-  let effAlg: Json | undefined;
-  if (!entry) {
-    add("issuer_key", ["FAIL", `kid ${show(kid)} not in jwks directory`]);
-    add("signature", ["SKIPPED", "no issuer key to verify against"]);
-  } else {
-    const rawSig = sigObj.sig;
-    const sig = typeof rawSig === "string" && rawSig ? strictB64(rawSig) : null;
-    let pk = looseB64(entry.public_key as string);
-    effAlg = entry.alg;
-    let sigRes: [AxisResult, string] = sig ? verifySignature(pk, msg, sig, alg || entry.alg) : ["FAIL", "signature string is not decodable base64"];
-    let agentNote = "";
-    let effKid = kid && (kid === entry.issuer_id || kid === entry.kid) ? kid : entry.kid;
-    if (sig && sigRes[0] !== "PASS") {
-      const cands = agentKeys(jwks, payload.agent_id || env.agent_id, payload.issuer_id, payload.org_id || env.org_id);
-      for (const k of cands.slice(0, 8)) {
-        const kpk = looseB64(k.public_key as string);
-        const res = verifySignature(kpk, msg, sig, k.alg || alg || entry.alg);
-        if (res[0] === "PASS") {
-          [sigRes, entry, pk, effAlg, effKid] = [res, k, kpk, k.alg, k.kid];
-          break;
-        }
-      }
-      if (cands.length && sigRes[0] !== "PASS") agentNote = "; no key published for this agent verified";
-    }
-    if (sigRes[0] === "PASS" && typeof rawSig === "string" && /[+/=]/.test(rawSig)) {
-      sigRes = ["PASS", `${sigRes[1]}; accepted under legacy encoding policy: pre-2026-09-02 profile transport`];
-    }
-    const issuer = typeof entry.issuer_id === "string" ? entry.issuer_id : null;
-    const claimed = payload.issuer_id;
-    add("issuer_key", ["PASS", `resolved signing key ${effKid} (status=${entry.status ?? "None"})${agentNote}`]);
-    add("issuer_bind", typeof claimed === "string" && claimed && issuer === claimed
-      ? ["PASS", `signing key is published under the claimed issuer ${claimed}`]
-      : ["FAIL", `signing key is published under issuer ${show(issuer)}, not the claimed issuer ${show(claimed)}`]);
-    add("key_status", checkKeyStatus(entry.status, payload.issued_at ?? "", entry.revoked_at, entry.revocation_reason));
-    add("signature", sigRes);
-    effPk = pk;
-  }
-  add("key_binding", checkKeyBinding(payload, effAlg, effPk));
+  add("nonce", nonceAxis(payload));
+  const entry = matchSigningKey(jwks, sigObj.kid ?? "", payload, env);
+  const keys: KeyRows = entry
+    ? keyAndSignatureRows({ jwks, payload, env, sigObj, msg }, entry)
+    : {
+        axes: [
+          ["issuer_key", ["FAIL", `kid ${show(sigObj.kid ?? "")} not in jwks directory`]],
+          ["signature", ["SKIPPED", "no issuer key to verify against"]],
+        ],
+        pk: null,
+        alg: undefined,
+      };
+  for (const [name, row] of keys.axes) add(name, row);
+  add("key_binding", checkKeyBinding(payload, keys.alg, keys.pk));
   add("counterparty", checkCounterparty(payload));
   add("payload_digest", checkPayloadDigest(payload));
-  const outer = Object.keys(receipt).filter((k) => !OUTER_FREE.has(k));
-  add("outer_copies", outer.length
-    ? ["SKIPPED", `outer members ${outer.join(",")} not compared by this standalone file; run the full verifier`]
-    : ["PASS", "no outer copies carried; the signed payload is the whole receipt"]);
+  add("outer_copies", outerAxis(receipt));
   add("chain", checkChain(payload, predPayload));
   add("anchors", checkAnchors(env.anchors));
   add("skew", checkSkew(payload.issued_at, now));
