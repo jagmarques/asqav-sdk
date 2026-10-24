@@ -77,7 +77,7 @@ def test_no_retry_on_auth_error() -> None:
 
     with pytest.raises(AuthenticationError, match="Invalid API key"):
         auth_call()
-    assert call_count == 1
+    assert call_count == 1  # No retry
 
 
 # === Retry: client error (4xx, not 429) is NOT retried ===
@@ -95,7 +95,7 @@ def test_no_retry_on_client_error() -> None:
 
     with pytest.raises(APIError, match="Bad request"):
         bad_request()
-    assert call_count == 1
+    assert call_count == 1  # No retry
 
 
 # === Retry: exhaustion raises last error ===
@@ -220,7 +220,7 @@ async def test_async_sign(mock_post: AsyncMock) -> None:
 # === Async: verify signature ===
 
 
-    # AsyncAgent.verify calls httpx.AsyncClient.get, returns VerificationResponse.
+    # AsyncAgent.verify calls httpx.AsyncClient.get and returns VerificationResponse.
 @pytest.mark.asyncio
 async def test_async_verify() -> None:
     from unittest.mock import patch as sync_patch

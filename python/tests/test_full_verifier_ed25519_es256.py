@@ -1,11 +1,14 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
 """The full verifier verifies Ed25519 and ES256 signatures, not only ML-DSA-65.
-The profile's mandatory-to-implement algorithm is Ed25519, and the platform's self-hosted signer emits
-Ed25519 and ES256; the single-file verifier used to SKIP every non-ML-DSA-65 algorithm, so no Ed25519
-vector's signature axis ever ran through it. The dispatch now verifies both via the optional
-``cryptography`` dependency, with the oracle's key and signature forms (raw 32-byte Ed25519 key; 65-byte
-uncompressed P-256 point and 64-byte raw r||s signature)."""
+
+The profile's mandatory-to-implement algorithm is Ed25519, and the platform's
+self-hosted signer emits Ed25519 and ES256; the single-file verifier used to
+SKIP every non-ML-DSA-65 algorithm, so no Ed25519 vector's signature axis ever
+ran through it. The dispatch now verifies both via the optional ``cryptography``
+dependency, with the oracle's key and signature forms (raw 32-byte Ed25519 key;
+65-byte uncompressed P-256 point and 64-byte raw r||s signature).
+"""
 
 from __future__ import annotations
 

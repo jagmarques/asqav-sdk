@@ -24,7 +24,10 @@ sys.modules.pop("asqav.extras.letta", None)
 
 from asqav.extras.letta import AsqavLettaHook  # noqa: E402
 
-# === Helpers: a mock letta client with a strict keyword-only blocks API ===
+# === Helpers ===
+
+
+    # Create a minimal mock letta Letta client with strict keyword-only blocks API.
 def _make_client(
     retrieve_result: Any = None,
     update_result: Any = None,
@@ -64,7 +67,7 @@ def hook() -> AsqavLettaHook:
 # === Canonical API: positional block_label, keyword-only agent_id ===
 
 
-    # retrieve('human', agent_id='agent-123') matches the letta-client signature.
+    # retrieve('human', agent_id='agent-123') matches the real letta-client signature.
 def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -76,7 +79,7 @@ def test_retrieve_canonical_positional_form(hook: AsqavLettaHook) -> None:
     assert ctx["agent_id"] == "agent-123"
 
 
-    # update('persona', agent_id='a', value='v') matches the letta-client signature.
+    # update('persona', agent_id='a', value='v') matches the real letta-client signature.
 def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -87,7 +90,7 @@ def test_update_canonical_positional_form(hook: AsqavLettaHook) -> None:
     assert ctx["agent_id"] == "agent-456"
 
 
-    # Partial update omitting value (e.g. a limit update) writes no memory:write.
+    # Partial update omitting value (e.g. updating limit) produces no memory:write events.
 def test_update_without_value_does_not_sign_memory_write(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -161,7 +164,7 @@ def test_wrap_client_retrieve_returns_original_result(hook: AsqavLettaHook) -> N
 # === wrap_client: memory:write ===
 
 
-    # wrap_client signs memory:write with agent_id, block_label, length and preview.
+    # wrap_client signs memory:write with agent_id, block_label, value_length, value_preview.
 def test_wrap_client_signs_memory_write(hook: AsqavLettaHook) -> None:
     client = _make_client()
     hook.wrap_client(client)
@@ -378,7 +381,7 @@ def test_fail_open_memory_write_end_does_not_suppress_result(
     assert result is sentinel
 
 
-    # If memory:read.error signing raises, the retrieve error is still re-raised.
+    # If memory:read.error signing raises, the original retrieve exception is still re-raised.
 def test_fail_open_read_error_signing_does_not_swallow_exception(
     hook: AsqavLettaHook,
 ) -> None:

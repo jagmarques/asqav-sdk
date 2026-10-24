@@ -1,8 +1,10 @@
 """Oracle multi-format verification tests.
-Each adapter must PASS a valid receipt and reject a tampered one (signature flip and chain
-break). The conformance corpus runs end-to-end and every vector must match its manifest outcome.
-Ed25519 is verified via the cryptography library; if that library is absent the signature axis
-SKIPs and the signature-bearing assertions are skipped rather than failing for the wrong reason.
+
+Each adapter must PASS a valid receipt and reject a tampered one (signature flip
+and chain break). The conformance corpus runs end-to-end and every vector must
+match its manifest outcome. Ed25519 is verified via the cryptography library; if
+that library is absent the signature axis SKIPs and the signature-bearing
+assertions are skipped rather than failing for the wrong reason.
 """
 from __future__ import annotations
 
@@ -22,8 +24,8 @@ from asqav.verifier.oracle.runner import _key_provider as _runner_key_provider
 from asqav.verifier.oracle.runner import _load as _runner_load
 from asqav.verifier.oracle.core import VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED
 
-# The corpus stays at the repo root (verifier/conformance-vectors) so the TS
-# parity gate and the governance URL keep one source of truth; walk up to it.
+# The corpus stays at the repo root (verifier/conformance-vectors) so the TS parity gate
+# and the published governance URL keep one source of truth; walk up from tests to it.
 _CORPUS = Path(__file__).resolve().parents[2] / "verifier" / "conformance-vectors"
 
 _ED25519_AVAILABLE = crypto.verify_ed25519(b"\x00" * 32, b"m", b"\x00" * 64)[0] != crypto.SKIPPED
@@ -69,7 +71,9 @@ def test_verifier_ships_inside_the_asqav_package() -> None:
         pytest.skip("pyproject not present (running from an installed package)")
     text = pyproject.read_text()
     assert '"src/asqav"' in text  # the package selector that carries the verifier
-    # No cross-root force-include at WHEEL stage: the wheel builds FROM the sdist.
+    # No cross-root force-include at WHEEL stage: the default build makes the wheel
+    # FROM the sdist, where ../ sources no longer resolve (FileNotFoundError). An
+    # sdist-stage mapping into src/ is fine - the wheel picks it up via packages.
     wheel_section = text.split("[tool.hatch.build.targets.wheel]", 1)[1]
     assert "../" not in wheel_section, "wheel-stage cross-root force-include"
 
@@ -135,7 +139,7 @@ def test_aerf_tampered_chain_fails_chain() -> None:
     assert res.axis("chain").result == crypto.FAIL
 
 
-    # An impact receipt missing a required parent counter-signature FAILs the axis.
+    # An impact receipt missing its required parent counter-signature FAILs that axis.
 @requires_ed25519
 def test_aerf_impact_without_parent_sig_fails() -> None:
     doc = _load("aerf-up-05-impact-no-parent-sig", "receipt.json")
@@ -219,7 +223,7 @@ def test_unknown_format_fails_closed() -> None:
     assert res.failure_class == "unverifiable"
 
 
-    # No key provider means the signature is unchecked; never a verified verdict.
+    # No key provider means the signature cannot be checked; never a verified verdict.
 def test_signature_skips_downgrade_to_unverifiable() -> None:
     doc = _load("aerf-01-genesis", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider={})
@@ -228,7 +232,7 @@ def test_signature_skips_downgrade_to_unverifiable() -> None:
     assert res.failure_class == "unverifiable"
 
 
-    # The CLI entrypoint runs the corpus, tolerates the optional-dep vector, exit 0.
+    # The CLI entrypoint runs the corpus, tolerates the optional-dep vector, exits 0.
 @requires_ed25519
 def test_runner_main_reports_all_green(capsys) -> None:
     rc = runner_main()
@@ -290,7 +294,7 @@ def test_acta_tampered_signature_fails() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # A commitment-mode receipt (SHA-256(JCS)) must FAIL the baseline verifier.
+    # A commitment-mode receipt (signs SHA-256(JCS)) must FAIL the baseline verifier.
 @requires_ed25519
 def test_acta_commitment_mode_fails_not_false_passes() -> None:
     doc = _load("acta-05-commitment-mode-unsupported", "receipt.json")
@@ -331,7 +335,7 @@ def test_acta_rev02_required_fields_enforced() -> None:
     assert adapter.schema(_acta_profile_doc(type=""))[0] == "FAIL"
 
 
-    # Upstream A2A receipts have no type/issuer_id, verify under the relaxed schema.
+    # Upstream A2A receipts carry no type/issuer_id and verify under the relaxed schema.
 def test_acta_rev02_upstream_a2a_relaxed_deviation() -> None:
     adapter = ActaAdapter()
     upstream = {
@@ -353,10 +357,13 @@ def test_acta_rev02_vectors_still_verify() -> None:
 @requires_ed25519
 def test_acta_upstream_scopeblind_receipt_verifies() -> None:
     """A REAL ScopeBlind/APS attestation verifies: genuine inbound interop.
-    acta-up-01 is lifted verbatim from ScopeBlind/agent-governance-testvectors
-    (a2a-trust-header/happy-path.json): its Ed25519 signature comes from the upstream reference issuer
-    over JCS(payload), not ours. Its payload carries `issuer` (not the Asqav-profile `issuer_id`) and
-    omits `type`, so the adapter accepts a conformant third-party producer, not only Asqav receipts.
+
+    The receipt under acta-up-01 is lifted verbatim from the
+    ScopeBlind/agent-governance-testvectors corpus (a2a-trust-header/happy-path.json):
+    its Ed25519 signature was produced by the upstream reference issuer over
+    JCS(payload), not by us. Its payload carries `issuer` (not the Asqav-profile
+    `issuer_id`) and omits `type`, so this asserts our adapter accepts a conformant
+    third-party producer rather than only Asqav-shaped receipts.
     """
     doc = _load("acta-up-01-a2a-trusted-attestation", "receipt.json")
     assert "issuer_id" not in doc["payload"] and "type" not in doc["payload"]
@@ -378,9 +385,11 @@ def test_acta_upstream_tampered_receipt_fails() -> None:
 
 def test_acta_malformed_signature_fails_does_not_crash() -> None:
     """A malformed ACTA sig fails closed, never raises - at detection and in extract_signature.
-    Through the public verify(), a non-hex sig is declined at detection so the verdict is FAIL with no
-    adapter matched. The extract_signature guard is the defense in depth: called directly with a non-hex
-    or non-string sig it returns b'' rather than raising, matching the other adapters.
+
+    Through the public verify(), a non-hex sig is declined at detection so the verdict
+    is FAIL with no adapter matched. The extract_signature guard is the defense in depth:
+    called directly with a non-hex or non-string sig it returns b'' rather than raising,
+    matching the other adapters.
     """
     doc = _load("acta-01-genesis", "receipt.json")
     for bad in ("zzzz-not-hex", {"k": "v"}, 42, None):
@@ -391,7 +400,7 @@ def test_acta_malformed_signature_fails_does_not_crash() -> None:
         assert ActaAdapter().extract_signature(forged).sig == b""
 
 
-    # Asqav-native profiles ACTA, so detection must never let both claim a receipt.
+    # Asqav-native profiles ACTA, so detection must never let both claim one receipt.
 def test_acta_and_asqav_native_are_mutually_exclusive() -> None:
     acta = _load("acta-01-genesis", "receipt.json")
     native = _load("asqav-01-genesis-permit", "receipt.json")
@@ -401,7 +410,7 @@ def test_acta_and_asqav_native_are_mutually_exclusive() -> None:
     assert ActaAdapter().detect(native) is False
 
 
-    # An Asqav-shaped hex-sig receipt routes to ACTA and FAILs, not a native PASS.
+    # An Asqav-shaped receipt with a hex sig routes to ACTA and FAILs - never a false native PASS.
 @requires_ed25519
 def test_cross_format_confusion_asqav_with_hex_sig_does_not_verify_as_native() -> None:
     native = _load("asqav-01-genesis-permit", "receipt.json")
@@ -426,7 +435,7 @@ def test_acta_cross_format_predecessor_fails_chain() -> None:
     assert res.axis("chain").result == crypto.FAIL
 
 
-    # Deleting previousReceiptHash to fake genesis breaks the signature (signed).
+    # Deleting previousReceiptHash to fake genesis breaks the signature (it is signed).
 @requires_ed25519
 def test_acta_genesis_spoof_breaks_signature() -> None:
     succ = _load("acta-02-chain-link", "receipt.json")
@@ -548,7 +557,7 @@ def test_asqav_native_agent_id_fallback_binds_issuer() -> None:
     assert res.axis("signature").result in (crypto.FAIL, crypto.SKIPPED)
 
 
-    # A receipt verified against a different valid Ed25519 key FAILs the signature.
+    # A receipt verified against a different valid Ed25519 key FAILs the signature axis.
 @requires_ed25519
 def test_wrong_key_resolution_fails_signature() -> None:
     doc = _load("aerf-01-genesis", "receipt.json")
@@ -563,7 +572,7 @@ def test_wrong_key_resolution_fails_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # An Ed25519 receipt relabelled to an unchecked alg never verifies.
+    # An Ed25519 receipt relabelled to an alg the verifier does not check never verifies.
 @requires_ed25519
 def test_algorithm_confusion_does_not_false_pass() -> None:
     doc = _load("acta-01-genesis", "receipt.json")
@@ -578,7 +587,7 @@ def test_algorithm_confusion_does_not_false_pass() -> None:
     assert res.axis("signature").result in (crypto.FAIL, crypto.SKIPPED)
 
 
-    # A same-format predecessor that is not the true prior link FAILs the chain.
+    # A same-format predecessor that is not the true prior link FAILs the chain axis.
 @requires_ed25519
 def test_chain_reorder_same_format_fails_chain() -> None:
     succ = _load("acta-02-chain-link", "receipt.json")
@@ -626,7 +635,7 @@ def test_nfc_canonicalization_edge() -> None:
     assert verify(tampered, ADAPTERS, key_provider=provider).axis("signature").result == crypto.FAIL
 
 
-    # Each adapter detects only its own receipt: a clean 4x4 detection diagonal.
+    # Each adapter detects only its own receipt, giving a clean 4x4 detection diagonal.
 def test_four_way_format_exclusion() -> None:
     native = _load("asqav-01-genesis-permit", "receipt.json")
     aerf = _load("aerf-01-genesis", "receipt.json")
@@ -693,7 +702,7 @@ def test_agentreceipts_tampered_proofvalue_fails_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # An attacker's valid signature under an issuer-uncontrolled key never verifies.
+    # An attacker's valid signature under a key the issuer does not control must not verify.
 @requires_ed25519
 def test_agentreceipts_issuer_must_control_signing_key_no_impersonation() -> None:
     from base64 import urlsafe_b64encode
@@ -716,7 +725,7 @@ def test_agentreceipts_issuer_must_control_signing_key_no_impersonation() -> Non
     assert res.failure_class == "invalid"
 
 
-    # Genesis has previous_receipt_hash present and null; omitting it is malformed.
+    # Genesis carries previous_receipt_hash present and null; omitting it is malformed.
 def test_agentreceipts_genesis_explicit_null_is_genesis_missing_field_is_malformed() -> None:
     genesis = _ar("agentreceipts-01-didkey-genesis")
     ad = AgentReceiptsAdapter()
@@ -739,7 +748,7 @@ def test_agentreceipts_wrong_did_fails_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # The upstream malformed-corpus base receipt, re-signed with the upstream key.
+    # The upstream malformed-corpus base receipt, re-signed clean with the upstream key.
 @requires_ed25519
 def test_agentreceipts_upstream_valid_resigned_passes() -> None:
     doc = _ar("agentreceipts-up-00-valid-resigned")
@@ -748,7 +757,7 @@ def test_agentreceipts_upstream_valid_resigned_passes() -> None:
     assert res.axis("signature").result == crypto.PASS
 
 
-    # Gold interop: our jcs_rfc8785 output must byte-equal every upstream form.
+    # Gold interop: our jcs_rfc8785 output must byte-equal every upstream canonical form.
 def test_jcs_rfc8785_byte_matches_upstream_canonicalization_vectors() -> None:
     path = _INTEROP / "canonicalization_vectors.json"
     if not path.exists():
@@ -801,7 +810,7 @@ def test_asqav_jcs_byte_matches_verify_receipt_canonical_json() -> None:
         assert asqav_jcs(obj) == _vr.canonical_json(obj)
 
 
-    # A real prod hash-mode receipt detects as asqav-native and no other adapter.
+    # A real prod hash-mode receipt detects as asqav-native and no other adapter claims it.
 def test_hash_mode_receipt_routes_to_asqav_native() -> None:
     doc = _load("asqav-05-hash-mode-prod", "receipt.json")
     a, e, c, g = AsqavNativeAdapter(), AerfAdapter(), ActaAdapter(), AgentReceiptsAdapter()
@@ -809,7 +818,7 @@ def test_hash_mode_receipt_routes_to_asqav_native() -> None:
     assert verify(doc, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native")).fmt == "asqav-native"
 
 
-    # The reconstructed hash-mode signing input is byte-identical to prod bytes.
+    # The reconstructed hash-mode signing input is byte-identical to the prod-signed bytes.
 def test_hash_mode_signing_input_byte_matches_prod_message() -> None:
     doc = _load("asqav-05-hash-mode-prod", "receipt.json")
     ground_truth = (_PROD_HASH / "signed_message.bytes").read_bytes()
@@ -822,7 +831,7 @@ def test_hash_mode_signing_input_byte_matches_prod_message() -> None:
     )
 
 
-    # Without dilithium-py the ML-DSA-65 axis SKIPs; verdict INCOMPLETE, never PASS.
+    # Without dilithium-py the ML-DSA-65 axis SKIPs; the verdict is INCOMPLETE, never PASS.
 def test_hash_mode_signature_skips_without_dilithium_never_false_pass() -> None:
     doc = _load("asqav-05-hash-mode-prod", "receipt.json")
     res = verify(doc, ADAPTERS, key_provider=_provider("asqav-05-hash-mode-prod", "asqav-native"))
@@ -834,7 +843,7 @@ def test_hash_mode_signature_skips_without_dilithium_never_false_pass() -> None:
     assert res.failure_class in (None, "unverifiable")
 
 
-    # A malformed hash-mode signature (non-string) verifies non-PASS, never raises.
+    # A malformed hash-mode signature (non-string) verifies to a non-PASS, never raises.
 def test_hash_mode_malformed_signature_fails_does_not_crash() -> None:
     doc = _load("asqav-05-hash-mode-prod", "receipt.json")
     for bad in ({"not": "a string"}, 12345, ["x"]):
@@ -845,7 +854,7 @@ def test_hash_mode_malformed_signature_fails_does_not_crash() -> None:
         assert res.verdict == "unverified"
 
 
-    # A malformed Asqav compliance-envelope sig decodes to b'', FAILs, never raises.
+    # A malformed Asqav compliance-envelope signature decodes to b'' and FAILs, never raises.
 def test_compliance_envelope_malformed_signature_fails_does_not_crash() -> None:
     doc = _load("asqav-01-genesis-permit", "receipt.json")
     for bad in ({"k": "v"}, 999, None, "not base64 @@@"):
@@ -915,8 +924,7 @@ def test_hash_mode_v99_unverifiable_end_to_end() -> None:
     assert res_ok.verdict == "verified"
 
 
-    # A malformed AERF signature (non-hex or non-string) decodes to b'' and FAILs,
-    # never raises.
+    # A malformed AERF signature (non-hex or non-string) decodes to b'' and FAILs, never raises.
 def test_aerf_malformed_signature_fails_does_not_crash() -> None:
     doc = _load("aerf-01-genesis", "receipt.json")
     for bad in ("zzzz-not-hex", {"k": "v"}, 42, None):
@@ -927,7 +935,7 @@ def test_aerf_malformed_signature_fails_does_not_crash() -> None:
         assert res.failure_class == "invalid"
 
 
-    # Malformed AERF parent/pdp counter-sigs decode to b'' and FAIL, never raise.
+    # Malformed AERF parent/pdp counter-signatures decode to b'' and FAIL, never raise.
 def test_aerf_malformed_parent_pdp_signature_fails_does_not_crash() -> None:
     vec = "aerf-up-06-impact-with-parent-sig"
     doc = _load(vec, "receipt.json")
@@ -949,7 +957,7 @@ def _authproof_receipt() -> dict:
     return json.loads((_CORPUS / "authproof-01-genesis-real-sdk" / "receipt.json").read_text())
 
 
-    # A real Authproof JS SDK receipt verifies (cross-implementation interop).
+    # A receipt minted by the real Authproof JS SDK verifies (cross-implementation interop).
 @requires_ed25519
 def test_authproof_real_sdk_receipt_verifies() -> None:
     res = verify(_authproof_receipt(), ADAPTERS)
@@ -990,15 +998,14 @@ def test_authproof_malformed_signature_fails_does_not_crash() -> None:
         assert verify(forged, ADAPTERS).verdict == "unverified"
 
 
-    # ES256 verify returns FAIL (never raises) on a bad point or wrong-length sig.
+    # ES256 verify returns FAIL (never raises) on a bad point or a wrong-length signature.
 def test_es256_malformed_key_and_sig_fail_closed() -> None:
     assert crypto.verify_es256(b"\x00" * 10, b"m", b"\x00" * 64)[0] == crypto.FAIL
     pk = AuthproofAdapter().resolve_key(_authproof_receipt(), None)[0]
     assert crypto.verify_es256(pk, b"m", b"\x00" * 10)[0] == crypto.FAIL
 
 
-    # A non-object receipt (array/string/scalar) matches no format and FAILs,
-    # never crashes.
+    # A non-object receipt (array/string/scalar) matches no format and FAILs, never crashes.
 def test_non_dict_receipt_fails_closed_never_crashes() -> None:
     from asqav.verifier.oracle.core import detect
 
@@ -1010,11 +1017,11 @@ def test_non_dict_receipt_fails_closed_never_crashes() -> None:
 
 
 # Pipelock EvidenceReceipt v2 adapter. Fixture: Go reference output from
-# luckyPipewrench/pipelock-verify-python@9eaff72; RFC 8032 7.1 test-1 signer key
+# luckyPipewrench/pipelock-verify-python@9eaff72; signer key is the RFC 8032 7.1 test-1 vector.
 
 from asqav.verifier.oracle.adapters.pipelock import PipelockEvidenceAdapter  # noqa: E402
 
-#: RFC 8032 test-1 public key (hex) - the Go reference uses it for all fixtures.
+#: RFC 8032 test-1 public key (hex) - the Go reference uses this for all conformance fixtures.
 _PIPELOCK_PUB_HEX = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
 _PIPELOCK_KEY_PROVIDER = {"receipt-signing-test": _PIPELOCK_PUB_HEX}
 
@@ -1026,10 +1033,12 @@ def _pipelock(vec: str, name: str = "receipt.json") -> dict:
 @requires_ed25519
 def test_pipelock_evidence_v2_valid_passes() -> None:
     """A real Go-reference proxy_decision EvidenceReceipt v2 verifies (inbound interop).
+
     The fixture is lifted verbatim from luckyPipewrench/pipelock-verify-python
-    tests/conformance/valid-evidence-proxy-decision.json (commit 9eaff72). It was signed by the Go
-    implementation over JCS(receipt with signature zeroed) using the RFC 8032 section 7.1 test-1 private
-    key. This confirms our JCS preimage is byte-identical to the Go canonicaliser for this shape.
+    tests/conformance/valid-evidence-proxy-decision.json (commit 9eaff72). It was
+    signed by the Go implementation over JCS(receipt with signature zeroed) using
+    the RFC 8032 section 7.1 test-1 private key. This confirms our JCS preimage
+    computation is byte-identical to the Go canonicaliser for this receipt shape.
     """
     doc = _pipelock("pipelock-ev2-01-proxy-decision")
     res = verify(doc, ADAPTERS, key_provider=_PIPELOCK_KEY_PROVIDER)
@@ -1072,7 +1081,7 @@ def test_pipelock_detection_is_exclusive() -> None:
     assert [a.name for a in ADAPTERS if a.detect(pipelock_doc)] == ["pipelock-evidence-v2"]
 
 
-    # A valid Pipelock receipt verified against another Ed25519 key FAILs signature.
+    # A valid Pipelock receipt verified against a different Ed25519 key FAILs the signature axis.
 @requires_ed25519
 def test_pipelock_wrong_key_fails_signature() -> None:
     doc = _pipelock("pipelock-ev2-01-proxy-decision")
@@ -1084,7 +1093,7 @@ def test_pipelock_wrong_key_fails_signature() -> None:
     assert res.axis("signature").result == crypto.FAIL
 
 
-    # No key for signer_key_id: signature axis SKIPs; unverified/unverifiable.
+    # No key for signer_key_id: signature axis SKIPs; unverified/unverifiable, never verified.
 def test_pipelock_missing_key_skips_never_verified() -> None:
     doc = _pipelock("pipelock-ev2-01-proxy-decision")
     res = verify(doc, ADAPTERS, key_provider={})
@@ -1094,7 +1103,7 @@ def test_pipelock_missing_key_skips_never_verified() -> None:
     assert res.failure_class == "unverifiable"
 
 
-    # A Pipelock receipt carrying an unsupported algorithm token FAILs structure.
+    # A Pipelock receipt carrying an unsupported algorithm token FAILs the structure axis.
 def test_pipelock_schema_rejects_bad_algorithm() -> None:
     doc = _pipelock("pipelock-ev2-01-proxy-decision")
     forged = json.loads(json.dumps(doc))
@@ -1129,7 +1138,7 @@ def test_oracle_verify_signature_nonstring_alg_skips_clean() -> None:
         assert result == crypto.SKIPPED
 
 
-    # A non-dict receipt reads unverified/unverifiable; detect() never raises.
+    # A non-dict top-level receipt reads unverified/unverifiable, never raises in detect().
 def test_oracle_verify_nonobject_doc_fails_clean() -> None:
     for bad_doc in (None, "a string", 123, [1, 2]):
         res = verify(bad_doc, ADAPTERS)
@@ -1137,13 +1146,13 @@ def test_oracle_verify_nonobject_doc_fails_clean() -> None:
         assert res.failure_class == "unverifiable"
 
 
-# A did:web signer resolved from an injected map, so the signature axis reaches
-# the JCS canonicaliser without a high-entropy did:key literal in the fixture.
+# A did:web signer resolved from an injected map, so the signature axis reaches the
+# JCS canonicaliser without a high-entropy did:key literal in the fixture.
 _ISSUER_DID = "did:web:asqav.example"
 _SIGNER = {_ISSUER_DID + "#key-1": "00" * 32}
 
 
-    # A dict nested ``depth`` levels deep, built iteratively so it never overflows.
+    # A dict nested ``depth`` levels deep, built iteratively so the fixture never overflows.
 def _nested(depth: int) -> object:
     node: object = 1
     for _ in range(depth):
@@ -1151,7 +1160,7 @@ def _nested(depth: int) -> object:
     return node
 
 
-    # A well-formed agentreceipts envelope whose credentialSubject nests ``depth``.
+    # A well-formed agentreceipts envelope whose credentialSubject nests ``depth`` deep.
 def _deep_agentreceipt(depth: int, *, genesis: bool = True) -> dict:
     return {
         "@context": ["https://www.w3.org/ns/credentials/v2"],
@@ -1185,7 +1194,7 @@ def test_oracle_over_nested_receipt_is_unverifiable_not_recursionerror() -> None
     assert "depth" in (res.axis("structure").note or "")
 
 
-    # A deeply nested predecessor is capped on the chain axis, never RecursionError.
+    # A deeply nested predecessor is capped on the chain axis, never a RecursionError.
 def test_oracle_over_nested_predecessor_is_unverifiable_not_recursionerror() -> None:
     doc = _deep_agentreceipt(1, genesis=False)
     res = verify(doc, ADAPTERS, key_provider=_SIGNER, predecessor=_deep_agentreceipt(3000))
@@ -1258,10 +1267,13 @@ def test_every_vector_reports_its_pinned_first_bad_edge() -> None:
 @requires_ed25519
 def test_an_edge_is_named_for_exactly_the_unverified_verdicts() -> None:
     """first_failing_edge is None if and only if the verdict is a verified one.
-    The invariant that makes the field trustworthy rather than decorative. It is NOT free: the two
-    exclusions inside first_failing_edge (expiry never folds, a SKIPPED chain does not block) must stay
-    in step with the semantic table, and an earlier draft got it wrong this way - asqav-06 verifies
-    while its expiry axis FAILs, so a naive "first non-PASS axis" named an edge on a verified receipt.
+
+    The invariant that makes the field trustworthy rather than decorative. It is
+    NOT free: the two exclusions inside first_failing_edge (expiry never folds,
+    a SKIPPED chain does not block) have to stay in step with the semantic
+    table, and an earlier draft of this feature got it wrong in the direction this catches -
+    asqav-06 verifies while its expiry axis FAILs, so a naive "first non-PASS
+    axis" named an edge on a receipt that verified.
     """
     corpus = json.loads((_CORPUS / "manifest.json").read_text(encoding="utf-8"))
     verified_states = {VERDICT_VERIFIED, VERDICT_VERIFIED_KEYED}

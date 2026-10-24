@@ -1,8 +1,9 @@
 """Spec-bug evidence bar (488 C23, C2 core).
-An unexplained split becomes an attributable spec_bug_candidate only when
-both inputs re-execute to identical axes on identical digests. Unit views
-follow the C13 pattern; the live probe proves re-execution determinism on real
-oracle output (the property the bar relies on).
+
+An unexplained split becomes an attributable spec_bug_candidate only
+when both inputs re-execute to identical axes on identical digests.
+Unit views follow the C13 pattern; the live probe proves re-execution
+determinism on real oracle output (the property the bar relies on).
 """
 from __future__ import annotations
 

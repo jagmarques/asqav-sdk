@@ -1,8 +1,10 @@
 """Oracle `record` command: live receipt in, retained store out (488 C32).
-The missing production caller on the retain path: no shipped entry created the stores the review
-flow reads. `record` closes the loop (record then review, all through main()). C35 adds the
-reassess route: bytes already retained classify against the original instead of failing. Tests
-address main() only.
+
+The missing production caller on the retain path: no shipped entry
+created the stores the review flow reads. `record` closes the loop
+(record then review, all through main()). C35 adds the reassess route:
+bytes already retained classify against the original instead of
+failing. Tests address main() only.
 """
 from __future__ import annotations
 

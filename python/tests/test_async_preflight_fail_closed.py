@@ -1,7 +1,9 @@
 """AsyncAgent.preflight does not silently clear when a check cannot complete.
-Mirrors the sync test_preflight_fail_closed guarantees for the async client. A transient status/policy
-fetch error must not leave the agent cleared. The result reports checks_complete=False and cleared=False
-so a network blip never reads as a pass for a revoked or policy-blocked agent.
+
+Mirrors the sync test_preflight_fail_closed guarantees for the async client. A
+transient status/policy fetch error must not leave the agent cleared. The result
+reports checks_complete=False and cleared=False so a network blip never reads as
+a pass for a revoked or policy-blocked agent.
 """
 
 from __future__ import annotations

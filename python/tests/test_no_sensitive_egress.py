@@ -1,8 +1,10 @@
 """Egress proof: the bytes the SDK puts on the wire to the Asqav cloud never carry
 a prompt, a file body or a secret-shaped value from the action context.
-Every request is captured at the httpx transport (the real serialized body, URL and headers), so the check
-covers whatever any code path builds, not one helper. The negative control runs the same flows in
-full-payload mode, which is a leak by design, and proves the scanner reports it.
+
+Every request is captured at the httpx transport (the real serialized body, URL
+and headers), so the check covers whatever any code path builds, not one helper.
+The negative control runs the same flows in full-payload mode, which is a leak
+by design, and proves the scanner reports it.
 """
 
 from __future__ import annotations

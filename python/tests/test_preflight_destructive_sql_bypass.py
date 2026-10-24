@@ -1,9 +1,12 @@
 """Destructive SQL bypass fix: augment-match policy coverage.
 
-A data:write:sql: action carrying a destructive verb (DELETE, DROP, TRUNCATE, ALTER)
-must also match a data:delete:* block policy. The original write match must still fire
-too (regression guard). Reads and non-destructive writes must not be affected. These
-fail against a bare startswith matcher."""
+A data:write:sql: action containing a destructive verb (DELETE, DROP, TRUNCATE,
+ALTER) must also match a data:delete:* block policy. The original write match
+must still fire too (regression guard). Reads and non-destructive writes must
+not be affected.
+
+These tests fail against pre-fix code (bare startswith matcher) and pass after.
+"""
 
 from __future__ import annotations
 
@@ -60,6 +63,7 @@ _WRITE_SQL_POLICY = [
 ]
 
 
+# ---------------------------------------------------------------------------
 # Sync Agent tests
 
 
@@ -79,7 +83,7 @@ def test_delete_policy_blocks_write_sql_delete_from(mock_post, mock_get):
     assert any("no-deletions" in r for r in result.reasons)
 
 
-    # data:delete:* policy blocks data:write:sql:DELETE_FROM_users (underscore).
+    # data:delete:* policy blocks data:write:sql:DELETE_FROM_users (underscore form).
 @patch("asqav.client._get")
 @patch("asqav.client._post")
 @patch("asqav.client._api_key", "sk_test")
@@ -196,6 +200,7 @@ _UPPER_WRITE_SQL_POLICY = [
 ]
 
 
+# ---------------------------------------------------------------------------
 # H3: case-variant + whitespace must not bypass matching
 
 
@@ -274,6 +279,7 @@ def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
     assert result.policy_allowed is False
 
 
+# ---------------------------------------------------------------------------
 # M1: extended destructive verbs
 
 
@@ -294,6 +300,7 @@ def test_extended_destructive_verb_blocked_by_delete_policy(mock_post, mock_get,
     assert any("no-deletions" in r for r in result.reasons)
 
 
+# ---------------------------------------------------------------------------
 # Async Agent tests
 
 

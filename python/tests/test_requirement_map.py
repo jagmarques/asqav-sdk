@@ -1,8 +1,9 @@
 """The vector-to-requirement mapping is current, derived, and publishes its gaps.
+
 A mapping that drifts from the corpus is worse than none, because it reads as a
 coverage claim while describing a corpus that no longer exists. And a mapping
-without its unmapped half can be made to look complete by growing the corpus:
-that is the failure mode the second half exists to prevent.
+without its unmapped half can be made to look complete by growing the corpus,
+which is the failure mode the second half exists to prevent.
 """
 
 from __future__ import annotations

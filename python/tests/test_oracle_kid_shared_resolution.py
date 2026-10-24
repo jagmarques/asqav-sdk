@@ -1,8 +1,15 @@
-"""One key resolution serves the signature and key-status axes. ``signature.kid`` sits OUTSIDE the signed
-payload bytes, so a holder can rewrite it undisturbed. A signature axis resolving through a fallback the
-gating axes lack leaves ``key_status`` and ``issuer_bind`` emitting no axis; the aggregate in
-``oracle/core.py`` blocks on SKIPPED, not on one never emitted, so a REVOKED-signed receipt reads PASS. Every
-gate pins the closing invariant: the entry the signature verifies against is the entry every axis reads.
+"""One key resolution serves the signature axis and the key-status axes alike.
+
+``signature.kid`` sits OUTSIDE the signed payload bytes, so a holder of a receipt can
+rewrite it without disturbing the signature. When the signature axis resolves its key
+through a fallback the gating axes do not share, a rewritten kid makes ``key_status``
+and ``issuer_bind`` resolve nothing and emit no axis at all. The aggregate in
+``oracle/core.py`` weighs the axes that exist, and it can block on an axis reporting
+SKIPPED but not on one that was never emitted, so a receipt signed by a REVOKED key
+reads PASS.
+
+Every gate here pins the invariant that closes that: the entry the signature verifies
+against is the entry every axis reads its published fields from.
 """
 
 from __future__ import annotations
@@ -27,7 +34,7 @@ requires_ed25519 = pytest.mark.skipif(
 ISSUER = "acme-legal-entity"
 AGENT = "agt_shared_resolution"
 REAL_KID = "key-shared-resolution"
-#: A kid the directory answers for nothing, as a rewritten kid looks.
+#: A kid the directory answers for nothing, which is what a rewritten kid looks like.
 ABSENT_KID = "kid-that-resolves-nothing"
 
 
@@ -101,7 +108,7 @@ def test_active_key_passes_the_status_axis_through_the_agent_route() -> None:
     assert axes["issuer_bind"] == "PASS"
 
 
-#: Axes that exist only once a key resolves; expiry reads the signed bytes.
+#: Axes that only exist once a key resolves; expiry reads the signed bytes alone.
 KEY_AXES = {"key_status", "issuer_bind"}
 
 

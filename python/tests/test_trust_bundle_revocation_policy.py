@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# SPDX-License-Identifier: Apache-2.0
-
 """Offline revocation policy declaration (criterion 584 C2).
 
 The revocation row must name the bundle-issue assertion and the refresh

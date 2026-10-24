@@ -1,8 +1,10 @@
-"""Mint minimal RFC 3161 TimeStampResp tokens for the anchor-verification tests. A real TSA token is a CMS
-SignedData wrapping a TSTInfo; the verifier parses the DER directly, so the tests need tokens built byte by
-byte rather than by a TSA service. The shape mirrors the production anchor in
-verifier/docs/fixtures/published-receipt.json: no signedAttrs (the TSA signs the eContent bytes directly) and
-a [0] subjectKeyIdentifier sid.
+"""Mint minimal RFC 3161 TimeStampResp tokens for the anchor-verification tests.
+
+A real TSA token is a CMS SignedData wrapping a TSTInfo; the verifier parses
+the DER directly, so the tests need tokens built byte by byte rather than by a
+TSA service. The shape mirrors the production anchor in
+verifier/docs/fixtures/published-receipt.json: no signedAttrs (the TSA signs
+the eContent bytes directly) and a [0] subjectKeyIdentifier sid.
 """
 
 from __future__ import annotations
@@ -82,9 +84,11 @@ def make_signed_attrs(
     message_digest: bytes | None = None,
 ) -> bytes:
     """The signedAttrs CONTENT bytes (attributes concatenated, no outer tag).
-    Public TSAs all emit signedAttrs; the production fixture does not, so this is what exercises the
-    `_cms_message_digest_ok` / `_cms_signed_bytes` branch. The knobs exist to build the RFC 5652 s11.1
-    violations the verifier must reject: a missing contentType, and a contentType naming other content.
+
+    Public TSAs all emit signedAttrs; the production fixture does not, so this
+    is what exercises the `_cms_message_digest_ok` / `_cms_signed_bytes` branch.
+    The knobs exist to build the RFC 5652 s11.1 violations the verifier must
+    reject: a missing contentType, and a contentType naming other content.
     """
     import hashlib
 

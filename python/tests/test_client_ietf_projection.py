@@ -1,7 +1,9 @@
 """SDK projection helpers for the three-key Compliance Receipts envelope.
-`SignatureResponse.signature_envelope()` returns `{alg, kid, sig}` when the response carries the
-object form, None otherwise. `anchors_array()` returns the cloud-supplied `anchors` list (possibly
-empty), None on non-compliance receipts.
+
+`SignatureResponse.signature_envelope()` returns `{alg, kid, sig}` when
+the response carries the object form, None otherwise. `anchors_array()`
+returns the cloud-supplied `anchors` list (possibly empty), None on
+non-compliance receipts.
 """
 
 from __future__ import annotations

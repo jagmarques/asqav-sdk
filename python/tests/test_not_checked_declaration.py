@@ -1,8 +1,12 @@
 """Non-coverage is declared in the output, on every result, passing ones included.
-A verifier that reports only what it checked lets silence be read as coverage. README
-prose does not travel with the result and is not machine readable, so the boundary of the
-claim sits beside it. These tests pin three things: the declaration is on every return path
-this function has, survives caller mutation, and a newly added return path cannot ship without it.
+
+A verifier that reports only what it checked lets a reader mistake silence for
+coverage. Prose in a README does not travel with the result and is not machine
+readable, so the boundary of the claim has to sit beside the claim.
+
+These tests pin three things: that the declaration is on every return path this
+function has, that it survives a caller mutating it, and that a newly added
+return path cannot quietly ship without it.
 """
 
 from __future__ import annotations

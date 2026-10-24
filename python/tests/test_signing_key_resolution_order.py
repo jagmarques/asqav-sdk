@@ -1,8 +1,10 @@
 """The standalone verifier resolves the signing key by what the receipt signed, not list position.
-A cloud receipt's envelope kid is the org id, which every sibling key publishes as issuer_id, so a
-loose match answers with whichever sibling is listed first. The signed key_thumbprint and agent_id
-name the real key; the matcher reads them first. Every directory here publishes more than one key
-per issuer, the shape that exposes a matcher returning whatever it reaches first.
+
+The envelope kid of a cloud receipt is the org id, which every sibling key of the
+org publishes as issuer_id, so a loose match answers with whichever sibling is listed first. The
+signed key_thumbprint and the signed agent_id name the real key; the matcher reads them first.
+Every directory here publishes more than one key under one issuer, the shape that exposes a
+matcher which returns whatever it reaches first.
 """
 
 from __future__ import annotations

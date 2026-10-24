@@ -14,11 +14,34 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Literal pins for corpus B's derived members (criterion 693). Every expected value is a literal string
-copied from the file, never recomputed. A tamper vector's pins record its tampered values (forged ``sig``,
-wrong ``envelope_hash``): the pin says what the corpus carries, breakage included. Long lines keep the bytes
-greppable. ``asqav-11-dup-member-toplevel`` carries ``payload`` twice; ``json.load`` keeps the last block, so
-the pins record it. ``asqav-05``/``asqav-10`` are hash-mode receipts, ``policy_digest`` at top level.
+"""Literal pins for every derived member of corpus B (criterion 693).
+
+Corpus B is ``verifier/conformance-vectors``: one directory per vector, each
+with a ``receipt.json``. Like corpus A's file this one says WHAT the bytes
+are: every expected value below is a literal string copied from the published
+file, never recomputed at assertion time. A tamper vector's pins record its
+tampered values (a forged ``sig``, a wrong ``envelope_hash``) - the pin says
+what the corpus carries, including intentional breakage.
+
+Long lines are deliberate: each pin stays on one line so the published bytes
+stay greppable, the same rationale as the E501 ignore on the verifier. CI
+runs ruff over ``python/src`` only, not this file.
+
+Sibling checks, deliberately kept separate:
+
+* ``verifier/regen_conformance_vectors.py --check`` re-derives the
+  recomputable members (previousReceiptHash under each format's own chain
+  rule, payload_digest, envelope_hash) from each vector's own inputs and is
+  what CI runs on every push.
+* ``verifier/conformance-vectors/manifest.lock.json`` freezes the corpus
+  bytes as a whole (frozen proves unchanged, not correct).
+
+Two vectors need a reading note. ``asqav-11-dup-member-toplevel`` carries its
+``payload`` member twice with different derived values; ``json.load`` keeps
+the last block and these pins record that last-wins parse. The vector exists
+to pin duplicate-member refusal - strict parsers reject it before any member
+is read. ``asqav-05``/``asqav-10`` are hash-mode receipts (``payload`` null)
+carrying ``policy_digest`` at the top level instead of under ``payload``.
 """
 
 from __future__ import annotations
@@ -31,9 +54,6 @@ from pathlib import Path
 import pytest
 
 _CORPUS_ROOT = Path(__file__).parent.parent.parent / "verifier" / "conformance-vectors"
-
-#: Sibling checks: regen_conformance_vectors.py --check re-derives the
-#: recomputable members, and manifest.lock.json freezes the corpus bytes.
 
 
 @lru_cache(maxsize=1)
@@ -221,7 +241,7 @@ PINNED_ACTION_REF = {
 }
 
 #: Published `policy_digest` strings, verbatim. Hash-mode receipts carry it at
-#: the top level (`asqav-05`, `asqav-10`); other pins read under `payload`.
+#: the top level (`asqav-05`, `asqav-10`); every other pin reads under `payload`.
 PINNED_POLICY_DIGEST = {
     'asqav-01-genesis-permit': 'sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7',
     'asqav-02-genesis-deny': 'sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7',
@@ -346,7 +366,8 @@ PINNED_KEY_THUMBPRINT = {
 }
 
 #: Published `payload_digest` objects, verbatim. `asqav-26` pins the digest its
-#: own context does NOT hash to; `asqav-12/13/24` pin digests with no context.
+#: own context does NOT hash to; `asqav-12/13/24` pin digests whose context the
+#: receipt does not carry at all.
 PINNED_PAYLOAD_DIGEST = {
     'asqav-01-genesis-permit': {'hash': '9632ae3c8d6b7da7ca90d0edec7467c0097799bb2954cde5bf66e5a0b101c2e1', 'size': 68},
     'asqav-02-genesis-deny': {'hash': 'ac22162b9420086a2921a65d4bf11c7cf58926e253c4b13b35d47beb891d376f', 'size': 65},
@@ -435,7 +456,7 @@ for _name in (
                   PINNED_PAYLOAD_DIGEST):
         _pins[_name] = _pins["asqav-06-mldsa65-payload-prod"]
 
-#: The flat vector keeps asqav-05's fields, so policy_digest is asqav-05's.
+#: The flat hash-mode vector keeps asqav-05's signed fields, so its policy_digest is asqav-05's.
 PINNED_POLICY_DIGEST["asqav-52-outer-flat-hash-unsigned-members"] = PINNED_POLICY_DIGEST[
     "asqav-05-hash-mode-prod"
 ]
@@ -454,7 +475,7 @@ PINNED_ACTION_REF["asqav-54-kms-signed"] = 'sha256:1153ce45e4f31303469cf813b71ad
 PINNED_POLICY_DIGEST["asqav-54-kms-signed"] = 'sha256:841c46462a28db90e77440342e78306b689ad71856a62c7dc0ea0a19d08e8d35'
 PINNED_PREV_HASH["asqav-54-kms-signed"] = '0000000000000000000000000000000000000000000000000000000000000000'
 PINNED_PAYLOAD_DIGEST["asqav-54-kms-signed"] = {'hash': '1153ce45e4f31303469cf813b71adef24395f903fe86973ffa22ff97be674590', 'size': 58}
-#: asqav-55 is the 574 C474 hash-mode heartbeat; every derived member pinned.
+#: asqav-55 is the 574 C474 hash-mode heartbeat vector; every derived member pinned.
 PINNED_SIG["asqav-55-heartbeat"] = (
     "gk8oCAWmz90cWuRvhGCLuX+MWSfDIfSG8q4955rbu9IfC6UiaqalrUpG+qISGHMhcfYYi/"
     "KSCg0K++0K9I8EBw=="

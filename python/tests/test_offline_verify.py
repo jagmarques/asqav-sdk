@@ -27,6 +27,7 @@ def _load(p: Path) -> dict:
     return json.loads(p.read_text())
 
 
+# ---------------------------------------------------------------------------
 # Hard-ban all HTTP while these tests run.
 
 
@@ -41,8 +42,11 @@ def _forbid_network(monkeypatch):
     yield
 
 
-# fetch_jwks is exported from the top-level asqav namespace, and its smoke-test
-# proves the wiring: the network is forbidden, so the call raises RuntimeError.
+# fetch_jwks smoke-test (network forbidden -> RuntimeError), proving the helper is
+# exported and wired to the network call.
+
+
+    # fetch_jwks must be importable from the top-level asqav namespace.
 def test_fetch_jwks_exported():
     assert callable(asqav.fetch_jwks)
 
@@ -62,6 +66,7 @@ def test_fetch_jwks_hits_network(monkeypatch):
     assert "jwks.json" in called[0] or ".well-known" in called[0]
 
 
+# ---------------------------------------------------------------------------
 # verify_receipt_offline: PASS path using the conformance-vector jwks.
 
 
@@ -87,6 +92,7 @@ def test_verify_receipt_offline_axes_structure():
     assert result["fmt"] == "asqav-native"
 
 
+# ---------------------------------------------------------------------------
 # verify_receipt_offline: FAIL on tampered receipt.
 
 
@@ -113,10 +119,11 @@ def test_verify_receipt_offline_tampered_payload_directly():
     assert result["failure_class"] == "invalid"
 
 
+# ---------------------------------------------------------------------------
 # verify_receipt_offline: INCOMPLETE when JWKS has no matching key.
 
 
-    # No JWKS key -> signature SKIPPED -> unverified, never verified.
+    # Missing key in JWKS -> signature SKIPPED -> unverified/unverifiable (never verified).
 def test_verify_receipt_offline_no_key_in_jwks():
     receipt = _load(PASS_VECTOR / "receipt.json")
     result = asqav.verify_receipt_offline(receipt, {"keys": []})
@@ -128,7 +135,8 @@ def test_verify_receipt_offline_no_key_in_jwks():
     assert sig_axis["result"] in ("SKIPPED", "FAIL")
 
 
-# ML-DSA-65: PASS with dilithium-py, else SKIPPED; no interop, only wiring.
+# ML-DSA-65: PASS with dilithium-py present, else SKIPPED. Same-library round-trips, so
+# they prove wiring, NOT interop with real cloud signatures (known-answer vector is owed).
 
 
     # Generate a real ML-DSA-65 receipt + JWKS using dilithium-py.
@@ -369,7 +377,7 @@ def test_verify_receipt_offline_hash_mode_cannot_shed_axes_via_unsigned_fields()
     doc["previousReceiptHash"] = "0" * 64
     result = asqav.verify_receipt_offline(doc, jwks)
     assert result["verdict"] == "unverified", f"axes: {result['axes']}"
-    # The compliance rule set applied: the doc is judged on the claim it shows.
+    # The compliance rule set applied, so the doc is judged on the claim it displays.
     structure = next(a for a in result["axes"] if a["name"] == "structure")
     assert structure["result"] == "FAIL", f"structure axis: {structure}"
 
@@ -389,12 +397,12 @@ def test_verify_receipt_offline_rejects_a_key_from_another_issuer():
     assert sig_axis["result"] == "PASS", "the forged signature verifies; the bind is what refuses it"
 
 
-# Real-cloud ML-DSA-65 KAT (asqav-06-mldsa65-payload-prod), minted from
+# Real-cloud ML-DSA-65 known-answer test (asqav-06-mldsa65-payload-prod), minted from
 # api.asqav.com: the signature axis must be PASS, not SKIPPED or INCOMPLETE.
 MLDSA_KAT_VECTOR = VECTORS / "asqav-06-mldsa65-payload-prod"
 
 
-    # Real-cloud KAT: signature PASS; lapsed expiry stays on its own axis (426).
+    # Real-cloud ML-DSA-65 KAT: signature PASS; lapsed expiry stays on its own axis (426).
 @pytest.mark.skipif(not _DILITHIUM_AVAILABLE, reason="dilithium-py not installed")
 def test_verify_receipt_offline_mldsa65_real_cloud_kat():
     receipt = _load(MLDSA_KAT_VECTOR / "receipt.json")
@@ -460,7 +468,8 @@ def test_verify_receipt_offline_mldsa65_real_cloud_kat_tamper_sig():
     assert sig_axis["result"] == "FAIL"
 
 
-# run_structured uses the standalone engine (ML-DSA-65 only).
+# run_structured uses the standalone verify_receipt engine (ML-DSA-65 only), so the
+# Ed25519 vector correctly returns unverified/unverifiable rather than verified.
 
 
     # run_structured() is callable from the verifier module and returns a dict.
@@ -468,14 +477,14 @@ def test_run_structured_directly():
     receipt = _load(PASS_VECTOR / "receipt.json")
     jwks = _load(PASS_VECTOR / "jwks.json")
     result = vr.run_structured(receipt, jwks)
-    # Standalone engine: ML-DSA-65 only, so Ed25519 is SKIPPED, unverifiable.
+    # The standalone engine only verifies ML-DSA-65; Ed25519 is SKIPPED -> unverifiable.
     assert result["verdict"] in ("verified", "unverified")
     assert isinstance(result["axes"], list)
     assert result["canonical_sha256"] is not None
 
 
-# criterion 446: a malformed JWKS must not crash the public offline API; each
-# reached verify_receipt.resolve_key via asqav_native.py, raised before guard.
+# criterion 446: a malformed JWKS must not crash the public offline API. Each
+# reached verify_receipt.resolve_key via asqav_native.py and raised before the guard.
 
 
 def test_offline_api_missing_public_key_no_crash():

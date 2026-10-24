@@ -188,7 +188,7 @@ class TestChainVerification:
         results = _verify_hash_chain(sig_dicts)
         assert results[0] is True
         assert results[1] is False
-        # Step 2's link matches step 1's derived hash, not the recorded link.
+        # Step 2's link still matches step 1's *derived* hash (corruption is on the recorded link).
         assert results[2] is True
 
     def test_tampered_entry_detected(self):

@@ -1,7 +1,9 @@
 """Offline verifier gates the verdict on the signing key's revocation status.
-A receipt signed by a key the JWKS marks revoked must not PASS offline, matching the hosted /verify.
-Offline the verifier cannot verify a timestamp anchor, so a revoked key never rides a forgeable
-anchor to PASS: the key_status axis is FAIL or SKIPPED and the verdict is never PASS.
+
+A receipt signed by a key the JWKS marks revoked must not PASS offline, matching
+the hosted /verify. Offline the verifier cannot verify a timestamp anchor, so a
+revoked key never rides a forgeable anchor to PASS: the key_status axis is FAIL or
+SKIPPED and the verdict is never PASS.
 """
 
 from __future__ import annotations

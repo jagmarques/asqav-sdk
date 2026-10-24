@@ -1,8 +1,12 @@
-"""v:2 receipt acceptance in the neutral oracle verifier. The neutral verifier holds no org secret, so it
-cannot recompute the per-org ``_asqav_tid`` canary. It verifies the Ed25519 signature over the canonical
-body that INCLUDES ``signer`` + ``_asqav_tid``, surfaces ``signer`` in the verdict, and treats a missing
-canary as neutral (never a failure). Because ``signer`` sits inside the signed body, tampering it must
-FAIL verification. Byte-pinned to the backend v:2 signed body (context-store v2-signed-body-shape).
+"""v:2 receipt acceptance in the neutral oracle verifier.
+
+The neutral verifier holds no org secret, so it cannot recompute the per-org
+``_asqav_tid`` canary. It verifies the Ed25519 signature over the canonical body
+that INCLUDES ``signer`` + ``_asqav_tid``, surfaces ``signer`` in the verdict, and
+treats a missing canary as neutral (never a failure). Because ``signer`` sits
+inside the signed body, tampering it must FAIL verification.
+
+Byte-pinned to the backend v:2 signed body (context-store v2-signed-body-shape).
 """
 from __future__ import annotations
 
@@ -63,7 +67,7 @@ def test_v2_tampered_in_body_signer_fails() -> None:
     assert res.failure_class == "invalid"
 
 
-    # loose metadata outside the signed payload is neither surfaced nor trusted.
+    # signer as loose metadata outside the signed payload is neither surfaced nor trusted.
 @requires_ed25519
 def test_v2_signer_moved_outside_signed_body_not_surfaced_and_fails() -> None:
     receipt, jwks = _v2()
@@ -85,7 +89,7 @@ def test_v2_tampered_canary_corpus_vector_fails() -> None:
     assert res.failure_class == "invalid"
 
 
-    # A v:2 receipt without _asqav_tid verifies; the verifier never requires it.
+    # A v:2 receipt without _asqav_tid still verifies; the neutral verifier never requires it.
 @requires_ed25519
 def test_missing_canary_is_not_a_failure() -> None:
     receipt, jwks = _v2()
@@ -106,7 +110,7 @@ def test_v1_vector_still_verifies_and_exposes_no_signer() -> None:
     assert res.signer is None
 
 
-    # attestation() surfaces signer from the payload, not loose envelope metadata.
+    # attestation() surfaces signer from the payload, ignoring loose envelope metadata.
 def test_adapter_attestation_reads_only_signed_payload() -> None:
     ad = AsqavNativeAdapter()
     receipt, _ = _v2()

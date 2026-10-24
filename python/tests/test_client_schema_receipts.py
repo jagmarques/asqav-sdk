@@ -1,9 +1,17 @@
 """Tests for opt-in schema-driven structured receipts (criterion 328).
-Three core contract proofs (non-vacuous): (a) a valid context passes validation and sign() is
-called with the normalized (key-sorted) context; (b) an invalid context (missing required field
-or wrong type) raises AsqavValidationError and sign is NOT called (network never reached); (c) no
-schema supplied gives unchanged behavior. Non-vacuity probe: case (b) asserts the test would
-FAIL if validation were skipped (the error comes from the SDK, not a missing stub call)."""
+
+Three core contract proofs (non-vacuous):
+
+(a) Valid context passes validation and sign() is called with the
+    normalized (key-sorted) context.
+(b) Invalid context (missing required field / wrong type) raises
+    AsqavValidationError and sign is NOT called (network never reached).
+(c) No schema supplied => unchanged behavior (sign called as before).
+
+Non-vacuity probe: case (b) tests include an inline check that the test
+would FAIL if validation were skipped (the error must come from the SDK,
+not from a missing stub call).
+"""
 
 from __future__ import annotations
 
@@ -59,7 +67,7 @@ _BASIC_SCHEMA: dict[str, Any] = {
 }
 
 
-# === (a) Valid context passes, sign is called with the normalized context ===
+# === (a) Valid context passes and sign is called with the normalized context ===
 
 
     # A context that matches the schema reaches the network call.

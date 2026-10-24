@@ -1,8 +1,10 @@
-"""Directory substitution (628 T-a): a retained directory pins the signing key. The receipt's
-signed key_thumbprint names K1. The current directory publishes only K2 under the same
-kid/agent (K1 removed, K2 substituted). With the prior directory supplied as retained evidence,
-key_binding must report an explicit directory_substitution unresolved result instead of a bare
-binding failure. Without retained evidence the legacy verdict is unchanged (T2 safety pin).
+"""Directory substitution (628 T-a): a retained directory pins the signing key.
+
+The receipt's signed key_thumbprint names K1. The current directory publishes
+only K2 under the same kid/agent (K1 removed, K2 substituted). With the prior
+directory supplied as retained evidence, key_binding must report an explicit
+directory_substitution unresolved result instead of a bare binding failure.
+Without retained evidence the legacy verdict is unchanged (T2 safety pin).
 """
 
 from __future__ import annotations
