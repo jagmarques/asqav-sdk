@@ -147,8 +147,8 @@ def _subject_for(receipt: dict, fmt: str) -> tuple[dict, dict, str | None]:
 
 
 def to_vc_envelope(receipt: dict, *, format: str | None = None) -> dict:
-    """Present an Asqav receipt as a W3C VC 2.0 envelope (export only). Offline,
-    no signing; its non-standard proof MUST be declined by generic verifiers."""
+    """Present a receipt as a W3C VC 2.0 envelope: offline, no signing, no
+    mutation of ``receipt``; generic verifiers MUST decline its proof."""
     if not isinstance(receipt, dict):
         raise TypeError("receipt must be a parsed JSON object (dict)")
 

@@ -928,7 +928,7 @@ _PEM_BLOCK_RE = re.compile(rb"-----BEGIN [^-]+-----.*?-----END [^-]+-----\s*", r
 
 def _tsa_key_candidates(trusted_tsa_keys):
     """Split pinned TSA material into (raw key bytes, cryptography public keys).
-    Without cryptography PEM/X.509 entries read unverifiable, never trusted."""
+    Without cryptography, PEM/X.509 entries stay raw bytes, never trusted."""
     raw, pkeys = [], []
     try:
         from cryptography import x509
