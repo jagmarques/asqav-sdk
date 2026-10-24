@@ -9,8 +9,12 @@ from pathlib import Path
 
 from asqav import strict_json
 
-from . import ADAPTERS
-from .core import FAILURE_UNVERIFIABLE, VERDICT_UNVERIFIED, VERDICT_VERIFIED, verify
+from ..verify_receipt import evaluate_anchors
+from . import ADAPTERS, crypto
+from .core import (
+    FAILURE_UNVERIFIABLE, VERDICT_UNVERIFIED, VERDICT_VERIFIED, AxisResult, verify,
+)
+from .semantic_classify import classify
 
 #: manifest outcome tokens -> the VerifyResult.verdict they must produce.
 _OUTCOME_TO_VERDICT = {
@@ -18,6 +22,30 @@ _OUTCOME_TO_VERDICT = {
     "verified_keyed": "verified_keyed",
     "unverified": "unverified",
 }
+
+
+#: Anchors axis status for a receipt that carries no anchors.
+NOT_APPLICABLE = "not_applicable"
+ANCHORS_AXIS = "anchors"
+#: Trusted anchor material evaluate_anchors takes, apart from the receipt.
+TRUSTED_MATERIAL_KEYS = ("trusted_tsa_keys", "bitcoin_headers", "trust_bundle")
+
+
+def anchors_axis(receipt: object, trusted_material: dict | None = None) -> AxisResult:
+    """Anchors axis beside the verdict, never folded into it.
+    Anchors without trusted material SKIP; only a real proof PASSes."""
+    anchors = receipt.get("anchors") if isinstance(receipt, dict) else None
+    if anchors is None or anchors == []:
+        return AxisResult(ANCHORS_AXIS, NOT_APPLICABLE, "receipt carries no anchors")
+    supplied = {k: v for k, v in (trusted_material or {}).items() if v is not None}
+    if isinstance(anchors, list) and not supplied:
+        return AxisResult(
+            ANCHORS_AXIS, crypto.SKIPPED,
+            "receipt carries anchors; no trusted anchor material supplied apart from it",
+            FAILURE_UNVERIFIABLE,
+        )
+    ev = evaluate_anchors(receipt, **{k: supplied[k] for k in TRUSTED_MATERIAL_KEYS if k in supplied})
+    return AxisResult(ANCHORS_AXIS, ev.result, ev.note, classify(ANCHORS_AXIS, ev.result, ev.note))
 
 
 @dataclass(frozen=True)
@@ -33,6 +61,7 @@ class VectorOutcome:
     detail: str
     expected_failure_class: str = ""
     actual_failure_class: str = ""
+    anchors: AxisResult | None = None
 
 
 def _load(path: Path) -> dict | None:
@@ -119,6 +148,7 @@ def run_one(
         detail,
         expected_failure_class,
         actual_failure_class,
+        anchors_axis(receipt),
     )
 
 

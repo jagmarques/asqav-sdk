@@ -9,6 +9,7 @@ assertions are skipped rather than failing for the wrong reason.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,8 @@ from asqav.verifier.oracle import ADAPTERS, crypto, verify
 from asqav.verifier.oracle.adapters.aerf import AerfAdapter
 from asqav.verifier.oracle.adapters.agentreceipts import AgentReceiptsAdapter
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
+from asqav.verifier.oracle.core import AxisResult
+from asqav.verifier.oracle.runner import ANCHORS_AXIS, NOT_APPLICABLE, anchors_axis, run_one
 from asqav.verifier.oracle.runner import main as runner_main
 from asqav.verifier.oracle.runner import run_corpus
 from asqav.verifier.oracle.runner import _key_provider as _runner_key_provider
@@ -1521,3 +1524,50 @@ def test_profile_predecessor_follows_registry_native_first() -> None:
     res = verify(doc, [AsqavNativeAdapter(), AerfAdapter()], predecessor=pred)
     assert "profile range +/-(2**53 - 1)" in res.axes[0].note
     assert res.failure_class == "unverifiable"
+
+
+_ANCHORED_VECTOR = "asqav-24-anchor-block-hash-prod"
+
+
+def _run_vector(vec_dir: Path):
+    entry = next(e for e in json.loads((_CORPUS / "manifest.json").read_text())
+                 if e["dir"] == _ANCHORED_VECTOR)
+    return run_one(vec_dir, entry["format"], entry["outcome"])
+
+
+def _assert_anchors_skipped(anchors_fn, receipt: dict) -> None:
+    axis = anchors_fn(receipt)
+    assert axis.axis == ANCHORS_AXIS
+    assert axis.result == crypto.SKIPPED
+    assert axis.note
+
+
+def test_anchors_axis_skipped_without_trusted_material(tmp_path: Path) -> None:
+    receipt = _load(_ANCHORED_VECTOR, "receipt.json")
+    assert receipt["anchors"]
+    _assert_anchors_skipped(anchors_axis, receipt)
+    outcome = _run_vector(_CORPUS / _ANCHORED_VECTOR)
+    assert outcome.ok
+    assert outcome.anchors.result == crypto.SKIPPED
+    assert outcome.anchors.note
+    bare = tmp_path / _ANCHORED_VECTOR
+    shutil.copytree(_CORPUS / _ANCHORED_VECTOR, bare)
+    del receipt["anchors"]
+    (bare / "receipt.json").write_text(json.dumps(receipt))
+    assert _run_vector(bare).anchors.result == NOT_APPLICABLE
+
+
+def test_anchors_axis_presence_stub_fails_the_check() -> None:
+    """NEGCTL: an axis that passes on anchor presence is refused."""
+    receipt = _load(_ANCHORED_VECTOR, "receipt.json")
+    presence = lambda doc: AxisResult(ANCHORS_AXIS, crypto.PASS, "anchors present")
+    with pytest.raises(AssertionError):
+        _assert_anchors_skipped(presence, receipt)
+    _assert_anchors_skipped(anchors_axis, receipt)
+
+
+@pytest.mark.parametrize("anchors", [{}, "x", 0])
+def test_anchors_axis_malformed_anchors_never_not_applicable(anchors) -> None:
+    axis = anchors_axis({"anchors": anchors})
+    assert axis.result == crypto.FAIL
+    assert axis.note
