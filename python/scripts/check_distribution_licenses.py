@@ -28,9 +28,17 @@ CORPUS_MIN_EXPECTED = 118
 #: manifest.json, so the manifest census stays 117.
 
 #: The only repo paths granted Apache-2.0; widening the grant is irrevocable.
-APACHE_SPDX_FILES = ("python/src/asqav/verifier/verify_receipt.py",)
+APACHE_SPDX_FILES = (
+    "python/src/asqav/verifier/verify_receipt.py",
+    "typescript/src/verifier/verify-receipt.ts",
+)
 SPDX_SCAN_DIRS = ("python/src", "typescript/src")
 SPDX_MARKER = re.compile(rb"spdx-license-identifier", re.IGNORECASE)
+TS_SPECIFIER = re.compile(rb"""(?:\bfrom|\bimport|\brequire\s*\()\s*["']([^"']*)["']""")
+TS_NETWORK_MODULES = {
+    b"node:" + name for name in (b"http", b"https", b"http2", b"net", b"tls", b"dgram", b"dns")
+}
+TS_NETWORK_OR_ENV = re.compile(rb"\bfetch\s*\(|process\.env|\bimport\s*\(|\brequire\s*\(")
 
 
 def require(condition: bool, message: str) -> None:
@@ -142,6 +150,21 @@ def check_spdx_scope(root: Path) -> None:
     require(not stray, f"SPDX header outside APACHE_SPDX_FILES: {', '.join(stray)}")
     missing = [path for path in APACHE_SPDX_FILES if path not in found]
     require(not missing, f"APACHE_SPDX_FILES entry lost its header: {', '.join(missing)}")
+    for path in APACHE_SPDX_FILES:
+        if path.endswith(".ts"):
+            check_standalone_ts(path, (root / path).read_bytes())
+
+
+def check_standalone_ts(path: str, source: bytes) -> None:
+    """An Apache-scoped TS file imports node: builtins only, never the SDK."""
+    foreign = [
+        m.decode()
+        for m in TS_SPECIFIER.findall(source)
+        if not m.startswith(b"node:") or m in TS_NETWORK_MODULES
+    ]
+    require(not foreign, f"{path} imports beyond node: builtins: {', '.join(foreign)}")
+    reach = TS_NETWORK_OR_ENV.search(source)
+    require(reach is None, f"{path} reaches the network, env or a loader: {reach and reach[0]!r}")
 
 
 def main(argv: list[str] | None = None) -> int:

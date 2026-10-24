@@ -6,6 +6,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 import shutil
 from pathlib import Path
 
@@ -93,3 +94,40 @@ def test_negctl_allowlisted_file_without_header(tmp_path):
 
 def test_spdx_gate_passes_at_head():
     assert _gate(REPO) == (0, "")
+
+
+TS_APACHE = [rel for rel in checker.APACHE_SPDX_FILES if rel.startswith("typescript/")]
+
+
+def test_spdx_allowlist_is_exactly_two_files():
+    assert set(checker.APACHE_SPDX_FILES) == set(checker.find_spdx_files(REPO))
+    assert len(checker.APACHE_SPDX_FILES) == 2
+
+
+def test_ts_notice_and_pack_files_name_the_apache_file():
+    notice = (REPO / "typescript" / "NOTICE").read_text()
+    files = json.loads((REPO / "typescript" / "package.json").read_text())["files"]
+    assert TS_APACHE
+    for rel in TS_APACHE:
+        packed = rel.split("/", 1)[1]
+        assert packed in notice
+        assert packed in files
+    assert {"dist", "README.md", "LICENSE", "NOTICE"} <= set(files)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'import { canonicalize } from "../jcs";',
+        'import "@noble/post-quantum";',
+        'import { request } from "node:https";',
+        'const r = await fetch("https://api.asqav.com");',
+        "const key = process.env.ASQAV_API_KEY;",
+        'const m = require("node:http");',
+        'const m = await import("node:https");',
+    ],
+)
+def test_negctl_ts_verifier_reaches_beyond_node_builtins(tmp_path, text):
+    code, err = _planted_gate(tmp_path, TS_APACHE[0], text, 3)
+    assert code == 1
+    assert TS_APACHE[0] in err

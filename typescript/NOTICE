@@ -1,0 +1,12 @@
+Asqav TypeScript distribution
+
+The SDK uses the Elastic License 2.0 terms in LICENSE.
+The file-level exception is src/verifier/verify-receipt.ts, whose header
+specifies the Apache License 2.0 and retains this notice:
+
+Copyright 2026 Asqav
+
+The Apache terms for that file are at
+https://www.apache.org/licenses/LICENSE-2.0 (verifier/LICENSE-APACHE in the
+source repository). The rest of src/verifier, the compiled dist/ bundle and
+every other file in this package remain under the SDK's Elastic terms.

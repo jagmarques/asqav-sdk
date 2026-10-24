@@ -75,7 +75,9 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE",
+    "src/verifier/verify-receipt.ts"
   ],
   "scripts": {
     "build": "tsup src/index.ts src/cli.ts src/doors.ts src/extras/index.ts src/extras/vercel-ai.ts src/extras/langchain.ts src/extras/mastra.ts src/extras/openai-agents.ts src/verifier/index.ts --format cjs,esm --splitting --dts --clean",
