@@ -2,5 +2,25 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Signed acknowledgment with binding result matches; signature and local TSA verify."
+  "notes": "Signed acknowledgment with binding result matches; signature and local TSA verify.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-ANCHOR",
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": []
+  }
 }

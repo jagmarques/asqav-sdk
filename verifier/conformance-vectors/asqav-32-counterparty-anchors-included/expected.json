@@ -3,5 +3,25 @@
   "outcome": "unverified",
   "reason_code": "counterparty_mismatch",
   "notes": "Signed acknowledgment with binding result mismatch; signature and local TSA verify.",
-  "failure_class": "invalid"
+  "failure_class": "invalid",
+  "axis_scope": {
+    "exercised": [
+      "REQ-ANCHOR",
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": []
+  }
 }

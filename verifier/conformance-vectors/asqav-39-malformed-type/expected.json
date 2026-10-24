@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "invalid",
   "reason_code": "malformed_type",
-  "notes": "Payload-mode genesis whose type is the integer 42: a non-string type is malformed, guarded before the set lookup, so the structure axis FAILs invalid (criterion 524)."
+  "notes": "Payload-mode genesis whose type is the integer 42: a non-string type is malformed, guarded before the set lookup, so the structure axis FAILs invalid (criterion 524).",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

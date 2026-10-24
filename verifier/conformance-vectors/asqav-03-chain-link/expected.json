@@ -2,5 +2,26 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "Successor receipt; signature verifies and previousReceiptHash rederives from the predecessor canonical payload."
+  "notes": "Successor receipt; signature verifies and previousReceiptHash rederives from the predecessor canonical payload.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

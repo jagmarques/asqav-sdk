@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "unverifiable",
   "reason_code": "duplicate_member",
-  "notes": "The payload_digest.hash member is duplicated two levels down; strict ingest rejects duplicate members at any depth at parse time, before any hashing or signature check, so it never verifies."
+  "notes": "The payload_digest.hash member is duplicated two levels down; strict ingest rejects duplicate members at any depth at parse time, before any hashing or signature check, so it never verifies.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

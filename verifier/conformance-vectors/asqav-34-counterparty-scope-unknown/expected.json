@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "reason_code": "counterparty_unrecognised_scope",
   "notes": "Signed acknowledgment with binding result unrecognised_scope; signature and local TSA verify.",
-  "failure_class": "unverifiable"
+  "failure_class": "unverifiable",
+  "axis_scope": {
+    "exercised": [
+      "REQ-ANCHOR",
+      "REQ-CHAIN",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-COUNTERPARTY"
+    ]
+  }
 }

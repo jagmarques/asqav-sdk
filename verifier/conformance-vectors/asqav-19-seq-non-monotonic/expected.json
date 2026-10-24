@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "invalid",
   "reason_code": "seq_not_monotonic",
-  "notes": "The counter goes backwards, 9 then 4. A replayed or reordered receipt reaches this before a gap does, and it is refused for the same reason: the series cannot decrease under a server-built monotonic counter."
+  "notes": "The counter goes backwards, 9 then 4. A replayed or reordered receipt reaches this before a gap does, and it is refused for the same reason: the series cannot decrease under a server-built monotonic counter.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

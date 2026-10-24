@@ -19,6 +19,7 @@ Writes: verifier/conformance-vectors/requirement-map.json
 
 from __future__ import annotations
 
+import importlib
 import json
 import pathlib
 import sys
@@ -30,11 +31,21 @@ sys.path.insert(0, str(ROOT.parent / "python" / "src"))
 
 from asqav.verifier.verify_receipt import run_structured  # noqa: E402
 
+_RUNNER = importlib.import_module("asqav.verifier.oracle.runner")
+_is_flat_hash_receipt = importlib.import_module(run_structured.__module__)._is_flat_hash_receipt
+ANCHOR_REQUIREMENT = _RUNNER.ANCHOR_REQUIREMENT
+AXIS_SCOPE_KEY = _RUNNER.AXIS_SCOPE_KEY
+AXIS_SCOPE_EXERCISED = _RUNNER.AXIS_SCOPE_EXERCISED
+AXIS_SCOPE_NOT_APPLICABLE = _RUNNER.AXIS_SCOPE_NOT_APPLICABLE
+
+#: The requirement a verified vector never leaves unexercised.
+SIGNATURE_REQUIREMENT = "REQ-SIGNATURE"
+
 #: The normative requirements of the profile that a receipt vector can exercise,
 #: each tied to the section that states it. The verifier axis named here is the
 #: one whose non-skipped result is evidence the vector reached the requirement.
 REQUIREMENTS = {
-    "REQ-SIGNATURE": {
+    SIGNATURE_REQUIREMENT: {
         "section": "mandatory-checks",
         "statement": "Verify the signature over the canonical signed bytes under the declared algorithm.",
         "axis": "signature",
@@ -64,7 +75,7 @@ REQUIREMENTS = {
         "statement": "Re-walk the SHA-256 link to the predecessor receipt.",
         "axis": "chain",
     },
-    "REQ-ANCHOR": {
+    ANCHOR_REQUIREMENT: {
         "section": "anchoring",
         "statement": "Cryptographically re-verify each anchor against the committed bytes; presence never suffices.",
         "axis": "anchors",
@@ -115,10 +126,57 @@ REQUIREMENTS = {
 #: means the check did not run, so it is not coverage.
 _EXERCISED = {"PASS", "FAIL"}
 
+#: The format a vector maps against the profile; every other is interop.
+NATIVE_FORMAT = "asqav-native"
+
+#: axis_scope (AXIS_SCOPE_KEY, from the runner) is written from this map's
+#: exercises and not_exercised, never typed by hand.
+
+#: Names observed_verdict's scope: only the axes in axis_scope's exercised
+#: list, an axis-scoped result, never a full-profile verdict.
+OBSERVED_VERDICT_SCOPE_KEY = "observed_verdict_scope"
+OBSERVED_VERDICT_SCOPE = "axis_scope.exercised"
+
+#: Anchor material from outside the vector. Vector files ship beside the
+#: receipt, so they are corpus-supplied and listed apart, never trusted.
+TRUSTED_ANCHOR_MATERIAL_KEY = "trusted_anchor_material_supplied"
+CORPUS_ANCHOR_MATERIAL_KEY = "corpus_anchor_material"
+
+#: Which verifier a vector's axes were read from. run_structured refuses a
+#: flat hash-mode receipt, so its axes come from the oracle that verifies it.
+DERIVED_BY_KEY = "derived_by"
+DERIVED_BY_VERIFIER = "verify_receipt.run_structured"
+DERIVED_BY_ORACLE = "oracle"
+
 
 def _load(directory: pathlib.Path, name: str):
     path = directory / name
     return json.loads(path.read_text()) if path.exists() else None
+
+
+def _oracle_axes(directory: pathlib.Path) -> tuple:
+    """The oracle's verdict and (axis, result, note) list, anchors included."""
+    inputs = _RUNNER.load_inputs(directory, NATIVE_FORMAT)
+    oracle = _RUNNER.verify_inputs(*inputs)
+    axes = [*oracle.axes, _RUNNER.anchors_axis(inputs[0])]
+    return oracle.verdict, [(a.axis, a.result, a.note) for a in axes]
+
+
+def write_axis_scopes(vectors: dict) -> int:
+    """Write each native expected.json's axis_scope; return how many moved."""
+    moved = 0
+    for name, entry in vectors.items():
+        path = VECTORS / name / "expected.json"
+        expected = json.loads(path.read_text())
+        expected[AXIS_SCOPE_KEY] = {
+            AXIS_SCOPE_EXERCISED: entry["exercises"],
+            AXIS_SCOPE_NOT_APPLICABLE: entry["not_exercised"],
+        }
+        text = json.dumps(expected, indent=2) + "\n"
+        if path.read_text() != text:
+            path.write_text(text)
+            moved += 1
+    return moved
 
 
 def main() -> int:
@@ -133,7 +191,7 @@ def main() -> int:
         if expected is None:
             continue
         fmt = expected.get("format", "unknown")
-        if fmt != "asqav-native":
+        if fmt != NATIVE_FORMAT:
             interop[directory.name] = {
                 "format": fmt,
                 "exercises_profile_requirements": False,
@@ -149,6 +207,7 @@ def main() -> int:
         if receipt is None or jwks is None:
             by_vector[directory.name] = {
                 "exercises": [],
+                "not_exercised": sorted(REQUIREMENTS),
                 "note": "no receipt/jwks pair to run; nothing derived",
             }
             continue
@@ -173,9 +232,16 @@ def main() -> int:
             trusted_tsa_keys=trusted_tsa_keys,
             bitcoin_headers=bitcoin_headers,
         )
-        results = {axis["name"]: axis["result"] for axis in result["axes"]}
+        derived_by = DERIVED_BY_VERIFIER
+        axes = [(a["name"], a["result"], a.get("note", "")) for a in result["axes"]]
+        verdict = result["verdict"]
+        if _is_flat_hash_receipt(receipt):
+            derived_by, verdict, axes = DERIVED_BY_ORACLE, *_oracle_axes(directory)
+            # the oracle run reads no corpus anchor material
+            trusted_tsa_keys = bitcoin_headers = None
+        results = {name: outcome for name, outcome, _note in axes}
         axis_results[directory.name] = results
-        axis_notes[directory.name] = {a["name"]: a.get("note", "") for a in result["axes"]}
+        axis_notes[directory.name] = {name: note for name, _outcome, note in axes}
         exercised = sorted(
             req
             for req, meta in REQUIREMENTS.items()
@@ -183,9 +249,21 @@ def main() -> int:
         )
         for req in exercised:
             covered[req].append(directory.name)
+        corpus_material = sorted(
+            name
+            for name, given in (
+                (tsa_trust.name, trusted_tsa_keys),
+                ("bitcoin_headers.json", bitcoin_headers),
+            )
+            if given is not None
+        )
         by_vector[directory.name] = {
             "declared_outcome": expected.get("outcome"),
-            "observed_verdict": result["verdict"],
+            "observed_verdict": verdict,
+            DERIVED_BY_KEY: derived_by,
+            OBSERVED_VERDICT_SCOPE_KEY: OBSERVED_VERDICT_SCOPE,
+            TRUSTED_ANCHOR_MATERIAL_KEY: False,
+            CORPUS_ANCHOR_MATERIAL_KEY: corpus_material,
             "exercises": exercised,
             "not_exercised": sorted(
                 req
@@ -219,7 +297,17 @@ def main() -> int:
         "how": (
             "Each asqav-native vector is run through the offline verifier and the "
             "axes it actually exercises are read off the result. A SKIPPED axis is "
-            "not coverage, whatever a vector's notes claim."
+            "not coverage, whatever a vector's notes claim. run_structured refuses "
+            "a flat hash-mode receipt, so such a vector's axes and verdict are read "
+            "off the oracle instead, and derived_by names which one ran."
+        ),
+        "observed_verdict_note": (
+            "observed_verdict is an axis-scoped result: it covers only the axes in "
+            "the vector's axis_scope.exercised, not a full-profile verdict. The "
+            "anchor material this run reads ships in the vector beside the receipt "
+            "(corpus_anchor_material); none is trusted material supplied apart from "
+            "the corpus, so trusted_anchor_material_supplied is false and an anchors "
+            "PASS shows the check ran, not that a trusted root confirmed it."
         ),
         # The per-vector axis evidence the coverage lists are derived from, published
         # so a reader can check the derivation rather than trust it. Results only:
@@ -247,6 +335,7 @@ def main() -> int:
     }
     OUT.write_text(json.dumps(document, indent=2, sort_keys=False) + "\n")
     print(f"wrote {OUT.relative_to(ROOT.parent)}")
+    print(f"  axis_scope rewritten : {write_axis_scopes(by_vector)} expected.json")
     print(f"  asqav-native vectors : {len(by_vector)}")
     print(f"  interop fixtures     : {len(interop)}")
     print(f"  requirements covered : {len(REQUIREMENTS) - len(unmapped)}/{len(REQUIREMENTS)}")

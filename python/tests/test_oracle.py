@@ -7,6 +7,7 @@ Without the cryptography library the Ed25519 axis and its asserts SKIP.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,14 @@ from asqav.verifier.oracle import ADAPTERS, crypto, verify
 from asqav.verifier.oracle.adapters.aerf import AerfAdapter
 from asqav.verifier.oracle.adapters.agentreceipts import AgentReceiptsAdapter
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
+from asqav.verifier.oracle.core import AxisResult
+from asqav.verifier.oracle import runner
+from asqav.verifier.oracle.runner import ANCHORS_AXIS, NOT_APPLICABLE, anchors_axis, run_one
+from asqav.verifier.oracle.runner import (
+    ANCHOR_REQUIREMENT,
+    AXIS_SCOPE_KEY,
+    AXIS_SCOPE_NOT_APPLICABLE,
+)
 from asqav.verifier.oracle.runner import main as runner_main
 from asqav.verifier.oracle.runner import run_corpus
 from asqav.verifier.oracle.runner import _key_provider as _runner_key_provider
@@ -1506,3 +1515,99 @@ def test_profile_predecessor_follows_registry_native_first() -> None:
     res = verify(doc, [AsqavNativeAdapter(), AerfAdapter()], predecessor=pred)
     assert "profile range +/-(2**53 - 1)" in res.axes[0].note
     assert res.failure_class == "unverifiable"
+
+
+_ANCHORED_VECTOR = "asqav-24-anchor-block-hash-prod"
+
+
+def _run_vector(vec_dir: Path):
+    entry = next(e for e in json.loads((_CORPUS / "manifest.json").read_text())
+                 if e["dir"] == vec_dir.name)
+    return run_one(vec_dir, entry["format"], entry["outcome"])
+
+
+def _assert_anchors_skipped(anchors_fn, receipt: dict) -> None:
+    axis = anchors_fn(receipt)
+    assert axis.axis == ANCHORS_AXIS
+    assert axis.result == crypto.SKIPPED
+    assert axis.note
+
+
+def test_anchors_axis_skipped_without_trusted_material(tmp_path: Path) -> None:
+    receipt = _load(_ANCHORED_VECTOR, "receipt.json")
+    assert receipt["anchors"]
+    _assert_anchors_skipped(anchors_axis, receipt)
+    outcome = _run_vector(_CORPUS / _ANCHORED_VECTOR)
+    assert outcome.ok
+    assert outcome.anchors.result == crypto.SKIPPED
+    assert outcome.anchors.note
+    bare = tmp_path / _ANCHORED_VECTOR
+    shutil.copytree(_CORPUS / _ANCHORED_VECTOR, bare)
+    del receipt["anchors"]
+    (bare / "receipt.json").write_text(json.dumps(receipt))
+    assert _run_vector(bare).anchors.result == NOT_APPLICABLE
+
+
+def _presence_axis(*_args, **_kwargs) -> AxisResult:
+    return AxisResult(ANCHORS_AXIS, crypto.PASS, "anchors present")
+
+
+def test_anchors_axis_presence_stub_fails_the_check(tmp_path: Path, monkeypatch) -> None:
+    """NEGCTL: bogus material never PASSes the shipped axis, and a presence
+    stub planted in the runner fails the ACCEPT test."""
+    receipt = _load(_ANCHORED_VECTOR, "receipt.json")
+    bogus = {"trusted_tsa_keys": [b"not a cert"], "bitcoin_headers": {}}
+    axis = anchors_axis(receipt, bogus)
+    assert axis.result != crypto.PASS
+    assert axis.note
+    monkeypatch.setattr(runner, "anchors_axis", _presence_axis)
+    with pytest.raises(AssertionError, match=crypto.SKIPPED):
+        test_anchors_axis_skipped_without_trusted_material(tmp_path)
+
+
+_DECLARED_VECTOR = "asqav-23-anchor-status-pending"
+
+
+def _assert_anchors_skip_names_declaration(vec_dir: Path) -> None:
+    axis = _run_vector(vec_dir).anchors
+    assert axis.result == crypto.SKIPPED
+    assert AXIS_SCOPE_KEY in axis.note, axis.note
+    assert ANCHOR_REQUIREMENT in axis.note, axis.note
+
+
+def test_anchors_axis_reads_the_declared_axis_scope() -> None:
+    """asqav-23 declares REQ-ANCHOR not_applicable on an anchored receipt."""
+    declared = _load(_DECLARED_VECTOR, "expected.json")[AXIS_SCOPE_KEY]
+    assert ANCHOR_REQUIREMENT in declared[AXIS_SCOPE_NOT_APPLICABLE]
+    assert _load(_DECLARED_VECTOR, "receipt.json")["anchors"]
+    _assert_anchors_skip_names_declaration(_CORPUS / _DECLARED_VECTOR)
+
+
+def test_anchors_axis_without_the_declaration_fails_the_check(tmp_path: Path) -> None:
+    """NEGCTL: asqav-23 without REQ-ANCHOR in not_applicable is caught."""
+    vec = tmp_path / _DECLARED_VECTOR
+    shutil.copytree(_CORPUS / _DECLARED_VECTOR, vec)
+    expected = json.loads((vec / "expected.json").read_text())
+    expected[AXIS_SCOPE_KEY][AXIS_SCOPE_NOT_APPLICABLE].remove(ANCHOR_REQUIREMENT)
+    (vec / "expected.json").write_text(json.dumps(expected))
+    with pytest.raises(AssertionError, match=AXIS_SCOPE_KEY):
+        _assert_anchors_skip_names_declaration(vec)
+
+
+def test_declared_not_applicable_never_waives_trusted_material() -> None:
+    """A not_applicable declaration cannot stop supplied material checking."""
+    vec = _CORPUS / _ANCHORED_VECTOR
+    material = {
+        "trusted_tsa_keys": [(vec / "tsa_trust.pem").read_bytes()],
+        "bitcoin_headers": _load(_ANCHORED_VECTOR, "bitcoin_headers.json"),
+    }
+    waiver = {AXIS_SCOPE_NOT_APPLICABLE: [ANCHOR_REQUIREMENT]}
+    receipt = _load(_ANCHORED_VECTOR, "receipt.json")
+    assert anchors_axis(receipt, material, waiver).result == crypto.PASS
+
+
+@pytest.mark.parametrize("anchors", [{}, "x", 0])
+def test_anchors_axis_malformed_anchors_never_not_applicable(anchors) -> None:
+    axis = anchors_axis({"anchors": anchors})
+    assert axis.result == crypto.FAIL
+    assert axis.note

@@ -2,5 +2,26 @@
   "format": "asqav-native",
   "outcome": "verified",
   "reason_code": "",
-  "notes": "seq 8 follows predecessor 7 with nothing missing between them. The baseline the gap vector is measured against."
+  "notes": "seq 8 follows predecessor 7 with nothing missing between them. The baseline the gap vector is measured against.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }

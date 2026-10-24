@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "invalid",
   "reason_code": "payload_digest_mismatch",
-  "notes": "The asqav-25 receipt with only payload_digest.hash changed: it commits to a DIFFERENT context ({'n': 3}) than the one carried, and the receipt is re-signed over the lying payload, so the signature axis PASSes and the digest is the only lie. The payload_digest axis recomputes from the carried context and FAILs - a proven internal inconsistency, so the class is invalid, not unverifiable."
+  "notes": "The asqav-25 receipt with only payload_digest.hash changed: it commits to a DIFFERENT context ({'n': 3}) than the one carried, and the receipt is re-signed over the lying payload, so the signature axis PASSes and the digest is the only lie. The payload_digest axis recomputes from the carried context and FAILs - a proven internal inconsistency, so the class is invalid, not unverifiable.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }
