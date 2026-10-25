@@ -68,6 +68,21 @@ def test_negctl_card_expires_at_in_the_past_is_card_expired_never_pass(
     assert not verdict.ok
 
 
+def test_card_signed_ahead_of_the_check_is_card_expired(keypair) -> None:
+    """NEGCTL: a pre-minted card, signed an hour ahead, never reads as fresh."""
+    signed_at = datetime.fromisoformat(_vector("stale_card")["input"]["card_signed_at"])
+    ahead = signed_at + timedelta(hours=1)
+    card, at = _signed(
+        "stale_card",
+        keypair,
+        card_signed_at=ahead.isoformat(),
+        card_expires_at=(ahead + timedelta(seconds=DEFAULT_MAX_AGE_SECONDS)).isoformat(),
+    )
+    verdict = verify_card(card, None, at)
+    assert verdict.failures == (CARD_EXPIRED,)
+    assert "ahead" in verdict.details[0]
+
+
 def test_short_card_expires_at_wins_over_the_age_window(keypair) -> None:
     card, at = _signed("stale_card", keypair, card_expires_at="2020-01-01T00:00:01+00:00")
     assert verify_card(card, None, at - timedelta(seconds=1)).ok
