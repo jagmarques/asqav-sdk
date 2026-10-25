@@ -106,6 +106,30 @@ jobs:
       - run: ruff check python/src
       - run: pytest python/tests -v --tb=short --continue-on-collection-errors
 
+  python-framework-extras:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {extra: llamaindex, module: llama_index.core, floor: 'llama-index-core==0.11.0'}
+          - {extra: dspy, module: dspy, floor: 'dspy==2.6.0'}
+          - {extra: smolagents, module: smolagents, floor: 'smolagents==1.6.0'}
+          - {extra: crewai, module: crewai, floor: 'crewai==0.95.0'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # Newest framework release through the extra, then the declared floor.
+      # ASQAV_EXTRA_REQUIRED makes a missing or stubbed framework fail, not skip.
+      - run: pip install "./python[${{ matrix.extra }}]" pytest
+      - run: ASQAV_EXTRA_REQUIRED=${{ matrix.module }} pytest python/tests/test_extras_framework_smoke.py -v --tb=short
+      - run: pip install "${{ matrix.floor }}"
+      - run: ASQAV_EXTRA_REQUIRED=${{ matrix.module }} pytest python/tests/test_extras_framework_smoke.py -v --tb=short
+
   wire-vocabulary:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -296,7 +320,7 @@ jobs:
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard]
+    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -309,9 +333,11 @@ jobs:
           echo "verifier=${{ needs.verifier.result }}"
           echo "actions=${{ needs.actions.result }}"
           echo "agt=${{ needs.agt.result }}"
+          echo "python-framework-extras=${{ needs.python-framework-extras.result }}"
           [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.python-distributions.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.actions.result }}"    =~ ^(success|skipped)$ ]] || exit 1
           [[ "${{ needs.agt.result }}"        =~ ^(success|skipped)$ ]] || exit 1
+          [[ "${{ needs.python-framework-extras.result }}" =~ ^(success|skipped)$ ]] || exit 1

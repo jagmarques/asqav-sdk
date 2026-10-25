@@ -3,6 +3,16 @@
 All notable changes to the Asqav SDK are documented here.
 Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
+## [Unreleased]
+
+### Fixed
+
+- **The `llamaindex`, `dspy`, `smolagents` and `crewai` extras install the framework they name.**
+  They were empty, so `pip install asqav[llamaindex]` pulled in no LlamaIndex. Each now carries a
+  tested floor (`llama-index-core>=0.11.0`, `dspy>=2.6.0`, `smolagents>=1.6.0`, `crewai>=0.95.0`),
+  and CI runs each adapter's smoke test on the newest release and on that floor. The base
+  `pip install asqav` still installs no framework, and `all` stays without them.
+
 ## [0.10.14] - 2026-10-21
 
 ### Fixed

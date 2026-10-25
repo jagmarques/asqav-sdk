@@ -5,12 +5,8 @@ Demonstrates the one-call default-on entrypoint: after
 the audit trail with no manual step_callback/task_callback wiring. Context is
 hashed client-side when ``base_url`` points at *.asqav.com.
 
-crewai is not part of the asqav[crewai] extra (it pulls chromadb,
-CVE-2025-47947), so install it yourself.
-
 Requirements:
-    pip install asqav python-dotenv
-    pip install crewai   # separate; see docs/integrations-crewai.md
+    pip install asqav[crewai] python-dotenv
 
 Usage:
     ASQAV_API_KEY=sk_... python examples/crewai_example.py
