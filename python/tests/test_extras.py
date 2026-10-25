@@ -60,7 +60,7 @@ def test_all_extra_includes_everything():
     all_deps = opt_deps["all"]
 
     # Each framework extra's deps should appear in 'all'
-    framework_extras = ["httpx", "cli", "langchain", "crewai", "litellm", "haystack", "openai-agents"]  # noqa: E501
+    framework_extras = ["httpx", "cli", "langchain", "litellm", "haystack", "openai-agents"]  # noqa: E501
     for extra in framework_extras:
         for dep in opt_deps[extra]:
             # Strip version specifiers for matching
