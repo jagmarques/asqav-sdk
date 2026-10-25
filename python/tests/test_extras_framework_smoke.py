@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import os
 import re
 import sys
 from pathlib import Path
+from importlib.machinery import ModuleSpec
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 
@@ -44,13 +46,20 @@ def _module_installed(module: str) -> bool:
         return False
 
 
+def _unavailable(module: str, reason: str) -> None:
+    """Fail when ASQAV_EXTRA_REQUIRED names the module, else skip."""
+    if os.environ.get("ASQAV_EXTRA_REQUIRED") == module:
+        pytest.fail(f"{module} is required but {reason}")
+    pytest.skip(f"{module} {reason}")
+
+
 def _real_framework(module: str) -> ModuleType:
-    """Import the installed framework, skipping when it is absent or a stub."""
+    """Import the installed framework; a stub or absent one is unavailable."""
     if not _module_installed(module):
-        pytest.skip(f"{module} is not installed")
+        _unavailable(module, "is not installed")
     found = importlib.import_module(module)
     if getattr(found, "__file__", None) is None:
-        pytest.skip(f"{module} in sys.modules is a stub, not an install")
+        _unavailable(module, "is a stub, not an install")
     return found
 
 
@@ -100,12 +109,31 @@ def test_base_install_has_no_framework_negctl():
     assert not frameworks & _requirement_names(project["optional-dependencies"]["all"])
 
 
-def test_framework_check_rejects_a_stub_negctl():
-    """NEGCTL: a framework stub with no file is skipped by the same helper."""
-    stub = ModuleType("asqav_stub_framework")
-    with patch.dict(sys.modules, {"asqav_stub_framework": stub}):
-        with pytest.raises(pytest.skip.Exception):
-            _real_framework("asqav_stub_framework")
+def _stub(name: str) -> ModuleType:
+    stub = ModuleType(name)
+    stub.__spec__ = ModuleSpec(name, None)
+    return stub
+
+
+def test_required_framework_fails_when_absent_negctl(monkeypatch):
+    """NEGCTL: with the env set, an absent module fails; unset, it skips."""
+    name = "asqav_absent_framework"
+    with pytest.raises(pytest.skip.Exception, match="not installed"):
+        _real_framework(name)
+    monkeypatch.setenv("ASQAV_EXTRA_REQUIRED", name)
+    with pytest.raises(pytest.fail.Exception, match="not installed"):
+        _real_framework(name)
+
+
+def test_required_framework_fails_on_a_stub_negctl(monkeypatch):
+    """NEGCTL: a stub with a spec but no file skips, and fails when required."""
+    name = "asqav_stub_framework"
+    with patch.dict(sys.modules, {name: _stub(name)}):
+        with pytest.raises(pytest.skip.Exception, match="stub"):
+            _real_framework(name)
+        monkeypatch.setenv("ASQAV_EXTRA_REQUIRED", name)
+        with pytest.raises(pytest.fail.Exception, match="stub"):
+            _real_framework(name)
 
 
 def test_llamaindex_handler_signs_on_real_callback_manager(agent_calls):
