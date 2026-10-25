@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hmac
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -28,6 +29,9 @@ NONCE_MISMATCH = "nonce_mismatch"
 NONCE_UNBOUND = "nonce_unbound"
 SIGNATURE_INVALID = "signature_invalid"
 
+#: A stamp's zone designator, which a card's timestamps must carry.
+_ZONE_RE = re.compile(r"(?:Z|[+-]\d{2}(?::?\d{2})?)$")
+
 #: The cloud's card TTL; a card older than this is stale even if it claims more.
 DEFAULT_MAX_AGE_SECONDS = 300
 
@@ -42,15 +46,12 @@ class CardVerdict:
         return not self.failures
 
 
-    # A tz-aware instant from a card field, or None when absent or unreadable.
+    # A card field through the receipt verifier's one stamp parser; a stamp
+    # with no zone is refused here, where that parser would read it as UTC.
 def _instant(value: Any) -> datetime | None:
-    if not isinstance(value, str):
+    if not isinstance(value, str) or _ZONE_RE.search(value) is None:
         return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo is not None else None
+    return _vr._parse_stamp(value)
 
 
     # The signed bytes are the card minus card_signature, JCS-canonicalized.
@@ -73,6 +74,10 @@ def _expiry_problem(
     signed_at = _instant(card.get("card_signed_at"))
     if signed_at is None:
         return "card_signed_at missing or not a tz-aware timestamp"
+    # A card signed ahead of the check would stay fresh as long as its stamp
+    ahead = (signed_at - at_time).total_seconds()
+    if ahead > _vr.SKEW_BOUND_SECONDS:
+        return f"card_signed_at {ahead:.0f}s ahead of the check (> {_vr.SKEW_BOUND_SECONDS}s)"
     limit = signed_at + timedelta(seconds=max_age_seconds)
     if "card_expires_at" in card:
         expires_at = _instant(card["card_expires_at"])
