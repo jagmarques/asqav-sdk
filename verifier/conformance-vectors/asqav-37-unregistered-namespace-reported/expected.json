@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "reason_code": "registered_but_unimplemented",
   "failure_class": "unverifiable",
-  "notes": "Correctly signed receipt whose type uses the draft-registered protectmcp:lifecycle:oversight_ruling namespace this verifier release does not implement; structure axis reports SKIPPED, never FAIL. Its directory name predates the taxonomy fix."
+  "notes": "Correctly signed receipt whose type uses the draft-registered protectmcp:lifecycle:oversight_ruling namespace this verifier release does not implement; structure axis reports SKIPPED, never FAIL. Its directory name predates the taxonomy fix.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR",
+      "REQ-STRUCTURE"
+    ]
+  }
 }

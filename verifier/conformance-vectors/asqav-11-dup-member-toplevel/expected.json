@@ -3,5 +3,26 @@
   "outcome": "unverified",
   "failure_class": "unverifiable",
   "reason_code": "duplicate_member",
-  "notes": "Top-level 'payload' member appears twice; strict ingest rejects it at parse time, before any hashing or signature check, so it never verifies."
+  "notes": "Top-level 'payload' member appears twice; strict ingest rejects it at parse time, before any hashing or signature check, so it never verifies.",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW",
+      "REQ-STRUCTURE"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR"
+    ]
+  }
 }
