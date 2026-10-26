@@ -226,4 +226,52 @@ describe("fail-closed tool guard", () => {
 
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it("blocks a signed deny decision before execute", async () => {
+    const { agent } = makeFakeAgent({ receipt: { decision: "deny" } });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("blocks an upper-case DENY decision before execute", async () => {
+    const { agent } = makeFakeAgent({ receipt: { decision: "DENY" } });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("blocks a signed deny policyDecision before execute", async () => {
+    const { agent } = makeFakeAgent({ receipt: { policyDecision: "deny" } });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("blocks a signed rate_limit decision before execute", async () => {
+    const { agent } = makeFakeAgent({ receipt: { decision: "rate_limit" } });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
 });

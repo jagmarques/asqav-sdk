@@ -1,8 +1,7 @@
 // Base adapter for Asqav framework integrations, mirroring Python extras
 // Provides post-execution signAction and fail-closed signActionOrThrow
 
-import { Agent, REFUSED_DECISIONS } from "../index.js";
-import type { Decision } from "../index.js";
+import { Agent, mapPolicyDecisionToDecision } from "../index.js";
 
 export { safeStringify, toJsonSafeResult } from "../jcs.js";
 
@@ -64,9 +63,12 @@ export function assertSignedVerdict(verdict: unknown, actionType: string): void 
   if (!hasSignature || typeof v.signatureId !== "string" || v.signatureId.length === 0) {
     throw new AsqavRefusedError(actionType, "sign did not return a signed receipt");
   }
-  const decision = (v.decision ?? v.policyDecision) as Decision | undefined;
-  if (decision !== undefined && REFUSED_DECISIONS.has(decision)) {
-    throw new AsqavRefusedError(actionType, `policy ${decision}`);
+  const rawDecision = v.decision ?? v.policyDecision;
+  if (rawDecision !== undefined) {
+    const decision = mapPolicyDecisionToDecision(rawDecision);
+    if (decision !== "allow") {
+      throw new AsqavRefusedError(actionType, `policy ${decision}`);
+    }
   }
 }
 

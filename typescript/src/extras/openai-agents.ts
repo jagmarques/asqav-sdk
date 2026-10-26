@@ -50,6 +50,47 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
     }
   }
 
+  // Sign tool:start, run the call, then sign tool:end or tool:error
+  // A refused start throws, so the original tool never runs
+  private async runGated<O>(
+    toolName: string,
+    inputPreview: string,
+    call: () => Promise<O> | O,
+  ): Promise<O> {
+    await this.signActionOrThrow({
+      actionType: "tool:start",
+      context: {
+        tool: String(toolName),
+        input_preview: truncate(inputPreview),
+      },
+    });
+    try {
+      const out = await call();
+      const outStr = safeStringify(out);
+      this.signAction({
+        actionType: "tool:end",
+        context: {
+          tool: String(toolName),
+          output_length: outStr?.length ?? 0,
+          output_preview: truncate(outStr ?? ""),
+        },
+        result: out,
+      });
+      return out;
+    } catch (err) {
+      this.signAction({
+        actionType: "tool:error",
+        context: {
+          tool: String(toolName),
+          error_type: err instanceof Error ? err.name : typeof err,
+          error: truncate(err instanceof Error ? err.message : String(err)),
+        },
+        result: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+      });
+      throw err;
+    }
+  }
+
   // Wrap a tool so each call signs tool:start first, then tool:end or error
   // A refused start throws, so the original tool never runs
   wrapTool<I, O>(tool: OpenAIAgentsToolLike<I, O>): OpenAIAgentsToolLike<I, O> {
@@ -57,45 +98,11 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
 
     if (typeof tool.invoke === "function") {
       const original = tool.invoke.bind(tool);
-      const invoke = async (
+      const invoke = (
         runContext: unknown,
         input: string,
         details?: unknown,
-      ): Promise<O> => {
-        const inputStr = input;
-        await this.signActionOrThrow({
-          actionType: "tool:start",
-          context: {
-            tool: String(toolName),
-            input_preview: truncate(inputStr),
-          },
-        });
-        try {
-          const out = await original(runContext, input, details);
-          const outStr = safeStringify(out);
-          this.signAction({
-            actionType: "tool:end",
-            context: {
-              tool: String(toolName),
-              output_length: outStr?.length ?? 0,
-              output_preview: truncate(outStr ?? ""),
-            },
-            result: out,
-          });
-          return out;
-        } catch (err) {
-          this.signAction({
-            actionType: "tool:error",
-            context: {
-              tool: String(toolName),
-              error_type: err instanceof Error ? err.name : typeof err,
-              error: truncate(err instanceof Error ? err.message : String(err)),
-            },
-            result: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
-          });
-          throw err;
-        }
-      };
+      ): Promise<O> => this.runGated(toolName, input, () => original(runContext, input, details));
       return { ...tool, invoke };
     }
 
@@ -103,41 +110,8 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
       throw new Error("wrapTool: tool.invoke and tool.execute are both missing");
     }
     const original = tool.execute.bind(tool);
-    const execute = async (input: I, ...rest: unknown[]): Promise<O> => {
-      const inputStr = safeStringify(input);
-      await this.signActionOrThrow({
-        actionType: "tool:start",
-        context: {
-          tool: String(toolName),
-          input_preview: truncate(inputStr ?? ""),
-        },
-      });
-      try {
-        const out = await original(input, ...rest);
-        const outStr = safeStringify(out);
-        this.signAction({
-          actionType: "tool:end",
-          context: {
-            tool: String(toolName),
-            output_length: outStr?.length ?? 0,
-            output_preview: truncate(outStr ?? ""),
-          },
-          result: out,
-        });
-        return out;
-      } catch (err) {
-        this.signAction({
-          actionType: "tool:error",
-          context: {
-            tool: String(toolName),
-            error_type: err instanceof Error ? err.name : typeof err,
-            error: truncate(err instanceof Error ? err.message : String(err)),
-          },
-          result: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
-        });
-        throw err;
-      }
-    };
+    const execute = (input: I, ...rest: unknown[]): Promise<O> =>
+      this.runGated(toolName, safeStringify(input) ?? "", () => original(input, ...rest));
     return { ...tool, execute };
   }
 

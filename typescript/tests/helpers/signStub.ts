@@ -9,7 +9,7 @@ export interface SignCall {
 
 /** Fake Asqav `Agent` whose `sign` records every call; no real client, no
  * network, no init(), so the tests stay hermetic */
-export function makeFakeAgent(opts: { failWith?: Error } = {}) {
+export function makeFakeAgent(opts: { failWith?: Error; receipt?: Record<string, unknown> } = {}) {
   const calls: SignCall[] = [];
   const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
     calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {}, result: signOpts.result });
@@ -20,6 +20,7 @@ export function makeFakeAgent(opts: { failWith?: Error } = {}) {
       actionId: "act_1",
       timestamp: "2026-01-01T00:00:00Z",
       verificationUrl: "https://asqav.com/verify/sig_1",
+      ...opts.receipt,
     };
   });
   const agent = { agentId: "agt_fake", sign } as unknown as Agent;
