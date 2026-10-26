@@ -1,9 +1,12 @@
-/**
- * Mastra integration. Signs agent step ``before`` / ``after`` events so every tool call, LLM call and
- * workflow step becomes a receipt. Needs the `@mastra/core` peer dependency; see the README.
- */
+// Mastra integration. Gates tool calls through current hooks or wrapped tools
+// Every call is signed before it runs; a refusal stops it. See the README
 
-import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
+import {
+  AsqavAdapter,
+  raiseMissingPeer,
+  safeStringify,
+  type AsqavAdapterOptions,
+} from "./_base.js";
 
 const MAX_PREVIEW = 200;
 
@@ -11,14 +14,33 @@ function truncate(s: string, max = MAX_PREVIEW): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
-/**
- * Minimum surface we touch on a Mastra agent. ``@mastra/core`` is never imported at the top level, so
- * the SDK installs cleanly without it.
- */
+/** The current `@mastra/core` tool shape: a name plus an awaited `execute`. */
+interface MastraToolLike {
+  id?: string;
+  execute?: (...args: any[]) => unknown;
+}
+
+// The current @mastra/core agent surface: listTools and __setTools on Agent
+// @mastra/core is imported lazily, so the SDK installs without it
 interface MastraAgentLike {
   readonly name?: string;
-  on?: (event: string, listener: (...args: unknown[]) => void) => unknown;
-  use?: (middleware: unknown) => unknown;
+  listTools?: () => Promise<Record<string, MastraToolLike>>;
+  __setTools?: (tools: any) => void;
+}
+
+interface MastraToolHookContext {
+  toolName?: string;
+  input?: unknown;
+  context?: unknown;
+  metadata?: { agentName?: string };
+  output?: unknown;
+  error?: unknown;
+}
+
+/** The hooks object accepted by new Agent({ hooks }) and generate */
+export interface MastraToolHooks {
+  beforeToolCall?: (context: MastraToolHookContext) => Promise<void>;
+  afterToolCall?: (context: MastraToolHookContext) => Promise<void>;
 }
 
 interface MastraStepEvent {
@@ -36,10 +58,8 @@ export interface AsqavMastraHookOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-/**
- * Mastra hook signing agent step lifecycle events through Asqav. ``before`` and ``after`` are public so
- * callers can wire them into custom middleware or invoke them from tests.
- */
+// Mastra hook signing tool lifecycle events through Asqav. The pre-execution
+// before awaits the signature and throws on refusal; after records outcomes
 export class AsqavMastraHook extends AsqavAdapter {
   public readonly name: string;
 
@@ -67,57 +87,83 @@ export class AsqavMastraHook extends AsqavAdapter {
     }
   }
 
-  /**
-   * Attach to a Mastra agent: subscribes to ``step:before`` / ``step:after`` when the agent exposes an
-   * event emitter, otherwise registers a middleware that wraps each step.
-   */
+  // Hooks for new Agent({ hooks }) or agent.generate(..., { hooks }). Use these
+  // when the agent is constructed with hooks, or attach to wrap its tools
+  get toolHooks(): MastraToolHooks {
+    return {
+      beforeToolCall: async (ctx) => {
+        await this.before({
+          stepId: ctx.toolName,
+          stepType: "tool",
+          input: ctx.input,
+          agentName: ctx.metadata?.agentName,
+        });
+      },
+      afterToolCall: async (ctx) => {
+        const evt: MastraStepEvent = {
+          stepId: ctx.toolName,
+          stepType: "tool",
+          output: ctx.output,
+          error: ctx.error,
+          agentName: ctx.metadata?.agentName,
+        };
+        if (ctx.error !== undefined) {
+          this.onError(evt);
+        } else {
+          this.after(evt);
+        }
+      },
+    };
+  }
+
+  // Wrap every tool in place through the agent's listTools and __setTools
+  // Each execute signs first; a refusal throws before the original tool runs
   async attach(agent: MastraAgentLike): Promise<void> {
-    // Validate the peer is available so attach() fails fast with a
-    // helpful message rather than at first event time.
     await AsqavMastraHook.loadPeer();
 
-    if (typeof agent.on === "function") {
-      agent.on("step:before", (evt: unknown) => {
-        this.before((evt ?? {}) as MastraStepEvent);
-      });
-      agent.on("step:after", (evt: unknown) => {
-        this.after((evt ?? {}) as MastraStepEvent);
-      });
-      agent.on("step:error", (evt: unknown) => {
-        this.onError((evt ?? {}) as MastraStepEvent);
-      });
-      return;
+    if (typeof agent.listTools !== "function" || typeof agent.__setTools !== "function") {
+      throw new Error(
+        "AsqavMastraHook.attach: this @mastra/core Agent has no listTools/__setTools; "
+        + "pass toolHooks to new Agent({ hooks: hook.toolHooks }) instead.",
+      );
     }
 
-    if (typeof agent.use === "function") {
-      const self = this;
-      agent.use({
-        async wrap(
-          ctx: MastraStepEvent,
-          next: () => Promise<unknown>,
-        ): Promise<unknown> {
-          self.before(ctx);
+    const tools = await agent.listTools();
+    agent.__setTools(this.wrapTools(tools));
+  }
+
+  /** Wrap a tool set so each call is signed before it runs */
+  wrapTools<T extends Record<string, MastraToolLike>>(tools: T): T {
+    const out: Record<string, MastraToolLike> = {};
+    for (const [name, tool] of Object.entries(tools)) {
+      if (typeof tool?.execute !== "function") {
+        out[name] = tool;
+        continue;
+      }
+      const original = tool.execute.bind(tool);
+      out[name] = {
+        ...tool,
+        execute: async (input: unknown, context?: unknown) => {
+          await this.before({ stepId: name, stepType: "tool", input });
+          if (this.options.observe) {
+            return original(input, context);
+          }
           try {
-            const out = await next();
-            self.after({ ...ctx, output: out });
-            return out;
+            const output = await original(input, context);
+            this.after({ stepId: name, stepType: "tool", output });
+            return output;
           } catch (err) {
-            self.onError({ ...ctx, error: err });
+            this.onError({ stepId: name, stepType: "tool", error: err });
             throw err;
           }
         },
-      });
-      return;
+      };
     }
-
-    throw new Error(
-      "AsqavMastraHook.attach: agent exposes neither .on() nor .use(); "
-      + "wire .before/.after manually instead.",
-    );
+    return out as T;
   }
 
-  /** Sign the start of a Mastra step. Safe to call directly from tests. */
-  public before(evt: MastraStepEvent): void {
+  /** Sign a Mastra step start; throws on refusal, so the step does not run */
+  public async before(evt: MastraStepEvent): Promise<void> {
     const ctx: Record<string, unknown> = {
       step_id: String(evt.stepId ?? "unknown"),
       step_type: String(evt.stepType ?? "step"),
@@ -127,7 +173,7 @@ export class AsqavMastraHook extends AsqavAdapter {
       const inputStr = safeStringify(evt.input);
       ctx.input_preview = truncate(inputStr);
     }
-    this.signAction({ actionType: "step:before", context: ctx });
+    await this.signActionOrThrow({ actionType: "step:before", context: ctx });
   }
 
   /** Sign the successful end of a Mastra step. */

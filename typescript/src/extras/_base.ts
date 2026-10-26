@@ -1,16 +1,11 @@
-/**
- * Base adapter for Asqav framework integrations, mirroring the Python ``asqav.extras._base`` surface.
- * Resolves an Agent and provides a fail-open ``signAction``; adapters compose it rather than inherit.
- */
+// Base adapter for Asqav framework integrations, mirroring Python extras
+// Provides post-execution signAction and fail-closed signActionOrThrow
 
 import { Agent } from "../index.js";
 
 export { safeStringify, toJsonSafeResult } from "../jcs.js";
 
-/**
- * Options accepted by every Asqav adapter constructor. Provide exactly one of ``agent`` (used directly),
- * ``agentId`` (lazy ``Agent.get``), or ``agentName`` (lazy ``Agent.create``).
- */
+// Options for every adapter. Supply one of agent, agentId or agentName
 export interface AsqavAdapterOptions {
   /** Pre-built Asqav Agent. Takes precedence over agentId/agentName. */
   agent?: Agent;
@@ -18,10 +13,7 @@ export interface AsqavAdapterOptions {
   agentId?: string;
   /** Name for a new Asqav agent. Resolved lazily via Agent.create. */
   agentName?: string;
-  /**
-   * Optional error sink. Defaults to ``console.warn``. The adapter never
-   * throws into the host AI pipeline; governance must fail-open.
-   */
+  /** Optional error sink; pre-execution gates still throw after reporting. */
   onError?: (err: unknown, context: { actionType: string }) => void;
   /**
    * When true, the adapter logs what it would sign but skips the network
@@ -37,10 +29,53 @@ interface SignActionInput {
   result?: unknown;
 }
 
-/**
- * Shared base for the framework adapters here. Subclasses call ``signAction`` on every framework
- * callback and MUST NOT call the SDK directly, so the fail-open contract lives in one place.
- */
+/** A pre-execution gate refused the action; the wrapped tool must not run. */
+export class AsqavRefusedError extends Error {
+  readonly actionType: string;
+
+  constructor(actionType: string, reason: string, cause?: unknown) {
+    super(`[asqav] refused ${actionType}: ${reason}`, cause === undefined ? undefined : { cause });
+    this.name = "AsqavRefusedError";
+    this.actionType = actionType;
+  }
+}
+
+interface SignVerdictLike {
+  signature?: unknown;
+  signatureId?: unknown;
+  policyDecision?: string;
+  decision?: string;
+}
+
+// Throw unless verdict is a signed receipt that permits the action. A thrown or
+// rejected sign, a missing signature, or a deny verdict all count as refused
+export function assertSignedVerdict(verdict: unknown, actionType: string): void {
+  if (!verdict || typeof verdict !== "object") {
+    throw new AsqavRefusedError(actionType, "sign returned no verdict");
+  }
+  const v = verdict as SignVerdictLike;
+  const sig = v.signature;
+  const hasSignature = typeof sig === "string"
+    ? sig.length > 0
+    : Boolean(sig && typeof sig === "object" && Object.keys(sig as object).length > 0);
+  if (!hasSignature || typeof v.signatureId !== "string" || v.signatureId.length === 0) {
+    throw new AsqavRefusedError(actionType, "sign did not return a signed receipt");
+  }
+  if (
+    v.policyDecision === "deny"
+    || v.policyDecision === "rate_limit"
+    || v.decision === "deny"
+    || v.decision === "blocked"
+  ) {
+    throw new AsqavRefusedError(
+      actionType,
+      `policy ${v.policyDecision ?? v.decision}`,
+    );
+  }
+}
+
+// Shared base for the framework adapters. Subclasses use signAction for
+// telemetry; signActionOrThrow gates a tool before it runs
 export class AsqavAdapter {
   protected readonly options: AsqavAdapterOptions;
   protected agent: Agent | null;
@@ -113,6 +148,32 @@ export class AsqavAdapter {
         }
       }
     })();
+  }
+
+  // Sign before a tool runs. Resolves only for a signed, permitting verdict;
+  // any failure or refusal is reported through options.onError and rethrown
+  protected async signActionOrThrow(input: SignActionInput): Promise<void> {
+    const onError = this.options.onError ?? defaultOnError;
+
+    if (this.options.observe) {
+      console.info(`[asqav] OBSERVE: would sign ${input.actionType}`, input.context ?? {});
+      return;
+    }
+
+    try {
+      const agent = await this.resolveAgent();
+      const verdict = await agent.sign({
+        actionType: input.actionType,
+        context: input.context,
+        ...(input.result !== undefined ? { result: input.result as never } : {}),
+      });
+      assertSignedVerdict(verdict, input.actionType);
+    } catch (err) {
+      onError(err, { actionType: input.actionType });
+      throw err instanceof AsqavRefusedError
+        ? err
+        : new AsqavRefusedError(input.actionType, err instanceof Error ? err.message : String(err), err);
+    }
   }
 }
 

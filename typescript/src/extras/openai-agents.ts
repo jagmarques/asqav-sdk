@@ -1,7 +1,5 @@
-/**
- * OpenAI Agents JS integration, mirroring the Python ``AsqavGuardrail`` / ``AsqavTracingProcessor``.
- * Signs agent and tool lifecycle events, fail-open so governance never breaks the agent loop.
- */
+// OpenAI Agents JS integration. Wraps the current FunctionTool invoke (or a
+// legacy execute) so Asqav signs before the tool runs; a refusal throws
 
 import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 
@@ -11,14 +9,14 @@ function truncate(s: string, max = MAX_PREVIEW): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
-/**
- * Minimal surface of an OpenAI Agents JS ``tool``: any object with ``name`` and ``execute``, so the
- * adapter never binds to a specific SDK version.
- */
+// Minimal OpenAI Agents JS tool surface: the current FunctionTool has invoke,
+// older shapes exposed execute; nothing is bound to an SDK version
 export interface OpenAIAgentsToolLike<I = unknown, O = unknown> {
   name?: string;
   description?: string;
+  invoke?: (runContext: any, input: string, details?: any) => Promise<O> | O;
   execute?: (input: I, ...rest: unknown[]) => Promise<O> | O;
+  [key: string]: unknown;
 }
 
 export interface AsqavOpenAIAgentsAdapterOptions extends AsqavAdapterOptions {
@@ -26,10 +24,8 @@ export interface AsqavOpenAIAgentsAdapterOptions extends AsqavAdapterOptions {
   name?: string;
 }
 
-/**
- * Wraps OpenAI Agents JS tools and run-loop callbacks so every tool-call lifecycle event flows through
- * Asqav. Mirrors the Python ``AsqavGuardrail`` and ``AsqavTracingProcessor``.
- */
+// Wraps OpenAI Agents JS tools and callbacks so tool events flow through
+// Asqav, mirroring the Python AsqavGuardrail and AsqavTracingProcessor
 export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
   public readonly name: string;
 
@@ -54,21 +50,62 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
     }
   }
 
-  /**
-   * Wrap a tool so each invocation signs ``tool:start`` and ``tool:end`` (or ``tool:error``). Returns a
-   * new tool with the same ``name`` / ``description`` and a wrapped ``execute``.
-   */
+  // Wrap a tool so each call signs tool:start first, then tool:end or error
+  // A refused start throws, so the original tool never runs
   wrapTool<I, O>(tool: OpenAIAgentsToolLike<I, O>): OpenAIAgentsToolLike<I, O> {
-    if (typeof tool.execute !== "function") {
-      throw new Error("wrapTool: tool.execute must be a function");
-    }
-    const original = tool.execute.bind(tool);
-    const self = this;
     const toolName = tool.name ?? "unknown";
 
+    if (typeof tool.invoke === "function") {
+      const original = tool.invoke.bind(tool);
+      const invoke = async (
+        runContext: unknown,
+        input: string,
+        details?: unknown,
+      ): Promise<O> => {
+        const inputStr = input;
+        await this.signActionOrThrow({
+          actionType: "tool:start",
+          context: {
+            tool: String(toolName),
+            input_preview: truncate(inputStr),
+          },
+        });
+        try {
+          const out = await original(runContext, input, details);
+          const outStr = safeStringify(out);
+          this.signAction({
+            actionType: "tool:end",
+            context: {
+              tool: String(toolName),
+              output_length: outStr?.length ?? 0,
+              output_preview: truncate(outStr ?? ""),
+            },
+            result: out,
+          });
+          return out;
+        } catch (err) {
+          this.signAction({
+            actionType: "tool:error",
+            context: {
+              tool: String(toolName),
+              error_type: err instanceof Error ? err.name : typeof err,
+              error: truncate(err instanceof Error ? err.message : String(err)),
+            },
+            result: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+          });
+          throw err;
+        }
+      };
+      return { ...tool, invoke };
+    }
+
+    if (typeof tool.execute !== "function") {
+      throw new Error("wrapTool: tool.invoke and tool.execute are both missing");
+    }
+    const original = tool.execute.bind(tool);
     const execute = async (input: I, ...rest: unknown[]): Promise<O> => {
       const inputStr = safeStringify(input);
-      self.signAction({
+      await this.signActionOrThrow({
         actionType: "tool:start",
         context: {
           tool: String(toolName),
@@ -78,7 +115,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
       try {
         const out = await original(input, ...rest);
         const outStr = safeStringify(out);
-        self.signAction({
+        this.signAction({
           actionType: "tool:end",
           context: {
             tool: String(toolName),
@@ -89,7 +126,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
         });
         return out;
       } catch (err) {
-        self.signAction({
+        this.signAction({
           actionType: "tool:error",
           context: {
             tool: String(toolName),
@@ -101,7 +138,6 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
         throw err;
       }
     };
-
     return { ...tool, execute };
   }
 

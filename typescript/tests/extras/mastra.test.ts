@@ -1,11 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AsqavRefusedError } from "../../src/extras/_base.js";
 import { AsqavMastraHook } from "../../src/extras/mastra.js";
-import type { Agent } from "../../src/index.js";
+import type { Agent as AsqavAgent } from "../../src/index.js";
 
-function makeFakeAgent() {
+const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
+const modernNode = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 13);
+
+function makeFakeAgent(opts: { failWith?: Error } = {}) {
   const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: opts.actionType, context: opts.context ?? {}, result: opts.result });
+  const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
+    calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {}, result: signOpts.result });
+    if (opts.failWith) throw opts.failWith;
     return {
       signature: "sig",
       signatureId: "sig_1",
@@ -14,37 +19,36 @@ function makeFakeAgent() {
       verificationUrl: "https://asqav.com/verify/sig_1",
     };
   });
-  return { agent: { agentId: "agt_fake", sign } as unknown as Agent, calls, sign };
+  return { agent: { agentId: "agt_fake", sign } as unknown as AsqavAgent, calls, sign };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-describe("AsqavMastraHook without @mastra/core installed", () => {
-  it("attach() throws a clear ImportError", async () => {
-    const { agent } = makeFakeAgent();
-    const hook = new AsqavMastraHook({ agent });
-    await expect(
-      hook.attach({ on: () => undefined }),
-    ).rejects.toThrow(/@mastra\/core/);
+async function makeMastraAgent(execute: () => Promise<unknown>): Promise<any> {
+  const [{ Agent }, { createTool }] = await Promise.all([
+    import("@mastra/core/agent"),
+    import("@mastra/core/tools"),
+  ]);
+  const echo = createTool({ id: "echo", description: "echo", execute });
+  return new Agent({
+    id: "probe",
+    name: "probe",
+    instructions: "test agent",
+    model: "openai/gpt-4o-mini",
+    tools: { echo },
   });
-});
+}
 
-describe("AsqavMastraHook before/after wiring", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.doMock("@mastra/core", () => ({ __mastraStub: true }));
-  });
+type ExecutableTools = Record<string, {
+  execute?: (input: unknown, context: unknown) => Promise<unknown>;
+}>;
 
-  afterEach(() => {
-    vi.doUnmock("@mastra/core");
-  });
-
+describe("AsqavMastraHook signing", () => {
   it("signs step:before, step:after, and step:error events", async () => {
-    const { AsqavMastraHook: Hook } = await import("../../src/extras/mastra.js");
     const { agent, calls, sign } = makeFakeAgent();
-    const hook = new Hook({ agent });
+    const hook = new AsqavMastraHook({ agent });
 
-    hook.before({ stepId: "fetch-weather", stepType: "tool", input: { city: "Lisbon" } });
+    await hook.before({ stepId: "fetch-weather", stepType: "tool", input: { city: "Lisbon" } });
     hook.after({ stepId: "fetch-weather", stepType: "tool", output: { temp: 22 } });
     hook.onError({ stepId: "fetch-weather", stepType: "tool", error: new Error("nope") });
 
@@ -58,16 +62,14 @@ describe("AsqavMastraHook before/after wiring", () => {
     expect(calls[0].context.step_id).toBe("fetch-weather");
     expect(calls[1].context.output_length).toBe(JSON.stringify({ temp: 22 }).length);
     expect(calls[2].context.error).toBe("nope");
-    // 787: completion and error outcomes travel as the receipt result
     expect(calls[0].result).toBeUndefined();
     expect(calls[1].result).toEqual({ temp: 22 });
     expect(calls[2].result).toBe("Error: nope");
   });
 
   it("survives hostile outputs: BigInt and circular values still sign", async () => {
-    const { AsqavMastraHook: Hook } = await import("../../src/extras/mastra.js");
     const { agent, calls, sign } = makeFakeAgent();
-    const hook = new Hook({ agent });
+    const hook = new AsqavMastraHook({ agent });
 
     const circular: Record<string, unknown> = {};
     circular.self = circular;
@@ -82,24 +84,64 @@ describe("AsqavMastraHook before/after wiring", () => {
     expect(calls[0].result).toBeDefined();
     expect(calls[1].result).toBeDefined();
   });
+});
 
-  it("attach(agent.on) subscribes to step:before / step:after / step:error", async () => {
-    const { AsqavMastraHook: Hook } = await import("../../src/extras/mastra.js");
+describe.skipIf(!modernNode)("AsqavMastraHook against a current @mastra/core Agent", () => {
+  it("rejects an object that is not a current Mastra Agent", async () => {
+    const { agent } = makeFakeAgent();
+    const hook = new AsqavMastraHook({ agent });
+    await expect(hook.attach({})).rejects.toThrow(/listTools/);
+  });
+
+  it("ACCEPT: a refused signature stops an attached tool and raises", async () => {
+    const { agent, sign } = makeFakeAgent({ failWith: new Error("policy denied") });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const mastra = await makeMastraAgent(execute);
+    const hook = new AsqavMastraHook({ agent });
+
+    await hook.attach(mastra);
+    const tools = await mastra.listTools() as ExecutableTools;
+
+    await expect(tools.echo.execute!({ v: 1 }, {})).rejects.toBeInstanceOf(AsqavRefusedError);
+    expect(execute).not.toHaveBeenCalled();
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
+
+  it("NEGCTL: an allowed signature runs an attached tool exactly once", async () => {
     const { agent, sign } = makeFakeAgent();
-    const hook = new Hook({ agent });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const mastra = await makeMastraAgent(execute);
+    const hook = new AsqavMastraHook({ agent });
 
-    const listeners: Record<string, (evt: unknown) => void> = {};
-    const fakeMastra = {
-      on(evt: string, fn: (evt: unknown) => void) {
-        listeners[evt] = fn;
-      },
-    };
+    await hook.attach(mastra);
+    const tools = await mastra.listTools() as ExecutableTools;
+    const out = await tools.echo.execute!({ v: 2 }, {});
 
-    await hook.attach(fakeMastra);
-    listeners["step:before"]({ stepId: "s1", stepType: "tool" });
-    listeners["step:after"]({ stepId: "s1", stepType: "tool", output: "ok" });
+    expect(out).toEqual({ ok: true });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(sign.mock.calls.map((c) => c[0].actionType)).toEqual(["step:before", "step:after"]);
+  });
 
-    await tick();
-    expect(sign).toHaveBeenCalledTimes(2);
+  it("toolHooks fit a real Agent's hooks and stop a refused tool", async () => {
+    const { agent } = makeFakeAgent({ failWith: new Error("policy denied") });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const hook = new AsqavMastraHook({ agent });
+    const [{ Agent }, { createTool }] = await Promise.all([
+      import("@mastra/core/agent"),
+      import("@mastra/core/tools"),
+    ]);
+    const hooked = new Agent({
+      id: "hooked",
+      name: "hooked",
+      instructions: "test agent",
+      model: "openai/gpt-4o-mini",
+      tools: { echo: createTool({ id: "echo", description: "echo", execute }) },
+      hooks: hook.toolHooks,
+    });
+
+    const tools = await hooked.getToolsForExecution({}) as ExecutableTools;
+
+    await expect(tools.echo.execute!({ v: 3 }, {})).rejects.toBeInstanceOf(AsqavRefusedError);
+    expect(execute).not.toHaveBeenCalled();
   });
 });

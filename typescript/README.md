@@ -207,14 +207,18 @@ Full command reference: [asqav.com/docs/cli](https://asqav.com/docs/cli).
 
 Native adapters under `@asqav/sdk/extras/*`:
 
-- **Vercel AI SDK**: `createAsqavExporter`, passed to `experimental_telemetry`. Every span
-  becomes a signed action.
+- **Vercel AI SDK**: `wrapTools` signs each tool call before its `execute` runs and throws
+  `AsqavBlockedError` when Asqav refuses, so the tool never runs. `createAsqavExporter` is the
+  telemetry-only path: it signs spans on `span.end()` and cannot block a call.
 - **LangChain.js**: `AsqavCallbackHandler`, passed to `callbacks: [handler]`.
-- **Mastra**: `AsqavMastraHook`, attached to a Mastra agent.
-- **OpenAI Agents JS**: `AsqavOpenAIAgentsAdapter`, wrapping a tool.
+- **Mastra**: `AsqavMastraHook`, attached to a Mastra agent or passed as `hooks`. Its
+  `beforeToolCall` awaits the signature and a refusal throws before the tool runs.
+- **OpenAI Agents JS**: `AsqavOpenAIAgentsAdapter.wrapTool`, wrapping the tool's current
+  `invoke` (or a legacy `execute`). A refused signature throws before the tool runs.
 
-Each needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and Haystack
-follow the same Hooks API; the Python SDK has the richer ecosystem. Parity status:
+A refused or failed signature always stops the wrapped tool; the adapters never run it and then
+report. Each adapter needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and
+Haystack follow the same Hooks API; the Python SDK has the richer ecosystem. Parity status:
 [integrations](https://asqav.com/docs/integrations).
 
 ## What a receipt does not prove
