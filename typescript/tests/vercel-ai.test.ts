@@ -183,6 +183,18 @@ async function makeAiTool(
   };
 }
 
+async function expectBlockedBeforeExecute(receipt: Record<string, unknown>): Promise<void> {
+  const { agent } = makeFakeAgent({ receipt });
+  const execute = vi.fn(async () => ({ temp: 22 }));
+  const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+  await expect(
+    wrapped.execute!({ city: "Lisbon" }, {}),
+  ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+  expect(execute).not.toHaveBeenCalled();
+}
+
 describe("fail-closed tool guard", () => {
   it("ACCEPT: a refused signature stops the tool and raises", async () => {
     const { agent, sign } = makeFakeAgent({ failWith: new Error("policy denied") });
@@ -228,79 +240,27 @@ describe("fail-closed tool guard", () => {
   });
 
   it("blocks a signed deny decision before execute", async () => {
-    const { agent } = makeFakeAgent({ receipt: { decision: "deny" } });
-    const execute = vi.fn(async () => ({ temp: 22 }));
-    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
-
-    await expect(
-      wrapped.execute!({ city: "Lisbon" }, {}),
-    ).rejects.toBeInstanceOf(AsqavBlockedError);
-
-    expect(execute).not.toHaveBeenCalled();
+    await expectBlockedBeforeExecute({ decision: "deny" });
   });
 
   it("blocks an upper-case DENY decision before execute", async () => {
-    const { agent } = makeFakeAgent({ receipt: { decision: "DENY" } });
-    const execute = vi.fn(async () => ({ temp: 22 }));
-    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
-
-    await expect(
-      wrapped.execute!({ city: "Lisbon" }, {}),
-    ).rejects.toBeInstanceOf(AsqavBlockedError);
-
-    expect(execute).not.toHaveBeenCalled();
+    await expectBlockedBeforeExecute({ decision: "DENY" });
   });
 
   it("blocks a signed deny policyDecision before execute", async () => {
-    const { agent } = makeFakeAgent({ receipt: { policyDecision: "deny" } });
-    const execute = vi.fn(async () => ({ temp: 22 }));
-    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
-
-    await expect(
-      wrapped.execute!({ city: "Lisbon" }, {}),
-    ).rejects.toBeInstanceOf(AsqavBlockedError);
-
-    expect(execute).not.toHaveBeenCalled();
+    await expectBlockedBeforeExecute({ policyDecision: "deny" });
   });
 
   it("blocks a signed rate_limit decision before execute", async () => {
-    const { agent } = makeFakeAgent({ receipt: { decision: "rate_limit" } });
-    const execute = vi.fn(async () => ({ temp: 22 }));
-    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
-
-    await expect(
-      wrapped.execute!({ city: "Lisbon" }, {}),
-    ).rejects.toBeInstanceOf(AsqavBlockedError);
-
-    expect(execute).not.toHaveBeenCalled();
+    await expectBlockedBeforeExecute({ decision: "rate_limit" });
   });
 
   it("blocks an object signature with empty sig bytes before execute", async () => {
-    const { agent } = makeFakeAgent({
-      receipt: { signature: { alg: "ML-DSA-65", kid: "k1", sig: "" } },
-    });
-    const execute = vi.fn(async () => ({ temp: 22 }));
-    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
-
-    await expect(
-      wrapped.execute!({ city: "Lisbon" }, {}),
-    ).rejects.toBeInstanceOf(AsqavBlockedError);
-
-    expect(execute).not.toHaveBeenCalled();
+    await expectBlockedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1", sig: "" } });
   });
 
   it("blocks an object signature without sig bytes before execute", async () => {
-    const { agent } = makeFakeAgent({
-      receipt: { signature: { alg: "ML-DSA-65", kid: "k1" } },
-    });
-    const execute = vi.fn(async () => ({ temp: 22 }));
-    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
-
-    await expect(
-      wrapped.execute!({ city: "Lisbon" }, {}),
-    ).rejects.toBeInstanceOf(AsqavBlockedError);
-
-    expect(execute).not.toHaveBeenCalled();
+    await expectBlockedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1" } });
   });
 
   it("NEGCTL: an allowed object signature runs the tool exactly once", async () => {
