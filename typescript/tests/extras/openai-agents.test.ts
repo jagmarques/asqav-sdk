@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AsqavRefusedError } from "../../src/extras/_base.js";
 import { AsqavOpenAIAgentsAdapter } from "../../src/extras/openai-agents.js";
 import { makeFakeAgent, tick } from "../helpers/signStub.js";
@@ -18,6 +18,23 @@ async function makeOpenAITool(execute: (input: { city: string }) => Promise<unkn
     execute,
   } as never);
 }
+
+describe("AsqavOpenAIAgentsAdapter with the peer absent", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@openai/agents", () => {
+      throw new Error("Cannot find module '@openai/agents'");
+    });
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@openai/agents");
+  });
+
+  it("loadPeer() names the missing @openai/agents peer", async () => {
+    await expect(AsqavOpenAIAgentsAdapter.loadPeer()).rejects.toThrow(/@openai\/agents/);
+  });
+});
 
 describe("AsqavOpenAIAgentsAdapter against a current FunctionTool", () => {
   it("wraps the current FunctionTool invoke surface", async () => {
@@ -99,16 +116,23 @@ describe("AsqavOpenAIAgentsAdapter tool and guardrail wrappers", () => {
   });
 
   it("NEGCTL: an execute-only tool still runs once on an allowed signature", async () => {
-    const { agent, sign } = makeFakeAgent();
+    const { agent, calls, sign } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
     const execute = vi.fn(async (input: { city: string }) => input.city);
 
     const wrapped = adapter.wrapTool({ name: "echo", execute });
     const out = await wrapped.execute!({ city: "Porto" });
 
+    await tick();
     expect(out).toBe("Porto");
     expect(execute).toHaveBeenCalledTimes(1);
-    expect(sign.mock.calls.map((c) => c[0].actionType)).toEqual(["tool:start", "tool:end"]);
+    expect(sign).toHaveBeenCalledTimes(2);
+    expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:end"]);
+    expect(calls[0].context.tool).toBe("echo");
+    expect(calls[1].context.output_length).toBeGreaterThan(0);
+    // 787: the tool output travels as the receipt result
+    expect(calls[0].result).toBeUndefined();
+    expect(calls[1].result).toBe("Porto");
   });
 
   it("signs agent:input and agent:output via guardrail helpers", async () => {

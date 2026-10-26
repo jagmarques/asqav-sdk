@@ -217,7 +217,8 @@ Native adapters under `@asqav/sdk/extras/*`:
   `invoke` (or an execute-only `execute`). A refused signature throws before the tool runs.
 
 Outside observe mode, a refused or failed signature stops the wrapped tool; the adapters never run
-it and then report. Each adapter needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and
+it and then report. Tested with `ai` 7.0.153, `@mastra/core` 1.79.0 and `@openai/agents` 0.21.0,
+the pinned devDependencies. Each adapter needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and
 Haystack follow the same Hooks API; the Python SDK has the richer ecosystem. Parity status:
 [integrations](https://asqav.com/docs/integrations).
 

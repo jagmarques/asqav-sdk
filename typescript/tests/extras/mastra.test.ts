@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AsqavRefusedError } from "../../src/extras/_base.js";
 import { AsqavMastraHook } from "../../src/extras/mastra.js";
 import { makeFakeAgent, tick } from "../helpers/signStub.js";
@@ -62,6 +62,28 @@ describe("AsqavMastraHook signing", () => {
     expect(typeof calls[1].context.output_preview).toBe("string");
     expect(calls[0].result).toBeDefined();
     expect(calls[1].result).toBeDefined();
+  });
+});
+
+describe("AsqavMastraHook with the peer absent", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@mastra/core", () => {
+      throw new Error("Cannot find module '@mastra/core'");
+    });
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@mastra/core");
+  });
+
+  it("attach() names the missing @mastra/core peer", async () => {
+    const { AsqavMastraHook: Hook } = await import("../../src/extras/mastra.js");
+    const { agent } = makeFakeAgent();
+    const hook = new Hook({ agent });
+    await expect(
+      hook.attach({ listTools: async () => ({}), __setTools: () => undefined }),
+    ).rejects.toThrow(/@mastra\/core/);
   });
 });
 
