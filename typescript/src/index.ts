@@ -141,9 +141,6 @@ export type PolicyDecision = "permit" | "deny" | "rate_limit" | "none";
  * lifecycle receipts emitted under `policyDecision="none"` (IETF -04). */
 export type Decision = "allow" | "deny" | "rate_limit" | "observation";
 
-/** Decisions that refuse an action; adapters gate on these first. */
-export const REFUSED_DECISIONS: ReadonlySet<Decision> = new Set<Decision>(["deny", "rate_limit"]);
-
 /** Map an original `policyDecision` token to the spec-shape `decision`. The
  * `none -> observation` row is gated to lifecycle receipts on the cloud side. */
 export const DECISION_MAP: Readonly<Record<string, Decision>> = Object.freeze({
