@@ -98,33 +98,38 @@ describe.skipIf(!modernNode)("AsqavOpenAIAgentsAdapter against a current Functio
 });
 
 describe("AsqavOpenAIAgentsAdapter tool and guardrail wrappers", () => {
-  it("signs tool:error and re-throws for a legacy execute tool", async () => {
-    const { agent, calls } = makeFakeAgent();
+  it("signs tool:error and re-throws when the underlying tool fails", async () => {
+    const { agent, calls, sign } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
-    const wrapped = adapter.wrapTool({
-      name: "legacy",
+
+    const tool = {
+      name: "broken",
       execute: async () => {
         throw new Error("kaboom");
       },
-    });
-
-    await expect(wrapped.execute!({})).rejects.toThrow(/kaboom/);
+    };
+    const wrapped = adapter.wrapTool(tool);
+    await expect(wrapped.execute!(null)).rejects.toThrow(/kaboom/);
 
     await tick();
+    expect(sign).toHaveBeenCalledTimes(2);
     expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:error"]);
     expect(calls[1].context.error).toBe("kaboom");
+    // 787: the failure travels as the receipt result
+    expect(calls[1].result).toBe("Error: kaboom");
   });
 
-  it("still wraps a legacy execute-only tool", async () => {
-    const { agent } = makeFakeAgent();
+  it("NEGCTL: an execute-only tool still runs once on an allowed signature", async () => {
+    const { agent, sign } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
     const execute = vi.fn(async (input: { city: string }) => input.city);
 
-    const wrapped = adapter.wrapTool({ name: "legacy", execute });
+    const wrapped = adapter.wrapTool({ name: "echo", execute });
     const out = await wrapped.execute!({ city: "Porto" });
 
     expect(out).toBe("Porto");
     expect(execute).toHaveBeenCalledTimes(1);
+    expect(sign.mock.calls.map((c) => c[0].actionType)).toEqual(["tool:start", "tool:end"]);
   });
 
   it("signs agent:input and agent:output via guardrail helpers", async () => {
