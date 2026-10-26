@@ -57,10 +57,11 @@ export function assertSignedVerdict(verdict: unknown, actionType: string): void 
   }
   const v = verdict as SignVerdictLike;
   const sig = v.signature;
-  const hasSignature = typeof sig === "string"
-    ? sig.length > 0
-    : Boolean(sig && typeof sig === "object" && Object.keys(sig as object).length > 0);
-  if (!hasSignature || typeof v.signatureId !== "string" || v.signatureId.length === 0) {
+  const envelope = sig && typeof sig === "object" ? (sig as { sig?: unknown }) : undefined;
+  const sigBytes = typeof sig === "string"
+    ? sig
+    : typeof envelope?.sig === "string" ? envelope.sig : "";
+  if (sigBytes.length === 0 || typeof v.signatureId !== "string" || v.signatureId.length === 0) {
     throw new AsqavRefusedError(actionType, "sign did not return a signed receipt");
   }
   const rawDecision = v.decision ?? v.policyDecision;

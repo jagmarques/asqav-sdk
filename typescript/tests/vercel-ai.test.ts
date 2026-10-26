@@ -274,4 +274,45 @@ describe("fail-closed tool guard", () => {
 
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it("blocks an object signature with empty sig bytes before execute", async () => {
+    const { agent } = makeFakeAgent({
+      receipt: { signature: { alg: "ML-DSA-65", kid: "k1", sig: "" } },
+    });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("blocks an object signature without sig bytes before execute", async () => {
+    const { agent } = makeFakeAgent({
+      receipt: { signature: { alg: "ML-DSA-65", kid: "k1" } },
+    });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("NEGCTL: an allowed object signature runs the tool exactly once", async () => {
+    const { agent } = makeFakeAgent({
+      receipt: { signature: { alg: "ML-DSA-65", kid: "k1", sig: "c2lnLWJ5dGVz" } },
+    });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    const out = await wrapped.execute!({ city: "Lisbon" }, {});
+
+    expect(out).toEqual({ temp: 22 });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
 });
