@@ -310,9 +310,10 @@ describe("fail-closed tool guard", () => {
     const execute = vi.fn(async () => ({ temp: 22 }));
     const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
 
-    const out = await wrapped.execute!({ city: "Lisbon" }, {});
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).resolves.toEqual({ temp: 22 });
 
-    expect(out).toEqual({ temp: 22 });
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });
