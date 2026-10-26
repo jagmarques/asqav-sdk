@@ -1,28 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AsqavRefusedError } from "../../src/extras/_base.js";
 import { AsqavOpenAIAgentsAdapter } from "../../src/extras/openai-agents.js";
-import type { Agent } from "../../src/index.js";
-
-const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
-const modernNode = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 13);
-
-function makeFakeAgent(opts: { failWith?: Error } = {}) {
-  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (opts2: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: opts2.actionType, context: opts2.context ?? {}, result: opts2.result });
-    if (opts.failWith) throw opts.failWith;
-    return {
-      signature: "sig",
-      signatureId: "sig_1",
-      actionId: "act_1",
-      timestamp: "2026-01-01T00:00:00Z",
-      verificationUrl: "https://asqav.com/verify/sig_1",
-    };
-  });
-  return { agent: { agentId: "agt_fake", sign } as unknown as Agent, calls, sign };
-}
-
-const tick = () => new Promise((r) => setTimeout(r, 0));
+import { makeFakeAgent, tick } from "../helpers/signStub.js";
 
 async function makeOpenAITool(execute: (input: { city: string }) => Promise<unknown>): Promise<any> {
   const { tool } = await import("@openai/agents");
@@ -40,7 +19,7 @@ async function makeOpenAITool(execute: (input: { city: string }) => Promise<unkn
   } as never);
 }
 
-describe.skipIf(!modernNode)("AsqavOpenAIAgentsAdapter against a current FunctionTool", () => {
+describe("AsqavOpenAIAgentsAdapter against a current FunctionTool", () => {
   it("wraps the current FunctionTool invoke surface", async () => {
     const { agent, calls, sign } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
@@ -142,6 +121,7 @@ describe("AsqavOpenAIAgentsAdapter tool and guardrail wrappers", () => {
     await tick();
     expect(calls.map((c) => c.actionType)).toEqual(["agent:input", "agent:output"]);
     expect(calls[0].context.agent_name).toBe("agent-1");
+    expect(calls[1].context.output_length).toBeGreaterThan(0);
     expect(calls[1].result).toEqual({ answer: 42 });
   });
 });

@@ -2,7 +2,9 @@
 // wrapTools signs a tool call before execute and blocks when Asqav refuses
 
 import type { Agent } from "../index.js";
-import { assertSignedVerdict, toJsonSafeResult } from "./_base.js";
+import { signOrThrow, toJsonSafeResult } from "./_base.js";
+
+export { AsqavRefusedError as AsqavBlockedError } from "./_base.js";
 
 // Local copies of @opentelemetry/api 1.x types so users without OTel can still import this.
 
@@ -318,22 +320,6 @@ export interface AsqavGuardOptions {
   onError?: (err: unknown, context: { toolName: string }) => void;
 }
 
-/** Thrown when Asqav refuses a tool call; the tool never executes. */
-export class AsqavBlockedError extends Error {
-  readonly toolName: string;
-  readonly reason: string;
-
-  constructor(toolName: string, reason: string, cause?: unknown) {
-    super(
-      `Asqav blocked tool '${toolName}': ${reason}`,
-      cause === undefined ? undefined : { cause },
-    );
-    this.name = "AsqavBlockedError";
-    this.toolName = toolName;
-    this.reason = reason;
-  }
-}
-
 // Wrap a tool so Asqav signs before execute runs; a refused or failed
 // signature throws and the original tool is never called
 export function asqavGuard<T extends AiToolLike>(tool: T, options: AsqavGuardOptions): T {
@@ -347,20 +333,13 @@ export function asqavGuard<T extends AiToolLike>(tool: T, options: AsqavGuardOpt
   });
 
   const execute = async (input: unknown, execOptions: unknown): Promise<unknown> => {
-    try {
-      const verdict = await options.agent.sign({
-        actionType: `tool:start:${toolName}`,
-        context: { tool_name: toolName, input },
-      });
-      assertSignedVerdict(verdict, `tool:start:${toolName}`);
-    } catch (err) {
-      onError(err, { toolName });
-      throw new AsqavBlockedError(
-        toolName,
-        err instanceof Error ? err.message : String(err),
-        err,
-      );
-    }
+    const actionType = `tool:start:${toolName}`;
+    const context = { tool_name: toolName, input };
+    await signOrThrow(
+      { actionType, context },
+      () => options.agent.sign({ actionType, context }),
+      (err) => onError(err, { toolName }),
+    );
     return original(input, execOptions);
   };
 

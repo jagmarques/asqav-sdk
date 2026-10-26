@@ -1,28 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AsqavRefusedError } from "../../src/extras/_base.js";
 import { AsqavMastraHook } from "../../src/extras/mastra.js";
-import type { Agent as AsqavAgent } from "../../src/index.js";
-
-const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
-const modernNode = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 13);
-
-function makeFakeAgent(opts: { failWith?: Error } = {}) {
-  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {}, result: signOpts.result });
-    if (opts.failWith) throw opts.failWith;
-    return {
-      signature: "sig",
-      signatureId: "sig_1",
-      actionId: "act_1",
-      timestamp: "2026-01-01T00:00:00Z",
-      verificationUrl: "https://asqav.com/verify/sig_1",
-    };
-  });
-  return { agent: { agentId: "agt_fake", sign } as unknown as AsqavAgent, calls, sign };
-}
-
-const tick = () => new Promise((r) => setTimeout(r, 0));
+import { makeFakeAgent, tick } from "../helpers/signStub.js";
 
 async function makeMastraAgent(execute: () => Promise<unknown>): Promise<any> {
   const [{ Agent }, { createTool }] = await Promise.all([
@@ -86,7 +65,7 @@ describe("AsqavMastraHook signing", () => {
   });
 });
 
-describe.skipIf(!modernNode)("AsqavMastraHook against a current @mastra/core Agent", () => {
+describe("AsqavMastraHook against a current @mastra/core Agent", () => {
   it("rejects an object that is not a current Mastra Agent", async () => {
     const { agent } = makeFakeAgent();
     const hook = new AsqavMastraHook({ agent });

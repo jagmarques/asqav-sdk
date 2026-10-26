@@ -1,5 +1,5 @@
 // Mastra integration. Gates tool calls through current hooks or wrapped tools
-// Every call is signed before it runs; a refusal stops it. See the README
+// Unless observe is set, each call signs before it runs; a refusal stops it
 
 import {
   AsqavAdapter,

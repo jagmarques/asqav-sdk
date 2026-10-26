@@ -8,7 +8,10 @@ export {
   AsqavRefusedError,
   assertSignedVerdict,
   raiseMissingPeer,
+  signOrThrow,
   type AsqavAdapterOptions,
+  type AsqavErrorReporter,
+  type SignActionInput,
 } from "./_base.js";
 export { AsqavCallbackHandler, enableLangchainGovernance } from "./langchain.js";
 export type { AsqavCallbackHandlerOptions } from "./langchain.js";

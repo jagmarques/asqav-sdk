@@ -8,31 +8,7 @@ import {
   type Span,
 } from "../src/extras/vercel-ai.js";
 import type { Agent } from "../src/index.js";
-
-const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
-const modernNode = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 13);
-
-/** Fake Asqav `Agent` whose `sign` records every call; no real client, no
- * network, no init(), so these tests stay hermetic */
-function makeFakeAgent(opts: { failWith?: Error } = {}) {
-  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {}, result: signOpts.result });
-    if (opts.failWith) throw opts.failWith;
-    return {
-      signature: "sig-bytes",
-      signatureId: "sig_1",
-      actionId: "act_1",
-      timestamp: "2026-01-01T00:00:00Z",
-      verificationUrl: "https://asqav.com/verify/sig_1",
-    };
-  });
-  const agent = { agentId: "agt_fake", sign } as unknown as Agent;
-  return { agent, calls, sign };
-}
-
-// Lets fire-and-forget promises resolve
-const tick = () => new Promise((r) => setTimeout(r, 0));
+import { makeFakeAgent, tick } from "./helpers/signStub.js";
 
 describe("mapSpanNameToActionType", () => {
   it("maps known AI SDK span names", () => {
@@ -207,7 +183,7 @@ async function makeAiTool(
   };
 }
 
-describe.skipIf(!modernNode)("fail-closed tool guard", () => {
+describe("fail-closed tool guard", () => {
   it("ACCEPT: a refused signature stops the tool and raises", async () => {
     const { agent, sign } = makeFakeAgent({ failWith: new Error("policy denied") });
     const execute = vi.fn(async () => ({ temp: 22 }));

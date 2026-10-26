@@ -214,10 +214,10 @@ Native adapters under `@asqav/sdk/extras/*`:
 - **Mastra**: `AsqavMastraHook`, attached to a Mastra agent or passed as `hooks`. Its
   `beforeToolCall` awaits the signature and a refusal throws before the tool runs.
 - **OpenAI Agents JS**: `AsqavOpenAIAgentsAdapter.wrapTool`, wrapping the tool's current
-  `invoke` (or a legacy `execute`). A refused signature throws before the tool runs.
+  `invoke` (or an execute-only `execute`). A refused signature throws before the tool runs.
 
-A refused or failed signature always stops the wrapped tool; the adapters never run it and then
-report. Each adapter needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and
+Outside observe mode, a refused or failed signature stops the wrapped tool; the adapters never run
+it and then report. Each adapter needs its framework as a peer dependency. CrewAI, LiteLLM, LlamaIndex and
 Haystack follow the same Hooks API; the Python SDK has the richer ecosystem. Parity status:
 [integrations](https://asqav.com/docs/integrations).
 

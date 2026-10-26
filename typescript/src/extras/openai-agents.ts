@@ -1,5 +1,5 @@
-// OpenAI Agents JS integration. Wraps the current FunctionTool invoke (or a
-// legacy execute) so Asqav signs before the tool runs; a refusal throws
+// OpenAI Agents JS integration. Wraps the current FunctionTool invoke (or an
+// execute-only tool) so a sign precedes the body unless observe; refusal throws
 
 import { AsqavAdapter, raiseMissingPeer, safeStringify, type AsqavAdapterOptions } from "./_base.js";
 

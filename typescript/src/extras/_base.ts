@@ -1,7 +1,8 @@
 // Base adapter for Asqav framework integrations, mirroring Python extras
 // Provides post-execution signAction and fail-closed signActionOrThrow
 
-import { Agent } from "../index.js";
+import { Agent, REFUSED_DECISIONS } from "../index.js";
+import type { Decision } from "../index.js";
 
 export { safeStringify, toJsonSafeResult } from "../jcs.js";
 
@@ -22,12 +23,14 @@ export interface AsqavAdapterOptions {
   observe?: boolean;
 }
 
-interface SignActionInput {
+export interface SignActionInput {
   actionType: string;
   context?: Record<string, unknown>;
   /** Completion value; its digest is default-sent (787). */
   result?: unknown;
 }
+
+export type AsqavErrorReporter = (err: unknown, context: { actionType: string }) => void;
 
 /** A pre-execution gate refused the action; the wrapped tool must not run. */
 export class AsqavRefusedError extends Error {
@@ -61,16 +64,31 @@ export function assertSignedVerdict(verdict: unknown, actionType: string): void 
   if (!hasSignature || typeof v.signatureId !== "string" || v.signatureId.length === 0) {
     throw new AsqavRefusedError(actionType, "sign did not return a signed receipt");
   }
-  if (
-    v.policyDecision === "deny"
-    || v.policyDecision === "rate_limit"
-    || v.decision === "deny"
-    || v.decision === "blocked"
-  ) {
-    throw new AsqavRefusedError(
-      actionType,
-      `policy ${v.policyDecision ?? v.decision}`,
-    );
+  const decision = (v.decision ?? v.policyDecision) as Decision | undefined;
+  if (decision !== undefined && REFUSED_DECISIONS.has(decision)) {
+    throw new AsqavRefusedError(actionType, `policy ${decision}`);
+  }
+}
+
+// Run one sign and throw unless the verdict permits; report the failure first
+// A handler that throws cannot hide the refusal it was told about
+export async function signOrThrow(
+  input: SignActionInput,
+  sign: () => Promise<unknown>,
+  onError: AsqavErrorReporter = defaultOnError,
+): Promise<void> {
+  try {
+    assertSignedVerdict(await sign(), input.actionType);
+  } catch (err) {
+    try {
+      onError(err, { actionType: input.actionType });
+    } catch (handlerErr) {
+      // A failing error sink must not replace the refusal it reported
+      console.warn("[asqav] onError handler failed:", handlerErr);
+    }
+    throw err instanceof AsqavRefusedError
+      ? err
+      : new AsqavRefusedError(input.actionType, err instanceof Error ? err.message : String(err), err);
   }
 }
 
@@ -150,30 +168,26 @@ export class AsqavAdapter {
     })();
   }
 
-  // Sign before a tool runs. Resolves only for a signed, permitting verdict;
-  // any failure or refusal is reported through options.onError and rethrown
+  // Sign before a tool runs. Unless observe is set, resolves only for a
+  // signed, permitting verdict; a failure is reported and then thrown
   protected async signActionOrThrow(input: SignActionInput): Promise<void> {
-    const onError = this.options.onError ?? defaultOnError;
-
     if (this.options.observe) {
       console.info(`[asqav] OBSERVE: would sign ${input.actionType}`, input.context ?? {});
       return;
     }
 
-    try {
-      const agent = await this.resolveAgent();
-      const verdict = await agent.sign({
-        actionType: input.actionType,
-        context: input.context,
-        ...(input.result !== undefined ? { result: input.result as never } : {}),
-      });
-      assertSignedVerdict(verdict, input.actionType);
-    } catch (err) {
-      onError(err, { actionType: input.actionType });
-      throw err instanceof AsqavRefusedError
-        ? err
-        : new AsqavRefusedError(input.actionType, err instanceof Error ? err.message : String(err), err);
-    }
+    await signOrThrow(
+      input,
+      async () => {
+        const agent = await this.resolveAgent();
+        return agent.sign({
+          actionType: input.actionType,
+          context: input.context,
+          ...(input.result !== undefined ? { result: input.result as never } : {}),
+        });
+      },
+      this.options.onError ?? defaultOnError,
+    );
   }
 }
 
