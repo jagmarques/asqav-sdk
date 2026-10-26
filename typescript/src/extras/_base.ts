@@ -156,7 +156,7 @@ export class AsqavAdapter {
         await agent.sign({
           actionType: input.actionType,
           context: input.context,
-          ...(input.result !== undefined ? { result: input.result as never } : {}),
+          result: input.result as never,
         });
       } catch (err) {
         try {
@@ -183,7 +183,7 @@ export class AsqavAdapter {
         return agent.sign({
           actionType: input.actionType,
           context: input.context,
-          ...(input.result !== undefined ? { result: input.result as never } : {}),
+          result: input.result as never,
         });
       },
       this.options.onError ?? defaultOnError,
