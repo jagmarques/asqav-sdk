@@ -183,16 +183,15 @@ async function makeAiTool(
   };
 }
 
-async function expectBlockedBeforeExecute(receipt: Record<string, unknown>): Promise<void> {
+async function refusedBeforeExecute(receipt: Record<string, unknown>): Promise<Error> {
   const { agent } = makeFakeAgent({ receipt });
   const execute = vi.fn(async () => ({ temp: 22 }));
   const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
 
-  await expect(
-    wrapped.execute!({ city: "Lisbon" }, {}),
-  ).rejects.toBeInstanceOf(AsqavBlockedError);
-
+  const err = await wrapped.execute!({ city: "Lisbon" }, {}).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(AsqavBlockedError);
   expect(execute).not.toHaveBeenCalled();
+  return err as Error;
 }
 
 describe("fail-closed tool guard", () => {
@@ -240,27 +239,33 @@ describe("fail-closed tool guard", () => {
   });
 
   it("blocks a signed deny decision before execute", async () => {
-    await expectBlockedBeforeExecute({ decision: "deny" });
+    const err = await refusedBeforeExecute({ decision: "deny" });
+    expect(err.message).toContain("policy deny");
   });
 
   it("blocks an upper-case DENY decision before execute", async () => {
-    await expectBlockedBeforeExecute({ decision: "DENY" });
+    const err = await refusedBeforeExecute({ decision: "DENY" });
+    expect(err.message).toContain("policy deny");
   });
 
   it("blocks a signed deny policyDecision before execute", async () => {
-    await expectBlockedBeforeExecute({ policyDecision: "deny" });
+    const err = await refusedBeforeExecute({ policyDecision: "deny" });
+    expect(err.message).toContain("policy deny");
   });
 
   it("blocks a signed rate_limit decision before execute", async () => {
-    await expectBlockedBeforeExecute({ decision: "rate_limit" });
+    const err = await refusedBeforeExecute({ decision: "rate_limit" });
+    expect(err.message).toContain("policy rate_limit");
   });
 
   it("blocks an object signature with empty sig bytes before execute", async () => {
-    await expectBlockedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1", sig: "" } });
+    const err = await refusedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1", sig: "" } });
+    expect(err.message).toContain("signed receipt");
   });
 
   it("blocks an object signature without sig bytes before execute", async () => {
-    await expectBlockedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1" } });
+    const err = await refusedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1" } });
+    expect(err.message).toContain("signed receipt");
   });
 
   it("NEGCTL: an allowed object signature runs the tool exactly once", async () => {
