@@ -1,62 +1,90 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AsqavRefusedError } from "../../src/extras/_base.js";
 import { AsqavOpenAIAgentsAdapter } from "../../src/extras/openai-agents.js";
-import type { Agent } from "../../src/index.js";
+import { makeFakeAgent, tick } from "../helpers/signStub.js";
 
-function makeFakeAgent() {
-  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: opts.actionType, context: opts.context ?? {}, result: opts.result });
-    return {
-      signature: "sig",
-      signatureId: "sig_1",
-      actionId: "act_1",
-      timestamp: "2026-01-01T00:00:00Z",
-      verificationUrl: "https://asqav.com/verify/sig_1",
-    };
-  });
-  return { agent: { agentId: "agt_fake", sign } as unknown as Agent, calls, sign };
+async function makeOpenAITool(execute: (input: { city: string }) => Promise<unknown>): Promise<any> {
+  const { tool } = await import("@openai/agents");
+  return tool({
+    name: "weather",
+    description: "weather for a city",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: { city: { type: "string" } },
+      required: ["city"],
+      additionalProperties: false,
+    },
+    execute,
+  } as never);
 }
 
-const tick = () => new Promise((r) => setTimeout(r, 0));
-
-describe("AsqavOpenAIAgentsAdapter without @openai/agents installed", () => {
-  it("loadPeer() throws a clear ImportError", async () => {
-    await expect(AsqavOpenAIAgentsAdapter.loadPeer()).rejects.toThrow(/@openai\/agents/);
-  });
-});
-
-describe("AsqavOpenAIAgentsAdapter wrapTool + guardrail hooks", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.doMock("@openai/agents", () => ({ __openaiAgentsStub: true }));
-  });
-
-  afterEach(() => {
-    vi.doUnmock("@openai/agents");
-  });
-
-  it("signs tool:start and tool:end around a successful tool execute", async () => {
+describe("AsqavOpenAIAgentsAdapter against a current FunctionTool", () => {
+  it("wraps the current FunctionTool invoke surface and names a missing peer", async () => {
+    vi.doMock("@openai/agents", () => {
+      throw new Error("Cannot find module '@openai/agents'");
+    });
+    try {
+      await expect(AsqavOpenAIAgentsAdapter.loadPeer()).rejects.toThrow(/@openai\/agents/);
+    } finally {
+      vi.doUnmock("@openai/agents");
+    }
     const { agent, calls, sign } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
+    const execute = vi.fn(async (input: { city: string }) => `hi ${input.city}`);
 
-    const tool = {
-      name: "weather",
-      execute: async (input: { city: string }) => ({ city: input.city, temp: 22 }),
-    };
-    const wrapped = adapter.wrapTool(tool);
-    const out = await wrapped.execute!({ city: "Lisbon" });
+    const wrapped = adapter.wrapTool(await makeOpenAITool(execute));
+    const out = await wrapped.invoke!({}, JSON.stringify({ city: "Lisbon" }));
 
-    await tick();
-    expect(out).toEqual({ city: "Lisbon", temp: 22 });
+    expect(out).toBe("hi Lisbon");
+    expect(execute).toHaveBeenCalledTimes(1);
     expect(sign).toHaveBeenCalledTimes(2);
     expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:end"]);
     expect(calls[0].context.tool).toBe("weather");
-    expect(calls[1].context.output_length).toBeGreaterThan(0);
-    // 787: the tool output travels as the receipt result
-    expect(calls[0].result).toBeUndefined();
-    expect(calls[1].result).toEqual({ city: "Lisbon", temp: 22 });
   });
 
+  it("ACCEPT: a refused signature stops the tool and raises", async () => {
+    const { agent, sign } = makeFakeAgent({ failWith: new Error("policy denied") });
+    const adapter = new AsqavOpenAIAgentsAdapter({ agent });
+    const execute = vi.fn(async () => "ran");
+
+    const wrapped = adapter.wrapTool(await makeOpenAITool(execute));
+
+    await expect(
+      wrapped.invoke!({}, JSON.stringify({ city: "Lisbon" })),
+    ).rejects.toBeInstanceOf(AsqavRefusedError);
+    expect(execute).not.toHaveBeenCalled();
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
+
+  it("NEGCTL: an allowed signature runs the tool exactly once", async () => {
+    const { agent, sign } = makeFakeAgent();
+    const adapter = new AsqavOpenAIAgentsAdapter({ agent });
+    const execute = vi.fn(async (input: { city: string }) => ({ city: input.city }));
+
+    const wrapped = adapter.wrapTool(await makeOpenAITool(execute));
+    const out = await wrapped.invoke!({}, JSON.stringify({ city: "Lisbon" }));
+
+    expect(out).toEqual({ city: "Lisbon" });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(sign).toHaveBeenCalledTimes(2);
+  });
+
+  it("records the framework's error result from a FunctionTool", async () => {
+    const { agent, calls } = makeFakeAgent();
+    const adapter = new AsqavOpenAIAgentsAdapter({ agent });
+    const wrapped = adapter.wrapTool(await makeOpenAITool(async () => {
+      throw new Error("kaboom");
+    }));
+
+    const out = await wrapped.invoke!({}, JSON.stringify({ city: "Lisbon" }));
+
+    expect(String(out)).toMatch(/error occurred/i);
+    expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:end"]);
+  });
+});
+
+describe("AsqavOpenAIAgentsAdapter tool and guardrail wrappers", () => {
   it("signs tool:error and re-throws when the underlying tool fails", async () => {
     const { agent, calls, sign } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
@@ -78,6 +106,26 @@ describe("AsqavOpenAIAgentsAdapter wrapTool + guardrail hooks", () => {
     expect(calls[1].result).toBe("Error: kaboom");
   });
 
+  it("NEGCTL: an execute-only tool still runs once on an allowed signature", async () => {
+    const { agent, calls, sign } = makeFakeAgent();
+    const adapter = new AsqavOpenAIAgentsAdapter({ agent });
+    const execute = vi.fn(async (input: { city: string }) => input.city);
+
+    const wrapped = adapter.wrapTool({ name: "echo", execute });
+    const out = await wrapped.execute!({ city: "Porto" });
+
+    await tick();
+    expect(out).toBe("Porto");
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(sign).toHaveBeenCalledTimes(2);
+    expect(calls.map((c) => c.actionType)).toEqual(["tool:start", "tool:end"]);
+    expect(calls[0].context.tool).toBe("echo");
+    expect(calls[1].context.output_length).toBeGreaterThan(0);
+    // 787: the tool output travels as the receipt result
+    expect(calls[0].result).toBeUndefined();
+    expect(calls[1].result).toBe("Porto");
+  });
+
   it("signs agent:input and agent:output via guardrail helpers", async () => {
     const { agent, calls } = makeFakeAgent();
     const adapter = new AsqavOpenAIAgentsAdapter({ agent });
@@ -89,7 +137,6 @@ describe("AsqavOpenAIAgentsAdapter wrapTool + guardrail hooks", () => {
     expect(calls.map((c) => c.actionType)).toEqual(["agent:input", "agent:output"]);
     expect(calls[0].context.agent_name).toBe("agent-1");
     expect(calls[1].context.output_length).toBeGreaterThan(0);
-    // 787: the guardrail output travels as the receipt result
     expect(calls[1].result).toEqual({ answer: 42 });
   });
 });

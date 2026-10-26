@@ -1,10 +1,10 @@
-/**
- * Vercel AI SDK adapter. Wires Asqav signing into `experimental_telemetry: { tracer }`, so every
- * span the AI SDK opens becomes an asqav signature on `span.end()`. See the README for usage.
- */
+// Vercel AI SDK adapter. createAsqavExporter signs spans on span.end();
+// wrapTools signs a tool call before execute and blocks when Asqav refuses
 
 import type { Agent } from "../index.js";
-import { toJsonSafeResult } from "./_base.js";
+import { signOrThrow, toJsonSafeResult } from "./_base.js";
+
+export { AsqavRefusedError as AsqavBlockedError } from "./_base.js";
 
 // Local copies of @opentelemetry/api 1.x types so users without OTel can still import this.
 
@@ -301,6 +301,64 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
   };
 
   return tracer;
+}
+
+// === Fail-closed tool guard ===
+
+// Minimal old AI SDK tool shape. Versions 3-6 name the schema parameters or
+// inputSchema; the guard never reads it and wraps execute only
+export interface AiToolLike {
+  execute?: (...args: any[]) => unknown;
+}
+
+export interface AsqavGuardOptions {
+  /** Pre-built Asqav Agent; the guard signs with it before the tool runs */
+  agent: Agent;
+  /** Tool name on the receipt; defaults to "tool" or the wrapTools key */
+  toolName?: string;
+  /** Error sink for a refused or failed sign. Defaults to `console.warn`. */
+  onError?: (err: unknown, context: { toolName: string }) => void;
+}
+
+// Wrap a tool so Asqav signs before execute runs; a refused or failed
+// signature throws and the original tool is never called
+export function asqavGuard<T extends AiToolLike>(tool: T, options: AsqavGuardOptions): T {
+  if (typeof tool.execute !== "function") {
+    return tool;
+  }
+  const original = tool.execute.bind(tool);
+  const toolName = options.toolName ?? "tool";
+  const onError = options.onError ?? ((err, ctx) => {
+    console.warn(`[asqav/vercel-ai] sign failed for tool '${ctx.toolName}':`, err);
+  });
+
+  const execute = async (input: unknown, execOptions: unknown): Promise<unknown> => {
+    const actionType = `tool:start:${toolName}`;
+    const context = { tool_name: toolName, input };
+    await signOrThrow(
+      { actionType, context },
+      () => options.agent.sign({ actionType, context }),
+      (err) => onError(err, { toolName }),
+    );
+    return original(input, execOptions);
+  };
+
+  return { ...tool, execute };
+}
+
+/** Wrap every tool in a set; each key becomes its receipt toolName */
+export function wrapTools<T extends Record<string, AiToolLike>>(
+  tools: T,
+  options: AsqavGuardOptions,
+): T {
+  const out: Record<string, AiToolLike> = {};
+  for (const [name, tool] of Object.entries(tools)) {
+    out[name] = asqavGuard(tool, {
+      ...options,
+      toolName: options.toolName ?? name,
+    });
+  }
+  return out as T;
 }
 
 // Exported for tests.

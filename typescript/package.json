@@ -103,7 +103,10 @@
     }
   },
   "devDependencies": {
+    "@mastra/core": "1.79.0",
+    "@openai/agents": "0.21.0",
     "@types/node": "^22.0.0",
+    "ai": "7.0.153",
     "esbuild": "^0.28.1",
     "jose": "^6.2.12",
     "tsup": "^8.5.0",

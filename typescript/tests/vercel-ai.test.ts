@@ -1,32 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  AsqavBlockedError,
+  asqavGuard,
   createAsqavExporter,
   mapSpanNameToActionType,
+  wrapTools,
   type Span,
 } from "../src/extras/vercel-ai.js";
 import type { Agent } from "../src/index.js";
-
-/** Fake Asqav `Agent` whose `sign` records every call; no real client, no
- * network, no init(), so these tests stay hermetic */
-function makeFakeAgent(opts: { failWith?: Error } = {}) {
-  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (signOpts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: signOpts.actionType, context: signOpts.context ?? {}, result: signOpts.result });
-    if (opts.failWith) throw opts.failWith;
-    return {
-      signature: "sig-bytes",
-      signatureId: "sig_1",
-      actionId: "act_1",
-      timestamp: "2026-01-01T00:00:00Z",
-      verificationUrl: "https://asqav.com/verify/sig_1",
-    };
-  });
-  const agent = { agentId: "agt_fake", sign } as unknown as Agent;
-  return { agent, calls, sign };
-}
-
-// Lets fire-and-forget promises resolve
-const tick = () => new Promise((r) => setTimeout(r, 0));
+import { makeFakeAgent, tick } from "./helpers/signStub.js";
 
 describe("mapSpanNameToActionType", () => {
   it("maps known AI SDK span names", () => {
@@ -179,5 +161,124 @@ describe("startActiveSpan", () => {
 
     await tick();
     expect(calls[0].actionType).toBe("ai:error");
+  });
+});
+
+async function makeAiTool(
+  execute: (input: { city: string }, options: unknown) => Promise<unknown>,
+) {
+  const { jsonSchema, tool } = await import("ai");
+  const built = tool({
+    description: "echo a city",
+    inputSchema: jsonSchema({
+      type: "object",
+      properties: { city: { type: "string" } },
+      required: ["city"],
+      additionalProperties: false,
+    }),
+    execute,
+  } as never);
+  return built as unknown as {
+    execute?: (input: { city: string }, options: unknown) => Promise<unknown>;
+  };
+}
+
+async function refusedBeforeExecute(receipt: Record<string, unknown>): Promise<Error> {
+  const { agent } = makeFakeAgent({ receipt });
+  const execute = vi.fn(async () => ({ temp: 22 }));
+  const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+  const err = await wrapped.execute!({ city: "Lisbon" }, {}).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(AsqavBlockedError);
+  expect(execute).not.toHaveBeenCalled();
+  return err as Error;
+}
+
+describe("fail-closed tool guard", () => {
+  it("ACCEPT: a refused signature stops the tool and raises", async () => {
+    const { agent, sign } = makeFakeAgent({ failWith: new Error("policy denied") });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
+
+  it("NEGCTL: an allowed signature runs the tool exactly once", async () => {
+    const { agent, sign } = makeFakeAgent();
+    const execute = vi.fn(async (input: { city: string }) => ({
+      city: input.city,
+      temp: 22,
+    }));
+    const wrapped = wrapTools({ weather: await makeAiTool(execute) }, { agent });
+
+    const out = await wrapped.weather.execute!({ city: "Lisbon" }, {});
+
+    expect(out).toEqual({ city: "Lisbon", temp: 22 });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks a non-signed verdict before execute", async () => {
+    const agent = {
+      agentId: "agt_fake",
+      sign: vi.fn(async () => ({})),
+    } as unknown as Agent;
+    const execute = vi.fn(async () => ({ ok: true }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).rejects.toBeInstanceOf(AsqavBlockedError);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("blocks a signed deny decision before execute", async () => {
+    const err = await refusedBeforeExecute({ decision: "deny" });
+    expect(err.message).toContain("policy deny");
+  });
+
+  it("blocks an upper-case DENY decision before execute", async () => {
+    const err = await refusedBeforeExecute({ decision: "DENY" });
+    expect(err.message).toContain("policy deny");
+  });
+
+  it("blocks a signed deny policyDecision before execute", async () => {
+    const err = await refusedBeforeExecute({ policyDecision: "deny" });
+    expect(err.message).toContain("policy deny");
+  });
+
+  it("blocks a signed rate_limit decision before execute", async () => {
+    const err = await refusedBeforeExecute({ decision: "rate_limit" });
+    expect(err.message).toContain("policy rate_limit");
+  });
+
+  it("blocks an object signature with empty sig bytes before execute", async () => {
+    const err = await refusedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1", sig: "" } });
+    expect(err.message).toContain("signed receipt");
+  });
+
+  it("blocks an object signature without sig bytes before execute", async () => {
+    const err = await refusedBeforeExecute({ signature: { alg: "ML-DSA-65", kid: "k1" } });
+    expect(err.message).toContain("signed receipt");
+  });
+
+  it("NEGCTL: an allowed object signature runs the tool exactly once", async () => {
+    const { agent } = makeFakeAgent({
+      receipt: { signature: { alg: "ML-DSA-65", kid: "k1", sig: "c2lnLWJ5dGVz" } },
+    });
+    const execute = vi.fn(async () => ({ temp: 22 }));
+    const wrapped = asqavGuard(await makeAiTool(execute), { agent, toolName: "weather" });
+
+    await expect(
+      wrapped.execute!({ city: "Lisbon" }, {}),
+    ).resolves.toEqual({ temp: 22 });
+
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,23 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent } from "../../src/index.js";
-
-// Fake agent: no init() or network
-function makeFakeAgent() {
-  const calls: Array<{ actionType: string; context: Record<string, unknown>; result?: unknown }> = [];
-  const sign = vi.fn(async (opts: { actionType: string; context?: Record<string, unknown>; result?: unknown }) => {
-    calls.push({ actionType: opts.actionType, context: opts.context ?? {}, result: opts.result });
-    return {
-      signature: "sig",
-      signatureId: "sig_1",
-      actionId: "act_1",
-      timestamp: "2026-01-01T00:00:00Z",
-      verificationUrl: "https://asqav.com/verify/sig_1",
-    };
-  });
-  return { agent: { agentId: "agt_fake", sign } as unknown as Agent, calls, sign };
-}
-
-const tick = () => new Promise((r) => setTimeout(r, 0));
+import { makeFakeAgent, tick } from "../helpers/signStub.js";
 
 describe("AsqavCallbackHandler without @langchain/core installed", () => {
   it("throws a clear ImportError when create() is called", async () => {
