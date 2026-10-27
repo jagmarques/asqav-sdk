@@ -1,0 +1,72 @@
+{
+  "jwks": {
+    "keys": [
+      {
+        "kid": "flat-hash-prev-link-key",
+        "issuer_id": "Asqav Ltd",
+        "org_id": "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38",
+        "alg": "Ed25519",
+        "status": "active",
+        "public_key": "6sld/JA/S6jzGe6vHgCqDn25FWg3uLkW9a+rbpii7ig="
+      }
+    ]
+  },
+  "receipts": {
+    "linked": {
+      "v": 1,
+      "mode": "hash",
+      "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hash_algo": "sha256",
+      "metadata": {},
+      "server_timestamp": "2026-06-19T00:00:00.000000Z",
+      "action_id": "act_flat_prev_link",
+      "agent_id": "agt_flat_prev_link",
+      "org_id": "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38",
+      "policy_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "policy_decision": "allow",
+      "previous_receipt_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "key_id": "flat-hash-prev-link-key",
+      "algorithm": "Ed25519",
+      "payload": null,
+      "anchors": [],
+      "signature_b64": "KU1HTKVFJwF8t9f7LEboe7tHR14IbXgXp7k9G2lckPO1FQ53TI5kUKW7T5QNe9Qr3dDM0YHfiSsXagr0+TSaBQ=="
+    },
+    "null_link": {
+      "v": 1,
+      "mode": "hash",
+      "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hash_algo": "sha256",
+      "metadata": {},
+      "server_timestamp": "2026-06-19T00:00:00.000000Z",
+      "action_id": "act_flat_prev_link",
+      "agent_id": "agt_flat_prev_link",
+      "org_id": "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38",
+      "policy_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "policy_decision": "allow",
+      "previous_receipt_hash": null,
+      "key_id": "flat-hash-prev-link-key",
+      "algorithm": "Ed25519",
+      "payload": null,
+      "anchors": [],
+      "signature_b64": "2tBoD7BNa1++1C4FmuyyocopZIVJJwR8MPUC8TcyGuVW3RnYhgx1oyh8xaGF1HrNgKaLKvCWc91X6ttXibppBQ=="
+    },
+    "legacy": {
+      "v": 1,
+      "mode": "hash",
+      "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hash_algo": "sha256",
+      "metadata": {},
+      "server_timestamp": "2026-06-19T00:00:00.000000Z",
+      "action_id": "act_flat_prev_link",
+      "agent_id": "agt_flat_prev_link",
+      "org_id": "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38",
+      "policy_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "policy_decision": "allow",
+      "key_id": "flat-hash-prev-link-key",
+      "algorithm": "Ed25519",
+      "payload": null,
+      "anchors": [],
+      "signature_b64": "3UYqMD3FYpKxs8fQNlgX29uY0VJGx/ptFA4BRhF4jhgvapjt49EiqvbCqp71qS2lDnLcL1gFytBHqddcyusTBg=="
+    }
+  }
+}
