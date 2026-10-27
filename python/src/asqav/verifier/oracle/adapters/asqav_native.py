@@ -19,20 +19,8 @@ from ..canonical import asqav_jcs
 from ..core import sha256_hex
 from .acta import _is_lower_hex
 
-#: Fields the cloud's hash-mode signer canonicalises, in signer order.
-_HASH_MODE_FIELDS = (
-    "v",
-    "mode",
-    "hash",
-    "hash_algo",
-    "metadata",
-    "server_timestamp",
-    "action_id",
-    "agent_id",
-    "org_id",
-    "policy_digest",
-    "policy_decision",
-)
+#: Fields a hash-mode receipt must carry; the link is signed but never required.
+_HASH_MODE_FIELDS = _vr._FLAT_SIGNED_LEGACY
 
 
 #: Claims belonging to the signed payload; hash mode signs the flat fields only,
@@ -76,21 +64,14 @@ def _payload(doc: dict) -> dict:
 
     # The flat object the cloud's hash-mode path signs, before canonicalisation.
 def _flat_signed_fields(doc: dict) -> dict:
-    return {
-        # The displayed v binds the signature: a relabelled copy rebuilds
-        # different bytes and fails crypto, it never inherits the old PASS.
-        "v": doc.get("v"),
-        "mode": "hash",
-        "hash": doc.get("hash"),
-        "hash_algo": doc.get("hash_algo") or "sha256",
-        "metadata": doc.get("metadata") or {},
-        "server_timestamp": doc.get("server_timestamp"),
-        "action_id": doc.get("action_id"),
-        "agent_id": doc.get("agent_id"),
-        "org_id": doc.get("org_id"),
-        "policy_digest": doc.get("policy_digest"),
-        "policy_decision": doc.get("policy_decision"),
-    }
+    # v binds the signature: a relabelled copy rebuilds bytes and fails crypto;
+    # a present link is signed (null included), an absent one is legacy.
+    fields = {name: doc.get(name) for name in _vr.flat_signed_names(doc)}
+    # Signer defaults rebuild the bytes when a receipt omits them.
+    fields["mode"] = "hash"
+    fields["hash_algo"] = doc.get("hash_algo") or "sha256"
+    fields["metadata"] = doc.get("metadata") or {}
+    return fields
 
 
     # Decode signature; b'' on bad input so verify FAILs, never crashes.

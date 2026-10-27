@@ -2186,10 +2186,21 @@ def _stray_outcomes(raw: dict, payload: dict, sig_obj: dict) -> list:
 
 
 #: Fields a flat hash-mode receipt signs; every other member of one is unsigned.
-_FLAT_SIGNED = frozenset((
+_FLAT_SIGNED = (
     "v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id",
-    "agent_id", "org_id", "policy_digest", "policy_decision",
-))
+    "agent_id", "org_id", "policy_digest", "policy_decision", "previous_receipt_hash",
+)
+
+#: A pre-#1700 receipt signs the same fields minus the previous link.
+_FLAT_SIGNED_LEGACY = _FLAT_SIGNED[:-1]
+
+
+def flat_signed_names(raw: dict) -> tuple:
+    """The fields a flat receipt signs. A present link key is signed even
+    null; without it the receipt rebuilds the 11 fields it signed."""
+    if "previous_receipt_hash" in raw:
+        return _FLAT_SIGNED
+    return _FLAT_SIGNED_LEGACY
 
 #: Framing a flat receipt's checks read: algorithm and anchors.
 _FLAT_FRAMING = frozenset(("anchors", "algorithm"))
