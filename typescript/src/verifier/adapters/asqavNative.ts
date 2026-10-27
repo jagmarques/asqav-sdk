@@ -116,8 +116,8 @@ function counterpartyCommitmentReached(payload: Record<string, unknown>, origin:
 }
 
 /** Flat object the cloud hash-mode path signs, before canonicalisation */
-function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown> {
-  return {
+export function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown> {
+  const fields: Record<string, unknown> = {
     // Displayed v binds the signature: a relabelled copy rebuilds other
     // bytes and fails crypto instead of inheriting the old PASS
     v: doc.v ?? null,
@@ -132,6 +132,11 @@ function flatSignedFields(doc: Record<string, unknown>): Record<string, unknown>
     policy_digest: doc.policy_digest ?? null,
     policy_decision: doc.policy_decision ?? null,
   };
+  // Link presence picks the set: absent is the 11-field body, null signs
+  if (hasOwn(doc, "previous_receipt_hash")) {
+    fields.previous_receipt_hash = doc.previous_receipt_hash ?? null;
+  }
+  return fields;
 }
 
 /** Own-member read; inherited prototype members never select or validate. */
