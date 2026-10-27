@@ -361,8 +361,12 @@ _INVALID_FAIL_AXES = frozenset(
         "payload_digest",
         "outer_copies",
         "required_extensions",
+        "policy_digest",
     }
 )
+
+#: Caller cutoff pin -> the axis judging it; run_structured never fetches one.
+CUTOFF_AXES = {"policy_digest": "policy_digest", "at_time": "skew", "status_cutoff": "key_status"}
 
 
 def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
@@ -1764,6 +1768,28 @@ def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
     return any(t <= rev for t in trusted_times)
 
 
+def check_key_status_at(cutoff, status, issued_at: str, revoked_at=None, trusted_times=None, revocation_reason=None):
+    """check_key_status at the caller's status cutoff: a later revocation is
+    ignored only under a verified anchor at the cutoff; never upgrades FAIL."""
+    anchor = _has_trusted_pre_revocation_anchor(trusted_times, revoked_at)
+    row = check_key_status(status, issued_at, revoked_at, anchor, revocation_reason)
+    if cutoff is None:
+        return row
+    cut = _parse_stamp(cutoff)
+    if cut is None:
+        return "SKIPPED", f"unparseable status_cutoff {cutoff!r}; key status not judged"
+    if row[0] == "FAIL" or not revoked_at:
+        return row
+    rev = _parse_stamp(revoked_at)
+    if rev is None:
+        return "SKIPPED", f"unparseable revoked_at {revoked_at!r}; not placed against status_cutoff {cutoff}"
+    if rev <= cut or key_status_kind(status, revocation_reason) not in REVOKED_KEY_STATUSES:
+        return row
+    if not _has_trusted_pre_revocation_anchor(trusted_times, cutoff):
+        return row
+    return "PASS", f"signing key revoked_at {revoked_at} after status_cutoff {cutoff}; unrevoked at the cutoff"
+
+
 def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False, revocation_reason=None):
     """Gate the verdict on the signing key's published status. A revoked
     key never PASSes on timestamps alone; pre-issuance revocation FAILs."""
@@ -1931,6 +1957,32 @@ def _parse_stamp(value: object):
     except (ValueError, AttributeError, TypeError):
         return None
     return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+
+
+def check_at_time(payload: dict, at_time=None) -> list:
+    """skew and expiry rows judged at the caller's at_time, else the wall
+    clock; an unparseable at_time skips both."""
+    if at_time is None:
+        return [("skew", *check_skew(payload.get("issued_at", ""))), ("expiry", *check_expiry(payload))]
+    now = _parse_stamp(at_time)
+    if now is None:
+        note = f"unparseable at_time {at_time!r}; not judged at the wall clock"
+        return [("skew", "SKIPPED", note), ("expiry", "SKIPPED", note)]
+    rows = [("skew", *check_skew(payload.get("issued_at", ""), now=now)), ("expiry", *check_expiry(payload, now=now))]
+    return [(name, res, f"{note} (at_time {now.isoformat()})") for name, res, note in rows]
+
+
+def check_policy_digest(payload: dict, pinned) -> tuple[str, str]:
+    """Compare the signed policy_digest with the caller's pin; a pin with
+    nothing to compare SKIPs."""
+    held = payload.get("policy_digest")
+    if not isinstance(pinned, str) or not pinned:
+        return "SKIPPED", f"pinned policy_digest {pinned!r} is not a digest string"
+    if not isinstance(held, str) or not held:
+        return "SKIPPED", "policy_digest pinned but the receipt carries none to compare"
+    if held != pinned:
+        return "FAIL", f"policy_digest {held} differs from the pinned {pinned}"
+    return "PASS", f"policy_digest matches the pinned {pinned}"
 
 
 def check_skew(issued_at: str, *, now: datetime | None = None):
@@ -2389,6 +2441,13 @@ NOT_CHECKED = (
         "reason": "the predecessor receipt is not fetched; the link is checked only against one supplied",
         "condition": "the predecessor payload passed by the caller",
     },
+)
+
+
+#: The NOT_CHECKED id for resolving the referenced policy artefact, which no
+#: caller pin fetches or rehashes.
+POLICY_DIGEST_RESOLUTION = next(
+    row["check"] for row in NOT_CHECKED if row["check"].startswith(CUTOFF_AXES["policy_digest"])
 )
 
 
@@ -3148,7 +3207,7 @@ def check_rotation_succession(entry, eff_pk, prior_jwks):
 
 def _key_and_signature_rows(
     jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
-    prior_jwks=None,
+    prior_jwks=None, status_cutoff=None,
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the
     verifying key. Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``."""
@@ -3185,13 +3244,12 @@ def _key_and_signature_rows(
     eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg, eff_reason = eff
     # Only a cryptographically verified anchor at or before revoked_at proves
     # pre-revocation timing; presence alone never upgrades a revoked key.
-    trusted_anchor = _has_trusted_pre_revocation_anchor(anchor_eval.trusted_times, eff_revoked_at)
     rows = [
         ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}"),
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))),
-        ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor, eff_reason)),
+        ("key_status", *check_key_status_at(status_cutoff, eff_status, payload.get("issued_at", ""), eff_revoked_at, anchor_eval.trusted_times, eff_reason)),
         ("signature", *sig_res),
     ]
     # Succession replaces only the resolution report, and only when the
@@ -3220,6 +3278,9 @@ def run(
     counterparty: dict | None = None,
     required_extensions=None,
     trust_bundle: dict | None = None,
+    policy_digest: str | None = None,
+    at_time=None,
+    status_cutoff=None,
 ) -> int:
     if not isinstance(envelope, dict):
         print("Asqav receipt verification")
@@ -3285,7 +3346,8 @@ def run(
     )
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
-        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid
+        jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
+        status_cutoff=status_cutoff,
     )
     results.extend(rows)
 
@@ -3294,11 +3356,12 @@ def run(
     results.append(("key_binding", *check_key_binding(payload, eff_alg, eff_pk)))
     results.append(("counterparty", *check_counterparty_binding(payload, counterparty, acknowledging_kid=acknowledging_kid)))
     results.append(("payload_digest", *check_payload_digest(payload)[:2]))
+    if policy_digest is not None:
+        results.append((CUTOFF_AXES["policy_digest"], *check_policy_digest(payload, policy_digest)))
     results.append(("outer_copies", *check_outer_copies(raw_entry, msg, _verifying_key(rows, eff_pk))))
     results.append(("chain", *check_chain(payload, predecessor_payload)))
     results.append(("anchors", anchor_eval.result, anchor_eval.note))
-    results.append(("skew", *check_skew(payload.get("issued_at", ""))))
-    results.append(("expiry", *check_expiry(payload)))
+    results.extend(check_at_time(payload, at_time))
     if required_extensions:
         results.append(("required_extensions", *check_required_extensions(payload, required_extensions)))
 
@@ -3417,6 +3480,9 @@ def run_structured(
     trust_bundle: dict | None = None,
     trust_bundle_source: str | None = None,
     prior_jwks: dict | None = None,
+    policy_digest: str | None = None,
+    at_time=None,
+    status_cutoff=None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict, as
     ``run()``. ``predecessor_payload`` may be the whole predecessor envelope."""
@@ -3537,7 +3603,7 @@ def run_structured(
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
         jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
-        prior_jwks=prior_jwks,
+        prior_jwks=prior_jwks, status_cutoff=status_cutoff,
     )
     axes.extend(_struct_axis(*row) for row in rows)
 
@@ -3552,11 +3618,12 @@ def run_structured(
     )
     pd_res, pd_note, pd_applicability = check_payload_digest(payload)
     axes.append(_struct_axis("payload_digest", pd_res, pd_note, pd_applicability))
+    if policy_digest is not None:
+        axes.append(_struct_axis(CUTOFF_AXES["policy_digest"], *check_policy_digest(payload, policy_digest)))
     axes.append(_struct_axis("outer_copies", *check_outer_copies(raw_entry, msg, _verifying_key(rows, eff_pk))))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
-    axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
-    axes.append(_struct_axis("expiry", *check_expiry(payload)))
+    axes.extend(_struct_axis(*row) for row in check_at_time(payload, at_time))
     if required_extensions:
         axes.append(_struct_axis("required_extensions", *check_required_extensions(payload, required_extensions)))
 
@@ -3742,8 +3809,31 @@ def main() -> int:
         "supported: beacon_ref). A required member that is absent or "
         "unsupported reports unverifiable; a malformed one fails invalid",
     )
+    p.add_argument(
+        "--policy-digest",
+        metavar="DIGEST",
+        help="caller-pinned policy digest compared with the signed payload's "
+        "policy_digest; a mismatch reports invalid, a receipt carrying none "
+        "without one reports unverifiable",
+    )
+    p.add_argument(
+        "--at-time",
+        metavar="ISO8601",
+        help="instant that replaces the wall clock in the skew and expiry checks; "
+        "a value that is not ISO 8601 is refused",
+    )
+    p.add_argument(
+        "--status-cutoff",
+        metavar="ISO8601",
+        help="instant the signing key status is judged at; a revocation after it "
+        "is ignored and a value that is not ISO 8601 is refused",
+    )
     p.add_argument("--offline", action="store_true", help="never reach the network")
     args = p.parse_args()
+
+    for flag, value in (("--at-time", args.at_time), ("--status-cutoff", args.status_cutoff)):
+        if value is not None and _parse_stamp(value) is None:
+            p.error(f"{flag} {value!r} is not an ISO-8601 instant")
 
     try:
         if args.receipt:
@@ -3784,6 +3874,9 @@ def main() -> int:
         counterparty=counterparty,
         required_extensions=args.require_extension or None,
         trust_bundle=trust_bundle,
+        policy_digest=args.policy_digest,
+        at_time=args.at_time,
+        status_cutoff=args.status_cutoff,
     )
 
 
