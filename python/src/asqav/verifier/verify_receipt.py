@@ -361,8 +361,12 @@ _INVALID_FAIL_AXES = frozenset(
         "payload_digest",
         "outer_copies",
         "required_extensions",
+        "policy_digest",
     }
 )
+
+#: Caller cutoff pin -> the axis judging it; run_structured never fetches one.
+CUTOFF_AXES = {"policy_digest": "policy_digest", "at_time": "skew", "status_cutoff": "key_status"}
 
 
 def _axis_failure_class(axis: str, result: str, note: str) -> str | None:
@@ -1764,6 +1768,25 @@ def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
     return any(t <= rev for t in trusted_times)
 
 
+def check_key_status_at(cutoff, status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False, revocation_reason=None):
+    """check_key_status judged at the caller's status cutoff: a revoked_at on
+    or before it FAILs; the cutoff never upgrades a row."""
+    row = check_key_status(status, issued_at, revoked_at, has_trusted_anchor, revocation_reason)
+    if cutoff is None or row[0] == "FAIL":
+        return row
+    cut = _parse_stamp(cutoff)
+    if cut is None:
+        return "SKIPPED", f"unparseable status_cutoff {cutoff!r}; key status not judged"
+    if not revoked_at:
+        return row
+    rev = _parse_stamp(revoked_at)
+    if rev is None:
+        return "SKIPPED", f"unparseable revoked_at {revoked_at!r}; not placed against status_cutoff {cutoff}"
+    if rev <= cut:
+        return "FAIL", f"signing key revoked_at {revoked_at} on/before status_cutoff {cutoff}"
+    return row
+
+
 def check_key_status(status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False, revocation_reason=None):
     """Gate the verdict on the signing key's published status. A revoked
     key never PASSes on timestamps alone; pre-issuance revocation FAILs."""
@@ -1931,6 +1954,32 @@ def _parse_stamp(value: object):
     except (ValueError, AttributeError, TypeError):
         return None
     return ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+
+
+def check_at_time(payload: dict, at_time=None) -> list:
+    """skew and expiry rows judged at the caller's at_time, else the wall
+    clock; an unparseable at_time skips both."""
+    if at_time is None:
+        return [("skew", *check_skew(payload.get("issued_at", ""))), ("expiry", *check_expiry(payload))]
+    now = _parse_stamp(at_time)
+    if now is None:
+        note = f"unparseable at_time {at_time!r}; not judged at the wall clock"
+        return [("skew", "SKIPPED", note), ("expiry", "SKIPPED", note)]
+    rows = [("skew", *check_skew(payload.get("issued_at", ""), now=now)), ("expiry", *check_expiry(payload, now=now))]
+    return [(name, res, f"{note} (at_time {now.isoformat()})") for name, res, note in rows]
+
+
+def check_policy_digest(payload: dict, pinned) -> tuple[str, str]:
+    """Compare the signed policy_digest with the caller's pin; a pin with
+    nothing to compare SKIPs."""
+    held = payload.get("policy_digest")
+    if not isinstance(pinned, str) or not pinned:
+        return "SKIPPED", f"pinned policy_digest {pinned!r} is not a digest string"
+    if not isinstance(held, str) or not held:
+        return "SKIPPED", "policy_digest pinned but the receipt carries none to compare"
+    if held != pinned:
+        return "FAIL", f"policy_digest {held} differs from the pinned {pinned}"
+    return "PASS", f"policy_digest matches the pinned {pinned}"
 
 
 def check_skew(issued_at: str, *, now: datetime | None = None):
@@ -2392,6 +2441,12 @@ NOT_CHECKED = (
 )
 
 
+#: The NOT_CHECKED id a judged policy_digest pin resolves, read from the table.
+POLICY_DIGEST_RESOLUTION = next(
+    row["check"] for row in NOT_CHECKED if row["check"].startswith(CUTOFF_AXES["policy_digest"])
+)
+
+
 def not_checked_declaration() -> list:
     """Return the non-coverage declaration as a fresh list of fresh dicts.
 
@@ -2410,7 +2465,7 @@ _FULL_AXIS_ORDER = (
 )
 
 
-def coverage_declaration(axes: list) -> dict:
+def coverage_declaration(axes: list, judged=frozenset()) -> dict:
     """The coverage block every result carries beside its non-coverage list.
     stopped_at is None on a full run; an early return lists not_reached axes."""
     entries = [
@@ -2422,6 +2477,7 @@ def coverage_declaration(axes: list) -> dict:
             "condition": row["condition"],
         }
         for row in NOT_CHECKED
+        if row["check"] not in judged
     ]
     names = [a["name"] for a in axes]
     if names and names[-1] == _FULL_AXIS_ORDER[-1]:
@@ -3148,7 +3204,7 @@ def check_rotation_succession(entry, eff_pk, prior_jwks):
 
 def _key_and_signature_rows(
     jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
-    prior_jwks=None,
+    prior_jwks=None, status_cutoff=None,
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the
     verifying key. Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``."""
@@ -3191,7 +3247,7 @@ def _key_and_signature_rows(
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))),
-        ("key_status", *check_key_status(eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor, eff_reason)),
+        ("key_status", *check_key_status_at(status_cutoff, eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor, eff_reason)),
         ("signature", *sig_res),
     ]
     # Succession replaces only the resolution report, and only when the
@@ -3417,6 +3473,9 @@ def run_structured(
     trust_bundle: dict | None = None,
     trust_bundle_source: str | None = None,
     prior_jwks: dict | None = None,
+    policy_digest: str | None = None,
+    at_time=None,
+    status_cutoff=None,
 ) -> dict:
     """Verify a receipt offline and return a structured result dict, as
     ``run()``. ``predecessor_payload`` may be the whole predecessor envelope."""
@@ -3537,7 +3596,7 @@ def run_structured(
 
     rows, eff_pk, eff_alg, acknowledging_kid = _key_and_signature_rows(
         jwks, kid, alg, sig_obj, payload, envelope, msg, anchor_eval, acknowledging_kid,
-        prior_jwks=prior_jwks,
+        prior_jwks=prior_jwks, status_cutoff=status_cutoff,
     )
     axes.extend(_struct_axis(*row) for row in rows)
 
@@ -3552,11 +3611,12 @@ def run_structured(
     )
     pd_res, pd_note, pd_applicability = check_payload_digest(payload)
     axes.append(_struct_axis("payload_digest", pd_res, pd_note, pd_applicability))
+    if policy_digest is not None:
+        axes.append(_struct_axis(CUTOFF_AXES["policy_digest"], *check_policy_digest(payload, policy_digest)))
     axes.append(_struct_axis("outer_copies", *check_outer_copies(raw_entry, msg, _verifying_key(rows, eff_pk))))
     axes.append(_struct_axis("chain", *check_chain(payload, predecessor_payload)))
     axes.append(_struct_axis("anchors", anchor_eval.result, anchor_eval.note))
-    axes.append(_struct_axis("skew", *check_skew(payload.get("issued_at", ""))))
-    axes.append(_struct_axis("expiry", *check_expiry(payload)))
+    axes.extend(_struct_axis(*row) for row in check_at_time(payload, at_time))
     if required_extensions:
         axes.append(_struct_axis("required_extensions", *check_required_extensions(payload, required_extensions)))
 
@@ -3566,9 +3626,14 @@ def run_structured(
         keyed=is_keyed_digest(payload),
     )
 
+    judged = {
+        POLICY_DIGEST_RESOLUTION
+        for a in axes
+        if a["name"] == CUTOFF_AXES["policy_digest"] and a["result"] != "SKIPPED"
+    }
     return {
         "not_checked": not_checked_declaration(),
-        "coverage": coverage_declaration(axes),
+        "coverage": coverage_declaration(axes, judged),
         "verdict": verdict,
         "failure_class": failure_class,
         "axes": axes,
