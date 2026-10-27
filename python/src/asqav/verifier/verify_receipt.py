@@ -1768,10 +1768,11 @@ def _has_trusted_pre_revocation_anchor(trusted_times, revoked_at) -> bool:
     return any(t <= rev for t in trusted_times)
 
 
-def check_key_status_at(cutoff, status, issued_at: str, revoked_at=None, has_trusted_anchor: bool = False, revocation_reason=None):
-    """check_key_status at the caller's status cutoff: a revocation after the
-    cutoff is ignored, and the cutoff never upgrades a FAIL."""
-    row = check_key_status(status, issued_at, revoked_at, has_trusted_anchor, revocation_reason)
+def check_key_status_at(cutoff, status, issued_at: str, revoked_at=None, trusted_times=None, revocation_reason=None):
+    """check_key_status at the caller's status cutoff: a later revocation is
+    ignored only under a verified anchor at the cutoff; never upgrades FAIL."""
+    anchor = _has_trusted_pre_revocation_anchor(trusted_times, revoked_at)
+    row = check_key_status(status, issued_at, revoked_at, anchor, revocation_reason)
     if cutoff is None:
         return row
     cut = _parse_stamp(cutoff)
@@ -1783,6 +1784,8 @@ def check_key_status_at(cutoff, status, issued_at: str, revoked_at=None, has_tru
     if rev is None:
         return "SKIPPED", f"unparseable revoked_at {revoked_at!r}; not placed against status_cutoff {cutoff}"
     if rev <= cut or key_status_kind(status, revocation_reason) not in REVOKED_KEY_STATUSES:
+        return row
+    if not _has_trusted_pre_revocation_anchor(trusted_times, cutoff):
         return row
     return "PASS", f"signing key revoked_at {revoked_at} after status_cutoff {cutoff}; unrevoked at the cutoff"
 
@@ -3241,13 +3244,12 @@ def _key_and_signature_rows(
     eff_status, eff_kid, eff_issuer, eff_revoked_at, eff_pk, eff_alg, eff_reason = eff
     # Only a cryptographically verified anchor at or before revoked_at proves
     # pre-revocation timing; presence alone never upgrades a revoked key.
-    trusted_anchor = _has_trusted_pre_revocation_anchor(anchor_eval.trusted_times, eff_revoked_at)
     rows = [
         ("issuer_key", "PASS", f"resolved signing key {eff_kid} (status={eff_status}){agent_note}"),
         # kid picks the key and the attacker picks the kid, so bind the key that
         # actually verified back to the issuer the receipt claims.
         ("issuer_bind", *check_issuer_binding(eff_issuer, payload.get("issuer_id"))),
-        ("key_status", *check_key_status_at(status_cutoff, eff_status, payload.get("issued_at", ""), eff_revoked_at, trusted_anchor, eff_reason)),
+        ("key_status", *check_key_status_at(status_cutoff, eff_status, payload.get("issued_at", ""), eff_revoked_at, anchor_eval.trusted_times, eff_reason)),
         ("signature", *sig_res),
     ]
     # Succession replaces only the resolution report, and only when the

@@ -273,14 +273,23 @@ def test_status_cutoff_keeps_an_anchored_post_issuance_revocation_row() -> None:
     assert _axis(pinned, "status_cutoff")["result"] == "PASS"
 
 
-def test_status_cutoff_before_the_revocation_judges_the_key_unrevoked() -> None:
+def test_status_cutoff_before_the_revocation_stays_skipped_without_an_anchor() -> None:
     envelope, jwks, tsa_pk, issued = _minted()
     envelope.pop("anchors")
     jwks["keys"][0].update(status="revoked", revoked_at=(issued + HOUR).isoformat())
     unpinned = _verify(envelope, jwks, tsa_pk)
     pinned = _verify(envelope, jwks, tsa_pk, status_cutoff=issued + HOUR / 2)
     assert _axis(unpinned, "status_cutoff")["result"] == "SKIPPED"
-    assert _axis(pinned, "status_cutoff")["result"] == "PASS"
+    assert _axis(pinned, "status_cutoff")["result"] == "SKIPPED"
+    assert (pinned["verdict"], pinned["failure_class"]) == (VERDICT_UNVERIFIED, FAILURE_UNVERIFIABLE)
+
+
+def test_status_cutoff_before_the_revocation_passes_under_an_anchored_cutoff() -> None:
+    envelope, jwks, tsa_pk, issued = _minted()
+    jwks["keys"][0].update(status="revoked", revoked_at=(issued + HOUR).isoformat())
+    out = _verify(envelope, jwks, tsa_pk, status_cutoff=issued + HOUR / 2)
+    assert _axis(out, "status_cutoff")["result"] == "PASS"
+    assert out["verdict"] == VERDICT_VERIFIED
 
 
 def test_key_without_status_under_cutoff_is_unverifiable() -> None:
