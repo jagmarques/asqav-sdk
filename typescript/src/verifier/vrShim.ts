@@ -833,7 +833,7 @@ function strayOutcomes(
 /** Fields a flat hash-mode receipt signs; its other members are unsigned. */
 const FLAT_SIGNED: ReadonlySet<string> = new Set([
   "v", "mode", "hash", "hash_algo", "metadata", "server_timestamp", "action_id",
-  "agent_id", "org_id", "policy_digest", "policy_decision",
+  "agent_id", "org_id", "policy_digest", "policy_decision", "previous_receipt_hash",
 ]);
 
 /** Framing a flat receipt's checks read: algorithm and anchors. */
