@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { verifyReceiptOffline } from "../src/index.js";
 import { flatSignedFields } from "../src/verifier/adapters/asqavNative.js";
+import { b64decode, checkOuterCopies } from "../src/verifier/vrShim.js";
 import {
   FAILURE_INVALID,
   VERDICT_UNVERIFIED,
@@ -14,7 +15,7 @@ import {
 const FIXTURE = resolve(__dirname, "..", "..", "python", "tests", "fixtures", "flat_hash_prev_link.json");
 
 interface Fixture {
-  jwks: Record<string, unknown>;
+  jwks: { keys: Array<{ kid: string; public_key: string }> };
   receipts: Record<string, Record<string, unknown>>;
 }
 
@@ -27,6 +28,14 @@ function verify(name: string, tamper?: (receipt: Record<string, unknown>) => voi
   const receipt = data.receipts[name];
   if (tamper !== undefined) tamper(receipt);
   return verifyReceiptOffline(receipt, data.jwks);
+}
+
+function outerNote(name: string, tamper?: (receipt: Record<string, unknown>) => void): string {
+  const data = load();
+  const receipt = data.receipts[name];
+  if (tamper !== undefined) tamper(receipt);
+  const [key] = data.jwks.keys;
+  return checkOuterCopies(receipt, new Uint8Array(), b64decode(key.public_key), key.kid)[1];
 }
 
 function linkName(): string {
@@ -69,5 +78,20 @@ describe("flat hash-mode previous link", () => {
     });
     expect(result.verdict).toBe(VERDICT_UNVERIFIED);
     expect(result.failureClass).toBe(FAILURE_INVALID);
+  });
+
+  it("outer-copies note leaves the signed link out of the unsigned list", () => {
+    for (const name of ["linked", "null_link"]) {
+      expect(outerNote(name)).not.toContain(linkName());
+    }
+  });
+
+  // NEGCTL: a member the signature never covered is listed as unsigned
+  it("outer-copies note lists an unsigned member of a receipt without the link", () => {
+    const member = "unsigned_extra";
+    const note = outerNote("legacy", (receipt) => {
+      receipt[member] = "f".repeat(64);
+    });
+    expect(note).toContain(member);
   });
 });
