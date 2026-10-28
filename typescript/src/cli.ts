@@ -21,6 +21,7 @@ import {
   verifySignature,
   type LocalSigningAlgorithm,
   type SignatureResponse,
+  type VerificationDetail,
 } from "./index.js";
 import {
   credentialsPath,
@@ -123,6 +124,28 @@ function verifyStatus(r: Awaited<ReturnType<typeof verifySignature>>): string {
   return label ? `invalid (${label})` : "invalid";
 }
 
+function printVerifyDetail(d: VerificationDetail): void {
+  process.stdout.write(`Validation: ${d.validationLabel}\n`);
+  process.stdout.write(`Key binding: ${d.signerKeyMatch ? "matches" : "changed"}\n`);
+  process.stdout.write(`Algorithm: ${d.algorithmMatch ? "matches" : "mismatch"}\n`);
+  if (d.chainValid !== undefined) {
+    process.stdout.write(`Chain valid: ${d.chainValid}\n`);
+    process.stdout.write(`Chain link: ${d.chainValid ? "valid" : "invalid"}\n`);
+  }
+  if (d.anchorStatusOts !== undefined) {
+    process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts} (Bitcoin)\n`);
+  }
+  if (d.anchorStatusRfc3161 !== undefined) {
+    process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161} (TSA)\n`);
+  }
+  if (d.signedAtSkewSeconds !== undefined) {
+    process.stdout.write(`signed_at skew: ${d.signedAtSkewSeconds}s\n`);
+  }
+  if (d.missingFields && d.missingFields.length > 0) {
+    process.stdout.write(`Missing fields: ${d.missingFields.join(", ")}\n`);
+  }
+}
+
 function printVerifyText(r: Awaited<ReturnType<typeof verifySignature>>): void {
   const anchor = _anchorState(r.verificationDetail);
   process.stdout.write(`Signature: ${verifyStatus(r)}\n`);
@@ -130,28 +153,7 @@ function printVerifyText(r: Awaited<ReturnType<typeof verifySignature>>): void {
   if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
   if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
   process.stdout.write(`Algorithm: ${r.algorithm}\n`);
-  const d = r.verificationDetail;
-  if (d) {
-    process.stdout.write(`Validation: ${d.validationLabel}\n`);
-    process.stdout.write(`Key binding: ${d.signerKeyMatch ? "matches" : "changed"}\n`);
-    process.stdout.write(`Algorithm: ${d.algorithmMatch ? "matches" : "mismatch"}\n`);
-    if (d.chainValid !== undefined) {
-      process.stdout.write(`Chain valid: ${d.chainValid}\n`);
-      process.stdout.write(`Chain link: ${d.chainValid ? "valid" : "invalid"}\n`);
-    }
-    if (d.anchorStatusOts !== undefined) {
-      process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts} (Bitcoin)\n`);
-    }
-    if (d.anchorStatusRfc3161 !== undefined) {
-      process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161} (TSA)\n`);
-    }
-    if (d.signedAtSkewSeconds !== undefined) {
-      process.stdout.write(`signed_at skew: ${d.signedAtSkewSeconds}s\n`);
-    }
-    if (d.missingFields && d.missingFields.length > 0) {
-      process.stdout.write(`Missing fields: ${d.missingFields.join(", ")}\n`);
-    }
-  }
+  if (r.verificationDetail) printVerifyDetail(r.verificationDetail);
   process.stdout.write("Not proven by this receipt:\n");
   for (const line of NOT_PROVEN) process.stdout.write(`  ${line}\n`);
 }
