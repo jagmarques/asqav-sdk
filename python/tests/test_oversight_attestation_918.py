@@ -9,18 +9,18 @@ import json
 import sys
 from pathlib import Path
 
-import asqav
-from asqav.verifier.oversight_attestation import (
-    ASSERTED,
-    MISSING,
-    SIGNATURE_VERIFIED,
-    oversight_attestation,
-)
-
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "python" / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "verifier"))
 
+asqav = importlib.import_module("asqav")
+_STATE = importlib.import_module("asqav.verifier.oversight_attestation")
 MINT = importlib.import_module("mint_oversight_attestation_vectors")
+
+ASSERTED = _STATE.ASSERTED
+MISSING = _STATE.MISSING
+SIGNATURE_VERIFIED = _STATE.SIGNATURE_VERIFIED
+oversight_attestation = _STATE.oversight_attestation
 
 
 def _manifest() -> list[dict]:
