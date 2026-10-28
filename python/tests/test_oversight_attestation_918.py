@@ -5,18 +5,34 @@ from __future__ import annotations
 import base64
 import copy
 import importlib
+import importlib.util
 import json
 import sys
 from pathlib import Path
 
+import asqav
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO_ROOT / "python" / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "verifier"))
 
-asqav = importlib.import_module("asqav")
-_STATE = importlib.import_module("asqav.verifier.oversight_attestation")
 MINT = importlib.import_module("mint_oversight_attestation_vectors")
 
+
+def _state_module():
+    """The file beside the test: the venv preloads its own editable copy."""
+    path = (
+        _REPO_ROOT / "python" / "src" / "asqav" / "verifier"
+        / "oversight_attestation.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "asqav.verifier.oversight_attestation", path
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_STATE = _state_module()
 ASSERTED = _STATE.ASSERTED
 MISSING = _STATE.MISSING
 SIGNATURE_VERIFIED = _STATE.SIGNATURE_VERIFIED
