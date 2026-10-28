@@ -179,6 +179,9 @@ An anchors check that ran only on material shipped beside the receipt does not c
 - `asqav-53-payload-digest-no-context`: axis-scoped verified (14 of 15 requirements)
 - `asqav-54-kms-signed`: axis-scoped verified (14 of 15 requirements)
 - `asqav-55-heartbeat`: axis-scoped verified (14 of 15 requirements)
+- `asqav-56-oversight-attestation-missing`: unverified (registered_but_unimplemented)
+- `asqav-57-oversight-attestation-asserted`: unverified (registered_but_unimplemented)
+- `asqav-58-oversight-attestation-signature-verified`: unverified (registered_but_unimplemented)
 <!-- vectors-list:end -->
 
 `asqav-31` through `asqav-34` cover four cases: a matching counterparty binding;
