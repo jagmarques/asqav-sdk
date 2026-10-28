@@ -51,7 +51,7 @@ it("NEGCTL: a receipt whose signature does not verify is asserted", () => {
   expect(dir).toBeDefined();
   const receipt = load(dir!, "receipt.json");
   const jwks = load(dir!, "jwks.json");
-  expect(signatureOk(receipt, jwks)).toBe(true);
+  expect(signatureOk(receipt, jwks)).toBeTruthy();
   const bad = structuredClone(receipt);
   const signature = bad.signature as Record<string, unknown>;
   const raw = Buffer.from(signature.sig as string, "base64url");
