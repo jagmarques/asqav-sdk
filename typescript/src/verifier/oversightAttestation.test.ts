@@ -4,12 +4,7 @@ import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
 
 import { FAILURE_INVALID, VERDICT_UNVERIFIED } from "./core.js";
-import {
-  ASSERTED,
-  EXPECTED_KEY,
-  MISSING,
-  SIGNATURE_VERIFIED,
-} from "./oversightAttestation.js";
+import { ASSERTED, MISSING, SIGNATURE_VERIFIED } from "./oversightAttestation.js";
 import { runOne } from "./runner.js";
 
 const CORPUS = resolve(__dirname, "../../..", "verifier", "conformance-vectors");
@@ -24,7 +19,7 @@ function caseDirs(): string[] {
   }[];
   const dirs = manifest
     .map((entry) => entry.dir)
-    .filter((dir) => typeof load(dir, "expected.json")[EXPECTED_KEY] === "string");
+    .filter((dir) => typeof load(dir, "expected.json")["oversight_attestation"] === "string");
   expect(dirs).toHaveLength(3);
   return dirs;
 }
@@ -40,7 +35,7 @@ it("oversightAttestation reports three states through the runner", () => {
       (expected.failure_class as string) ?? "",
     );
     expect(outcome.ok).toBe(true);
-    expect(outcome.oversightAttestation).toBe(expected[EXPECTED_KEY]);
+    expect(outcome.oversightAttestation).toBe(expected["oversight_attestation"]);
     return outcome.oversightAttestation;
   });
   expect(new Set(reports).size).toBe(3);
@@ -51,7 +46,7 @@ it("oversightAttestation reports three states through the runner", () => {
 // calls it asserted and the declared signature-verified state no longer matches
 it("NEGCTL: a receipt whose signature does not verify is asserted", () => {
   const dir = caseDirs().find(
-    (name) => load(name, "expected.json")[EXPECTED_KEY] === SIGNATURE_VERIFIED,
+    (name) => load(name, "expected.json")["oversight_attestation"] === SIGNATURE_VERIFIED,
   );
   expect(dir).toBeDefined();
   const receipt = load(dir!, "receipt.json");

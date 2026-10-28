@@ -13,7 +13,6 @@ from asqav.verifier.oracle.core import FAILURE_INVALID, VERDICT_UNVERIFIED
 from asqav.verifier.oracle.runner import run_one
 from asqav.verifier.oversight_attestation import (
     ASSERTED,
-    EXPECTED_KEY,
     MISSING,
     SIGNATURE_VERIFIED,
 )
@@ -67,7 +66,7 @@ def test_oversight_attestation_reports_three_states() -> None:
         expected = _load(dirname, "expected.json")
         outcome = _run(dirname)
         assert outcome.ok, dirname
-        assert outcome.oversight_attestation == expected[EXPECTED_KEY], dirname
+        assert outcome.oversight_attestation == expected["oversight_attestation"], dirname
         reports.append(outcome.oversight_attestation)
     assert len(set(reports)) == 3
     assert set(reports) == {MISSING, ASSERTED, SIGNATURE_VERIFIED}
@@ -81,7 +80,7 @@ def test_negctl_a_receipt_whose_signature_does_not_verify_is_asserted(
     dirname = next(
         name
         for name in MINT.vector_dirs()
-        if _load(name, "expected.json")[EXPECTED_KEY] == SIGNATURE_VERIFIED
+        if _load(name, "expected.json")["oversight_attestation"] == SIGNATURE_VERIFIED
     )
     receipt = _load(dirname, "receipt.json")
     expected = _load(dirname, "expected.json")

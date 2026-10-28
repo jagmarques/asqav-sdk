@@ -9,7 +9,7 @@ from pathlib import Path
 
 from asqav import strict_json
 
-from ..oversight_attestation import EXPECTED_KEY, NOT_APPLICABLE, oversight_attestation
+from ..oversight_attestation import NOT_APPLICABLE, oversight_attestation
 from ..verify_receipt import evaluate_anchors
 from . import ADAPTERS, crypto
 from .core import (
@@ -182,7 +182,7 @@ def run_one(
     report = oversight_attestation(
         receipt.get("payload") if isinstance(receipt, dict) else None, result
     )
-    expected_report = declared.get(EXPECTED_KEY) if isinstance(declared, dict) else None
+    expected_report = declared.get("oversight_attestation") if isinstance(declared, dict) else None
     if isinstance(expected_report, str):
         ok = ok and report == expected_report
     detail = "; ".join(f"{a.axis}={a.result}({a.note})" for a in result.axes)

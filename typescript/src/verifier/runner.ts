@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 import { ADAPTERS } from "./index.js";
 import { verify, VERDICT_UNVERIFIED, VERDICT_VERIFIED, FAILURE_UNVERIFIABLE } from "./core.js";
-import { EXPECTED_KEY, oversightAttestation } from "./oversightAttestation.js";
+import { oversightAttestation } from "./oversightAttestation.js";
 import { parseJsonPreservingFloats, parseJsonStrict } from "./canonical.js";
 import type { KeyProvider } from "./adapter.js";
 
@@ -113,7 +113,7 @@ export function runOne(
     ok = actualFailureClass === expectedFailureClass;
   }
   const report = oversightAttestation(receipt.payload, result);
-  const declaredReport = declared?.[EXPECTED_KEY];
+  const declaredReport = declared?.["oversight_attestation"];
   const expectedReport = typeof declaredReport === "string" ? declaredReport : null;
   if (expectedReport !== null) {
     ok = ok && report === expectedReport;
