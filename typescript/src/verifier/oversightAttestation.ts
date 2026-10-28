@@ -1,9 +1,16 @@
 /** Oversight-attestation states the platform reports, signature-gated. */
 
-export const NOT_APPLICABLE = "not_applicable";
-export const MISSING = "missing/unverified";
-export const ASSERTED = "asserted/unverified";
-export const SIGNATURE_VERIFIED = "signature-verified";
+export const STATES = {
+  notApplicable: "not_applicable",
+  missing: "missing/unverified",
+  asserted: "asserted/unverified",
+  signatureVerified: "signature-verified",
+} as const;
+
+export const NOT_APPLICABLE = STATES.notApplicable;
+export const MISSING = STATES.missing;
+export const ASSERTED = STATES.asserted;
+export const SIGNATURE_VERIFIED = STATES.signatureVerified;
 
 export const METHODS: ReadonlySet<string> = new Set([
   "manual_assertion",
@@ -11,8 +18,6 @@ export const METHODS: ReadonlySet<string> = new Set([
   "hardware_key",
   "signed_statement",
 ]);
-
-const MANUAL_ASSERTION = "manual_assertion";
 
 /** Report the reviewer's claim; only a verified signature backs it. */
 export function oversightAttestation(payload: unknown, signatureOk: boolean): string {
@@ -25,6 +30,6 @@ export function oversightAttestation(payload: unknown, signatureOk: boolean): st
   if (typeof attestation !== "object" || attestation === null || Array.isArray(attestation)) return MISSING;
   const method = (attestation as Record<string, unknown>).method;
   if (typeof method !== "string" || !METHODS.has(method)) return MISSING;
-  if (method === MANUAL_ASSERTION) return ASSERTED;
+  if (method === "manual_assertion") return ASSERTED;
   return signatureOk ? SIGNATURE_VERIFIED : ASSERTED;
 }

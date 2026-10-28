@@ -4,14 +4,18 @@ from __future__ import annotations
 
 from .oracle.runner import NOT_APPLICABLE
 
-MISSING = "missing/unverified"
-ASSERTED = "asserted/unverified"
-SIGNATURE_VERIFIED = "signature-verified"
+STATES = {
+    "missing": "missing/unverified",
+    "asserted": "asserted/unverified",
+    "signature_verified": "signature-verified",
+}
+MISSING = STATES["missing"]
+ASSERTED = STATES["asserted"]
+SIGNATURE_VERIFIED = STATES["signature_verified"]
 
 METHODS = frozenset(
     {"manual_assertion", "sso", "hardware_key", "signed_statement"}
 )
-MANUAL_ASSERTION = "manual_assertion"
 
 
 def oversight_attestation(payload: object, signature_ok: bool) -> str:
@@ -27,6 +31,6 @@ def oversight_attestation(payload: object, signature_ok: bool) -> str:
     method = attestation.get("method")
     if not isinstance(method, str) or method not in METHODS:
         return MISSING
-    if method == MANUAL_ASSERTION:
+    if method == "manual_assertion":
         return ASSERTED
     return SIGNATURE_VERIFIED if signature_ok else ASSERTED

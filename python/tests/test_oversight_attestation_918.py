@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import copy
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ from asqav.verifier.oversight_attestation import (
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "verifier"))
 
-import mint_oversight_attestation_vectors as MINT  # noqa: E402
+MINT = importlib.import_module("mint_oversight_attestation_vectors")
 
 
 def _manifest() -> list[dict]:
