@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runCli } from "../src/cli.js";
+import { NOT_PROVEN, runCli } from "../src/cli.js";
 import { _resetForTests } from "../src/index.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -176,6 +178,135 @@ describe("asqav CLI (TypeScript)", () => {
     expect(parsed.signatureId).toBe("sig_2");
     expect(parsed.verificationDetail.chainValid).toBe(true);
     expect(parsed.verificationDetail.anchorStatusOts).toBe("valid");
+  });
+
+  // NEGCTL: no NOT_PROVEN print fails this test
+  it("verify text prints both not-proven lines", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_proven",
+        agent_id: "agt_1",
+        agent_name: "agt-1",
+        action_type: "x.y",
+        algorithm: "ml-dsa-65",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: true,
+        verification_detail: {
+          signer_key_match: true,
+          signature_valid: true,
+          algorithm_match: true,
+          agent_active: true,
+          validation_label: "valid",
+          chain_valid: true,
+          anchor_status_ots: "valid",
+          anchor_status_rfc3161: "valid",
+          signed_at_skew_seconds: 0,
+        },
+      }),
+    );
+    await runCli(["verify", "sig_proven"]);
+    let out = output();
+    expect(out).toContain("Key binding: matches");
+    expect(out).toContain("Algorithm: matches");
+    expect(out).toContain("Chain link: valid");
+    expect(out).toContain("Anchor (OTS): valid (Bitcoin)");
+    expect(out).toContain("Anchor (RFC 3161): valid (TSA)");
+    expect(out).toContain(NOT_PROVEN[0]);
+    expect(out).toContain(NOT_PROVEN[1]);
+    expect(out).toContain("Not proven by this receipt:");
+
+    stdoutSpy.mockClear();
+    stderrSpy.mockClear();
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_bad",
+        agent_id: "agt_1",
+        algorithm: "ml-dsa-65",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: false,
+        verification_detail: {
+          signer_key_match: false,
+          signature_valid: false,
+          algorithm_match: true,
+          agent_active: true,
+          validation_label: "invalid_signature",
+        },
+      }),
+    );
+    try {
+      await runCli(["verify", "sig_bad"]);
+    } catch {
+      // exit
+    }
+    out = output();
+    expect(out).toContain(NOT_PROVEN[0]);
+    expect(out).toContain(NOT_PROVEN[1]);
+
+    stdoutSpy.mockClear();
+    stderrSpy.mockClear();
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_pending",
+        agent_id: "agt_1",
+        algorithm: "ml-dsa-65",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: false,
+        verification_detail: {
+          signer_key_match: true,
+          signature_valid: true,
+          algorithm_match: true,
+          agent_active: true,
+          validation_label: "anchor_pending",
+          anchor_status_ots: "pending",
+        },
+      }),
+    );
+    await runCli(["verify", "sig_pending"]);
+    out = output();
+    expect(out).toContain(NOT_PROVEN[0]);
+    expect(out).toContain(NOT_PROVEN[1]);
+
+    stdoutSpy.mockClear();
+    stderrSpy.mockClear();
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_no_detail",
+        agent_id: "agt_1",
+        algorithm: "ml-dsa-65",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: true,
+      }),
+    );
+    await runCli(["verify", "sig_no_detail"]);
+    out = output();
+    expect(out).toContain(NOT_PROVEN[0]);
+    expect(out).toContain(NOT_PROVEN[1]);
+  });
+
+  // NEGCTL: no not_proven in json fails the deep equality
+  it("verify json carries not_proven", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        signature_id: "sig_json",
+        agent_id: "agt_1",
+        algorithm: "ml-dsa-65",
+        signed_at: "2026-05-04T00:00:00Z",
+        verified: true,
+      }),
+    );
+    await runCli(["verify", "sig_json", "--output", "json"]);
+    const parsed = JSON.parse(output());
+    expect(parsed.not_proven).toEqual(NOT_PROVEN);
+    expect(parsed.not_proven).toHaveLength(2);
+  });
+
+  it("not-proven wording matches the Python CLI", () => {
+    const pythonCli = readFileSync(
+      resolve(__dirname, "..", "..", "python", "src", "asqav", "cli.py"),
+      "utf8",
+    );
+    const joined = pythonCli.replace(/"\s*\n\s*"/g, "");
+    for (const line of NOT_PROVEN) expect(joined).toContain(line);
   });
 
   it("sign rejects --policy-decision deny without --reason", async () => {

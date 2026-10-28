@@ -21,6 +21,7 @@ import {
   verifySignature,
   type LocalSigningAlgorithm,
   type SignatureResponse,
+  type VerificationDetail,
 } from "./index.js";
 import {
   credentialsPath,
@@ -83,6 +84,11 @@ const ANCHOR_TEXT: Record<string, string> = {
   unknown: "not reported",
 };
 
+export const NOT_PROVEN = [
+  "Completeness of the record set: a verifier sees only the receipts presented to it.",
+  "Honesty of the operator's inputs: a valid signature proves the record was signed, not that its contents are true.",
+] as const;
+
 async function cmdVerify(args: string[]): Promise<void> {
   const [sigId] = positional(args);
   if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
@@ -99,7 +105,11 @@ async function cmdVerify(args: string[]): Promise<void> {
     die(`Error: ${(err as Error).message}`);
   }
   if (output === "json") {
-    const extra = { signatureValid: _signatureValid(r), anchor: _anchorState(r.verificationDetail) };
+    const extra = {
+      signatureValid: _signatureValid(r),
+      anchor: _anchorState(r.verificationDetail),
+      not_proven: NOT_PROVEN,
+    };
     process.stdout.write(`${JSON.stringify({ ...r, ...extra }, null, 2)}\n`);
   } else {
     printVerifyText(r);
@@ -114,20 +124,19 @@ function verifyStatus(r: Awaited<ReturnType<typeof verifySignature>>): string {
   return label ? `invalid (${label})` : "invalid";
 }
 
-function printVerifyText(r: Awaited<ReturnType<typeof verifySignature>>): void {
-  const anchor = _anchorState(r.verificationDetail);
-  process.stdout.write(`Signature: ${verifyStatus(r)}\n`);
-  process.stdout.write(`Anchor: ${ANCHOR_TEXT[anchor] ?? anchor}\n`);
-  if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
-  if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
-  process.stdout.write(`Algorithm: ${r.algorithm}\n`);
-  const d = r.verificationDetail;
-  if (!d) return;
+function printVerifyDetail(d: VerificationDetail): void {
   process.stdout.write(`Validation: ${d.validationLabel}\n`);
-  if (d.chainValid !== undefined) process.stdout.write(`Chain valid: ${d.chainValid}\n`);
-  if (d.anchorStatusOts !== undefined) process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts}\n`);
+  process.stdout.write(`Key binding: ${d.signerKeyMatch ? "matches" : "changed"}\n`);
+  process.stdout.write(`Algorithm: ${d.algorithmMatch ? "matches" : "mismatch"}\n`);
+  if (d.chainValid !== undefined) {
+    process.stdout.write(`Chain valid: ${d.chainValid}\n`);
+    process.stdout.write(`Chain link: ${d.chainValid ? "valid" : "invalid"}\n`);
+  }
+  if (d.anchorStatusOts !== undefined) {
+    process.stdout.write(`Anchor (OTS): ${d.anchorStatusOts} (Bitcoin)\n`);
+  }
   if (d.anchorStatusRfc3161 !== undefined) {
-    process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161}\n`);
+    process.stdout.write(`Anchor (RFC 3161): ${d.anchorStatusRfc3161} (TSA)\n`);
   }
   if (d.signedAtSkewSeconds !== undefined) {
     process.stdout.write(`signed_at skew: ${d.signedAtSkewSeconds}s\n`);
@@ -135,6 +144,18 @@ function printVerifyText(r: Awaited<ReturnType<typeof verifySignature>>): void {
   if (d.missingFields && d.missingFields.length > 0) {
     process.stdout.write(`Missing fields: ${d.missingFields.join(", ")}\n`);
   }
+}
+
+function printVerifyText(r: Awaited<ReturnType<typeof verifySignature>>): void {
+  const anchor = _anchorState(r.verificationDetail);
+  process.stdout.write(`Signature: ${verifyStatus(r)}\n`);
+  process.stdout.write(`Anchor: ${ANCHOR_TEXT[anchor] ?? anchor}\n`);
+  if (r.agentId) process.stdout.write(`Agent: ${r.agentName ?? "?"} (${r.agentId})\n`);
+  if (r.actionType) process.stdout.write(`Action: ${r.actionType}\n`);
+  process.stdout.write(`Algorithm: ${r.algorithm}\n`);
+  if (r.verificationDetail) printVerifyDetail(r.verificationDetail);
+  process.stdout.write("Not proven by this receipt:\n");
+  for (const line of NOT_PROVEN) process.stdout.write(`  ${line}\n`);
 }
 
 async function cmdAgentsList(): Promise<void> {
