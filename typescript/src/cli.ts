@@ -83,6 +83,11 @@ const ANCHOR_TEXT: Record<string, string> = {
   unknown: "not reported",
 };
 
+export const NOT_PROVEN = [
+  "Completeness of the record set: a verifier sees only the receipts presented to it.",
+  "Honesty of the operator's inputs: a valid signature proves the record was signed, not that its contents are true.",
+] as const;
+
 async function cmdVerify(args: string[]): Promise<void> {
   const [sigId] = positional(args);
   if (!sigId) die("Usage: asqav verify <signature_id> [--output text|json]");
