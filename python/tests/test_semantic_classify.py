@@ -6,6 +6,8 @@ Pinned: literals, always-invalid axes, note-dependent branches, corpus verdicts.
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from asqav.verifier.oracle import crypto
@@ -82,7 +84,8 @@ def test_corpus_verdicts_preserved_through_the_new_path() -> None:
     results = run_corpus(_CORPUS)
     bad = [r.dir for r in results if not _runner_tolerated(r)]
     assert not bad, f"regressed vectors: {bad}"
-    assert len(results) == 118
+    manifest = json.loads((_CORPUS / "manifest.json").read_text(encoding="utf-8"))
+    assert len(results) == len(manifest)
 
 
 def test_fail_implies_resolved_inputs_for_gated_axes() -> None:

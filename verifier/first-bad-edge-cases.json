@@ -119,6 +119,9 @@
     "asqav-42-revoked-before-issuance": "key_status",
     "asqav-53-payload-digest-no-context": null,
     "asqav-54-kms-signed": null,
-    "asqav-55-heartbeat": null
+    "asqav-55-heartbeat": null,
+    "asqav-56-oversight-attestation-missing": "structure",
+    "asqav-57-oversight-attestation-asserted": "structure",
+    "asqav-58-oversight-attestation-signature-verified": "structure"
   }
 }
