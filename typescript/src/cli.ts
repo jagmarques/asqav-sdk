@@ -104,7 +104,11 @@ async function cmdVerify(args: string[]): Promise<void> {
     die(`Error: ${(err as Error).message}`);
   }
   if (output === "json") {
-    const extra = { signatureValid: _signatureValid(r), anchor: _anchorState(r.verificationDetail) };
+    const extra = {
+      signatureValid: _signatureValid(r),
+      anchor: _anchorState(r.verificationDetail),
+      not_proven: NOT_PROVEN,
+    };
     process.stdout.write(`${JSON.stringify({ ...r, ...extra }, null, 2)}\n`);
   } else {
     printVerifyText(r);
