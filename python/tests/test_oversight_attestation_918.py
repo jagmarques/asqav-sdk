@@ -63,6 +63,13 @@ def test_oversight_attestation_vectors_are_in_the_manifest() -> None:
         assert entries[dirname]["outcome"] == expected["outcome"], dirname
 
 
+def test_oversight_attestation_payloads_mirror_the_platform_policy_digest() -> None:
+    for dirname in MINT.vector_dirs():
+        payload = _load(dirname, "receipt.json")["payload"]
+        assert payload["policy_digest"] == payload["evidence_manifest"][0], dirname
+        assert payload["policy_digest"] == f"sha256:{MINT.POLICY_SHA256}", dirname
+
+
 def test_oversight_attestation_reports_three_states() -> None:
     reports = []
     for dirname in MINT.vector_dirs():

@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 69,
+  "corpus_version": 70,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -348,6 +348,11 @@
       "version": 68,
       "files": 422,
       "digest": "205d8c338f1d394f6bbcb8041593ac2108f4293bfe481dbfd2361aadb49e11cd"
+    },
+    {
+      "version": 69,
+      "files": 431,
+      "digest": "029da9a9dc719da313213485b634250277c5fdfd68a646e69fc13d25cc22e033"
     }
   ],
   "files": [
@@ -2208,8 +2213,8 @@
     },
     {
       "path": "asqav-56-oversight-attestation-missing/receipt.json",
-      "sha256": "22b72a5413c07325eca2825a52dd9f4ff78e4e0e1182869e5c895466749f7b70",
-      "bytes": 5669
+      "sha256": "cd97a1f32c63b5bae1b1e3b28f26b80da8ef639cf3e14f3aad434e1ec9e63386",
+      "bytes": 5687
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/expected.json",
@@ -2223,8 +2228,8 @@
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/receipt.json",
-      "sha256": "d858734489555a02f07c7f25da228fffdb306e244c5a4c12363c911ad82dabdc",
-      "bytes": 5738
+      "sha256": "339b17b56650d70e530280661a922b22dfd16f371b79030f0b7e8c5bc1e83a16",
+      "bytes": 5756
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/expected.json",
@@ -2238,8 +2243,8 @@
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/receipt.json",
-      "sha256": "c9c96ef7e9ef4fa6ef304b0650c474e2a647a67fcdf2ecbea986b04ff74de5b3",
-      "bytes": 5838
+      "sha256": "f5f61d36d65661a27bd30f177f8e49de0355b0236322234b2bc42d55a6c0e8b3",
+      "bytes": 5856
     },
     {
       "path": "authproof-01-genesis-real-sdk/expected.json",
@@ -2537,5 +2542,5 @@
       ]
     }
   },
-  "digest": "029da9a9dc719da313213485b634250277c5fdfd68a646e69fc13d25cc22e033"
+  "digest": "4e16d7db4b59df1229adf4fb2d22db6a178086d502cb1f4a7eacf159b73d33cd"
 }

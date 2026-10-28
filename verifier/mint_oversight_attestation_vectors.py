@@ -41,7 +41,7 @@ PAYLOAD = {
     "issuer_id": ISSUER,
     "judged_action_refs": [f"sha256:{EMPTY_SHA256}"],
     "payload_digest": {"hash": EMPTY_SHA256, "size": 0},
-    "policy_digest": f"sha256:{POLICY_SHA256[:64]}",
+    "policy_digest": f"sha256:{POLICY_SHA256}",
     "previousReceiptHash": "0" * 64,
     "ruling": "confirm",
     "tool_name": "review:conduct",
