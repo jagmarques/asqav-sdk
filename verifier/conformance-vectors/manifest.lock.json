@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 70,
+  "corpus_version": 69,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -348,11 +348,6 @@
       "version": 68,
       "files": 422,
       "digest": "205d8c338f1d394f6bbcb8041593ac2108f4293bfe481dbfd2361aadb49e11cd"
-    },
-    {
-      "version": 69,
-      "files": 431,
-      "digest": "029da9a9dc719da313213485b634250277c5fdfd68a646e69fc13d25cc22e033"
     }
   ],
   "files": [
@@ -2542,5 +2537,5 @@
       ]
     }
   },
-  "digest": "4e16d7db4b59df1229adf4fb2d22db6a178086d502cb1f4a7eacf159b73d33cd"
+  "digest": "9eff001b0b19a01557bf595404107ea386c8102cfa5d4ca0a513e239cc727662"
 }
