@@ -11,8 +11,19 @@ import base64
 import json
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+_SRC = Path(__file__).parent.parent / "src"
+sys.path.insert(0, str(_SRC))
+
+import asqav
+
+# Reload only when a runner preloaded an ahead-of-tree asqav; the normal run
+# already has this checkout's own module, so nothing is deleted.
+if not Path(asqav.__file__).resolve().is_relative_to(_SRC.resolve()):
+    for _name in [n for n in sys.modules if n == "asqav" or n.startswith("asqav.")]:
+        del sys.modules[_name]
+    import asqav
 
 from asqav.attestation import (
     DEFAULT_COMMITMENT_ALG,
