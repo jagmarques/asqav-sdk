@@ -23,7 +23,6 @@ export interface VectorOutcome {
   expectedFailureClass: string;
   actualFailureClass: string;
   oversightAttestation: string | null;
-  expectedOversightAttestation: string | null;
 }
 
 interface ManifestEntry {
@@ -74,7 +73,6 @@ function parseFailureOutcome(
     expectedFailureClass,
     actualFailureClass: FAILURE_UNVERIFIABLE,
     oversightAttestation: null,
-    expectedOversightAttestation: null,
   };
 }
 
@@ -130,7 +128,6 @@ export function runOne(
     expectedFailureClass,
     actualFailureClass,
     oversightAttestation: report,
-    expectedOversightAttestation: expectedReport,
   };
 }
 

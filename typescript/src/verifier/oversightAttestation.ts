@@ -30,9 +30,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** Canonical bytes of the attestation minus its own signature envelope. */
-function attestationMessage(attestation: Record<string, unknown>): Uint8Array {
-  return asqavJcs(Object.fromEntries(Object.entries(attestation).filter(([k]) => k !== "signature")));
+/** The ruling members the attestation signature binds beside the principal. */
+const RULING_MEMBERS = ["issued_at", "judged_action_refs", "ruling"] as const;
+
+/** Canonical bytes of the attestation minus its own signature envelope,
+ * bound to the reviewer's principal and the ruling it backs. */
+function attestationMessage(payload: Record<string, unknown>, attestation: Record<string, unknown>): Uint8Array {
+  const reviewer = payload.reviewer;
+  return asqavJcs({
+    attestation: Object.fromEntries(Object.entries(attestation).filter(([k]) => k !== "signature")),
+    principal: isRecord(reviewer) ? (reviewer.principal ?? null) : null,
+    ...Object.fromEntries(RULING_MEMBERS.map((k) => [k, payload[k] ?? null])),
+  });
 }
 
 /** The one trusted key bound to the reviewer's principal, never a wire key. */
@@ -43,7 +52,11 @@ function reviewerKey(keys: unknown, principal: unknown): Record<string, unknown>
   return bound.length === 1 ? (bound[0] as Record<string, unknown>) : null;
 }
 
-function signatureVerifies(attestation: Record<string, unknown>, reviewerKey: Record<string, unknown>): boolean {
+function signatureVerifies(
+  payload: Record<string, unknown>,
+  attestation: Record<string, unknown>,
+  reviewerKey: Record<string, unknown>,
+): boolean {
   const signature = attestation.signature;
   if (!isRecord(signature)) return false;
   const complete = SIGNATURE_MEMBERS.every((k) => {
@@ -58,7 +71,7 @@ function signatureVerifies(attestation: Record<string, unknown>, reviewerKey: Re
   const outcome = verifySignature(
     alg,
     b64decode(publicKey),
-    attestationMessage(attestation),
+    attestationMessage(payload, attestation),
     b64decode(signature.sig as string),
   );
   return outcome.result === PASS;
@@ -80,5 +93,5 @@ export function oversightAttestation(payload: unknown, keys: unknown = null): st
   const status = typeof key.status === "string" ? key.status : null;
   const issuedAt = typeof payload.issued_at === "string" ? payload.issued_at : "";
   if (checkKeyStatus(status, issuedAt, revokedAtOf(key), false)[0] !== PASS) return ASSERTED;
-  return signatureVerifies(attestation, key) ? SIGNATURE_VERIFIED : ASSERTED;
+  return signatureVerifies(payload, attestation, key) ? SIGNATURE_VERIFIED : ASSERTED;
 }

@@ -86,6 +86,18 @@ it("NEGCTL: an attestation signature that does not verify is asserted", () => {
   expect(outcome.ok).toBe(false);
 });
 
+// NEGCTL: carry 058's attestation, signature intact, into a ruling that judges
+// another action; the signature binds the ruling, so the claim is asserted
+it("NEGCTL: an attestation moved to another ruling is asserted", () => {
+  const dir = signatureVerifiedDir();
+  const moved = structuredClone(load(dir, "receipt.json"));
+  const payload = moved.payload as Record<string, unknown>;
+  payload.judged_action_refs = [...(payload.judged_action_refs as string[]), payload.policy_digest as string];
+  const outcome = runPlanted(moved, load(dir, "jwks.json"));
+  expect(outcome.oversightAttestation).toBe(ASSERTED);
+  expect(outcome.ok).toBe(false);
+});
+
 // NEGCTL: bind the receipt signer's key to the reviewer's principal; the
 // receipt still verifies, the attestation signature does not: asserted
 it("NEGCTL: a reviewer bound to another key is asserted", () => {

@@ -27,9 +27,21 @@ METHODS = frozenset(
 SIGNATURE_MEMBERS = ("alg", "kid", "sig")
 
 
-def attestation_message(attestation: dict) -> bytes:
-    """Canonical bytes of the attestation minus its own signature envelope."""
-    return asqav_jcs({k: v for k, v in attestation.items() if k != "signature"})
+#: The ruling members the attestation signature binds beside the principal.
+RULING_MEMBERS = ("issued_at", "judged_action_refs", "ruling")
+
+
+def attestation_message(payload: dict, attestation: dict) -> bytes:
+    """Canonical bytes of the attestation minus its own signature envelope,
+    bound to the reviewer's principal and the ruling it backs."""
+    reviewer = payload.get("reviewer")
+    return asqav_jcs(
+        {
+            "attestation": {k: v for k, v in attestation.items() if k != "signature"},
+            "principal": reviewer.get("principal") if isinstance(reviewer, dict) else None,
+            **{k: payload.get(k) for k in RULING_MEMBERS},
+        }
+    )
 
 
 def reviewer_key(keys: object, principal: object) -> dict | None:
@@ -45,7 +57,7 @@ def reviewer_key(keys: object, principal: object) -> dict | None:
     return bound[0] if len(bound) == 1 else None
 
 
-def _signature_verifies(attestation: dict, reviewer_key: dict) -> bool:
+def _signature_verifies(payload: dict, attestation: dict, reviewer_key: dict) -> bool:
     signature = attestation.get("signature")
     if not isinstance(signature, dict) or not all(
         isinstance(signature.get(k), str) and signature[k].strip()
@@ -58,7 +70,7 @@ def _signature_verifies(attestation: dict, reviewer_key: dict) -> bool:
     result, _note = verify_signature(
         alg,
         _safe_b64(reviewer_key.get("public_key")),
-        attestation_message(attestation),
+        attestation_message(payload, attestation),
         _safe_b64(signature["sig"]),
     )
     return result == PASS
@@ -89,4 +101,4 @@ def oversight_attestation(payload: object, keys: object = None) -> str:
     )
     if status != PASS:
         return ASSERTED
-    return SIGNATURE_VERIFIED if _signature_verifies(attestation, key) else ASSERTED
+    return SIGNATURE_VERIFIED if _signature_verifies(payload, attestation, key) else ASSERTED

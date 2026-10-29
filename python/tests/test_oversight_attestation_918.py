@@ -13,8 +13,11 @@ from asqav.verifier.oracle.runner import run_one
 from asqav.verifier.oversight_attestation import (
     ASSERTED,
     MISSING,
+    NOT_APPLICABLE,
     SIGNATURE_VERIFIED,
+    oversight_attestation,
 )
+from asqav.verifier.verify_receipt import REGISTRY_NAMESPACES
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "verifier"))
@@ -71,6 +74,14 @@ def test_oversight_attestation_reports_three_states() -> None:
     assert set(reports) == {MISSING, ASSERTED, SIGNATURE_VERIFIED}
 
 
+def test_minted_vectors_carry_the_registered_ruling_type_the_report_gates_on() -> None:
+    assert MINT.TYPE in REGISTRY_NAMESPACES
+    for dirname in MINT.vector_dirs():
+        payload = _load(dirname, "receipt.json")["payload"]
+        assert payload["type"] == MINT.TYPE, dirname
+        assert oversight_attestation(payload) != NOT_APPLICABLE, dirname
+
+
 def _signature_verified_dir() -> str:
     return next(
         name
@@ -111,6 +122,23 @@ def test_negctl_an_attestation_signature_that_does_not_verify_is_asserted(
         bytes([raw[0] ^ 1]) + raw[1:]
     ).decode("ascii").rstrip("=")
     outcome = _run_planted(tmp_path, bad, _load(dirname, "jwks.json"))
+    assert outcome.oversight_attestation == ASSERTED
+    assert outcome.ok is False
+
+
+# NEGCTL: carry 058's attestation, signature intact, into a ruling that judges
+# another action; the signature binds the ruling, so the claim is asserted
+def test_negctl_an_attestation_moved_to_another_ruling_is_asserted(
+    tmp_path: Path,
+) -> None:
+    dirname = _signature_verified_dir()
+    moved = copy.deepcopy(_load(dirname, "receipt.json"))
+    payload = moved["payload"]
+    payload["judged_action_refs"] = [
+        *payload["judged_action_refs"],
+        payload["policy_digest"],
+    ]
+    outcome = _run_planted(tmp_path, moved, _load(dirname, "jwks.json"))
     assert outcome.oversight_attestation == ASSERTED
     assert outcome.ok is False
 
