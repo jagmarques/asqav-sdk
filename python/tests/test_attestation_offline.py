@@ -332,6 +332,20 @@ def test_v2_receipt_with_inclusion_proof_without_tree_head_is_unverified() -> No
         assert by_name["inclusion"] == "SKIP"
 
 
+    # A supplied tree head with no proof is unverified, never waived.
+def test_tree_head_without_inclusion_proof_is_unverified() -> None:
+    receipt, verify = _v2_receipt()
+    result = verify_attestation_offline(
+        _CLAIM, receipt, verify_signature=verify, signed_tree_head=b"\x00" * 32
+    )
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
+
+
     # Without a proof, explicit bytes and rebuilt bytes reach the same verdict.
 def test_explicit_signed_message_matches_rebuilt_verdict_without_proof() -> None:
     receipt, verify = _v2_receipt()

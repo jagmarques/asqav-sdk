@@ -367,7 +367,9 @@ def verify_attestation_offline(
         )
     )
 
-    verdict, failure_class = _verdict(axes, inclusion_optional=proof is None)
+    verdict, failure_class = _verdict(
+        axes, inclusion_optional=proof is None and signed_tree_head is None
+    )
     return {
         "verdict": verdict,
         "failure_class": failure_class,
