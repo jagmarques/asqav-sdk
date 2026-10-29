@@ -157,6 +157,19 @@ def test_negctl_an_attestation_under_another_reviewer_role_is_asserted(
     assert outcome.ok is False
 
 
+# NEGCTL: change the issuer, signature intact; the signature binds the whole
+# ruling, so another issuer's ruling cannot carry the attestation
+def test_negctl_an_attestation_under_another_issuer_is_asserted(
+    tmp_path: Path,
+) -> None:
+    dirname = _signature_verified_dir()
+    moved = copy.deepcopy(_load(dirname, "receipt.json"))
+    moved["payload"]["issuer_id"] = MINT.ISSUER[::-1]
+    outcome = _run_planted(tmp_path, moved, _load(dirname, "jwks.json"))
+    assert outcome.oversight_attestation == ASSERTED
+    assert outcome.ok is False
+
+
 # NEGCTL: bind the receipt signer's key to the reviewer's principal; the
 # receipt still verifies, the attestation signature does not: asserted
 def test_negctl_a_reviewer_bound_to_another_key_is_asserted(tmp_path: Path) -> None:

@@ -2238,7 +2238,7 @@
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/receipt.json",
-      "sha256": "f7cb2d02aea025d68b4f13a1e2011c8939b4edf4e51d18e76584bad6ac0ebef1",
+      "sha256": "fbd839f9b0f039fc0d88826f5a889364847a163c90879ea53ec403798abc7dcc",
       "bytes": 10448
     },
     {
@@ -2537,5 +2537,5 @@
       ]
     }
   },
-  "digest": "d6aa274c8a9f44b93d389ec57111c7aac062491efb637042aee98e5306210039"
+  "digest": "0fcc244b8deca6eb66f5ff07fa5db1e614071e6516ae479ab72f8d642d465f40"
 }

@@ -156,7 +156,7 @@ def _key_material(seed_phrase: bytes):
 def _signed(attestation: dict, ml_dsa, secret_key: bytes) -> dict:
     signature = ml_dsa.sign(
         secret_key,
-        STATE.attestation_message(_payload(attestation), attestation),
+        STATE.attestation_message(_payload(attestation)),
         deterministic=True,
     )
     return {

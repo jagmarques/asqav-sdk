@@ -27,23 +27,20 @@ METHODS = frozenset(
 SIGNATURE_MEMBERS = ("alg", "kid", "sig")
 
 
-#: The reviewer members the signature binds beside the attestation.
-REVIEWER_MEMBERS = ("principal", "role", "authority")
-
-#: The ruling members the attestation signature binds.
-RULING_MEMBERS = ("issued_at", "judged_action_refs", "ruling")
-
-
-def attestation_message(payload: dict, attestation: dict) -> bytes:
-    """Canonical bytes of the attestation minus its own signature envelope,
-    bound to the reviewer's identity and the ruling it backs."""
+def attestation_message(payload: dict) -> bytes:
+    """Canonical bytes of the whole ruling payload minus the attestation's own
+    signature, so the signature binds every member of the ruling it backs."""
     reviewer = payload.get("reviewer")
     reviewer = reviewer if isinstance(reviewer, dict) else {}
+    attestation = reviewer.get("attestation")
+    attestation = attestation if isinstance(attestation, dict) else {}
     return asqav_jcs(
         {
-            "attestation": {k: v for k, v in attestation.items() if k != "signature"},
-            "reviewer": {k: reviewer.get(k) for k in REVIEWER_MEMBERS},
-            **{k: payload.get(k) for k in RULING_MEMBERS},
+            **payload,
+            "reviewer": {
+                **reviewer,
+                "attestation": {k: v for k, v in attestation.items() if k != "signature"},
+            },
         }
     )
 
@@ -74,7 +71,7 @@ def _signature_verifies(payload: dict, attestation: dict, reviewer_key: dict) ->
     result, _note = verify_signature(
         alg,
         _safe_b64(reviewer_key.get("public_key")),
-        attestation_message(payload, attestation),
+        attestation_message(payload),
         _safe_b64(signature["sig"]),
     )
     return result == PASS

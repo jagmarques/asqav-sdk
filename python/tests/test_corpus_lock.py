@@ -26,7 +26,7 @@ VERIFIER_LOCK = VERIFIER_ROOT / "manifest.lock.json"
 # The lock digests, as in each lock's digest field and the corpus READMEs. A
 # regenerated lock that forgets to update these is drift, not a refresh.
 FINGERPRINT_LOCK_DIGEST = "511989671a21de1f8be82ab1c53a6e8f5c568e5c17abec25faeca0169b623877"
-VERIFIER_LOCK_DIGEST = "d6aa274c8a9f44b93d389ec57111c7aac062491efb637042aee98e5306210039"
+VERIFIER_LOCK_DIGEST = "0fcc244b8deca6eb66f5ff07fa5db1e614071e6516ae479ab72f8d642d465f40"
 
 # The em dash as an escape, so the guard does not carry the character it bans.
 EM_DASH = "\u2014"

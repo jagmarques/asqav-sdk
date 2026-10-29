@@ -30,20 +30,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** The reviewer members the signature binds beside the attestation. */
-const REVIEWER_MEMBERS = ["principal", "role", "authority"] as const;
-
-/** The ruling members the attestation signature binds. */
-const RULING_MEMBERS = ["issued_at", "judged_action_refs", "ruling"] as const;
-
-/** Canonical bytes of the attestation minus its own signature envelope,
- * bound to the reviewer's identity and the ruling it backs. */
-function attestationMessage(payload: Record<string, unknown>, attestation: Record<string, unknown>): Uint8Array {
+/** Canonical bytes of the whole ruling payload minus the attestation's own
+ * signature, so the signature binds every member of the ruling it backs. */
+function attestationMessage(payload: Record<string, unknown>): Uint8Array {
   const reviewer = isRecord(payload.reviewer) ? payload.reviewer : {};
+  const attestation = isRecord(reviewer.attestation) ? reviewer.attestation : {};
   return asqavJcs({
-    attestation: Object.fromEntries(Object.entries(attestation).filter(([k]) => k !== "signature")),
-    reviewer: Object.fromEntries(REVIEWER_MEMBERS.map((k) => [k, reviewer[k] ?? null])),
-    ...Object.fromEntries(RULING_MEMBERS.map((k) => [k, payload[k] ?? null])),
+    ...payload,
+    reviewer: {
+      ...reviewer,
+      attestation: Object.fromEntries(Object.entries(attestation).filter(([k]) => k !== "signature")),
+    },
   });
 }
 
@@ -74,7 +71,7 @@ function signatureVerifies(
   const outcome = verifySignature(
     alg,
     b64decode(publicKey),
-    attestationMessage(payload, attestation),
+    attestationMessage(payload),
     b64decode(signature.sig as string),
   );
   return outcome.result === PASS;
