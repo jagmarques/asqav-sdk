@@ -79,17 +79,16 @@ def _signature_verified_dir() -> str:
     )
 
 
-def _run_planted(tmp_path: Path, receipt: dict, jwks: dict):
+def _run_planted(
+    tmp_path: Path, receipt: dict, jwks: dict, expected: dict | None = None
+):
     dirname = _signature_verified_dir()
-    expected = _load(dirname, "expected.json")
+    expected = expected or _load(dirname, "expected.json")
     work = tmp_path / dirname
     work.mkdir()
     (work / "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
     (work / "jwks.json").write_text(json.dumps(jwks), encoding="utf-8")
-    (work / "expected.json").write_text(
-        (MINT.CORPUS / dirname / "expected.json").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
+    (work / "expected.json").write_text(json.dumps(expected), encoding="utf-8")
     return run_one(
         work,
         expected["format"],
@@ -126,4 +125,31 @@ def test_negctl_a_reviewer_bound_to_another_key_is_asserted(tmp_path: Path) -> N
     outcome = _run_planted(tmp_path, _load(dirname, "receipt.json"), jwks)
     assert outcome.actual_failure_class == _load(dirname, "expected.json")["failure_class"]
     assert outcome.oversight_attestation == ASSERTED
+    assert outcome.ok is False
+
+
+# NEGCTL: revoke the reviewer's key before the ruling was issued; the
+# signature still checks, but a revoked key backs no claim: asserted
+def test_negctl_a_revoked_reviewer_key_is_asserted(tmp_path: Path) -> None:
+    dirname = _signature_verified_dir()
+    jwks = _load(dirname, "jwks.json")
+    reviewer = jwks["keys"][1]
+    reviewer["status"] = "revoked"
+    reviewer["revoked_at"] = "2026-01-01T00:00:00+00:00"
+    outcome = _run_planted(tmp_path, _load(dirname, "receipt.json"), jwks)
+    assert outcome.actual_failure_class == _load(dirname, "expected.json")["failure_class"]
+    assert outcome.oversight_attestation == ASSERTED
+    assert outcome.ok is False
+
+
+# NEGCTL: declare the state as a list, not a string; the runner never reads
+# that declaration as met, so the vector fails though the report is right
+def test_negctl_a_state_declared_as_a_non_string_never_matches(tmp_path: Path) -> None:
+    dirname = _signature_verified_dir()
+    expected = _load(dirname, "expected.json")
+    expected["oversight_attestation"] = [SIGNATURE_VERIFIED]
+    outcome = _run_planted(
+        tmp_path, _load(dirname, "receipt.json"), _load(dirname, "jwks.json"), expected
+    )
+    assert outcome.oversight_attestation == SIGNATURE_VERIFIED
     assert outcome.ok is False

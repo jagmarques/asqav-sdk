@@ -184,8 +184,9 @@ def run_one(
         inputs[3],
     )
     expected_report = declared.get("oversight_attestation") if isinstance(declared, dict) else None
-    if isinstance(expected_report, str):
-        ok = ok and report == expected_report
+    if expected_report is not None:
+        # A declared state that is not a string never matches
+        ok = ok and isinstance(expected_report, str) and report == expected_report
     detail = "; ".join(f"{a.axis}={a.result}({a.note})" for a in result.axes)
     return VectorOutcome(
         vec_dir.name,

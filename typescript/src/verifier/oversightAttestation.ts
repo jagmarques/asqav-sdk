@@ -2,7 +2,7 @@
 
 import { asqavJcs } from "./canonical.js";
 import { PASS, verifySignature } from "./crypto.js";
-import { b64decode } from "./vrShim.js";
+import { b64decode, checkKeyStatus, revokedAtOf } from "./vrShim.js";
 
 export const STATES = {
   notApplicable: "not_applicable",
@@ -77,5 +77,8 @@ export function oversightAttestation(payload: unknown, keys: unknown = null): st
   if (typeof method !== "string" || !METHODS.has(method)) return MISSING;
   const key = reviewerKey(keys, reviewer.principal);
   if (method === "manual_assertion" || key === null) return ASSERTED;
+  const status = typeof key.status === "string" ? key.status : null;
+  const issuedAt = typeof payload.issued_at === "string" ? payload.issued_at : "";
+  if (checkKeyStatus(status, issuedAt, revokedAtOf(key), false)[0] !== PASS) return ASSERTED;
   return signatureVerifies(attestation, key) ? SIGNATURE_VERIFIED : ASSERTED;
 }

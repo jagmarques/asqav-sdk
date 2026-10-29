@@ -115,7 +115,8 @@ export function runOne(
   const report = oversightAttestation(receipt.payload, keyProvider);
   const declaredReport = declared?.["oversight_attestation"];
   const expectedReport = typeof declaredReport === "string" ? declaredReport : null;
-  if (expectedReport !== null) {
+  if (declaredReport !== undefined && declaredReport !== null) {
+    // A declared state that is not a string never matches
     ok = ok && report === expectedReport;
   }
   const detail = result.axes.map((a) => `${a.axis}=${a.result}(${a.note})`).join("; ");

@@ -49,14 +49,16 @@ function signatureVerifiedDir(): string {
   return dir!;
 }
 
-function runPlanted(receipt: Record<string, unknown>, jwks: Record<string, unknown>) {
-  const dir = signatureVerifiedDir();
-  const expected = load(dir, "expected.json");
+function runPlanted(
+  receipt: Record<string, unknown>,
+  jwks: Record<string, unknown>,
+  expected: Record<string, unknown> = load(signatureVerifiedDir(), "expected.json"),
+) {
   const work = mkdtempSync(join(tmpdir(), "asqav-918-"));
   try {
     writeFileSync(join(work, "receipt.json"), JSON.stringify(receipt));
     writeFileSync(join(work, "jwks.json"), JSON.stringify(jwks));
-    writeFileSync(join(work, "expected.json"), readFileSync(resolve(CORPUS, dir, "expected.json")));
+    writeFileSync(join(work, "expected.json"), JSON.stringify(expected));
     return runOne(
       work,
       expected.format as string,
@@ -95,5 +97,29 @@ it("NEGCTL: a reviewer bound to another key is asserted", () => {
   const outcome = runPlanted(load(dir, "receipt.json"), jwks);
   expect(outcome.actualFailureClass).toBe(load(dir, "expected.json").failure_class);
   expect(outcome.oversightAttestation).toBe(ASSERTED);
+  expect(outcome.ok).toBe(false);
+});
+
+// NEGCTL: revoke the reviewer's key before the ruling was issued; the
+// signature still checks, but a revoked key backs no claim: asserted
+it("NEGCTL: a revoked reviewer key is asserted", () => {
+  const dir = signatureVerifiedDir();
+  const jwks = load(dir, "jwks.json");
+  const reviewer = (jwks.keys as Record<string, unknown>[])[1]!;
+  reviewer.status = "revoked";
+  reviewer.revoked_at = "2026-01-01T00:00:00+00:00";
+  const outcome = runPlanted(load(dir, "receipt.json"), jwks);
+  expect(outcome.actualFailureClass).toBe(load(dir, "expected.json").failure_class);
+  expect(outcome.oversightAttestation).toBe(ASSERTED);
+  expect(outcome.ok).toBe(false);
+});
+
+// NEGCTL: declare the state as a list, not a string; the runner never reads
+// that declaration as met, so the vector fails though the report is right
+it("NEGCTL: a state declared as a non-string never matches", () => {
+  const dir = signatureVerifiedDir();
+  const expected = { ...load(dir, "expected.json"), oversight_attestation: [SIGNATURE_VERIFIED] };
+  const outcome = runPlanted(load(dir, "receipt.json"), load(dir, "jwks.json"), expected);
+  expect(outcome.oversightAttestation).toBe(SIGNATURE_VERIFIED);
   expect(outcome.ok).toBe(false);
 });

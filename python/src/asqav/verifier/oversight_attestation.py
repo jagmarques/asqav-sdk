@@ -5,6 +5,7 @@ from __future__ import annotations
 from .oracle.adapters.asqav_native import _safe_b64
 from .oracle.canonical import asqav_jcs
 from .oracle.crypto import PASS, verify_signature
+from .verify_receipt import check_key_status, revoked_at_of
 
 #: The token every axis and report uses when a check does not apply.
 NOT_APPLICABLE = "not_applicable"
@@ -79,5 +80,13 @@ def oversight_attestation(payload: object, keys: object = None) -> str:
         return MISSING
     key = reviewer_key(keys, reviewer.get("principal"))
     if method == "manual_assertion" or key is None:
+        return ASSERTED
+    issued_at = payload.get("issued_at")
+    status, _note = check_key_status(
+        key.get("status"),
+        issued_at if isinstance(issued_at, str) else "",
+        revoked_at_of(key),
+    )
+    if status != PASS:
         return ASSERTED
     return SIGNATURE_VERIFIED if _signature_verifies(attestation, key) else ASSERTED
