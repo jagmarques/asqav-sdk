@@ -13,10 +13,6 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-# A pytest entry-point plugin may preload the installed package; drop it so the
-# checkout under test is what this file imports, never a stale copy.
-for _name in [n for n in sys.modules if n == "asqav" or n.startswith("asqav.")]:
-    del sys.modules[_name]
 
 from asqav.attestation import (
     DEFAULT_COMMITMENT_ALG,
@@ -305,38 +301,59 @@ def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
     assert by_name["signature"] == "PASS"
 
 
-    # An explicit signed message keeps the old verdict rule: no proof, no pass.
-def test_explicit_signed_message_keeps_unverified_without_inclusion() -> None:
+    # A supplied inclusion proof is never waived for want of a tree head.
+def test_v2_receipt_with_inclusion_proof_without_tree_head_is_unverified() -> None:
     sign, verify = _ed25519_signer()
-    message = _signed_message()
-    receipt = {
-        "statementHash": _GOLDEN_HASH,
-        "commitment": _COMMITMENT,
-        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
-        "keyId": _KEY_ID,
-        "timestamp": _TIMESTAMP,
-        "signature": base64.b64encode(sign(message)).decode(),
-    }
+    _, proof = _tree_head_and_proof()
+    receipt = _v2_receipt_fields()
+    receipt["inclusionProof"] = proof
+    rebuilt = signed_message_from_receipt(receipt)
+    receipt["signature"] = base64.b64encode(sign(rebuilt)).decode()
+    for supplied in (None, rebuilt):
+        result = verify_attestation_offline(
+            _CLAIM, receipt, signed_message=supplied, verify_signature=verify
+        )
+        assert result["verdict"] == VERDICT_UNVERIFIED
+        assert result["failure_class"] == FAILURE_UNVERIFIABLE
+        by_name = {a["name"]: a["result"] for a in result["axes"]}
+        assert by_name["statement_hash"] == "PASS"
+        assert by_name["signature"] == "PASS"
+        assert by_name["inclusion"] == "SKIP"
+
+
+    # Without a proof, explicit bytes and rebuilt bytes reach the same verdict.
+def test_explicit_signed_message_matches_rebuilt_verdict_without_proof() -> None:
+    receipt, verify = _v2_receipt()
     result = verify_attestation_offline(
-        _CLAIM, receipt, signed_message=message, verify_signature=verify
+        _CLAIM,
+        receipt,
+        signed_message=signed_message_from_receipt(receipt),
+        verify_signature=verify,
     )
-    assert result["verdict"] == VERDICT_UNVERIFIED
-    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    assert result["verdict"] == VERDICT_VERIFIED_KEYED
+    assert result["failure_class"] is None
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "PASS"
     assert by_name["signature"] == "PASS"
     assert by_name["inclusion"] == "SKIP"
 
 
-    # NEGCTL: one flipped commitment hex char breaks the signature.
+    # NEGCTL: a flipped commitment with a matching hash breaks the signature.
 def test_negctl_one_byte_of_commitment_fails_signature() -> None:
     receipt, verify = _v2_receipt()
     commitment = receipt["commitment"]
-    receipt["commitment"] = ("0" if commitment[0] != "0" else "1") + commitment[1:]
-    assert receipt["commitment"] != commitment
+    flipped = ("0" if commitment[0] != "0" else "1") + commitment[1:]
+    assert flipped != commitment
+    receipt["commitment"] = flipped
+    receipt["statementHash"] = compute_statement_hash(
+        _CLAIM, flipped, receipt["keyId"], receipt["timestamp"]
+    )
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     by_name = {a["name"]: a["result"] for a in result["axes"]}
-    assert by_name["signature"] == "FAIL"
+    assert by_name["statement_hash"] == "PASS"
+    signature = next(a for a in result["axes"] if a["name"] == "signature")
+    assert signature["result"] == "FAIL"
+    assert signature["note"] == "signature does not verify over the signed message"
     assert result["verdict"] == VERDICT_UNVERIFIED
 
 

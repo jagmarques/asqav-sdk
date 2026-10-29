@@ -323,7 +323,6 @@ def verify_attestation_offline(
         axes.append(_axis("statement_hash", _AXIS_FAIL, "claim does not match the receipt hash"))
 
     # Signature axis: verify the exact signed message and bind it to the claim.
-    rebuilt_from_receipt = False
     if verify_signature is None:
         axes.append(_axis("signature", _AXIS_SKIP, "no verifier supplied"))
     elif signed_message is not None:
@@ -337,7 +336,6 @@ def verify_attestation_offline(
         except ValueError as exc:
             axes.append(_axis("signature", _AXIS_FAIL, str(exc)))
         else:
-            rebuilt_from_receipt = True
             sig_result, sig_note = _check_signature(
                 rebuilt, receipt, recomputed, verify_signature
             )
@@ -369,7 +367,7 @@ def verify_attestation_offline(
         )
     )
 
-    verdict, failure_class = _verdict(axes, inclusion_optional=rebuilt_from_receipt)
+    verdict, failure_class = _verdict(axes, inclusion_optional=proof is None)
     return {
         "verdict": verdict,
         "failure_class": failure_class,
