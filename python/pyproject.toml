@@ -155,10 +155,6 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 
-[tool.pytest.ini_options]
-# The suite imports the tree under test: the source the editable install names
-pythonpath = ["src"]
-
 [tool.uv]
 # The agt extra's upstream caps cryptography below 50; keep the dev lock on the patched release.
 override-dependencies = ["cryptography>=50.0.0"]
