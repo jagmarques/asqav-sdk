@@ -22,16 +22,19 @@ export const METHODS: ReadonlySet<string> = new Set([
   "signed_statement",
 ]);
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 /** Report the reviewer's claim; only a verified signature backs it. */
 export function oversightAttestation(payload: unknown, result: VerifyResult): string {
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return NOT_APPLICABLE;
-  const record = payload as Record<string, unknown>;
-  if (record.type !== "protectmcp:lifecycle:oversight_ruling") return NOT_APPLICABLE;
-  const reviewer = record.reviewer;
-  if (typeof reviewer !== "object" || reviewer === null || Array.isArray(reviewer)) return MISSING;
-  const attestation = (reviewer as Record<string, unknown>).attestation;
-  if (typeof attestation !== "object" || attestation === null || Array.isArray(attestation)) return MISSING;
-  const method = (attestation as Record<string, unknown>).method;
+  if (!isRecord(payload)) return NOT_APPLICABLE;
+  if (payload.type !== "protectmcp:lifecycle:oversight_ruling") return NOT_APPLICABLE;
+  const reviewer = payload.reviewer;
+  if (!isRecord(reviewer)) return MISSING;
+  const attestation = reviewer.attestation;
+  if (!isRecord(attestation)) return MISSING;
+  const method = attestation.method;
   if (typeof method !== "string" || !METHODS.has(method)) return MISSING;
   if (method === "manual_assertion") return ASSERTED;
   const signature = result.axes.find((axis) => axis.axis === "signature");
