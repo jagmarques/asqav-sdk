@@ -29,9 +29,11 @@ POLICY_SHA256 = (
     "e02a2dff72519673ca"
 )
 
-#: Shared signed_envelope body (platform vectors 048/049/050 differ only in
-#: reviewer.attestation); every value is copied verbatim from the platform.
+#: Shared signed_envelope body of platform vectors 048/049/050, copied from
+#: the platform plus the v and mode that 5.1.1 and 5.1.2 require.
 PAYLOAD = {
+    "v": 1,
+    "mode": "payload",
     "action_ref": f"sha256:{EMPTY_SHA256}",
     "action_type": "review:conduct",
     "agreement_version": "art26-assignment-v3",
@@ -121,10 +123,10 @@ def vector_dirs() -> list[str]:
 def _notes(platform: str, detail: str) -> str:
     return (
         f"Mirrors platform conformance/v3-ietf/{platform} with its signed_envelope "
-        f"copied verbatim as the payload and a fresh deterministic test-key "
-        f"signature: {detail} The SDK verifier does not implement the "
-        f"oversight_ruling type, so structure SKIPs and the expected verdict is "
-        f"unverified/unverifiable."
+        f"copied as the payload with v and mode added, and a fresh "
+        f"deterministic test-key signature: {detail} The SDK verifier does not "
+        f"implement the oversight_ruling type, so structure SKIPs and the "
+        f"expected verdict is unverified/unverifiable."
     )
 
 

@@ -2198,8 +2198,8 @@
     },
     {
       "path": "asqav-56-oversight-attestation-missing/expected.json",
-      "sha256": "2891c17758420f276ee1400658b705c3031669e1758794f0ad66c64a380a6e3b",
-      "bytes": 1000
+      "sha256": "57f023a06dc2b76ad20b3f5cafec5f3a2f700ea4b063bb5c414a9cd5a26d9751",
+      "bytes": 1014
     },
     {
       "path": "asqav-56-oversight-attestation-missing/jwks.json",
@@ -2208,13 +2208,13 @@
     },
     {
       "path": "asqav-56-oversight-attestation-missing/receipt.json",
-      "sha256": "cd97a1f32c63b5bae1b1e3b28f26b80da8ef639cf3e14f3aad434e1ec9e63386",
-      "bytes": 5687
+      "sha256": "eeff59f5d8a6d2ed3114913a032abf8a01c8d011fa016245663254e1a797f82d",
+      "bytes": 5722
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/expected.json",
-      "sha256": "5c070ef175bdcc2a316810a05ad2507d5268704a082be902f00ac49d204d6d05",
-      "bytes": 1010
+      "sha256": "e30189528a979cdb1c8dcba81712154283fd59aabd04f49ad1f9289d9520a02d",
+      "bytes": 1024
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/jwks.json",
@@ -2223,13 +2223,13 @@
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/receipt.json",
-      "sha256": "339b17b56650d70e530280661a922b22dfd16f371b79030f0b7e8c5bc1e83a16",
-      "bytes": 5756
+      "sha256": "75a99d005c53738fa355c2f9bdb6082aa2aa50fdd4a0ca39c9f1ed95ebe2c46d",
+      "bytes": 5791
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/expected.json",
-      "sha256": "1c806d3207615f689291623a54816df005fba15e0a75e104c14bb6028be4b01f",
-      "bytes": 1028
+      "sha256": "0fe1165848c5ae3c1229879518987a73c8c067629d864fbdee786433c477ce2e",
+      "bytes": 1042
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/jwks.json",
@@ -2238,8 +2238,8 @@
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/receipt.json",
-      "sha256": "f5f61d36d65661a27bd30f177f8e49de0355b0236322234b2bc42d55a6c0e8b3",
-      "bytes": 5856
+      "sha256": "b17cb1b24c39132e3774ed6c7005938a605f3cfd2d84d54f20d39d8c077b91a9",
+      "bytes": 5891
     },
     {
       "path": "authproof-01-genesis-real-sdk/expected.json",
@@ -2363,8 +2363,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "9849bb9083f812063bfcc1ea86c6b4e46b56e337254643356677f1b6ced42297",
-      "bytes": 44845
+      "sha256": "68c853cb1e48567a2b53f44f475d06e8a9052799b85a4422b473f0ebd402ee99",
+      "bytes": 44887
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2537,5 +2537,5 @@
       ]
     }
   },
-  "digest": "9eff001b0b19a01557bf595404107ea386c8102cfa5d4ca0a513e239cc727662"
+  "digest": "83b7a755e1ecb907f0d5203bd1303f021f9f77bcb325de94717fc49927588a3f"
 }

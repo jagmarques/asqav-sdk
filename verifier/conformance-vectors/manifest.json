@@ -895,7 +895,7 @@
     "outcome": "unverified",
     "failure_class": "unverifiable",
     "reason_code": "registered_but_unimplemented",
-    "notes": "Mirrors platform conformance/v3-ietf/vector-048 with its signed_envelope copied verbatim as the payload and a fresh deterministic test-key signature: the reviewer carries no attestation, so the review claim is missing/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
+    "notes": "Mirrors platform conformance/v3-ietf/vector-048 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: the reviewer carries no attestation, so the review claim is missing/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
   },
   {
     "dir": "asqav-57-oversight-attestation-asserted",
@@ -903,7 +903,7 @@
     "outcome": "unverified",
     "failure_class": "unverifiable",
     "reason_code": "registered_but_unimplemented",
-    "notes": "Mirrors platform conformance/v3-ietf/vector-049 with its signed_envelope copied verbatim as the payload and a fresh deterministic test-key signature: manual_assertion names no signature backing, so the review claim is asserted/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
+    "notes": "Mirrors platform conformance/v3-ietf/vector-049 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: manual_assertion names no signature backing, so the review claim is asserted/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
   },
   {
     "dir": "asqav-58-oversight-attestation-signature-verified",
@@ -911,6 +911,6 @@
     "outcome": "unverified",
     "failure_class": "unverifiable",
     "reason_code": "registered_but_unimplemented",
-    "notes": "Mirrors platform conformance/v3-ietf/vector-050 with its signed_envelope copied verbatim as the payload and a fresh deterministic test-key signature: sso names signature backing, so the review claim is signature-verified once the receipt signature verifies. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
+    "notes": "Mirrors platform conformance/v3-ietf/vector-050 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: sso names signature backing, so the review claim is signature-verified once the receipt signature verifies. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
   }
 ]
