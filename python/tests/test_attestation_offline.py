@@ -13,6 +13,10 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+# A pytest entry-point plugin may preload the installed package; drop it so the
+# checkout under test is what this file imports, never a stale copy.
+for _name in [n for n in sys.modules if n == "asqav" or n.startswith("asqav.")]:
+    del sys.modules[_name]
 
 from asqav.attestation import (
     DEFAULT_COMMITMENT_ALG,
@@ -288,6 +292,79 @@ def test_missing_optional_inputs_is_unverifiable_not_verified() -> None:
     assert by_name["signature"] == "SKIP"
     assert by_name["inclusion"] == "SKIP"
     assert by_name["commitment"] == "NOT_REDERIVABLE"
+
+
+    # A current v2 receipt verifies from the receipt, the claim and the key.
+def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
+    receipt, verify = _v2_receipt()
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    assert result["verdict"] == VERDICT_VERIFIED_KEYED
+    assert result["failure_class"] is None
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+
+
+    # An explicit signed message keeps the old verdict rule: no proof, no pass.
+def test_explicit_signed_message_keeps_unverified_without_inclusion() -> None:
+    sign, verify = _ed25519_signer()
+    message = _signed_message()
+    receipt = {
+        "statementHash": _GOLDEN_HASH,
+        "commitment": _COMMITMENT,
+        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+        "keyId": _KEY_ID,
+        "timestamp": _TIMESTAMP,
+        "signature": base64.b64encode(sign(message)).decode(),
+    }
+    result = verify_attestation_offline(
+        _CLAIM, receipt, signed_message=message, verify_signature=verify
+    )
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
+
+
+    # NEGCTL: one flipped commitment hex char breaks the signature.
+def test_negctl_one_byte_of_commitment_fails_signature() -> None:
+    receipt, verify = _v2_receipt()
+    commitment = receipt["commitment"]
+    receipt["commitment"] = ("0" if commitment[0] != "0" else "1") + commitment[1:]
+    assert receipt["commitment"] != commitment
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["signature"] == "FAIL"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+
+
+    # NEGCTL: v1 bytes never verify a signature the cloud made over v2 bytes.
+def test_negctl_v2_receipt_over_v1_bytes_fails() -> None:
+    receipt, verify = _v2_receipt()
+    result = verify_attestation_offline(
+        _CLAIM,
+        receipt,
+        signed_message=_signed_message(),
+        verify_signature=verify,
+    )
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["signature"] == "FAIL"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+
+
+    # NEGCTL: a v2 receipt missing a needed field fails naming that field.
+def test_negctl_missing_field_is_named() -> None:
+    receipt, verify = _v2_receipt()
+    field = "commitmentAlg"
+    del receipt[field]
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    signature = next(a for a in result["axes"] if a["name"] == "signature")
+    assert signature["result"] == "FAIL"
+    assert field in signature["note"]
+    assert signature["failure_class"] == FAILURE_UNVERIFIABLE
+    assert result["verdict"] == VERDICT_UNVERIFIED
 
 
 def test_public_surface_exposed_at_package_root() -> None:
