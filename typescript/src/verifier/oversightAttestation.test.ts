@@ -34,7 +34,7 @@ it("oversightAttestation reports three states through the runner", () => {
       (expected.reason_code as string) ?? "",
       (expected.failure_class as string) ?? "",
     );
-    expect(outcome.ok).toBe(true);
+    expect(outcome.ok).toBeTruthy();
     expect(outcome.oversightAttestation).toBe(expected["oversight_attestation"]);
     return outcome.oversightAttestation;
   });
