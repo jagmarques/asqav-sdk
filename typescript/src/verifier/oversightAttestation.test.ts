@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
 
-import { ASSERTED, MISSING, REVIEWER_KEY_FILE, SIGNATURE_VERIFIED } from "./oversightAttestation.js";
+import { ASSERTED, MISSING, SIGNATURE_VERIFIED } from "./oversightAttestation.js";
 import { runOne } from "./runner.js";
 
 const CORPUS = resolve(__dirname, "../../..", "verifier", "conformance-vectors");
@@ -49,16 +49,14 @@ function signatureVerifiedDir(): string {
   return dir!;
 }
 
-function runPlanted(receipt: Record<string, unknown>, reviewerKey: Record<string, unknown>) {
+function runPlanted(receipt: Record<string, unknown>, jwks: Record<string, unknown>) {
   const dir = signatureVerifiedDir();
   const expected = load(dir, "expected.json");
   const work = mkdtempSync(join(tmpdir(), "asqav-918-"));
   try {
     writeFileSync(join(work, "receipt.json"), JSON.stringify(receipt));
-    writeFileSync(join(work, REVIEWER_KEY_FILE), JSON.stringify(reviewerKey));
-    for (const name of ["jwks.json", "expected.json"]) {
-      writeFileSync(join(work, name), readFileSync(resolve(CORPUS, dir, name)));
-    }
+    writeFileSync(join(work, "jwks.json"), JSON.stringify(jwks));
+    writeFileSync(join(work, "expected.json"), readFileSync(resolve(CORPUS, dir, "expected.json")));
     return runOne(
       work,
       expected.format as string,
@@ -81,17 +79,20 @@ it("NEGCTL: an attestation signature that does not verify is asserted", () => {
   const raw = Buffer.from(signature.sig as string, "base64url");
   raw[0] = raw[0]! ^ 1;
   signature.sig = raw.toString("base64url");
-  const outcome = runPlanted(bad, load(dir, REVIEWER_KEY_FILE));
+  const outcome = runPlanted(bad, load(dir, "jwks.json"));
   expect(outcome.oversightAttestation).toBe(ASSERTED);
   expect(outcome.ok).toBe(false);
 });
 
-// NEGCTL: pin the receipt signer's key as the reviewer key; the receipt still
-// verifies, the attestation signature does not, so the claim is asserted
-it("NEGCTL: a reviewer key that did not sign is asserted", () => {
+// NEGCTL: bind the receipt signer's key to the reviewer's principal; the
+// receipt still verifies, the attestation signature does not: asserted
+it("NEGCTL: a reviewer bound to another key is asserted", () => {
   const dir = signatureVerifiedDir();
-  const signer = (load(dir, "jwks.json").keys as Record<string, unknown>[])[0]!;
-  const outcome = runPlanted(load(dir, "receipt.json"), { alg: signer.alg, public_key: signer.public_key });
+  const jwks = load(dir, "jwks.json");
+  const [signer, reviewer] = jwks.keys as Record<string, unknown>[];
+  reviewer!.pub = signer!.pub;
+  reviewer!.public_key = signer!.public_key;
+  const outcome = runPlanted(load(dir, "receipt.json"), jwks);
   expect(outcome.actualFailureClass).toBe(load(dir, "expected.json").failure_class);
   expect(outcome.oversightAttestation).toBe(ASSERTED);
   expect(outcome.ok).toBe(false);

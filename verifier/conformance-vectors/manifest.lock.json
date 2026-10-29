@@ -2203,18 +2203,13 @@
     },
     {
       "path": "asqav-56-oversight-attestation-missing/jwks.json",
-      "sha256": "2468be547a0da6429d9fef94619b64a0d4e250ad8b266316f67901bc07f1cce9",
-      "bytes": 5449
+      "sha256": "b36b0ad0a9415119fcd8978c25a98b974459e98160c6169235055e4f7e227d31",
+      "bytes": 10880
     },
     {
       "path": "asqav-56-oversight-attestation-missing/receipt.json",
       "sha256": "eeff59f5d8a6d2ed3114913a032abf8a01c8d011fa016245663254e1a797f82d",
       "bytes": 5722
-    },
-    {
-      "path": "asqav-56-oversight-attestation-missing/reviewer_key.json",
-      "sha256": "b871e958453947ec0d37da949232aa7dcb1bc50d443f3e2b69c4cd6dd220056a",
-      "bytes": 2649
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/expected.json",
@@ -2223,8 +2218,8 @@
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/jwks.json",
-      "sha256": "2468be547a0da6429d9fef94619b64a0d4e250ad8b266316f67901bc07f1cce9",
-      "bytes": 5449
+      "sha256": "b36b0ad0a9415119fcd8978c25a98b974459e98160c6169235055e4f7e227d31",
+      "bytes": 10880
     },
     {
       "path": "asqav-57-oversight-attestation-asserted/receipt.json",
@@ -2232,29 +2227,19 @@
       "bytes": 5791
     },
     {
-      "path": "asqav-57-oversight-attestation-asserted/reviewer_key.json",
-      "sha256": "b871e958453947ec0d37da949232aa7dcb1bc50d443f3e2b69c4cd6dd220056a",
-      "bytes": 2649
-    },
-    {
       "path": "asqav-58-oversight-attestation-signature-verified/expected.json",
-      "sha256": "4c21568b2e8148738fcd99a20c72a3d593ee4dfe8b6946a5e2ae0536c75cf2f2",
-      "bytes": 1100
+      "sha256": "5be04f6592e737120943053f05033da781304a3cd7ca9dff111ca5c7a5422843",
+      "bytes": 1112
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/jwks.json",
-      "sha256": "2468be547a0da6429d9fef94619b64a0d4e250ad8b266316f67901bc07f1cce9",
-      "bytes": 5449
+      "sha256": "b36b0ad0a9415119fcd8978c25a98b974459e98160c6169235055e4f7e227d31",
+      "bytes": 10880
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/receipt.json",
       "sha256": "b78800c9e3081e0fe4bd81b8d3756afe9ce6645d8137e2ee2284162baee8d35e",
       "bytes": 10448
-    },
-    {
-      "path": "asqav-58-oversight-attestation-signature-verified/reviewer_key.json",
-      "sha256": "b871e958453947ec0d37da949232aa7dcb1bc50d443f3e2b69c4cd6dd220056a",
-      "bytes": 2649
     },
     {
       "path": "authproof-01-genesis-real-sdk/expected.json",
@@ -2378,8 +2363,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "ad00ef4522d7d5b29603b5b5c23f2baea98dfdc34fc977e725b2ad08230b039e",
-      "bytes": 44945
+      "sha256": "22f74ceb7b83e4767c21bc374b0aa1a8f8933c09970ec61d93dc6ce0f1958a9a",
+      "bytes": 44957
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2552,5 +2537,5 @@
       ]
     }
   },
-  "digest": "592b79324b596277a33ca3b09ef4d3b5144f9c44da67021aaf047fc07096c656"
+  "digest": "af61ba83423a5b60b86ef2ea61dddb3c2cff3fc2f01061b87655646d7b5ad4c2"
 }

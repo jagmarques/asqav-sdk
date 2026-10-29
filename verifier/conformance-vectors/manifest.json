@@ -911,6 +911,6 @@
     "outcome": "unverified",
     "failure_class": "unverifiable",
     "reason_code": "registered_but_unimplemented",
-    "notes": "Mirrors platform conformance/v3-ietf/vector-050 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: the sso attestation carries an ML-DSA-65 signature added here that verifies under the reviewer key reviewer_key.json pins, so the review claim is signature-verified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
+    "notes": "Mirrors platform conformance/v3-ietf/vector-050 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: the sso attestation carries an ML-DSA-65 signature added here that verifies under the jwks.json key bound to the reviewer's principal, so the review claim is signature-verified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
   }
 ]

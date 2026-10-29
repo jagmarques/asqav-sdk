@@ -9,11 +9,7 @@ from pathlib import Path
 
 from asqav import strict_json
 
-from ..oversight_attestation import (
-    NOT_APPLICABLE,
-    REVIEWER_KEY_FILE,
-    oversight_attestation,
-)
+from ..oversight_attestation import NOT_APPLICABLE, oversight_attestation
 from ..verify_receipt import evaluate_anchors
 from . import ADAPTERS, crypto
 from .core import (
@@ -185,7 +181,7 @@ def run_one(
         ok = actual_failure_class == expected_failure_class
     report = oversight_attestation(
         receipt.get("payload") if isinstance(receipt, dict) else None,
-        _load(vec_dir / REVIEWER_KEY_FILE),
+        inputs[3],
     )
     expected_report = declared.get("oversight_attestation") if isinstance(declared, dict) else None
     if isinstance(expected_report, str):

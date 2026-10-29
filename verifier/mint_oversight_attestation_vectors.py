@@ -90,8 +90,8 @@ CASES = (
         "vector-050",
         (
             "the sso attestation carries an ML-DSA-65 signature added here "
-            "that verifies under the reviewer key reviewer_key.json pins, so "
-            "the review claim is signature-verified."
+            "that verifies under the jwks.json key bound to the reviewer's "
+            "principal, so the review claim is signature-verified."
         ),
     ),
 )
@@ -163,7 +163,7 @@ def _signed(attestation: dict, ml_dsa, secret_key: bytes) -> dict:
     }
 
 
-def _jwks(public_key: bytes) -> dict:
+def _jwks(public_key: bytes, reviewer_public: bytes) -> dict:
     return {
         "keys": [
             {
@@ -174,7 +174,16 @@ def _jwks(public_key: bytes) -> dict:
                 "pub": _b64u(public_key),
                 "public_key": base64.b64encode(public_key).decode("ascii"),
                 "status": "active",
-            }
+            },
+            {
+                "kid": REVIEWER_KID,
+                "principal": REVIEWER["principal"],
+                "alg": "ML-DSA-65",
+                "kty": "AKP",
+                "pub": _b64u(reviewer_public),
+                "public_key": base64.b64encode(reviewer_public).decode("ascii"),
+                "status": "active",
+            },
         ]
     }
 
@@ -206,11 +215,7 @@ def _append_ids(entries: dict[str, dict]) -> None:
 def main() -> None:
     ML_DSA_65, (public_key, secret_key) = _key_material(SEED_PHRASE)
     _, (reviewer_public, reviewer_secret) = _key_material(REVIEWER_SEED_PHRASE)
-    jwks = _jwks(public_key)
-    reviewer_key = {
-        "alg": "ML-DSA-65",
-        "public_key": base64.b64encode(reviewer_public).decode("ascii"),
-    }
+    jwks = _jwks(public_key, reviewer_public)
     dirs = vector_dirs()
     entries = {}
     for dirname, (slug, attestation, signed, claim, platform, detail) in zip(dirs, CASES):
@@ -236,9 +241,6 @@ def main() -> None:
         )
         (directory / "jwks.json").write_text(
             json.dumps(jwks, indent=2) + "\n", encoding="utf-8"
-        )
-        (directory / STATE.REVIEWER_KEY_FILE).write_text(
-            json.dumps(reviewer_key, indent=2) + "\n", encoding="utf-8"
         )
         expected_path = directory / "expected.json"
         expected = {

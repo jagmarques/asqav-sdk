@@ -13,7 +13,6 @@ from asqav.verifier.oracle.runner import run_one
 from asqav.verifier.oversight_attestation import (
     ASSERTED,
     MISSING,
-    REVIEWER_KEY_FILE,
     SIGNATURE_VERIFIED,
 )
 
@@ -80,18 +79,17 @@ def _signature_verified_dir() -> str:
     )
 
 
-def _run_planted(tmp_path: Path, receipt: dict, reviewer_key: dict):
+def _run_planted(tmp_path: Path, receipt: dict, jwks: dict):
     dirname = _signature_verified_dir()
     expected = _load(dirname, "expected.json")
     work = tmp_path / dirname
     work.mkdir()
     (work / "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
-    (work / REVIEWER_KEY_FILE).write_text(json.dumps(reviewer_key), encoding="utf-8")
-    for name in ("jwks.json", "expected.json"):
-        (work / name).write_text(
-            (MINT.CORPUS / dirname / name).read_text(encoding="utf-8"),
-            encoding="utf-8",
-        )
+    (work / "jwks.json").write_text(json.dumps(jwks), encoding="utf-8")
+    (work / "expected.json").write_text(
+        (MINT.CORPUS / dirname / "expected.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     return run_one(
         work,
         expected["format"],
@@ -113,21 +111,19 @@ def test_negctl_an_attestation_signature_that_does_not_verify_is_asserted(
     signature["sig"] = base64.urlsafe_b64encode(
         bytes([raw[0] ^ 1]) + raw[1:]
     ).decode("ascii").rstrip("=")
-    outcome = _run_planted(tmp_path, bad, _load(dirname, REVIEWER_KEY_FILE))
+    outcome = _run_planted(tmp_path, bad, _load(dirname, "jwks.json"))
     assert outcome.oversight_attestation == ASSERTED
     assert outcome.ok is False
 
 
-# NEGCTL: pin the receipt signer's key as the reviewer key; the receipt still
-# verifies, the attestation signature does not, so the claim is asserted
-def test_negctl_a_reviewer_key_that_did_not_sign_is_asserted(tmp_path: Path) -> None:
+# NEGCTL: bind the receipt signer's key to the reviewer's principal; the
+# receipt still verifies, the attestation signature does not: asserted
+def test_negctl_a_reviewer_bound_to_another_key_is_asserted(tmp_path: Path) -> None:
     dirname = _signature_verified_dir()
-    signer = _load(dirname, "jwks.json")["keys"][0]
-    outcome = _run_planted(
-        tmp_path,
-        _load(dirname, "receipt.json"),
-        {"alg": signer["alg"], "public_key": signer["public_key"]},
-    )
+    jwks = _load(dirname, "jwks.json")
+    signer, reviewer = jwks["keys"]
+    reviewer["pub"], reviewer["public_key"] = signer["pub"], signer["public_key"]
+    outcome = _run_planted(tmp_path, _load(dirname, "receipt.json"), jwks)
     assert outcome.actual_failure_class == _load(dirname, "expected.json")["failure_class"]
     assert outcome.oversight_attestation == ASSERTED
     assert outcome.ok is False

@@ -22,8 +22,6 @@ METHODS = frozenset(
     {"manual_assertion", "sso", "hardware_key", "signed_statement"}
 )
 
-#: The vector file pinning the reviewer key; the receipt never supplies it.
-REVIEWER_KEY_FILE = "reviewer_key.json"
 #: The attestation signature members, each a non-blank string.
 SIGNATURE_MEMBERS = ("alg", "kid", "sig")
 
@@ -31,6 +29,19 @@ SIGNATURE_MEMBERS = ("alg", "kid", "sig")
 def attestation_message(attestation: dict) -> bytes:
     """Canonical bytes of the attestation minus its own signature envelope."""
     return asqav_jcs({k: v for k, v in attestation.items() if k != "signature"})
+
+
+def reviewer_key(keys: object, principal: object) -> dict | None:
+    """The one trusted key bound to the reviewer's principal, not a wire key."""
+    if not isinstance(keys, dict) or not isinstance(principal, str) or not principal.strip():
+        return None
+    entries = keys.get("keys")
+    bound = [
+        entry
+        for entry in (entries if isinstance(entries, list) else [])
+        if isinstance(entry, dict) and entry.get("principal") == principal
+    ]
+    return bound[0] if len(bound) == 1 else None
 
 
 def _signature_verifies(attestation: dict, reviewer_key: dict) -> bool:
@@ -52,9 +63,9 @@ def _signature_verifies(attestation: dict, reviewer_key: dict) -> bool:
     return result == PASS
 
 
-def oversight_attestation(payload: object, reviewer_key: object = None) -> str:
-    """Verified only when the attestation signature checks under the pinned
-    reviewer key; every other listed method is asserted."""
+def oversight_attestation(payload: object, keys: object = None) -> str:
+    """Verified only when the attestation signature checks under the trusted
+    key bound to the reviewer; every other listed method is asserted."""
     if not isinstance(payload, dict):
         return NOT_APPLICABLE
     if payload.get("type") != "protectmcp:lifecycle:oversight_ruling":
@@ -66,6 +77,7 @@ def oversight_attestation(payload: object, reviewer_key: object = None) -> str:
     method = attestation.get("method")
     if not isinstance(method, str) or method not in METHODS:
         return MISSING
-    if method == "manual_assertion" or not isinstance(reviewer_key, dict):
+    key = reviewer_key(keys, reviewer.get("principal"))
+    if method == "manual_assertion" or key is None:
         return ASSERTED
-    return SIGNATURE_VERIFIED if _signature_verifies(attestation, reviewer_key) else ASSERTED
+    return SIGNATURE_VERIFIED if _signature_verifies(attestation, key) else ASSERTED

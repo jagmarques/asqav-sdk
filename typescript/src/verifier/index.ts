@@ -108,7 +108,6 @@ export {
   MISSING,
   NOT_APPLICABLE,
   oversightAttestation,
-  REVIEWER_KEY_FILE,
   SIGNATURE_VERIFIED,
   STATES,
 } from "./oversightAttestation.js";
