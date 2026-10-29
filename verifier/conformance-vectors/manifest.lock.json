@@ -1,6 +1,6 @@
 {
   "corpus": "asqav-verifier-conformance-vectors",
-  "corpus_version": 68,
+  "corpus_version": 69,
   "rolling": true,
   "digest_algorithm": "SHA-256",
   "version_history": [
@@ -343,13 +343,18 @@
       "version": 67,
       "files": 422,
       "digest": "5761a49aec677b5f7884b69a8d63b8b6e2b11cda6764c3e65f689c6c87e99cca"
+    },
+    {
+      "version": 68,
+      "files": 422,
+      "digest": "205d8c338f1d394f6bbcb8041593ac2108f4293bfe481dbfd2361aadb49e11cd"
     }
   ],
   "files": [
     {
       "path": "README.md",
-      "sha256": "e7e39a51c52ba435111cb69105c3b305d08242e316cdfe7c1920f51dc3a49d4c",
-      "bytes": 14062
+      "sha256": "7b352cddabf1bb008c33841dc5ae304fc701ee80a899c2c7478babf8293784b6",
+      "bytes": 14332
     },
     {
       "path": "UPSTREAM.md",
@@ -2192,6 +2197,51 @@
       "bytes": 1206
     },
     {
+      "path": "asqav-56-oversight-attestation-missing/expected.json",
+      "sha256": "57f023a06dc2b76ad20b3f5cafec5f3a2f700ea4b063bb5c414a9cd5a26d9751",
+      "bytes": 1014
+    },
+    {
+      "path": "asqav-56-oversight-attestation-missing/jwks.json",
+      "sha256": "2468be547a0da6429d9fef94619b64a0d4e250ad8b266316f67901bc07f1cce9",
+      "bytes": 5449
+    },
+    {
+      "path": "asqav-56-oversight-attestation-missing/receipt.json",
+      "sha256": "eeff59f5d8a6d2ed3114913a032abf8a01c8d011fa016245663254e1a797f82d",
+      "bytes": 5722
+    },
+    {
+      "path": "asqav-57-oversight-attestation-asserted/expected.json",
+      "sha256": "e30189528a979cdb1c8dcba81712154283fd59aabd04f49ad1f9289d9520a02d",
+      "bytes": 1024
+    },
+    {
+      "path": "asqav-57-oversight-attestation-asserted/jwks.json",
+      "sha256": "2468be547a0da6429d9fef94619b64a0d4e250ad8b266316f67901bc07f1cce9",
+      "bytes": 5449
+    },
+    {
+      "path": "asqav-57-oversight-attestation-asserted/receipt.json",
+      "sha256": "75a99d005c53738fa355c2f9bdb6082aa2aa50fdd4a0ca39c9f1ed95ebe2c46d",
+      "bytes": 5791
+    },
+    {
+      "path": "asqav-58-oversight-attestation-signature-verified/expected.json",
+      "sha256": "0fe1165848c5ae3c1229879518987a73c8c067629d864fbdee786433c477ce2e",
+      "bytes": 1042
+    },
+    {
+      "path": "asqav-58-oversight-attestation-signature-verified/jwks.json",
+      "sha256": "2468be547a0da6429d9fef94619b64a0d4e250ad8b266316f67901bc07f1cce9",
+      "bytes": 5449
+    },
+    {
+      "path": "asqav-58-oversight-attestation-signature-verified/receipt.json",
+      "sha256": "b17cb1b24c39132e3774ed6c7005938a605f3cfd2d84d54f20d39d8c077b91a9",
+      "bytes": 5891
+    },
+    {
       "path": "authproof-01-genesis-real-sdk/expected.json",
       "sha256": "5599a2e6341d4194186cd5c43be8c271c2dd40d8a382f1be536d89488e6378a8",
       "bytes": 274
@@ -2313,8 +2363,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "dbeb7655eecb0179bd6a11483f356d1eddc7ae909b913f8b4b82c3f8252aa7ae",
-      "bytes": 43029
+      "sha256": "68c853cb1e48567a2b53f44f475d06e8a9052799b85a4422b473f0ebd402ee99",
+      "bytes": 44887
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2348,8 +2398,8 @@
     },
     {
       "path": "requirement-map.json",
-      "sha256": "e82ce41613dc3a3a5296759d71ad7d82f9d0218326fd4c7a97cb3bf3249405e4",
-      "bytes": 135262
+      "sha256": "c0b9edb473e8617a990ea539776074d1b1f318b2b313b831ae92d13899206f07",
+      "bytes": 140944
     },
     {
       "path": "w3c-vc-01-didweb-happy-path/did_map.json",
@@ -2487,5 +2537,5 @@
       ]
     }
   },
-  "digest": "205d8c338f1d394f6bbcb8041593ac2108f4293bfe481dbfd2361aadb49e11cd"
+  "digest": "83b7a755e1ecb907f0d5203bd1303f021f9f77bcb325de94717fc49927588a3f"
 }

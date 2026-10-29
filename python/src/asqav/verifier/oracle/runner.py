@@ -9,6 +9,7 @@ from pathlib import Path
 
 from asqav import strict_json
 
+from ..oversight_attestation import NOT_APPLICABLE, oversight_attestation
 from ..verify_receipt import evaluate_anchors
 from . import ADAPTERS, crypto
 from .core import (
@@ -29,7 +30,6 @@ _OUTCOME_TO_VERDICT = {
 
 
 #: Anchors axis status for a receipt that carries no anchors.
-NOT_APPLICABLE = "not_applicable"
 ANCHORS_AXIS = "anchors"
 #: Trusted anchor material evaluate_anchors takes, apart from the receipt.
 TRUSTED_MATERIAL_KEYS = ("trusted_tsa_keys", "bitcoin_headers", "trust_bundle")
@@ -37,7 +37,7 @@ TRUSTED_MATERIAL_KEYS = ("trusted_tsa_keys", "bitcoin_headers", "trust_bundle")
 #: The expected.json member naming the requirements a vector's verdict covers.
 AXIS_SCOPE_KEY = "axis_scope"
 AXIS_SCOPE_EXERCISED = "exercised"
-AXIS_SCOPE_NOT_APPLICABLE = "not_applicable"
+AXIS_SCOPE_NOT_APPLICABLE = NOT_APPLICABLE
 #: The requirement the anchors axis is evidence for.
 ANCHOR_REQUIREMENT = "REQ-ANCHOR"
 
@@ -85,6 +85,8 @@ class VectorOutcome:
     expected_failure_class: str = ""
     actual_failure_class: str = ""
     anchors: AxisResult | None = None
+    oversight_attestation: str = ""
+    expected_oversight_attestation: str = ""
 
 
 def _load(path: Path) -> dict | None:
@@ -177,6 +179,12 @@ def run_one(
     actual_failure_class = result.failure_class or ""
     if ok and expected_failure_class:
         ok = actual_failure_class == expected_failure_class
+    report = oversight_attestation(
+        receipt.get("payload") if isinstance(receipt, dict) else None, result
+    )
+    expected_report = declared.get("oversight_attestation") if isinstance(declared, dict) else None
+    if isinstance(expected_report, str):
+        ok = ok and report == expected_report
     detail = "; ".join(f"{a.axis}={a.result}({a.note})" for a in result.axes)
     return VectorOutcome(
         vec_dir.name,
@@ -188,6 +196,8 @@ def run_one(
         expected_failure_class,
         actual_failure_class,
         anchors_axis(receipt, axis_scope=axis_scope),
+        report,
+        expected_report if isinstance(expected_report, str) else "",
     )
 
 
@@ -237,6 +247,8 @@ def main() -> int:
         got = r.actual_verdict
         if r.actual_failure_class:
             got += f" ({r.actual_failure_class})"
+        if r.expected_oversight_attestation:
+            got += f" oversight_attestation={r.oversight_attestation}"
         print(f"  [{mark:>4}] {r.dir:<38} expect={r.expected_outcome:<16} got={got}")
         if not _tolerated(r):
             print(f"         {r.detail}")

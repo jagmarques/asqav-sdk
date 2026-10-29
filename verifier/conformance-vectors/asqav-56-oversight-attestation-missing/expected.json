@@ -1,0 +1,29 @@
+{
+  "format": "asqav-native",
+  "outcome": "unverified",
+  "failure_class": "unverifiable",
+  "reason_code": "registered_but_unimplemented",
+  "notes": "Mirrors platform conformance/v3-ietf/vector-048 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: the reviewer carries no attestation, so the review claim is missing/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable.",
+  "oversight_attestation": "missing/unverified",
+  "axis_scope": {
+    "exercised": [
+      "REQ-CHAIN",
+      "REQ-COUNTERPARTY",
+      "REQ-EXPIRY",
+      "REQ-ISSUER-BIND",
+      "REQ-KEY-RESOLUTION",
+      "REQ-KEY-STATUS",
+      "REQ-KEY-THUMBPRINT",
+      "REQ-KEYED-DIGEST",
+      "REQ-NONCE",
+      "REQ-OUTER-COPIES",
+      "REQ-PAYLOAD-DIGEST",
+      "REQ-SIGNATURE",
+      "REQ-SKEW"
+    ],
+    "not_applicable": [
+      "REQ-ANCHOR",
+      "REQ-STRUCTURE"
+    ]
+  }
+}

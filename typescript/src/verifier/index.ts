@@ -103,4 +103,12 @@ export {
   runOne,
   type VectorOutcome,
 } from "./runner.js";
+export {
+  ASSERTED,
+  MISSING,
+  NOT_APPLICABLE,
+  oversightAttestation,
+  SIGNATURE_VERIFIED,
+  STATES,
+} from "./oversightAttestation.js";
 export { counterpartyEnvelopeHash } from "./vrShim.js";

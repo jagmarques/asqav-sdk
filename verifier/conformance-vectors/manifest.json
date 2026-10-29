@@ -888,5 +888,29 @@
     "outcome": "verified",
     "reason_code": "",
     "notes": "Hash-mode heartbeat (criterion 574 C474): type protectmcp:lifecycle, decision observation, interval in metadata.heartbeat_description, no action_type member, seq 1 on a genesis chain. Signed policy_digest commits to the liveness_heartbeat artefact."
+  },
+  {
+    "dir": "asqav-56-oversight-attestation-missing",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "registered_but_unimplemented",
+    "notes": "Mirrors platform conformance/v3-ietf/vector-048 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: the reviewer carries no attestation, so the review claim is missing/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
+  },
+  {
+    "dir": "asqav-57-oversight-attestation-asserted",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "registered_but_unimplemented",
+    "notes": "Mirrors platform conformance/v3-ietf/vector-049 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: manual_assertion names no signature backing, so the review claim is asserted/unverified. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
+  },
+  {
+    "dir": "asqav-58-oversight-attestation-signature-verified",
+    "format": "asqav-native",
+    "outcome": "unverified",
+    "failure_class": "unverifiable",
+    "reason_code": "registered_but_unimplemented",
+    "notes": "Mirrors platform conformance/v3-ietf/vector-050 with its signed_envelope copied as the payload with v and mode added, and a fresh deterministic test-key signature: sso names signature backing, so the review claim is signature-verified once the receipt signature verifies. The SDK verifier does not implement the oversight_ruling type, so structure SKIPs and the expected verdict is unverified/unverifiable."
   }
 ]

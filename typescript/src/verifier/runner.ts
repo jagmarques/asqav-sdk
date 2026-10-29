@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { ADAPTERS } from "./index.js";
 import { verify, VERDICT_UNVERIFIED, VERDICT_VERIFIED, FAILURE_UNVERIFIABLE } from "./core.js";
+import { oversightAttestation } from "./oversightAttestation.js";
 import { parseJsonPreservingFloats, parseJsonStrict } from "./canonical.js";
 import type { KeyProvider } from "./adapter.js";
 
@@ -21,6 +22,8 @@ export interface VectorOutcome {
   detail: string;
   expectedFailureClass: string;
   actualFailureClass: string;
+  oversightAttestation: string | null;
+  expectedOversightAttestation: string | null;
 }
 
 interface ManifestEntry {
@@ -70,6 +73,8 @@ function parseFailureOutcome(
     detail,
     expectedFailureClass,
     actualFailureClass: FAILURE_UNVERIFIABLE,
+    oversightAttestation: null,
+    expectedOversightAttestation: null,
   };
 }
 
@@ -99,11 +104,19 @@ export function runOne(
     throw exc;
   }
   const result = verify(receipt, ADAPTERS, keyProvider, predecessor, Object.freeze({ originatingEnvelope }));
+  // The corpus declaration: an unreadable expected.json raises here
+  const declared = loadJson(join(vecDir, "expected.json"));
 
   let ok = result.verdict === expectedOutcome;
   const actualFailureClass = result.failureClass ?? "";
   if (ok && expectedFailureClass !== "") {
     ok = actualFailureClass === expectedFailureClass;
+  }
+  const report = oversightAttestation(receipt.payload, result);
+  const declaredReport = declared?.["oversight_attestation"];
+  const expectedReport = typeof declaredReport === "string" ? declaredReport : null;
+  if (expectedReport !== null) {
+    ok = ok && report === expectedReport;
   }
   const detail = result.axes.map((a) => `${a.axis}=${a.result}(${a.note})`).join("; ");
   return {
@@ -115,6 +128,8 @@ export function runOne(
     detail,
     expectedFailureClass,
     actualFailureClass,
+    oversightAttestation: report,
+    expectedOversightAttestation: expectedReport,
   };
 }
 
