@@ -27,18 +27,22 @@ METHODS = frozenset(
 SIGNATURE_MEMBERS = ("alg", "kid", "sig")
 
 
-#: The ruling members the attestation signature binds beside the principal.
+#: The reviewer members the signature binds beside the attestation.
+REVIEWER_MEMBERS = ("principal", "role", "authority")
+
+#: The ruling members the attestation signature binds.
 RULING_MEMBERS = ("issued_at", "judged_action_refs", "ruling")
 
 
 def attestation_message(payload: dict, attestation: dict) -> bytes:
     """Canonical bytes of the attestation minus its own signature envelope,
-    bound to the reviewer's principal and the ruling it backs."""
+    bound to the reviewer's identity and the ruling it backs."""
     reviewer = payload.get("reviewer")
+    reviewer = reviewer if isinstance(reviewer, dict) else {}
     return asqav_jcs(
         {
             "attestation": {k: v for k, v in attestation.items() if k != "signature"},
-            "principal": reviewer.get("principal") if isinstance(reviewer, dict) else None,
+            "reviewer": {k: reviewer.get(k) for k in REVIEWER_MEMBERS},
             **{k: payload.get(k) for k in RULING_MEMBERS},
         }
     )

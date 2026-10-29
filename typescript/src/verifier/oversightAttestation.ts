@@ -30,16 +30,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** The ruling members the attestation signature binds beside the principal. */
+/** The reviewer members the signature binds beside the attestation. */
+const REVIEWER_MEMBERS = ["principal", "role", "authority"] as const;
+
+/** The ruling members the attestation signature binds. */
 const RULING_MEMBERS = ["issued_at", "judged_action_refs", "ruling"] as const;
 
 /** Canonical bytes of the attestation minus its own signature envelope,
- * bound to the reviewer's principal and the ruling it backs. */
+ * bound to the reviewer's identity and the ruling it backs. */
 function attestationMessage(payload: Record<string, unknown>, attestation: Record<string, unknown>): Uint8Array {
-  const reviewer = payload.reviewer;
+  const reviewer = isRecord(payload.reviewer) ? payload.reviewer : {};
   return asqavJcs({
     attestation: Object.fromEntries(Object.entries(attestation).filter(([k]) => k !== "signature")),
-    principal: isRecord(reviewer) ? (reviewer.principal ?? null) : null,
+    reviewer: Object.fromEntries(REVIEWER_MEMBERS.map((k) => [k, reviewer[k] ?? null])),
     ...Object.fromEntries(RULING_MEMBERS.map((k) => [k, payload[k] ?? null])),
   });
 }

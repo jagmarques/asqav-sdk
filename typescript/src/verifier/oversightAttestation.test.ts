@@ -98,6 +98,18 @@ it("NEGCTL: an attestation moved to another ruling is asserted", () => {
   expect(outcome.ok).toBe(false);
 });
 
+// NEGCTL: change the reviewer's role, signature intact; the signature binds the
+// reviewer's identity beside the principal, so the claim is asserted
+it("NEGCTL: an attestation under another reviewer role is asserted", () => {
+  const dir = signatureVerifiedDir();
+  const moved = structuredClone(load(dir, "receipt.json"));
+  const reviewer = (moved.payload as Record<string, Record<string, unknown>>).reviewer!;
+  reviewer.role = reviewer.authority;
+  const outcome = runPlanted(moved, load(dir, "jwks.json"));
+  expect(outcome.oversightAttestation).toBe(ASSERTED);
+  expect(outcome.ok).toBe(false);
+});
+
 // NEGCTL: bind the receipt signer's key to the reviewer's principal; the
 // receipt still verifies, the attestation signature does not: asserted
 it("NEGCTL: a reviewer bound to another key is asserted", () => {
