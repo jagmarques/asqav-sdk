@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 import { ADAPTERS } from "./index.js";
 import { verify, VERDICT_UNVERIFIED, VERDICT_VERIFIED, FAILURE_UNVERIFIABLE } from "./core.js";
-import { oversightAttestation } from "./oversightAttestation.js";
+import { oversightAttestation, REVIEWER_KEY_FILE } from "./oversightAttestation.js";
 import { parseJsonPreservingFloats, parseJsonStrict } from "./canonical.js";
 import type { KeyProvider } from "./adapter.js";
 
@@ -112,7 +112,7 @@ export function runOne(
   if (ok && expectedFailureClass !== "") {
     ok = actualFailureClass === expectedFailureClass;
   }
-  const report = oversightAttestation(receipt.payload, result);
+  const report = oversightAttestation(receipt.payload, loadJson(join(vecDir, REVIEWER_KEY_FILE)));
   const declaredReport = declared?.["oversight_attestation"];
   const expectedReport = typeof declaredReport === "string" ? declaredReport : null;
   if (expectedReport !== null) {

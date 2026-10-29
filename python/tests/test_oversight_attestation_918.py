@@ -9,11 +9,11 @@ import json
 import sys
 from pathlib import Path
 
-from asqav.verifier.oracle.core import FAILURE_INVALID, VERDICT_UNVERIFIED
 from asqav.verifier.oracle.runner import run_one
 from asqav.verifier.oversight_attestation import (
     ASSERTED,
     MISSING,
+    REVIEWER_KEY_FILE,
     SIGNATURE_VERIFIED,
 )
 
@@ -72,39 +72,62 @@ def test_oversight_attestation_reports_three_states() -> None:
     assert set(reports) == {MISSING, ASSERTED, SIGNATURE_VERIFIED}
 
 
-# NEGCTL: flip the signature-verified receipt's signature; the runner's report
-# calls it asserted and the declared signature-verified state no longer matches
-def test_negctl_a_receipt_whose_signature_does_not_verify_is_asserted(
-    tmp_path: Path,
-) -> None:
-    dirname = next(
+def _signature_verified_dir() -> str:
+    return next(
         name
         for name in MINT.vector_dirs()
         if _load(name, "expected.json")["oversight_attestation"] == SIGNATURE_VERIFIED
     )
-    receipt = _load(dirname, "receipt.json")
+
+
+def _run_planted(tmp_path: Path, receipt: dict, reviewer_key: dict):
+    dirname = _signature_verified_dir()
     expected = _load(dirname, "expected.json")
-    bad = copy.deepcopy(receipt)
-    raw = base64.urlsafe_b64decode(bad["signature"]["sig"] + "==")
-    bad["signature"]["sig"] = base64.urlsafe_b64encode(
-        bytes([raw[0] ^ 1]) + raw[1:]
-    ).decode("ascii").rstrip("=")
     work = tmp_path / dirname
     work.mkdir()
-    (work / "receipt.json").write_text(json.dumps(bad), encoding="utf-8")
-    (work / "jwks.json").write_text(
-        (MINT.CORPUS / dirname / "jwks.json").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    (work / "expected.json").write_text(json.dumps(expected), encoding="utf-8")
-    outcome = run_one(
+    (work / "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
+    (work / REVIEWER_KEY_FILE).write_text(json.dumps(reviewer_key), encoding="utf-8")
+    for name in ("jwks.json", "expected.json"):
+        (work / name).write_text(
+            (MINT.CORPUS / dirname / name).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+    return run_one(
         work,
         expected["format"],
-        VERDICT_UNVERIFIED,
+        expected["outcome"],
         expected.get("reason_code", ""),
-        FAILURE_INVALID,
+        expected.get("failure_class", ""),
     )
-    assert outcome.actual_failure_class == FAILURE_INVALID
+
+
+# NEGCTL: flip one byte of the reviewer's attestation signature; the runner
+# reports asserted, so the declared signature-verified state no longer matches
+def test_negctl_an_attestation_signature_that_does_not_verify_is_asserted(
+    tmp_path: Path,
+) -> None:
+    dirname = _signature_verified_dir()
+    bad = copy.deepcopy(_load(dirname, "receipt.json"))
+    signature = bad["payload"]["reviewer"]["attestation"]["signature"]
+    raw = base64.urlsafe_b64decode(signature["sig"] + "==")
+    signature["sig"] = base64.urlsafe_b64encode(
+        bytes([raw[0] ^ 1]) + raw[1:]
+    ).decode("ascii").rstrip("=")
+    outcome = _run_planted(tmp_path, bad, _load(dirname, REVIEWER_KEY_FILE))
     assert outcome.oversight_attestation == ASSERTED
-    assert outcome.oversight_attestation != SIGNATURE_VERIFIED
+    assert outcome.ok is False
+
+
+# NEGCTL: pin the receipt signer's key as the reviewer key; the receipt still
+# verifies, the attestation signature does not, so the claim is asserted
+def test_negctl_a_reviewer_key_that_did_not_sign_is_asserted(tmp_path: Path) -> None:
+    dirname = _signature_verified_dir()
+    signer = _load(dirname, "jwks.json")["keys"][0]
+    outcome = _run_planted(
+        tmp_path,
+        _load(dirname, "receipt.json"),
+        {"alg": signer["alg"], "public_key": signer["public_key"]},
+    )
+    assert outcome.actual_failure_class == _load(dirname, "expected.json")["failure_class"]
+    assert outcome.oversight_attestation == ASSERTED
     assert outcome.ok is False

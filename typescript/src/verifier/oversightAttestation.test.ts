@@ -3,8 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
 
-import { FAILURE_INVALID, VERDICT_UNVERIFIED } from "./core.js";
-import { ASSERTED, MISSING, SIGNATURE_VERIFIED } from "./oversightAttestation.js";
+import { ASSERTED, MISSING, REVIEWER_KEY_FILE, SIGNATURE_VERIFIED } from "./oversightAttestation.js";
 import { runOne } from "./runner.js";
 
 const CORPUS = resolve(__dirname, "../../..", "verifier", "conformance-vectors");
@@ -42,37 +41,58 @@ it("oversightAttestation reports three states through the runner", () => {
   expect(new Set(reports)).toEqual(new Set([MISSING, ASSERTED, SIGNATURE_VERIFIED]));
 });
 
-// NEGCTL: flip the signature-verified receipt's signature; the runner's report
-// calls it asserted and the declared signature-verified state no longer matches
-it("NEGCTL: a receipt whose signature does not verify is asserted", () => {
+function signatureVerifiedDir(): string {
   const dir = caseDirs().find(
     (name) => load(name, "expected.json")["oversight_attestation"] === SIGNATURE_VERIFIED,
   );
   expect(dir).toBeDefined();
-  const receipt = load(dir!, "receipt.json");
-  const expected = load(dir!, "expected.json");
-  const bad = structuredClone(receipt);
-  const signature = bad.signature as Record<string, unknown>;
-  const raw = Buffer.from(signature.sig as string, "base64url");
-  raw[0] = raw[0]! ^ 1;
-  signature.sig = raw.toString("base64url");
+  return dir!;
+}
+
+function runPlanted(receipt: Record<string, unknown>, reviewerKey: Record<string, unknown>) {
+  const dir = signatureVerifiedDir();
+  const expected = load(dir, "expected.json");
   const work = mkdtempSync(join(tmpdir(), "asqav-918-"));
   try {
-    writeFileSync(join(work, "receipt.json"), JSON.stringify(bad));
-    writeFileSync(join(work, "jwks.json"), readFileSync(resolve(CORPUS, dir!, "jwks.json")));
-    writeFileSync(join(work, "expected.json"), JSON.stringify(expected));
-    const outcome = runOne(
+    writeFileSync(join(work, "receipt.json"), JSON.stringify(receipt));
+    writeFileSync(join(work, REVIEWER_KEY_FILE), JSON.stringify(reviewerKey));
+    for (const name of ["jwks.json", "expected.json"]) {
+      writeFileSync(join(work, name), readFileSync(resolve(CORPUS, dir, name)));
+    }
+    return runOne(
       work,
       expected.format as string,
-      VERDICT_UNVERIFIED,
+      expected.outcome as string,
       (expected.reason_code as string) ?? "",
-      FAILURE_INVALID,
+      (expected.failure_class as string) ?? "",
     );
-    expect(outcome.actualFailureClass).toBe(FAILURE_INVALID);
-    expect(outcome.oversightAttestation).toBe(ASSERTED);
-    expect(outcome.oversightAttestation).not.toBe(SIGNATURE_VERIFIED);
-    expect(outcome.ok).toBe(false);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+}
+
+// NEGCTL: flip one byte of the reviewer's attestation signature; the runner
+// reports asserted, so the declared signature-verified state no longer matches
+it("NEGCTL: an attestation signature that does not verify is asserted", () => {
+  const dir = signatureVerifiedDir();
+  const bad = structuredClone(load(dir, "receipt.json"));
+  const payload = bad.payload as Record<string, Record<string, Record<string, Record<string, unknown>>>>;
+  const signature = payload.reviewer!.attestation!.signature!;
+  const raw = Buffer.from(signature.sig as string, "base64url");
+  raw[0] = raw[0]! ^ 1;
+  signature.sig = raw.toString("base64url");
+  const outcome = runPlanted(bad, load(dir, REVIEWER_KEY_FILE));
+  expect(outcome.oversightAttestation).toBe(ASSERTED);
+  expect(outcome.ok).toBe(false);
+});
+
+// NEGCTL: pin the receipt signer's key as the reviewer key; the receipt still
+// verifies, the attestation signature does not, so the claim is asserted
+it("NEGCTL: a reviewer key that did not sign is asserted", () => {
+  const dir = signatureVerifiedDir();
+  const signer = (load(dir, "jwks.json").keys as Record<string, unknown>[])[0]!;
+  const outcome = runPlanted(load(dir, "receipt.json"), { alg: signer.alg, public_key: signer.public_key });
+  expect(outcome.actualFailureClass).toBe(load(dir, "expected.json").failure_class);
+  expect(outcome.oversightAttestation).toBe(ASSERTED);
+  expect(outcome.ok).toBe(false);
 });

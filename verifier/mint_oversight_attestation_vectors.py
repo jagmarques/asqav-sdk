@@ -20,6 +20,9 @@ STATE = importlib.import_module("asqav.verifier.oversight_attestation")
 CORPUS = HERE / "conformance-vectors"
 MANIFEST = CORPUS / "manifest.json"
 SEED_PHRASE = b"asqav conformance corpus v1 oversight-attestation signing seed"
+#: The reviewer's own key, distinct from the receipt signer's.
+REVIEWER_SEED_PHRASE = b"asqav conformance corpus v1 oversight-attestation reviewer seed"
+REVIEWER_KID = "asqav-oversight-attestation-reviewer-key"
 ISSUER = "00000000000000000098"
 KEY_ID = "asqav-oversight-attestation-vector-key"
 TYPE = "protectmcp:lifecycle:oversight_ruling"
@@ -55,11 +58,12 @@ REVIEWER = {
     "role": "oversight-judge",
 }
 
-#: (slug, attestation, claim, platform vector, outcome note)
+#: (slug, attestation, signed, claim, platform vector, outcome note)
 CASES = (
     (
         "oversight-attestation-missing",
         None,
+        False,
         STATE.MISSING,
         "vector-048",
         (
@@ -70,6 +74,7 @@ CASES = (
     (
         "oversight-attestation-asserted",
         {"method": "manual_assertion"},
+        False,
         STATE.ASSERTED,
         "vector-049",
         (
@@ -80,11 +85,13 @@ CASES = (
     (
         "oversight-attestation-signature-verified",
         {"method": "sso", "evidence": f"sha256:{POLICY_SHA256}"},
+        True,
         STATE.SIGNATURE_VERIFIED,
         "vector-050",
         (
-            "sso names signature backing, so the review claim is "
-            "signature-verified once the receipt signature verifies."
+            "the sso attestation carries an ML-DSA-65 signature added here "
+            "that verifies under the reviewer key reviewer_key.json pins, so "
+            "the review claim is signature-verified."
         ),
     ),
 )
@@ -140,10 +147,20 @@ def _payload(attestation: dict | None) -> dict:
     return {**PAYLOAD, "reviewer": reviewer}
 
 
-def _key_material():
+def _key_material(seed_phrase: bytes):
     from dilithium_py.ml_dsa import ML_DSA_65
 
-    return ML_DSA_65, ML_DSA_65.key_derive(hashlib.sha256(SEED_PHRASE).digest())
+    return ML_DSA_65, ML_DSA_65.key_derive(hashlib.sha256(seed_phrase).digest())
+
+
+def _signed(attestation: dict, ml_dsa, secret_key: bytes) -> dict:
+    signature = ml_dsa.sign(
+        secret_key, STATE.attestation_message(attestation), deterministic=True
+    )
+    return {
+        **attestation,
+        "signature": {"alg": "ML-DSA-65", "kid": REVIEWER_KID, "sig": _b64u(signature)},
+    }
 
 
 def _jwks(public_key: bytes) -> dict:
@@ -187,12 +204,19 @@ def _append_ids(entries: dict[str, dict]) -> None:
 
 
 def main() -> None:
-    ML_DSA_65, (public_key, secret_key) = _key_material()
+    ML_DSA_65, (public_key, secret_key) = _key_material(SEED_PHRASE)
+    _, (reviewer_public, reviewer_secret) = _key_material(REVIEWER_SEED_PHRASE)
     jwks = _jwks(public_key)
+    reviewer_key = {
+        "alg": "ML-DSA-65",
+        "public_key": base64.b64encode(reviewer_public).decode("ascii"),
+    }
     dirs = vector_dirs()
     entries = {}
-    for dirname, (slug, attestation, claim, platform, detail) in zip(dirs, CASES):
+    for dirname, (slug, attestation, signed, claim, platform, detail) in zip(dirs, CASES):
         assert dirname.endswith(slug), dirname
+        if signed:
+            attestation = _signed(attestation, ML_DSA_65, reviewer_secret)
         payload = _payload(attestation)
         signature = ML_DSA_65.sign(secret_key, ASQAV_JCS(payload), deterministic=True)
         receipt = {
@@ -212,6 +236,9 @@ def main() -> None:
         )
         (directory / "jwks.json").write_text(
             json.dumps(jwks, indent=2) + "\n", encoding="utf-8"
+        )
+        (directory / STATE.REVIEWER_KEY_FILE).write_text(
+            json.dumps(reviewer_key, indent=2) + "\n", encoding="utf-8"
         )
         expected_path = directory / "expected.json"
         expected = {

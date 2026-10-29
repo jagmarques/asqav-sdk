@@ -2212,6 +2212,11 @@
       "bytes": 5722
     },
     {
+      "path": "asqav-56-oversight-attestation-missing/reviewer_key.json",
+      "sha256": "b871e958453947ec0d37da949232aa7dcb1bc50d443f3e2b69c4cd6dd220056a",
+      "bytes": 2649
+    },
+    {
       "path": "asqav-57-oversight-attestation-asserted/expected.json",
       "sha256": "e30189528a979cdb1c8dcba81712154283fd59aabd04f49ad1f9289d9520a02d",
       "bytes": 1024
@@ -2227,9 +2232,14 @@
       "bytes": 5791
     },
     {
+      "path": "asqav-57-oversight-attestation-asserted/reviewer_key.json",
+      "sha256": "b871e958453947ec0d37da949232aa7dcb1bc50d443f3e2b69c4cd6dd220056a",
+      "bytes": 2649
+    },
+    {
       "path": "asqav-58-oversight-attestation-signature-verified/expected.json",
-      "sha256": "0fe1165848c5ae3c1229879518987a73c8c067629d864fbdee786433c477ce2e",
-      "bytes": 1042
+      "sha256": "4c21568b2e8148738fcd99a20c72a3d593ee4dfe8b6946a5e2ae0536c75cf2f2",
+      "bytes": 1100
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/jwks.json",
@@ -2238,8 +2248,13 @@
     },
     {
       "path": "asqav-58-oversight-attestation-signature-verified/receipt.json",
-      "sha256": "b17cb1b24c39132e3774ed6c7005938a605f3cfd2d84d54f20d39d8c077b91a9",
-      "bytes": 5891
+      "sha256": "b78800c9e3081e0fe4bd81b8d3756afe9ce6645d8137e2ee2284162baee8d35e",
+      "bytes": 10448
+    },
+    {
+      "path": "asqav-58-oversight-attestation-signature-verified/reviewer_key.json",
+      "sha256": "b871e958453947ec0d37da949232aa7dcb1bc50d443f3e2b69c4cd6dd220056a",
+      "bytes": 2649
     },
     {
       "path": "authproof-01-genesis-real-sdk/expected.json",
@@ -2363,8 +2378,8 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "68c853cb1e48567a2b53f44f475d06e8a9052799b85a4422b473f0ebd402ee99",
-      "bytes": 44887
+      "sha256": "ad00ef4522d7d5b29603b5b5c23f2baea98dfdc34fc977e725b2ad08230b039e",
+      "bytes": 44945
     },
     {
       "path": "pipelock-ev2-01-proxy-decision/expected.json",
@@ -2537,5 +2552,5 @@
       ]
     }
   },
-  "digest": "83b7a755e1ecb907f0d5203bd1303f021f9f77bcb325de94717fc49927588a3f"
+  "digest": "592b79324b596277a33ca3b09ef4d3b5144f9c44da67021aaf047fc07096c656"
 }
