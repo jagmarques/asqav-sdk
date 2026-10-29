@@ -15,8 +15,13 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from asqav.attestation import (
+    DEFAULT_COMMITMENT_ALG,
     FAILURE_INVALID,
     FAILURE_UNVERIFIABLE,
+    SIGNED_MESSAGE_VERSION,
+    SIGNED_MESSAGE_VERSION_V1,
+    V1_ONLY_FIELDS,
+    VERSION_FIELD,
     VERDICT_UNVERIFIED,
     VERDICT_VERIFIED_KEYED,
     compute_statement_hash,
@@ -24,6 +29,8 @@ from asqav.attestation import (
     merkle_leaf_hash,
     merkle_root,
     reconstruct_signed_message,
+    signed_message_from_receipt,
+    signed_message_version,
     verify_attestation_offline,
 )
 
@@ -37,6 +44,14 @@ _COMMITMENT = "ab" * 32
 _KEY_ID = "caller-key-1"
 _TIMESTAMP = "2026-07-26T12:00:00Z"
 _GOLDEN_HASH = "sha256:ffdf04a90b96ede30294d6f4622bf8946fb03e4f2500a201a4e05030886199a0"
+
+# Captured once from asqav's build_signed_message, never hand-typed (see PR).
+_V2_GOLDEN_MESSAGE = (
+    b'{"commitment":"abababababababababababababababababababababababababababababababab",'
+    b'"commitment_alg":"HMAC-SHA256","key_id":"caller-key-1","mode":"attestation",'
+    b'"server_timestamp":"2026-07-26T12:00:00Z","statement_hash":'
+    b'"sha256:ffdf04a90b96ede30294d6f4622bf8946fb03e4f2500a201a4e05030886199a0","v":2}'
+)
 
 _ACTION_ID = "act_test"
 _AGENT_ID = "agt_test"
@@ -110,6 +125,27 @@ def _good_receipt():
     return receipt, message, verify, tree_head
 
 
+    # Current-shape receipt fields: every v2 signed key but mode and v is here.
+def _v2_receipt_fields() -> dict:
+    return {
+        "statementHash": _GOLDEN_HASH,
+        "commitment": _COMMITMENT,
+        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+        "keyId": _KEY_ID,
+        "timestamp": _TIMESTAMP,
+    }
+
+
+    # A v2 receipt signed by a fresh key over the bytes its fields rebuild.
+def _v2_receipt():
+    sign, verify = _ed25519_signer()
+    receipt = _v2_receipt_fields()
+    receipt["signature"] = base64.b64encode(
+        sign(signed_message_from_receipt(receipt))
+    ).decode()
+    return receipt, verify
+
+
     # (b) The SDK re-derives the exact statementHash the backend returned.
 def test_compute_statement_hash_matches_cloud_fixture() -> None:
     got = compute_statement_hash(_CLAIM, _COMMITMENT, _KEY_ID, _TIMESTAMP)
@@ -127,6 +163,38 @@ def test_reconstruct_signed_message_mirrors_cloud_shape() -> None:
     assert message["v"] == 1
     assert message["mode"] == "attestation"
     assert message["statement_hash"] == _GOLDEN_HASH
+
+
+    # The v2 rebuild is byte-exact: golden bytes captured from asqav once.
+def test_v2_signed_message_matches_cloud_bytes() -> None:
+    receipt = _v2_receipt_fields()
+    message = signed_message_from_receipt(receipt)
+    assert message == _V2_GOLDEN_MESSAGE
+    assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION
+    payload = json.loads(message)
+    assert payload.keys() == {
+        "v", "mode", "statement_hash", "commitment", "commitment_alg",
+        "key_id", "server_timestamp",
+    }
+    assert payload["v"] == SIGNED_MESSAGE_VERSION
+
+
+    # A legacy receipt keeps rebuilding the exact 11-key v1 bytes it did before.
+def test_v1_receipt_still_rebuilds_v1() -> None:
+    receipt = {
+        "statementHash": _GOLDEN_HASH,
+        "commitment": _COMMITMENT,
+        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+        "keyId": _KEY_ID,
+        "timestamp": _TIMESTAMP,
+        **dict(zip(V1_ONLY_FIELDS, (_ACTION_ID, _AGENT_ID, _ORG_ID, _CLAIM["type"]))),
+    }
+    assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
+    assert signed_message_from_receipt(receipt) == _signed_message()
+
+    marked = {**receipt, VERSION_FIELD: SIGNED_MESSAGE_VERSION_V1}
+    assert signed_message_version(marked) == SIGNED_MESSAGE_VERSION_V1
+    assert signed_message_from_receipt(marked) == _signed_message()
 
 
     # (c) A tampered claim re-derives a different hash and fails verification.

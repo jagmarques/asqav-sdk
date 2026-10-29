@@ -20,6 +20,8 @@ __all__ = [
     "FAILURE_UNVERIFIABLE",
     "compute_statement_hash",
     "reconstruct_signed_message",
+    "signed_message_version",
+    "signed_message_from_receipt",
     "merkle_leaf_hash",
     "merkle_node_hash",
     "merkle_root",
@@ -31,6 +33,33 @@ __all__ = [
 # Pinned by the cloud route. A change here silently breaks every verification.
 ATTESTATION_STATEMENT_SCHEMA = "asqav.attestation/1"
 DEFAULT_COMMITMENT_ALG = "HMAC-SHA256"
+
+#: Signed-message version since the receipt rework; every key is a receipt field
+SIGNED_MESSAGE_VERSION = 2
+
+#: Pre-rework version; mixed in action_id, agent_id, org_id and claim_type
+SIGNED_MESSAGE_VERSION_V1 = 1
+
+#: Field naming the version; without it, v1-only fields date the receipt
+VERSION_FIELD = "signedMessageVersion"
+
+#: Receipt fields only a v1 signed message names
+V1_ONLY_FIELDS = ("actionId", "agentId", "orgId", "claimType")
+
+#: Receipt fields a verifier needs before it can rebuild any signed message
+_SIGNED_MESSAGE_RECEIPT_FIELDS = (
+    "statementHash",
+    "commitment",
+    "commitmentAlg",
+    "keyId",
+    "timestamp",
+)
+
+#: Fields needed to rebuild v1 signed bytes, including the v1-only fields
+_V1_SIGNED_MESSAGE_RECEIPT_FIELDS = (
+    *_SIGNED_MESSAGE_RECEIPT_FIELDS,
+    *V1_ONLY_FIELDS,
+)
 
 #: Verdict vocabulary (418/438). An attestation receipt is verified_keyed,
 #: never plain verified: the HMAC commitment is sealed with a holder-only key.
@@ -107,6 +136,55 @@ def reconstruct_signed_message(
         "org_id": org_id,
     }
     return canonical_json(message_payload)
+
+
+def signed_message_version(receipt: dict[str, Any]) -> int:
+    """Date a receipt to the signed-message version it was minted under."""
+    marker = receipt.get(VERSION_FIELD)
+    if marker in (SIGNED_MESSAGE_VERSION_V1, SIGNED_MESSAGE_VERSION):
+        return int(marker)
+    if any(receipt.get(field) for field in V1_ONLY_FIELDS):
+        return SIGNED_MESSAGE_VERSION_V1
+    return SIGNED_MESSAGE_VERSION
+
+
+def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
+    """Rebuild the signed bytes from the receipt, refusing a missing field."""
+    version = signed_message_version(receipt)
+    if version == SIGNED_MESSAGE_VERSION_V1:
+        required = _V1_SIGNED_MESSAGE_RECEIPT_FIELDS
+    else:
+        required = _SIGNED_MESSAGE_RECEIPT_FIELDS
+    missing = [field for field in required if not receipt.get(field)]
+    if missing:
+        raise ValueError(
+            "signed message cannot be rebuilt: "
+            f"v{version} receipt cannot be verified, missing field(s): "
+            + ", ".join(missing)
+        )
+    if version == SIGNED_MESSAGE_VERSION_V1:
+        return reconstruct_signed_message(
+            statement_hash=receipt["statementHash"],
+            commitment=receipt["commitment"],
+            commitment_alg=receipt["commitmentAlg"],
+            key_id=receipt["keyId"],
+            claim_type=receipt["claimType"],
+            server_timestamp=receipt["timestamp"],
+            action_id=receipt["actionId"],
+            agent_id=receipt["agentId"],
+            org_id=receipt["orgId"],
+        )
+    return canonical_json(
+        {
+            "v": SIGNED_MESSAGE_VERSION,
+            "mode": "attestation",
+            "statement_hash": receipt["statementHash"],
+            "commitment": receipt["commitment"],
+            "commitment_alg": receipt["commitmentAlg"],
+            "key_id": receipt["keyId"],
+            "server_timestamp": receipt["timestamp"],
+        }
+    )
 
 
 # === Pure Merkle helpers (certificate-transparency 6962-style) ===
