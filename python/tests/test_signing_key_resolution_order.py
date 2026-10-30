@@ -8,30 +8,16 @@ read first. Every directory here publishes several keys under one issuer.
 from __future__ import annotations
 
 import base64
-import importlib.util
-from pathlib import Path
 
 import pytest
 
+from asqav.verifier import verify_receipt as v
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
 from asqav.verifier.oracle.core import verify as oracle_verify
 from asqav.verifier.verify_receipt import AMBIGUOUS_KID_NOTE
 
 ORG = "f94f66c0-c580-432d-a041-29374f7aee07"
 OTHER_ORG = "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38"
-VERIFY_RECEIPT = Path(__file__).resolve().parents[1] / "src/asqav/verifier/verify_receipt.py"
-
-
-def _tree_verifier():
-    """verify_receipt of this tree, loaded by path: the editable install names
-    the head checkout, so a merge-base run would import the head's code."""
-    spec = importlib.util.spec_from_file_location("tree_verify_receipt", VERIFY_RECEIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-v = _tree_verifier()
 
 
 def _ml_dsa_65():
@@ -267,6 +253,10 @@ def test_public_resolvers_pick_no_sibling_on_a_shared_kid() -> None:
     assert v.resolve_key_org({"keys": [a, b]}, ORG) is None
     assert v.resolve_key({"keys": [a, b]}, "k-b")[0] == base64.b64decode(b["public_key"])
     assert v.resolve_key_issuer({"keys": [a]}, ORG) == ORG
+    # The kid is one sibling's exact kid and the other's issuer_id: exact wins.
+    mixed = {"keys": [a, _key(ORG, "agt_b", b_pk, issuer_id=OTHER_ORG)]}
+    assert v.resolve_key(mixed, ORG)[0] == base64.b64decode(mixed["keys"][1]["public_key"])
+    assert v.resolve_key_issuer(mixed, ORG) == OTHER_ORG
 
 
 def test_oracle_adapter_agrees_with_the_standalone_on_the_rotated_agent() -> None:
@@ -280,3 +270,4 @@ def test_oracle_adapter_agrees_with_the_standalone_on_the_rotated_agent() -> Non
     res = oracle_verify(_envelope(payload, sig), [AsqavNativeAdapter()], jwks)
     by_name = {a.axis: a.result for a in res.axes}
     assert by_name["signature"] == "PASS", res.axes
+

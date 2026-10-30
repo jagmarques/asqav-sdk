@@ -1496,7 +1496,10 @@ def _match_key(jwks: dict, kid: str) -> list:
 
 
 def _sole_match(jwks: dict, kid: str):
-    """The one usable match; a shared bare kid names none of its siblings."""
+    """The exact kid names one key; otherwise the one usable fallback match."""
+    exact = _match_key_by_id(jwks, kid)
+    if exact is not None:
+        return exact
     matches = _match_key(jwks, kid)
     return matches[0] if len(matches) == 1 else None
 
@@ -1647,10 +1650,6 @@ def _signing_key_resolution(jwks: dict, kid: str, payload: dict, envelope: dict)
         payload.get("org_id") or envelope.get("org_id"),
         payload.get("key_thumbprint"),
     )
-
-
-def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
-    return _signing_key_resolution(jwks, kid, payload, envelope)[0]
 
 
     # Return the issuer id a jwks entry publishes, or None if not a string.
