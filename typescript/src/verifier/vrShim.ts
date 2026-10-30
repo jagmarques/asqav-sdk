@@ -269,22 +269,38 @@ export function checkStructure(payload: Record<string, unknown>): readonly ["PAS
   return ["PASS", `required fields present; type ${rt}`];
 }
 
+/** A bare kid matching several usable entries names none of them */
+export const AMBIGUOUS_KID_NOTE = "ambiguous kid";
+
 // One matcher (mirrors `_match_key`), so key bytes and the key's published
-// issuer always come from the same JWKS entry.
-function matchKey(
+// issuer always come from the same JWKS entry; every usable match is listed
+function matchKeys(
   jwks: Record<string, unknown> | null,
   kid: string,
-): Record<string, unknown> | null {
+): Array<Record<string, unknown>> {
   const keys = jwks?.keys;
-  if (!Array.isArray(keys)) return null;
+  const out: Array<Record<string, unknown>> = [];
+  if (!Array.isArray(keys)) return out;
   for (const k of keys as Array<Record<string, unknown>>) {
     if (k === null || typeof k !== "object") continue;
     if (kid && (kid === k.issuer_id || kid === k.kid)) {
       if (typeof k.public_key !== "string") continue;
-      return k;
+      out.push(k);
     }
   }
-  return null;
+  return out;
+}
+
+// The exact kid names one key; otherwise the one usable fallback match
+// (mirrors `_sole_match`, so a shared bare kid names none of its siblings)
+function soleMatch(
+  jwks: Record<string, unknown> | null,
+  kid: string,
+): Record<string, unknown> | null {
+  const exact = matchKeyById(jwks, kid);
+  if (exact !== null) return exact;
+  const matches = matchKeys(jwks, kid);
+  return matches.length === 1 ? matches[0] : null;
 }
 
 // Exact key id (mirrors `_match_key_by_id`): a key id names one key, while the
@@ -362,6 +378,27 @@ export function firstNonEmpty(primary: unknown, fallback: unknown): unknown {
   return primary === undefined || primary === null || primary === "" ? fallback : primary;
 }
 
+// The key a receipt verifies against plus its bare-kid ambiguity flag
+// (mirrors `_resolve_signing_key`); only signed bytes or an exact kid pick
+export function resolveSigningKey(
+  jwks: Record<string, unknown> | null,
+  kid: string,
+  agentId?: unknown,
+  issuerId?: unknown,
+  orgId?: unknown,
+  keyThumbprint?: unknown,
+): readonly [Record<string, unknown> | null, boolean] {
+  const thumb = matchKeyByThumbprint(jwks, keyThumbprint, agentId, kid);
+  if (thumb !== null) return [thumb, false];
+  const exact = matchKeyById(jwks, kid);
+  if (exact !== null) return [exact, false];
+  const agent = matchKeyByAgent(jwks, agentId, issuerId, orgId);
+  if (agent !== null) return [agent, false];
+  const matches = matchKeys(jwks, kid);
+  if (matches.length > 1) return [null, true];
+  return [matches[0] ?? null, false];
+}
+
 /**
  * The one JWKS entry a receipt's signature is checked against (mirrors `match_signing_key`).
  * Order carries the security: signed key_thumbprint, exact key id, agent bind, bare-kid issuer.
@@ -374,12 +411,7 @@ export function matchSigningKey(
   orgId?: unknown,
   keyThumbprint?: unknown,
 ): Record<string, unknown> | null {
-  return (
-    matchKeyByThumbprint(jwks, keyThumbprint, agentId, kid) ??
-    matchKeyById(jwks, kid) ??
-    matchKeyByAgent(jwks, agentId, issuerId, orgId) ??
-    matchKey(jwks, kid)
-  );
+  return resolveSigningKey(jwks, kid, agentId, issuerId, orgId, keyThumbprint)[0];
 }
 
 /** Return the issuer id a JWKS entry publishes (mirrors `key_issuer_of`). */
@@ -403,14 +435,14 @@ export function resolveKey(
   jwks: Record<string, unknown> | null,
   kid: string,
 ): readonly [Uint8Array | null, string | null, string | null] {
-  const k = matchKey(jwks, kid);
+  const k = soleMatch(jwks, kid);
   if (k === null) return [null, null, null];
   return [b64decode(k.public_key as string), (k.status as string) ?? null, (k.alg as string) ?? null];
 }
 
 /** Return the issuer id the JWKS publishes for `kid` (mirrors `resolve_key_issuer`). */
 export function resolveKeyIssuer(jwks: Record<string, unknown> | null, kid: string): string | null {
-  const k = matchKey(jwks, kid);
+  const k = soleMatch(jwks, kid);
   return k !== null && typeof k.issuer_id === "string" ? k.issuer_id : null;
 }
 
@@ -435,18 +467,18 @@ export function checkIssuerBinding(
 
 /** Return the JWKS revoked_at for kid if published, else null (mirrors `resolve_revoked_at`). */
 export function resolveRevokedAt(jwks: Record<string, unknown> | null, kid: string): string | null {
-  const k = matchKey(jwks, kid);
+  const k = soleMatch(jwks, kid);
   return k !== null && typeof k.revoked_at === "string" ? k.revoked_at : null;
 }
 
 /** Return the JWKS revocation_reason for kid if published, else null. */
 export function resolveRevocationReason(jwks: Record<string, unknown> | null, kid: string): string | null {
-  const k = matchKey(jwks, kid);
+  const k = soleMatch(jwks, kid);
   return k !== null && typeof k.revocation_reason === "string" ? k.revocation_reason : null;
 }
 /** Return the org id the JWKS publishes for `kid` (mirrors `resolve_key_org`). */
 export function resolveKeyOrg(jwks: Record<string, unknown> | null, kid: string): string | null {
-  const k = matchKey(jwks, kid);
+  const k = soleMatch(jwks, kid);
   // A value that is not an org id cannot serve as one, so it reads as unpublished.
   return k !== null && isOrgId(k.org_id) ? (k.org_id as string) : null;
 }

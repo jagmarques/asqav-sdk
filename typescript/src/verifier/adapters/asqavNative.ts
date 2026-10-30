@@ -23,6 +23,7 @@ import {
 import { PASS, sha256Hex, verifySignature } from "../crypto.js";
 import { isLowerHex } from "./acta.js";
 import {
+  AMBIGUOUS_KID_NOTE,
   FIRST_RECEIPT_SEED,
   b64decode,
   checkExpiry,
@@ -41,8 +42,8 @@ import {
   isRecognisedWireVersion,
   keyIssuerOf,
   keyOrgOf,
-  matchSigningKey,
   normaliseEnvelope,
+  resolveSigningKey,
   revokedAtOf,
 } from "../vrShim.js";
 
@@ -202,16 +203,14 @@ export class AsqavNativeAdapter extends FormatAdapter {
     };
   }
 
-  /**
-   * The one JWKS entry this receipt's signature is checked against. Every axis resolves through here: kid
-   * sits outside the signed bytes, so a second independent lookup would be attacker-steerable.
-   */
-  private signingKeyEntry(
+  // The key resolution every axis reads; kid sits outside the signed bytes,
+  // so a second independent lookup would be attacker-steerable
+  private signingKeyResolution(
     doc: Record<string, unknown>,
     jwks: Record<string, unknown>,
-  ): Record<string, unknown> | null {
+  ): readonly [Record<string, unknown> | null, boolean] {
     const payload = payloadOf(doc);
-    return matchSigningKey(
+    return resolveSigningKey(
       jwks,
       this.extractSignature(doc).kid,
       firstNonEmpty(payload.agent_id, doc.agent_id),
@@ -219,6 +218,14 @@ export class AsqavNativeAdapter extends FormatAdapter {
       firstNonEmpty(payload.org_id, doc.org_id),
       payload.key_thumbprint,
     );
+  }
+
+  /** The one JWKS entry this receipt's signature is checked against. */
+  private signingKeyEntry(
+    doc: Record<string, unknown>,
+    jwks: Record<string, unknown>,
+  ): Record<string, unknown> | null {
+    return this.signingKeyResolution(doc, jwks)[0];
   }
 
   /** outer_copies, weighed against the verifying key and its kid. */
@@ -246,9 +253,9 @@ export class AsqavNativeAdapter extends FormatAdapter {
   ): readonly [Uint8Array | null, string] {
     const jwks = (keyProvider ?? { keys: [] }) as Record<string, unknown>;
     const kid = this.extractSignature(doc).kid;
-    const entry = this.signingKeyEntry(doc, jwks);
+    const [entry, ambiguous] = this.signingKeyResolution(doc, jwks);
     if (entry === null) {
-      return [null, `kid '${kid}' not in jwks directory`];
+      return [null, ambiguous ? AMBIGUOUS_KID_NOTE : `kid '${kid}' not in jwks directory`];
     }
     const pk = b64decode(entry.public_key as string);
     const status = (entry.status as string) ?? null;

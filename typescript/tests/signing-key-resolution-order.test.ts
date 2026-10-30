@@ -7,7 +7,7 @@ import { ml_dsa44, ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
 import { AsqavNativeAdapter } from "../src/verifier/adapters/asqavNative.js";
 import { asqavJcs } from "../src/verifier/canonical.js";
 import { verify } from "../src/verifier/core.js";
-import { matchSigningKey, thumbprintForKey } from "../src/verifier/vrShim.js";
+import { AMBIGUOUS_KID_NOTE, matchSigningKey, thumbprintForKey } from "../src/verifier/vrShim.js";
 
 const ORG = "f94f66c0-c580-432d-a041-29374f7aee07";
 const OTHER_ORG = "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38";
@@ -131,7 +131,49 @@ describe("signing-key resolution order", () => {
     expect(matchSigningKey(jwks, "k-a", "agt_a", ORG, ORG, b.key_thumbprint)).toBe(b);
     expect(matchSigningKey(jwks, "k-a", "agt_b", ORG, ORG)).toBe(a);
     expect(matchSigningKey(jwks, ORG, "agt_b", ORG, ORG)).toBe(b);
-    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG)).toBe(a);
+    // NEGCTL: restoring the first-match fallback returns sibling a, not null
+    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG)).toBeNull();
     expect(matchSigningKey(jwks, ORG, "agt_b", ORG, ORG, "sha256:nope")).toBe(b);
+  });
+
+  it("ambiguous kid fallback is unverifiable", () => {
+    const a = ml_dsa65.keygen();
+    const b = ml_dsa65.keygen();
+    const jwks = { keys: [key("k-a", "agt_a", a.publicKey), key("k-b", "agt_b", b.publicKey)] };
+    const p = payload("agt_two");
+    const { res, axes } = axesOf(receipt(p, sign(asqavJcs(p), a.secretKey)), jwks);
+    expect(axes.signature.result).toBe("SKIPPED");
+    expect(axes.signature.note).toContain(AMBIGUOUS_KID_NOTE);
+    expect(res.verdict).toBe("unverified");
+    expect(res.failureClass).toBe("unverifiable");
+  });
+
+  it("exact kid among siblings resolves", () => {
+    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey);
+    const b = key("k-b", "agt_b", ml_dsa65.keygen().publicKey);
+    const jwks = { keys: [a, b] };
+    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG)).toBeNull();
+    expect(matchSigningKey(jwks, "k-b", undefined, ORG, ORG)).toBe(b);
+  });
+
+  it("thumbprint among siblings resolves", () => {
+    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey);
+    const b = key("k-b", "agt_b", ml_dsa65.keygen().publicKey);
+    const jwks = { keys: [a, b] };
+    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG)).toBeNull();
+    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG, b.key_thumbprint)).toBe(b);
+  });
+
+  it("one fallback match still resolves", () => {
+    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey);
+    const jwks = { keys: [a] };
+    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG)).toBe(a);
+  });
+
+  it("an unusable sibling does not make the kid ambiguous", () => {
+    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey);
+    const junk = { kid: "k-junk", agent_id: "agt_junk", issuer_id: ORG };
+    const jwks = { keys: [junk, a] };
+    expect(matchSigningKey(jwks, ORG, undefined, ORG, ORG)).toBe(a);
   });
 });
