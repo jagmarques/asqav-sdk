@@ -382,12 +382,15 @@ export function firstNonEmpty(primary: unknown, fallback: unknown): unknown {
 // (mirrors `_resolve_signing_key`); only signed bytes or an exact kid pick
 export function resolveSigningKey(
   jwks: Record<string, unknown> | null,
-  kid: string,
-  agentId?: unknown,
-  issuerId?: unknown,
-  orgId?: unknown,
-  keyThumbprint?: unknown,
+  query: {
+    kid: string;
+    agentId?: unknown;
+    issuerId?: unknown;
+    orgId?: unknown;
+    keyThumbprint?: unknown;
+  },
 ): readonly [Record<string, unknown> | null, boolean] {
+  const { kid, agentId, issuerId, orgId, keyThumbprint } = query;
   const thumb = matchKeyByThumbprint(jwks, keyThumbprint, agentId, kid);
   if (thumb !== null) return [thumb, false];
   const exact = matchKeyById(jwks, kid);
@@ -411,7 +414,7 @@ export function matchSigningKey(
   orgId?: unknown,
   keyThumbprint?: unknown,
 ): Record<string, unknown> | null {
-  return resolveSigningKey(jwks, kid, agentId, issuerId, orgId, keyThumbprint)[0];
+  return resolveSigningKey(jwks, { kid, agentId, issuerId, orgId, keyThumbprint })[0];
 }
 
 /** Return the issuer id a JWKS entry publishes (mirrors `key_issuer_of`). */

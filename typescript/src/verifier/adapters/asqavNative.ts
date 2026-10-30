@@ -210,14 +210,13 @@ export class AsqavNativeAdapter extends FormatAdapter {
     jwks: Record<string, unknown>,
   ): readonly [Record<string, unknown> | null, boolean] {
     const payload = payloadOf(doc);
-    return resolveSigningKey(
-      jwks,
-      this.extractSignature(doc).kid,
-      firstNonEmpty(payload.agent_id, doc.agent_id),
-      payload.issuer_id,
-      firstNonEmpty(payload.org_id, doc.org_id),
-      payload.key_thumbprint,
-    );
+    return resolveSigningKey(jwks, {
+      kid: this.extractSignature(doc).kid,
+      agentId: firstNonEmpty(payload.agent_id, doc.agent_id),
+      issuerId: payload.issuer_id,
+      orgId: firstNonEmpty(payload.org_id, doc.org_id),
+      keyThumbprint: payload.key_thumbprint,
+    });
   }
 
   /** The one JWKS entry this receipt's signature is checked against. */
