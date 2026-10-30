@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -18,12 +17,12 @@ sys.path.insert(0, str(_SRC))
 
 import asqav
 
-# Reload only when a runner preloaded an ahead-of-tree asqav; the normal run
-# already has this checkout's own module, so nothing is deleted.
-if not Path(asqav.__file__).resolve().is_relative_to(_SRC.resolve()):
-    for _name in [n for n in sys.modules if n == "asqav" or n.startswith("asqav.")]:
-        del sys.modules[_name]
-    import asqav
+# Refuse a stale install: this file must judge its own checkout, never another.
+_LOADED = Path(asqav.__file__).resolve()
+if not _LOADED.is_relative_to(_SRC.resolve()):
+    raise RuntimeError(
+        f"asqav was imported from {_LOADED}, outside this checkout's {_SRC.resolve()}"
+    )
 
 from asqav.attestation import (
     DEFAULT_COMMITMENT_ALG,
@@ -32,9 +31,9 @@ from asqav.attestation import (
     SIGNED_MESSAGE_VERSION,
     SIGNED_MESSAGE_VERSION_V1,
     V1_ONLY_FIELDS,
-    VERSION_FIELD,
     VERDICT_UNVERIFIED,
     VERDICT_VERIFIED_KEYED,
+    VERSION_FIELD,
     compute_statement_hash,
     merkle_inclusion_proof,
     merkle_leaf_hash,
@@ -157,6 +156,26 @@ def _v2_receipt():
     return receipt, verify
 
 
+    # Legacy receipt fields: the shared five plus every v1-only field.
+def _v1_receipt_fields() -> dict:
+    return {
+        "statementHash": _GOLDEN_HASH,
+        "commitment": _COMMITMENT,
+        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+        "keyId": _KEY_ID,
+        "timestamp": _TIMESTAMP,
+        **dict(zip(V1_ONLY_FIELDS, (_ACTION_ID, _AGENT_ID, _ORG_ID, _CLAIM["type"]))),
+    }
+
+
+    # A v1 receipt signed over the historical 11-key bytes.
+def _v1_receipt():
+    sign, verify = _ed25519_signer()
+    receipt = _v1_receipt_fields()
+    receipt["signature"] = base64.b64encode(sign(_signed_message())).decode()
+    return receipt, verify
+
+
     # (b) The SDK re-derives the exact statementHash the backend returned.
 def test_compute_statement_hash_matches_cloud_fixture() -> None:
     got = compute_statement_hash(_CLAIM, _COMMITMENT, _KEY_ID, _TIMESTAMP)
@@ -192,14 +211,7 @@ def test_v2_signed_message_matches_cloud_bytes() -> None:
 
     # A legacy receipt keeps rebuilding the exact 11-key v1 bytes it did before.
 def test_v1_receipt_still_rebuilds_v1() -> None:
-    receipt = {
-        "statementHash": _GOLDEN_HASH,
-        "commitment": _COMMITMENT,
-        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
-        "keyId": _KEY_ID,
-        "timestamp": _TIMESTAMP,
-        **dict(zip(V1_ONLY_FIELDS, (_ACTION_ID, _AGENT_ID, _ORG_ID, _CLAIM["type"]))),
-    }
+    receipt = _v1_receipt_fields()
     assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
     assert signed_message_from_receipt(receipt) == _signed_message()
 
@@ -332,18 +344,31 @@ def test_v2_receipt_with_inclusion_proof_without_tree_head_is_unverified() -> No
         assert by_name["inclusion"] == "SKIP"
 
 
-    # A supplied tree head with no proof is unverified, never waived.
-def test_tree_head_without_inclusion_proof_is_unverified() -> None:
+    # The waiver reads the receipt, not the caller's inputs: a supplied tree
+    # head leaves a v2 receipt with no proof verified_keyed.
+def test_tree_head_without_proof_does_not_change_the_v2_verdict() -> None:
     receipt, verify = _v2_receipt()
-    result = verify_attestation_offline(
-        _CLAIM, receipt, verify_signature=verify, signed_tree_head=b"\x00" * 32
-    )
-    assert result["verdict"] == VERDICT_UNVERIFIED
-    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    for tree_head in (None, b"\x00" * 32):
+        result = verify_attestation_offline(
+            _CLAIM, receipt, verify_signature=verify, signed_tree_head=tree_head
+        )
+        assert result["verdict"] == VERDICT_VERIFIED_KEYED
+        assert result["failure_class"] is None
+        by_name = {a["name"]: a["result"] for a in result["axes"]}
+        assert by_name["statement_hash"] == "PASS"
+        assert by_name["signature"] == "PASS"
+        assert by_name["inclusion"] == "SKIP"
+
+
+    # The waiver names v2 only: a v1 receipt with no proof is not waived.
+def test_v1_receipt_without_inclusion_proof_is_not_waived() -> None:
+    receipt, verify = _v1_receipt()
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     by_name = {a["name"]: a["result"] for a in result["axes"]}
-    assert by_name["statement_hash"] == "PASS"
     assert by_name["signature"] == "PASS"
     assert by_name["inclusion"] == "SKIP"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
 
 
     # Without a proof, explicit bytes and rebuilt bytes reach the same verdict.

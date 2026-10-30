@@ -367,9 +367,13 @@ def verify_attestation_offline(
         )
     )
 
-    verdict, failure_class = _verdict(
-        axes, inclusion_optional=proof is None and signed_tree_head is None
+    # A v2 receipt is out of the transparency tree, so a receipt with no proof
+    # is complete; a v1 receipt still needs its inclusion proof.
+    inclusion_waived = (
+        proof is None
+        and signed_message_version(receipt) == SIGNED_MESSAGE_VERSION
     )
+    verdict, failure_class = _verdict(axes, inclusion_waived=inclusion_waived)
     return {
         "verdict": verdict,
         "failure_class": failure_class,
@@ -405,7 +409,7 @@ def _check_signature(
 
     # Fold per-axis results; a good receipt is verified_keyed, never verified.
 def _verdict(
-    axes: list[dict[str, Any]], *, inclusion_optional: bool = False
+    axes: list[dict[str, Any]], *, inclusion_waived: bool = False
 ) -> tuple[str, str | None]:
     results = {a["name"]: a["result"] for a in axes}
     failed = [a for a in axes if a["result"] == _AXIS_FAIL]
@@ -417,7 +421,7 @@ def _verdict(
     checked = (
         results.get("statement_hash") == _AXIS_PASS
         and results.get("signature") == _AXIS_PASS
-        and (inclusion == _AXIS_PASS or (inclusion_optional and inclusion == _AXIS_SKIP))
+        and (inclusion == _AXIS_PASS or (inclusion_waived and inclusion == _AXIS_SKIP))
     )
     if checked:
         return VERDICT_VERIFIED_KEYED, None
