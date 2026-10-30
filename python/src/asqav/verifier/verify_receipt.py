@@ -1637,7 +1637,7 @@ def _entry_material(entry):
     return _b64decode(entry["public_key"]), entry.get("status"), entry.get("alg")
 
 
-def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
+def _signing_key_resolution(jwks: dict, kid: str, payload: dict, envelope: dict):
     # The standalone paths resolve as the oracle adapter, one entry per axis.
     return _resolve_signing_key(
         jwks,
@@ -1647,6 +1647,10 @@ def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
         payload.get("org_id") or envelope.get("org_id"),
         payload.get("key_thumbprint"),
     )
+
+
+def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
+    return _signing_key_resolution(jwks, kid, payload, envelope)[0]
 
 
     # Return the issuer id a jwks entry publishes, or None if not a string.
@@ -3230,7 +3234,7 @@ def _key_and_signature_rows(
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the
     verifying key. Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``."""
-    entry, ambiguous = _signing_key_entry(jwks, kid, payload, envelope)
+    entry, ambiguous = _signing_key_resolution(jwks, kid, payload, envelope)
     pk, status, jwks_alg = _entry_material(entry)
     if pk is None:
         note = AMBIGUOUS_KID_NOTE if ambiguous else f"kid {kid!r} not in jwks directory"
