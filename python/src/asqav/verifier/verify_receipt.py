@@ -1474,23 +1474,31 @@ def normalise_envelope(raw: dict) -> dict:
     }
 
 
-def _match_key(jwks: dict, kid: str):
-    """Return the first usable jwks entry whose issuer id or key id is kid.
+#: A bare kid matching several usable entries names none of them.
+AMBIGUOUS_KID_NOTE = "ambiguous kid"
 
-    One matcher, so key material and the key's published fields always come from
-    the same entry. A malformed jwks is a miss (returns None), never a crash.
-    """
+
+def _match_key(jwks: dict, kid: str) -> list:
+    """Return every usable jwks entry whose issuer id or key id is kid.
+    One matcher keeps bytes and fields in one entry; malformed jwks gives []."""
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list):
-        return None
+        return []
+    matches = []
     for k in keys:
         if not isinstance(k, dict):
             continue
         if kid and kid in (k.get("issuer_id"), k.get("kid")):
             if not isinstance(k.get("public_key"), str):
                 continue
-            return k
-    return None
+            matches.append(k)
+    return matches
+
+
+def _sole_match(jwks: dict, kid: str):
+    """The one usable match; a shared bare kid names none of its siblings."""
+    matches = _match_key(jwks, kid)
+    return matches[0] if len(matches) == 1 else None
 
 
 def _match_key_by_id(jwks: dict, kid: str):
@@ -1588,27 +1596,38 @@ def _match_key_by_thumbprint(jwks: dict, thumbprint, agent_id=None, kid=None):
     return narrowed[0]
 
 
+def _resolve_signing_key(
+    jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None, key_thumbprint=None
+):
+    """Return (entry, ambiguous): the key a receipt verifies against, or None.
+    Only the signed thumbprint and an exact kid may pick among siblings."""
+    # The signed key_thumbprint names one exact key, even after a rotation. If
+    # it names a non-signer, the agent bind finds the signer; key_binding FAILs.
+    entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
+    if entry is not None:
+        return entry, False
+    entry = _match_key_by_id(jwks, kid)
+    if entry is not None:
+        return entry, False
+    # The agent bind carries the org_id a hash-mode receipt signs, and runs
+    # before the loose match.
+    entry = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
+    if entry is not None:
+        return entry, False
+    # Loosest: an org-shaped kid matches every sibling key alike, so list
+    # position would pick one; an ambiguous fallback picks none.
+    matches = _match_key(jwks, kid)
+    if len(matches) > 1:
+        return None, True
+    return (matches[0] if matches else None), False
+
+
 def match_signing_key(
     jwks: dict, kid: str, agent_id=None, issuer_id=None, org_id=None, key_thumbprint=None
 ):
     """Return the one jwks entry a receipt's signature is checked against.
     Order carries the security: directory position binds nothing."""
-    # The signed key_thumbprint names one exact key, even after a rotation. If
-    # it names a non-signer, the agent bind finds the signer; key_binding FAILs.
-    entry = _match_key_by_thumbprint(jwks, key_thumbprint, agent_id, kid)
-    if entry is not None:
-        return entry
-    entry = _match_key_by_id(jwks, kid)
-    if entry is not None:
-        return entry
-    # The agent bind carries the org_id a hash-mode receipt signs, and runs
-    # before the loose match.
-    entry = _match_key_by_agent(jwks, agent_id, issuer_id, org_id)
-    if entry is not None:
-        return entry
-    # Loosest: an org-shaped kid matches every sibling key alike, so list
-    # position would pick one; the exact matches above run first.
-    return _match_key(jwks, kid)
+    return _resolve_signing_key(jwks, kid, agent_id, issuer_id, org_id, key_thumbprint)[0]
 
 
 def _entry_material(entry):
@@ -1620,7 +1639,7 @@ def _entry_material(entry):
 
 def _signing_key_entry(jwks: dict, kid: str, payload: dict, envelope: dict):
     # The standalone paths resolve as the oracle adapter, one entry per axis.
-    return match_signing_key(
+    return _resolve_signing_key(
         jwks,
         kid,
         payload.get("agent_id") or envelope.get("agent_id"),
@@ -1653,7 +1672,7 @@ def resolve_key(jwks: dict, kid: str):
     The public jwks directory lists each key under both its bare issuer id and
     its crypto key id; match either so the bare-kid wire form resolves.
     """
-    k = _match_key(jwks, kid)
+    k = _sole_match(jwks, kid)
     if k is None:
         return None, None, None
     return _b64decode(k["public_key"]), k.get("status"), k.get("alg")
@@ -1662,7 +1681,7 @@ def resolve_key(jwks: dict, kid: str):
 def resolve_key_issuer(jwks: dict, kid: str):
     """Return the issuer id the jwks publishes for the key kid resolves to.
     Reads the entry that actually verified; None when it publishes none."""
-    return key_issuer_of(_match_key(jwks, kid))
+    return key_issuer_of(_sole_match(jwks, kid))
 
 
 def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str, org_id: str | None = None):
@@ -1683,7 +1702,7 @@ def resolve_key_by_agent_id(jwks: dict, agent_id: str, issuer_id: str, org_id: s
 def resolve_revoked_at(jwks: dict, kid: str):
     """Return the JWKS revoked_at for kid if published, else None.
     The public JWKS publishes status today, so the axis falls back to it."""
-    return revoked_at_of(_match_key(jwks, kid))
+    return revoked_at_of(_sole_match(jwks, kid))
 
 
 def check_issuer_binding(key_issuer_id, claimed_issuer_id):
@@ -1704,7 +1723,7 @@ def check_issuer_binding(key_issuer_id, claimed_issuer_id):
 def resolve_key_org(jwks: dict, kid: str):
     """Return the org id the jwks publishes for the key kid resolves to.
     A non-org value reads as unpublished, so the issuer branch decides."""
-    return key_org_of(_match_key(jwks, kid))
+    return key_org_of(_sole_match(jwks, kid))
 
 
 #: Same body text as the TypeScript ORG_ID_RE. Anchored by fullmatch, not by $,
@@ -3211,11 +3230,12 @@ def _key_and_signature_rows(
 ):
     """Rows for issuer_key, issuer_bind, key_status and signature, plus the
     verifying key. Returns ``(rows, eff_pk, eff_alg, acknowledging_kid)``."""
-    entry = _signing_key_entry(jwks, kid, payload, envelope)
+    entry, ambiguous = _signing_key_entry(jwks, kid, payload, envelope)
     pk, status, jwks_alg = _entry_material(entry)
     if pk is None:
+        note = AMBIGUOUS_KID_NOTE if ambiguous else f"kid {kid!r} not in jwks directory"
         rows = [
-            ("issuer_key", "FAIL", f"kid {kid!r} not in jwks directory"),
+            ("issuer_key", "FAIL", note),
             ("signature", "SKIPPED", "no issuer key to verify against"),
         ]
         return rows, None, None, acknowledging_kid
