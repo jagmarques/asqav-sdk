@@ -70,9 +70,10 @@ describe("signing key resolution across agent siblings", () => {
     expect(matchSigningKey(jwks, "k-agent-one", "agt_two", ORG)?.kid).toBe("k-agent-one");
   });
 
-  it("keeps answering an org kid when the receipt names no agent", () => {
-    const jwks = { keys: [key("k-agent-one", "agt_one")] };
-    expect(matchSigningKey(jwks, ORG, undefined, ORG)?.kid).toBe("k-agent-one");
+  it("refuses a bare org kid that names two siblings", () => {
+    const jwks = { keys: [key("k-agent-one", "agt_one"), key("k-agent-two", "agt_two")] };
+    // NEGCTL: the first-match fallback resolves sibling k-agent-one, not null
+    expect(matchSigningKey(jwks, ORG, undefined, ORG)).toBeNull();
   });
 
   it("rejects an agent key published under another issuer", () => {
