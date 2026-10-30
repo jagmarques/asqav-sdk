@@ -8,8 +8,19 @@ read first. Every directory here publishes several keys under one issuer.
 from __future__ import annotations
 
 import base64
+import sys
+from pathlib import Path
 
 import pytest
+
+# The editable install names another checkout: drop its preload so this
+# tree's src answers first and the test judges the code it ships with.
+TREE_SRC = Path(__file__).resolve().parents[1] / "src"
+_LOADED = Path(getattr(sys.modules.get("asqav"), "__file__", "") or "").resolve()
+if TREE_SRC not in _LOADED.parents:
+    for _name in [m for m in sys.modules if m == "asqav" or m.startswith("asqav.")]:
+        del sys.modules[_name]
+sys.path.insert(0, str(TREE_SRC))
 
 from asqav.verifier import verify_receipt as v
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
