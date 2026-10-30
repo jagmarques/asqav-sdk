@@ -324,8 +324,8 @@ def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
     assert by_name["signature"] == "PASS"
 
 
-    # A supplied inclusion proof is never waived for want of a tree head.
-def test_v2_receipt_with_inclusion_proof_without_tree_head_is_unverified() -> None:
+    # No tree head means the caller asks for no inclusion check, proof or not.
+def test_v2_receipt_with_inclusion_proof_and_no_tree_head_skips_inclusion() -> None:
     sign, verify = _ed25519_signer()
     _, proof = _tree_head_and_proof()
     receipt = _v2_receipt_fields()
@@ -336,28 +336,28 @@ def test_v2_receipt_with_inclusion_proof_without_tree_head_is_unverified() -> No
         result = verify_attestation_offline(
             _CLAIM, receipt, signed_message=supplied, verify_signature=verify
         )
-        assert result["verdict"] == VERDICT_UNVERIFIED
-        assert result["failure_class"] == FAILURE_UNVERIFIABLE
-        by_name = {a["name"]: a["result"] for a in result["axes"]}
-        assert by_name["statement_hash"] == "PASS"
-        assert by_name["signature"] == "PASS"
-        assert by_name["inclusion"] == "SKIP"
-
-
-    # The waiver reads the receipt, not the caller's inputs: a supplied tree
-    # head leaves a v2 receipt with no proof verified_keyed.
-def test_tree_head_without_proof_does_not_change_the_v2_verdict() -> None:
-    receipt, verify = _v2_receipt()
-    for tree_head in (None, b"\x00" * 32):
-        result = verify_attestation_offline(
-            _CLAIM, receipt, verify_signature=verify, signed_tree_head=tree_head
-        )
         assert result["verdict"] == VERDICT_VERIFIED_KEYED
         assert result["failure_class"] is None
         by_name = {a["name"]: a["result"] for a in result["axes"]}
         assert by_name["statement_hash"] == "PASS"
         assert by_name["signature"] == "PASS"
         assert by_name["inclusion"] == "SKIP"
+
+
+    # A supplied tree head asks for inclusion: with no proof it is unverified.
+def test_tree_head_without_proof_is_unverified() -> None:
+    receipt, verify = _v2_receipt()
+    without = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    assert without["verdict"] == VERDICT_VERIFIED_KEYED
+    result = verify_attestation_offline(
+        _CLAIM, receipt, verify_signature=verify, signed_tree_head=b"\x00" * 32
+    )
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
 
 
     # The waiver names v2 only: a v1 receipt with no proof is not waived.
