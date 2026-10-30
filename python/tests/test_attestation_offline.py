@@ -324,24 +324,21 @@ def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
     assert by_name["signature"] == "PASS"
 
 
-    # No tree head means the caller asks for no inclusion check, proof or not.
-def test_v2_receipt_with_inclusion_proof_and_no_tree_head_skips_inclusion() -> None:
+    # A proof with no tree head is still evidence: main's unverified stands.
+def test_v2_receipt_with_inclusion_proof_and_no_tree_head_is_unverified() -> None:
     sign, verify = _ed25519_signer()
     _, proof = _tree_head_and_proof()
     receipt = _v2_receipt_fields()
     receipt["inclusionProof"] = proof
     rebuilt = signed_message_from_receipt(receipt)
     receipt["signature"] = base64.b64encode(sign(rebuilt)).decode()
-    for supplied in (None, rebuilt):
-        result = verify_attestation_offline(
-            _CLAIM, receipt, signed_message=supplied, verify_signature=verify
-        )
-        assert result["verdict"] == VERDICT_VERIFIED_KEYED
-        assert result["failure_class"] is None
-        by_name = {a["name"]: a["result"] for a in result["axes"]}
-        assert by_name["statement_hash"] == "PASS"
-        assert by_name["signature"] == "PASS"
-        assert by_name["inclusion"] == "SKIP"
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
 
 
     # A supplied tree head asks for inclusion: with no proof it is unverified.
@@ -371,8 +368,8 @@ def test_v1_receipt_without_inclusion_proof_is_not_waived() -> None:
     assert result["failure_class"] == FAILURE_UNVERIFIABLE
 
 
-    # Without a proof, explicit bytes and rebuilt bytes reach the same verdict.
-def test_explicit_signed_message_matches_rebuilt_verdict_without_proof() -> None:
+    # Explicit bytes keep today's path: no waiver, so no proof is unverified.
+def test_explicit_signed_message_without_proof_is_unverified() -> None:
     receipt, verify = _v2_receipt()
     result = verify_attestation_offline(
         _CLAIM,
@@ -380,8 +377,8 @@ def test_explicit_signed_message_matches_rebuilt_verdict_without_proof() -> None
         signed_message=signed_message_from_receipt(receipt),
         verify_signature=verify,
     )
-    assert result["verdict"] == VERDICT_VERIFIED_KEYED
-    assert result["failure_class"] is None
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "PASS"
     assert by_name["signature"] == "PASS"

@@ -367,10 +367,12 @@ def verify_attestation_offline(
         )
     )
 
-    # A v2 receipt is out of the transparency tree; with no tree head the caller
-    # asks for no inclusion check. A v1 receipt still needs its proof.
+    # Only a v2 receipt with no proof, no tree head and no explicit bytes asks
+    # for no inclusion check; a v1 receipt still needs its proof.
     inclusion_waived = (
         signed_tree_head is None
+        and signed_message is None
+        and proof is None
         and signed_message_version(receipt) == SIGNED_MESSAGE_VERSION
     )
     verdict, failure_class = _verdict(axes, inclusion_waived=inclusion_waived)
