@@ -9,21 +9,38 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+_SRC = Path(__file__).parent.parent / "src"
+sys.path.insert(0, str(_SRC))
+
+import asqav
+
+# Refuse a stale install: this file must judge its own checkout, never another.
+_LOADED = Path(asqav.__file__).resolve()
+if not _LOADED.is_relative_to(_SRC.resolve()):
+    raise RuntimeError(
+        f"asqav was imported from {_LOADED}, outside this checkout's {_SRC.resolve()}"
+    )
 
 from asqav.attestation import (
+    DEFAULT_COMMITMENT_ALG,
     FAILURE_INVALID,
     FAILURE_UNVERIFIABLE,
+    SIGNED_MESSAGE_VERSION,
+    SIGNED_MESSAGE_VERSION_V1,
+    V1_ONLY_FIELDS,
     VERDICT_UNVERIFIED,
     VERDICT_VERIFIED_KEYED,
+    VERSION_FIELD,
     compute_statement_hash,
     merkle_inclusion_proof,
     merkle_leaf_hash,
     merkle_root,
     reconstruct_signed_message,
+    signed_message_from_receipt,
+    signed_message_version,
     verify_attestation_offline,
 )
 
@@ -37,6 +54,14 @@ _COMMITMENT = "ab" * 32
 _KEY_ID = "caller-key-1"
 _TIMESTAMP = "2026-07-26T12:00:00Z"
 _GOLDEN_HASH = "sha256:ffdf04a90b96ede30294d6f4622bf8946fb03e4f2500a201a4e05030886199a0"
+
+# Captured once from asqav's build_signed_message, never hand-typed (see PR).
+_V2_GOLDEN_MESSAGE = (
+    b'{"commitment":"abababababababababababababababababababababababababababababababab",'
+    b'"commitment_alg":"HMAC-SHA256","key_id":"caller-key-1","mode":"attestation",'
+    b'"server_timestamp":"2026-07-26T12:00:00Z","statement_hash":'
+    b'"sha256:ffdf04a90b96ede30294d6f4622bf8946fb03e4f2500a201a4e05030886199a0","v":2}'
+)
 
 _ACTION_ID = "act_test"
 _AGENT_ID = "agt_test"
@@ -110,6 +135,47 @@ def _good_receipt():
     return receipt, message, verify, tree_head
 
 
+    # Current-shape receipt fields: every v2 signed key but mode and v is here.
+def _v2_receipt_fields() -> dict:
+    return {
+        "statementHash": _GOLDEN_HASH,
+        "commitment": _COMMITMENT,
+        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+        "keyId": _KEY_ID,
+        "timestamp": _TIMESTAMP,
+    }
+
+
+    # A v2 receipt signed by a fresh key over the bytes its fields rebuild.
+def _v2_receipt():
+    sign, verify = _ed25519_signer()
+    receipt = _v2_receipt_fields()
+    receipt["signature"] = base64.b64encode(
+        sign(signed_message_from_receipt(receipt))
+    ).decode()
+    return receipt, verify
+
+
+    # Legacy receipt fields: the shared five plus every v1-only field.
+def _v1_receipt_fields() -> dict:
+    return {
+        "statementHash": _GOLDEN_HASH,
+        "commitment": _COMMITMENT,
+        "commitmentAlg": DEFAULT_COMMITMENT_ALG,
+        "keyId": _KEY_ID,
+        "timestamp": _TIMESTAMP,
+        **dict(zip(V1_ONLY_FIELDS, (_ACTION_ID, _AGENT_ID, _ORG_ID, _CLAIM["type"]))),
+    }
+
+
+    # A v1 receipt signed over the historical 11-key bytes.
+def _v1_receipt():
+    sign, verify = _ed25519_signer()
+    receipt = _v1_receipt_fields()
+    receipt["signature"] = base64.b64encode(sign(_signed_message())).decode()
+    return receipt, verify
+
+
     # (b) The SDK re-derives the exact statementHash the backend returned.
 def test_compute_statement_hash_matches_cloud_fixture() -> None:
     got = compute_statement_hash(_CLAIM, _COMMITMENT, _KEY_ID, _TIMESTAMP)
@@ -127,6 +193,31 @@ def test_reconstruct_signed_message_mirrors_cloud_shape() -> None:
     assert message["v"] == 1
     assert message["mode"] == "attestation"
     assert message["statement_hash"] == _GOLDEN_HASH
+
+
+    # The v2 rebuild is byte-exact: golden bytes captured from asqav once.
+def test_v2_signed_message_matches_cloud_bytes() -> None:
+    receipt = _v2_receipt_fields()
+    message = signed_message_from_receipt(receipt)
+    assert message == _V2_GOLDEN_MESSAGE
+    assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION
+    payload = json.loads(message)
+    assert payload.keys() == {
+        "v", "mode", "statement_hash", "commitment", "commitment_alg",
+        "key_id", "server_timestamp",
+    }
+    assert payload["v"] == SIGNED_MESSAGE_VERSION
+
+
+    # A legacy receipt keeps rebuilding the exact 11-key v1 bytes it did before.
+def test_v1_receipt_still_rebuilds_v1() -> None:
+    receipt = _v1_receipt_fields()
+    assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
+    assert signed_message_from_receipt(receipt) == _signed_message()
+
+    marked = {**receipt, VERSION_FIELD: SIGNED_MESSAGE_VERSION_V1}
+    assert signed_message_version(marked) == SIGNED_MESSAGE_VERSION_V1
+    assert signed_message_from_receipt(marked) == _signed_message()
 
 
     # (c) A tampered claim re-derives a different hash and fails verification.
@@ -220,6 +311,124 @@ def test_missing_optional_inputs_is_unverifiable_not_verified() -> None:
     assert by_name["signature"] == "SKIP"
     assert by_name["inclusion"] == "SKIP"
     assert by_name["commitment"] == "NOT_REDERIVABLE"
+
+
+    # A current v2 receipt verifies from the receipt, the claim and the key.
+def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
+    receipt, verify = _v2_receipt()
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    assert result["verdict"] == VERDICT_VERIFIED_KEYED
+    assert result["failure_class"] is None
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+
+
+    # A proof with no tree head is still evidence: main's unverified stands.
+def test_v2_receipt_with_inclusion_proof_and_no_tree_head_is_unverified() -> None:
+    sign, verify = _ed25519_signer()
+    _, proof = _tree_head_and_proof()
+    receipt = _v2_receipt_fields()
+    receipt["inclusionProof"] = proof
+    rebuilt = signed_message_from_receipt(receipt)
+    receipt["signature"] = base64.b64encode(sign(rebuilt)).decode()
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
+
+
+    # A supplied tree head asks for inclusion: with no proof it is unverified.
+def test_tree_head_without_proof_is_unverified() -> None:
+    receipt, verify = _v2_receipt()
+    without = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    assert without["verdict"] == VERDICT_VERIFIED_KEYED
+    result = verify_attestation_offline(
+        _CLAIM, receipt, verify_signature=verify, signed_tree_head=b"\x00" * 32
+    )
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
+
+
+    # The waiver names v2 only: a v1 receipt with no proof is not waived.
+def test_v1_receipt_without_inclusion_proof_is_not_waived() -> None:
+    receipt, verify = _v1_receipt()
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+
+
+    # Explicit bytes keep today's path: no waiver, so no proof is unverified.
+def test_explicit_signed_message_without_proof_is_unverified() -> None:
+    receipt, verify = _v2_receipt()
+    result = verify_attestation_offline(
+        _CLAIM,
+        receipt,
+        signed_message=signed_message_from_receipt(receipt),
+        verify_signature=verify,
+    )
+    assert result["verdict"] == VERDICT_UNVERIFIED
+    assert result["failure_class"] == FAILURE_UNVERIFIABLE
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    assert by_name["signature"] == "PASS"
+    assert by_name["inclusion"] == "SKIP"
+
+
+    # NEGCTL: a flipped commitment with a matching hash breaks the signature.
+def test_negctl_one_byte_of_commitment_fails_signature() -> None:
+    receipt, verify = _v2_receipt()
+    commitment = receipt["commitment"]
+    flipped = ("0" if commitment[0] != "0" else "1") + commitment[1:]
+    assert flipped != commitment
+    receipt["commitment"] = flipped
+    receipt["statementHash"] = compute_statement_hash(
+        _CLAIM, flipped, receipt["keyId"], receipt["timestamp"]
+    )
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["statement_hash"] == "PASS"
+    signature = next(a for a in result["axes"] if a["name"] == "signature")
+    assert signature["result"] == "FAIL"
+    assert signature["note"] == "signature does not verify over the signed message"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+
+
+    # NEGCTL: v1 bytes never verify a signature the cloud made over v2 bytes.
+def test_negctl_v2_receipt_over_v1_bytes_fails() -> None:
+    receipt, verify = _v2_receipt()
+    result = verify_attestation_offline(
+        _CLAIM,
+        receipt,
+        signed_message=_signed_message(),
+        verify_signature=verify,
+    )
+    by_name = {a["name"]: a["result"] for a in result["axes"]}
+    assert by_name["signature"] == "FAIL"
+    assert result["verdict"] == VERDICT_UNVERIFIED
+
+
+    # NEGCTL: a v2 receipt missing a needed field fails naming that field.
+def test_negctl_missing_field_is_named() -> None:
+    receipt, verify = _v2_receipt()
+    field = "commitmentAlg"
+    del receipt[field]
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    signature = next(a for a in result["axes"] if a["name"] == "signature")
+    assert signature["result"] == "FAIL"
+    assert field in signature["note"]
+    assert signature["failure_class"] == FAILURE_UNVERIFIABLE
+    assert result["verdict"] == VERDICT_UNVERIFIED
 
 
 def test_public_surface_exposed_at_package_root() -> None:

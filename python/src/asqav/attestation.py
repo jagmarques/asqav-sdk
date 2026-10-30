@@ -20,6 +20,8 @@ __all__ = [
     "FAILURE_UNVERIFIABLE",
     "compute_statement_hash",
     "reconstruct_signed_message",
+    "signed_message_version",
+    "signed_message_from_receipt",
     "merkle_leaf_hash",
     "merkle_node_hash",
     "merkle_root",
@@ -31,6 +33,33 @@ __all__ = [
 # Pinned by the cloud route. A change here silently breaks every verification.
 ATTESTATION_STATEMENT_SCHEMA = "asqav.attestation/1"
 DEFAULT_COMMITMENT_ALG = "HMAC-SHA256"
+
+#: Signed-message version since the receipt rework; every key is a receipt field
+SIGNED_MESSAGE_VERSION = 2
+
+#: Pre-rework version; mixed in action_id, agent_id, org_id and claim_type
+SIGNED_MESSAGE_VERSION_V1 = 1
+
+#: Field naming the version; without it, v1-only fields date the receipt
+VERSION_FIELD = "signedMessageVersion"
+
+#: Receipt fields only a v1 signed message names
+V1_ONLY_FIELDS = ("actionId", "agentId", "orgId", "claimType")
+
+#: Receipt fields a verifier needs before it can rebuild any signed message
+_SIGNED_MESSAGE_RECEIPT_FIELDS = (
+    "statementHash",
+    "commitment",
+    "commitmentAlg",
+    "keyId",
+    "timestamp",
+)
+
+#: Fields needed to rebuild v1 signed bytes, including the v1-only fields
+_V1_SIGNED_MESSAGE_RECEIPT_FIELDS = (
+    *_SIGNED_MESSAGE_RECEIPT_FIELDS,
+    *V1_ONLY_FIELDS,
+)
 
 #: Verdict vocabulary (418/438). An attestation receipt is verified_keyed,
 #: never plain verified: the HMAC commitment is sealed with a holder-only key.
@@ -107,6 +136,55 @@ def reconstruct_signed_message(
         "org_id": org_id,
     }
     return canonical_json(message_payload)
+
+
+def signed_message_version(receipt: dict[str, Any]) -> int:
+    """Date a receipt to the signed-message version it was minted under."""
+    marker = receipt.get(VERSION_FIELD)
+    if marker in (SIGNED_MESSAGE_VERSION_V1, SIGNED_MESSAGE_VERSION):
+        return int(marker)
+    if any(receipt.get(field) for field in V1_ONLY_FIELDS):
+        return SIGNED_MESSAGE_VERSION_V1
+    return SIGNED_MESSAGE_VERSION
+
+
+def signed_message_from_receipt(receipt: dict[str, Any]) -> bytes:
+    """Rebuild the signed bytes from the receipt, refusing a missing field."""
+    version = signed_message_version(receipt)
+    if version == SIGNED_MESSAGE_VERSION_V1:
+        required = _V1_SIGNED_MESSAGE_RECEIPT_FIELDS
+    else:
+        required = _SIGNED_MESSAGE_RECEIPT_FIELDS
+    missing = [field for field in required if not receipt.get(field)]
+    if missing:
+        raise ValueError(
+            "signed message cannot be rebuilt: "
+            f"v{version} receipt cannot be verified, missing field(s): "
+            + ", ".join(missing)
+        )
+    if version == SIGNED_MESSAGE_VERSION_V1:
+        return reconstruct_signed_message(
+            statement_hash=receipt["statementHash"],
+            commitment=receipt["commitment"],
+            commitment_alg=receipt["commitmentAlg"],
+            key_id=receipt["keyId"],
+            claim_type=receipt["claimType"],
+            server_timestamp=receipt["timestamp"],
+            action_id=receipt["actionId"],
+            agent_id=receipt["agentId"],
+            org_id=receipt["orgId"],
+        )
+    return canonical_json(
+        {
+            "v": SIGNED_MESSAGE_VERSION,
+            "mode": "attestation",
+            "statement_hash": receipt["statementHash"],
+            "commitment": receipt["commitment"],
+            "commitment_alg": receipt["commitmentAlg"],
+            "key_id": receipt["keyId"],
+            "server_timestamp": receipt["timestamp"],
+        }
+    )
 
 
 # === Pure Merkle helpers (certificate-transparency 6962-style) ===
@@ -196,7 +274,13 @@ def _axis_failure_class(result: str, note: str) -> str | None:
         return FAILURE_UNVERIFIABLE
     # Parse failures and malformed members stop recomputation; they are not a
     # proven binding break, so they never read invalid.
-    if note.startswith(("signed message rejected:", "signed message is not valid")):
+    if note.startswith(
+        (
+            "signed message rejected:",
+            "signed message is not valid",
+            "signed message cannot be rebuilt",
+        )
+    ):
         return FAILURE_UNVERIFIABLE
     if note == "receipt signature is not valid base64":
         return FAILURE_UNVERIFIABLE
@@ -221,32 +305,8 @@ def verify_attestation_offline(
     signed_tree_head: bytes | None = None,
     commitment_alg: str = DEFAULT_COMMITMENT_ALG,
 ) -> dict[str, Any]:
-    """Verify an attestation receipt offline from the ORIGINAL claim.
-
-    Recomputes statementHash with the cloud's exact canonicalization, checks
-    asqav's signature over the signed message, and checks the inclusion proof
-    against a supplied signed tree head. The commitment is an HMAC sealed with
-    a holder-only key, so it can never be re-derived here. A good receipt
-    yields ``verified_keyed``, never plain ``verified`` (criteria 418/438).
-
-    Args:
-        claim: The original claim dict the caller submitted.
-        receipt: The receipt dict (camelCase wire keys: statementHash,
-            commitment, keyId, timestamp, signature, inclusionProof).
-        signed_message: The canonical signed-message bytes (rebuild with
-            reconstruct_signed_message). Optional, signature axis SKIPs without it.
-        verify_signature: Callable(message, signature) -> bool for the agent key.
-            Optional, signature axis SKIPs without it.
-        signed_tree_head: The Merkle root the inclusion proof is checked against.
-            Optional, inclusion axis SKIPs without it or without a proof.
-        commitment_alg: Commitment algorithm id. Defaults to HMAC-SHA256.
-
-    Returns:
-        dict with ``verdict`` ("verified_keyed" | "unverified"),
-        ``failure_class`` ("invalid" | "unverifiable" when unverified, else
-        None), ``axes`` (per-axis name/result/note/failure_class), and
-        ``statementHash`` (the recomputed value).
-    """
+    """Verify an attestation receipt offline from the ORIGINAL claim, rebuilding
+    the signed bytes from the receipt when only the verifier is supplied."""
     axes: list[dict[str, Any]] = []
 
     recomputed = compute_statement_hash(
@@ -263,13 +323,23 @@ def verify_attestation_offline(
         axes.append(_axis("statement_hash", _AXIS_FAIL, "claim does not match the receipt hash"))
 
     # Signature axis: verify the exact signed message and bind it to the claim.
-    if signed_message is None or verify_signature is None:
-        axes.append(_axis("signature", _AXIS_SKIP, "no signed message or verifier supplied"))
-    else:
+    if verify_signature is None:
+        axes.append(_axis("signature", _AXIS_SKIP, "no verifier supplied"))
+    elif signed_message is not None:
         sig_result, sig_note = _check_signature(
             signed_message, receipt, recomputed, verify_signature
         )
         axes.append(_axis("signature", sig_result, sig_note))
+    else:
+        try:
+            rebuilt = signed_message_from_receipt(receipt)
+        except ValueError as exc:
+            axes.append(_axis("signature", _AXIS_FAIL, str(exc)))
+        else:
+            sig_result, sig_note = _check_signature(
+                rebuilt, receipt, recomputed, verify_signature
+            )
+            axes.append(_axis("signature", sig_result, sig_note))
 
     # Inclusion axis: check the proof against the supplied signed tree head.
     proof = receipt.get("inclusionProof")
@@ -297,7 +367,15 @@ def verify_attestation_offline(
         )
     )
 
-    verdict, failure_class = _verdict(axes)
+    # Only a v2 receipt with no proof, no tree head and no explicit bytes asks
+    # for no inclusion check; a v1 receipt still needs its proof.
+    inclusion_waived = (
+        signed_tree_head is None
+        and signed_message is None
+        and proof is None
+        and signed_message_version(receipt) == SIGNED_MESSAGE_VERSION
+    )
+    verdict, failure_class = _verdict(axes, inclusion_waived=inclusion_waived)
     return {
         "verdict": verdict,
         "failure_class": failure_class,
@@ -332,17 +410,20 @@ def _check_signature(
 
 
     # Fold per-axis results; a good receipt is verified_keyed, never verified.
-def _verdict(axes: list[dict[str, Any]]) -> tuple[str, str | None]:
+def _verdict(
+    axes: list[dict[str, Any]], *, inclusion_waived: bool = False
+) -> tuple[str, str | None]:
     results = {a["name"]: a["result"] for a in axes}
     failed = [a for a in axes if a["result"] == _AXIS_FAIL]
     if failed:
         classes = {a["failure_class"] for a in failed}
         failure_class = FAILURE_INVALID if FAILURE_INVALID in classes else FAILURE_UNVERIFIABLE
         return VERDICT_UNVERIFIED, failure_class
+    inclusion = results.get("inclusion")
     checked = (
         results.get("statement_hash") == _AXIS_PASS
         and results.get("signature") == _AXIS_PASS
-        and results.get("inclusion") == _AXIS_PASS
+        and (inclusion == _AXIS_PASS or (inclusion_waived and inclusion == _AXIS_SKIP))
     )
     if checked:
         return VERDICT_VERIFIED_KEYED, None
