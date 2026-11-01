@@ -15,17 +15,15 @@ export interface AsqavAdapterOptions {
   agentName?: string;
   /** Optional error sink; pre-execution gates still throw after reporting. */
   onError?: (err: unknown, context: { actionType: string }) => void;
-  /**
-   * When true, the adapter logs what it would sign but skips the network
-   * call. Useful for local development and snapshot testing.
-   */
+  /** When true, the adapter logs what it would sign but skips the network
+   * call. Useful for local development and snapshot testing. */
   observe?: boolean;
 }
 
 export interface SignActionInput {
   actionType: string;
   context?: Record<string, unknown>;
-  /** Completion value; its digest is default-sent (787). */
+  /** Completion value; its digest is default-sent */
   result?: unknown;
 }
 
@@ -134,15 +132,13 @@ export class AsqavAdapter {
     return resolved;
   }
 
-  /**
-   * Sign a governance action. Fire-and-forget by default; errors route
-   * through ``options.onError``. This method MUST NOT throw.
-   */
+  /** Sign a governance action. Fire-and-forget by default; errors route
+   * through ``options.onError``. This method MUST NOT throw. */
   protected signAction(input: SignActionInput): void {
     const onError = this.options.onError ?? defaultOnError;
 
     if (this.options.observe) {
-      // observe mode mirrors Python ``AsqavAdapter._observe``.
+      // observe mode mirrors Python ``AsqavAdapter._observe``
       // eslint-disable-next-line no-console
       console.info(
         `[asqav] OBSERVE: would sign ${input.actionType}`,
@@ -152,7 +148,7 @@ export class AsqavAdapter {
     }
 
     // Fire-and-forget; never await so callbacks stay synchronous for
-    // host frameworks that expect synchronous return values.
+    // host frameworks that expect synchronous return values
     void (async () => {
       try {
         const agent = await this.resolveAgent();
@@ -165,7 +161,7 @@ export class AsqavAdapter {
         try {
           onError(err, { actionType: input.actionType });
         } catch {
-          // Swallow secondary errors from the user-supplied handler.
+          // Swallow secondary errors from the user-supplied handler
         }
       }
     })();
@@ -199,10 +195,8 @@ function defaultOnError(err: unknown, ctx: { actionType: string }): void {
   console.warn(`[asqav] sign failed for ${ctx.actionType}:`, err);
 }
 
-/**
- * Throw the canonical missing-peer error, mirroring the Python ``ImportError`` contract. ``cause`` keeps
- * the underlying module-resolution error visible to the user.
- */
+/** Throw the canonical missing-peer error, like Python's ``ImportError``:
+ * ``cause`` keeps the module-resolution error visible to the user */
 export function raiseMissingPeer(
   framework: string,
   peer: string,

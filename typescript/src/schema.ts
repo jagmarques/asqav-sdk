@@ -1,4 +1,4 @@
-/** Opt-in context-schema validator for agent.sign() (criterion 328). */
+/** Opt-in context-schema validator for agent.sign() */
 
 /** Valid type names for built-in field descriptors. */
 export type ContextSchemaFieldType =
@@ -16,14 +16,14 @@ export interface ContextSchemaField {
   required?: boolean;
 }
 
-/** Built-in schema: a record of field names to ContextSchemaField descriptors. */
+/** Built-in schema: field names to ContextSchemaField descriptors */
 export type ContextSchema = Record<string, ContextSchemaField>;
 
 /** Docs URL stamped on ValidationError instances. */
 const SCHEMA_DOCS_URL = "https://asqav.com/docs/structured-receipts";
 
-/** Validate context against the schema; throws ValidationError on first bad field.
- * null/undefined context treated as empty ({}). */
+/** Validate context against the schema; ValidationError on the first bad field.
+ * null/undefined context treated as empty ({}) */
 export function validateContextSchema(
   context: Record<string, unknown> | null | undefined,
   schema: ContextSchema,
@@ -60,7 +60,7 @@ export function validateContextSchema(
     const value = ctx[field];
 
     if (typeName === "number") {
-      // bool is rejected: typeof true === "boolean", not "number", but guard explicitly.
+      // Reject bool: typeof true is "boolean", not "number"; guard explicitly
       if (typeof value === "boolean") {
         throw new ValidationError(
           `context_schema_error: field '${field}' expected type number, got boolean`,
@@ -107,7 +107,7 @@ export function validateContextSchema(
   }
 }
 
-/** Return a new object with keys sorted. Stable order makes sign() deterministic. */
+/** New object with sorted keys: stable order makes sign() deterministic */
 export function normalizeContext(
   context: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | undefined {

@@ -128,7 +128,7 @@ export function normaliseEnvelope(raw: Record<string, unknown>): Record<string, 
   };
 }
 
-/** controls_evaluated false-attestation rules (`check_controls_evaluated`) */
+/** False-attestation rules, Python twin `check_controls_evaluated` */
 export function checkControlsEvaluated(
   payload: Record<string, unknown>,
 ): readonly ["PASS" | "FAIL", string] {
@@ -301,7 +301,7 @@ function matchKeyById(
   return null;
 }
 
-// Agent key bound to the receipt's claimed issuer (`_match_key_by_agent`);
+// Agent key bound to the receipt's claimed issuer (`_match_key_by_agent`):
 // agent_id is attacker-controlled, so the key's issuer must match signed bytes
 function matchKeyByAgent(
   jwks: Record<string, unknown> | null,
@@ -781,8 +781,8 @@ function envelopeCopyOutcomes(raw: Record<string, unknown>, sigObj: Record<strin
   return out;
 }
 
-/** Signed-bytes copies and carried key vs the verified key (`keyBytes`, else
- * null); compared only then, as msg need not be the signed bytes before */
+/** message_b64 always compared; digest and carried key only with the verified
+ * key (`keyBytes`), else null: msg need not be the signed bytes */
 function byteCopyOutcomes(
   raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null,
 ): CopyOutcome[] {

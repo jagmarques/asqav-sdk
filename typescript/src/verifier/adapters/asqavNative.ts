@@ -324,8 +324,8 @@ export class AsqavNativeAdapter extends FormatAdapter {
     return checkStructure(payloadOf(doc));
   }
 
-  // Gate on expiry, signing-key revocation and issuer (mirrors extra_axes);
-  // key axes no-op on an absent key, which the signature axis handles
+  // Gate on expiry, signing-key revocation, issuer (mirrors extra_axes); key
+  // axes no-op on an absent key, which the signature axis handles
   extraAxesWithContext(
     doc: Record<string, unknown>, keyProvider: KeyProvider, context: VerificationContext,
   ): ExtraAxis[] {
@@ -406,7 +406,7 @@ export class AsqavNativeAdapter extends FormatAdapter {
   }
 
   /** A hash-mode digest sealed with the org salt is keyed: consistent, not
-   * third-party re-derivable, so it reports verified_keyed, never verified */
+   * third-party re-derivable; fully checked: verified_keyed, never verified */
   keyedDigest(doc: Record<string, unknown>): boolean {
     return isHashMode(doc) && doc.hash_algo === "hmac-sha256";
   }

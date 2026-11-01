@@ -99,8 +99,8 @@ export abstract class FormatAdapter {
     return null;
   }
 
-  // In-body attestation (e.g. signer) surfaced in the verdict, not a check;
-  // default none
+  // In-signed-body attestation (e.g. signer) in the verdict, not a check
+  // (default none)
   attestation(_doc: Record<string, unknown>): Record<string, unknown> {
     return {};
   }

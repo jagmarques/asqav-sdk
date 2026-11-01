@@ -68,13 +68,11 @@ export class AsqavMastraHook extends AsqavAdapter {
     this.name = options.name ?? "asqav-mastra-hook";
   }
 
-  /**
-   * Verify the Mastra peer is installed and return its module. Throws a
-   * clear error matching the Python ImportError contract when missing.
-   */
+  /** Verify the Mastra peer is installed and return its module. Throws a
+   * clear error matching the Python ImportError contract when missing. */
   static async loadPeer(): Promise<unknown> {
     try {
-      // Optional peer; not declared in normal dependencies.
+      // Optional peer; not declared in normal dependencies
       // @ts-ignore optional peer dependency
       return (await import("@mastra/core")) as unknown;
     } catch (err) {

@@ -50,7 +50,7 @@ export interface VerifyResult {
   /** The matched adapter name, or "unknown". */
   fmt: string;
   axes: AxisResult[];
-  /** `verified` needs every non-skipped axis PASS and a checked signature;
+  /** `verified` needs every non-skipped axis PASS and a checked signature,
    * `verified_keyed` for a keyed digest; an unfolded result reads unverified */
   verdict: Verdict;
   /** invalid / unverifiable when unverified, else null. */
@@ -65,7 +65,7 @@ export interface VerifyResult {
   notChecked: NotCheckedEntry[];
   /** Trust identity; null here, TS evaluates no bundles. Parity field. */
   trustBundle: TrustBundleIdentity | null;
-  /** Registry edition + upstream version this result resolved against (625). */
+  /** Registry edition + upstream version this result resolved against */
   registryEdition: string;
   registryVersion: string;
   /** Coverage block mirrored from the reviewer's tool, snake_case on purpose */

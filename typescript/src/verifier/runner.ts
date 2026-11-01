@@ -31,8 +31,8 @@ interface ManifestEntry {
 }
 
 export function loadJson(path: string): Record<string, unknown> | null {
-  // Float-preserving parse so `500.0` reaches canonicalisation intact;
-  // the same parser rejects a duplicated member name at any depth
+  // Float-preserving parse so `500.0` reaches canonicalisation intact, and the
+  // same parser rejects a duplicated member name at any depth
   return existsSync(path)
     ? (parseJsonPreservingFloats(readFileSync(path, "utf-8")) as Record<string, unknown>)
     : null;

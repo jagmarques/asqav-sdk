@@ -37,7 +37,7 @@ export class AsqavOpenAIAgentsAdapter extends AsqavAdapter {
   /** Verify ``@openai/agents`` is installed; throw a clear error if not. */
   static async loadPeer(): Promise<unknown> {
     try {
-      // Optional peer; not declared in normal dependencies.
+      // Optional peer; not declared in normal dependencies
       // @ts-ignore optional peer dependency
       return (await import("@openai/agents")) as unknown;
     } catch (err) {

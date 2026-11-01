@@ -437,7 +437,7 @@ function numberToString(n: number): string {
   return n.toString();
 }
 
-/** Serialise with a chosen key comparison. `honorFloat` true emits `500.0`;
+/** Serialise with a chosen key comparison: `honorFloat` true emits `500.0`,
  * false collapses a whole float to `500` (strict RFC 8785) */
 function serialize(
   value: unknown,

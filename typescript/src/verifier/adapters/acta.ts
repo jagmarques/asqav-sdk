@@ -85,14 +85,13 @@ export class ActaAdapter extends FormatAdapter {
     const payload = asRecord(doc.payload);
     const prev = payload.previousReceiptHash;
     const isGenesis = !("previousReceiptHash" in payload);
-    // Hash of the whole predecessor, signature included; the carried value
-    // picks the form: -03 §6.7 "sha256:"+hex, -02 bare hex
+    // Hash of whole predecessor, signature included: -03 §6.7 "sha256:"+hex,
+    // -02 bare hex; an unknown prefix fails as a wrong digest does
     return {
       prevField: (prev as string | null) ?? null,
       isGenesis,
       recompute: (pred) => {
         const hex = sha256Hex(jcs(pred));
-        // An unknown prefix never passes: it fails as a wrong digest does
         return typeof prev === "string" && prev.startsWith("sha256:") ? `sha256:${hex}` : hex;
       },
     };
