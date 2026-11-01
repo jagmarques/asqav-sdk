@@ -1,7 +1,5 @@
-/**
- * Reproducible equivalence gate: run every corpus vector through the TS verifier and compare each verdict
- * to the manifest, as Python's `runner.main()` does. ML-DSA vectors tolerate the no-dilithium skip.
- */
+/** Equivalence gate: each corpus vector's TS verdict vs the manifest, as Python
+ * `runner.main()` does; ML-DSA vectors tolerate the no-dilithium skip */
 
 import { resolve } from "node:path";
 
@@ -37,14 +35,14 @@ export function runParity(corpusRoot = defaultCorpusRoot()): ParityReport {
 }
 
 function main(): number {
-  // Corpus root from arg / env, else the in-tree default.
+  // Corpus root: arg, env, else the in-tree default
   const root = process.argv[2] || process.env.ASQAV_CORPUS_ROOT || defaultCorpusRoot();
   const report = runParity(root);
   for (const line of report.lines) console.log(line);
   return report.passed === report.total ? 0 : 1;
 }
 
-// Run when invoked as a script (not when imported by the test).
+// Run as a script only, not when the test imports it
 if (typeof require !== "undefined" && require.main === module) {
   process.exit(main());
 }

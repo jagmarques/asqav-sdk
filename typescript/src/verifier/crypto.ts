@@ -1,7 +1,5 @@
-/**
- * Signature-verify dispatch shared across format adapters, a port of the Python oracle's `crypto.py`.
- * `verifySignature` returns PASS / FAIL / SKIPPED, so a signature it could not check never reads PASS.
- */
+/** Signature-verify dispatch shared by adapters, port of the oracle's
+ * `crypto.py`. PASS / FAIL / SKIPPED, so an unchecked one never reads PASS */
 
 import { createPublicKey, verify } from "node:crypto";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
@@ -23,10 +21,8 @@ function base64url(buf: Buffer): string {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/**
- * ML-DSA-65 verify via @noble/post-quantum: key 1952 raw bytes, signature 3309 (FIPS 204).
- * Byte-compatible with Python dilithium-py.
- */
+/** ML-DSA-65 via @noble/post-quantum (FIPS 204): raw key 1952 bytes, sig 3309.
+ * Byte-compatible with Python dilithium-py */
 function verifyMlDsa65(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
   if (pk.length !== 1952) {
     return { result: FAIL, note: `bad ML-DSA-65 public key: expected 1952 bytes, got ${pk.length}` };
@@ -63,10 +59,8 @@ function verifyEd25519(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): Verify
   }
 }
 
-/**
- * ES256 (ECDSA P-256 over SHA-256). Key is the 65-byte uncompressed point; signature is the 64-byte
- * raw r||s form, which `node:crypto.verify` accepts with `dsaEncoding: "ieee-p1363"`.
- */
+/** ES256 (ECDSA P-256, SHA-256): 65-byte uncompressed key, 64-byte raw r||s
+ * sig, which `node:crypto.verify` takes with `dsaEncoding: "ieee-p1363"` */
 function verifyEs256(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): VerifyOutcome {
   let key;
   try {

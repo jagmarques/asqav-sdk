@@ -1,7 +1,5 @@
-/**
- * Canonicalization shared across format adapters, a byte-for-byte port of the Python oracle's
- * `canonical.py`: `jcs`, `jcsRfc8785` and `asqavJcs` differ on key order, NFC and numbers.
- */
+/** Canonicalization for the adapters, a byte-for-byte port of `canonical.py`:
+ * `jcs`, `jcsRfc8785` and `asqavJcs` differ on key order, NFC and numbers */
 
 type JsonValue =
   | null
@@ -11,16 +9,12 @@ type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-/**
- * A JSON number written as a FLOAT literal, kept so `500.0` re-emits as `500.0` rather than the
- * `500` JSON.parse collapses it to; the jcs dialects sign numbers as the producer emitted them.
- * The source lexeme rides along so the profile range judges
- * digits, never the parsed double.
- */
+/** Float literal kept so `500.0` re-emits as written, as the jcs dialects sign
+ * it; the lexeme rides along so the profile range judges digits, not double */
 export class RawFloat {
   constructor(public readonly value: number, public readonly lexeme?: string) {}
 
-  // JSON.stringify re-emits the number itself, never the wrapper shape.
+  // JSON.stringify re-emits the number, never the wrapper
   toJSON(): number {
     return this.value;
   }
@@ -56,18 +50,8 @@ export function exceedsDepth(obj: unknown, maxDepth: number): boolean {
   return false;
 }
 
-/**
- * An integer beyond IEEE-754 safe range, kept as exact source digits. Collapsing it to the nearest
- * double would let two distinct integers share one signature and a tampered receipt verify.
- */
-/**
- * Largest integer magnitude both SDKs canonicalise identically. 2**53 is exactly
- * representable and both emit the same digits for it; 2**53 + 1 has no exact double and
- * JavaScript rounds it. Deliberately ONE ABOVE Number.isSafeInteger: the upstream interop
- * vector `number_2_to_53` pins 2**53 as canonical. The bound also excludes every integer
- * at or above 1e21, where toString switches to exponential notation and Python's str
- * does not.
- */
+/** Largest integer both SDKs emit alike (2**53+1 rounds in JS; from 1e21 JS
+ * goes exponential). ONE ABOVE isSafeInteger: number_2_to_53 pins 2**53 */
 export const MAX_CANONICAL_INTEGER = 9007199254740992;
 
 /** The same bound as an exact integer, for comparing against source digits. */
@@ -76,11 +60,8 @@ const MAX_CANONICAL_INTEGER_EXACT = 9007199254740992n;
 /** Largest integer magnitude the Asqav profile admits (draft Section 4). */
 export const MAX_PROFILE_INTEGER = 9007199254740991;
 
-/**
- * A digest-covered integer with no exact double. JavaScript rounds it and Python does not,
- * so the same receipt canonicalises two ways and its signature verifies in one SDK and fails
- * in the other. Refusing it is what keeps a verdict meaningful.
- */
+/** A digest-covered integer with no exact double: JS rounds it, Python not, so
+ * it verifies in one SDK only; refusing it keeps a verdict meaningful */
 export class UnsafeIntegerError extends SyntaxError {
   constructor(message: string) {
     super(message);
@@ -101,10 +82,8 @@ function setMember(out: Record<string, unknown>, k: string, v: unknown): void {
   Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
 }
 
-/**
- * A JSON object repeated a member name (criterion 419). Last-wins would hash the bytes an attacker
- * kept, so the strict parser throws before any hashing, canonicalisation or signature check.
- */
+/** A JSON object repeated a member name. Last-wins would hash the bytes an
+ * attacker kept, so strict parsing throws before any hash or signature check */
 export class DuplicateMemberError extends SyntaxError {
   constructor(message: string) {
     super(message);
@@ -157,11 +136,8 @@ export function isPreservedContainer(value: object): boolean {
   return PRESERVED.has(value);
 }
 
-/**
- * Parse JSON preserving float literals as `RawFloat`, mirroring Python's `json.load`. Strict on two
- * counts: a duplicated member at any depth throws, and so does an integer outside +/-2**53,
- * which no two readers canonicalise alike.
- */
+/** Parse JSON keeping float literals as `RawFloat` (Python `json.load`). Throws
+ * on a duplicate member at any depth and on an integer outside +/-2**53 */
 export function parseJsonPreservingFloats(text: string): unknown {
   let i = 0;
   const ws = () => {
@@ -190,7 +166,7 @@ export function parseJsonPreservingFloats(text: string): unknown {
   };
   const object = (): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
-    // Strict ingest (419): a repeated member name at any depth is terminal.
+    // Strict ingest: a repeated member name at any depth is terminal
     const seen = new Set<string>();
     i++; // {
     ws();
@@ -246,8 +222,8 @@ export function parseJsonPreservingFloats(text: string): unknown {
     while (i < text.length && digit()) i++;
   };
   const num = (): RawFloat | number => {
-    // Strict RFC 8259 number grammar, matching Python json.loads (no leading zero,
-    // a digit required after '.' and after the exponent marker, no bare '-').
+    // Strict RFC 8259 number grammar, as Python json.loads: no leading zero,
+    // a digit after '.' and the exponent marker, no bare '-'
     const start = i;
     if (text[i] === "-") i++;
     if (text[i] === "0") i++;
@@ -272,11 +248,12 @@ export function parseJsonPreservingFloats(text: string): unknown {
     const lexeme = text.slice(start, i);
     const parsed = Number(lexeme);
     if (isFloat) return new RawFloat(parsed, lexeme);
-    // Test the SOURCE DIGITS, never the parsed double: Number("9007199254740993") is
-    // already 9007199254740992, so a magnitude check on `parsed` would wave through the
-    // exact value this rule exists to refuse.
+    // Test the source digits, not the parsed double: Number("9007199254740993")
+    // is already ...992, so a check on `parsed` passes the value to refuse
     const exact = BigInt(lexeme);
     if (exact > MAX_CANONICAL_INTEGER_EXACT || exact < -MAX_CANONICAL_INTEGER_EXACT) {
+      // As a double two integers could share a signature and a tampered receipt
+      // verify, so out-of-range source digits are refused
       throw new UnsafeIntegerError(
         `integer outside the canonical integer range +/-2**53: ${lexeme}; serialise it as ` +
           `a JSON string or an integer-rational pair`,
@@ -290,10 +267,8 @@ export function parseJsonPreservingFloats(text: string): unknown {
   return result;
 }
 
-/**
- * Strip the `RawFloat` wrapper back to the exact shape `JSON.parse` produces.
- * Canonicalising callers keep the wrappers; callers needing the plain wire shape unwrap them.
- */
+/** Strip `RawFloat` back to the shape `JSON.parse` produces; canonicalising
+ * callers keep the wrappers, plain wire-shape callers unwrap */
 export function unwrapPreservedFloats(value: unknown): unknown {
   if (isRawFloat(value)) return value.value;
   if (Array.isArray(value)) return value.map(unwrapPreservedFloats);
@@ -307,10 +282,8 @@ export function unwrapPreservedFloats(value: unknown): unknown {
   return value;
 }
 
-/**
- * Strict ingest with `JSON.parse`-compatible values (criterion 419): a duplicated member name at any
- * depth throws. Replaces `JSON.parse` wherever the float-preserving dialects are not needed.
- */
+/** Strict `JSON.parse`-compatible ingest: a duplicate member at any depth
+ * throws. Replaces `JSON.parse` where no float-preserving dialect is needed */
 export function parseJsonStrict(text: string): unknown {
   return unwrapPreservedFloats(parseJsonPreservingFloats(text));
 }
@@ -404,10 +377,8 @@ function nfc(obj: unknown): unknown {
   return obj;
 }
 
-/**
- * Compare two strings by Unicode CODE POINT (Python `sort_keys` ordering). JS string `<` compares by
- * UTF-16 code unit, which differs from code point on supplementary-plane characters.
- */
+/** Compare by Unicode CODE POINT (Python `sort_keys`); JS `<` compares UTF-16
+ * code units, which differ on supplementary-plane characters */
 function compareCodePoints(a: string, b: string): number {
   const ai = a[Symbol.iterator]();
   const bi = b[Symbol.iterator]();
@@ -423,10 +394,8 @@ function compareCodePoints(a: string, b: string): number {
   }
 }
 
-/**
- * JSON string serialization matching Python `json.dumps(ensure_ascii=False)`: short-escapes the five
- * C0 shorthands, other control chars as \u00xx, everything else verbatim. `/` is not escaped.
- */
+/** String form of Python `json.dumps(ensure_ascii=False)`: the five C0
+ * shorthands, other control chars \u00xx, the rest verbatim, `/` unescaped */
 function jsonString(s: string): string {
   let out = '"';
   for (let i = 0; i < s.length; i++) {
@@ -461,17 +430,15 @@ function numberToString(n: number): string {
   if (!Number.isFinite(n)) {
     throw new Error(`non-finite number not allowed in JCS: ${n}`);
   }
-  // Map -0 to "0", as both Python json.dumps and ECMAScript do for the corpus.
+  // -0 is "0", as in Python json.dumps and ECMAScript
   if (n === 0) return "0";
-  // V8's Number.toString is already the ECMAScript shortest round-trip form,
-  // which is exactly the RFC 8785 number serialisation (verified byte-equal).
+  // V8's Number.toString is the ECMAScript shortest round-trip form, exactly
+  // the RFC 8785 number serialisation (verified byte-equal)
   return n.toString();
 }
 
-/**
- * Serialise with a chosen key-comparison function. `honorFloat` picks the number dialect: true emits
- * the float form `500.0`, false collapses a whole-valued float to `500` (strict RFC 8785).
- */
+/** Serialise with a chosen key comparison. `honorFloat` true emits `500.0`;
+ * false collapses a whole float to `500` (strict RFC 8785) */
 function serialize(
   value: unknown,
   keyCompare: (a: string, b: string) => number,
@@ -513,22 +480,18 @@ export function asqavJcs(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(obj, utf16CompareKeys, true));
 }
 
-/**
- * Instant from which the issuing platform emits RFC 8785 member order on the wire. Pinned to the
- * production deploy of the emitter change; receipts issued later never get the pre-cutover retry.
- */
+/** When the platform began emitting RFC 8785 member order, pinned to the
+ * emitter's production deploy; later receipts get no pre-cutover retry */
 export const JCS_UTF16_CUTOVER = "2026-09-02T18:05:09+00:00";
 
-/**
- * The code-point member order the cloud emitted before JCS_UTF16_CUTOVER. Diagnostic only: a signature
- * that verifies solely under these bytes is reported as the pre-cutover dialect, never as verified.
- */
+/** Code-point member order the cloud emitted before JCS_UTF16_CUTOVER. Only a
+ * diagnostic: a sig passing only here is that dialect, never verified */
 export function asqavJcsPreCutover(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(obj, compareCodePoints, true));
 }
 
-// True when any object member name, at any depth, carries a character above U+FFFF. A lone
-// surrogate encodes no such character, so only a full surrogate pair counts (mirrors Python).
+// True when a member name at any depth has a character above U+FFFF; only a
+// full surrogate pair counts, as in Python
 export function hasSupplementaryMemberName(obj: unknown): boolean {
   const stack: unknown[] = [obj];
   while (stack.length > 0) {
@@ -545,7 +508,7 @@ export function hasSupplementaryMemberName(obj: unknown): boolean {
   return false;
 }
 
-/** Strict RFC 8785 JCS bytes (UTF-16 code-unit key sort, ECMAScript numbers) with NFC. */
+/** Strict RFC 8785 JCS bytes (UTF-16 key sort, ES numbers) with NFC */
 export function jcsRfc8785(obj: unknown): Uint8Array {
   return new TextEncoder().encode(serialize(nfc(obj), utf16CompareKeys, false));
 }

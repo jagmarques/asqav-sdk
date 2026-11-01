@@ -1,7 +1,5 @@
-/**
- * Authproof adapter: ES256 over `JSON.stringify(receipt-without-signature)` in INSERTION order, not JCS,
- * with the signer key embedded as a P-256 JWK. Native stringify reproduces the JS SDK's bytes exactly.
- */
+/** Authproof: ES256 over JSON.stringify(receipt minus signature) in INSERTION
+ * order, not JCS, which reproduces the JS SDK bytes; signer key a P-256 JWK */
 
 import {
   FormatAdapter,
@@ -11,10 +9,8 @@ import {
   type SignatureMaterial,
 } from "../adapter.js";
 
-/**
- * A shipping-SDK delegationId is `auth-<epoch_ms>-<5 base36 chars>`. `[0-9]` spells out the ASCII digit
- * class so the pattern reads identical to the Python validator's.
- */
+/** Shipping-SDK delegationId `auth-<epoch_ms>-<5 base36 chars>`; `[0-9]` is
+ * the ASCII digit class, so it reads as the Python validator's pattern */
 const DELEGATION_ID = /^auth-[0-9]+-[a-z0-9]{5}$/;
 
 /** Fields the SDK always writes, used for the structural check. */
@@ -96,7 +92,7 @@ export class AuthproofAdapter extends FormatAdapter {
   }
 
   signingInput(doc: Record<string, unknown>): Uint8Array {
-    // The SDK signs JSON.stringify of the receipt minus `signature`, key order intact.
+    // SDK signs JSON.stringify of the receipt minus `signature`, order intact
     const body: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(doc)) {
       if (k !== "signature") body[k] = v;
@@ -105,7 +101,7 @@ export class AuthproofAdapter extends FormatAdapter {
   }
 
   chainStep(): ChainStep {
-    // The base Authproof receipt carries no in-band chain link of its own.
+    // A base Authproof receipt carries no in-band chain link
     return { prevField: null, isGenesis: true, recompute: () => "" };
   }
 

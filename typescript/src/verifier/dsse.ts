@@ -1,7 +1,5 @@
-/**
- * Offline DSSE attestation verifier: signing stays remote, verification is air-gapped. Signed bytes are
- * the PAE, a byte-for-byte port of `core/dsse.py`. Fail-closed: anything unresolved is a FAIL.
- */
+/** Offline DSSE verifier: signing remote, verification air-gapped. Signed bytes
+ * are the PAE, a byte-for-byte `core/dsse.py` port. Unresolved is FAIL */
 
 import { verifySignature } from "./crypto.js";
 import { DuplicateMemberError, parseJsonStrict } from "./canonical.js";
@@ -24,10 +22,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-/**
- * DSSE Pre-Authentication Encoding of (payloadType, body): `"DSSEv1" SP LEN(type) SP type SP LEN(body)
- * SP body`, with 0x20 separators and ASCII-decimal lengths. Byte-compatible with `core/dsse.py`.
- */
+/** DSSE PAE of (payloadType, body): `"DSSEv1" SP LEN(type) SP type SP LEN(body)
+ * SP body`, 0x20 SP, ASCII-decimal LEN; byte-compatible with `core/dsse.py` */
 export function buildPae(payloadType: string | Uint8Array, body: Uint8Array): Uint8Array {
   const enc = new TextEncoder();
   const typeBytes = typeof payloadType === "string" ? enc.encode(payloadType) : payloadType;
@@ -50,10 +46,8 @@ export function buildPae(payloadType: string | Uint8Array, body: Uint8Array): Ui
   return out;
 }
 
-/**
- * Pull `subject[0].digest.sha256` from an in-toto Statement, lowercased, or null when absent. A push
- * guard asserts it equals the pushed commit sha, binding the attestation to the bytes that landed.
- */
+/** In-toto `subject[0].digest.sha256`, lowercased, or null; a push guard binds
+ * the attestation to the landed bytes by matching it to the pushed sha */
 export function extractSubjectDigest(statement: unknown): string | null {
   if (!isRecord(statement)) return null;
   const subject = statement.subject;
@@ -67,7 +61,7 @@ export function extractSubjectDigest(statement: unknown): string | null {
   return sha.toLowerCase();
 }
 
-/** One axis of an attestation verdict; attestations are PASS/FAIL only, never skip. */
+/** One attestation verdict axis; attestations are PASS/FAIL only, never skip */
 export interface AttestationAxis {
   result: "PASS" | "FAIL";
   note: string;
@@ -99,7 +93,7 @@ interface KeyEvaluation {
   alg: string | null;
 }
 
-/** Fail-closed gate on the JWKS key: present, not revoked, status outside the revoked set. */
+/** Fail-closed JWKS key gate: present, not revoked, status not revoked */
 function evaluateKeyStatus(jwks: Record<string, unknown> | null, kid: string): KeyEvaluation {
   const [pub, status, alg] = resolveKey(jwks, kid);
   if (pub === null) {
@@ -157,7 +151,7 @@ function checkAttestationStructure(envelope: unknown, expectedType: string): Str
   }
   let statement: unknown;
   try {
-    // Strict ingest (419): a duplicated member name is a terminal parse failure.
+    // Strict ingest: a duplicated member name is a terminal parse failure
     statement = parseJsonStrict(new TextDecoder().decode(payloadBytes));
   } catch (exc) {
     if (exc instanceof DuplicateMemberError) return bad(`payload rejected: ${exc.message}`);
@@ -183,10 +177,8 @@ function checkAttestationStructure(envelope: unknown, expectedType: string): Str
   };
 }
 
-/**
- * Verify a DSSE attestation envelope fully offline against an in-memory JWKS. PASS needs a well-formed
- * Statement plus one signature that verifies against an active key. No network call is made.
- */
+/** Verify a DSSE envelope offline against an in-memory JWKS. PASS needs a
+ * well-formed Statement and one signature verifying under an active key */
 export function verifyAttestation(
   envelope: unknown,
   jwks: Record<string, unknown> | null,
