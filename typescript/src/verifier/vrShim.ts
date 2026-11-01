@@ -896,24 +896,18 @@ function outerCopyNote(outcomes: CopyOutcome[], raw: Record<string, unknown>): r
   return ["PASS", parts.join("; ") || "no outer copies carried; the signed payload is the whole receipt"];
 }
 
-/** Plain copies vs signed (`check_outer_copies`). raw: entry as received, msg:
- * signed bytes, keyBytes/keyKid: key and kid it verified under (null if not) */
+/** Plain copies vs signed (`check_outer_copies`): no signature covers a copy,
+ * so a mismatch FAILs; an unpaired copy is listed, never trusted */
 export function checkOuterCopies(
   raw: Record<string, unknown>, msg: Uint8Array, keyBytes: Uint8Array | null = null, keyKid: string | null = null,
 ): readonly ["PASS" | "FAIL", string] {
   const payload = raw.payload;
   if (!isRecord(payload)) {
-    // A flat hash-mode receipt lists the members it does not sign, including
-    // a key_id other than keyKid, the kid of the key that verified
     if (isFlatHashReceipt(raw)) return flatOuterNote(raw, keyBytes, keyKid);
     return ["PASS", "no signed payload object; no outer copies compared"];
   }
-  // Signature copies are weighed against the normalised signature object,
-  // the one the signature axis used
   const sigObj = normaliseEnvelope(raw).signature;
   const signature = isRecord(sigObj) ? sigObj : {};
-  // No sig covers a copy, so a mismatch FAILs (invalid); an unpaired copy is
-  // listed, never trusted
   return outerCopyNote(outerCopyOutcomes(raw, payload, signature, msg, keyBytes), raw);
 }
 
