@@ -430,7 +430,7 @@ function numberToString(n: number): string {
   if (!Number.isFinite(n)) {
     throw new Error(`non-finite number not allowed in JCS: ${n}`);
   }
-  // -0 is "0", as in Python json.dumps and ECMAScript
+  // -0 is "0", as in ECMAScript and in Python json.dumps for the corpus
   if (n === 0) return "0";
   // V8's Number.toString is the ECMAScript shortest round-trip form, exactly
   // the RFC 8785 number serialisation (verified byte-equal)

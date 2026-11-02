@@ -1,5 +1,5 @@
-/** Independent verdict semantics (oracle-independence slice) */
-/** Rules: invalid-vs-unverifiable, keyed, expiry, chain skip */
+/** Independent verdict semantics (oracle-independence slice).
+ * Rules: invalid-vs-unverifiable, keyed, expiry, chain skip */
 import { FAIL, PASS, SKIPPED, type VerifyState } from "./crypto.js";
 import type { AxisResult, FailureClass, Verdict } from "./core.js";
 
@@ -31,8 +31,8 @@ const NON_FOLDING_AXES: ReadonlySet<string> = new Set(["expiry"]);
 /** A skipped check blocks, except the chain axis */
 const TOLERATED_SKIP_AXES: ReadonlySet<string> = new Set(["chain"]);
 
-/** Classify one axis outcome; table axes prove a binding failure */
-/** Note branches split proven breaks from stops; unlisted never proves */
+/** Classify one axis outcome; table axes prove a binding failure.
+ * Note branches split proven breaks from stops; unlisted never proves */
 export function classifyFailure(axis: string, result: VerifyState, note: string): FailureClass | null {
   if (result === PASS) return null;
   if (result === SKIPPED) return FAILURE_UNVERIFIABLE;

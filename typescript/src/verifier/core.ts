@@ -1,5 +1,5 @@
-/** Shared core: detection, dispatch and the verdict */
-/** Verdict rules live in semantic.ts; proves only what the bytes prove */
+/** Shared core: detection, dispatch and the verdict.
+ * Verdict rules live in semantic.ts; proves only what the bytes prove */
 
 import type { FormatAdapter, KeyProvider, VerificationContext } from "./adapter.js";
 import { exceedsDepth } from "./canonical.js";
@@ -33,7 +33,6 @@ export interface AxisResult {
   failureClass: FailureClass | null;
 }
 
-/** The aggregate outcome of verifying one receipt. */
 /** Versioned trust identity, mirrored from Python's trust_bundle. */
 export interface TrustBundleIdentity {
   /** Bundle version the result was verified under. */
@@ -46,6 +45,7 @@ export interface TrustBundleIdentity {
   valid: boolean;
 }
 
+/** The aggregate outcome of verifying one receipt. */
 export interface VerifyResult {
   /** The matched adapter name, or "unknown". */
   fmt: string;
@@ -74,8 +74,8 @@ export interface VerifyResult {
   context?: VerificationContext;
 }
 
-/** Classify one axis outcome; rules live in semantic.ts */
-/** Kept as the public name for existing importers */
+/** Classify one axis outcome; rules live in semantic.ts.
+ * Kept as the public name for existing importers */
 export function axisFailureClass(axis: string, result: VerifyState, note: string): FailureClass | null {
   return classifyFailure(axis, result, note);
 }
@@ -103,8 +103,8 @@ function structureAxis(ad: FormatAdapter, doc: Record<string, unknown>): AxisRes
  * reorder fails a gate instead of quietly renaming the "first" edge */
 export const AXIS_ORDER_PREFIX = ["structure", "signature", "chain", "seq"] as const;
 
-/** Earliest axis in report order that drove the verdict away */
-/** Exclusions mirror the semantic table: expiry never folds, chain tolerated */
+/** Earliest axis in report order that drove the verdict away.
+ * Exclusions mirror the semantic table: expiry never folds, chain tolerated */
 export function firstFailingEdge(axes: AxisResult[]): string | null {
   for (const a of axes) {
     if (a.result === FAIL && a.axis !== "expiry") return a.axis;
@@ -113,8 +113,8 @@ export function firstFailingEdge(axes: AxisResult[]): string | null {
   return null;
 }
 
-/** Fold per-axis outcomes; rules live in semantic.ts */
-/** Kept as the public name for existing importers */
+/** Fold per-axis outcomes; rules live in semantic.ts.
+ * Kept as the public name for existing importers */
 export function foldVerdict(
   axes: AxisResult[],
   keyed: boolean,

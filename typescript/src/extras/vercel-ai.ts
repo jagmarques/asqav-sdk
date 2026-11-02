@@ -212,7 +212,7 @@ export function createAsqavExporter(opts: CreateAsqavExporterOptions): Tracer {
     }
 
     // Fire-and-forget. No await, no throw
-    // 787: span attributes carry the AI SDK outcome; bind them as result
+    // Span attributes carry the AI SDK outcome; bind them as result
     const outcome = isError && state.exception !== undefined
       ? { error: context.error }
       : { ...state.attributes };
