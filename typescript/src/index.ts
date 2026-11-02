@@ -2272,8 +2272,8 @@ export class Agent {
     });
   }
 
-  /** Preflight of revocation/suspension and policy, fail-closed: an incomplete
-   * sub-check keeps checksComplete, cleared false: fetch errors never clear */
+  /** Fail-closed preflight of revocation/suspension and policy: an incomplete
+   * sub-check sets checksComplete, cleared false; fetch errors never clear */
   async preflight(actionType: string): Promise<PreflightResult> {
     let agentActive = true;
     let policyAllowed = true;
@@ -2764,8 +2764,8 @@ function _signedNegZero(name: string, input: Record<string, unknown>, receipt: R
 /** Receipt-side input: raw JSON text (preferred) or an already-parsed object */
 export type OfflineJsonInput = string | Record<string, unknown>;
 
-/** Verify offline against a JWKS; pass raw JSON text, not `JSON.parse` output,
- * 13 axes, docs/offline-verification.md; anchors unchecked: `checkAnchors` */
+/** Offline, no network; raw JSON text; 13 axes in docs/offline-verification.md
+ * skew >300 seconds or outer_copies FAIL -> unverified; anchors unchecked */
 export function verifyReceiptOffline(
   receipt: OfflineJsonInput,
   jwks: OfflineJsonInput,
