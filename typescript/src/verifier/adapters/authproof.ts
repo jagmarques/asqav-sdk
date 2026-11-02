@@ -1,5 +1,5 @@
-/** Authproof: ES256 over JSON.stringify(receipt minus signature) in INSERTION
- * order, not JCS, which reproduces the JS SDK bytes; signer key a P-256 JWK */
+/** Authproof: ES256 over JSON.stringify(receipt minus signature), INSERTION
+ * order, not JCS, matching the JS SDK bytes; signer key: embedded P-256 JWK */
 
 import {
   FormatAdapter,

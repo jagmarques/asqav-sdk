@@ -1,5 +1,5 @@
 /** OPA: POST {opaUrl}/v1/data/{policyPath} with {input:{action_type,context}}
- * {"result": bool} is allow, missing result is deny; docs/detector-plugins */
+ * {"result": bool} maps to allow, missing is deny; docs/detector-plugins */
 
 import type { DetectorPlugin, DetectorResult } from "../detectors.js";
 

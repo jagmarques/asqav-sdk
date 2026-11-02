@@ -1,5 +1,5 @@
 /** Non-coverage declaration each `verify()` result carries (Python NOT_CHECKED)
- * so silence never reads as coverage; `condition` null = never performed */
+ * so silence never reads as coverage; longer: no anchor crypto in this port */
 
 /** One declared gap between what this verifier checks and a receipt claims */
 export interface NotCheckedEntry {
@@ -13,8 +13,6 @@ export interface NotCheckedEntry {
   condition: string | null;
 }
 
-// Longer than Python's list: this port runs no anchor cryptography, so checks
-// Python performs partially are declared here as never performed
 export const NOT_CHECKED: readonly NotCheckedEntry[] = [
   {
     check: "tsa_signature_verification",
