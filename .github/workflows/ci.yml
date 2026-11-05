@@ -30,6 +30,8 @@ jobs:
               - 'verifier/axis-parity-cases.json'
               - 'verifier/anchor-value-cases.json'
               - 'verifier/time-edge-cases.json'
+              - 'verifier/independent-runs.json'
+              - 'verifier/commit-rewrite-map.json'
               - 'verifier/float-repr-cases.json'
               - 'verifier/generate_float_repr_cases.py'
               - 'verifier/counterparty-float-cases.json'
