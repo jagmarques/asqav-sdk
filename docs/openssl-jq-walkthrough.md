@@ -27,7 +27,7 @@ conformance corpus (their bytes are pinned by the script and by
 - `jq` and `sha256sum` (or `shasum -a 256`): every recomputation step.
 - OpenSSL 3.0+: the Ed25519 signature step and all recomputation.
 - OpenSSL **3.5+**: native ML-DSA-65 verification (the published receipt's
-  algorithm). GitHub's `ubuntu-latest` runners ship OpenSSL 3.0.x without
+  algorithm). The CI runner image (hz-ci-light) ships OpenSSL 3.0.13 without
   ML-DSA, so in CI the ML-DSA step is documented, not executed; see the
   honesty notes at the bottom.
 

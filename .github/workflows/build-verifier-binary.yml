@@ -82,7 +82,7 @@ jobs:
     name: attach binaries to the release
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: [self-hosted, hz-ci-light]
+    runs-on: [self-hosted, hz-publish]
     permissions:
       contents: write
     steps:
