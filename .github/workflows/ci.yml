@@ -7,7 +7,7 @@ on:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     outputs:
       python: ${{ steps.filter.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
@@ -80,7 +80,7 @@ jobs:
   python:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -109,7 +109,7 @@ jobs:
   python-framework-extras:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       fail-fast: false
       matrix:
@@ -131,7 +131,7 @@ jobs:
       - run: ASQAV_EXTRA_REQUIRED=${{ matrix.module }} pytest python/tests/test_extras_framework_smoke.py -v --tb=short
 
   wire-vocabulary:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -144,7 +144,7 @@ jobs:
 
   registry-guard:
     # Drift-check rules only; registry-drift.yml checks the live registries
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -156,7 +156,7 @@ jobs:
   python-distributions:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -172,7 +172,7 @@ jobs:
   typescript:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       matrix:
         node-version: ['20', '22']
@@ -233,7 +233,7 @@ jobs:
   rfc9964:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -249,7 +249,7 @@ jobs:
   verifier:
     needs: changes
     if: needs.changes.outputs.verifier == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -286,7 +286,7 @@ jobs:
   actions:
     needs: changes
     if: needs.changes.outputs.actions == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -303,7 +303,7 @@ jobs:
   agt:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     permissions:
       contents: read
     steps:
@@ -322,7 +322,7 @@ jobs:
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
     needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - run: |
           [[ "${{ needs.wire-vocabulary.result }}" == "success" ]] || exit 1
