@@ -19,6 +19,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = REPO_ROOT / "verifier" / "independent-runs.json"
+REWRITE_MAP = REPO_ROOT / "verifier" / "commit-rewrite-map.json"
 
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -47,6 +48,15 @@ _RUNNER_MEMBERS = {
 
 def _document() -> dict:
     return json.loads(REGISTRY.read_text())
+
+
+def _resolve(sha: str, maps: dict[str, str]) -> str:
+    """The commit in today's history that stands for a pinned commit."""
+    return maps.get(sha, sha)
+
+
+def _rewrite_maps() -> dict[str, str]:
+    return json.loads(REWRITE_MAP.read_text())["maps"]
 
 
 def _runs() -> list[dict]:
@@ -95,7 +105,8 @@ def test_pinned_commit_is_40_hex_and_exists_in_this_repository(entry: dict) -> N
     assert _COMMIT_RE.match(sha), (
         f"{entry['id']}: asqav_sdk_commit {sha!r} is not 40 lowercase hex"
     )
-    probe = _git("cat-file", "-e", f"{sha}^{{commit}}")
+    real = _resolve(sha, _rewrite_maps())
+    probe = _git("cat-file", "-e", f"{real}^{{commit}}")
     assert probe.returncode == 0, (
         f"{entry['id']}: pinned commit {sha} does not exist in this repository"
     )
@@ -103,7 +114,7 @@ def test_pinned_commit_is_40_hex_and_exists_in_this_repository(entry: dict) -> N
 
 @pytest.mark.parametrize("entry", _runs(), ids=_entry_ids())
 def test_vectors_exist_in_the_corpus_at_the_pinned_commit(entry: dict) -> None:
-    sha = entry["asqav_sdk_commit"]
+    sha = _resolve(entry["asqav_sdk_commit"], _rewrite_maps())
     corpus = entry["corpus"]
     listing = _git("ls-tree", "--name-only", "-d", sha, f"{corpus}/")
     assert listing.returncode == 0, (
@@ -130,3 +141,25 @@ def test_date_is_iso_and_the_code_flag_is_a_bool(entry: dict) -> None:
 def test_entry_ids_are_unique() -> None:
     ids = _entry_ids()
     assert len(ids) == len(set(ids)), f"duplicate entry ids: {sorted(ids)}"
+
+
+def test_every_mapped_commit_is_a_real_replacement() -> None:
+    for old, new in _rewrite_maps().items():
+        assert _COMMIT_RE.match(old) and _COMMIT_RE.match(new)
+        assert old != new
+        assert _git("cat-file", "-e", f"{new}^{{commit}}").returncode == 0, (
+            f"mapped commit {new} does not exist in this repository"
+        )
+        assert any(e["asqav_sdk_commit"] == old for e in _runs()), (
+            f"{old} is mapped but no registry entry names it"
+        )
+
+
+def test_an_unmapped_missing_commit_is_still_refused() -> None:
+    # NEGCTL: only a mapped commit is followed; a made-up one resolves to itself
+    ghost = "0" * 40
+    assert _resolve(ghost, _rewrite_maps()) == ghost
+    assert _git("cat-file", "-e", f"{ghost}^{{commit}}").returncode != 0
+    # and a commit the map does name resolves to its replacement
+    old, new = next(iter(_rewrite_maps().items()))
+    assert _resolve(old, _rewrite_maps()) == new

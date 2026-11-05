@@ -7,7 +7,7 @@
       "id": "2026-09-04-t-trace-pr38",
       "date": "2026-09-04",
       "runner": {"repository": "https://github.com/safal207/T-Trace", "evidence": "https://github.com/safal207/T-Trace/pull/38", "merge_commit": "3126937608ab5c8164ace103f3cfb08e2ad852b6", "head_commit": "6150ffb89bd802b683ee883c641d92958f0734d5"},
-      "asqav_sdk_commit": "722a588fa848b40a491527a68664eda95ccc85a2",
+      "asqav_sdk_commit": "17c814f9e2e51f005faa707d44adec0316534da8",
       "corpus": "verifier/conformance-vectors",
       "vectors": ["asqav-14-omitted-action-chain", "asqav-15-unsigned-gap", "asqav-16-chain-emission-blocked"],
       "algorithms": ["Ed25519"],
