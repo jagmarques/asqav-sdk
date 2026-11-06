@@ -80,6 +80,7 @@ jobs:
               - 'github-action/**'
               - 'github-action-risk-acceptance/**'
               - '.github/workflows/ci.yml'
+      - run: exit 1
 
   python:
     needs: changes
