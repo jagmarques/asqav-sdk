@@ -174,11 +174,12 @@ its own Python runtime plus `cryptography` and `dilithium-py`, so it can check
 ML-DSA-65 (Asqav's primary format), Ed25519 (EdDSA), and ES256 with nothing else
 installed.
 
-Download the binary for your OS, then run it on a receipt:
+Download the Linux arm64 binary (`asqav-verify-linux-arm64`, the only asset the
+release carries), then run it on a receipt:
 
 ```bash
-chmod +x asqav-verify-macos
-./asqav-verify-macos receipt.json --keys keys.json
+chmod +x asqav-verify-linux-arm64
+./asqav-verify-linux-arm64 receipt.json --keys keys.json
 ```
 
 It prints the same JSON verdict and uses the same exit codes (0 verified /
@@ -222,11 +223,10 @@ into the binary; without it the binary would downgrade the ML-DSA signature axis
 to SKIPPED and report `unverified`/`unverifiable` on Asqav's primary receipt
 format.
 
-### Cross-platform builds (CI)
+### Binary build (CI)
 
 `.github/workflows/build-verifier-binary.yml` builds the same `--onefile` binary
-on Linux, macOS, and Windows runners on a `verifier-binary-*` tag or via
-`workflow_dispatch`, and uploads each as a workflow artifact (and a release asset
-on a tag). The macOS binary is also built and verified on a developer machine;
-the Linux and Windows binaries are produced and smoke-tested only by CI on their
-native runners.
+for Linux arm64 on the self-hosted `hz-ci-light` runner on a `verifier-binary-*`
+tag or via `workflow_dispatch`, verifies the real ML-DSA-65 prod vector through it,
+and uploads it as a workflow artifact (and a release asset on a tag). macOS and
+Windows binaries are not built by CI.

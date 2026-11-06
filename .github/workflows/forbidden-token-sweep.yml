@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   scan-pr-text:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - name: Scan PR title + body + commit messages for CLAUDE.md rule-4 forbidden tokens
