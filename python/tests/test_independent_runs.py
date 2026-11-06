@@ -180,6 +180,10 @@ def test_a_fabricated_mapping_is_refused() -> None:
     entry = dict(_runs()[0], asqav_sdk_commit="2" * 40)
     assert _mapping_problems("2" * 40, new, [entry])
     assert _mapping_problems(old, old, _runs())
+    root = _git("rev-list", "--max-parents=0", "HEAD").stdout.split()[0]
+    assert any(
+        "corpus differs" in p for p in _mapping_problems(old, root, _runs())
+    )
     assert _resolve("1" * 40, {"1" * 40: new}, _runs()) == "1" * 40
     # and the real line is followed
     assert _resolve(old, {old: new}, _runs()) == new

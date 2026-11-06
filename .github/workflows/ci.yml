@@ -32,6 +32,8 @@ jobs:
               - 'verifier/time-edge-cases.json'
               - 'verifier/independent-runs.json'
               - 'verifier/commit-rewrite-map.json'
+              - '.github/workflows/publish.yml'
+              - '.github/workflows/build-verifier-binary.yml'
               - 'verifier/float-repr-cases.json'
               - 'verifier/generate_float_repr_cases.py'
               - 'verifier/counterparty-float-cases.json'
