@@ -9,7 +9,7 @@ on:
 jobs:
   publish-python:
     if: startsWith(github.ref, 'refs/tags/py-v')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-publish]
     permissions:
       id-token: write
       contents: read
@@ -33,7 +33,7 @@ jobs:
 
   publish-typescript:
     if: startsWith(github.ref, 'refs/tags/ts-v')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-publish]
     permissions:
       contents: read
       # npm trusted publishing (OIDC), like PyPI's; NPM_TOKEN stays a fallback
