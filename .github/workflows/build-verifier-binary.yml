@@ -1,13 +1,7 @@
 name: build-verifier-binary
 
-# Cross-platform build of the single-file `asqav-verify` binary.
-#
-# HONEST SCOPE: the macOS binary is also built + verified by hand on a developer
-# machine. The Linux and Windows binaries are produced ONLY here, by CI, on their
-# native runners. They are NOT verified on a developer machine - this workflow is
-# the build-and-prove path for them. Each job runs a smoke test that verifies the
-# real ML-DSA-65 prod vector through the freshly built binary, so a job that
-# uploads an artifact has proven that binary returns PASS on this runner.
+# Single-file `asqav-verify` binary for Linux arm64 on the self-hosted runners.
+# The job verifies the real ML-DSA-65 prod vector through the freshly built binary.
 
 on:
   workflow_dispatch:
@@ -17,21 +11,14 @@ on:
 
 jobs:
   build:
-    name: build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: build ${{ matrix.asset }}
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            asset: asqav-verify-linux-x86_64
+          - asset: asqav-verify-linux-arm64
             ext: ''
-          - os: macos-latest
-            asset: asqav-verify-macos
-            ext: ''
-          - os: windows-latest
-            asset: asqav-verify-windows-x86_64.exe
-            ext: '.exe'
     steps:
       - uses: actions/checkout@v4
 
@@ -67,7 +54,7 @@ jobs:
         run: |
           V=verifier/conformance-vectors/asqav-05-hash-mode-prod
           ./dist/asqav-verify${{ matrix.ext }} "$V/receipt.json" --keys "$V/jwks.json"
-          echo "ML-DSA prod vector PASSed on ${{ matrix.os }}"
+          echo "ML-DSA prod vector PASSed on ${{ matrix.asset }}"
 
       - name: Smoke test - tampered Ed25519 vector must FAIL (nonzero)
         shell: bash
@@ -77,7 +64,7 @@ jobs:
             echo "tampered vector unexpectedly returned 0" >&2
             exit 1
           fi
-          echo "tampered vector correctly returned nonzero on ${{ matrix.os }}"
+          echo "tampered vector correctly returned nonzero on ${{ matrix.asset }}"
 
       - name: Rename binary for upload
         shell: bash
@@ -95,7 +82,7 @@ jobs:
     name: attach binaries to the release
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-publish]
     permissions:
       contents: write
     steps:

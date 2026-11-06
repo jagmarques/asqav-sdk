@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "purpose": "Commits a registry entry names that a rewrite of main's history replaced. Append only; the entry keeps the commit the run used, and the test follows this map to the same commit in today's history.",
+  "maps": {
+    "17c814f9e2e51f005faa707d44adec0316534da8": "722a588fa848b40a491527a68664eda95ccc85a2"
+  }
+}

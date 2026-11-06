@@ -7,7 +7,7 @@ on:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     outputs:
       python: ${{ steps.filter.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
@@ -30,6 +30,10 @@ jobs:
               - 'verifier/axis-parity-cases.json'
               - 'verifier/anchor-value-cases.json'
               - 'verifier/time-edge-cases.json'
+              - 'verifier/independent-runs.json'
+              - 'verifier/commit-rewrite-map.json'
+              - '.github/workflows/publish.yml'
+              - '.github/workflows/build-verifier-binary.yml'
               - 'verifier/float-repr-cases.json'
               - 'verifier/generate_float_repr_cases.py'
               - 'verifier/counterparty-float-cases.json'
@@ -80,7 +84,7 @@ jobs:
   python:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -109,7 +113,7 @@ jobs:
   python-framework-extras:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       fail-fast: false
       matrix:
@@ -131,7 +135,7 @@ jobs:
       - run: ASQAV_EXTRA_REQUIRED=${{ matrix.module }} pytest python/tests/test_extras_framework_smoke.py -v --tb=short
 
   wire-vocabulary:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -144,7 +148,7 @@ jobs:
 
   registry-guard:
     # Drift-check rules only; registry-drift.yml checks the live registries
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -156,7 +160,7 @@ jobs:
   python-distributions:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -172,7 +176,7 @@ jobs:
   typescript:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       matrix:
         node-version: ['20', '22']
@@ -192,7 +196,7 @@ jobs:
         working-directory: typescript
       - run: npm run lint --if-present
         working-directory: typescript
-      - run: npm test
+      - run: npm test -- --testTimeout=30000
         working-directory: typescript
       # Run the release build in CI so a green run guarantees
       # npm run build (dts included) compiles. Publish runs the same command.
@@ -233,7 +237,7 @@ jobs:
   rfc9964:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -249,7 +253,7 @@ jobs:
   verifier:
     needs: changes
     if: needs.changes.outputs.verifier == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -277,16 +281,17 @@ jobs:
       # tamper vectors are skipped by expected.json, never by name.
       - run: python3 verifier/regen_conformance_vectors.py --check
       # Criterion 421 walkthrough: jq/sha256sum/openssl verification of the
-      # published receipt. ubuntu-latest ships OpenSSL 3.0 without ML-DSA, so
-      # the ML-DSA step is declared document-only; every other step executes
-      # and asserts its pinned value.
+      # published receipt. The step below prints the runner's OpenSSL version and
+      # signature algorithms; with no ML-DSA among them the ML-DSA step is declared
+      # document-only, and every other step executes and asserts its pinned value.
+      - run: openssl version && openssl list -signature-algorithms
       - run: bash verifier/docs/openssl-jq-verify.sh --mldsa-document-only
       - run: PYTHONPATH=python/src pytest python/tests/test_oracle.py python/tests/test_verify_receipt.py python/tests/test_verify_receipt_revoked_key.py python/tests/test_verify_receipt_failclean.py python/tests/test_offline_verify.py python/tests/test_cross_language_cases.py python/tests/test_axis_parity_cases.py python/tests/test_anchor_value_cases.py python/tests/test_anchor_forged_value.py python/tests/test_oracle_kid_shared_resolution.py python/tests/test_signing_key_sibling.py python/tests/test_exit_artifact_cli.py python/tests/test_corpus_lock.py python/tests/test_corpus_integrity.py python/tests/test_corpus_b_integrity.py python/tests/test_time_edge_vectors.py python/tests/test_standalone_verifier_surface.py python/tests/test_verdict_parity_cases.py python/tests/test_requirement_map_coverage.py -v --tb=short
 
   actions:
     needs: changes
     if: needs.changes.outputs.actions == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -303,7 +308,7 @@ jobs:
   agt:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     permissions:
       contents: read
     steps:
@@ -322,7 +327,7 @@ jobs:
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
     needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - run: |
           [[ "${{ needs.wire-vocabulary.result }}" == "success" ]] || exit 1

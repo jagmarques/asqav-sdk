@@ -187,6 +187,9 @@ claim, with the runner's own non-claims - it is not an Asqav endorsement, and
 the file's purpose line says so. A test keeps the list honest: it refuses an
 entry whose pinned asqav-sdk commit is not in this repository's history or
 whose vector names are not directories in the corpus at that commit.
+A commit that a rewrite of `main` replaced stays in its entry as the run used
+it; `commit-rewrite-map.json` names the commit that stands for it today, and
+the test follows that map and no other.
 
 ## The published artifact, probed
 
