@@ -8,12 +8,24 @@ read first. Every directory here publishes several keys under one issuer.
 from __future__ import annotations
 
 import base64
+import sys
+from pathlib import Path
 
 import pytest
+
+# The editable install names another checkout: drop its preload so this
+# tree's src answers first and the test judges the code it ships with.
+TREE_SRC = Path(__file__).resolve().parents[1] / "src"
+_LOADED = Path(getattr(sys.modules.get("asqav"), "__file__", "") or "").resolve()
+if TREE_SRC not in _LOADED.parents:
+    for _name in [m for m in sys.modules if m == "asqav" or m.startswith("asqav.")]:
+        del sys.modules[_name]
+sys.path.insert(0, str(TREE_SRC))
 
 from asqav.verifier import verify_receipt as v
 from asqav.verifier.oracle.adapters.asqav_native import AsqavNativeAdapter
 from asqav.verifier.oracle.core import verify as oracle_verify
+from asqav.verifier.verify_receipt import AMBIGUOUS_KID_NOTE
 
 ORG = "f94f66c0-c580-432d-a041-29374f7aee07"
 OTHER_ORG = "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38"
@@ -161,9 +173,101 @@ def test_match_signing_key_order_is_thumbprint_kid_agent_then_issuer() -> None:
     assert v.match_signing_key(jwks, "k-a", "agt_a", ORG, ORG, thumb_b) is b
     assert v.match_signing_key(jwks, "k-a", "agt_b", ORG, ORG) is a
     assert v.match_signing_key(jwks, ORG, "agt_b", ORG, ORG) is b
-    assert v.match_signing_key(jwks, ORG, None, ORG, ORG) is a
+    # NEGCTL: restoring the first-match fallback returns sibling a, not None.
+    assert v.match_signing_key(jwks, ORG, None, ORG, ORG) is None
     # A malformed thumbprint never matches and never crashes.
     assert v.match_signing_key(jwks, ORG, "agt_b", ORG, ORG, "sha256:nope") is b
+
+
+def _axis(report: dict, name: str) -> dict:
+    return {a["name"]: a for a in report["axes"]}[name]
+
+
+def test_ambiguous_kid_fallback_is_unverifiable() -> None:
+    """Two usable siblings share ORG, so the bare ORG kid picks neither."""
+    ml = _ml_dsa_65()
+    a_pk, a_sk = ml.keygen()
+    b_pk, _ = ml.keygen()
+    jwks = {"keys": [_key("k-a", "agt_a", a_pk), _key("k-b", "agt_b", b_pk)]}
+    assert v.match_signing_key(jwks, ORG, None, ORG, ORG) is None
+    payload = _payload("agt_two")
+    sig = ml.sign(a_sk, v.canonical_json(payload))
+    report = v.run_structured(_envelope(payload, sig), jwks, None)
+    issuer_key = _axis(report, "issuer_key")
+    assert issuer_key["failure_class"] == v.FAILURE_UNVERIFIABLE, issuer_key
+    assert AMBIGUOUS_KID_NOTE in issuer_key["note"], issuer_key
+    assert report["verdict"] == v.VERDICT_UNVERIFIED
+    assert report["failure_class"] == v.FAILURE_UNVERIFIABLE
+
+
+def test_exact_kid_among_siblings_resolves() -> None:
+    """An exact kid picks its sibling where the bare issuer kid picks none."""
+    ml = _ml_dsa_65()
+    a_pk, _ = ml.keygen()
+    b_pk, b_sk = ml.keygen()
+    a, b = _key("k-a", "agt_a", a_pk), _key("k-b", "agt_b", b_pk)
+    jwks = {"keys": [a, b]}
+    assert v.match_signing_key(jwks, ORG, None, ORG, ORG) is None
+    assert v.match_signing_key(jwks, "k-b", None, ORG, ORG) is b
+    # The kid doubles as the first sibling's issuer_id and the second's kid.
+    mixed = {"keys": [_key("k-a", "agt_a", a_pk),
+                      _key(ORG, "agt_b", b_pk, issuer_id=OTHER_ORG)]}
+    assert v.match_signing_key(mixed, ORG, None, ORG, ORG) is mixed["keys"][1]
+    payload = _payload("agt_two")
+    sig = ml.sign(b_sk, v.canonical_json(payload))
+    report = v.run_structured(_envelope(payload, sig, kid="k-b"), jwks, None)
+    assert _axis(report, "issuer_key")["result"] == "PASS"
+    assert "k-b" in _axis(report, "issuer_key")["note"]
+
+
+def test_thumbprint_among_siblings_resolves() -> None:
+    """The signed thumbprint picks its sibling when the bare kid is shared."""
+    ml = _ml_dsa_65()
+    a_pk, _ = ml.keygen()
+    b_pk, _ = ml.keygen()
+    a, b = _key("k-a", "agt_a", a_pk), _key("k-b", "agt_b", b_pk)
+    jwks = {"keys": [a, b]}
+    assert v.match_signing_key(jwks, ORG, None, ORG, ORG) is None
+    thumb = v.thumbprint_for_key(alg="ML-DSA-65", public_key=b_pk)
+    assert v.match_signing_key(jwks, ORG, None, ORG, ORG, thumb) is b
+
+
+def test_single_fallback_match_still_resolves() -> None:
+    """One match resolves; adding a second usable sibling makes it ambiguous."""
+    ml = _ml_dsa_65()
+    a_pk, b_pk = ml.keygen()[0], ml.keygen()[0]
+    a = _key("k-a", "agt_a", a_pk)
+    assert v.match_signing_key({"keys": [a]}, ORG, None, ORG, ORG) is a
+    two = {"keys": [a, _key("k-b", "agt_b", b_pk)]}
+    assert v.match_signing_key(two, ORG, None, ORG, ORG) is None
+
+
+def test_unusable_sibling_does_not_make_the_kid_ambiguous() -> None:
+    """Only accepted entries count; a second usable sibling is ambiguous."""
+    ml = _ml_dsa_65()
+    a_pk, b_pk = ml.keygen()[0], ml.keygen()[0]
+    a = _key("k-a", "agt_a", a_pk)
+    unusable = {"kid": "k-junk", "agent_id": "agt_junk", "issuer_id": ORG}
+    assert v.match_signing_key({"keys": [unusable, a]}, ORG, None, ORG, ORG) is a
+    usable = {"keys": [unusable, a, _key("k-b", "agt_b", b_pk)]}
+    assert v.match_signing_key(usable, ORG, None, ORG, ORG) is None
+
+
+def test_public_resolvers_pick_no_sibling_on_a_shared_kid() -> None:
+    """resolve_* read one entry: a kid two usable siblings share yields none."""
+    ml = _ml_dsa_65()
+    a_pk, b_pk = ml.keygen()[0], ml.keygen()[0]
+    a, b = _key("k-a", "agt_a", a_pk), _key("k-b", "agt_b", b_pk)
+    assert v.resolve_key({"keys": [a, b]}, ORG) == (None, None, None)
+    assert v.resolve_key_issuer({"keys": [a, b]}, ORG) is None
+    assert v.resolve_revoked_at({"keys": [a, b]}, ORG) is None
+    assert v.resolve_key_org({"keys": [a, b]}, ORG) is None
+    assert v.resolve_key({"keys": [a, b]}, "k-b")[0] == base64.b64decode(b["public_key"])
+    assert v.resolve_key_issuer({"keys": [a]}, ORG) == ORG
+    # The kid is one sibling's exact kid and the other's issuer_id: exact wins.
+    mixed = {"keys": [a, _key(ORG, "agt_b", b_pk, issuer_id=OTHER_ORG)]}
+    assert v.resolve_key(mixed, ORG)[0] == base64.b64decode(mixed["keys"][1]["public_key"])
+    assert v.resolve_key_issuer(mixed, ORG) == OTHER_ORG
 
 
 def test_oracle_adapter_agrees_with_the_standalone_on_the_rotated_agent() -> None:
@@ -177,3 +281,4 @@ def test_oracle_adapter_agrees_with_the_standalone_on_the_rotated_agent() -> Non
     res = oracle_verify(_envelope(payload, sig), [AsqavNativeAdapter()], jwks)
     by_name = {a.axis: a.result for a in res.axes}
     assert by_name["signature"] == "PASS", res.axes
+
