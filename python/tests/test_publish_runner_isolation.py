@@ -59,16 +59,25 @@ def _problems(name: str, text: str) -> list[str]:
     return out
 
 
-def _workflow_files() -> list[Path]:
-    return sorted(p for p in WORKFLOWS.iterdir() if p.suffix in SUFFIXES)
+def _workflow_files(root: Path) -> list[Path]:
+    return sorted(p for p in root.iterdir() if p.suffix in SUFFIXES)
+
+
+def _all_problems(root: Path) -> dict[str, list[str]]:
+    found = {}
+    for f in _workflow_files(root):
+        found[f.name] = _problems(f.name, f.read_text())
+    return found
 
 
 def test_publish_runner_is_reached_only_by_tag_or_manual_runs() -> None:
-    files = _workflow_files()
-    used = [f for f in files if _uses_publish_runner(yaml.safe_load(f.read_text()))]
+    used = [
+        f
+        for f in _workflow_files(WORKFLOWS)
+        if _uses_publish_runner(yaml.safe_load(f.read_text()))
+    ]
     assert used, f"no workflow uses {PUBLISH_LABEL}"
-    for f in files:
-        assert _problems(f.name, f.read_text()) == []
+    assert {n: p for n, p in _all_problems(WORKFLOWS).items() if p} == {}
 
 
 def test_a_workflow_on_the_publish_runner_with_another_trigger_is_refused() -> None:
@@ -123,10 +132,13 @@ def test_allowed_triggers_and_other_runners_pass() -> None:
     assert _problems("planted.yml", other) == []
 
 
-def test_yaml_extension_workflows_are_checked(tmp_path: Path, monkeypatch) -> None:
-    # NEGCTL: a .yaml file that uses the label with a PR trigger is listed
-    (tmp_path / "a.yml").write_text("on: push\n")
-    (tmp_path / "b.yaml").write_text("on: pull_request\n")
-    (tmp_path / "c.txt").write_text("x")
-    monkeypatch.setattr(f"{__name__}.WORKFLOWS", tmp_path)
-    assert [p.name for p in _workflow_files()] == ["a.yml", "b.yaml"]
+def test_yaml_extension_workflows_are_checked(tmp_path: Path) -> None:
+    # NEGCTL: planted b.yaml on the publish runner with a PR trigger
+    job = f"jobs:\n  j:\n    runs-on: [self-hosted, {PUBLISH_LABEL}]\n"
+    (tmp_path / "a.yml").write_text(f"on:\n  workflow_dispatch:\n{job}")
+    (tmp_path / "b.yaml").write_text(f"on:\n  pull_request:\n{job}")
+    (tmp_path / "c.txt").write_text(f"on:\n  pull_request:\n{job}")
+    found = _all_problems(tmp_path)
+    assert sorted(found) == ["a.yml", "b.yaml"]
+    assert found["a.yml"] == []
+    assert found["b.yaml"]
