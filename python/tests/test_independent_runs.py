@@ -1,7 +1,7 @@
 # Copyright 2026 Asqav
 # SPDX-License-Identifier: Apache-2.0
 """Each independent-runs entry pins real history, or a tagged copy of it.
-A rewritten commit stands in only with its tag, an equal corpus and a map line."""
+A rewritten commit needs its tag, an equal corpus and a map line."""
 
 from __future__ import annotations
 
