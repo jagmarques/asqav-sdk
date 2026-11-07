@@ -38,10 +38,7 @@ def tracked_files(root: Path) -> list[str]:
 
 
 def python_facts(text: str) -> tuple[str, list[str]]:
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return "", []
+    tree = ast.parse(text)
     doc = (ast.get_docstring(tree) or "").strip().splitlines()
     names = [
         node.name for node in tree.body
@@ -89,7 +86,10 @@ def tests_for(path: str, tests: list[str]) -> list[str]:
 
 def entry(root: Path, path: str, tests: list[str]) -> str:
     text = (root / path).read_text(encoding="utf-8", errors="replace")
-    purpose, names = (python_facts if path.endswith(".py") else script_facts)(text)
+    try:
+        purpose, names = (python_facts if path.endswith(".py") else script_facts)(text)
+    except SyntaxError as err:
+        raise SystemExit(f"gen_codemap: {path} does not parse on this Python: {err}") from err
     parts = [f"- `{Path(path).name}`", f" - {purpose.rstrip('.')}" if purpose else ""]
     if names:
         more = f" (+{len(names) - SYMBOLS_MAX} more)" if len(names) > SYMBOLS_MAX else ""

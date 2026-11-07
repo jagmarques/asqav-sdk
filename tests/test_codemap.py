@@ -64,6 +64,11 @@ class CodemapTest(unittest.TestCase):
         _repo(self.root, {"python/src/asqav/b.py": '"""B."""\n'})
         self.assertEqual(gen.check(self.root), 1)
 
+    def test_unparsable_python_names_the_file(self):
+        _repo(self.root, {"python/src/asqav/bad.py": "def (:\n"})
+        with self.assertRaisesRegex(SystemExit, "python/src/asqav/bad.py does not parse"):
+            gen.render(self.root)
+
     def test_missing_map_fails_check(self):
         _repo(self.root, {"python/src/asqav/a.py": '"""A."""\n'})
         self.assertEqual(gen.check(self.root), 1)
