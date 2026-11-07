@@ -454,8 +454,9 @@ def test_negctl_missing_field_is_named() -> None:
 
     import pytest
 
+    # Missing bytes are refused before a byte comparison can run.
     with pytest.raises(ValueError, match=field):
-        assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
+        signed_message_from_receipt(receipt)
 
 
 def test_public_surface_exposed_at_package_root() -> None:
