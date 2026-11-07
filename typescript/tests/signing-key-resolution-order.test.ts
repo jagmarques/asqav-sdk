@@ -20,6 +20,7 @@ import {
 
 const ORG = "f94f66c0-c580-432d-a041-29374f7aee07";
 const OTHER_ORG = "0b6c2b1e-9f7a-4d3c-8a11-5c2e7d904f38";
+const REVOCATION_REASON = "rotated";
 
 const sign = (msg: Uint8Array, sk: Uint8Array) => Buffer.from(ml_dsa65.sign(msg, sk)).toString("base64");
 
@@ -27,7 +28,7 @@ function key(
   kid: string,
   agentId: string,
   pk: Uint8Array,
-  opts: { issuerId?: string; status?: string; thumbprint?: boolean } = {},
+  opts: { issuerId?: string; status?: string; thumbprint?: boolean; revocationReason?: string } = {},
 ): Record<string, unknown> {
   const issuer = opts.issuerId ?? ORG;
   const entry: Record<string, unknown> = {
@@ -42,6 +43,7 @@ function key(
     revoked_at: opts.status === "revoked" ? "2026-07-11T14:57:49Z" : null,
   };
   if (opts.thumbprint !== false) entry.key_thumbprint = thumbprintForKey("ML-DSA-65", pk);
+  if (opts.revocationReason !== undefined) entry.revocation_reason = opts.revocationReason;
   return entry;
 }
 
@@ -174,14 +176,26 @@ describe("signing-key resolution order", () => {
   });
 
   it("public resolvers name no key when siblings share the issuer kid", () => {
-    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey, { status: "revoked" });
-    const b = key("k-b", "agt_b", ml_dsa65.keygen().publicKey, { status: "revoked" });
+    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey, { status: "revoked", revocationReason: REVOCATION_REASON });
+    const b = key("k-b", "agt_b", ml_dsa65.keygen().publicKey, { status: "revoked", revocationReason: REVOCATION_REASON });
     const jwks = { keys: [a, b] };
     expect(resolveKey(jwks, ORG)).toEqual([null, null, null]);
     expect(resolveKeyIssuer(jwks, ORG)).toBeNull();
     expect(resolveRevokedAt(jwks, ORG)).toBeNull();
     expect(resolveRevocationReason(jwks, ORG)).toBeNull();
     expect(resolveKeyOrg(jwks, ORG)).toBeNull();
+  });
+
+  it("resolveRevocationReason: shared kid is null, exact kid returns its reason", () => {
+    const exactKid = "k-b";
+    const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey, { status: "revoked", revocationReason: REVOCATION_REASON });
+    const b = key(exactKid, "agt_b", ml_dsa65.keygen().publicKey, { status: "revoked", revocationReason: REVOCATION_REASON });
+    const jwks = { keys: [a, b] };
+    expect(resolveRevocationReason(jwks, ORG)).toBeNull();
+    expect(resolveRevocationReason(jwks, exactKid)).toBe(REVOCATION_REASON);
+    jwks.keys.reverse();
+    expect(resolveRevocationReason(jwks, ORG)).toBeNull();
+    expect(resolveRevocationReason(jwks, exactKid)).toBe(REVOCATION_REASON);
   });
 
   it("public resolvers answer for an exact kid among siblings", () => {
