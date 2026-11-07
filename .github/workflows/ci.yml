@@ -146,6 +146,17 @@ jobs:
       - run: python tools/sync_wire_vocabulary.py --check
       - run: python -m unittest discover -s tests -p test_wire_vocabulary_generation.py
 
+  codemap:
+    runs-on: [self-hosted, hz-ci-light]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: python3 tools/gen_codemap.py --check
+      - run: python3 -m unittest discover -s tests -p test_codemap.py
+
   registry-guard:
     # Drift-check rules only; registry-drift.yml checks the live registries
     runs-on: [self-hosted, hz-ci-light]
@@ -325,13 +336,14 @@ jobs:
   ci-ok:
     # Single required status check for branch protection.
     # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
+    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras, codemap]
     if: always()
     runs-on: [self-hosted, hz-ci-light]
     steps:
       - run: |
           [[ "${{ needs.wire-vocabulary.result }}" == "success" ]] || exit 1
           [[ "${{ needs.registry-guard.result }}" == "success" ]] || exit 1
+          [[ "${{ needs.codemap.result }}" == "success" ]] || exit 1
           echo "python=${{ needs.python.result }}"
           echo "python-distributions=${{ needs.python-distributions.result }}"
           echo "typescript=${{ needs.typescript.result }}"
