@@ -430,8 +430,10 @@ def test_negctl_missing_field_is_named() -> None:
     receipt, verify = _v2_receipt()
     field = "commitmentAlg"
     del receipt[field]
-    with pytest.raises(ValueError, match=field):
+    with pytest.raises(Exception) as refused:
         signed_message_from_receipt(receipt)
+    assert isinstance(refused.value, ValueError)
+    assert field in str(refused.value)
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     signature = next(a for a in result["axes"] if a["name"] == "signature")
     assert signature["result"] == "FAIL"
