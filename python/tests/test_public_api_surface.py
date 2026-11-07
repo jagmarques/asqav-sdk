@@ -93,6 +93,7 @@ def test_public_surface_matches_snapshot(module_name: str) -> None:
 
 
 def test_negctl_surface_sees_a_dropped_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NEGCTL: a name deleted from asqav.client goes through the snapshot test's surface()."""
     client = importlib.import_module("asqav.client")
     monkeypatch.delattr(client, "verify_signature")
     expected = json.loads(SNAPSHOT.read_text(encoding="utf-8"))["asqav.client"]
@@ -101,6 +102,7 @@ def test_negctl_surface_sees_a_dropped_name(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_negctl_surface_sees_a_changed_signature(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NEGCTL: a planted verify_signature with another signature goes through the same surface()."""
     client = importlib.import_module("asqav.client")
 
     def verify_signature(signature_id: str, strict: bool) -> None:

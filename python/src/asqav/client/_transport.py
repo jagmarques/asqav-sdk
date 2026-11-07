@@ -197,66 +197,34 @@ def init(
             timeout=_timeout,
         )
 
-    # Make a GET request to the API.
-
 
 @with_retry()
+def _request(method: str, path: str, data: Any = _NO_BODY) -> dict[str, Any]:
+    _ensure_initialized()
+    if _HTTPX_AVAILABLE and _client:
+        return _httpx_call(method.lower(), path, data)
+    return _urllib_request(method, path, None if data is _NO_BODY else data)
+
+
 def _get(path: str) -> dict[str, Any]:
-    _ensure_initialized()
-
-    if _HTTPX_AVAILABLE and _client:
-        return _httpx_call("get", path)
-    else:
-        # Use stdlib urllib if httpx not installed
-        return _urllib_request("GET", path)
-
-    # Make a POST request to the API.
+    return _request("GET", path)
 
 
-@with_retry()
 def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    _ensure_initialized()
-
-    if _HTTPX_AVAILABLE and _client:
-        return _httpx_call("post", path, data)
-    else:
-        return _urllib_request("POST", path, data)
-
-    # Make a PATCH request to the API.
+    return _request("POST", path, data)
 
 
-@with_retry()
 def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    _ensure_initialized()
-
-    if _HTTPX_AVAILABLE and _client:
-        return _httpx_call("patch", path, data)
-    else:
-        return _urllib_request("PATCH", path, data)
-
-    # Make a PUT request to the API.
+    return _request("PATCH", path, data)
 
 
-@with_retry()
 def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
-    _ensure_initialized()
-
-    if _HTTPX_AVAILABLE and _client:
-        return _httpx_call("put", path, data)
-    else:
-        return _urllib_request("PUT", path, data)
-
-    # Make a DELETE request to the API.
+    return _request("PUT", path, data)
 
 
-@with_retry()
 def _delete(path: str) -> dict[str, Any]:
-    _ensure_initialized()
+    return _request("DELETE", path)
 
-    if _HTTPX_AVAILABLE and _client:
-        return _httpx_call("delete", path)
-    else:
-        return _urllib_request("DELETE", path)
 
     # Send one request on the shared httpx client; transport errors raise.
 

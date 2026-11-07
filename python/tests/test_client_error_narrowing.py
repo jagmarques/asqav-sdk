@@ -62,10 +62,13 @@ def test_verify_output_raises_on_an_unhashable_output() -> None:
 
 
 def test_negctl_handle_response_still_maps_an_unreadable_body_to_api_error() -> None:
+    """NEGCTL: a non-JSON error body passes the narrowed except and still reads as an APIError."""
     response = MagicMock(status_code=500, text="boom")
     response.json.side_effect = ValueError("not json")
-    with pytest.raises(APIError, match="boom"):
+    with pytest.raises(Exception) as raised:
         _transport._handle_response(response)
+    assert isinstance(raised.value, APIError)
+    assert "boom" in str(raised.value)
 
 
 def test_http_error_text_names_an_unreadable_body() -> None:

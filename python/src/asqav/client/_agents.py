@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import os
 import sys
 import threading
+from collections.abc import Callable, Iterator
 from typing import Any, cast
 
 from . import _transport
@@ -128,6 +130,43 @@ def _auto_generate_name() -> str:
     return "asqav-agent"
 
 
+@contextlib.contextmanager
+def _signed_call(
+    func: Callable[..., Any], args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> Iterator[Callable[[Any], Any]]:
+    """Sign a call before its body runs; yield the signer of its result, sign an error."""
+    agent = get_agent()
+    if agent._session_id is None:
+        agent.start_session()
+    agent.sign(
+        action_type="function:call",
+        context={
+            "function": func.__name__,
+            "module": func.__module__,
+            "args_count": len(args),
+            "kwargs_keys": list(kwargs.keys()),
+        },
+    )
+
+    def signed(result: Any) -> Any:
+        agent.sign(
+            action_type="function:result",
+            context={"function": func.__name__, "success": True},
+            result=result,
+        )
+        return result
+
+    try:
+        yield signed
+    except Exception as e:
+        agent.sign(
+            action_type="function:error",
+            context={"function": func.__name__, "error": str(e)},
+            result=str(e),
+        )
+        raise
+
+
 def secure(func: F) -> F:
     """Decorator to secure function calls with cryptographic signing.
 
@@ -158,49 +197,8 @@ def secure(func: F) -> F:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        agent = get_agent()
-
-        # Start session if not active
-        if agent._session_id is None:
-            agent.start_session()
-
-        # Log the function call
-        agent.sign(
-            action_type="function:call",
-            context={
-                "function": func.__name__,
-                "module": func.__module__,
-                "args_count": len(args),
-                "kwargs_keys": list(kwargs.keys()),
-            },
-        )
-
-        try:
-            result = func(*args, **kwargs)
-
-            # Log success
-            agent.sign(
-                action_type="function:result",
-                context={
-                    "function": func.__name__,
-                    "success": True,
-                },
-                result=result,
-            )
-
-            return result
-
-        except Exception as e:
-            # Log error
-            agent.sign(
-                action_type="function:error",
-                context={
-                    "function": func.__name__,
-                    "error": str(e),
-                },
-                result=str(e),
-            )
-            raise
+        with _signed_call(func, args, kwargs) as signed:
+            return signed(func(*args, **kwargs))
 
     return cast(F, wrapper)
 
@@ -227,44 +225,7 @@ def secure_async(func: F) -> F:
 
     @functools.wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        agent = get_agent()
-
-        if agent._session_id is None:
-            agent.start_session()
-
-        agent.sign(
-            action_type="function:call",
-            context={
-                "function": func.__name__,
-                "module": func.__module__,
-                "args_count": len(args),
-                "kwargs_keys": list(kwargs.keys()),
-            },
-        )
-
-        try:
-            result = await func(*args, **kwargs)
-
-            agent.sign(
-                action_type="function:result",
-                context={
-                    "function": func.__name__,
-                    "success": True,
-                },
-                result=result,
-            )
-
-            return result
-
-        except Exception as e:
-            agent.sign(
-                action_type="function:error",
-                context={
-                    "function": func.__name__,
-                    "error": str(e),
-                },
-                result=str(e),
-            )
-            raise
+        with _signed_call(func, args, kwargs) as signed:
+            return signed(await func(*args, **kwargs))
 
     return cast(F, wrapper)

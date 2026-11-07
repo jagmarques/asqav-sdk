@@ -126,14 +126,14 @@ def _parse(file: Path, name: str) -> tuple[str, ast.Module]:
 
 def _package_exports(root: Path, package: Path) -> dict[str, frozenset[str]]:
     """Per module of a public package, the names its __init__ imports from it."""
-    init = package / "__init__.py"
-    if not init.is_file() or not _module_is_public(init.relative_to(root / SOURCE_DIR)):
-        return {}
-    _, tree = _parse(init, init.relative_to(root).as_posix())
     found: dict[str, set[str]] = {}
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
-            found.setdefault(node.module, set()).update(a.asname or a.name for a in node.names)
+    for init in package.glob("__init__.py"):
+        if not _module_is_public(init.relative_to(root / SOURCE_DIR)):
+            continue
+        _, tree = _parse(init, init.relative_to(root).as_posix())
+        for node in tree.body:
+            if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
+                found.setdefault(node.module, set()).update(a.asname or a.name for a in node.names)
     return {module: frozenset(names) for module, names in found.items()}
 
 
@@ -143,13 +143,12 @@ def _reexports(root: Path, file: Path) -> frozenset[str]:
         return frozenset()
     exports = _package_exports(root, file.parent)
     names = set(exports.get(file.stem, ()))
-    for module, public in exports.items():
-        sibling = file.parent / f"{module}.py"
-        if not sibling.is_file():
+    for sibling in sorted(file.parent.glob("*.py")):
+        if sibling.stem not in exports:
             continue
         _, tree = _parse(sibling, sibling.relative_to(root).as_posix())
         for node in tree.body:
-            if isinstance(node, ast.ClassDef) and node.name in public:
+            if isinstance(node, ast.ClassDef) and node.name in exports[sibling.stem]:
                 names.update(base.id for base in node.bases if isinstance(base, ast.Name))
     return frozenset(names)
 

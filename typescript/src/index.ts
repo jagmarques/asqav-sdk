@@ -4,6 +4,7 @@
  */
 
 import { createHash, createHmac } from "node:crypto";
+import SDK_CONSTANTS from "../../python/src/asqav/sdk_constants.json";
 import {
   SUPPORTED_ALGORITHMS,
   isSupportedAlgorithm,
@@ -55,7 +56,7 @@ export const RECEIPT_TYPE_NAMESPACE = [
 export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
 
 /** Docs page anchoring the risk-acceptance validation errors (rule 3.9). */
-export const RISK_ACCEPTANCE_DOCS_URL = "https://asqav.com/docs/risk-acceptance-receipt" as const;
+export const RISK_ACCEPTANCE_DOCS_URL = SDK_CONSTANTS.RISK_ACCEPTANCE_DOCS_URL;
 
 /** Docs page anchoring the code-authorship validation errors (rule 3.9). */
 export const CODE_AUTHORSHIP_DOCS_URL = "https://asqav.com/docs/code-authorship-receipt" as const;
@@ -426,7 +427,7 @@ export class AsqavResponseError extends AsqavError {
 }
 
 /** Docs page anchoring missing-required-field response errors (rule 3.9). */
-export const RESPONSE_ERROR_DOCS_URL = "https://asqav.com/docs/sdk-errors" as const;
+export const RESPONSE_ERROR_DOCS_URL = SDK_CONSTANTS.RESPONSE_ERROR_DOCS_URL;
 
 /** Return `obj[key]` or throw `AsqavResponseError` if the field is absent, so a missing
  * response field throws one typed error instead of reading `undefined` at runtime. */
@@ -1638,11 +1639,11 @@ function deriveActionRef(
 
 /** Wire format for every caller-supplied digest field. The cloud accepts the same exact-match
  * form, and the regex matches the helper outputs byte-for-byte. */
-const SHA256_HEX_RE = /^sha256:[a-f0-9]{64}$/;
+const SHA256_HEX_RE = new RegExp(SDK_CONSTANTS.SHA256_HEX_PATTERN);
 
 /** Wire format for `tool_fingerprint`: 32 bare lowercase hex chars (SHA-256[:32]), not the
  * self-describing `sha256:<hex>` form the other digests use. */
-const TOOL_FINGERPRINT_RE = /^[0-9a-f]{32}$/;
+const TOOL_FINGERPRINT_RE = new RegExp(SDK_CONSTANTS.TOOL_FINGERPRINT_PATTERN);
 
 /** Compute a deterministic 32-bare-hex fingerprint over `{tool_name, schema}` per NSA CSI
  * U/OO/6030316-26. Byte-deterministic under JCS so the SDK and cloud agree. */

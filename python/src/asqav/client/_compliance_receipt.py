@@ -7,7 +7,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from ._sign_checks import _ALLOWED_CONTROL_KEYS, _BARE_SHA256_RE, _SHA256_HEX_RE
+from ..verifier.verify_receipt import _BARE_SHA256_RE
+from ._sign_checks import _ALLOWED_CONTROL_KEYS, _SHA256_HEX_RE
 from ._vocabulary import (
     _COMPLIANCE_REQUIRED_FIELDS,
     RECEIPT_TYPE_NAMESPACE,

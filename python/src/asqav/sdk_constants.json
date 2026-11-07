@@ -1,0 +1,6 @@
+{
+  "RESPONSE_ERROR_DOCS_URL": "https://asqav.com/docs/sdk-errors",
+  "RISK_ACCEPTANCE_DOCS_URL": "https://asqav.com/docs/risk-acceptance-receipt",
+  "SHA256_HEX_PATTERN": "^sha256:[a-f0-9]{64}$",
+  "TOOL_FINGERPRINT_PATTERN": "^[0-9a-f]{32}$"
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from .._sdk_constants import SDK_CONSTANTS
 from ..verifier.verify_receipt import SKEW_BOUND_SECONDS as SKEW_BOUND_SECONDS
 
 # Receipt type namespace mirrored from the cloud SignRequest validator.
@@ -26,7 +27,7 @@ RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
 
 
 #: Docs page anchoring the risk-acceptance validation errors (rule 3.9).
-RISK_ACCEPTANCE_DOCS_URL: str = "https://asqav.com/docs/risk-acceptance-receipt"
+RISK_ACCEPTANCE_DOCS_URL: str = SDK_CONSTANTS["RISK_ACCEPTANCE_DOCS_URL"]
 
 
 #: Docs page anchoring the code-authorship validation errors (rule 3.9).

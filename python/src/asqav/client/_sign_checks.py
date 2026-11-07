@@ -6,6 +6,7 @@ import hashlib
 import re
 from typing import Any, TypedDict
 
+from .._sdk_constants import SDK_CONSTANTS
 from ..counterparty import ACKNOWLEDGMENT_RECEIPT_TYPE, CounterpartyBinding
 from ._errors import AsqavValidationError
 from ._vocabulary import (
@@ -28,11 +29,7 @@ def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str
 
 
 #: Wire format for caller-supplied sha256 digest fields (matches helper output).
-_SHA256_HEX_RE = re.compile(r"^sha256:[a-f0-9]{64}$")
-
-
-#: Bare 64-hex, no prefix; the controls_evaluated quorum.attestation_hash form.
-_BARE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_SHA256_HEX_RE = re.compile(SDK_CONSTANTS["SHA256_HEX_PATTERN"])
 
 
 #: Server-built control keys an enumerable controls_evaluated block may carry;
@@ -52,7 +49,7 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
 
 #: Wire format for ``tool_fingerprint``: 32 bare lowercase hex (SHA-256[:32]);
 #: unlike the ``sha256:<hex>`` form of the other digests.
-_TOOL_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{32}$")
+_TOOL_FINGERPRINT_RE = re.compile(SDK_CONSTANTS["TOOL_FINGERPRINT_PATTERN"])
 
 
 class RiskSnapshot(TypedDict, total=False):

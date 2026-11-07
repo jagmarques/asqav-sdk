@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from ..phases import PhaseChain
+from typing import Any
 
 from ..patterns import resolve_pattern
+from ..phases import sign_with_phases as _sign_with_phases
 from . import _transport
 from ._common import _hash_value
 from ._errors import require_field
@@ -187,17 +185,7 @@ class _AgentSigning:
             result=output,
         )
 
-    def sign_with_phases(
-        self,
-        action_type: str,
-        context: dict[str, Any] | None = None,
-        trace_id: str | None = None,
-        result: Any | None = None,
-    ) -> "PhaseChain":
-        """Three-phase flow; result binds a digest on :execution (787)."""
-        from ..phases import sign_with_phases
-
-        return sign_with_phases(self, action_type, context, trace_id, result=result)
+    sign_with_phases = _sign_with_phases
 
     def attach_result(
         self,
