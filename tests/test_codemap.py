@@ -90,6 +90,39 @@ class CodemapTest(unittest.TestCase):
                                  f"- `sample{ext}` | symbols: publicFn PublicClass"
                                  " publicArrow defaultFn")
 
+    def test_private_modules_link_tests_after_underscore_normalization(self):
+        modules = {
+            "_jcs.py": "test_jcs.py",
+            "_mode.py": "test_mode_resolver.py",
+            "_schema.py": "test_schema_validation.py",
+            "extras/_base.py": "test_base_adapter.py",
+        }
+        files = {"python/src/asqav/" + module: '"""Private module."""\n'
+                 for module in modules}
+        files.update({"python/tests/" + test: "" for test in modules.values()})
+        files["python/tests/test_microscope.py"] = ""
+        _repo(self.root, files)
+        for module, test in modules.items():
+            with self.subTest(module=module):
+                self.assertEqual(self.line_for(Path(module).name),
+                                 f"- `{Path(module).name}` - Private module"
+                                 f" | tests: python/tests/{test}")
+        self.assertEqual(gen.tests_for("python/src/asqav/_scope.py", [
+            "python/tests/test_microscope.py", "python/tests/test_scopes.py",
+            "python/tests/test_scope.py", "python/tests/test_scope_tokens.py",
+        ]), ["python/tests/test_scope.py", "python/tests/test_scope_tokens.py"])
+
+    def test_private_generic_and_short_stems_do_not_link_tests(self):
+        """NEGCTL: normalize before generic-name and minimum-length checks."""
+        for stem in ("__init__", "__main__", "_main", "_utils", "_common",
+                     "_types", "_index", "_conftest", "_io", "___"):
+            with self.subTest(stem=stem):
+                name = stem.lstrip("_")
+                self.assertEqual(gen.tests_for(f"python/src/asqav/{stem}.py", [
+                    f"python/tests/test_{name}.py",
+                    f"python/tests/test_{name}_extra.py",
+                ]), [])
+
     def test_named_tests_exclude_substring_matches(self):
         """NEGCTL: unrelated scope names must not acquire a test link."""
         unrelated = ["tests/test_offline_api_declares_anchor_scope.py",

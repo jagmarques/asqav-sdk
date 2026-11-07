@@ -21,7 +21,9 @@ CODE_SUFFIXES = {".py", ".js", ".mjs", ".ts", ".sh"}
 SYMBOLS_MAX = 15
 TESTS_MAX = 3
 STEM_MIN = 3
-GENERIC_STEMS = {"__init__", "__main__", "index", "main", "utils", "common", "types", "conftest"}
+GENERIC_STEMS = {name.lstrip("_") for name in (
+    "__init__", "__main__", "index", "main", "utils", "common", "types", "conftest",
+)}
 JS_SYMBOL = re.compile(
     r"^export\s+(?:default\s+)?(?:async\s+)?"
     r"(?:function\*?\s+([A-Za-z_$][\w$]*)|class\s+([A-Za-z_$][\w$]*)"
@@ -78,7 +80,7 @@ def stem_key(path: str) -> str:
 
 
 def tests_for(path: str, tests: list[str]) -> list[str]:
-    stem = stem_key(path)
+    stem = stem_key(path).lstrip("_")
     if len(stem) < STEM_MIN or stem in GENERIC_STEMS:
         return []
 

@@ -25,11 +25,11 @@ names | tests: test files named after the module.
 
 - `__init__.py` - asqav - AI agent governance: audit trails, policy enforcement, compliance | symbols: verify_receipt_offline
 - `_detectors.py` - Pluggable detector framework, run in Agent.sign() before the HTTP call | symbols: DetectorResult DetectorPlugin DetectorBlockedError register_detector clear_detectors run_detectors
-- `_jcs.py` - JCS canonicalization for the IETF Compliance Receipts profile | symbols: UnsafeIntegerError canonical_json
-- `_mode.py` - Mode resolver for hash-only vs full-payload signing
+- `_jcs.py` - JCS canonicalization for the IETF Compliance Receipts profile | symbols: UnsafeIntegerError canonical_json | tests: python/tests/test_jcs.py typescript/tests/jcs.test.ts
+- `_mode.py` - Mode resolver for hash-only vs full-payload signing | tests: python/tests/test_mode_resolver.py typescript/tests/mode.test.ts
 - `_schema.py` - Dependency-free context-schema validator for ``Agent.sign`` | symbols: validate_context_schema normalize_context
 - `_sql_match.py` - Augment-match helper for destructive SQL action types | symbols: action_candidates matches_pattern
-- `_useragent.py` - Shared User-Agent for every outbound HTTP call the SDK makes
+- `_useragent.py` - Shared User-Agent for every outbound HTTP call the SDK makes | tests: typescript/tests/userAgent.test.ts
 - `acceptor.py` - Acceptor-side admission control for an inbound peer receipt | symbols: AcceptorDecision check_peer_receipt encode_receipt_header AcceptorMiddleware | tests: python/tests/test_acceptor.py typescript/tests/acceptor.test.ts
 - `agt_receipts.py` - Asqav as an independent witness for Microsoft AGT receipts (asqav[agt]) | symbols: AgtSigningError AsqavLink supports_external_authorization AsqavAgtSigner verify_asqav_link | tests: python/tests/test_agt_receipts_e2e.py
 - `async_client.py` - Async API client; :class:`AsyncAgent` mirrors :class:`Agent` over ``httpx.AsyncClient`` | symbols: AsyncAgent
