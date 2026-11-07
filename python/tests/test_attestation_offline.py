@@ -213,7 +213,7 @@ def test_v2_signed_message_matches_cloud_bytes() -> None:
 
 
     # A legacy receipt keeps rebuilding the exact 11-key v1 bytes it did before.
-def test_v1_receipt_still_rebuilds_v1() -> None:
+def test_v1_legacy_receipt_still_reconstructs() -> None:
     from asqav.attestation import (
         SIGNED_MESSAGE_VERSION_V1,
         VERSION_FIELD,
@@ -395,7 +395,7 @@ def test_explicit_signed_message_without_proof_is_unverified() -> None:
 
 
     # NEGCTL: a flipped commitment with a matching hash breaks the signature.
-def test_negctl_one_byte_of_commitment_fails_signature() -> None:
+def test_v2_commitment_byte_flip_fails_signature() -> None:
     receipt, verify = _v2_receipt()
     commitment = receipt["commitment"]
     flipped = ("0" if commitment[0] != "0" else "1") + commitment[1:]
@@ -415,7 +415,7 @@ def test_negctl_one_byte_of_commitment_fails_signature() -> None:
 
 
     # NEGCTL: v1 fields on the receipt rebuild v1 bytes; a v2 signature fails.
-def test_negctl_v2_signature_on_a_v1_shaped_receipt_fails() -> None:
+def test_v2_receipt_over_v1_bytes_fails() -> None:
     receipt, verify = _v2_receipt()
     receipt.update(actionId=_ACTION_ID, agentId=_AGENT_ID, orgId=_ORG_ID, claimType=_CLAIM["type"])
     assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
@@ -437,6 +437,24 @@ def test_negctl_missing_field_is_named() -> None:
     assert signature["result"] == "FAIL"
     assert field in signature["note"]
     assert signature["failure_class"] == FAILURE_UNVERIFIABLE
+    assert result["verdict"] == VERDICT_UNVERIFIED
+
+
+    # A v1 receipt without its orgId is refused, naming the field.
+def test_v1_missing_field_refused() -> None:
+    from asqav.attestation import SIGNED_MESSAGE_VERSION_V1, V1_ONLY_FIELDS, signed_message_version
+
+    receipt, verify = _v1_receipt()
+    field = "orgId"
+    assert field in V1_ONLY_FIELDS
+    del receipt[field]
+    assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
+    with pytest.raises(ValueError, match=field):
+        signed_message_from_receipt(receipt)
+    result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
+    signature = next(a for a in result["axes"] if a["name"] == "signature")
+    assert signature["result"] == "FAIL"
+    assert field in signature["note"]
     assert result["verdict"] == VERDICT_UNVERIFIED
 
 
