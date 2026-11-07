@@ -146,6 +146,17 @@ jobs:
       - run: python tools/sync_wire_vocabulary.py --check
       - run: python -m unittest discover -s tests -p test_wire_vocabulary_generation.py
 
+  codemap:
+    runs-on: [self-hosted, hz-ci-light]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 tools/gen_codemap.py --check
+      - run: python3 -m unittest discover -s tests -p test_codemap.py
+
   registry-guard:
     # Drift-check rules only; registry-drift.yml checks the live registries
     runs-on: [self-hosted, hz-ci-light]
@@ -324,7 +335,7 @@ jobs:
 
   ci-ok:
     # Single required status check for branch protection.
-    needs: [changes, python, python-distributions, typescript, rfc9964, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
+    needs: [changes, python, python-distributions, typescript, rfc9964, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras, codemap]
     if: always()
     runs-on: [self-hosted, hz-ci-light]
     steps:
@@ -337,6 +348,7 @@ jobs:
           RESULTS: |
             wire-vocabulary always ${{ needs.wire-vocabulary.result }}
             registry-guard always ${{ needs.registry-guard.result }}
+            codemap always ${{ needs.codemap.result }}
             python python ${{ needs.python.result }}
             python-distributions python ${{ needs.python-distributions.result }}
             python-framework-extras python ${{ needs.python-framework-extras.result }}
