@@ -28,19 +28,13 @@ from asqav.attestation import (
     DEFAULT_COMMITMENT_ALG,
     FAILURE_INVALID,
     FAILURE_UNVERIFIABLE,
-    SIGNED_MESSAGE_VERSION,
-    SIGNED_MESSAGE_VERSION_V1,
-    V1_ONLY_FIELDS,
     VERDICT_UNVERIFIED,
     VERDICT_VERIFIED_KEYED,
-    VERSION_FIELD,
     compute_statement_hash,
     merkle_inclusion_proof,
     merkle_leaf_hash,
     merkle_root,
     reconstruct_signed_message,
-    signed_message_from_receipt,
-    signed_message_version,
     verify_attestation_offline,
 )
 
@@ -146,12 +140,12 @@ def _v2_receipt_fields() -> dict:
     }
 
 
-    # A v2 receipt signed by a fresh key over the bytes its fields rebuild.
+    # A fresh key signs fixed bytes, independently of the receipt rebuild.
 def _v2_receipt():
     sign, verify = _ed25519_signer()
     receipt = _v2_receipt_fields()
     receipt["signature"] = base64.b64encode(
-        sign(signed_message_from_receipt(receipt))
+        sign(_V2_GOLDEN_MESSAGE)
     ).decode()
     return receipt, verify
 
@@ -164,7 +158,10 @@ def _v1_receipt_fields() -> dict:
         "commitmentAlg": DEFAULT_COMMITMENT_ALG,
         "keyId": _KEY_ID,
         "timestamp": _TIMESTAMP,
-        **dict(zip(V1_ONLY_FIELDS, (_ACTION_ID, _AGENT_ID, _ORG_ID, _CLAIM["type"]))),
+        "actionId": _ACTION_ID,
+        "agentId": _AGENT_ID,
+        "orgId": _ORG_ID,
+        "claimType": _CLAIM["type"],
     }
 
 
@@ -197,6 +194,12 @@ def test_reconstruct_signed_message_mirrors_cloud_shape() -> None:
 
     # The v2 rebuild is byte-exact: golden bytes captured from asqav once.
 def test_v2_signed_message_matches_cloud_bytes() -> None:
+    from asqav.attestation import (
+        SIGNED_MESSAGE_VERSION,
+        signed_message_from_receipt,
+        signed_message_version,
+    )
+
     receipt = _v2_receipt_fields()
     message = signed_message_from_receipt(receipt)
     assert message == _V2_GOLDEN_MESSAGE
@@ -211,6 +214,13 @@ def test_v2_signed_message_matches_cloud_bytes() -> None:
 
     # A legacy receipt keeps rebuilding the exact 11-key v1 bytes it did before.
 def test_v1_receipt_still_rebuilds_v1() -> None:
+    from asqav.attestation import (
+        SIGNED_MESSAGE_VERSION_V1,
+        VERSION_FIELD,
+        signed_message_from_receipt,
+        signed_message_version,
+    )
+
     receipt = _v1_receipt_fields()
     assert signed_message_version(receipt) == SIGNED_MESSAGE_VERSION_V1
     assert signed_message_from_receipt(receipt) == _signed_message()
@@ -315,7 +325,10 @@ def test_missing_optional_inputs_is_unverifiable_not_verified() -> None:
 
     # A current v2 receipt verifies from the receipt, the claim and the key.
 def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
+    from asqav.attestation import signed_message_from_receipt
+
     receipt, verify = _v2_receipt()
+    assert signed_message_from_receipt(receipt) == _V2_GOLDEN_MESSAGE
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     assert result["verdict"] == VERDICT_VERIFIED_KEYED
     assert result["failure_class"] is None
@@ -326,6 +339,8 @@ def test_v2_receipt_verifies_from_receipt_and_claim_alone() -> None:
 
     # A proof with no tree head is still evidence: main's unverified stands.
 def test_v2_receipt_with_inclusion_proof_and_no_tree_head_is_unverified() -> None:
+    from asqav.attestation import signed_message_from_receipt
+
     sign, verify = _ed25519_signer()
     _, proof = _tree_head_and_proof()
     receipt = _v2_receipt_fields()
@@ -370,6 +385,8 @@ def test_v1_receipt_without_inclusion_proof_is_not_waived() -> None:
 
     # Explicit bytes keep today's path: no waiver, so no proof is unverified.
 def test_explicit_signed_message_without_proof_is_unverified() -> None:
+    from asqav.attestation import signed_message_from_receipt
+
     receipt, verify = _v2_receipt()
     result = verify_attestation_offline(
         _CLAIM,
@@ -401,20 +418,26 @@ def test_negctl_one_byte_of_commitment_fails_signature() -> None:
     signature = next(a for a in result["axes"] if a["name"] == "signature")
     assert signature["result"] == "FAIL"
     assert signature["note"] == "signature does not verify over the signed message"
+    from asqav.attestation import signed_message_from_receipt
+
+    assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
     assert result["verdict"] == VERDICT_UNVERIFIED
 
 
     # NEGCTL: v1 bytes never verify a signature the cloud made over v2 bytes.
 def test_negctl_v2_receipt_over_v1_bytes_fails() -> None:
     receipt, verify = _v2_receipt()
+    receipt.update(_v1_receipt_fields())
     result = verify_attestation_offline(
         _CLAIM,
         receipt,
-        signed_message=_signed_message(),
         verify_signature=verify,
     )
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["signature"] == "FAIL"
+    from asqav.attestation import signed_message_from_receipt
+
+    assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
     assert result["verdict"] == VERDICT_UNVERIFIED
 
 
@@ -429,6 +452,12 @@ def test_negctl_missing_field_is_named() -> None:
     assert field in signature["note"]
     assert signature["failure_class"] == FAILURE_UNVERIFIABLE
     assert result["verdict"] == VERDICT_UNVERIFIED
+    from asqav.attestation import signed_message_from_receipt
+
+    import pytest
+
+    with pytest.raises(ValueError, match=field):
+        assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
 
 
 def test_public_surface_exposed_at_package_root() -> None:
@@ -438,3 +467,25 @@ def test_public_surface_exposed_at_package_root() -> None:
     assert asqav.compute_statement_hash is compute_statement_hash
     assert asqav.VERDICT_VERIFIED_KEYED == "verified_keyed"
     assert asqav.VERDICT_UNVERIFIED == "unverified"
+
+
+def test_v2_commitment_byte_flip_fails_signature() -> None:
+    test_negctl_one_byte_of_commitment_fails_signature()
+
+
+def test_v2_receipt_over_v1_bytes_fails() -> None:
+    test_negctl_v2_receipt_over_v1_bytes_fails()
+
+
+def test_v1_legacy_receipt_still_reconstructs() -> None:
+    test_v1_receipt_still_rebuilds_v1()
+
+
+def test_v1_missing_field_refused() -> None:
+    import pytest
+    from asqav.attestation import signed_message_from_receipt
+
+    receipt = _v1_receipt_fields()
+    del receipt["orgId"]
+    with pytest.raises(ValueError, match="orgId"):
+        signed_message_from_receipt(receipt)
