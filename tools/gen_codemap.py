@@ -23,7 +23,7 @@ TESTS_MAX = 3
 STEM_MIN = 3
 GENERIC_STEMS = {"__init__", "__main__", "index", "main", "utils", "common", "types", "conftest"}
 JS_SYMBOL = re.compile(
-    r"^\s{0,2}(?:export\s+)?(?:default\s+)?(?:async\s+)?"
+    r"^export\s+(?:default\s+)?(?:async\s+)?"
     r"(?:function\*?\s+([A-Za-z_$][\w$]*)|class\s+([A-Za-z_$][\w$]*)"
     r"|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function|\())"
 )
@@ -81,7 +81,12 @@ def tests_for(path: str, tests: list[str]) -> list[str]:
     stem = stem_key(path)
     if len(stem) < STEM_MIN or stem in GENERIC_STEMS:
         return []
-    return [t for t in tests if stem in stem_key(t)][:TESTS_MAX]
+
+    def named_after(test: str) -> bool:
+        name = stem_key(test).removeprefix("test_")
+        return name == stem or name.startswith(stem + "_")
+
+    return [t for t in tests if named_after(t)][:TESTS_MAX]
 
 
 def entry(root: Path, path: str, tests: list[str]) -> str:

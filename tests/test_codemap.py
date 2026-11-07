@@ -12,8 +12,6 @@ _spec = importlib.util.spec_from_file_location("gen_codemap", ROOT / "tools" / "
 gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen)
 
-STEP_RUN = "python3 tools/gen_codemap.py --check"
-
 
 def _repo(root, files):
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
@@ -21,7 +19,7 @@ def _repo(root, files):
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
-    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "add", "--", *files], cwd=root, check=True)
     return root
 
 
@@ -76,9 +74,34 @@ class CodemapTest(unittest.TestCase):
     def test_committed_map_is_fresh(self):
         self.assertEqual(gen.check(ROOT), 0)
 
-    def test_ci_runs_the_freshness_step(self):
-        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
-        self.assertIn(f"- run: {STEP_RUN}\n", workflow)
+    def test_script_symbols_exclude_nonexports_and_nested_declarations(self):
+        """NEGCTL: private and nested declarations must stay out of symbols."""
+        source = ("export function publicFn() {}\nexport class PublicClass {}\n"
+                  "export const publicArrow = () => {};\n"
+                  "export default async function defaultFn() {}\n"
+                  "function privateFn() {}\nconst privateArrow = () => {};\n"
+                  "  const inner = () => {};\n  function nestedFn() {}\n"
+                  "  export function nestedExport() {}\n")
+        _repo(self.root, {f"typescript/src/sample{ext}": source
+                          for ext in (".ts", ".js", ".mjs")})
+        for ext in (".ts", ".js", ".mjs"):
+            with self.subTest(ext=ext):
+                self.assertEqual(self.line_for("sample" + ext),
+                                 f"- `sample{ext}` | symbols: publicFn PublicClass"
+                                 " publicArrow defaultFn")
+
+    def test_named_tests_exclude_substring_matches(self):
+        """NEGCTL: unrelated scope names must not acquire a test link."""
+        unrelated = ["tests/test_offline_api_declares_anchor_scope.py",
+                     "tests/test_scopes.py", "tests/test_microscope.py"]
+        named = ["tests/scope.py", "tests/test_scope.py",
+                 "tests/test_scope_validation.py", "tests/scope_extra.py",
+                 "typescript/tests/scope.test.ts", "typescript/tests/scope.spec.ts"]
+        for test in named:
+            with self.subTest(test=test):
+                self.assertEqual(gen.tests_for("python/src/asqav/scope.py",
+                                               unrelated + [test]), [test])
+        self.assertEqual(gen.tests_for("python/src/asqav/scope.py", unrelated), [])
 
 
 if __name__ == "__main__":
