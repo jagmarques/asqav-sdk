@@ -68,7 +68,7 @@ def test_negctl_handle_response_still_maps_an_unreadable_body_to_api_error() -> 
         _transport._handle_response(response)
 
 
-def test_negctl_http_error_text_still_reads_a_closed_socket_as_empty() -> None:
+def test_http_error_text_names_an_unreadable_body() -> None:
     err = MagicMock()
     err.read.side_effect = OSError("socket closed")
-    assert _transport._http_error_text(err) == ""
+    assert _transport._http_error_text(err) == "<unreadable body: OSError>"

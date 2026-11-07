@@ -6,7 +6,7 @@ import functools
 import os
 import sys
 import threading
-from typing import Any
+from typing import Any, cast
 
 from . import _transport
 from ._agent import Agent
@@ -202,7 +202,7 @@ def secure(func: F) -> F:
             )
             raise
 
-    return wrapper  # type: ignore
+    return cast(F, wrapper)
 
 
 def secure_async(func: F) -> F:
@@ -267,4 +267,4 @@ def secure_async(func: F) -> F:
             )
             raise
 
-    return wrapper  # type: ignore
+    return cast(F, wrapper)

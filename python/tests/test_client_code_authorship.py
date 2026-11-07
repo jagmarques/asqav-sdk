@@ -74,8 +74,9 @@ def _good_kwargs() -> dict:
         authored_by=dict(GOOD_AUTHORED_BY),
     )
 
-
     # Sign with the good kwargs (plus overrides) and return the wire body.
+
+
 def _sign(**overrides) -> dict:
     kwargs = _good_kwargs()
     kwargs.update(overrides)
@@ -114,8 +115,9 @@ def test_all_code_fields_project_to_wire() -> None:
     assert body["authored_by"]["attestation_source"].startswith("GitHub Copilot")
     assert body["receipt_type"] == CODE_TYPE
 
-
     # A human-only author needs no attestation_source (no model claim).
+
+
 def test_valid_human_only_author_without_attestation_source() -> None:
     body = _sign(authored_by={"human_id": "human:alice@example.com"})
     assert body["authored_by"]["human_id"] == "human:alice@example.com"
@@ -151,16 +153,18 @@ def test_rejects_code_fields_on_wrong_receipt_type() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._transport._post", side_effect=fake_post):  # noqa: SIM117
-        with pytest.raises(AsqavValidationError) as exc:
-            _agent().sign(
-                "lifecycle:change",
-                {"k": "v"},
-                compliance_mode=True,
-                receipt_type="protectmcp:lifecycle",
-                policy_decision="none",
-                change_digest=GOOD_DIGEST,
-            )
+    with (
+        patch("asqav.client._transport._post", side_effect=fake_post),
+        pytest.raises(AsqavValidationError) as exc,
+    ):
+        _agent().sign(
+            "lifecycle:change",
+            {"k": "v"},
+            compliance_mode=True,
+            receipt_type="protectmcp:lifecycle",
+            policy_decision="none",
+            change_digest=GOOD_DIGEST,
+        )
     assert "code_authorship_fields_require_code_authorship_receipt" in str(exc.value)
 
 
@@ -181,8 +185,9 @@ def test_rejects_non_none_policy_decision() -> None:
         _sign(policy_decision="permit")
     assert "code_authorship_requires_no_policy_decision" in str(exc.value)
 
-
     # AsqavValidationError subclasses ValueError for backward compat.
+
+
 def test_validation_error_is_a_valueerror() -> None:
     with pytest.raises(ValueError):
         _sign(change_digest="bad")

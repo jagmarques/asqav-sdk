@@ -78,8 +78,9 @@ def _good_kwargs() -> dict:
         risk_snapshot=dict(GOOD_SNAPSHOT),
     )
 
-
     # Sign with the good kwargs (plus overrides) and return the wire body.
+
+
 def _sign(**overrides) -> dict:
     kwargs = _good_kwargs()
     kwargs.update(overrides)
@@ -150,16 +151,18 @@ def test_rejects_risk_fields_on_wrong_receipt_type() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._transport._post", side_effect=fake_post):  # noqa: SIM117
-        with pytest.raises(AsqavValidationError) as exc:
-            _agent().sign(
-                "lifecycle:change",
-                {"k": "v"},
-                compliance_mode=True,
-                receipt_type="protectmcp:lifecycle",
-                policy_decision="none",
-                sarif_digest=GOOD_SARIF,
-            )
+    with (
+        patch("asqav.client._transport._post", side_effect=fake_post),
+        pytest.raises(AsqavValidationError) as exc,
+    ):
+        _agent().sign(
+            "lifecycle:change",
+            {"k": "v"},
+            compliance_mode=True,
+            receipt_type="protectmcp:lifecycle",
+            policy_decision="none",
+            sarif_digest=GOOD_SARIF,
+        )
     assert "risk_acceptance_fields_require_risk_acceptance_receipt" in str(exc.value)
 
 
@@ -188,8 +191,9 @@ def test_rejects_cve_ids_empty_list() -> None:
         _sign(risk_snapshot=bad_snapshot)
     assert "risk_snapshot_cve_ids_must_be_non_empty_list" in str(exc.value)
 
-
     # AsqavValidationError subclasses ValueError for backward compat.
+
+
 def test_validation_error_is_a_valueerror() -> None:
     with pytest.raises(ValueError):
         _sign(sarif_digest="bad")
@@ -198,7 +202,7 @@ def test_validation_error_is_a_valueerror() -> None:
 # === SoD guard: risk_acceptance_self_approval_guard ===
 
 
-    # risk_acceptance_self_approval_guard fires when initiator_id == approver_id.
+# risk_acceptance_self_approval_guard fires when initiator_id == approver_id.
 @pytest.mark.parametrize("same_id", ["user:alice@example.com", "uuid-1234", "alice"])
 def test_rejects_self_approval(same_id: str) -> None:
     with pytest.raises(AsqavValidationError) as exc:
@@ -206,8 +210,9 @@ def test_rejects_self_approval(same_id: str) -> None:
     assert "risk_acceptance_self_approval_guard: initiator_id equals" in str(exc.value)
     assert exc.value.docs_url == RISK_ACCEPTANCE_DOCS_URL
 
-
     # Guard message prefix is byte-identical to the cloud validator.
+
+
 def test_self_approval_guard_message_bytes() -> None:
     with pytest.raises(AsqavValidationError) as exc:
         _sign(initiator_id="x", approver_id="x")
@@ -217,15 +222,17 @@ def test_self_approval_guard_message_bytes() -> None:
         "a self-approved risk acceptance is incoherent"
     )
 
-
     # Different initiator and approver IDs do not trigger the SoD guard.
+
+
 def test_allows_different_initiator_and_approver() -> None:
     body = _sign(initiator_id="initiator:bob@example.com", approver_id="approver:alice@example.com")
     assert body["initiator_id"] == "initiator:bob@example.com"
     assert body["approver_id"] == "approver:alice@example.com"
 
-
     # Guard does not fire when initiator_id is absent (only approver_id set).
+
+
 def test_self_approval_guard_absent_initiator_allowed() -> None:
     body = _sign(initiator_id=None)
     assert body.get("initiator_id") is None

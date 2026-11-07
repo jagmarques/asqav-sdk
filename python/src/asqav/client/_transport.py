@@ -30,8 +30,8 @@ _MAX_RETRIES = 5
 _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
 
 
-    # Strict ingest (419): API responses carrying receipts/records never parse
-    # last-wins; a duplicated member name is a terminal failure, raised loud.
+# Strict ingest (419): API responses carrying receipts/records never parse
+# last-wins; a duplicated member name is a terminal failure, raised loud.
 def _strict_response_json(response: Any) -> dict[str, Any]:
     from .. import strict_json
 
@@ -40,8 +40,9 @@ def _strict_response_json(response: Any) -> dict[str, Any]:
     except (_json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise _non_json_error(exc) from exc
 
-
     # A 2xx body that is not JSON (e.g. a proxy page) is an AsqavResponseError.
+
+
 def _non_json_error(exc: Exception) -> AsqavResponseError:
     return AsqavResponseError(
         f"the API answered with a non-JSON body ({_one_line(str(exc))}); "
@@ -49,8 +50,9 @@ def _non_json_error(exc: Exception) -> AsqavResponseError:
         docs_url=RESPONSE_ERROR_DOCS_URL,
     )
 
-
     # Run with exponential backoff retry on rate-limit and network errors.
+
+
 def _with_retry(func: Callable[[], Any]) -> Any:
     last_error: Exception | None = None
     for attempt, delay in enumerate(_RETRY_DELAYS):
@@ -69,7 +71,6 @@ try:
     _HTTPX_AVAILABLE = True
 except ImportError:
     _HTTPX_AVAILABLE = False
-    httpx = None  # type: ignore
 
 
 # API configuration
@@ -196,8 +197,9 @@ def init(
             timeout=_timeout,
         )
 
-
     # Make a GET request to the API.
+
+
 @with_retry()
 def _get(path: str) -> dict[str, Any]:
     _ensure_initialized()
@@ -208,8 +210,9 @@ def _get(path: str) -> dict[str, Any]:
         # Use stdlib urllib if httpx not installed
         return _urllib_request("GET", path)
 
-
     # Make a POST request to the API.
+
+
 @with_retry()
 def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
     _ensure_initialized()
@@ -219,8 +222,9 @@ def _post(path: str, data: dict[str, Any]) -> dict[str, Any]:
     else:
         return _urllib_request("POST", path, data)
 
-
     # Make a PATCH request to the API.
+
+
 @with_retry()
 def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
     _ensure_initialized()
@@ -230,8 +234,9 @@ def _patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
     else:
         return _urllib_request("PATCH", path, data)
 
-
     # Make a PUT request to the API.
+
+
 @with_retry()
 def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
     _ensure_initialized()
@@ -241,8 +246,9 @@ def _put(path: str, data: dict[str, Any]) -> dict[str, Any]:
     else:
         return _urllib_request("PUT", path, data)
 
-
     # Make a DELETE request to the API.
+
+
 @with_retry()
 def _delete(path: str) -> dict[str, Any]:
     _ensure_initialized()
@@ -252,8 +258,9 @@ def _delete(path: str) -> dict[str, Any]:
     else:
         return _urllib_request("DELETE", path)
 
-
     # Send one request on the shared httpx client; transport errors raise.
+
+
 def _httpx_call(verb: str, path: str, data: Any = _NO_BODY) -> dict[str, Any]:
     kwargs = {} if data is _NO_BODY else {"json": data}
     try:
@@ -264,14 +271,16 @@ def _httpx_call(verb: str, path: str, data: Any = _NO_BODY) -> dict[str, Any]:
     result: dict[str, Any] = _strict_response_json(response)
     return result
 
-
     # Ensure the SDK is initialized.
+
+
 def _ensure_initialized() -> None:
     if not _api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
 
-
     # Handle API response errors.
+
+
 def _handle_response(response: Any) -> None:
     if response.status_code == 401:
         raise AuthenticationError("Invalid API key")
@@ -285,8 +294,9 @@ def _handle_response(response: Any) -> None:
         text = response.text if isinstance(response.text, str) else ""
         raise APIError(_error_message(response.status_code, text, body), response.status_code)
 
-
     # HTTP client using stdlib urllib (used when httpx not installed).
+
+
 def _urllib_request(
     method: str,
     path: str,
@@ -328,11 +338,12 @@ def _urllib_request(
     except (urllib.error.URLError, OSError) as e:
         raise _connection_error(url, e) from e
 
+    # Body of a urllib HTTPError as text, or a note naming why it is unreadable.
 
-    # Body of a urllib HTTPError as text ("" if unreadable) to keep the reason.
+
 def _http_error_text(err: Any) -> str:
     try:
         raw = err.read()
-    except (OSError, HTTPException):
-        return ""
+    except (OSError, HTTPException) as exc:
+        return f"<unreadable body: {type(exc).__name__}>"
     return raw.decode("utf-8", "replace") if isinstance(raw, bytes) else ""

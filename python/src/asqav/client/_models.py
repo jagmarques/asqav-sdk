@@ -110,7 +110,7 @@ class SignatureResponse:
         if isinstance(self.signature, dict):
             keys = set(self.signature.keys())
             if keys >= {"alg", "kid", "sig"}:
-                return self.signature  # type: ignore[return-value]
+                return self.signature
         return None
 
     def receipt(self) -> dict[str, Any] | None:
