@@ -19,6 +19,8 @@ import asqav  # noqa: E402
 from asqav import client as client_mod  # noqa: E402
 from asqav.client import Agent  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("signing_transport")
+
 # A canned response that satisfies SignatureResponse decoding.
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig-bytes",
@@ -47,16 +49,6 @@ def _make_agent() -> Agent:
         capabilities=[],
         created_at=0.0,
     )
-
-
-    # Reset SDK module state between tests.
-@pytest.fixture(autouse=True)
-def _isolate_module_state() -> None:
-    transport = client_mod._transport
-    saved = (transport._mode, transport._org_salt, transport._api_key)
-    transport._api_key = "sk_test"
-    yield
-    transport._mode, transport._org_salt, transport._api_key = saved
 
 
 def test_full_payload_mode_sends_context() -> None:

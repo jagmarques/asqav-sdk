@@ -12,7 +12,6 @@ from .client import (
     AsqavError,
     AuthenticationError,
     PreflightResult,
-    RateLimitError,
     SessionResponse,
     SignatureResponse,
     VerificationResponse,
@@ -21,7 +20,7 @@ from .client import (
 from .client._common import _parse_timestamp
 from .client._errors import _connection_error, _error_message
 from .client._models import _parse_bitcoin_anchor
-from .client._transport import _join_url, _strict_response_json
+from .client._transport import _handle_response, _join_url, _strict_response_json
 from .client._vocabulary import _resolve_action_ref, _resolve_previous_receipt_hash
 from .patterns import resolve_pattern
 from .retry import with_async_retry
@@ -57,21 +56,6 @@ def _get_config() -> tuple[str, str]:
     return _client_mod._api_base, _client_mod._api_key
 
 
-    # Handle API response errors (async version).
-async def _handle_response(response: Any) -> None:
-    if response.status_code == 401:
-        raise AuthenticationError("Invalid API key")
-    elif response.status_code == 429:
-        raise RateLimitError("Rate limit exceeded. Upgrade at asqav.com/pricing")
-    elif response.status_code >= 400:
-        try:
-            body = response.json()
-        except Exception:
-            body = None
-        text = response.text if isinstance(response.text, str) else ""
-        raise APIError(_error_message(response.status_code, text, body), response.status_code)
-
-
     # Send one async request; transport failures become AsqavConnectionError.
 async def _send(client: Any, verb: str, api_base: str, path: str, **kwargs: Any) -> Any:
     try:
@@ -94,7 +78,7 @@ async def _async_get(path: str) -> dict[str, Any]:
         timeout=30.0,
     ) as client:
         response = await _send(client, "get", api_base, path)
-        await _handle_response(response)
+        _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
 
@@ -112,7 +96,7 @@ async def _async_post(path: str, data: dict[str, Any]) -> dict[str, Any]:
         timeout=30.0,
     ) as client:
         response = await _send(client, "post", api_base, path, json=data)
-        await _handle_response(response)
+        _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
 
@@ -130,7 +114,7 @@ async def _async_patch(path: str, data: dict[str, Any]) -> dict[str, Any]:
         timeout=30.0,
     ) as client:
         response = await _send(client, "patch", api_base, path, json=data)
-        await _handle_response(response)
+        _handle_response(response)
         result: dict[str, Any] = _strict_response_json(response)
         return result
 

@@ -50,7 +50,9 @@ def _module_is_public(relative: Path) -> bool:
     return all(_is_public(part) for part in parts)
 
 
-def _docstring_findings(tree: ast.Module, path: str, public_module: bool) -> list[Finding]:
+def _docstring_findings(
+    tree: ast.Module, path: str, public_module: bool, exported: frozenset[str] = frozenset()
+) -> list[Finding]:
     found: list[Finding] = []
 
     def visit(node: DocNode, public: bool) -> None:
@@ -66,7 +68,8 @@ def _docstring_findings(tree: ast.Module, path: str, public_module: bool) -> lis
             if span > MAX_DOCSTRING_LINES and not documents_params:
                 found.append(Finding(path, first.lineno, "docstring"))
         for child in _children(node):
-            visit(child, public and _is_public(child.name))
+            reexported = node is tree and child.name in exported
+            visit(child, (public and _is_public(child.name)) or reexported)
 
     visit(tree, public_module)
     return found
@@ -110,18 +113,53 @@ def _comment_findings(text: str, path: str) -> list[Finding]:
     return found
 
 
-def scan_file(root: Path, file: Path) -> list[Finding]:
-    name = file.relative_to(root).as_posix()
+def _parse(file: Path, name: str) -> tuple[str, ast.Module]:
     try:
         text = file.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         raise ScanError(f"{name}: cannot be read: {error}") from error
     try:
-        tree = ast.parse(text)
+        return text, ast.parse(text)
     except (SyntaxError, ValueError) as error:
         raise ScanError(f"{name}: cannot be parsed: {error}") from error
+
+
+def _package_exports(root: Path, package: Path) -> dict[str, frozenset[str]]:
+    """Per module of a public package, the names its __init__ imports from it."""
+    init = package / "__init__.py"
+    if not init.is_file() or not _module_is_public(init.relative_to(root / SOURCE_DIR)):
+        return {}
+    _, tree = _parse(init, init.relative_to(root).as_posix())
+    found: dict[str, set[str]] = {}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
+            found.setdefault(node.module, set()).update(a.asname or a.name for a in node.names)
+    return {module: frozenset(names) for module, names in found.items()}
+
+
+def _reexports(root: Path, file: Path) -> frozenset[str]:
+    """Names of a package module that the package exports, or bases of exported classes."""
+    if file.name == "__init__.py":
+        return frozenset()
+    exports = _package_exports(root, file.parent)
+    names = set(exports.get(file.stem, ()))
+    for module, public in exports.items():
+        sibling = file.parent / f"{module}.py"
+        if not sibling.is_file():
+            continue
+        _, tree = _parse(sibling, sibling.relative_to(root).as_posix())
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name in public:
+                names.update(base.id for base in node.bases if isinstance(base, ast.Name))
+    return frozenset(names)
+
+
+def scan_file(root: Path, file: Path) -> list[Finding]:
+    name = file.relative_to(root).as_posix()
+    text, tree = _parse(file, name)
     public = _module_is_public(file.relative_to(root / SOURCE_DIR))
-    return _docstring_findings(tree, name, public) + _comment_findings(text, name)
+    exported = _reexports(root, file)
+    return _docstring_findings(tree, name, public, exported) + _comment_findings(text, name)
 
 
 def scan(root: Path) -> list[Finding]:

@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from asqav import client as client_mod  # noqa: E402
 from asqav.client import Agent  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("signing_transport")
+
 MOCK_SIGN_RESPONSE: dict = {
     "signature": "sig-bytes",
     "signature_id": "sig_001",
@@ -45,15 +47,6 @@ def _make_agent() -> Agent:
         capabilities=[],
         created_at=0.0,
     )
-
-
-@pytest.fixture(autouse=True)
-def _isolate_module_state() -> None:
-    transport = client_mod._transport
-    saved = (transport._mode, transport._org_salt, transport._api_key)
-    transport._api_key = "sk_test"
-    yield
-    transport._mode, transport._org_salt, transport._api_key = saved
 
 
 def _intent() -> dict:

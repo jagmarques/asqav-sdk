@@ -104,16 +104,13 @@ def verify_output(signature_id: str, expected_output: Any) -> dict[str, Any]:
 
     # Compare output hash from the signed payload to a fresh hash.
     output_matches = False
-    try:
-        stored_hash = ""
-        if verification.payload and isinstance(verification.payload, dict):
-            context = verification.payload.get("context", verification.payload)
+    stored_hash: Any = ""
+    if isinstance(verification.payload, dict):
+        context = verification.payload.get("context", verification.payload)
+        if isinstance(context, dict):
             stored_hash = context.get("output_hash", "")
-        if stored_hash:
-            expected_hash = _hash_value(expected_output)
-            output_matches = stored_hash == expected_hash
-    except Exception:
-        output_matches = False
+    if stored_hash:
+        output_matches = stored_hash == _hash_value(expected_output)
 
     return {
         "verified": signature_valid and output_matches,

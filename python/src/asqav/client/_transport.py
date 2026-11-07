@@ -6,6 +6,7 @@ import json as _json
 import os
 import time
 from collections.abc import Callable
+from http.client import HTTPException
 from typing import Any
 
 from .._useragent import USER_AGENT
@@ -279,7 +280,7 @@ def _handle_response(response: Any) -> None:
     elif response.status_code >= 400:
         try:
             body = response.json()
-        except Exception:
+        except ValueError:
             body = None
         text = response.text if isinstance(response.text, str) else ""
         raise APIError(_error_message(response.status_code, text, body), response.status_code)
@@ -332,6 +333,6 @@ def _urllib_request(
 def _http_error_text(err: Any) -> str:
     try:
         raw = err.read()
-    except Exception:
+    except (OSError, HTTPException):
         return ""
     return raw.decode("utf-8", "replace") if isinstance(raw, bytes) else ""

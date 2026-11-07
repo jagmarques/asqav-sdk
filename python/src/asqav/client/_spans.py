@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import time
+import urllib.request
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from http.client import HTTPException
 from typing import Any
 
 from .._useragent import USER_AGENT
 from ._agents import get_agent
+from ._common import logger
+from ._errors import AsqavError, AsqavValidationError
 
 
 @dataclass
@@ -102,8 +107,8 @@ def span(
                 result=dict(span_obj.attributes),
             )
             span_obj.signature = result.signature
-        except Exception:
-            pass  # Don't fail user code if signing fails
+        except (AsqavError, AsqavValidationError):
+            logger.warning("asqav span %r was not signed", name, exc_info=True)
 
         # Add to completed spans for OTEL export
         _completed_spans.append(span_obj)
@@ -190,16 +195,13 @@ def flush_spans() -> None:
         ]
     }
 
+    req = urllib.request.Request(
+        _otel_endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
+        method="POST",
+    )
     try:
-        import json
-        import urllib.request
-
-        req = urllib.request.Request(
-            _otel_endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
-            method="POST",
-        )
         urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # Don't fail on export errors
+    except (OSError, HTTPException):
+        logger.warning("asqav span export to %s failed", _otel_endpoint, exc_info=True)
