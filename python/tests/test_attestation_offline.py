@@ -12,6 +12,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 _SRC = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
@@ -35,6 +37,7 @@ from asqav.attestation import (
     merkle_leaf_hash,
     merkle_root,
     reconstruct_signed_message,
+    signed_message_from_receipt,
     verify_attestation_offline,
 )
 
@@ -401,6 +404,7 @@ def test_negctl_one_byte_of_commitment_fails_signature() -> None:
     receipt["statementHash"] = compute_statement_hash(
         _CLAIM, flipped, receipt["keyId"], receipt["timestamp"]
     )
+    assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["statement_hash"] == "PASS"
@@ -414,6 +418,7 @@ def test_negctl_one_byte_of_commitment_fails_signature() -> None:
 def test_negctl_v2_signature_on_a_v1_shaped_receipt_fails() -> None:
     receipt, verify = _v2_receipt()
     receipt.update(actionId=_ACTION_ID, agentId=_AGENT_ID, orgId=_ORG_ID, claimType=_CLAIM["type"])
+    assert signed_message_from_receipt(receipt) != _V2_GOLDEN_MESSAGE
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     by_name = {a["name"]: a["result"] for a in result["axes"]}
     assert by_name["signature"] == "FAIL"
@@ -425,6 +430,8 @@ def test_negctl_missing_field_is_named() -> None:
     receipt, verify = _v2_receipt()
     field = "commitmentAlg"
     del receipt[field]
+    with pytest.raises(ValueError, match=field):
+        signed_message_from_receipt(receipt)
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     signature = next(a for a in result["axes"] if a["name"] == "signature")
     assert signature["result"] == "FAIL"
