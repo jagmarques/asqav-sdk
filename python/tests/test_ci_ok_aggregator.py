@@ -78,7 +78,7 @@ def test_ci_ok_fails_on_changes_failure_hidden_skip_and_failure():
 
 
 def test_negctl_the_reverted_logic_is_reported_by_the_same_checks():
-    # NEGCTL: the reverted scripts go through the same violations() the real test asserts empty
+    # NEGCTL: reverted scripts go through the same violations() as the real test
     script = _script()
     no_changes_gate = script.replace('[[ "$CHANGES" == "success" ]] || exit 1', "true")
     skip_is_ok = script.replace(
