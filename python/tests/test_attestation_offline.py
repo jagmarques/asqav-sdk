@@ -152,16 +152,15 @@ def _v2_receipt():
 
     # Legacy receipt fields: the shared five plus every v1-only field.
 def _v1_receipt_fields() -> dict:
+    from asqav.attestation import V1_ONLY_FIELDS
+
     return {
         "statementHash": _GOLDEN_HASH,
         "commitment": _COMMITMENT,
         "commitmentAlg": DEFAULT_COMMITMENT_ALG,
         "keyId": _KEY_ID,
         "timestamp": _TIMESTAMP,
-        "actionId": _ACTION_ID,
-        "agentId": _AGENT_ID,
-        "orgId": _ORG_ID,
-        "claimType": _CLAIM["type"],
+        **dict(zip(V1_ONLY_FIELDS, (_ACTION_ID, _AGENT_ID, _ORG_ID, _CLAIM["type"]))),
     }
 
 
@@ -345,8 +344,7 @@ def test_v2_receipt_with_inclusion_proof_and_no_tree_head_is_unverified() -> Non
     _, proof = _tree_head_and_proof()
     receipt = _v2_receipt_fields()
     receipt["inclusionProof"] = proof
-    rebuilt = signed_message_from_receipt(receipt)
-    receipt["signature"] = base64.b64encode(sign(rebuilt)).decode()
+    receipt["signature"] = base64.b64encode(sign(_V2_GOLDEN_MESSAGE)).decode()
     result = verify_attestation_offline(_CLAIM, receipt, verify_signature=verify)
     assert result["verdict"] == VERDICT_UNVERIFIED
     assert result["failure_class"] == FAILURE_UNVERIFIABLE
@@ -391,7 +389,7 @@ def test_explicit_signed_message_without_proof_is_unverified() -> None:
     result = verify_attestation_offline(
         _CLAIM,
         receipt,
-        signed_message=signed_message_from_receipt(receipt),
+        signed_message=_V2_GOLDEN_MESSAGE,
         verify_signature=verify,
     )
     assert result["verdict"] == VERDICT_UNVERIFIED
@@ -424,8 +422,8 @@ def test_negctl_one_byte_of_commitment_fails_signature() -> None:
     assert result["verdict"] == VERDICT_UNVERIFIED
 
 
-    # NEGCTL: v1 bytes never verify a signature the cloud made over v2 bytes.
-def test_negctl_v2_receipt_over_v1_bytes_fails() -> None:
+    # NEGCTL: v1 fields on the receipt rebuild v1 bytes; a v2 signature fails.
+def test_negctl_v2_signature_on_a_v1_shaped_receipt_fails() -> None:
     receipt, verify = _v2_receipt()
     receipt.update(_v1_receipt_fields())
     result = verify_attestation_offline(
@@ -474,7 +472,7 @@ def test_v2_commitment_byte_flip_fails_signature() -> None:
 
 
 def test_v2_receipt_over_v1_bytes_fails() -> None:
-    test_negctl_v2_receipt_over_v1_bytes_fails()
+    test_negctl_v2_signature_on_a_v1_shaped_receipt_fails()
 
 
 def test_v1_legacy_receipt_still_reconstructs() -> None:
