@@ -64,9 +64,9 @@ _WRITE_SQL_POLICY = [
 
 
     # data:delete:* policy blocks data:write:sql:DELETE FROM users.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_delete_from(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -80,9 +80,9 @@ def test_delete_policy_blocks_write_sql_delete_from(mock_post, mock_get):
 
 
     # data:delete:* blocks data:write:sql:DELETE_FROM_users (underscore form).
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_delete_from_underscore(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -96,9 +96,9 @@ def test_delete_policy_blocks_write_sql_delete_from_underscore(mock_post, mock_g
 
 
     # data:delete:* policy blocks data:write:sql:DROP TABLE t.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_drop(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -111,9 +111,9 @@ def test_delete_policy_blocks_write_sql_drop(mock_post, mock_get):
 
 
     # data:delete:* policy blocks data:write:sql:TRUNCATE TABLE t.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_delete_policy_blocks_write_sql_truncate(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -126,9 +126,9 @@ def test_delete_policy_blocks_write_sql_truncate(mock_post, mock_get):
 
 
     # Regression guard: data:write:sql:* policy still blocks a DELETE write action.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_regression_write_policy_still_blocks_destructive_write(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -142,9 +142,9 @@ def test_regression_write_policy_still_blocks_destructive_write(mock_post, mock_
 
 
     # data:delete:* policy must not block data:write:sql:INSERT INTO t.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_negative_delete_policy_does_not_block_benign_write(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -157,9 +157,9 @@ def test_negative_delete_policy_does_not_block_benign_write(mock_post, mock_get)
 
 
     # data:delete:* policy must not block data:read:sql:SELECT delete_flag FROM t.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_negative_delete_policy_does_not_block_read_mentioning_delete(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -172,9 +172,9 @@ def test_negative_delete_policy_does_not_block_read_mentioning_delete(mock_post,
 
 
     # deleted_at in a write action does not trigger the destructive verb detection.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_negative_deleted_at_is_not_destructive(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -213,9 +213,9 @@ def test_action_candidates_normalize_case_and_whitespace():
 
 
     # A lowercase data:delete:* policy blocks an uppercase DATA:WRITE:SQL:DELETE.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_uppercase_action_blocked_by_lowercase_delete_policy(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -229,9 +229,9 @@ def test_uppercase_action_blocked_by_lowercase_delete_policy(mock_post, mock_get
 
 
     # Leading/trailing whitespace does not let a DELETE write dodge the policy.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_whitespace_action_blocked_by_delete_policy(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -244,9 +244,9 @@ def test_whitespace_action_blocked_by_delete_policy(mock_post, mock_get):
 
 
     # A lowercase data:write:sql:* pattern blocks an uppercase write action.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_lowercase_pattern_blocks_uppercase_action(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -260,9 +260,9 @@ def test_lowercase_pattern_blocks_uppercase_action(mock_post, mock_get):
 
 
     # An uppercase DATA:WRITE:SQL:* pattern blocks a lowercase write action.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -279,9 +279,9 @@ def test_uppercase_pattern_blocks_lowercase_action(mock_post, mock_get):
 
     # Each extended destructive verb matches the data:delete:* augment.
 @pytest.mark.parametrize("verb", ["GRANT", "REVOKE", "REPLACE", "COPY", "UPSERT"])
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_extended_destructive_verb_blocked_by_delete_policy(mock_post, mock_get, verb):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")

@@ -74,7 +74,7 @@ def test_taxonomy_list_forwarded_to_wire(kwarg: str, value: list[str]) -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -91,7 +91,7 @@ def test_rfc3161_timestamp_forwarded_to_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -108,7 +108,7 @@ def test_all_fields_forwarded_together() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign(
             "api:call",
             {"k": "v"},
@@ -203,7 +203,7 @@ def test_no_taxonomy_fields_omitted_from_wire() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("api:call", {"k": "v"}, compliance_mode=True)
     body = captured["body"]
     for k in (

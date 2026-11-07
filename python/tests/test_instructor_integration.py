@@ -66,7 +66,7 @@ from asqav.extras.instructor import AsqavInstructorHook  # noqa: E402
 @pytest.fixture
 def hook() -> AsqavInstructorHook:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -81,7 +81,7 @@ def hook() -> AsqavInstructorHook:
 def test_no_init_raises_when_no_api_key() -> None:
     from asqav.client import AsqavError
 
-    with patch("asqav.client._api_key", None):
+    with patch("asqav.client._transport._api_key", None):
         with pytest.raises(AsqavError):
             AsqavInstructorHook(agent_name="extractor")
 
@@ -192,7 +192,7 @@ def test_fail_open_on_asqav_error() -> None:
     from asqav.client import AsqavError
 
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent = MagicMock()

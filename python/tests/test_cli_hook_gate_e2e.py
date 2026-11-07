@@ -34,7 +34,7 @@ def _identity(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.delenv(cli_hook._DEADLINE_ENV, raising=False)
     # asqav.init() runs inside the gate and rewrites these module globals.
     for name in ("_api_key", "_api_base", "_client", "_mode", "_org_salt", "_timeout"):
-        monkeypatch.setattr(_client, name, getattr(_client, name))
+        monkeypatch.setattr(_client._transport, name, getattr(_client._transport, name))
 
 
 def _ml_dsa_65():
@@ -46,8 +46,8 @@ def _ml_dsa_65():
 
 def _digest_as_spelled(monkeypatch, session_id: str) -> str:
     """Hash-only digest over the event as the host spells it, unnormalised."""
-    monkeypatch.setattr(_client, "_mode", "hash-only")
-    return _client._build_sign_body(
+    monkeypatch.setattr(_client._transport, "_mode", "hash-only")
+    return _client._sign_body._build_sign_body(
         action_type="tool:Bash",
         context={"tool_input": {"command": "ls"}},
         session_id=session_id,
@@ -143,8 +143,8 @@ class _Signer:
 
 
 def _run_gate(monkeypatch, signer: _Signer, event: dict[str, Any] | str, *extra: str):
-    monkeypatch.setattr(_client, "_get", signer.get)
-    monkeypatch.setattr(_client, "_post", signer.post)
+    monkeypatch.setattr(_client._transport, "_get", signer.get)
+    monkeypatch.setattr(_client._transport, "_post", signer.post)
     monkeypatch.setattr(cli_hook, "_fetch_jwks", lambda _t: signer.jwks())
     raw = event if isinstance(event, str) else json.dumps(event)
     return runner.invoke(app, ["hook", "pretool", *extra], input=raw)

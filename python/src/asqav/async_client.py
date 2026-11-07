@@ -16,16 +16,13 @@ from .client import (
     SessionResponse,
     SignatureResponse,
     VerificationResponse,
-    _connection_error,
-    _error_message,
-    _join_url,
-    _parse_bitcoin_anchor,
-    _parse_timestamp,
-    _resolve_action_ref,
-    _resolve_previous_receipt_hash,
-    _strict_response_json,
     require_field,
 )
+from .client._common import _parse_timestamp
+from .client._errors import _connection_error, _error_message
+from .client._models import _parse_bitcoin_anchor
+from .client._transport import _join_url, _strict_response_json
+from .client._vocabulary import _resolve_action_ref, _resolve_previous_receipt_hash
 from .patterns import resolve_pattern
 from .retry import with_async_retry
 
@@ -210,7 +207,7 @@ class AsyncAgent:
         action_ref: str | None = None,
         compliance_mode: bool | None = None,
     ) -> SignatureResponse:
-        from .client import _build_sign_body, _digest_result_value
+        from .client._sign_body import _build_sign_body, _digest_result_value
 
         if tool_name or model_name or parent_id:
             context = dict(context) if context else {}

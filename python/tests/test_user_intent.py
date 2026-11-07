@@ -49,10 +49,11 @@ def _make_agent() -> Agent:
 
 @pytest.fixture(autouse=True)
 def _isolate_module_state() -> None:
-    saved = (client_mod._mode, client_mod._org_salt, client_mod._api_key)
-    client_mod._api_key = "sk_test"
+    transport = client_mod._transport
+    saved = (transport._mode, transport._org_salt, transport._api_key)
+    transport._api_key = "sk_test"
     yield
-    client_mod._mode, client_mod._org_salt, client_mod._api_key = saved
+    transport._mode, transport._org_salt, transport._api_key = saved
 
 
 def _intent() -> dict:
@@ -66,12 +67,12 @@ def _intent() -> dict:
 
 
 def test_user_intent_passthrough_full_payload() -> None:
-    client_mod._mode = "full-payload"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "full-payload"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
     intent = _intent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         resp = agent.sign("api:call", {"x": 1}, user_intent=intent)
 
     _path, body = mock_post.call_args[0]
@@ -80,12 +81,12 @@ def test_user_intent_passthrough_full_payload() -> None:
 
 
 def test_user_intent_passthrough_hash_only() -> None:
-    client_mod._mode = "hash-only"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "hash-only"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
     intent = _intent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"x": 1}, user_intent=intent)
 
     _path, body = mock_post.call_args[0]
@@ -94,11 +95,11 @@ def test_user_intent_passthrough_hash_only() -> None:
 
 
 def test_user_intent_omitted_when_not_set() -> None:
-    client_mod._mode = "full-payload"
-    client_mod._org_salt = None
+    client_mod._transport._mode = "full-payload"
+    client_mod._transport._org_salt = None
     agent = _make_agent()
 
-    with patch("asqav.client._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
+    with patch("asqav.client._transport._post", return_value=MOCK_SIGN_RESPONSE) as mock_post:
         agent.sign("api:call", {"x": 1})
 
     _path, body = mock_post.call_args[0]

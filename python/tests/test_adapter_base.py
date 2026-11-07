@@ -59,7 +59,7 @@ def test_class_name_to_agent_name_simple():
 
     # AsqavAdapter raises AsqavError when asqav.init() was not called.
 def test_init_raises_without_asqav_init():
-    with patch("asqav.client._api_key", None):
+    with patch("asqav.client._transport._api_key", None):
         with pytest.raises(AsqavError, match="Call asqav.init"):
             _TestAdapter()
 
@@ -68,7 +68,7 @@ def test_init_raises_without_asqav_init():
 @patch("asqav.extras._base.Agent")
 def test_init_with_agent_name(mock_agent_cls):
     mock_agent_cls.create.return_value = MagicMock()
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="my-agent")
     mock_agent_cls.create.assert_called_once_with("my-agent")
     assert adapter._agent is mock_agent_cls.create.return_value
@@ -78,7 +78,7 @@ def test_init_with_agent_name(mock_agent_cls):
 @patch("asqav.extras._base.Agent")
 def test_init_with_agent_id(mock_agent_cls):
     mock_agent_cls.get.return_value = MagicMock()
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_id="agent_abc")
     mock_agent_cls.get.assert_called_once_with("agent_abc")
     assert adapter._agent is mock_agent_cls.get.return_value
@@ -88,7 +88,7 @@ def test_init_with_agent_id(mock_agent_cls):
 @patch("asqav.extras._base.Agent")
 def test_init_auto_name_from_subclass(mock_agent_cls):
     mock_agent_cls.create.return_value = MagicMock()
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         AsqavCallbackHandler()
     mock_agent_cls.create.assert_called_once_with("asqav-callback-handler")
 
@@ -104,7 +104,7 @@ def test_sign_action_success(mock_agent_cls):
     mock_agent.sign.return_value = mock_sig
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     result = adapter._sign_action("llm:call", {"model": "gpt-4"})
@@ -120,7 +120,7 @@ def test_sign_action_accumulates_signatures(mock_agent_cls):
     mock_agent.sign.return_value = mock_sig
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._sign_action("action:one")
@@ -136,7 +136,7 @@ def test_sign_action_fail_open(mock_agent_cls):
     mock_agent.sign.side_effect = AsqavError("network timeout")
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     result = adapter._sign_action("llm:call")
@@ -153,7 +153,7 @@ def test_start_session(mock_agent_cls):
     mock_agent = MagicMock()
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._start_session()
@@ -168,7 +168,7 @@ def test_end_session(mock_agent_cls):
     mock_agent._session_id = "sess_123"
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._session_id = "local_sess"
@@ -184,7 +184,7 @@ def test_end_session_with_status(mock_agent_cls):
     mock_agent._session_id = "sess_123"
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._session_id = "local_sess"
@@ -200,7 +200,7 @@ def test_end_session_fail_open(mock_agent_cls):
     mock_agent.end_session.side_effect = AsqavError("timeout")
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._session_id = "local_sess"
@@ -215,7 +215,7 @@ def test_end_session_skips_when_no_agent_session(mock_agent_cls):
     mock_agent._session_id = None
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._end_session()
@@ -238,7 +238,7 @@ def test_sign_action_forwards_compliance_kwargs(mock_agent_cls):
     mock_agent.sign.return_value = mock_sig
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     sig = adapter._sign_action(
@@ -268,7 +268,7 @@ def test_sign_action_no_compliance_kwargs_unchanged(mock_agent_cls):
     mock_agent.sign.return_value = mock_sig
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     adapter._sign_action("api:call", {"k": "v"})
@@ -294,7 +294,7 @@ def test_sign_action_async_offloads_to_thread(mock_agent_cls):
     mock_agent.sign.side_effect = _record_thread
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test")
 
     async def _run():
@@ -314,7 +314,7 @@ def test_sign_action_async_observe_skips_network(mock_agent_cls):
     import asyncio
 
     mock_agent_cls.create.return_value = MagicMock()
-    with patch("asqav.client._api_key", "sk_test"):
+    with patch("asqav.client._transport._api_key", "sk_test"):
         adapter = _TestAdapter(agent_name="test", observe=True)
 
     result = asyncio.run(adapter._sign_action_async("llm:call", {}))
@@ -327,7 +327,7 @@ def test_sign_action_async_observe_skips_network(mock_agent_cls):
 @patch("asqav.extras._base.Agent")
 def test_api_key_argument_initialises_client(mock_agent_cls, mock_init):
     mock_agent_cls.create.return_value = MagicMock()
-    with patch("asqav.client._api_key", None):
+    with patch("asqav.client._transport._api_key", None):
         _TestAdapter(api_key="sk_adapter", agent_name="test")
     mock_init.assert_called_once_with("sk_adapter")
 
@@ -340,7 +340,7 @@ def test_repr_reports_config_and_omits_api_key(mock_agent_cls):
     mock_agent.name = "my-agent"
     mock_agent_cls.create.return_value = mock_agent
 
-    with patch("asqav.client._api_key", "sk_super_secret"):
+    with patch("asqav.client._transport._api_key", "sk_super_secret"):
         adapter = _TestAdapter(agent_name="my-agent")
 
     text = repr(adapter)

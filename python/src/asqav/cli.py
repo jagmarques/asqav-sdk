@@ -100,7 +100,7 @@ def verify(
     import httpx
 
     from asqav import APIError, AsqavError, verify_signature
-    from asqav.client import _signature_valid
+    from asqav.client._verify import _signature_valid
 
     try:
         result = verify_signature(signature_id)
@@ -148,7 +148,7 @@ def _tsa_party(independence: str | None) -> str:
 
 def _verify_json(result: Any) -> dict[str, Any]:
     # JSON form of a verification, with the signature and anchor axes on top.
-    from asqav.client import _anchor_state, _signature_valid
+    from asqav.client._verify import _anchor_state, _signature_valid
 
     detail = result.verification_detail
     return {
@@ -186,7 +186,8 @@ def _verify_json(result: Any) -> dict[str, Any]:
 
 def _verify_status(result: Any) -> str:
     # Headline: valid only when the server accepts it or just the anchor waits.
-    from asqav.client import VerificationDetail, _signature_valid
+    from asqav.client import VerificationDetail
+    from asqav.client._verify import _signature_valid
 
     if _signature_valid(result):
         return "valid"
@@ -196,7 +197,7 @@ def _verify_status(result: Any) -> str:
 
 
 def _print_verify_text(result: Any) -> None:
-    from asqav.client import _anchor_state
+    from asqav.client._verify import _anchor_state
 
     anchor = _anchor_state(result.verification_detail)
     print(f"Signature: {_verify_status(result)}")
@@ -635,7 +636,7 @@ def agents_list() -> None:
 
     asqav.init(api_key=api_key)
 
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         data = _get("/agents")
@@ -745,7 +746,7 @@ def sessions_end(
 ) -> None:
     # End a session by setting its status.
     _init_sdk()
-    from asqav.client import _patch
+    from asqav.client._transport import _patch
 
     try:
         _patch(f"/sessions/{session_id}", {"status": status})
@@ -770,7 +771,7 @@ app.add_typer(policies_app, name="policies")
 def policies_list() -> None:
     # List all org policies.
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         data = _get("/policies")
@@ -800,7 +801,7 @@ def policies_create(
 ) -> None:
     # Create a new policy.
     _init_sdk()
-    from asqav.client import _post
+    from asqav.client._transport import _post
 
     try:
         out = _post(
@@ -817,7 +818,7 @@ def policies_create(
 def policies_delete(policy_id: str = typer.Argument(help="Policy ID to delete.")) -> None:
     # Delete a policy.
     _init_sdk()
-    from asqav.client import _delete
+    from asqav.client._transport import _delete
 
     try:
         _delete(f"/policies/{policy_id}")
@@ -842,7 +843,7 @@ app.add_typer(webhooks_app, name="webhooks")
 def webhooks_list() -> None:
     # List configured webhooks.
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         data = _get("/alerts/webhooks")
@@ -862,7 +863,7 @@ def webhooks_list() -> None:
 def webhooks_events() -> None:
     # List the alert types a webhook can subscribe to.
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         data = _get("/alerts/webhooks/event-types")
@@ -883,7 +884,7 @@ def webhooks_create(
 ) -> None:
     # Create a webhook subscription.
     _init_sdk()
-    from asqav.client import _post
+    from asqav.client._transport import _post
 
     event_list = [e.strip() for e in events.split(",") if e.strip()]
     try:
@@ -898,7 +899,7 @@ def webhooks_create(
 def webhooks_delete(webhook_id: str = typer.Argument(help="Webhook ID.")) -> None:
     # Delete a webhook.
     _init_sdk()
-    from asqav.client import _delete
+    from asqav.client._transport import _delete
 
     try:
         _delete(f"/alerts/webhooks/{webhook_id}")
@@ -1133,7 +1134,7 @@ def login(
         raise typer.Exit(code=1)
 
     import asqav
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     base = api_base or None
     try:
@@ -1162,7 +1163,7 @@ def _whoami_impl(api_key: str) -> None:
     typer.echo(f"API base:   {base}")
 
     import asqav
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         asqav.init(api_key=key, base_url=base)
@@ -1295,7 +1296,7 @@ def doctor() -> None:
         from asqav.client import APIError as _APIError
 
         try:
-            _probe_mod._urllib_request("GET", "/agents")
+            _probe_mod._transport._urllib_request("GET", "/agents")
             typer.echo(
                 typer.style("PASS", fg=typer.colors.GREEN, bold=True)
                 + "  URL join preserves API base path (stdlib fallback)"
@@ -1332,7 +1333,7 @@ def doctor() -> None:
 
     from asqav import client as _client_mod
 
-    edge_url = _client_mod._join_url(_client_mod._api_base, "/health")
+    edge_url = _client_mod._transport._join_url(_client_mod._transport._api_base, "/health")
     edge_req = urllib.request.Request(
         edge_url, headers={"User-Agent": USER_AGENT}, method="GET"
     )
@@ -1619,7 +1620,7 @@ def audit_pack_export(
     import json as json_mod
 
     _init_sdk()
-    from asqav.client import _post
+    from asqav.client._transport import _post
 
     body: dict = {
         "start": start,
@@ -1771,7 +1772,7 @@ def _audit_pack_verify_cloud(bundle: str, output: str) -> None:
             raise typer.Exit(code=1) from exc
 
     _init_sdk()
-    from asqav.client import _post
+    from asqav.client._transport import _post
 
     try:
         report = _post("/audit-pack/verify", {"bundle": bundle_obj})
@@ -1833,7 +1834,7 @@ def audit_pack_policy(
     import json as json_mod
 
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     if not digest.startswith("sha256:"):
         if len(digest) == 64 and all(c in "0123456789abcdefABCDEF" for c in digest):
@@ -1999,7 +2000,7 @@ def archive_sync(
     import os as os_mod
 
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     dest = _parse_s3_url(s3) if s3 else None
     s3_client = None
@@ -2093,7 +2094,7 @@ def payloads_erase(
             raise typer.Exit()
 
     _init_sdk()
-    from asqav.client import _delete
+    from asqav.client._transport import _delete
 
     try:
         _delete(f"/signatures/payloads/{signature_id}")
@@ -2129,7 +2130,7 @@ def _session_request(
         )
         raise typer.Exit(code=1)
 
-    from asqav.client import _join_url
+    from asqav.client._transport import _join_url
 
     base = resolve_api_base()
     url = _join_url(base, path)
@@ -2238,7 +2239,7 @@ def org_set_compliance_strict(
         raise typer.Exit(code=1)
 
     _init_sdk()
-    from asqav.client import _patch
+    from asqav.client._transport import _patch
 
     body = {"compliance_mode_strict": bool(enable)}
     try:
@@ -2503,7 +2504,7 @@ def migrate_run(
         raise typer.Exit(code=1)
     _init(api_key=api_key)
 
-    from asqav.client import _join_url
+    from asqav.client._transport import _join_url
 
     base = resolve_api_base()
     url = _join_url(base, f"/maintenance/run-migration-{migration}")
@@ -2595,7 +2596,7 @@ def compliance_templates() -> None:
     the `--report-type` for `asqav compliance report`.
     """
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         rows = _get("/compliance-reports/templates")
@@ -2633,7 +2634,7 @@ def compliance_report(
     `ready`, then `asqav compliance download <report_id>`.
     """
     _init_sdk()
-    from asqav.client import _post
+    from asqav.client._transport import _post
 
     body: dict = {"report_type": report_type}
     for key, value in (
@@ -2673,7 +2674,7 @@ def compliance_reports_list(
     Calls GET `/compliance-reports`.
     """
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     path = "/compliance-reports"
     params = []
@@ -2721,14 +2722,14 @@ def compliance_download(
     _init_sdk()
     from asqav import client as _client_mod
 
-    url = _client_mod._join_url(
-        _client_mod._api_base,
+    url = _client_mod._transport._join_url(
+        _client_mod._transport._api_base,
         f"/compliance-reports/{report_id}/download",
     )
     req = urllib.request.Request(
         url,
         method="GET",
-        headers={"X-API-Key": _client_mod._api_key or "", "User-Agent": USER_AGENT},
+        headers={"X-API-Key": _client_mod._transport._api_key or "", "User-Agent": USER_AGENT},
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
@@ -2778,7 +2779,7 @@ def observability_summary(
     import json as json_mod
 
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     try:
         data = _get("/observability/summary")
@@ -2814,7 +2815,7 @@ def observability_metrics(
     import json as json_mod
 
     _init_sdk()
-    from asqav.client import _get
+    from asqav.client._transport import _get
 
     path = f"/observability/metrics?hours={hours}&window_type={window}"
     try:

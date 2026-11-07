@@ -34,7 +34,7 @@ def _pageserver(monkeypatch, pages):
     monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
     import asqav.client as client_mod
 
-    monkeypatch.setattr(client_mod, "_get", _fake_get)
+    monkeypatch.setattr(client_mod._transport, "_get", _fake_get)
     return calls
 
 

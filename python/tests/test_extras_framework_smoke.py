@@ -77,7 +77,7 @@ def agent_calls():
     agent = MagicMock()
     agent.sign.side_effect = lambda action, context=None, **kw: signed.append((action, context))
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as agent_cls,
     ):
         agent_cls.create.return_value = agent

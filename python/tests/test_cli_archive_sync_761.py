@@ -32,7 +32,7 @@ def test_sync_writes_pages_and_resumes(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
     import asqav.client as client_mod
 
-    monkeypatch.setattr(client_mod, "_get", _fake_get)
+    monkeypatch.setattr(client_mod._transport, "_get", _fake_get)
     out = str(tmp_path / "arc")
     result = runner.invoke(app, ["archive", "sync", "--out", out, "--limit", "1"])
     assert result.exit_code == 0, result.output
@@ -56,7 +56,7 @@ def test_sync_aborts_on_digest_mismatch(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_mod, "_init_sdk", lambda: None)
     import asqav.client as client_mod
 
-    monkeypatch.setattr(client_mod, "_get", lambda path: bad)
+    monkeypatch.setattr(client_mod._transport, "_get", lambda path: bad)
     out = str(tmp_path / "arc")
     result = runner.invoke(app, ["archive", "sync", "--out", out])
     assert result.exit_code == 1

@@ -51,7 +51,7 @@ def test_missing_required_field_raises_asqav_response_error(missing_field: str) 
     AsqavResponseError naming the field, not a raw KeyError."""
     payload = _full_payload()
     del payload[missing_field]
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         with pytest.raises(AsqavResponseError, match=missing_field):
             verify_signature("sig_test")
 
@@ -62,7 +62,7 @@ def test_missing_required_field_never_leaks_a_bare_key_error(missing_field: str)
     AsqavResponseError, never a bare KeyError, on a missing field."""
     payload = _full_payload()
     del payload[missing_field]
-    with patch("asqav.client.httpx.get", return_value=_mock_httpx(payload)):
+    with patch("asqav.client._transport.httpx.get", return_value=_mock_httpx(payload)):
         try:
             verify_signature("sig_test")
         except KeyError:

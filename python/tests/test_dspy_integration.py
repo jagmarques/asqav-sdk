@@ -65,7 +65,7 @@ from asqav.extras.dspy import AsqavDSPyCallback  # noqa: E402
 @pytest.fixture()
 def cb() -> AsqavDSPyCallback:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -325,7 +325,7 @@ def test_fail_open_on_asqav_error(cb: AsqavDSPyCallback) -> None:
     from asqav.client import AsqavError
 
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent = MagicMock()

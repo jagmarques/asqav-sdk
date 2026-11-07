@@ -87,7 +87,7 @@ def _sign(**overrides) -> dict:
             {"compliance_mode": True, "policy_decision": "none", "decision": "observation"}
         )
 
-    with patch("asqav.client._post", side_effect=fake_post):
+    with patch("asqav.client._transport._post", side_effect=fake_post):
         _agent().sign("code:author", {"k": "v"}, **kwargs)
     return captured["body"]
 
@@ -151,7 +151,7 @@ def test_rejects_code_fields_on_wrong_receipt_type() -> None:
         captured["body"] = body
         return _ok_response()
 
-    with patch("asqav.client._post", side_effect=fake_post):  # noqa: SIM117
+    with patch("asqav.client._transport._post", side_effect=fake_post):  # noqa: SIM117
         with pytest.raises(AsqavValidationError) as exc:
             _agent().sign(
                 "lifecycle:change",

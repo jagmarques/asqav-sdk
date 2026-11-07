@@ -40,9 +40,9 @@ def test_checks_complete_defaults_true():
 
 
     # A status fetch error blocks rather than silently clearing the agent.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_status_fetch_error_does_not_clear(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -60,9 +60,9 @@ def test_status_fetch_error_does_not_clear(mock_post, mock_get):
 
 
     # A policy fetch error blocks rather than silently clearing the agent.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_policy_fetch_error_does_not_clear(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -78,9 +78,9 @@ def test_policy_fetch_error_does_not_clear(mock_post, mock_get):
 
 
     # A non-list /policies response fails closed instead of silently clearing.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_non_list_policies_does_not_clear(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -98,9 +98,9 @@ def test_non_list_policies_does_not_clear(mock_post, mock_get):
 
     # A non-dict /status body fails closed (parity pin for the TS fix).
 @pytest.mark.parametrize("status_body", [["x"], "revoked", 5, []])
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_non_dict_status_does_not_clear(mock_post, mock_get, status_body):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -117,9 +117,9 @@ def test_non_dict_status_does_not_clear(mock_post, mock_get, status_body):
 
 
     # An active agent with no blocking policy still clears, checks_complete True.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_happy_path_still_clears(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")
@@ -135,9 +135,9 @@ def test_happy_path_still_clears(mock_post, mock_get):
 
 
     # A revoked agent blocks with checks_complete True, distinct from an error.
-@patch("asqav.client._get")
-@patch("asqav.client._post")
-@patch("asqav.client._api_key", "sk_test")
+@patch("asqav.client._transport._get")
+@patch("asqav.client._transport._post")
+@patch("asqav.client._transport._api_key", "sk_test")
 def test_revoked_agent_is_a_real_verdict(mock_post, mock_get):
     mock_post.return_value = MOCK_AGENT_DATA
     agent = Agent.create("test-agent")

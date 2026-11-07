@@ -143,7 +143,7 @@ from asqav.extras.llamaindex import AsqavLlamaIndexHandler  # noqa: E402
 @pytest.fixture()
 def handler() -> AsqavLlamaIndexHandler:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -397,7 +397,7 @@ def test_on_event_end_ignores_chunking(handler: AsqavLlamaIndexHandler) -> None:
     # Events in event_starts_to_ignore are skipped even if in _SIGNED_EVENT_TYPES.
 def test_event_starts_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -416,7 +416,7 @@ def test_event_starts_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
     # Events in event_ends_to_ignore are skipped on end.
 def test_event_ends_to_ignore(handler: AsqavLlamaIndexHandler) -> None:
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent_cls.create.return_value = MagicMock()
@@ -489,7 +489,7 @@ def test_fail_open_on_asqav_error() -> None:
     from asqav.client import AsqavError
 
     with (
-        patch("asqav.client._api_key", "sk_test"),
+        patch("asqav.client._transport._api_key", "sk_test"),
         patch("asqav.extras._base.Agent") as mock_agent_cls,
     ):
         mock_agent = MagicMock()

@@ -31,7 +31,7 @@ MOCK_SIGN_RESPONSE: dict = {
 
     # Create a guardrail with mocked Agent.
 def _make_guardrail() -> AsqavGuardrail:
-    with patch("asqav.client._api_key", "sk_test"), \
+    with patch("asqav.client._transport._api_key", "sk_test"), \
          patch("asqav.extras._base.Agent") as mock_agent_cls:
         mock_agent_cls.create.return_value = MagicMock()
         return AsqavGuardrail(agent_name="test-litellm")
