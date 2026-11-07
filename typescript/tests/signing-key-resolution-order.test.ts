@@ -186,6 +186,7 @@ describe("signing-key resolution order", () => {
     expect(resolveKeyOrg(jwks, ORG)).toBeNull();
   });
 
+  // NEGCTL: first-match exposes the sibling reason
   it("resolveRevocationReason: shared kid is null, exact kid returns its reason", () => {
     const exactKid = "k-b";
     const a = key("k-a", "agt_a", ml_dsa65.keygen().publicKey, { status: "revoked", revocationReason: REVOCATION_REASON });
