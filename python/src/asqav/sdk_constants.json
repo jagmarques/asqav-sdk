@@ -1,4 +1,5 @@
 {
+  "CODE_AUTHORSHIP_DOCS_URL": "https://asqav.com/docs/code-authorship-receipt",
   "RESPONSE_ERROR_DOCS_URL": "https://asqav.com/docs/sdk-errors",
   "RISK_ACCEPTANCE_DOCS_URL": "https://asqav.com/docs/risk-acceptance-receipt",
   "SHA256_HEX_PATTERN": "^sha256:[a-f0-9]{64}$",

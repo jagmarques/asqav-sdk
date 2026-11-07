@@ -31,7 +31,7 @@ RISK_ACCEPTANCE_DOCS_URL: str = SDK_CONSTANTS["RISK_ACCEPTANCE_DOCS_URL"]
 
 
 #: Docs page anchoring the code-authorship validation errors (rule 3.9).
-CODE_AUTHORSHIP_DOCS_URL: str = "https://asqav.com/docs/code-authorship-receipt"
+CODE_AUTHORSHIP_DOCS_URL: str = SDK_CONSTANTS["CODE_AUTHORSHIP_DOCS_URL"]
 
 
 #: Closed vocabulary for code_authorship `change_class`. Mirrors the cloud

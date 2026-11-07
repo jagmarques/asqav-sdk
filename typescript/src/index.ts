@@ -59,7 +59,7 @@ export type ReceiptType = (typeof RECEIPT_TYPE_NAMESPACE)[number];
 export const RISK_ACCEPTANCE_DOCS_URL = SDK_CONSTANTS.RISK_ACCEPTANCE_DOCS_URL;
 
 /** Docs page anchoring the code-authorship validation errors (rule 3.9). */
-export const CODE_AUTHORSHIP_DOCS_URL = "https://asqav.com/docs/code-authorship-receipt" as const;
+export const CODE_AUTHORSHIP_DOCS_URL = SDK_CONSTANTS.CODE_AUTHORSHIP_DOCS_URL;
 
 /** Closed vocabulary for code_authorship `changeClass`. Mirrors the cloud
  * SignRequest closed set; anything outside is rejected client-side. */
