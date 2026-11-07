@@ -324,25 +324,45 @@ jobs:
 
   ci-ok:
     # Single required status check for branch protection.
-    # Passes when matrix jobs succeeded OR were skipped (no relevant changes).
-    needs: [python, python-distributions, typescript, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
+    needs: [changes, python, python-distributions, typescript, rfc9964, verifier, actions, wire-vocabulary, agt, registry-guard, python-framework-extras]
     if: always()
     runs-on: [self-hosted, hz-ci-light]
     steps:
-      - run: |
-          [[ "${{ needs.wire-vocabulary.result }}" == "success" ]] || exit 1
-          [[ "${{ needs.registry-guard.result }}" == "success" ]] || exit 1
-          echo "python=${{ needs.python.result }}"
-          echo "python-distributions=${{ needs.python-distributions.result }}"
-          echo "typescript=${{ needs.typescript.result }}"
-          echo "verifier=${{ needs.verifier.result }}"
-          echo "actions=${{ needs.actions.result }}"
-          echo "agt=${{ needs.agt.result }}"
-          echo "python-framework-extras=${{ needs.python-framework-extras.result }}"
-          [[ "${{ needs.python.result }}"     =~ ^(success|skipped)$ ]] || exit 1
-          [[ "${{ needs.python-distributions.result }}" =~ ^(success|skipped)$ ]] || exit 1
-          [[ "${{ needs.typescript.result }}" =~ ^(success|skipped)$ ]] || exit 1
-          [[ "${{ needs.verifier.result }}"   =~ ^(success|skipped)$ ]] || exit 1
-          [[ "${{ needs.actions.result }}"    =~ ^(success|skipped)$ ]] || exit 1
-          [[ "${{ needs.agt.result }}"        =~ ^(success|skipped)$ ]] || exit 1
-          [[ "${{ needs.python-framework-extras.result }}" =~ ^(success|skipped)$ ]] || exit 1
+      - env:
+          CHANGES: ${{ needs.changes.result }}
+          PY: ${{ needs.changes.outputs.python }}
+          TS: ${{ needs.changes.outputs.typescript }}
+          VER: ${{ needs.changes.outputs.verifier }}
+          ACT: ${{ needs.changes.outputs.actions }}
+          RESULTS: |
+            wire-vocabulary always ${{ needs.wire-vocabulary.result }}
+            registry-guard always ${{ needs.registry-guard.result }}
+            python python ${{ needs.python.result }}
+            python-distributions python ${{ needs.python-distributions.result }}
+            python-framework-extras python ${{ needs.python-framework-extras.result }}
+            agt python ${{ needs.agt.result }}
+            typescript typescript ${{ needs.typescript.result }}
+            rfc9964 typescript ${{ needs.rfc9964.result }}
+            verifier verifier ${{ needs.verifier.result }}
+            actions actions ${{ needs.actions.result }}
+        run: |
+          set -euo pipefail
+          echo "changes=$CHANGES"
+          [[ "$CHANGES" == "success" ]] || exit 1
+          bad=0
+          while read -r job area result; do
+            [ -z "$job" ] && continue
+            case "$area" in
+              python) changed=$PY ;;
+              typescript) changed=$TS ;;
+              verifier) changed=$VER ;;
+              actions) changed=$ACT ;;
+              *) changed=true ;;
+            esac
+            echo "$job=$result (area $area changed=$changed)"
+            if [[ "$result" == "success" ]]; then continue; fi
+            if [[ "$result" == "skipped" && "$changed" != "true" ]]; then continue; fi
+            echo "::error::$job is $result"
+            bad=1
+          done <<< "$RESULTS"
+          exit $bad
