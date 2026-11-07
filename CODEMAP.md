@@ -173,7 +173,7 @@ names | tests: test files named after the module.
 - `retain.ts` - Retain live oracle assessments, TS half (488 C16) | symbols: contextDict axesDict recordVerifyResult reassessVerifyResult | tests: python/tests/test_retain_live.py typescript/tests/retain-live.test.ts
 - `runner.ts` - Conformance-vector runner driving the oracle over the corpus, a port of the Python `runner.py` | symbols: loadJson keyProviderFor runOne runCorpus tolerated
 - `semantic.ts` - Independent verdict semantics (oracle-independence slice) | symbols: classifyFailure foldIndependent | tests: python/tests/test_semantic_classify.py python/tests/test_semantic_oracle.py typescript/tests/semantic.test.ts
-- `vrShim.ts` - A focused port of the `verify_receipt.py` helpers the Asqav-native and ACTA adapters reuse, so | symbols: isRecognisedWireVersion isRecognisedMode b64decode normaliseEnvelope checkControlsEvaluated checkNonce checkStructure firstNonEmpty matchSigningKey keyIssuerOf keyOrgOf revokedAtOf resolveKey resolveKeyIssuer checkIssuerBinding (+23 more)
+- `vrShim.ts` - A focused port of the `verify_receipt.py` helpers the Asqav-native and ACTA adapters reuse, so | symbols: isRecognisedWireVersion isRecognisedMode b64decode normaliseEnvelope checkControlsEvaluated checkNonce checkStructure firstNonEmpty resolveSigningKey matchSigningKey keyIssuerOf keyOrgOf revokedAtOf resolveKey resolveKeyIssuer (+24 more)
 
 ## typescript/src/verifier/adapters/
 
