@@ -202,7 +202,7 @@ def test_validation_error_is_a_valueerror() -> None:
 # === SoD guard: risk_acceptance_self_approval_guard ===
 
 
-# risk_acceptance_self_approval_guard fires when initiator_id == approver_id.
+    # risk_acceptance_self_approval_guard fires when initiator_id == approver_id.
 @pytest.mark.parametrize("same_id", ["user:alice@example.com", "uuid-1234", "alice"])
 def test_rejects_self_approval(same_id: str) -> None:
     with pytest.raises(AsqavValidationError) as exc:
