@@ -37,7 +37,7 @@ def test_an_empty_agent_id_falls_through_to_the_envelope() -> None:
         "status": "active",
         "revoked_at": None,
     }
-    entry = vr._signing_key_entry({"keys": [row]}, "", payload, envelope)
+    entry = vr._signing_key_resolution({"keys": [row]}, "", payload, envelope)[0]
     assert entry is not None and entry["kid"] == "k-A"
 
 
