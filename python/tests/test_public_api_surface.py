@@ -17,6 +17,7 @@ import pytest
 SNAPSHOT = Path(__file__).parent / "fixtures" / "public_api_surface.json"
 MODULES = ("asqav", "asqav.client")
 _ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
+_RELEASE = re.compile(r"(asqav-python/)[^ ]+")
 _PLAIN_VALUES = (str, int, float, bool, tuple, list, dict, type(None))
 
 
@@ -31,7 +32,7 @@ def _value(obj: object) -> str:
     if isinstance(obj, (frozenset, set)):
         return f"{type(obj).__name__}{sorted(map(repr, obj))}"
     if isinstance(obj, _PLAIN_VALUES):
-        return f"{type(obj).__name__} {obj!r}"
+        return _RELEASE.sub(r"\1<release>", f"{type(obj).__name__} {obj!r}")
     return type(obj).__qualname__
 
 

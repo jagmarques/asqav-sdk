@@ -1078,7 +1078,7 @@
       "members": {}
     },
     "USER_AGENT": {
-      "value": "str 'asqav-python/0.10.12 (+https://www.asqav.com)'"
+      "value": "str 'asqav-python/<release> (+https://www.asqav.com)'"
     },
     "VerificationDetail": {
       "class": "(signer_key_match: 'bool', signature_valid: 'bool', algorithm_match: 'bool', agent_active: 'bool', validation_label: 'str', signed_at_skew_seconds: 'float | None' = None, chain_valid: 'bool | None' = None, anchor_valid_ots: 'bool | None' = None, anchor_valid_rfc3161: 'bool | None' = None, anchor_status_ots: 'str | None' = None, anchor_status_rfc3161: 'str | None' = None, anchor_independent_rfc3161: 'str | None' = None, missing_fields: 'list[str] | None' = None, policy_digest_resolved: 'bool | None' = None, duplicate_emission_candidate: 'bool | None' = None, regimes_satisfied: 'list[str]' = <factory>) -> None",
