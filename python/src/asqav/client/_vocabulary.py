@@ -1,5 +1,7 @@
 """Receipt namespaces and decision vocabularies."""
 
+from typing import Literal
+
 # Receipt type namespace mirrored from the cloud SignRequest validator.
 RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
     {
@@ -65,3 +67,41 @@ HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset({"hipaa_security_inci
 INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
     DORA_INCIDENT_CLASS_NAMESPACE | HIPAA_INCIDENT_CLASS_NAMESPACE
 )
+
+#: Sandbox-state enum: {enabled, disabled, unavailable}.
+SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "unavailable"})
+
+#: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` accepts
+#: only this set (`rekor` is rejected). Mirrors the governance.json contract.
+WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
+
+#: Producer-side `capture_topology` mirrored from the cloud SignRequest Literal.
+#: ADVISORY: the server stamps the authoritative value from the ingress route.
+CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
+    {
+        "in_process_sdk",
+        "network_proxy",
+        "browser_extension",
+        "mcp_proxy",
+        "passive_telemetry",
+        "github_sha_pull",
+    }
+)
+
+#: Internal `policy_decision` vocabulary; `none` is the lifecycle opt-out
+#: gated to receipt_type startswith `protectmcp:lifecycle`.
+PolicyDecision = Literal["permit", "deny", "rate_limit", "none"]
+
+#: Wire-shape `decision` vocabulary; `observation` is reserved to lifecycle
+#: receipts emitted under `policy_decision="none"`.
+Decision = Literal["allow", "deny", "rate_limit", "observation"]
+
+#: Capture-topology vocabulary as a Literal for typed callers.
+CaptureTopology = Literal[
+    "in_process_sdk",
+    "network_proxy",
+    "browser_extension",
+    "mcp_proxy",
+    "passive_telemetry",
+    "github_sha_pull",
+]
