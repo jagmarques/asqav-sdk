@@ -255,7 +255,7 @@ def test_client_filter_finds_a_planted_docstring(tmp_path):
     assert client_findings(tmp_path) != []
 
 
-# NEGCTL: a planted 7-line docstring in client/__init__.py is found at PACKAGE_PATH.
+# NEGCTL: a planted 7-line docstring in client/__init__.py is found.
 def test_package_filter_finds_a_planted_docstring(tmp_path):
     plant(tmp_path, "client/__init__.py", func("sign", MAX_DOCSTRING_LINES + 1))
     assert client_findings(tmp_path, PACKAGE_PATH) != []
