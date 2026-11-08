@@ -60,12 +60,12 @@ names | tests: test files named after the module.
 
 ## python/src/asqav/client/
 
-- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse span get_current_span configure_otel flush_spans RiskSnapshot AuthoredBy Agent health_check emergency_halt init govern get_agent list_agents secure (+37 more)
+- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse RiskSnapshot AuthoredBy Agent health_check emergency_halt init govern get_agent list_agents secure secure_async get_session_signatures verify_signature verify (+33 more)
 - `_budget.py` - Client-side spend budget tracking | symbols: BudgetCheckResult BudgetTracker | tests: typescript/tests/budget.test.ts
 - `_common.py` - Shared type variable, logger and value helpers for the client | symbols: generate_trace_id
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
 - `_models.py` - Response objects returned by the client | symbols: SigningGroupResponse SigningEntityResponse GroupKeypairResponse GroupSignResponse ApprovalResponse RiskRuleResponse DelegationResponse KeyRefreshResponse ShareRecoveryResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail (+8 more)
-- `_spans.py` - Tracing spans and their OpenTelemetry export | symbols: Span span_to_otel export_spans
+- `_spans.py` - Tracing spans and their OpenTelemetry export | symbols: Span span_to_otel export_spans span get_current_span configure_otel flush_spans
 - `_vocabulary.py` - Receipt namespaces and decision vocabularies
 
 ## python/src/asqav/extras/
