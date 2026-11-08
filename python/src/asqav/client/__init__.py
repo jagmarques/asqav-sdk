@@ -60,9 +60,13 @@ from ._models import (
     KeyRefreshResponse,
     RiskRuleResponse,
     ShareRecoveryResponse,
+    SignatureDetail,
+    SignedActionResponse,
     SigningEntityResponse,
     SigningGroupResponse,
+    SigningSessionResponse,
     VerificationDetail,
+    VerificationResponse,
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -534,75 +538,6 @@ class CertificateResponse:
     key_id: str
     created_at: float
     is_revoked: bool
-
-
-@dataclass
-class VerificationResponse:
-    """Public verification response; `verified` is signature-only.
-    Anchor outcome is on `bitcoin_anchor`; IETF fields need compliance mode."""
-
-    signature_id: str
-    agent_id: str
-    agent_name: str
-    action_id: str
-    action_type: str
-    payload: dict[str, Any] | None
-    signature: str
-    algorithm: str
-    signed_at: float
-    verified: bool
-    verification_url: str
-    verification_detail: VerificationDetail | None = None
-    execution_evidence: ExecutionEvidence | None = None
-    type: str = "signature"
-    bitcoin_anchor: BitcoinAnchorStatus | None = None
-    signature_envelope: dict[str, str] | None = None
-    anchors: list[dict[str, Any]] | None = None
-    algorithm_registry_version: str | None = None
-
-
-    # Signed action from a session.
-@dataclass
-class SignedActionResponse:
-
-    signature_id: str
-    agent_id: str
-    action_id: str
-    action_type: str
-    payload: dict[str, Any] | None
-    algorithm: str
-    signed_at: float
-    signature_preview: str
-    verification_url: str
-
-
-    # Details of a single entity signature within a signing session.
-@dataclass
-class SignatureDetail:
-
-    entity_id: str
-    entity_name: str
-    entity_class: str
-    signed_at: str
-
-
-    # Response from signing session operations.
-@dataclass
-class SigningSessionResponse:
-
-    session_id: str
-    config_id: str
-    agent_id: str
-    action_type: str
-    action_params: dict[str, Any] | None
-    approvals_required: int
-    signatures_collected: int
-    status: str
-    signatures: list[SignatureDetail]
-    policy_attestation_hash: str | None
-    created_at: str
-    expires_at: str
-    resolved_at: str | None = None
 
 
 @dataclass
