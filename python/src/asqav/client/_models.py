@@ -225,3 +225,65 @@ class SigningSessionResponse:
     created_at: str
     expires_at: str
     resolved_at: str | None = None
+
+
+    # Response from session operations.
+@dataclass
+class SessionResponse:
+
+    session_id: str
+    agent_id: str
+    status: str
+    started_at: str  # ISO datetime string
+    ended_at: str | None = None
+
+
+@dataclass
+class SDTokenResponse:
+    """Response from SD-JWT token issuance (Enterprise tier).
+
+    SD-JWT tokens allow selective disclosure of claims to external services.
+    Use present() to create a proof with only specific claims revealed.
+    """
+
+    token: str  # Full SD-JWT with all disclosures
+    jwt: str  # Just the signed JWT part
+    disclosures: dict[str, str]  # claim_name -> encoded disclosure
+    expires_at: float
+
+    def present(self, disclose: list[str]) -> str:
+        """Create a presentation with only specified claims disclosed.
+
+        Args:
+            disclose: List of claim names to reveal.
+
+        Returns:
+            SD-JWT string with only specified disclosures.
+
+        Example:
+            # Full token has: role, org, capabilities
+            # Present only role to partner:
+            proof = sd_token.present(["role"])
+        """
+        parts = [self.jwt]
+        for claim_name in disclose:
+            if claim_name in self.disclosures:
+                parts.append(self.disclosures[claim_name])
+        return "~".join(parts) + "~"
+
+        # Return full SD-JWT with all disclosures.
+    def full(self) -> str:
+        return self.token
+
+
+    # Agent identity certificate.
+@dataclass
+class CertificateResponse:
+
+    agent_id: str
+    agent_name: str
+    algorithm: str
+    public_key_pem: str
+    key_id: str
+    created_at: float
+    is_revoked: bool
