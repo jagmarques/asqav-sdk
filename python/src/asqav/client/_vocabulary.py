@@ -1,6 +1,6 @@
 """Receipt namespaces and decision vocabularies."""
 
-from typing import Literal
+from typing import Any, Literal
 
 # Receipt type namespace mirrored from the cloud SignRequest validator.
 RECEIPT_TYPE_NAMESPACE: frozenset[str] = frozenset(
@@ -105,3 +105,64 @@ CaptureTopology = Literal[
     "passive_telemetry",
     "github_sha_pull",
 ]
+
+#: vocabulary | wire `{allow, deny, rate_limit, observation}` keyed by
+#: internal `{permit, allow, deny, rate_limit, none}`. Unknown -> "deny".
+DECISION_MAP: dict[str, str] = {
+    "permit": "allow",
+    "allow": "allow",
+    "deny": "deny",
+    "rate_limit": "rate_limit",
+    "none": "observation",
+}
+
+
+def _map_policy_decision_to_decision(policy_decision: str | None) -> str:
+    """Translate internal `policy_decision` to spec-shape `decision`.
+
+    Used when emitting compliance receipts. Falls back to "deny" so a
+    misconfigured caller never publishes an out-of-vocabulary token.
+    """
+    return DECISION_MAP.get((policy_decision or "").lower(), "deny")
+
+
+    # Read a string ``key`` from the sign response ``payload``, else None.
+def _payload_field(data: dict[str, Any], key: str) -> str | None:
+    payload = data.get("payload")
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get(key)
+    return value if isinstance(value, str) else None
+
+
+    # Top-level ``action_ref`` wins; compliance-mode clouds nest it in payload.
+def _resolve_action_ref(data: dict[str, Any]) -> str | None:
+    top = data.get("action_ref")
+    if top is not None:
+        return top
+    return _payload_field(data, "action_ref")
+
+
+    # Top-level casing wins; fall back to the copy nested under payload.
+def _resolve_previous_receipt_hash(data: dict[str, Any]) -> str | None:
+    return (
+        data.get("previousReceiptHash")
+        or data.get("previous_receipt_hash")
+        or _payload_field(data, "previousReceiptHash")
+        or _payload_field(data, "previous_receipt_hash")
+    )
+
+
+#: REQUIRED fields on a Compliance Receipt envelope (wire form): ``type``
+#: discriminator, ``decision`` verdict. Used by `verify_compliance_receipt`.
+_COMPLIANCE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "type",
+    "issuer_id",
+    "agent_id",
+    "action_ref",
+    "payload_digest",
+    "policy_digest",
+    "previousReceiptHash",
+    "decision",
+    "issued_at",
+)
