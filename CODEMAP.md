@@ -60,7 +60,7 @@ names | tests: test files named after the module.
 
 ## python/src/asqav/client/
 
-- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: AgentResponse TokenResponse BitcoinAnchor SignatureResponse SessionResponse SDTokenResponse CertificateResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail SigningSessionResponse ApprovalResponse (+66 more)
+- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: AgentResponse TokenResponse BitcoinAnchor SignatureResponse SessionResponse SDTokenResponse CertificateResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail SigningSessionResponse ApprovalResponse (+62 more)
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
 
 ## python/src/asqav/extras/
