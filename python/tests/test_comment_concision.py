@@ -238,8 +238,11 @@ CLIENT_PATH = (checker.SOURCE_DIR / "client.py").as_posix()
 EXTRAS_PREFIX = (checker.SOURCE_DIR / "extras").as_posix() + "/"
 
 
-def client_findings(root):
-    return [f for f in checker.scan(root) if f.path == CLIENT_PATH]
+PACKAGE_PATH = (checker.SOURCE_DIR / "client" / "__init__.py").as_posix()
+
+
+def client_findings(root, path=CLIENT_PATH):
+    return [f for f in checker.scan(root) if f.path == path]
 
 
 def core_findings(root):
@@ -253,7 +256,7 @@ def test_client_filter_finds_a_planted_docstring(tmp_path):
 
 
 def test_client_py_is_concise():
-    assert client_findings(REPO) == []
+    assert client_findings(REPO, PACKAGE_PATH) == []
 
 
 # NEGCTL: a planted finding in a core module is kept, one in extras/ is not.
