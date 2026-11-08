@@ -90,7 +90,10 @@ from ._models import (
     _parse_bitcoin_anchor,
 )
 from ._spans import Span as Span
-from ._spans import _completed_spans, export_spans
+from ._spans import _completed_spans
+from ._spans import configure_otel as configure_otel
+from ._spans import export_spans as export_spans
+from ._spans import flush_spans as flush_spans
 from ._spans import span_to_otel as span_to_otel
 from ._vocabulary import (
     _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE,
@@ -293,7 +296,6 @@ class SignatureResponse:
 # Global tracer state
 _current_span: Span | None = None
 _span_stack: list[Span] = []
-_otel_endpoint: str | None = None
 
 
 @contextmanager
@@ -356,63 +358,6 @@ def span(
     # Get the active span, if any.
 def get_current_span() -> Span | None:
     return _current_span
-
-
-def configure_otel(endpoint: str | None = None) -> None:
-    """Configure OpenTelemetry export.
-
-    Args:
-        endpoint: OTEL collector endpoint (e.g., "http://localhost:4318/v1/traces").
-                  Set to None to disable export.
-
-    Example:
-        asqav.configure_otel("http://localhost:4318/v1/traces")
-    """
-    global _otel_endpoint
-    _otel_endpoint = endpoint
-
-
-    # Flush spans to configured OTEL endpoint.
-def flush_spans() -> None:
-    global _otel_endpoint, _completed_spans
-
-    if not _otel_endpoint or not _completed_spans:
-        return
-
-    from .. import __version__
-
-    spans = export_spans()
-    payload = {
-        "resourceSpans": [
-            {
-                "resource": {
-                    "attributes": [
-                        {"key": "service.name", "value": {"stringValue": "asqav"}},
-                    ]
-                },
-                "scopeSpans": [
-                    {
-                        "scope": {"name": "asqav", "version": __version__},
-                        "spans": spans,
-                    }
-                ],
-            }
-        ]
-    }
-
-    try:
-        import json
-        import urllib.request
-
-        req = urllib.request.Request(
-            _otel_endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # Don't fail on export errors
 
 
 def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str:
