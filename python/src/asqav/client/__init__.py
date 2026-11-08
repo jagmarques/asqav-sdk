@@ -93,6 +93,8 @@ from ._sign_checks import (
     _TOOL_FINGERPRINT_RE,
     _compute_action_ref,
     _compute_tool_fingerprint,
+    _validate_authored_by,
+    _validate_risk_snapshot,
 )
 from ._sign_checks import (
     _compute_config_manifest_digest as _compute_config_manifest_digest,
@@ -110,7 +112,6 @@ from ._spans import span_to_otel as span_to_otel
 from ._vocabulary import (
     _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE,
     _COMPLIANCE_REQUIRED_FIELDS,
-    _RISK_SNAPSHOT_NUMERIC_KEYS,
     CAPTURE_TOPOLOGY_NAMESPACE,
     CODE_AUTHORSHIP_DOCS_URL,
     INCIDENT_CLASS_NAMESPACE,
@@ -340,55 +341,6 @@ class AuthoredBy(TypedDict, total=False):
     attestation_source: str
 
 
-def _validate_risk_snapshot(rs: Any) -> None:
-    """Mirror cloud RiskSnapshot._validate_snapshot_shape + _check_risk_snapshot.
-    Rejects a malformed snapshot, numeric without source, or bad cve_ids."""
-    if not isinstance(rs, dict):
-        raise AsqavValidationError(
-            "risk_snapshot_not_object: risk_snapshot must be an object of "
-            f"producer-asserted snapshot signals (got: {repr(rs)[:64]})",
-            docs_url=RISK_ACCEPTANCE_DOCS_URL,
-        )
-    if not rs.get("snapshot_at") or not isinstance(rs.get("snapshot_at"), str):
-        raise AsqavValidationError(
-            "risk_snapshot_missing_snapshot_at: snapshot_at (RFC 3339 string) "
-            "is required on a risk_snapshot.",
-            docs_url=RISK_ACCEPTANCE_DOCS_URL,
-        )
-    source = rs.get("snapshot_source")
-    numeric_present = any(rs.get(k) is not None for k in _RISK_SNAPSHOT_NUMERIC_KEYS)
-    if numeric_present and (not isinstance(source, str) or not source):
-        raise AsqavValidationError(
-            "risk_snapshot_numeric_requires_snapshot_source: a populated "
-            "risk_snapshot signal requires snapshot_source so the value is "
-            "never read as an Asqav-derived score.",
-            docs_url=RISK_ACCEPTANCE_DOCS_URL,
-        )
-    for _k in ("epss", "cvss"):
-        _v = rs.get(_k)
-        if _v is not None and not isinstance(_v, str):
-            raise AsqavValidationError(
-                f"risk_snapshot_{_k}_not_string: numeric risk signals MUST be "
-                f"strings on the wire, never floats (got: {repr(_v)[:64]}).",
-                docs_url=RISK_ACCEPTANCE_DOCS_URL,
-            )
-    cve_ids = rs.get("cve_ids")
-    if cve_ids is not None:
-        if not isinstance(cve_ids, list) or len(cve_ids) == 0:
-            raise AsqavValidationError(
-                "risk_snapshot_cve_ids_must_be_non_empty_list: pass a "
-                "non-empty list of strings or omit cve_ids.",
-                docs_url=RISK_ACCEPTANCE_DOCS_URL,
-            )
-        for _entry in cve_ids:
-            if not isinstance(_entry, str) or not _entry or len(_entry) > 128:
-                raise AsqavValidationError(
-                    "risk_snapshot_cve_ids_entry_invalid: each cve id must be "
-                    f"a non-empty string of length <= 128 (got: {repr(_entry)[:64]}).",
-                    docs_url=RISK_ACCEPTANCE_DOCS_URL,
-                )
-
-
 #: The risk-acceptance signed-payload extension fields, fenced to the
 #: protectmcp:lifecycle:risk_acceptance receipt type (cloud SignRequest).
 _RISK_ACCEPTANCE_RECEIPT_TYPE = "protectmcp:lifecycle:risk_acceptance"
@@ -579,26 +531,6 @@ def _validate_code_authorship(
                 "passing compliance_mode=False would silently drop them.",
                 docs_url=CODE_AUTHORSHIP_DOCS_URL,
             )
-
-
-def _validate_authored_by(ab: Any) -> None:
-    """Mirror the cloud AuthoredBy validator (routes/agents.py).
-    A model_id / model_version requires authored_by.attestation_source."""
-    if not isinstance(ab, dict):
-        raise AsqavValidationError(
-            "authored_by_not_object: authored_by must be an object naming the "
-            f"producer-asserted author of the change (got: {repr(ab)[:64]}).",
-            docs_url=CODE_AUTHORSHIP_DOCS_URL,
-        )
-    model_present = bool(ab.get("model_id")) or bool(ab.get("model_version"))
-    source = ab.get("attestation_source")
-    if model_present and (not isinstance(source, str) or not source):
-        raise AsqavValidationError(
-            "authored_by_model_requires_attestation_source: a populated "
-            "model_id / model_version requires authored_by.attestation_source "
-            "so the machine-authorship claim is never read as Asqav-verified.",
-            docs_url=CODE_AUTHORSHIP_DOCS_URL,
-        )
 
 
 def _generate_nonce() -> str:
