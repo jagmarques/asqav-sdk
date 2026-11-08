@@ -51,7 +51,11 @@ from ._errors import (
     AsqavConnectionError as AsqavConnectionError,
 )
 from ._models import (
+    AgentResponse as AgentResponse,
+)
+from ._models import (
     ApprovalResponse,
+    BitcoinAnchor,
     BitcoinAnchorStatus,
     CertificateResponse,
     DelegationResponse,
@@ -59,6 +63,7 @@ from ._models import (
     GroupKeypairResponse,
     GroupSignResponse,
     KeyRefreshResponse,
+    PreflightResult,
     RiskRuleResponse,
     SDTokenResponse,
     SessionResponse,
@@ -68,8 +73,10 @@ from ._models import (
     SigningEntityResponse,
     SigningGroupResponse,
     SigningSessionResponse,
+    TokenResponse,
     VerificationDetail,
     VerificationResponse,
+    _parse_bitcoin_anchor,
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -183,49 +190,6 @@ _sign_body_tap: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] 
 _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
 )
-
-
-    # Response from agent creation.
-@dataclass
-class AgentResponse:
-
-    agent_id: str
-    name: str
-    public_key: str
-    key_id: str
-    algorithm: str
-    capabilities: list[str]
-    created_at: float
-
-
-    # Response from token issuance.
-@dataclass
-class TokenResponse:
-
-    token: str
-    expires_at: float
-    algorithm: str
-
-
-    # Turn the JSON bitcoin_anchor block from the API into a typed value.
-def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
-    if not raw:
-        return None
-    return BitcoinAnchor(
-        status=raw.get("status") or "none",
-        anchor_tx_ref=raw.get("anchor_tx_ref"),
-        anchor_block_height=raw.get("anchor_block_height"),
-    )
-
-
-@dataclass
-class BitcoinAnchor:
-    """Anchor attestation state of a signed action; branch on ``status``.
-    ``none``, ``pending``, ``confirmed`` or ``failed`` (treat as unanchored)."""
-
-    status: str
-    anchor_tx_ref: str | None = None
-    anchor_block_height: int | None = None
 
 
 # Receipt type namespace mirrored from the cloud SignRequest validator.
@@ -479,19 +443,6 @@ class SignatureResponse:
         anchors land.
         """
         return self.anchors
-
-
-@dataclass
-class PreflightResult:
-    """Result of a pre-flight check of agent status and policy.
-    ``cleared`` lets the agent proceed; ``checks_complete`` False: an error."""
-
-    cleared: bool
-    agent_active: bool
-    policy_allowed: bool
-    reasons: list[str]
-    explanation: str = ""
-    checks_complete: bool = True
 
 
 @dataclass

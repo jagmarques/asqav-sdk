@@ -287,3 +287,59 @@ class CertificateResponse:
     key_id: str
     created_at: float
     is_revoked: bool
+
+
+    # Response from agent creation.
+@dataclass
+class AgentResponse:
+
+    agent_id: str
+    name: str
+    public_key: str
+    key_id: str
+    algorithm: str
+    capabilities: list[str]
+    created_at: float
+
+
+    # Response from token issuance.
+@dataclass
+class TokenResponse:
+
+    token: str
+    expires_at: float
+    algorithm: str
+
+
+    # Turn the JSON bitcoin_anchor block from the API into a typed value.
+def _parse_bitcoin_anchor(raw: dict[str, Any] | None) -> "BitcoinAnchor | None":
+    if not raw:
+        return None
+    return BitcoinAnchor(
+        status=raw.get("status") or "none",
+        anchor_tx_ref=raw.get("anchor_tx_ref"),
+        anchor_block_height=raw.get("anchor_block_height"),
+    )
+
+
+@dataclass
+class BitcoinAnchor:
+    """Anchor attestation state of a signed action; branch on ``status``.
+    ``none``, ``pending``, ``confirmed`` or ``failed`` (treat as unanchored)."""
+
+    status: str
+    anchor_tx_ref: str | None = None
+    anchor_block_height: int | None = None
+
+
+@dataclass
+class PreflightResult:
+    """Result of a pre-flight check of agent status and policy.
+    ``cleared`` lets the agent proceed; ``checks_complete`` False: an error."""
+
+    cleared: bool
+    agent_active: bool
+    policy_allowed: bool
+    reasons: list[str]
+    explanation: str = ""
+    checks_complete: bool = True
