@@ -19,8 +19,16 @@ _PROOF_TYPE = "DataIntegrityProof"
 _CRYPTOSUITE = "eddsa-jcs-2022"
 
 #: xsd:datetime shape, mirroring the TypeScript twin: full date, T, time and
-#: zone are all required, so the basic form never reaches fromisoformat.
-_XSD_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|z|[+-]\d{2}:\d{2})$")
+#: zone are all required, and every time field is range-checked here so the
+#: grammar never depends on what a given fromisoformat build accepts.
+_XSD_DATETIME_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?"
+    r"(?:Z|z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$",
+    re.ASCII,
+)
+
+#: fromisoformat before 3.11 takes only three or six fraction digits.
+_FRACTION_RE = re.compile(r"\.(\d+)", re.ASCII)
 
 
     # The doc's proof member if a single object; {} for absent/list proofs.
@@ -48,6 +56,7 @@ def _parse_datetime(value: object) -> datetime | None:
         return None
     if text.endswith(("Z", "z")):
         text = text[:-1] + "+00:00"
+    text = _FRACTION_RE.sub(lambda m: "." + m.group(1)[:6].ljust(6, "0"), text, count=1)
     try:
         parsed = datetime.fromisoformat(text)
     except ValueError:
