@@ -133,7 +133,7 @@ def test_fetch_audit_pack_url_has_single_prefix(
 
     monkeypatch.setattr(client_mod._transport, "_api_key", "sk_test")
     monkeypatch.setattr(client_mod._transport, "_api_base", BASE_WITH_PATH)
-    monkeypatch.setattr(client_mod, "httpx", fake_httpx)
+    monkeypatch.setattr(client_mod._transport, "httpx", fake_httpx)
 
     compliance.fetch_audit_pack(
         start="2026-04-01T00:00:00Z", end="2026-05-01T00:00:00Z"

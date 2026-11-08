@@ -56,6 +56,8 @@ class _AgentSign:
         co_signers: list[str] | None = None,
         mandate_id: str | None = None,
         user_intent: dict[str, Any] | None = None,
+        # nonce: per-call token; the cloud answers 409 while a live receipt
+        # for this agent in this org holds it (python/README.md, nonce)
         nonce: str | None = None,
         valid_seconds: int | None = None,
         expected_executor_pubkey_b64: str | None = None,

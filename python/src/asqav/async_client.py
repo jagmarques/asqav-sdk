@@ -49,11 +49,11 @@ def _ensure_initialized() -> None:
 
     # Read ``(api_base, api_key)`` live from the client module (set by init()).
 def _get_config() -> tuple[str, str]:
-    from . import client as _client_mod
+    from .client import _transport
 
-    if not _client_mod._api_key:
+    if not _transport._api_key:
         raise AuthenticationError("Call asqav.init() first. Get your API key at asqav.com")
-    return _client_mod._api_base, _client_mod._api_key
+    return _transport._api_base, _transport._api_key
 
 
     # Send one async request; transport failures become AsqavConnectionError.
