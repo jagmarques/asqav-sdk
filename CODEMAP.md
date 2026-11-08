@@ -37,7 +37,6 @@ names | tests: test files named after the module.
 - `canonicalize.py` - Fingerprint helpers producing the bytes the Asqav backend signs | symbols: canonicalize_action canonicalize canonicalize_tool_args hash_action | tests: python/tests/test_canonicalize.py python/tests/test_canonicalize_tool_args.py typescript/tests/canonicalize-tool-args.test.ts
 - `cli.py` - asqav CLI - AI agent governance from the terminal (pip install asqav[cli]) | symbols: main verify verify_litellm_log sign replay agents_list agents_create agents_revoke sessions_list sessions_end policies_list policies_create policies_delete webhooks_list webhooks_events (+39 more) | tests: python/tests/test_cli.py python/tests/test_cli_archive_page_verify_761.py python/tests/test_cli_archive_sync_761.py
 - `cli_hook.py` - asqav hook: sign Claude Code harness hook events via the cloud sign endpoint | symbols: HookDeadlineExceeded hook_posttool hook_pretool hook_code_authorship | tests: python/tests/test_cli_hook.py python/tests/test_cli_hook_gate.py python/tests/test_cli_hook_gate_e2e.py
-- `client.py` - Asqav API client: thin SDK for asqav.com | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field AgentResponse TokenResponse BitcoinAnchor SignatureResponse SessionResponse SDTokenResponse CertificateResponse (+74 more) | tests: python/tests/test_client.py python/tests/test_client_capture_topology.py python/tests/test_client_code_authorship.py
 - `code_authorship.py` - SDK half of the code-authorship path (POST /v1/code-authorship) | symbols: compute_advisory_digest CodeAuthorshipResult submit_code_authorship CodeAuthorshipVerification verify_code_authorship_envelope | tests: python/tests/test_code_authorship.py
 - `commitment.py` - Caller-held keyed commitments for opaque claims (draft-ietf-keytrans) | symbols: new_opening commit | tests: python/tests/test_commitment.py
 - `compliance.py` - Compliance bundle export for offline audit verification | symbols: ComplianceBundle export_bundle fetch_audit_pack | tests: python/tests/test_compliance_bundle.py
@@ -58,6 +57,10 @@ names | tests: test files named after the module.
 - `retry.py` - Retry decorators with exponential backoff + jitter for sync and async functions | symbols: with_retry with_async_retry | tests: python/tests/test_retry_async.py
 - `scope.py` - Portable scope tokens for cross-org agent verification | symbols: ScopeToken create_scope_token verify_scope_token is_replay | tests: python/tests/test_scope_tokens.py
 - `strict_json.py` - Strict JSON ingest for receipts and records | symbols: DuplicateMemberError UnsafeIntegerError ProfileIntegerError RawFloat reject_duplicate_members reject_unsafe_integer loads assert_profile_integers assert_canonical_integers loads_profile | tests: python/tests/test_strict_json.py
+
+## python/src/asqav/client/
+
+- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field AgentResponse TokenResponse BitcoinAnchor SignatureResponse SessionResponse SDTokenResponse CertificateResponse (+74 more)
 
 ## python/src/asqav/extras/
 
