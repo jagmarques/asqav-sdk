@@ -233,36 +233,77 @@ def test_each_condition_fails_only_on_its_own_kind(tmp_path, capsys, name, text,
     assert {line.rsplit(":", 1)[1] for line in out.splitlines()} == {kind}
 
 
+def test_args_docstring_of_a_reexported_name_passes(tmp_path):
+    plant(tmp_path, "client/__init__.py", "from ._sign import sign as sign\n")
+    plant(tmp_path, "client/_sign.py", func("sign", MAX_DOCSTRING_LINES + 3, args=True))
+    assert main([str(tmp_path)]) == 0
+
+
+def test_args_docstring_of_a_mixin_of_an_exported_class_passes(tmp_path):
+    plant(tmp_path, "client/__init__.py", "from ._agent import Agent as Agent\n")
+    plant(tmp_path, "client/_agent.py", "class Agent(_Mixin):\n    pass\n")
+    rows = func("sign", MAX_DOCSTRING_LINES + 3, args=True).splitlines()
+    method = "class _Mixin:\n" + "".join(f"    {row}\n" for row in rows)
+    plant(tmp_path, "client/_mixin.py", method)
+    assert main([str(tmp_path)]) == 0
+
+
+def test_negctl_args_docstring_of_an_unexported_private_name_fails(tmp_path):
+    plant(tmp_path, "client/__init__.py", "from ._sign import sign as sign\n")
+    plant(tmp_path, "client/_sign.py", func("helper", MAX_DOCSTRING_LINES + 3, args=True))
+    assert [f.kind for f in checker.scan(tmp_path)] == ["docstring"]
+
+
+def test_args_docstring_of_an_aliased_reexport_passes(tmp_path):
+    plant(tmp_path, "client/__init__.py", "from ._sign import sign as other\n")
+    plant(tmp_path, "client/_sign.py", func("sign", MAX_DOCSTRING_LINES + 3, args=True))
+    assert main([str(tmp_path)]) == 0
+
+
+# NEGCTL: the alias name is not the defined name, so a def `sign` stays flagged.
+def test_negctl_args_docstring_of_a_def_named_like_an_alias_fails(tmp_path):
+    plant(tmp_path, "client/__init__.py", "from ._sign import helper as sign\n")
+    plant(tmp_path, "client/_sign.py", func("sign", MAX_DOCSTRING_LINES + 3, args=True))
+    assert [f.kind for f in checker.scan(tmp_path)] == ["docstring"]
+
+
+# NEGCTL: a mixin of a class the package does not export stays flagged.
+def test_negctl_args_docstring_of_a_mixin_of_an_unexported_class_fails(tmp_path):
+    plant(tmp_path, "client/__init__.py", "from ._agent import Agent as Agent\n")
+    agent = "class Agent:\n    pass\n\n\nclass Hidden(_Mixin):\n    pass\n"
+    plant(tmp_path, "client/_agent.py", agent)
+    rows = func("sign", MAX_DOCSTRING_LINES + 3, args=True).splitlines()
+    plant(tmp_path, "client/_mixin.py", "class _Mixin:\n" + "".join(f"    {row}\n" for row in rows))
+    assert [f.kind for f in checker.scan(tmp_path)] == ["docstring"]
+
+
 REPO = SCRIPT.parents[2]
-CLIENT_PATH = (checker.SOURCE_DIR / "client.py").as_posix()
+CLIENT_PREFIX = (checker.SOURCE_DIR / "client").as_posix() + "/"
 EXTRAS_PREFIX = (checker.SOURCE_DIR / "extras").as_posix() + "/"
 
 
-PACKAGE_PATH = (checker.SOURCE_DIR / "client" / "__init__.py").as_posix()
-
-
-def client_findings(root, path=CLIENT_PATH):
-    return [f for f in checker.scan(root) if f.path == path]
+def client_findings(root):
+    return [f for f in checker.scan(root) if f.path.startswith(CLIENT_PREFIX)]
 
 
 def core_findings(root):
     return [f for f in checker.scan(root) if not f.path.startswith(EXTRAS_PREFIX)]
 
 
-# NEGCTL: a planted 7-line client.py docstring is found by the same filter.
-def test_client_filter_finds_a_planted_docstring(tmp_path):
-    plant(tmp_path, "client.py", func("sign", MAX_DOCSTRING_LINES + 1))
-    assert client_findings(tmp_path) != []
-
-
 # NEGCTL: a planted 7-line docstring in client/__init__.py is found.
 def test_package_filter_finds_a_planted_docstring(tmp_path):
     plant(tmp_path, "client/__init__.py", func("sign", MAX_DOCSTRING_LINES + 1))
-    assert client_findings(tmp_path, PACKAGE_PATH) != []
+    assert client_findings(tmp_path) != []
+
+
+# NEGCTL: a planted 7-line client docstring is found by the same filter.
+def test_client_filter_finds_a_planted_docstring(tmp_path):
+    plant(tmp_path, "client/_agent_sign.py", func("sign", MAX_DOCSTRING_LINES + 1))
+    assert client_findings(tmp_path) != []
 
 
 def test_client_py_is_concise():
-    assert client_findings(REPO, PACKAGE_PATH) == []
+    assert client_findings(REPO) == []
 
 
 # NEGCTL: a planted finding in a core module is kept, one in extras/ is not.
