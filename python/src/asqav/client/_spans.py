@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .._useragent import USER_AGENT
+
 
 @dataclass
 class Span:
@@ -66,3 +68,63 @@ def export_spans() -> list[dict[str, Any]]:
     spans = [span_to_otel(s) for s in _completed_spans]
     _completed_spans.clear()
     return spans
+
+
+_otel_endpoint: str | None = None
+
+
+def configure_otel(endpoint: str | None = None) -> None:
+    """Configure OpenTelemetry export.
+
+    Args:
+        endpoint: OTEL collector endpoint (e.g., "http://localhost:4318/v1/traces").
+                  Set to None to disable export.
+
+    Example:
+        asqav.configure_otel("http://localhost:4318/v1/traces")
+    """
+    global _otel_endpoint
+    _otel_endpoint = endpoint
+
+
+    # Flush spans to configured OTEL endpoint.
+def flush_spans() -> None:
+    global _otel_endpoint, _completed_spans
+
+    if not _otel_endpoint or not _completed_spans:
+        return
+
+    from .. import __version__
+
+    spans = export_spans()
+    payload = {
+        "resourceSpans": [
+            {
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "asqav"}},
+                    ]
+                },
+                "scopeSpans": [
+                    {
+                        "scope": {"name": "asqav", "version": __version__},
+                        "spans": spans,
+                    }
+                ],
+            }
+        ]
+    }
+
+    try:
+        import json
+        import urllib.request
+
+        req = urllib.request.Request(
+            _otel_endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass  # Don't fail on export errors
