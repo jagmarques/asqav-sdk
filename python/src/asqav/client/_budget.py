@@ -133,3 +133,14 @@ class BudgetTracker:
         sig = self.agent.sign(f"budget:{action_type}", payload, result=dict(payload))
         self._records.append(sig.signature_id)
         return sig
+
+        # Get current budget status.
+    def status(self) -> dict[str, Any]:
+        return {
+            "limit": self.limit,
+            "currency": self.currency,
+            "spend": self._spend,
+            "remaining": self.limit - self._spend,
+            "records": len(self._records),
+            "signature_ids": list(self._records),
+        }

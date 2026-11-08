@@ -34,7 +34,7 @@ from ..credentials import resolve_api_base, resolve_api_key
 from ..patterns import resolve_pattern
 from ..retry import with_retry
 from ._budget import BudgetCheckResult as BudgetCheckResult
-from ._budget import BudgetTracker as _BudgetTracker
+from ._budget import BudgetTracker as BudgetTracker
 from ._common import (
     _OWASP_AGENTIC_TOP10_IDS,
     F,
@@ -4399,17 +4399,3 @@ def verify_attestation(attestation: dict[str, Any]) -> dict[str, Any]:
         "signatures_checked": signatures_checked,
         "all_valid": all_valid,
     }
-
-
-class BudgetTracker(_BudgetTracker):
-
-        # Get current budget status.
-    def status(self) -> dict[str, Any]:
-        return {
-            "limit": self.limit,
-            "currency": self.currency,
-            "spend": self._spend,
-            "remaining": self.limit - self._spend,
-            "records": len(self._records),
-            "signature_ids": list(self._records),
-        }
