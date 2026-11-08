@@ -18,7 +18,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
 if TYPE_CHECKING:
     from ..phases import PhaseChain
@@ -81,16 +81,28 @@ from ._models import (
 from ._vocabulary import (
     _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE,
     _RISK_SNAPSHOT_NUMERIC_KEYS,
+    CAPTURE_TOPOLOGY_NAMESPACE,
     CODE_AUTHORSHIP_DOCS_URL,
     INCIDENT_CLASS_NAMESPACE,
     RECEIPT_TYPE_NAMESPACE,
     RISK_ACCEPTANCE_DOCS_URL,
+    SANDBOX_STATE_NAMESPACE,
+    WITNESS_NAMESPACE,
 )
 from ._vocabulary import (
     DORA_INCIDENT_CLASS_NAMESPACE as DORA_INCIDENT_CLASS_NAMESPACE,
 )
 from ._vocabulary import (
     HIPAA_INCIDENT_CLASS_NAMESPACE as HIPAA_INCIDENT_CLASS_NAMESPACE,
+)
+from ._vocabulary import (
+    CaptureTopology as CaptureTopology,
+)
+from ._vocabulary import (
+    Decision as Decision,
+)
+from ._vocabulary import (
+    PolicyDecision as PolicyDecision,
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -205,44 +217,6 @@ _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
 )
 
-
-#: Sandbox-state enum: {enabled, disabled, unavailable}.
-SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "unavailable"})
-
-#: Durable-anchoring witnesses Asqav ships; the cloud `witness_policy` accepts
-#: only this set (`rekor` is rejected). Mirrors the governance.json contract.
-WITNESS_NAMESPACE: frozenset[str] = frozenset({"rfc3161", "opentimestamps"})
-
-#: Producer-side `capture_topology` mirrored from the cloud SignRequest Literal.
-#: ADVISORY: the server stamps the authoritative value from the ingress route.
-CAPTURE_TOPOLOGY_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "in_process_sdk",
-        "network_proxy",
-        "browser_extension",
-        "mcp_proxy",
-        "passive_telemetry",
-        "github_sha_pull",
-    }
-)
-
-#: Internal `policy_decision` vocabulary; `none` is the lifecycle opt-out
-#: gated to receipt_type startswith `protectmcp:lifecycle`.
-PolicyDecision = Literal["permit", "deny", "rate_limit", "none"]
-
-#: Wire-shape `decision` vocabulary; `observation` is reserved to lifecycle
-#: receipts emitted under `policy_decision="none"`.
-Decision = Literal["allow", "deny", "rate_limit", "observation"]
-
-#: Capture-topology vocabulary as a Literal for typed callers.
-CaptureTopology = Literal[
-    "in_process_sdk",
-    "network_proxy",
-    "browser_extension",
-    "mcp_proxy",
-    "passive_telemetry",
-    "github_sha_pull",
-]
 
 # Verifier rejects receipts further than this from the wall clock.
 SKEW_BOUND_SECONDS: int = 300
