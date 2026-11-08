@@ -8,7 +8,6 @@ import functools
 import hashlib
 import hmac
 import json as _json
-import logging
 import os
 import re
 import sys
@@ -18,7 +17,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     from ..phases import PhaseChain
@@ -34,6 +33,16 @@ from ..counterparty import (
 from ..credentials import resolve_api_base, resolve_api_key
 from ..patterns import resolve_pattern
 from ..retry import with_retry
+from ._common import (
+    _OWASP_AGENTIC_TOP10_IDS,
+    F,
+    _hash_value,
+    _parse_timestamp,
+    logger,
+)
+from ._common import (
+    generate_trace_id as generate_trace_id,
+)
 from ._errors import (
     RESPONSE_ERROR_DOCS_URL,
     APIError,
@@ -112,12 +121,6 @@ from ._vocabulary import (
     PolicyDecision as PolicyDecision,
 )
 
-F = TypeVar("F", bound=Callable[..., Any])
-
-logger = logging.getLogger("asqav")
-
-_OWASP_AGENTIC_TOP10_IDS = frozenset(f"ASI{number:02d}" for number in range(1, 11))
-
 # Retry configuration for API calls
 _MAX_RETRIES = 5
 _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
@@ -154,36 +157,6 @@ def _with_retry(func: Callable[[], Any]) -> Any:
             if attempt < len(_RETRY_DELAYS) - 1:
                 time.sleep(delay)
     raise last_error
-
-
-    # Hash an arbitrary value with SHA-256 for output verification.
-def _hash_value(value: Any) -> str:
-    if isinstance(value, str):
-        raw = value.encode("utf-8")
-    elif isinstance(value, bytes):
-        raw = value
-    else:
-        raw = _json.dumps(value, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
-
-
-    # Parse a timestamp from API response (ISO string or float).
-def _parse_timestamp(value: Any) -> float:
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        from datetime import datetime
-
-        # Parse ISO format datetime string
-        try:
-            # Handle both with and without timezone
-            if value.endswith("Z"):
-                value = value[:-1] + "+00:00"
-            dt = datetime.fromisoformat(value)
-            return dt.timestamp()
-        except ValueError:
-            return 0.0
-    return 0.0
 
 
 try:
@@ -2445,11 +2418,6 @@ def health_check() -> dict[str, Any]:
     """Check API connectivity and return the server status dict.
     Raises AuthenticationError (bad key) or APIError (unreachable)."""
     return _get("/health")
-
-
-    # Generate a unique trace ID for correlating actions across a workflow.
-def generate_trace_id() -> str:
-    return uuid.uuid4().hex
 
 
 def emergency_halt(org_id: str, reason: str = "emergency") -> dict:
