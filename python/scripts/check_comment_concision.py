@@ -133,7 +133,7 @@ def _package_exports(root: Path, package: Path) -> dict[str, frozenset[str]]:
         _, tree = _parse(init, init.relative_to(root).as_posix())
         for node in tree.body:
             if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
-                found.setdefault(node.module, set()).update(a.asname or a.name for a in node.names)
+                found.setdefault(node.module, set()).update(a.name for a in node.names)
     return {module: frozenset(names) for module, names in found.items()}
 
 
