@@ -21,19 +21,19 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar
 
 if TYPE_CHECKING:
-    from .phases import PhaseChain
-    from .scope import ScopeToken
+    from ..phases import PhaseChain
+    from ..scope import ScopeToken
 
-from ._sql_match import matches_pattern as _matches_pattern
-from ._useragent import USER_AGENT
-from .counterparty import (
+from .._sql_match import matches_pattern as _matches_pattern
+from .._useragent import USER_AGENT
+from ..counterparty import (
     ACKNOWLEDGMENT_RECEIPT_TYPE,
     CounterpartyBinding,
     compute_counterparty_binding,
 )
-from .credentials import resolve_api_base, resolve_api_key
-from .patterns import resolve_pattern
-from .retry import with_retry
+from ..credentials import resolve_api_base, resolve_api_key
+from ..patterns import resolve_pattern
+from ..retry import with_retry
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -49,7 +49,7 @@ _RETRY_DELAYS = [0.5, 1.0, 2.0, 4.0, 8.0]  # Exponential backoff
     # Strict ingest (419): API responses carrying receipts/records never parse
     # last-wins; a duplicated member name is a terminal failure, raised loud.
 def _strict_response_json(response: Any) -> dict[str, Any]:
-    from . import strict_json
+    from .. import strict_json
 
     try:
         return strict_json.loads(response.text)
@@ -1024,7 +1024,7 @@ def flush_spans() -> None:
     if not _otel_endpoint or not _completed_spans:
         return
 
-    from . import __version__
+    from .. import __version__
 
     spans = export_spans()
     payload = {
@@ -1066,7 +1066,7 @@ def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str
     The Action shape mirrors `core/canonical.py:hash_action` on the cloud
     so the SDK and cloud agree byte-for-byte under JCS encoding.
     """
-    from .canonicalize import canonicalize_action
+    from ..canonicalize import canonicalize_action
 
     return "sha256:" + hashlib.sha256(canonicalize_action(action_type, context)).hexdigest()
 
@@ -1396,7 +1396,7 @@ def _validate_authored_by(ab: Any) -> None:
 def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None) -> str:
     """32-hex fingerprint over `{tool_name, schema}` (NSA CSI 6030316-26).
     First 32 hex chars of the JCS (RFC 8785) SHA-256, bare."""
-    from .canonicalize import canonicalize
+    from ..canonicalize import canonicalize
 
     payload = canonicalize({"tool_name": tool_name, "schema": tool_schema or {}})
     return hashlib.sha256(payload).hexdigest()[:32]
@@ -1405,7 +1405,7 @@ def _compute_tool_fingerprint(tool_name: str, tool_schema: dict[str, Any] | None
 def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
     """Compute the canonical ``sha256:<hex>`` of a configuration manifest.
     JCS (RFC 8785) digest; NSA CSI 6030316-26 audits capability creep."""
-    from .canonicalize import canonicalize
+    from ..canonicalize import canonicalize
 
     return "sha256:" + hashlib.sha256(canonicalize(manifest)).hexdigest()
 
@@ -1413,7 +1413,7 @@ def _compute_config_manifest_digest(manifest: dict[str, Any]) -> str:
 def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
     """Compute the canonical ``sha256:<hex>`` of a CVE inventory snapshot.
     JCS (RFC 8785) digest of the record list (NSA CSI 6030316-26)."""
-    from .canonicalize import canonicalize
+    from ..canonicalize import canonicalize
 
     return "sha256:" + hashlib.sha256(canonicalize(cve_list)).hexdigest()
 
@@ -1441,7 +1441,7 @@ def _build_sign_body(
     whitelisted metadata bag.
     """
     if _mode == "hash-only":
-        from .canonicalize import canonicalize_action
+        from ..canonicalize import canonicalize_action
 
         canonical_bytes = canonicalize_action(action_type, context)
         payload_size = len(canonical_bytes)
@@ -1550,7 +1550,7 @@ def _prepare_sign_context(
 
     # Dispatch before-hooks (fail-open).
     try:
-        from . import hooks as _hooks_mod
+        from .. import hooks as _hooks_mod
 
         context = _hooks_mod._dispatch_before(action_type, dict(context) if context else {})
     except Exception:
@@ -1559,7 +1559,7 @@ def _prepare_sign_context(
     # Opt-in schema validation + normalization (criterion 328).
     # Runs after hook dispatch so the validated form is what gets signed.
     if context_schema is not None:
-        from ._schema import normalize_context, validate_context_schema
+        from .._schema import normalize_context, validate_context_schema
 
         if callable(context_schema) and not isinstance(context_schema, dict):
             # User-supplied validator function (e.g. wrapping jsonschema).
@@ -1569,7 +1569,7 @@ def _prepare_sign_context(
         context = normalize_context(context)
 
     # Pluggable detector gate (331), fail-closed; after normalize.
-    from ._detectors import run_detectors
+    from .._detectors import run_detectors
 
     _detector_records = run_detectors(action_type, context)
     if _detector_records:
@@ -1589,7 +1589,7 @@ def _digest_result_value(result: bytes | str | dict | list) -> str:
     elif isinstance(result, str):
         raw = result.encode("utf-8")
     else:
-        from .canonicalize import canonicalize
+        from ..canonicalize import canonicalize
 
         try:
             raw = canonicalize(result)
@@ -2493,7 +2493,7 @@ class Agent:
 
         # Dispatch after-hooks (fail-open).
         try:
-            from . import hooks as _hooks_mod
+            from .. import hooks as _hooks_mod
 
             _hooks_mod._dispatch_after(action_type, response)
         except Exception:
@@ -2964,7 +2964,7 @@ class Agent:
             token = agent.create_scope_token(["sql-read", "http-external"])
             requests.get(url, headers=token.to_header())
         """
-        from .scope import create_scope_token as _create
+        from ..scope import create_scope_token as _create
 
         return _create(self, actions, ttl=ttl, metadata=metadata)
 
@@ -2976,7 +2976,7 @@ class Agent:
         result: Any | None = None,
     ) -> "PhaseChain":
         """Three-phase flow; result binds a digest on :execution (787)."""
-        from .phases import sign_with_phases
+        from ..phases import sign_with_phases
 
         return sign_with_phases(self, action_type, context, trace_id, result=result)
 
@@ -3089,7 +3089,7 @@ def init(
     _explicit_api_base = base_url or _explicit_api_base
     _api_base = resolve_api_base(_explicit_api_base)
 
-    from ._mode import _resolve_mode
+    from .._mode import _resolve_mode
 
     _mode = _resolve_mode(
         api_base_url=_api_base,
@@ -3266,7 +3266,7 @@ def _urllib_request(
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
         with urllib.request.urlopen(request, timeout=_timeout) as response:
             # Strict ingest (419): a duplicated member name fails the response.
-            from . import strict_json
+            from .. import strict_json
 
             try:
                 result: dict[str, Any] = strict_json.loads(response.read().decode("utf-8"))
@@ -3537,7 +3537,7 @@ def _fetch_verification(url: str) -> dict[str, Any]:
     import urllib.error
     import urllib.request
 
-    from . import strict_json
+    from .. import strict_json
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -3701,7 +3701,7 @@ def verify(signature_id: str) -> dict[str, Any]:
         assert result["verified"]
         print(result["agent_id"], result["chain_hash"])
     """
-    from ._jcs import canonical_json
+    from .._jcs import canonical_json
 
     resp = verify_signature(signature_id)
     payload = resp.payload if isinstance(resp.payload, dict) else None
@@ -3764,8 +3764,8 @@ def _compliance_receipt_skew(signed: dict[str, Any], now: float | None, errors: 
 def _compliance_receipt_chain(
     envelope: dict[str, Any], predecessor_envelope: dict[str, Any] | None, errors: list[str],
 ) -> bool:
-    from ._jcs import canonical_json
-    from .replay import FIRST_RECEIPT_SEED
+    from .._jcs import canonical_json
+    from ..replay import FIRST_RECEIPT_SEED
     # 4. Chain link rederives. Only checked when caller supplies the
     # predecessor envelope; first-record seeds skip this.
     chain_link_rederives = True
@@ -3797,7 +3797,7 @@ def _compliance_receipt_counterparty(
     payload_obj = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
     has_binding = isinstance(payload_obj, dict) and "counterparty_binding" in payload_obj
     if has_binding:
-        from .counterparty import verify_counterparty_binding
+        from ..counterparty import verify_counterparty_binding
 
         binding_obj = payload_obj["counterparty_binding"]
         has_full_envelope = "payload" in envelope
