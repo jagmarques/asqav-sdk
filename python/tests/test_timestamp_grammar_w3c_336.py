@@ -58,5 +58,6 @@ def test_extended_stamps_still_parse() -> None:
     assert stamp is not None and stamp.tzinfo is not None
     assert _parse_datetime("2020-06-01T00:00:00+02:00") is not None
     assert _parse_datetime("2020-06-01T00:00:00z") is not None
+    assert _parse_datetime("2020-06-01T23:59:59Z") is not None
     doc = _doc()
     assert W3cVcAdapter().schema(doc)[0] == "PASS"
