@@ -1,0 +1,57 @@
+"""Delegation management."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from .. import client as _client
+from ._models import DelegationResponse
+
+# --- Delegations ---
+
+
+def list_delegations() -> list[DelegationResponse]:
+    """List all active delegations.
+
+    Returns:
+        List of DelegationResponse.
+    """
+    data = _client._get("/signing-groups/delegations")
+    return [_parse_delegation(d) for d in data]
+
+
+def get_delegation(delegation_id: str) -> DelegationResponse:
+    """Get a delegation by ID.
+
+    Args:
+        delegation_id: The delegation ID.
+
+    Returns:
+        DelegationResponse.
+    """
+    data = _client._get(f"/signing-groups/delegations/{delegation_id}")
+    return _parse_delegation(data)
+
+
+def revoke_delegation(delegation_id: str) -> dict[str, Any]:
+    """Revoke an active delegation.
+
+    Args:
+        delegation_id: The delegation to revoke.
+
+    Returns:
+        Confirmation dict.
+    """
+    return _client._delete(f"/signing-groups/delegations/{delegation_id}")
+
+
+def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
+    return DelegationResponse(
+        id=data["id"],
+        config_id=data["config_id"],
+        delegator_entity_id=data["delegator_entity_id"],
+        delegate_entity_id=data["delegate_entity_id"],
+        expires_at=data["expires_at"],
+        is_active=data["is_active"],
+        created_at=data["created_at"],
+    )
