@@ -60,7 +60,8 @@ names | tests: test files named after the module.
 
 ## python/src/asqav/client/
 
-- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Span span get_current_span configure_otel span_to_otel export_spans flush_spans RiskSnapshot AuthoredBy Agent health_check generate_trace_id emergency_halt init (+43 more)
+- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Span span get_current_span configure_otel span_to_otel export_spans flush_spans RiskSnapshot AuthoredBy Agent health_check emergency_halt init govern (+42 more)
+- `_common.py` - Shared type variable, logger and value helpers for the client | symbols: generate_trace_id
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
 - `_models.py` - Response objects returned by the client | symbols: SigningGroupResponse SigningEntityResponse GroupKeypairResponse GroupSignResponse ApprovalResponse RiskRuleResponse DelegationResponse KeyRefreshResponse ShareRecoveryResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail (+8 more)
 - `_vocabulary.py` - Receipt namespaces and decision vocabularies
