@@ -42,6 +42,12 @@ from ._common import (
 from ._common import (
     generate_trace_id as generate_trace_id,
 )
+from ._delegations import (
+    _parse_delegation,
+)
+from ._delegations import get_delegation as get_delegation
+from ._delegations import list_delegations as list_delegations
+from ._delegations import revoke_delegation as revoke_delegation
 from ._errors import (
     RESPONSE_ERROR_DOCS_URL,
     APIError,
@@ -3707,54 +3713,6 @@ def create_delegation(
         },
     )
     return _parse_delegation(data)
-
-
-def list_delegations() -> list[DelegationResponse]:
-    """List all active delegations.
-
-    Returns:
-        List of DelegationResponse.
-    """
-    data = _get("/signing-groups/delegations")
-    return [_parse_delegation(d) for d in data]
-
-
-def get_delegation(delegation_id: str) -> DelegationResponse:
-    """Get a delegation by ID.
-
-    Args:
-        delegation_id: The delegation ID.
-
-    Returns:
-        DelegationResponse.
-    """
-    data = _get(f"/signing-groups/delegations/{delegation_id}")
-    return _parse_delegation(data)
-
-
-def revoke_delegation(delegation_id: str) -> dict[str, Any]:
-    """Revoke an active delegation.
-
-    Args:
-        delegation_id: The delegation to revoke.
-
-    Returns:
-        Confirmation dict.
-    """
-    return _delete(f"/signing-groups/delegations/{delegation_id}")
-
-
-    # Parse API response into a DelegationResponse.
-def _parse_delegation(data: dict[str, Any]) -> DelegationResponse:
-    return DelegationResponse(
-        id=data["id"],
-        config_id=data["config_id"],
-        delegator_entity_id=data["delegator_entity_id"],
-        delegate_entity_id=data["delegate_entity_id"],
-        expires_at=data["expires_at"],
-        is_active=data["is_active"],
-        created_at=data["created_at"],
-    )
 
 
 # --- List Signing Sessions ---
