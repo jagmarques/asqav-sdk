@@ -8,6 +8,7 @@ engine.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from asqav.verifier.oracle.adapters.w3c_vc import (
@@ -57,9 +58,13 @@ def test_out_of_range_seconds_fail() -> None:
 
 
 def test_grammar_rejects_hour_24_on_every_interpreter() -> None:
-    """The regex bars hour 24, so no fromisoformat build rolls it over."""
-    for stamp in ("2020-06-01T24:00:00Z", "2020-06-01T24:30:00+02:00", "2020-06-01T24:00:00.5z"):
+    """The regex bars hour 24, so no fromisoformat build rolls it over.
+    NEGCTL: the same regex with a two-digit hour takes every hour-24 stamp."""
+    stamps = ("2020-06-01T24:00:00Z", "2020-06-01T24:30:00+02:00", "2020-06-01T24:00:00.5z")
+    open_hour = re.compile(_XSD_DATETIME_RE.pattern.replace(r"(?:[01]\d|2[0-3])", r"\d{2}"))
+    for stamp in stamps:
         assert _XSD_DATETIME_RE.match(stamp) is None
+        assert open_hour.match(stamp) is not None
     assert _XSD_DATETIME_RE.match("2020-06-01T23:59:59Z") is not None
 
 
