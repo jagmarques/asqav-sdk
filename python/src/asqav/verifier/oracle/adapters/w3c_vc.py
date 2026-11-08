@@ -20,7 +20,7 @@ _CRYPTOSUITE = "eddsa-jcs-2022"
 
 #: xsd:datetime shape, mirroring the TypeScript twin: full date, T, time and
 #: zone are all required, so the basic form never reaches fromisoformat.
-_XSD_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|z|[+-]\d{2}:\d{2})$")
+_XSD_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|z|[+-]\d{2}:\d{2})$")
 
 
     # The doc's proof member if a single object; {} for absent/list proofs.
