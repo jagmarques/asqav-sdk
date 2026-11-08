@@ -60,9 +60,10 @@ names | tests: test files named after the module.
 
 ## python/src/asqav/client/
 
-- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Agent health_check emergency_halt init govern get_agent list_agents secure secure_async get_session_signatures verify_signature verify ComplianceReceiptVerification verify_compliance_receipt (+31 more)
+- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Agent health_check emergency_halt init govern get_agent list_agents secure secure_async get_session_signatures verify_signature verify ComplianceReceiptVerification verify_compliance_receipt (+28 more)
 - `_budget.py` - Client-side spend budget tracking | symbols: BudgetCheckResult BudgetTracker | tests: typescript/tests/budget.test.ts
 - `_common.py` - Shared type variable, logger and value helpers for the client | symbols: generate_trace_id
+- `_delegations.py` - Delegation management | symbols: list_delegations get_delegation revoke_delegation
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
 - `_models.py` - Response objects returned by the client | symbols: SigningGroupResponse SigningEntityResponse GroupKeypairResponse GroupSignResponse ApprovalResponse RiskRuleResponse DelegationResponse KeyRefreshResponse ShareRecoveryResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail (+8 more)
 - `_sign_checks.py` - Client-side digests and validators for the fields a signing call carries | symbols: RiskSnapshot AuthoredBy
