@@ -33,6 +33,68 @@ class BudgetTracker:
         self._spend: float = 0.0
         self._records: list[str] = []  # signature_ids
 
+    def check(self, estimated_cost: float) -> BudgetCheckResult:
+        """Check if an action with the given cost would exceed the budget.
+
+        Fails closed: negative or non-finite costs are rejected, and
+        any cost that would push cumulative spend past the limit is
+        denied.
+
+        Args:
+            estimated_cost: Expected cost of the pending action.
+
+        Returns:
+            BudgetCheckResult describing whether the action is allowed
+            and how much budget would remain after it.
+        """
+        remaining = self.limit - self._spend
+
+        # Fail closed on invalid input.
+        try:
+            cost = float(estimated_cost)
+        except (TypeError, ValueError):
+            return BudgetCheckResult(
+                allowed=False,
+                current_spend=self._spend,
+                limit=self.limit,
+                remaining=remaining,
+                reason="invalid_cost",
+            )
+
+        if cost != cost or cost in (float("inf"), float("-inf")):  # NaN or inf
+            return BudgetCheckResult(
+                allowed=False,
+                current_spend=self._spend,
+                limit=self.limit,
+                remaining=remaining,
+                reason="invalid_cost",
+            )
+
+        if cost < 0:
+            return BudgetCheckResult(
+                allowed=False,
+                current_spend=self._spend,
+                limit=self.limit,
+                remaining=remaining,
+                reason="invalid_cost",
+            )
+
+        if cost > remaining:
+            return BudgetCheckResult(
+                allowed=False,
+                current_spend=self._spend,
+                limit=self.limit,
+                remaining=remaining,
+                reason="budget_exhausted",
+            )
+
+        return BudgetCheckResult(
+            allowed=True,
+            current_spend=self._spend,
+            limit=self.limit,
+            remaining=remaining - cost,
+        )
+
     def record(
         self,
         action_type: str,
