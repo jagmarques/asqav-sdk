@@ -4,14 +4,50 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Any
+from typing import Any, TypedDict
 
+from ..counterparty import ACKNOWLEDGMENT_RECEIPT_TYPE, CounterpartyBinding
 from ._errors import AsqavValidationError
 from ._vocabulary import (
     _RISK_SNAPSHOT_NUMERIC_KEYS,
     CODE_AUTHORSHIP_DOCS_URL,
     RISK_ACCEPTANCE_DOCS_URL,
 )
+
+
+class RiskSnapshot(TypedDict, total=False):
+    """Producer-asserted snapshot of third-party risk signals.
+    Asqav vouches for none; a numeric needs ``snapshot_source``."""
+
+    #: RFC 3339 read-time of the signals (REQUIRED). Producer-asserted.
+    snapshot_at: str
+    #: Free-text label naming the source. REQUIRED when any numeric is present.
+    snapshot_source: str
+    #: EPSS probability as a STRING (floats rejected). Producer-asserted.
+    epss: str
+    #: CVSS base score as a STRING. Producer-asserted; not computed by Asqav.
+    cvss: str
+    #: CVSS vector string snapshot. Producer-asserted; not parsed by Asqav.
+    cvss_vector: str
+    #: Whether the CVE was in the named KEV catalog at snapshot_at, as observed.
+    kev_listed: bool
+    #: CVE ids the snapshot pertains to; non-empty list[str], entries <= 128.
+    cve_ids: list[str]
+
+
+class AuthoredBy(TypedDict, total=False):
+    """Producer-asserted author of a code change (cloud AuthoredBy model).
+    A ``model_id`` / ``model_version`` requires ``attestation_source``."""
+
+    #: Human author identity (free-text id / email). Producer-asserted.
+    human_id: str
+    #: Model id if a model authored the change. Requires attestation_source.
+    model_id: str
+    #: Model version if a model authored the change; needs attestation_source.
+    model_version: str
+    #: Free-text label naming where the machine-authorship claim came from.
+    #: REQUIRED when model_id / model_version is present.
+    attestation_source: str
 
 
 def _compute_action_ref(action_type: str, context: dict[str, Any] | None) -> str:
@@ -74,6 +110,39 @@ def _compute_cve_inventory_digest(cve_list: list[Any]) -> str:
     from ..canonicalize import canonicalize
 
     return "sha256:" + hashlib.sha256(canonicalize(cve_list)).hexdigest()
+
+
+def _validate_counterparty_binding(
+    binding: "CounterpartyBinding | dict[str, Any] | None",
+    *,
+    receipt_type: str | None,
+    compliance_mode: bool,
+) -> dict[str, Any] | None:
+    """Fence the binding to compliance acknowledgment receipts and return its wire form.
+
+    Mirrors the cloud's admit_counterparty_binding: a binding outside an
+    acknowledgment, or without compliance_mode, is refused before any network call.
+    """
+    if binding is None:
+        return None
+    if receipt_type != ACKNOWLEDGMENT_RECEIPT_TYPE or not compliance_mode:
+        raise ValueError(
+            "counterparty_binding_requires_acknowledgment_receipt: counterparty_binding is "
+            f"only valid on receipt_type={ACKNOWLEDGMENT_RECEIPT_TYPE} with compliance_mode=True."
+        )
+    wire = binding.to_wire() if isinstance(binding, CounterpartyBinding) else dict(binding)
+    for key in ("envelope_hash", "receipt_ref"):
+        if not isinstance(wire.get(key), str) or not wire[key]:
+            raise ValueError(f"counterparty_binding_malformed: {key} must be a non-empty string.")
+    return wire
+
+
+def _generate_nonce() -> str:
+    """Return a 24-hex-char (12 random bytes) value for the `nonce` wire field.
+    The cloud answers 409 while a live signature holds it; expiry frees it."""
+    import secrets as _secrets
+
+    return _secrets.token_hex(12)
 
 
 def _validate_authored_by(ab: Any) -> None:
