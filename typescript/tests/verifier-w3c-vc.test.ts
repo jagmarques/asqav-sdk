@@ -221,6 +221,19 @@ describe("w3c-vc xsd:datetime grammar pin (criterion 336)", () => {
     expect(axes[0][2]).toContain("unreadable expires_at");
   });
 
+  it("FAILs offsets past 23:59 that the engine would decide", () => {
+    for (const stamp of ["2020-06-01T00:00:00+24:00", "2020-06-01T00:00:00+00:60"]) {
+      const doc = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+      doc.validUntil = stamp;
+      const axes = ad.extraAxes(doc, null);
+      expect(axes[0][1]).toBe(FAIL);
+      expect(axes[0][2]).toContain("unreadable expires_at");
+    }
+    const ok = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    ok.validUntil = "2020-06-01T00:00:00+23:59";
+    expect(ad.extraAxes(ok, null)[0][2]).not.toContain("unreadable");
+  });
+
   it("keeps the RFC 3339 outcomes", () => {
     const doc = load("w3c-vc-01-didweb-happy-path", "receipt.json");
     expect(ad.schema(doc)[0]).toBe(PASS);
