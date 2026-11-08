@@ -42,9 +42,7 @@ from ._common import (
 from ._common import (
     generate_trace_id as generate_trace_id,
 )
-from ._delegations import (
-    _parse_delegation,
-)
+from ._delegations import create_delegation as create_delegation
 from ._delegations import get_delegation as get_delegation
 from ._delegations import list_delegations as list_delegations
 from ._delegations import revoke_delegation as revoke_delegation
@@ -72,7 +70,6 @@ from ._models import (
     BitcoinAnchor,
     BitcoinAnchorStatus,
     CertificateResponse,
-    DelegationResponse,
     ExecutionEvidence,
     GroupKeypairResponse,
     GroupSignResponse,
@@ -91,6 +88,9 @@ from ._models import (
     VerificationDetail,
     VerificationResponse,
     _parse_bitcoin_anchor,
+)
+from ._models import (
+    DelegationResponse as DelegationResponse,
 )
 from ._sign_checks import (
     _ALLOWED_CONTROL_KEYS,
@@ -3670,49 +3670,6 @@ def _parse_risk_rule(data: dict[str, Any]) -> RiskRuleResponse:
         time_schedule=data.get("time_schedule"),
         created_at=data.get("created_at", ""),
     )
-
-
-# --- Delegations ---
-
-
-def create_delegation(
-    config_id: str,
-    delegator_entity_id: str,
-    delegate_entity_id: str,
-    expires_in: int = 86400,
-) -> DelegationResponse:
-    """Create a temporary delegation between Class B entities.
-
-    Allows one entity to delegate their signing authority to another
-    with cryptographic expiry.
-
-    Args:
-        config_id: The signing group.
-        delegator_entity_id: Entity delegating their authority.
-        delegate_entity_id: Entity receiving delegated authority.
-        expires_in: Delegation duration in seconds (default 24h).
-
-    Returns:
-        DelegationResponse with delegation details.
-
-    Example:
-        delegation = asqav.create_delegation(
-            config_id="cfg_xxx",
-            delegator_entity_id="ent_alice",
-            delegate_entity_id="ent_bob",
-            expires_in=3600,  # 1 hour
-        )
-    """
-    data = _post(
-        "/signing-groups/delegations",
-        {
-            "config_id": config_id,
-            "delegator_entity_id": delegator_entity_id,
-            "delegate_entity_id": delegate_entity_id,
-            "expires_in": expires_in,
-        },
-    )
-    return _parse_delegation(data)
 
 
 # --- List Signing Sessions ---

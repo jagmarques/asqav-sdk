@@ -10,6 +10,46 @@ from ._models import DelegationResponse
 # --- Delegations ---
 
 
+def create_delegation(
+    config_id: str,
+    delegator_entity_id: str,
+    delegate_entity_id: str,
+    expires_in: int = 86400,
+) -> DelegationResponse:
+    """Create a temporary delegation between Class B entities.
+
+    Allows one entity to delegate their signing authority to another
+    with cryptographic expiry.
+
+    Args:
+        config_id: The signing group.
+        delegator_entity_id: Entity delegating their authority.
+        delegate_entity_id: Entity receiving delegated authority.
+        expires_in: Delegation duration in seconds (default 24h).
+
+    Returns:
+        DelegationResponse with delegation details.
+
+    Example:
+        delegation = asqav.create_delegation(
+            config_id="cfg_xxx",
+            delegator_entity_id="ent_alice",
+            delegate_entity_id="ent_bob",
+            expires_in=3600,  # 1 hour
+        )
+    """
+    data = _client._post(
+        "/signing-groups/delegations",
+        {
+            "config_id": config_id,
+            "delegator_entity_id": delegator_entity_id,
+            "delegate_entity_id": delegate_entity_id,
+            "expires_in": expires_in,
+        },
+    )
+    return _parse_delegation(data)
+
+
 def list_delegations() -> list[DelegationResponse]:
     """List all active delegations.
 
