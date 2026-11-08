@@ -18,9 +18,8 @@ _VC_V2_CONTEXT = "https://www.w3.org/ns/credentials/v2"
 _PROOF_TYPE = "DataIntegrityProof"
 _CRYPTOSUITE = "eddsa-jcs-2022"
 
-#: xsd:datetime shape, mirroring the TypeScript twin: full date, T, time and
-#: zone are all required, and every time field is range-checked here so the
-#: grammar never depends on what a given fromisoformat build accepts.
+#: xsd:datetime shape, mirroring the TypeScript twin: date, T, time and zone
+#: required, every time range checked here, none left to fromisoformat.
 _XSD_DATETIME_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?"
     r"(?:Z|z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$",
