@@ -65,6 +65,7 @@ names | tests: test files named after the module.
 - `_common.py` - Shared type variable, logger and value helpers for the client | symbols: generate_trace_id
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
 - `_models.py` - Response objects returned by the client | symbols: SigningGroupResponse SigningEntityResponse GroupKeypairResponse GroupSignResponse ApprovalResponse RiskRuleResponse DelegationResponse KeyRefreshResponse ShareRecoveryResponse VerificationDetail ExecutionEvidence BitcoinAnchorStatus VerificationResponse SignedActionResponse SignatureDetail (+8 more)
+- `_sign_checks.py` - Client-side digests and validators for the fields a signing call carries
 - `_spans.py` - Tracing spans and their OpenTelemetry export | symbols: Span span_to_otel export_spans span get_current_span configure_otel flush_spans
 - `_vocabulary.py` - Receipt namespaces and decision vocabularies
 
