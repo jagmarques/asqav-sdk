@@ -52,7 +52,9 @@ from ._errors import (
 )
 from ._models import (
     ApprovalResponse,
+    BitcoinAnchorStatus,
     DelegationResponse,
+    ExecutionEvidence,
     GroupKeypairResponse,
     GroupSignResponse,
     KeyRefreshResponse,
@@ -60,6 +62,7 @@ from ._models import (
     ShareRecoveryResponse,
     SigningEntityResponse,
     SigningGroupResponse,
+    VerificationDetail,
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -531,51 +534,6 @@ class CertificateResponse:
     key_id: str
     created_at: float
     is_revoked: bool
-
-
-@dataclass
-class VerificationDetail:
-    """Granular per-axis verification outcome, optional on the response.
-    `validation_label` is the cloud verdict; IETF sub-axes need compliance."""
-
-    signer_key_match: bool
-    signature_valid: bool
-    algorithm_match: bool
-    agent_active: bool
-    validation_label: str
-    signed_at_skew_seconds: float | None = None
-    chain_valid: bool | None = None
-    anchor_valid_ots: bool | None = None
-    anchor_valid_rfc3161: bool | None = None
-    anchor_status_ots: str | None = None
-    anchor_status_rfc3161: str | None = None
-    anchor_independent_rfc3161: str | None = None
-    missing_fields: list[str] | None = None
-    policy_digest_resolved: bool | None = None
-    duplicate_emission_candidate: bool | None = None
-    regimes_satisfied: list[str] = field(default_factory=list)
-
-
-@dataclass
-class ExecutionEvidence:
-    """Execution-evidence projection on a verification response.
-    `label`: result_bound, digest_present, none_by_design or absent."""
-
-    present: bool
-    label: str
-    result_digest: str | None = None
-    result_bound: bool = False
-    none_by_design: bool = False
-
-
-@dataclass
-class BitcoinAnchorStatus:
-    """Anchor attestation state on a verification response.
-    `status`: none, pending, confirmed or failed."""
-
-    status: str
-    anchor_tx_ref: str | None = None
-    anchor_block_height: int | None = None
 
 
 @dataclass
