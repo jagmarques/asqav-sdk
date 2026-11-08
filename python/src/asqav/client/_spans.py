@@ -52,3 +52,17 @@ def span_to_otel(s: Span) -> dict[str, Any]:
         ),
         "status": {"code": 1 if s.status == "ok" else 2},
     }
+
+
+_completed_spans: list[Span] = []
+
+
+def export_spans() -> list[dict[str, Any]]:
+    """Export completed spans in OTEL format.
+
+    Returns:
+        List of spans in OTEL format.
+    """
+    spans = [span_to_otel(s) for s in _completed_spans]
+    _completed_spans.clear()
+    return spans
