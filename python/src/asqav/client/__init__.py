@@ -79,9 +79,18 @@ from ._models import (
     _parse_bitcoin_anchor,
 )
 from ._vocabulary import (
+    _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE,
+    _RISK_SNAPSHOT_NUMERIC_KEYS,
     CODE_AUTHORSHIP_DOCS_URL,
+    INCIDENT_CLASS_NAMESPACE,
     RECEIPT_TYPE_NAMESPACE,
     RISK_ACCEPTANCE_DOCS_URL,
+)
+from ._vocabulary import (
+    DORA_INCIDENT_CLASS_NAMESPACE as DORA_INCIDENT_CLASS_NAMESPACE,
+)
+from ._vocabulary import (
+    HIPAA_INCIDENT_CLASS_NAMESPACE as HIPAA_INCIDENT_CLASS_NAMESPACE,
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -196,48 +205,6 @@ _HASH_ONLY_METADATA_WHITELIST: frozenset[str] = frozenset(
     {"agent_id", "session_id", "action_type", "model_name", "tool_name", "parent_id"}
 )
 
-
-#: Closed vocabulary for code_authorship `change_class`. Mirrors the cloud
-#: SignRequest closed set; anything outside is rejected client-side.
-_CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "read",
-        "write",
-        "delete",
-        "execute",
-        "deploy",
-    }
-)
-
-#: Numeric risk-snapshot signals whose presence demands a snapshot_source label.
-#: Mirrors cloud core/conformance.py _RISK_SNAPSHOT_NUMERIC_KEYS.
-_RISK_SNAPSHOT_NUMERIC_KEYS: tuple[str, ...] = (
-    "epss",
-    "cvss",
-    "cvss_vector",
-    "kev_listed",
-)
-
-#: Canonical `incident_class` vocabulary under DORA Annex II field 3.23.
-#: Cloud rejects anything outside this set for receipts bound to DORA.
-DORA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset(
-    {
-        "cybersecurity_related",
-        "process_failure",
-        "system_failure",
-        "external_event",
-        "payment_related",
-        "other",
-    }
-)
-
-#: HIPAA Security Rule incident_class vocabulary (45 CFR 164.304).
-HIPAA_INCIDENT_CLASS_NAMESPACE: frozenset[str] = frozenset({"hipaa_security_incident"})
-
-#: Union of every canonical incident_class token the SDK accepts.
-INCIDENT_CLASS_NAMESPACE: frozenset[str] = (
-    DORA_INCIDENT_CLASS_NAMESPACE | HIPAA_INCIDENT_CLASS_NAMESPACE
-)
 
 #: Sandbox-state enum: {enabled, disabled, unavailable}.
 SANDBOX_STATE_NAMESPACE: frozenset[str] = frozenset({"enabled", "disabled", "unavailable"})
