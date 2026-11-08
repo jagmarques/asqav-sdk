@@ -60,7 +60,7 @@ names | tests: test files named after the module.
 
 ## python/src/asqav/client/
 
-- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Span span get_current_span configure_otel span_to_otel export_spans flush_spans RiskSnapshot AuthoredBy Agent health_check emergency_halt init govern (+41 more)
+- `__init__.py` - Asqav API client: thin SDK for asqav.com | symbols: SignatureResponse Span span get_current_span configure_otel span_to_otel export_spans flush_spans RiskSnapshot AuthoredBy Agent health_check emergency_halt init govern (+40 more)
 - `_budget.py` - Client-side spend budget tracking | symbols: BudgetCheckResult BudgetTracker | tests: typescript/tests/budget.test.ts
 - `_common.py` - Shared type variable, logger and value helpers for the client | symbols: generate_trace_id
 - `_errors.py` - Client exceptions and the messages they carry | symbols: AsqavError AuthenticationError RateLimitError APIError AsqavConnectionError AsqavValidationError AsqavResponseError require_field
