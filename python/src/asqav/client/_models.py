@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
     # Response from signing group operations.
@@ -52,3 +53,61 @@ class GroupSignResponse:
     keypair_id: str
     verified: bool
     audit_record_id: str | None = None
+
+
+    # Response from signing approval operation.
+@dataclass
+class ApprovalResponse:
+
+    session_id: str
+    entity_id: str
+    signatures_collected: int
+    approvals_required: int
+    status: str
+    approved: bool
+
+
+    # Response from risk rule operations.
+@dataclass
+class RiskRuleResponse:
+
+    id: str
+    name: str
+    action_pattern: str
+    risk_level: str
+    approval_override: int | None
+    priority: int
+    entity_weights: dict[str, float] | None = None
+    time_schedule: dict[str, Any] | None = None
+    created_at: str = ""
+
+
+    # Response from delegation operations.
+@dataclass
+class DelegationResponse:
+
+    id: str
+    config_id: str
+    delegator_entity_id: str
+    delegate_entity_id: str
+    expires_at: str
+    is_active: bool
+    created_at: str
+
+
+    # Response from key share refresh operation.
+@dataclass
+class KeyRefreshResponse:
+
+    keypair_id: str
+    refreshed_at: str
+    delegations_invalidated: int
+
+
+    # Response from key share recovery operation.
+@dataclass
+class ShareRecoveryResponse:
+
+    keypair_id: str
+    recovered_entity_id: str
+    recovered_at: str
