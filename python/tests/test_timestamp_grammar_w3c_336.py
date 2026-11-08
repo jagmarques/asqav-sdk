@@ -57,7 +57,7 @@ def test_out_of_range_seconds_fail() -> None:
 
 
 def test_grammar_rejects_hour_24_on_every_interpreter() -> None:
-    """The regex itself bars hour 24, so no fromisoformat build rolls it over."""
+    """The regex bars hour 24, so no fromisoformat build rolls it over."""
     for stamp in ("2020-06-01T24:00:00Z", "2020-06-01T24:30:00+02:00", "2020-06-01T24:00:00.5z"):
         assert _XSD_DATETIME_RE.match(stamp) is None
     assert _XSD_DATETIME_RE.match("2020-06-01T23:59:59Z") is not None
