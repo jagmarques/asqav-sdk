@@ -89,7 +89,9 @@ from ._models import (
     VerificationResponse,
     _parse_bitcoin_anchor,
 )
-from ._spans import Span, span_to_otel
+from ._spans import Span as Span
+from ._spans import _completed_spans, export_spans
+from ._spans import span_to_otel as span_to_otel
 from ._vocabulary import (
     _CODE_AUTHORSHIP_CHANGE_CLASS_NAMESPACE,
     _COMPLIANCE_REQUIRED_FIELDS,
@@ -291,7 +293,6 @@ class SignatureResponse:
 # Global tracer state
 _current_span: Span | None = None
 _span_stack: list[Span] = []
-_completed_spans: list[Span] = []
 _otel_endpoint: str | None = None
 
 
@@ -369,18 +370,6 @@ def configure_otel(endpoint: str | None = None) -> None:
     """
     global _otel_endpoint
     _otel_endpoint = endpoint
-
-
-def export_spans() -> list[dict[str, Any]]:
-    """Export completed spans in OTEL format.
-
-    Returns:
-        List of spans in OTEL format.
-    """
-    global _completed_spans
-    spans = [span_to_otel(s) for s in _completed_spans]
-    _completed_spans = []
-    return spans
 
 
     # Flush spans to configured OTEL endpoint.
