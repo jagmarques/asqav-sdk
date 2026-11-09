@@ -7,6 +7,11 @@ Both language halves version together; tags are independent (`py-v*`, `ts-v*`).
 
 ### Fixed
 
+- **The Python offline verifier rebuilds the members a cloud flat hash-mode receipt signs.**
+  It now covers the flat members including `previous_receipt_hash`, plus `result_digest`,
+  `action_ref` and `invocation_ref` when the receipt carries them. On 0.10.14 and earlier, any
+  such receipt failed signature verification, as did every flat receipt issued since the cloud
+  began signing the previous link.
 - **The `llamaindex`, `dspy`, `smolagents` and `crewai` extras install the framework they name.**
   They were empty, so `pip install asqav[llamaindex]` pulled in no LlamaIndex. Each now carries a
   tested floor (`llama-index-core>=0.11.0`, `dspy>=2.6.0`, `smolagents>=1.6.0`, `crewai>=0.95.0`),

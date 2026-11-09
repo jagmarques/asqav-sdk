@@ -2268,13 +2268,15 @@ _FLAT_SIGNED = (
 #: A pre-#1700 receipt signs the same fields minus the previous link.
 _FLAT_SIGNED_LEGACY = _FLAT_SIGNED[:-1]
 
+#: Outcome fields signed only when the request set them.
+_FLAT_SIGNED_OPTIONAL = ("result_digest", "action_ref", "invocation_ref")
+
 
 def flat_signed_names(raw: dict) -> tuple:
-    """The fields a flat receipt signs. A present link key is signed even
-    null; without it the receipt rebuilds the 11 fields it signed."""
-    if "previous_receipt_hash" in raw:
-        return _FLAT_SIGNED
-    return _FLAT_SIGNED_LEGACY
+    """The fields a flat receipt signs: the 11 or 12 flat members (a link
+    key is signed even null) plus each outcome field set and not null."""
+    base = _FLAT_SIGNED if "previous_receipt_hash" in raw else _FLAT_SIGNED_LEGACY
+    return base + tuple(n for n in _FLAT_SIGNED_OPTIONAL if raw.get(n) is not None)
 
 #: Framing a flat receipt's checks read: algorithm and anchors.
 _FLAT_FRAMING = frozenset(("anchors", "algorithm"))
@@ -2299,7 +2301,7 @@ def _flat_signature_used(raw: dict, name: str) -> bool:
 
 def _flat_member_bound(raw: dict, name: str, key_bytes, key_kid) -> bool:
     """Signed, framing, the verified signature, or the verifying kid."""
-    if name in _FLAT_SIGNED or name in _FLAT_FRAMING:
+    if name in _FLAT_SIGNED or name in _FLAT_SIGNED_OPTIONAL or name in _FLAT_FRAMING:
         return True
     if name in ("signature_b64", "signature"):
         return _flat_signature_used(raw, name)
