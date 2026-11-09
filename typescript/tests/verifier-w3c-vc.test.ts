@@ -3,7 +3,7 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FAIL, PASS, SKIPPED } from "../src/verifier/crypto.js";
 import { verify, FAILURE_INVALID, FAILURE_UNVERIFIABLE } from "../src/verifier/core.js";
@@ -43,6 +43,8 @@ const b58 = (data: Uint8Array): string => {
   }
   return "1".repeat(pad) + out;
 };
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("w3c-vc corpus verdicts (axis-level)", () => {
   it("w3c-vc-01 did:web happy path verifies offline", () => {
@@ -219,6 +221,24 @@ describe("w3c-vc xsd:datetime grammar pin (criterion 336)", () => {
     const axes = ad.extraAxes(doc, null);
     expect(axes[0][1]).toBe(FAIL);
     expect(axes[0][2]).toContain("unreadable expires_at");
+  });
+
+  it("FAILs offsets past 23:59 even where the engine would take them", () => {
+    const realParse = Date.parse;
+    vi.spyOn(Date, "parse").mockImplementation((s) => realParse(s.replace(/[+-]\d{2}:\d{2}$/, "Z")));
+    // NEGCTL: the lenient engine itself takes the overflow offsets
+    expect(Date.parse("2020-06-01T00:00:00+24:00")).not.toBeNaN();
+    expect(Date.parse("2020-06-01T00:00:00+00:60")).not.toBeNaN();
+    for (const stamp of ["2020-06-01T00:00:00+24:00", "2020-06-01T00:00:00+00:60"]) {
+      const doc = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+      doc.validUntil = stamp;
+      const axes = ad.extraAxes(doc, null);
+      expect(axes[0][1]).toBe(FAIL);
+      expect(axes[0][2]).toContain("unreadable expires_at");
+    }
+    const ok = load("w3c-vc-01-didweb-happy-path", "receipt.json");
+    ok.validUntil = "2020-06-01T00:00:00+23:59";
+    expect(ad.extraAxes(ok, null)[0][2]).not.toContain("unreadable");
   });
 
   it("keeps the RFC 3339 outcomes", () => {
